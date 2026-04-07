@@ -2,6 +2,7 @@
     'use strict';
 
     const GRAPH_SCOPES = [
+        'https://graph.microsoft.com/User.Read',
         'https://graph.microsoft.com/Group.ReadWrite.All',
         'https://graph.microsoft.com/User.Read.All'
     ];
@@ -36,22 +37,44 @@
         );
     }
 
+    function resolveMsalConfig() {
+        let cfg = window.MS365_MSAL_CONFIG;
+        if (!cfg) {
+            cfg = {};
+        }
+        let id = String(cfg.clientId || '').trim();
+        if (!id) {
+            const meta = document.querySelector('meta[name="ms365-graph-client-id"]');
+            const fromMeta = meta && meta.getAttribute('content') ? meta.getAttribute('content').trim() : '';
+            if (fromMeta) {
+                id = fromMeta;
+            }
+        }
+        if (!id) {
+            throw new Error(
+                'Keine clientId: ms365-config.js fehlt/leer oder blockiert. Seite mit Strg+F5 neu laden; im Netzwerk-Tab prüfen, ob ms365-config.js mit 200 lädt. Alternativ meta ms365-graph-client-id in ms365-schooltool.html setzen (Entra-Anwendungs-ID).'
+            );
+        }
+        return {
+            clientId: id,
+            authority: cfg.authority || 'https://login.microsoftonline.com/organizations',
+            redirectUri: (cfg.redirectUri || window.location.href.split('#')[0]).trim()
+        };
+    }
+
     async function getPca() {
         const m = await loadMsal();
         const PublicClientApplication = m.PublicClientApplication || (m.default && m.default.PublicClientApplication);
         if (!PublicClientApplication) {
             throw new Error('MSAL: PublicClientApplication nicht gefunden (Import).');
         }
-        const cfg = window.MS365_MSAL_CONFIG;
-        if (!cfg || !String(cfg.clientId || '').trim()) {
-            throw new Error('Bitte clientId in ms365-config.js eintragen (Entra-App-Registrierung).');
-        }
+        const cfg = resolveMsalConfig();
         if (!pca) {
             pca = new PublicClientApplication({
                 auth: {
-                    clientId: cfg.clientId.trim(),
-                    authority: cfg.authority || 'https://login.microsoftonline.com/organizations',
-                    redirectUri: cfg.redirectUri || window.location.href.split('#')[0]
+                    clientId: cfg.clientId,
+                    authority: cfg.authority,
+                    redirectUri: cfg.redirectUri
                 },
                 cache: {
                     cacheLocation: 'sessionStorage',
@@ -135,6 +158,12 @@
         return data || {};
     }
 
+    /** Graph meldet z. B. „already exist … owners“, wenn der Besitzer schon gesetzt ist (oft: angemeldeter Admin = eingetragener Besitzer). */
+    function isGraphDuplicateRefError(err) {
+        const msg = String(err && err.message ? err.message : err);
+        return /already exist/i.test(msg) || /already exists/i.test(msg);
+    }
+
     function appendLog(msg, kind) {
         const el = document.getElementById('argeOnlineLog');
         if (!el) return;
@@ -196,6 +225,19 @@
             return;
         }
 
+        let meId;
+        try {
+            const me = await graphJson('GET', '/me', token, undefined);
+            meId = me.id;
+        } catch (e) {
+            appendLog('Konnte angemeldeten Benutzer nicht lesen (/me): ' + (e.message || e), 'err');
+            if (btnRun) btnRun.disabled = false;
+            if (btnLogin) btnLogin.disabled = false;
+            return;
+        }
+
+        const adminAsOwner = pack.adminAsOwner !== false;
+
         const teamBody = {
             memberSettings: {
                 allowCreatePrivateChannels: true,
@@ -244,16 +286,48 @@
 
                 await sleep(2000);
 
-                await graphJson('POST', '/groups/' + gid + '/owners/$ref', token, {
-                    '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
-                });
+                try {
+                    await graphJson('POST', '/groups/' + gid + '/owners/$ref', token, {
+                        '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
+                    });
+                } catch (e) {
+                    if (isGraphDuplicateRefError(e)) {
+                        appendLog(
+                            '  Besitzer: bereits gesetzt (häufig, wenn gleicher Admin wie angemeldeter Benutzer).',
+                            'warn'
+                        );
+                    } else {
+                        throw e;
+                    }
+                }
 
                 try {
                     await graphJson('POST', '/groups/' + gid + '/members/$ref', token, {
                         '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
                     });
                 } catch (e) {
-                    appendLog('  Hinweis (Besitzer als Mitglied): ' + e.message, 'warn');
+                    if (isGraphDuplicateRefError(e)) {
+                        appendLog('  Mitglied: bereits gesetzt.', 'warn');
+                    } else {
+                        appendLog('  Hinweis (Besitzer als Mitglied): ' + e.message, 'warn');
+                    }
+                }
+
+                if (!adminAsOwner && meId && ownerId !== meId) {
+                    try {
+                        await graphJson(
+                            'DELETE',
+                            '/groups/' + gid + '/owners/' + meId + '/$ref',
+                            token,
+                            undefined
+                        );
+                        appendLog(
+                            '  Angemeldeter Administrator als Besitzer entfernt (nur Besitzer aus Schritt 2).',
+                            'warn'
+                        );
+                    } catch (e) {
+                        appendLog('  Hinweis (Admin-Besitzer entfernen): ' + (e.message || e), 'warn');
+                    }
                 }
 
                 if (pack.createTeams) {

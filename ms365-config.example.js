@@ -14,6 +14,7 @@
  * 5) API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen:
  *    - Group.ReadWrite.All
  *    - User.Read.All
+ *    - User.Read (Profil des angemeldeten Benutzers / für GET /me)
  *    → „Administratorzustimmung für [Organisation] erteilen“ (Global Admin o. ä.)
  * 6) Unter „Authentifizierung“ prüfen: implizite Genehmigung ist NICHT nötig; SPA + Redirect-URI reicht.
  *

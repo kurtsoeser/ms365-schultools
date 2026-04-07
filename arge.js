@@ -287,12 +287,23 @@
         return el ? !!el.checked : true;
     }
 
+    function getArgeAdminAsOwner() {
+        const el = document.getElementById('argeAdminAsOwner');
+        return el ? !!el.checked : true;
+    }
+
     function refreshArgeScriptIfStep4() {
         if (argeCurrentStep !== 4 || !argeRows.length) return;
         const missing = argeRows.filter(r => !r.owner);
         if (missing.length) return;
         const pre = document.getElementById('argePowerShellScript');
-        if (pre) pre.textContent = buildStandaloneArgePs1(false, getArgeCreateTeams(), getArgeExchangeSmtp());
+        if (pre)
+            pre.textContent = buildStandaloneArgePs1(
+                false,
+                getArgeCreateTeams(),
+                getArgeExchangeSmtp(),
+                getArgeAdminAsOwner()
+            );
     }
 
     function rebuildArgeOwnerTableFromRows() {
@@ -333,6 +344,7 @@
                 argeUpperNick: document.getElementById('argeUpperNick').checked,
                 argeCreateTeams: getArgeCreateTeams(),
                 argeExchangeSmtp: getArgeExchangeSmtp(),
+                argeAdminAsOwner: getArgeAdminAsOwner(),
                 argeLines: document.getElementById('argeLines').value,
                 argePowerShellScript: document.getElementById('argePowerShellScript').textContent
             };
@@ -378,6 +390,10 @@
             if (argeExoEl) {
                 argeExoEl.checked = state.argeExchangeSmtp !== undefined ? !!state.argeExchangeSmtp : true;
             }
+            const argeAdminEl = document.getElementById('argeAdminAsOwner');
+            if (argeAdminEl) {
+                argeAdminEl.checked = state.argeAdminAsOwner !== undefined ? !!state.argeAdminAsOwner : true;
+            }
             document.getElementById('argeLines').value = state.argeLines || '';
             document.getElementById('argeParseError').style.display = 'none';
             const pre = document.getElementById('argePowerShellScript');
@@ -412,6 +428,8 @@
             if (argeTeamsClear) argeTeamsClear.checked = true;
             const argeExoClear = document.getElementById('argeExchangeSmtp');
             if (argeExoClear) argeExoClear.checked = true;
+            const argeAdminClear = document.getElementById('argeAdminAsOwner');
+            if (argeAdminClear) argeAdminClear.checked = true;
             document.getElementById('argeLines').value = '';
             document.getElementById('argeParseError').style.display = 'none';
             document.getElementById('argeOwnerBody').replaceChildren();
@@ -444,7 +462,8 @@
                 };
             }),
             createTeams: getArgeCreateTeams(),
-            exchangeSmtp: getArgeExchangeSmtp()
+            exchangeSmtp: getArgeExchangeSmtp(),
+            adminAsOwner: getArgeAdminAsOwner()
         };
     };
 
@@ -461,9 +480,10 @@
         URL.revokeObjectURL(a.href);
     }
 
-    function buildStandaloneArgePs1(standalone, createTeams, setExchangeSmtp) {
+    function buildStandaloneArgePs1(standalone, createTeams, setExchangeSmtp, adminAsOwner) {
         if (createTeams === undefined) createTeams = true;
         if (setExchangeSmtp === undefined) setExchangeSmtp = true;
+        if (adminAsOwner === undefined) adminAsOwner = true;
         const domain = getDomain();
         const domainTrim = (domain || '').trim();
         const setExoEffective = setExchangeSmtp && domainTrim.length > 0;
@@ -471,7 +491,8 @@
         const lines = [];
         // Team an Gruppe: Graph verlangt i.d.R. nur Group.ReadWrite.All (s. team-put-teams). Team.ReadWrite.All
         // loest bei Connect-MgGraph oft AADSTS70011 (ungueltiger Scope beim Graph-PowerShell-Client).
-        const scopesLine = '$scopes = @("Group.ReadWrite.All","User.Read.All")';
+        const scopesLine =
+            '$scopes = @("Group.ReadWrite.All","User.Read.All","User.Read")';
 
         if (standalone) {
             lines.push('#Requires -Version 5.1');
@@ -577,6 +598,7 @@
 
         lines.push('$Ms365CreateTeams = $' + (createTeams ? 'true' : 'false'));
         lines.push('$Ms365SetExchangeSmtp = $' + (setExoEffective ? 'true' : 'false'));
+        lines.push('$Ms365AdminAsOwner = $' + (adminAsOwner ? 'true' : 'false'));
         lines.push("$Ms365ExchangeDomain = '" + psEscapeSingle(domainTrim) + "'");
         lines.push('');
         if (setExoEffective) {
@@ -618,6 +640,8 @@
             );
         });
         lines.push(')');
+        lines.push('$meUser = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/me" -ErrorAction Stop');
+        lines.push('$meId = $meUser.id');
         lines.push('');
         lines.push('$i = 0');
         lines.push('foreach ($r in $rows) {');
@@ -638,7 +662,30 @@
         lines.push('        }');
         lines.push('        $group = New-MgGroup -BodyParameter $groupBody -ErrorAction Stop');
         lines.push('        Start-Sleep -Seconds 2  # Replikation vor Owner-Zuweisung');
-        lines.push('        New-MgGroupOwner -GroupId $group.Id -DirectoryObjectId $owner.Id');
+        lines.push('        try {');
+        lines.push('            New-MgGroupOwner -GroupId $group.Id -DirectoryObjectId $owner.Id -ErrorAction Stop');
+        lines.push('        } catch {');
+        lines.push(
+            '            if ($_.Exception.Message -notmatch "already exist") { throw }'
+        );
+        lines.push(
+            '            Write-Host ("  Hinweis (Besitzer): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
+        );
+        lines.push('        }');
+        lines.push('        if (-not $Ms365AdminAsOwner -and $meId -ne $owner.Id) {');
+        lines.push('            try {');
+        lines.push(
+            '                Invoke-MgGraphRequest -Method DELETE -Uri ("https://graph.microsoft.com/v1.0/groups/{0}/owners/{1}/`$ref" -f $group.Id, $meId) -ErrorAction Stop'
+        );
+        lines.push(
+            '                Write-Host "  Angemeldeter Administrator als Besitzer entfernt (nur Besitzer aus Schritt 2)." -ForegroundColor DarkGray'
+        );
+        lines.push('            } catch {');
+        lines.push(
+            '                Write-Host ("  Hinweis (Admin-Besitzer entfernen): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
+        );
+        lines.push('            }');
+        lines.push('        }');
         lines.push('        try {');
         lines.push(
             '            $memberRef = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($owner.Id)" }'
@@ -769,7 +816,12 @@
             showToast('Für die Exchange-Option bitte oben die E-Mail-Domain der Schule eintragen.');
             return;
         }
-        const ps1 = buildStandaloneArgePs1(true, getArgeCreateTeams(), getArgeExchangeSmtp());
+        const ps1 = buildStandaloneArgePs1(
+            true,
+            getArgeCreateTeams(),
+            getArgeExchangeSmtp(),
+            getArgeAdminAsOwner()
+        );
         const cmd = window.ms365BuildPolyglotCmd({
             title: 'ARGE-Gruppen-Anlage',
             echoLine: 'Starte ARGE-Gruppen-Anlage Microsoft Graph ...',
@@ -800,6 +852,8 @@
     if (argeTeamsEl) argeTeamsEl.addEventListener('change', refreshArgeScriptIfStep4);
     const argeExoEl = document.getElementById('argeExchangeSmtp');
     if (argeExoEl) argeExoEl.addEventListener('change', refreshArgeScriptIfStep4);
+    const argeAdminAsOwnerEl = document.getElementById('argeAdminAsOwner');
+    if (argeAdminAsOwnerEl) argeAdminAsOwnerEl.addEventListener('change', refreshArgeScriptIfStep4);
 
     document.getElementById('argeBack1').addEventListener('click', () => goToArgeStep(1));
     document.getElementById('argeGoTo3').addEventListener('click', () => goToArgeStep(3));
@@ -870,7 +924,8 @@
         document.getElementById('argePowerShellScript').textContent = buildStandaloneArgePs1(
             false,
             getArgeCreateTeams(),
-            getArgeExchangeSmtp()
+            getArgeExchangeSmtp(),
+            getArgeAdminAsOwner()
         );
         goToArgeStep(4);
     });

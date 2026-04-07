@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt (Cache, 404, Pfad). Entra: Anwendungs-ID (Client). -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung</title>
     <style>
         * {
@@ -1110,6 +1112,13 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                             </label>
                             <small style="color:#6c757d;display:block;margin-top:6px;">Der eingetragene <strong>Besitzer</strong> wird automatisch als <strong>Mitglied</strong> der Gruppe hinzugefügt (zusätzlich zur Besitzerrolle).</small>
                         </div>
+                        <div class="filter-group">
+                            <label class="checkbox-label" for="argeAdminAsOwner">
+                                <input type="checkbox" id="argeAdminAsOwner" checked>
+                                <span><strong>Angemeldeter Administrator</strong> als Besitzer der Gruppe (zusätzlich zum Besitzer aus Schritt 2)</span>
+                            </label>
+                            <small style="color:#6c757d;display:block;margin-top:6px;">Wenn Sie das <strong>deaktivieren</strong>, bleibt nur der Besitzer aus Schritt 2 – der ausführende Admin wird nach dem Anlegen ggf. als Besitzer entfernt (falls Microsoft ihn automatisch setzt). Wenn Admin und Besitzer dieselbe Person sind, ändert sich nichts.</small>
+                        </div>
                     </div>
                     <button type="button" class="btn" id="argeBack2">← Zurück</button>
                     <button type="button" class="btn btn-success" id="argeGoTo4">Weiter zu Ausführen →</button>
@@ -1160,13 +1169,14 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
     </div>
     <div id="toast" class="toast" role="status"></div>
 
+    <!-- ms365-config zuerst ohne defer, damit window.MS365_MSAL_CONFIG sicher vor ARGE-Graph gesetzt ist -->
+    <script src="ms365-config.js"></script>
     <script src="school-domain.js" defer></script>
     <script src="polyglot-cmd.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="app.js" defer></script>
     <script src="jahrgang.js" defer></script>
     <script src="arge.js" defer></script>
-    <script src="ms365-config.js" defer></script>
     <script src="arge-graph.js" defer></script>
 </body>
 </html>
