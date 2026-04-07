@@ -9,6 +9,8 @@
     const panelJ = document.getElementById('panelJahrgang');
     const btnModeW = document.getElementById('modeWebuntis');
     const btnModeJ = document.getElementById('modeJahrgang');
+    const panelA = document.getElementById('panelArge');
+    const btnModeA = document.getElementById('modeArge');
 
     function showToast(msg) {
         const el = document.getElementById('toast');
@@ -19,32 +21,29 @@
         showToast._t = setTimeout(() => el.classList.remove('show'), 3500);
     }
 
-    function setMode(webuntis) {
-        if (webuntis) {
-            panelW.style.display = '';
-            panelJ.style.display = 'none';
-            btnModeW.classList.add('btn-success');
-            btnModeJ.classList.remove('btn-success');
-        } else {
-            panelW.style.display = 'none';
-            panelJ.style.display = '';
-            btnModeJ.classList.add('btn-success');
-            btnModeW.classList.remove('btn-success');
-        }
+    function setMode(which) {
+        const w = which === 'webuntis';
+        const j = which === 'jahrgang';
+        const a = which === 'arge';
+        panelW.style.display = w ? '' : 'none';
+        panelJ.style.display = j ? '' : 'none';
+        if (panelA) panelA.style.display = a ? '' : 'none';
+        btnModeW.classList.toggle('btn-success', w);
+        btnModeJ.classList.toggle('btn-success', j);
+        if (btnModeA) btnModeA.classList.toggle('btn-success', a);
     }
 
-    btnModeW.addEventListener('click', () => setMode(true));
-    btnModeJ.addEventListener('click', () => setMode(false));
+    btnModeW.addEventListener('click', () => setMode('webuntis'));
+    btnModeJ.addEventListener('click', () => setMode('jahrgang'));
+    if (btnModeA) btnModeA.addEventListener('click', () => setMode('arge'));
 
     function applyInitialModeFromUrl() {
         try {
             const mode = new URLSearchParams(window.location.search).get('mode');
             if (!mode) return;
-            if (mode.toLowerCase() === 'jahrgang') {
-                setMode(false);
-            } else if (mode.toLowerCase() === 'kursteams' || mode.toLowerCase() === 'kursteam' || mode.toLowerCase() === 'webuntis') {
-                setMode(true);
-            }
+            if (mode.toLowerCase() === 'jahrgang') setMode('jahrgang');
+            else if (mode.toLowerCase() === 'arge') setMode('arge');
+            else if (mode.toLowerCase() === 'kursteams' || mode.toLowerCase() === 'kursteam' || mode.toLowerCase() === 'webuntis') setMode('webuntis');
         } catch {
             // ignore
         }

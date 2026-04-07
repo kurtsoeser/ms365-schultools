@@ -93,6 +93,15 @@
             animation: fadeIn 0.3s;
         }
 
+        .arge-step-content {
+            display: none;
+        }
+
+        .arge-step-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -483,6 +492,7 @@
         <div class="mode-switch" style="padding:14px 20px;background:#eef;text-align:center;border-bottom:1px solid #dee2e6;">
             <button type="button" class="btn btn-success" id="modeWebuntis">Kursteams (WebUntis)</button>
             <button type="button" class="btn" id="modeJahrgang" style="margin-left:8px;">Jahrgangsgruppen (M365-Gruppen)</button>
+            <button type="button" class="btn" id="modeArge" style="margin-left:8px;">ARGEs (M365-Gruppen)</button>
         </div>
 
         <div id="panelWebuntis">
@@ -927,6 +937,94 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                 </div>
             </div>
         </div>
+
+        <div id="panelArge" style="display:none;">
+            <div class="steps arge-steps">
+                <div class="step active" data-arge-step="1">1. Grundlagen</div>
+                <div class="step" data-arge-step="2">2. ARGE-Liste</div>
+                <div class="step" data-arge-step="3">3. Besitzer</div>
+                <div class="step" data-arge-step="4">4. PowerShell</div>
+            </div>
+            <div class="content">
+                <div class="arge-step-content active" data-arge-step="1">
+                    <h2>ARGEs: Grundlagen</h2>
+                    <div class="alert alert-info">
+                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups, keine Kursteams) für Arbeitsgemeinschaften erstellt. Sie vergeben <strong>Anzeigename</strong>, optional <strong>Mail-Nickname</strong> und pro Gruppe einen <strong>Besitzer</strong>.
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <label for="argeDomain">E-Mail-Domain der Schule (ohne @)</label>
+                            <input type="text" id="argeDomain" placeholder="z.B. hak-steyr.at" value="hak-steyr.at" autocomplete="off">
+                        </div>
+                        <div class="filter-group">
+                            <label for="argeDefaultPrefix">Optionales Präfix für Mail-Nickname</label>
+                            <input type="text" id="argeDefaultPrefix" placeholder="z.B. arge" value="" maxlength="20" autocomplete="off">
+                            <small style="color:#6c757d;">Wenn gesetzt, wird z. B. aus <code>ARGE Deutsch</code> → <code>arge-deutsch</code>. Ohne Präfix nur <code>deutsch</code>.</small>
+                        </div>
+                        <div class="filter-group">
+                            <label>
+                                <input type="checkbox" id="argeUpperNick"> Mail-Nickname groß schreiben (z. B. <code>ARGEBB</code>)
+                            </label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-success" id="argeGoTo2">Weiter zur ARGE-Liste →</button>
+                </div>
+
+                <div class="arge-step-content" data-arge-step="2">
+                    <h2>ARGE-Liste</h2>
+                    <div class="alert alert-warning">
+                        <strong>Format:</strong> pro Zeile entweder nur der Anzeigename (z. B. <code>ARGE Deutsch</code>) oder <code>Anzeigename;MailNickname</code> (z. B. <code>ARGE BB;ARGEBB</code>).
+                    </div>
+                    <div class="filter-group">
+                        <label for="argeLines">ARGEs</label>
+                        <textarea id="argeLines" rows="12" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="ARGE-LeiterInnen;argeleiterinnen&#10;ARGE BB;ARGEBB&#10;ARGE Deutsch;argedeutsch"></textarea>
+                    </div>
+                    <p id="argeParseError" class="alert alert-warning" style="display:none;"></p>
+                    <button type="button" class="btn" id="argeBack1">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="argeParseAndGo3">Weiter zu Besitzern →</button>
+                </div>
+
+                <div class="arge-step-content" data-arge-step="3">
+                    <h2>Besitzer (Lehrkräfte)</h2>
+                    <div class="alert alert-info">
+                        <strong>Microsoft Graph:</strong> Besitzer müssen als Benutzer im Mandanten existieren (User Principal Name). Pro ARGE mindestens ein Besitzer (UPN) eintragen.
+                    </div>
+                    <div class="table-container" style="max-height:420px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Anzeigename</th>
+                                    <th>Gruppen-E-Mail (Vorschau)</th>
+                                    <th>Mail-Nickname</th>
+                                    <th>Besitzer (UPN)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="argeOwnerBody"></tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn" id="argeBack2">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="argeGoTo4">PowerShell erzeugen →</button>
+                </div>
+
+                <div class="arge-step-content" data-arge-step="4">
+                    <h2>PowerShell (Microsoft Graph)</h2>
+                    <div class="alert alert-warning">
+                        <strong>Voraussetzungen:</strong> Modul <code>Microsoft.Graph</code> installieren, <code>Connect-MgGraph</code> mit passenden Rechten (z. B. <code>Group.ReadWrite.All</code>, <code>User.Read.All</code>). Es werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) erstellt – ohne Teams-Vorlage.
+                    </div>
+                    <h3>Generiertes Script</h3>
+                    <div class="powershell-code">
+                        <button type="button" class="btn btn-small copy-btn" id="argeCopyScript">📋 Kopieren</button>
+                        <pre id="argePowerShellScript"></pre>
+                    </div>
+                    <div class="filter-section">
+                        <h3>Fertiges Paket zum Doppelklicken</h3>
+                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>ARGE-Gruppen-Anlage.ps1</strong> und <strong>ARGE-Gruppen-Anlage.cmd</strong>. Beide in einen Ordner, <strong>.cmd</strong> starten. Anmeldung erfolgt über <strong>Microsoft Graph</strong> (interaktiv, MFA möglich).</p>
+                        <button type="button" class="btn btn-success" onclick="downloadArgeStandalonePackage()">📦 ARGE-Gruppen-Anlage.ps1 + .cmd herunterladen</button>
+                    </div>
+                    <button type="button" class="btn" id="argeBack3">← Zurück</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -944,5 +1042,6 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="app.js" defer></script>
     <script src="jahrgang.js" defer></script>
+    <script src="arge.js" defer></script>
 </body>
 </html>

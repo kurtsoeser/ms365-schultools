@@ -25,6 +25,13 @@ Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal
 
 Dokumentation: [New-MgGroup](https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup), [Gruppe erstellen (Graph)](https://learn.microsoft.com/graph/api/group-post-groups).
 
+### Modus C: ARGEs (Microsoft 365-Gruppen)
+
+1. Domain angeben und optional Präfix/Schreibweise für den Mail-Nickname festlegen.
+2. ARGE-Zeilen eintragen (entweder nur Anzeigename oder `Anzeigename;MailNickname`, z. B. `ARGE BB;ARGEBB`).
+3. Besitzer-UPNs pro ARGE eintragen.
+4. Script kopieren oder **ARGE-Gruppen-Anlage.ps1** + **.cmd** herunterladen und die CMD starten (interaktive Graph-Anmeldung, MFA möglich).
+
 ### Erwartete Spalten (flexibel)
 
 Die App erkennt u. a.: **Klasse(n)**, **Fach**, **Lehrer**, **Schülergruppe** (je nach Export unterschiedlich benannt).
@@ -36,6 +43,7 @@ Die App erkennt u. a.: **Klasse(n)**, **Fach**, **Lehrer**, **Schülergruppe**
 | `webuntis-teams-creator.html` | Hauptseite |
 | `app.js` | Logik Kursteams (CSV-Export, Filter, lokaler Speicher, …) |
 | `jahrgang.js` | Assistent Jahrgangsgruppen (Microsoft Graph PowerShell) |
+| `arge.js` | Assistent ARGEs (Microsoft Graph PowerShell) |
 | `index.html` | Optional: Weiterleitung zur Hauptseite (für GitHub Pages-Start-URL) |
 
 ## GitHub Pages
