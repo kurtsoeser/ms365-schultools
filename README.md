@@ -48,9 +48,25 @@ Die App erkennt u. a.: **Klasse(n)**, **Fach**, **Lehrer**, **Schülergruppe**
 
 ## GitHub Pages
 
-Repository auf **Pages** schalten (Branch `main`, Ordner `/`). Die App ist dann unter  
-`https://<user>.github.io/<repo>/` erreichbar – mit `index.html` als Einstieg oder direkt  
-`…/webuntis-teams-creator.html`.
+Repository auf **Pages** schalten (Branch `main`, Ordner `/`). Mit dem Repo-Namen **`ms365-schultools`** ist die App typischerweise unter:
+
+- **Startseite:** [https://kurtsoeser.github.io/ms365-schultools/](https://kurtsoeser.github.io/ms365-schultools/)
+- **Haupt-App:** [https://kurtsoeser.github.io/ms365-schultools/webuntis-teams-creator.html](https://kurtsoeser.github.io/ms365-schultools/webuntis-teams-creator.html)
+
+Klonen per Git (nach tatsächlichem Repo-Namen auf GitHub):
+
+```bash
+git clone https://github.com/kurtsoeser/ms365-schultools.git
+```
+
+### Lokales Git nach Umbenennung des Repos auf GitHub
+
+Wenn Sie das Repository auf GitHub umbenannt haben, passen Sie die **Remote-URL** in Ihrem geklonten Ordner an (einmalig):
+
+```bash
+git remote set-url origin https://github.com/kurtsoeser/ms365-schultools.git
+git remote -v
+```
 
 **Hinweis:** Bei kostenlosem GitHub ist Pages für **private** Repos oft nicht verfügbar; öffentliches Repo oder GitHub Pro nötig.
 
