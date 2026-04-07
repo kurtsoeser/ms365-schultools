@@ -1,6 +1,6 @@
-# WebUntis → Microsoft Teams (Kursteam-Creator)
+# MS365-Schulverwaltung
 
-Einfache **reine Browser-App** (ohne Server): WebUntis-Exporte (CSV/Excel) werden aufbereitet, damit Sie daraus **Microsoft-Kursteams** per **PowerShell** (`New-Team -Template "EDU_Class"`) anlegen können.
+Einfache **reine Browser-App** (ohne Server): Exportdaten (z. B. WebUntis CSV/Excel) werden aufbereitet, damit Sie daraus **Kursteams**, **Jahrgangsgruppen** und **ARGEs** per **PowerShell** anlegen können.
 
 ## Datenschutz
 
@@ -10,11 +10,11 @@ Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal
 
 1. Repository klonen oder die Dateien herunterladen.
 2. `webuntis-teams-creator.html` im Browser öffnen **oder** ein statisches Hosting nutzen (z. B. GitHub Pages).
-3. Oben zwischen **Kursteams (WebUntis)** und **Jahrgangsgruppen (M365-Gruppen)** wählen.
+3. Oben zwischen **Kursteams**, **Jahrgangsgruppen** und **ARGEs** wählen.
 
-### Modus A: Kursteams (WebUntis)
+### Modus A: Kursteams
 
-1. WebUntis-Fächerliste exportieren und durch die Schritte in der App führen.
+1. Fächerliste exportieren und durch die Schritte in der App führen.
 2. Entweder `neueteams.csv` + kurzes Skript aus der Anleitung **oder** das Paket **Kursteam-Anlage.ps1** und **Kursteam-Anlage.cmd** herunterladen, beide in denselben Ordner legen und die **CMD** per Doppelklick starten (Anmeldung interaktiv für MFA oder optional per `Get-Credential`).
 
 ### Modus B: Jahrgangsgruppen (Microsoft 365-Gruppen)
