@@ -267,12 +267,31 @@
             color: #495057;
         }
 
-        .filter-group input, .filter-group select {
+        .filter-group input:not([type="checkbox"]),
+        .filter-group select {
             width: 100%;
             padding: 10px;
             border: 1px solid #ced4da;
             border-radius: 6px;
             font-size: 1em;
+        }
+
+        .filter-group input[type="checkbox"] {
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .filter-group label.checkbox-label {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        .filter-group label.checkbox-label input[type="checkbox"] {
+            margin: 0;
         }
 
         .checkbox-group {
@@ -376,12 +395,21 @@
             padding: 8px 16px;
         }
 
-        .privacy-note {
-            font-size: 0.85em;
-            opacity: 0.95;
-            max-width: 720px;
-            margin: 12px auto 0;
-            line-height: 1.45;
+        .header-help-row {
+            margin: 10px 0 0;
+            font-size: 0.95em;
+        }
+
+        .header-help-link {
+            color: #fff;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            font-weight: 600;
+            opacity: 0.98;
+        }
+
+        .header-help-link:hover {
+            opacity: 1;
         }
 
         .steps {
@@ -396,10 +424,30 @@
             font-size: 0.9em;
         }
 
+        .arge-step1-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            align-items: start;
+            margin-top: 8px;
+        }
+
+        .arge-step1-grid .arge-step1-prefix,
+        .arge-step1-grid .arge-step1-lines {
+            min-width: 0;
+        }
+
+        .arge-step1-grid .arge-step1-lines textarea {
+            min-height: 200px;
+        }
+
         @media (max-width: 768px) {
             .header h1 { font-size: 1.35em; }
             .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
             .content { padding: 16px; }
+            .arge-step1-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .modal-overlay {
@@ -481,11 +529,11 @@
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
             <p>Kursteams, Jahrgangsgruppen und ARGEs automatisiert vorbereiten</p>
-            <p class="privacy-note">Datenschutz: Es gibt keinen Server. Importierte Dateien und Einstellungen werden nur in diesem Browser verarbeitet; optional kann ein Zwischenstand lokal auf Ihrem Gerät gespeichert werden.</p>
+            <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern">💾 Zwischenstand speichern</button>
-                <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden">📂 Gespeicherten Stand laden</button>
-                <button type="button" class="btn btn-danger" id="btnClearStorage" title="Lokalen Zwischenstand löschen">🗑️ Lokalen Speicher löschen</button>
+                <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand des gewählten Modus im Browser speichern">💾 Zwischenstand speichern</button>
+                <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand des gewählten Modus laden">📂 Gespeicherten Stand laden</button>
+                <button type="button" class="btn btn-danger" id="btnClearStorage" title="Gespeicherten Zwischenstand des gewählten Modus löschen">🗑️ Lokalen Speicher löschen</button>
             </div>
         </div>
 
@@ -493,6 +541,14 @@
             <button type="button" class="btn btn-success" id="modeWebuntis">Kursteams (WebUntis)</button>
             <button type="button" class="btn" id="modeJahrgang" style="margin-left:8px;">Jahrgangsgruppen (M365-Gruppen)</button>
             <button type="button" class="btn" id="modeArge" style="margin-left:8px;">ARGEs (M365-Gruppen)</button>
+        </div>
+
+        <div class="school-domain-bar" style="padding:14px 20px;background:#f8f9fa;border-bottom:1px solid #dee2e6;">
+            <div style="max-width:900px;margin:0 auto;">
+                <label for="schoolEmailDomain" style="display:block;font-weight:600;color:#32325d;margin-bottom:8px;">E-Mail-Domain der Schule (ohne @)</label>
+                <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" value="ms365.schule" autocomplete="off" style="width:100%;max-width:420px;padding:10px 12px;border:1px solid #ced4da;border-radius:8px;font-size:1em;">
+                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Einmal eintragen – gilt für <strong>Kursteams</strong> (Lehrer-E-Mails), <strong>Jahrgangsgruppen</strong> und <strong>ARGEs</strong>. Beispiel: <code>ms365.schule</code>. Domain im Mandanten <a href="https://admin.microsoft.com/Adminportal/Home#/Domains" target="_blank" rel="noopener">verifizieren</a>.</small>
+            </div>
         </div>
 
         <div id="panelWebuntis">
@@ -706,8 +762,7 @@
                     </div>
 
                     <div class="filter-group">
-                        <label>E-Mail-Domain für Lehrer:</label>
-                        <input type="text" id="emailDomain" value="@hak-steyr.at" placeholder="z.B. @hak-steyr.at">
+                        <p style="color:#6c757d;margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben unter den Modus-Schaltern</strong>.</p>
                     </div>
 
                     <div class="filter-group">
@@ -819,8 +874,8 @@ foreach ($Team in $TeamsList) {
 
                 <div class="filter-section">
                     <h3>Fertiges Paket zum Doppelklicken</h3>
-                    <p style="color:#495057;margin-bottom:12px;">Lädt <strong>Kursteam-Anlage.ps1</strong> (alle Teams eingebettet + Anmeldeauswahl) und <strong>Kursteam-Anlage.cmd</strong>. Beide Dateien in <strong>denselben Ordner</strong> legen, dann die <strong>.cmd</strong> doppelklicken. Es erscheint eine Abfrage: interaktive Anmeldung (MFA möglich) oder Benutzername/Passwort.</p>
-                    <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()">📦 Kursteam-Anlage.ps1 + .cmd herunterladen</button>
+                    <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download). Doppelklick startet die Anlage; es erscheint eine Abfrage: interaktive Anmeldung (MFA möglich) oder Benutzername/Passwort. <em>Hinweis:</em> Nach dem Download aus dem Browser kann Windows die Datei zunächst blockieren – dann Rechtsklick → <strong>Eigenschaften</strong> → <strong>Zulassen</strong> (Unblock), oder bei SmartScreen „Weitere Informationen“ wählen.</p>
+                    <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()">📦 Kursteam-Anlage.cmd herunterladen</button>
                 </div>
 
                 <div class="alert alert-info">
@@ -834,7 +889,7 @@ foreach ($Team in $TeamsList) {
                 <h3>Manuelles Erstellen (Beispiel):</h3>
                 <div class="powershell-code">
                     <pre>Connect-MicrosoftTeams
-New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNickname WS2022-3BK-SPWS-SPANR -Owner mathias.spanring@hak-steyr.at</pre>
+New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNickname WS2022-3BK-SPWS-SPANR -Owner lehrer@ms365.schule</pre>
                 </div>
 
                 <h3>Nützliche Links:</h3>
@@ -859,22 +914,35 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                 <div class="jg-step-content active" data-jg-step="1">
                     <h2>Jahrgangsgruppen: Grundlagen</h2>
                     <div class="alert alert-info">
-                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups, <em>keine</em> Kursteam-/EDU_Class-Teams) mit E-Mail-Adressen im Muster <code>jg&lt;Abschlussjahr&gt;-&lt;Kürzel&gt;@domain</code> angelegt – analog zu Ihrem Admin-Center.
+                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups, keine Kursteam-/EDU_Class-Teams) mit E-Mail-Adressen im Muster <code>jg&lt;Abschlussjahr&gt;-&lt;Kürzel&gt;@domain</code> angelegt – optional mit <strong>Teams</strong> und <strong>Exchange</strong> für die Ziel-SMTP-Domain (wie beim Modus ARGEs).
                     </div>
                     <div class="filter-section">
                         <div class="filter-group">
-                            <label for="jgDomain">E-Mail-Domain der Schule (ohne @)</label>
-                            <input type="text" id="jgDomain" placeholder="z.B. hak-steyr.at" value="hak-steyr.at" autocomplete="off">
+                            <p style="color:#6c757d;margin:0 0 8px 0;">Die <strong>E-Mail-Domain der Schule</strong> (Vorschau &amp; Ziel für Exchange) tragen Sie <strong>oben</strong> ein – sie gilt für alle Module.</p>
+                            <small style="color:#6c757d;display:block;margin-top:6px;">Graph setzt nur den Mail-Nickname; die primäre Adresse steuern Sie optional über Exchange (Checkbox unten).</small>
                         </div>
                         <div class="filter-group">
                             <label for="jgPrefix">Präfix für Mail-Nickname</label>
                             <input type="text" id="jgPrefix" value="jg" maxlength="16" autocomplete="off">
-                            <small style="color:#6c757d;">Ergebnis: <code id="jgPrefixExample">jg2030-AK@hak-steyr.at</code></small>
+                            <small style="color:#6c757d;">Ergebnis: <code id="jgPrefixExample">jg2030-AK@ms365.schule</code></small>
                         </div>
                         <div class="filter-group">
                             <label>
                                 <input type="checkbox" id="jgSuffixUpper" checked> Kürzel im Mail-Nickname groß schreiben (z. B. <code>AK</code> statt <code>ak</code>)
                             </label>
+                        </div>
+                        <div class="filter-group">
+                            <label class="checkbox-label" for="jgCreateTeams">
+                                <input type="checkbox" id="jgCreateTeams" checked>
+                                <span>Für jede Gruppe auch <strong>Microsoft Teams</strong> bereitstellen</span>
+                            </label>
+                        </div>
+                        <div class="filter-group">
+                            <label class="checkbox-label" for="jgExchangeSmtp">
+                                <input type="checkbox" id="jgExchangeSmtp" checked>
+                                <span><strong>Primäre Gruppen-E-Mail</strong> per <strong>Exchange Online</strong> auf <code>MailNickname@&lt;Domain von oben&gt;</code> setzen (<code>Set-UnifiedGroup</code>)</span>
+                            </label>
+                            <small style="color:#6c757d;display:block;margin-top:6px;">Besitzer wird wie bei ARGEs auch als Mitglied eingetragen. Zweite Anmeldung: Exchange.</small>
                         </div>
                     </div>
                     <button type="button" class="btn btn-success" id="jgGoTo2">Weiter zur Klassenliste →</button>
@@ -916,7 +984,7 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                 <div class="jg-step-content" data-jg-step="4">
                     <h2>PowerShell (Microsoft Graph)</h2>
                     <div class="alert alert-warning">
-                        <strong>Voraussetzungen:</strong> Modul <code>Microsoft.Graph</code> installieren, <code>Connect-MgGraph</code> mit passenden Rechten (z. B. <code>Group.ReadWrite.All</code>, <code>User.Read.All</code>). Es werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) erstellt – ohne Teams-Kursteam-Vorlage.
+                        <strong>Voraussetzungen:</strong> <code>Microsoft.Graph</code>, <code>Connect-MgGraph</code> mit <code>Group.ReadWrite.All</code> und <code>User.Read.All</code> (reicht laut Microsoft auch für das Anbinden eines Teams an die Gruppe). Optional <code>ExchangeOnlineManagement</code> für <code>Set-UnifiedGroup</code>. M365-Gruppen; optional <strong>Team</strong> und <strong>Primär-SMTP</strong> über Exchange.
                     </div>
                     <div class="filter-section">
                         <p><a href="https://learn.microsoft.com/graph/api/group-post-groups" target="_blank" rel="noopener">Microsoft Graph: Gruppe erstellen</a> ·
@@ -930,8 +998,8 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                     </div>
                     <div class="filter-section">
                         <h3>Fertiges Paket zum Doppelklicken</h3>
-                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>Jahrgangsgruppen-Anlage.ps1</strong> und <strong>Jahrgangsgruppen-Anlage.cmd</strong>. Beide in einen Ordner, <strong>.cmd</strong> starten. Anmeldung erfolgt über <strong>Microsoft Graph</strong> (Browser/Gerätecode, MFA möglich).</p>
-                        <button type="button" class="btn btn-success" onclick="downloadJahrgangStandalonePackage()">📦 Jahrgangsgruppen-Anlage.ps1 + .cmd herunterladen</button>
+                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Jahrgangsgruppen-Anlage.cmd</strong> (PowerShell eingebettet, keine separate .ps1). Doppelklick startet die Anlage; Anmeldung über <strong>Microsoft Graph</strong> (Browser/Gerätecode, MFA möglich). <em>Hinweis:</em> Nach dem Download ggf. Rechtsklick → <strong>Eigenschaften</strong> → <strong>Zulassen</strong>, falls Windows die Datei blockiert.</p>
+                        <button type="button" class="btn btn-success" onclick="downloadJahrgangStandalonePackage()">📦 Jahrgangsgruppen-Anlage.cmd herunterladen</button>
                     </div>
                     <button type="button" class="btn" id="jgBack3">← Zurück</button>
                 </div>
@@ -940,47 +1008,38 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
 
         <div id="panelArge" style="display:none;">
             <div class="steps arge-steps">
-                <div class="step active" data-arge-step="1">1. Grundlagen</div>
-                <div class="step" data-arge-step="2">2. ARGE-Liste</div>
-                <div class="step" data-arge-step="3">3. Besitzer</div>
-                <div class="step" data-arge-step="4">4. PowerShell</div>
+                <div class="step active" data-arge-step="1">1. ARGE-Liste</div>
+                <div class="step" data-arge-step="2">2. Besitzer</div>
+                <div class="step" data-arge-step="3">3. Einstellungen</div>
+                <div class="step" data-arge-step="4">4. Ausführen</div>
             </div>
             <div class="content">
                 <div class="arge-step-content active" data-arge-step="1">
-                    <h2>ARGEs: Grundlagen</h2>
-                    <div class="alert alert-info">
-                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups, keine Kursteams) für Arbeitsgemeinschaften erstellt. Sie vergeben <strong>Anzeigename</strong>, optional <strong>Mail-Nickname</strong> und pro Gruppe einen <strong>Besitzer</strong>.
-                    </div>
-                    <div class="filter-section">
-                        <div class="filter-group">
-                            <label for="argeDomain">E-Mail-Domain der Schule (ohne @)</label>
-                            <input type="text" id="argeDomain" placeholder="z.B. hak-steyr.at" value="hak-steyr.at" autocomplete="off">
-                        </div>
-                        <div class="filter-group">
-                            <label for="argeDefaultPrefix">Optionales Präfix für Mail-Nickname</label>
-                            <input type="text" id="argeDefaultPrefix" placeholder="z.B. arge" value="" maxlength="20" autocomplete="off">
-                            <small style="color:#6c757d;">Wird an den aus dem <strong>Fachnamen</strong> erzeugten Teil angehängt (z. B. Fach <code>Deutsch</code> → <code>arge-deutsch</code>). Ohne Präfix nur der Fach-Teil, z. B. <code>deutsch</code>.</small>
-                        </div>
-                        <div class="filter-group">
-                            <label>
-                                <input type="checkbox" id="argeUpperNick"> Mail-Nickname groß schreiben (z. B. <code>ARGEBB</code>)
-                            </label>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-success" id="argeGoTo2">Weiter zur ARGE-Liste →</button>
-                </div>
-
-                <div class="arge-step-content" data-arge-step="2">
                     <h2>ARGE-Liste</h2>
                     <div class="alert alert-info">
-                        <strong>Einfach einfügen:</strong> eine Zeile pro Fach oder Stichwort (z. B. aus Excel kopieren). Daraus wird der <strong>Anzeigename</strong> der Gruppe (<code>ARGE …</code>) und das <strong>Mail-Nickname</strong> mit Präfix &amp; Domain aus Schritt 1 erzeugt. Die Vorschau unten aktualisiert sich beim Tippen.
+                        <strong>Einfach einfügen:</strong> eine Zeile pro Fach oder Stichwort (z. B. aus Excel kopieren). Daraus wird der <strong>Anzeigename</strong> der Gruppe (<code>ARGE …</code>) und das <strong>Mail-Nickname</strong> mit optionalem <strong>Präfix</strong> und optional <strong>Großschreibung</strong> (linke Spalte) sowie <strong>Domain</strong> (oben in der Kopfzeile) erzeugt. Die Vorschau unten aktualisiert sich beim Tippen.
                     </div>
                     <div class="alert alert-warning" style="margin-top:10px;">
                         <strong>Optional (fortgeschritten):</strong> weiterhin <code>Anzeigename;MailNickname</code> pro Zeile möglich – dann gilt der rechte Teil als festes Mail-Nickname.
                     </div>
-                    <div class="filter-group">
-                        <label for="argeLines">Fächer / Bezeichnungen (eine Zeile pro ARGE)</label>
-                        <textarea id="argeLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="Deutsch&#10;Mathematik&#10;ARGE BB&#10;LeiterInnen"></textarea>
+                    <div class="arge-step1-grid">
+                        <div class="arge-step1-prefix">
+                            <div class="filter-group">
+                                <label for="argeDefaultPrefix">Optionales Präfix für Mail-Nickname</label>
+                                <input type="text" id="argeDefaultPrefix" placeholder="z.B. arge" value="" maxlength="20" autocomplete="off">
+                                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Wird an den aus dem <strong>Fachnamen</strong> erzeugten Teil angehängt (z. B. Fach <code>Deutsch</code> → <code>arge-deutsch</code>). Ohne Präfix nur der Fach-Teil, z. B. <code>deutsch</code>. Beim Klick auf <strong>PowerShell erzeugen</strong> wird die Liste erneut ausgewertet.</small>
+                            </div>
+                            <div class="filter-group" style="margin-top:4px;">
+                                <label class="checkbox-label" for="argeUpperNick">
+                                    <input type="checkbox" id="argeUpperNick">
+                                    <span>Mail-Nickname groß schreiben (z. B. <code>ARGEBB</code>)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="filter-group arge-step1-lines">
+                            <label for="argeLines">Fächer / Bezeichnungen (eine Zeile pro ARGE)</label>
+                            <textarea id="argeLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="Deutsch&#10;Englisch&#10;Mathematik"></textarea>
+                        </div>
                     </div>
                     <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
                     <div class="table-container" style="max-height:280px;margin-bottom:12px;">
@@ -999,11 +1058,10 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                         </table>
                     </div>
                     <p id="argeParseError" class="alert alert-warning" style="display:none;"></p>
-                    <button type="button" class="btn" id="argeBack1">← Zurück</button>
                     <button type="button" class="btn btn-success" id="argeParseAndGo3">Weiter zu Besitzern →</button>
                 </div>
 
-                <div class="arge-step-content" data-arge-step="3">
+                <div class="arge-step-content" data-arge-step="2">
                     <h2>Besitzer (Lehrkräfte)</h2>
                     <div class="alert alert-info">
                         <strong>Microsoft Graph:</strong> Besitzer müssen als Benutzer im Mandanten existieren (User Principal Name). Pro ARGE mindestens ein Besitzer (UPN) eintragen.
@@ -1021,14 +1079,58 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                             <tbody id="argeOwnerBody"></tbody>
                         </table>
                     </div>
+                    <button type="button" class="btn" id="argeBack1">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="argeGoTo3">Weiter zu Einstellungen →</button>
+                </div>
+
+                <div class="arge-step-content" data-arge-step="3">
+                    <h2>ARGEs: Einstellungen</h2>
+                    <div class="alert alert-info">
+                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) für Arbeitsgemeinschaften erstellt – optional mit <strong>Microsoft Teams</strong> zur gleichen Gruppe. Sie haben in <strong>Schritt 1</strong> die ARGE-Liste inkl. <strong>Präfix</strong> und Option <strong>Großschreibung</strong> für Mail-Nicknames festgelegt und in <strong>Schritt 2</strong> <strong>Besitzer</strong> eingetragen (Besitzer wird auch als Mitglied eingetragen).
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <p style="color:#6c757d;margin:0 0 8px 0;">Die <strong>E-Mail-Domain der Schule</strong> (Vorschau &amp; Ziel für Exchange) steht <strong>oben</strong> – einmal für alle Module.</p>
+                            <small style="color:#6c757d;display:block;margin-top:6px;">
+                                <strong>Hinweis:</strong> Microsoft Graph setzt nur den <strong>Mail-Nickname</strong> (Teil vor dem @). Die fertige Adresse <code>nickname@…</code> kommt zuerst von der <strong>Standard-Domain</strong> im Mandanten. Die Domain oben ist die <strong>Zieldomain</strong> für die Vorschau und (optional) für Exchange unten – sie muss im Mandanten <a href="https://admin.microsoft.com/Adminportal/Home#/Domains" target="_blank" rel="noopener">verifiziert</a> sein.
+                            </small>
+                            <label class="checkbox-label" for="argeExchangeSmtp" style="margin-top:12px;">
+                                <input type="checkbox" id="argeExchangeSmtp" checked>
+                                <span><strong>Primäre Gruppen-E-Mail</strong> per <strong>Exchange Online PowerShell</strong> auf <code>MailNickname@&lt;Domain von oben&gt;</code> setzen (<code>Set-UnifiedGroup</code> – zweite Anmeldung, Modul <code>ExchangeOnlineManagement</code>)</span>
+                            </label>
+                            <small style="color:#6c757d;display:block;margin-top:6px;">Erfordert passende Rechte (z.&nbsp;B. Organisationsverwaltung). Erste Anmeldung: Microsoft Graph; zweite: Exchange (Browser/Gerät).</small>
+                        </div>
+                        <div class="filter-group">
+                            <p style="color:#6c757d;margin:0;font-size:0.95em;"><strong>Präfix</strong> und <strong>Mail-Nickname groß schreiben</strong> werden bereits in <strong>Schritt 1</strong> (ARGE-Liste) festgelegt.</p>
+                        </div>
+                        <div class="filter-group">
+                            <label class="checkbox-label" for="argeCreateTeams">
+                                <input type="checkbox" id="argeCreateTeams" checked>
+                                <span>Für jede Gruppe auch <strong>Microsoft Teams</strong> bereitstellen (nach Graph: Team an die M365-Gruppe anbinden)</span>
+                            </label>
+                            <small style="color:#6c757d;display:block;margin-top:6px;">Der eingetragene <strong>Besitzer</strong> wird automatisch als <strong>Mitglied</strong> der Gruppe hinzugefügt (zusätzlich zur Besitzerrolle).</small>
+                        </div>
+                    </div>
                     <button type="button" class="btn" id="argeBack2">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="argeGoTo4">PowerShell erzeugen →</button>
+                    <button type="button" class="btn btn-success" id="argeGoTo4">Weiter zu Ausführen →</button>
                 </div>
 
                 <div class="arge-step-content" data-arge-step="4">
-                    <h2>PowerShell (Microsoft Graph)</h2>
+                    <h2>Ausführen (Online oder PowerShell)</h2>
+                    <div class="alert alert-info" style="margin-bottom:16px;">
+                        <strong>Online (ohne CMD):</strong> Einmalig eine <strong>Entra-App-Registrierung</strong> (Multimandanten) + <code>clientId</code> in <code>ms365-config.js</code> – siehe Kommentar in <code>ms365-config.example.js</code>. Schul-Admins legen <strong>keine</strong> eigene App an; sie öffnen nur diese Seite und melden sich an. Benötigt werden delegierte Graph-Berechtigungen <code>Group.ReadWrite.All</code> und <code>User.Read.All</code> (Administratorzustimmung im Mandanten).
+                    </div>
+                    <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                        <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
+                        <p style="color:#495057;margin-bottom:12px;">Zuerst <strong>clientId</strong> in <code>ms365-config.js</code> eintragen. Dann anmelden (Popup) und ausführen. Tab während der Laufzeit offen lassen.</p>
+                        <p style="color:#6c757d;font-size:0.95em;margin-bottom:12px;">Die Online-Variante entspricht dem Graph-Teil des PowerShell-Skripts (M365-Gruppe, Besitzer, optional Teams). <strong>Exchange</strong> (<code>Set-UnifiedGroup</code>) nur über PowerShell/CMD unten.</p>
+                        <button type="button" class="btn" id="argeOnlineLogin" onclick="window.ms365ArgeGraphLogin && window.ms365ArgeGraphLogin()">Bei Microsoft anmelden</button>
+                        <button type="button" class="btn btn-success" id="argeOnlineRun" onclick="window.ms365ArgeGraphRun && window.ms365ArgeGraphRun()" style="margin-left:8px;">ARGE Gruppen jetzt anlegen</button>
+                        <div id="argeOnlineLog" style="margin-top:14px;max-height:220px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                    </div>
+                    <h3>PowerShell (lokal)</h3>
                     <div class="alert alert-warning">
-                        <strong>Voraussetzungen:</strong> Modul <code>Microsoft.Graph</code> installieren, <code>Connect-MgGraph</code> mit passenden Rechten (z. B. <code>Group.ReadWrite.All</code>, <code>User.Read.All</code>). Es werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) erstellt – ohne Teams-Vorlage.
+                        <strong>Voraussetzungen:</strong> Modul <code>Microsoft.Graph</code>, <code>Connect-MgGraph</code> mit <code>Group.ReadWrite.All</code> und <code>User.Read.All</code> (für Gruppe + Team-Anbindung i. d. R. ausreichend). Optional: <code>ExchangeOnlineManagement</code> und zweite Anmeldung für <code>Set-UnifiedGroup</code> (<a href="https://learn.microsoft.com/powershell/module/exchange/set-unifiedgroup" target="_blank" rel="noopener">Doku</a>). Es werden <strong>M365-Gruppen</strong> erstellt; optional <strong>Team</strong> (<a href="https://learn.microsoft.com/graph/api/team-put-teams" target="_blank" rel="noopener">Graph</a>) und optional <strong>Primäre SMTP-Adresse</strong> über Exchange.
                     </div>
                     <h3>Generiertes Script</h3>
                     <div class="powershell-code">
@@ -1037,8 +1139,8 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                     </div>
                     <div class="filter-section">
                         <h3>Fertiges Paket zum Doppelklicken</h3>
-                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>ARGE-Gruppen-Anlage.ps1</strong> und <strong>ARGE-Gruppen-Anlage.cmd</strong>. Beide in einen Ordner, <strong>.cmd</strong> starten. Anmeldung erfolgt über <strong>Microsoft Graph</strong> (interaktiv, MFA möglich).</p>
-                        <button type="button" class="btn btn-success" onclick="downloadArgeStandalonePackage()">📦 ARGE-Gruppen-Anlage.ps1 + .cmd herunterladen</button>
+                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>ARGE-Gruppen-Anlage.cmd</strong> (PowerShell eingebettet, keine separate .ps1). Doppelklick startet die Anlage; Anmeldung über <strong>Microsoft Graph</strong> (interaktiv, MFA möglich). <em>Hinweis:</em> Nach dem Download ggf. Rechtsklick → <strong>Eigenschaften</strong> → <strong>Zulassen</strong>, falls Windows die Datei blockiert.</p>
+                        <button type="button" class="btn btn-success" onclick="downloadArgeStandalonePackage()">📦 ARGE-Gruppen-Anlage.cmd herunterladen</button>
                     </div>
                     <button type="button" class="btn" id="argeBack3">← Zurück</button>
                 </div>
@@ -1058,9 +1160,13 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
     </div>
     <div id="toast" class="toast" role="status"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="school-domain.js" defer></script>
+    <script src="polyglot-cmd.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="app.js" defer></script>
     <script src="jahrgang.js" defer></script>
     <script src="arge.js" defer></script>
+    <script src="ms365-config.js" defer></script>
+    <script src="arge-graph.js" defer></script>
 </body>
 </html>

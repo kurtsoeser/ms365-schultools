@@ -81,8 +81,10 @@
     }
 
     function getDomain() {
-        let d = (document.getElementById('jgDomain').value || '').trim().replace(/^@/, '');
-        return d;
+        if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
+            return window.ms365GetSchoolDomainNoAt();
+        }
+        return '';
     }
 
     function getPrefix() {
@@ -115,19 +117,180 @@
         });
     }
 
+    const JG_STORAGE_KEY = 'ms365-jahrgang-state-v1';
+
+    function getJgCreateTeams() {
+        const el = document.getElementById('jgCreateTeams');
+        return el ? !!el.checked : true;
+    }
+
+    function getJgExchangeSmtp() {
+        const el = document.getElementById('jgExchangeSmtp');
+        return el ? !!el.checked : true;
+    }
+
+    function refreshJgScriptIfStep4() {
+        if (jgCurrentStep !== 4 || !jgRows.length) return;
+        const missing = jgRows.filter(r => !r.owner);
+        if (missing.length) return;
+        const pre = document.getElementById('jgPowerShellScript');
+        if (pre) pre.textContent = buildStandaloneJahrgangPs1(false, getJgCreateTeams(), getJgExchangeSmtp());
+    }
+
+    function rebuildJgOwnerTableFromRows() {
+        const domain = getDomain();
+        const tbody = document.getElementById('jgOwnerBody');
+        tbody.replaceChildren();
+        jgRows.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            const td1 = document.createElement('td');
+            td1.textContent = row.klasse;
+            const td2 = document.createElement('td');
+            td2.textContent = row.mailNick + '@' + domain;
+            const td3 = document.createElement('td');
+            td3.textContent = row.mailNick;
+            const td4 = document.createElement('td');
+            const inp = document.createElement('input');
+            inp.type = 'email';
+            inp.placeholder = 'lehrer@' + domain;
+            inp.style.width = '100%';
+            inp.style.padding = '8px';
+            inp.style.boxSizing = 'border-box';
+            inp.value = row.owner || '';
+            inp.addEventListener('input', () => {
+                jgRows[index].owner = inp.value.trim();
+            });
+            td4.appendChild(inp);
+            tr.append(td1, td2, td3, td4);
+            tbody.appendChild(tr);
+        });
+    }
+
+    function saveJahrgangState() {
+        try {
+            const state = {
+                jgCurrentStep,
+                jgRows,
+                jgPrefix: document.getElementById('jgPrefix').value,
+                jgSuffixUpper: document.getElementById('jgSuffixUpper').checked,
+                jgCreateTeams: getJgCreateTeams(),
+                jgExchangeSmtp: getJgExchangeSmtp(),
+                jgClassLines: document.getElementById('jgClassLines').value,
+                jgPowerShellScript: document.getElementById('jgPowerShellScript').textContent
+            };
+            localStorage.setItem(JG_STORAGE_KEY, JSON.stringify(state));
+            showToast('Jahrgangsgruppen: Zwischenstand gespeichert.');
+        } catch (e) {
+            showToast('Speichern fehlgeschlagen: ' + e.message);
+        }
+    }
+
+    function loadJahrgangState() {
+        try {
+            const raw = localStorage.getItem(JG_STORAGE_KEY);
+            if (!raw) {
+                showToast('Kein gespeicherter Stand für Jahrgangsgruppen.');
+                return;
+            }
+            const state = JSON.parse(raw);
+            jgCurrentStep = typeof state.jgCurrentStep === 'number' ? state.jgCurrentStep : 1;
+            jgRows = Array.isArray(state.jgRows) ? state.jgRows : [];
+            if (
+                typeof window.ms365SetSchoolDomainNoAt === 'function' &&
+                state.jgDomain !== undefined &&
+                String(state.jgDomain).trim() !== ''
+            ) {
+                window.ms365SetSchoolDomainNoAt(state.jgDomain);
+            }
+            document.getElementById('jgPrefix').value = state.jgPrefix !== undefined ? state.jgPrefix : 'jg';
+            document.getElementById('jgSuffixUpper').checked = state.jgSuffixUpper !== false;
+            const jgTeamsEl = document.getElementById('jgCreateTeams');
+            if (jgTeamsEl) {
+                jgTeamsEl.checked = state.jgCreateTeams !== undefined ? !!state.jgCreateTeams : true;
+            }
+            const jgExoEl = document.getElementById('jgExchangeSmtp');
+            if (jgExoEl) {
+                jgExoEl.checked = state.jgExchangeSmtp !== undefined ? !!state.jgExchangeSmtp : true;
+            }
+            document.getElementById('jgClassLines').value = state.jgClassLines || '';
+            document.getElementById('jgParseError').style.display = 'none';
+            const pre = document.getElementById('jgPowerShellScript');
+            if (pre && state.jgPowerShellScript !== undefined) {
+                pre.textContent = state.jgPowerShellScript;
+            }
+            updatePrefixExample();
+            if (jgRows.length) {
+                rebuildJgOwnerTableFromRows();
+            } else {
+                document.getElementById('jgOwnerBody').replaceChildren();
+            }
+            const step = Math.min(Math.max(1, jgCurrentStep), 4);
+            goToJgStep(step);
+            showToast('Jahrgangsgruppen: Stand geladen.');
+        } catch (e) {
+            showToast('Laden fehlgeschlagen: ' + e.message);
+        }
+    }
+
+    function clearJahrgangState() {
+        if (!confirm('Gespeicherten Zwischenstand für Jahrgangsgruppen wirklich löschen?')) {
+            return;
+        }
+        try {
+            localStorage.removeItem(JG_STORAGE_KEY);
+            jgCurrentStep = 1;
+            jgRows = [];
+            document.getElementById('jgPrefix').value = 'jg';
+            document.getElementById('jgSuffixUpper').checked = true;
+            const jgTeamsClear = document.getElementById('jgCreateTeams');
+            if (jgTeamsClear) jgTeamsClear.checked = true;
+            const jgExoClear = document.getElementById('jgExchangeSmtp');
+            if (jgExoClear) jgExoClear.checked = true;
+            document.getElementById('jgClassLines').value = '';
+            document.getElementById('jgParseError').style.display = 'none';
+            document.getElementById('jgOwnerBody').replaceChildren();
+            document.getElementById('jgPowerShellScript').textContent = '';
+            updatePrefixExample();
+            goToJgStep(1);
+            showToast('Jahrgangsgruppen: Speicher geleert.');
+        } catch (e) {
+            showToast('Fehler: ' + e.message);
+        }
+    }
+
+    window.ms365SaveJahrgang = saveJahrgangState;
+    window.ms365LoadJahrgang = loadJahrgangState;
+    window.ms365ClearJahrgang = clearJahrgangState;
+
     function updatePrefixExample() {
         const dom = getDomain();
         const pre = getPrefix();
         const ex = buildMailNickname(pre, '2030', 'AK');
         const el = document.getElementById('jgPrefixExample');
-        if (el) el.textContent = ex + '@' + (dom || 'ihre-schule.at');
+        if (el) {
+            const fallback =
+                typeof window.ms365DefaultSchoolDomainNoAt === 'function'
+                    ? window.ms365DefaultSchoolDomainNoAt()
+                    : 'ms365.schule';
+            el.textContent = ex + '@' + (dom || fallback);
+        }
     }
 
-    ['jgDomain', 'jgPrefix', 'jgSuffixUpper'].forEach(id => {
+    ['schoolEmailDomain', 'jgPrefix', 'jgSuffixUpper'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('input', updatePrefixExample);
-        if (el) el.addEventListener('change', updatePrefixExample);
+        if (el) {
+            el.addEventListener('input', updatePrefixExample);
+            el.addEventListener('change', updatePrefixExample);
+            el.addEventListener('input', refreshJgScriptIfStep4);
+            el.addEventListener('change', refreshJgScriptIfStep4);
+        }
     });
+    const jgTeamsEl = document.getElementById('jgCreateTeams');
+    if (jgTeamsEl) jgTeamsEl.addEventListener('change', refreshJgScriptIfStep4);
+    const jgExoEl = document.getElementById('jgExchangeSmtp');
+    if (jgExoEl) jgExoEl.addEventListener('change', refreshJgScriptIfStep4);
+
+    updatePrefixExample();
 
     document.getElementById('jgGoTo2').addEventListener('click', () => goToJgStep(2));
 
@@ -171,7 +334,7 @@
 
         const domain = getDomain();
         if (!domain) {
-            errEl.textContent = 'Bitte in Schritt 1 die E-Mail-Domain angeben.';
+            errEl.textContent = 'Bitte oben die E-Mail-Domain der Schule eintragen.';
             errEl.style.display = 'block';
             return;
         }
@@ -186,31 +349,7 @@
         }));
         resolveDuplicateNicks(jgRows);
 
-        const tbody = document.getElementById('jgOwnerBody');
-        tbody.replaceChildren();
-        jgRows.forEach((row, index) => {
-            const tr = document.createElement('tr');
-            const td1 = document.createElement('td');
-            td1.textContent = row.klasse;
-            const td2 = document.createElement('td');
-            td2.textContent = row.mailNick + '@' + domain;
-            const td3 = document.createElement('td');
-            td3.textContent = row.mailNick;
-            const td4 = document.createElement('td');
-            const inp = document.createElement('input');
-            inp.type = 'email';
-            inp.placeholder = 'lehrer@' + domain;
-            inp.style.width = '100%';
-            inp.style.padding = '8px';
-            inp.style.boxSizing = 'border-box';
-            inp.dataset.index = String(index);
-            inp.addEventListener('input', () => {
-                jgRows[index].owner = inp.value.trim();
-            });
-            td4.appendChild(inp);
-            tr.append(td1, td2, td3, td4);
-            tbody.appendChild(tr);
-        });
+        rebuildJgOwnerTableFromRows();
 
         goToJgStep(3);
     });
@@ -225,6 +364,10 @@
         const missing = jgRows.filter(r => !r.owner);
         if (missing.length) {
             showToast('Bitte für alle Klassen eine Besitzer-E-Mail (UPN) eintragen.');
+            return;
+        }
+        if (getJgExchangeSmtp() && !getDomain().trim()) {
+            showToast('Für die Exchange-Option bitte oben die E-Mail-Domain der Schule eintragen.');
             return;
         }
         document.getElementById('jgPowerShellScript').textContent = buildPowerShellScript();
@@ -243,7 +386,7 @@
     }
 
     function buildPowerShellScript() {
-        return buildStandaloneJahrgangPs1(false);
+        return buildStandaloneJahrgangPs1(false, getJgCreateTeams(), getJgExchangeSmtp());
     }
 
     function downloadBlob(filename, text, mime) {
@@ -255,13 +398,19 @@
         URL.revokeObjectURL(a.href);
     }
 
-    function buildStandaloneJahrgangPs1(standalone) {
+    function buildStandaloneJahrgangPs1(standalone, createTeams, setExchangeSmtp) {
+        if (createTeams === undefined) createTeams = true;
+        if (setExchangeSmtp === undefined) setExchangeSmtp = true;
         const domain = getDomain();
+        const domainTrim = (domain || '').trim();
+        const setExoEffective = setExchangeSmtp && domainTrim.length > 0;
         const stamp = new Date().toISOString();
         const lines = [];
+        const scopesLine = '$scopes = @("Group.ReadWrite.All","User.Read.All")';
+
         if (standalone) {
             lines.push('#Requires -Version 5.1');
-            lines.push('# Jahrgangsgruppen (Microsoft 365 Unified Groups, kein Kursteam)');
+            lines.push('# Jahrgangsgruppen (M365 Unified); optional Teams ($Ms365CreateTeams); optional Exchange-SMTP ($Ms365SetExchangeSmtp)');
             lines.push('# Erzeugt in der Browser-App am ' + stamp);
             lines.push('# Daten sind unten eingebettet.');
             lines.push('');
@@ -273,25 +422,117 @@
             lines.push('Write-Host "  Jahrgangsgruppen (Microsoft Graph)"   -ForegroundColor Cyan');
             lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
             lines.push('Write-Host ""');
-            lines.push('');
-            lines.push('if (-not (Get-Module -ListAvailable -Name Microsoft.Graph)) {');
-            lines.push('    Write-Host "Installiere Microsoft.Graph (einmalig)..." -ForegroundColor Yellow');
-            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force');
+            lines.push(
+                '# Meta-Modul Microsoft.Graph (einheitliche DLL-Versionen; PS-5.1 „4096 Funktionen“ per MaximumFunctionCount)'
+            );
+            lines.push('$MaximumFunctionCount = 32768');
+            lines.push('Write-Host "Lade Microsoft.Graph ..." -ForegroundColor Gray');
+            lines.push('try {');
+            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
+            lines.push('} catch {');
+            lines.push('    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow');
+            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
+            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
             lines.push('}');
-            lines.push('Import-Module Microsoft.Graph -ErrorAction Stop');
             lines.push('');
-            lines.push('Write-Host "Anmeldung bei Microsoft Graph (interaktiv, MFA moeglich)..." -ForegroundColor Yellow');
-            lines.push('Write-Host "Es oeffnet sich ein Browser- oder Anmeldedialog." -ForegroundColor Gray');
-            lines.push('Connect-MgGraph -Scopes "Group.ReadWrite.All","User.Read.All"');
+            lines.push(scopesLine);
+            lines.push('Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow');
+            lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
+            lines.push('$script:Ms365OldEap = $ErrorActionPreference');
+            lines.push('$ErrorActionPreference = "Stop"');
+            lines.push('try {');
+            lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
+            lines.push('} catch {');
+            lines.push('    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
+            lines.push('}');
+            lines.push('$ErrorActionPreference = $script:Ms365OldEap');
+            lines.push('if (-not (Get-MgContext)) {');
+            lines.push('    Write-Host ""');
+            lines.push('    Write-Host "Kein Graph-Kontext – Geraetecode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow');
+            lines.push('    $ErrorActionPreference = "Stop"');
+            lines.push('    try {');
+            lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
+            lines.push('    } catch {');
+            lines.push('        Write-Error ("Microsoft Graph: Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message)');
+            lines.push('        exit 1');
+            lines.push('    }');
+            lines.push('    $ErrorActionPreference = $script:Ms365OldEap');
+            lines.push('}');
+            lines.push('if (-not (Get-MgContext)) {');
+            lines.push('    Write-Error "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich. Skript wird beendet."');
+            lines.push('    exit 1');
+            lines.push('}');
+            lines.push('$mgCtx = Get-MgContext');
+            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
             lines.push('');
         } else {
-            lines.push('# Microsoft Graph: Jahrgangsgruppen als Microsoft 365-Gruppen (Unified Group, kein Kursteam)');
+            lines.push('# Microsoft Graph: Jahrgangsgruppen als Microsoft 365-Gruppen (Unified Group)');
             lines.push('# Voraussetzung: Install-Module Microsoft.Graph');
             lines.push('# https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup');
             lines.push('');
-            lines.push("Install-Module Microsoft.Graph -Scope CurrentUser -ErrorAction SilentlyContinue");
-            lines.push("Import-Module Microsoft.Graph -ErrorAction Stop");
-            lines.push('Connect-MgGraph -Scopes "Group.ReadWrite.All","User.Read.All"');
+            lines.push('Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber -ErrorAction SilentlyContinue');
+            lines.push('$MaximumFunctionCount = 32768');
+            lines.push('try {');
+            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
+            lines.push('} catch {');
+            lines.push('    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow');
+            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
+            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
+            lines.push('}');
+            lines.push('');
+            lines.push(scopesLine);
+            lines.push('Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow');
+            lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
+            lines.push('$script:Ms365OldEap = $ErrorActionPreference');
+            lines.push('$ErrorActionPreference = "Stop"');
+            lines.push('try {');
+            lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
+            lines.push('} catch {');
+            lines.push('    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
+            lines.push('}');
+            lines.push('$ErrorActionPreference = $script:Ms365OldEap');
+            lines.push('if (-not (Get-MgContext)) {');
+            lines.push('    Write-Host ""');
+            lines.push('    Write-Host "Kein Graph-Kontext – Geraetecode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow');
+            lines.push('    $ErrorActionPreference = "Stop"');
+            lines.push('    try {');
+            lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
+            lines.push('    } catch {');
+            lines.push('        throw ("Microsoft Graph: Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message)');
+            lines.push('    }');
+            lines.push('    $ErrorActionPreference = $script:Ms365OldEap');
+            lines.push('}');
+            lines.push('if (-not (Get-MgContext)) {');
+            lines.push('    throw "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich."');
+            lines.push('}');
+            lines.push('$mgCtx = Get-MgContext');
+            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
+            lines.push('');
+        }
+
+        lines.push('$Ms365CreateTeams = $' + (createTeams ? 'true' : 'false'));
+        lines.push('$Ms365SetExchangeSmtp = $' + (setExoEffective ? 'true' : 'false'));
+        lines.push("$Ms365ExchangeDomain = '" + psEscapeSingle(domainTrim) + "'");
+        lines.push('');
+        if (setExoEffective) {
+            lines.push('$script:Ms365ExoConnected = $false');
+            lines.push('function Ensure-Ms365ExchangeOnline {');
+            lines.push('    if ($script:Ms365ExoConnected) { return }');
+            lines.push(
+                '    Write-Host "Exchange Online: Modul laden und anmelden (zweiter Dialog) …" -ForegroundColor Yellow'
+            );
+            lines.push('    try {');
+            lines.push('        Import-Module ExchangeOnlineManagement -ErrorAction Stop');
+            lines.push('    } catch {');
+            lines.push('        Write-Host "Installiere ExchangeOnlineManagement …" -ForegroundColor Yellow');
+            lines.push('        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force -AllowClobber');
+            lines.push('        Import-Module ExchangeOnlineManagement -ErrorAction Stop');
+            lines.push('    }');
+            lines.push('    Connect-ExchangeOnline -ShowBanner:$false');
+            lines.push('    $script:Ms365ExoConnected = $true');
+            lines.push('    Write-Host "Exchange Online: angemeldet." -ForegroundColor Green');
+            lines.push('}');
+            lines.push('Ensure-Ms365ExchangeOnline');
             lines.push('');
         }
         lines.push('$rows = @(');
@@ -319,25 +560,121 @@
         lines.push('    $i++');
         lines.push('    try {');
         lines.push("        $owner = Get-MgUser -UserId $r.OwnerUpn -ErrorAction Stop");
-        lines.push('        $group = New-MgGroup `');
-        lines.push('            -DisplayName $r.Klasse `');
-        lines.push('            -Description $r.Description `');
-        lines.push('            -MailNickname $r.MailNickname `');
-        lines.push('            -MailEnabled:$true `');
-        lines.push('            -SecurityEnabled:$false `');
-        lines.push('            -GroupTypes @("Unified") `');
-        lines.push('            -Visibility "Private" `');
-        lines.push('            -ErrorAction Stop');
+        lines.push(
+            '        # M365 Unified Group: New-MgGroup -BodyParameter (Bulk-Muster, vgl. https://m365corner.com/m365-powershell/using-new-mggroup-in-graph-powershell.html )'
+        );
+        lines.push('        $groupBody = @{');
+        lines.push('            DisplayName     = $r.Klasse');
+        lines.push('            Description     = $r.Description');
+        lines.push('            MailNickname    = $r.MailNickname');
+        lines.push('            MailEnabled     = $true');
+        lines.push('            SecurityEnabled = $false');
+        lines.push('            GroupTypes      = @("Unified")');
+        lines.push('            Visibility      = "Private"');
+        lines.push('        }');
+        lines.push('        $group = New-MgGroup -BodyParameter $groupBody -ErrorAction Stop');
+        lines.push('        Start-Sleep -Seconds 2  # Replikation vor Owner-Zuweisung');
         lines.push('        New-MgGroupOwner -GroupId $group.Id -DirectoryObjectId $owner.Id');
-        lines.push('        Write-Host ("OK [{0}/{1}] {2} -> {3}" -f $i, $rows.Count, $r.Klasse, $r.MailNickname)');
+        lines.push('        try {');
+        lines.push(
+            '            $memberRef = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($owner.Id)" }'
+        );
+        lines.push(
+            '            Invoke-MgGraphRequest -Method POST -Uri (' +
+                "'" +
+                'https://graph.microsoft.com/v1.0/groups/{0}/members/$ref' +
+                "'" +
+                ' -f $group.Id) -Body ($memberRef | ConvertTo-Json -Compress) -ErrorAction Stop'
+        );
+        lines.push('        } catch {');
+        lines.push(
+            '            Write-Host ("Hinweis (Besitzer als Mitglied): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
+        );
+        lines.push('        }');
+        lines.push('        if ($Ms365CreateTeams) {');
+        lines.push('            $teamProps = @{');
+        lines.push('                memberSettings = @{ allowCreatePrivateChannels = $true; allowCreateUpdateChannels = $true }');
+        lines.push(
+            '                messagingSettings = @{ allowUserEditMessages = $true; allowUserDeleteMessages = $true }'
+        );
+        lines.push('                funSettings = @{ allowGiphy = $true; giphyContentRating = "moderate" }');
+        lines.push('                guestSettings = @{ allowCreateUpdateChannels = $false }');
+        lines.push('            }');
+        lines.push('            $teamUri = "https://graph.microsoft.com/v1.0/groups/$($group.Id)/team"');
+        lines.push('            for ($ti = 0; $ti -lt 8; $ti++) {');
+        lines.push('                try {');
+        lines.push(
+            '                    Invoke-MgGraphRequest -Method PUT -Uri $teamUri -Body $teamProps -ErrorAction Stop'
+        );
+        lines.push(
+            '                    Write-Host ("Teams: {0} – Team bereitgestellt." -f $r.Klasse) -ForegroundColor Cyan'
+        );
+        lines.push('                    break');
+        lines.push('                } catch {');
+        lines.push('                    if ($ti -lt 7) {');
+        lines.push(
+            '                        Write-Host ("Teams: Warte auf Replikation ({0}/8) …" -f ($ti + 1)) -ForegroundColor DarkYellow'
+        );
+        lines.push('                        Start-Sleep -Seconds 10');
+        lines.push('                    } else {');
+        lines.push(
+            '                        Write-Warning ("Teams: {0} – Team konnte nicht angelegt werden: {1}" -f $r.Klasse, $_.Exception.Message)'
+        );
+        lines.push('                    }');
+        lines.push('                }');
+        lines.push('            }');
+        lines.push('        }');
+        lines.push('        if ($Ms365SetExchangeSmtp -and $Ms365ExchangeDomain) {');
+        lines.push('            $wantedSmtp = "$($r.MailNickname)@$Ms365ExchangeDomain"');
+        lines.push('            for ($ei = 0; $ei -lt 6; $ei++) {');
+        lines.push('                try {');
+        lines.push(
+            '                    Set-UnifiedGroup -Identity $group.Id -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop'
+        );
+        lines.push(
+            '                    Write-Host ("Exchange: {0} – PrimarySmtpAddress = {1}" -f $r.Klasse, $wantedSmtp) -ForegroundColor Green'
+        );
+        lines.push('                    break');
+        lines.push('                } catch {');
+        lines.push('                    if ($ei -lt 5) {');
+        lines.push(
+            '                        Write-Host ("Exchange: Warte auf Postfach ({0}/6) …" -f ($ei + 1)) -ForegroundColor DarkYellow'
+        );
+        lines.push('                        Start-Sleep -Seconds 15');
+        lines.push('                    } else {');
+        lines.push(
+            '                        Write-Warning ("Exchange: {0} – PrimarySmtpAddress nicht gesetzt: {1}" -f $r.Klasse, $_.Exception.Message)'
+        );
+        lines.push('                    }');
+        lines.push('                }');
+        lines.push('            }');
+        lines.push('        }');
+        lines.push(
+            '        Write-Host ("OK [{0}/{1}] {2} -> {3}" -f $i, $rows.Count, $r.Klasse, $r.MailNickname) -ForegroundColor Green'
+        );
         lines.push('    }');
         lines.push('    catch {');
-        lines.push('        Write-Warning ("Fehler [{0}] {1}: {2}" -f $i, $r.Klasse, $_.Exception.Message)');
+        lines.push('        $ex = $_.Exception');
+        lines.push('        $detail = $ex.Message');
+        lines.push('        if ($ex.InnerException) { $detail += " | " + $ex.InnerException.Message }');
+        lines.push('        Write-Warning ("Fehler [{0}] {1}: {2}" -f $i, $r.Klasse, $detail)');
         lines.push('    }');
         lines.push('    Start-Sleep -Seconds 2');
         lines.push('}');
         lines.push('');
-        lines.push('# Gruppen-E-Mail: <MailNickname>@' + psEscapeSingle(domain));
+        lines.push(
+            '# SMTP: Graph legt nur mailNickname an. Mit $Ms365SetExchangeSmtp wird die primäre Adresse per Exchange gesetzt.'
+        );
+        lines.push('# Zieldomain (App): ' + psEscapeSingle(domainTrim || domain));
+        lines.push('# Set-UnifiedGroup: https://learn.microsoft.com/powershell/module/exchange/set-unifiedgroup');
+        if (setExoEffective) {
+            lines.push('if ($script:Ms365ExoConnected) {');
+            lines.push(
+                '    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}'
+            );
+            lines.push('}');
+            lines.push('');
+        }
         if (standalone) {
             lines.push('');
             lines.push('Write-Host ""');
@@ -345,27 +682,6 @@
             lines.push('Read-Host "Enter druecken zum Beenden"');
         }
         return lines.join('\r\n');
-    }
-
-    function buildJahrgangCmdContent() {
-        return [
-            '@echo off',
-            'chcp 65001 >nul',
-            'title Jahrgangsgruppen-Anlage',
-            'cd /d "%~dp0"',
-            'echo.',
-            'echo Starte Jahrgangsgruppen-Anlage (Microsoft Graph)...',
-            'echo.',
-            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Jahrgangsgruppen-Anlage.ps1"',
-            'set ERR=%ERRORLEVEL%',
-            'if not "%ERR%"=="0" (',
-            '  echo.',
-            '  echo Fehlercode: %ERR%',
-            ')',
-            'echo.',
-            'pause',
-            ''
-        ].join('\r\n');
     }
 
     function downloadJahrgangStandalonePackage() {
@@ -378,12 +694,22 @@
             showToast('Bitte für alle Klassen einen Besitzer eintragen.');
             return;
         }
-        const ps1 = buildStandaloneJahrgangPs1(true);
-        downloadBlob('Jahrgangsgruppen-Anlage.ps1', ps1);
-        setTimeout(() => {
-            downloadBlob('Jahrgangsgruppen-Anlage.cmd', buildJahrgangCmdContent());
-            showToast('Dateien: Jahrgangsgruppen-Anlage.ps1 + .cmd heruntergeladen.');
-        }, 500);
+        if (typeof window.ms365BuildPolyglotCmd !== 'function') {
+            showToast('polyglot-cmd.js fehlt – Seite neu laden.');
+            return;
+        }
+        if (getJgExchangeSmtp() && !getDomain().trim()) {
+            showToast('Für die Exchange-Option bitte oben die E-Mail-Domain der Schule eintragen.');
+            return;
+        }
+        const ps1 = buildStandaloneJahrgangPs1(true, getJgCreateTeams(), getJgExchangeSmtp());
+        const cmd = window.ms365BuildPolyglotCmd({
+            title: 'Jahrgangsgruppen-Anlage',
+            echoLine: 'Starte Jahrgangsgruppen-Anlage Microsoft Graph ...',
+            psBody: ps1
+        });
+        downloadBlob('Jahrgangsgruppen-Anlage.cmd', cmd);
+        showToast('Jahrgangsgruppen-Anlage.cmd heruntergeladen – Doppelklick zum Start.');
     }
 
     window.downloadJahrgangStandalonePackage = downloadJahrgangStandalonePackage;

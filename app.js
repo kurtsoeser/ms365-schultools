@@ -140,13 +140,16 @@
                 teamsGenerated,
                 currentStep,
                 yearPrefix: document.getElementById('yearPrefix').value,
-                emailDomain: document.getElementById('emailDomain').value,
+                schoolDomain:
+                    typeof window.ms365GetSchoolDomainNoAt === 'function'
+                        ? window.ms365GetSchoolDomainNoAt()
+                        : '',
                 teamSeparator: document.getElementById('teamSeparator').value,
                 excludeSubjects: document.getElementById('excludeSubjects').value,
                 removeDuplicates: document.getElementById('removeDuplicates').checked
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            showToast('Zwischenstand wurde lokal gespeichert.');
+            showToast('Kursteams: Zwischenstand gespeichert.');
         } catch (e) {
             showToast('Speichern fehlgeschlagen: ' + e.message);
         }
@@ -167,7 +170,19 @@
             teamsGenerated = !!state.teamsGenerated;
 
             document.getElementById('yearPrefix').value = state.yearPrefix || 'WS24';
-            document.getElementById('emailDomain').value = state.emailDomain || '@hak-steyr.at';
+            if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
+                const sd = state.schoolDomain;
+                const legacy = state.emailDomain;
+                if (sd !== undefined && sd !== null && String(sd).trim() !== '') {
+                    window.ms365SetSchoolDomainNoAt(sd);
+                } else if (legacy !== undefined && legacy !== null && String(legacy).trim() !== '') {
+                    window.ms365SetSchoolDomainNoAt(
+                        String(legacy)
+                            .trim()
+                            .replace(/^@+/, '')
+                    );
+                }
+            }
             document.getElementById('teamSeparator').value = state.teamSeparator !== undefined ? state.teamSeparator : ' | ';
             document.getElementById('excludeSubjects').value = state.excludeSubjects !== undefined ? state.excludeSubjects : 'ORD,DIR,KV';
             document.getElementById('removeDuplicates').checked = state.removeDuplicates !== false;
@@ -193,26 +208,70 @@
 
             const step = state.currentStep !== undefined ? state.currentStep : 1;
             goToStep(step);
-            showToast('Gespeicherter Stand wurde geladen.');
+            showToast('Kursteams: Stand geladen.');
         } catch (e) {
             showToast('Laden fehlgeschlagen: ' + e.message);
         }
     }
 
     function clearStorage() {
-        confirmModal('Lokalen Speicher löschen', 'Alle gespeicherten Zwischenstände in diesem Browser wirklich löschen?', () => {
+        confirmModal('Lokalen Speicher löschen', 'Den gespeicherten Zwischenstand für Kursteams in diesem Browser wirklich löschen?', () => {
             try {
                 localStorage.removeItem(STORAGE_KEY);
-                showToast('Lokaler Speicher wurde geleert.');
+                showToast('Kursteams: Lokaler Speicher wurde geleert.');
             } catch (e) {
                 showToast('Fehler: ' + e.message);
             }
         });
     }
 
-    document.getElementById('btnSaveState').addEventListener('click', saveStateToStorage);
-    document.getElementById('btnLoadState').addEventListener('click', loadStateFromStorage);
-    document.getElementById('btnClearStorage').addEventListener('click', clearStorage);
+    function getActivePanelMode() {
+        const pw = document.getElementById('panelWebuntis');
+        const pj = document.getElementById('panelJahrgang');
+        const pa = document.getElementById('panelArge');
+        const hidden = el => !el || window.getComputedStyle(el).display === 'none';
+        if (!hidden(pw)) return 'webuntis';
+        if (!hidden(pj)) return 'jahrgang';
+        if (!hidden(pa)) return 'arge';
+        return 'webuntis';
+    }
+
+    document.getElementById('btnSaveState').addEventListener('click', () => {
+        const mode = getActivePanelMode();
+        if (mode === 'jahrgang' && typeof window.ms365SaveJahrgang === 'function') {
+            window.ms365SaveJahrgang();
+            return;
+        }
+        if (mode === 'arge' && typeof window.ms365SaveArge === 'function') {
+            window.ms365SaveArge();
+            return;
+        }
+        saveStateToStorage();
+    });
+    document.getElementById('btnLoadState').addEventListener('click', () => {
+        const mode = getActivePanelMode();
+        if (mode === 'jahrgang' && typeof window.ms365LoadJahrgang === 'function') {
+            window.ms365LoadJahrgang();
+            return;
+        }
+        if (mode === 'arge' && typeof window.ms365LoadArge === 'function') {
+            window.ms365LoadArge();
+            return;
+        }
+        loadStateFromStorage();
+    });
+    document.getElementById('btnClearStorage').addEventListener('click', () => {
+        const mode = getActivePanelMode();
+        if (mode === 'jahrgang' && typeof window.ms365ClearJahrgang === 'function') {
+            window.ms365ClearJahrgang();
+            return;
+        }
+        if (mode === 'arge' && typeof window.ms365ClearArge === 'function') {
+            window.ms365ClearArge();
+            return;
+        }
+        clearStorage();
+    });
 
     uploadArea.addEventListener('click', () => fileInput.click());
     uploadArea.addEventListener('dragover', (e) => {
@@ -485,7 +544,10 @@
 
     function generateTeamNames() {
         const yearPrefix = document.getElementById('yearPrefix').value;
-        const emailDomain = document.getElementById('emailDomain').value;
+        const emailDomain =
+            typeof window.ms365GetTeacherEmailDomainSuffix === 'function'
+                ? window.ms365GetTeacherEmailDomainSuffix()
+                : '@';
         const separator = document.getElementById('teamSeparator').value;
 
         teamsData = filteredData.map(row => {
@@ -730,7 +792,10 @@
             document.getElementById('missingTeachersSection').style.display = 'none';
             return;
         }
-        const emailDomain = document.getElementById('emailDomain').value;
+        const emailDomain =
+            typeof window.ms365GetTeacherEmailDomainSuffix === 'function'
+                ? window.ms365GetTeacherEmailDomainSuffix()
+                : '@';
         const tbody = document.getElementById('missingTeachersBody');
         tbody.replaceChildren();
         unmappedTeachers.forEach(kuerzel => {
@@ -912,39 +977,24 @@
         return lines.join('\r\n');
     }
 
-    function buildKursteamCmdContent() {
-        return [
-            '@echo off',
-            'chcp 65001 >nul',
-            'title Kursteam-Anlage',
-            'cd /d "%~dp0"',
-            'echo.',
-            'echo Starte Kursteam-Anlage (PowerShell)...',
-            'echo.',
-            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Kursteam-Anlage.ps1"',
-            'set ERR=%ERRORLEVEL%',
-            'if not "%ERR%"=="0" (',
-            '  echo.',
-            '  echo Fehlercode: %ERR%',
-            ')',
-            'echo.',
-            'pause',
-            ''
-        ].join('\r\n');
-    }
-
     function downloadKursteamStandalonePackage() {
         const validTeams = teamsData.filter(t => t.isValid);
         if (!validTeams.length) {
             showToast('Keine gültigen Teams – zuerst Team-Namen generieren.');
             return;
         }
+        if (typeof window.ms365BuildPolyglotCmd !== 'function') {
+            showToast('polyglot-cmd.js fehlt – Seite neu laden.');
+            return;
+        }
         const ps1 = buildStandaloneKursteamPs1(validTeams);
-        downloadBlob('Kursteam-Anlage.ps1', ps1);
-        setTimeout(() => {
-            downloadBlob('Kursteam-Anlage.cmd', buildKursteamCmdContent());
-            showToast('Dateien: Kursteam-Anlage.ps1 + .cmd – beide in einen Ordner, dann .cmd doppelklicken.');
-        }, 500);
+        const cmd = window.ms365BuildPolyglotCmd({
+            title: 'Kursteam-Anlage',
+            echoLine: 'Starte Kursteam-Anlage mit PowerShell ...',
+            psBody: ps1
+        });
+        downloadBlob('Kursteam-Anlage.cmd', cmd);
+        showToast('Kursteam-Anlage.cmd heruntergeladen – Doppelklick zum Start.');
     }
 
     function resetApp() {
