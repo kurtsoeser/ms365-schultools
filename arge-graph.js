@@ -190,7 +190,7 @@
         }
         const pack = snapshot();
         if (!pack || !pack.rows || !pack.rows.length) {
-            appendLog('Keine ARGE-Zeilen – bitte Schritte 1–3 abschließen.', 'err');
+            appendLog('Keine ARGE-Zeilen – bitte Liste, Besitzer und Einstellungen abschließen.', 'err');
             return;
         }
         const missing = pack.rows.filter(function (r) {
@@ -310,6 +310,39 @@
                         appendLog('  Mitglied: bereits gesetzt.', 'warn');
                     } else {
                         appendLog('  Hinweis (Besitzer als Mitglied): ' + e.message, 'warn');
+                    }
+                }
+
+                const extraMembers = Array.isArray(pack.memberEmails) ? pack.memberEmails : [];
+                for (let mi = 0; mi < extraMembers.length; mi++) {
+                    const upn = String(extraMembers[mi] || '').trim();
+                    if (!upn) continue;
+                    try {
+                        const memUser = await graphJson(
+                            'GET',
+                            '/users/' + encodeURIComponent(upn),
+                            token,
+                            undefined
+                        );
+                        const memId = memUser.id;
+                        if (memId === ownerId) {
+                            continue;
+                        }
+                        try {
+                            await graphJson('POST', '/groups/' + gid + '/members/$ref', token, {
+                                '@odata.id':
+                                    'https://graph.microsoft.com/v1.0/directoryObjects/' + memId
+                            });
+                            appendLog('  Zusätzliches Mitglied: ' + upn, 'ok');
+                        } catch (e) {
+                            if (isGraphDuplicateRefError(e)) {
+                                appendLog('  Mitglied (bereits): ' + upn, 'warn');
+                            } else {
+                                appendLog('  Hinweis (Mitglied ' + upn + '): ' + e.message, 'warn');
+                            }
+                        }
+                    } catch (e) {
+                        appendLog('  Mitglied nicht gefunden: ' + upn + ' – ' + (e.message || e), 'warn');
                     }
                 }
 

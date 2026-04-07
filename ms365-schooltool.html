@@ -443,6 +443,21 @@
             min-height: 200px;
         }
 
+        .jg-preview-table-input {
+            width: 100%;
+            min-width: 3.5em;
+            padding: 6px 8px;
+            font: inherit;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .jg-preview-table-input:focus {
+            outline: 2px solid rgba(94, 114, 228, 0.35);
+            border-color: #5e72e4;
+        }
+
         @media (max-width: 768px) {
             .header h1 { font-size: 1.35em; }
             .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
@@ -907,62 +922,69 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
 
         <div id="panelJahrgang" style="display:none;">
             <div class="steps jg-steps">
-                <div class="step active" data-jg-step="1">1. Grundlagen</div>
-                <div class="step" data-jg-step="2">2. Klassenliste</div>
-                <div class="step" data-jg-step="3">3. Besitzer</div>
-                <div class="step" data-jg-step="4">4. PowerShell</div>
+                <div class="step active" data-jg-step="1">1. Klassenliste</div>
+                <div class="step" data-jg-step="2">2. Besitzer</div>
+                <div class="step" data-jg-step="3">3. Mitglieder</div>
+                <div class="step" data-jg-step="4">4. Grundlagen &amp; Einstellungen</div>
+                <div class="step" data-jg-step="5">5. Ausführen</div>
             </div>
             <div class="content">
                 <div class="jg-step-content active" data-jg-step="1">
-                    <h2>Jahrgangsgruppen: Grundlagen</h2>
+                    <h2>Klassenliste</h2>
                     <div class="alert alert-info">
-                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups, keine Kursteam-/EDU_Class-Teams) mit E-Mail-Adressen im Muster <code>jg&lt;Abschlussjahr&gt;-&lt;Kürzel&gt;@domain</code> angelegt – optional mit <strong>Teams</strong> und <strong>Exchange</strong> für die Ziel-SMTP-Domain (wie beim Modus ARGEs).
+                        <strong>ℹ️ Was ist das?</strong> Aus dieser Liste werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) mit Adressen im Muster <code>&lt;Präfix&gt;&lt;Jahr&gt;-&lt;Kürzel&gt;@domain</code> – optional mit <strong>Teams</strong> und <strong>Exchange</strong> (Schritt 4). Die <strong>Vorschau unten</strong> aktualisiert sich beim Tippen (Präfix und Kürzel-Großschreibung links).
                     </div>
-                    <div class="filter-section">
-                        <div class="filter-group">
-                            <p style="color:#6c757d;margin:0 0 8px 0;">Die <strong>E-Mail-Domain der Schule</strong> (Vorschau &amp; Ziel für Exchange) tragen Sie <strong>oben</strong> ein – sie gilt für alle Module.</p>
-                            <small style="color:#6c757d;display:block;margin-top:6px;">Graph setzt nur den Mail-Nickname; die primäre Adresse steuern Sie optional über Exchange (Checkbox unten).</small>
+                    <div class="alert alert-warning" style="margin-top:10px;">
+                        <strong>Format:</strong> pro Zeile <strong>Klasse</strong> und optional <strong>Abschlussjahr</strong>, getrennt durch Semikolon, Komma oder Tabulator. Beispiele: <code>1AK;2030</code> oder nur <code>1AK</code> (dann gilt das <strong>Standard-Abschlussjahr</strong> links). Die <strong>E-Mail-Domain der Schule</strong> steht <strong>oben in der Kopfzeile</strong>.
+                    </div>
+                    <div class="arge-step1-grid">
+                        <div class="arge-step1-prefix">
+                            <div class="filter-group">
+                                <label for="jgPrefix">Präfix für Mail-Nickname</label>
+                                <input type="text" id="jgPrefix" value="jg" maxlength="16" autocomplete="off">
+                                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Ergebnis z. B. <code id="jgPrefixExample">jg2030-AK@ms365.schule</code>. Graph setzt den Mail-Nickname; die fertige Adresse @… steuern Sie optional über Exchange (Schritt 4).</small>
+                            </div>
+                            <div class="filter-group" style="margin-top:4px;">
+                                <label class="checkbox-label" for="jgSuffixUpper">
+                                    <input type="checkbox" id="jgSuffixUpper" checked>
+                                    <span>Kürzel im Mail-Nickname groß schreiben (z. B. <code>AK</code> statt <code>ak</code>)</span>
+                                </label>
+                            </div>
+                            <div class="filter-group" style="margin-top:10px;">
+                                <label for="jgDefaultYear">Standard-Abschlussjahr</label>
+                                <input type="text" id="jgDefaultYear" value="2030" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" autocomplete="off" style="max-width:8em;">
+                                <small style="color:#6c757d;display:block;margin-top:6px;line-height:1.45;">Gilt für Zeilen <strong>nur mit Klassennamen</strong> (z. B. <code>1AK</code> ohne Jahr). Pro Zeile weiterhin möglich: <code>1AK;2030</code> – dann überschreibt das Jahr in der Zeile diesen Standard.</small>
+                            </div>
                         </div>
-                        <div class="filter-group">
-                            <label for="jgPrefix">Präfix für Mail-Nickname</label>
-                            <input type="text" id="jgPrefix" value="jg" maxlength="16" autocomplete="off">
-                            <small style="color:#6c757d;">Ergebnis: <code id="jgPrefixExample">jg2030-AK@ms365.schule</code></small>
-                        </div>
-                        <div class="filter-group">
-                            <label>
-                                <input type="checkbox" id="jgSuffixUpper" checked> Kürzel im Mail-Nickname groß schreiben (z. B. <code>AK</code> statt <code>ak</code>)
-                            </label>
-                        </div>
-                        <div class="filter-group">
-                            <label class="checkbox-label" for="jgCreateTeams">
-                                <input type="checkbox" id="jgCreateTeams" checked>
-                                <span>Für jede Gruppe auch <strong>Microsoft Teams</strong> bereitstellen</span>
-                            </label>
-                        </div>
-                        <div class="filter-group">
-                            <label class="checkbox-label" for="jgExchangeSmtp">
-                                <input type="checkbox" id="jgExchangeSmtp" checked>
-                                <span><strong>Primäre Gruppen-E-Mail</strong> per <strong>Exchange Online</strong> auf <code>MailNickname@&lt;Domain von oben&gt;</code> setzen (<code>Set-UnifiedGroup</code>)</span>
-                            </label>
-                            <small style="color:#6c757d;display:block;margin-top:6px;">Besitzer wird wie bei ARGEs auch als Mitglied eingetragen. Zweite Anmeldung: Exchange.</small>
+                        <div class="filter-group arge-step1-lines">
+                            <label for="jgClassLines">Klassen und Abschlussjahr (eine Zeile pro Klasse)</label>
+                            <textarea id="jgClassLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="1AK;2030&#10;1AS;2028&#10;2AK;2029"></textarea>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-success" id="jgGoTo2">Weiter zur Klassenliste →</button>
-                </div>
-                <div class="jg-step-content" data-jg-step="2">
-                    <h2>Klassen und Abschlussjahr</h2>
-                    <div class="alert alert-warning">
-                        <strong>Format:</strong> pro Zeile <strong>Klasse</strong> und <strong>Abschlussjahr</strong>, getrennt durch Semikolon, Komma oder Tabulator. Beispiel: <code>1AK;2030</code> (Klasse <code>1AK</code> → Abschlussjahr 2030).
-                    </div>
-                    <div class="filter-group">
-                        <label for="jgClassLines">Klassenliste</label>
-                        <textarea id="jgClassLines" rows="12" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="1AK;2030&#10;1AS;2028&#10;2AK;2029"></textarea>
+                    <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
+                    <p style="color:#6c757d;font-size:0.92em;margin:0 0 10px 0;line-height:1.45;">Klasse und Abschlussjahr können <strong>direkt in der Tabelle</strong> bearbeitet werden (auch ohne Jahr in der Textarea – dann gilt das Standard-Abschlussjahr). <strong>Doppelklick</strong> auf eine Zeile markiert die Klasse bzw. das Jahr in der zweiten Spalte.</p>
+                    <p style="margin:0 0 10px 0;">
+                        <button type="button" class="btn btn-small" id="jgPreviewAddRow">+ Zeile hinzufügen</button>
+                    </p>
+                    <div class="table-container" style="max-height:280px;margin-bottom:12px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Klasse</th>
+                                    <th>Abschlussjahr</th>
+                                    <th>Mail-Nickname</th>
+                                    <th>E-Mail (Vorschau)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jgPreviewBody">
+                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                     <p id="jgParseError" class="alert alert-warning" style="display:none;"></p>
-                    <button type="button" class="btn" id="jgBack1">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="jgParseAndGo3">Weiter zu Besitzern →</button>
+                    <button type="button" class="btn btn-success" id="jgParseAndGo2">Weiter zu Besitzern →</button>
                 </div>
-                <div class="jg-step-content" data-jg-step="3">
+                <div class="jg-step-content" data-jg-step="2">
                     <h2>Besitzer (Lehrkräfte)</h2>
                     <div class="alert alert-info">
                         <strong>Microsoft Graph:</strong> Besitzer müssen als Benutzer im Mandanten existieren (User Principal Name). Pro Klasse eine Besitzer-E-Mail eintragen.
@@ -980,11 +1002,63 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                             <tbody id="jgOwnerBody"></tbody>
                         </table>
                     </div>
-                    <button type="button" class="btn" id="jgBack2">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="jgGoTo4">PowerShell erzeugen →</button>
+                    <button type="button" class="btn" id="jgBack1">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="jgGoTo3">Weiter zu Mitglieder →</button>
+                </div>
+                <div class="jg-step-content" data-jg-step="3">
+                    <h2>Mitglieder (optional)</h2>
+                    <div class="alert alert-info">
+                        <strong>Optional:</strong> <strong>Eine E-Mail-Adresse (UPN) pro Zeile</strong> – diese Benutzer werden bei der Ausführung jeder neu angelegten <strong>Jahrgangsgruppe</strong> als <strong>Mitglied</strong> hinzugefügt (zusätzlich zum Besitzer aus Schritt 2). Leer lassen, wenn keine weiteren Mitglieder nötig sind.
+                    </div>
+                    <div class="filter-group">
+                        <label for="jgMemberEmails">Zusätzliche Gruppenmitglieder</label>
+                        <textarea id="jgMemberEmails" rows="10" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="lehrer1@ms365.schule&#10;schueler@ms365.schule"></textarea>
+                        <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Leerzeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert. Doppelte Adressen (ohne Groß-/Kleinschreibung) nur einmal.</small>
+                    </div>
+                    <button type="button" class="btn" id="jgMemberBack">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="jgMemberNext">Weiter zu Grundlagen &amp; Einstellungen →</button>
                 </div>
                 <div class="jg-step-content" data-jg-step="4">
-                    <h2>PowerShell (Microsoft Graph)</h2>
+                    <h2>Jahrgangsgruppen: Grundlagen &amp; Einstellungen</h2>
+                    <p style="color:#6c757d;margin:0 0 16px;font-size:0.95em;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        Schul-Domain und E-Mail-Vorschau: <strong>oben in der Kopfzeile</strong>
+                        <span
+                            tabindex="0"
+                            aria-label="Hinweis Domain und E-Mail"
+                            title="Präfix und Großschreibung der Mail-Nicknames: Schritt 1. Microsoft Graph legt nur den Mail-Nickname an; die fertige Adresse @… folgt zunächst der Standard-Domain im Mandanten. Die Domain oben ist die Vorschau und (bei Exchange-Option) das Ziel — im Admin Center verifizieren."
+                            style="cursor:help;color:#5e72e4;font-size:1.15em;line-height:1;user-select:none;"
+                        >ⓘ</span>
+                    </p>
+                    <div class="filter-section" style="padding-top:4px;">
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+                            <label class="checkbox-label" for="jgExchangeSmtp" style="align-items:flex-start;">
+                                <input type="checkbox" id="jgExchangeSmtp" checked>
+                                <span style="flex:1;"><strong>Primäre Gruppen-E-Mail</strong> per <strong>Exchange Online</strong> auf <code>MailNickname@Schuldomain</code> setzen (<code>Set-UnifiedGroup</code>)</span>
+                                <span
+                                    tabindex="0"
+                                    aria-label="Hinweis Exchange"
+                                    title="Set-UnifiedGroup per Exchange Online PowerShell (Modul ExchangeOnlineManagement). Zweite Anmeldung (Exchange)."
+                                    style="cursor:help;color:#5e72e4;font-size:1.1em;line-height:1.2;flex-shrink:0;user-select:none;"
+                                >ⓘ</span>
+                            </label>
+                            <label class="checkbox-label" for="jgCreateTeams" style="align-items:flex-start;">
+                                <input type="checkbox" id="jgCreateTeams" checked>
+                                <span style="flex:1;">Für jede Gruppe auch <strong>Microsoft Teams</strong> bereitstellen</span>
+                                <span
+                                    tabindex="0"
+                                    aria-label="Hinweis Teams"
+                                    title="Nach Microsoft Graph wird ein Team an die M365-Gruppe gehängt. Der Besitzer aus Schritt 2 wird zusätzlich als Mitglied eingetragen."
+                                    style="cursor:help;color:#5e72e4;font-size:1.1em;line-height:1.2;flex-shrink:0;user-select:none;"
+                                >ⓘ</span>
+                            </label>
+                        </div>
+                        <small style="color:#6c757d;display:block;margin-top:12px;">Besitzer wird wie bei ARGEs auch als Mitglied eingetragen. Zweite Anmeldung: Exchange.</small>
+                    </div>
+                    <button type="button" class="btn" id="jgBack2">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="jgGoTo4">Weiter zu Ausführen →</button>
+                </div>
+                <div class="jg-step-content" data-jg-step="5">
+                    <h2>Ausführen (PowerShell)</h2>
                     <div class="alert alert-warning">
                         <strong>Voraussetzungen:</strong> <code>Microsoft.Graph</code>, <code>Connect-MgGraph</code> mit <code>Group.ReadWrite.All</code> und <code>User.Read.All</code> (reicht laut Microsoft auch für das Anbinden eines Teams an die Gruppe). Optional <code>ExchangeOnlineManagement</code> für <code>Set-UnifiedGroup</code>. M365-Gruppen; optional <strong>Team</strong> und <strong>Primär-SMTP</strong> über Exchange.
                     </div>
@@ -1012,8 +1086,9 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
             <div class="steps arge-steps">
                 <div class="step active" data-arge-step="1">1. ARGE-Liste</div>
                 <div class="step" data-arge-step="2">2. Besitzer</div>
-                <div class="step" data-arge-step="3">3. Einstellungen</div>
-                <div class="step" data-arge-step="4">4. Ausführen</div>
+                <div class="step" data-arge-step="3">3. Mitglieder</div>
+                <div class="step" data-arge-step="4">4. Einstellungen</div>
+                <div class="step" data-arge-step="5">5. Ausführen</div>
             </div>
             <div class="content">
                 <div class="arge-step-content active" data-arge-step="1">
@@ -1044,6 +1119,10 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                         </div>
                     </div>
                     <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
+                    <p style="color:#6c757d;font-size:0.92em;margin:0 0 10px 0;line-height:1.45;">Anzeigename und Mail-Nickname können <strong>direkt in der Tabelle</strong> bearbeitet werden (wie bei Jahrgangsgruppen). <strong>Doppelklick</strong> auf eine Zeile markiert den Anzeigenamen; Doppelklick auf die <strong>Mail-Nickname-Spalte</strong> markiert das Nickname. Leeres Nickname-Feld: Nickname wird aus Anzeigename und Präfix erzeugt.</p>
+                    <p style="margin:0 0 10px 0;">
+                        <button type="button" class="btn btn-small" id="argePreviewAddRow">+ Zeile hinzufügen</button>
+                    </p>
                     <div class="table-container" style="max-height:280px;margin-bottom:12px;">
                         <table>
                             <thead>
@@ -1082,10 +1161,24 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                         </table>
                     </div>
                     <button type="button" class="btn" id="argeBack1">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="argeGoTo3">Weiter zu Einstellungen →</button>
+                    <button type="button" class="btn btn-success" id="argeGoTo3">Weiter zu Mitglieder →</button>
                 </div>
 
                 <div class="arge-step-content" data-arge-step="3">
+                    <h2>Mitglieder (optional)</h2>
+                    <div class="alert alert-info">
+                        <strong>Optional:</strong> Geben Sie hier <strong>E-Mail-Adressen (UPN)</strong> ein – <strong>eine pro Zeile</strong>. Diese Benutzer werden bei der Ausführung (PowerShell und „Online im Browser“) jeder neu angelegten ARGE-Gruppe als <strong>Mitglied</strong> hinzugefügt (zusätzlich zum Besitzer aus Schritt 2). Leer lassen, wenn keine weiteren Mitglieder nötig sind.
+                    </div>
+                    <div class="filter-group">
+                        <label for="argeMemberEmails">Zusätzliche Gruppenmitglieder</label>
+                        <textarea id="argeMemberEmails" rows="10" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="lehrer1@ms365.schule&#10;schueler@ms365.schule"></textarea>
+                        <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert. Doppelte Adressen (ohne Groß-/Kleinschreibung) werden nur einmal eingetragen.</small>
+                    </div>
+                    <button type="button" class="btn" id="argeMemberBack">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="argeMemberNext">Weiter zu Einstellungen →</button>
+                </div>
+
+                <div class="arge-step-content" data-arge-step="4">
                     <h2>ARGEs: Einstellungen</h2>
                     <p style="color:#6c757d;margin:0 0 16px;font-size:0.95em;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         Schul-Domain und E-Mail-Vorschau: <strong>oben in der Kopfzeile</strong>
@@ -1134,7 +1227,7 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                     <button type="button" class="btn btn-success" id="argeGoTo4">Weiter zu Ausführen →</button>
                 </div>
 
-                <div class="arge-step-content" data-arge-step="4">
+                <div class="arge-step-content" data-arge-step="5">
                     <h2>Ausführen (Online oder PowerShell)</h2>
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
                         <h3 style="margin-top:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">

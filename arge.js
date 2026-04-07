@@ -4,6 +4,10 @@
     let argeCurrentStep = 1;
     /** @type {{ displayName: string, mailNick: string, owner: string, description: string }[]} */
     let argeRows = [];
+    /** Schritt 1: bearbeitbare Vorschau (wie Jahrgangsgruppen) */
+    /** @type {{ displayName: string, mailNick: string, owner: string, description: string, technicalSlug: string, mailNickExplicit: boolean }[]} */
+    let argePreviewRows = [];
+    let argeSuppressTextareaSync = false;
 
     const panelW = document.getElementById('panelWebuntis');
     const panelJ = document.getElementById('panelJahrgang');
@@ -68,7 +72,19 @@
             el.classList.toggle('completed', s < step);
         });
         if (step === 1) {
-            scheduleArgePreviewRefresh();
+            if (argeRows.length) {
+                argePreviewRows = argeRows.map(r => ({
+                    displayName: r.displayName,
+                    mailNick: r.mailNick,
+                    owner: '',
+                    description: r.description,
+                    technicalSlug: toNickBaseFromName(subjectForSlug(r.displayName)),
+                    mailNickExplicit: true
+                }));
+                renderArgePreviewTableBody();
+            } else {
+                scheduleArgePreviewFromTextarea();
+            }
         }
     }
 
@@ -148,13 +164,17 @@
             let mailNick;
             let technicalSlug;
 
+            let mailNickExplicit = false;
             if (parts.length >= 2) {
                 displayName = parts[0];
                 const explicitNick = parts[1] || '';
                 technicalSlug = toNickBaseFromName(subjectForSlug(parts[0]));
-                mailNick = explicitNick
-                    ? maybeUpper(explicitNick.replace(/[^A-Za-z0-9-]/g, ''))
-                    : buildMailNicknameFromSubject(parts[0]);
+                if (explicitNick) {
+                    mailNick = maybeUpper(explicitNick.replace(/[^A-Za-z0-9-]/g, ''));
+                    mailNickExplicit = true;
+                } else {
+                    mailNick = buildMailNicknameFromSubject(parts[0]);
+                }
             } else {
                 const raw = parts[0];
                 displayName = displayNameFromSubjectLine(raw);
@@ -175,51 +195,191 @@
                 mailNick,
                 owner: '',
                 description: 'ARGE-Gruppe: ' + displayName,
-                technicalSlug
+                technicalSlug,
+                mailNickExplicit
             });
         });
         return { parsed, errors };
     }
 
     let argePreviewDebounce;
-    function scheduleArgePreviewRefresh() {
+    function scheduleArgePreviewFromTextarea() {
         clearTimeout(argePreviewDebounce);
-        argePreviewDebounce = setTimeout(refreshArgePreview, 120);
+        argePreviewDebounce = setTimeout(() => {
+            syncArgePreviewFromTextarea();
+            renderArgePreviewTableBody();
+        }, 120);
     }
 
-    function refreshArgePreview() {
+    function scheduleArgePreviewRowsOnly() {
+        clearTimeout(argePreviewDebounce);
+        argePreviewDebounce = setTimeout(() => {
+            if (argePreviewRows.length) {
+                recomputeArgePreviewMailNicks();
+                updateArgePreviewMailCellsDom();
+            } else {
+                syncArgePreviewFromTextarea();
+                renderArgePreviewTableBody();
+            }
+        }, 120);
+    }
+
+    /** @deprecated — durch scheduleArgePreviewFromTextarea / scheduleArgePreviewRowsOnly ersetzt */
+    function scheduleArgePreviewRefresh() {
+        scheduleArgePreviewFromTextarea();
+    }
+
+    function syncArgePreviewFromTextarea() {
+        const { parsed } = parseArgeInput();
+        argePreviewRows = parsed.map(r => ({ ...r }));
+        recomputeArgePreviewMailNicks();
+    }
+
+    function recomputeArgePreviewMailNicks() {
+        argePreviewRows.forEach(r => {
+            r.technicalSlug = toNickBaseFromName(subjectForSlug(r.displayName));
+            if (!r.mailNickExplicit) {
+                r.mailNick = buildMailNicknameFromSubject(r.displayName);
+            } else {
+                r.mailNick = maybeUpper(String(r.mailNick || '').replace(/[^A-Za-z0-9-]/g, ''));
+            }
+        });
+        resolveDuplicateNicks(argePreviewRows);
+    }
+
+    function updateArgePreviewMailCellsDom() {
+        const tbody = document.getElementById('argePreviewBody');
+        if (!tbody) return;
+        const domain = getDomain() || '…';
+        argePreviewRows.forEach((r, i) => {
+            const tr = tbody.querySelector(`tr[data-arge-index="${i}"]`);
+            if (!tr) return;
+            const tds = tr.querySelectorAll('td');
+            if (tds.length < 4) return;
+            const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
+            tds[1].textContent = tech;
+            tds[1].style.fontFamily = 'Consolas,monospace';
+            tds[1].style.fontSize = '0.9em';
+            const nickInp = tds[2].querySelector('input.arge-preview-mailnick');
+            if (nickInp) nickInp.value = r.mailNick;
+            tds[3].textContent = r.mailNick + '@' + domain;
+        });
+    }
+
+    function syncTextareaFromArgePreviewRows() {
+        if (argeSuppressTextareaSync || !argePreviewRows.length) return;
+        const ta = document.getElementById('argeLines');
+        if (!ta) return;
+        const lines = argePreviewRows.map(r => {
+            const dn = (r.displayName || '').trim();
+            const mn = String(r.mailNick || '').trim();
+            if (r.mailNickExplicit && mn) return dn + ';' + mn;
+            return dn;
+        });
+        argeSuppressTextareaSync = true;
+        ta.value = lines.join('\n');
+        argeSuppressTextareaSync = false;
+    }
+
+    function renderArgePreviewTableBody() {
         const tbody = document.getElementById('argePreviewBody');
         if (!tbody) return;
         try {
-            const { parsed } = parseArgeInput();
-            const rows = parsed.map(r => ({ ...r }));
-            resolveDuplicateNicks(rows);
-
-            if (!rows.length) {
-                tbody.innerHTML =
-                    '<tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen.</td></tr>';
+            if (!argePreviewRows.length) {
+                const ta = document.getElementById('argeLines');
+                const raw = ta ? ta.value : '';
+                const nonEmpty = raw.split(/\r\n|\n|\r/).filter(l => l.trim() && !l.trim().startsWith('#')).length;
+                if (nonEmpty) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="4" style="color:#6c757d;">Keine gültigen Zeilen – Format prüfen (eine Zeile pro Fach oder <code>Anzeigename;MailNickname</code>).</td></tr>';
+                } else {
+                    tbody.innerHTML =
+                        '<tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen oder „+ Zeile hinzufügen“.</td></tr>';
+                }
                 return;
             }
 
             const domain = getDomain() || '…';
             tbody.replaceChildren();
-            rows.forEach(r => {
+            argePreviewRows.forEach((r, i) => {
                 const tr = document.createElement('tr');
-                const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
+                tr.dataset.argeIndex = String(i);
+
                 const td1 = document.createElement('td');
-                td1.textContent = r.displayName;
+                const inpDn = document.createElement('input');
+                inpDn.type = 'text';
+                inpDn.className = 'arge-preview-display jg-preview-table-input';
+                inpDn.value = r.displayName;
+                inpDn.setAttribute('autocomplete', 'off');
+                inpDn.title = 'Anzeigename der Gruppe (z. B. ARGE Deutsch)';
+                td1.appendChild(inpDn);
+
                 const td2 = document.createElement('td');
+                const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
                 td2.textContent = tech;
                 td2.style.fontFamily = 'Consolas,monospace';
                 td2.style.fontSize = '0.9em';
+
                 const td3 = document.createElement('td');
-                td3.textContent = r.mailNick;
-                td3.style.fontFamily = 'Consolas,monospace';
-                td3.style.fontSize = '0.9em';
+                const inpNick = document.createElement('input');
+                inpNick.type = 'text';
+                inpNick.className = 'arge-preview-mailnick jg-preview-table-input';
+                inpNick.value = r.mailNick;
+                inpNick.setAttribute('autocomplete', 'off');
+                inpNick.title = 'Mail-Nickname – leer lassen und Anzeigename ändern für automatische Erzeugung; manuell = festes Nickname';
+                td3.appendChild(inpNick);
+
                 const td4 = document.createElement('td');
                 td4.textContent = r.mailNick + '@' + domain;
+
                 tr.append(td1, td2, td3, td4);
                 tbody.appendChild(tr);
+
+                let inputTimer;
+                inpDn.addEventListener('input', () => {
+                    r.displayName = inpDn.value;
+                    if (!r.mailNickExplicit) {
+                        recomputeArgePreviewMailNicks();
+                        inpNick.value = r.mailNick;
+                        updateArgePreviewMailCellsDom();
+                    } else {
+                        r.technicalSlug = toNickBaseFromName(subjectForSlug(r.displayName));
+                        updateArgePreviewMailCellsDom();
+                    }
+                });
+                inpNick.addEventListener('input', () => {
+                    r.mailNick = inpNick.value;
+                    r.mailNickExplicit = String(inpNick.value || '').trim() !== '';
+                    clearTimeout(inputTimer);
+                    inputTimer = setTimeout(() => {
+                        recomputeArgePreviewMailNicks();
+                        updateArgePreviewMailCellsDom();
+                    }, 200);
+                });
+
+                const onBlur = () => {
+                    r.displayName = inpDn.value;
+                    r.mailNick = inpNick.value;
+                    r.mailNickExplicit = String(inpNick.value || '').trim() !== '';
+                    recomputeArgePreviewMailNicks();
+                    inpNick.value = r.mailNick;
+                    updateArgePreviewMailCellsDom();
+                    syncTextareaFromArgePreviewRows();
+                };
+                inpDn.addEventListener('blur', onBlur);
+                inpNick.addEventListener('blur', onBlur);
+
+                tr.addEventListener('dblclick', e => {
+                    if (e.target.tagName === 'INPUT') return;
+                    const td = e.target.closest('td');
+                    if (td && td === tr.children[2]) {
+                        inpNick.focus();
+                        inpNick.select();
+                    } else {
+                        inpDn.focus();
+                        inpDn.select();
+                    }
+                });
             });
         } catch (e) {
             console.error('ARGE-Vorschau:', e);
@@ -248,6 +408,9 @@
      * @returns {{ ok: true } | { ok: false, errors: string[] }}
      */
     function syncArgeRowsFromInputPreservingOwners() {
+        if (argePreviewRows.length) {
+            syncTextareaFromArgePreviewRows();
+        }
         const { parsed, errors } = parseArgeInput();
         if (errors.length) {
             return { ok: false, errors };
@@ -277,6 +440,13 @@
         return n !== undefined ? n : step;
     }
 
+    /** v2: 1–4 (Liste, Besitzer, Einstellungen, Ausführen) → v3: 1–5 mit Mitglieder als Schritt 3 */
+    function migrateArgeStepFromV2ToV3(step) {
+        const m = { 1: 1, 2: 2, 3: 4, 4: 5 };
+        const n = m[step];
+        return n !== undefined ? n : step;
+    }
+
     function getArgeCreateTeams() {
         const el = document.getElementById('argeCreateTeams');
         return el ? !!el.checked : true;
@@ -292,8 +462,26 @@
         return el ? !!el.checked : true;
     }
 
-    function refreshArgeScriptIfStep4() {
-        if (argeCurrentStep !== 4 || !argeRows.length) return;
+    /** Eine Zeile pro UPN/E-Mail; optional; gilt für alle ARGE-Gruppen. */
+    function getArgeMemberEmailsParsed() {
+        const ta = document.getElementById('argeMemberEmails');
+        if (!ta) return [];
+        const lines = ta.value.split(/\r\n|\n|\r/);
+        const seen = new Set();
+        const out = [];
+        lines.forEach(line => {
+            const t = String(line || '').trim();
+            if (!t || t.startsWith('#')) return;
+            const key = t.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push(t);
+        });
+        return out;
+    }
+
+    function refreshArgeScriptIfStep5() {
+        if (argeCurrentStep !== 5 || !argeRows.length) return;
         const missing = argeRows.filter(r => !r.owner);
         if (missing.length) return;
         const pre = document.getElementById('argePowerShellScript');
@@ -336,8 +524,9 @@
 
     function saveArgeState() {
         try {
+            const memTa = document.getElementById('argeMemberEmails');
             const state = {
-                argeStepOrder: 'v2',
+                argeStepOrder: 'v3',
                 argeCurrentStep,
                 argeRows,
                 argeDefaultPrefix: document.getElementById('argeDefaultPrefix').value,
@@ -346,6 +535,7 @@
                 argeExchangeSmtp: getArgeExchangeSmtp(),
                 argeAdminAsOwner: getArgeAdminAsOwner(),
                 argeLines: document.getElementById('argeLines').value,
+                argeMemberEmails: memTa ? memTa.value : '',
                 argePowerShellScript: document.getElementById('argePowerShellScript').textContent
             };
             localStorage.setItem(ARGE_STORAGE_KEY, JSON.stringify(state));
@@ -367,8 +557,13 @@
             }
             const state = JSON.parse(raw);
             let step = typeof state.argeCurrentStep === 'number' ? state.argeCurrentStep : 1;
-            if (state.argeStepOrder !== 'v2') {
+            if (state.argeStepOrder === 'v3') {
+                /* Schritte 1–5 unverändert */
+            } else if (state.argeStepOrder === 'v2') {
+                step = migrateArgeStepFromV2ToV3(step);
+            } else {
                 step = migrateArgeStepFromV1(step);
+                step = migrateArgeStepFromV2ToV3(step);
             }
             argeCurrentStep = step;
             argeRows = Array.isArray(state.argeRows) ? state.argeRows : [];
@@ -395,6 +590,10 @@
                 argeAdminEl.checked = state.argeAdminAsOwner !== undefined ? !!state.argeAdminAsOwner : true;
             }
             document.getElementById('argeLines').value = state.argeLines || '';
+            const argeMemEl = document.getElementById('argeMemberEmails');
+            if (argeMemEl) {
+                argeMemEl.value = state.argeMemberEmails !== undefined ? state.argeMemberEmails : '';
+            }
             document.getElementById('argeParseError').style.display = 'none';
             const pre = document.getElementById('argePowerShellScript');
             if (pre && state.argePowerShellScript !== undefined) {
@@ -405,8 +604,8 @@
             } else {
                 document.getElementById('argeOwnerBody').replaceChildren();
             }
-            goToArgeStep(Math.min(Math.max(1, argeCurrentStep), 4));
-            scheduleArgePreviewRefresh();
+            goToArgeStep(Math.min(Math.max(1, argeCurrentStep), 5));
+            scheduleArgePreviewFromTextarea();
             showToast('ARGEs: Stand geladen.');
         } catch (e) {
             showToast('Laden fehlgeschlagen: ' + e.message);
@@ -431,11 +630,14 @@
             const argeAdminClear = document.getElementById('argeAdminAsOwner');
             if (argeAdminClear) argeAdminClear.checked = true;
             document.getElementById('argeLines').value = '';
+            const argeMemClear = document.getElementById('argeMemberEmails');
+            if (argeMemClear) argeMemClear.value = '';
             document.getElementById('argeParseError').style.display = 'none';
             document.getElementById('argeOwnerBody').replaceChildren();
             document.getElementById('argePowerShellScript').textContent = '';
+            argePreviewRows = [];
             goToArgeStep(1);
-            scheduleArgePreviewRefresh();
+            scheduleArgePreviewFromTextarea();
             showToast('ARGEs: Speicher geleert.');
         } catch (e) {
             showToast('Fehler: ' + e.message);
@@ -461,6 +663,7 @@
                     description: r.description
                 };
             }),
+            memberEmails: getArgeMemberEmailsParsed(),
             createTeams: getArgeCreateTeams(),
             exchangeSmtp: getArgeExchangeSmtp(),
             adminAsOwner: getArgeAdminAsOwner()
@@ -640,6 +843,13 @@
             );
         });
         lines.push(')');
+        const extraMembers = getArgeMemberEmailsParsed();
+        lines.push('$Ms365ExtraMemberUpns = @(');
+        extraMembers.forEach((em, i) => {
+            const last = i === extraMembers.length - 1;
+            lines.push("    '" + psEscapeSingle(em) + "'" + (last ? '' : ','));
+        });
+        lines.push(')');
         lines.push('$meUser = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/me" -ErrorAction Stop');
         lines.push('$meId = $meUser.id');
         lines.push('');
@@ -701,6 +911,34 @@
         lines.push(
             '            Write-Host ("Hinweis (Besitzer als Mitglied): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
         );
+        lines.push('        }');
+        lines.push('        if ($Ms365ExtraMemberUpns -and $Ms365ExtraMemberUpns.Count -gt 0) {');
+        lines.push('            foreach ($mUpn in $Ms365ExtraMemberUpns) {');
+        lines.push('                if ([string]::IsNullOrWhiteSpace($mUpn)) { continue }');
+        lines.push('                try {');
+        lines.push('                    $trimUpn = $mUpn.Trim()');
+        lines.push('                    $memUser = Get-MgUser -UserId $trimUpn -ErrorAction Stop');
+        lines.push('                    if ($memUser.Id -eq $owner.Id) { continue }');
+        lines.push(
+            '                    $memberRefExtra = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($memUser.Id)" }'
+        );
+        lines.push(
+            '                    Invoke-MgGraphRequest -Method POST -Uri ("https://graph.microsoft.com/v1.0/groups/{0}/members/$ref" -f $group.Id) -Body ($memberRefExtra | ConvertTo-Json -Compress) -ErrorAction Stop'
+        );
+        lines.push('                } catch {');
+        lines.push(
+            '                    if ($_.Exception.Message -match "already exist") {'
+        );
+        lines.push(
+            '                        Write-Host ("  Hinweis (Mitglied {0}): bereits in der Gruppe." -f $mUpn.Trim()) -ForegroundColor DarkGray'
+        );
+        lines.push('                    } else {');
+        lines.push(
+            '                        Write-Host ("  Hinweis (Mitglied {0}): {1}" -f $mUpn.Trim(), $_.Exception.Message) -ForegroundColor DarkGray'
+        );
+        lines.push('                    }');
+        lines.push('                }');
+        lines.push('            }');
         lines.push('        }');
         lines.push('        if ($Ms365CreateTeams) {');
         lines.push('            $teamProps = @{');
@@ -836,29 +1074,61 @@
     // UI Wiring — Vorschau zuerst, damit Eingabe auch bei späteren Fehlern funktioniert
     const argeLinesEl = document.getElementById('argeLines');
     if (argeLinesEl) {
-        argeLinesEl.addEventListener('input', scheduleArgePreviewRefresh);
-        argeLinesEl.addEventListener('paste', () => setTimeout(scheduleArgePreviewRefresh, 0));
+        argeLinesEl.addEventListener('input', () => {
+            if (argeSuppressTextareaSync) return;
+            scheduleArgePreviewFromTextarea();
+        });
+        argeLinesEl.addEventListener('paste', () =>
+            setTimeout(() => {
+                if (!argeSuppressTextareaSync) scheduleArgePreviewFromTextarea();
+            }, 0)
+        );
     }
     ['schoolEmailDomain', 'argeDefaultPrefix'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.addEventListener('input', scheduleArgePreviewRefresh);
-            el.addEventListener('input', refreshArgeScriptIfStep4);
+            el.addEventListener('input', scheduleArgePreviewRowsOnly);
+            el.addEventListener('input', refreshArgeScriptIfStep5);
         }
     });
     const argeUpperEl = document.getElementById('argeUpperNick');
-    if (argeUpperEl) argeUpperEl.addEventListener('change', scheduleArgePreviewRefresh);
+    if (argeUpperEl) argeUpperEl.addEventListener('change', scheduleArgePreviewRowsOnly);
     const argeTeamsEl = document.getElementById('argeCreateTeams');
-    if (argeTeamsEl) argeTeamsEl.addEventListener('change', refreshArgeScriptIfStep4);
+    if (argeTeamsEl) argeTeamsEl.addEventListener('change', refreshArgeScriptIfStep5);
     const argeExoEl = document.getElementById('argeExchangeSmtp');
-    if (argeExoEl) argeExoEl.addEventListener('change', refreshArgeScriptIfStep4);
+    if (argeExoEl) argeExoEl.addEventListener('change', refreshArgeScriptIfStep5);
     const argeAdminAsOwnerEl = document.getElementById('argeAdminAsOwner');
-    if (argeAdminAsOwnerEl) argeAdminAsOwnerEl.addEventListener('change', refreshArgeScriptIfStep4);
+    if (argeAdminAsOwnerEl) argeAdminAsOwnerEl.addEventListener('change', refreshArgeScriptIfStep5);
+    const argeMemberEmailsEl = document.getElementById('argeMemberEmails');
+    if (argeMemberEmailsEl) {
+        argeMemberEmailsEl.addEventListener('input', refreshArgeScriptIfStep5);
+        argeMemberEmailsEl.addEventListener('paste', () => setTimeout(refreshArgeScriptIfStep5, 0));
+    }
 
     document.getElementById('argeBack1').addEventListener('click', () => goToArgeStep(1));
     document.getElementById('argeGoTo3').addEventListener('click', () => goToArgeStep(3));
-    document.getElementById('argeBack2').addEventListener('click', () => goToArgeStep(2));
-    document.getElementById('argeBack3').addEventListener('click', () => goToArgeStep(3));
+    const argeMemberBack = document.getElementById('argeMemberBack');
+    if (argeMemberBack) argeMemberBack.addEventListener('click', () => goToArgeStep(2));
+    const argeMemberNext = document.getElementById('argeMemberNext');
+    if (argeMemberNext) argeMemberNext.addEventListener('click', () => goToArgeStep(4));
+    document.getElementById('argeBack2').addEventListener('click', () => goToArgeStep(3));
+    document.getElementById('argeBack3').addEventListener('click', () => goToArgeStep(4));
+
+    const argePreviewAddRow = document.getElementById('argePreviewAddRow');
+    if (argePreviewAddRow) {
+        argePreviewAddRow.addEventListener('click', () => {
+            argePreviewRows.push({
+                displayName: '',
+                mailNick: '',
+                owner: '',
+                description: '',
+                technicalSlug: '',
+                mailNickExplicit: false
+            });
+            recomputeArgePreviewMailNicks();
+            renderArgePreviewTableBody();
+        });
+    }
 
     document.getElementById('argeParseAndGo3').addEventListener('click', () => {
         const errEl = document.getElementById('argeParseError');
@@ -870,26 +1140,38 @@
             return;
         }
 
-        const { parsed, errors } = parseArgeInput();
-
-        if (errors.length) {
-            errEl.textContent = errors.join('\n');
-            errEl.style.display = 'block';
-            return;
+        if (!argePreviewRows.length) {
+            syncArgePreviewFromTextarea();
         }
-        if (!parsed.length) {
-            errEl.textContent = 'Bitte mindestens eine ARGE-Zeile eintragen.';
+        if (!argePreviewRows.length) {
+            errEl.textContent =
+                'Bitte mindestens eine ARGE-Zeile eintragen oder in der Vorschau eine Zeile hinzufügen und ausfüllen.';
             errEl.style.display = 'block';
             return;
         }
 
-        const rows = parsed.map(r => ({ ...r }));
-        resolveDuplicateNicks(rows);
-        argeRows = rows.map(r => ({
-            displayName: r.displayName,
+        recomputeArgePreviewMailNicks();
+        const rowErrors = [];
+        argePreviewRows.forEach((r, idx) => {
+            if (!(r.displayName || '').trim()) {
+                rowErrors.push('Vorschau Zeile ' + (idx + 1) + ': Anzeigename fehlt.');
+            }
+            if (!(r.mailNick || '').trim()) {
+                rowErrors.push('Vorschau Zeile ' + (idx + 1) + ': Mail-Nickname fehlt.');
+            }
+        });
+        if (rowErrors.length) {
+            errEl.textContent = rowErrors.join('\n');
+            errEl.style.display = 'block';
+            return;
+        }
+
+        const ownerByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.owner]));
+        argeRows = argePreviewRows.map(r => ({
+            displayName: r.displayName.trim(),
             mailNick: r.mailNick,
-            owner: '',
-            description: r.description
+            owner: ownerByKey.get(r.displayName.trim().toLowerCase()) || '',
+            description: 'ARGE-Gruppe: ' + r.displayName.trim()
         }));
 
         rebuildArgeOwnerTableFromRows();
@@ -907,7 +1189,7 @@
             }
             showToast(sync.errors[0] || 'ARGE-Liste konnte nicht verarbeitet werden.');
             goToArgeStep(1);
-            scheduleArgePreviewRefresh();
+            scheduleArgePreviewFromTextarea();
             return;
         }
         const missing = argeRows.filter(r => !r.owner);
@@ -927,7 +1209,7 @@
             getArgeExchangeSmtp(),
             getArgeAdminAsOwner()
         );
-        goToArgeStep(4);
+        goToArgeStep(5);
     });
 
     document.getElementById('argeCopyScript').addEventListener('click', () => {
