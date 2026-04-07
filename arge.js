@@ -2,7 +2,7 @@
     'use strict';
 
     let argeCurrentStep = 1;
-    /** @type {{ displayName: string, mailNick: string, owner: string, description: string }[]} */
+    /** @type {{ displayName: string, mailNick: string, owner: string, description: string, memberLines: string }[]} */
     let argeRows = [];
     /** Schritt 1: bearbeitbare Vorschau (wie Jahrgangsgruppen) */
     /** @type {{ displayName: string, mailNick: string, owner: string, description: string, technicalSlug: string, mailNickExplicit: boolean }[]} */
@@ -85,6 +85,9 @@
             } else {
                 scheduleArgePreviewFromTextarea();
             }
+        }
+        if (step === 3) {
+            rebuildArgeMembersTableFromRows();
         }
     }
 
@@ -194,6 +197,7 @@
                 displayName,
                 mailNick,
                 owner: '',
+                memberLines: '',
                 description: 'ARGE-Gruppe: ' + displayName,
                 technicalSlug,
                 mailNickExplicit
@@ -421,10 +425,12 @@
         const rows = parsed.map(r => ({ ...r }));
         resolveDuplicateNicks(rows);
         const ownerByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.owner]));
+        const memberLinesByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.memberLines || '']));
         argeRows = rows.map(r => ({
             displayName: r.displayName,
             mailNick: r.mailNick,
             owner: ownerByKey.get(r.displayName.toLowerCase()) || '',
+            memberLines: memberLinesByKey.get(r.displayName.toLowerCase()) || '',
             description: r.description
         }));
         rebuildArgeOwnerTableFromRows();
@@ -462,11 +468,9 @@
         return el ? !!el.checked : true;
     }
 
-    /** Eine Zeile pro UPN/E-Mail; optional; gilt für alle ARGE-Gruppen. */
-    function getArgeMemberEmailsParsed() {
-        const ta = document.getElementById('argeMemberEmails');
-        if (!ta) return [];
-        const lines = ta.value.split(/\r\n|\n|\r/);
+    /** Mehrzeiliger Text → eindeutige UPNs (pro Gruppe). */
+    function parseMemberLinesText(raw) {
+        const lines = String(raw || '').split(/\r\n|\n|\r/);
         const seen = new Set();
         const out = [];
         lines.forEach(line => {
@@ -478,6 +482,43 @@
             out.push(t);
         });
         return out;
+    }
+
+    function rebuildArgeMembersTableFromRows() {
+        const domain = getDomain();
+        const tbody = document.getElementById('argeMembersBody');
+        if (!tbody) return;
+        tbody.replaceChildren();
+        argeRows.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            const td1 = document.createElement('td');
+            td1.textContent = row.displayName;
+            const td2 = document.createElement('td');
+            td2.textContent = row.mailNick + '@' + domain;
+            td2.style.fontFamily = 'Consolas,monospace';
+            td2.style.fontSize = '0.9em';
+            const td3 = document.createElement('td');
+            const ta = document.createElement('textarea');
+            ta.className = 'arge-member-lines';
+            ta.rows = 4;
+            ta.style.width = '100%';
+            ta.style.minWidth = '220px';
+            ta.style.padding = '8px';
+            ta.style.fontFamily = 'Consolas,monospace';
+            ta.style.fontSize = '0.9em';
+            ta.style.boxSizing = 'border-box';
+            ta.setAttribute('autocomplete', 'off');
+            ta.placeholder = 'person@' + domain;
+            ta.value = row.memberLines != null ? row.memberLines : '';
+            ta.addEventListener('input', () => {
+                argeRows[index].memberLines = ta.value;
+                refreshArgeScriptIfStep5();
+            });
+            ta.addEventListener('paste', () => setTimeout(refreshArgeScriptIfStep5, 0));
+            td3.appendChild(ta);
+            tr.append(td1, td2, td3);
+            tbody.appendChild(tr);
+        });
     }
 
     function refreshArgeScriptIfStep5() {
@@ -497,6 +538,7 @@
     function rebuildArgeOwnerTableFromRows() {
         const domain = getDomain();
         const tbody = document.getElementById('argeOwnerBody');
+        if (!tbody) return;
         tbody.replaceChildren();
         argeRows.forEach((row, index) => {
             const tr = document.createElement('tr');
@@ -524,7 +566,6 @@
 
     function saveArgeState() {
         try {
-            const memTa = document.getElementById('argeMemberEmails');
             const state = {
                 argeStepOrder: 'v3',
                 argeCurrentStep,
@@ -535,7 +576,6 @@
                 argeExchangeSmtp: getArgeExchangeSmtp(),
                 argeAdminAsOwner: getArgeAdminAsOwner(),
                 argeLines: document.getElementById('argeLines').value,
-                argeMemberEmails: memTa ? memTa.value : '',
                 argePowerShellScript: document.getElementById('argePowerShellScript').textContent
             };
             localStorage.setItem(ARGE_STORAGE_KEY, JSON.stringify(state));
@@ -567,6 +607,22 @@
             }
             argeCurrentStep = step;
             argeRows = Array.isArray(state.argeRows) ? state.argeRows : [];
+            argeRows.forEach(function (row) {
+                if (row.memberLines === undefined) {
+                    row.memberLines = '';
+                }
+            });
+            if (
+                state.argeMemberEmails !== undefined &&
+                String(state.argeMemberEmails || '').trim() !== ''
+            ) {
+                const legacy = String(state.argeMemberEmails);
+                argeRows.forEach(function (row) {
+                    if (!String(row.memberLines || '').trim()) {
+                        row.memberLines = legacy;
+                    }
+                });
+            }
             if (
                 typeof window.ms365SetSchoolDomainNoAt === 'function' &&
                 state.argeDomain !== undefined &&
@@ -590,10 +646,6 @@
                 argeAdminEl.checked = state.argeAdminAsOwner !== undefined ? !!state.argeAdminAsOwner : true;
             }
             document.getElementById('argeLines').value = state.argeLines || '';
-            const argeMemEl = document.getElementById('argeMemberEmails');
-            if (argeMemEl) {
-                argeMemEl.value = state.argeMemberEmails !== undefined ? state.argeMemberEmails : '';
-            }
             document.getElementById('argeParseError').style.display = 'none';
             const pre = document.getElementById('argePowerShellScript');
             if (pre && state.argePowerShellScript !== undefined) {
@@ -601,8 +653,11 @@
             }
             if (argeRows.length) {
                 rebuildArgeOwnerTableFromRows();
+                rebuildArgeMembersTableFromRows();
             } else {
                 document.getElementById('argeOwnerBody').replaceChildren();
+                const amb = document.getElementById('argeMembersBody');
+                if (amb) amb.replaceChildren();
             }
             goToArgeStep(Math.min(Math.max(1, argeCurrentStep), 5));
             scheduleArgePreviewFromTextarea();
@@ -630,10 +685,10 @@
             const argeAdminClear = document.getElementById('argeAdminAsOwner');
             if (argeAdminClear) argeAdminClear.checked = true;
             document.getElementById('argeLines').value = '';
-            const argeMemClear = document.getElementById('argeMemberEmails');
-            if (argeMemClear) argeMemClear.value = '';
             document.getElementById('argeParseError').style.display = 'none';
             document.getElementById('argeOwnerBody').replaceChildren();
+            const argeMemBodyClear = document.getElementById('argeMembersBody');
+            if (argeMemBodyClear) argeMemBodyClear.replaceChildren();
             document.getElementById('argePowerShellScript').textContent = '';
             argePreviewRows = [];
             goToArgeStep(1);
@@ -660,10 +715,10 @@
                     displayName: r.displayName,
                     mailNick: r.mailNick,
                     owner: r.owner,
-                    description: r.description
+                    description: r.description,
+                    memberEmails: parseMemberLinesText(r.memberLines || '')
                 };
             }),
-            memberEmails: getArgeMemberEmailsParsed(),
             createTeams: getArgeCreateTeams(),
             exchangeSmtp: getArgeExchangeSmtp(),
             adminAsOwner: getArgeAdminAsOwner()
@@ -830,6 +885,8 @@
         lines.push('$rows = @(');
         argeRows.forEach((r, i) => {
             const last = i === argeRows.length - 1;
+            const mems = parseMemberLinesText(r.memberLines || '');
+            const memPart = mems.map(e => "'" + psEscapeSingle(e) + "'").join(',');
             lines.push(
                 "    [PSCustomObject]@{ DisplayName = '" +
                     psEscapeSingle(r.displayName) +
@@ -839,15 +896,11 @@
                     psEscapeSingle(r.owner) +
                     "'; Description = '" +
                     psEscapeSingle(r.description) +
-                    "' }" + (last ? '' : ',')
+                    "'; MemberUpns = @(" +
+                    memPart +
+                    ') }' +
+                    (last ? '' : ',')
             );
-        });
-        lines.push(')');
-        const extraMembers = getArgeMemberEmailsParsed();
-        lines.push('$Ms365ExtraMemberUpns = @(');
-        extraMembers.forEach((em, i) => {
-            const last = i === extraMembers.length - 1;
-            lines.push("    '" + psEscapeSingle(em) + "'" + (last ? '' : ','));
         });
         lines.push(')');
         lines.push('$meUser = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/me" -ErrorAction Stop');
@@ -912,8 +965,8 @@
             '            Write-Host ("Hinweis (Besitzer als Mitglied): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
         );
         lines.push('        }');
-        lines.push('        if ($Ms365ExtraMemberUpns -and $Ms365ExtraMemberUpns.Count -gt 0) {');
-        lines.push('            foreach ($mUpn in $Ms365ExtraMemberUpns) {');
+        lines.push('        if ($r.MemberUpns -and $r.MemberUpns.Count -gt 0) {');
+        lines.push('            foreach ($mUpn in $r.MemberUpns) {');
         lines.push('                if ([string]::IsNullOrWhiteSpace($mUpn)) { continue }');
         lines.push('                try {');
         lines.push('                    $trimUpn = $mUpn.Trim()');
@@ -1099,12 +1152,6 @@
     if (argeExoEl) argeExoEl.addEventListener('change', refreshArgeScriptIfStep5);
     const argeAdminAsOwnerEl = document.getElementById('argeAdminAsOwner');
     if (argeAdminAsOwnerEl) argeAdminAsOwnerEl.addEventListener('change', refreshArgeScriptIfStep5);
-    const argeMemberEmailsEl = document.getElementById('argeMemberEmails');
-    if (argeMemberEmailsEl) {
-        argeMemberEmailsEl.addEventListener('input', refreshArgeScriptIfStep5);
-        argeMemberEmailsEl.addEventListener('paste', () => setTimeout(refreshArgeScriptIfStep5, 0));
-    }
-
     document.getElementById('argeBack1').addEventListener('click', () => goToArgeStep(1));
     document.getElementById('argeGoTo3').addEventListener('click', () => goToArgeStep(3));
     const argeMemberBack = document.getElementById('argeMemberBack');
@@ -1167,10 +1214,12 @@
         }
 
         const ownerByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.owner]));
+        const memberLinesByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.memberLines || '']));
         argeRows = argePreviewRows.map(r => ({
             displayName: r.displayName.trim(),
             mailNick: r.mailNick,
             owner: ownerByKey.get(r.displayName.trim().toLowerCase()) || '',
+            memberLines: memberLinesByKey.get(r.displayName.trim().toLowerCase()) || '',
             description: 'ARGE-Gruppe: ' + r.displayName.trim()
         }));
 

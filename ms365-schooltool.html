@@ -465,6 +465,9 @@
             .arge-step1-grid {
                 grid-template-columns: 1fr;
             }
+            .import-paste-file-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .modal-overlay {
@@ -539,6 +542,64 @@
             outline: 2px solid #5e72e4;
             outline-offset: 2px;
         }
+
+        .kursteam-start-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            margin-top: 8px;
+        }
+        .kursteam-start-card {
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 18px;
+            background: #f8f9fa;
+            text-align: left;
+        }
+        .kursteam-start-card h3 {
+            margin: 0 0 8px;
+            font-size: 1.1em;
+            color: #32325d;
+        }
+        .kursteam-start-card p {
+            margin: 0 0 14px;
+            color: #495057;
+            line-height: 1.45;
+            font-size: 0.95em;
+        }
+
+        /* Schritt 1 & 3: Paste links, Datei rechts */
+        .import-paste-file-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+            margin-bottom: 20px;
+        }
+        .import-paste-file-grid .import-paste-file-col {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .import-paste-file-grid .import-paste-file-col .upload-area {
+            flex: 1;
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
     </style>
 </head>
 <body>
@@ -555,7 +616,7 @@
         </div>
 
         <div class="mode-switch" style="padding:14px 20px;background:#eef;text-align:center;border-bottom:1px solid #dee2e6;">
-            <button type="button" class="btn btn-success" id="modeWebuntis">Kursteams (WebUntis)</button>
+            <button type="button" class="btn btn-success" id="modeWebuntis">Kursteams</button>
             <button type="button" class="btn" id="modeJahrgang" style="margin-left:8px;">Jahrgangsgruppen (M365-Gruppen)</button>
             <button type="button" class="btn" id="modeArge" style="margin-left:8px;">ARGEs (M365-Gruppen)</button>
         </div>
@@ -570,27 +631,69 @@
 
         <div id="panelWebuntis">
         <div class="steps">
-            <div class="step active" data-step="1">1. Daten importieren</div>
+            <div class="step active" data-step="0">0. Vorgehen</div>
+            <div class="step" data-step="1">1. Daten importieren</div>
             <div class="step" data-step="2">2. Daten bereinigen</div>
             <div class="step" data-step="2.5">3. Lehrer-Emails</div>
             <div class="step" data-step="3">4. Teams konfigurieren</div>
-            <div class="step" data-step="4">5. CSV exportieren</div>
-            <div class="step" data-step="5">6. PowerShell Script</div>
+            <div class="step" data-step="4">5. Kursteams anlegen</div>
+            <div class="step" data-step="5">6. Optional: CSV &amp; PowerShell</div>
         </div>
 
         <div class="content">
+            <!-- Schritt 0: Einstieg -->
+            <div class="step-content active" data-step="0">
+                <h2>Schritt 0: Vorgehen wählen</h2>
+                <div class="alert alert-info">
+                    <strong>Hauptweg:</strong> In Schritt&nbsp;1 <strong>Lehrer, Fach, Klasse</strong> aus WebUntis per <strong>Copy&nbsp;&amp;&nbsp;Paste</strong> einfügen oder eine <strong>CSV/Excel-Datei</strong> laden. Anschließend Daten bereinigen, Lehrer-E-Mails, Team-Namen und Anlage.
+                </div>
+                <div id="kursteamStep0Cards" class="kursteam-start-grid">
+                    <div class="kursteam-start-card">
+                        <h3>Mit WebUntis-Import starten</h3>
+                        <p>Einfügen oder Datei – siehe Schritt&nbsp;1.</p>
+                        <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()">Weiter zum Import →</button>
+                    </div>
+                    <div class="kursteam-start-card">
+                        <h3>Einzelzeilen (ohne Import)</h3>
+                        <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln in Schritt&nbsp;2 erfassen – für wenige Teams oder zum Ergänzen.</p>
+                        <button type="button" class="btn" onclick="startKursteamManual()">Zur manuellen Eingabe →</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Schritt 1: Import -->
-            <div class="step-content active" data-step="1">
+            <div class="step-content" data-step="1">
                 <h2>Schritt 1: WebUntis-Daten importieren</h2>
                 <div class="alert alert-info">
-                    <strong>ℹ️ Hinweis:</strong> Exportieren Sie die Fächerliste mit Unterrichtsfächern und LehrerInnen aus WebUntis als CSV oder Excel-Datei.
+                    <strong>Schnellweg:</strong> Daten aus WebUntis (Ansicht mit <strong>Lehrer</strong>, <strong>Fach</strong>, <strong>Klasse</strong>) markieren, kopieren und unten einfügen – <strong>Übernehmen</strong> klickt die Liste ein; doppelte Zeilen (z. B. mehrere Stunden dieselbe Kombination) werden zu <strong>einem</strong> Eintrag zusammengefasst.
                 </div>
-                
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-icon">📁</div>
-                    <h3>Datei hier ablegen oder klicken zum Auswählen</h3>
-                    <p>Unterstützte Formate: CSV, XLSX, XLS</p>
-                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+
+                <div class="import-paste-file-grid">
+                    <div class="import-paste-file-col">
+                        <div class="filter-section" style="margin-bottom:0;border:1px solid #5e72e4;border-radius:12px;padding:18px;background:#f8f9ff;flex:1;display:flex;flex-direction:column;">
+                            <h3 style="margin-top:0;color:#32325d;">1. Daten einfügen (Copy &amp; Paste)</h3>
+                            <label for="webuntisPasteInput" class="sr-only">WebUntis-Daten einfügen</label>
+                            <textarea id="webuntisPasteInput" rows="14" wrap="off" spellcheck="false" placeholder="LOEV	GWS	1A&#10;HOLZE	GEO	1A&#10;FRECH	BW	1A&#10;…" style="width:100%;max-width:100%;padding:12px;border:1px solid #ced4da;border-radius:8px;font-family:Consolas,'Segoe UI',monospace;font-size:0.9em;line-height:1.45;box-sizing:border-box;resize:vertical;flex:1;min-height:200px;"></textarea>
+                            <p style="margin-top:12px;margin-bottom:0;">
+                                <button type="button" class="btn btn-success" onclick="importWebuntisFromPaste()">Übernehmen</button>
+                            </p>
+                            <p style="color:#495057;line-height:1.5;margin-top:12px;margin-bottom:0;font-size:0.95em;">
+                                Pro Zeile drei Spalten: <strong>Lehrer-Kürzel</strong>, <strong>Fach</strong>, <strong>Klasse</strong> – wie in der Tabelle. Trenner: <strong>Tab</strong> (Excel), <strong>|</strong>, mehrere Leerzeichen oder einzelne Leerzeichen zwischen den Feldern.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="import-paste-file-col">
+                        <h4 style="margin:0 0 10px;color:#32325d;">Datei-Import</h4>
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">📁</div>
+                            <h3>Datei hier ablegen oder klicken zum Auswählen</h3>
+                            <p>Unterstützte Formate: CSV, XLSX, XLS</p>
+                            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+                        </div>
+                        <div class="alert alert-info" style="margin-top:12px;margin-bottom:0;">
+                            Vollständige Fächerliste mit Spalten z. B. <code>U-Nr</code>, <code>Lehrer</code>, <code>Fach</code>, <code>Klasse(n)</code>, <code>Schülergruppe</code>. Semikolon-CSV (DE) wird unterstützt. Mehrere Klassen in <code>Klasse(n)</code> werden pro Klasse aufgeteilt.
+                        </div>
+                    </div>
                 </div>
 
                 <div id="importStats" style="display:none;">
@@ -615,10 +718,18 @@
             <!-- Schritt 2: Bereinigung -->
             <div class="step-content" data-step="2">
                 <h2>Schritt 2: Daten bereinigen und filtern</h2>
+
+                <div id="manualKursteamHint" class="alert alert-info" style="display:none;">
+                    <strong>Manuelle Erfassung:</strong> Zeilen unten prüfen, filtern und bei Bedarf Zeilen hinzufügen oder entfernen; danach Lehrer-E-Mails und Team-Konfiguration wie gewohnt.
+                </div>
                 
                 <div class="alert alert-warning">
                     <strong>⚠️ Wichtig:</strong> Entfernen Sie unnötige Fächer (ORD, DIR, ...) und doppelte Einträge. Achten Sie auf klassenübergreifende Teams!
                 </div>
+
+                <p style="margin-bottom:12px;">
+                    <button type="button" class="btn btn-success" onclick="addManualDataRow()">➕ Unterrichtszeile hinzufügen</button>
+                </p>
 
                 <div class="filter-section">
                     <h3>Automatische Filter</h3>
@@ -695,16 +806,41 @@
 
                 <div class="filter-section">
                     <h3>Lehrer-Liste importieren</h3>
-                    <p style="color: #6c757d; margin-bottom: 15px;">
-                        Erwartete Spalten: <strong>Kürzel</strong> und <strong>E-Mail</strong> (oder ähnliche Varianten wie "Code", "Mail", etc.)
-                    </p>
-                    
-                    <div class="upload-area" id="teacherUploadArea">
-                        <div class="upload-icon">👨‍🏫</div>
-                        <h3>Lehrer-Liste hier ablegen oder klicken</h3>
-                        <p>CSV oder Excel mit Lehrerkürzel und E-Mail-Adressen</p>
-                        <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
+
+                    <div class="import-paste-file-grid" style="margin-bottom: 16px;">
+                        <div class="import-paste-file-col">
+                            <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid #dee2e6; border-radius: 12px; background: #f8f9fa; flex: 1; display: flex; flex-direction: column;">
+                                <h4 style="margin-top: 0;">Kürzel und E-Mail einfügen (Copy &amp; Paste)</h4>
+                                <textarea id="teacherEmailPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="MU&#9;max.mustermann@schule.de&#10;BME&#9;anna.beispiel@schule.de&#10;oder: MU;max.mustermann@schule.de"></textarea>
+                                <p style="margin-top: 10px; margin-bottom: 0;">
+                                    <button type="button" class="btn" onclick="importTeacherEmailsFromPaste()">In Zuordnung übernehmen</button>
+                                </p>
+                                <p style="color: #6c757d; font-size: 0.9em; margin-top: 12px; margin-bottom: 0;">
+                                    Pro Zeile ein Kürzel und eine E-Mail, getrennt durch <strong>Tab</strong>, <strong>Semikolon</strong>, <strong>|</strong> oder Leerzeichen (wie aus Excel oder WebUntis). Ergänzt oder überschreibt einzelne Einträge; die Tabelle unten wird aktualisiert.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="import-paste-file-col">
+                            <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
+                            <div class="upload-area" id="teacherUploadArea">
+                                <div class="upload-icon">👨‍🏫</div>
+                                <h3>Lehrer-Liste hier ablegen oder klicken</h3>
+                                <p>CSV oder Excel mit Lehrerkürzel und E-Mail-Adressen</p>
+                                <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
+                            </div>
+                            <p style="color: #6c757d; margin-top: 12px; margin-bottom: 8px;">
+                                Vorlagen zum Ausfüllen:
+                                <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateCsv()">CSV-Vorlage</button>
+                                <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateXlsx()">Excel-Vorlage</button>
+                            </p>
+                            <p style="color: #6c757d; font-size: 0.95em; margin: 0;">
+                                Ein Dateiimport <strong>ersetzt</strong> die bisherigen Zuordnungen aus der Datei-Quelle. Zuvor per Einfügen hinzugefügte Einträge gehen dabei verloren – bei Bedarf zuerst die Datei laden, dann per Copy &amp; Paste ergänzen.
+                            </p>
+                        </div>
                     </div>
+                    <p style="color: #6c757d; margin: 0 0 8px; font-size: 0.95em;">
+                        Erwartete Spalten in der Datei: <strong>Kürzel</strong> und <strong>E-Mail</strong> (oder ähnliche Varianten wie „Code“, „Mail“ usw.).
+                    </p>
 
                     <div id="teacherMappingInfo" style="display:none; margin-top: 20px;">
                         <div class="alert alert-success">
@@ -790,6 +926,10 @@
                     <button class="btn" onclick="generateTeamNames()">Team-Namen generieren</button>
                 </div>
 
+                <p style="margin-bottom:12px;">
+                    <button type="button" class="btn btn-success" onclick="addManualKursteamTeam()">➕ Team manuell hinzufügen</button>
+                </p>
+
                 <div class="alert alert-warning">
                     <strong>⚠️ Ungültige Zeichen in Gruppenmail:</strong> \ % & * + / = ? { } | &lt; &gt; ( ) ; : , [ ] " ö ä ü
                 </div>
@@ -828,12 +968,58 @@
                     </table>
                 </div>
 
-                <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3" style="display:none;">Weiter zum CSV-Export →</button>
+                <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3" style="display:none;">Weiter zur Anlage (Graph) →</button>
             </div>
 
-            <!-- Schritt 4: CSV Export -->
+            <!-- Schritt 4: Online-Anlage (Graph) -->
             <div class="step-content" data-step="4">
-                <h2>Schritt 4: CSV-Datei exportieren</h2>
+                <h2>Schritt 4: Kursteams anlegen (Microsoft Graph)</h2>
+                <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
+                    Empfohlen: Anmeldung mit einem Konto, das in Microsoft Entra ID Gruppen erstellen darf (z. B. globaler Administrator oder entsprechende Administratorrolle). Besitzer-E-Mails müssen als Benutzer im Mandanten existieren.
+                </p>
+
+                <div class="alert alert-info" style="line-height:1.55;margin-bottom:16px;">
+                    <strong>EducationClass-API vs. Kursteam (Ihr PowerShell):</strong>
+                    <a href="https://learn.microsoft.com/de-de/graph/api/educationclass-post?view=graph-rest-1.0&amp;tabs=http" target="_blank" rel="noopener">POST /education/classes</a>
+                    erstellt ein <em>educationClass</em>-Objekt und eine dazu passende Gruppe mit Schul-Eigenschaften, aber <strong>kein Microsoft-Teams-Team</strong> – das Team wird laut Doku separat angelegt.
+                    Für diese API sind <strong>delegierte</strong> Anmeldungen (Browser-App) in der Microsoft-Dokumentation <strong>nicht vorgesehen</strong>; vorgesehen ist die <strong>Anwendungsberechtigung</strong>
+                    <code>EduRoster.ReadWrite.All</code> (typisch für automatisierte Schul-/SDS-Szenarien).
+                    <br><br>
+                    Ihr Befehl <code>New-Team -Template &quot;EDU_Class&quot;</code> nutzt dagegen das <strong>Teams-Klassen-Template</strong> – das entspricht in Graph dem Anlegen eines Teams mit
+                    <a href="https://learn.microsoft.com/graph/api/team-post?view=graph-rest-1.0" target="_blank" rel="noopener">POST /teams</a>
+                    und <code>teamsTemplates(&#39;educationClass&#39;)</code> (an eine M365-Gruppe gebunden). Genau diesen Weg setzt die Online-Anlage hier um (mit den gleichen Graph-Berechtigungen wie oben, nicht mit der EducationClass-POST-Route).
+                </div>
+
+                <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                    <h3 style="margin-top:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        Microsoft Graph im Browser
+                        <span
+                            tabindex="0"
+                            role="note"
+                            aria-label="Hinweis zur Online-Nutzung"
+                            title="Einmalig: Entra-App-Registrierung (Multimandanten) und clientId in ms365-config.js (siehe ms365-config.example.js). Delegierte Berechtigungen: Group.ReadWrite.All, Team.Create (POST /teams, Kursteam-Template educationClass), User.Read.All, User.Read — Administratorzustimmung im Mandanten. Anmeldung per Popup; Tab während der Laufzeit offen lassen. Entspricht New-Team -Template EDU_Class (Graph: teamsTemplates educationClass)."
+                            style="cursor:help;font-weight:normal;font-size:1.1em;line-height:1;color:#5e72e4;user-select:none;"
+                        >ⓘ</span>
+                    </h3>
+                    <button type="button" class="btn" id="kursteamOnlineLogin" onclick="window.ms365KursteamGraphLogin && window.ms365KursteamGraphLogin()">Bei Microsoft anmelden</button>
+                    <button type="button" class="btn btn-success" id="kursteamOnlineRun" onclick="window.ms365KursteamGraphRun && window.ms365KursteamGraphRun()" style="margin-left:8px;">Kursteams jetzt anlegen</button>
+                    <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;6.
+                </div>
+
+                <button type="button" class="btn" onclick="goToStep(3)">← Zurück zur Team-Konfiguration</button>
+                <button type="button" class="btn" onclick="goToStep(5)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
+            </div>
+
+            <!-- Schritt 5: Optional CSV & PowerShell -->
+            <div class="step-content" data-step="5">
+                <h2>Schritt 5 (optional): CSV-Export &amp; PowerShell</h2>
+                <p style="color:#495057;margin-bottom:14px;line-height:1.45;">
+                    Nur nötig, wenn Sie die Anlage <strong>nicht</strong> über Schritt&nbsp;4 im Browser durchführen möchten – z. B. auf einem Rechner ohne Anmeldung in diese Web-App oder mit dem Teams PowerShell-Modul.
+                </p>
 
                 <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
                     <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
@@ -858,14 +1044,8 @@
                 </div>
 
                 <button class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv">📥 neueteams.csv herunterladen</button>
-                <button class="btn" onclick="goToStep(5)">Weiter zu PowerShell-Anleitung →</button>
-            </div>
 
-            <!-- Schritt 5: PowerShell -->
-            <div class="step-content" data-step="5">
-                <h2>Schritt 5: PowerShell-Script ausführen</h2>
-
-                <div class="alert alert-warning">
+                <div class="alert alert-warning" style="margin-top:20px;">
                     <strong>⚠️ Wichtig:</strong> Führen Sie das Script im selben Verzeichnis wie die neueteams.csv aus. Admin-Anmeldung erforderlich!
                 </div>
 
@@ -902,6 +1082,8 @@ foreach ($Team in $TeamsList) {
                     • Fortschritt kann im Microsoft 365 Admin Center verfolgt werden<br>
                     • Teams haben standardmäßig 5 Jahre (1825 Tage) Ablaufdatum
                 </div>
+
+                <button type="button" class="btn" onclick="goToStep(4)" style="margin-bottom:16px;">← Zurück zur Online-Anlage (Schritt 4)</button>
 
                 <h3>Manuelles Erstellen (Beispiel):</h3>
                 <div class="powershell-code">
@@ -962,7 +1144,7 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                         </div>
                     </div>
                     <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
-                    <p style="color:#6c757d;font-size:0.92em;margin:0 0 10px 0;line-height:1.45;">Klasse und Abschlussjahr können <strong>direkt in der Tabelle</strong> bearbeitet werden (auch ohne Jahr in der Textarea – dann gilt das Standard-Abschlussjahr). <strong>Doppelklick</strong> auf eine Zeile markiert die Klasse bzw. das Jahr in der zweiten Spalte.</p>
+                    <p style="color:#6c757d;font-size:0.92em;margin:0 0 10px 0;line-height:1.45;">Klasse und Abschlussjahr können <strong>direkt in der Tabelle</strong> bearbeitet werden (auch ohne Jahr in der Textarea – dann gilt das Standard-Abschlussjahr). <strong>Anzeigename</strong> ist der Gruppenname in Microsoft 365 (wie <code>DisplayName</code> in Graph) – er entspricht der Klasse. <strong>Doppelklick</strong> auf eine Zeile markiert die Klasse bzw. das Jahr in der zweiten Spalte.</p>
                     <p style="margin:0 0 10px 0;">
                         <button type="button" class="btn btn-small" id="jgPreviewAddRow">+ Zeile hinzufügen</button>
                     </p>
@@ -972,12 +1154,13 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                                 <tr>
                                     <th>Klasse</th>
                                     <th>Abschlussjahr</th>
+                                    <th>Anzeigename (Microsoft 365)</th>
                                     <th>Mail-Nickname</th>
                                     <th>E-Mail (Vorschau)</th>
                                 </tr>
                             </thead>
                             <tbody id="jgPreviewBody">
-                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen.</td></tr>
+                                <tr><td colspan="5" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -994,6 +1177,7 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                             <thead>
                                 <tr>
                                     <th>Klasse</th>
+                                    <th>Anzeigename (Microsoft 365)</th>
                                     <th>Gruppen-E-Mail (Vorschau)</th>
                                     <th>Mail-Nickname</th>
                                     <th>Besitzer (UPN)</th>
@@ -1006,15 +1190,25 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                     <button type="button" class="btn btn-success" id="jgGoTo3">Weiter zu Mitglieder →</button>
                 </div>
                 <div class="jg-step-content" data-jg-step="3">
-                    <h2>Mitglieder (optional)</h2>
+                    <h2>Mitglieder (optional, pro Klasse)</h2>
                     <div class="alert alert-info">
-                        <strong>Optional:</strong> <strong>Eine E-Mail-Adresse (UPN) pro Zeile</strong> – diese Benutzer werden bei der Ausführung jeder neu angelegten <strong>Jahrgangsgruppe</strong> als <strong>Mitglied</strong> hinzugefügt (zusätzlich zum Besitzer aus Schritt 2). Leer lassen, wenn keine weiteren Mitglieder nötig sind.
+                        <strong>Optional:</strong> Pro <strong>Klasse/Jahrgangsgruppe</strong> eine eigene Liste: <strong>UPN/E-Mail, eine pro Zeile</strong>. Diese Benutzer werden bei der Ausführung <strong>nur dieser Gruppe</strong> als Mitglied hinzugefügt (zusätzlich zum Besitzer aus Schritt 2). Felder leer lassen, wenn keine weiteren Mitglieder nötig sind.
                     </div>
-                    <div class="filter-group">
-                        <label for="jgMemberEmails">Zusätzliche Gruppenmitglieder</label>
-                        <textarea id="jgMemberEmails" rows="10" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="lehrer1@ms365.schule&#10;schueler@ms365.schule"></textarea>
-                        <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Leerzeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert. Doppelte Adressen (ohne Groß-/Kleinschreibung) nur einmal.</small>
+                    <p style="color:#6c757d;font-size:0.92em;margin:0 0 10px 0;line-height:1.45;">Klassen können unterschiedliche oder sich überschneidende Mitgliederlisten haben.</p>
+                    <div class="table-container" style="max-height:480px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="min-width:100px;">Klasse</th>
+                                    <th style="min-width:140px;">Anzeigename (Microsoft 365)</th>
+                                    <th style="min-width:180px;">Gruppen-E-Mail (Vorschau)</th>
+                                    <th>Mitglieder (eine Zeile pro UPN)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jgMembersBody"></tbody>
+                        </table>
                     </div>
+                    <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Leerzeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert; doppelte Adressen pro Gruppe nur einmal.</small>
                     <button type="button" class="btn" id="jgMemberBack">← Zurück</button>
                     <button type="button" class="btn btn-success" id="jgMemberNext">Weiter zu Grundlagen &amp; Einstellungen →</button>
                 </div>
@@ -1165,15 +1359,24 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                 </div>
 
                 <div class="arge-step-content" data-arge-step="3">
-                    <h2>Mitglieder (optional)</h2>
+                    <h2>Mitglieder (optional, pro Gruppe)</h2>
                     <div class="alert alert-info">
-                        <strong>Optional:</strong> Geben Sie hier <strong>E-Mail-Adressen (UPN)</strong> ein – <strong>eine pro Zeile</strong>. Diese Benutzer werden bei der Ausführung (PowerShell und „Online im Browser“) jeder neu angelegten ARGE-Gruppe als <strong>Mitglied</strong> hinzugefügt (zusätzlich zum Besitzer aus Schritt 2). Leer lassen, wenn keine weiteren Mitglieder nötig sind.
+                        <strong>Optional:</strong> Pro ARGE-Gruppe eine eigene Liste: <strong>E-Mail-Adressen (UPN), eine pro Zeile</strong> im jeweiligen Feld. Diese Benutzer werden bei der Ausführung (PowerShell und „Online im Browser“) <strong>nur dieser Gruppe</strong> als Mitglied hinzugefügt (zusätzlich zum Besitzer aus Schritt 2). Felder leer lassen, wenn keine weiteren Mitglieder nötig sind.
                     </div>
-                    <div class="filter-group">
-                        <label for="argeMemberEmails">Zusätzliche Gruppenmitglieder</label>
-                        <textarea id="argeMemberEmails" rows="10" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="lehrer1@ms365.schule&#10;schueler@ms365.schule"></textarea>
-                        <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert. Doppelte Adressen (ohne Groß-/Kleinschreibung) werden nur einmal eingetragen.</small>
+                    <p style="color:#6c757d;font-size:0.92em;margin:0 0 10px 0;line-height:1.45;">Unterschiedliche Gruppen können dieselbe Person enthalten – jede Gruppe wird einzeln befüllt.</p>
+                    <div class="table-container" style="max-height:480px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="min-width:140px;">Anzeigename</th>
+                                    <th style="min-width:180px;">Gruppen-E-Mail (Vorschau)</th>
+                                    <th>Mitglieder (eine Zeile pro UPN)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="argeMembersBody"></tbody>
+                        </table>
                     </div>
+                    <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert; doppelte Adressen pro Gruppe nur einmal.</small>
                     <button type="button" class="btn" id="argeMemberBack">← Zurück</button>
                     <button type="button" class="btn btn-success" id="argeMemberNext">Weiter zu Einstellungen →</button>
                 </div>
@@ -1285,5 +1488,6 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
     <script src="jahrgang.js" defer></script>
     <script src="arge.js" defer></script>
     <script src="arge-graph.js" defer></script>
+    <script src="kursteam-graph.js" defer></script>
 </body>
 </html>

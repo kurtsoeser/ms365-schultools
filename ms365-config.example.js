@@ -13,6 +13,7 @@
  * 4) Registrieren → auf der Übersichtsseite „Anwendungs-ID (Client)“ kopieren → unten bei clientId einfügen
  * 5) API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen:
  *    - Group.ReadWrite.All
+ *    - Team.Create (Kursteams online: POST /teams mit Template educationClass)
  *    - User.Read.All
  *    - User.Read (Profil des angemeldeten Benutzers / für GET /me)
  *    → „Administratorzustimmung für [Organisation] erteilen“ (Global Admin o. ä.)

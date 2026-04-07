@@ -4,7 +4,9 @@
     const GRAPH_SCOPES = [
         'https://graph.microsoft.com/User.Read',
         'https://graph.microsoft.com/Group.ReadWrite.All',
-        'https://graph.microsoft.com/User.Read.All'
+        'https://graph.microsoft.com/User.Read.All',
+        /** POST /teams (Kursteam wie New-Team -Template EDU_Class → teamsTemplates educationClass) */
+        'https://graph.microsoft.com/Team.Create'
     ];
 
     let msalMod = null;
@@ -158,14 +160,13 @@
         return data || {};
     }
 
-    /** Graph meldet z. B. „already exist … owners“, wenn der Besitzer schon gesetzt ist (oft: angemeldeter Admin = eingetragener Besitzer). */
     function isGraphDuplicateRefError(err) {
         const msg = String(err && err.message ? err.message : err);
         return /already exist/i.test(msg) || /already exists/i.test(msg);
     }
 
     function appendLog(msg, kind) {
-        const el = document.getElementById('argeOnlineLog');
+        const el = document.getElementById('kursteamOnlineLog');
         if (!el) return;
         const line = document.createElement('div');
         line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
@@ -178,67 +179,50 @@
     }
 
     function clearLog() {
-        const el = document.getElementById('argeOnlineLog');
+        const el = document.getElementById('kursteamOnlineLog');
         if (el) el.replaceChildren();
     }
 
-    async function runArgeOnline() {
-        const snapshot = window.ms365GetArgeSnapshotForGraph;
-        if (typeof snapshot !== 'function') {
-            appendLog('Interner Fehler: ARGE-Daten nicht verfügbar.', 'err');
-            return;
-        }
-        const pack = snapshot();
-        if (!pack || !pack.rows || !pack.rows.length) {
-            appendLog('Keine ARGE-Zeilen – bitte Liste, Besitzer und Einstellungen abschließen.', 'err');
-            return;
-        }
-        const missing = pack.rows.filter(function (r) {
-            return !r.owner;
-        });
-        if (missing.length) {
-            appendLog('Bitte für alle ARGEs einen Besitzer (UPN) eintragen.', 'err');
-            return;
-        }
-        if (pack.exchangeSmtp) {
-            appendLog(
-                'Hinweis: „Primäre SMTP per Exchange“ ist aktiv – die Online-Ausführung setzt das nicht (nur PowerShell/CMD). Graph legt den Mail-Nickname an.',
-                'warn'
-            );
-        }
+    /**
+     * Microsoft: PowerShell New-Team -Template "EDU_Class" entspricht Graph teamsTemplates('educationClass').
+     * Richtiger Weg: POST /teams mit group@odata.bind (siehe team-post, Beispiel 4/6), nicht nur PUT …/team.
+     */
+    function parseTeamsOperationPath(locationHeader) {
+        if (!locationHeader) return null;
+        const loc = String(locationHeader).trim();
+        const m = loc.match(/teams\('([^']+)'\)\/operations\('([^']+)'\)/i);
+        if (m) return '/teams/' + m[1] + '/operations/' + m[2];
+        const m2 = loc.match(/\/teams\/([^/]+)\/operations\/([^/?\s]+)/i);
+        if (m2) return '/teams/' + m2[1] + '/operations/' + m2[2];
+        return null;
+    }
 
-        const btnLogin = document.getElementById('argeOnlineLogin');
-        const btnRun = document.getElementById('argeOnlineRun');
-        if (btnRun) btnRun.disabled = true;
-        if (btnLogin) btnLogin.disabled = true;
-
-        clearLog();
-        appendLog('Start – Microsoft Graph (Browser) …');
-
-        let token;
-        try {
-            token = await getGraphToken();
-        } catch (e) {
-            appendLog('Anmeldung/Token: ' + (e.message || e), 'err');
-            if (btnRun) btnRun.disabled = false;
-            if (btnLogin) btnLogin.disabled = false;
-            return;
+    async function pollTeamsAsyncOperation(token, operationPath, appendLog) {
+        const maxAttempts = 120;
+        for (let i = 0; i < maxAttempts; i++) {
+            await sleep(2000);
+            const data = await graphJson('GET', operationPath, token, undefined);
+            const st = String(data.status || data.Status || '').toLowerCase();
+            if (st === 'succeeded') {
+                appendLog('  Teams: Bereitstellung abgeschlossen (Template educationClass).', 'ok');
+                return;
+            }
+            if (st === 'failed') {
+                const errMsg =
+                    (data.error && (data.error.message || JSON.stringify(data.error))) ||
+                    JSON.stringify(data);
+                throw new Error('Team-Bereitstellung fehlgeschlagen: ' + errMsg);
+            }
+            if (i > 0 && i % 8 === 0) {
+                appendLog('  Teams: Warte auf Bereitstellung … (' + i * 2 + ' s)', 'warn');
+            }
         }
+        throw new Error('Timeout: Team-Bereitstellung (async) nicht abgeschlossen.');
+    }
 
-        let meId;
-        try {
-            const me = await graphJson('GET', '/me', token, undefined);
-            meId = me.id;
-        } catch (e) {
-            appendLog('Konnte angemeldeten Benutzer nicht lesen (/me): ' + (e.message || e), 'err');
-            if (btnRun) btnRun.disabled = false;
-            if (btnLogin) btnLogin.disabled = false;
-            return;
-        }
-
-        const adminAsOwner = pack.adminAsOwner !== false;
-
-        const teamBody = {
+    /** Fallback wie Jahrgang/ARGE: Team an bestehende Gruppe hängen (ohne educationClass-Template). */
+    function buildPutTeamBody(includeSpecialization) {
+        const base = {
             memberSettings: {
                 allowCreatePrivateChannels: true,
                 allowCreateUpdateChannels: true
@@ -255,26 +239,159 @@
                 allowCreateUpdateChannels: false
             }
         };
+        if (includeSpecialization) {
+            base.specialization = 'educationClass';
+        }
+        return base;
+    }
 
-        const total = pack.rows.length;
+    /**
+     * Primär: POST /teams mit teamsTemplates('educationClass') + group@odata.bind — entspricht New-Team -Template EDU_Class.
+     * Hinweis: POST /education/classes (educationClass) ist laut Microsoft Learn für delegierte Auth nicht vorgesehen und legt
+     * ohnehin kein Team an (nur Klassen-Gruppe); siehe https://learn.microsoft.com/de-de/graph/api/educationclass-post
+     * Fallback: PUT /groups/{id}/team (Replikations-Wiederholungen).
+     */
+    async function provisionKursteamTeam(token, gid, appendLog) {
+        const postBody = {
+            'template@odata.bind':
+                'https://graph.microsoft.com/v1.0/teamsTemplates(\'educationClass\')',
+            'group@odata.bind': 'https://graph.microsoft.com/v1.0/groups(\'' + gid + '\')'
+        };
+
+        let lastPostErr = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                const res = await graphRequest('POST', '/teams', token, postBody);
+                const text = await res.text();
+                if (res.status === 202 || res.status === 200) {
+                    const loc = res.headers.get('Location') || res.headers.get('Content-Location');
+                    const opPath = parseTeamsOperationPath(loc);
+                    if (opPath) {
+                        appendLog('  Teams: educationClass-Anlage gestartet (POST /teams) …', 'warn');
+                        await pollTeamsAsyncOperation(token, opPath, appendLog);
+                    } else {
+                        appendLog(
+                            '  Teams: POST /teams angenommen (keine Operation-URL – ggf. im Admin prüfen).',
+                            'warn'
+                        );
+                    }
+                    return await getGraphToken();
+                }
+                if (res.status === 404 && attempt < 2) {
+                    appendLog(
+                        '  Teams: 404 nach Gruppenerstellung – Replikation, Warte 10 s …',
+                        'warn'
+                    );
+                    await sleep(10000);
+                    token = await getGraphToken();
+                    continue;
+                }
+                lastPostErr = new Error('POST /teams: ' + res.status + ' ' + (text || ''));
+                break;
+            } catch (e) {
+                lastPostErr = e;
+                if (attempt < 2 && /404/.test(String(e.message))) {
+                    appendLog('  Teams: Wiederholung nach Wartezeit (404) …', 'warn');
+                    await sleep(10000);
+                    token = await getGraphToken();
+                    continue;
+                }
+                break;
+            }
+        }
+
+        appendLog(
+            '  Teams: POST /teams (educationClass) nicht möglich: ' +
+                (lastPostErr && lastPostErr.message ? lastPostErr.message : '') +
+                ' – Fallback PUT …/team.',
+            'warn'
+        );
+
+        const teamUri = '/groups/' + gid + '/team';
+        let useEducationSpec = true;
+        for (let ti = 0; ti < 8; ti++) {
+            try {
+                await graphJson('PUT', teamUri, token, buildPutTeamBody(useEducationSpec));
+                appendLog('  Teams: Team per PUT bereitgestellt (Fallback).', 'ok');
+                return await getGraphToken();
+            } catch (e) {
+                if (useEducationSpec) {
+                    useEducationSpec = false;
+                    appendLog('  Teams: PUT ohne specialization educationClass …', 'warn');
+                    ti--;
+                    continue;
+                }
+                if (ti < 7) {
+                    appendLog('  Teams: Warte auf Replikation (' + (ti + 1) + '/8) …', 'warn');
+                    await sleep(10000);
+                    token = await getGraphToken();
+                } else {
+                    throw e;
+                }
+            }
+        }
+    }
+
+    async function runKursteamOnline() {
+        const snapshotFn = window.ms365GetKursteamSnapshotForGraph;
+        if (typeof snapshotFn !== 'function') {
+            appendLog('Interner Fehler: Kursteam-Daten nicht verfügbar.', 'err');
+            return;
+        }
+        const pack = snapshotFn();
+        if (!pack || !pack.teams || !pack.teams.length) {
+            appendLog('Keine gültigen Teams – bitte in Schritt „Teams konfigurieren“ generieren und prüfen.', 'err');
+            return;
+        }
+        const missing = pack.teams.filter(function (t) {
+            return !t.besitzer;
+        });
+        if (missing.length) {
+            appendLog('Bitte für alle Teams einen gültigen Besitzer (E-Mail / UPN) im Mandanten eintragen.', 'err');
+            return;
+        }
+
+        const btnLogin = document.getElementById('kursteamOnlineLogin');
+        const btnRun = document.getElementById('kursteamOnlineRun');
+        if (btnRun) btnRun.disabled = true;
+        if (btnLogin) btnLogin.disabled = true;
+
+        clearLog();
+        appendLog('Start – Microsoft Graph (Browser), Kursteams …');
+        appendLog(
+            'Hinweis: Wie PowerShell New-Team -Template EDU_Class → Graph teamsTemplates(\'educationClass\') + POST /teams (siehe Microsoft Learn: Create team, Beispiel 4/6).',
+            'warn'
+        );
+
+        let token;
+        try {
+            token = await getGraphToken();
+        } catch (e) {
+            appendLog('Anmeldung/Token: ' + (e.message || e), 'err');
+            if (btnRun) btnRun.disabled = false;
+            if (btnLogin) btnLogin.disabled = false;
+            return;
+        }
+
+        const total = pack.teams.length;
         let i = 0;
-        for (const r of pack.rows) {
+        for (const t of pack.teams) {
             i++;
             try {
-                appendLog('[' + i + '/' + total + '] ' + r.displayName + ' …');
+                appendLog('[' + i + '/' + total + '] ' + t.teamName + ' …');
 
                 const owner = await graphJson(
                     'GET',
-                    '/users/' + encodeURIComponent(r.owner),
+                    '/users/' + encodeURIComponent(t.besitzer),
                     token,
                     undefined
                 );
                 const ownerId = owner.id;
 
                 const groupBody = {
-                    displayName: r.displayName,
-                    description: r.description,
-                    mailNickname: r.mailNick,
+                    displayName: t.teamName,
+                    description: 'Kursteam (WebUntis / MS365-Schulverwaltung)',
+                    mailNickname: t.gruppenmail,
                     mailEnabled: true,
                     securityEnabled: false,
                     groupTypes: ['Unified'],
@@ -313,83 +430,11 @@
                     }
                 }
 
-                const extraMembers = Array.isArray(r.memberEmails) ? r.memberEmails : [];
-                for (let mi = 0; mi < extraMembers.length; mi++) {
-                    const upn = String(extraMembers[mi] || '').trim();
-                    if (!upn) continue;
-                    try {
-                        const memUser = await graphJson(
-                            'GET',
-                            '/users/' + encodeURIComponent(upn),
-                            token,
-                            undefined
-                        );
-                        const memId = memUser.id;
-                        if (memId === ownerId) {
-                            continue;
-                        }
-                        try {
-                            await graphJson('POST', '/groups/' + gid + '/members/$ref', token, {
-                                '@odata.id':
-                                    'https://graph.microsoft.com/v1.0/directoryObjects/' + memId
-                            });
-                            appendLog('  Zusätzliches Mitglied: ' + upn, 'ok');
-                        } catch (e) {
-                            if (isGraphDuplicateRefError(e)) {
-                                appendLog('  Mitglied (bereits): ' + upn, 'warn');
-                            } else {
-                                appendLog('  Hinweis (Mitglied ' + upn + '): ' + e.message, 'warn');
-                            }
-                        }
-                    } catch (e) {
-                        appendLog('  Mitglied nicht gefunden: ' + upn + ' – ' + (e.message || e), 'warn');
-                    }
-                }
+                token = await provisionKursteamTeam(token, gid, appendLog);
 
-                if (!adminAsOwner && meId && ownerId !== meId) {
-                    try {
-                        await graphJson(
-                            'DELETE',
-                            '/groups/' + gid + '/owners/' + meId + '/$ref',
-                            token,
-                            undefined
-                        );
-                        appendLog(
-                            '  Angemeldeter Administrator als Besitzer entfernt (nur Besitzer aus Schritt 2).',
-                            'warn'
-                        );
-                    } catch (e) {
-                        appendLog('  Hinweis (Admin-Besitzer entfernen): ' + (e.message || e), 'warn');
-                    }
-                }
-
-                if (pack.createTeams) {
-                    const teamUri = '/groups/' + gid + '/team';
-                    let teamOk = false;
-                    for (let ti = 0; ti < 8; ti++) {
-                        try {
-                            await graphJson('PUT', teamUri, token, teamBody);
-                            appendLog('  Teams: Team bereitgestellt.', 'ok');
-                            teamOk = true;
-                            break;
-                        } catch (e) {
-                            if (ti < 7) {
-                                appendLog('  Teams: Warte auf Replikation (' + (ti + 1) + '/8) …', 'warn');
-                                await sleep(10000);
-                                token = await getGraphToken();
-                            } else {
-                                appendLog('  Teams: ' + e.message, 'err');
-                            }
-                        }
-                    }
-                    if (!teamOk) {
-                        /* Fehler bereits protokolliert */
-                    }
-                }
-
-                appendLog('OK [' + i + '/' + total + '] ' + r.displayName + ' → ' + r.mailNick, 'ok');
+                appendLog('OK [' + i + '/' + total + '] ' + t.teamName + ' → ' + t.gruppenmail, 'ok');
             } catch (e) {
-                appendLog('Fehler [' + i + '/' + total + '] ' + r.displayName + ': ' + (e.message || e), 'err');
+                appendLog('Fehler [' + i + '/' + total + '] ' + t.teamName + ': ' + (e.message || e), 'err');
             }
 
             await sleep(2000);
@@ -407,11 +452,11 @@
     }
 
     async function loginOnly() {
-        const btnLogin = document.getElementById('argeOnlineLogin');
+        const btnLogin = document.getElementById('kursteamOnlineLogin');
         if (btnLogin) btnLogin.disabled = true;
         try {
             await getGraphToken();
-            toast('Microsoft angemeldet – Sie können jetzt ausführen.');
+            toast('Microsoft angemeldet – Sie können jetzt Kursteams anlegen.');
         } catch (e) {
             toast('Anmeldung: ' + (e.message || e));
         } finally {
@@ -419,6 +464,6 @@
         }
     }
 
-    window.ms365ArgeGraphLogin = loginOnly;
-    window.ms365ArgeGraphRun = runArgeOnline;
+    window.ms365KursteamGraphLogin = loginOnly;
+    window.ms365KursteamGraphRun = runKursteamOnline;
 })();

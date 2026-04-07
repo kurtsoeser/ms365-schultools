@@ -8,7 +8,9 @@
     let rawData = [];
     let filteredData = [];
     let teamsData = [];
-    let currentStep = 1;
+    /** @type {'unset'|'webuntis'|'manual'} */
+    let kursteamEntryMode = 'unset';
+    let currentStep = 0;
     let teacherEmailMapping = {};
     let teamsGenerated = false;
     let modalOkHandler = null;
@@ -146,7 +148,8 @@
                         : '',
                 teamSeparator: document.getElementById('teamSeparator').value,
                 excludeSubjects: document.getElementById('excludeSubjects').value,
-                removeDuplicates: document.getElementById('removeDuplicates').checked
+                removeDuplicates: document.getElementById('removeDuplicates').checked,
+                kursteamEntryMode
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
             showToast('Kursteams: Zwischenstand gespeichert.');
@@ -168,6 +171,10 @@
             teamsData = state.teamsData || [];
             teacherEmailMapping = state.teacherEmailMapping || {};
             teamsGenerated = !!state.teamsGenerated;
+            kursteamEntryMode =
+                state.kursteamEntryMode === 'manual' || state.kursteamEntryMode === 'webuntis'
+                    ? state.kursteamEntryMode
+                    : 'unset';
 
             document.getElementById('yearPrefix').value = state.yearPrefix || 'WS24';
             if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
@@ -206,7 +213,8 @@
                 displayTeamsData();
             }
 
-            const step = state.currentStep !== undefined ? state.currentStep : 1;
+            const hasRows = (state.rawData && state.rawData.length > 0);
+            const step = state.currentStep !== undefined ? state.currentStep : (hasRows ? 1 : 0);
             goToStep(step);
             showToast('Kursteams: Stand geladen.');
         } catch (e) {
@@ -305,12 +313,33 @@
 
     function handleFile(file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = e => {
             try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                const name = (file.name || '').toLowerCase();
+                let jsonData;
+                if (name.endsWith('.csv')) {
+                    const buf = new Uint8Array(e.target.result);
+                    let text = new TextDecoder('utf-8').decode(buf);
+                    if (text.charCodeAt(0) === 0xfeff) {
+                        text = text.slice(1);
+                    }
+                    let workbook = XLSX.read(text, { type: 'string', FS: ';' });
+                    let firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    if (!jsonData.length || Object.keys(jsonData[0] || {}).length < 2) {
+                        const wb2 = XLSX.read(text, { type: 'string', FS: ',' });
+                        const sh2 = wb2.Sheets[wb2.SheetNames[0]];
+                        const j2 = XLSX.utils.sheet_to_json(sh2);
+                        if (j2.length) {
+                            jsonData = j2;
+                        }
+                    }
+                } else {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                }
                 processImportedData(jsonData);
             } catch (error) {
                 showToast('Fehler beim Lesen der Datei: ' + error.message);
@@ -323,11 +352,52 @@
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                processTeacherMapping(jsonData);
+                const name = (file.name || '').toLowerCase();
+                let jsonData;
+                if (name.endsWith('.csv')) {
+                    const buf = new Uint8Array(e.target.result);
+                    const textUtf8 = new TextDecoder('utf-8').decode(buf);
+                    jsonData = parseTeacherCsvToJsonData(textUtf8);
+                    processTeacherMapping(jsonData, { replace: true });
+                    let n = Object.keys(teacherEmailMapping).length;
+                    if (n === 0) {
+                        const manual = parseTeacherListCsvLineByLine(textUtf8);
+                        if (manual.length) processTeacherMapping(manual, { replace: true });
+                        n = Object.keys(teacherEmailMapping).length;
+                    }
+                    if (n === 0) {
+                        try {
+                            const text1252 = new TextDecoder('windows-1252').decode(buf);
+                            jsonData = parseTeacherCsvToJsonData(text1252);
+                            processTeacherMapping(jsonData, { replace: true });
+                            n = Object.keys(teacherEmailMapping).length;
+                            if (n === 0) {
+                                const manual2 = parseTeacherListCsvLineByLine(text1252);
+                                if (manual2.length) processTeacherMapping(manual2, { replace: true });
+                                n = Object.keys(teacherEmailMapping).length;
+                            }
+                        } catch (encErr) {
+                            /* windows-1252 u. a. nicht verfügbar */
+                        }
+                    }
+                    showToast(
+                        n
+                            ? `Lehrer-Liste: ${n} Zuordnung(en) aus Datei geladen.`
+                            : 'Datei enthielt keine gültigen Zeilen (Spalten Kürzel und E-Mail).'
+                    );
+                } else {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    processTeacherMapping(jsonData, { replace: true });
+                    const n = Object.keys(teacherEmailMapping).length;
+                    showToast(
+                        n
+                            ? `Lehrer-Liste: ${n} Zuordnung(en) aus Datei geladen.`
+                            : 'Datei enthielt keine gültigen Zeilen (Spalten Kürzel und E-Mail).'
+                    );
+                }
             } catch (error) {
                 showToast('Fehler beim Lesen der Lehrer-Datei: ' + error.message);
             }
@@ -335,12 +405,209 @@
         reader.readAsArrayBuffer(file);
     }
 
-    function processTeacherMapping(data) {
-        teacherEmailMapping = {};
+    /** Gleiche Spalten wie WebUntis-Lehrerliste (Kürzel, E-Mail, …). */
+    function getKuerzelFromLehrerRow(row) {
+        const r = normalizeImportedRowKeys(row);
+        let v = (r.Kürzel || r.Kuerzel || r.kuerzel || r.Code || r.code || r.Lehrer || '')
+            .toString()
+            .trim();
+        if (v) return v;
+        for (const k of Object.keys(r)) {
+            const kl = k.toLowerCase().replace(/\s+/g, '');
+            if (/^(kürzel|kuerzel|code|lehrer|abbrev)$/.test(kl) || /kuerzel|kürzel/.test(kl)) {
+                const x = r[k];
+                if (x != null && String(x).trim()) return String(x).trim();
+            }
+        }
+        const vals = Object.values(r)
+            .map(x => (x == null ? '' : String(x).trim()))
+            .filter(Boolean);
+        if (vals.length >= 2) {
+            if (vals[1].includes('@') && !vals[0].includes('@')) return vals[0];
+            if (vals[0].includes('@') && !vals[1].includes('@')) return vals[1];
+        }
+        if (vals.length >= 1 && !vals[0].includes('@')) return vals[0];
+        return '';
+    }
+
+    function getEmailFromLehrerRow(row) {
+        const r = normalizeImportedRowKeys(row);
+        let v = (r['E-Mail'] || r.Email || r.email || r.Mail || r.mail || '').toString().trim().toLowerCase();
+        if (v) return v;
+        for (const k of Object.keys(r)) {
+            const kl = k.toLowerCase().replace(/\s+/g, '');
+            if (/^(e-?mail|email|mail)$/.test(kl) || /^e-?mail$/i.test(k)) {
+                const x = r[k];
+                if (x != null && String(x).trim()) return String(x).trim().toLowerCase();
+            }
+        }
+        const vals = Object.values(r)
+            .map(x => (x == null ? '' : String(x).trim()))
+            .filter(Boolean);
+        if (vals.length >= 2) {
+            if (vals[1].includes('@')) return vals[1].toLowerCase();
+            if (vals[0].includes('@')) return vals[0].toLowerCase();
+        }
+        if (vals.length === 1 && vals[0].includes('@')) return vals[0].toLowerCase();
+        return '';
+    }
+
+    /** Wenn SheetJS die Kopfzeile nicht erkennt: Zeilen mit erstem Semikolon/Komma als Trenner. */
+    function parseTeacherListCsvLineByLine(text) {
+        let t = String(text || '');
+        if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);
+        const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) return [];
+        const out = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            let sep = line.indexOf(';');
+            if (sep < 0) sep = line.indexOf(',');
+            if (sep < 0) continue;
+            const k = line.slice(0, sep).trim();
+            const em = line.slice(sep + 1).trim();
+            if (!k || !em.includes('@')) continue;
+            if (/^k(ue|ü)rzel$/i.test(k.replace(/\s/g, ''))) continue;
+            out.push({ Kürzel: k, 'E-Mail': em });
+        }
+        return out;
+    }
+
+    function parseTeacherCsvToJsonData(text) {
+        let s = String(text || '');
+        if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+        let workbook = XLSX.read(s, { type: 'string', FS: ';' });
+        let firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        let jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        if (!jsonData.length || Object.keys(jsonData[0] || {}).length < 2) {
+            const wb2 = XLSX.read(s, { type: 'string', FS: ',' });
+            const sh2 = wb2.Sheets[wb2.SheetNames[0]];
+            const j2 = XLSX.utils.sheet_to_json(sh2);
+            if (j2.length) jsonData = j2;
+        }
+        return jsonData;
+    }
+
+    /**
+     * Eine Zeile aus Copy-Paste: Kürzel und E-Mail (Tab, Semikolon, |, mehrere Leerzeichen oder ein Leerzeichen).
+     * @returns {{ kuerzel: string, email: string } | null}
+     */
+    function parseTeacherEmailPasteLine(line) {
+        const t = String(line || '').trim();
+        if (!t || t.startsWith('#')) return null;
+        let kuerzel = '';
+        let email = '';
+        if (t.includes('\t')) {
+            const p = t.split(/\t+/).map(s => s.trim()).filter(Boolean);
+            if (p.length >= 2) {
+                kuerzel = p[0];
+                email = p.slice(1).join(' ').trim();
+            }
+        }
+        if (!kuerzel && t.includes(';')) {
+            const semi = t.indexOf(';');
+            const left = t.slice(0, semi).trim();
+            const right = t.slice(semi + 1).trim();
+            if (left && right) {
+                kuerzel = left;
+                email = right;
+            }
+        }
+        if (!kuerzel && /\|/.test(t)) {
+            const p = t.split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
+            if (p.length >= 2) {
+                kuerzel = p[0];
+                email = p.slice(1).join(' ').trim();
+            }
+        }
+        if (!kuerzel && /\s{2,}/.test(t)) {
+            const p = t.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+            if (p.length >= 2) {
+                kuerzel = p[0];
+                email = p.slice(1).join(' ').trim();
+            }
+        }
+        if (!kuerzel) {
+            const m = t.match(/^(\S+)\s+(.+)$/);
+            if (m) {
+                kuerzel = m[1].trim();
+                email = m[2].trim();
+            }
+        }
+        if (!kuerzel || !email) return null;
+        email = email.toLowerCase();
+        if (!email.includes('@')) return null;
+        return { kuerzel: kuerzel.toUpperCase(), email };
+    }
+
+    function importTeacherEmailsFromPaste() {
+        const textarea = document.getElementById('teacherEmailPasteInput');
+        if (!textarea) return;
+        const lines = textarea.value.split(/\r?\n/);
+        let added = 0;
+        let invalid = 0;
+        lines.forEach(line => {
+            const parsed = parseTeacherEmailPasteLine(line);
+            if (!parsed) {
+                if (String(line).trim() && !String(line).trim().startsWith('#')) invalid++;
+                return;
+            }
+            teacherEmailMapping[parsed.kuerzel] = parsed.email;
+            added++;
+        });
+        document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
+        document.getElementById('teacherMappingInfo').style.display = 'block';
+        if (currentStep === 2.5) updateTeacherStats();
+        else displayTeacherMappingTable();
+        if (added > 0) {
+            showToast(
+                invalid > 0
+                    ? `${added} Zuordnung(en) übernommen (${invalid} Zeile(n) übersprungen).`
+                    : `${added} Zuordnung(en) übernommen.`
+            );
+        } else if (invalid > 0) {
+            showToast('Keine gültigen Zeilen – pro Zeile Kürzel und E-Mail (Tab, Semikolon oder Leerzeichen).');
+        } else {
+            showToast('Nichts eingefügt – bitte Zeilen mit Kürzel und E-Mail eintragen.');
+        }
+    }
+
+    function downloadTeacherLehrerTemplateCsv() {
+        const csv =
+            '\uFEFFKürzel;E-Mail\n' +
+            'MU;max.mustermann@schule.de\n' +
+            'BME;anna.beispiel@schule.de\n';
+        downloadBlob('Lehrerliste-Vorlage.csv', csv, 'text/csv;charset=utf-8');
+        showToast('CSV-Vorlage heruntergeladen.');
+    }
+
+    function downloadTeacherLehrerTemplateXlsx() {
+        if (typeof XLSX === 'undefined' || !XLSX.utils || !XLSX.writeFile) {
+            showToast('Excel-Bibliothek nicht geladen – Seite neu laden.');
+            return;
+        }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([
+            ['Kürzel', 'E-Mail'],
+            ['MU', 'max.mustermann@schule.de'],
+            ['BME', 'anna.beispiel@schule.de']
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Lehrer');
+        XLSX.writeFile(wb, 'Lehrerliste-Vorlage.xlsx');
+        showToast('Excel-Vorlage heruntergeladen.');
+    }
+
+    function processTeacherMapping(data, options) {
+        const replace = !options || options.replace !== false;
+        if (replace) teacherEmailMapping = {};
         data.forEach(row => {
-            const kuerzel = (row.Kürzel || row.Kuerzel || row.kuerzel || row.Code || row.code || row.Lehrer || '').toString().trim().toUpperCase();
-            const email = (row['E-Mail'] || row.Email || row.email || row.Mail || row.mail || '').toString().trim().toLowerCase();
-            if (kuerzel && email) teacherEmailMapping[kuerzel] = email;
+            const r = normalizeImportedRowKeys(row);
+            const kuerzel = getKuerzelFromLehrerRow(r).toUpperCase();
+            const email = getEmailFromLehrerRow(r);
+            if (!kuerzel || !email) return;
+            const kNorm = kuerzel.replace(/Ü/g, 'U').replace(/ü/g, 'U');
+            if (/^KUERZEL$/i.test(kNorm) && (!email || /^e-?mail$/i.test(email))) return;
+            teacherEmailMapping[kuerzel] = email;
         });
         document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
         document.getElementById('teacherMappingInfo').style.display = 'block';
@@ -448,21 +715,158 @@
             });
     }
 
-    function processImportedData(data) {
-        rawData = data.map((row, index) => ({
-            id: index,
-            klasse: row['Klasse(n)'] || row.Klasse || row.klasse || row.Class || '',
-            fach: row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '',
-            lehrer: row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '',
-            gruppe: row['Schülergruppe'] || row.Schülergruppe || row.Gruppe || row.gruppe || row.Group || '',
-            original: row
-        }));
+    function normalizeImportedRowKeys(row) {
+        const out = {};
+        Object.keys(row).forEach(k => {
+            const nk = k.replace(/^\uFEFF/, '').trim();
+            out[nk] = row[k];
+        });
+        return out;
+    }
+
+    function splitKlassenCell(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return [];
+        return s.split(/[,;]+/).map(c => c.trim()).filter(Boolean);
+    }
+
+    function applyWebuntisRows(rows) {
+        kursteamEntryMode = 'webuntis';
+        rawData = rows;
         filteredData = [...rawData];
         invalidateTeams();
         document.getElementById('totalRecords').textContent = rawData.length;
         document.getElementById('uniqueSubjects').textContent = new Set(rawData.map(r => r.fach).filter(f => f)).size;
         document.getElementById('uniqueTeachers').textContent = new Set(rawData.map(r => r.lehrer).filter(l => l)).size;
         document.getElementById('importStats').style.display = 'block';
+    }
+
+    /**
+     * Eine Zeile aus Copy-Paste: Lehrer, Fach, Klasse (Tab, mehrere Leerzeichen oder einfache Leerzeichen).
+     * @returns {{ lehrer: string, fach: string, klasse: string } | null}
+     */
+    function parseWebuntisPasteLine(line) {
+        const t = String(line || '').trim();
+        if (!t || t.startsWith('#')) return null;
+        let parts;
+        if (t.includes('|')) {
+            parts = t.split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
+        } else if (t.includes('\t')) {
+            parts = t.split(/\t+/).map(s => s.trim()).filter(Boolean);
+        } else if (/\s{2,}/.test(t)) {
+            parts = t.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+        } else {
+            parts = t.split(/\s+/).filter(Boolean);
+        }
+        if (parts.length < 3) return null;
+        if (parts.length === 3) {
+            return { lehrer: parts[0], fach: parts[1], klasse: parts[2] };
+        }
+        return {
+            lehrer: parts[0],
+            fach: parts[1],
+            klasse: parts.slice(2).join(' ').trim()
+        };
+    }
+
+    function importWebuntisFromPaste() {
+        const ta = document.getElementById('webuntisPasteInput');
+        const text = ta ? ta.value : '';
+        const lines = String(text).split(/\r?\n/);
+        const seen = new Set();
+        const rows = [];
+        let id = 0;
+        let skipped = 0;
+        let dup = 0;
+        lines.forEach(line => {
+            const p = parseWebuntisPasteLine(line);
+            if (!p) {
+                if (String(line).trim()) skipped++;
+                return;
+            }
+            const lehrer = p.lehrer.trim();
+            const fach = p.fach.trim();
+            const klasse = p.klasse.trim();
+            if (!lehrer || !fach || !klasse) {
+                skipped++;
+                return;
+            }
+            const key = `${lehrer.toUpperCase()}|${fach.toUpperCase()}|${klasse.toUpperCase()}`;
+            if (seen.has(key)) {
+                dup++;
+                return;
+            }
+            seen.add(key);
+            rows.push({
+                id: id++,
+                klasse,
+                fach,
+                lehrer,
+                gruppe: '',
+                original: { paste: true, line }
+            });
+        });
+        if (!rows.length) {
+            showToast('Keine gültigen Zeilen (je Zeile: Lehrer, Fach, Klasse – durch Tab oder Leerzeichen getrennt).');
+            return;
+        }
+        applyWebuntisRows(rows);
+        showToast(
+            rows.length +
+                ' eindeutige Zeile(n)' +
+                (dup ? ', ' + dup + ' Duplikat(e) entfernt' : '') +
+                (skipped ? ', ' + skipped + ' Zeile(n) übersprungen' : '') +
+                '.'
+        );
+    }
+
+    function processImportedData(data) {
+        const rows = [];
+        let id = 0;
+        data.forEach(origRaw => {
+            const row = normalizeImportedRowKeys(origRaw);
+            const lehrer = (row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '')
+                .toString()
+                .trim();
+            const fach = (row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '')
+                .toString()
+                .trim();
+            const klasseRaw = (
+                row['Klasse(n)'] ||
+                row.Klasse ||
+                row.klasse ||
+                row.Class ||
+                ''
+            )
+                .toString()
+                .trim();
+            const gruppe = (
+                row['Schülergruppe'] ||
+                row.Schülergruppe ||
+                row.Gruppe ||
+                row.gruppe ||
+                row.Group ||
+                ''
+            )
+                .toString()
+                .trim();
+            if (!lehrer || !fach) return;
+
+            const klassenParts = splitKlassenCell(klasseRaw);
+            const targets = klassenParts.length ? klassenParts : [''];
+
+            targets.forEach(klasse => {
+                rows.push({
+                    id: id++,
+                    klasse,
+                    fach,
+                    lehrer,
+                    gruppe,
+                    original: row
+                });
+            });
+        });
+        applyWebuntisRows(rows);
     }
 
     function applyFilters() {
@@ -524,15 +928,80 @@
             tr.append(td0, td1, td2, td3, td4);
             tbody.appendChild(tr);
         });
-        document.getElementById('dataTableContainer').style.display = 'block';
-        document.getElementById('continueBtn2').style.display = 'inline-block';
+        const hasRows = filteredData.length > 0;
+        document.getElementById('dataTableContainer').style.display = hasRows ? 'block' : 'none';
+        document.getElementById('continueBtn2').style.display = hasRows ? 'inline-block' : 'none';
     }
 
     function removeRow(index) {
+        const row = filteredData[index];
         filteredData.splice(index, 1);
+        if (row && row.id !== undefined && row.id !== null) {
+            const ri = rawData.findIndex(r => r.id === row.id);
+            if (ri >= 0) rawData.splice(ri, 1);
+        }
         invalidateTeams();
         displayFilteredData();
         document.getElementById('filteredRecords').textContent = filteredData.length;
+    }
+
+    function startKursteamFromWebuntis() {
+        kursteamEntryMode = 'webuntis';
+        goToStep(1);
+    }
+
+    function startKursteamManual() {
+        kursteamEntryMode = 'manual';
+        rawData = [];
+        filteredData = [];
+        document.getElementById('totalRecords').textContent = '0';
+        document.getElementById('uniqueSubjects').textContent = '0';
+        document.getElementById('uniqueTeachers').textContent = '0';
+        document.getElementById('importStats').style.display = 'none';
+        const fi = document.getElementById('fileInput');
+        if (fi) fi.value = '';
+        invalidateTeams();
+        goToStep(2);
+        document.getElementById('filterStats').style.display = 'none';
+        document.getElementById('dataTableContainer').style.display = 'none';
+        document.getElementById('continueBtn2').style.display = 'none';
+        const tbody = document.getElementById('dataTableBody');
+        if (tbody) tbody.replaceChildren();
+    }
+
+    function addManualDataRow() {
+        openModal('Unterrichtszeile hinzufügen',
+            '<label for="manualKlasse">Klasse</label><input type="text" id="manualKlasse" autocomplete="off" placeholder="z. B. 5A">' +
+            '<label for="manualFach">Fach</label><input type="text" id="manualFach" autocomplete="off" placeholder="z. B. D">' +
+            '<label for="manualLehrer">Lehrkraft (Kürzel)</label><input type="text" id="manualLehrer" autocomplete="off" placeholder="z. B. MEI">' +
+            '<label for="manualGruppe">Schülergruppe (optional)</label><input type="text" id="manualGruppe" autocomplete="off" placeholder="leer oder z. B. G1">',
+            () => {
+                const klasse = document.getElementById('manualKlasse').value.trim();
+                const fach = document.getElementById('manualFach').value.trim();
+                const lehrer = document.getElementById('manualLehrer').value.trim();
+                const gruppe = document.getElementById('manualGruppe').value.trim();
+                if (!klasse || !fach || !lehrer) {
+                    showToast('Bitte Klasse, Fach und Lehrkraft ausfüllen.');
+                    return;
+                }
+                const id = Date.now() + Math.random();
+                const row = {
+                    id,
+                    klasse,
+                    fach,
+                    lehrer,
+                    gruppe: gruppe || '',
+                    original: {}
+                };
+                rawData.push(row);
+                filteredData.push(row);
+                kursteamEntryMode = kursteamEntryMode === 'unset' ? 'manual' : kursteamEntryMode;
+                invalidateTeams();
+                closeModal();
+                document.getElementById('filteredRecords').textContent = filteredData.length;
+                document.getElementById('filterStats').style.display = 'block';
+                displayFilteredData();
+            });
     }
 
     function resetFilters() {
@@ -555,12 +1024,15 @@
             if (row.klasse.includes(',')) {
                 klasseForName = combineClassNames(row.klasse);
             }
-            const teamName = `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
 
-            let gruppenmail = buildGruppenmailBase(yearPrefix, klasseForName, row.fach, row.gruppe);
-            gruppenmail = gruppenmail.replace(/\s+/g, '-');
-            const originalGruppenmail = gruppenmail;
-            gruppenmail = gruppenmail.replace(INVALID_CHARS_REPLACE, '');
+            const teamName = `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
+            const gruppenmailRaw = buildGruppenmailBase(yearPrefix, klasseForName, row.fach, row.gruppe).replace(
+                /\s+/g,
+                '-'
+            );
+
+            const originalGruppenmail = gruppenmailRaw;
+            let gruppenmail = gruppenmailRaw.replace(INVALID_CHARS_REPLACE, '');
 
             let besitzer = '';
             const lehrerCode = row.lehrer.toUpperCase().trim();
@@ -737,8 +1209,49 @@
         });
     }
 
+    function addManualKursteamTeam() {
+        openModal(
+            'Team manuell hinzufügen',
+            '<label for="addKtName">Team-Name</label><input type="text" id="addKtName" autocomplete="off" placeholder="z. B. WS26 | 1A | D">' +
+                '<label for="addKtMail">Gruppenmail (Nickname)</label><input type="text" id="addKtMail" autocomplete="off" placeholder="z. B. WS26-1A-D">' +
+                '<label for="addKtOwner">Besitzer (E-Mail)</label><input type="email" id="addKtOwner" autocomplete="off">',
+            () => {
+                const teamName = document.getElementById('addKtName').value.trim();
+                const gruppenmailRaw = document.getElementById('addKtMail').value.trim();
+                const besitzer = document.getElementById('addKtOwner').value.trim().toLowerCase();
+                if (!teamName || !gruppenmailRaw || !besitzer) {
+                    showToast('Bitte alle Felder ausfüllen.');
+                    return;
+                }
+                const originalGruppenmail = gruppenmailRaw;
+                const gruppenmail = gruppenmailRaw.replace(INVALID_CHARS_REPLACE, '');
+                const hasInvalidChars = INVALID_CHARS_TEST.test(originalGruppenmail);
+                const isValid = !hasInvalidChars && gruppenmail.length > 0;
+                teamsData.push({
+                    teamName,
+                    gruppenmail,
+                    besitzer,
+                    isValid,
+                    error: hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : !isValid ? 'Unvollständige Daten' : null,
+                    originalClass: '',
+                    gruppe: '',
+                    mappingUsed: true,
+                    lehrerCode: '',
+                    mailNicknameAdjusted: false
+                });
+                teamsGenerated = true;
+                closeModal();
+                displayTeamsData();
+                showToast('Team hinzugefügt.');
+            }
+        );
+    }
+
     function goToStep(step) {
-        if (step === 4) {
+        const panel = document.getElementById('panelWebuntis');
+        if (!panel) return;
+
+        if (step === 4 || step === 5) {
             const validTeams = teamsData.filter(t => t.isValid);
             if (!teamsGenerated || validTeams.length === 0) {
                 showToast('Bitte zuerst unter „Teams konfigurieren“ auf „Team-Namen generieren“ klicken (mindestens ein gültiges Team).');
@@ -746,25 +1259,39 @@
             }
         }
 
-        document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.step').forEach(el => {
+        panel.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+        panel.querySelectorAll('#panelWebuntis .steps > .step').forEach(el => {
             el.classList.remove('active');
             el.classList.remove('completed');
         });
 
-        document.querySelector('.step-content[data-step="' + step + '"]').classList.add('active');
-        document.querySelector('.step[data-step="' + step + '"]').classList.add('active');
+        const contentEl = panel.querySelector('.step-content[data-step="' + step + '"]');
+        const tabEl = panel.querySelector('#panelWebuntis .steps > .step[data-step="' + step + '"]');
+        if (!contentEl || !tabEl) return;
 
-        const stepOrder = [1, 2, 2.5, 3, 4, 5];
+        contentEl.classList.add('active');
+        tabEl.classList.add('active');
+
+        const stepOrder = [0, 1, 2, 2.5, 3, 4, 5];
         const currentIndex = stepOrder.indexOf(step);
-        for (let i = 0; i < currentIndex; i++) {
-            document.querySelector('.step[data-step="' + stepOrder[i] + '"]').classList.add('completed');
+        if (currentIndex >= 0) {
+            for (let i = 0; i < currentIndex; i++) {
+                const prev = panel.querySelector(
+                    '#panelWebuntis .steps > .step[data-step="' + stepOrder[i] + '"]'
+                );
+                if (prev) prev.classList.add('completed');
+            }
         }
 
         currentStep = step;
 
+        const hint = document.getElementById('manualKursteamHint');
+        if (hint) {
+            hint.style.display = step === 2 && kursteamEntryMode === 'manual' ? 'block' : 'none';
+        }
+
         if (step === 2.5) updateTeacherStats();
-        if (step === 4) prepareCSVExport();
+        if (step === 5) prepareCSVExport();
     }
 
     function updateTeacherStats() {
@@ -1003,7 +1530,7 @@
         });
     }
 
-    document.querySelectorAll('.step').forEach(step => {
+    document.querySelectorAll('#panelWebuntis .steps > .step').forEach(step => {
         step.setAttribute('tabindex', '0');
         step.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -1021,6 +1548,11 @@
     });
 
     window.goToStep = goToStep;
+    window.importWebuntisFromPaste = importWebuntisFromPaste;
+    window.addManualKursteamTeam = addManualKursteamTeam;
+    window.startKursteamFromWebuntis = startKursteamFromWebuntis;
+    window.startKursteamManual = startKursteamManual;
+    window.addManualDataRow = addManualDataRow;
     window.applyFilters = applyFilters;
     window.resetFilters = resetFilters;
     window.generateTeamNames = generateTeamNames;
@@ -1030,6 +1562,27 @@
     window.toggleTeacherMapping = toggleTeacherMapping;
     window.clearTeacherMapping = clearTeacherMapping;
     window.addTeacherMapping = addTeacherMapping;
+    window.importTeacherEmailsFromPaste = importTeacherEmailsFromPaste;
+    window.downloadTeacherLehrerTemplateCsv = downloadTeacherLehrerTemplateCsv;
+    window.downloadTeacherLehrerTemplateXlsx = downloadTeacherLehrerTemplateXlsx;
     window.downloadKursteamStandalonePackage = downloadKursteamStandalonePackage;
+
+    window.ms365ShowToast = showToast;
+
+    /**
+     * Snapshot für Microsoft Graph im Browser (kursteam-graph.js).
+     * @returns {{ teams: { teamName: string, gruppenmail: string, besitzer: string }[] } | null }
+     */
+    window.ms365GetKursteamSnapshotForGraph = function () {
+        const validTeams = teamsData.filter(t => t.isValid);
+        if (!validTeams.length) return null;
+        return {
+            teams: validTeams.map(t => ({
+                teamName: t.teamName,
+                gruppenmail: t.gruppenmail,
+                besitzer: String(t.besitzer || '').trim()
+            }))
+        };
+    };
 })();
 

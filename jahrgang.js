@@ -2,7 +2,7 @@
     'use strict';
 
     let jgCurrentStep = 1;
-    /** @type {{ klasse: string, jahr: string, suffix: string, mailNick: string, owner: string }[]} */
+    /** @type {{ klasse: string, jahr: string, suffix: string, mailNick: string, owner: string, memberLines: string }[]} */
     let jgRows = [];
     /** Bearbeitbare Vorschau (Schritt 1); Jahr leer = Standard-Abschlussjahr */
     /** @type {{ klasse: string, jahr: string, suffix: string, mailNick: string }[]} */
@@ -82,6 +82,9 @@
                 scheduleJgPreviewFromTextarea();
             }
         }
+        if (step === 3) {
+            rebuildJgMembersTableFromRows();
+        }
     }
 
     /** Alte Reihenfolge 1=Grundlagen, 2=Liste, 3=Besitzer → neue 1=Liste, 2=Besitzer, 3=Einstellungen */
@@ -133,6 +136,11 @@
         return getJgDefaultAbschlussjahr();
     }
 
+    /** Entspricht dem Graph-displayName / Namen der Gruppe in Microsoft 365 (aktuell = Klasse). */
+    function jgM365DisplayName(row) {
+        return String(row.klasse || '').trim();
+    }
+
     function syncJgPreviewRowsFromTextarea() {
         const defaultY = getJgDefaultAbschlussjahr();
         const lines = document.getElementById('jgClassLines').value.split(/\r?\n/);
@@ -178,11 +186,12 @@
             const tr = tbody.querySelector(`tr[data-jg-index="${i}"]`);
             if (!tr) return;
             const tds = tr.querySelectorAll('td');
-            if (tds.length < 4) return;
-            tds[2].textContent = r.mailNick;
-            tds[2].style.fontFamily = 'Consolas,monospace';
-            tds[2].style.fontSize = '0.9em';
-            tds[3].textContent = r.mailNick + '@' + domain;
+            if (tds.length < 5) return;
+            tds[2].textContent = jgM365DisplayName(r);
+            tds[3].textContent = r.mailNick;
+            tds[3].style.fontFamily = 'Consolas,monospace';
+            tds[3].style.fontSize = '0.9em';
+            tds[4].textContent = r.mailNick + '@' + domain;
         });
     }
 
@@ -221,10 +230,10 @@
                 });
                 if (nonEmpty && hadError) {
                     tbody.innerHTML =
-                        '<tr><td colspan="4" style="color:#6c757d;">Keine gültigen Zeilen. Erwartet z. B. <code>1AK</code> oder <code>1AK;2030</code> (Klasse = Ziffern + Buchstaben).</td></tr>';
+                        '<tr><td colspan="5" style="color:#6c757d;">Keine gültigen Zeilen. Erwartet z. B. <code>1AK</code> oder <code>1AK;2030</code> (Klasse = Ziffern + Buchstaben).</td></tr>';
                 } else {
                     tbody.innerHTML =
-                        '<tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen oder „+ Zeile hinzufügen“.</td></tr>';
+                        '<tr><td colspan="5" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen oder „+ Zeile hinzufügen“.</td></tr>';
                 }
                 return;
             }
@@ -256,6 +265,13 @@
                 inpJ.title = 'Abschlussjahr (vier Ziffern) – leer = Standard-Abschlussjahr links';
                 td2.appendChild(inpJ);
 
+                const tdDn = document.createElement('td');
+                tdDn.className = 'jg-preview-displayname';
+                tdDn.textContent = jgM365DisplayName(r);
+                tdDn.title = 'Gruppenname in Microsoft 365 (DisplayName), entspricht der Klasse';
+                tdDn.style.fontWeight = '600';
+                tdDn.style.color = '#32325d';
+
                 const td3 = document.createElement('td');
                 td3.textContent = r.mailNick;
                 td3.style.fontFamily = 'Consolas,monospace';
@@ -264,7 +280,7 @@
                 const td4 = document.createElement('td');
                 td4.textContent = r.mailNick + '@' + domain;
 
-                tr.append(td1, td2, td3, td4);
+                tr.append(td1, td2, tdDn, td3, td4);
                 tbody.appendChild(tr);
 
                 let inputTimer;
@@ -305,7 +321,7 @@
         } catch (e) {
             console.error('Jahrgang-Vorschau:', e);
             tbody.innerHTML =
-                '<tr><td colspan="4" style="color:#dc3545;">Vorschau konnte nicht berechnet werden. Seite neu laden oder Konsole prüfen.</td></tr>';
+                '<tr><td colspan="5" style="color:#dc3545;">Vorschau konnte nicht berechnet werden. Seite neu laden oder Konsole prüfen.</td></tr>';
         }
     }
 
@@ -395,11 +411,9 @@
         return el ? !!el.checked : true;
     }
 
-    /** Eine Zeile pro UPN/E-Mail; optional; gilt für alle Jahrgangsgruppen. */
-    function getJgMemberEmailsParsed() {
-        const ta = document.getElementById('jgMemberEmails');
-        if (!ta) return [];
-        const lines = ta.value.split(/\r\n|\n|\r/);
+    /** Mehrzeiliger Text → eindeutige UPNs (pro Klasse). */
+    function parseJgMemberLinesText(raw) {
+        const lines = String(raw || '').split(/\r\n|\n|\r/);
         const seen = new Set();
         const out = [];
         lines.forEach(line => {
@@ -413,6 +427,48 @@
         return out;
     }
 
+    function rebuildJgMembersTableFromRows() {
+        const domain = getDomain();
+        const tbody = document.getElementById('jgMembersBody');
+        if (!tbody) return;
+        tbody.replaceChildren();
+        jgRows.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            const td1 = document.createElement('td');
+            td1.textContent = row.klasse;
+            const tdDn = document.createElement('td');
+            tdDn.textContent = jgM365DisplayName(row);
+            tdDn.title = 'DisplayName der Microsoft-365-Gruppe';
+            tdDn.style.fontWeight = '600';
+            tdDn.style.color = '#32325d';
+            const td2 = document.createElement('td');
+            td2.textContent = row.mailNick + '@' + domain;
+            td2.style.fontFamily = 'Consolas,monospace';
+            td2.style.fontSize = '0.9em';
+            const td3 = document.createElement('td');
+            const ta = document.createElement('textarea');
+            ta.className = 'jg-member-lines';
+            ta.rows = 4;
+            ta.style.width = '100%';
+            ta.style.minWidth = '220px';
+            ta.style.padding = '8px';
+            ta.style.fontFamily = 'Consolas,monospace';
+            ta.style.fontSize = '0.9em';
+            ta.style.boxSizing = 'border-box';
+            ta.setAttribute('autocomplete', 'off');
+            ta.placeholder = 'person@' + domain;
+            ta.value = row.memberLines != null ? row.memberLines : '';
+            ta.addEventListener('input', () => {
+                jgRows[index].memberLines = ta.value;
+                refreshJgScriptIfStep5();
+            });
+            ta.addEventListener('paste', () => setTimeout(refreshJgScriptIfStep5, 0));
+            td3.appendChild(ta);
+            tr.append(td1, tdDn, td2, td3);
+            tbody.appendChild(tr);
+        });
+    }
+
     function refreshJgScriptIfStep5() {
         if (jgCurrentStep !== 5 || !jgRows.length) return;
         const missing = jgRows.filter(r => !r.owner);
@@ -424,11 +480,17 @@
     function rebuildJgOwnerTableFromRows() {
         const domain = getDomain();
         const tbody = document.getElementById('jgOwnerBody');
+        if (!tbody) return;
         tbody.replaceChildren();
         jgRows.forEach((row, index) => {
             const tr = document.createElement('tr');
             const td1 = document.createElement('td');
             td1.textContent = row.klasse;
+            const tdDn = document.createElement('td');
+            tdDn.textContent = jgM365DisplayName(row);
+            tdDn.title = 'DisplayName der Microsoft-365-Gruppe';
+            tdDn.style.fontWeight = '600';
+            tdDn.style.color = '#32325d';
             const td2 = document.createElement('td');
             td2.textContent = row.mailNick + '@' + domain;
             const td3 = document.createElement('td');
@@ -445,14 +507,13 @@
                 jgRows[index].owner = inp.value.trim();
             });
             td4.appendChild(inp);
-            tr.append(td1, td2, td3, td4);
+            tr.append(td1, tdDn, td2, td3, td4);
             tbody.appendChild(tr);
         });
     }
 
     function saveJahrgangState() {
         try {
-            const jgMemTa = document.getElementById('jgMemberEmails');
             const state = {
                 jgStepOrder: 'v3',
                 jgCurrentStep,
@@ -465,7 +526,6 @@
                 jgCreateTeams: getJgCreateTeams(),
                 jgExchangeSmtp: getJgExchangeSmtp(),
                 jgClassLines: document.getElementById('jgClassLines').value,
-                jgMemberEmails: jgMemTa ? jgMemTa.value : '',
                 jgPowerShellScript: document.getElementById('jgPowerShellScript').textContent
             };
             localStorage.setItem(JG_STORAGE_KEY, JSON.stringify(state));
@@ -494,6 +554,22 @@
             }
             jgCurrentStep = Math.min(Math.max(1, step), 5);
             jgRows = Array.isArray(state.jgRows) ? state.jgRows : [];
+            jgRows.forEach(function (row) {
+                if (row.memberLines === undefined) {
+                    row.memberLines = '';
+                }
+            });
+            if (
+                state.jgMemberEmails !== undefined &&
+                String(state.jgMemberEmails || '').trim() !== ''
+            ) {
+                const legacy = String(state.jgMemberEmails);
+                jgRows.forEach(function (row) {
+                    if (!String(row.memberLines || '').trim()) {
+                        row.memberLines = legacy;
+                    }
+                });
+            }
             if (
                 typeof window.ms365SetSchoolDomainNoAt === 'function' &&
                 state.jgDomain !== undefined &&
@@ -516,10 +592,6 @@
                 jgExoEl.checked = state.jgExchangeSmtp !== undefined ? !!state.jgExchangeSmtp : true;
             }
             document.getElementById('jgClassLines').value = state.jgClassLines || '';
-            const jgMemEl = document.getElementById('jgMemberEmails');
-            if (jgMemEl) {
-                jgMemEl.value = state.jgMemberEmails !== undefined ? state.jgMemberEmails : '';
-            }
             document.getElementById('jgParseError').style.display = 'none';
             const pre = document.getElementById('jgPowerShellScript');
             if (pre && state.jgPowerShellScript !== undefined) {
@@ -528,8 +600,11 @@
             updatePrefixExample();
             if (jgRows.length) {
                 rebuildJgOwnerTableFromRows();
+                rebuildJgMembersTableFromRows();
             } else {
                 document.getElementById('jgOwnerBody').replaceChildren();
+                const jmb = document.getElementById('jgMembersBody');
+                if (jmb) jmb.replaceChildren();
             }
             goToJgStep(jgCurrentStep);
             showToast('Jahrgangsgruppen: Stand geladen.');
@@ -555,10 +630,10 @@
             const jgExoClear = document.getElementById('jgExchangeSmtp');
             if (jgExoClear) jgExoClear.checked = true;
             document.getElementById('jgClassLines').value = '';
-            const jgMemClear = document.getElementById('jgMemberEmails');
-            if (jgMemClear) jgMemClear.value = '';
             document.getElementById('jgParseError').style.display = 'none';
             document.getElementById('jgOwnerBody').replaceChildren();
+            const jgMemBodyClear = document.getElementById('jgMembersBody');
+            if (jgMemBodyClear) jgMemBodyClear.replaceChildren();
             document.getElementById('jgPowerShellScript').textContent = '';
             jgPreviewRows = [];
             updatePrefixExample();
@@ -622,12 +697,6 @@
     if (jgTeamsEl) jgTeamsEl.addEventListener('change', refreshJgScriptIfStep5);
     const jgExoEl = document.getElementById('jgExchangeSmtp');
     if (jgExoEl) jgExoEl.addEventListener('change', refreshJgScriptIfStep5);
-    const jgMemberEmailsEl = document.getElementById('jgMemberEmails');
-    if (jgMemberEmailsEl) {
-        jgMemberEmailsEl.addEventListener('input', refreshJgScriptIfStep5);
-        jgMemberEmailsEl.addEventListener('paste', () => setTimeout(refreshJgScriptIfStep5, 0));
-    }
-
     updatePrefixExample();
 
     document.getElementById('jgBack1').addEventListener('click', () => goToJgStep(1));
@@ -677,16 +746,19 @@
         recomputeJgPreviewMailNicks();
         const prefix = getPrefix();
         const ownerByKlasse = new Map(jgRows.map(r => [r.klasse, r.owner]));
+        const memberLinesByKlasse = new Map(jgRows.map(r => [r.klasse, r.memberLines || '']));
         jgRows = jgPreviewRows.map(r => {
             const m = r.klasse.trim().match(/^(\d+)([A-Za-z]+)$/);
             const y = String(r.jahr || '').trim();
             const year = /^\d{4}$/.test(y) ? y : getJgDefaultAbschlussjahr();
+            const klasseTrim = r.klasse.trim();
             return {
-                klasse: r.klasse.trim(),
+                klasse: klasseTrim,
                 jahr: year,
                 suffix: m[2],
                 mailNick: buildMailNickname(prefix, year, m[2]),
-                owner: ownerByKlasse.get(r.klasse.trim()) || ''
+                owner: ownerByKlasse.get(klasseTrim) || '',
+                memberLines: memberLinesByKlasse.get(klasseTrim) || ''
             };
         });
         resolveDuplicateNicks(jgRows);
@@ -887,6 +959,8 @@
         lines.push('$rows = @(');
         jgRows.forEach((r, i) => {
             const last = i === jgRows.length - 1;
+            const mems = parseJgMemberLinesText(r.memberLines || '');
+            const memPart = mems.map(e => "'" + psEscapeSingle(e) + "'").join(',');
             lines.push(
                 "    [PSCustomObject]@{ Klasse = '" +
                     psEscapeSingle(r.klasse) +
@@ -898,16 +972,11 @@
                     psEscapeSingle(r.klasse) +
                     " (Abschluss " +
                     psEscapeSingle(r.jahr) +
-                    ")' }" +
+                    ")'; MemberUpns = @(" +
+                    memPart +
+                    ') }' +
                     (last ? '' : ',')
             );
-        });
-        lines.push(')');
-        const jgExtraMembers = getJgMemberEmailsParsed();
-        lines.push('$Ms365ExtraMemberUpns = @(');
-        jgExtraMembers.forEach((em, i) => {
-            const last = i === jgExtraMembers.length - 1;
-            lines.push("    '" + psEscapeSingle(em) + "'" + (last ? '' : ','));
         });
         lines.push(')');
         lines.push('');
@@ -947,8 +1016,8 @@
             '            Write-Host ("Hinweis (Besitzer als Mitglied): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
         );
         lines.push('        }');
-        lines.push('        if ($Ms365ExtraMemberUpns -and $Ms365ExtraMemberUpns.Count -gt 0) {');
-        lines.push('            foreach ($mUpn in $Ms365ExtraMemberUpns) {');
+        lines.push('        if ($r.MemberUpns -and $r.MemberUpns.Count -gt 0) {');
+        lines.push('            foreach ($mUpn in $r.MemberUpns) {');
         lines.push('                if ([string]::IsNullOrWhiteSpace($mUpn)) { continue }');
         lines.push('                try {');
         lines.push('                    $trimUpn = $mUpn.Trim()');
