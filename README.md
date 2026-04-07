@@ -10,8 +10,20 @@ Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal
 
 1. Repository klonen oder die Dateien herunterladen.
 2. `webuntis-teams-creator.html` im Browser öffnen **oder** ein statisches Hosting nutzen (z. B. GitHub Pages).
-3. WebUntis-Fächerliste exportieren und durch die Schritte in der App führen.
-4. `neueteams.csv` herunterladen und das angezeigte PowerShell-Skript im gleichen Ordner ausführen (Microsoft Teams PowerShell, angemeldeter Admin).
+3. Oben zwischen **Kursteams (WebUntis)** und **Jahrgangsgruppen (M365-Gruppen)** wählen.
+
+### Modus A: Kursteams (WebUntis)
+
+1. WebUntis-Fächerliste exportieren und durch die Schritte in der App führen.
+2. `neueteams.csv` herunterladen und das angezeigte PowerShell-Skript ausführen (Microsoft Teams PowerShell, `New-Team` mit Vorlage `EDU_Class`).
+
+### Modus B: Jahrgangsgruppen (Microsoft 365-Gruppen)
+
+1. Domain und Präfix (z. B. `jg`) einstellen; Klassenzeilen im Format `1AK;2030` (Klasse;Abschlussjahr) eintragen.
+2. Besitzer-UPNs pro Klasse eintragen.
+3. Das generierte **Microsoft Graph PowerShell**-Skript kopieren (`New-MgGroup` mit `GroupTypes = Unified`, `New-MgGroupOwner` – **kein** Kursteam, keine Teams-Erziehungsvorlage).
+
+Dokumentation: [New-MgGroup](https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup), [Gruppe erstellen (Graph)](https://learn.microsoft.com/graph/api/group-post-groups).
 
 ### Erwartete Spalten (flexibel)
 
@@ -22,7 +34,8 @@ Die App erkennt u. a.: **Klasse(n)**, **Fach**, **Lehrer**, **Schülergruppe**
 | Datei | Beschreibung |
 |--------|----------------|
 | `webuntis-teams-creator.html` | Hauptseite |
-| `app.js` | Logik (CSV-Export, Filter, lokaler Speicher, …) |
+| `app.js` | Logik Kursteams (CSV-Export, Filter, lokaler Speicher, …) |
+| `jahrgang.js` | Assistent Jahrgangsgruppen (Microsoft Graph PowerShell) |
 | `index.html` | Optional: Weiterleitung zur Hauptseite (für GitHub Pages-Start-URL) |
 
 ## GitHub Pages

@@ -84,6 +84,15 @@
             animation: fadeIn 0.3s;
         }
 
+        .jg-step-content {
+            display: none;
+        }
+
+        .jg-step-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -471,6 +480,12 @@
             </div>
         </div>
 
+        <div class="mode-switch" style="padding:14px 20px;background:#eef;text-align:center;border-bottom:1px solid #dee2e6;">
+            <button type="button" class="btn btn-success" id="modeWebuntis">Kursteams (WebUntis)</button>
+            <button type="button" class="btn" id="modeJahrgang" style="margin-left:8px;">Jahrgangsgruppen (M365-Gruppen)</button>
+        </div>
+
+        <div id="panelWebuntis">
         <div class="steps">
             <div class="step active" data-step="1">1. Daten importieren</div>
             <div class="step" data-step="2">2. Daten bereinigen</div>
@@ -815,6 +830,92 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                 <button class="btn btn-success" onclick="resetApp()">🔄 Neue Teams erstellen</button>
             </div>
         </div>
+        </div>
+
+        <div id="panelJahrgang" style="display:none;">
+            <div class="steps jg-steps">
+                <div class="step active" data-jg-step="1">1. Grundlagen</div>
+                <div class="step" data-jg-step="2">2. Klassenliste</div>
+                <div class="step" data-jg-step="3">3. Besitzer</div>
+                <div class="step" data-jg-step="4">4. PowerShell</div>
+            </div>
+            <div class="content">
+                <div class="jg-step-content active" data-jg-step="1">
+                    <h2>Jahrgangsgruppen: Grundlagen</h2>
+                    <div class="alert alert-info">
+                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups, <em>keine</em> Kursteam-/EDU_Class-Teams) mit E-Mail-Adressen im Muster <code>jg&lt;Abschlussjahr&gt;-&lt;Kürzel&gt;@domain</code> angelegt – analog zu Ihrem Admin-Center.
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <label for="jgDomain">E-Mail-Domain der Schule (ohne @)</label>
+                            <input type="text" id="jgDomain" placeholder="z.B. hak-steyr.at" value="hak-steyr.at" autocomplete="off">
+                        </div>
+                        <div class="filter-group">
+                            <label for="jgPrefix">Präfix für Mail-Nickname</label>
+                            <input type="text" id="jgPrefix" value="jg" maxlength="16" autocomplete="off">
+                            <small style="color:#6c757d;">Ergebnis: <code id="jgPrefixExample">jg2030-AK@hak-steyr.at</code></small>
+                        </div>
+                        <div class="filter-group">
+                            <label>
+                                <input type="checkbox" id="jgSuffixUpper" checked> Kürzel im Mail-Nickname groß schreiben (z. B. <code>AK</code> statt <code>ak</code>)
+                            </label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-success" id="jgGoTo2">Weiter zur Klassenliste →</button>
+                </div>
+                <div class="jg-step-content" data-jg-step="2">
+                    <h2>Klassen und Abschlussjahr</h2>
+                    <div class="alert alert-warning">
+                        <strong>Format:</strong> pro Zeile <strong>Klasse</strong> und <strong>Abschlussjahr</strong>, getrennt durch Semikolon, Komma oder Tabulator. Beispiel: <code>1AK;2030</code> (Klasse <code>1AK</code> → Abschlussjahr 2030).
+                    </div>
+                    <div class="filter-group">
+                        <label for="jgClassLines">Klassenliste</label>
+                        <textarea id="jgClassLines" rows="12" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="1AK;2030&#10;1AS;2028&#10;2AK;2029"></textarea>
+                    </div>
+                    <p id="jgParseError" class="alert alert-warning" style="display:none;"></p>
+                    <button type="button" class="btn" id="jgBack1">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="jgParseAndGo3">Weiter zu Besitzern →</button>
+                </div>
+                <div class="jg-step-content" data-jg-step="3">
+                    <h2>Besitzer (Lehrkräfte)</h2>
+                    <div class="alert alert-info">
+                        <strong>Microsoft Graph:</strong> Besitzer müssen als Benutzer im Mandanten existieren (User Principal Name). Pro Klasse eine Besitzer-E-Mail eintragen.
+                    </div>
+                    <div class="table-container" style="max-height:420px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Klasse</th>
+                                    <th>Gruppen-E-Mail (Vorschau)</th>
+                                    <th>Mail-Nickname</th>
+                                    <th>Besitzer (UPN)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jgOwnerBody"></tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn" id="jgBack2">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="jgGoTo4">PowerShell erzeugen →</button>
+                </div>
+                <div class="jg-step-content" data-jg-step="4">
+                    <h2>PowerShell (Microsoft Graph)</h2>
+                    <div class="alert alert-warning">
+                        <strong>Voraussetzungen:</strong> Modul <code>Microsoft.Graph</code> installieren, <code>Connect-MgGraph</code> mit passenden Rechten (z. B. <code>Group.ReadWrite.All</code>, <code>User.Read.All</code>). Es werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) erstellt – ohne Teams-Kursteam-Vorlage.
+                    </div>
+                    <div class="filter-section">
+                        <p><a href="https://learn.microsoft.com/graph/api/group-post-groups" target="_blank" rel="noopener">Microsoft Graph: Gruppe erstellen</a> ·
+                        <a href="https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup" target="_blank" rel="noopener">New-MgGroup</a> ·
+                        <a href="https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroupowner" target="_blank" rel="noopener">New-MgGroupOwner</a></p>
+                    </div>
+                    <h3>Generiertes Script</h3>
+                    <div class="powershell-code">
+                        <button type="button" class="btn btn-small copy-btn" id="jgCopyScript">📋 Kopieren</button>
+                        <pre id="jgPowerShellScript"></pre>
+                    </div>
+                    <button type="button" class="btn" id="jgBack3">← Zurück</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -831,5 +932,6 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="app.js" defer></script>
+    <script src="jahrgang.js" defer></script>
 </body>
 </html>
