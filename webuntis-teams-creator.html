@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebUntis zu Microsoft Teams - Creator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .steps {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .step {
+            text-align: center;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .step.active {
+            background: #5e72e4;
+            color: white;
+            font-weight: bold;
+        }
+
+        .step.completed {
+            background: #2dce89;
+            color: white;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .upload-area {
+            border: 3px dashed #5e72e4;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+
+        .upload-area:hover {
+            border-color: #825ee4;
+            background: #e9ecef;
+        }
+
+        .upload-area.dragover {
+            border-color: #2dce89;
+            background: #d4edda;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(94, 114, 228, 0.4);
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f5365c 0%, #f56036 100%);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.9em;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #5e72e4;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+
+        .filter-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .filter-group {
+            margin: 15px 0;
+        }
+
+        .filter-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        .filter-group input, .filter-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .checkbox-label input {
+            margin-right: 8px;
+            width: auto;
+        }
+
+        .error-row {
+            background: #f8d7da !important;
+        }
+
+        .warning-icon {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .powershell-code {
+            background: #012456;
+            color: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .powershell-code pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .copy-btn {
+            float: right;
+            margin-top: -10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2dce89 0%, #11998e 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .row-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.85em;
+        }
+
+        .edit-mode input {
+            width: 100%;
+            padding: 4px;
+            border: 1px solid #5e72e4;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 WebUntis zu Microsoft Teams Creator</h1>
+            <p>Automatisierte Erstellung von Microsoft Teams aus WebUntis-Daten</p>
+        </div>
+
+        <div class="steps">
+            <div class="step active" data-step="1">1. Daten importieren</div>
+            <div class="step" data-step="2">2. Daten bereinigen</div>
+            <div class="step" data-step="2.5">3. Lehrer-Emails</div>
+            <div class="step" data-step="3">4. Teams konfigurieren</div>
+            <div class="step" data-step="4">5. CSV exportieren</div>
+            <div class="step" data-step="5">6. PowerShell Script</div>
+        </div>
+
+        <div class="content">
+            <!-- Schritt 1: Import -->
+            <div class="step-content active" data-step="1">
+                <h2>Schritt 1: WebUntis-Daten importieren</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Hinweis:</strong> Exportieren Sie die Fächerliste mit Unterrichtsfächern und LehrerInnen aus WebUntis als CSV oder Excel-Datei.
+                </div>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <h3>Datei hier ablegen oder klicken zum Auswählen</h3>
+                    <p>Unterstützte Formate: CSV, XLSX, XLS</p>
+                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+                </div>
+
+                <div id="importStats" style="display:none;">
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Importierte Datensätze</div>
+                            <div class="stat-value" id="totalRecords">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Unique Fächer</div>
+                            <div class="stat-value" id="uniqueSubjects">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Unique Lehrer</div>
+                            <div class="stat-value" id="uniqueTeachers">0</div>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="goToStep(2)">Weiter zur Bereinigung →</button>
+                </div>
+            </div>
+
+            <!-- Schritt 2: Bereinigung -->
+            <div class="step-content" data-step="2">
+                <h2>Schritt 2: Daten bereinigen und filtern</h2>
+                
+                <div class="alert alert-warning">
+                    <strong>⚠️ Wichtig:</strong> Entfernen Sie unnötige Fächer (ORD, DIR, ...) und doppelte Einträge. Achten Sie auf klassenübergreifende Teams!
+                </div>
+
+                <div class="filter-section">
+                    <h3>Automatische Filter</h3>
+                    
+                    <div class="filter-group">
+                        <label>Fächer ausschließen (kommasepariert):</label>
+                        <input type="text" id="excludeSubjects" value="ORD,DIR,KV" placeholder="z.B. ORD,DIR,KV">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>
+                            <input type="checkbox" id="removeDuplicates" checked> Doppelte Einträge automatisch entfernen
+                        </label>
+                    </div>
+
+                    <button class="btn" onclick="applyFilters()">Filter anwenden</button>
+                    <button class="btn btn-danger" onclick="resetFilters()">Filter zurücksetzen</button>
+                </div>
+
+                <div id="filterStats" style="display:none;">
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Verbleibende Datensätze</div>
+                            <div class="stat-value" id="filteredRecords">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Entfernte Duplikate</div>
+                            <div class="stat-value" id="removedDuplicates">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container" id="dataTableContainer" style="display:none;">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Aktion</th>
+                                <th>Klasse</th>
+                                <th>Fach</th>
+                                <th>Lehrer</th>
+                                <th>Gruppe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zu Lehrer-Emails →</button>
+            </div>
+
+            <!-- Schritt 2.5: Lehrer-Email-Zuordnung -->
+            <div class="step-content" data-step="2.5">
+                <h2>Schritt 3: Lehrer-Email-Zuordnung</h2>
+                
+                <div class="alert alert-info">
+                    <strong>ℹ️ Wichtig:</strong> Laden Sie hier eine Liste mit Lehrerkürzel und E-Mail-Adressen hoch, damit die korrekten Besitzer-E-Mails verwendet werden.
+                </div>
+
+                <div class="stats" id="teacherRequiredStats" style="display:none;">
+                    <div class="stat-card">
+                        <div class="stat-label">Benötigte Lehrer</div>
+                        <div class="stat-value" id="uniqueTeachersNeeded">0</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);">
+                        <div class="stat-label">Zugeordnete Lehrer</div>
+                        <div class="stat-value" id="mappedTeachers">0</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                        <div class="stat-label">Fehlende Zuordnungen</div>
+                        <div class="stat-value" id="unmappedTeachers">0</div>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h3>Lehrer-Liste importieren</h3>
+                    <p style="color: #6c757d; margin-bottom: 15px;">
+                        Erwartete Spalten: <strong>Kürzel</strong> und <strong>E-Mail</strong> (oder ähnliche Varianten wie "Code", "Mail", etc.)
+                    </p>
+                    
+                    <div class="upload-area" id="teacherUploadArea">
+                        <div class="upload-icon">👨‍🏫</div>
+                        <h3>Lehrer-Liste hier ablegen oder klicken</h3>
+                        <p>CSV oder Excel mit Lehrerkürzel und E-Mail-Adressen</p>
+                        <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
+                    </div>
+
+                    <div id="teacherMappingInfo" style="display:none; margin-top: 20px;">
+                        <div class="alert alert-success">
+                            ✅ <span id="teacherCount">0</span> Lehrer-E-Mail-Zuordnungen geladen
+                        </div>
+                        <button class="btn btn-small" onclick="toggleTeacherMapping()">📋 Zuordnungen anzeigen/ausblenden</button>
+                        <button class="btn btn-small" onclick="addTeacherMapping()">➕ Zuordnung hinzufügen</button>
+                        <button class="btn btn-small btn-danger" onclick="clearTeacherMapping()">🗑️ Alle löschen</button>
+                    </div>
+
+                    <div id="teacherMappingTable" style="display:none; margin-top: 20px;">
+                        <h4>Lehrer-E-Mail-Zuordnungen:</h4>
+                        <div class="table-container" style="max-height: 400px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Kürzel</th>
+                                        <th>E-Mail</th>
+                                        <th>Verwendet in Teams</th>
+                                        <th>Aktion</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teacherMappingBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="missingTeachersSection" style="display:none; margin-top: 20px;">
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Fehlende Zuordnungen:</strong> Folgende Lehrer haben keine E-Mail-Zuordnung. Die E-Mails werden automatisch generiert.
+                        </div>
+                        <div class="table-container" style="max-height: 300px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Kürzel</th>
+                                        <th>Generierte E-Mail</th>
+                                        <th>Aktion</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="missingTeachersBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <button class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
+                    <button class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5">Weiter zur Team-Konfiguration →</button>
+                </div>
+            </div>
+
+            <!-- Schritt 3: Konfiguration -->
+            <div class="step-content" data-step="3">
+                <h2>Schritt 3: Teams konfigurieren</h2>
+
+                <div class="alert alert-info">
+                    <strong>ℹ️ Namenskonvention:</strong><br>
+                    • 1. Klassen: SJXX-XX | Klasse | Fach-Kürzel<br>
+                    • 2.-5. Klassen: WSXX | Klasse | Fach-Kürzel oder SSXX | Klasse | Fach-Kürzel
+                </div>
+
+                <div class="filter-section">
+                    <h3>Grundeinstellungen</h3>
+                    
+                    <div class="filter-group">
+                        <label>Schuljahr-Präfix:</label>
+                        <input type="text" id="yearPrefix" value="WS24" placeholder="z.B. WS24, SS25, WS25">
+                        <small style="color: #6c757d; display: block; margin-top: 5px;">Beispiele: WS24, SS25, WS25, SS26</small>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>E-Mail-Domain für Lehrer:</label>
+                        <input type="text" id="emailDomain" value="@hak-steyr.at" placeholder="z.B. @hak-steyr.at">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Trennzeichen für Team-Name:</label>
+                        <input type="text" id="teamSeparator" value=" | " placeholder="z.B.  |  oder -">
+                    </div>
+
+                    <button class="btn" onclick="generateTeamNames()">Team-Namen generieren</button>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>⚠️ Ungültige Zeichen in Gruppenmail:</strong> \ % & * + / = ? { } | &lt; &gt; ( ) ; : , [ ] " ö ä ü
+                </div>
+
+                <div id="validationResults" style="display:none;">
+                    <h3>Validierung</h3>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Gültige Teams</div>
+                            <div class="stat-value" id="validTeams">0</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #f5365c 0%, #f56036 100%);">
+                            <div class="stat-label">Fehlerhafte Teams</div>
+                            <div class="stat-value" id="invalidTeams">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container" id="teamsTableContainer" style="display:none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Team-Name</th>
+                                <th>Gruppenmail (Nickname)</th>
+                                <th>Besitzer (E-Mail)</th>
+                                <th>Status</th>
+                                <th>Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3" style="display:none;">Weiter zum CSV-Export →</button>
+            </div>
+
+            <!-- Schritt 4: CSV Export -->
+            <div class="step-content" data-step="4">
+                <h2>Schritt 4: CSV-Datei exportieren</h2>
+
+                <div class="alert alert-success">
+                    <strong>✅ Bereit zum Export!</strong> Die CSV-Datei wird mit Komma (,) als Trennzeichen erstellt.
+                </div>
+
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Teams zum Export</div>
+                        <div class="stat-value" id="exportCount">0</div>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h3>CSV-Vorschau</h3>
+                    <div class="powershell-code">
+                        <pre id="csvPreview">TeamName,Gruppenmail,Besitzer</pre>
+                    </div>
+                </div>
+
+                <button class="btn btn-success" onclick="downloadCSV()">📥 neueteams.csv herunterladen</button>
+                <button class="btn" onclick="goToStep(5)">Weiter zu PowerShell-Anleitung →</button>
+            </div>
+
+            <!-- Schritt 5: PowerShell -->
+            <div class="step-content" data-step="5">
+                <h2>Schritt 5: PowerShell-Script ausführen</h2>
+
+                <div class="alert alert-warning">
+                    <strong>⚠️ Wichtig:</strong> Führen Sie das Script im selben Verzeichnis wie die neueteams.csv aus. Admin-Anmeldung erforderlich!
+                </div>
+
+                <h3>PowerShell-Script:</h3>
+                <div class="powershell-code">
+                    <button class="btn btn-small copy-btn" onclick="copyPowerShell()">📋 Kopieren</button>
+                    <pre id="powershellScript">$TeamsList = Import-CSV .\neueteams.csv
+Connect-MicrosoftTeams
+
+Foreach ($Team in $TeamsList) 
+{
+    #Teams erstellen und Besitzer angeben
+    $Group = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer
+}</pre>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>ℹ️ Hinweise:</strong><br>
+                    • Das Erstellen dauert mehrere Stunden<br>
+                    • Nur Fehler werden in PowerShell ausgegeben<br>
+                    • Fortschritt kann im Microsoft 365 Admin Center verfolgt werden<br>
+                    • Teams haben standardmäßig 5 Jahre (1825 Tage) Ablaufdatum
+                </div>
+
+                <h3>Manuelles Erstellen (Beispiel):</h3>
+                <div class="powershell-code">
+                    <pre>Connect-MicrosoftTeams
+New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNickname WS2022-3BK-SPWS-SPANR -Owner mathias.spanring@hak-steyr.at</pre>
+                </div>
+
+                <h3>Nützliche Links:</h3>
+                <div class="filter-section">
+                    <p>📊 <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank">Aktive Gruppen - Microsoft 365 Admin Center</a></p>
+                    <p>⏰ <a href="https://aad.portal.azure.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/Lifecycle" target="_blank">Ablaufdatum-Einstellungen ändern</a></p>
+                </div>
+
+                <button class="btn btn-success" onclick="resetApp()">🔄 Neue Teams erstellen</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let rawData = [];
+        let filteredData = [];
+        let teamsData = [];
+        let currentStep = 1;
+        let teacherEmailMapping = {}; // Stores teacher code -> email mapping
+
+        // Upload Area Setup
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Teacher File Upload Setup
+        const teacherUploadArea = document.getElementById('teacherUploadArea');
+        const teacherFileInput = document.getElementById('teacherFileInput');
+
+        teacherUploadArea.addEventListener('click', () => teacherFileInput.click());
+        teacherUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            teacherUploadArea.classList.add('dragover');
+        });
+        teacherUploadArea.addEventListener('dragleave', () => {
+            teacherUploadArea.classList.remove('dragover');
+        });
+        teacherUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            teacherUploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleTeacherFile(files[0]);
+            }
+        });
+
+        teacherFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleTeacherFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    processImportedData(jsonData);
+                } catch (error) {
+                    alert('Fehler beim Lesen der Datei: ' + error.message);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function handleTeacherFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    processTeacherMapping(jsonData);
+                } catch (error) {
+                    alert('Fehler beim Lesen der Lehrer-Datei: ' + error.message);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processTeacherMapping(data) {
+            teacherEmailMapping = {};
+            
+            data.forEach(row => {
+                const kuerzel = (row.Kürzel || row.Kuerzel || row.kuerzel || row.Code || row.code || row.Lehrer || '').toString().trim().toUpperCase();
+                const email = (row['E-Mail'] || row.Email || row.email || row.Mail || row.mail || '').toString().trim().toLowerCase();
+                
+                if (kuerzel && email) {
+                    teacherEmailMapping[kuerzel] = email;
+                }
+            });
+
+            document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
+            document.getElementById('teacherMappingInfo').style.display = 'block';
+            
+            // Update stats if we're on step 2.5
+            if (currentStep === 2.5) {
+                updateTeacherStats();
+            } else {
+                displayTeacherMappingTable();
+            }
+        }
+
+        function displayTeacherMappingTable() {
+            const tbody = document.getElementById('teacherMappingBody');
+            tbody.innerHTML = '';
+
+            Object.entries(teacherEmailMapping).forEach(([kuerzel, email]) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${kuerzel}</strong></td>
+                    <td>${email}</td>
+                    <td>-</td>
+                    <td>
+                        <button class="btn btn-small btn-danger" onclick="removeTeacherMapping('${kuerzel}')">❌</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function displayTeacherMappingTableWithUsage(requiredTeachers) {
+            const tbody = document.getElementById('teacherMappingBody');
+            tbody.innerHTML = '';
+
+            Object.entries(teacherEmailMapping).forEach(([kuerzel, email]) => {
+                const isUsed = requiredTeachers.includes(kuerzel);
+                const usageIndicator = isUsed 
+                    ? '<span style="color: #28a745;">✓ Wird verwendet</span>' 
+                    : '<span style="color: #6c757d;">Nicht benötigt</span>';
+                
+                const tr = document.createElement('tr');
+                if (!isUsed) {
+                    tr.style.opacity = '0.6';
+                }
+                
+                tr.innerHTML = `
+                    <td><strong>${kuerzel}</strong></td>
+                    <td>${email}</td>
+                    <td>${usageIndicator}</td>
+                    <td>
+                        <button class="btn btn-small btn-danger" onclick="removeTeacherMapping('${kuerzel}')">❌</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleTeacherMapping() {
+            const table = document.getElementById('teacherMappingTable');
+            table.style.display = table.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function clearTeacherMapping() {
+            if (confirm('Alle Lehrer-Zuordnungen wirklich löschen?')) {
+                teacherEmailMapping = {};
+                document.getElementById('teacherMappingInfo').style.display = 'none';
+                document.getElementById('teacherMappingTable').style.display = 'none';
+                
+                if (currentStep === 2.5) {
+                    updateTeacherStats();
+                }
+            }
+        }
+
+        function removeTeacherMapping(kuerzel) {
+            delete teacherEmailMapping[kuerzel];
+            document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
+            
+            if (currentStep === 2.5) {
+                updateTeacherStats();
+            } else {
+                displayTeacherMappingTable();
+            }
+            
+            if (Object.keys(teacherEmailMapping).length === 0) {
+                document.getElementById('teacherMappingInfo').style.display = 'none';
+                document.getElementById('teacherMappingTable').style.display = 'none';
+            }
+        }
+
+        function addTeacherMapping() {
+            const kuerzel = prompt('Lehrer-Kürzel:');
+            if (!kuerzel) return;
+            
+            const email = prompt('E-Mail-Adresse:');
+            
+            if (kuerzel && email) {
+                teacherEmailMapping[kuerzel.trim().toUpperCase()] = email.trim().toLowerCase();
+                document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
+                document.getElementById('teacherMappingInfo').style.display = 'block';
+                
+                if (currentStep === 2.5) {
+                    updateTeacherStats();
+                } else {
+                    displayTeacherMappingTable();
+                }
+            }
+        }
+
+        function processImportedData(data) {
+            rawData = data.map((row, index) => ({
+                id: index,
+                klasse: row['Klasse(n)'] || row.Klasse || row.klasse || row.Class || '',
+                fach: row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '',
+                lehrer: row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '',
+                gruppe: row['Schülergruppe'] || row.Schülergruppe || row.Gruppe || row.gruppe || row.Group || '',
+                original: row
+            }));
+
+            filteredData = [...rawData];
+
+            // Update Stats
+            document.getElementById('totalRecords').textContent = rawData.length;
+            document.getElementById('uniqueSubjects').textContent = new Set(rawData.map(r => r.fach).filter(f => f)).size;
+            document.getElementById('uniqueTeachers').textContent = new Set(rawData.map(r => r.lehrer).filter(l => l)).size;
+
+            document.getElementById('importStats').style.display = 'block';
+        }
+
+        function applyFilters() {
+            const excludeSubjects = document.getElementById('excludeSubjects').value
+                .split(',')
+                .map(s => s.trim().toUpperCase())
+                .filter(s => s.length > 0);
+            
+            const removeDuplicates = document.getElementById('removeDuplicates').checked;
+
+            // Filter: Nur Einträge mit Klasse, Fach und Lehrer, und ausgeschlossene Fächer entfernen
+            let filtered = rawData.filter(row => {
+                // Muss Lehrer und Fach haben
+                if (!row.fach || !row.lehrer) {
+                    return false;
+                }
+                
+                const fach = row.fach.toUpperCase().trim();
+                
+                // Ausgeschlossene Fächer entfernen
+                if (excludeSubjects.includes(fach)) {
+                    return false;
+                }
+                
+                // Nur Einträge mit Klasse behalten (kann mehrere Klassen sein)
+                if (!row.klasse || row.klasse.trim() === '') {
+                    return false;
+                }
+                
+                return true;
+            });
+
+            const originalCount = filtered.length;
+            const removedByFilter = rawData.length - originalCount;
+
+            if (removeDuplicates) {
+                const seen = new Set();
+                filtered = filtered.filter(row => {
+                    const key = `${row.klasse}-${row.fach}-${row.lehrer}-${row.gruppe}`;
+                    if (seen.has(key)) {
+                        return false;
+                    }
+                    seen.add(key);
+                    return true;
+                });
+            }
+
+            filteredData = filtered;
+
+            document.getElementById('filteredRecords').textContent = filtered.length;
+            document.getElementById('removedDuplicates').textContent = removedByFilter + (originalCount - filtered.length);
+            document.getElementById('filterStats').style.display = 'block';
+
+            displayFilteredData();
+        }
+
+        function displayFilteredData() {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+
+            filteredData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <button class="btn btn-small btn-danger" onclick="removeRow(${index})">❌</button>
+                    </td>
+                    <td>${row.klasse}</td>
+                    <td>${row.fach}</td>
+                    <td>${row.lehrer}</td>
+                    <td>${row.gruppe || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('dataTableContainer').style.display = 'block';
+            document.getElementById('continueBtn2').style.display = 'inline-block';
+        }
+
+        function removeRow(index) {
+            filteredData.splice(index, 1);
+            displayFilteredData();
+            document.getElementById('filteredRecords').textContent = filteredData.length;
+        }
+
+        function resetFilters() {
+            filteredData = [...rawData];
+            document.getElementById('excludeSubjects').value = 'ORD,DIR,KV';
+            document.getElementById('removeDuplicates').checked = true;
+            applyFilters();
+        }
+
+        function generateTeamNames() {
+            const yearPrefix = document.getElementById('yearPrefix').value;
+            const emailDomain = document.getElementById('emailDomain').value;
+            const separator = document.getElementById('teamSeparator').value;
+
+            const invalidChars = /[\\%&*+\/=?{}|<>();:,\[\]"öäü]/g;
+
+            teamsData = filteredData.map(row => {
+                // Bei mehreren Klassen kombinieren: 4AK,4BK,4CK -> 4ABCK
+                let klasseForName = row.klasse;
+                if (row.klasse.includes(',')) {
+                    klasseForName = combineClassNames(row.klasse);
+                }
+                
+                const teamName = `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
+                
+                // Gruppenmail erstellen
+                let gruppenmail = `${yearPrefix}-${klasseForName}-${row.fach}`;
+                if (row.gruppe && row.gruppe.trim() !== '') {
+                    // Wenn Schülergruppe vorhanden, diese als Suffix verwenden
+                    const gruppeClean = row.gruppe.replace(/[_\s]+/g, '-');
+                    gruppenmail = gruppeClean.replace(/^[^_]+_/, ''); // Entferne Prefix bis zum ersten _
+                }
+                
+                // Entferne Leerzeichen und ungültige Zeichen
+                gruppenmail = gruppenmail.replace(/\s+/g, '-');
+                const originalGruppenmail = gruppenmail;
+                gruppenmail = gruppenmail.replace(invalidChars, '');
+                
+                // Lehrer-Email erstellen - prüfe zuerst Mapping
+                let besitzer = '';
+                const lehrerCode = row.lehrer.toUpperCase().trim();
+                
+                if (teacherEmailMapping[lehrerCode]) {
+                    // Verwende Email aus Mapping
+                    besitzer = teacherEmailMapping[lehrerCode];
+                } else {
+                    // Fallback: Generiere Email aus Kürzel
+                    besitzer = row.lehrer.toLowerCase().trim().replace(/\s+/g, '.');
+                    besitzer = besitzer.replace(invalidChars, '');
+                    if (!besitzer.includes('@')) {
+                        besitzer += emailDomain;
+                    }
+                }
+
+                const hasInvalidChars = invalidChars.test(originalGruppenmail);
+                const isValid = !hasInvalidChars && teamName && gruppenmail && besitzer && gruppenmail.length > 0;
+                
+                const mappingUsed = teacherEmailMapping[lehrerCode] ? true : false;
+
+                return {
+                    teamName,
+                    gruppenmail,
+                    besitzer,
+                    isValid,
+                    error: hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : (!isValid ? 'Unvollständige Daten' : null),
+                    originalClass: row.klasse,
+                    gruppe: row.gruppe,
+                    mappingUsed: mappingUsed,
+                    lehrerCode: lehrerCode
+                };
+            });
+
+            displayTeamsData();
+        }
+
+        function combineClassNames(classString) {
+            // Wandelt "4AK,4BK,4CK" in "4ABCK" um
+            const classes = classString.split(',').map(c => c.trim());
+            
+            if (classes.length === 0) return classString;
+            
+            // Extrahiere Zahl (Jahrgang) vom ersten Eintrag
+            const firstClass = classes[0];
+            const jahrgang = firstClass.match(/^\d+/);
+            
+            if (!jahrgang) return classString;
+            
+            // Sammle alle Buchstaben-Kürzel
+            const buchstaben = classes.map(c => {
+                const match = c.match(/\d+([A-Z]+)/);
+                return match ? match[1] : '';
+            }).filter(b => b.length > 0);
+            
+            // Entferne doppelte Buchstaben und kombiniere
+            const uniqueBuchstaben = [...new Set(buchstaben.join('').split(''))].join('');
+            
+            return jahrgang[0] + uniqueBuchstaben;
+        }
+
+        function displayTeamsData() {
+            const tbody = document.getElementById('teamsTableBody');
+            tbody.innerHTML = '';
+
+            const validCount = teamsData.filter(t => t.isValid).length;
+            const invalidCount = teamsData.length - validCount;
+            const mappedCount = teamsData.filter(t => t.mappingUsed).length;
+
+            teamsData.forEach((team, index) => {
+                const tr = document.createElement('tr');
+                if (!team.isValid) {
+                    tr.classList.add('error-row');
+                }
+
+                const klassInfo = team.originalClass && team.originalClass.includes(',') 
+                    ? `<small style="color: #6c757d;">(Original: ${team.originalClass})</small>` 
+                    : '';
+                
+                const gruppeInfo = team.gruppe 
+                    ? `<br><small style="color: #6c757d;">Gruppe: ${team.gruppe}</small>` 
+                    : '';
+                
+                const mappingInfo = team.mappingUsed 
+                    ? `<small style="color: #28a745;">✓ Mapping</small>` 
+                    : `<small style="color: #ffc107;">⚠ Generiert (${team.lehrerCode})</small>`;
+
+                tr.innerHTML = `
+                    <td>${team.teamName}${klassInfo}</td>
+                    <td>${team.gruppenmail}${gruppeInfo}</td>
+                    <td>${team.besitzer}<br>${mappingInfo}</td>
+                    <td>${team.isValid ? '✅' : '❌ ' + (team.error || 'Fehler')}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="editTeam(${index})">✏️</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteTeam(${index})">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('validTeams').textContent = validCount;
+            document.getElementById('invalidTeams').textContent = invalidCount;
+            
+            // Zeige Warnung wenn nicht alle Lehrer gemappt sind
+            if (mappedCount < teamsData.length) {
+                const unmappedCount = teamsData.length - mappedCount;
+                const existingWarning = document.getElementById('mappingWarning');
+                if (existingWarning) existingWarning.remove();
+                
+                const warning = document.createElement('div');
+                warning.id = 'mappingWarning';
+                warning.className = 'alert alert-warning';
+                warning.innerHTML = `<strong>⚠️ Achtung:</strong> ${unmappedCount} Lehrer haben keine E-Mail-Zuordnung. Die E-Mail-Adressen wurden automatisch generiert.`;
+                document.getElementById('validationResults').appendChild(warning);
+            }
+            
+            document.getElementById('validationResults').style.display = 'block';
+            document.getElementById('teamsTableContainer').style.display = 'block';
+            document.getElementById('continueBtn3').style.display = 'inline-block';
+        }
+
+        function editTeam(index) {
+            const team = teamsData[index];
+            const newName = prompt('Team-Name:', team.teamName);
+            const newMail = prompt('Gruppenmail:', team.gruppenmail);
+            const newOwner = prompt('Besitzer:', team.besitzer);
+
+            if (newName && newMail && newOwner) {
+                teamsData[index] = {
+                    teamName: newName,
+                    gruppenmail: newMail,
+                    besitzer: newOwner,
+                    isValid: true,
+                    error: null
+                };
+                displayTeamsData();
+            }
+        }
+
+        function deleteTeam(index) {
+            if (confirm('Team wirklich löschen?')) {
+                teamsData.splice(index, 1);
+                displayTeamsData();
+            }
+        }
+
+        function goToStep(step) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            
+            document.querySelector(`.step-content[data-step="${step}"]`).classList.add('active');
+            document.querySelector(`.step[data-step="${step}"]`).classList.add('active');
+
+            // Mark previous steps as completed
+            const stepOrder = [1, 2, 2.5, 3, 4, 5];
+            const currentIndex = stepOrder.indexOf(step);
+            
+            for (let i = 0; i < currentIndex; i++) {
+                document.querySelector(`.step[data-step="${stepOrder[i]}"]`).classList.add('completed');
+            }
+
+            currentStep = step;
+
+            if (step === 2.5) {
+                updateTeacherStats();
+            }
+
+            if (step === 4) {
+                prepareCSVExport();
+            }
+        }
+
+        function updateTeacherStats() {
+            // Get unique teachers from filtered data
+            const uniqueTeachers = new Set(filteredData.map(row => row.lehrer.toUpperCase().trim()));
+            const teachersArray = Array.from(uniqueTeachers);
+            
+            const mappedCount = teachersArray.filter(t => teacherEmailMapping[t]).length;
+            const unmappedCount = teachersArray.length - mappedCount;
+            
+            document.getElementById('uniqueTeachersNeeded').textContent = teachersArray.length;
+            document.getElementById('mappedTeachers').textContent = mappedCount;
+            document.getElementById('unmappedTeachers').textContent = unmappedCount;
+            document.getElementById('teacherRequiredStats').style.display = 'grid';
+            
+            // Show missing teachers
+            if (unmappedCount > 0) {
+                displayMissingTeachers(teachersArray);
+            } else {
+                document.getElementById('missingTeachersSection').style.display = 'none';
+            }
+            
+            // Update teacher mapping table if already loaded
+            if (Object.keys(teacherEmailMapping).length > 0) {
+                displayTeacherMappingTableWithUsage(teachersArray);
+            }
+        }
+
+        function displayMissingTeachers(allTeachers) {
+            const unmappedTeachers = allTeachers.filter(t => !teacherEmailMapping[t]);
+            
+            if (unmappedTeachers.length === 0) {
+                document.getElementById('missingTeachersSection').style.display = 'none';
+                return;
+            }
+            
+            const emailDomain = document.getElementById('emailDomain').value;
+            const tbody = document.getElementById('missingTeachersBody');
+            tbody.innerHTML = '';
+            
+            unmappedTeachers.forEach(kuerzel => {
+                const generatedEmail = kuerzel.toLowerCase() + emailDomain;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${kuerzel}</strong></td>
+                    <td>${generatedEmail}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="quickAddTeacher('${kuerzel}', '${generatedEmail}')">➕ Hinzufügen</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            document.getElementById('missingTeachersSection').style.display = 'block';
+        }
+
+        function quickAddTeacher(kuerzel, suggestedEmail) {
+            const email = prompt(`E-Mail-Adresse für ${kuerzel}:`, suggestedEmail);
+            if (email) {
+                teacherEmailMapping[kuerzel] = email.trim().toLowerCase();
+                document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
+                updateTeacherStats();
+                document.getElementById('teacherMappingInfo').style.display = 'block';
+            }
+        }
+
+        function prepareCSVExport() {
+            const validTeams = teamsData.filter(t => t.isValid);
+            document.getElementById('exportCount').textContent = validTeams.length;
+
+            let csvPreview = 'TeamName,Gruppenmail,Besitzer\n';
+            validTeams.slice(0, 5).forEach(team => {
+                csvPreview += `${team.teamName},${team.gruppenmail},${team.besitzer}\n`;
+            });
+            if (validTeams.length > 5) {
+                csvPreview += `... (${validTeams.length - 5} weitere Teams)`;
+            }
+
+            document.getElementById('csvPreview').textContent = csvPreview;
+        }
+
+        function downloadCSV() {
+            const validTeams = teamsData.filter(t => t.isValid);
+            
+            let csv = 'TeamName,Gruppenmail,Besitzer\n';
+            validTeams.forEach(team => {
+                csv += `${team.teamName},${team.gruppenmail},${team.besitzer}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'neueteams.csv';
+            link.click();
+        }
+
+        function copyPowerShell() {
+            const script = document.getElementById('powershellScript').textContent;
+            navigator.clipboard.writeText(script).then(() => {
+                alert('PowerShell-Script in Zwischenablage kopiert!');
+            });
+        }
+
+        function resetApp() {
+            if (confirm('App wirklich zurücksetzen? Alle Daten gehen verloren.')) {
+                location.reload();
+            }
+        }
+
+        // Step Navigation
+        document.querySelectorAll('.step').forEach(step => {
+            step.addEventListener('click', function() {
+                const stepNum = parseFloat(this.dataset.step);
+                const currentStepNum = parseFloat(currentStep);
+                
+                if (stepNum <= currentStepNum || this.classList.contains('completed')) {
+                    goToStep(stepNum);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
