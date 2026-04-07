@@ -959,7 +959,7 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                         <div class="filter-group">
                             <label for="argeDefaultPrefix">Optionales Präfix für Mail-Nickname</label>
                             <input type="text" id="argeDefaultPrefix" placeholder="z.B. arge" value="" maxlength="20" autocomplete="off">
-                            <small style="color:#6c757d;">Wenn gesetzt, wird z. B. aus <code>ARGE Deutsch</code> → <code>arge-deutsch</code>. Ohne Präfix nur <code>deutsch</code>.</small>
+                            <small style="color:#6c757d;">Wird an den aus dem <strong>Fachnamen</strong> erzeugten Teil angehängt (z. B. Fach <code>Deutsch</code> → <code>arge-deutsch</code>). Ohne Präfix nur der Fach-Teil, z. B. <code>deutsch</code>.</small>
                         </div>
                         <div class="filter-group">
                             <label>
@@ -972,12 +972,31 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
 
                 <div class="arge-step-content" data-arge-step="2">
                     <h2>ARGE-Liste</h2>
-                    <div class="alert alert-warning">
-                        <strong>Format:</strong> pro Zeile entweder nur der Anzeigename (z. B. <code>ARGE Deutsch</code>) oder <code>Anzeigename;MailNickname</code> (z. B. <code>ARGE BB;ARGEBB</code>).
+                    <div class="alert alert-info">
+                        <strong>Einfach einfügen:</strong> eine Zeile pro Fach oder Stichwort (z. B. aus Excel kopieren). Daraus wird der <strong>Anzeigename</strong> der Gruppe (<code>ARGE …</code>) und das <strong>Mail-Nickname</strong> mit Präfix &amp; Domain aus Schritt 1 erzeugt. Die Vorschau unten aktualisiert sich beim Tippen.
+                    </div>
+                    <div class="alert alert-warning" style="margin-top:10px;">
+                        <strong>Optional (fortgeschritten):</strong> weiterhin <code>Anzeigename;MailNickname</code> pro Zeile möglich – dann gilt der rechte Teil als festes Mail-Nickname.
                     </div>
                     <div class="filter-group">
-                        <label for="argeLines">ARGEs</label>
-                        <textarea id="argeLines" rows="12" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="ARGE-LeiterInnen;argeleiterinnen&#10;ARGE BB;ARGEBB&#10;ARGE Deutsch;argedeutsch"></textarea>
+                        <label for="argeLines">Fächer / Bezeichnungen (eine Zeile pro ARGE)</label>
+                        <textarea id="argeLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="Deutsch&#10;Mathematik&#10;ARGE BB&#10;LeiterInnen"></textarea>
+                    </div>
+                    <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
+                    <div class="table-container" style="max-height:280px;margin-bottom:12px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Anzeigename (Gruppe)</th>
+                                    <th>Fach (technisch)</th>
+                                    <th>Mail-Nickname</th>
+                                    <th>E-Mail (Vorschau)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="argePreviewBody">
+                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                     <p id="argeParseError" class="alert alert-warning" style="display:none;"></p>
                     <button type="button" class="btn" id="argeBack1">← Zurück</button>

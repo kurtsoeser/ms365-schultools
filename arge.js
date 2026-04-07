@@ -58,6 +58,9 @@
             el.classList.toggle('active', s === step);
             el.classList.toggle('completed', s < step);
         });
+        if (step === 2) {
+            scheduleArgePreviewRefresh();
+        }
     }
 
     function getDomain() {
@@ -79,16 +82,126 @@
         return s;
     }
 
+    /** Fach-Teil ohne führendes „ARGE “ – für Slug/Mail-Nickname */
+    function subjectForSlug(line) {
+        let t = String(line || '').trim();
+        const stripped = t.replace(/^ARGE\s+/i, '').trim();
+        return stripped || t;
+    }
+
+    /** Anzeigename der M365-Gruppe aus einer einfachen Fach-Zeile */
+    function displayNameFromSubjectLine(line) {
+        const t = line.trim();
+        if (!t) return '';
+        if (/^ARGE\s+/i.test(t)) return t;
+        return 'ARGE ' + t;
+    }
+
     function maybeUpper(s) {
         const upper = document.getElementById('argeUpperNick').checked;
         return upper ? s.toUpperCase() : s.toLowerCase();
     }
 
-    function buildMailNickname(displayName) {
-        const base = toNickBaseFromName(displayName);
+    /** Mail-Nickname nur aus dem Fach (Präfix aus Schritt 1), nicht aus „ARGE …“ doppelt */
+    function buildMailNicknameFromSubject(line) {
+        const base = toNickBaseFromName(subjectForSlug(line));
+        if (!base) return '';
         const pre = getPrefix();
-        const combined = pre ? (pre + '-' + base) : base;
+        const combined = pre ? pre + '-' + base : base;
         return maybeUpper(combined).replace(/[^A-Za-z0-9-]/g, '');
+    }
+
+    /**
+     * Parst die Textarea: eine Zeile pro Fach oder optional Anzeigename;MailNickname.
+     * @returns {{ parsed: { displayName: string, mailNick: string, owner: string, description: string, technicalSlug: string }[], errors: string[] }}
+     */
+    function parseArgeInput() {
+        const lines = document.getElementById('argeLines').value.split(/\r?\n/);
+        const parsed = [];
+        const errors = [];
+        const seen = new Set();
+        lines.forEach((line, idx) => {
+            const t = line.trim();
+            if (!t || t.startsWith('#')) return;
+            const parts = t.split(/[;\t]/).map(x => x.trim()).filter(Boolean);
+            if (!parts.length) return;
+
+            let displayName;
+            let mailNick;
+            let technicalSlug;
+
+            if (parts.length >= 2) {
+                displayName = parts[0];
+                const explicitNick = parts[1] || '';
+                technicalSlug = toNickBaseFromName(subjectForSlug(parts[0]));
+                mailNick = explicitNick
+                    ? maybeUpper(explicitNick.replace(/[^A-Za-z0-9-]/g, ''))
+                    : buildMailNicknameFromSubject(parts[0]);
+            } else {
+                const raw = parts[0];
+                displayName = displayNameFromSubjectLine(raw);
+                technicalSlug = toNickBaseFromName(subjectForSlug(raw));
+                mailNick = buildMailNicknameFromSubject(raw);
+            }
+
+            if (!displayName) return;
+            if (!mailNick) {
+                errors.push('Zeile ' + (idx + 1) + ': Mail-Nickname konnte nicht erzeugt werden.');
+                return;
+            }
+            const key = displayName.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            parsed.push({
+                displayName,
+                mailNick,
+                owner: '',
+                description: 'ARGE-Gruppe: ' + displayName,
+                technicalSlug
+            });
+        });
+        return { parsed, errors };
+    }
+
+    let argePreviewDebounce;
+    function scheduleArgePreviewRefresh() {
+        clearTimeout(argePreviewDebounce);
+        argePreviewDebounce = setTimeout(refreshArgePreview, 120);
+    }
+
+    function refreshArgePreview() {
+        const tbody = document.getElementById('argePreviewBody');
+        if (!tbody) return;
+        const { parsed } = parseArgeInput();
+        const rows = parsed.map(r => ({ ...r }));
+        resolveDuplicateNicks(rows);
+
+        if (!rows.length) {
+            tbody.innerHTML =
+                '<tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen.</td></tr>';
+            return;
+        }
+
+        const domain = getDomain() || '…';
+        tbody.replaceChildren();
+        rows.forEach(r => {
+            const tr = document.createElement('tr');
+            const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
+            const td1 = document.createElement('td');
+            td1.textContent = r.displayName;
+            const td2 = document.createElement('td');
+            td2.textContent = tech;
+            td2.style.fontFamily = 'Consolas,monospace';
+            td2.style.fontSize = '0.9em';
+            const td3 = document.createElement('td');
+            td3.textContent = r.mailNick;
+            td3.style.fontFamily = 'Consolas,monospace';
+            td3.style.fontSize = '0.9em';
+            const td4 = document.createElement('td');
+            td4.textContent = r.mailNick + '@' + domain;
+            tr.append(td1, td2, td3, td4);
+            tbody.appendChild(tr);
+        });
     }
 
     function resolveDuplicateNicks(rows) {
@@ -263,32 +376,7 @@
             return;
         }
 
-        const lines = document.getElementById('argeLines').value.split(/\r?\n/);
-        const parsed = [];
-        const errors = [];
-        const seen = new Set();
-        lines.forEach((line, idx) => {
-            const t = line.trim();
-            if (!t || t.startsWith('#')) return;
-            const parts = t.split(/[;\t]/).map(x => x.trim()).filter(Boolean);
-            const displayName = parts[0];
-            if (!displayName) return;
-            const explicitNick = parts[1] ? parts[1] : '';
-            const mailNick = explicitNick ? explicitNick : buildMailNickname(displayName);
-            if (!mailNick) {
-                errors.push('Zeile ' + (idx + 1) + ': Mail-Nickname konnte nicht erzeugt werden.');
-                return;
-            }
-            const key = displayName.toLowerCase();
-            if (seen.has(key)) return;
-            seen.add(key);
-            parsed.push({
-                displayName,
-                mailNick,
-                owner: '',
-                description: 'ARGE-Gruppe: ' + displayName
-            });
-        });
+        const { parsed, errors } = parseArgeInput();
 
         if (errors.length) {
             errEl.textContent = errors.join('\n');
@@ -301,8 +389,14 @@
             return;
         }
 
-        resolveDuplicateNicks(parsed);
-        argeRows = parsed;
+        const rows = parsed.map(r => ({ ...r }));
+        resolveDuplicateNicks(rows);
+        argeRows = rows.map(r => ({
+            displayName: r.displayName,
+            mailNick: r.mailNick,
+            owner: '',
+            description: r.description
+        }));
 
         const tbody = document.getElementById('argeOwnerBody');
         tbody.replaceChildren();
@@ -349,6 +443,18 @@
         const t = document.getElementById('argePowerShellScript').textContent;
         navigator.clipboard.writeText(t).then(() => showToast('Script kopiert.'));
     });
+
+    const argeLinesEl = document.getElementById('argeLines');
+    if (argeLinesEl) {
+        argeLinesEl.addEventListener('input', scheduleArgePreviewRefresh);
+        argeLinesEl.addEventListener('paste', () => setTimeout(scheduleArgePreviewRefresh, 0));
+    }
+    ['argeDomain', 'argeDefaultPrefix'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', scheduleArgePreviewRefresh);
+    });
+    const argeUpperEl = document.getElementById('argeUpperNick');
+    if (argeUpperEl) argeUpperEl.addEventListener('change', scheduleArgePreviewRefresh);
 
     // step header keyboard support
     document.querySelectorAll('.arge-steps .step').forEach(el => {
