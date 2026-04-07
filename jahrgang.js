@@ -36,6 +36,20 @@
     btnModeW.addEventListener('click', () => setMode(true));
     btnModeJ.addEventListener('click', () => setMode(false));
 
+    function applyInitialModeFromUrl() {
+        try {
+            const mode = new URLSearchParams(window.location.search).get('mode');
+            if (!mode) return;
+            if (mode.toLowerCase() === 'jahrgang') {
+                setMode(false);
+            } else if (mode.toLowerCase() === 'kursteams' || mode.toLowerCase() === 'kursteam' || mode.toLowerCase() === 'webuntis') {
+                setMode(true);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     function goToJgStep(step) {
         jgCurrentStep = step;
         document.querySelectorAll('.jg-step-content').forEach(el => {
@@ -376,6 +390,7 @@
     window.downloadJahrgangStandalonePackage = downloadJahrgangStandalonePackage;
 
     updatePrefixExample();
+    applyInitialModeFromUrl();
 
     document.querySelectorAll('.jg-steps .step').forEach(el => {
         el.setAttribute('tabindex', '0');

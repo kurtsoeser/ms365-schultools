@@ -3,10 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0; url=webuntis-teams-creator.html">
-    <title>WebUntis → Teams Creator</title>
+    <title>Start – WebUntis / Jahrgangsgruppen</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            width: min(920px, 100%);
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            padding: 28px 22px;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0 0 8px;
+            font-size: 1.6em;
+        }
+        header p { margin: 0; opacity: 0.95; }
+        main { padding: 22px; }
+        .grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            margin-top: 16px;
+        }
+        .choice {
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 18px;
+            background: #f8f9fa;
+        }
+        .choice h2 { margin: 0 0 8px; font-size: 1.1em; color: #32325d; }
+        .choice p { margin: 0 0 14px; color: #495057; line-height: 1.4; }
+        .btn {
+            display: inline-block;
+            text-decoration: none;
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .btn.alt {
+            background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
+        }
+        .note {
+            margin-top: 14px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        code { background: #eef; padding: 2px 6px; border-radius: 6px; }
+    </style>
 </head>
 <body>
-    <p>Weiterleitung zur <a href="webuntis-teams-creator.html">WebUntis-Teams-Creator-App</a> …</p>
+    <div class="card">
+        <header>
+            <h1>WebUntis → Microsoft 365</h1>
+            <p>Wählen Sie aus, was Sie erstellen möchten.</p>
+        </header>
+        <main>
+            <div class="grid">
+                <section class="choice">
+                    <h2>Kursteams (WebUntis)</h2>
+                    <p>Aus WebUntis-Exportdaten Teams (Vorlage <code>EDU_Class</code>) vorbereiten und per PowerShell anlegen.</p>
+                    <a class="btn alt" href="webuntis-teams-creator.html?mode=kursteams">Kursteams starten</a>
+                </section>
+                <section class="choice">
+                    <h2>Jahrgangsgruppen</h2>
+                    <p>Microsoft 365-Gruppen (Unified Groups, keine Kursteams) nach Schema <code>jg&lt;Jahr&gt;-&lt;Kürzel&gt;</code> erstellen.</p>
+                    <a class="btn" href="webuntis-teams-creator.html?mode=jahrgang">Jahrgangsgruppen starten</a>
+                </section>
+            </div>
+            <p class="note">Tipp: Diese Startseite ist unter GitHub Pages direkt die URL <code>/</code>.</p>
+        </main>
+    </div>
 </body>
 </html>
