@@ -9,7 +9,7 @@ Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal
 ## Nutzung
 
 1. Repository klonen oder die Dateien herunterladen.
-2. `webuntis-teams-creator.html` im Browser öffnen **oder** ein statisches Hosting nutzen (z. B. GitHub Pages).
+2. `ms365-schooltool.html` im Browser öffnen **oder** ein statisches Hosting nutzen (z. B. GitHub Pages).
 3. Oben zwischen **Kursteams**, **Jahrgangsgruppen** und **ARGEs** wählen.
 
 ### Modus A: Kursteams
@@ -41,7 +41,7 @@ Die App erkennt u. a.: **Klasse(n)**, **Fach**, **Lehrer**, **Schülergruppe**
 
 | Datei | Beschreibung |
 |--------|----------------|
-| `webuntis-teams-creator.html` | Hauptseite |
+| `ms365-schooltool.html` | Hauptseite |
 | `app.js` | Logik Kursteams (CSV-Export, Filter, lokaler Speicher, …) |
 | `jahrgang.js` | Assistent Jahrgangsgruppen (Microsoft Graph PowerShell) |
 | `arge.js` | Assistent ARGEs (Microsoft Graph PowerShell) |
@@ -75,7 +75,7 @@ Die App liefert **eine** `.cmd` mit eingebettetem PowerShell (keine separate `.p
 Repository auf **Pages** schalten (Branch `main`, Ordner `/`). Mit dem Repo-Namen **`ms365-schultools`** ist die App typischerweise unter:
 
 - **Startseite:** [https://kurtsoeser.github.io/ms365-schultools/](https://kurtsoeser.github.io/ms365-schultools/)
-- **Haupt-App:** [https://kurtsoeser.github.io/ms365-schultools/webuntis-teams-creator.html](https://kurtsoeser.github.io/ms365-schultools/webuntis-teams-creator.html)
+- **Haupt-App:** [https://kurtsoeser.github.io/ms365-schultools/ms365-schooltool.html](https://kurtsoeser.github.io/ms365-schultools/ms365-schooltool.html)
 
 Klonen per Git (nach tatsächlichem Repo-Namen auf GitHub):
 

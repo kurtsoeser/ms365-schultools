@@ -8,8 +8,8 @@
  *    „Unterstützte Kontotypen“: „Konten in einem beliebigen Organisationsverzeichnis (beliebiger Microsoft Entra ID-Mandant – Multimandanten)“
  * 3) „Weiterleitungs-URI“: Plattform „Einzelseitenanwendung (SPA)“
  *    URI exakt so eintragen wie Ihre Seite im Browser, z. B.:
- *    https://IHRE-DOMAIN.tld/webuntis-teams-creator.html
- *    (lokal testen: http://localhost:PORT/webuntis-teams-creator.html – dieselbe URI auch in Entra eintragen)
+ *    https://IHRE-DOMAIN.tld/ms365-schooltool.html
+ *    (lokal testen: http://localhost:PORT/ms365-schooltool.html – dieselbe URI auch in Entra eintragen)
  * 4) Registrieren → auf der Übersichtsseite „Anwendungs-ID (Client)“ kopieren → unten bei clientId einfügen
  * 5) API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen:
  *    - Group.ReadWrite.All
