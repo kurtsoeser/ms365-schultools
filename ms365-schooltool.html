@@ -1087,37 +1087,47 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
 
                 <div class="arge-step-content" data-arge-step="3">
                     <h2>ARGEs: Einstellungen</h2>
-                    <div class="alert alert-info">
-                        <strong>ℹ️ Was ist das?</strong> Hier werden <strong>Microsoft 365-Gruppen</strong> (Unified Groups) für Arbeitsgemeinschaften erstellt – optional mit <strong>Microsoft Teams</strong> zur gleichen Gruppe. Sie haben in <strong>Schritt 1</strong> die ARGE-Liste inkl. <strong>Präfix</strong> und Option <strong>Großschreibung</strong> für Mail-Nicknames festgelegt und in <strong>Schritt 2</strong> <strong>Besitzer</strong> eingetragen (Besitzer wird auch als Mitglied eingetragen).
-                    </div>
-                    <div class="filter-section">
-                        <div class="filter-group">
-                            <p style="color:#6c757d;margin:0 0 8px 0;">Die <strong>E-Mail-Domain der Schule</strong> (Vorschau &amp; Ziel für Exchange) steht <strong>oben</strong> – einmal für alle Module.</p>
-                            <small style="color:#6c757d;display:block;margin-top:6px;">
-                                <strong>Hinweis:</strong> Microsoft Graph setzt nur den <strong>Mail-Nickname</strong> (Teil vor dem @). Die fertige Adresse <code>nickname@…</code> kommt zuerst von der <strong>Standard-Domain</strong> im Mandanten. Die Domain oben ist die <strong>Zieldomain</strong> für die Vorschau und (optional) für Exchange unten – sie muss im Mandanten <a href="https://admin.microsoft.com/Adminportal/Home#/Domains" target="_blank" rel="noopener">verifiziert</a> sein.
-                            </small>
-                            <label class="checkbox-label" for="argeExchangeSmtp" style="margin-top:12px;">
+                    <p style="color:#6c757d;margin:0 0 16px;font-size:0.95em;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        Schul-Domain und E-Mail-Vorschau: <strong>oben in der Kopfzeile</strong>
+                        <span
+                            tabindex="0"
+                            aria-label="Hinweis Domain und E-Mail"
+                            title="Präfix und Großschreibung der Mail-Nicknames: Schritt 1. Microsoft Graph legt nur den Mail-Nickname an; die fertige Adresse @… folgt zunächst der Standard-Domain im Mandanten. Die Domain oben ist die Vorschau und (bei Exchange-Option) das Ziel — im Admin Center verifizieren."
+                            style="cursor:help;color:#5e72e4;font-size:1.15em;line-height:1;user-select:none;"
+                        >ⓘ</span>
+                    </p>
+                    <div class="filter-section" style="padding-top:4px;">
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+                            <label class="checkbox-label" for="argeExchangeSmtp" style="align-items:flex-start;">
                                 <input type="checkbox" id="argeExchangeSmtp" checked>
-                                <span><strong>Primäre Gruppen-E-Mail</strong> per <strong>Exchange Online PowerShell</strong> auf <code>MailNickname@&lt;Domain von oben&gt;</code> setzen (<code>Set-UnifiedGroup</code> – zweite Anmeldung, Modul <code>ExchangeOnlineManagement</code>)</span>
+                                <span style="flex:1;">Primäre Gruppen-E-Mail per Exchange setzen (<code>nickname@Schuldomain</code>)</span>
+                                <span
+                                    tabindex="0"
+                                    aria-label="Hinweis Exchange"
+                                    title="Set-UnifiedGroup per Exchange Online PowerShell (Modul ExchangeOnlineManagement). Zweite Anmeldung (Exchange). Rechte z. B. Organisationsverwaltung. Nur für das heruntergeladene PowerShell/CMD-Paket relevant — nicht für „Online im Browser“."
+                                    style="cursor:help;color:#5e72e4;font-size:1.1em;line-height:1.2;flex-shrink:0;user-select:none;"
+                                >ⓘ</span>
                             </label>
-                            <small style="color:#6c757d;display:block;margin-top:6px;">Erfordert passende Rechte (z.&nbsp;B. Organisationsverwaltung). Erste Anmeldung: Microsoft Graph; zweite: Exchange (Browser/Gerät).</small>
-                        </div>
-                        <div class="filter-group">
-                            <p style="color:#6c757d;margin:0;font-size:0.95em;"><strong>Präfix</strong> und <strong>Mail-Nickname groß schreiben</strong> werden bereits in <strong>Schritt 1</strong> (ARGE-Liste) festgelegt.</p>
-                        </div>
-                        <div class="filter-group">
-                            <label class="checkbox-label" for="argeCreateTeams">
+                            <label class="checkbox-label" for="argeCreateTeams" style="align-items:flex-start;">
                                 <input type="checkbox" id="argeCreateTeams" checked>
-                                <span>Für jede Gruppe auch <strong>Microsoft Teams</strong> bereitstellen (nach Graph: Team an die M365-Gruppe anbinden)</span>
+                                <span style="flex:1;">Microsoft Teams an jede Gruppe anbinden</span>
+                                <span
+                                    tabindex="0"
+                                    aria-label="Hinweis Teams"
+                                    title="Nach Microsoft Graph wird ein Team an die M365-Gruppe gehängt. Der Besitzer aus Schritt 2 wird zusätzlich als Mitglied eingetragen."
+                                    style="cursor:help;color:#5e72e4;font-size:1.1em;line-height:1.2;flex-shrink:0;user-select:none;"
+                                >ⓘ</span>
                             </label>
-                            <small style="color:#6c757d;display:block;margin-top:6px;">Der eingetragene <strong>Besitzer</strong> wird automatisch als <strong>Mitglied</strong> der Gruppe hinzugefügt (zusätzlich zur Besitzerrolle).</small>
-                        </div>
-                        <div class="filter-group">
-                            <label class="checkbox-label" for="argeAdminAsOwner">
+                            <label class="checkbox-label" for="argeAdminAsOwner" style="align-items:flex-start;">
                                 <input type="checkbox" id="argeAdminAsOwner" checked>
-                                <span><strong>Angemeldeter Administrator</strong> als Besitzer der Gruppe (zusätzlich zum Besitzer aus Schritt 2)</span>
+                                <span style="flex:1;">Ausführender Administrator als Besitzer (zusätzlich zu Schritt 2)</span>
+                                <span
+                                    tabindex="0"
+                                    aria-label="Hinweis Admin-Besitzer"
+                                    title="Wenn aus: nur der Besitzer aus Schritt 2 bleibt — der ausführende Admin wird nach dem Anlegen ggf. als Besitzer entfernt, falls Microsoft ihn automatisch gesetzt hat. Wenn Admin und Besitzer dieselbe Person sind, ändert sich nichts."
+                                    style="cursor:help;color:#5e72e4;font-size:1.1em;line-height:1.2;flex-shrink:0;user-select:none;"
+                                >ⓘ</span>
                             </label>
-                            <small style="color:#6c757d;display:block;margin-top:6px;">Wenn Sie das <strong>deaktivieren</strong>, bleibt nur der Besitzer aus Schritt 2 – der ausführende Admin wird nach dem Anlegen ggf. als Besitzer entfernt (falls Microsoft ihn automatisch setzt). Wenn Admin und Besitzer dieselbe Person sind, ändert sich nichts.</small>
                         </div>
                     </div>
                     <button type="button" class="btn" id="argeBack2">← Zurück</button>
@@ -1126,13 +1136,17 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
 
                 <div class="arge-step-content" data-arge-step="4">
                     <h2>Ausführen (Online oder PowerShell)</h2>
-                    <div class="alert alert-info" style="margin-bottom:16px;">
-                        <strong>Online (ohne CMD):</strong> Einmalig eine <strong>Entra-App-Registrierung</strong> (Multimandanten) + <code>clientId</code> in <code>ms365-config.js</code> – siehe Kommentar in <code>ms365-config.example.js</code>. Schul-Admins legen <strong>keine</strong> eigene App an; sie öffnen nur diese Seite und melden sich an. Benötigt werden delegierte Graph-Berechtigungen <code>Group.ReadWrite.All</code> und <code>User.Read.All</code> (Administratorzustimmung im Mandanten).
-                    </div>
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
-                        <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
-                        <p style="color:#495057;margin-bottom:12px;">Zuerst <strong>clientId</strong> in <code>ms365-config.js</code> eintragen. Dann anmelden (Popup) und ausführen. Tab während der Laufzeit offen lassen.</p>
-                        <p style="color:#6c757d;font-size:0.95em;margin-bottom:12px;">Die Online-Variante entspricht dem Graph-Teil des PowerShell-Skripts (M365-Gruppe, Besitzer, optional Teams). <strong>Exchange</strong> (<code>Set-UnifiedGroup</code>) nur über PowerShell/CMD unten.</p>
+                        <h3 style="margin-top:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            Microsoft Graph im Browser
+                            <span
+                                tabindex="0"
+                                role="note"
+                                aria-label="Hinweis zur Online-Nutzung"
+                                title="Einmalig: Entra-App-Registrierung (Multimandanten) und clientId in ms365-config.js (siehe ms365-config.example.js). Schul-Admins legen keine eigene App an. Delegierte Berechtigungen: Group.ReadWrite.All, User.Read.All, User.Read — Administratorzustimmung im Mandanten. Anmeldung per Popup; Tab während der Laufzeit offen lassen. Entspricht dem Graph-Teil des PowerShell-Skripts (M365-Gruppe, Besitzer, optional Teams). Exchange (Set-UnifiedGroup) nur über PowerShell/CMD unten."
+                                style="cursor:help;font-weight:normal;font-size:1.1em;line-height:1;color:#5e72e4;user-select:none;"
+                            >ⓘ</span>
+                        </h3>
                         <button type="button" class="btn" id="argeOnlineLogin" onclick="window.ms365ArgeGraphLogin && window.ms365ArgeGraphLogin()">Bei Microsoft anmelden</button>
                         <button type="button" class="btn btn-success" id="argeOnlineRun" onclick="window.ms365ArgeGraphRun && window.ms365ArgeGraphRun()" style="margin-left:8px;">ARGE Gruppen jetzt anlegen</button>
                         <div id="argeOnlineLog" style="margin-top:14px;max-height:220px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
