@@ -15,13 +15,13 @@ Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal
 ### Modus A: Kursteams (WebUntis)
 
 1. WebUntis-Fächerliste exportieren und durch die Schritte in der App führen.
-2. `neueteams.csv` herunterladen und das angezeigte PowerShell-Skript ausführen (Microsoft Teams PowerShell, `New-Team` mit Vorlage `EDU_Class`).
+2. Entweder `neueteams.csv` + kurzes Skript aus der Anleitung **oder** das Paket **Kursteam-Anlage.ps1** und **Kursteam-Anlage.cmd** herunterladen, beide in denselben Ordner legen und die **CMD** per Doppelklick starten (Anmeldung interaktiv für MFA oder optional per `Get-Credential`).
 
 ### Modus B: Jahrgangsgruppen (Microsoft 365-Gruppen)
 
 1. Domain und Präfix (z. B. `jg`) einstellen; Klassenzeilen im Format `1AK;2030` (Klasse;Abschlussjahr) eintragen.
 2. Besitzer-UPNs pro Klasse eintragen.
-3. Das generierte **Microsoft Graph PowerShell**-Skript kopieren (`New-MgGroup` mit `GroupTypes = Unified`, `New-MgGroupOwner` – **kein** Kursteam, keine Teams-Erziehungsvorlage).
+3. Das generierte **Microsoft Graph PowerShell**-Skript kopieren **oder** **Jahrgangsgruppen-Anlage.ps1** + **.cmd** herunterladen und die CMD starten (interaktive Graph-Anmeldung, MFA möglich).
 
 Dokumentation: [New-MgGroup](https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup), [Gruppe erstellen (Graph)](https://learn.microsoft.com/graph/api/group-post-groups).
 

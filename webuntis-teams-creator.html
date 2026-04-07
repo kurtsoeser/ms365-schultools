@@ -807,6 +807,12 @@ foreach ($Team in $TeamsList) {
 }</pre>
                 </div>
 
+                <div class="filter-section">
+                    <h3>Fertiges Paket zum Doppelklicken</h3>
+                    <p style="color:#495057;margin-bottom:12px;">Lädt <strong>Kursteam-Anlage.ps1</strong> (alle Teams eingebettet + Anmeldeauswahl) und <strong>Kursteam-Anlage.cmd</strong>. Beide Dateien in <strong>denselben Ordner</strong> legen, dann die <strong>.cmd</strong> doppelklicken. Es erscheint eine Abfrage: interaktive Anmeldung (MFA möglich) oder Benutzername/Passwort.</p>
+                    <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()">📦 Kursteam-Anlage.ps1 + .cmd herunterladen</button>
+                </div>
+
                 <div class="alert alert-info">
                     <strong>ℹ️ Hinweise:</strong><br>
                     • Das Erstellen vieler Teams kann mehrere Stunden dauern<br>
@@ -911,6 +917,11 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
                     <div class="powershell-code">
                         <button type="button" class="btn btn-small copy-btn" id="jgCopyScript">📋 Kopieren</button>
                         <pre id="jgPowerShellScript"></pre>
+                    </div>
+                    <div class="filter-section">
+                        <h3>Fertiges Paket zum Doppelklicken</h3>
+                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>Jahrgangsgruppen-Anlage.ps1</strong> und <strong>Jahrgangsgruppen-Anlage.cmd</strong>. Beide in einen Ordner, <strong>.cmd</strong> starten. Anmeldung erfolgt über <strong>Microsoft Graph</strong> (Browser/Gerätecode, MFA möglich).</p>
+                        <button type="button" class="btn btn-success" onclick="downloadJahrgangStandalonePackage()">📦 Jahrgangsgruppen-Anlage.ps1 + .cmd herunterladen</button>
                     </div>
                     <button type="button" class="btn" id="jgBack3">← Zurück</button>
                 </div>

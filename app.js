@@ -824,6 +824,129 @@
         });
     }
 
+    function psEscapeSingle(s) {
+        return String(s ?? '').replace(/'/g, "''");
+    }
+
+    function downloadBlob(filename, text, mime) {
+        const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    function buildStandaloneKursteamPs1(validTeams) {
+        const stamp = new Date().toISOString();
+        const rows = validTeams.map(t =>
+            "    [PSCustomObject]@{ TeamName = '" +
+                psEscapeSingle(t.teamName) +
+                "'; Gruppenmail = '" +
+                psEscapeSingle(t.gruppenmail) +
+                "'; Besitzer = '" +
+                psEscapeSingle(t.besitzer) +
+                "' }"
+        );
+        const loginBlock = [
+            'Write-Host ""',
+            'Write-Host "=== Anmeldung bei Microsoft Teams / Microsoft 365 ===" -ForegroundColor Cyan',
+            'Write-Host "Konten mit MFA: bitte Option A waehlen (Browser-Anmeldung)." -ForegroundColor Yellow',
+            'Write-Host ""',
+            'Write-Host " [A] Interaktive Anmeldung (empfohlen, MFA moeglich)"',
+            'Write-Host " [B] Benutzername + Passwort (Get-Credential) – oft nur ohne MFA zuverlaessig"',
+            'Write-Host ""',
+            '$loginChoice = Read-Host "Auswahl eingeben (A oder B, Standard A)"',
+            'if ($loginChoice -eq "B" -or $loginChoice -eq "b") {',
+            '    $script:Ms365Cred = Get-Credential -Message "Microsoft 365 / Teams Administrator"',
+            '    if ($null -eq $script:Ms365Cred) { Write-Error "Anmeldung abgebrochen."; exit 1 }',
+            '    Connect-MicrosoftTeams -Credential $script:Ms365Cred',
+            '} else {',
+            '    Connect-MicrosoftTeams',
+            '}',
+            ''
+        ].join('\r\n');
+
+        const lines = [];
+        lines.push('#Requires -Version 5.1');
+        lines.push('# Kursteam-Anlage (Microsoft Teams, Vorlage EDU_Class)');
+        lines.push('# Erzeugt in der Browser-App am ' + stamp);
+        lines.push('# Daten sind unten eingebettet – keine separate CSV noetig.');
+        lines.push('');
+        lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
+        lines.push('$ErrorActionPreference = "Continue"');
+        lines.push('');
+        lines.push('Write-Host ""');
+        lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
+        lines.push('Write-Host "  Kursteam-Erstellung (EDU_Class)"      -ForegroundColor Cyan');
+        lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
+        lines.push('Write-Host ""');
+        lines.push('');
+        lines.push('if (-not (Get-Module -ListAvailable -Name MicrosoftTeams)) {');
+        lines.push('    Write-Host "Installiere Modul MicrosoftTeams (einmalig)..." -ForegroundColor Yellow');
+        lines.push('    Install-Module MicrosoftTeams -Scope CurrentUser -Force');
+        lines.push('}');
+        lines.push('Import-Module MicrosoftTeams -ErrorAction Stop');
+        lines.push('');
+        lines.push(loginBlock);
+        lines.push('$TeamsList = @(');
+        lines.push(rows.join(',\r\n'));
+        lines.push(')');
+        lines.push('');
+        lines.push('$i = 0');
+        lines.push('foreach ($Team in $TeamsList) {');
+        lines.push('    $i++');
+        lines.push('    try {');
+        lines.push('        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop');
+        lines.push('        Write-Host ("OK [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) -ForegroundColor Green');
+        lines.push('    }');
+        lines.push('    catch {');
+        lines.push('        Write-Warning ("Fehler [{0}] {1}: {2}" -f $i, $Team.Gruppenmail, $_.Exception.Message)');
+        lines.push('    }');
+        lines.push('    Start-Sleep -Seconds 2');
+        lines.push('}');
+        lines.push('');
+        lines.push('Write-Host ""');
+        lines.push('Write-Host "Fertig. Fenster schliesst nicht automatisch." -ForegroundColor Cyan');
+        lines.push('Read-Host "Enter druecken zum Beenden"');
+        return lines.join('\r\n');
+    }
+
+    function buildKursteamCmdContent() {
+        return [
+            '@echo off',
+            'chcp 65001 >nul',
+            'title Kursteam-Anlage',
+            'cd /d "%~dp0"',
+            'echo.',
+            'echo Starte Kursteam-Anlage (PowerShell)...',
+            'echo.',
+            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Kursteam-Anlage.ps1"',
+            'set ERR=%ERRORLEVEL%',
+            'if not "%ERR%"=="0" (',
+            '  echo.',
+            '  echo Fehlercode: %ERR%',
+            ')',
+            'echo.',
+            'pause',
+            ''
+        ].join('\r\n');
+    }
+
+    function downloadKursteamStandalonePackage() {
+        const validTeams = teamsData.filter(t => t.isValid);
+        if (!validTeams.length) {
+            showToast('Keine gültigen Teams – zuerst Team-Namen generieren.');
+            return;
+        }
+        const ps1 = buildStandaloneKursteamPs1(validTeams);
+        downloadBlob('Kursteam-Anlage.ps1', ps1);
+        setTimeout(() => {
+            downloadBlob('Kursteam-Anlage.cmd', buildKursteamCmdContent());
+            showToast('Dateien: Kursteam-Anlage.ps1 + .cmd – beide in einen Ordner, dann .cmd doppelklicken.');
+        }, 500);
+    }
+
     function resetApp() {
         confirmModal('App zurücksetzen', 'Alle Daten in dieser Sitzung wirklich verwerfen? (Lokaler Zwischenstand bleibt, bis Sie ihn löschen.)', () => {
             location.reload();
@@ -857,5 +980,6 @@
     window.toggleTeacherMapping = toggleTeacherMapping;
     window.clearTeacherMapping = clearTeacherMapping;
     window.addTeacherMapping = addTeacherMapping;
+    window.downloadKursteamStandalonePackage = downloadKursteamStandalonePackage;
 })();
 

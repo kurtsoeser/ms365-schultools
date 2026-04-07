@@ -230,16 +230,57 @@
     }
 
     function buildPowerShellScript() {
+        return buildStandaloneJahrgangPs1(false);
+    }
+
+    function downloadBlob(filename, text, mime) {
+        const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    function buildStandaloneJahrgangPs1(standalone) {
         const domain = getDomain();
+        const stamp = new Date().toISOString();
         const lines = [];
-        lines.push('# Microsoft Graph: Jahrgangsgruppen als Microsoft 365-Gruppen (Unified Group, kein Kursteam)');
-        lines.push('# Voraussetzung: Install-Module Microsoft.Graph');
-        lines.push('# https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup');
-        lines.push('');
-        lines.push("Install-Module Microsoft.Graph -Scope CurrentUser -ErrorAction SilentlyContinue");
-        lines.push("Import-Module Microsoft.Graph -ErrorAction Stop");
-        lines.push('Connect-MgGraph -Scopes "Group.ReadWrite.All","User.Read.All"');
-        lines.push('');
+        if (standalone) {
+            lines.push('#Requires -Version 5.1');
+            lines.push('# Jahrgangsgruppen (Microsoft 365 Unified Groups, kein Kursteam)');
+            lines.push('# Erzeugt in der Browser-App am ' + stamp);
+            lines.push('# Daten sind unten eingebettet.');
+            lines.push('');
+            lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
+            lines.push('$ErrorActionPreference = "Continue"');
+            lines.push('');
+            lines.push('Write-Host ""');
+            lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
+            lines.push('Write-Host "  Jahrgangsgruppen (Microsoft Graph)"   -ForegroundColor Cyan');
+            lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
+            lines.push('Write-Host ""');
+            lines.push('');
+            lines.push('if (-not (Get-Module -ListAvailable -Name Microsoft.Graph)) {');
+            lines.push('    Write-Host "Installiere Microsoft.Graph (einmalig)..." -ForegroundColor Yellow');
+            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force');
+            lines.push('}');
+            lines.push('Import-Module Microsoft.Graph -ErrorAction Stop');
+            lines.push('');
+            lines.push('Write-Host "Anmeldung bei Microsoft Graph (interaktiv, MFA moeglich)..." -ForegroundColor Yellow');
+            lines.push('Write-Host "Es oeffnet sich ein Browser- oder Anmeldedialog." -ForegroundColor Gray');
+            lines.push('Connect-MgGraph -Scopes "Group.ReadWrite.All","User.Read.All"');
+            lines.push('');
+        } else {
+            lines.push('# Microsoft Graph: Jahrgangsgruppen als Microsoft 365-Gruppen (Unified Group, kein Kursteam)');
+            lines.push('# Voraussetzung: Install-Module Microsoft.Graph');
+            lines.push('# https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup');
+            lines.push('');
+            lines.push("Install-Module Microsoft.Graph -Scope CurrentUser -ErrorAction SilentlyContinue");
+            lines.push("Import-Module Microsoft.Graph -ErrorAction Stop");
+            lines.push('Connect-MgGraph -Scopes "Group.ReadWrite.All","User.Read.All"');
+            lines.push('');
+        }
         lines.push('$rows = @(');
         jgRows.forEach((r, i) => {
             const last = i === jgRows.length - 1;
@@ -284,8 +325,55 @@
         lines.push('}');
         lines.push('');
         lines.push('# Gruppen-E-Mail: <MailNickname>@' + psEscapeSingle(domain));
+        if (standalone) {
+            lines.push('');
+            lines.push('Write-Host ""');
+            lines.push('Write-Host "Fertig." -ForegroundColor Cyan');
+            lines.push('Read-Host "Enter druecken zum Beenden"');
+        }
         return lines.join('\r\n');
     }
+
+    function buildJahrgangCmdContent() {
+        return [
+            '@echo off',
+            'chcp 65001 >nul',
+            'title Jahrgangsgruppen-Anlage',
+            'cd /d "%~dp0"',
+            'echo.',
+            'echo Starte Jahrgangsgruppen-Anlage (Microsoft Graph)...',
+            'echo.',
+            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Jahrgangsgruppen-Anlage.ps1"',
+            'set ERR=%ERRORLEVEL%',
+            'if not "%ERR%"=="0" (',
+            '  echo.',
+            '  echo Fehlercode: %ERR%',
+            ')',
+            'echo.',
+            'pause',
+            ''
+        ].join('\r\n');
+    }
+
+    function downloadJahrgangStandalonePackage() {
+        if (!jgRows.length) {
+            showToast('Keine Klassen – zuerst Schritt 2 und 3 abschließen.');
+            return;
+        }
+        const missing = jgRows.filter(r => !r.owner);
+        if (missing.length) {
+            showToast('Bitte für alle Klassen einen Besitzer eintragen.');
+            return;
+        }
+        const ps1 = buildStandaloneJahrgangPs1(true);
+        downloadBlob('Jahrgangsgruppen-Anlage.ps1', ps1);
+        setTimeout(() => {
+            downloadBlob('Jahrgangsgruppen-Anlage.cmd', buildJahrgangCmdContent());
+            showToast('Dateien: Jahrgangsgruppen-Anlage.ps1 + .cmd heruntergeladen.');
+        }, 500);
+    }
+
+    window.downloadJahrgangStandalonePackage = downloadJahrgangStandalonePackage;
 
     updatePrefixExample();
 
