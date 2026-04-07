@@ -340,6 +340,122 @@
             border: 1px solid #5e72e4;
             border-radius: 4px;
         }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.12);
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .toolbar .btn {
+            margin: 0;
+            font-size: 0.9em;
+            padding: 8px 16px;
+        }
+
+        .privacy-note {
+            font-size: 0.85em;
+            opacity: 0.95;
+            max-width: 720px;
+            margin: 12px auto 0;
+            line-height: 1.45;
+        }
+
+        .steps {
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .step {
+            flex: 1 1 auto;
+            min-width: 120px;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.35em; }
+            .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
+            .content { padding: 16px; }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            max-width: 480px;
+            width: 100%;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+
+        .modal-box h3 {
+            margin-bottom: 16px;
+            color: #32325d;
+        }
+
+        .modal-box label {
+            display: block;
+            font-weight: 600;
+            margin: 12px 0 6px;
+            color: #495057;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #32325d;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1001;
+            display: none;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show { display: block; }
+
+        a:focus, button:focus, .step:focus, .upload-area:focus {
+            outline: 2px solid #5e72e4;
+            outline-offset: 2px;
+        }
     </style>
 </head>
 <body>
@@ -347,6 +463,12 @@
         <div class="header">
             <h1>📚 WebUntis zu Microsoft Teams Creator</h1>
             <p>Automatisierte Erstellung von Microsoft Teams aus WebUntis-Daten</p>
+            <p class="privacy-note">Datenschutz: Es gibt keinen Server. Importierte Dateien und Einstellungen werden nur in diesem Browser verarbeitet; optional kann ein Zwischenstand lokal auf Ihrem Gerät gespeichert werden.</p>
+            <div class="toolbar">
+                <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern">💾 Zwischenstand speichern</button>
+                <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden">📂 Gespeicherten Stand laden</button>
+                <button type="button" class="btn btn-danger" id="btnClearStorage" title="Lokalen Zwischenstand löschen">🗑️ Lokalen Speicher löschen</button>
+            </div>
         </div>
 
         <div class="steps">
@@ -586,6 +708,10 @@
                             <div class="stat-label">Fehlerhafte Teams</div>
                             <div class="stat-value" id="invalidTeams">0</div>
                         </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                            <div class="stat-label">Gruppenmail angepasst (Duplikate)</div>
+                            <div class="stat-value" id="duplicateMailAdjustments">0</div>
+                        </div>
                     </div>
                 </div>
 
@@ -612,8 +738,12 @@
             <div class="step-content" data-step="4">
                 <h2>Schritt 4: CSV-Datei exportieren</h2>
 
-                <div class="alert alert-success">
-                    <strong>✅ Bereit zum Export!</strong> Die CSV-Datei wird mit Komma (,) als Trennzeichen erstellt.
+                <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
+                    <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
+                </div>
+
+                <div class="alert alert-success" id="step4ReadyHint">
+                    <strong>✅ Bereit zum Export!</strong> Die CSV-Datei wird mit Komma (,) als Trennzeichen erstellt; Felder mit Komma werden korrekt in Anführungszeichen gesetzt.
                 </div>
 
                 <div class="stats">
@@ -630,7 +760,7 @@
                     </div>
                 </div>
 
-                <button class="btn btn-success" onclick="downloadCSV()">📥 neueteams.csv herunterladen</button>
+                <button class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv">📥 neueteams.csv herunterladen</button>
                 <button class="btn" onclick="goToStep(5)">Weiter zu PowerShell-Anleitung →</button>
             </div>
 
@@ -645,20 +775,27 @@
                 <h3>PowerShell-Script:</h3>
                 <div class="powershell-code">
                     <button class="btn btn-small copy-btn" onclick="copyPowerShell()">📋 Kopieren</button>
-                    <pre id="powershellScript">$TeamsList = Import-CSV .\neueteams.csv
+                    <pre id="powershellScript">$TeamsList = Import-Csv -Path .\neueteams.csv -Encoding UTF8
 Connect-MicrosoftTeams
 
-Foreach ($Team in $TeamsList) 
-{
-    #Teams erstellen und Besitzer angeben
-    $Group = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer
+$i = 0
+foreach ($Team in $TeamsList) {
+    $i++
+    try {
+        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop
+        Write-Host "OK [$i/$($TeamsList.Count)] $($Team.Gruppenmail)"
+    }
+    catch {
+        Write-Warning "Fehler [$i] $($Team.Gruppenmail): $($_.Exception.Message)"
+    }
+    Start-Sleep -Seconds 2
 }</pre>
                 </div>
 
                 <div class="alert alert-info">
                     <strong>ℹ️ Hinweise:</strong><br>
-                    • Das Erstellen dauert mehrere Stunden<br>
-                    • Nur Fehler werden in PowerShell ausgegeben<br>
+                    • Das Erstellen vieler Teams kann mehrere Stunden dauern<br>
+                    • Das Script gibt pro Team eine Zeile aus (OK oder Warnung bei Fehler); <code>Start-Sleep</code> entlastet Microsoft 365<br>
                     • Fortschritt kann im Microsoft 365 Admin Center verfolgt werden<br>
                     • Teams haben standardmäßig 5 Jahre (1825 Tage) Ablaufdatum
                 </div>
@@ -680,654 +817,19 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
         </div>
     </div>
 
+    <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-box">
+            <h3 id="modalTitle">Dialog</h3>
+            <div id="modalBody"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn" id="modalCancel">Abbrechen</button>
+                <button type="button" class="btn btn-success" id="modalOk">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script>
-        let rawData = [];
-        let filteredData = [];
-        let teamsData = [];
-        let currentStep = 1;
-        let teacherEmailMapping = {}; // Stores teacher code -> email mapping
-
-        // Upload Area Setup
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-
-        uploadArea.addEventListener('click', () => fileInput.click());
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-        });
-
-        // Teacher File Upload Setup
-        const teacherUploadArea = document.getElementById('teacherUploadArea');
-        const teacherFileInput = document.getElementById('teacherFileInput');
-
-        teacherUploadArea.addEventListener('click', () => teacherFileInput.click());
-        teacherUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            teacherUploadArea.classList.add('dragover');
-        });
-        teacherUploadArea.addEventListener('dragleave', () => {
-            teacherUploadArea.classList.remove('dragover');
-        });
-        teacherUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            teacherUploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleTeacherFile(files[0]);
-            }
-        });
-
-        teacherFileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleTeacherFile(e.target.files[0]);
-            }
-        });
-
-        function handleFile(file) {
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                    
-                    processImportedData(jsonData);
-                } catch (error) {
-                    alert('Fehler beim Lesen der Datei: ' + error.message);
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        function handleTeacherFile(file) {
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                    
-                    processTeacherMapping(jsonData);
-                } catch (error) {
-                    alert('Fehler beim Lesen der Lehrer-Datei: ' + error.message);
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        function processTeacherMapping(data) {
-            teacherEmailMapping = {};
-            
-            data.forEach(row => {
-                const kuerzel = (row.Kürzel || row.Kuerzel || row.kuerzel || row.Code || row.code || row.Lehrer || '').toString().trim().toUpperCase();
-                const email = (row['E-Mail'] || row.Email || row.email || row.Mail || row.mail || '').toString().trim().toLowerCase();
-                
-                if (kuerzel && email) {
-                    teacherEmailMapping[kuerzel] = email;
-                }
-            });
-
-            document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
-            document.getElementById('teacherMappingInfo').style.display = 'block';
-            
-            // Update stats if we're on step 2.5
-            if (currentStep === 2.5) {
-                updateTeacherStats();
-            } else {
-                displayTeacherMappingTable();
-            }
-        }
-
-        function displayTeacherMappingTable() {
-            const tbody = document.getElementById('teacherMappingBody');
-            tbody.innerHTML = '';
-
-            Object.entries(teacherEmailMapping).forEach(([kuerzel, email]) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${kuerzel}</strong></td>
-                    <td>${email}</td>
-                    <td>-</td>
-                    <td>
-                        <button class="btn btn-small btn-danger" onclick="removeTeacherMapping('${kuerzel}')">❌</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function displayTeacherMappingTableWithUsage(requiredTeachers) {
-            const tbody = document.getElementById('teacherMappingBody');
-            tbody.innerHTML = '';
-
-            Object.entries(teacherEmailMapping).forEach(([kuerzel, email]) => {
-                const isUsed = requiredTeachers.includes(kuerzel);
-                const usageIndicator = isUsed 
-                    ? '<span style="color: #28a745;">✓ Wird verwendet</span>' 
-                    : '<span style="color: #6c757d;">Nicht benötigt</span>';
-                
-                const tr = document.createElement('tr');
-                if (!isUsed) {
-                    tr.style.opacity = '0.6';
-                }
-                
-                tr.innerHTML = `
-                    <td><strong>${kuerzel}</strong></td>
-                    <td>${email}</td>
-                    <td>${usageIndicator}</td>
-                    <td>
-                        <button class="btn btn-small btn-danger" onclick="removeTeacherMapping('${kuerzel}')">❌</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function toggleTeacherMapping() {
-            const table = document.getElementById('teacherMappingTable');
-            table.style.display = table.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function clearTeacherMapping() {
-            if (confirm('Alle Lehrer-Zuordnungen wirklich löschen?')) {
-                teacherEmailMapping = {};
-                document.getElementById('teacherMappingInfo').style.display = 'none';
-                document.getElementById('teacherMappingTable').style.display = 'none';
-                
-                if (currentStep === 2.5) {
-                    updateTeacherStats();
-                }
-            }
-        }
-
-        function removeTeacherMapping(kuerzel) {
-            delete teacherEmailMapping[kuerzel];
-            document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
-            
-            if (currentStep === 2.5) {
-                updateTeacherStats();
-            } else {
-                displayTeacherMappingTable();
-            }
-            
-            if (Object.keys(teacherEmailMapping).length === 0) {
-                document.getElementById('teacherMappingInfo').style.display = 'none';
-                document.getElementById('teacherMappingTable').style.display = 'none';
-            }
-        }
-
-        function addTeacherMapping() {
-            const kuerzel = prompt('Lehrer-Kürzel:');
-            if (!kuerzel) return;
-            
-            const email = prompt('E-Mail-Adresse:');
-            
-            if (kuerzel && email) {
-                teacherEmailMapping[kuerzel.trim().toUpperCase()] = email.trim().toLowerCase();
-                document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
-                document.getElementById('teacherMappingInfo').style.display = 'block';
-                
-                if (currentStep === 2.5) {
-                    updateTeacherStats();
-                } else {
-                    displayTeacherMappingTable();
-                }
-            }
-        }
-
-        function processImportedData(data) {
-            rawData = data.map((row, index) => ({
-                id: index,
-                klasse: row['Klasse(n)'] || row.Klasse || row.klasse || row.Class || '',
-                fach: row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '',
-                lehrer: row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '',
-                gruppe: row['Schülergruppe'] || row.Schülergruppe || row.Gruppe || row.gruppe || row.Group || '',
-                original: row
-            }));
-
-            filteredData = [...rawData];
-
-            // Update Stats
-            document.getElementById('totalRecords').textContent = rawData.length;
-            document.getElementById('uniqueSubjects').textContent = new Set(rawData.map(r => r.fach).filter(f => f)).size;
-            document.getElementById('uniqueTeachers').textContent = new Set(rawData.map(r => r.lehrer).filter(l => l)).size;
-
-            document.getElementById('importStats').style.display = 'block';
-        }
-
-        function applyFilters() {
-            const excludeSubjects = document.getElementById('excludeSubjects').value
-                .split(',')
-                .map(s => s.trim().toUpperCase())
-                .filter(s => s.length > 0);
-            
-            const removeDuplicates = document.getElementById('removeDuplicates').checked;
-
-            // Filter: Nur Einträge mit Klasse, Fach und Lehrer, und ausgeschlossene Fächer entfernen
-            let filtered = rawData.filter(row => {
-                // Muss Lehrer und Fach haben
-                if (!row.fach || !row.lehrer) {
-                    return false;
-                }
-                
-                const fach = row.fach.toUpperCase().trim();
-                
-                // Ausgeschlossene Fächer entfernen
-                if (excludeSubjects.includes(fach)) {
-                    return false;
-                }
-                
-                // Nur Einträge mit Klasse behalten (kann mehrere Klassen sein)
-                if (!row.klasse || row.klasse.trim() === '') {
-                    return false;
-                }
-                
-                return true;
-            });
-
-            const originalCount = filtered.length;
-            const removedByFilter = rawData.length - originalCount;
-
-            if (removeDuplicates) {
-                const seen = new Set();
-                filtered = filtered.filter(row => {
-                    const key = `${row.klasse}-${row.fach}-${row.lehrer}-${row.gruppe}`;
-                    if (seen.has(key)) {
-                        return false;
-                    }
-                    seen.add(key);
-                    return true;
-                });
-            }
-
-            filteredData = filtered;
-
-            document.getElementById('filteredRecords').textContent = filtered.length;
-            document.getElementById('removedDuplicates').textContent = removedByFilter + (originalCount - filtered.length);
-            document.getElementById('filterStats').style.display = 'block';
-
-            displayFilteredData();
-        }
-
-        function displayFilteredData() {
-            const tbody = document.getElementById('dataTableBody');
-            tbody.innerHTML = '';
-
-            filteredData.forEach((row, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <button class="btn btn-small btn-danger" onclick="removeRow(${index})">❌</button>
-                    </td>
-                    <td>${row.klasse}</td>
-                    <td>${row.fach}</td>
-                    <td>${row.lehrer}</td>
-                    <td>${row.gruppe || '-'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('dataTableContainer').style.display = 'block';
-            document.getElementById('continueBtn2').style.display = 'inline-block';
-        }
-
-        function removeRow(index) {
-            filteredData.splice(index, 1);
-            displayFilteredData();
-            document.getElementById('filteredRecords').textContent = filteredData.length;
-        }
-
-        function resetFilters() {
-            filteredData = [...rawData];
-            document.getElementById('excludeSubjects').value = 'ORD,DIR,KV';
-            document.getElementById('removeDuplicates').checked = true;
-            applyFilters();
-        }
-
-        function generateTeamNames() {
-            const yearPrefix = document.getElementById('yearPrefix').value;
-            const emailDomain = document.getElementById('emailDomain').value;
-            const separator = document.getElementById('teamSeparator').value;
-
-            const invalidChars = /[\\%&*+\/=?{}|<>();:,\[\]"öäü]/g;
-
-            teamsData = filteredData.map(row => {
-                // Bei mehreren Klassen kombinieren: 4AK,4BK,4CK -> 4ABCK
-                let klasseForName = row.klasse;
-                if (row.klasse.includes(',')) {
-                    klasseForName = combineClassNames(row.klasse);
-                }
-                
-                const teamName = `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
-                
-                // Gruppenmail erstellen
-                let gruppenmail = `${yearPrefix}-${klasseForName}-${row.fach}`;
-                if (row.gruppe && row.gruppe.trim() !== '') {
-                    // Wenn Schülergruppe vorhanden, diese als Suffix verwenden
-                    const gruppeClean = row.gruppe.replace(/[_\s]+/g, '-');
-                    gruppenmail = gruppeClean.replace(/^[^_]+_/, ''); // Entferne Prefix bis zum ersten _
-                }
-                
-                // Entferne Leerzeichen und ungültige Zeichen
-                gruppenmail = gruppenmail.replace(/\s+/g, '-');
-                const originalGruppenmail = gruppenmail;
-                gruppenmail = gruppenmail.replace(invalidChars, '');
-                
-                // Lehrer-Email erstellen - prüfe zuerst Mapping
-                let besitzer = '';
-                const lehrerCode = row.lehrer.toUpperCase().trim();
-                
-                if (teacherEmailMapping[lehrerCode]) {
-                    // Verwende Email aus Mapping
-                    besitzer = teacherEmailMapping[lehrerCode];
-                } else {
-                    // Fallback: Generiere Email aus Kürzel
-                    besitzer = row.lehrer.toLowerCase().trim().replace(/\s+/g, '.');
-                    besitzer = besitzer.replace(invalidChars, '');
-                    if (!besitzer.includes('@')) {
-                        besitzer += emailDomain;
-                    }
-                }
-
-                const hasInvalidChars = invalidChars.test(originalGruppenmail);
-                const isValid = !hasInvalidChars && teamName && gruppenmail && besitzer && gruppenmail.length > 0;
-                
-                const mappingUsed = teacherEmailMapping[lehrerCode] ? true : false;
-
-                return {
-                    teamName,
-                    gruppenmail,
-                    besitzer,
-                    isValid,
-                    error: hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : (!isValid ? 'Unvollständige Daten' : null),
-                    originalClass: row.klasse,
-                    gruppe: row.gruppe,
-                    mappingUsed: mappingUsed,
-                    lehrerCode: lehrerCode
-                };
-            });
-
-            displayTeamsData();
-        }
-
-        function combineClassNames(classString) {
-            // Wandelt "4AK,4BK,4CK" in "4ABCK" um
-            const classes = classString.split(',').map(c => c.trim());
-            
-            if (classes.length === 0) return classString;
-            
-            // Extrahiere Zahl (Jahrgang) vom ersten Eintrag
-            const firstClass = classes[0];
-            const jahrgang = firstClass.match(/^\d+/);
-            
-            if (!jahrgang) return classString;
-            
-            // Sammle alle Buchstaben-Kürzel
-            const buchstaben = classes.map(c => {
-                const match = c.match(/\d+([A-Z]+)/);
-                return match ? match[1] : '';
-            }).filter(b => b.length > 0);
-            
-            // Entferne doppelte Buchstaben und kombiniere
-            const uniqueBuchstaben = [...new Set(buchstaben.join('').split(''))].join('');
-            
-            return jahrgang[0] + uniqueBuchstaben;
-        }
-
-        function displayTeamsData() {
-            const tbody = document.getElementById('teamsTableBody');
-            tbody.innerHTML = '';
-
-            const validCount = teamsData.filter(t => t.isValid).length;
-            const invalidCount = teamsData.length - validCount;
-            const mappedCount = teamsData.filter(t => t.mappingUsed).length;
-
-            teamsData.forEach((team, index) => {
-                const tr = document.createElement('tr');
-                if (!team.isValid) {
-                    tr.classList.add('error-row');
-                }
-
-                const klassInfo = team.originalClass && team.originalClass.includes(',') 
-                    ? `<small style="color: #6c757d;">(Original: ${team.originalClass})</small>` 
-                    : '';
-                
-                const gruppeInfo = team.gruppe 
-                    ? `<br><small style="color: #6c757d;">Gruppe: ${team.gruppe}</small>` 
-                    : '';
-                
-                const mappingInfo = team.mappingUsed 
-                    ? `<small style="color: #28a745;">✓ Mapping</small>` 
-                    : `<small style="color: #ffc107;">⚠ Generiert (${team.lehrerCode})</small>`;
-
-                tr.innerHTML = `
-                    <td>${team.teamName}${klassInfo}</td>
-                    <td>${team.gruppenmail}${gruppeInfo}</td>
-                    <td>${team.besitzer}<br>${mappingInfo}</td>
-                    <td>${team.isValid ? '✅' : '❌ ' + (team.error || 'Fehler')}</td>
-                    <td>
-                        <button class="btn btn-small" onclick="editTeam(${index})">✏️</button>
-                        <button class="btn btn-small btn-danger" onclick="deleteTeam(${index})">🗑️</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('validTeams').textContent = validCount;
-            document.getElementById('invalidTeams').textContent = invalidCount;
-            
-            // Zeige Warnung wenn nicht alle Lehrer gemappt sind
-            if (mappedCount < teamsData.length) {
-                const unmappedCount = teamsData.length - mappedCount;
-                const existingWarning = document.getElementById('mappingWarning');
-                if (existingWarning) existingWarning.remove();
-                
-                const warning = document.createElement('div');
-                warning.id = 'mappingWarning';
-                warning.className = 'alert alert-warning';
-                warning.innerHTML = `<strong>⚠️ Achtung:</strong> ${unmappedCount} Lehrer haben keine E-Mail-Zuordnung. Die E-Mail-Adressen wurden automatisch generiert.`;
-                document.getElementById('validationResults').appendChild(warning);
-            }
-            
-            document.getElementById('validationResults').style.display = 'block';
-            document.getElementById('teamsTableContainer').style.display = 'block';
-            document.getElementById('continueBtn3').style.display = 'inline-block';
-        }
-
-        function editTeam(index) {
-            const team = teamsData[index];
-            const newName = prompt('Team-Name:', team.teamName);
-            const newMail = prompt('Gruppenmail:', team.gruppenmail);
-            const newOwner = prompt('Besitzer:', team.besitzer);
-
-            if (newName && newMail && newOwner) {
-                teamsData[index] = {
-                    teamName: newName,
-                    gruppenmail: newMail,
-                    besitzer: newOwner,
-                    isValid: true,
-                    error: null
-                };
-                displayTeamsData();
-            }
-        }
-
-        function deleteTeam(index) {
-            if (confirm('Team wirklich löschen?')) {
-                teamsData.splice(index, 1);
-                displayTeamsData();
-            }
-        }
-
-        function goToStep(step) {
-            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-            
-            document.querySelector(`.step-content[data-step="${step}"]`).classList.add('active');
-            document.querySelector(`.step[data-step="${step}"]`).classList.add('active');
-
-            // Mark previous steps as completed
-            const stepOrder = [1, 2, 2.5, 3, 4, 5];
-            const currentIndex = stepOrder.indexOf(step);
-            
-            for (let i = 0; i < currentIndex; i++) {
-                document.querySelector(`.step[data-step="${stepOrder[i]}"]`).classList.add('completed');
-            }
-
-            currentStep = step;
-
-            if (step === 2.5) {
-                updateTeacherStats();
-            }
-
-            if (step === 4) {
-                prepareCSVExport();
-            }
-        }
-
-        function updateTeacherStats() {
-            // Get unique teachers from filtered data
-            const uniqueTeachers = new Set(filteredData.map(row => row.lehrer.toUpperCase().trim()));
-            const teachersArray = Array.from(uniqueTeachers);
-            
-            const mappedCount = teachersArray.filter(t => teacherEmailMapping[t]).length;
-            const unmappedCount = teachersArray.length - mappedCount;
-            
-            document.getElementById('uniqueTeachersNeeded').textContent = teachersArray.length;
-            document.getElementById('mappedTeachers').textContent = mappedCount;
-            document.getElementById('unmappedTeachers').textContent = unmappedCount;
-            document.getElementById('teacherRequiredStats').style.display = 'grid';
-            
-            // Show missing teachers
-            if (unmappedCount > 0) {
-                displayMissingTeachers(teachersArray);
-            } else {
-                document.getElementById('missingTeachersSection').style.display = 'none';
-            }
-            
-            // Update teacher mapping table if already loaded
-            if (Object.keys(teacherEmailMapping).length > 0) {
-                displayTeacherMappingTableWithUsage(teachersArray);
-            }
-        }
-
-        function displayMissingTeachers(allTeachers) {
-            const unmappedTeachers = allTeachers.filter(t => !teacherEmailMapping[t]);
-            
-            if (unmappedTeachers.length === 0) {
-                document.getElementById('missingTeachersSection').style.display = 'none';
-                return;
-            }
-            
-            const emailDomain = document.getElementById('emailDomain').value;
-            const tbody = document.getElementById('missingTeachersBody');
-            tbody.innerHTML = '';
-            
-            unmappedTeachers.forEach(kuerzel => {
-                const generatedEmail = kuerzel.toLowerCase() + emailDomain;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${kuerzel}</strong></td>
-                    <td>${generatedEmail}</td>
-                    <td>
-                        <button class="btn btn-small" onclick="quickAddTeacher('${kuerzel}', '${generatedEmail}')">➕ Hinzufügen</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            
-            document.getElementById('missingTeachersSection').style.display = 'block';
-        }
-
-        function quickAddTeacher(kuerzel, suggestedEmail) {
-            const email = prompt(`E-Mail-Adresse für ${kuerzel}:`, suggestedEmail);
-            if (email) {
-                teacherEmailMapping[kuerzel] = email.trim().toLowerCase();
-                document.getElementById('teacherCount').textContent = Object.keys(teacherEmailMapping).length;
-                updateTeacherStats();
-                document.getElementById('teacherMappingInfo').style.display = 'block';
-            }
-        }
-
-        function prepareCSVExport() {
-            const validTeams = teamsData.filter(t => t.isValid);
-            document.getElementById('exportCount').textContent = validTeams.length;
-
-            let csvPreview = 'TeamName,Gruppenmail,Besitzer\n';
-            validTeams.slice(0, 5).forEach(team => {
-                csvPreview += `${team.teamName},${team.gruppenmail},${team.besitzer}\n`;
-            });
-            if (validTeams.length > 5) {
-                csvPreview += `... (${validTeams.length - 5} weitere Teams)`;
-            }
-
-            document.getElementById('csvPreview').textContent = csvPreview;
-        }
-
-        function downloadCSV() {
-            const validTeams = teamsData.filter(t => t.isValid);
-            
-            let csv = 'TeamName,Gruppenmail,Besitzer\n';
-            validTeams.forEach(team => {
-                csv += `${team.teamName},${team.gruppenmail},${team.besitzer}\n`;
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'neueteams.csv';
-            link.click();
-        }
-
-        function copyPowerShell() {
-            const script = document.getElementById('powershellScript').textContent;
-            navigator.clipboard.writeText(script).then(() => {
-                alert('PowerShell-Script in Zwischenablage kopiert!');
-            });
-        }
-
-        function resetApp() {
-            if (confirm('App wirklich zurücksetzen? Alle Daten gehen verloren.')) {
-                location.reload();
-            }
-        }
-
-        // Step Navigation
-        document.querySelectorAll('.step').forEach(step => {
-            step.addEventListener('click', function() {
-                const stepNum = parseFloat(this.dataset.step);
-                const currentStepNum = parseFloat(currentStep);
-                
-                if (stepNum <= currentStepNum || this.classList.contains('completed')) {
-                    goToStep(stepNum);
-                }
-            });
-        });
-    </script>
+    <script src="app.js" defer></script>
 </body>
 </html>
