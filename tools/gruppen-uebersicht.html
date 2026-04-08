@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Microsoft 365-Gruppen</title>
+    <link rel="stylesheet" href="../app.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <p>Microsoft 365-Gruppen im Mandanten (Besitzer, Mitglieder, Erstellungsdatum)</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html">← Dashboard</a>
+            </div>
+        </div>
+
+        <div class="content" style="padding-bottom: 28px;">
+            <div class="alert alert-info">
+                <strong>Microsoft Graph:</strong> Es werden <strong>einheitliche Microsoft-365-Gruppen</strong> gelistet
+                (<code>groupTypes</code> enthält <code>Unified</code>) – inkl. Teams, SharePoint und klassischer M365-Gruppen ohne Team.
+                Die <strong>Mitgliederzahl</strong> kommt aus <code>…/members/$count</code>; die <strong>Namensliste</strong> zeigt höchstens
+                40 Namen aus der ersten abgerufenen Seite (bei sehr großen Gruppen nicht alle Namen).
+            </div>
+            <div class="alert alert-warning">
+                <strong>App-Registrierung (Entra):</strong> Delegierte Berechtigungen:
+                <strong>Group.Read.All</strong> oder <strong>Group.ReadWrite.All</strong> sowie
+                <strong>User.Read.All</strong> (Anzeigenamen von Besitzern und Mitgliedern außerhalb des eigenen Profils).
+                Administratorzustimmung erteilen.
+            </div>
+
+            <div class="filter-section" style="margin-top:18px;">
+                <p style="margin:0 0 12px;">
+                    <button type="button" class="btn" id="guBtnLogin">Bei Microsoft anmelden</button>
+                    <button type="button" class="btn btn-success" id="guBtnLoad" style="margin-left:8px;">Gruppen laden</button>
+                </p>
+                <div class="filter-group">
+                    <label class="checkbox-label" for="guOnlyTeams">
+                        <input type="checkbox" id="guOnlyTeams">
+                        <span>Nur Gruppen mit <strong>Teams</strong> (Ressource „Team“)</span>
+                    </label>
+                </div>
+                <div class="filter-group" style="margin-top:12px;">
+                    <label for="guFilterText">Tabelle filtern (Anzeigename oder E-Mail)</label>
+                    <input type="text" id="guFilterText" autocomplete="off" placeholder="leer = alle Treffer">
+                </div>
+                <p id="guProgress" style="margin-top:12px;color:#495057;font-size:0.95em;min-height:1.4em;"></p>
+            </div>
+
+            <div class="table-container" style="max-height:min(70vh, 640px);margin-top:18px;">
+                <table id="guTable" aria-label="Microsoft 365-Gruppen">
+                    <thead>
+                        <tr>
+                            <th>Anzeigename</th>
+                            <th>E-Mail</th>
+                            <th>Erstellt</th>
+                            <th>Besitzer</th>
+                            <th>Mitglieder</th>
+                        </tr>
+                    </thead>
+                    <tbody id="guTbody">
+                        <tr><td colspan="5" style="color:#6c757d;">Noch keine Daten – „Gruppen laden“ wählen.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top:22px;font-size:1rem;">Protokoll</h3>
+            <div id="guLog" style="max-height:200px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/tools/gruppen-uebersicht/gruppen-uebersicht.js" defer></script>
+</body>
+</html>

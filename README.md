@@ -29,8 +29,27 @@ npm run dev
 npm run build
 ```
 
+`npm run build` erzeugt `dist/` und kopiert statische Dateien (u. a. `src/`, `tools/`). **Sync/Commit ersetzt keinen Build** – vor dem Deploy lokal oder in CI ausführen.
+
 Für **GitHub Pages Project Pages** (URL `https://<user>.github.io/<repo>/`) setzt der Workflow automatisch `VITE_BASE="/<repo>/"`.
 Lokal wird standardmäßig `/` verwendet.
+
+### Tests (optional)
+
+Unit-Tests für **reine Kursteams-Logik** (ohne Browser-DOM):
+
+```bash
+npm install
+npm test
+```
+
+Während der Entwicklung: `npm run test:watch`
+
+Auf GitHub läuft bei Push/PR ein Workflow (`.github/workflows/ci.yml`): `npm ci`, `npm test`, `npm run build`.
+
+### Kursteams: Skript-Reihenfolge
+
+Die Datei `tools/kursteams.html` enthält einen **HTML-Kommentar** zur Ladereihenfolge der Skripte. Zusätzlich prüft `src/shared/ms365-module-guard.js` (`window.ms365AssertModules`) beim Start, ob abhängige Module geladen sind.
 
 ### Hinweis zu `ms365-config.js`
 

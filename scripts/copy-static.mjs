@@ -55,7 +55,12 @@ async function main() {
           jahrgang: 'tools/jahrgang.html',
           arge: 'tools/arge.html',
           gruppenerstellung: 'tools/gruppenerstellung.html',
-          grouppolicy: 'tools/gruppenerstellung.html'
+          grouppolicy: 'tools/gruppenerstellung.html',
+          teamsarchiv: 'tools/teams-archiv.html',
+          'teams-archiv': 'tools/teams-archiv.html',
+          gruppen: 'tools/gruppen-uebersicht.html',
+          gruppenuebersicht: 'tools/gruppen-uebersicht.html',
+          'gruppen-uebersicht': 'tools/gruppen-uebersicht.html'
         };
         window.location.replace(map[mode] || 'index.html');
       })();
@@ -74,7 +79,9 @@ async function main() {
           Falls die Weiterleitung nicht funktioniert, öffnen Sie:
           <a href="index.html">Dashboard</a>, <a href="tools/kursteams.html">Kursteams</a>,
           <a href="tools/jahrgang.html">Jahrgangsgruppen</a>, <a href="tools/arge.html">ARGEs</a>,
-          <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>.
+          <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>,
+          <a href="tools/teams-archiv.html">Teams archivieren</a>,
+          <a href="tools/gruppen-uebersicht.html">Gruppenübersicht</a>.
         </p>
       </div>
     </div>

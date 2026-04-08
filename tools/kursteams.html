@@ -731,7 +731,29 @@ foreach ($Team in $TeamsList) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 
     <script src="../src/shared/step-progress.js" defer></script>
+    <!--
+      Kursteams-Skripte: Abhängigkeiten (Vorgänger muss vor Nachfolger stehen)
+      - ms365-module-guard: ms365AssertModules
+      - kursteam-utils: Namespace, Hilfsfunktionen
+      - team-names → filter-logic, subject-filter-logic → subject-filter-ui
+      - manual-view-logic → data-tables-ui
+      - teams-sort-logic → team-build (nutzt team-names), team-name-builder-ui (team-names)
+      - teams-table-ui → teams-actions (KF, KTB, KTU, KData)
+      - kursteam-ui … graph: UI/Import/Graph nach allen Kernmodulen
+    -->
+    <script src="../src/shared/ms365-module-guard.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-utils.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-team-names.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-filter-logic.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-subject-filter-logic.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-subject-filter-ui.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-manual-view-logic.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-data-tables-ui.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-teams-sort-logic.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-team-build.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-team-name-builder-ui.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-teams-table-ui.js" defer></script>
+    <script src="../src/tools/kursteams/kursteam-teams-actions.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-ui.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-storage.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-import.js" defer></script>

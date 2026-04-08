@@ -24,7 +24,9 @@ export default defineConfig(() => {
           kursteams: resolve(__dirname, 'tools/kursteams.html'),
           jahrgang: resolve(__dirname, 'tools/jahrgang.html'),
           arge: resolve(__dirname, 'tools/arge.html'),
-          gruppenerstellung: resolve(__dirname, 'tools/gruppenerstellung.html')
+          gruppenerstellung: resolve(__dirname, 'tools/gruppenerstellung.html'),
+          teamsArchiv: resolve(__dirname, 'tools/teams-archiv.html'),
+          gruppenUebersicht: resolve(__dirname, 'tools/gruppen-uebersicht.html')
         }
       }
     }

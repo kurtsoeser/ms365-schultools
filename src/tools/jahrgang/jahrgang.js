@@ -1,6 +1,15 @@
 (function () {
     'use strict';
 
+    if (
+        typeof window.ms365BuildStandaloneJahrgangPs1 !== 'function' ||
+        typeof window.ms365JgExportCsv !== 'function' ||
+        typeof window.ms365JgBuildStateSnapshot !== 'function' ||
+        typeof window.ms365JgApplyImportedState !== 'function'
+    ) {
+        throw new Error('jahrgang-standalone-ps1.js, jahrgang-csv.js und jahrgang-state.js müssen vor jahrgang.js geladen werden.');
+    }
+
     let jgCurrentStep = 1;
     /** @type {{ klasse: string, jahr: string, displayName: string, suffix: string, mailNick: string, owner: string, memberLines: string }[]} */
     let jgRows = [];
@@ -559,22 +568,6 @@
         return el ? !!el.checked : true;
     }
 
-    /** Mehrzeiliger Text → eindeutige UPNs (pro Klasse). */
-    function parseJgMemberLinesText(raw) {
-        const lines = String(raw || '').split(/\r\n|\n|\r/);
-        const seen = new Set();
-        const out = [];
-        lines.forEach(line => {
-            const t = String(line || '').trim();
-            if (!t || t.startsWith('#')) return;
-            const key = t.toLowerCase();
-            if (seen.has(key)) return;
-            seen.add(key);
-            out.push(t);
-        });
-        return out;
-    }
-
     function rebuildJgMembersTableFromRows() {
         const domain = getDomain();
         const tbody = document.getElementById('jgMembersBody');
@@ -979,10 +972,6 @@
         navigator.clipboard.writeText(t).then(() => showToast('Script kopiert.'));
     });
 
-    function psEscapeSingle(s) {
-        return String(s).replace(/'/g, "''");
-    }
-
     function buildPowerShellScript() {
         return buildStandaloneJahrgangPs1(false, getJgCreateTeams(), getJgExchangeSmtp());
     }
@@ -1000,77 +989,8 @@
         downloadBlob(filename, JSON.stringify(obj, null, 2), 'application/json;charset=utf-8');
     }
 
-    function csvEscapeField(v, delimiter) {
-        const d = delimiter || ';';
-        const s = String(v ?? '');
-        const mustQuote = s.includes('"') || s.includes('\n') || s.includes('\r') || s.includes(d);
-        if (!mustQuote) return s;
-        return '"' + s.replace(/"/g, '""') + '"';
-    }
-
-    function toCsv(rows, delimiter) {
-        const d = delimiter || ';';
-        return rows
-            .map((r) => r.map((c) => csvEscapeField(c, d)).join(d))
-            .join('\r\n');
-    }
-
-    function parseCsvLine(line, delimiter) {
-        const d = delimiter || ';';
-        const out = [];
-        let cur = '';
-        let inQ = false;
-        for (let i = 0; i < line.length; i++) {
-            const ch = line[i];
-            if (inQ) {
-                if (ch === '"') {
-                    const next = line[i + 1];
-                    if (next === '"') {
-                        cur += '"';
-                        i++;
-                    } else {
-                        inQ = false;
-                    }
-                } else {
-                    cur += ch;
-                }
-            } else {
-                if (ch === '"') inQ = true;
-                else if (ch === d) {
-                    out.push(cur);
-                    cur = '';
-                } else {
-                    cur += ch;
-                }
-            }
-        }
-        out.push(cur);
-        return out.map((x) => normStr(x));
-    }
-
-    function detectCsvDelimiter(text) {
-        const head = String(text || '').split(/\r\n|\n|\r/).slice(0, 5).join('\n');
-        const semis = (head.match(/;/g) || []).length;
-        const commas = (head.match(/,/g) || []).length;
-        return semis >= commas ? ';' : ',';
-    }
-
-    function normHeaderKey(k) {
-        return String(k ?? '')
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, '')
-            .replace(/ä/g, 'ae')
-            .replace(/ö/g, 'oe')
-            .replace(/ü/g, 'ue')
-            .replace(/ß/g, 'ss')
-            .replace(/[^a-z0-9]/g, '');
-    }
-
     function jgBuildStateSnapshot() {
-        return {
-            kind: 'ms365-jahrgang-export-v1',
-            exportedAt: new Date().toISOString(),
+        return window.ms365JgBuildStateSnapshot({
             jgCurrentStep,
             jgPrefix: document.getElementById('jgPrefix')?.value ?? 'jg',
             jgDefaultYear: document.getElementById('jgDefaultYear')?.value ?? '2030',
@@ -1078,487 +998,53 @@
             jgCreateTeams: getJgCreateTeams(),
             jgExchangeSmtp: getJgExchangeSmtp(),
             jgClassLines: document.getElementById('jgClassLines')?.value ?? '',
-            rows: (jgRows || []).map((r) => ({
-                klasse: normStr(r.klasse),
-                jahr: normStr(r.jahr),
-                displayName: normStr(r.displayName || ''),
-                suffix: normStr(r.suffix || ''),
-                mailNick: normStr(r.mailNick || ''),
-                owner: normStr(r.owner || ''),
-                memberLines: String(r.memberLines ?? '')
-            }))
-        };
+            rows: jgRows || [],
+            normStr
+        });
     }
 
     function applyImportedJgState(obj) {
-        const o = obj && typeof obj === 'object' ? obj : {};
-        const rows = Array.isArray(o.jgRows) ? o.jgRows : Array.isArray(o.rows) ? o.rows : [];
-        const lines = o.jgClassLines !== undefined ? String(o.jgClassLines || '') : '';
-
-        const prefixEl = document.getElementById('jgPrefix');
-        const defYearEl = document.getElementById('jgDefaultYear');
-        const upperEl = document.getElementById('jgSuffixUpper');
-        if (prefixEl && o.jgPrefix !== undefined) prefixEl.value = String(o.jgPrefix || 'jg');
-        if (defYearEl && o.jgDefaultYear !== undefined) defYearEl.value = String(o.jgDefaultYear || '2030');
-        if (upperEl && o.jgSuffixUpper !== undefined) upperEl.checked = !!o.jgSuffixUpper;
-        const teamsEl = document.getElementById('jgCreateTeams');
-        if (teamsEl && o.jgCreateTeams !== undefined) teamsEl.checked = !!o.jgCreateTeams;
-        const exoEl = document.getElementById('jgExchangeSmtp');
-        if (exoEl && o.jgExchangeSmtp !== undefined) exoEl.checked = !!o.jgExchangeSmtp;
-
-        const ta = document.getElementById('jgClassLines');
-        if (ta) ta.value = lines;
-        if (ta && !normStr(ta.value) && rows.length) {
-            const reconstructed = rows
-                .map((r) => {
-                    const k = normStr(r.klasse || r.class || r.name);
-                    const y = normStr(r.jahr || r.year);
-                    if (!k) return '';
-                    if (/^\d{4}$/.test(y)) return `${k};${y}`;
-                    return k;
-                })
-                .filter(Boolean);
-            ta.value = reconstructed.join('\n');
-        }
-
-        // owner/members aus importierten Zeilen übernehmen (matched by klasse)
-        const ownerByKlasse = new Map();
-        const memByKlasse = new Map();
-        rows.forEach((r) => {
-            const k = normStr(r.klasse || r.class || r.name);
-            if (!k) return;
-            ownerByKlasse.set(k, normStr(r.owner || r.ownerUpn || ''));
-            memByKlasse.set(k, String(r.memberLines ?? r.members ?? ''));
-            // optional: DisplayName / Klassenname
-            // akzeptiere verschiedene Keys
-            // - displayName: export v1
-            // - className/name: CSV/Excel
-            // - tenant classes use "name" for class display name
-            // -> hier nur zwischenspeichern via Map an klasse-key
+        window.ms365JgApplyImportedState(obj, {
+            normStr,
+            syncJgPreviewRowsFromTextarea,
+            getPrefix,
+            getJgDefaultAbschlussjahr,
+            buildMailNickname,
+            resolveDuplicateNicks,
+            setJgRows: (rows) => {
+                jgRows = rows;
+            },
+            getJgPreviewRows: () => jgPreviewRows,
+            rebuildJgOwnerTableFromRows,
+            rebuildJgMembersTableFromRows,
+            scheduleJgPreviewRowsOnly,
+            refreshJgScriptIfStep5,
+            updatePrefixExample,
+            showToast
         });
-
-        const nameByKlasse = new Map();
-        rows.forEach((r) => {
-            const k = normStr(r.klasse || r.class || r.code);
-            if (!k) return;
-            const dn = normStr(r.displayName || r.className || r.klassenname || r.name || '');
-            if (dn) nameByKlasse.set(k, dn);
-        });
-
-        syncJgPreviewRowsFromTextarea();
-        const prefix = getPrefix();
-        jgRows = jgPreviewRows.map((r) => {
-            const m = normStr(r.klasse).match(/^(\d+)([A-Za-z]+)$/);
-            const y = normStr(r.jahr || '');
-            const year = /^\d{4}$/.test(y) ? y : getJgDefaultAbschlussjahr();
-            const suffix = m ? m[2] : normStr(r.suffix || '');
-            const klasseTrim = normStr(r.klasse);
-            return {
-                klasse: klasseTrim,
-                jahr: year,
-                suffix,
-                mailNick: buildMailNickname(prefix, year, suffix),
-                displayName: normStr(r.displayName || nameByKlasse.get(klasseTrim) || ''),
-                owner: ownerByKlasse.get(klasseTrim) || '',
-                memberLines: memByKlasse.get(klasseTrim) || ''
-            };
-        });
-        resolveDuplicateNicks(jgRows);
-
-        rebuildJgOwnerTableFromRows();
-        rebuildJgMembersTableFromRows();
-        scheduleJgPreviewRowsOnly();
-        refreshJgScriptIfStep5();
-        updatePrefixExample();
-        showToast('Jahrgang: Import übernommen.');
     }
 
     function exportJgCsv() {
-        const domain = getDomain();
-        if (!jgPreviewRows.length) syncJgPreviewRowsFromTextarea();
-        const ownerByKlasse = new Map((jgRows || []).map((r) => [normStr(r.klasse), normStr(r.owner || '')]));
-        const memByKlasse = new Map((jgRows || []).map((r) => [normStr(r.klasse), String(r.memberLines ?? '')]));
-        const nameByKlasse = new Map((jgRows || []).map((r) => [normStr(r.klasse), normStr(r.displayName || '')]));
-
-        const dataRows = jgPreviewRows.map((r) => {
-            const klasse = normStr(r.klasse);
-            const y = normStr(r.jahr || '');
-            const year = /^\d{4}$/.test(y) ? y : '';
-            const className = normStr(r.displayName || nameByKlasse.get(klasse) || '');
-            const displayName = className || jgM365DisplayName(r);
-            const mailNick = normStr(r.mailNick);
-            const email = mailNick ? `${mailNick}@${domain}` : '';
-            const owner = ownerByKlasse.get(klasse) || '';
-            const members = (memByKlasse.get(klasse) || '').replace(/\r\n|\n|\r/g, '|');
-            return [klasse, year, className, displayName, mailNick, email, owner, members];
+        const { csv, filename } = window.ms365JgExportCsv({
+            domain: getDomain(),
+            jgRows,
+            jgPreviewRows,
+            syncJgPreviewRowsFromTextarea,
+            normStr,
+            jgM365DisplayName
         });
-
-        const csv = toCsv(
-            [
-                ['klasse', 'abschlussjahr', 'className', 'displayName', 'mailNick', 'groupEmail', 'ownerUpn', 'membersUpnPipe'],
-                ...dataRows
-            ],
-            ';'
-        );
-        downloadBlob(`jahrgang-export-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
+        downloadBlob(filename, csv, 'text/csv;charset=utf-8');
         showToast('Jahrgang: CSV exportiert.');
     }
 
     function importJgCsvText(text) {
-        const raw = String(text || '');
-        const delimiter = detectCsvDelimiter(raw);
-        const lines = raw.split(/\r\n|\n|\r/).filter((l) => normStr(l));
-        if (!lines.length) return;
-
-        const first = parseCsvLine(lines[0], delimiter).map((x) => normHeaderKey(x));
-        const hasHeader = first.some((h) =>
-            ['klasse', 'abschlussjahr', 'classname', 'displayname', 'mailnick', 'ownerupn', 'membersupnpipe'].includes(h)
-        );
-
-        const idx = (key) => first.indexOf(key);
-        const get = (row, key, altIdx) => {
-            const i = hasHeader ? idx(key) : altIdx;
-            if (i == null || i < 0) return '';
-            return normStr(row[i] ?? '');
-        };
-
-        const outRows = [];
-        const start = hasHeader ? 1 : 0;
-        for (let i = start; i < lines.length; i++) {
-            const row = parseCsvLine(lines[i], delimiter);
-            const klasse = get(row, 'klasse', 0);
-            const year = get(row, 'abschlussjahr', 1) || get(row, 'jahr', 1);
-            const className = get(row, 'classname', 2);
-            const displayName = get(row, 'displayname', 3);
-            const owner = get(row, 'ownerupn', 6);
-            const membersPipe = get(row, 'membersupnpipe', 7) || get(row, 'members', 7);
-            const memberLines = membersPipe ? membersPipe.split('|').map((x) => normStr(x)).filter(Boolean).join('\n') : '';
-            if (!klasse) continue;
-            outRows.push({ klasse, jahr: year, displayName: className || displayName, owner, memberLines });
-        }
-
-        applyImportedJgState({ rows: outRows });
+        const rows = window.ms365JgParseCsvToRows(text, { normStr });
+        if (rows === null) return;
+        applyImportedJgState({ rows });
     }
 
     function buildStandaloneJahrgangPs1(standalone, createTeams, setExchangeSmtp) {
-        if (createTeams === undefined) createTeams = true;
-        if (setExchangeSmtp === undefined) setExchangeSmtp = true;
-        const domain = getDomain();
-        const domainTrim = (domain || '').trim();
-        const setExoEffective = setExchangeSmtp && domainTrim.length > 0;
-        const stamp = new Date().toISOString();
-        const lines = [];
-        const scopesLine = '$scopes = @("Group.ReadWrite.All","User.Read.All")';
-
-        if (standalone) {
-            lines.push('#Requires -Version 5.1');
-            lines.push('# Jahrgangsgruppen (M365 Unified); optional Teams ($Ms365CreateTeams); optional Exchange-SMTP ($Ms365SetExchangeSmtp)');
-            lines.push('# Erzeugt in der Browser-App am ' + stamp);
-            lines.push('# Daten sind unten eingebettet.');
-            lines.push('');
-            lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
-            lines.push('$ErrorActionPreference = "Continue"');
-            lines.push('');
-            lines.push('Write-Host ""');
-            lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
-            lines.push('Write-Host "  Jahrgangsgruppen (Microsoft Graph)"   -ForegroundColor Cyan');
-            lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
-            lines.push('Write-Host ""');
-            lines.push(
-                '# Meta-Modul Microsoft.Graph (einheitliche DLL-Versionen; PS-5.1 „4096 Funktionen“ per MaximumFunctionCount)'
-            );
-            lines.push('$MaximumFunctionCount = 32768');
-            lines.push('Write-Host "Lade Microsoft.Graph ..." -ForegroundColor Gray');
-            lines.push('try {');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('} catch {');
-            lines.push('    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow');
-            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('}');
-            lines.push('');
-            lines.push(scopesLine);
-            lines.push('Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow');
-            lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
-            lines.push('$script:Ms365OldEap = $ErrorActionPreference');
-            lines.push('$ErrorActionPreference = "Stop"');
-            lines.push('try {');
-            lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
-            lines.push('} catch {');
-            lines.push('    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
-            lines.push('}');
-            lines.push('$ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    Write-Host ""');
-            lines.push('    Write-Host "Kein Graph-Kontext – Geraetecode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow');
-            lines.push('    $ErrorActionPreference = "Stop"');
-            lines.push('    try {');
-            lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
-            lines.push('    } catch {');
-            lines.push('        Write-Error ("Microsoft Graph: Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message)');
-            lines.push('        exit 1');
-            lines.push('    }');
-            lines.push('    $ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('}');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    Write-Error "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich. Skript wird beendet."');
-            lines.push('    exit 1');
-            lines.push('}');
-            lines.push('$mgCtx = Get-MgContext');
-            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
-            lines.push('');
-        } else {
-            lines.push('# Microsoft Graph: Jahrgangsgruppen als Microsoft 365-Gruppen (Unified Group)');
-            lines.push('# Voraussetzung: Install-Module Microsoft.Graph');
-            lines.push('# https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup');
-            lines.push('');
-            lines.push('Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber -ErrorAction SilentlyContinue');
-            lines.push('$MaximumFunctionCount = 32768');
-            lines.push('try {');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('} catch {');
-            lines.push('    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow');
-            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('}');
-            lines.push('');
-            lines.push(scopesLine);
-            lines.push('Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow');
-            lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
-            lines.push('$script:Ms365OldEap = $ErrorActionPreference');
-            lines.push('$ErrorActionPreference = "Stop"');
-            lines.push('try {');
-            lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
-            lines.push('} catch {');
-            lines.push('    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
-            lines.push('}');
-            lines.push('$ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    Write-Host ""');
-            lines.push('    Write-Host "Kein Graph-Kontext – Geraetecode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow');
-            lines.push('    $ErrorActionPreference = "Stop"');
-            lines.push('    try {');
-            lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
-            lines.push('    } catch {');
-            lines.push('        throw ("Microsoft Graph: Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message)');
-            lines.push('    }');
-            lines.push('    $ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('}');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    throw "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich."');
-            lines.push('}');
-            lines.push('$mgCtx = Get-MgContext');
-            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
-            lines.push('');
-        }
-
-        lines.push('$Ms365CreateTeams = $' + (createTeams ? 'true' : 'false'));
-        lines.push('$Ms365SetExchangeSmtp = $' + (setExoEffective ? 'true' : 'false'));
-        lines.push("$Ms365ExchangeDomain = '" + psEscapeSingle(domainTrim) + "'");
-        lines.push('');
-        if (setExoEffective) {
-            lines.push('$script:Ms365ExoConnected = $false');
-            lines.push('function Ensure-Ms365ExchangeOnline {');
-            lines.push('    if ($script:Ms365ExoConnected) { return }');
-            lines.push(
-                '    Write-Host "Exchange Online: Modul laden und anmelden (zweiter Dialog) …" -ForegroundColor Yellow'
-            );
-            lines.push('    try {');
-            lines.push('        Import-Module ExchangeOnlineManagement -ErrorAction Stop');
-            lines.push('    } catch {');
-            lines.push('        Write-Host "Installiere ExchangeOnlineManagement …" -ForegroundColor Yellow');
-            lines.push('        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force -AllowClobber');
-            lines.push('        Import-Module ExchangeOnlineManagement -ErrorAction Stop');
-            lines.push('    }');
-            lines.push('    Connect-ExchangeOnline -ShowBanner:$false');
-            lines.push('    $script:Ms365ExoConnected = $true');
-            lines.push('    Write-Host "Exchange Online: angemeldet." -ForegroundColor Green');
-            lines.push('}');
-            lines.push('Ensure-Ms365ExchangeOnline');
-            lines.push('');
-        }
-        lines.push('$rows = @(');
-        jgRows.forEach((r, i) => {
-            const last = i === jgRows.length - 1;
-            const mems = parseJgMemberLinesText(r.memberLines || '');
-            const memPart = mems.map(e => "'" + psEscapeSingle(e) + "'").join(',');
-            const dn = String(r.displayName || '').trim();
-            lines.push(
-                "    [PSCustomObject]@{ Klasse = '" +
-                    psEscapeSingle(r.klasse) +
-                    "'; DisplayName = '" +
-                    psEscapeSingle(dn || r.klasse) +
-                    "'; MailNickname = '" +
-                    psEscapeSingle(r.mailNick) +
-                    "'; OwnerUpn = '" +
-                    psEscapeSingle(r.owner) +
-                    "'; Description = 'Jahrgangsgruppe " +
-                    psEscapeSingle(dn || r.klasse) +
-                    " (Abschluss " +
-                    psEscapeSingle(r.jahr) +
-                    ")'; MemberUpns = @(" +
-                    memPart +
-                    ') }' +
-                    (last ? '' : ',')
-            );
-        });
-        lines.push(')');
-        lines.push('');
-        lines.push('$i = 0');
-        lines.push('foreach ($r in $rows) {');
-        lines.push('    $i++');
-        lines.push('    try {');
-        lines.push("        $owner = Get-MgUser -UserId $r.OwnerUpn -ErrorAction Stop");
-        lines.push(
-            '        # M365 Unified Group: New-MgGroup -BodyParameter (Bulk-Muster, vgl. https://m365corner.com/m365-powershell/using-new-mggroup-in-graph-powershell.html )'
-        );
-        lines.push('        $groupBody = @{');
-        lines.push('            DisplayName     = $r.DisplayName');
-        lines.push('            Description     = $r.Description');
-        lines.push('            MailNickname    = $r.MailNickname');
-        lines.push('            MailEnabled     = $true');
-        lines.push('            SecurityEnabled = $false');
-        lines.push('            GroupTypes      = @("Unified")');
-        lines.push('            Visibility      = "Private"');
-        lines.push('        }');
-        lines.push('        $group = New-MgGroup -BodyParameter $groupBody -ErrorAction Stop');
-        lines.push('        Start-Sleep -Seconds 2  # Replikation vor Owner-Zuweisung');
-        lines.push('        New-MgGroupOwner -GroupId $group.Id -DirectoryObjectId $owner.Id');
-        lines.push('        try {');
-        lines.push(
-            '            $memberRef = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($owner.Id)" }'
-        );
-        lines.push(
-            '            Invoke-MgGraphRequest -Method POST -Uri (' +
-                "'" +
-                'https://graph.microsoft.com/v1.0/groups/{0}/members/$ref' +
-                "'" +
-                ' -f $group.Id) -Body ($memberRef | ConvertTo-Json -Compress) -ErrorAction Stop'
-        );
-        lines.push('        } catch {');
-        lines.push(
-            '            Write-Host ("Hinweis (Besitzer als Mitglied): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
-        );
-        lines.push('        }');
-        lines.push('        if ($r.MemberUpns -and $r.MemberUpns.Count -gt 0) {');
-        lines.push('            foreach ($mUpn in $r.MemberUpns) {');
-        lines.push('                if ([string]::IsNullOrWhiteSpace($mUpn)) { continue }');
-        lines.push('                try {');
-        lines.push('                    $trimUpn = $mUpn.Trim()');
-        lines.push('                    $memUser = Get-MgUser -UserId $trimUpn -ErrorAction Stop');
-        lines.push('                    if ($memUser.Id -eq $owner.Id) { continue }');
-        lines.push(
-            '                    $memberRefExtra = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($memUser.Id)" }'
-        );
-        lines.push(
-            '                    Invoke-MgGraphRequest -Method POST -Uri ("https://graph.microsoft.com/v1.0/groups/{0}/members/$ref" -f $group.Id) -Body ($memberRefExtra | ConvertTo-Json -Compress) -ErrorAction Stop'
-        );
-        lines.push('                } catch {');
-        lines.push(
-            '                    if ($_.Exception.Message -match "already exist") {'
-        );
-        lines.push(
-            '                        Write-Host ("  Hinweis (Mitglied {0}): bereits in der Gruppe." -f $mUpn.Trim()) -ForegroundColor DarkGray'
-        );
-        lines.push('                    } else {');
-        lines.push(
-            '                        Write-Host ("  Hinweis (Mitglied {0}): {1}" -f $mUpn.Trim(), $_.Exception.Message) -ForegroundColor DarkGray'
-        );
-        lines.push('                    }');
-        lines.push('                }');
-        lines.push('            }');
-        lines.push('        }');
-        lines.push('        if ($Ms365CreateTeams) {');
-        lines.push('            $teamProps = @{');
-        lines.push('                memberSettings = @{ allowCreatePrivateChannels = $true; allowCreateUpdateChannels = $true }');
-        lines.push(
-            '                messagingSettings = @{ allowUserEditMessages = $true; allowUserDeleteMessages = $true }'
-        );
-        lines.push('                funSettings = @{ allowGiphy = $true; giphyContentRating = "moderate" }');
-        lines.push('                guestSettings = @{ allowCreateUpdateChannels = $false }');
-        lines.push('            }');
-        lines.push('            $teamUri = "https://graph.microsoft.com/v1.0/groups/$($group.Id)/team"');
-        lines.push('            for ($ti = 0; $ti -lt 8; $ti++) {');
-        lines.push('                try {');
-        lines.push(
-            '                    Invoke-MgGraphRequest -Method PUT -Uri $teamUri -Body $teamProps -ErrorAction Stop'
-        );
-        lines.push(
-            '                    Write-Host ("Teams: {0} – Team bereitgestellt." -f $r.Klasse) -ForegroundColor Cyan'
-        );
-        lines.push('                    break');
-        lines.push('                } catch {');
-        lines.push('                    if ($ti -lt 7) {');
-        lines.push(
-            '                        Write-Host ("Teams: Warte auf Replikation ({0}/8) …" -f ($ti + 1)) -ForegroundColor DarkYellow'
-        );
-        lines.push('                        Start-Sleep -Seconds 10');
-        lines.push('                    } else {');
-        lines.push(
-            '                        Write-Warning ("Teams: {0} – Team konnte nicht angelegt werden: {1}" -f $r.Klasse, $_.Exception.Message)'
-        );
-        lines.push('                    }');
-        lines.push('                }');
-        lines.push('            }');
-        lines.push('        }');
-        lines.push('        if ($Ms365SetExchangeSmtp -and $Ms365ExchangeDomain) {');
-        lines.push('            $wantedSmtp = "$($r.MailNickname)@$Ms365ExchangeDomain"');
-        lines.push('            for ($ei = 0; $ei -lt 6; $ei++) {');
-        lines.push('                try {');
-        lines.push(
-            '                    Set-UnifiedGroup -Identity $group.Id -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop'
-        );
-        lines.push(
-            '                    Write-Host ("Exchange: {0} – PrimarySmtpAddress = {1}" -f $r.Klasse, $wantedSmtp) -ForegroundColor Green'
-        );
-        lines.push('                    break');
-        lines.push('                } catch {');
-        lines.push('                    if ($ei -lt 5) {');
-        lines.push(
-            '                        Write-Host ("Exchange: Warte auf Postfach ({0}/6) …" -f ($ei + 1)) -ForegroundColor DarkYellow'
-        );
-        lines.push('                        Start-Sleep -Seconds 15');
-        lines.push('                    } else {');
-        lines.push(
-            '                        Write-Warning ("Exchange: {0} – PrimarySmtpAddress nicht gesetzt: {1}" -f $r.Klasse, $_.Exception.Message)'
-        );
-        lines.push('                    }');
-        lines.push('                }');
-        lines.push('            }');
-        lines.push('        }');
-        lines.push(
-            '        Write-Host ("OK [{0}/{1}] {2} -> {3}" -f $i, $rows.Count, $r.Klasse, $r.MailNickname) -ForegroundColor Green'
-        );
-        lines.push('    }');
-        lines.push('    catch {');
-        lines.push('        $ex = $_.Exception');
-        lines.push('        $detail = $ex.Message');
-        lines.push('        if ($ex.InnerException) { $detail += " | " + $ex.InnerException.Message }');
-        lines.push('        Write-Warning ("Fehler [{0}] {1}: {2}" -f $i, $r.Klasse, $detail)');
-        lines.push('    }');
-        lines.push('    Start-Sleep -Seconds 2');
-        lines.push('}');
-        lines.push('');
-        lines.push(
-            '# SMTP: Graph legt nur mailNickname an. Mit $Ms365SetExchangeSmtp wird die primäre Adresse per Exchange gesetzt.'
-        );
-        lines.push('# Zieldomain (App): ' + psEscapeSingle(domainTrim || domain));
-        lines.push('# Set-UnifiedGroup: https://learn.microsoft.com/powershell/module/exchange/set-unifiedgroup');
-        if (setExoEffective) {
-            lines.push('if ($script:Ms365ExoConnected) {');
-            lines.push(
-                '    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}'
-            );
-            lines.push('}');
-            lines.push('');
-        }
-        if (standalone) {
-            lines.push('');
-            lines.push('Write-Host ""');
-            lines.push('Write-Host "Fertig." -ForegroundColor Cyan');
-            lines.push('Read-Host "Enter druecken zum Beenden"');
-        }
-        return lines.join('\r\n');
+        return window.ms365BuildStandaloneJahrgangPs1(jgRows, getDomain(), standalone, createTeams, setExchangeSmtp);
     }
 
     function downloadJahrgangStandalonePackage() {
