@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Kursteams</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1em; }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.12);
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        .header-help-row { margin: 10px 0 0; font-size: 0.95em; }
+        .header-help-link { color: #fff; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; opacity: 0.98; }
+        .header-help-link:hover { opacity: 1; }
+
+        .content { padding: 30px; }
+        .steps {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .step {
+            text-align: center;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+            flex: 1 1 auto;
+            min-width: 120px;
+            font-size: 0.9em;
+        }
+        .step.active { background: #5e72e4; color: white; font-weight: bold; }
+        .step.completed { background: #2dce89; color: white; }
+        .step-content { display: none; }
+        .step-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .upload-area {
+            border: 3px dashed #5e72e4;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        .upload-area:hover { border-color: #825ee4; background: #e9ecef; }
+        .upload-area.dragover { border-color: #2dce89; background: #d4edda; }
+        .upload-icon { font-size: 4em; margin-bottom: 20px; }
+        input[type="file"] { display: none; }
+        .btn {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 5px;
+        }
+        .toolbar .btn { margin: 0; font-size: 0.9em; padding: 8px 16px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(94, 114, 228, 0.4); }
+        .btn:disabled { background: #6c757d; cursor: not-allowed; transform: none; }
+        .btn-success { background: linear-gradient(135deg, #2dce89 0%, #11998e 100%); }
+        .btn-danger { background: linear-gradient(135deg, #f5365c 0%, #f56036 100%); }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9em; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background: #5e72e4; color: white; font-weight: 600; position: sticky; top: 0; }
+        tr:hover { background: #f8f9fa; }
+        .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
+        .stat-label { opacity: 0.9; font-size: 0.9em; }
+        .alert { padding: 15px 20px; border-radius: 8px; margin: 15px 0; }
+        .alert-warning { background: #fff3cd; border-left: 4px solid #ffc107; color: #856404; }
+        .alert-info { background: #d1ecf1; border-left: 4px solid #17a2b8; color: #0c5460; }
+        .alert-success { background: #d4edda; border-left: 4px solid #28a745; color: #155724; }
+        .filter-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .filter-group { margin: 15px 0; }
+        .filter-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #495057; }
+        .filter-group input:not([type="checkbox"]), .filter-group select {
+            width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1em;
+        }
+        .filter-group input[type="checkbox"] { width: auto; flex-shrink: 0; }
+        .error-row { background: #f8d7da !important; }
+        .powershell-code {
+            background: #012456; color: #f0f0f0; padding: 20px; border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace; overflow-x: auto; margin: 20px 0;
+        }
+        .powershell-code pre { margin: 0; white-space: pre-wrap; }
+        .copy-btn { float: right; margin-top: -10px; }
+        .btn-small { padding: 5px 10px; font-size: 0.85em; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            max-width: 480px;
+            width: 100%;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+        .modal-box h3 { margin-bottom: 16px; color: #32325d; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #32325d;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1001;
+            display: none;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { display: block; }
+        .kursteam-start-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            margin-top: 8px;
+        }
+        .kursteam-start-card {
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 18px;
+            background: #f8f9fa;
+            text-align: left;
+        }
+        .kursteam-start-card h3 { margin: 0 0 8px; font-size: 1.1em; color: #32325d; }
+        .kursteam-start-card p { margin: 0 0 14px; color: #495057; line-height: 1.45; font-size: 0.95em; }
+        .import-paste-file-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; margin-bottom: 20px; }
+        .import-paste-file-grid .import-paste-file-col { min-width: 0; display: flex; flex-direction: column; }
+        .import-paste-file-grid .import-paste-file-col .upload-area { flex: 1; min-height: 220px; display: flex; flex-direction: column; justify-content: center; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.35em; }
+            .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
+            .content { padding: 16px; }
+            .import-paste-file-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <p>Kursteams</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern">💾 Zwischenstand speichern</button>
+                <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden">📂 Gespeicherten Stand laden</button>
+                <button type="button" class="btn btn-danger" id="btnClearStorage" title="Gespeicherten Zwischenstand löschen">🗑️ Lokalen Speicher löschen</button>
+                <a class="btn" href="../index.html" title="Zurück zum Dashboard" style="text-decoration:none;display:inline-block;">← Dashboard</a>
+            </div>
+        </div>
+
+        <div id="schoolDomainBar" class="school-domain-bar" style="padding:14px 20px;background:#f8f9fa;border-bottom:1px solid #dee2e6;">
+            <div style="max-width:900px;margin:0 auto;">
+                <label for="schoolEmailDomain" style="display:block;font-weight:600;color:#32325d;margin-bottom:8px;">E-Mail-Domain der Schule (ohne @)</label>
+                <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" value="ms365.schule" autocomplete="off" style="width:100%;max-width:420px;padding:10px 12px;border:1px solid #ced4da;border-radius:8px;font-size:1em;">
+                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Einmal eintragen – gilt für <strong>Kursteams</strong>. Beispiel: <code>ms365.schule</code>. Domain im Mandanten verifizieren.</small>
+            </div>
+        </div>
+
+        <div id="panelWebuntis">
+            <div class="steps">
+                <div class="step active" data-step="0">0. Vorgehen</div>
+                <div class="step" data-step="1">1. Daten importieren</div>
+                <div class="step" data-step="2">2. Daten bereinigen</div>
+                <div class="step" data-step="2.5">3. Lehrer-Emails</div>
+                <div class="step" data-step="3">4. Teams konfigurieren</div>
+                <div class="step" data-step="4">5. Kursteams anlegen</div>
+                <div class="step" data-step="5">6. Optional: CSV &amp; PowerShell</div>
+            </div>
+
+            <div class="content">
+                <!-- Schritt 0 -->
+                <div class="step-content active" data-step="0">
+                    <h2>Schritt 0: Vorgehen wählen</h2>
+                    <div class="alert alert-info">
+                        <strong>Hauptweg:</strong> In Schritt&nbsp;1 <strong>Lehrer, Fach, Klasse</strong> aus WebUntis per <strong>Copy&nbsp;&amp;&nbsp;Paste</strong> einfügen oder eine <strong>CSV/Excel-Datei</strong> laden. Anschließend Daten bereinigen, Lehrer-E-Mails, Team-Namen und Anlage.
+                    </div>
+                    <div id="kursteamStep0Cards" class="kursteam-start-grid">
+                        <div class="kursteam-start-card">
+                            <h3>Mit WebUntis-Import starten</h3>
+                            <p>Einfügen oder Datei – siehe Schritt&nbsp;1.</p>
+                            <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()">Weiter zum Import →</button>
+                        </div>
+                        <div class="kursteam-start-card">
+                            <h3>Einzelzeilen (ohne Import)</h3>
+                            <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln in Schritt&nbsp;2 erfassen – für wenige Teams oder zum Ergänzen.</p>
+                            <button type="button" class="btn" onclick="startKursteamManual()">Zur manuellen Eingabe →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schritt 1 -->
+                <div class="step-content" data-step="1">
+                    <h2>Schritt 1: WebUntis-Daten importieren</h2>
+                    <div class="alert alert-info">
+                        <strong>Schnellweg:</strong> Daten aus WebUntis (Ansicht mit <strong>Lehrer</strong>, <strong>Fach</strong>, <strong>Klasse</strong>) markieren, kopieren und unten einfügen – <strong>Übernehmen</strong> klickt die Liste ein; doppelte Zeilen werden zusammengefasst.
+                    </div>
+
+                    <div class="import-paste-file-grid">
+                        <div class="import-paste-file-col">
+                            <div class="filter-section" style="margin-bottom:0;border:1px solid #5e72e4;border-radius:12px;padding:18px;background:#f8f9ff;flex:1;display:flex;flex-direction:column;">
+                                <h3 style="margin-top:0;color:#32325d;">1. Daten einfügen (Copy &amp; Paste)</h3>
+                                <label for="webuntisPasteInput" class="sr-only">WebUntis-Daten einfügen</label>
+                                <textarea id="webuntisPasteInput" rows="14" wrap="off" spellcheck="false" placeholder="LOEV	GWS	1A&#10;HOLZE	GEO	1A&#10;FRECH	BW	1A&#10;…" style="width:100%;max-width:100%;padding:12px;border:1px solid #ced4da;border-radius:8px;font-family:Consolas,'Segoe UI',monospace;font-size:0.9em;line-height:1.45;box-sizing:border-box;resize:vertical;flex:1;min-height:200px;"></textarea>
+                                <p style="margin-top:12px;margin-bottom:0;">
+                                    <button type="button" class="btn btn-success" onclick="importWebuntisFromPaste()">Übernehmen</button>
+                                </p>
+                                <p style="color:#495057;line-height:1.5;margin-top:12px;margin-bottom:0;font-size:0.95em;">
+                                    Pro Zeile drei Spalten: <strong>Lehrer-Kürzel</strong>, <strong>Fach</strong>, <strong>Klasse</strong>. Trenner: <strong>Tab</strong>, <strong>|</strong> oder Leerzeichen.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="import-paste-file-col">
+                            <h4 style="margin:0 0 10px;color:#32325d;">Datei-Import</h4>
+                            <div class="upload-area" id="uploadArea">
+                                <div class="upload-icon">📁</div>
+                                <h3>Datei hier ablegen oder klicken zum Auswählen</h3>
+                                <p>Unterstützte Formate: CSV, XLSX, XLS</p>
+                                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+                            </div>
+                            <div class="alert alert-info" style="margin-top:12px;margin-bottom:0;">
+                                Vollständige Fächerliste mit Spalten z. B. <code>U-Nr</code>, <code>Lehrer</code>, <code>Fach</code>, <code>Klasse(n)</code>, <code>Schülergruppe</code>.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="importStats" style="display:none;">
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Importierte Datensätze</div>
+                                <div class="stat-value" id="totalRecords">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Unique Fächer</div>
+                                <div class="stat-value" id="uniqueSubjects">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Unique Lehrer</div>
+                                <div class="stat-value" id="uniqueTeachers">0</div>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="goToStep(2)">Weiter zur Bereinigung →</button>
+                    </div>
+                </div>
+
+                <!-- Schritt 2 -->
+                <div class="step-content" data-step="2">
+                    <h2>Schritt 2: Daten bereinigen und filtern</h2>
+                    <div id="manualKursteamHint" class="alert alert-info" style="display:none;">
+                        <strong>Manuelle Erfassung:</strong> Zeilen unten prüfen, filtern und bei Bedarf Zeilen hinzufügen oder entfernen; danach Lehrer-E-Mails und Team-Konfiguration wie gewohnt.
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Wichtig:</strong> Entfernen Sie unnötige Fächer (ORD, DIR, ...) und doppelte Einträge. Achten Sie auf klassenübergreifende Teams!
+                    </div>
+                    <p style="margin-bottom:12px;">
+                        <button type="button" class="btn btn-success" onclick="addManualDataRow()">➕ Unterrichtszeile hinzufügen</button>
+                    </p>
+                    <div class="filter-section">
+                        <h3>Automatische Filter</h3>
+                        <div class="filter-group">
+                            <label>Fächer ausschließen (kommasepariert):</label>
+                            <input type="text" id="excludeSubjects" value="ORD,DIR,KV" placeholder="z.B. ORD,DIR,KV">
+                        </div>
+                        <div class="filter-group">
+                            <label>
+                                <input type="checkbox" id="removeDuplicates" checked> Doppelte Einträge automatisch entfernen
+                            </label>
+                        </div>
+                        <button class="btn" onclick="applyFilters()">Filter anwenden</button>
+                        <button class="btn btn-danger" onclick="resetFilters()">Filter zurücksetzen</button>
+                    </div>
+                    <div id="filterStats" style="display:none;">
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Verbleibende Datensätze</div>
+                                <div class="stat-value" id="filteredRecords">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Entfernte Duplikate</div>
+                                <div class="stat-value" id="removedDuplicates">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" id="dataTableContainer" style="display:none;">
+                        <table id="dataTable">
+                            <thead>
+                                <tr>
+                                    <th>Aktion</th>
+                                    <th>Klasse</th>
+                                    <th>Fach</th>
+                                    <th>Lehrer</th>
+                                    <th>Gruppe</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="btn" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zu Lehrer-Emails →</button>
+                </div>
+
+                <!-- Schritt 2.5 -->
+                <div class="step-content" data-step="2.5">
+                    <h2>Schritt 3: Lehrer-Email-Zuordnung</h2>
+                    <div class="alert alert-info">
+                        <strong>ℹ️ Wichtig:</strong> Laden Sie hier eine Liste mit Lehrerkürzel und E-Mail-Adressen hoch, damit die korrekten Besitzer-E-Mails verwendet werden.
+                    </div>
+                    <div class="stats" id="teacherRequiredStats" style="display:none;">
+                        <div class="stat-card">
+                            <div class="stat-label">Benötigte Lehrer</div>
+                            <div class="stat-value" id="uniqueTeachersNeeded">0</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);">
+                            <div class="stat-label">Zugeordnete Lehrer</div>
+                            <div class="stat-value" id="mappedTeachers">0</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                            <div class="stat-label">Fehlende Zuordnungen</div>
+                            <div class="stat-value" id="unmappedTeachers">0</div>
+                        </div>
+                    </div>
+                    <div class="filter-section">
+                        <h3>Lehrer-Liste importieren</h3>
+                        <div class="import-paste-file-grid" style="margin-bottom: 16px;">
+                            <div class="import-paste-file-col">
+                                <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid #dee2e6; border-radius: 12px; background: #f8f9fa; flex: 1; display: flex; flex-direction: column;">
+                                    <h4 style="margin-top: 0;">Kürzel und E-Mail einfügen (Copy &amp; Paste)</h4>
+                                    <textarea id="teacherEmailPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="MU&#9;max.mustermann@schule.de&#10;BME&#9;anna.beispiel@schule.de&#10;oder: MU;max.mustermann@schule.de"></textarea>
+                                    <p style="margin-top: 10px; margin-bottom: 0;">
+                                        <button type="button" class="btn" onclick="importTeacherEmailsFromPaste()">In Zuordnung übernehmen</button>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="import-paste-file-col">
+                                <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
+                                <div class="upload-area" id="teacherUploadArea">
+                                    <div class="upload-icon">👨‍🏫</div>
+                                    <h3>Lehrer-Liste hier ablegen oder klicken</h3>
+                                    <p>CSV oder Excel mit Lehrerkürzel und E-Mail-Adressen</p>
+                                    <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
+                                </div>
+                                <p style="color: #6c757d; margin-top: 12px; margin-bottom: 8px;">
+                                    Vorlagen zum Ausfüllen:
+                                    <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateCsv()">CSV-Vorlage</button>
+                                    <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateXlsx()">Excel-Vorlage</button>
+                                </p>
+                            </div>
+                        </div>
+                        <div id="teacherMappingInfo" style="display:none; margin-top: 20px;">
+                            <div class="alert alert-success">
+                                ✅ <span id="teacherCount">0</span> Lehrer-E-Mail-Zuordnungen geladen
+                            </div>
+                            <button class="btn btn-small" onclick="toggleTeacherMapping()">📋 Zuordnungen anzeigen/ausblenden</button>
+                            <button class="btn btn-small" onclick="addTeacherMapping()">➕ Zuordnung hinzufügen</button>
+                            <button class="btn btn-small btn-danger" onclick="clearTeacherMapping()">🗑️ Alle löschen</button>
+                        </div>
+                        <div id="teacherMappingTable" style="display:none; margin-top: 20px;">
+                            <h4>Lehrer-E-Mail-Zuordnungen:</h4>
+                            <div class="table-container" style="max-height: 400px;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Kürzel</th>
+                                            <th>E-Mail</th>
+                                            <th>Verwendet in Teams</th>
+                                            <th>Aktion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="teacherMappingBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div id="missingTeachersSection" style="display:none; margin-top: 20px;">
+                            <div class="alert alert-warning">
+                                <strong>⚠️ Fehlende Zuordnungen:</strong> Folgende Lehrer haben keine E-Mail-Zuordnung. Die E-Mails werden automatisch generiert.
+                            </div>
+                            <div class="table-container" style="max-height: 300px;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Kürzel</th>
+                                            <th>Generierte E-Mail</th>
+                                            <th>Aktion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="missingTeachersBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 30px;">
+                        <button class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
+                        <button class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5">Weiter zur Team-Konfiguration →</button>
+                    </div>
+                </div>
+
+                <!-- Schritt 3 -->
+                <div class="step-content" data-step="3">
+                    <h2>Schritt 4: Teams konfigurieren</h2>
+                    <div class="alert alert-info">
+                        <strong>ℹ️ Namenskonvention:</strong><br>
+                        • 1. Klassen: SJXX-XX | Klasse | Fach-Kürzel<br>
+                        • 2.-5. Klassen: WSXX | Klasse | Fach-Kürzel oder SSXX | Klasse | Fach-Kürzel
+                    </div>
+                    <div class="filter-section">
+                        <h3>Grundeinstellungen</h3>
+                        <div class="filter-group">
+                            <label>Schuljahr-Präfix:</label>
+                            <input type="text" id="yearPrefix" value="WS24" placeholder="z.B. WS24, SS25, WS25">
+                        </div>
+                        <div class="filter-group">
+                            <p style="color:#6c757d;margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
+                        </div>
+                        <div class="filter-group">
+                            <label>Trennzeichen für Team-Name:</label>
+                            <input type="text" id="teamSeparator" value=" | " placeholder="z.B.  |  oder -">
+                        </div>
+                        <button class="btn" onclick="generateTeamNames()">Team-Namen generieren</button>
+                    </div>
+                    <p style="margin-bottom:12px;">
+                        <button type="button" class="btn btn-success" onclick="addManualKursteamTeam()">➕ Team manuell hinzufügen</button>
+                    </p>
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Ungültige Zeichen in Gruppenmail:</strong> \ % & * + / = ? { } | &lt; &gt; ( ) ; : , [ ] " ö ä ü
+                    </div>
+                    <div id="validationResults" style="display:none;">
+                        <h3>Validierung</h3>
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Gültige Teams</div>
+                                <div class="stat-value" id="validTeams">0</div>
+                            </div>
+                            <div class="stat-card" style="background: linear-gradient(135deg, #f5365c 0%, #f56036 100%);">
+                                <div class="stat-label">Fehlerhafte Teams</div>
+                                <div class="stat-value" id="invalidTeams">0</div>
+                            </div>
+                            <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                                <div class="stat-label">Gruppenmail angepasst (Duplikate)</div>
+                                <div class="stat-value" id="duplicateMailAdjustments">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" id="teamsTableContainer" style="display:none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Team-Name</th>
+                                    <th>Gruppenmail (Nickname)</th>
+                                    <th>Besitzer (E-Mail)</th>
+                                    <th>Status</th>
+                                    <th>Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teamsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3" style="display:none;">Weiter zur Anlage (Graph) →</button>
+                </div>
+
+                <!-- Schritt 4 -->
+                <div class="step-content" data-step="4">
+                    <h2>Schritt 5: Kursteams anlegen (Microsoft Graph)</h2>
+                    <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
+                        Empfohlen: Anmeldung mit einem Konto, das Gruppen erstellen darf. Besitzer-E-Mails müssen als Benutzer im Mandanten existieren.
+                    </p>
+                    <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                        <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
+                        <button type="button" class="btn" id="kursteamOnlineLogin" onclick="window.ms365KursteamGraphLogin && window.ms365KursteamGraphLogin()">Bei Microsoft anmelden</button>
+                        <button type="button" class="btn btn-success" id="kursteamOnlineRun" onclick="window.ms365KursteamGraphRun && window.ms365KursteamGraphRun()" style="margin-left:8px;">Kursteams jetzt anlegen</button>
+                        <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;6.
+                    </div>
+                    <button type="button" class="btn" onclick="goToStep(3)">← Zurück zur Team-Konfiguration</button>
+                    <button type="button" class="btn" onclick="goToStep(5)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
+                </div>
+
+                <!-- Schritt 5 -->
+                <div class="step-content" data-step="5">
+                    <h2>Schritt 6 (optional): CSV-Export &amp; PowerShell</h2>
+                    <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
+                        <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
+                    </div>
+                    <div class="alert alert-success" id="step4ReadyHint">
+                        <strong>✅ Bereit zum Export!</strong>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Teams zum Export</div>
+                            <div class="stat-value" id="exportCount">0</div>
+                        </div>
+                    </div>
+                    <div class="filter-section">
+                        <h3>CSV-Vorschau</h3>
+                        <div class="powershell-code">
+                            <pre id="csvPreview">TeamName,Gruppenmail,Besitzer</pre>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv">📥 neueteams.csv herunterladen</button>
+                    <div class="alert alert-warning" style="margin-top:20px;">
+                        <strong>⚠️ Wichtig:</strong> Führen Sie das Script im selben Verzeichnis wie die neueteams.csv aus. Admin-Anmeldung erforderlich!
+                    </div>
+                    <h3>PowerShell-Script:</h3>
+                    <div class="powershell-code">
+                        <button class="btn btn-small copy-btn" onclick="copyPowerShell()">📋 Kopieren</button>
+                        <pre id="powershellScript">$TeamsList = Import-Csv -Path .\neueteams.csv -Encoding UTF8
+Connect-MicrosoftTeams
+
+$i = 0
+foreach ($Team in $TeamsList) {
+    $i++
+    try {
+        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop
+        Write-Host "OK [$i/$($TeamsList.Count)] $($Team.Gruppenmail)"
+    }
+    catch {
+        Write-Warning "Fehler [$i] $($Team.Gruppenmail): $($_.Exception.Message)"
+    }
+    Start-Sleep -Seconds 2
+}</pre>
+                    </div>
+                    <div class="filter-section">
+                        <h3>Fertiges Paket zum Doppelklicken</h3>
+                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download).</p>
+                        <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()">📦 Kursteam-Anlage.cmd herunterladen</button>
+                    </div>
+                    <button class="btn btn-success" onclick="resetApp()">🔄 Neue Teams erstellen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-box">
+            <h3 id="modalTitle">Dialog</h3>
+            <div id="modalBody"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn" id="modalCancel">Abbrechen</button>
+                <button type="button" class="btn btn-success" id="modalOk">OK</button>
+            </div>
+        </div>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../school-domain.js" defer></script>
+    <script src="../polyglot-cmd.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+
+    <script src="../kursteam/kursteam-utils.js" defer></script>
+    <script src="../kursteam/kursteam-ui.js" defer></script>
+    <script src="../kursteam/kursteam-storage.js" defer></script>
+    <script src="../kursteam/kursteam-import.js" defer></script>
+    <script src="../kursteam/kursteam-teacher-mapping.js" defer></script>
+    <script src="../kursteam/kursteam-teams.js" defer></script>
+    <script src="../kursteam/kursteam-steps-export.js" defer></script>
+    <script src="../kursteam-graph.js" defer></script>
+</body>
+</html>

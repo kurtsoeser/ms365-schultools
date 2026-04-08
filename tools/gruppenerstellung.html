@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Gruppenerstellung einschränken</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1em; }
+        .header-help-row { margin: 10px 0 0; font-size: 0.95em; }
+        .header-help-link { color: #fff; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; opacity: 0.98; }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.12);
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        .toolbar .btn { margin: 0; font-size: 0.9em; padding: 8px 16px; }
+        .btn {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 5px;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .btn-success { background: linear-gradient(135deg, #2dce89 0%, #11998e 100%); }
+        .btn-danger { background: linear-gradient(135deg, #f5365c 0%, #f56036 100%); }
+        .content { padding: 30px; }
+        .steps {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .step {
+            text-align: center;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+            flex: 1 1 auto;
+            min-width: 120px;
+            font-size: 0.9em;
+        }
+        .step.active { background: #5e72e4; color: white; font-weight: bold; }
+        .step.completed { background: #2dce89; color: white; }
+        .gp-step-content { display: none; }
+        .gp-step-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .alert { padding: 15px 20px; border-radius: 8px; margin: 15px 0; }
+        .alert-warning { background: #fff3cd; border-left: 4px solid #ffc107; color: #856404; }
+        .alert-info { background: #d1ecf1; border-left: 4px solid #17a2b8; color: #0c5460; }
+        .filter-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .filter-group { margin: 15px 0; }
+        .filter-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #495057; }
+        .filter-group input {
+            width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1em;
+        }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #32325d;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1001;
+            display: none;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { display: block; }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.35em; }
+            .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
+            .content { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <p>Gruppenerstellung einschränken (Group.Unified)</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
+                <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
+                <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+                <a class="btn" href="../index.html">← Dashboard</a>
+            </div>
+        </div>
+
+        <div id="panelGruppenPolicy">
+            <div class="steps gp-steps">
+                <div class="step active" data-gp-step="1">1. Sicherheitsgruppe</div>
+                <div class="step" data-gp-step="2">2. Mitglieder</div>
+                <div class="step" data-gp-step="3">3. Einstellung (Graph)</div>
+            </div>
+            <div class="content">
+                <div class="gp-step-content active" data-gp-step="1">
+                    <h2>Schritt 1: Sicherheitsgruppe für berechtigte Ersteller</h2>
+                    <div class="alert alert-info">
+                        <strong>Wie in der Doku:</strong> Es wird eine <strong>reine Sicherheitsgruppe</strong> benötigt (keine Mail-aktivierte Gruppe). Nur Mitglieder dieser Gruppe dürfen später Microsoft 365-Gruppen und Teams anlegen.
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <label for="gpInputDisplayName">Anzeigename der Sicherheitsgruppe</label>
+                            <input type="text" id="gpInputDisplayName" autocomplete="off" maxlength="200" placeholder="z. B. GruppenErsteller">
+                        </div>
+                        <p style="color:#6c757d;font-size:0.92em;margin:0 0 12px;line-height:1.45;">Optional: Gruppe hier per Microsoft Graph anlegen oder im Admin Center anlegen und die <strong>Object-ID</strong> unten eintragen.</p>
+                        <button type="button" class="btn btn-success" id="gpBtnCreateGroup">Sicherheitsgruppe per Graph anlegen</button>
+                        <div class="filter-group" style="margin-top:18px;">
+                            <label for="gpInputObjectId">Object-ID (GUID) oder Suche</label>
+                            <input type="text" id="gpInputObjectId" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false">
+                            <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Entweder die GUID aus dem Admin Center einfügen, oder Anzeigenamen oben ausfüllen und <strong>Gruppe suchen</strong> klicken.</small>
+                        </div>
+                        <button type="button" class="btn" id="gpBtnFindGroup">Gruppe suchen / Objekt-ID prüfen</button>
+                        <input type="hidden" id="gpResolvedObjectId" value="">
+                        <p id="gpResolvedSummary" style="display:none;margin-top:14px;padding:12px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;color:#084298;font-size:0.95em;"></p>
+                        <p style="color:#495057;line-height:1.5;margin:10px 0 0;">
+                            <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups" target="_blank" rel="noopener">Entra: Gruppen</a>
+                            · <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank" rel="noopener">Microsoft 365 Admin Center: Gruppen</a>
+                        </p>
+                    </div>
+                    <button type="button" class="btn btn-success" id="gpBtnNext1">Weiter zu Mitglieder →</button>
+                </div>
+
+                <div class="gp-step-content" data-gp-step="2">
+                    <h2>Schritt 2: Mitglieder zuweisen</h2>
+                    <div class="alert alert-info">
+                        <strong>Wie in der Doku:</strong> Mitgliederverwaltung erfolgt im Admin-Portal; dieses Tool setzt die Verzeichnisrichtlinie.
+                    </div>
+                    <p style="color:#495057;line-height:1.5;">
+                        <a href="#" target="_blank" rel="noopener" id="gpLinkMembers" style="display:none;">Mitglieder der Gruppe (Entra)</a>
+                    </p>
+                    <button type="button" class="btn" id="gpBtnBack2">← Zurück</button>
+                    <button type="button" class="btn btn-success" id="gpBtnNext2">Weiter zu Einstellung →</button>
+                </div>
+
+                <div class="gp-step-content" data-gp-step="3">
+                    <h2>Schritt 3: Verzeichniseinstellung setzen</h2>
+                    <div class="alert alert-warning">
+                        <strong>Berechtigungen:</strong> Die Anmeldung benötigt <strong>Directory.ReadWrite.All</strong> (delegiert) und <strong>Administratorzustimmung</strong>.
+                    </div>
+                    <div class="filter-section" style="margin-bottom:16px;">
+                        <button type="button" class="btn" id="gpBtnLogin">Bei Microsoft anmelden</button>
+                        <button type="button" class="btn btn-success" id="gpBtnApply" style="margin-left:8px;">Einschränkung jetzt anwenden</button>
+                        <button type="button" class="btn" id="gpBtnRefreshStatus" style="margin-left:8px;">Status lesen</button>
+                        <button type="button" class="btn btn-danger" id="gpBtnRemove" style="margin-left:8px;">Einstellung entfernen (Standard)</button>
+                    </div>
+                    <h3 style="margin-top:0;font-size:1rem;">Protokoll</h3>
+                    <div id="gpOnlineLog" style="max-height:200px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                    <h3 style="margin-top:18px;font-size:1rem;">Aktueller Status (Group.Unified)</h3>
+                    <pre id="gpStatusPre" style="margin:0;padding:14px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;font-size:0.88em;white-space:pre-wrap;word-break:break-word;">Noch nicht gelesen – „Status lesen“ oder „Einschränkung jetzt anwenden“ wählen.</pre>
+                    <button type="button" class="btn" id="gpBtnBack3">← Zurück</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../polyglot-cmd.js" defer></script>
+    <script src="../gruppenerstellung-policy.js" defer></script>
+</body>
+</html>
+

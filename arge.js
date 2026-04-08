@@ -12,10 +12,12 @@
     const panelW = document.getElementById('panelWebuntis');
     const panelJ = document.getElementById('panelJahrgang');
     const panelA = document.getElementById('panelArge');
+    const panelG = document.getElementById('panelGruppenPolicy');
 
     const btnModeW = document.getElementById('modeWebuntis');
     const btnModeJ = document.getElementById('modeJahrgang');
     const btnModeA = document.getElementById('modeArge');
+    const btnModeG = document.getElementById('modeGruppenPolicy');
 
     function showToast(msg) {
         const el = document.getElementById('toast');
@@ -30,12 +32,17 @@
         const w = which === 'webuntis';
         const j = which === 'jahrgang';
         const a = which === 'arge';
+        const g = which === 'gruppenerstellung';
         if (panelW) panelW.style.display = w ? '' : 'none';
         if (panelJ) panelJ.style.display = j ? '' : 'none';
         if (panelA) panelA.style.display = a ? '' : 'none';
+        if (panelG) panelG.style.display = g ? '' : 'none';
         if (btnModeW) btnModeW.classList.toggle('btn-success', w);
         if (btnModeJ) btnModeJ.classList.toggle('btn-success', j);
         if (btnModeA) btnModeA.classList.toggle('btn-success', a);
+        if (btnModeG) btnModeG.classList.toggle('btn-success', g);
+        const sdb = document.getElementById('schoolDomainBar');
+        if (sdb) sdb.style.display = g ? 'none' : '';
         if (a) {
             scheduleArgePreviewRefresh();
         }
@@ -44,12 +51,14 @@
     if (btnModeW) btnModeW.addEventListener('click', () => setMode('webuntis'));
     if (btnModeJ) btnModeJ.addEventListener('click', () => setMode('jahrgang'));
     if (btnModeA) btnModeA.addEventListener('click', () => setMode('arge'));
+    if (btnModeG) btnModeG.addEventListener('click', () => setMode('gruppenerstellung'));
 
     function applyInitialModeFromUrl() {
         try {
             const mode = new URLSearchParams(window.location.search).get('mode');
             if (!mode) return;
             if (mode.toLowerCase() === 'arge') setMode('arge');
+            else if (mode.toLowerCase() === 'gruppenerstellung' || mode.toLowerCase() === 'grouppolicy') setMode('gruppenerstellung');
         } catch {
             // ignore
         }

@@ -1,0 +1,108 @@
+(function () {
+    'use strict';
+
+    const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
+
+    ns.saveStateToStorage = function saveStateToStorage() {
+        try {
+            const state = {
+                rawData: ns.rawData,
+                filteredData: ns.filteredData,
+                teamsData: ns.teamsData,
+                teacherEmailMapping: ns.teacherEmailMapping,
+                teamsGenerated: ns.teamsGenerated,
+                currentStep: ns.currentStep,
+                yearPrefix: document.getElementById('yearPrefix').value,
+                schoolDomain:
+                    typeof window.ms365GetSchoolDomainNoAt === 'function'
+                        ? window.ms365GetSchoolDomainNoAt()
+                        : '',
+                teamSeparator: document.getElementById('teamSeparator').value,
+                excludeSubjects: document.getElementById('excludeSubjects').value,
+                removeDuplicates: document.getElementById('removeDuplicates').checked,
+                kursteamEntryMode: ns.kursteamEntryMode
+            };
+            localStorage.setItem(ns.STORAGE_KEY, JSON.stringify(state));
+            ns.showToast('Kursteams: Zwischenstand gespeichert.');
+        } catch (e) {
+            ns.showToast('Speichern fehlgeschlagen: ' + e.message);
+        }
+    };
+
+    ns.loadStateFromStorage = function loadStateFromStorage() {
+        try {
+            const raw = localStorage.getItem(ns.STORAGE_KEY);
+            if (!raw) {
+                ns.showToast('Kein gespeicherter Stand gefunden.');
+                return;
+            }
+            const state = JSON.parse(raw);
+            ns.rawData = state.rawData || [];
+            ns.filteredData = state.filteredData || [];
+            ns.teamsData = state.teamsData || [];
+            ns.teacherEmailMapping = state.teacherEmailMapping || {};
+            ns.teamsGenerated = !!state.teamsGenerated;
+            ns.kursteamEntryMode =
+                state.kursteamEntryMode === 'manual' || state.kursteamEntryMode === 'webuntis'
+                    ? state.kursteamEntryMode
+                    : 'unset';
+
+            document.getElementById('yearPrefix').value = state.yearPrefix || 'WS24';
+            if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
+                const sd = state.schoolDomain;
+                const legacy = state.emailDomain;
+                if (sd !== undefined && sd !== null && String(sd).trim() !== '') {
+                    window.ms365SetSchoolDomainNoAt(sd);
+                } else if (legacy !== undefined && legacy !== null && String(legacy).trim() !== '') {
+                    window.ms365SetSchoolDomainNoAt(
+                        String(legacy)
+                            .trim()
+                            .replace(/^@+/, '')
+                    );
+                }
+            }
+            document.getElementById('teamSeparator').value = state.teamSeparator !== undefined ? state.teamSeparator : ' | ';
+            document.getElementById('excludeSubjects').value = state.excludeSubjects !== undefined ? state.excludeSubjects : 'ORD,DIR,KV';
+            document.getElementById('removeDuplicates').checked = state.removeDuplicates !== false;
+
+            if (ns.rawData.length) {
+                document.getElementById('totalRecords').textContent = ns.rawData.length;
+                document.getElementById('uniqueSubjects').textContent = new Set(ns.rawData.map(r => r.fach).filter(f => f)).size;
+                document.getElementById('uniqueTeachers').textContent = new Set(ns.rawData.map(r => r.lehrer).filter(l => l)).size;
+                document.getElementById('importStats').style.display = 'block';
+            }
+            if (ns.filteredData.length) {
+                document.getElementById('filteredRecords').textContent = ns.filteredData.length;
+                document.getElementById('filterStats').style.display = 'block';
+                if (typeof ns.displayFilteredData === 'function') ns.displayFilteredData();
+            }
+            if (Object.keys(ns.teacherEmailMapping).length) {
+                document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
+                document.getElementById('teacherMappingInfo').style.display = 'block';
+            }
+            if (ns.teamsData.length && ns.teamsGenerated) {
+                if (typeof ns.displayTeamsData === 'function') ns.displayTeamsData();
+            }
+
+            const hasRows = state.rawData && state.rawData.length > 0;
+            const step = state.currentStep !== undefined ? state.currentStep : (hasRows ? 1 : 0);
+            if (typeof ns.goToStep === 'function') ns.goToStep(step);
+
+            ns.showToast('Kursteams: Stand geladen.');
+        } catch (e) {
+            ns.showToast('Laden fehlgeschlagen: ' + e.message);
+        }
+    };
+
+    ns.clearStorage = function clearStorage() {
+        ns.confirmModal('Lokalen Speicher löschen', 'Den gespeicherten Zwischenstand für Kursteams in diesem Browser wirklich löschen?', () => {
+            try {
+                localStorage.removeItem(ns.STORAGE_KEY);
+                ns.showToast('Kursteams: Lokaler Speicher wurde geleert.');
+            } catch (e) {
+                ns.showToast('Fehler: ' + e.message);
+            }
+        });
+    };
+})();
+
