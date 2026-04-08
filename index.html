@@ -315,6 +315,11 @@
                     <p>Einheitliche Microsoft‑365‑Gruppen im Mandanten listen: Besitzer, Mitglieder und Erstellungsdatum (Microsoft Graph).</p>
                     <a class="btn" href="tools/gruppen-uebersicht.html"><i class="bi bi-search"></i>Gruppenübersicht öffnen</a>
                 </section>
+                <section class="choice" role="listitem" aria-label="Gruppenerstellung einschränken" data-tool-id="gruppenerstellung" draggable="true">
+                    <h2><i class="bi bi-shield-lock"></i>Gruppenerstellung einschränken</h2>
+                    <p>Entra‑Directory‑Einstellung <code>Group.Unified</code>: nur Mitglieder einer Sicherheitsgruppe dürfen M365‑Gruppen/Teams anlegen; Status prüfen oder Einschränkung aufheben.</p>
+                    <a class="btn" href="tools/gruppenerstellung.html"><i class="bi bi-box-arrow-up-right"></i>Tool öffnen</a>
+                </section>
             </div>
             <p class="dashboard-reorder-hint">Tipp: Die Werkzeug‑Kacheln können per <strong>Drag &amp; Drop</strong> umsortiert werden (wird lokal im Browser gespeichert).</p>
             <p class="note">Ein Projekt von Kurt Söser</p>
@@ -371,7 +376,8 @@
                 'weitere-teams-gruppen',
                 'klassen-umbenennen',
                 'teams-archiv',
-                'gruppen-uebersicht'
+                'gruppen-uebersicht',
+                'gruppenerstellung'
             ];
 
             const grid = document.querySelector('.grid');
