@@ -6,7 +6,9 @@
     const GRAPH_SCOPES = [
         'https://graph.microsoft.com/User.Read',
         'https://graph.microsoft.com/User.Read.All',
-        'https://graph.microsoft.com/Group.ReadWrite.All'
+        'https://graph.microsoft.com/Group.ReadWrite.All',
+        /** Optional: Team aus M365-Gruppe erstellen (PUT /groups/{id}/team) */
+        'https://graph.microsoft.com/Team.Create'
     ];
 
     const PERSON_SELECT = 'id,displayName,mail,userPrincipalName';
@@ -379,6 +381,30 @@
         return data.value || [];
     }
 
+    async function findGroupsByMail(token, mail) {
+        const esc = odataEscape(mail);
+        const filter = "mail eq '" + esc + "'";
+        const path =
+            '/groups?$filter=' +
+            encodeURIComponent(filter) +
+            '&$select=' +
+            encodeURIComponent('id,displayName,mail,mailNickname,groupTypes') +
+            '&$top=15';
+        const data = await graphJson('GET', path, token, undefined);
+        return data.value || [];
+    }
+
+    function normalizeGroupQueryToNickOrMail(raw) {
+        const q = normStr(raw);
+        if (!q) return { nick: '', mail: '' };
+        if (q.indexOf('@') !== -1) {
+            const mail = normEmail(q);
+            const local = mail.split('@')[0] || '';
+            return { nick: sanitizeMailNickname(local), mail: mail };
+        }
+        return { nick: sanitizeMailNickname(q), mail: '' };
+    }
+
     async function createUnifiedGroup(token, displayName, mailNickname, description) {
         const nick = sanitizeMailNickname(mailNickname);
         const body = {
@@ -416,6 +442,45 @@
             /* Besitzer optional */
         }
         return group;
+    }
+
+    function buildPutTeamBody() {
+        return {
+            memberSettings: {
+                allowCreatePrivateChannels: true,
+                allowCreateUpdateChannels: true
+            },
+            messagingSettings: {
+                allowUserEditMessages: true,
+                allowUserDeleteMessages: true
+            },
+            funSettings: {
+                allowGiphy: true,
+                giphyContentRating: 'moderate'
+            },
+            guestSettings: {
+                allowCreateUpdateChannels: false
+            }
+        };
+    }
+
+    async function provisionTeamForGroup(token, gid) {
+        const teamUri = '/groups/' + encodeURIComponent(gid) + '/team';
+        for (let i = 0; i < 8; i++) {
+            try {
+                await graphJson('PUT', teamUri, token, buildPutTeamBody());
+                return;
+            } catch (e) {
+                const msg = String(e && e.message ? e.message : e);
+                const looksLikeReplication = msg.indexOf('404') !== -1 || msg.indexOf('Request_ResourceNotFound') !== -1;
+                if (i < 7 && looksLikeReplication) {
+                    await sleep(10000);
+                    token = await getGraphToken();
+                    continue;
+                }
+                throw e;
+            }
+        }
     }
 
     async function resolveUserByEmail(token, email) {
@@ -515,10 +580,11 @@
     async function handleCreateSchueler() {
         const dn = document.getElementById('slgSchuelerDisplayName');
         const nn = document.getElementById('slgSchuelerMailNick');
+        const ct = document.getElementById('slgSchuelerCreateTeam');
         const displayName = dn ? dn.value : 'Schüler:innen';
         const mailNick = nn ? nn.value : 'schueler';
         try {
-            const token = await getGraphToken();
+            let token = await getGraphToken();
             const g = await createUnifiedGroup(
                 token,
                 displayName,
@@ -527,7 +593,14 @@
             );
             persistResolvedIds('schueler', g);
             setSummary('schueler', formatGroupSummary(g), true);
-            toast('Schüler:innen‑Gruppe angelegt.');
+            if (ct && ct.checked && g && g.id) {
+                toast('Gruppe angelegt – Team wird bereitgestellt …');
+                await sleep(1500);
+                await provisionTeamForGroup(token, g.id);
+                toast('Schüler:innen‑Gruppe + Team angelegt.');
+            } else {
+                toast('Schüler:innen‑Gruppe angelegt.');
+            }
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
         }
@@ -536,10 +609,11 @@
     async function handleCreateLehrer() {
         const dn = document.getElementById('slgLehrerDisplayName');
         const nn = document.getElementById('slgLehrerMailNick');
+        const ct = document.getElementById('slgLehrerCreateTeam');
         const displayName = dn ? dn.value : 'Lehrer:innen';
         const mailNick = nn ? nn.value : 'lehrer';
         try {
-            const token = await getGraphToken();
+            let token = await getGraphToken();
             const g = await createUnifiedGroup(
                 token,
                 displayName,
@@ -548,7 +622,14 @@
             );
             persistResolvedIds('lehrer', g);
             setSummary('lehrer', formatGroupSummary(g), true);
-            toast('Lehrer:innen‑Gruppe angelegt.');
+            if (ct && ct.checked && g && g.id) {
+                toast('Gruppe angelegt – Team wird bereitgestellt …');
+                await sleep(1500);
+                await provisionTeamForGroup(token, g.id);
+                toast('Lehrer:innen‑Gruppe + Team angelegt.');
+            } else {
+                toast('Lehrer:innen‑Gruppe angelegt.');
+            }
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
         }
@@ -611,11 +692,20 @@
     async function handleFindSchuelerNick() {
         try {
             const token = await getGraphToken();
-            const nn = document.getElementById('slgSchuelerMailNick');
-            const nick = sanitizeMailNickname(nn ? nn.value : 'schueler') || 'schueler';
-            const list = await findGroupsByMailNickname(token, nick);
+            const qEl = document.getElementById('slgSchuelerGroupQuery');
+            const fallbackNickEl = document.getElementById('slgSchuelerMailNick');
+            const q = normalizeGroupQueryToNickOrMail(qEl ? qEl.value : '');
+            const nick = q.nick || sanitizeMailNickname(fallbackNickEl ? fallbackNickEl.value : 'schueler') || 'schueler';
+
+            let list = [];
+            if (q.mail) {
+                list = await findGroupsByMail(token, q.mail);
+            }
+            if (!list.length && nick) {
+                list = await findGroupsByMailNickname(token, nick);
+            }
             if (!list.length) {
-                toast('Keine Gruppe mit Mail‑Nickname „' + nick + '“ gefunden.');
+                toast('Keine Gruppe gefunden (Suche: ' + (q.mail ? q.mail : nick) + ').');
                 return;
             }
             const g = list[0];
@@ -640,11 +730,20 @@
     async function handleFindLehrerNick() {
         try {
             const token = await getGraphToken();
-            const nn = document.getElementById('slgLehrerMailNick');
-            const nick = sanitizeMailNickname(nn ? nn.value : 'lehrer') || 'lehrer';
-            const list = await findGroupsByMailNickname(token, nick);
+            const qEl = document.getElementById('slgLehrerGroupQuery');
+            const fallbackNickEl = document.getElementById('slgLehrerMailNick');
+            const q = normalizeGroupQueryToNickOrMail(qEl ? qEl.value : '');
+            const nick = q.nick || sanitizeMailNickname(fallbackNickEl ? fallbackNickEl.value : 'lehrer') || 'lehrer';
+
+            let list = [];
+            if (q.mail) {
+                list = await findGroupsByMail(token, q.mail);
+            }
+            if (!list.length && nick) {
+                list = await findGroupsByMailNickname(token, nick);
+            }
             if (!list.length) {
-                toast('Keine Gruppe mit Mail‑Nickname „' + nick + '“ gefunden.');
+                toast('Keine Gruppe gefunden (Suche: ' + (q.mail ? q.mail : nick) + ').');
                 return;
             }
             const g = list[0];
@@ -867,11 +966,23 @@
             slgLehrerMailNick: document.getElementById('slgLehrerMailNick')
                 ? document.getElementById('slgLehrerMailNick').value
                 : 'lehrer',
+            slgSchuelerCreateTeam: document.getElementById('slgSchuelerCreateTeam')
+                ? !!document.getElementById('slgSchuelerCreateTeam').checked
+                : false,
+            slgLehrerCreateTeam: document.getElementById('slgLehrerCreateTeam')
+                ? !!document.getElementById('slgLehrerCreateTeam').checked
+                : false,
             slgSchuelerGroupId: document.getElementById('slgSchuelerGroupId')
                 ? document.getElementById('slgSchuelerGroupId').value
                 : '',
             slgLehrerGroupId: document.getElementById('slgLehrerGroupId')
                 ? document.getElementById('slgLehrerGroupId').value
+                : '',
+            slgSchuelerGroupQuery: document.getElementById('slgSchuelerGroupQuery')
+                ? document.getElementById('slgSchuelerGroupQuery').value
+                : '',
+            slgLehrerGroupQuery: document.getElementById('slgLehrerGroupQuery')
+                ? document.getElementById('slgLehrerGroupQuery').value
                 : '',
             slgSchuelerMode: document.querySelector('input[name="slgSchuelerMode"]:checked')
                 ? document.querySelector('input[name="slgSchuelerMode"]:checked').value
@@ -903,8 +1014,14 @@
         setVal('slgLehrerDisplayName', o.slgLehrerDisplayName);
         setVal('slgSchuelerMailNick', o.slgSchuelerMailNick);
         setVal('slgLehrerMailNick', o.slgLehrerMailNick);
+        const ctS = document.getElementById('slgSchuelerCreateTeam');
+        if (ctS && o.slgSchuelerCreateTeam !== undefined) ctS.checked = !!o.slgSchuelerCreateTeam;
+        const ctL = document.getElementById('slgLehrerCreateTeam');
+        if (ctL && o.slgLehrerCreateTeam !== undefined) ctL.checked = !!o.slgLehrerCreateTeam;
         setVal('slgSchuelerGroupId', o.slgSchuelerGroupId);
         setVal('slgLehrerGroupId', o.slgLehrerGroupId);
+        setVal('slgSchuelerGroupQuery', o.slgSchuelerGroupQuery);
+        setVal('slgLehrerGroupQuery', o.slgLehrerGroupQuery);
         setVal('slgManualLines', o.slgManualLines);
 
         if (o.slgSchuelerMode) {

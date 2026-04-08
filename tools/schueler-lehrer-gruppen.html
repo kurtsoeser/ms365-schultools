@@ -86,12 +86,23 @@
                                     <input type="text" id="slgSchuelerMailNick" value="schueler" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin" placeholder="z. B. schueler">
                                     <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Nur Buchstaben/Ziffern empfohlen. Das Tool normalisiert automatisch (entfernt Sonderzeichen, macht klein).</small>
                                 </div>
+                                <div class="filter-group" style="margin-top:6px;">
+                                    <label class="checkbox-label" for="slgSchuelerCreateTeam">
+                                        <input type="checkbox" id="slgSchuelerCreateTeam">
+                                        <span>Auch als <strong>Team</strong> anlegen (optional)</span>
+                                    </label>
+                                    <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Standard: aus. Benötigt Graph‑Berechtigung <code>Team.Create</code> (delegiert) und ggf. Admin‑Zustimmung.</small>
+                                </div>
                                 <button type="button" class="btn btn-success" id="slgBtnCreateSchueler">Gruppe anlegen</button>
                             </div>
                             <div id="slgSchuelerExistBlock" style="display:none;">
                                 <div class="filter-group">
                                     <label for="slgSchuelerGroupId">Object‑ID (GUID) der Gruppe</label>
                                     <input type="text" id="slgSchuelerGroupId" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="slgSchuelerGroupQuery">Suche (Mail‑Nickname oder Gruppen‑E‑Mail)</label>
+                                    <input type="text" id="slgSchuelerGroupQuery" autocomplete="off" spellcheck="false" placeholder="schueler oder schueler@ms365.schule">
                                 </div>
                                 <button type="button" class="btn" id="slgBtnResolveSchueler">Gruppe laden / prüfen</button>
                                 <button type="button" class="btn" id="slgBtnFindSchuelerNick">Per Mail‑Nickname suchen</button>
@@ -114,12 +125,23 @@
                                     <input type="text" id="slgLehrerMailNick" value="lehrer" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin" placeholder="z. B. lehrer">
                                     <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Nur Buchstaben/Ziffern empfohlen. Das Tool normalisiert automatisch (entfernt Sonderzeichen, macht klein).</small>
                                 </div>
+                                <div class="filter-group" style="margin-top:6px;">
+                                    <label class="checkbox-label" for="slgLehrerCreateTeam">
+                                        <input type="checkbox" id="slgLehrerCreateTeam">
+                                        <span>Auch als <strong>Team</strong> anlegen (optional)</span>
+                                    </label>
+                                    <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Standard: aus. Benötigt Graph‑Berechtigung <code>Team.Create</code> (delegiert) und ggf. Admin‑Zustimmung.</small>
+                                </div>
                                 <button type="button" class="btn btn-success" id="slgBtnCreateLehrer">Gruppe anlegen</button>
                             </div>
                             <div id="slgLehrerExistBlock" style="display:none;">
                                 <div class="filter-group">
                                     <label for="slgLehrerGroupId">Object‑ID (GUID) der Gruppe</label>
                                     <input type="text" id="slgLehrerGroupId" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="slgLehrerGroupQuery">Suche (Mail‑Nickname oder Gruppen‑E‑Mail)</label>
+                                    <input type="text" id="slgLehrerGroupQuery" autocomplete="off" spellcheck="false" placeholder="lehrer oder lehrer@ms365.schule">
                                 </div>
                                 <button type="button" class="btn" id="slgBtnResolveLehrer">Gruppe laden / prüfen</button>
                                 <button type="button" class="btn" id="slgBtnFindLehrerNick">Per Mail‑Nickname suchen</button>
