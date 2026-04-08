@@ -5,8 +5,13 @@
         'https://graph.microsoft.com/User.Read',
         'https://graph.microsoft.com/Group.ReadWrite.All',
         'https://graph.microsoft.com/User.Read.All',
-        /** POST /teams (Kursteam wie New-Team -Template EDU_Class → teamsTemplates educationClass) */
-        'https://graph.microsoft.com/Team.Create'
+        /** POST /teams mit teamsTemplates('educationClass') – wie New-Team -Template EDU_Class */
+        'https://graph.microsoft.com/Team.Create',
+        /**
+         * Wird für POST /education/classes mitgefordert; laut Microsoft Learn ist diese API für delegierte Auth oft
+         * nicht verfügbar – dann schlägt die Online-Anlage fehl und „Kursteam-Anlage.cmd“ (PowerShell) ist nötig.
+         */
+        'https://graph.microsoft.com/EduRoster.ReadWrite'
     ];
 
     let msalMod = null;
@@ -184,8 +189,8 @@
     }
 
     /**
-     * Microsoft: PowerShell New-Team -Template "EDU_Class" entspricht Graph teamsTemplates('educationClass').
-     * Richtiger Weg: POST /teams mit group@odata.bind (siehe team-post, Beispiel 4/6), nicht nur PUT …/team.
+     * Microsoft: PowerShell New-Team -Template "EDU_Class" entspricht POST /teams mit teamsTemplates('educationClass')
+     * und group@odata.bind auf die Gruppe einer Education-Klasse (nach POST /education/classes).
      */
     function parseTeamsOperationPath(locationHeader) {
         if (!locationHeader) return null;
@@ -220,38 +225,77 @@
         throw new Error('Timeout: Team-Bereitstellung (async) nicht abgeschlossen.');
     }
 
-    /** Fallback wie Jahrgang/ARGE: Team an bestehende Gruppe hängen (ohne educationClass-Template). */
-    function buildPutTeamBody(includeSpecialization) {
-        const base = {
-            memberSettings: {
-                allowCreatePrivateChannels: true,
-                allowCreateUpdateChannels: true
-            },
-            messagingSettings: {
-                allowUserEditMessages: true,
-                allowUserDeleteMessages: true
-            },
-            funSettings: {
-                allowGiphy: true,
-                giphyContentRating: 'moderate'
-            },
-            guestSettings: {
-                allowCreateUpdateChannels: false
-            }
-        };
-        if (includeSpecialization) {
-            base.specialization = 'educationClass';
-        }
-        return base;
+    function sanitizeEducationClassCode(t) {
+        const raw = (t && (t.gruppenmail || t.teamName)) || 'Klasse';
+        const s = String(raw).replace(/[^a-zA-Z0-9]/g, '');
+        return s.substring(0, 50) || 'Klasse';
     }
 
     /**
-     * Primär: POST /teams mit teamsTemplates('educationClass') + group@odata.bind — entspricht New-Team -Template EDU_Class.
-     * Hinweis: POST /education/classes (educationClass) ist laut Microsoft Learn für delegierte Auth nicht vorgesehen und legt
-     * ohnehin kein Team an (nur Klassen-Gruppe); siehe https://learn.microsoft.com/de-de/graph/api/educationclass-post
-     * Fallback: PUT /groups/{id}/team (Replikations-Wiederholungen).
+     * Vollständiges Kursteam (Aufgaben, Klassennotizbuch, …): laut Microsoft
+     * - zuerst Education-Klasse: POST /education/classes (legt die passende M365-Gruppe mit Education-Metadaten an),
+     * - dann Team mit teamsTemplates('educationClass'): POST /teams (entspricht PowerShell New-Team -Template EDU_Class).
+     * PUT /groups/{id}/team mit specialization educationClass ist dafür kein Ersatz (kein echtes Kursteam).
      */
-    async function provisionKursteamTeam(token, gid, appendLog) {
+    async function createEducationClassGroup(token, t, appendLog) {
+        const body = {
+            '@odata.type': '#microsoft.graph.educationClass',
+            displayName: t.teamName,
+            mailNickname: t.gruppenmail,
+            description: 'Kursteam (WebUntis / MS365-Schulverwaltung)',
+            classCode: sanitizeEducationClassCode(t),
+            externalSource: 'manual'
+        };
+        appendLog('  Education: POST /education/classes (legt Klassen-Gruppe für Kursteam an) …', 'warn');
+        const edu = await graphJson('POST', '/education/classes', token, body);
+        return edu.id;
+    }
+
+    function graphErrorBrowserNoFullKursteam(originalErr) {
+        return new Error(
+            'Vollständiges Kursteam (Microsoft-Template EDU_Class / educationClass: Aufgaben, Klassennotizbuch) ist ' +
+                'über diese Browser-Anmeldung nicht möglich: POST /education/classes ist laut Microsoft Learn nur mit ' +
+                'Anwendungsberechtigung EduRoster.ReadWrite.All nutzbar, nicht mit delegierter Anmeldung. ' +
+                'Bitte „Kursteam-Anlage.cmd“ verwenden (PowerShell: New-Team -Template EDU_Class) oder ein eigenes ' +
+                'Backend mit App-Only-Token. Technisch: ' +
+                (originalErr && originalErr.message ? originalErr.message : originalErr)
+        );
+    }
+
+    async function addGroupOwnerAndMember(token, gid, ownerId, appendLog) {
+        await sleep(2000);
+        try {
+            await graphJson('POST', '/groups/' + gid + '/owners/$ref', token, {
+                '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
+            });
+        } catch (e) {
+            if (isGraphDuplicateRefError(e)) {
+                appendLog(
+                    '  Besitzer: bereits gesetzt (häufig, wenn gleicher Admin wie angemeldeter Benutzer).',
+                    'warn'
+                );
+            } else {
+                throw e;
+            }
+        }
+        try {
+            await graphJson('POST', '/groups/' + gid + '/members/$ref', token, {
+                '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
+            });
+        } catch (e) {
+            if (isGraphDuplicateRefError(e)) {
+                appendLog('  Mitglied: bereits gesetzt.', 'warn');
+            } else {
+                appendLog('  Hinweis (Besitzer als Mitglied): ' + e.message, 'warn');
+            }
+        }
+    }
+
+    /**
+     * POST /teams mit teamsTemplates('educationClass') an eine bestehende Education-Klassen-Gruppe.
+     * Kein PUT-Fallback: PUT erzeugt kein vollständiges Kursteam.
+     */
+    async function provisionKursteamPostTeamsEducationTemplate(token, gid, appendLog) {
         const postBody = {
             'template@odata.bind':
                 'https://graph.microsoft.com/v1.0/teamsTemplates(\'educationClass\')',
@@ -267,11 +311,11 @@
                     const loc = res.headers.get('Location') || res.headers.get('Content-Location');
                     const opPath = parseTeamsOperationPath(loc);
                     if (opPath) {
-                        appendLog('  Teams: educationClass-Anlage gestartet (POST /teams) …', 'warn');
+                        appendLog('  Teams: POST /teams mit Template educationClass (wie EDU_Class) …', 'warn');
                         await pollTeamsAsyncOperation(token, opPath, appendLog);
                     } else {
                         appendLog(
-                            '  Teams: POST /teams angenommen (keine Operation-URL – ggf. im Admin prüfen).',
+                            '  Teams: POST /teams angenommen (keine Operation-URL – ggf. im Teams-Admin prüfen).',
                             'warn'
                         );
                     }
@@ -279,7 +323,7 @@
                 }
                 if (res.status === 404 && attempt < 2) {
                     appendLog(
-                        '  Teams: 404 nach Gruppenerstellung – Replikation, Warte 10 s …',
+                        '  Teams: 404 nach Klassenanlage – Replikation, Warte 10 s …',
                         'warn'
                     );
                     await sleep(10000);
@@ -300,36 +344,12 @@
             }
         }
 
-        appendLog(
-            '  Teams: POST /teams (educationClass) nicht möglich: ' +
-                (lastPostErr && lastPostErr.message ? lastPostErr.message : '') +
-                ' – Fallback PUT …/team.',
-            'warn'
+        const detail = lastPostErr && lastPostErr.message ? lastPostErr.message : String(lastPostErr);
+        throw new Error(
+            'POST /teams (Template educationClass) ist fehlgeschlagen – kein Kursteam angelegt. ' +
+                'PUT /team wird nicht verwendet (liefert kein vollständiges Kursteam). Details: ' +
+                detail
         );
-
-        const teamUri = '/groups/' + gid + '/team';
-        let useEducationSpec = true;
-        for (let ti = 0; ti < 8; ti++) {
-            try {
-                await graphJson('PUT', teamUri, token, buildPutTeamBody(useEducationSpec));
-                appendLog('  Teams: Team per PUT bereitgestellt (Fallback).', 'ok');
-                return await getGraphToken();
-            } catch (e) {
-                if (useEducationSpec) {
-                    useEducationSpec = false;
-                    appendLog('  Teams: PUT ohne specialization educationClass …', 'warn');
-                    ti--;
-                    continue;
-                }
-                if (ti < 7) {
-                    appendLog('  Teams: Warte auf Replikation (' + (ti + 1) + '/8) …', 'warn');
-                    await sleep(10000);
-                    token = await getGraphToken();
-                } else {
-                    throw e;
-                }
-            }
-        }
     }
 
     async function runKursteamOnline() {
@@ -359,7 +379,13 @@
         clearLog();
         appendLog('Start – Microsoft Graph (Browser), Kursteams …');
         appendLog(
-            'Hinweis: Wie PowerShell New-Team -Template EDU_Class → Graph teamsTemplates(\'educationClass\') + POST /teams (siehe Microsoft Learn: Create team, Beispiel 4/6).',
+            'Ziel: echtes Kursteam wie New-Team -Template EDU_Class → POST /education/classes, dann POST /teams mit ' +
+                'teamsTemplates(\'educationClass\') (Microsoft Learn: Create team, Create educationClass).',
+            'warn'
+        );
+        appendLog(
+            'Wichtig: POST /education/classes ist für delegierte Browser-Anmeldung oft gesperrt – dann schlägt die Anlage fehl; ' +
+                'nutzen Sie Schritt 8 „Kursteam-Anlage.cmd“ (PowerShell).',
             'warn'
         );
 
@@ -388,49 +414,15 @@
                 );
                 const ownerId = owner.id;
 
-                const groupBody = {
-                    displayName: t.teamName,
-                    description: 'Kursteam (WebUntis / MS365-Schulverwaltung)',
-                    mailNickname: t.gruppenmail,
-                    mailEnabled: true,
-                    securityEnabled: false,
-                    groupTypes: ['Unified'],
-                    visibility: 'Private'
-                };
-
-                const group = await graphJson('POST', '/groups', token, groupBody);
-                const gid = group.id;
-
-                await sleep(2000);
-
+                let gid;
                 try {
-                    await graphJson('POST', '/groups/' + gid + '/owners/$ref', token, {
-                        '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
-                    });
+                    gid = await createEducationClassGroup(token, t, appendLog);
                 } catch (e) {
-                    if (isGraphDuplicateRefError(e)) {
-                        appendLog(
-                            '  Besitzer: bereits gesetzt (häufig, wenn gleicher Admin wie angemeldeter Benutzer).',
-                            'warn'
-                        );
-                    } else {
-                        throw e;
-                    }
+                    throw graphErrorBrowserNoFullKursteam(e);
                 }
 
-                try {
-                    await graphJson('POST', '/groups/' + gid + '/members/$ref', token, {
-                        '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + ownerId
-                    });
-                } catch (e) {
-                    if (isGraphDuplicateRefError(e)) {
-                        appendLog('  Mitglied: bereits gesetzt.', 'warn');
-                    } else {
-                        appendLog('  Hinweis (Besitzer als Mitglied): ' + e.message, 'warn');
-                    }
-                }
-
-                token = await provisionKursteamTeam(token, gid, appendLog);
+                await addGroupOwnerAndMember(token, gid, ownerId, appendLog);
+                token = await provisionKursteamPostTeamsEducationTemplate(token, gid, appendLog);
 
                 appendLog('OK [' + i + '/' + total + '] ' + t.teamName + ' → ' + t.gruppenmail, 'ok');
             } catch (e) {

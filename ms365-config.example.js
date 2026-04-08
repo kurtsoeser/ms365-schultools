@@ -14,7 +14,8 @@
  * 5) API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen:
  *    - Group.ReadWrite.All
  *    - Directory.ReadWrite.All (Modus „Gruppenerstellung“: Verzeichniseinstellung Group.Unified setzen/entfernen)
- *    - Team.Create (Kursteams online: POST /teams mit Template educationClass)
+ *    - Team.Create (Kursteams: POST /teams mit Template educationClass)
+ *    - EduRoster.ReadWrite (wird für POST /education/classes mitangefordert; laut Microsoft oft nur App-Only – dann scheitert Kursteam im Browser, siehe Kursteam-Anlage.cmd)
  *    - User.Read.All
  *    - User.Read (Profil des angemeldeten Benutzers / für GET /me)
  *    - TeamSettings.ReadWrite.All (Werkzeug „Teams archivieren“: POST …/teams/{id}/archive|unarchive; Group.ReadWrite.All reicht für Gruppensuche)

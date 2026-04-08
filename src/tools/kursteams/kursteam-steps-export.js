@@ -236,6 +236,8 @@
         const lines = [];
         lines.push('#Requires -Version 5.1');
         lines.push('# Kursteam-Anlage (Microsoft Teams, Vorlage EDU_Class)');
+        lines.push('# Entspricht weiterhin Microsoft Learn: New-Team -Template "EDU_Class" (gueltige Werte: EDU_Class, EDU_PLC).');
+        lines.push('# Microsoft empfiehlt fuer Klassen-Teams das Modul MicrosoftTeams in Version 7.3.1 oder neuer.');
         lines.push('# Erzeugt in der Browser-App am ' + stamp);
         lines.push('# Daten sind unten eingebettet – keine separate CSV noetig.');
         lines.push('');
@@ -257,7 +259,9 @@
         lines.push('foreach ($Team in $TeamsList) {');
         lines.push('    $i++');
         lines.push('    try {');
-        lines.push('        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop');
+        lines.push(
+            '        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop'
+        );
         lines.push('        Write-Host ("OK [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) -ForegroundColor Green');
         lines.push('    }');
         lines.push('    catch {');

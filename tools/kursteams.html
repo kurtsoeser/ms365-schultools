@@ -513,6 +513,14 @@
                     <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
                         Empfohlen: Anmeldung mit einem Konto, das Gruppen erstellen darf. Besitzer-E-Mails müssen als Benutzer im Mandanten existieren.
                     </p>
+                    <div class="alert alert-warning" style="line-height:1.55;margin-bottom:16px;">
+                        <strong>Vollständiges Kursteam (Aufgaben, Klassennotizbuch):</strong> Microsoft verlangt dafür zuerst eine
+                        Education-Klasse (<code>POST /education/classes</code>) und danach das Team-Template
+                        <code>educationClass</code> (<code>POST /teams</code>) – wie <code>New-Team -Template EDU_Class</code>.
+                        <code>POST /education/classes</code> ist in der Microsoft-Dokumentation für reine Browser-Anmeldung häufig
+                        <strong>nicht</strong> freigegeben. Wenn Schritt&nbsp;6 fehlschlägt, nutzen Sie bitte Schritt&nbsp;8
+                        <strong>Kursteam-Anlage.cmd</strong> (PowerShell): dort wird zuverlässig ein echtes Kursteam angelegt.
+                    </div>
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
                         <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
                         <button type="button" class="btn" id="kursteamOnlineLogin" onclick="window.ms365KursteamGraphLogin && window.ms365KursteamGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
@@ -688,7 +696,7 @@ $i = 0
 foreach ($Team in $TeamsList) {
     $i++
     try {
-        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickname $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop
+        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop
         Write-Host "OK [$i/$($TeamsList.Count)] $($Team.Gruppenmail)"
     }
     catch {
