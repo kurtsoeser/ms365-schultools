@@ -292,10 +292,12 @@ td.kt-action-col {
 /* Kompatibilität: ältere/alternative Step-Container-Klassen */
 .arge-step-content,
 .jg-step-content,
-.gp-step-content { display: none; }
+.gp-step-content,
+.ku-step-content { display: none; }
 .arge-step-content.active,
 .jg-step-content.active,
-.gp-step-content.active { display: block; animation: fadeIn 0.3s; }
+.gp-step-content.active,
+.ku-step-content.active { display: block; animation: fadeIn 0.3s; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

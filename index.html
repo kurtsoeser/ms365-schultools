@@ -191,6 +191,10 @@
             color: #6c757d;
         }
         code { background: #eef; padding: 2px 6px; border-radius: 6px; }
+        .choice[data-tool-id] { cursor: grab; }
+        .choice[data-tool-id].dragging { opacity: 0.55; transform: rotate(0.15deg); }
+        .choice[data-tool-id].drag-over { outline: 2px dashed rgba(94, 114, 228, 0.65); outline-offset: 6px; }
+        .dashboard-reorder-hint { margin: 10px 0 0; color: #6c757d; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -201,6 +205,7 @@
         </header>
         <main>
             <p class="dashboard-intro">Dashboard: Wählen Sie ein Werkzeug. Weitere Kacheln können später befüllt werden.</p>
+            <p class="dashboard-reorder-hint">Tipp: Die Werkzeug‑Kacheln können per <strong>Drag &amp; Drop</strong> umsortiert werden (wird lokal im Browser gespeichert).</p>
             <div class="grid" role="list" aria-label="Werkzeuge und Platzhalter">
                 <section class="choice featured" role="listitem" aria-label="Tenant-Grundeinstellungen">
                     <div class="featured-split">
@@ -224,50 +229,45 @@
                         </aside>
                     </div>
                 </section>
-                <section class="choice" role="listitem">
-                    <h2>Kursteams</h2>
-                    <p>Import der <strong>WebUntis-Fächerliste</strong> (CSV/Excel), optional manuelle Zeilen. Teams (Vorlage <code>EDU_Class</code>) vorbereiten und online oder per PowerShell anlegen.</p>
-                    <a class="btn" href="tools/kursteams.html">Kursteams erstellen</a>
+                <section class="choice" role="listitem" aria-label="Schüler und Lehrer Gruppen" data-tool-id="slg" draggable="true">
+                    <h2>Schüler‑ und Lehrer:innen‑Gruppen</h2>
+                    <p>Zwei Microsoft 365‑Gruppen (<code>schueler@…</code> / <code>lehrer@…</code>) aus den Tenant‑Listen anlegen oder bestehende Gruppen mit Mitgliedern befüllen – schrittweise inkl. manueller Adressen.</p>
+                    <a class="btn" href="tools/schueler-lehrer-gruppen.html">Gruppen verwalten</a>
                 </section>
-                <section class="choice" role="listitem">
+                <section class="choice" role="listitem" data-tool-id="jahrgang" draggable="true">
                     <h2>Jahrgangsgruppen</h2>
-                    <p>Microsoft 365-Gruppen (Unified Groups, keine Kursteams) nach Schema <code>jg&lt;Jahr&gt;-&lt;Kürzel&gt;</code> erstellen.</p>
+                    <p>Microsoft 365‑Gruppen (Unified Groups, keine Kursteams) nach Schema <code>jg&lt;Jahr&gt;-&lt;Kürzel&gt;</code> erstellen.</p>
                     <a class="btn" href="tools/jahrgang.html">Jahrgangsgruppen erstellen</a>
                 </section>
-                <section class="choice" role="listitem">
+                <section class="choice" role="listitem" data-tool-id="arge" draggable="true">
                     <h2>ARGEs</h2>
-                    <p>Microsoft 365-Gruppen für Arbeitsgemeinschaften (z. B. <code>ARGE Deutsch</code>, <code>ARGEBB</code>) erstellen – inkl. Besitzer und Doppelklick-Paket.</p>
+                    <p>Microsoft 365‑Gruppen für Arbeitsgemeinschaften (z. B. <code>ARGE Deutsch</code>, <code>ARGEBB</code>) erstellen – inkl. Besitzer und Doppelklick‑Paket.</p>
                     <a class="btn" href="tools/arge.html">ARGEs erstellen</a>
                 </section>
-                <section class="choice" role="listitem">
-                    <h2>Gruppenerstellung einschränken</h2>
-                    <p>Nur ausgewählte Benutzer dürfen Microsoft 365-Gruppen und Teams anlegen: Sicherheitsgruppe, Verzeichnisrichtlinie <code>Group.Unified</code> per Microsoft Graph (wie PowerShell in der Anleitung).</p>
-                    <a class="btn" href="tools/gruppenerstellung.html">Gruppenerstellung einschränken</a>
+                <section class="choice" role="listitem" data-tool-id="kursteams" draggable="true">
+                    <h2>Kursteams</h2>
+                    <p>Import der <strong>WebUntis‑Fächerliste</strong> (CSV/Excel), optional manuelle Zeilen. Teams (Vorlage <code>EDU_Class</code>) vorbereiten und online oder per PowerShell anlegen.</p>
+                    <a class="btn" href="tools/kursteams.html">Kursteams erstellen</a>
                 </section>
-                <section class="choice choice-placeholder" role="listitem" aria-label="Platzhalter Werkzeug 5">
-                    <h2>Werkzeug 5</h2>
-                    <p>Reserviert für ein künftiges Werkzeug.</p>
+                <section class="choice choice-placeholder" role="listitem" aria-label="Weitere Teams und Gruppen (Platzhalter)" data-tool-id="placeholder5" draggable="true">
+                    <h2>Weitere Teams &amp; Gruppen</h2>
+                    <p>Kommt später. (Platzhalter)</p>
                     <span class="placeholder-badge">In Planung</span>
                 </section>
-                <section class="choice choice-placeholder" role="listitem" aria-label="Platzhalter Werkzeug 6">
-                    <h2>Werkzeug 6</h2>
-                    <p>Reserviert für ein künftiges Werkzeug.</p>
-                    <span class="placeholder-badge">In Planung</span>
+                <section class="choice" role="listitem" aria-label="Klassen umbenennen" data-tool-id="klassen-umbenennen" draggable="true">
+                    <h2>Klassen umbenennen</h2>
+                    <p>Microsoft‑365‑Klassengruppen zum Schuljahreswechsel umbenennen (z. B. <code>Klasse 1A</code> → <code>Klasse 2A</code>) mit Vorschau und Microsoft Graph.</p>
+                    <a class="btn" href="tools/klassen-umbenennen.html">Klassen umbenennen</a>
                 </section>
-                <section class="choice" role="listitem" aria-label="Teams archivieren">
-                    <h2>Werkzeug 7: Teams archivieren</h2>
-                    <p>Microsoft Teams per Graph archivieren oder wieder aktivieren (gleiche GUID wie die M365-Gruppe). Optional SharePoint-Website schreibgeschützt.</p>
+                <section class="choice" role="listitem" aria-label="Teams archivieren" data-tool-id="teams-archiv" draggable="true">
+                    <h2>Teams archivieren</h2>
+                    <p>Microsoft Teams per Graph archivieren oder wieder aktivieren (gleiche GUID wie die M365‑Gruppe). Optional SharePoint‑Website schreibgeschützt.</p>
                     <a class="btn" href="tools/teams-archiv.html">Teams archivieren</a>
                 </section>
-                <section class="choice" role="listitem" aria-label="Microsoft 365-Gruppen anzeigen">
-                    <h2>Werkzeug 8: Microsoft 365-Gruppen</h2>
-                    <p>Einheitliche Microsoft-365-Gruppen im Mandanten listen: Besitzer, Mitglieder und Erstellungsdatum (Microsoft Graph).</p>
+                <section class="choice" role="listitem" aria-label="Microsoft 365-Gruppen anzeigen" data-tool-id="gruppen-uebersicht" draggable="true">
+                    <h2>MS365‑Gruppen</h2>
+                    <p>Einheitliche Microsoft‑365‑Gruppen im Mandanten listen: Besitzer, Mitglieder und Erstellungsdatum (Microsoft Graph).</p>
                     <a class="btn" href="tools/gruppen-uebersicht.html">Gruppenübersicht öffnen</a>
-                </section>
-                <section class="choice choice-placeholder" role="listitem" aria-label="Platzhalter Werkzeug 9">
-                    <h2>Werkzeug 9</h2>
-                    <p>Reserviert für ein künftiges Werkzeug.</p>
-                    <span class="placeholder-badge">In Planung</span>
                 </section>
             </div>
             <p class="note">Tipp: Unter GitHub Pages ist diese Seite die Root-URL des Repos (z. B. <code>kurtsoeser.github.io/ms365-schultools/</code>).</p>
@@ -310,6 +310,124 @@
                 setTimeout(runAfterDeferredApis, 0);
             }
         })();
+
+        (function () {
+            'use strict';
+            const ORDER_KEY = 'ms365-dashboard-order-v1';
+            const DEFAULT_ORDER = [
+                'slg',
+                'jahrgang',
+                'arge',
+                'kursteams',
+                'placeholder5',
+                'klassen-umbenennen',
+                'teams-archiv',
+                'gruppen-uebersicht'
+            ];
+
+            const grid = document.querySelector('.grid');
+            if (!grid) return;
+
+            function getToolCards() {
+                return Array.from(grid.querySelectorAll('.choice[data-tool-id]'));
+            }
+
+            function applyOrder(order) {
+                const cards = getToolCards();
+                const byId = new Map(cards.map((c) => [c.getAttribute('data-tool-id'), c]));
+                const used = new Set();
+
+                order.forEach(function (id) {
+                    const el = byId.get(id);
+                    if (!el || used.has(id)) return;
+                    used.add(id);
+                    grid.appendChild(el);
+                });
+
+                cards.forEach(function (el) {
+                    const id = el.getAttribute('data-tool-id');
+                    if (id && !used.has(id)) grid.appendChild(el);
+                });
+            }
+
+            function loadOrder() {
+                try {
+                    const raw = localStorage.getItem(ORDER_KEY);
+                    if (!raw) return null;
+                    const o = JSON.parse(raw);
+                    return Array.isArray(o) ? o.map((x) => String(x)) : null;
+                } catch {
+                    return null;
+                }
+            }
+
+            function saveOrder() {
+                const order = getToolCards().map((c) => c.getAttribute('data-tool-id')).filter(Boolean);
+                try {
+                    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+                } catch {
+                    /* ignore */
+                }
+            }
+
+            function clearDragClasses() {
+                getToolCards().forEach(function (c) {
+                    c.classList.remove('dragging');
+                    c.classList.remove('drag-over');
+                });
+            }
+
+            function enableDnD() {
+                getToolCards().forEach(function (card) {
+                    card.addEventListener('dragstart', function (e) {
+                        const id = card.getAttribute('data-tool-id');
+                        if (!id) return;
+                        card.classList.add('dragging');
+                        try {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', id);
+                        } catch {
+                            /* ignore */
+                        }
+                    });
+
+                    card.addEventListener('dragend', function () {
+                        clearDragClasses();
+                        saveOrder();
+                    });
+
+                    card.addEventListener('dragover', function (e) {
+                        e.preventDefault();
+                        const dragging = grid.querySelector('.choice[data-tool-id].dragging');
+                        if (!dragging || dragging === card) return;
+                        card.classList.add('drag-over');
+                        try {
+                            e.dataTransfer.dropEffect = 'move';
+                        } catch {
+                            /* ignore */
+                        }
+                    });
+
+                    card.addEventListener('dragleave', function () {
+                        card.classList.remove('drag-over');
+                    });
+
+                    card.addEventListener('drop', function (e) {
+                        e.preventDefault();
+                        const dragging = grid.querySelector('.choice[data-tool-id].dragging');
+                        if (!dragging || dragging === card) return;
+                        card.classList.remove('drag-over');
+                        grid.insertBefore(dragging, card);
+                        saveOrder();
+                    });
+                });
+            }
+
+            const saved = loadOrder();
+            applyOrder(saved && saved.length ? saved : DEFAULT_ORDER);
+            enableDnD();
+        })();
+
         (function () {
             'use strict';
             const elSubjects = document.getElementById('tenantStatSubjects');

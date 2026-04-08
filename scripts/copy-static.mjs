@@ -60,7 +60,10 @@ async function main() {
           'teams-archiv': 'tools/teams-archiv.html',
           gruppen: 'tools/gruppen-uebersicht.html',
           gruppenuebersicht: 'tools/gruppen-uebersicht.html',
-          'gruppen-uebersicht': 'tools/gruppen-uebersicht.html'
+          'gruppen-uebersicht': 'tools/gruppen-uebersicht.html',
+          klassen: 'tools/klassen-umbenennen.html',
+          klassenumbenennen: 'tools/klassen-umbenennen.html',
+          'klassen-umbenennen': 'tools/klassen-umbenennen.html'
         };
         window.location.replace(map[mode] || 'index.html');
       })();
@@ -81,7 +84,8 @@ async function main() {
           <a href="tools/jahrgang.html">Jahrgangsgruppen</a>, <a href="tools/arge.html">ARGEs</a>,
           <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>,
           <a href="tools/teams-archiv.html">Teams archivieren</a>,
-          <a href="tools/gruppen-uebersicht.html">Gruppenübersicht</a>.
+          <a href="tools/gruppen-uebersicht.html">Gruppenübersicht</a>,
+          <a href="tools/klassen-umbenennen.html">Klassen umbenennen</a>.
         </p>
       </div>
     </div>

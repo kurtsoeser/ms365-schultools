@@ -26,7 +26,9 @@ export default defineConfig(() => {
           arge: resolve(__dirname, 'tools/arge.html'),
           gruppenerstellung: resolve(__dirname, 'tools/gruppenerstellung.html'),
           teamsArchiv: resolve(__dirname, 'tools/teams-archiv.html'),
-          gruppenUebersicht: resolve(__dirname, 'tools/gruppen-uebersicht.html')
+          gruppenUebersicht: resolve(__dirname, 'tools/gruppen-uebersicht.html'),
+          klassenUmbenennen: resolve(__dirname, 'tools/klassen-umbenennen.html'),
+          schuelerLehrerGruppen: resolve(__dirname, 'tools/schueler-lehrer-gruppen.html')
         }
       }
     }
