@@ -94,7 +94,13 @@
         return pca;
     }
 
-    async function getGraphToken() {
+    /**
+     * @param {{ forceRefresh?: boolean }} [options] forceRefresh: neues Zugriffstoken vom Server holen (z. B. nach neuen
+     *   Entra-Berechtigungen), damit der **scp**-Claim alle angeforderten Scopes enthält (sonst „Required scp claim…“).
+     */
+    async function getGraphToken(options) {
+        options = options || {};
+        const forceRefresh = options.forceRefresh === true;
         const instance = await getPca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {
@@ -104,12 +110,23 @@
         if (!accounts.length) {
             throw new Error('Anmeldung abgebrochen.');
         }
-        const req = { scopes: GRAPH_SCOPES, account: accounts[0] };
+        const account = accounts[0];
+        const silentReq = {
+            scopes: GRAPH_SCOPES,
+            account: account,
+            forceRefresh: forceRefresh
+        };
         try {
-            return (await instance.acquireTokenSilent(req)).accessToken;
+            return (await instance.acquireTokenSilent(silentReq)).accessToken;
         } catch (e) {
             if (isInteractionRequired(e)) {
-                return (await instance.acquireTokenPopup(req)).accessToken;
+                return (
+                    await instance.acquireTokenPopup({
+                        scopes: GRAPH_SCOPES,
+                        account: account,
+                        prompt: 'consent'
+                    })
+                ).accessToken;
             }
             throw e;
         }
@@ -265,11 +282,11 @@
             return new Error(
                 'POST /education/classes: Das Zugriffstoken enthält die nötigen Graph-Berechtigungen nicht ' +
                     '(Microsoft: „Required scp claim values are not provided“ / AccessDenied). ' +
-                    'Prüfen Sie in Entra ID bei Ihrer App: delegierte Berechtigung **EduRoster.ReadWrite** hinzufügen, ' +
-                    '„Administratorzustimmung“ erteilen, Seite neu laden und **erneut bei Microsoft anmelden** ' +
-                    '(altes Token ohne neuen Scope: ggf. Browserdaten für diese Seite löschen oder Inkognito). ' +
-                    'Hinweis: Selbst mit korrektem Scope kann POST /education/classes laut Microsoft Learn für reine ' +
-                    'Browser-Anmeldung weiterhin unzulässig sein – dann **Kursteam-Anlage.cmd** (New-Team -Template EDU_Class). ' +
+                    'Prüfen Sie in Entra: **delegierte** Berechtigung **EduRoster.ReadWrite** (nicht nur Anwendungsberechtigung), ' +
+                    '„Administratorzustimmung“ erteilen. Anschließend **Kursteams jetzt anlegen** erneut – das Tool fordert ' +
+                    'ein frisches Token an. Falls es weiter fehlschlägt: Browserdaten für diese Seite löschen oder Inkognito. ' +
+                    'Hinweis: Selbst mit korrektem **scp** kann POST /education/classes laut Microsoft Learn für Browser ' +
+                    'weiterhin unzulässig sein – dann **Kursteam-Anlage.cmd** (New-Team -Template EDU_Class). ' +
                     'Technisch: ' +
                     raw
             );
@@ -414,7 +431,7 @@
 
         let token;
         try {
-            token = await getGraphToken();
+            token = await getGraphToken({ forceRefresh: true });
         } catch (e) {
             appendLog('Anmeldung/Token: ' + (e.message || e), 'err');
             if (btnRun) btnRun.disabled = false;
@@ -470,7 +487,7 @@
         const btnLogin = document.getElementById('kursteamOnlineLogin');
         if (btnLogin) btnLogin.disabled = true;
         try {
-            await getGraphToken();
+            await getGraphToken({ forceRefresh: true });
             toast('Microsoft angemeldet – Sie können jetzt Kursteams anlegen.');
         } catch (e) {
             toast('Anmeldung: ' + (e.message || e));
