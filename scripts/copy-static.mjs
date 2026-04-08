@@ -106,6 +106,7 @@ async function main() {
 
   // Script folder(s)
   await copyDirToDist('kursteam');
+  await copyDirToDist('src');
 }
 
 await main();

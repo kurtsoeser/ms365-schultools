@@ -78,3 +78,4 @@
         return batchLines.join('\r\n');
     };
 })();
+

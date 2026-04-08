@@ -128,3 +128,4 @@
     initDomValue();
     bindInput();
 })();
+

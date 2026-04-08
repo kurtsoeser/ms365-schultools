@@ -150,9 +150,7 @@
         }
         if (!res.ok) {
             const msg =
-                typeof data === 'object' && data && data.error
-                    ? JSON.stringify(data.error)
-                    : text || String(res.status);
+                typeof data === 'object' && data && data.error ? JSON.stringify(data.error) : text || String(res.status);
             throw new Error(method + ' ' + path + ': ' + msg);
         }
         return data || {};
@@ -263,12 +261,7 @@
             try {
                 appendLog('[' + i + '/' + total + '] ' + r.displayName + ' …');
 
-                const owner = await graphJson(
-                    'GET',
-                    '/users/' + encodeURIComponent(r.owner),
-                    token,
-                    undefined
-                );
+                const owner = await graphJson('GET', '/users/' + encodeURIComponent(r.owner), token, undefined);
                 const ownerId = owner.id;
 
                 const groupBody = {
@@ -318,20 +311,14 @@
                     const upn = String(extraMembers[mi] || '').trim();
                     if (!upn) continue;
                     try {
-                        const memUser = await graphJson(
-                            'GET',
-                            '/users/' + encodeURIComponent(upn),
-                            token,
-                            undefined
-                        );
+                        const memUser = await graphJson('GET', '/users/' + encodeURIComponent(upn), token, undefined);
                         const memId = memUser.id;
                         if (memId === ownerId) {
                             continue;
                         }
                         try {
                             await graphJson('POST', '/groups/' + gid + '/members/$ref', token, {
-                                '@odata.id':
-                                    'https://graph.microsoft.com/v1.0/directoryObjects/' + memId
+                                '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + memId
                             });
                             appendLog('  Zusätzliches Mitglied: ' + upn, 'ok');
                         } catch (e) {
@@ -348,12 +335,7 @@
 
                 if (!adminAsOwner && meId && ownerId !== meId) {
                     try {
-                        await graphJson(
-                            'DELETE',
-                            '/groups/' + gid + '/owners/' + meId + '/$ref',
-                            token,
-                            undefined
-                        );
+                        await graphJson('DELETE', '/groups/' + gid + '/owners/' + meId + '/$ref', token, undefined);
                         appendLog(
                             '  Angemeldeter Administrator als Besitzer entfernt (nur Besitzer aus Schritt 2).',
                             'warn'
@@ -422,3 +404,4 @@
     window.ms365ArgeGraphLogin = loginOnly;
     window.ms365ArgeGraphRun = runArgeOnline;
 })();
+

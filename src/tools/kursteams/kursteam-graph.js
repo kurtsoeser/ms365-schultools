@@ -467,3 +467,4 @@
     window.ms365KursteamGraphLogin = loginOnly;
     window.ms365KursteamGraphRun = runKursteamOnline;
 })();
+

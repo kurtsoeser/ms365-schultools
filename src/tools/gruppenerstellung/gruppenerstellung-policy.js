@@ -149,9 +149,7 @@
         }
         if (!res.ok) {
             const msg =
-                typeof data === 'object' && data && data.error
-                    ? JSON.stringify(data.error)
-                    : text || String(res.status);
+                typeof data === 'object' && data && data.error ? JSON.stringify(data.error) : text || String(res.status);
             throw new Error(method + ' ' + path + ': ' + msg);
         }
         return data || {};
@@ -176,7 +174,9 @@
     }
 
     function guidLooksValid(s) {
-        return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s || '').trim());
+        return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+            String(s || '').trim()
+        );
     }
 
     function sanitizeMailNickname(name) {
@@ -206,12 +206,7 @@
             return r && String(r.templateId) === String(template.id);
         });
         if (!row) {
-            row = await graphJson(
-                'POST',
-                '/groupSettings',
-                token,
-                { templateId: template.id }
-            );
+            row = await graphJson('POST', '/groupSettings', token, { templateId: template.id });
         }
         if (!row || !row.id) {
             throw new Error('Verzeichniseinstellung Group.Unified konnte nicht angelegt werden.');
@@ -222,17 +217,12 @@
     async function applyGroupCreationRestriction(token, groupObjectId) {
         const template = await getUnifiedTemplate(token);
         const setting = await getOrCreateUnifiedSetting(token, template);
-        await graphJson(
-            'PATCH',
-            '/groupSettings/' + encodeURIComponent(setting.id),
-            token,
-            {
-                values: [
-                    { name: 'EnableGroupCreation', value: 'false' },
-                    { name: 'GroupCreationAllowedGroupId', value: String(groupObjectId).trim() }
-                ]
-            }
-        );
+        await graphJson('PATCH', '/groupSettings/' + encodeURIComponent(setting.id), token, {
+            values: [
+                { name: 'EnableGroupCreation', value: 'false' },
+                { name: 'GroupCreationAllowedGroupId', value: String(groupObjectId).trim() }
+            ]
+        });
         return setting.id;
     }
 
@@ -278,8 +268,7 @@
         let nick = sanitizeMailNickname(displayName);
         const body = {
             displayName: String(displayName).trim(),
-            description:
-                'Berechtigte Benutzer dürfen Microsoft 365-Gruppen und Teams anlegen (Richtlinie Group.Unified).',
+            description: 'Berechtigte Benutzer dürfen Microsoft 365-Gruppen und Teams anlegen (Richtlinie Group.Unified).',
             mailEnabled: false,
             mailNickname: nick,
             securityEnabled: true,
@@ -304,10 +293,7 @@
         if (out) {
             out.style.display = id ? 'block' : 'none';
             out.textContent = id
-                ? 'Ausgewählte Gruppe: ' +
-                  (displayName ? displayName + ' · ' : '') +
-                  'Object-ID ' +
-                  id
+                ? 'Ausgewählte Gruppe: ' + (displayName ? displayName + ' · ' : '') + 'Object-ID ' + id
                 : '';
         }
         if (link && id) {
@@ -377,7 +363,9 @@
             if (guidLooksValid(rawId)) {
                 const g = await getGroupById(token, rawId);
                 if (!g.securityEnabled) {
-                    throw new Error('Die Gruppe ist keine Sicherheitsgruppe (securityEnabled=false). Bitte eine reine Sicherheitsgruppe verwenden.');
+                    throw new Error(
+                        'Die Gruppe ist keine Sicherheitsgruppe (securityEnabled=false). Bitte eine reine Sicherheitsgruppe verwenden.'
+                    );
                 }
                 setResolvedGroup(g.id, g.displayName);
                 appendLog('Gruppe per Object-ID geladen: ' + g.displayName + ' (' + g.id + ').', 'ok');
@@ -421,7 +409,10 @@
         try {
             let token = await getGraphToken();
             await applyGroupCreationRestriction(token, gid);
-            appendLog('Einstellung gespeichert. Nur Mitglieder der Sicherheitsgruppe dürfen nun M365-Gruppen/Teams erstellen.', 'ok');
+            appendLog(
+                'Einstellung gespeichert. Nur Mitglieder der Sicherheitsgruppe dürfen nun M365-Gruppen/Teams erstellen.',
+                'ok'
+            );
             toast('Richtlinie gespeichert.');
             await refreshStatusIntoUi(token);
         } catch (e) {
@@ -476,7 +467,11 @@
     }
 
     async function onRemoveClick() {
-        if (!window.confirm('Die Verzeichniseinstellung Group.Unified wirklich entfernen? (Entspricht dem Entfernen per PowerShell; Mandant fällt auf Standard zurück.)')) {
+        if (
+            !window.confirm(
+                'Die Verzeichniseinstellung Group.Unified wirklich entfernen? (Entspricht dem Entfernen per PowerShell; Mandant fällt auf Standard zurück.)'
+            )
+        ) {
             return;
         }
         const btn = document.getElementById('gpBtnRemove');
@@ -580,7 +575,9 @@
                 }
                 const gid = hid && hid.value ? hid.value.trim() : '';
                 if (!guidLooksValid(gid)) {
-                    toast('Bitte zuerst eine Sicherheitsgruppe anlegen, suchen oder eine gültige Object-ID (GUID) eintragen.');
+                    toast(
+                        'Bitte zuerst eine Sicherheitsgruppe anlegen, suchen oder eine gültige Object-ID (GUID) eintragen.'
+                    );
                     return;
                 }
                 goToGpStep(2);
@@ -598,14 +595,11 @@
                 goToGpStep(2);
             });
 
-        document.getElementById('gpBtnLogin') &&
-            document.getElementById('gpBtnLogin').addEventListener('click', onLoginClick);
-        document.getElementById('gpBtnApply') &&
-            document.getElementById('gpBtnApply').addEventListener('click', onApplyClick);
+        document.getElementById('gpBtnLogin') && document.getElementById('gpBtnLogin').addEventListener('click', onLoginClick);
+        document.getElementById('gpBtnApply') && document.getElementById('gpBtnApply').addEventListener('click', onApplyClick);
         document.getElementById('gpBtnRefreshStatus') &&
             document.getElementById('gpBtnRefreshStatus').addEventListener('click', onRefreshStatusClick);
-        document.getElementById('gpBtnRemove') &&
-            document.getElementById('gpBtnRemove').addEventListener('click', onRemoveClick);
+        document.getElementById('gpBtnRemove') && document.getElementById('gpBtnRemove').addEventListener('click', onRemoveClick);
     }
 
     window.ms365SaveGruppenerstellung = saveState;
@@ -620,3 +614,4 @@
         init();
     }
 })();
+

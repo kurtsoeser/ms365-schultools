@@ -58,7 +58,8 @@
             const mode = new URLSearchParams(window.location.search).get('mode');
             if (!mode) return;
             if (mode.toLowerCase() === 'arge') setMode('arge');
-            else if (mode.toLowerCase() === 'gruppenerstellung' || mode.toLowerCase() === 'grouppolicy') setMode('gruppenerstellung');
+            else if (mode.toLowerCase() === 'gruppenerstellung' || mode.toLowerCase() === 'grouppolicy')
+                setMode('gruppenerstellung');
         } catch {
             // ignore
         }
@@ -117,7 +118,10 @@
     function toNickBaseFromName(displayName) {
         // sehr einfache Normalisierung (ASCII-ish)
         let s = String(displayName || '').trim();
-        s = s.replace(/[äÄ]/g, 'ae').replace(/[öÖ]/g, 'oe').replace(/[üÜ]/g, 'ue').replace(/ß/g, 'ss');
+        s = s.replace(/[äÄ]/g, 'ae')
+            .replace(/[öÖ]/g, 'oe')
+            .replace(/[üÜ]/g, 'ue')
+            .replace(/ß/g, 'ss');
         s = s.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+/g, '-');
         s = s.replace(/^-+|-+$/g, '');
         return s;
@@ -301,7 +305,9 @@
             if (!argePreviewRows.length) {
                 const ta = document.getElementById('argeLines');
                 const raw = ta ? ta.value : '';
-                const nonEmpty = raw.split(/\r\n|\n|\r/).filter(l => l.trim() && !l.trim().startsWith('#')).length;
+                const nonEmpty = raw
+                    .split(/\r\n|\n|\r/)
+                    .filter(l => l.trim() && !l.trim().startsWith('#')).length;
                 if (nonEmpty) {
                     tbody.innerHTML =
                         '<tr><td colspan="4" style="color:#6c757d;">Keine gültigen Zeilen – Format prüfen (eine Zeile pro Fach oder <code>Anzeigename;MailNickname</code>).</td></tr>';
@@ -339,7 +345,8 @@
                 inpNick.className = 'arge-preview-mailnick jg-preview-table-input';
                 inpNick.value = r.mailNick;
                 inpNick.setAttribute('autocomplete', 'off');
-                inpNick.title = 'Mail-Nickname – leer lassen und Anzeigename ändern für automatische Erzeugung; manuell = festes Nickname';
+                inpNick.title =
+                    'Mail-Nickname – leer lassen und Anzeigename ändern für automatische Erzeugung; manuell = festes Nickname';
                 td3.appendChild(inpNick);
 
                 const td4 = document.createElement('td');
@@ -621,10 +628,7 @@
                     row.memberLines = '';
                 }
             });
-            if (
-                state.argeMemberEmails !== undefined &&
-                String(state.argeMemberEmails || '').trim() !== ''
-            ) {
+            if (state.argeMemberEmails !== undefined && String(state.argeMemberEmails || '').trim() !== '') {
                 const legacy = String(state.argeMemberEmails);
                 argeRows.forEach(function (row) {
                     if (!String(row.memberLines || '').trim()) {
@@ -758,12 +762,13 @@
         const lines = [];
         // Team an Gruppe: Graph verlangt i.d.R. nur Group.ReadWrite.All (s. team-put-teams). Team.ReadWrite.All
         // loest bei Connect-MgGraph oft AADSTS70011 (ungueltiger Scope beim Graph-PowerShell-Client).
-        const scopesLine =
-            '$scopes = @("Group.ReadWrite.All","User.Read.All","User.Read")';
+        const scopesLine = '$scopes = @("Group.ReadWrite.All","User.Read.All","User.Read")';
 
         if (standalone) {
             lines.push('#Requires -Version 5.1');
-            lines.push('# ARGE-Gruppen (M365 Unified); optional Teams ($Ms365CreateTeams); optional Exchange-SMTP ($Ms365SetExchangeSmtp)');
+            lines.push(
+                '# ARGE-Gruppen (M365 Unified); optional Teams ($Ms365CreateTeams); optional Exchange-SMTP ($Ms365SetExchangeSmtp)'
+            );
             lines.push('# Erzeugt in der Browser-App am ' + stamp);
             lines.push('# Daten sind unten eingebettet.');
             lines.push('');
@@ -783,25 +788,33 @@
             lines.push('try {');
             lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
             lines.push('} catch {');
-            lines.push('    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow');
+            lines.push(
+                '    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow'
+            );
             lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
             lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
             lines.push('}');
             lines.push('');
             lines.push(scopesLine);
-            lines.push('Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow');
+            lines.push(
+                'Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow'
+            );
             lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
             lines.push('$script:Ms365OldEap = $ErrorActionPreference');
             lines.push('$ErrorActionPreference = "Stop"');
             lines.push('try {');
             lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
             lines.push('} catch {');
-            lines.push('    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
+            lines.push(
+                '    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow'
+            );
             lines.push('}');
             lines.push('$ErrorActionPreference = $script:Ms365OldEap');
             lines.push('if (-not (Get-MgContext)) {');
             lines.push('    Write-Host ""');
-            lines.push('    Write-Host "Kein Graph-Kontext – Geraetecode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow');
+            lines.push(
+                '    Write-Host "Kein Graph-Kontext – Geraetocode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow'
+            );
             lines.push('    $ErrorActionPreference = "Stop"');
             lines.push('    try {');
             lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
@@ -823,30 +836,40 @@
             lines.push('# Voraussetzung: Install-Module Microsoft.Graph');
             lines.push('# https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup');
             lines.push('');
-            lines.push('Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber -ErrorAction SilentlyContinue');
+            lines.push(
+                'Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber -ErrorAction SilentlyContinue'
+            );
             lines.push('$MaximumFunctionCount = 32768');
             lines.push('try {');
             lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
             lines.push('} catch {');
-            lines.push('    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow');
+            lines.push(
+                '    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow'
+            );
             lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
             lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
             lines.push('}');
             lines.push('');
             lines.push(scopesLine);
-            lines.push('Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow');
+            lines.push(
+                'Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetocode) ..." -ForegroundColor Yellow'
+            );
             lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
             lines.push('$script:Ms365OldEap = $ErrorActionPreference');
             lines.push('$ErrorActionPreference = "Stop"');
             lines.push('try {');
             lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
             lines.push('} catch {');
-            lines.push('    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
+            lines.push(
+                '    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow'
+            );
             lines.push('}');
             lines.push('$ErrorActionPreference = $script:Ms365OldEap');
             lines.push('if (-not (Get-MgContext)) {');
             lines.push('    Write-Host ""');
-            lines.push('    Write-Host "Kein Graph-Kontext – Geraetecode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow');
+            lines.push(
+                '    Write-Host "Kein Graph-Kontext – Geraetocode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow'
+            );
             lines.push('    $ErrorActionPreference = "Stop"');
             lines.push('    try {');
             lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
@@ -937,12 +960,8 @@
         lines.push('        try {');
         lines.push('            New-MgGroupOwner -GroupId $group.Id -DirectoryObjectId $owner.Id -ErrorAction Stop');
         lines.push('        } catch {');
-        lines.push(
-            '            if ($_.Exception.Message -notmatch "already exist") { throw }'
-        );
-        lines.push(
-            '            Write-Host ("  Hinweis (Besitzer): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
-        );
+        lines.push('            if ($_.Exception.Message -notmatch "already exist") { throw }');
+        lines.push('            Write-Host ("  Hinweis (Besitzer): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray');
         lines.push('        }');
         lines.push('        if (-not $Ms365AdminAsOwner -and $meId -ne $owner.Id) {');
         lines.push('            try {');
@@ -963,11 +982,7 @@
             '            $memberRef = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($owner.Id)" }'
         );
         lines.push(
-            '            Invoke-MgGraphRequest -Method POST -Uri (' +
-                "'" +
-                'https://graph.microsoft.com/v1.0/groups/{0}/members/$ref' +
-                "'" +
-                ' -f $group.Id) -Body ($memberRef | ConvertTo-Json -Compress) -ErrorAction Stop'
+            '            Invoke-MgGraphRequest -Method POST -Uri (\'https://graph.microsoft.com/v1.0/groups/{0}/members/$ref\' -f $group.Id) -Body ($memberRef | ConvertTo-Json -Compress) -ErrorAction Stop'
         );
         lines.push('        } catch {');
         lines.push(
@@ -988,9 +1003,7 @@
             '                    Invoke-MgGraphRequest -Method POST -Uri ("https://graph.microsoft.com/v1.0/groups/{0}/members/$ref" -f $group.Id) -Body ($memberRefExtra | ConvertTo-Json -Compress) -ErrorAction Stop'
         );
         lines.push('                } catch {');
-        lines.push(
-            '                    if ($_.Exception.Message -match "already exist") {'
-        );
+        lines.push('                    if ($_.Exception.Message -match "already exist") {');
         lines.push(
             '                        Write-Host ("  Hinweis (Mitglied {0}): bereits in der Gruppe." -f $mUpn.Trim()) -ForegroundColor DarkGray'
         );
@@ -1005,15 +1018,11 @@
         lines.push('        if ($Ms365CreateTeams) {');
         lines.push('            $teamProps = @{');
         lines.push('                memberSettings = @{ allowCreatePrivateChannels = $true; allowCreateUpdateChannels = $true }');
-        lines.push(
-            '                messagingSettings = @{ allowUserEditMessages = $true; allowUserDeleteMessages = $true }'
-        );
+        lines.push('                messagingSettings = @{ allowUserEditMessages = $true; allowUserDeleteMessages = $true }');
         lines.push('                funSettings = @{ allowGiphy = $true; giphyContentRating = "moderate" }');
         lines.push('                guestSettings = @{ allowCreateUpdateChannels = $false }');
         lines.push('            }');
-        lines.push(
-            '            # Verschachtelte Hashtables zu JSON (Depth wichtig für PS 5.1 / korrekten Graph-Body)'
-        );
+        lines.push('            # Verschachtelte Hashtables zu JSON (Depth wichtig für PS 5.1 / korrekten Graph-Body)');
         lines.push('            $teamJson = $teamProps | ConvertTo-Json -Depth 10 -Compress');
         lines.push('            $teamUri = "https://graph.microsoft.com/v1.0/groups/$($group.Id)/team"');
         lines.push('            for ($ti = 0; $ti -lt 8; $ti++) {');
@@ -1021,9 +1030,7 @@
         lines.push(
             '                    Invoke-MgGraphRequest -Method PUT -Uri $teamUri -Body $teamJson -ContentType "application/json" -ErrorAction Stop'
         );
-        lines.push(
-            '                    Write-Host ("Teams: {0} – Team bereitgestellt." -f $r.DisplayName) -ForegroundColor Cyan'
-        );
+        lines.push('                    Write-Host ("Teams: {0} – Team bereitgestellt." -f $r.DisplayName) -ForegroundColor Cyan');
         lines.push('                    break');
         lines.push('                } catch {');
         lines.push('                    if ($ti -lt 7) {');
@@ -1044,9 +1051,7 @@
         lines.push('            $wantedSmtp = "$($r.MailNickname)@$Ms365ExchangeDomain"');
         lines.push('            for ($ei = 0; $ei -lt 6; $ei++) {');
         lines.push('                try {');
-        lines.push(
-            '                    Set-UnifiedGroup -Identity $group.Id -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop'
-        );
+        lines.push('                    Set-UnifiedGroup -Identity $group.Id -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop');
         lines.push(
             '                    Write-Host ("Exchange: {0} – PrimarySmtpAddress = {1}" -f $r.DisplayName, $wantedSmtp) -ForegroundColor Green'
         );
@@ -1065,7 +1070,9 @@
         lines.push('                }');
         lines.push('            }');
         lines.push('        }');
-        lines.push('        Write-Host ("OK [{0}/{1}] {2} -> {3}" -f $i, $rows.Count, $r.DisplayName, $r.MailNickname) -ForegroundColor Green');
+        lines.push(
+            '        Write-Host ("OK [{0}/{1}] {2} -> {3}" -f $i, $rows.Count, $r.DisplayName, $r.MailNickname) -ForegroundColor Green'
+        );
         lines.push('    }');
         lines.push('    catch {');
         lines.push('        $ex = $_.Exception');
@@ -1076,16 +1083,12 @@
         lines.push('    Start-Sleep -Seconds 2');
         lines.push('}');
         lines.push('');
-        lines.push(
-            '# SMTP: Graph legt nur mailNickname an. Mit $Ms365SetExchangeSmtp wird die primäre Adresse per Exchange gesetzt.'
-        );
+        lines.push('# SMTP: Graph legt nur mailNickname an. Mit $Ms365SetExchangeSmtp wird die primäre Adresse per Exchange gesetzt.');
         lines.push('# Zieldomain (App): ' + psEscapeSingle(domainTrim || domain));
         lines.push('# Set-UnifiedGroup: https://learn.microsoft.com/powershell/module/exchange/set-unifiedgroup');
         if (setExoEffective) {
             lines.push('if ($script:Ms365ExoConnected) {');
-            lines.push(
-                '    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}'
-            );
+            lines.push('    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}');
             lines.push('}');
             lines.push('');
         }
@@ -1116,12 +1119,7 @@
             showToast('Für die Exchange-Option bitte oben die E-Mail-Domain der Schule eintragen.');
             return;
         }
-        const ps1 = buildStandaloneArgePs1(
-            true,
-            getArgeCreateTeams(),
-            getArgeExchangeSmtp(),
-            getArgeAdminAsOwner()
-        );
+        const ps1 = buildStandaloneArgePs1(true, getArgeCreateTeams(), getArgeExchangeSmtp(), getArgeAdminAsOwner());
         const cmd = window.ms365BuildPolyglotCmd({
             title: 'ARGE-Gruppen-Anlage',
             echoLine: 'Starte ARGE-Gruppen-Anlage Microsoft Graph ...',
@@ -1284,7 +1282,7 @@
                 goToArgeStep(s);
             }
         });
-        el.addEventListener('keydown', (e) => {
+        el.addEventListener('keydown', e => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 el.click();

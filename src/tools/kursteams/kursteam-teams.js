@@ -1,6 +1,9 @@
 (function () {
     'use strict';
 
+    // Inhalt übernommen aus der bestehenden Datei, um die neue Struktur `src/tools/kursteams/` zu etablieren.
+    // Diese Datei ist inhaltlich identisch zur bisherigen Version.
+
     const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
     function normalizeSubjectToken(s) {
