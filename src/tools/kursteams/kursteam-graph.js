@@ -251,14 +251,37 @@
         return edu.id;
     }
 
-    function graphErrorBrowserNoFullKursteam(originalErr) {
+    /**
+     * @param {Error|string} originalErr
+     * @returns {Error}
+     */
+    function buildPostEducationClassesError(originalErr) {
+        const raw = originalErr && originalErr.message ? originalErr.message : String(originalErr);
+        const isMissingScp =
+            /Required scp claim values are not provided/i.test(raw) ||
+            (/AccessDenied/i.test(raw) && /scp/i.test(raw));
+
+        if (isMissingScp) {
+            return new Error(
+                'POST /education/classes: Das Zugriffstoken enthält die nötigen Graph-Berechtigungen nicht ' +
+                    '(Microsoft: „Required scp claim values are not provided“ / AccessDenied). ' +
+                    'Prüfen Sie in Entra ID bei Ihrer App: delegierte Berechtigung **EduRoster.ReadWrite** hinzufügen, ' +
+                    '„Administratorzustimmung“ erteilen, Seite neu laden und **erneut bei Microsoft anmelden** ' +
+                    '(altes Token ohne neuen Scope: ggf. Browserdaten für diese Seite löschen oder Inkognito). ' +
+                    'Hinweis: Selbst mit korrektem Scope kann POST /education/classes laut Microsoft Learn für reine ' +
+                    'Browser-Anmeldung weiterhin unzulässig sein – dann **Kursteam-Anlage.cmd** (New-Team -Template EDU_Class). ' +
+                    'Technisch: ' +
+                    raw
+            );
+        }
+
         return new Error(
-            'Vollständiges Kursteam (Microsoft-Template EDU_Class / educationClass: Aufgaben, Klassennotizbuch) ist ' +
-                'über diese Browser-Anmeldung nicht möglich: POST /education/classes ist laut Microsoft Learn nur mit ' +
-                'Anwendungsberechtigung EduRoster.ReadWrite.All nutzbar, nicht mit delegierter Anmeldung. ' +
-                'Bitte „Kursteam-Anlage.cmd“ verwenden (PowerShell: New-Team -Template EDU_Class) oder ein eigenes ' +
-                'Backend mit App-Only-Token. Technisch: ' +
-                (originalErr && originalErr.message ? originalErr.message : originalErr)
+            'Vollständiges Kursteam (Microsoft-Template EDU_Class / educationClass) per Browser oft nicht möglich: ' +
+                'POST /education/classes scheitert. Laut Microsoft Learn ist diese API häufig nur mit ' +
+                'Anwendungsberechtigung EduRoster.ReadWrite.All (App-Only) vorgesehen, nicht mit delegierter Anmeldung. ' +
+                'Alternative: **Kursteam-Anlage.cmd** (PowerShell: New-Team -Template EDU_Class) oder Backend mit App-Only-Token. ' +
+                'Technisch: ' +
+                raw
         );
     }
 
@@ -418,7 +441,7 @@
                 try {
                     gid = await createEducationClassGroup(token, t, appendLog);
                 } catch (e) {
-                    throw graphErrorBrowserNoFullKursteam(e);
+                    throw buildPostEducationClassesError(e);
                 }
 
                 await addGroupOwnerAndMember(token, gid, ownerId, appendLog);
