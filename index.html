@@ -79,7 +79,55 @@
             font-size: 1.2em;
         }
         .choice.featured .btn {
-            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
+        }
+        .featured-split {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            align-items: start;
+            width: 100%;
+        }
+        .featured-main {
+            min-width: 0;
+        }
+        .dashboard-domain {
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .dashboard-domain label {
+            display: block;
+            font-weight: 600;
+            color: #32325d;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            line-height: 1.3;
+        }
+        .dashboard-domain input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        .dashboard-domain .domain-hint {
+            margin: 10px 0 0;
+            font-size: 0.82em;
+            color: #6c757d;
+            line-height: 1.45;
+        }
+        .dashboard-domain .domain-hint a {
+            color: #5e72e4;
+            font-weight: 600;
+        }
+        @media (max-width: 720px) {
+            .featured-split {
+                grid-template-columns: 1fr;
+            }
         }
         .choice .stats {
             display: flex;
@@ -155,14 +203,26 @@
             <p class="dashboard-intro">Dashboard: Wählen Sie ein Werkzeug. Weitere Kacheln können später befüllt werden.</p>
             <div class="grid" role="list" aria-label="Werkzeuge und Platzhalter">
                 <section class="choice featured" role="listitem" aria-label="Tenant-Grundeinstellungen">
-                    <h2>Tenant‑Grundeinstellungen</h2>
-                    <p>Gemeinsame Basisdaten (lokal im Browser) für die Tools. Hier pflegst du Domain, Fächer, Lehrkräfte und optional Schüler.</p>
-                    <ul class="stats" aria-label="Tenant-Statistiken">
-                        <li class="stat-pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
-                        <li class="stat-pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
-                        <li class="stat-pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
-                    </ul>
-                    <a class="btn alt" href="tenant.html">Tenant‑Einstellungen öffnen</a>
+                    <div class="featured-split">
+                        <div class="featured-main">
+                            <h2>Tenant‑Grundeinstellungen</h2>
+                            <p>Gemeinsame Basisdaten (lokal im Browser) für die Tools. Hier pflegst du Domain, Fächer, Lehrkräfte und optional Schüler.</p>
+                            <ul class="stats" aria-label="Tenant-Statistiken">
+                                <li class="stat-pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
+                                <li class="stat-pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
+                                <li class="stat-pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
+                                <li class="stat-pill"><strong id="tenantStatClasses">–</strong> Klassen</li>
+                            </ul>
+                            <a class="btn alt" href="tenant.html">Tenant‑Einstellungen öffnen</a>
+                        </div>
+                        <aside class="dashboard-domain" aria-label="Schul-E-Mail-Domain">
+                            <label for="schoolEmailDomain">E-Mail-Domain der Schule (ohne @)</label>
+                            <input type="text" id="schoolEmailDomain" name="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off" spellcheck="false">
+                            <p class="domain-hint">
+                                Gilt für Kursteams, Jahrgang und ARGE. Vollständige Stammdaten: <a href="tenant.html">Tenant‑Einstellungen</a>.
+                            </p>
+                        </aside>
+                    </div>
                 </section>
                 <section class="choice" role="listitem">
                     <h2>Kursteams</h2>
@@ -221,10 +281,42 @@
     <script>
         (function () {
             'use strict';
+
+            function syncTenantSettingsFromDashboardDomain() {
+                if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
+                    return;
+                }
+                window.ms365TenantSettingsSave(window.ms365TenantSettingsLoad());
+            }
+
+            const domainInp = document.getElementById('schoolEmailDomain');
+            if (domainInp) {
+                let domainSaveTimer;
+                domainInp.addEventListener('change', syncTenantSettingsFromDashboardDomain);
+                domainInp.addEventListener('blur', syncTenantSettingsFromDashboardDomain);
+                domainInp.addEventListener('input', () => {
+                    clearTimeout(domainSaveTimer);
+                    domainSaveTimer = setTimeout(syncTenantSettingsFromDashboardDomain, 450);
+                });
+            }
+
+            function runAfterDeferredApis() {
+                if (typeof window.ms365TenantSettingsSave !== 'function') return;
+                syncTenantSettingsFromDashboardDomain();
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => setTimeout(runAfterDeferredApis, 0));
+            } else {
+                setTimeout(runAfterDeferredApis, 0);
+            }
+        })();
+        (function () {
+            'use strict';
             const elSubjects = document.getElementById('tenantStatSubjects');
             const elTeachers = document.getElementById('tenantStatTeachers');
             const elStudents = document.getElementById('tenantStatStudents');
-            if (!elSubjects || !elTeachers || !elStudents) return;
+            const elClasses = document.getElementById('tenantStatClasses');
+            if (!elSubjects || !elTeachers || !elStudents || !elClasses) return;
 
             function render() {
                 if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
@@ -232,13 +324,14 @@
                 const subjects = (s && s.subjects) || [];
                 const teachers = (s && s.teachers) || [];
                 const students = (s && s.students) || [];
+                const classes = (s && s.classes) || [];
                 elSubjects.textContent = String(subjects.length);
                 elTeachers.textContent = String(teachers.length);
                 elStudents.textContent = String(students.length);
+                elClasses.textContent = String(classes.length);
                 return true;
             }
 
-            // Tenant-Scripts laden ggf. nach (Loader). Kurz poll'en und dann anzeigen.
             let tries = 0;
             const t = setInterval(() => {
                 tries++;

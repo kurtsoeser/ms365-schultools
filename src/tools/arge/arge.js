@@ -19,6 +19,25 @@
     const btnModeA = document.getElementById('modeArge');
     const btnModeG = document.getElementById('modeGruppenPolicy');
 
+    const P = window.ms365ArgeParse;
+    if (!P || typeof P.normStr !== 'function') {
+        throw new Error('arge-parse.js muss vor arge.js geladen werden.');
+    }
+    if (typeof window.ms365ArgeBuildStateSnapshot !== 'function' || typeof window.ms365ArgeApplyImportedState !== 'function') {
+        throw new Error('arge-state.js muss vor arge.js geladen werden.');
+    }
+
+    const normStr = P.normStr;
+    const normSubjectKey = P.normSubjectKey;
+    const buildSubjectCodeFromName = P.buildSubjectCodeFromName;
+    const getSubjectCodeForDisplayName = P.getSubjectCodeForDisplayName;
+    const toNickBaseFromName = P.toNickBaseFromName;
+    const subjectForSlug = P.subjectForSlug;
+    const looksLikeSubjectCode = P.looksLikeSubjectCode;
+    const normSubjectCode = P.normSubjectCode;
+    const parseArgeLine = P.parseArgeLine;
+    const displayNameFromSubjectLine = P.displayNameFromSubjectLine;
+
     function showToast(msg) {
         const el = document.getElementById('toast');
         if (!el) return;
@@ -26,6 +45,41 @@
         el.classList.add('show');
         clearTimeout(showToast._t);
         showToast._t = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    function startCellEdit(td, initialValue, onCommit) {
+        const prevText = String(initialValue ?? '');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = prevText;
+        input.className = 'cell-editor';
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.style.padding = '8px 10px';
+        input.style.border = '1px solid #5e72e4';
+        input.style.borderRadius = '10px';
+        input.style.font = 'inherit';
+        td.replaceChildren(input);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+            const next = normStr(input.value);
+            onCommit(next);
+        };
+        const cancel = () => {
+            onCommit(prevText, { cancelled: true });
+        };
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                commit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+            }
+        });
+        input.addEventListener('blur', () => commit());
     }
 
     function setMode(which) {
@@ -89,7 +143,9 @@
                     owner: '',
                     description: r.description,
                     technicalSlug: toNickBaseFromName(subjectForSlug(r.displayName)),
-                    mailNickExplicit: true
+                    mailNickExplicit: true,
+                    subjectName: normStr(subjectForSlug(r.displayName)),
+                    subjectCode: normStr(r.subjectCode || '')
                 }));
                 renderArgePreviewTableBody();
             } else {
@@ -98,6 +154,9 @@
         }
         if (step === 3) {
             rebuildArgeMembersTableFromRows();
+        }
+        if (typeof window.ms365ApplyStepProgress === 'function') {
+            window.ms365ApplyStepProgress(document.querySelector('.arge-steps'), step, [1, 2, 3, 4, 5]);
         }
     }
 
@@ -111,35 +170,82 @@
     function getPrefix() {
         const el = document.getElementById('argeDefaultPrefix');
         const raw = (el && el.value ? el.value : '').trim();
-        if (!raw) return '';
+        // ARGE soll standardmäßig "arge-<kürzel>" ergeben, auch wenn das Feld leer ist
+        if (!raw) return 'arge';
         return raw.toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
-    function toNickBaseFromName(displayName) {
-        // sehr einfache Normalisierung (ASCII-ish)
-        let s = String(displayName || '').trim();
-        s = s.replace(/[äÄ]/g, 'ae')
-            .replace(/[öÖ]/g, 'oe')
-            .replace(/[üÜ]/g, 'ue')
-            .replace(/ß/g, 'ss');
-        s = s.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+/g, '-');
-        s = s.replace(/^-+|-+$/g, '');
-        return s;
+    function adoptArgeSubjectsFromTenantSettingsIfEmpty() {
+        const ta = document.getElementById('argeLines');
+        if (!ta) return;
+        if (normStr(ta.value)) return;
+        if (typeof window.ms365TenantSettingsLoad !== 'function') return;
+        const s = window.ms365TenantSettingsLoad();
+        const subjects = Array.isArray(s?.subjects) ? s.subjects : [];
+        if (!subjects.length) return;
+        const lines = subjects
+            .map((x) => {
+                const code = normStr(x?.code);
+                const name = normStr(x?.name);
+                if (code && name) return `${code};${name}`;
+                return name || code;
+            })
+            .filter(Boolean);
+        if (!lines.length) return;
+        ta.value = lines.join('\n');
+        scheduleArgePreviewFromTextarea();
+        showToast('ARGE: Fächer aus Tenant-Einstellungen übernommen.');
     }
 
-    /** Fach-Teil ohne führendes „ARGE “ – für Slug/Mail-Nickname */
-    function subjectForSlug(line) {
-        let t = String(line || '').trim();
-        const stripped = t.replace(/^ARGE\s+/i, '').trim();
-        return stripped || t;
-    }
+    let argeTenantSubjectsDebounce;
+    function scheduleTenantSubjectsSyncFromArgeTextarea() {
+        clearTimeout(argeTenantSubjectsDebounce);
+        argeTenantSubjectsDebounce = setTimeout(() => {
+            try {
+                const ta = document.getElementById('argeLines');
+                if (!ta) return;
+                if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function')
+                    return;
+                const current = window.ms365TenantSettingsLoad();
+                const existing = Array.isArray(current?.subjects) ? current.subjects : [];
+                const codeByNameKey = new Map(
+                    existing
+                        .map((x) => ({ code: normStr(x?.code), name: normStr(x?.name) }))
+                        .filter((x) => x.name && x.code)
+                        .map((x) => [normSubjectKey(x.name), x.code])
+                );
 
-    /** Anzeigename der M365-Gruppe aus einer einfachen Fach-Zeile */
-    function displayNameFromSubjectLine(line) {
-        const t = line.trim();
-        if (!t) return '';
-        if (/^ARGE\s+/i.test(t)) return t;
-        return 'ARGE ' + t;
+                const rawLines = String(ta.value || '').split(/\r\n|\n|\r/);
+                const seen = new Set();
+                const subjects = [];
+                rawLines.forEach((line) => {
+                    const t = normStr(line);
+                    if (!t || t.startsWith('#')) return;
+                    const parsed = parseArgeLine(t);
+                    if (!parsed) return;
+                    const name = normStr(parsed.subjectName);
+                    const explicitCode = normStr(parsed.subjectCode);
+                    if (!name) return;
+                    const key = normSubjectKey(name);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    const keepCode = codeByNameKey.get(key);
+                    const code = explicitCode ? normSubjectCode(explicitCode) : keepCode || buildSubjectCodeFromName(name);
+                    subjects.push({ code, name });
+                });
+
+                const domain =
+                    typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : normStr(current?.domain);
+                window.ms365TenantSettingsSave({
+                    domain,
+                    subjects,
+                    teachers: current?.teachers || [],
+                    students: current?.students || []
+                });
+            } catch {
+                // ignore (kein Toast, damit Tippen nicht nervt)
+            }
+        }, 250);
     }
 
     function maybeUpper(s) {
@@ -148,13 +254,16 @@
         return upper ? s.toUpperCase() : s.toLowerCase();
     }
 
-    /** Mail-Nickname nur aus dem Fach (Präfix aus Einstellungen), nicht aus „ARGE …“ doppelt */
-    function buildMailNicknameFromSubject(line) {
-        const base = toNickBaseFromName(subjectForSlug(line));
-        if (!base) return '';
-        const pre = getPrefix();
-        const combined = pre ? pre + '-' + base : base;
-        return maybeUpper(combined).replace(/[^A-Za-z0-9-]/g, '');
+    function argeNickDeps() {
+        return {
+            getPrefix,
+            maybeUpper,
+            getSubjectCodeForDisplayName: P.getSubjectCodeForDisplayName
+        };
+    }
+
+    function buildMailNickname(displayName, subjectCode) {
+        return P.buildMailNickname(displayName, subjectCode, argeNickDeps());
     }
 
     /**
@@ -166,57 +275,7 @@
         if (!ta) {
             return { parsed: [], errors: [] };
         }
-        const lines = ta.value.split(/\r\n|\n|\r/);
-        const parsed = [];
-        const errors = [];
-        const seen = new Set();
-        lines.forEach((line, idx) => {
-            const t = line.trim();
-            if (!t || t.startsWith('#')) return;
-            const parts = t.split(/[;\t]/).map(x => x.trim()).filter(Boolean);
-            if (!parts.length) return;
-
-            let displayName;
-            let mailNick;
-            let technicalSlug;
-
-            let mailNickExplicit = false;
-            if (parts.length >= 2) {
-                displayName = parts[0];
-                const explicitNick = parts[1] || '';
-                technicalSlug = toNickBaseFromName(subjectForSlug(parts[0]));
-                if (explicitNick) {
-                    mailNick = maybeUpper(explicitNick.replace(/[^A-Za-z0-9-]/g, ''));
-                    mailNickExplicit = true;
-                } else {
-                    mailNick = buildMailNicknameFromSubject(parts[0]);
-                }
-            } else {
-                const raw = parts[0];
-                displayName = displayNameFromSubjectLine(raw);
-                technicalSlug = toNickBaseFromName(subjectForSlug(raw));
-                mailNick = buildMailNicknameFromSubject(raw);
-            }
-
-            if (!displayName) return;
-            if (!mailNick) {
-                errors.push('Zeile ' + (idx + 1) + ': Mail-Nickname konnte nicht erzeugt werden.');
-                return;
-            }
-            const key = displayName.toLowerCase();
-            if (seen.has(key)) return;
-            seen.add(key);
-            parsed.push({
-                displayName,
-                mailNick,
-                owner: '',
-                memberLines: '',
-                description: 'ARGE-Gruppe: ' + displayName,
-                technicalSlug,
-                mailNickExplicit
-            });
-        });
-        return { parsed, errors };
+        return P.parseArgeInputLines(ta.value, argeNickDeps());
     }
 
     let argePreviewDebounce;
@@ -253,15 +312,7 @@
     }
 
     function recomputeArgePreviewMailNicks() {
-        argePreviewRows.forEach(r => {
-            r.technicalSlug = toNickBaseFromName(subjectForSlug(r.displayName));
-            if (!r.mailNickExplicit) {
-                r.mailNick = buildMailNicknameFromSubject(r.displayName);
-            } else {
-                r.mailNick = maybeUpper(String(r.mailNick || '').replace(/[^A-Za-z0-9-]/g, ''));
-            }
-        });
-        resolveDuplicateNicks(argePreviewRows);
+        P.recomputeArgePreviewMailNicks(argePreviewRows, argeNickDeps());
     }
 
     function updateArgePreviewMailCellsDom() {
@@ -272,14 +323,17 @@
             const tr = tbody.querySelector(`tr[data-arge-index="${i}"]`);
             if (!tr) return;
             const tds = tr.querySelectorAll('td');
-            if (tds.length < 4) return;
+            if (tds.length < 5) return;
             const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
-            tds[1].textContent = tech;
-            tds[1].style.fontFamily = 'Consolas,monospace';
-            tds[1].style.fontSize = '0.9em';
-            const nickInp = tds[2].querySelector('input.arge-preview-mailnick');
-            if (nickInp) nickInp.value = r.mailNick;
-            tds[3].textContent = r.mailNick + '@' + domain;
+            const code = getSubjectCodeForDisplayName(r.displayName, r.subjectCode);
+            tds[1].innerHTML = `<code>${code || ''}</code>`;
+            tds[2].textContent = tech;
+            tds[2].style.fontFamily = 'Consolas,monospace';
+            tds[2].style.fontSize = '0.9em';
+            tds[3].textContent = r.mailNick;
+            tds[3].style.fontFamily = 'Consolas,monospace';
+            tds[3].style.fontSize = '0.9em';
+            tds[4].textContent = r.mailNick + '@' + domain;
         });
     }
 
@@ -287,11 +341,11 @@
         if (argeSuppressTextareaSync || !argePreviewRows.length) return;
         const ta = document.getElementById('argeLines');
         if (!ta) return;
-        const lines = argePreviewRows.map(r => {
-            const dn = (r.displayName || '').trim();
-            const mn = String(r.mailNick || '').trim();
-            if (r.mailNickExplicit && mn) return dn + ';' + mn;
-            return dn;
+        const lines = P.serializePreviewRowsToLines(argePreviewRows, {
+            normStr: P.normStr,
+            subjectForSlug: P.subjectForSlug,
+            normSubjectCode: P.normSubjectCode,
+            looksLikeSubjectCode: P.looksLikeSubjectCode
         });
         argeSuppressTextareaSync = true;
         ta.value = lines.join('\n');
@@ -310,10 +364,10 @@
                     .filter(l => l.trim() && !l.trim().startsWith('#')).length;
                 if (nonEmpty) {
                     tbody.innerHTML =
-                        '<tr><td colspan="4" style="color:#6c757d;">Keine gültigen Zeilen – Format prüfen (eine Zeile pro Fach oder <code>Anzeigename;MailNickname</code>).</td></tr>';
+                        '<tr><td colspan="5" style="color:#6c757d;">Keine gültigen Zeilen – Format prüfen (eine Zeile pro Fach oder <code>Anzeigename;MailNickname</code>).</td></tr>';
                 } else {
                     tbody.innerHTML =
-                        '<tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen oder „+ Zeile hinzufügen“.</td></tr>';
+                        '<tr><td colspan="5" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen oder „+ Zeile hinzufügen“.</td></tr>';
                 }
                 return;
             }
@@ -325,102 +379,75 @@
                 tr.dataset.argeIndex = String(i);
 
                 const td1 = document.createElement('td');
-                const inpDn = document.createElement('input');
-                inpDn.type = 'text';
-                inpDn.className = 'arge-preview-display jg-preview-table-input';
-                inpDn.value = r.displayName;
-                inpDn.setAttribute('autocomplete', 'off');
-                inpDn.title = 'Anzeigename der Gruppe (z. B. ARGE Deutsch)';
-                td1.appendChild(inpDn);
+                td1.textContent = r.displayName || '';
+                td1.title = 'Doppelklick zum Bearbeiten';
+                td1.addEventListener('dblclick', () => {
+                    startCellEdit(td1, r.displayName, (next, meta) => {
+                        const prev = argePreviewRows[i]?.displayName || '';
+                        argePreviewRows[i].displayName = meta && meta.cancelled ? prev : next;
+                        recomputeArgePreviewMailNicks();
+                        syncTextareaFromArgePreviewRows();
+                        scheduleTenantSubjectsSyncFromArgeTextarea();
+                        renderArgePreviewTableBody();
+                    });
+                });
 
                 const td2 = document.createElement('td');
-                const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
-                td2.textContent = tech;
-                td2.style.fontFamily = 'Consolas,monospace';
-                td2.style.fontSize = '0.9em';
+                td2.innerHTML = `<code>${getSubjectCodeForDisplayName(r.displayName, r.subjectCode) || ''}</code>`;
+                td2.title = 'Fach-Kürzel (aus Tenant-Einstellungen; sonst automatisch erzeugt)';
+                td2.addEventListener('dblclick', () => {
+                    startCellEdit(td2, r.subjectCode, (next, meta) => {
+                        const prev = argePreviewRows[i]?.subjectCode || '';
+                        const raw = meta && meta.cancelled ? prev : next;
+                        const v = looksLikeSubjectCode(raw) ? normSubjectCode(raw) : '';
+                        argePreviewRows[i].subjectCode = v;
+                        // wenn Nick nicht explizit ist: anhand Kürzel neu berechnen
+                        recomputeArgePreviewMailNicks();
+                        syncTextareaFromArgePreviewRows();
+                        scheduleTenantSubjectsSyncFromArgeTextarea();
+                        renderArgePreviewTableBody();
+                    });
+                });
 
                 const td3 = document.createElement('td');
-                const inpNick = document.createElement('input');
-                inpNick.type = 'text';
-                inpNick.className = 'arge-preview-mailnick jg-preview-table-input';
-                inpNick.value = r.mailNick;
-                inpNick.setAttribute('autocomplete', 'off');
-                inpNick.title =
-                    'Mail-Nickname – leer lassen und Anzeigename ändern für automatische Erzeugung; manuell = festes Nickname';
-                td3.appendChild(inpNick);
+                const tech = r.technicalSlug || toNickBaseFromName(subjectForSlug(r.displayName));
+                td3.textContent = tech;
+                td3.style.fontFamily = 'Consolas,monospace';
+                td3.style.fontSize = '0.9em';
 
                 const td4 = document.createElement('td');
-                td4.textContent = r.mailNick + '@' + domain;
+                td4.textContent = r.mailNick || '';
+                td4.style.fontFamily = 'Consolas,monospace';
+                td4.style.fontSize = '0.9em';
+                td4.title =
+                    'Doppelklick zum Bearbeiten. Leer lassen und Anzeigename/Kürzel ändern = automatische Erzeugung.';
+                td4.addEventListener('dblclick', () => {
+                    startCellEdit(td4, r.mailNickExplicit ? r.mailNick : '', (next, meta) => {
+                        const prevNick = argePreviewRows[i]?.mailNick || '';
+                        const prevExplicit = !!argePreviewRows[i]?.mailNickExplicit;
+                        const raw = meta && meta.cancelled ? (prevExplicit ? prevNick : '') : next;
+                        const cleaned = maybeUpper(String(raw || '').replace(/[^A-Za-z0-9-]/g, ''));
+                        argePreviewRows[i].mailNickExplicit = normStr(raw) !== '';
+                        if (argePreviewRows[i].mailNickExplicit) {
+                            argePreviewRows[i].mailNick = cleaned;
+                        }
+                        recomputeArgePreviewMailNicks();
+                        syncTextareaFromArgePreviewRows();
+                        renderArgePreviewTableBody();
+                    });
+                });
 
-                tr.append(td1, td2, td3, td4);
+                const td5 = document.createElement('td');
+                td5.textContent = r.mailNick + '@' + domain;
+
+                tr.append(td1, td2, td3, td4, td5);
                 tbody.appendChild(tr);
-
-                let inputTimer;
-                inpDn.addEventListener('input', () => {
-                    r.displayName = inpDn.value;
-                    if (!r.mailNickExplicit) {
-                        recomputeArgePreviewMailNicks();
-                        inpNick.value = r.mailNick;
-                        updateArgePreviewMailCellsDom();
-                    } else {
-                        r.technicalSlug = toNickBaseFromName(subjectForSlug(r.displayName));
-                        updateArgePreviewMailCellsDom();
-                    }
-                });
-                inpNick.addEventListener('input', () => {
-                    r.mailNick = inpNick.value;
-                    r.mailNickExplicit = String(inpNick.value || '').trim() !== '';
-                    clearTimeout(inputTimer);
-                    inputTimer = setTimeout(() => {
-                        recomputeArgePreviewMailNicks();
-                        updateArgePreviewMailCellsDom();
-                    }, 200);
-                });
-
-                const onBlur = () => {
-                    r.displayName = inpDn.value;
-                    r.mailNick = inpNick.value;
-                    r.mailNickExplicit = String(inpNick.value || '').trim() !== '';
-                    recomputeArgePreviewMailNicks();
-                    inpNick.value = r.mailNick;
-                    updateArgePreviewMailCellsDom();
-                    syncTextareaFromArgePreviewRows();
-                };
-                inpDn.addEventListener('blur', onBlur);
-                inpNick.addEventListener('blur', onBlur);
-
-                tr.addEventListener('dblclick', e => {
-                    if (e.target.tagName === 'INPUT') return;
-                    const td = e.target.closest('td');
-                    if (td && td === tr.children[2]) {
-                        inpNick.focus();
-                        inpNick.select();
-                    } else {
-                        inpDn.focus();
-                        inpDn.select();
-                    }
-                });
             });
         } catch (e) {
             console.error('ARGE-Vorschau:', e);
             tbody.innerHTML =
-                '<tr><td colspan="4" style="color:#dc3545;">Vorschau konnte nicht berechnet werden. Seite neu laden oder Konsole prüfen.</td></tr>';
+                '<tr><td colspan="5" style="color:#dc3545;">Vorschau konnte nicht berechnet werden. Seite neu laden oder Konsole prüfen.</td></tr>';
         }
-    }
-
-    function resolveDuplicateNicks(rows) {
-        const seen = new Map();
-        rows.forEach(r => {
-            const base = r.mailNick;
-            let candidate = base;
-            let n = 2;
-            while (seen.has(candidate)) {
-                candidate = base + '-' + n;
-                n++;
-            }
-            r.mailNick = candidate;
-            seen.set(candidate, true);
-        });
     }
 
     /**
@@ -431,24 +458,15 @@
         if (argePreviewRows.length) {
             syncTextareaFromArgePreviewRows();
         }
-        const { parsed, errors } = parseArgeInput();
-        if (errors.length) {
-            return { ok: false, errors };
-        }
-        if (!parsed.length) {
-            return { ok: false, errors: ['Bitte mindestens eine ARGE-Zeile eintragen.'] };
-        }
-        const rows = parsed.map(r => ({ ...r }));
-        resolveDuplicateNicks(rows);
-        const ownerByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.owner]));
-        const memberLinesByKey = new Map(argeRows.map(r => [r.displayName.toLowerCase(), r.memberLines || '']));
-        argeRows = rows.map(r => ({
-            displayName: r.displayName,
-            mailNick: r.mailNick,
-            owner: ownerByKey.get(r.displayName.toLowerCase()) || '',
-            memberLines: memberLinesByKey.get(r.displayName.toLowerCase()) || '',
-            description: r.description
-        }));
+        const ta = document.getElementById('argeLines');
+        const text = ta ? ta.value : '';
+        const r = P.syncRowsFromInputPreservingOwners({
+            text,
+            previousArgeRows: argeRows,
+            deps: argeNickDeps()
+        });
+        if (!r.ok) return r;
+        argeRows = r.rows;
         rebuildArgeOwnerTableFromRows();
         return { ok: true };
     }
@@ -509,6 +527,9 @@
             const tr = document.createElement('tr');
             const td1 = document.createElement('td');
             td1.textContent = row.displayName;
+            const tdCode = document.createElement('td');
+            tdCode.innerHTML = `<code>${getSubjectCodeForDisplayName(row.displayName, row.subjectCode) || ''}</code>`;
+            tdCode.title = 'Fach-Kürzel (aus Tenant-Einstellungen; sonst automatisch erzeugt)';
             const td2 = document.createElement('td');
             td2.textContent = row.mailNick + '@' + domain;
             td2.style.fontFamily = 'Consolas,monospace';
@@ -532,7 +553,7 @@
             });
             ta.addEventListener('paste', () => setTimeout(refreshArgeScriptIfStep5, 0));
             td3.appendChild(ta);
-            tr.append(td1, td2, td3);
+            tr.append(td1, tdCode, td2, td3);
             tbody.appendChild(tr);
         });
     }
@@ -560,6 +581,9 @@
             const tr = document.createElement('tr');
             const td1 = document.createElement('td');
             td1.textContent = row.displayName;
+            const tdCode = document.createElement('td');
+            tdCode.innerHTML = `<code>${getSubjectCodeForDisplayName(row.displayName, row.subjectCode) || ''}</code>`;
+            tdCode.title = 'Fach-Kürzel (aus Tenant-Einstellungen; sonst automatisch erzeugt)';
             const td2 = document.createElement('td');
             td2.textContent = row.mailNick + '@' + domain;
             const td3 = document.createElement('td');
@@ -575,7 +599,7 @@
                 argeRows[index].owner = inp.value.trim();
             });
             td4.appendChild(inp);
-            tr.append(td1, td2, td3, td4);
+            tr.append(td1, tdCode, td2, td3, td4);
             tbody.appendChild(tr);
         });
     }
@@ -738,10 +762,6 @@
         };
     };
 
-    function psEscapeSingle(s) {
-        return String(s ?? '').replace(/'/g, "''");
-    }
-
     function downloadBlob(filename, text, mime) {
         const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
         const a = document.createElement('a');
@@ -751,354 +771,72 @@
         URL.revokeObjectURL(a.href);
     }
 
-    function buildStandaloneArgePs1(standalone, createTeams, setExchangeSmtp, adminAsOwner) {
-        if (createTeams === undefined) createTeams = true;
-        if (setExchangeSmtp === undefined) setExchangeSmtp = true;
-        if (adminAsOwner === undefined) adminAsOwner = true;
-        const domain = getDomain();
-        const domainTrim = (domain || '').trim();
-        const setExoEffective = setExchangeSmtp && domainTrim.length > 0;
-        const stamp = new Date().toISOString();
-        const lines = [];
-        // Team an Gruppe: Graph verlangt i.d.R. nur Group.ReadWrite.All (s. team-put-teams). Team.ReadWrite.All
-        // loest bei Connect-MgGraph oft AADSTS70011 (ungueltiger Scope beim Graph-PowerShell-Client).
-        const scopesLine = '$scopes = @("Group.ReadWrite.All","User.Read.All","User.Read")';
+    function downloadJson(filename, obj) {
+        downloadBlob(filename, JSON.stringify(obj, null, 2), 'application/json;charset=utf-8');
+    }
 
-        if (standalone) {
-            lines.push('#Requires -Version 5.1');
-            lines.push(
-                '# ARGE-Gruppen (M365 Unified); optional Teams ($Ms365CreateTeams); optional Exchange-SMTP ($Ms365SetExchangeSmtp)'
-            );
-            lines.push('# Erzeugt in der Browser-App am ' + stamp);
-            lines.push('# Daten sind unten eingebettet.');
-            lines.push('');
-            lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
-            lines.push('$ErrorActionPreference = "Continue"');
-            lines.push('');
-            lines.push('Write-Host ""');
-            lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
-            lines.push('Write-Host "  ARGE-Gruppen (Microsoft Graph)"       -ForegroundColor Cyan');
-            lines.push('Write-Host "========================================"  -ForegroundColor Cyan');
-            lines.push('Write-Host ""');
-            lines.push(
-                '# Meta-Modul Microsoft.Graph (einheitliche DLL-Versionen; PS-5.1 „4096 Funktionen“ per MaximumFunctionCount)'
-            );
-            lines.push('$MaximumFunctionCount = 32768');
-            lines.push('Write-Host "Lade Microsoft.Graph ..." -ForegroundColor Gray');
-            lines.push('try {');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('} catch {');
-            lines.push(
-                '    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow'
-            );
-            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('}');
-            lines.push('');
-            lines.push(scopesLine);
-            lines.push(
-                'Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetecode) ..." -ForegroundColor Yellow'
-            );
-            lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
-            lines.push('$script:Ms365OldEap = $ErrorActionPreference');
-            lines.push('$ErrorActionPreference = "Stop"');
-            lines.push('try {');
-            lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
-            lines.push('} catch {');
-            lines.push(
-                '    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow'
-            );
-            lines.push('}');
-            lines.push('$ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    Write-Host ""');
-            lines.push(
-                '    Write-Host "Kein Graph-Kontext – Geraetocode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow'
-            );
-            lines.push('    $ErrorActionPreference = "Stop"');
-            lines.push('    try {');
-            lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
-            lines.push('    } catch {');
-            lines.push('        Write-Error ("Microsoft Graph: Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message)');
-            lines.push('        exit 1');
-            lines.push('    }');
-            lines.push('    $ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('}');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    Write-Error "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich. Skript wird beendet."');
-            lines.push('    exit 1');
-            lines.push('}');
-            lines.push('$mgCtx = Get-MgContext');
-            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
-            lines.push('');
-        } else {
-            lines.push('# Microsoft Graph: ARGE-Gruppen als Microsoft 365-Gruppen (Unified Group, kein Kursteam)');
-            lines.push('# Voraussetzung: Install-Module Microsoft.Graph');
-            lines.push('# https://learn.microsoft.com/powershell/module/microsoft.graph.groups/new-mggroup');
-            lines.push('');
-            lines.push(
-                'Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber -ErrorAction SilentlyContinue'
-            );
-            lines.push('$MaximumFunctionCount = 32768');
-            lines.push('try {');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('} catch {');
-            lines.push(
-                '    Write-Host "Microsoft.Graph nicht gefunden – Installation (einmalig, kann einige Minuten dauern) ..." -ForegroundColor Yellow'
-            );
-            lines.push('    Install-Module Microsoft.Graph -Scope CurrentUser -Force -AllowClobber');
-            lines.push('    Import-Module Microsoft.Graph -ErrorAction Stop');
-            lines.push('}');
-            lines.push('');
-            lines.push(scopesLine);
-            lines.push(
-                'Write-Host "Starte Microsoft Graph-Anmeldung (Browser/Dialog oder Geraetocode) ..." -ForegroundColor Yellow'
-            );
-            lines.push('Write-Host "Hinweis: Fenster ggf. im Hintergrund – Taskleiste pruefen." -ForegroundColor Gray');
-            lines.push('$script:Ms365OldEap = $ErrorActionPreference');
-            lines.push('$ErrorActionPreference = "Stop"');
-            lines.push('try {');
-            lines.push('    Connect-MgGraph -Scopes $scopes -NoWelcome');
-            lines.push('} catch {');
-            lines.push(
-                '    Write-Host ("Hinweis (interaktive Anmeldung): {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow'
-            );
-            lines.push('}');
-            lines.push('$ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    Write-Host ""');
-            lines.push(
-                '    Write-Host "Kein Graph-Kontext – Geraetocode-Anmeldung (Code erscheint unten, Browser: https://microsoft.com/devicelogin ) ..." -ForegroundColor Yellow'
-            );
-            lines.push('    $ErrorActionPreference = "Stop"');
-            lines.push('    try {');
-            lines.push('        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication -NoWelcome');
-            lines.push('    } catch {');
-            lines.push('        throw ("Microsoft Graph: Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message)');
-            lines.push('    }');
-            lines.push('    $ErrorActionPreference = $script:Ms365OldEap');
-            lines.push('}');
-            lines.push('if (-not (Get-MgContext)) {');
-            lines.push('    throw "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich."');
-            lines.push('}');
-            lines.push('$mgCtx = Get-MgContext');
-            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
-            lines.push('');
-        }
-
-        lines.push('$Ms365CreateTeams = $' + (createTeams ? 'true' : 'false'));
-        lines.push('$Ms365SetExchangeSmtp = $' + (setExoEffective ? 'true' : 'false'));
-        lines.push('$Ms365AdminAsOwner = $' + (adminAsOwner ? 'true' : 'false'));
-        lines.push("$Ms365ExchangeDomain = '" + psEscapeSingle(domainTrim) + "'");
-        lines.push('');
-        if (setExoEffective) {
-            lines.push('$script:Ms365ExoConnected = $false');
-            lines.push('function Ensure-Ms365ExchangeOnline {');
-            lines.push('    if ($script:Ms365ExoConnected) { return }');
-            lines.push(
-                '    Write-Host "Exchange Online: Modul laden und anmelden (zweiter Dialog) …" -ForegroundColor Yellow'
-            );
-            lines.push('    try {');
-            lines.push('        Import-Module ExchangeOnlineManagement -ErrorAction Stop');
-            lines.push('    } catch {');
-            lines.push('        Write-Host "Installiere ExchangeOnlineManagement …" -ForegroundColor Yellow');
-            lines.push('        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force -AllowClobber');
-            lines.push('        Import-Module ExchangeOnlineManagement -ErrorAction Stop');
-            lines.push('    }');
-            lines.push('    Connect-ExchangeOnline -ShowBanner:$false');
-            lines.push('    $script:Ms365ExoConnected = $true');
-            lines.push('    Write-Host "Exchange Online: angemeldet." -ForegroundColor Green');
-            lines.push('}');
-            lines.push(
-                '# Exchange-Anmeldung erst bei Set-UnifiedGroup (nicht vor Graph), damit bei Graph-Fehlern kein zweiter Dialog nötig ist.'
-            );
-            lines.push('');
-        }
-        lines.push('$rows = @(');
-        argeRows.forEach((r, i) => {
-            const last = i === argeRows.length - 1;
-            const mems = parseMemberLinesText(r.memberLines || '');
-            const memPart = mems.map(e => "'" + psEscapeSingle(e) + "'").join(',');
-            lines.push(
-                "    [PSCustomObject]@{ DisplayName = '" +
-                    psEscapeSingle(r.displayName) +
-                    "'; MailNickname = '" +
-                    psEscapeSingle(r.mailNick) +
-                    "'; OwnerUpn = '" +
-                    psEscapeSingle(r.owner) +
-                    "'; Description = '" +
-                    psEscapeSingle(r.description) +
-                    "'; MemberUpns = @(" +
-                    memPart +
-                    ') }' +
-                    (last ? '' : ',')
-            );
+    function argeBuildStateSnapshot() {
+        return window.ms365ArgeBuildStateSnapshot({
+            argeCurrentStep,
+            argeDefaultPrefix: document.getElementById('argeDefaultPrefix')?.value ?? '',
+            argeUpperNick: !!document.getElementById('argeUpperNick')?.checked,
+            argeCreateTeams: getArgeCreateTeams(),
+            argeExchangeSmtp: getArgeExchangeSmtp(),
+            argeAdminAsOwner: getArgeAdminAsOwner(),
+            argeLines: document.getElementById('argeLines')?.value ?? '',
+            rows: argeRows || [],
+            normStr: P.normStr,
+            subjectForSlug: P.subjectForSlug
         });
-        lines.push(')');
-        lines.push('$meUser = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/me" -ErrorAction Stop');
-        lines.push('$meId = $meUser.id');
-        lines.push('');
-        lines.push('$i = 0');
-        lines.push('foreach ($r in $rows) {');
-        lines.push('    $i++');
-        lines.push('    try {');
-        lines.push('        $owner = Get-MgUser -UserId $r.OwnerUpn -ErrorAction Stop');
-        lines.push(
-            '        # M365 Unified Group: New-MgGroup -BodyParameter (Bulk-Muster, vgl. https://m365corner.com/m365-powershell/using-new-mggroup-in-graph-powershell.html )'
-        );
-        lines.push('        $groupBody = @{');
-        lines.push('            DisplayName     = $r.DisplayName');
-        lines.push('            Description     = $r.Description');
-        lines.push('            MailNickname    = $r.MailNickname');
-        lines.push('            MailEnabled     = $true');
-        lines.push('            SecurityEnabled = $false');
-        lines.push('            GroupTypes      = @("Unified")');
-        lines.push('            Visibility      = "Private"');
-        lines.push('        }');
-        lines.push('        $group = New-MgGroup -BodyParameter $groupBody -ErrorAction Stop');
-        lines.push('        Start-Sleep -Seconds 2  # Replikation vor Owner-Zuweisung');
-        lines.push('        try {');
-        lines.push('            New-MgGroupOwner -GroupId $group.Id -DirectoryObjectId $owner.Id -ErrorAction Stop');
-        lines.push('        } catch {');
-        lines.push('            if ($_.Exception.Message -notmatch "already exist") { throw }');
-        lines.push('            Write-Host ("  Hinweis (Besitzer): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray');
-        lines.push('        }');
-        lines.push('        if (-not $Ms365AdminAsOwner -and $meId -ne $owner.Id) {');
-        lines.push('            try {');
-        lines.push(
-            '                Invoke-MgGraphRequest -Method DELETE -Uri ("https://graph.microsoft.com/v1.0/groups/{0}/owners/{1}/`$ref" -f $group.Id, $meId) -ErrorAction Stop'
-        );
-        lines.push(
-            '                Write-Host "  Angemeldeter Administrator als Besitzer entfernt (nur Besitzer aus Schritt 2)." -ForegroundColor DarkGray'
-        );
-        lines.push('            } catch {');
-        lines.push(
-            '                Write-Host ("  Hinweis (Admin-Besitzer entfernen): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
-        );
-        lines.push('            }');
-        lines.push('        }');
-        lines.push('        try {');
-        lines.push(
-            '            $memberRef = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($owner.Id)" }'
-        );
-        lines.push(
-            '            Invoke-MgGraphRequest -Method POST -Uri (\'https://graph.microsoft.com/v1.0/groups/{0}/members/$ref\' -f $group.Id) -Body ($memberRef | ConvertTo-Json -Compress) -ErrorAction Stop'
-        );
-        lines.push('        } catch {');
-        lines.push(
-            '            Write-Host ("Hinweis (Besitzer als Mitglied): {0}" -f $_.Exception.Message) -ForegroundColor DarkGray'
-        );
-        lines.push('        }');
-        lines.push('        if ($r.MemberUpns -and $r.MemberUpns.Count -gt 0) {');
-        lines.push('            foreach ($mUpn in $r.MemberUpns) {');
-        lines.push('                if ([string]::IsNullOrWhiteSpace($mUpn)) { continue }');
-        lines.push('                try {');
-        lines.push('                    $trimUpn = $mUpn.Trim()');
-        lines.push('                    $memUser = Get-MgUser -UserId $trimUpn -ErrorAction Stop');
-        lines.push('                    if ($memUser.Id -eq $owner.Id) { continue }');
-        lines.push(
-            '                    $memberRefExtra = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($memUser.Id)" }'
-        );
-        lines.push(
-            '                    Invoke-MgGraphRequest -Method POST -Uri ("https://graph.microsoft.com/v1.0/groups/{0}/members/$ref" -f $group.Id) -Body ($memberRefExtra | ConvertTo-Json -Compress) -ErrorAction Stop'
-        );
-        lines.push('                } catch {');
-        lines.push('                    if ($_.Exception.Message -match "already exist") {');
-        lines.push(
-            '                        Write-Host ("  Hinweis (Mitglied {0}): bereits in der Gruppe." -f $mUpn.Trim()) -ForegroundColor DarkGray'
-        );
-        lines.push('                    } else {');
-        lines.push(
-            '                        Write-Host ("  Hinweis (Mitglied {0}): {1}" -f $mUpn.Trim(), $_.Exception.Message) -ForegroundColor DarkGray'
-        );
-        lines.push('                    }');
-        lines.push('                }');
-        lines.push('            }');
-        lines.push('        }');
-        lines.push('        if ($Ms365CreateTeams) {');
-        lines.push('            $teamProps = @{');
-        lines.push('                memberSettings = @{ allowCreatePrivateChannels = $true; allowCreateUpdateChannels = $true }');
-        lines.push('                messagingSettings = @{ allowUserEditMessages = $true; allowUserDeleteMessages = $true }');
-        lines.push('                funSettings = @{ allowGiphy = $true; giphyContentRating = "moderate" }');
-        lines.push('                guestSettings = @{ allowCreateUpdateChannels = $false }');
-        lines.push('            }');
-        lines.push('            # Verschachtelte Hashtables zu JSON (Depth wichtig für PS 5.1 / korrekten Graph-Body)');
-        lines.push('            $teamJson = $teamProps | ConvertTo-Json -Depth 10 -Compress');
-        lines.push('            $teamUri = "https://graph.microsoft.com/v1.0/groups/$($group.Id)/team"');
-        lines.push('            for ($ti = 0; $ti -lt 8; $ti++) {');
-        lines.push('                try {');
-        lines.push(
-            '                    Invoke-MgGraphRequest -Method PUT -Uri $teamUri -Body $teamJson -ContentType "application/json" -ErrorAction Stop'
-        );
-        lines.push('                    Write-Host ("Teams: {0} – Team bereitgestellt." -f $r.DisplayName) -ForegroundColor Cyan');
-        lines.push('                    break');
-        lines.push('                } catch {');
-        lines.push('                    if ($ti -lt 7) {');
-        lines.push(
-            '                        Write-Host ("Teams: Warte auf Replikation ({0}/8) …" -f ($ti + 1)) -ForegroundColor DarkYellow'
-        );
-        lines.push('                        Start-Sleep -Seconds 10');
-        lines.push('                    } else {');
-        lines.push(
-            '                        Write-Warning ("Teams: {0} – Team konnte nicht angelegt werden: {1}" -f $r.DisplayName, $_.Exception.Message)'
-        );
-        lines.push('                    }');
-        lines.push('                }');
-        lines.push('            }');
-        lines.push('        }');
-        lines.push('        if ($Ms365SetExchangeSmtp -and $Ms365ExchangeDomain) {');
-        lines.push('            Ensure-Ms365ExchangeOnline');
-        lines.push('            $wantedSmtp = "$($r.MailNickname)@$Ms365ExchangeDomain"');
-        lines.push('            for ($ei = 0; $ei -lt 6; $ei++) {');
-        lines.push('                try {');
-        lines.push('                    Set-UnifiedGroup -Identity $group.Id -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop');
-        lines.push(
-            '                    Write-Host ("Exchange: {0} – PrimarySmtpAddress = {1}" -f $r.DisplayName, $wantedSmtp) -ForegroundColor Green'
-        );
-        lines.push('                    break');
-        lines.push('                } catch {');
-        lines.push('                    if ($ei -lt 5) {');
-        lines.push(
-            '                        Write-Host ("Exchange: Warte auf Postfach ({0}/6) …" -f ($ei + 1)) -ForegroundColor DarkYellow'
-        );
-        lines.push('                        Start-Sleep -Seconds 15');
-        lines.push('                    } else {');
-        lines.push(
-            '                        Write-Warning ("Exchange: {0} – PrimarySmtpAddress nicht gesetzt: {1}" -f $r.DisplayName, $_.Exception.Message)'
-        );
-        lines.push('                    }');
-        lines.push('                }');
-        lines.push('            }');
-        lines.push('        }');
-        lines.push(
-            '        Write-Host ("OK [{0}/{1}] {2} -> {3}" -f $i, $rows.Count, $r.DisplayName, $r.MailNickname) -ForegroundColor Green'
-        );
-        lines.push('    }');
-        lines.push('    catch {');
-        lines.push('        $ex = $_.Exception');
-        lines.push('        $detail = $ex.Message');
-        lines.push('        if ($ex.InnerException) { $detail += " | " + $ex.InnerException.Message }');
-        lines.push('        Write-Warning ("Fehler [{0}] {1}: {2}" -f $i, $r.DisplayName, $detail)');
-        lines.push('    }');
-        lines.push('    Start-Sleep -Seconds 2');
-        lines.push('}');
-        lines.push('');
-        lines.push('# SMTP: Graph legt nur mailNickname an. Mit $Ms365SetExchangeSmtp wird die primäre Adresse per Exchange gesetzt.');
-        lines.push('# Zieldomain (App): ' + psEscapeSingle(domainTrim || domain));
-        lines.push('# Set-UnifiedGroup: https://learn.microsoft.com/powershell/module/exchange/set-unifiedgroup');
-        if (setExoEffective) {
-            lines.push('if ($script:Ms365ExoConnected) {');
-            lines.push('    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}');
-            lines.push('}');
-            lines.push('');
-        }
-        if (standalone) {
-            lines.push('');
-            lines.push('Write-Host ""');
-            lines.push('Write-Host "Fertig." -ForegroundColor Cyan');
-            lines.push('Read-Host "Enter druecken zum Beenden"');
-        }
-        return lines.join('\r\n');
+    }
+
+    function applyImportedArgeState(obj) {
+        window.ms365ArgeApplyImportedState(obj, {
+            normStr: P.normStr,
+            subjectForSlug: P.subjectForSlug,
+            looksLikeSubjectCode: P.looksLikeSubjectCode,
+            normSubjectCode: P.normSubjectCode,
+            displayNameFromSubjectLine: P.displayNameFromSubjectLine,
+            syncArgePreviewFromTextarea,
+            setArgeRows: (rows) => {
+                argeRows = rows;
+            },
+            rebuildArgeOwnerTableFromRows,
+            rebuildArgeMembersTableFromRows,
+            scheduleArgePreviewRowsOnly,
+            refreshArgeScriptIfStep5,
+            showToast,
+            getArgePreviewRows: () => argePreviewRows
+        });
+    }
+
+    function exportArgeCsv() {
+        const { csv, filename } = window.ms365ArgeExportCsv({
+            domain: getDomain(),
+            argeRows,
+            argePreviewRows,
+            syncArgePreviewFromTextarea,
+            normStr,
+            subjectForSlug,
+            getSubjectCodeForDisplayName
+        });
+        downloadBlob(filename, csv, 'text/csv;charset=utf-8');
+        showToast('ARGE: CSV exportiert.');
+    }
+
+    function importArgeCsvText(text) {
+        const rows = window.ms365ArgeParseCsvToRows(text, {
+            normStr,
+            displayNameFromSubjectLine,
+            subjectForSlug,
+            normSubjectCode
+        });
+        if (rows === null) return;
+        applyImportedArgeState({ rows });
+    }
+
+    function buildStandaloneArgePs1(standalone, createTeams, setExchangeSmtp, adminAsOwner) {
+        return window.ms365BuildStandaloneArgePs1(argeRows, getDomain(), standalone, createTeams, setExchangeSmtp, adminAsOwner);
     }
 
     function downloadArgeStandalonePackage() {
@@ -1115,8 +853,15 @@
             showToast('polyglot-cmd.js fehlt – Seite neu laden.');
             return;
         }
-        if (getArgeExchangeSmtp() && !getDomain().trim()) {
-            showToast('Für die Exchange-Option bitte oben die E-Mail-Domain der Schule eintragen.');
+        if (
+            getArgeExchangeSmtp() &&
+            (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
+                !window.ms365IsTenantSchoolDomainConfigured())
+        ) {
+            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest.');
+            if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
+                window.ms365ShowTenantDomainRequiredModal();
+            }
             return;
         }
         const ps1 = buildStandaloneArgePs1(true, getArgeCreateTeams(), getArgeExchangeSmtp(), getArgeAdminAsOwner());
@@ -1137,10 +882,12 @@
         argeLinesEl.addEventListener('input', () => {
             if (argeSuppressTextareaSync) return;
             scheduleArgePreviewFromTextarea();
+            scheduleTenantSubjectsSyncFromArgeTextarea();
         });
         argeLinesEl.addEventListener('paste', () =>
             setTimeout(() => {
                 if (!argeSuppressTextareaSync) scheduleArgePreviewFromTextarea();
+                scheduleTenantSubjectsSyncFromArgeTextarea();
             }, 0)
         );
     }
@@ -1187,10 +934,16 @@
     document.getElementById('argeParseAndGo3').addEventListener('click', () => {
         const errEl = document.getElementById('argeParseError');
         errEl.style.display = 'none';
-        const domain = getDomain();
-        if (!domain) {
-            errEl.textContent = 'Bitte oben die E-Mail-Domain angeben.';
+        if (
+            typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
+            !window.ms365IsTenantSchoolDomainConfigured()
+        ) {
+            errEl.textContent =
+                'Bitte legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest (Seite „Tenant-Einstellungen“).';
             errEl.style.display = 'block';
+            if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
+                window.ms365ShowTenantDomainRequiredModal();
+            }
             return;
         }
 
@@ -1227,7 +980,9 @@
             mailNick: r.mailNick,
             owner: ownerByKey.get(r.displayName.trim().toLowerCase()) || '',
             memberLines: memberLinesByKey.get(r.displayName.trim().toLowerCase()) || '',
-            description: 'ARGE-Gruppe: ' + r.displayName.trim()
+            description: 'ARGE-Gruppe: ' + r.displayName.trim(),
+            subjectName: normStr(r.subjectName || subjectForSlug(r.displayName.trim())),
+            subjectCode: normStr(r.subjectCode || '')
         }));
 
         rebuildArgeOwnerTableFromRows();
@@ -1254,8 +1009,15 @@
             goToArgeStep(2);
             return;
         }
-        if (getArgeExchangeSmtp() && !getDomain().trim()) {
-            showToast('Für die Exchange-Option bitte oben die E-Mail-Domain der Schule eintragen.');
+        if (
+            getArgeExchangeSmtp() &&
+            (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
+                !window.ms365IsTenantSchoolDomainConfigured())
+        ) {
+            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest.');
+            if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
+                window.ms365ShowTenantDomainRequiredModal();
+            }
             return;
         }
         document.getElementById('argeParseError').style.display = 'none';
@@ -1290,9 +1052,72 @@
         });
     });
 
+    const elArgeStepsInit = document.querySelector('.arge-steps');
+    if (elArgeStepsInit && typeof window.ms365ApplyStepProgress === 'function') {
+        window.ms365ApplyStepProgress(elArgeStepsInit, argeCurrentStep, [1, 2, 3, 4, 5]);
+    }
+
     applyInitialModeFromUrl();
     if (panelA && panelA.style.display !== 'none') {
+        adoptArgeSubjectsFromTenantSettingsIfEmpty();
         scheduleArgePreviewRefresh();
+    }
+
+    // bottom toolbar wiring (save/load + import/export)
+    const btnSaveState = document.getElementById('btnSaveState');
+    if (btnSaveState) btnSaveState.addEventListener('click', () => saveArgeState());
+    const btnLoadState = document.getElementById('btnLoadState');
+    if (btnLoadState) btnLoadState.addEventListener('click', () => loadArgeState());
+    const btnClearStorage = document.getElementById('btnClearStorage');
+    if (btnClearStorage) btnClearStorage.addEventListener('click', () => clearArgeState());
+
+    const btnExportJson = document.getElementById('btnExportArgeJson');
+    if (btnExportJson) {
+        btnExportJson.addEventListener('click', () => {
+            const snap = argeBuildStateSnapshot();
+            downloadJson(`arge-export-${new Date().toISOString().slice(0, 10)}.json`, snap);
+            showToast('ARGE: JSON exportiert.');
+        });
+    }
+
+    const fileJson = document.getElementById('argeImportJsonFile');
+    const btnImportJson = document.getElementById('btnImportArgeJson');
+    if (btnImportJson && fileJson) {
+        btnImportJson.addEventListener('click', () => fileJson.click());
+        fileJson.addEventListener('change', async (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            try {
+                const text = await f.text();
+                const obj = JSON.parse(text);
+                applyImportedArgeState(obj);
+            } catch (err) {
+                showToast('ARGE: JSON Import fehlgeschlagen: ' + (err?.message || String(err)));
+            } finally {
+                fileJson.value = '';
+            }
+        });
+    }
+
+    const btnExportCsv = document.getElementById('btnExportArgeCsv');
+    if (btnExportCsv) btnExportCsv.addEventListener('click', () => exportArgeCsv());
+
+    const fileCsv = document.getElementById('argeImportCsvFile');
+    const btnImportCsv = document.getElementById('btnImportArgeCsv');
+    if (btnImportCsv && fileCsv) {
+        btnImportCsv.addEventListener('click', () => fileCsv.click());
+        fileCsv.addEventListener('change', async (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            try {
+                const text = await f.text();
+                importArgeCsvText(text);
+            } catch (err) {
+                showToast('ARGE: CSV Import fehlgeschlagen: ' + (err?.message || String(err)));
+            } finally {
+                fileCsv.value = '';
+            }
+        });
     }
 })();
 

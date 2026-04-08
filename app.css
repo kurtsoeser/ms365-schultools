@@ -57,7 +57,7 @@ body {
 }
 
 .header-help-row {
-    margin: 10px 0 0;
+    margin: 10px 0 18px;
     font-size: 0.95em;
 }
 
@@ -75,10 +75,15 @@ body {
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     padding: 12px 20px;
     background: rgba(255, 255, 255, 0.12);
     border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Menüzeile im lila Header: außen abgerundet (nicht die untere Sticky-Toolbar) */
+.header .toolbar {
+    border-radius: 12px;
 }
 
 /* Toolbar unten (Zwischenstand) */
@@ -151,28 +156,134 @@ td.kt-action-col {
     letter-spacing: 0.5px;
 }
 
+/* Schritt-Assistent: Karte + Fortschrittsbalken (alle Tools) */
 .steps {
+    --step-progress-pct: 11%;
+    position: relative;
     display: flex;
-    justify-content: space-around;
-    padding: 20px;
-    background: var(--soft);
-    border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px 12px;
     justify-content: center;
+    align-items: stretch;
+    padding: 20px 18px 18px;
+    margin: 0 0 12px;
+    background: linear-gradient(180deg, #ffffff 0%, var(--soft) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 4px 22px rgba(50, 50, 93, 0.07);
 }
-.step {
+.steps::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    left: 22px;
+    right: 22px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(94, 114, 228, 0.14);
+    pointer-events: none;
+}
+.steps::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    left: 22px;
+    width: var(--step-progress-pct, 12%);
+    max-width: calc(100% - 44px);
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2dce89 0%, #5e72e4 55%, #825ee4 100%);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+.steps .step {
+    position: relative;
     text-align: center;
-    padding: 10px 20px;
-    border-radius: 8px;
-    transition: all 0.3s;
+    padding: 10px 12px 12px;
+    margin-top: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(94, 114, 228, 0.1);
+    transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s, color 0.2s;
     cursor: pointer;
     flex: 1 1 auto;
-    min-width: 120px;
-    font-size: 0.9em;
+    min-width: 108px;
+    max-width: 220px;
+    font-size: 0.82em;
+    font-weight: 500;
+    line-height: 1.3;
+    color: #525f7f;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-.step.active { background: var(--brand1); color: white; font-weight: bold; }
-.step.completed { background: var(--ok1); color: white; }
+.steps .step:hover {
+    border-color: rgba(94, 114, 228, 0.28);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(50, 50, 93, 0.1);
+}
+.steps .step.active {
+    background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+    color: #fff;
+    font-weight: 600;
+    border-color: transparent;
+    box-shadow: 0 10px 22px rgba(94, 114, 228, 0.35);
+}
+.steps .step.completed {
+    background: rgba(45, 206, 137, 0.18);
+    color: #146c43;
+    border-color: rgba(45, 206, 137, 0.45);
+    font-weight: 600;
+}
+.steps .step.step--optional {
+    max-width: 260px;
+    font-size: 0.78em;
+    color: #6c757d;
+    border-style: dashed;
+    background: rgba(248, 249, 250, 0.95);
+}
+.steps .step.step--optional.active {
+    color: #fff;
+    border-style: solid;
+    background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+}
+.steps .step.step--optional.completed {
+    color: #146c43;
+    border-style: solid;
+}
+
+/* Kursteams: alle Schritte in einer Zeile (bei Platzmangel horizontal scrollen) */
+.steps.steps--one-line {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-color: rgba(94, 114, 228, 0.45) rgba(94, 114, 228, 0.08);
+    scrollbar-width: thin;
+}
+.steps.steps--one-line::-webkit-scrollbar {
+    height: 7px;
+}
+.steps.steps--one-line::-webkit-scrollbar-track {
+    background: rgba(94, 114, 228, 0.08);
+    border-radius: 999px;
+}
+.steps.steps--one-line::-webkit-scrollbar-thumb {
+    background: rgba(94, 114, 228, 0.4);
+    border-radius: 999px;
+}
+.steps.steps--one-line .step {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: none;
+    white-space: nowrap;
+    padding: 8px 10px 10px;
+    font-size: 0.72em;
+}
+.steps.steps--one-line .step.step--optional {
+    max-width: none;
+    font-size: 0.68em;
+}
 
 /* Step-Inhalte: nur aktiven Schritt anzeigen */
 .step-content { display: none; }
@@ -490,6 +601,32 @@ input[type="file"] { display: none; }
 .modal-box h3 { margin-bottom: 16px; color: #32325d; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
+/* Schritt-Navigation: Zurück links, Weiter rechts (eine Zeile pro Block) */
+.step-nav-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 12px;
+    margin-top: 18px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.step-nav-row.step-nav-row--forward-only {
+    justify-content: flex-end;
+}
+.step-nav-row.step-nav-row--back-only {
+    justify-content: flex-start;
+}
+.step-nav-next-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
 /* Kleine Helfer */
 .sr-only {
     position: absolute;
@@ -505,7 +642,21 @@ input[type="file"] { display: none; }
 
 @media (max-width: 768px) {
     .header h1 { font-size: 1.35em; }
-    .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
+    .steps { padding: 16px 12px 14px; padding-top: 18px; }
+    .steps::before,
+    .steps::after { left: 14px; right: 14px; max-width: calc(100% - 28px); }
+    .steps .step {
+        min-width: 90px;
+        max-width: none;
+        font-size: 0.76em;
+        padding: 8px 8px 10px;
+        margin-top: 22px;
+    }
+    .steps.steps--one-line .step {
+        min-width: 0;
+        font-size: 0.66em;
+        padding: 6px 8px 8px;
+    }
     .content { padding: 16px; }
 }
 

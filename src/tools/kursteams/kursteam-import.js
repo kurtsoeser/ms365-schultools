@@ -3,6 +3,57 @@
 
     const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
+    function normStr(v) {
+        return String(v ?? '').trim();
+    }
+
+    function normCode(v) {
+        return normStr(v).toUpperCase();
+    }
+
+    ns.seedWebuntisPasteIfEmpty = function seedWebuntisPasteIfEmpty() {
+        const ta = document.getElementById('webuntisPasteInput');
+        if (!ta) return false;
+        if (normStr(ta.value)) return false;
+        if (Array.isArray(ns.rawData) && ns.rawData.length) return false;
+
+        let tenant = null;
+        try {
+            if (typeof window.ms365TenantSettingsLoad === 'function') tenant = window.ms365TenantSettingsLoad();
+        } catch {
+            tenant = null;
+        }
+
+        const teachers = Array.isArray(tenant?.teachers) ? tenant.teachers : [];
+        const subjects = Array.isArray(tenant?.subjects) ? tenant.subjects : [];
+        const classes = Array.isArray(tenant?.classes) ? tenant.classes : [];
+
+        const teacherCodes = teachers.map((t) => normCode(t?.code)).filter(Boolean);
+        const subjectCodes = subjects.map((s) => normCode(s?.code)).filter(Boolean);
+        const classCodes = classes.map((c) => normCode(c?.code) || normStr(c?.name)).filter(Boolean);
+
+        const tA = teacherCodes[0] || 'LEH';
+        const tB = teacherCodes[1] || teacherCodes[0] || 'MUS';
+        const s1 = subjectCodes[0] || 'M';
+        const s2 = subjectCodes[1] || 'D';
+        const s3 = subjectCodes[2] || 'E';
+        const c1 = classCodes[0] || '1A';
+        const c2 = classCodes[1] || '1B';
+        const c3 = classCodes[2] || '2A';
+
+        // 6 Beispielzeilen (Lehrer, Fach, Klasse)
+        const lines = [
+            `${tA}\t${s1}\t${c1}`,
+            `${tA}\t${s2}\t${c2}`,
+            `${tA}\t${s3}\t${c3}`,
+            `${tB}\t${s1}\t${c2}`,
+            `${tB}\t${s2}\t${c3}`,
+            `${tB}\t${s3}\t${c1}`
+        ];
+        ta.value = lines.join('\n');
+        return true;
+    };
+
     ns.normalizeImportedRowKeys = function normalizeImportedRowKeys(row) {
         const out = {};
         Object.keys(row).forEach(k => {
@@ -188,7 +239,28 @@
         });
     }
 
+    ns.downloadKursteamImportTemplateXlsx = function downloadKursteamImportTemplateXlsx() {
+        if (typeof XLSX === 'undefined' || !XLSX.utils || !XLSX.writeFile) {
+            ns.showToast('Excel-Bibliothek nicht geladen – Seite neu laden.');
+            return;
+        }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([
+            ['U-Nr', 'Lehrer', 'Fach', 'Klasse(n)', 'Schülergruppe'],
+            [1, 'LEH', 'M', '1A', ''],
+            [2, 'LEH', 'D', '1B', ''],
+            [3, 'LEH', 'E', '2A', ''],
+            [4, 'MUS', 'M', '1B', ''],
+            [5, 'MUS', 'D', '2A', ''],
+            [6, 'MUS', 'E', '1A', 'Gruppe A']
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Kursteams');
+        XLSX.writeFile(wb, 'Kursteams-Import-Vorlage.xlsx');
+        ns.showToast('Excel-Vorlage heruntergeladen.');
+    };
+
     // Export in global scope for HTML onclick
     window.importWebuntisFromPaste = ns.importWebuntisFromPaste;
+    window.downloadKursteamImportTemplateXlsx = ns.downloadKursteamImportTemplateXlsx;
 })();
 

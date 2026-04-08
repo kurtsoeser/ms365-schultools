@@ -139,6 +139,14 @@
         const excludeSubjects = parseExcludeSubjectsFromInput();
         const removeDuplicates = document.getElementById('removeDuplicates').checked;
 
+        // UX: "Filter anwenden" ist zuerst grün; nach dem Anwenden wird er "normal" (blau/lila).
+        try {
+            const btn = document.getElementById('btnApplyFilters');
+            if (btn) btn.className = 'btn';
+        } catch (e) {
+            /* ignore */
+        }
+
         let filtered = ns.rawData.filter(row => {
             if (!row.fach || !row.lehrer) return false;
             const fach = row.fach.toUpperCase().trim();
@@ -499,7 +507,8 @@
         const fi = document.getElementById('fileInput');
         if (fi) fi.value = '';
         ns.invalidateTeams();
-        ns.goToStep(2);
+        // Ohne Import: direkt zur manuellen Eingabe (Schritt 3 im Assistenten), nicht zur leeren Bereinigung.
+        ns.goToStep(2.5);
         if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         document.getElementById('filterStats').style.display = 'none';
         document.getElementById('dataTableContainer').style.display = 'none';
@@ -551,6 +560,13 @@
         setExcludeSubjectsInput(['ORD', 'DIR', 'KV']);
         document.getElementById('removeDuplicates').checked = true;
         if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
+        // UX: Nach Reset wieder grün markieren, damit klar ist, dass erneut angewendet werden kann/soll.
+        try {
+            const btn = document.getElementById('btnApplyFilters');
+            if (btn) btn.className = 'btn btn-success';
+        } catch (e) {
+            /* ignore */
+        }
         ns.applyFilters();
     };
 
@@ -616,7 +632,7 @@
     function setPreviewFromPattern(pattern) {
         const el = document.getElementById('teamNamePreview');
         if (!el) return;
-        const yearPrefix = document.getElementById('yearPrefix')?.value || 'WS24';
+        const yearPrefix = document.getElementById('yearPrefix')?.value || 'SJ26';
         const preview = buildTeamNameFromPattern(pattern, { yearPrefix, klasse: '1AK', fach: 'D', gruppe: 'G1' });
         el.textContent = 'Vorschau: ' + preview;
     }
@@ -740,6 +756,14 @@
     };
 
     ns.generateTeamNames = function generateTeamNames() {
+        // UX: Erst grün (= Aktion ausführen), nach dem Generieren wieder "normal" (blau/lila).
+        try {
+            const btn = document.getElementById('btnGenerateTeamNames');
+            if (btn) btn.className = 'btn kursteam-generate-teams-btn';
+        } catch (e) {
+            /* ignore */
+        }
+
         const yearPrefix = document.getElementById('yearPrefix').value;
         const emailDomain =
             typeof window.ms365GetTeacherEmailDomainSuffix === 'function'
@@ -849,6 +873,67 @@
             const tr = document.createElement('tr');
             if (!team.isValid) tr.classList.add('error-row');
 
+            if (team.ktManualDraft) {
+                tr.classList.add('kt-team-draft-row');
+                tr.setAttribute('data-team-draft-index', String(index));
+
+                const td1 = document.createElement('td');
+                const inpName = document.createElement('input');
+                inpName.type = 'text';
+                inpName.className = 'kt-team-draft-input';
+                inpName.setAttribute('data-team-draft-field', 'teamName');
+                inpName.value = team.teamName || '';
+                inpName.placeholder = 'z. B. SJ26 | 1A | D';
+                inpName.autocomplete = 'off';
+                td1.appendChild(inpName);
+
+                const td2 = document.createElement('td');
+                const inpGm = document.createElement('input');
+                inpGm.type = 'text';
+                inpGm.className = 'kt-team-draft-input';
+                inpGm.setAttribute('data-team-draft-field', 'gruppenmail');
+                inpGm.value = team.gruppenmail || '';
+                inpGm.placeholder = 'z. B. SJ26-1A-D';
+                inpGm.autocomplete = 'off';
+                td2.appendChild(inpGm);
+
+                const td3 = document.createElement('td');
+                const inpOwn = document.createElement('input');
+                inpOwn.type = 'email';
+                inpOwn.className = 'kt-team-draft-input';
+                inpOwn.setAttribute('data-team-draft-field', 'besitzer');
+                inpOwn.value = team.besitzer || '';
+                inpOwn.placeholder = 'besitzer@schule.de';
+                inpOwn.autocomplete = 'off';
+                td3.appendChild(inpOwn);
+
+                const td4 = document.createElement('td');
+                td4.textContent = '…';
+
+                const td5 = document.createElement('td');
+                const bDel = document.createElement('button');
+                bDel.type = 'button';
+                bDel.className = 'btn btn-small btn-danger kt-delete-btn';
+                bDel.textContent = '🗑️';
+                bDel.setAttribute('aria-label', 'Zeile entfernen');
+                bDel.addEventListener('click', () => ns.deleteTeam(index));
+                td5.appendChild(bDel);
+
+                tr.append(td1, td2, td3, td4, td5);
+
+                tr.addEventListener('focusout', e => {
+                    const r = e.relatedTarget;
+                    if (r && tr.contains(r)) return;
+                    setTimeout(() => {
+                        if (document.activeElement && tr.contains(document.activeElement)) return;
+                        ns.commitManualTeamDraftRow(index);
+                    }, 0);
+                });
+
+                tbody.appendChild(tr);
+                return;
+            }
+
             const td1 = document.createElement('td');
             td1.appendChild(document.createTextNode(team.teamName));
             td1.addEventListener('dblclick', () => ns.editTeam(index));
@@ -884,7 +969,7 @@
             td3.appendChild(document.createElement('br'));
             const smallM = document.createElement('small');
             smallM.style.color = team.mappingUsed ? '#28a745' : '#ffc107';
-            smallM.textContent = team.mappingUsed ? '✓ Mapping' : '⚠ Generiert (' + team.lehrerCode + ')';
+            smallM.textContent = team.mappingUsed ? '✓ Mapping' : '⚠ Generiert (' + (team.lehrerCode || '') + ')';
             td3.appendChild(smallM);
 
             const td4 = document.createElement('td');
@@ -931,12 +1016,16 @@
 
         document.getElementById('teamsTableContainer').style.display = 'block';
         document.getElementById('validationResults').style.display = 'block';
-        const cont = document.getElementById('continueBtn4') || document.getElementById('continueBtn3');
-        if (cont) cont.style.display = 'inline-block';
+        const c4 = document.getElementById('continueBtn4');
+        if (c4) c4.style.display = 'inline-block';
+
+        const manRow = document.getElementById('kursteamManualAddRow');
+        if (manRow) manRow.style.display = ns.teamsGenerated ? '' : 'none';
     };
 
     ns.editTeam = function editTeam(index) {
         const team = ns.teamsData[index];
+        if (team && team.ktManualDraft) return;
         ns.openModal(
             'Team bearbeiten',
             '<label for="editName">Team-Name</label><input type="text" id="editName" value="' +
@@ -971,42 +1060,84 @@
         });
     };
 
+    ns.commitManualTeamDraftRow = function commitManualTeamDraftRow(index) {
+        const team = ns.teamsData[index];
+        if (!team || !team.ktManualDraft) return;
+        const tbody = document.getElementById('teamsTableBody');
+        const tr = tbody && tbody.querySelector('tr[data-team-draft-index="' + index + '"]');
+        if (!tr) return;
+        const inpName = tr.querySelector('input[data-team-draft-field="teamName"]');
+        const inpMail = tr.querySelector('input[data-team-draft-field="gruppenmail"]');
+        const inpOwn = tr.querySelector('input[data-team-draft-field="besitzer"]');
+        const v1 = (inpName && inpName.value.trim()) || '';
+        const v2 = (inpMail && inpMail.value.trim()) || '';
+        const v3 = (inpOwn && inpOwn.value.trim().toLowerCase()) || '';
+
+        if (!v1 && !v2 && !v3) {
+            ns.teamsData.splice(index, 1);
+            if (ns.teamsData.length === 0) ns.teamsGenerated = false;
+            ns.displayTeamsData();
+            return;
+        }
+
+        team.teamName = v1;
+        const originalGruppenmail = v2;
+        team.gruppenmail = v2.replace(ns.INVALID_CHARS_REPLACE, '');
+        team.besitzer = v3;
+        const filled = !!(v1 && v2 && v3);
+
+        if (!filled) {
+            team.isValid = false;
+            team.error = 'Unvollständige Daten';
+            team.mappingUsed = false;
+            ns.displayTeamsData();
+            setTimeout(() => {
+                const tb2 = document.getElementById('teamsTableBody');
+                const tr2 = tb2 && tb2.querySelector('tr[data-team-draft-index="' + index + '"]');
+                if (!tr2) return;
+                const inputs = tr2.querySelectorAll('input.kt-team-draft-input');
+                const next =
+                    Array.from(inputs).find(i => !String(i.value || '').trim()) || inputs[0];
+                if (next) next.focus();
+            }, 0);
+            return;
+        }
+
+        const hasInvalidChars = ns.INVALID_CHARS_TEST.test(originalGruppenmail);
+        team.mappingUsed = true;
+        team.lehrerCode = '';
+        const isValid = !hasInvalidChars && team.gruppenmail.length > 0;
+        team.isValid = isValid;
+        team.error = hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : !isValid ? 'Unvollständige Daten' : null;
+        delete team.ktManualDraft;
+        ns.resolveDuplicateGruppenmails(ns.teamsData);
+        ns.displayTeamsData();
+        ns.showToast('Team übernommen.');
+    };
+
     ns.addManualKursteamTeam = function addManualKursteamTeam() {
-        ns.openModal(
-            'Team manuell hinzufügen',
-            '<label for="addKtName">Team-Name</label><input type="text" id="addKtName" autocomplete="off" placeholder="z. B. WS26 | 1A | D">' +
-                '<label for="addKtMail">Gruppenmail (Nickname)</label><input type="text" id="addKtMail" autocomplete="off" placeholder="z. B. WS26-1A-D">' +
-                '<label for="addKtOwner">Besitzer (E-Mail)</label><input type="email" id="addKtOwner" autocomplete="off">',
-            () => {
-                const teamName = document.getElementById('addKtName').value.trim();
-                const gruppenmailRaw = document.getElementById('addKtMail').value.trim();
-                const besitzer = document.getElementById('addKtOwner').value.trim().toLowerCase();
-                if (!teamName || !gruppenmailRaw || !besitzer) {
-                    ns.showToast('Bitte alle Felder ausfüllen.');
-                    return;
-                }
-                const originalGruppenmail = gruppenmailRaw;
-                const gruppenmail = gruppenmailRaw.replace(ns.INVALID_CHARS_REPLACE, '');
-                const hasInvalidChars = ns.INVALID_CHARS_TEST.test(originalGruppenmail);
-                const isValid = !hasInvalidChars && gruppenmail.length > 0;
-                ns.teamsData.push({
-                    teamName,
-                    gruppenmail,
-                    besitzer,
-                    isValid,
-                    error: hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : !isValid ? 'Unvollständige Daten' : null,
-                    originalClass: '',
-                    gruppe: '',
-                    mappingUsed: true,
-                    lehrerCode: '',
-                    mailNicknameAdjusted: false
-                });
-                ns.teamsGenerated = true;
-                ns.closeModal();
-                ns.displayTeamsData();
-                ns.showToast('Team hinzugefügt.');
-            }
-        );
+        ns.teamsData.push({
+            teamName: '',
+            gruppenmail: '',
+            besitzer: '',
+            isValid: false,
+            error: 'Unvollständige Daten',
+            originalClass: '',
+            gruppe: '',
+            mappingUsed: false,
+            lehrerCode: '',
+            mailNicknameAdjusted: false,
+            ktManualDraft: true
+        });
+        ns.teamsGenerated = true;
+        ns.displayTeamsData();
+        const idx = ns.teamsData.length - 1;
+        setTimeout(() => {
+            const tb = document.getElementById('teamsTableBody');
+            const tr = tb && tb.querySelector('tr[data-team-draft-index="' + idx + '"]');
+            const inp = tr && tr.querySelector('input[data-team-draft-field="teamName"]');
+            if (inp) inp.focus();
+        }, 0);
     };
 
     // Global exports für HTML onclick

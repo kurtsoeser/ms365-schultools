@@ -2,7 +2,7 @@
     'use strict';
 
     const STORAGE_KEY = 'ms365-tenant-settings-v1';
-    const CURRENT_VERSION = 1;
+    const CURRENT_VERSION = 2;
 
     function normStr(v) {
         return String(v ?? '').trim();
@@ -37,9 +37,24 @@
                 ? window.ms365GetSchoolDomainNoAt()
                 : normStr(o.domain);
 
+        const defaultGraduationYearRaw =
+            o.defaultGraduationYear !== undefined
+                ? o.defaultGraduationYear
+                : o.defaultAbschlussjahr !== undefined
+                  ? o.defaultAbschlussjahr
+                  : o.jgDefaultYear !== undefined
+                    ? o.jgDefaultYear
+                    : o.defaultYear !== undefined
+                      ? o.defaultYear
+                      : '2030';
+        const defaultGraduationYear = /^\d{4}$/.test(normStr(defaultGraduationYearRaw))
+            ? normStr(defaultGraduationYearRaw)
+            : '2030';
+
         const subjectsIn = Array.isArray(o.subjects) ? o.subjects : [];
         const teachersIn = Array.isArray(o.teachers) ? o.teachers : [];
         const studentsIn = Array.isArray(o.students) ? o.students : [];
+        const classesIn = Array.isArray(o.classes) ? o.classes : [];
 
         const subjectsSeen = new Set();
         const subjects = [];
@@ -75,12 +90,30 @@
             students.push({ klasse, name, email });
         });
 
+        const classesSeen = new Set();
+        const classes = [];
+        classesIn.forEach((c) => {
+            const code = normCode(c?.code);
+            const name = normStr(c?.name || c?.klasse || c?.Klasse);
+            const yearRaw = normStr(c?.year || c?.abschlussjahr || c?.Abschlussjahr || c?.graduationYear || '');
+            const year = /^\d{4}$/.test(yearRaw) ? yearRaw : '';
+            const headName = normStr(c?.headName || c?.klassenvorstandName || c?.kvName);
+            const headEmail = normStr(c?.headEmail || c?.klassenvorstandEmail || c?.kvEmail).toLowerCase();
+            if (!code && !name && !year && !headName && !headEmail) return;
+            const key = (code || name).toLowerCase();
+            if (classesSeen.has(key)) return;
+            classesSeen.add(key);
+            classes.push({ code, name, year, headName, headEmail });
+        });
+
         return {
             version: CURRENT_VERSION,
             domain: normStr(domain),
+            defaultGraduationYear,
             subjects,
             teachers,
-            students
+            students,
+            classes
         };
     }
 
@@ -163,6 +196,42 @@
         return out;
     }
 
+    function parseLinesToClasses(text) {
+        const out = [];
+        parseDelimitedLines(text).forEach((parts) => {
+            const code = normCode(parts[0] || '');
+            // Unterstützte Formate:
+            // - code;name;headName;headEmail (alt)
+            // - code;year;name;headName;headEmail (neu)
+            // - code;name;year;headName;headEmail (tolerant)
+            let year = '';
+            let name = '';
+            let headName = '';
+            let headEmail = '';
+
+            if (parts.length >= 2 && /^\d{4}$/.test(normStr(parts[1] || ''))) {
+                year = normStr(parts[1] || '');
+                name = normStr(parts[2] || '');
+                headName = normStr(parts[3] || '');
+                headEmail = normStr(parts[4] || '').toLowerCase();
+            } else if (parts.length >= 3 && /^\d{4}$/.test(normStr(parts[2] || ''))) {
+                name = normStr(parts[1] || '');
+                year = normStr(parts[2] || '');
+                headName = normStr(parts[3] || '');
+                headEmail = normStr(parts[4] || '').toLowerCase();
+            } else {
+                name = normStr(parts[1] || '');
+                headName = normStr(parts[2] || '');
+                headEmail = normStr(parts[3] || '').toLowerCase();
+            }
+
+            const y = /^\d{4}$/.test(year) ? year : '';
+            if (!code && !name && !y && !headName && !headEmail) return;
+            out.push({ code, name, year: y, headName, headEmail });
+        });
+        return out;
+    }
+
     // Public API (kompatibel zu bisher)
     window.ms365TenantSettingsLoad = load;
     window.ms365TenantSettingsSave = save;
@@ -170,5 +239,6 @@
     window.ms365TenantSettingsParseSubjectsLines = parseLinesToSubjects;
     window.ms365TenantSettingsParseTeachersLines = parseLinesToTeachers;
     window.ms365TenantSettingsParseStudentsLines = parseLinesToStudents;
+    window.ms365TenantSettingsParseClassesLines = parseLinesToClasses;
 })();
 

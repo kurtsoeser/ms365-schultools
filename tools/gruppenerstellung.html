@@ -50,7 +50,9 @@
                             · <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank" rel="noopener">Microsoft 365 Admin Center: Gruppen</a>
                         </p>
                     </div>
-                    <button type="button" class="btn btn-success" id="gpBtnNext1">Weiter zu Mitglieder →</button>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn btn-success" id="gpBtnNext1">Weiter zu Mitglieder →</button>
+                    </div>
                 </div>
 
                 <div class="gp-step-content" data-gp-step="2">
@@ -61,8 +63,10 @@
                     <p style="color:#495057;line-height:1.5;">
                         <a href="#" target="_blank" rel="noopener" id="gpLinkMembers" style="display:none;">Mitglieder der Gruppe (Entra)</a>
                     </p>
-                    <button type="button" class="btn" id="gpBtnBack2">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="gpBtnNext2">Weiter zu Einstellung →</button>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" id="gpBtnBack2">← Zurück</button>
+                        <button type="button" class="btn btn-success" id="gpBtnNext2">Weiter zu Einstellung →</button>
+                    </div>
                 </div>
 
                 <div class="gp-step-content" data-gp-step="3">
@@ -80,7 +84,9 @@
                     <div id="gpOnlineLog" style="max-height:200px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     <h3 style="margin-top:18px;font-size:1rem;">Aktueller Status (Group.Unified)</h3>
                     <pre id="gpStatusPre" style="margin:0;padding:14px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;font-size:0.88em;white-space:pre-wrap;word-break:break-word;">Noch nicht gelesen – „Status lesen“ oder „Einschränkung jetzt anwenden“ wählen.</pre>
-                    <button type="button" class="btn" id="gpBtnBack3">← Zurück</button>
+                    <div class="step-nav-row step-nav-row--back-only">
+                        <button type="button" class="btn" id="gpBtnBack3">← Zurück</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -97,6 +103,7 @@
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/tenant-settings-ui.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
+    <script src="../src/shared/step-progress.js" defer></script>
     <script src="../src/tools/gruppenerstellung/gruppenerstellung-policy.js" defer></script>
 </body>
 </html>

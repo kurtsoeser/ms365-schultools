@@ -213,8 +213,10 @@
             const td4 = document.createElement('td');
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn btn-small btn-danger';
-            btn.textContent = '❌';
+            btn.className = 'btn btn-small btn-danger kt-delete-btn';
+            btn.textContent = 'X';
+            btn.title = 'Zuordnung löschen';
+            btn.setAttribute('aria-label', 'Zuordnung löschen');
             btn.addEventListener('click', () => ns.removeTeacherMapping(kuerzel));
             td4.appendChild(btn);
             tr.append(td1, td2, td3, td4);
@@ -243,8 +245,10 @@
             const td4 = document.createElement('td');
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn btn-small btn-danger';
-            btn.textContent = '❌';
+            btn.className = 'btn btn-small btn-danger kt-delete-btn';
+            btn.textContent = 'X';
+            btn.title = 'Zuordnung löschen';
+            btn.setAttribute('aria-label', 'Zuordnung löschen');
             btn.addEventListener('click', () => ns.removeTeacherMapping(kuerzel));
             td4.appendChild(btn);
             tr.append(td1, td2, td3, td4);

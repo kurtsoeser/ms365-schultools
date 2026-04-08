@@ -63,10 +63,15 @@
         document.getElementById('validationResults').style.display = 'none';
         const preview = document.getElementById('manualTeamsPreviewContainer');
         if (preview) preview.style.display = 'none';
+        // Nur „Weiter zur Anlage“ (Schritt Teams konfigurieren) ausblenden – nicht continueBtn3
+        // (Lehrer zuordnen → Team-Konfiguration), das ist reine Schritt-Navigation.
         const c4 = document.getElementById('continueBtn4');
-        const c3 = document.getElementById('continueBtn3');
         if (c4) c4.style.display = 'none';
-        if (c3) c3.style.display = 'none';
+        // UX: Teams generieren wieder als "primäre Aktion" markieren.
+        const gen = document.getElementById('btnGenerateTeamNames');
+        if (gen) gen.className = 'btn btn-success kursteam-generate-teams-btn';
+        const manRow = document.getElementById('kursteamManualAddRow');
+        if (manRow) manRow.style.display = 'none';
     };
 
     // Modal wiring

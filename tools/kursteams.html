@@ -21,6 +21,12 @@
             padding: 18px;
             background: var(--soft);
             text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+        .kursteam-start-card .step-nav-row {
+            margin-top: auto;
+            padding-top: 8px;
         }
         .kursteam-start-card h3 { margin: 0 0 8px; font-size: 1.1em; color: #32325d; }
         .kursteam-start-card p { margin: 0 0 14px; color: #495057; line-height: 1.45; font-size: 0.95em; }
@@ -44,6 +50,21 @@
         .stat-value { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
         .stat-label { opacity: 0.9; font-size: 0.9em; }
         @media (max-width: 768px) { .import-paste-file-grid { grid-template-columns: 1fr; } }
+        .kursteam-generate-teams-btn {
+            padding: 14px 26px;
+            font-size: 1.08em;
+            font-weight: 600;
+        }
+        .kt-team-draft-input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+        tr.kt-team-draft-row td { vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -57,25 +78,17 @@
             </div>
         </div>
 
-        <div id="schoolDomainBar" class="school-domain-bar" style="padding:14px 20px;background:#f8f9fa;border-bottom:1px solid #dee2e6;">
-            <div style="max-width:900px;margin:0 auto;">
-                <label for="schoolEmailDomain" style="display:block;font-weight:600;color:#32325d;margin-bottom:8px;">E-Mail-Domain der Schule (ohne @)</label>
-                <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" value="ms365.schule" autocomplete="off" style="width:100%;max-width:420px;padding:10px 12px;border:1px solid #ced4da;border-radius:8px;font-size:1em;">
-                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Einmal eintragen – gilt für <strong>Kursteams</strong>. Beispiel: <code>ms365.schule</code>. Domain im Mandanten verifizieren.</small>
-            </div>
-        </div>
-
         <div id="panelWebuntis">
-            <div class="steps">
-                <div class="step active" data-step="0">0. Vorgehen</div>
+            <div class="steps steps--one-line" role="navigation" aria-label="Kursteams-Assistent">
+                <div class="step active" data-step="0">Start</div>
                 <div class="step" data-step="1">1. Daten importieren</div>
                 <div class="step" data-step="2">2. Daten bereinigen</div>
                 <div class="step" data-step="2.5">3. Manuelle Eingabe</div>
                 <div class="step" data-step="3">4. Lehrer zuordnen</div>
                 <div class="step" data-step="4">5. Teams konfigurieren</div>
                 <div class="step" data-step="5">6. Kursteams anlegen</div>
-                <div class="step" data-step="5.5">Optional: Schüler hinzufügen</div>
-                <div class="step" data-step="6">7. Optional: CSV &amp; PowerShell</div>
+                <div class="step step--optional" data-step="5.5" title="Optional">7. Optional: Schüler</div>
+                <div class="step step--optional" data-step="6" title="Optional">8. Optional: CSV/PowerShell</div>
             </div>
 
             <div class="content">
@@ -83,34 +96,38 @@
                 <div class="step-content active" data-step="0">
                     <h2>Schritt 0: Vorgehen wählen</h2>
                     <div class="alert alert-info">
-                        <strong>Hauptweg:</strong> In Schritt&nbsp;1 <strong>Lehrer, Fach, Klasse</strong> aus WebUntis per <strong>Copy&nbsp;&amp;&nbsp;Paste</strong> einfügen oder eine <strong>CSV/Excel-Datei</strong> laden. Anschließend Daten bereinigen, Lehrer-E-Mails, Team-Namen und Anlage.
+                        <strong>Hauptweg:</strong> In Schritt&nbsp;1 <strong>Lehrer, Fach, Klasse</strong> per <strong>Copy&nbsp;&amp;&nbsp;Paste</strong> einfügen oder eine <strong>CSV/Excel-Datei</strong> laden. Anschließend Daten bereinigen, Lehrer-E-Mails, Team-Namen und Anlage.
                     </div>
                     <div id="kursteamStep0Cards" class="kursteam-start-grid">
                         <div class="kursteam-start-card">
-                            <h3>Mit WebUntis-Import starten</h3>
+                            <h3>Mit Import starten</h3>
                             <p>Einfügen oder Datei – siehe Schritt&nbsp;1.</p>
-                            <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()">Weiter zum Import →</button>
+                            <div class="step-nav-row step-nav-row--forward-only">
+                                <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()">Weiter zum Import →</button>
+                            </div>
                         </div>
                         <div class="kursteam-start-card">
                             <h3>Einzelzeilen (ohne Import)</h3>
                             <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln erfassen – für wenige Teams oder zum Ergänzen.</p>
-                            <button type="button" class="btn" onclick="startKursteamManual()">Zur manuellen Eingabe →</button>
+                            <div class="step-nav-row step-nav-row--forward-only">
+                                <button type="button" class="btn btn-success" onclick="startKursteamManual()">Zur manuellen Eingabe →</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Schritt 1 -->
                 <div class="step-content" data-step="1">
-                    <h2>Schritt 1: WebUntis-Daten importieren</h2>
+                    <h2>Schritt 1: Daten importieren</h2>
                     <div class="alert alert-info">
-                        <strong>Schnellweg:</strong> Daten aus WebUntis (Ansicht mit <strong>Lehrer</strong>, <strong>Fach</strong>, <strong>Klasse</strong>) markieren, kopieren und unten einfügen – <strong>Übernehmen</strong> klickt die Liste ein; doppelte Zeilen werden zusammengefasst.
+                        <strong>Schnellweg:</strong> Zeilen mit <strong>Lehrer</strong>, <strong>Fach</strong> und <strong>Klasse</strong> markieren, kopieren und unten einfügen – <strong>Übernehmen</strong> übernimmt die Liste; doppelte Zeilen werden zusammengefasst.
                     </div>
 
                     <div class="import-paste-file-grid">
                         <div class="import-paste-file-col">
                             <div class="filter-section" style="margin-bottom:0;border:1px solid #5e72e4;border-radius:12px;padding:18px;background:#f8f9ff;flex:1;display:flex;flex-direction:column;">
                                 <h3 style="margin-top:0;color:#32325d;">1. Daten einfügen (Copy &amp; Paste)</h3>
-                                <label for="webuntisPasteInput" class="sr-only">WebUntis-Daten einfügen</label>
+                                <label for="webuntisPasteInput" class="sr-only">Daten einfügen (Lehrer, Fach, Klasse)</label>
                                 <textarea id="webuntisPasteInput" rows="14" wrap="off" spellcheck="false" placeholder="LOEV	GWS	1A&#10;HOLZE	GEO	1A&#10;FRECH	BW	1A&#10;…" style="width:100%;max-width:100%;padding:12px;border:1px solid #ced4da;border-radius:8px;font-family:Consolas,'Segoe UI',monospace;font-size:0.9em;line-height:1.45;box-sizing:border-box;resize:vertical;flex:1;min-height:200px;"></textarea>
                                 <p style="margin-top:12px;margin-bottom:0;">
                                     <button type="button" class="btn btn-success" onclick="importWebuntisFromPaste()">Übernehmen</button>
@@ -128,6 +145,9 @@
                                 <p>Unterstützte Formate: CSV, XLSX, XLS</p>
                                 <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
                             </div>
+                            <p style="margin-top:12px;margin-bottom:0;">
+                                <button type="button" class="btn" onclick="downloadKursteamImportTemplateXlsx()">XLSX-Vorlage herunterladen</button>
+                            </p>
                             <div class="alert alert-info" style="margin-top:12px;margin-bottom:0;">
                                 Vollständige Fächerliste mit Spalten z. B. <code>U-Nr</code>, <code>Lehrer</code>, <code>Fach</code>, <code>Klasse(n)</code>, <code>Schülergruppe</code>.
                             </div>
@@ -149,7 +169,9 @@
                                 <div class="stat-value" id="uniqueTeachers">0</div>
                             </div>
                         </div>
-                        <button class="btn" onclick="goToStep(2)">Weiter zur Bereinigung →</button>
+                        <div class="step-nav-row step-nav-row--forward-only">
+                            <button class="btn btn-success" onclick="goToStep(2)">Weiter zur Bereinigung →</button>
+                        </div>
                     </div>
                 </div>
 
@@ -185,7 +207,7 @@
                                 <input type="checkbox" id="removeDuplicates" checked> Doppelte Einträge automatisch entfernen
                             </label>
                         </div>
-                        <button class="btn" onclick="applyFilters()">Filter anwenden</button>
+                        <button class="btn btn-success" id="btnApplyFilters" onclick="applyFilters()">Filter anwenden</button>
                         <button class="btn btn-danger" onclick="resetFilters()">Filter zurücksetzen</button>
                     </div>
                     <div id="filterStats" style="display:none;">
@@ -214,7 +236,9 @@
                             <tbody id="dataTableBody"></tbody>
                         </table>
                     </div>
-                    <button class="btn" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zur manuellen Eingabe →</button>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button class="btn btn-success" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zur manuellen Eingabe →</button>
+                    </div>
                 </div>
 
                 <!-- Schritt 2.5 -->
@@ -286,9 +310,9 @@
                             </table>
                         </div>
                     </div>
-                    <div style="margin-top: 18px;">
-                        <button class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
-                        <button class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5" style="margin-left:8px;">Weiter zu Lehrer zuordnen →</button>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5">Weiter zu Lehrer zuordnen →</button>
                     </div>
                 </div>
 
@@ -381,9 +405,9 @@
                             </div>
                         </div>
                     </div>
-                    <div style="margin-top: 30px;">
-                        <button class="btn" onclick="goToStep(2.5)">← Zurück zur manuellen Eingabe</button>
-                        <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3">Weiter zur Team-Konfiguration →</button>
+                    <div class="step-nav-row" style="margin-top: 30px;">
+                        <button type="button" class="btn" onclick="goToStep(2.5)">← Zurück zur manuellen Eingabe</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(4)" id="continueBtn3">Weiter zur Team-Konfiguration →</button>
                     </div>
                 </div>
 
@@ -394,7 +418,7 @@
                         <h3>Grundeinstellungen</h3>
                         <div class="filter-group">
                             <label>Schuljahr-Präfix:</label>
-                            <input type="text" id="yearPrefix" value="WS24" placeholder="z.B. WS24, SS25, WS25">
+                            <input type="text" id="yearPrefix" value="SJ26" placeholder="z.B. SJ26, WS25, SS25">
                         </div>
                         <div class="filter-group">
                             <p style="color:#6c757d;margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
@@ -428,13 +452,7 @@
                             <input type="hidden" id="teamSeparator" value=" | ">
                             <div id="teamNamePreview" class="name-preview"></div>
                         </div>
-                        <button class="btn" onclick="generateTeamNames()">Team-Namen generieren</button>
-                    </div>
-                    <p style="margin-bottom:12px;">
-                        <button type="button" class="btn btn-success" onclick="addManualKursteamTeam()">➕ Team manuell hinzufügen</button>
-                    </p>
-                    <div class="alert alert-warning">
-                        <strong>⚠️ Ungültige Zeichen in Gruppenmail:</strong> \ % & * + / = ? { } | &lt; &gt; ( ) ; : , [ ] " ö ä ü
+                        <button type="button" class="btn btn-success kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()">Team-Namen generieren</button>
                     </div>
                     <div class="table-container" id="teamsTableContainer" style="display:none;">
                         <table>
@@ -450,6 +468,18 @@
                             <tbody id="teamsTableBody"></tbody>
                         </table>
                     </div>
+                    <p id="kursteamManualAddRow" style="display:none;margin-top:16px;margin-bottom:12px;">
+                        <button type="button" class="btn btn-success btn-small" onclick="addManualKursteamTeam()">➕ Team manuell hinzufügen</button>
+                        <span style="margin-left:10px;display:inline-flex;align-items:center;gap:6px;">
+                            <button type="button"
+                                    class="btn btn-small"
+                                    aria-label="Hinweis: ungültige Zeichen in Gruppenmail"
+                                    title="Ungültige Zeichen in Gruppenmail: \ % & * + / = ? { } | < > ( ) ; : , [ ] &quot; ö ä ü"
+                                    style="width:26px;min-width:26px;height:26px;padding:0;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85em;">
+                                i
+                            </button>
+                        </span>
+                    </p>
                     <div id="validationResults" style="display:none;">
                         <h3>Validierung</h3>
                         <div class="stats">
@@ -467,7 +497,9 @@
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;">Weiter zur Anlage (Graph) →</button>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;">Weiter zur Anlage (Graph) →</button>
+                    </div>
                 </div>
 
                 <!-- Schritt 5 -->
@@ -483,16 +515,20 @@
                         <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
                     <div class="alert alert-info">
-                        <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;6.
+                        <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;8.
                     </div>
-                    <button type="button" class="btn" onclick="goToStep(4)">← Zurück zur Team-Konfiguration</button>
-                    <button type="button" class="btn btn-success" onclick="goToStep(5.5)" style="margin-left:8px;">Weiter: Optional Schüler hinzufügen →</button>
-                    <button type="button" class="btn" onclick="goToStep(6)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" onclick="goToStep(4)">← Zurück zur Team-Konfiguration</button>
+                        <div class="step-nav-next-group">
+                            <button type="button" class="btn btn-success" onclick="goToStep(5.5)">Weiter: Optional Schüler hinzufügen →</button>
+                            <button type="button" class="btn btn-success" onclick="goToStep(6)">Weiter zu optional: CSV &amp; PowerShell →</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Schritt 5.5 -->
                 <div class="step-content" data-step="5.5">
-                    <h2>Optional: Schüler als Mitglieder hinzufügen (PowerShell + Microsoft Graph)</h2>
+                    <h2>Schritt 7 (optional): Schüler als Mitglieder hinzufügen (PowerShell + Microsoft Graph)</h2>
                     <div class="alert alert-info" style="line-height:1.55;">
                         Dieser Schritt ist <strong>optional</strong>. Er erzeugt ein PowerShell‑Script (Microsoft.Graph), das nach der Team‑Anlage
                         Schüler als <strong>Mitglieder</strong> in die jeweiligen Gruppen/Teams einträgt.<br>
@@ -604,15 +640,15 @@
                         <pre id="studentRosterPowerShellScript"># Sobald eine Schülerliste übernommen wurde, erscheint hier das Script.</pre>
                     </div>
 
-                    <div style="margin-top: 18px;">
+                    <div class="step-nav-row">
                         <button type="button" class="btn" onclick="goToStep(5)">← Zurück zur Anlage</button>
-                        <button type="button" class="btn" onclick="goToStep(6)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(6)">Weiter zu optional: CSV &amp; PowerShell →</button>
                     </div>
                 </div>
 
-                <!-- Schritt 6 -->
+                <!-- Schritt 8 (optional), technisch data-step 6 -->
                 <div class="step-content" data-step="6">
-                    <h2>Schritt 7 (optional): CSV-Export &amp; PowerShell</h2>
+                    <h2>Schritt 8 (optional): CSV-Export &amp; PowerShell</h2>
                     <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
                         <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
                     </div>
@@ -631,7 +667,9 @@
                             <pre id="csvPreview">TeamName,Gruppenmail,Besitzer</pre>
                         </div>
                     </div>
-                    <button class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv">📥 neueteams.csv herunterladen</button>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv">📥 neueteams.csv herunterladen</button>
+                    </div>
                     <div class="alert alert-warning" style="margin-top:20px;">
                         <strong>⚠️ Wichtig:</strong> Führen Sie das Script im selben Verzeichnis wie die neueteams.csv aus. Admin-Anmeldung erforderlich!
                     </div>
@@ -659,7 +697,9 @@ foreach ($Team in $TeamsList) {
                         <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download).</p>
                         <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()">📦 Kursteam-Anlage.cmd herunterladen</button>
                     </div>
-                    <button class="btn btn-success" onclick="resetApp()">🔄 Neue Teams erstellen</button>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn btn-success" onclick="resetApp()">🔄 Neue Teams erstellen</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -690,6 +730,7 @@ foreach ($Team in $TeamsList) {
     <script src="../src/shared/polyglot-cmd.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 
+    <script src="../src/shared/step-progress.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-utils.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-ui.js" defer></script>
     <script src="../src/tools/kursteams/kursteam-storage.js" defer></script>

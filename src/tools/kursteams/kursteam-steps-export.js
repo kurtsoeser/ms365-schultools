@@ -101,6 +101,11 @@
 
         contentEl.classList.add('active');
         tabEl.classList.add('active');
+        try {
+            tabEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        } catch (e) {
+            /* ignore */
+        }
 
         const stepOrder = [0, 1, 2, 2.5, 3, 4, 5, 5.5, 6];
         const currentIndex = stepOrder.indexOf(step);
@@ -113,6 +118,14 @@
 
         ns.currentStep = step;
 
+        if (step === 1) {
+            const seeded =
+                typeof ns.seedWebuntisPasteIfEmpty === 'function' ? ns.seedWebuntisPasteIfEmpty() : false;
+            if (seeded) {
+                ns.showToast('Demo: 6 Beispielzeilen aus Tenant-Standards vorbelegt.');
+            }
+        }
+
         const hint = document.getElementById('manualKursteamHint');
         if (hint) hint.style.display = step === 2 && ns.kursteamEntryMode === 'manual' ? 'block' : 'none';
 
@@ -120,9 +133,22 @@
             if (typeof ns.displayEditableData === 'function') ns.displayEditableData();
             if (typeof ns.displayManualTeamsPreview === 'function') ns.displayManualTeamsPreview();
         }
-        if (step === 3) ns.updateTeacherStats();
+        if (step === 3) {
+            ns.updateTeacherStats();
+            const btnNextTeamCfg = document.getElementById('continueBtn3');
+            if (btnNextTeamCfg) btnNextTeamCfg.style.display = '';
+        }
+        if (step === 4) {
+            const manRow = document.getElementById('kursteamManualAddRow');
+            if (manRow) manRow.style.display = ns.teamsGenerated ? '' : 'none';
+        }
         if (step === 5.5 && typeof ns.refreshStudentRosterUI === 'function') ns.refreshStudentRosterUI();
         if (step === 6) ns.prepareCSVExport();
+
+        const stepsBar = panel.querySelector('.steps');
+        if (typeof window.ms365ApplyStepProgress === 'function') {
+            window.ms365ApplyStepProgress(stepsBar, step, stepOrder);
+        }
     };
 
     ns.prepareCSVExport = function prepareCSVExport() {
@@ -309,5 +335,13 @@
             }))
         };
     };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const panel = document.getElementById('panelWebuntis');
+        if (!panel || typeof window.ms365ApplyStepProgress !== 'function') return;
+        const order = [0, 1, 2, 2.5, 3, 4, 5, 5.5, 6];
+        const step = typeof ns.currentStep === 'number' ? ns.currentStep : 0;
+        window.ms365ApplyStepProgress(panel.querySelector('.steps'), step, order);
+    });
 })();
 

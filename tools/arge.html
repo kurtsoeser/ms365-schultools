@@ -18,13 +18,6 @@
             </div>
         </div>
 
-        <div id="schoolDomainBar" class="school-domain-bar" style="padding:14px 20px;background:#f8f9fa;border-bottom:1px solid #dee2e6;">
-            <div style="max-width:900px;margin:0 auto;">
-                <label for="schoolEmailDomain" style="display:block;font-weight:600;color:#32325d;margin-bottom:8px;">E-Mail-Domain der Schule (ohne @)</label>
-                <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" value="ms365.schule" autocomplete="off" style="width:100%;max-width:420px;padding:10px 12px;border:1px solid #ced4da;border-radius:8px;font-size:1em;">
-            </div>
-        </div>
-
         <div id="panelArge">
             <div class="steps arge-steps">
                 <div class="step active" data-arge-step="1">1. ARGE-Liste</div>
@@ -45,8 +38,8 @@
                     <div class="arge-step1-grid">
                         <div class="arge-step1-prefix">
                             <div class="filter-group">
-                                <label for="argeDefaultPrefix">Optionales Präfix für Mail-Nickname</label>
-                                <input type="text" id="argeDefaultPrefix" placeholder="z.B. arge" value="" maxlength="20" autocomplete="off">
+                                <label for="argeDefaultPrefix">Präfix für Mail-Nickname (Standard: <code>arge</code>)</label>
+                                <input type="text" id="argeDefaultPrefix" placeholder="leer = arge (z.B. arge, ag, arge-htl …)" value="" maxlength="20" autocomplete="off">
                             </div>
                             <div class="filter-group" style="margin-top:4px;">
                                 <label class="checkbox-label" for="argeUpperNick">
@@ -69,18 +62,21 @@
                             <thead>
                                 <tr>
                                     <th>Anzeigename (Gruppe)</th>
+                                    <th>Kürzel</th>
                                     <th>Fach (technisch)</th>
                                     <th>Mail-Nickname</th>
                                     <th>E-Mail (Vorschau)</th>
                                 </tr>
                             </thead>
                             <tbody id="argePreviewBody">
-                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen.</td></tr>
+                                <tr><td colspan="5" style="color:#6c757d;">Noch keine Zeilen – oben Fächer einfügen.</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <p id="argeParseError" class="alert alert-warning" style="display:none;"></p>
-                    <button type="button" class="btn btn-success" id="argeParseAndGo3">Weiter zu Besitzern →</button>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn btn-success" id="argeParseAndGo3">Weiter zu Besitzern →</button>
+                    </div>
                 </div>
 
                 <div class="arge-step-content" data-arge-step="2">
@@ -93,6 +89,7 @@
                             <thead>
                                 <tr>
                                     <th>Anzeigename</th>
+                                    <th>Kürzel</th>
                                     <th>Gruppen-E-Mail (Vorschau)</th>
                                     <th>Mail-Nickname</th>
                                     <th>Besitzer (UPN)</th>
@@ -101,8 +98,10 @@
                             <tbody id="argeOwnerBody"></tbody>
                         </table>
                     </div>
-                    <button type="button" class="btn" id="argeBack1">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="argeGoTo3">Weiter zu Mitglieder →</button>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" id="argeBack1">← Zurück</button>
+                        <button type="button" class="btn btn-success" id="argeGoTo3">Weiter zu Mitglieder →</button>
+                    </div>
                 </div>
 
                 <div class="arge-step-content" data-arge-step="3">
@@ -115,6 +114,7 @@
                             <thead>
                                 <tr>
                                     <th style="min-width:140px;">Anzeigename</th>
+                                    <th style="min-width:72px;">Kürzel</th>
                                     <th style="min-width:180px;">Gruppen-E-Mail (Vorschau)</th>
                                     <th>Mitglieder (eine Zeile pro UPN)</th>
                                 </tr>
@@ -123,8 +123,10 @@
                         </table>
                     </div>
                     <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
-                    <button type="button" class="btn" id="argeMemberBack">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="argeMemberNext">Weiter zu Einstellungen →</button>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" id="argeMemberBack">← Zurück</button>
+                        <button type="button" class="btn btn-success" id="argeMemberNext">Weiter zu Einstellungen →</button>
+                    </div>
                 </div>
 
                 <div class="arge-step-content" data-arge-step="4">
@@ -145,8 +147,10 @@
                             </label>
                         </div>
                     </div>
-                    <button type="button" class="btn" id="argeBack2">← Zurück</button>
-                    <button type="button" class="btn btn-success" id="argeGoTo4">Weiter zu Ausführen →</button>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" id="argeBack2">← Zurück</button>
+                        <button type="button" class="btn btn-success" id="argeGoTo4">Weiter zu Ausführen →</button>
+                    </div>
                 </div>
 
                 <div class="arge-step-content" data-arge-step="5">
@@ -167,15 +171,23 @@
                         <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>ARGE-Gruppen-Anlage.cmd</strong> (PowerShell eingebettet).</p>
                         <button type="button" class="btn btn-success" onclick="downloadArgeStandalonePackage()">📦 ARGE-Gruppen-Anlage.cmd herunterladen</button>
                     </div>
-                    <button type="button" class="btn" id="argeBack3">← Zurück</button>
+                    <div class="step-nav-row step-nav-row--back-only">
+                        <button type="button" class="btn" id="argeBack3">← Zurück</button>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
             <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
             <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
+            <button type="button" class="btn" id="btnExportArgeJson">⬇️ Export JSON</button>
+            <button type="button" class="btn" id="btnImportArgeJson">⬆️ Import JSON</button>
+            <button type="button" class="btn" id="btnExportArgeCsv">⬇️ Export CSV</button>
+            <button type="button" class="btn" id="btnImportArgeCsv">⬆️ Import CSV</button>
             <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
         </div>
+        <input type="file" id="argeImportJsonFile" accept="application/json,.json" style="display:none;">
+        <input type="file" id="argeImportCsvFile" accept="text/csv,.csv,text/plain" style="display:none;">
     </div>
 
     <div id="toast" class="toast" role="status"></div>
@@ -185,6 +197,11 @@
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/tenant-settings-ui.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
+    <script src="../src/shared/step-progress.js" defer></script>
+    <script src="../src/tools/arge/arge-standalone-ps1.js" defer></script>
+    <script src="../src/tools/arge/arge-csv.js" defer></script>
+    <script src="../src/tools/arge/arge-parse.js" defer></script>
+    <script src="../src/tools/arge/arge-state.js" defer></script>
     <script src="../src/tools/arge/arge.js" defer></script>
     <script src="../src/tools/arge/arge-graph.js" defer></script>
 </body>

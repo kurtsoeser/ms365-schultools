@@ -322,6 +322,9 @@
             el.classList.toggle('active', s === step);
             el.classList.toggle('completed', s < step);
         });
+        if (typeof window.ms365ApplyStepProgress === 'function') {
+            window.ms365ApplyStepProgress(document.querySelector('.gp-steps'), step, [1, 2, 3]);
+        }
     }
 
     async function onCreateGroupClick() {

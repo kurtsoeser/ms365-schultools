@@ -236,14 +236,22 @@
         }
     </style>
 </head>
-<body>
+<body data-ms365-skip-tenant-domain-prompt="true">
     <div class="container page-card">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
             <p>Tenant-Grundeinstellungen</p>
             <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;">← Dashboard</a>
+                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;">← Dashboard</a>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                        <button type="button" class="btn" id="tenantSettingsExportHeader">Export (JSON)</button>
+                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;">Import (JSON)</label>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -265,6 +273,13 @@
                                 Wird auch für Vorschauen und automatische E-Mail-Erzeugung genutzt (z. B. <code>Kürzel@domain</code>).
                             </small>
                         </div>
+                        <div class="field">
+                            <label for="tenantDefaultGraduationYear">Standard‑Abschlussjahr (für Jahrgangsgruppen)</label>
+                            <input type="text" id="tenantDefaultGraduationYear" value="2030" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" autocomplete="off" style="max-width:10em;">
+                            <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                Wird in der Jahrgangsgruppen‑Vorschau als Default genutzt, wenn bei einer Klasse kein Jahr angegeben ist.
+                            </small>
+                        </div>
                     </section>
 
                     <section class="tile" aria-label="Tenant-Grundeinstellungen (Listen)">
@@ -277,6 +292,7 @@
                             <button type="button" class="tab-btn" id="tabSubjects" role="tab" aria-selected="true" aria-controls="panelSubjects">Fächer</button>
                             <button type="button" class="tab-btn" id="tabTeachers" role="tab" aria-selected="false" aria-controls="panelTeachers">Lehrer</button>
                             <button type="button" class="tab-btn" id="tabStudents" role="tab" aria-selected="false" aria-controls="panelStudents">Schüler</button>
+                            <button type="button" class="tab-btn" id="tabClasses" role="tab" aria-selected="false" aria-controls="panelClasses">Klassen</button>
                         </div>
 
                         <div id="panelSubjects" class="tab-panel active" role="tabpanel" aria-labelledby="tabSubjects">
@@ -290,6 +306,23 @@
                                     <label class="btn" for="tenantSubjectsImportFile" style="cursor:pointer;">Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantSubjectsImportFile" accept=".csv,.xlsx,.xls">
                                     <button type="button" class="btn" id="tenantSubjectsTemplateXlsx">XLSX‑Vorlage</button>
+                                </div>
+                                <div class="teachers-table-wrap" aria-label="Fächerliste als Tabelle" style="margin-top:12px;">
+                                    <table class="teachers-table" aria-label="Fächerliste (editierbar per Doppelklick)">
+                                        <thead>
+                                            <tr>
+                                                <th>Kürzel</th>
+                                                <th>Name</th>
+                                                <th class="action-cell">Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tenantSubjectsTableBody">
+                                            <tr><td colspan="3" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="tenantSubjectsAddRow">+ Zeile</button>
                                 </div>
                             </div>
                         </div>
@@ -359,6 +392,41 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div id="panelClasses" class="tab-panel" role="tabpanel" aria-labelledby="tabClasses">
+                            <div class="field">
+                                <label for="tenantClassesLines">Klassenliste (eine Zeile pro Klasse)</label>
+                                <textarea id="tenantClassesLines" placeholder="1AK;2030;1A-Klasse;Max Mustermann;max.mustermann@schule.de&#10;2BK;2029;2B-Klasse;Anna Beispiel;anna.beispiel@schule.de"></textarea>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Format: <code>Abkürzung;Abschlussjahr;Klasse;Klassenvorstand Name;Klassenvorstand E-Mail</code>. Abschlussjahr ist optional.
+                                </small>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;">Import (CSV/XLSX)</label>
+                                    <input type="file" id="tenantClassesImportFile" accept=".csv,.xlsx,.xls">
+                                    <button type="button" class="btn" id="tenantClassesTemplateXlsx">XLSX‑Vorlage</button>
+                                </div>
+                                <div class="teachers-table-wrap" aria-label="Klassenliste als Tabelle">
+                                    <table class="teachers-table" aria-label="Klassenliste (editierbar per Doppelklick)">
+                                        <thead>
+                                            <tr>
+                                                <th>Abkürzung</th>
+                                                <th>Abschlussjahr</th>
+                                                <th>Klasse</th>
+                                                <th>Klassenvorstand</th>
+                                                <th>E-Mail</th>
+                                                <th class="action-cell">Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tenantClassesTableBody">
+                                            <tr><td colspan="6" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="tenantClassesAddRow">+ Zeile</button>
+                                </div>
+                            </div>
+                        </div>
                     </section>
 
                     <div class="settings-actions">
@@ -386,7 +454,8 @@
             const tabs = [
                 { btn: 'tabSubjects', panel: 'panelSubjects' },
                 { btn: 'tabTeachers', panel: 'panelTeachers' },
-                { btn: 'tabStudents', panel: 'panelStudents' }
+                { btn: 'tabStudents', panel: 'panelStudents' },
+                { btn: 'tabClasses', panel: 'panelClasses' }
             ];
             function setActive(activeBtnId) {
                 tabs.forEach(({ btn, panel }) => {

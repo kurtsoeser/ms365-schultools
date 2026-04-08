@@ -53,7 +53,7 @@
                     ? state.kursteamEntryMode
                     : 'unset';
 
-            document.getElementById('yearPrefix').value = state.yearPrefix || 'WS24';
+            document.getElementById('yearPrefix').value = state.yearPrefix || 'SJ26';
             if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
                 const sd = state.schoolDomain;
                 const legacy = state.emailDomain;
