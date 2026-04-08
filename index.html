@@ -19,7 +19,7 @@
             justify-content: center;
         }
         .card {
-            width: min(1100px, 100%);
+            width: min(1420px, 100%);
             background: white;
             border-radius: 14px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -61,16 +61,14 @@
         }
         header p { margin: 0; opacity: 0.95; }
         main { padding: 22px; }
-        .dashboard-intro {
-            margin: 0 0 4px;
-            color: #495057;
-            font-size: 0.95em;
-        }
         .grid {
             display: grid;
             gap: 16px;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             margin-top: 12px;
+        }
+        @media (max-width: 1200px) {
+            .grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 900px) {
             .grid { grid-template-columns: repeat(2, 1fr); }
@@ -254,7 +252,6 @@
             <p class="app-tagline">Microsoft 365 in der Schule – strukturiert planen, sicher umsetzen.</p>
         </header>
         <main>
-            <p class="dashboard-intro">Dashboard: Wählen Sie ein Werkzeug. Weitere Kacheln können später befüllt werden.</p>
             <div class="grid" role="list" aria-label="Werkzeuge und Platzhalter">
                 <section class="choice featured" role="listitem" aria-label="Schul-Grundeinstellungen">
                     <div class="featured-split">
