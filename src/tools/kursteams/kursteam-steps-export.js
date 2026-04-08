@@ -77,11 +77,16 @@
         );
     };
 
-    ns.goToStep = function goToStep(step) {
+    ns.goToStep = function goToStep(rawStep) {
         const panel = document.getElementById('panelWebuntis');
         if (!panel) return;
 
-        if (step === 6 || step === 7 || step === 8) {
+        let step = parseInt(String(rawStep).trim(), 10);
+        if (!Number.isFinite(step) || step < 0 || step > 8) return;
+
+        // Nur ab Schritt 6 (Graph/CSV/Schüler): generierte Teams nötig.
+        // Schritt 5 („Teams konfigurieren“) ist bewusst ausgenommen — dort wird erst generiert.
+        if (step >= 6 && step <= 8) {
             const validTeams = ns.teamsData.filter(t => t.isValid);
             if (!ns.teamsGenerated || validTeams.length === 0) {
                 ns.showToast('Bitte zuerst unter „Teams konfigurieren“ auf „Team-Namen generieren“ klicken (mindestens ein gültiges Team).');
@@ -319,9 +324,11 @@
             }
         });
         step.addEventListener('click', function () {
-            const stepNum = parseFloat(this.dataset.step);
-            const currentStepNum = parseFloat(ns.currentStep);
-            if (stepNum <= currentStepNum || this.classList.contains('completed')) {
+            const stepNum = parseInt(String(this.dataset.step).trim(), 10);
+            const currentStepNum = parseInt(String(ns.currentStep).trim(), 10);
+            const current = Number.isFinite(currentStepNum) ? currentStepNum : 0;
+            if (!Number.isFinite(stepNum) || stepNum < 0 || stepNum > 8) return;
+            if (stepNum <= current || this.classList.contains('completed')) {
                 ns.goToStep(stepNum);
             }
         });
@@ -351,7 +358,8 @@
         const panel = document.getElementById('panelWebuntis');
         if (!panel || typeof window.ms365ApplyStepProgress !== 'function') return;
         const order = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-        const step = typeof ns.currentStep === 'number' ? ns.currentStep : 0;
+        const parsed = parseInt(String(ns.currentStep).trim(), 10);
+        const step = Number.isFinite(parsed) ? parsed : 0;
         window.ms365ApplyStepProgress(panel.querySelector('.steps'), step, order);
     });
 })();
