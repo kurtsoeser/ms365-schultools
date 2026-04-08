@@ -193,7 +193,7 @@
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
         document.getElementById('teacherMappingInfo').style.display = 'block';
         upsertTenantTeachersFromMapping(ns.teacherEmailMapping);
-        if (ns.currentStep === 3) ns.updateTeacherStats();
+        if (ns.currentStep === 4) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
     };
 
@@ -266,7 +266,7 @@
             ns.teacherEmailMapping = {};
             document.getElementById('teacherMappingInfo').style.display = 'none';
             document.getElementById('teacherMappingTable').style.display = 'none';
-            if (ns.currentStep === 3) ns.updateTeacherStats();
+            if (ns.currentStep === 4) ns.updateTeacherStats();
         });
     };
 
@@ -275,7 +275,7 @@
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
         // Löschungen werden bewusst NICHT automatisch in den Schul‑Grundeinstellungen gespiegelt,
         // um dort nicht versehentlich Daten zu verlieren. (Schul‑Einstellungen bleiben die Basisquelle.)
-        if (ns.currentStep === 3) ns.updateTeacherStats();
+        if (ns.currentStep === 4) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
         if (Object.keys(ns.teacherEmailMapping).length === 0) {
             document.getElementById('teacherMappingInfo').style.display = 'none';
@@ -300,7 +300,7 @@
                 document.getElementById('teacherMappingInfo').style.display = 'block';
                 ns.closeModal();
                 upsertTenantTeachersFromMapping({ [k.toUpperCase()]: em });
-                if (ns.currentStep === 3) ns.updateTeacherStats();
+                if (ns.currentStep === 4) ns.updateTeacherStats();
                 else ns.displayTeacherMappingTable();
             }
         );
@@ -326,7 +326,7 @@
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
         document.getElementById('teacherMappingInfo').style.display = 'block';
         if (added > 0) upsertTenantTeachersFromMapping(delta);
-        if (ns.currentStep === 3) ns.updateTeacherStats();
+        if (ns.currentStep === 4) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
         if (added > 0) {
             ns.showToast(

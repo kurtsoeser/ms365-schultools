@@ -89,7 +89,7 @@
             if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
             ns.invalidateTeams();
             ns.displayFilteredData();
-            if (ns.currentStep === 2.5 && typeof ns.displayEditableData === 'function') ns.displayEditableData();
+            if (ns.currentStep === 3 && typeof ns.displayEditableData === 'function') ns.displayEditableData();
             document.getElementById('filteredRecords').textContent = ns.filteredData.length;
         };
 
@@ -109,7 +109,7 @@
             const fi = document.getElementById('fileInput');
             if (fi) fi.value = '';
             ns.invalidateTeams();
-            ns.goToStep(2.5);
+            ns.goToStep(3);
             if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
             document.getElementById('filterStats').style.display = 'none';
             document.getElementById('dataTableContainer').style.display = 'none';

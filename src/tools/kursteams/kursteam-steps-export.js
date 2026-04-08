@@ -81,11 +81,11 @@
         const panel = document.getElementById('panelWebuntis');
         if (!panel) return;
 
-        if (step === 5 || step === 5.5 || step === 6) {
+        if (step === 6 || step === 7 || step === 8) {
             const validTeams = ns.teamsData.filter(t => t.isValid);
             if (!ns.teamsGenerated || validTeams.length === 0) {
                 ns.showToast('Bitte zuerst unter „Teams konfigurieren“ auf „Team-Namen generieren“ klicken (mindestens ein gültiges Team).');
-                step = 4;
+                step = 5;
             }
         }
 
@@ -107,7 +107,7 @@
             /* ignore */
         }
 
-        const stepOrder = [0, 1, 2, 2.5, 3, 4, 5, 6, 5.5];
+        const stepOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8];
         const currentIndex = stepOrder.indexOf(step);
         if (currentIndex >= 0) {
             for (let i = 0; i < currentIndex; i++) {
@@ -129,21 +129,28 @@
         const hint = document.getElementById('manualKursteamHint');
         if (hint) hint.style.display = step === 2 && ns.kursteamEntryMode === 'manual' ? 'block' : 'none';
 
-        if (step === 2.5) {
+        if (step === 3) {
             if (typeof ns.displayEditableData === 'function') ns.displayEditableData();
             if (typeof ns.displayManualTeamsPreview === 'function') ns.displayManualTeamsPreview();
         }
-        if (step === 3) {
+        if (step === 4) {
             ns.updateTeacherStats();
             const btnNextTeamCfg = document.getElementById('continueBtn3');
             if (btnNextTeamCfg) btnNextTeamCfg.style.display = '';
         }
-        if (step === 4) {
+        if (step === 5) {
             const manRow = document.getElementById('kursteamManualAddRow');
             if (manRow) manRow.style.display = ns.teamsGenerated ? '' : 'none';
         }
-        if (step === 5.5 && typeof ns.refreshStudentRosterUI === 'function') ns.refreshStudentRosterUI();
-        if (step === 6) ns.prepareCSVExport();
+        if (step === 8) {
+            if (typeof ns.seedStudentRosterFromTenantIfEmpty === 'function') {
+                const seeded = ns.seedStudentRosterFromTenantIfEmpty();
+                if (seeded === 'demo') ns.showToast('Demo: Schülerliste aus Schul‑Standards vorbelegt.');
+                else if (seeded === 'tenant') ns.showToast('Schülerliste aus Schul‑Einstellungen übernommen.');
+            }
+            if (typeof ns.refreshStudentRosterUI === 'function') ns.refreshStudentRosterUI();
+        }
+        if (step === 7) ns.prepareCSVExport();
 
         const stepsBar = panel.querySelector('.steps');
         if (typeof window.ms365ApplyStepProgress === 'function') {
@@ -343,7 +350,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const panel = document.getElementById('panelWebuntis');
         if (!panel || typeof window.ms365ApplyStepProgress !== 'function') return;
-        const order = [0, 1, 2, 2.5, 3, 4, 5, 6, 5.5];
+        const order = [0, 1, 2, 3, 4, 5, 6, 7, 8];
         const step = typeof ns.currentStep === 'number' ? ns.currentStep : 0;
         window.ms365ApplyStepProgress(panel.querySelector('.steps'), step, order);
     });

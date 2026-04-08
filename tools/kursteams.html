@@ -102,12 +102,12 @@
                 <div class="step active" data-step="0">Start</div>
                 <div class="step" data-step="1">1. Daten importieren</div>
                 <div class="step" data-step="2">2. Daten bereinigen</div>
-                <div class="step" data-step="2.5">3. Manuelle Eingabe</div>
-                <div class="step" data-step="3">4. Lehrer zuordnen</div>
-                <div class="step" data-step="4">5. Teams konfigurieren</div>
-                <div class="step" data-step="5">6. Kursteams anlegen</div>
-                <div class="step step--optional" data-step="6" title="Optional">7. CSV/PowerShell</div>
-                <div class="step step--optional" data-step="5.5" title="Optional">8. Optional: Schüler</div>
+                <div class="step" data-step="3">3. Manuelle Eingabe</div>
+                <div class="step" data-step="4">4. Lehrer zuordnen</div>
+                <div class="step" data-step="5">5. Teams konfigurieren</div>
+                <div class="step" data-step="6">6. Kursteams anlegen</div>
+                <div class="step step--optional" data-step="7" title="Optional">7. CSV/PowerShell</div>
+                <div class="step step--optional" data-step="8" title="Optional">8. Optional: Schüler</div>
             </div>
 
             <div class="content">
@@ -256,12 +256,12 @@
                         </table>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button class="btn btn-success" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zur manuellen Eingabe</button>
+                        <button class="btn btn-success" onclick="goToStep(3)" id="continueBtn2" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zur manuellen Eingabe</button>
                     </div>
                 </div>
 
-                <!-- Schritt 2.5 -->
-                <div class="step-content" data-step="2.5">
+                <!-- Schritt 3 (Manuelle Eingabe), data-step 3 -->
+                <div class="step-content" data-step="3">
                     <h2>Schritt 3: Manuelle Dateneingabe</h2>
                     <div class="alert alert-info">
                         <strong>ℹ️ Tipp:</strong> Doppelklicken Sie auf eine Zelle, um sie zu bearbeiten. Mit <strong>Enter</strong> speichern, mit <strong>Esc</strong> abbrechen.
@@ -331,12 +331,12 @@
                     </div>
                     <div class="step-nav-row">
                         <button type="button" class="btn" onclick="goToStep(2)"><i class="bi bi-arrow-left"></i>Zurück zur Bereinigung</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter zu Lehrer zuordnen</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(4)" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter zu Lehrer zuordnen</button>
                     </div>
                 </div>
 
                 <!-- Schritt 3 -->
-                <div class="step-content" data-step="3">
+                <div class="step-content" data-step="4">
                     <h2>Schritt 4: Lehrer zuordnen</h2>
                     <div class="alert alert-info">
                         <strong>ℹ️ Hinweis:</strong> Die Zuordnungen werden automatisch aus den <strong>Schul‑Grundeinstellungen</strong> (Lehrerliste) übernommen. Ergänzungen hier werden dort mitgespeichert.
@@ -425,13 +425,13 @@
                         </div>
                     </div>
                     <div class="step-nav-row" style="margin-top: 30px;">
-                        <button type="button" class="btn" onclick="goToStep(2.5)"><i class="bi bi-arrow-left"></i>Zurück zur manuellen Eingabe</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(4)" id="continueBtn3"><i class="bi bi-arrow-right-circle"></i>Weiter zur Team-Konfiguration</button>
+                        <button type="button" class="btn" onclick="goToStep(3)"><i class="bi bi-arrow-left"></i>Zurück zur manuellen Eingabe</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn3"><i class="bi bi-arrow-right-circle"></i>Weiter zur Team-Konfiguration</button>
                     </div>
                 </div>
 
                 <!-- Schritt 4 -->
-                <div class="step-content" data-step="4">
+                <div class="step-content" data-step="5">
                     <h2>Schritt 5: Teams konfigurieren</h2>
                     <div class="filter-section">
                         <h3>Grundeinstellungen</h3>
@@ -517,12 +517,12 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zu Schritt 6</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(6)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zu Schritt 6</button>
                     </div>
                 </div>
 
-                <!-- Schritt 5 -->
-                <div class="step-content" data-step="5">
+                <!-- Schritt 6 (Graph deaktiviert), data-step 6 -->
+                <div class="step-content" data-step="6">
                     <h2>Schritt 6: Kursteams anlegen (Microsoft Graph)</h2>
                     <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
                         Echte Kursteams (<code>EDU_Class</code>) lassen sich in diesem Schritt im Browser derzeit nicht zuverlässig anlegen.
@@ -544,13 +544,13 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn" onclick="goToStep(4)"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(6)"><i class="bi bi-filetype-csv"></i>Weiter zu Schritt 7: CSV &amp; PowerShell</button>
+                        <button type="button" class="btn" onclick="goToStep(5)"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(7)"><i class="bi bi-filetype-csv"></i>Weiter zu Schritt 7: CSV &amp; PowerShell</button>
                     </div>
                 </div>
 
-                <!-- Schritt 5.5 -->
-                <div class="step-content" data-step="5.5">
+                <!-- Schritt 8 optional (Schüler), data-step 8 -->
+                <div class="step-content" data-step="8">
                     <h2>Schritt 8 (optional): Schüler als Mitglieder hinzufügen (PowerShell + Microsoft Graph)</h2>
                     <div class="alert alert-info" style="line-height:1.55;">
                         Dieser Schritt ist <strong>optional</strong>. Er erzeugt ein PowerShell‑Script (Microsoft.Graph), das nach der Team‑Anlage
@@ -561,8 +561,13 @@
 
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
                         <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
+                        <p style="color:#495057;margin:0 0 12px;line-height:1.5;font-size:0.95em;">
+                            Zuerst <strong>Kursteams aus Microsoft laden</strong>: Es werden alle Team-Gruppen im Mandanten per Graph abgefragt (mailNickname).
+                            Anschließend werden Schüler den passenden Teams nach <strong>Klasse/Gruppe</strong> (wie in der Liste) zugeordnet – dieselbe Logik wie beim PowerShell-Skript.
+                        </p>
                         <button type="button" class="btn" id="studentRosterOnlineLogin" onclick="window.ms365KursteamMembersGraphLogin && window.ms365KursteamMembersGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Schüler jetzt hinzufügen</button>
+                        <button type="button" class="btn" id="studentRosterFetchGraphTeams" onclick="window.ms365KursteamMembersFetchGraphTeams && window.ms365KursteamMembersFetchGraphTeams()" style="margin-left:8px;"><i class="bi bi-cloud-download"></i>Kursteams aus Microsoft laden</button>
+                        <button type="button" class="btn btn-success" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Schüler jetzt hinzufügen (online)</button>
                         <div id="studentRosterOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
 
@@ -664,12 +669,12 @@
                     </div>
 
                     <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(6)"><i class="bi bi-arrow-left"></i>Zurück zu Schritt 7 (CSV/PowerShell)</button>
+                        <button type="button" class="btn" onclick="goToStep(7)"><i class="bi bi-arrow-left"></i>Zurück zu Schritt 7 (CSV/PowerShell)</button>
                     </div>
                 </div>
 
-                <!-- Schritt 7, technisch data-step 6 -->
-                <div class="step-content" data-step="6">
+                <!-- Schritt 7 (CSV/PowerShell), data-step 7 -->
+                <div class="step-content" data-step="7">
                     <h2>Schritt 7: CSV-Export &amp; PowerShell</h2>
                     <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
                         <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
@@ -720,7 +725,7 @@ foreach ($Team in $TeamsList) {
                         <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()"><i class="bi bi-box-seam"></i>Kursteam-Anlage.cmd herunterladen</button>
                     </div>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(5.5)"><i class="bi bi-person-plus"></i>Optional: Schritt 8 – Schüler als Mitglieder</button>
+                        <button type="button" class="btn" onclick="goToStep(8)"><i class="bi bi-person-plus"></i>Optional: Schritt 8 – Schüler als Mitglieder</button>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
                         <button type="button" class="btn btn-success" onclick="resetApp()"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>

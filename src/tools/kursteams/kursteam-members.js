@@ -50,6 +50,13 @@
 
     ns.studentRosterTeamSelection = ns.studentRosterTeamSelection || {};
 
+    /** @type {Record<string, { id: string, displayName: string, mailNickname: string }>|null} */
+    ns.graphTeamsMembershipCache = ns.graphTeamsMembershipCache || null;
+    /** Rohliste der zuletzt per Graph geladenen Team-Gruppen */
+    ns.graphTeamsGraphList = ns.graphTeamsGraphList || [];
+    /** Aus Graph, ohne Eintrag im Wizard; Klasse/Gruppe aus Anzeigename + Schülerliste geraten */
+    ns.graphTeamsSyntheticForMembers = ns.graphTeamsSyntheticForMembers || [];
+
     function ensureSet(map, key) {
         if (!map[key]) map[key] = new Set();
         return map[key];
@@ -99,6 +106,54 @@
             classCount: classes.length,
             classGroupCount: classGroups.length
         };
+    };
+
+    /**
+     * Entspricht den Demo-Schülern in tenant-settings-ui (seedDemoDataIfEmptyStorage) –
+     * Klasse;UPN für Schritt 8, falls die Schul‑Einstellungen keine nutzbaren Einträge liefern.
+     */
+    const DEFAULT_DEMO_STUDENT_ROSTER_LINES = [
+        '1A;anna.beispiel@ms365.schule',
+        '1A;ben.demo@ms365.schule',
+        '1B;carla.test@ms365.schule',
+        '2A;david.probe@ms365.schule',
+        '2A;eva.sample@ms365.schule'
+    ];
+
+    /**
+     * Wenn die Schülerliste noch leer ist: Zeilen aus den Schul‑Einstellungen (Schüler mit Klasse + E‑Mail)
+     * oder die Standard‑Demo‑Zeilen eintragen – analog zu seedWebuntisPasteIfEmpty (Schritt 1).
+     * @returns {false|'tenant'|'demo'} false wenn nichts gesetzt wurde; sonst Quelle der Vorbefüllung
+     */
+    ns.seedStudentRosterFromTenantIfEmpty = function seedStudentRosterFromTenantIfEmpty() {
+        const ta = document.getElementById('studentRosterPasteInput');
+        if (!ta) return false;
+        if (String(ta.value || '').trim() !== '') return false;
+        if (String(ns.studentRosterRaw || '').trim() !== '') return false;
+        const st = ns.studentRoster && ns.studentRoster.stats ? ns.studentRoster.stats : { validLines: 0 };
+        if ((st.validLines || 0) > 0) return false;
+
+        const lines = [];
+        try {
+            if (typeof window.ms365TenantSettingsLoad === 'function') {
+                const t = window.ms365TenantSettingsLoad();
+                const students = Array.isArray(t && t.students) ? t.students : [];
+                students.forEach(function (s) {
+                    const klasse = String(s && s.klasse ? s.klasse : '').trim();
+                    const email = String(s && s.email ? s.email : '').trim().toLowerCase();
+                    if (klasse && email) lines.push(klasse + ';' + email);
+                });
+            }
+        } catch (e) {
+            /* ignore */
+        }
+
+        const fromTenant = lines.length > 0;
+        const text = (fromTenant ? lines : DEFAULT_DEMO_STUDENT_ROSTER_LINES).join('\n');
+        ta.value = text;
+        ns.studentRosterRaw = text;
+        ns.parseStudentRosterFromText(text);
+        return fromTenant ? 'tenant' : 'demo';
     };
 
     // ---------------------------
@@ -406,11 +461,11 @@
         return new Promise(r => setTimeout(r, ms));
     }
 
-    async function graphRequest(method, path, token, body) {
+    async function graphRequest(method, path, token, body, extraHeaders) {
         const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
         let attempt = 0;
         while (true) {
-            const headers = { Authorization: 'Bearer ' + token };
+            const headers = Object.assign({ Authorization: 'Bearer ' + token }, extraHeaders || {});
             if (body !== undefined) headers['Content-Type'] = 'application/json';
             const res = await fetch(url, {
                 method,
@@ -427,8 +482,8 @@
         }
     }
 
-    async function graphJson(method, path, token, body) {
-        const res = await graphRequest(method, path, token, body);
+    async function graphJson(method, path, token, body, extraHeaders) {
+        const res = await graphRequest(method, path, token, body, extraHeaders);
         const text = await res.text();
         let data = null;
         if (text) {
@@ -444,6 +499,150 @@
             throw new Error(method + ' ' + path + ': ' + msg);
         }
         return data || {};
+    }
+
+    async function listTeamGroupsFromGraph(token) {
+        const collected = [];
+        let nextPath =
+            "/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$select=id,displayName,mailNickname,resourceProvisioningOptions&$top=999";
+        try {
+            while (nextPath) {
+                const useEv = nextPath.indexOf('http') !== 0;
+                const data = await graphJson(
+                    'GET',
+                    nextPath,
+                    token,
+                    undefined,
+                    useEv ? { ConsistencyLevel: 'eventual' } : undefined
+                );
+                (data.value || []).forEach(function (g) {
+                    if (g && g.mailNickname) collected.push(g);
+                });
+                nextPath = data['@odata.nextLink'] || null;
+            }
+            return collected;
+        } catch (e) {
+            return listTeamGroupsFromGraphFallback(token);
+        }
+    }
+
+    async function listTeamGroupsFromGraphFallback(token) {
+        const collected = [];
+        let nextPath = "/groups?$select=id,displayName,mailNickname,resourceProvisioningOptions&$top=999";
+        while (nextPath) {
+            const data = await graphJson('GET', nextPath, token);
+            (data.value || []).forEach(function (g) {
+                const opts = g && g.resourceProvisioningOptions ? g.resourceProvisioningOptions : [];
+                if (opts.indexOf('Team') !== -1 && g.mailNickname) collected.push(g);
+            });
+            nextPath = data['@odata.nextLink'] || null;
+        }
+        return collected;
+    }
+
+    function rebuildGraphMembershipCacheFromList(groups) {
+        const map = Object.create(null);
+        (groups || []).forEach(function (g) {
+            const m = String(g.mailNickname || '')
+                .trim()
+                .toLowerCase();
+            if (m && g.id) {
+                map[m] = { id: g.id, displayName: g.displayName, mailNickname: g.mailNickname };
+            }
+        });
+        ns.graphTeamsMembershipCache = map;
+    }
+
+    /**
+     * Versucht Klasse/Gruppe aus dem Team-Anzeigenamen zu erkennen (Übereinstimmung mit der Schülerliste).
+     */
+    function inferKlasseGruppeFromDisplayName(displayName) {
+        const dn = String(displayName || '').toUpperCase();
+        const cgKeys = Object.keys(ns.studentRoster.byClassGroup || {});
+        for (let i = 0; i < cgKeys.length; i++) {
+            const key = cgKeys[i];
+            const parts = key.split('|');
+            const k = (parts[0] || '').toUpperCase();
+            const g = (parts[1] || '').toUpperCase();
+            if (k && g && dn.indexOf(k) !== -1 && dn.indexOf(g) !== -1) {
+                return { klasse: parts[0], gruppe: parts[1] };
+            }
+        }
+        const classes = Object.keys(ns.studentRoster.byClass || {}).sort(function (a, b) {
+            return b.length - a.length;
+        });
+        for (let j = 0; j < classes.length; j++) {
+            const k = classes[j];
+            if (k && dn.indexOf(k.toUpperCase()) !== -1) return { klasse: k, gruppe: '' };
+        }
+        return null;
+    }
+
+    function rebuildGraphSyntheticTeams() {
+        ns.graphTeamsSyntheticForMembers = [];
+        const list = ns.graphTeamsGraphList || [];
+        if (!list.length) return;
+        const local = (ns.teamsData || []).filter(function (t) {
+            return t && t.isValid;
+        });
+        const localMails = {};
+        local.forEach(function (t) {
+            const m = String(t.gruppenmail || '')
+                .trim()
+                .toLowerCase();
+            if (m) localMails[m] = true;
+        });
+        list.forEach(function (g) {
+            const mail = String(g.mailNickname || '')
+                .trim()
+                .toLowerCase();
+            if (!mail || localMails[mail]) return;
+            const inf = inferKlasseGruppeFromDisplayName(g.displayName || '');
+            if (!inf) return;
+            const syn = {
+                teamName: g.displayName || g.mailNickname,
+                gruppenmail: g.mailNickname,
+                isValid: true,
+                besitzer: '',
+                originalClass: inf.klasse,
+                gruppe: inf.gruppe,
+                fromGraphOnly: true
+            };
+            const m = getMembersForTeam(syn).members;
+            if (!m || !m.length) return;
+            ns.graphTeamsSyntheticForMembers.push(syn);
+        });
+    }
+
+    function getTeamsForStep8Membership() {
+        const local = (ns.teamsData || []).filter(function (t) {
+            return t && t.isValid;
+        });
+        const extra = ns.graphTeamsSyntheticForMembers || [];
+        const seen = Object.create(null);
+        const out = [];
+        local.forEach(function (t) {
+            const k = String(t.gruppenmail || '')
+                .trim()
+                .toLowerCase();
+            if (k) seen[k] = true;
+            out.push(t);
+        });
+        extra.forEach(function (t) {
+            const k = String(t.gruppenmail || '')
+                .trim()
+                .toLowerCase();
+            if (k && !seen[k]) {
+                seen[k] = true;
+                out.push(t);
+            }
+        });
+        return out;
+    }
+
+    function getTeamsForStep8MembershipFresh() {
+        if (Array.isArray(ns.graphTeamsGraphList) && ns.graphTeamsGraphList.length) rebuildGraphSyntheticTeams();
+        return getTeamsForStep8Membership();
     }
 
     function isGraphDuplicateRefError(err) {
@@ -486,6 +685,48 @@
         return assignments;
     }
 
+    async function fetchGraphTeamsForKursteamsMembership() {
+        const btn = document.getElementById('studentRosterFetchGraphTeams');
+        if (btn) btn.disabled = true;
+        clearOnlineLog();
+        appendOnlineLog('Lade Team-Gruppen aus Microsoft 365 (Graph) …');
+        try {
+            const token = await getGraphToken();
+            const groups = await listTeamGroupsFromGraph(token);
+            ns.graphTeamsGraphList = groups;
+            rebuildGraphMembershipCacheFromList(groups);
+            rebuildGraphSyntheticTeams();
+            appendOnlineLog('Gefunden: ' + groups.length + ' Team-Gruppe(n) mit mailNickname.', 'ok');
+            const local = (ns.teamsData || []).filter(function (t) {
+                return t && t.isValid;
+            });
+            let matchedLocal = 0;
+            local.forEach(function (t) {
+                const m = String(t.gruppenmail || '')
+                    .trim()
+                    .toLowerCase();
+                if (m && ns.graphTeamsMembershipCache && ns.graphTeamsMembershipCache[m]) matchedLocal++;
+            });
+            appendOnlineLog(
+                'Wizard-Teams: ' + local.length + ' gültig, davon ' + matchedLocal + ' in M365 gefunden.',
+                'ok'
+            );
+            appendOnlineLog(
+                'Zusätzlich nur-Graph (nur wenn Klasse im Namen + Schülerliste passt): ' +
+                    (ns.graphTeamsSyntheticForMembers || []).length +
+                    '.',
+                'ok'
+            );
+            ns.refreshStudentRosterUI();
+            ns.showToast('Kursteams aus Microsoft geladen (' + groups.length + ').');
+        } catch (e) {
+            appendOnlineLog('Fehler: ' + (e.message || e), 'err');
+            ns.showToast('Abruf fehlgeschlagen: ' + (e.message || e));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
     async function runMembersOnline() {
         const btnLogin = document.getElementById('studentRosterOnlineLogin');
         const btnRun = document.getElementById('studentRosterOnlineRun');
@@ -496,13 +737,15 @@
             return;
         }
 
-        const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
-        if (!validTeams.length) {
-            ns.showToast('Keine gültigen Teams – zuerst Team-Namen generieren.');
+        const teamsForRun = getTeamsForStep8MembershipFresh();
+        if (!teamsForRun.length) {
+            ns.showToast(
+                'Keine Teams – im Wizard „Team-Namen generieren“ oder zuerst „Kursteams aus Microsoft laden“.'
+            );
             return;
         }
 
-        const assignments = buildAssignmentsForOnline(validTeams);
+        const assignments = buildAssignmentsForOnline(teamsForRun);
         if (!assignments.length) {
             ns.showToast('Keine passenden Zuordnungen gefunden (Klasse/Gruppe prüfen).');
             return;
@@ -529,11 +772,21 @@
             try {
                 appendOnlineLog('[' + aIdx + '/' + assignments.length + '] ' + a.teamName + ' …');
 
-                // Gruppe per mailNickname finden
-                const q = "/groups?$select=id,displayName,mailNickname&$filter=" + encodeURIComponent("mailNickname eq '" + a.gruppenmail + "'");
-                const res = await graphJson('GET', q, token, undefined);
-                const g = res && res.value && res.value.length ? res.value[0] : null;
-                if (!g) {
+                const mailKey = String(a.gruppenmail || '')
+                    .trim()
+                    .toLowerCase();
+                let g = null;
+                if (ns.graphTeamsMembershipCache && mailKey && ns.graphTeamsMembershipCache[mailKey]) {
+                    g = ns.graphTeamsMembershipCache[mailKey];
+                }
+                if (!g || !g.id) {
+                    const q =
+                        '/groups?$select=id,displayName,mailNickname&$filter=' +
+                        encodeURIComponent("mailNickname eq '" + String(a.gruppenmail || '').replace(/'/g, "''") + "'");
+                    const res = await graphJson('GET', q, token, undefined);
+                    g = res && res.value && res.value.length ? res.value[0] : null;
+                }
+                if (!g || !g.id) {
                     appendOnlineLog('  Gruppe nicht gefunden: ' + a.gruppenmail, 'err');
                     continue;
                 }
@@ -544,7 +797,7 @@
                     if (!upn) continue;
                     try {
                         const u = await graphJson('GET', '/users/' + encodeURIComponent(upn) + '?$select=id', token, undefined);
-                        await graphJson('POST', '/groups/' + g.id + '/members/$ref', token, {
+                        await graphJson('POST', '/groups/' + encodeURIComponent(g.id) + '/members/$ref', token, {
                             '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + u.id
                         });
                         added++;
@@ -606,11 +859,12 @@
 
         const pre = document.getElementById('studentRosterPowerShellScript');
         if (pre) {
-            const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
+            const validTeams = getTeamsForStep8MembershipFresh();
             if (!s.validLines) {
                 pre.textContent = '# Sobald eine Schülerliste übernommen wurde, erscheint hier das Script.';
             } else if (!validTeams.length) {
-                pre.textContent = '# Keine gültigen Teams – zuerst Team-Namen generieren.';
+                pre.textContent =
+                    '# Keine Teams – Wizard (Team-Namen) oder „Kursteams aus Microsoft laden“ (Schritt 8).';
             } else {
                 // Script nur für ausgewählte Teams erzeugen (Teams ohne Treffer werden ohnehin rausgefiltert)
                 pre.textContent = buildAddMembersPs1(validTeams);
@@ -632,7 +886,7 @@
         if (!body) return;
 
         const rosterStats = ns.studentRoster && ns.studentRoster.stats ? ns.studentRoster.stats : { validLines: 0 };
-        const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
+        const validTeams = getTeamsForStep8MembershipFresh();
         const hideNoMatch = getBool('studentRosterHideNoMatch', true);
 
         if (!validTeams.length || !rosterStats.validLines) {
@@ -641,7 +895,8 @@
             const td = document.createElement('td');
             td.colSpan = 4;
             td.style.color = '#6c757d';
-            td.textContent = 'Noch keine Teams oder Schülerliste – zuerst oben übernehmen.';
+            td.textContent =
+                'Noch keine Teams oder Schülerliste – zuerst Schüler übernehmen; Teams aus dem Wizard oder per „Kursteams aus Microsoft laden“.';
             tr.appendChild(td);
             body.appendChild(tr);
             return;
@@ -694,7 +949,7 @@
             tdSel.appendChild(cb);
 
             const tdName = document.createElement('td');
-            tdName.textContent = r.team.teamName || '';
+            tdName.textContent = (r.team.fromGraphOnly ? '(nur Graph) ' : '') + (r.team.teamName || '');
 
             const tdMail = document.createElement('td');
             tdMail.textContent = r.team.gruppenmail || '';
@@ -750,7 +1005,7 @@
         const selAll = document.getElementById('studentRosterSelectAll');
         if (selAll) {
             selAll.addEventListener('click', () => {
-                const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
+                const validTeams = getTeamsForStep8MembershipFresh();
                 validTeams.forEach(t => {
                     const key = String(t.gruppenmail || '').trim();
                     if (key) ns.studentRosterTeamSelection[key] = true;
@@ -761,7 +1016,7 @@
         const selNone = document.getElementById('studentRosterSelectNone');
         if (selNone) {
             selNone.addEventListener('click', () => {
-                const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
+                const validTeams = getTeamsForStep8MembershipFresh();
                 validTeams.forEach(t => {
                     const key = String(t.gruppenmail || '').trim();
                     if (key) ns.studentRosterTeamSelection[key] = false;
@@ -772,7 +1027,7 @@
         const selMatched = document.getElementById('studentRosterSelectMatched');
         if (selMatched) {
             selMatched.addEventListener('click', () => {
-                const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
+                const validTeams = getTeamsForStep8MembershipFresh();
                 validTeams.forEach(t => {
                     const key = String(t.gruppenmail || '').trim();
                     if (!key) return;
@@ -784,7 +1039,7 @@
         const selInv = document.getElementById('studentRosterSelectInvert');
         if (selInv) {
             selInv.addEventListener('click', () => {
-                const validTeams = (ns.teamsData || []).filter(t => t && t.isValid);
+                const validTeams = getTeamsForStep8MembershipFresh();
                 validTeams.forEach(t => {
                     const key = String(t.gruppenmail || '').trim();
                     if (!key) return;
@@ -792,6 +1047,13 @@
                     ns.studentRosterTeamSelection[key] = !cur;
                 });
                 ns.refreshStudentRosterUI();
+            });
+        }
+
+        const btnFetchGraph = document.getElementById('studentRosterFetchGraphTeams');
+        if (btnFetchGraph) {
+            btnFetchGraph.addEventListener('click', () => {
+                fetchGraphTeamsForKursteamsMembership();
             });
         }
 
@@ -817,6 +1079,7 @@
 
     window.ms365KursteamMembersGraphLogin = loginMembersOnly;
     window.ms365KursteamMembersGraphRun = runMembersOnline;
+    window.ms365KursteamMembersFetchGraphTeams = fetchGraphTeamsForKursteamsMembership;
 
     // Wire when script loads (DOM is usually ready, but guard anyway)
     if (document.readyState === 'loading') {

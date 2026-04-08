@@ -3,9 +3,26 @@
 
     const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
+    /** Ab Schema 2: data-step entspricht der angezeigten Schrittnummer (0–8). */
+    const KURSTEAM_STEP_SCHEMA = 2;
+
+    function migrateKursteamStepFromStorage(step, storedSchema) {
+        if (storedSchema >= KURSTEAM_STEP_SCHEMA) return step;
+        const legacy = {
+            2.5: 3,
+            3: 4,
+            4: 5,
+            5: 6,
+            6: 7,
+            5.5: 8
+        };
+        return Object.prototype.hasOwnProperty.call(legacy, step) ? legacy[step] : step;
+    }
+
     ns.saveStateToStorage = function saveStateToStorage() {
         try {
             const state = {
+                stepSchema: KURSTEAM_STEP_SCHEMA,
                 rawData: ns.rawData,
                 filteredData: ns.filteredData,
                 teamsData: ns.teamsData,
@@ -107,7 +124,8 @@
             }
 
             const hasRows = state.rawData && state.rawData.length > 0;
-            const step = state.currentStep !== undefined ? state.currentStep : (hasRows ? 1 : 0);
+            const stepRaw = state.currentStep !== undefined ? state.currentStep : (hasRows ? 1 : 0);
+            const step = migrateKursteamStepFromStorage(stepRaw, state.stepSchema);
             if (typeof ns.goToStep === 'function') ns.goToStep(step);
 
             ns.showToast('Kursteams: Stand geladen.');

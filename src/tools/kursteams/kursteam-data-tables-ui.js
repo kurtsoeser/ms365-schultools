@@ -5,7 +5,7 @@
     window.ms365AssertModules({ KM }, 'kursteam-data-tables-ui.js');
 
     /**
-     * Import-Tabelle (Schritt 2), bearbeitbare Tabelle (2.5), kleine Team-Vorschau.
+     * Import-Tabelle (Schritt 2), bearbeitbare Tabelle (Schritt 3), kleine Team-Vorschau.
      * @param {object} ns window.ms365Kursteam
      */
     function mount(ns) {
