@@ -27,6 +27,7 @@
         document.getElementById('uniqueSubjects').textContent = new Set(ns.rawData.map(r => r.fach).filter(f => f)).size;
         document.getElementById('uniqueTeachers').textContent = new Set(ns.rawData.map(r => r.lehrer).filter(l => l)).size;
         document.getElementById('importStats').style.display = 'block';
+        if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
     };
 
     /**

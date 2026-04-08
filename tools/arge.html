@@ -5,141 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – ARGEs</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 { font-size: 2em; margin-bottom: 10px; }
-        .header p { opacity: 0.9; font-size: 1.1em; }
-        .header-help-row { margin: 10px 0 0; font-size: 0.95em; }
-        .header-help-link { color: #fff; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; opacity: 0.98; }
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 20px;
-            background: rgba(255,255,255,0.12);
-            border-top: 1px solid rgba(255,255,255,0.2);
-        }
-        .toolbar .btn { margin: 0; font-size: 0.9em; padding: 8px 16px; }
-        .btn {
-            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin: 10px 5px;
-            display: inline-block;
-            text-decoration: none;
-        }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(94, 114, 228, 0.4); }
-        .btn-success { background: linear-gradient(135deg, #2dce89 0%, #11998e 100%); }
-        .btn-danger { background: linear-gradient(135deg, #f5365c 0%, #f56036 100%); }
-        .content { padding: 30px; }
-        .steps {
-            display: flex;
-            justify-content: space-around;
-            padding: 20px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-        }
-        .step {
-            text-align: center;
-            padding: 10px 20px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            cursor: pointer;
-            flex: 1 1 auto;
-            min-width: 120px;
-            font-size: 0.9em;
-        }
-        .step.active { background: #5e72e4; color: white; font-weight: bold; }
-        .step.completed { background: #2dce89; color: white; }
-        .arge-step-content { display: none; }
-        .arge-step-content.active { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .alert { padding: 15px 20px; border-radius: 8px; margin: 15px 0; }
-        .alert-warning { background: #fff3cd; border-left: 4px solid #ffc107; color: #856404; }
-        .alert-info { background: #d1ecf1; border-left: 4px solid #17a2b8; color: #0c5460; }
-        .alert-success { background: #d4edda; border-left: 4px solid #28a745; color: #155724; }
-        .filter-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .filter-group { margin: 15px 0; }
-        .filter-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #495057; }
-        .filter-group input:not([type="checkbox"]), .filter-group textarea {
-            width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1em;
-        }
-        .checkbox-label { display: flex; align-items: center; cursor: pointer; gap: 10px; font-weight: 600; }
-        .checkbox-label input { margin: 0; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9em; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        th { background: #5e72e4; color: white; font-weight: 600; position: sticky; top: 0; }
-        .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; }
-        .powershell-code {
-            background: #012456; color: #f0f0f0; padding: 20px; border-radius: 8px;
-            font-family: 'Consolas', 'Monaco', monospace; overflow-x: auto; margin: 20px 0;
-        }
-        .powershell-code pre { margin: 0; white-space: pre-wrap; }
-        .copy-btn { float: right; margin-top: -10px; }
-        .btn-small { padding: 5px 10px; font-size: 0.85em; }
-        .jg-preview-table-input {
-            width: 100%;
-            min-width: 3.5em;
-            padding: 6px 8px;
-            font: inherit;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        .jg-preview-table-input:focus { outline: 2px solid rgba(94, 114, 228, 0.35); border-color: #5e72e4; }
-        .arge-step1-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start; margin-top: 8px; }
-        @media (max-width: 768px) {
-            .header h1 { font-size: 1.35em; }
-            .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
-            .content { padding: 16px; }
-            .arge-step1-grid { grid-template-columns: 1fr; }
-        }
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #32325d;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 1001;
-            display: none;
-            max-width: 90%;
-            text-align: center;
-        }
-        .toast.show { display: block; }
-    </style>
+    <link rel="stylesheet" href="../app.css">
 </head>
 <body>
     <div class="container">
@@ -148,9 +14,6 @@
             <p>ARGEs (Microsoft 365-Gruppen)</p>
             <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
-                <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
-                <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
                 <a class="btn" href="../index.html">← Dashboard</a>
             </div>
         </div>
@@ -308,12 +171,18 @@
                 </div>
             </div>
         </div>
+        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
+            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+        </div>
     </div>
 
     <div id="toast" class="toast" role="status"></div>
 
     <script src="../ms365-config.js"></script>
     <script src="../school-domain.js" defer></script>
+    <script src="../tenant-settings.js" defer></script>
     <script src="../polyglot-cmd.js" defer></script>
     <script src="../arge.js" defer></script>
     <script src="../arge-graph.js" defer></script>

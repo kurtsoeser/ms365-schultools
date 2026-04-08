@@ -3,6 +3,52 @@
 
     const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
+    function upsertTenantTeachersFromMapping(mapping) {
+        if (!mapping || typeof mapping !== 'object') return;
+        if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') return;
+
+        const current = window.ms365TenantSettingsLoad();
+        const teachers = Array.isArray(current && current.teachers) ? [...current.teachers] : [];
+        const index = new Map();
+        teachers.forEach((t, i) => {
+            const code = String(t && t.code ? t.code : '').trim().toUpperCase();
+            if (code) index.set(code, i);
+        });
+
+        Object.entries(mapping).forEach(([codeRaw, emailRaw]) => {
+            const code = String(codeRaw || '').trim().toUpperCase();
+            const email = String(emailRaw || '').trim().toLowerCase();
+            if (!code || !email || !email.includes('@')) return;
+            if (index.has(code)) {
+                const i = index.get(code);
+                const prev = teachers[i] || {};
+                teachers[i] = { ...prev, code, email };
+            } else {
+                teachers.push({ code, name: '', email });
+                index.set(code, teachers.length - 1);
+            }
+        });
+
+        window.ms365TenantSettingsSave({ ...current, teachers });
+    }
+
+    function loadTenantTeacherEmailsIfEmpty() {
+        if (typeof window.ms365TenantSettingsGetTeacherEmailMap !== 'function') return;
+        const map = window.ms365TenantSettingsGetTeacherEmailMap();
+        if (!map || !Object.keys(map).length) return;
+        // Tenant ist Basis: fehlende Einträge ergänzen, bestehende (manuelle) nicht überschreiben.
+        ns.teacherEmailMapping = ns.teacherEmailMapping || {};
+        Object.entries(map).forEach(([k, v]) => {
+            const kk = String(k || '').trim().toUpperCase();
+            if (!kk) return;
+            if (!ns.teacherEmailMapping[kk]) ns.teacherEmailMapping[kk] = v;
+        });
+        const el = document.getElementById('teacherCount');
+        if (el) el.textContent = Object.keys(ns.teacherEmailMapping).length;
+        const info = document.getElementById('teacherMappingInfo');
+        if (info) info.style.display = 'block';
+    }
+
     /** Gleiche Spalten wie WebUntis-Lehrerliste (Kürzel, E-Mail, …). */
     ns.getKuerzelFromLehrerRow = function getKuerzelFromLehrerRow(row) {
         const r = ns.normalizeImportedRowKeys(row);
@@ -146,7 +192,8 @@
         });
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
         document.getElementById('teacherMappingInfo').style.display = 'block';
-        if (ns.currentStep === 2.5) ns.updateTeacherStats();
+        upsertTenantTeachersFromMapping(ns.teacherEmailMapping);
+        if (ns.currentStep === 3) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
     };
 
@@ -215,14 +262,16 @@
             ns.teacherEmailMapping = {};
             document.getElementById('teacherMappingInfo').style.display = 'none';
             document.getElementById('teacherMappingTable').style.display = 'none';
-            if (ns.currentStep === 2.5) ns.updateTeacherStats();
+            if (ns.currentStep === 3) ns.updateTeacherStats();
         });
     };
 
     ns.removeTeacherMapping = function removeTeacherMapping(kuerzel) {
         delete ns.teacherEmailMapping[kuerzel];
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
-        if (ns.currentStep === 2.5) ns.updateTeacherStats();
+        // Löschungen werden bewusst NICHT automatisch in Tenant-Grundeinstellungen gespiegelt,
+        // um dort nicht versehentlich Daten zu verlieren. (Tenant bleibt die Basisquelle.)
+        if (ns.currentStep === 3) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
         if (Object.keys(ns.teacherEmailMapping).length === 0) {
             document.getElementById('teacherMappingInfo').style.display = 'none';
@@ -246,7 +295,8 @@
                 document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
                 document.getElementById('teacherMappingInfo').style.display = 'block';
                 ns.closeModal();
-                if (ns.currentStep === 2.5) ns.updateTeacherStats();
+                upsertTenantTeachersFromMapping({ [k.toUpperCase()]: em });
+                if (ns.currentStep === 3) ns.updateTeacherStats();
                 else ns.displayTeacherMappingTable();
             }
         );
@@ -258,6 +308,7 @@
         const lines = textarea.value.split(/\r?\n/);
         let added = 0;
         let invalid = 0;
+        const delta = {};
         lines.forEach(line => {
             const parsed = parseTeacherEmailPasteLine(line);
             if (!parsed) {
@@ -265,11 +316,13 @@
                 return;
             }
             ns.teacherEmailMapping[parsed.kuerzel] = parsed.email;
+            delta[parsed.kuerzel] = parsed.email;
             added++;
         });
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
         document.getElementById('teacherMappingInfo').style.display = 'block';
-        if (ns.currentStep === 2.5) ns.updateTeacherStats();
+        if (added > 0) upsertTenantTeachersFromMapping(delta);
+        if (ns.currentStep === 3) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
         if (added > 0) {
             ns.showToast(
@@ -366,22 +419,45 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // Upload wiring
-    if (ns.dom && ns.dom.teacherUploadArea && ns.dom.teacherFileInput) {
-        ns.dom.teacherUploadArea.addEventListener('click', () => ns.dom.teacherFileInput.click());
-        ns.dom.teacherUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            ns.dom.teacherUploadArea.classList.add('dragover');
-        });
-        ns.dom.teacherUploadArea.addEventListener('dragleave', () => ns.dom.teacherUploadArea.classList.remove('dragover'));
-        ns.dom.teacherUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            ns.dom.teacherUploadArea.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) handleTeacherFile(e.dataTransfer.files[0]);
-        });
-        ns.dom.teacherFileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) handleTeacherFile(e.target.files[0]);
-        });
+    // Upload wiring (robust: auch wenn DOM-Cache leer ist)
+    {
+        const area = (ns.dom && ns.dom.teacherUploadArea) || document.getElementById('teacherUploadArea');
+        const input = (ns.dom && ns.dom.teacherFileInput) || document.getElementById('teacherFileInput');
+        if (area && input) {
+            area.addEventListener('click', () => input.click());
+
+            const onDragOver = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                } catch {
+                    // ignore
+                }
+                area.classList.add('dragover');
+            };
+            const onDragLeave = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                area.classList.remove('dragover');
+            };
+            const onDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                area.classList.remove('dragover');
+                const files = (e.dataTransfer && e.dataTransfer.files) || null;
+                if (files && files.length > 0) handleTeacherFile(files[0]);
+            };
+
+            area.addEventListener('dragenter', onDragOver);
+            area.addEventListener('dragover', onDragOver);
+            area.addEventListener('dragleave', onDragLeave);
+            area.addEventListener('drop', onDrop);
+
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleTeacherFile(e.target.files[0]);
+            });
+        }
     }
 
     // Global exports für HTML onclick
@@ -391,5 +467,8 @@
     window.importTeacherEmailsFromPaste = ns.importTeacherEmailsFromPaste;
     window.downloadTeacherLehrerTemplateCsv = ns.downloadTeacherLehrerTemplateCsv;
     window.downloadTeacherLehrerTemplateXlsx = ns.downloadTeacherLehrerTemplateXlsx;
+
+    // Tenant-Grundeinstellungen: Lehrerliste optional vorbefüllen (falls vorhanden)
+    loadTenantTeacherEmailsIfEmpty();
 })();
 

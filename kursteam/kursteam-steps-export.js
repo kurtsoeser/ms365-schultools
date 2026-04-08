@@ -81,11 +81,11 @@
         const panel = document.getElementById('panelWebuntis');
         if (!panel) return;
 
-        if (step === 4 || step === 5) {
+        if (step === 5 || step === 5.5 || step === 6) {
             const validTeams = ns.teamsData.filter(t => t.isValid);
             if (!ns.teamsGenerated || validTeams.length === 0) {
                 ns.showToast('Bitte zuerst unter „Teams konfigurieren“ auf „Team-Namen generieren“ klicken (mindestens ein gültiges Team).');
-                step = 3;
+                step = 4;
             }
         }
 
@@ -102,7 +102,7 @@
         contentEl.classList.add('active');
         tabEl.classList.add('active');
 
-        const stepOrder = [0, 1, 2, 2.5, 3, 4, 5];
+        const stepOrder = [0, 1, 2, 2.5, 3, 4, 5, 5.5, 6];
         const currentIndex = stepOrder.indexOf(step);
         if (currentIndex >= 0) {
             for (let i = 0; i < currentIndex; i++) {
@@ -116,8 +116,13 @@
         const hint = document.getElementById('manualKursteamHint');
         if (hint) hint.style.display = step === 2 && ns.kursteamEntryMode === 'manual' ? 'block' : 'none';
 
-        if (step === 2.5) ns.updateTeacherStats();
-        if (step === 5) ns.prepareCSVExport();
+        if (step === 2.5) {
+            if (typeof ns.displayEditableData === 'function') ns.displayEditableData();
+            if (typeof ns.displayManualTeamsPreview === 'function') ns.displayManualTeamsPreview();
+        }
+        if (step === 3) ns.updateTeacherStats();
+        if (step === 5.5 && typeof ns.refreshStudentRosterUI === 'function') ns.refreshStudentRosterUI();
+        if (step === 6) ns.prepareCSVExport();
     };
 
     ns.prepareCSVExport = function prepareCSVExport() {

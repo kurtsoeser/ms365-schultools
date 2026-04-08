@@ -1,0 +1,33 @@
+import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
+
+function withTrailingSlash(value) {
+  if (!value) return '/';
+  return value.endsWith('/') ? value : `${value}/`;
+}
+
+export default defineConfig(() => {
+  // For GitHub Pages Project Pages set VITE_BASE="/<repo-name>/"
+  const base = withTrailingSlash(process.env.VITE_BASE || '/');
+
+  return {
+    base,
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'index.html'),
+          schooltool: resolve(__dirname, 'ms365-schooltool.html'),
+          tenant: resolve(__dirname, 'tenant.html'),
+          help: resolve(__dirname, 'hilfe.html'),
+          kursteams: resolve(__dirname, 'tools/kursteams.html'),
+          jahrgang: resolve(__dirname, 'tools/jahrgang.html'),
+          arge: resolve(__dirname, 'tools/arge.html'),
+          gruppenerstellung: resolve(__dirname, 'tools/gruppenerstellung.html')
+        }
+      }
+    }
+  };
+});
+

@@ -69,6 +69,42 @@
         .choice h2 { margin: 0 0 8px; font-size: 1.1em; color: #32325d; }
         .choice p { margin: 0 0 14px; color: #495057; line-height: 1.4; flex: 1; }
         .choice .btn { align-self: flex-start; margin-top: auto; }
+        .choice.featured {
+            grid-column: 1 / -1;
+            border: 1px solid rgba(94, 114, 228, 0.25);
+            background: linear-gradient(180deg, rgba(94, 114, 228, 0.10) 0%, rgba(130, 94, 228, 0.06) 100%);
+            box-shadow: 0 12px 34px rgba(50, 50, 93, 0.14);
+        }
+        .choice.featured h2 {
+            font-size: 1.2em;
+        }
+        .choice.featured .btn {
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+        }
+        .choice .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 14px;
+            padding: 0;
+            list-style: none;
+        }
+        .choice .stat-pill {
+            display: inline-flex;
+            gap: 6px;
+            align-items: baseline;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid #e9ecef;
+            color: #495057;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        .choice .stat-pill strong {
+            font-weight: 900;
+            color: #32325d;
+        }
         .choice-placeholder {
             border-style: dashed;
             border-color: #ced4da;
@@ -118,6 +154,16 @@
         <main>
             <p class="dashboard-intro">Dashboard: Wählen Sie ein Werkzeug. Weitere Kacheln können später befüllt werden.</p>
             <div class="grid" role="list" aria-label="Werkzeuge und Platzhalter">
+                <section class="choice featured" role="listitem" aria-label="Tenant-Grundeinstellungen">
+                    <h2>Tenant‑Grundeinstellungen</h2>
+                    <p>Gemeinsame Basisdaten (lokal im Browser) für die Tools. Hier pflegst du Domain, Fächer, Lehrkräfte und optional Schüler.</p>
+                    <ul class="stats" aria-label="Tenant-Statistiken">
+                        <li class="stat-pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
+                        <li class="stat-pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
+                        <li class="stat-pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
+                    </ul>
+                    <a class="btn" href="tenant.html">Tenant‑Einstellungen öffnen</a>
+                </section>
                 <section class="choice" role="listitem">
                     <h2>Kursteams</h2>
                     <p>Import der <strong>WebUntis-Fächerliste</strong> (CSV/Excel), optional manuelle Zeilen. Teams (Vorlage <code>EDU_Class</code>) vorbereiten und online oder per PowerShell anlegen.</p>
@@ -167,5 +213,37 @@
             <p class="note">Tipp: Unter GitHub Pages ist diese Seite die Root-URL des Repos (z. B. <code>kurtsoeser.github.io/ms365-schultools/</code>).</p>
         </main>
     </div>
+
+    <script src="ms365-config.js"></script>
+    <script src="school-domain.js" defer></script>
+    <script src="tenant-settings.js" defer></script>
+    <script>
+        (function () {
+            'use strict';
+            const elSubjects = document.getElementById('tenantStatSubjects');
+            const elTeachers = document.getElementById('tenantStatTeachers');
+            const elStudents = document.getElementById('tenantStatStudents');
+            if (!elSubjects || !elTeachers || !elStudents) return;
+
+            function render() {
+                if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
+                const s = window.ms365TenantSettingsLoad();
+                const subjects = (s && s.subjects) || [];
+                const teachers = (s && s.teachers) || [];
+                const students = (s && s.students) || [];
+                elSubjects.textContent = String(subjects.length);
+                elTeachers.textContent = String(teachers.length);
+                elStudents.textContent = String(students.length);
+                return true;
+            }
+
+            // Tenant-Scripts laden ggf. nach (Loader). Kurz poll'en und dann anzeigen.
+            let tries = 0;
+            const t = setInterval(() => {
+                tries++;
+                if (render() || tries > 30) clearInterval(t);
+            }, 100);
+        })();
+    </script>
 </body>
 </html>

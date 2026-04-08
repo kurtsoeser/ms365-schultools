@@ -12,6 +12,32 @@ Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal
 2. `ms365-schooltool.html` im Browser öffnen **oder** ein statisches Hosting nutzen (z. B. GitHub Pages).
 3. Oben zwischen **Kursteams**, **Jahrgangsgruppen** und **ARGEs** wählen.
 
+## Entwicklung & Hosting (Vite + GitHub Pages)
+
+Dieses Repo ist eine **statische Multi-Page-App**. Für lokale Entwicklung und für GitHub Pages kann Vite verwendet werden.
+
+### Lokal starten
+
+```bash
+npm install
+npm run dev
+```
+
+### Build (für GitHub Pages)
+
+```bash
+npm run build
+```
+
+Für **GitHub Pages Project Pages** (URL `https://<user>.github.io/<repo>/`) setzt der Workflow automatisch `VITE_BASE="/<repo>/"`.
+Lokal wird standardmäßig `/` verwendet.
+
+### Hinweis zu `ms365-config.js`
+
+`ms365-config.js` ist eine **Runtime-Konfiguration** (Client-ID/Redirect-URI) und wird als normale Datei mit deployed.
+Wenn Sie die Client-ID nicht öffentlich im Repo haben möchten, löschen Sie `ms365-config.js` aus dem Repo und legen Sie sie
+in Ihrem Deployment (Pages/Hosting) separat ab – dann muss die Datei weiterhin im Root erreichbar sein.
+
 ### Modus A: Kursteams
 
 1. Fächerliste exportieren und durch die Schritte in der App führen.

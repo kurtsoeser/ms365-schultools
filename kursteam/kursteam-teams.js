@@ -3,12 +3,137 @@
 
     const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
-    ns.applyFilters = function applyFilters() {
-        const excludeSubjects = document
-            .getElementById('excludeSubjects')
-            .value.split(',')
-            .map(s => s.trim().toUpperCase())
+    function normalizeSubjectToken(s) {
+        return String(s || '').trim().toUpperCase();
+    }
+
+    function parseExcludeSubjectsFromInput() {
+        const el = document.getElementById('excludeSubjects');
+        if (!el) return [];
+        return String(el.value || '')
+            .split(',')
+            .map(normalizeSubjectToken)
             .filter(s => s.length > 0);
+    }
+
+    function setExcludeSubjectsInput(tokens) {
+        const el = document.getElementById('excludeSubjects');
+        if (!el) return;
+        const uniq = Array.from(new Set((tokens || []).map(normalizeSubjectToken).filter(Boolean)));
+        uniq.sort((a, b) => a.localeCompare(b, 'de'));
+        el.value = uniq.join(',');
+    }
+
+    function collectAvailableSubjectsFromRawData() {
+        const set = new Set();
+        (ns.rawData || []).forEach(r => {
+            const t = normalizeSubjectToken(r && r.fach);
+            if (t) set.add(t);
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
+    }
+
+    function updateSubjectFilterSummary(available, excluded) {
+        const el = document.getElementById('subjectFilterSummary');
+        if (!el) return;
+        const a = available.length;
+        const e = excluded.length;
+        if (!a) {
+            el.textContent = 'Noch keine Daten: Importieren Sie zuerst Zeilen in Schritt 1 oder fügen Sie manuell Unterrichtszeilen hinzu.';
+            return;
+        }
+        el.textContent = `${a} Fach/Fächer erkannt. ${e} ausgeschlossen.`;
+    }
+
+    function applySearchToSubjectList(query) {
+        const q = normalizeSubjectToken(query);
+        const list = document.getElementById('subjectFilterList');
+        if (!list) return;
+        Array.from(list.querySelectorAll('[data-subject]')).forEach(node => {
+            const subj = String(node.getAttribute('data-subject') || '');
+            node.style.display = !q || subj.includes(q) ? '' : 'none';
+        });
+    }
+
+    function wireSubjectFilterEventsOnce() {
+        if (wireSubjectFilterEventsOnce._wired) return;
+        wireSubjectFilterEventsOnce._wired = true;
+
+        const search = document.getElementById('subjectFilterSearch');
+        if (search) {
+            search.addEventListener('input', () => applySearchToSubjectList(search.value));
+        }
+
+        const btnNone = document.getElementById('subjectFilterExcludeNone');
+        if (btnNone) {
+            btnNone.addEventListener('click', () => {
+                setExcludeSubjectsInput([]);
+                ns.refreshSubjectFilterUI();
+            });
+        }
+
+        const btnAll = document.getElementById('subjectFilterExcludeAll');
+        if (btnAll) {
+            btnAll.addEventListener('click', () => {
+                setExcludeSubjectsInput(collectAvailableSubjectsFromRawData());
+                ns.refreshSubjectFilterUI();
+            });
+        }
+
+        const btnDefault = document.getElementById('subjectFilterResetDefault');
+        if (btnDefault) {
+            btnDefault.addEventListener('click', () => {
+                setExcludeSubjectsInput(['ORD', 'DIR', 'KV']);
+                ns.refreshSubjectFilterUI();
+            });
+        }
+
+        const input = document.getElementById('excludeSubjects');
+        if (input) {
+            input.addEventListener('input', () => ns.refreshSubjectFilterUI());
+        }
+    }
+
+    ns.refreshSubjectFilterUI = function refreshSubjectFilterUI() {
+        const list = document.getElementById('subjectFilterList');
+        const search = document.getElementById('subjectFilterSearch');
+        if (!list) return;
+
+        wireSubjectFilterEventsOnce();
+
+        const available = collectAvailableSubjectsFromRawData();
+        const excluded = new Set(parseExcludeSubjectsFromInput());
+
+        list.replaceChildren();
+        available.forEach(subj => {
+            const label = document.createElement('label');
+            label.className = 'subject-filter-item';
+            label.setAttribute('data-subject', subj);
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = excluded.has(subj); // checked = ausgeschlossen
+            cb.addEventListener('change', () => {
+                const current = new Set(parseExcludeSubjectsFromInput());
+                if (cb.checked) current.add(subj);
+                else current.delete(subj);
+                setExcludeSubjectsInput(Array.from(current));
+                updateSubjectFilterSummary(available, Array.from(current));
+            });
+
+            const text = document.createElement('code');
+            text.textContent = subj;
+
+            label.append(cb, text);
+            list.appendChild(label);
+        });
+
+        updateSubjectFilterSummary(available, Array.from(excluded));
+        if (search) applySearchToSubjectList(search.value);
+    };
+
+    ns.applyFilters = function applyFilters() {
+        const excludeSubjects = parseExcludeSubjectsFromInput();
         const removeDuplicates = document.getElementById('removeDuplicates').checked;
 
         let filtered = ns.rawData.filter(row => {
@@ -45,13 +170,6 @@
         tbody.replaceChildren();
         ns.filteredData.forEach((row, index) => {
             const tr = document.createElement('tr');
-            const td0 = document.createElement('td');
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-small btn-danger';
-            btn.textContent = '❌';
-            btn.addEventListener('click', () => ns.removeRow(index));
-            td0.appendChild(btn);
             const td1 = document.createElement('td');
             td1.textContent = row.klasse;
             const td2 = document.createElement('td');
@@ -60,12 +178,292 @@
             td3.textContent = row.lehrer;
             const td4 = document.createElement('td');
             td4.textContent = row.gruppe || '-';
-            tr.append(td0, td1, td2, td3, td4);
+            const tdAction = document.createElement('td');
+            tdAction.className = 'kt-action-col';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-small btn-danger kt-delete-btn';
+            btn.textContent = 'X';
+            btn.title = 'Zeile löschen';
+            btn.setAttribute('aria-label', 'Zeile löschen');
+            btn.addEventListener('click', () => ns.removeRow(index));
+            tdAction.appendChild(btn);
+
+            tr.append(td1, td2, td3, td4, tdAction);
             tbody.appendChild(tr);
         });
         const hasRows = ns.filteredData.length > 0;
         document.getElementById('dataTableContainer').style.display = hasRows ? 'block' : 'none';
         document.getElementById('continueBtn2').style.display = hasRows ? 'inline-block' : 'none';
+    };
+
+    function setCellEditMode(td, rowId, field) {
+        if (!td || td.dataset.editing === '1') return;
+        td.dataset.editing = '1';
+
+        const originalText = td.textContent;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = originalText === '-' ? '' : originalText;
+        input.style.width = '100%';
+        input.style.padding = '6px 8px';
+        input.style.border = '1px solid #ced4da';
+        input.style.borderRadius = '6px';
+        input.style.fontSize = '0.95em';
+        input.style.boxSizing = 'border-box';
+
+        td.replaceChildren(input);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+            const val = input.value.trim();
+            ns.updateDataRowField(rowId, field, val);
+            td.dataset.editing = '0';
+            td.textContent = val || (field === 'gruppe' ? '-' : '');
+            if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
+        };
+        const cancel = () => {
+            td.dataset.editing = '0';
+            td.textContent = originalText;
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                commit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+            }
+        });
+        input.addEventListener('blur', commit);
+    }
+
+    ns.updateDataRowField = function updateDataRowField(rowId, field, value) {
+        const idx = ns.filteredData.findIndex(r => r && r.id === rowId);
+        if (idx >= 0) {
+            ns.filteredData[idx][field] = value;
+        }
+        const ridx = ns.rawData.findIndex(r => r && r.id === rowId);
+        if (ridx >= 0) {
+            ns.rawData[ridx][field] = value;
+        }
+        ns.invalidateTeams();
+    };
+
+    function normFilterToken(s) {
+        return String(s || '').trim().toUpperCase();
+    }
+
+    function getManualFilterState() {
+        return {
+            klasse: normFilterToken(document.getElementById('manualFilterKlasse')?.value),
+            fach: normFilterToken(document.getElementById('manualFilterFach')?.value),
+            lehrer: normFilterToken(document.getElementById('manualFilterLehrer')?.value)
+        };
+    }
+
+    function clearManualFilterInputs() {
+        const k = document.getElementById('manualFilterKlasse');
+        const f = document.getElementById('manualFilterFach');
+        const l = document.getElementById('manualFilterLehrer');
+        if (k) k.value = '';
+        if (f) f.value = '';
+        if (l) l.value = '';
+    }
+
+    function ensureManualSortState() {
+        if (!ns.manualSort) ns.manualSort = { key: 'klasse', dir: 1 };
+    }
+
+    function applyManualFiltersAndSort() {
+        ensureManualSortState();
+        const filters = getManualFilterState();
+        const out = [];
+        ns.filteredData.forEach((row, index) => {
+            const klasse = normFilterToken(row.klasse);
+            const fach = normFilterToken(row.fach);
+            const lehrer = normFilterToken(row.lehrer);
+            if (filters.klasse && !klasse.includes(filters.klasse)) return;
+            if (filters.fach && !fach.includes(filters.fach)) return;
+            if (filters.lehrer && !lehrer.includes(filters.lehrer)) return;
+            out.push({ row, index });
+        });
+
+        const key = ns.manualSort?.key;
+        const dir = ns.manualSort?.dir || 1;
+        if (key) {
+            out.sort((a, b) => {
+                const av = normFilterToken(a.row[key] || '');
+                const bv = normFilterToken(b.row[key] || '');
+                const cmp = av.localeCompare(bv, 'de');
+                if (cmp !== 0) return cmp * dir;
+                // stabile Zweitsortierung: id
+                return (a.row.id > b.row.id ? 1 : a.row.id < b.row.id ? -1 : 0) * dir;
+            });
+        }
+        return out;
+    }
+
+    function updateManualSortIndicators() {
+        const table = document.getElementById('editableDataTable');
+        if (!table) return;
+        const ths = table.querySelectorAll('th[data-sort-key]');
+        ths.forEach(th => {
+            const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+            th.dataset.label = label;
+            th.textContent = label;
+            if (ns.manualSort && th.dataset.sortKey === ns.manualSort.key) {
+                const ind = document.createElement('span');
+                ind.className = 'kt-sort-indicator';
+                ind.textContent = ns.manualSort.dir === -1 ? '▼' : '▲';
+                th.appendChild(ind);
+            }
+        });
+    }
+
+    function wireManualSortAndFilterOnce() {
+        if (wireManualSortAndFilterOnce._wired) return;
+        wireManualSortAndFilterOnce._wired = true;
+
+        const table = document.getElementById('editableDataTable');
+        if (table) {
+            table.querySelectorAll('th[data-sort-key]').forEach(th => {
+                th.addEventListener('click', () => {
+                    ensureManualSortState();
+                    const k = th.dataset.sortKey;
+                    if (ns.manualSort.key === k) ns.manualSort.dir = ns.manualSort.dir === 1 ? -1 : 1;
+                    else ns.manualSort = { key: k, dir: 1 };
+                    ns.displayEditableData();
+                });
+            });
+        }
+
+        const onInput = () => ns.displayEditableData();
+        const k = document.getElementById('manualFilterKlasse');
+        const f = document.getElementById('manualFilterFach');
+        const l = document.getElementById('manualFilterLehrer');
+        if (k) k.addEventListener('input', onInput);
+        if (f) f.addEventListener('input', onInput);
+        if (l) l.addEventListener('input', onInput);
+
+        const reset = document.getElementById('manualFilterReset');
+        if (reset) {
+            reset.addEventListener('click', () => {
+                clearManualFilterInputs();
+                ns.displayEditableData();
+            });
+        }
+    }
+
+    ns.displayEditableData = function displayEditableData() {
+        const container = document.getElementById('editableDataTableContainer');
+        const tbody = document.getElementById('editableDataTableBody');
+        if (!container || !tbody) return;
+
+        wireManualSortAndFilterOnce();
+
+        tbody.replaceChildren();
+        const view = applyManualFiltersAndSort();
+        view.forEach(({ row, index }) => {
+            const tr = document.createElement('tr');
+
+            const tdKlasse = document.createElement('td');
+            tdKlasse.textContent = row.klasse || '';
+            tdKlasse.addEventListener('dblclick', () => setCellEditMode(tdKlasse, row.id, 'klasse'));
+
+            const tdFach = document.createElement('td');
+            tdFach.textContent = row.fach || '';
+            tdFach.addEventListener('dblclick', () => setCellEditMode(tdFach, row.id, 'fach'));
+
+            const tdLehrer = document.createElement('td');
+            tdLehrer.textContent = row.lehrer || '';
+            tdLehrer.addEventListener('dblclick', () => setCellEditMode(tdLehrer, row.id, 'lehrer'));
+
+            const tdGruppe = document.createElement('td');
+            tdGruppe.textContent = row.gruppe ? row.gruppe : '-';
+            tdGruppe.addEventListener('dblclick', () => setCellEditMode(tdGruppe, row.id, 'gruppe'));
+
+            const tdAction = document.createElement('td');
+            tdAction.className = 'kt-action-col';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-small btn-danger kt-delete-btn';
+            btn.textContent = 'X';
+            btn.title = 'Zeile löschen';
+            btn.setAttribute('aria-label', 'Zeile löschen');
+            btn.addEventListener('click', () => {
+                ns.removeRow(index);
+                ns.displayEditableData();
+            });
+            tdAction.appendChild(btn);
+
+            tr.append(tdKlasse, tdFach, tdLehrer, tdGruppe, tdAction);
+            tbody.appendChild(tr);
+        });
+
+        container.style.display = view.length ? 'block' : 'none';
+        updateManualSortIndicators();
+    };
+
+    ns.displayManualTeamsPreview = function displayManualTeamsPreview() {
+        const wrap = document.getElementById('manualTeamsPreviewContainer');
+        const body = document.getElementById('manualTeamsPreviewBody');
+        if (!wrap || !body) return;
+
+        if (!ns.teamsGenerated || !Array.isArray(ns.teamsData) || ns.teamsData.length === 0) {
+            wrap.style.display = 'none';
+            body.replaceChildren();
+            return;
+        }
+
+        body.replaceChildren();
+        ns.teamsData.forEach(team => {
+            const tr = document.createElement('tr');
+            const td1 = document.createElement('td');
+            td1.textContent = team.teamName;
+            const td2 = document.createElement('td');
+            td2.textContent = team.gruppenmail;
+            const td3 = document.createElement('td');
+            td3.textContent = team.besitzer;
+            const td4 = document.createElement('td');
+            td4.textContent = team.isValid ? '✅' : '❌';
+            tr.append(td1, td2, td3, td4);
+            body.appendChild(tr);
+        });
+        wrap.style.display = 'block';
+    };
+
+    ns.addManualDataRowInline = function addManualDataRowInline() {
+        const id = Date.now() + Math.random();
+        const row = {
+            id,
+            klasse: '',
+            fach: '',
+            lehrer: '',
+            gruppe: '',
+            original: { manualInline: true }
+        };
+        ns.rawData.push(row);
+        ns.filteredData.push(row);
+        ns.kursteamEntryMode = ns.kursteamEntryMode === 'unset' ? 'manual' : ns.kursteamEntryMode;
+        ns.invalidateTeams();
+        if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
+        clearManualFilterInputs();
+        if (typeof ns.displayEditableData === 'function') ns.displayEditableData();
+
+        // Fokus: erste bearbeitbare Zelle der neu hinzugefügten Zeile
+        try {
+            const tbody = document.getElementById('editableDataTableBody');
+            const lastRow = tbody ? tbody.lastElementChild : null;
+            if (lastRow && lastRow.children && lastRow.children.length >= 1) {
+                const tdKlasse = lastRow.children[0];
+                setCellEditMode(tdKlasse, id, 'klasse');
+            }
+        } catch (e) {
+            /* ignore */
+        }
     };
 
     ns.removeRow = function removeRow(index) {
@@ -75,8 +473,10 @@
             const ri = ns.rawData.findIndex(r => r.id === row.id);
             if (ri >= 0) ns.rawData.splice(ri, 1);
         }
+        if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         ns.invalidateTeams();
         ns.displayFilteredData();
+        if (ns.currentStep === 2.5 && typeof ns.displayEditableData === 'function') ns.displayEditableData();
         document.getElementById('filteredRecords').textContent = ns.filteredData.length;
     };
 
@@ -97,6 +497,7 @@
         if (fi) fi.value = '';
         ns.invalidateTeams();
         ns.goToStep(2);
+        if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         document.getElementById('filterStats').style.display = 'none';
         document.getElementById('dataTableContainer').style.display = 'none';
         document.getElementById('continueBtn2').style.display = 'none';
@@ -132,6 +533,7 @@
                 ns.rawData.push(row);
                 ns.filteredData.push(row);
                 ns.kursteamEntryMode = ns.kursteamEntryMode === 'unset' ? 'manual' : ns.kursteamEntryMode;
+                if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
                 ns.invalidateTeams();
                 ns.closeModal();
                 document.getElementById('filteredRecords').textContent = ns.filteredData.length;
@@ -143,9 +545,195 @@
 
     ns.resetFilters = function resetFilters() {
         ns.filteredData = [...ns.rawData];
-        document.getElementById('excludeSubjects').value = 'ORD,DIR,KV';
+        setExcludeSubjectsInput(['ORD', 'DIR', 'KV']);
         document.getElementById('removeDuplicates').checked = true;
+        if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         ns.applyFilters();
+    };
+
+    function defaultTeamNamePattern() {
+        return [
+            { type: 'yearPrefix' },
+            { type: 'text', value: ' | ' },
+            { type: 'klasse' },
+            { type: 'text', value: ' | ' },
+            { type: 'fach' }
+        ];
+    }
+
+    function normalizePattern(pattern) {
+        const arr = Array.isArray(pattern) ? pattern : [];
+        const out = [];
+        arr.forEach(p => {
+            if (!p || typeof p !== 'object') return;
+            const type = String(p.type || '').trim();
+            if (!type) return;
+            if (type === 'text') {
+                out.push({ type: 'text', value: String(p.value ?? '') });
+            } else if (type === 'yearPrefix' || type === 'klasse' || type === 'fach' || type === 'gruppe') {
+                out.push({ type });
+            }
+        });
+        return out.length ? out : defaultTeamNamePattern();
+    }
+
+    function buildTeamNameFromPattern(pattern, ctx) {
+        const parts = [];
+        normalizePattern(pattern).forEach(p => {
+            if (p.type === 'text') parts.push(String(p.value ?? ''));
+            else if (p.type === 'yearPrefix') parts.push(String(ctx.yearPrefix ?? ''));
+            else if (p.type === 'klasse') parts.push(String(ctx.klasse ?? ''));
+            else if (p.type === 'fach') parts.push(String(ctx.fach ?? ''));
+            else if (p.type === 'gruppe') parts.push(String(ctx.gruppe ?? ''));
+        });
+        return parts.join('');
+    }
+
+    function tokenLabel(t) {
+        if (t.type === 'yearPrefix') return 'Schuljahr';
+        if (t.type === 'klasse') return 'Klasse';
+        if (t.type === 'fach') return 'Fach';
+        if (t.type === 'gruppe') return 'Gruppe';
+        if (t.type === 'text') return `Text`;
+        return t.type;
+    }
+
+    function getPatternFromBuilder() {
+        const zone = document.getElementById('teamNameBuilder');
+        if (!zone) return normalizePattern(ns.teamNamePattern);
+        const tokens = [];
+        zone.querySelectorAll('[data-token-type]').forEach(el => {
+            const type = String(el.getAttribute('data-token-type') || '');
+            if (type === 'text') tokens.push({ type: 'text', value: String(el.getAttribute('data-token-value') || '') });
+            else tokens.push({ type });
+        });
+        return normalizePattern(tokens);
+    }
+
+    function setPreviewFromPattern(pattern) {
+        const el = document.getElementById('teamNamePreview');
+        if (!el) return;
+        const yearPrefix = document.getElementById('yearPrefix')?.value || 'WS24';
+        const preview = buildTeamNameFromPattern(pattern, { yearPrefix, klasse: '1AK', fach: 'D', gruppe: 'G1' });
+        el.textContent = 'Vorschau: ' + preview;
+    }
+
+    function wireBuilderDnD(zone) {
+        let dragEl = null;
+        zone.addEventListener('dragstart', (e) => {
+            const target = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
+            if (!target) return;
+            dragEl = target;
+            target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        zone.addEventListener('dragend', () => {
+            if (dragEl) dragEl.classList.remove('dragging');
+            dragEl = null;
+        });
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const over = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
+            if (!dragEl || !over || over === dragEl) return;
+            const rect = over.getBoundingClientRect();
+            const after = e.clientX > rect.left + rect.width / 2;
+            if (after) over.after(dragEl);
+            else over.before(dragEl);
+        });
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            ns.teamNamePattern = getPatternFromBuilder();
+            setPreviewFromPattern(ns.teamNamePattern);
+        });
+    }
+
+    function addChip(zone, token) {
+        const chip = document.createElement('span');
+        chip.className = 'name-chip';
+        chip.draggable = true;
+        chip.setAttribute('data-token-type', token.type);
+        if (token.type === 'text') chip.setAttribute('data-token-value', String(token.value ?? ''));
+
+        const txt = document.createElement('span');
+        if (token.type === 'text') {
+            const v = String(token.value ?? '');
+            txt.textContent = v === '' ? '(leer)' : v;
+        } else {
+            txt.textContent = tokenLabel(token);
+        }
+
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'chip-x';
+        x.textContent = '✕';
+        x.title = 'Baustein entfernen';
+        x.addEventListener('click', () => {
+            chip.remove();
+            ns.teamNamePattern = getPatternFromBuilder();
+            setPreviewFromPattern(ns.teamNamePattern);
+        });
+
+        chip.append(txt, x);
+        zone.appendChild(chip);
+    }
+
+    function wireNameBuilderOnce() {
+        if (wireNameBuilderOnce._wired) return;
+        wireNameBuilderOnce._wired = true;
+
+        const zone = document.getElementById('teamNameBuilder');
+        if (!zone) return;
+
+        wireBuilderDnD(zone);
+
+        const btnSep = document.getElementById('teamNameAddSep');
+        if (btnSep) {
+            btnSep.addEventListener('click', () => {
+                const v = document.getElementById('teamNameSepValue')?.value;
+                addChip(zone, { type: 'text', value: String(v ?? '') });
+                ns.teamNamePattern = getPatternFromBuilder();
+                setPreviewFromPattern(ns.teamNamePattern);
+            });
+        }
+        const btnText = document.getElementById('teamNameAddText');
+        if (btnText) {
+            btnText.addEventListener('click', () => {
+                const v = document.getElementById('teamNameTextValue')?.value;
+                addChip(zone, { type: 'text', value: String(v ?? '') });
+                ns.teamNamePattern = getPatternFromBuilder();
+                setPreviewFromPattern(ns.teamNamePattern);
+            });
+        }
+        const btnReset = document.getElementById('teamNameResetDefault');
+        if (btnReset) {
+            btnReset.addEventListener('click', () => {
+                ns.teamNamePattern = defaultTeamNamePattern();
+                ns.renderTeamNameBuilder();
+            });
+        }
+
+        document.querySelectorAll('[data-teamname-token]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = String(btn.getAttribute('data-teamname-token') || '').trim();
+                if (!type) return;
+                addChip(zone, { type });
+                ns.teamNamePattern = getPatternFromBuilder();
+                setPreviewFromPattern(ns.teamNamePattern);
+            });
+        });
+
+        const yp = document.getElementById('yearPrefix');
+        if (yp) yp.addEventListener('input', () => setPreviewFromPattern(getPatternFromBuilder()));
+    }
+
+    ns.renderTeamNameBuilder = function renderTeamNameBuilder() {
+        const zone = document.getElementById('teamNameBuilder');
+        if (!zone) return;
+        wireNameBuilderOnce();
+        const pattern = normalizePattern(ns.teamNamePattern);
+        zone.replaceChildren();
+        pattern.forEach(t => addChip(zone, t));
+        setPreviewFromPattern(pattern);
     };
 
     ns.generateTeamNames = function generateTeamNames() {
@@ -154,13 +742,17 @@
             typeof window.ms365GetTeacherEmailDomainSuffix === 'function'
                 ? window.ms365GetTeacherEmailDomainSuffix()
                 : '@';
-        const separator = document.getElementById('teamSeparator').value;
+        const separator = document.getElementById('teamSeparator') ? document.getElementById('teamSeparator').value : ' | ';
+        // Pattern: aus Builder lesen (falls vorhanden), ansonsten Fallback auf alten Separator-Ansatz
+        const pattern = document.getElementById('teamNameBuilder') ? getPatternFromBuilder() : null;
 
         ns.teamsData = ns.filteredData.map(row => {
             let klasseForName = row.klasse;
             if (row.klasse.includes(',')) klasseForName = ns.combineClassNames(row.klasse);
 
-            const teamName = `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
+            const teamName = pattern
+                ? buildTeamNameFromPattern(pattern, { yearPrefix, klasse: klasseForName, fach: row.fach, gruppe: row.gruppe })
+                : `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
             const gruppenmailRaw = ns.buildGruppenmailBase(yearPrefix, klasseForName, row.fach, row.gruppe).replace(/\s+/g, '-');
 
             const originalGruppenmail = gruppenmailRaw;
@@ -210,12 +802,53 @@
         const dupAdj = ns.teamsData.filter(t => t.mailNicknameAdjusted).length;
         document.getElementById('duplicateMailAdjustments').textContent = dupAdj;
 
-        ns.teamsData.forEach((team, index) => {
+        if (!ns.teamsSort) ns.teamsSort = { key: 'teamName', dir: 1 };
+
+        const getSortVal = (t, key) => {
+            if (key === 'status') return t.isValid ? '1' : '0';
+            return String(t[key] ?? '').toUpperCase();
+        };
+
+        const view = ns.teamsData
+            .map((team, index) => ({ team, index }))
+            .sort((a, b) => {
+                const ak = getSortVal(a.team, ns.teamsSort.key);
+                const bk = getSortVal(b.team, ns.teamsSort.key);
+                const cmp = ak.localeCompare(bk, 'de');
+                if (cmp !== 0) return cmp * ns.teamsSort.dir;
+                return (a.index - b.index) * ns.teamsSort.dir;
+            });
+
+        const table = document.getElementById('teamsTableContainer');
+        const ths = table ? table.querySelectorAll('th[data-teams-sort-key]') : [];
+        ths.forEach(th => {
+            const base = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+            th.dataset.label = base;
+            th.textContent = base;
+            if (th.dataset.teamsSortKey === ns.teamsSort.key) {
+                const ind = document.createElement('span');
+                ind.className = 'kt-sort-indicator';
+                ind.textContent = ns.teamsSort.dir === -1 ? '▼' : '▲';
+                th.appendChild(ind);
+            }
+            if (!th.dataset.wired) {
+                th.dataset.wired = '1';
+                th.addEventListener('click', () => {
+                    const k = th.dataset.teamsSortKey;
+                    if (ns.teamsSort.key === k) ns.teamsSort.dir = ns.teamsSort.dir === 1 ? -1 : 1;
+                    else ns.teamsSort = { key: k, dir: 1 };
+                    ns.displayTeamsData();
+                });
+            }
+        });
+
+        view.forEach(({ team, index }) => {
             const tr = document.createElement('tr');
             if (!team.isValid) tr.classList.add('error-row');
 
             const td1 = document.createElement('td');
             td1.appendChild(document.createTextNode(team.teamName));
+            td1.addEventListener('dblclick', () => ns.editTeam(index));
             if (team.originalClass && team.originalClass.includes(',')) {
                 td1.appendChild(document.createElement('br'));
                 const small = document.createElement('small');
@@ -226,6 +859,7 @@
 
             const td2 = document.createElement('td');
             td2.appendChild(document.createTextNode(team.gruppenmail));
+            td2.addEventListener('dblclick', () => ns.editTeam(index));
             if (team.mailNicknameAdjusted) {
                 td2.appendChild(document.createElement('br'));
                 const small = document.createElement('small');
@@ -243,6 +877,7 @@
 
             const td3 = document.createElement('td');
             td3.appendChild(document.createTextNode(team.besitzer));
+            td3.addEventListener('dblclick', () => ns.editTeam(index));
             td3.appendChild(document.createElement('br'));
             const smallM = document.createElement('small');
             smallM.style.color = team.mappingUsed ? '#28a745' : '#ffc107';
@@ -251,6 +886,7 @@
 
             const td4 = document.createElement('td');
             td4.textContent = team.isValid ? '✅' : '❌ ' + (team.error || 'Fehler');
+            td4.addEventListener('dblclick', () => ns.editTeam(index));
 
             const td5 = document.createElement('td');
             const b1 = document.createElement('button');
@@ -290,9 +926,10 @@
             document.getElementById('validationResults').appendChild(warning);
         }
 
-        document.getElementById('validationResults').style.display = 'block';
         document.getElementById('teamsTableContainer').style.display = 'block';
-        document.getElementById('continueBtn3').style.display = 'inline-block';
+        document.getElementById('validationResults').style.display = 'block';
+        const cont = document.getElementById('continueBtn4') || document.getElementById('continueBtn3');
+        if (cont) cont.style.display = 'inline-block';
     };
 
     ns.editTeam = function editTeam(index) {
@@ -373,9 +1010,14 @@
     window.startKursteamFromWebuntis = ns.startKursteamFromWebuntis;
     window.startKursteamManual = ns.startKursteamManual;
     window.addManualDataRow = ns.addManualDataRow;
+    window.addManualDataRowInline = ns.addManualDataRowInline;
     window.applyFilters = ns.applyFilters;
     window.resetFilters = ns.resetFilters;
     window.generateTeamNames = ns.generateTeamNames;
     window.addManualKursteamTeam = ns.addManualKursteamTeam;
+
+    // Beim initialen Laden einmal aufbauen (falls Schritt 2 schon gerendert ist)
+    if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
+    if (typeof ns.renderTeamNameBuilder === 'function') ns.renderTeamNameBuilder();
 })();
 

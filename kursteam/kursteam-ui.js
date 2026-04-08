@@ -61,7 +61,12 @@
         ns.teamsGenerated = false;
         document.getElementById('teamsTableContainer').style.display = 'none';
         document.getElementById('validationResults').style.display = 'none';
-        document.getElementById('continueBtn3').style.display = 'none';
+        const preview = document.getElementById('manualTeamsPreviewContainer');
+        if (preview) preview.style.display = 'none';
+        const c4 = document.getElementById('continueBtn4');
+        const c3 = document.getElementById('continueBtn3');
+        if (c4) c4.style.display = 'none';
+        if (c3) c3.style.display = 'none';
     };
 
     // Modal wiring

@@ -1,5 +1,254 @@
 <!DOCTYPE html>
 <html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt. Entra: Anwendungs-ID (Client). -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050" />
+    <title>MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="app.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const mode = String(params.get('mode') || '').toLowerCase().trim();
+
+        const map = {
+          kursteams: 'tools/kursteams.html',
+          kursteam: 'tools/kursteams.html',
+          webuntis: 'tools/kursteams.html',
+          jahrgang: 'tools/jahrgang.html',
+          arge: 'tools/arge.html',
+          gruppenerstellung: 'tools/gruppenerstellung.html',
+          grouppolicy: 'tools/gruppenerstellung.html'
+        };
+
+        window.location.replace(map[mode] || 'index.html');
+      })();
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0;url=index.html" />
+    </noscript>
+  </head>
+  <body>
+    <div class="container" style="max-width: 1100px">
+      <div class="header">
+        <h1>MS365-Schulverwaltung</h1>
+        <p>Weiterleitung…</p>
+        <p class="header-help-row"><a href="hilfe.html" class="header-help-link">Hilfe &amp; Datenschutz</a></p>
+      </div>
+      <div class="content" style="padding-bottom: 30px">
+        <p style="color: var(--muted); line-height: 1.5">
+          Falls die Weiterleitung nicht funktioniert, öffnen Sie:
+          <a href="index.html">Dashboard</a>, <a href="tools/kursteams.html">Kursteams</a>,
+          <a href="tools/jahrgang.html">Jahrgangsgruppen</a>, <a href="tools/arge.html">ARGEs</a>,
+          <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt. Entra: Anwendungs-ID (Client). -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050" />
+    <title>MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="app.css" />
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const mode = String(params.get('mode') || '').toLowerCase().trim();
+
+        const map = {
+          kursteams: 'tools/kursteams.html',
+          kursteam: 'tools/kursteams.html',
+          webuntis: 'tools/kursteams.html',
+          jahrgang: 'tools/jahrgang.html',
+          arge: 'tools/arge.html',
+          gruppenerstellung: 'tools/gruppenerstellung.html',
+          grouppolicy: 'tools/gruppenerstellung.html'
+        };
+
+        window.location.replace(map[mode] || 'index.html');
+      })();
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0;url=index.html" />
+    </noscript>
+  </head>
+  <body>
+    <div class="container" style="max-width: 1100px">
+      <div class="header">
+        <h1>MS365-Schulverwaltung</h1>
+        <p>Weiterleitung…</p>
+        <p class="header-help-row"><a href="hilfe.html" class="header-help-link">Hilfe &amp; Datenschutz</a></p>
+      </div>
+      <div class="content" style="padding-bottom: 30px">
+        <p style="color: var(--muted); line-height: 1.5">
+          Falls die Weiterleitung nicht funktioniert, öffnen Sie:
+          <a href="index.html">Dashboard</a>, <a href="tools/kursteams.html">Kursteams</a>,
+          <a href="tools/jahrgang.html">Jahrgangsgruppen</a>, <a href="tools/arge.html">ARGEs</a>,
+          <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt. Entra: Anwendungs-ID (Client). -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="app.css">
+    <script>
+        (function () {
+            const p = new URLSearchParams(window.location.search);
+            const modeRaw = (p.get('mode') || '').toLowerCase().trim();
+            const map = {
+                kursteams: 'tools/kursteams.html',
+                kursteam: 'tools/kursteams.html',
+                webuntis: 'tools/kursteams.html',
+                jahrgang: 'tools/jahrgang.html',
+                arge: 'tools/arge.html',
+                gruppenerstellung: 'tools/gruppenerstellung.html',
+                grouppolicy: 'tools/gruppenerstellung.html'
+            };
+            const target = map[modeRaw] || 'index.html';
+            window.location.replace(target);
+        })();
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0;url=index.html">
+    </noscript>
+</head>
+<body>
+    <div class="container" style="max-width:1100px;">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <p>Weiterleitung…</p>
+            <p class="header-help-row"><a href="hilfe.html" class="header-help-link">Hilfe &amp; Datenschutz</a></p>
+        </div>
+        <div class="content" style="padding-bottom:30px;">
+            <p style="color:var(--muted);line-height:1.5;">
+                Falls die Weiterleitung nicht funktioniert, öffnen Sie:
+                <a href="index.html">Dashboard</a>,
+                <a href="tools/kursteams.html">Kursteams</a>,
+                <a href="tools/jahrgang.html">Jahrgangsgruppen</a>,
+                <a href="tools/arge.html">ARGEs</a>,
+                <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt. Entra: Anwendungs-ID (Client). -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="app.css">
+    <script>
+        (function () {
+            const p = new URLSearchParams(window.location.search);
+            const modeRaw = (p.get('mode') || '').toLowerCase().trim();
+            const map = {
+                kursteams: 'tools/kursteams.html',
+                kursteam: 'tools/kursteams.html',
+                webuntis: 'tools/kursteams.html',
+                jahrgang: 'tools/jahrgang.html',
+                arge: 'tools/arge.html',
+                gruppenerstellung: 'tools/gruppenerstellung.html',
+                grouppolicy: 'tools/gruppenerstellung.html'
+            };
+            const target = map[modeRaw] || 'index.html';
+            window.location.replace(target);
+        })();
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0;url=index.html">
+    </noscript>
+</head>
+<body>
+    <div class="container" style="max-width:1100px;">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <p>Weiterleitung…</p>
+            <p class="header-help-row"><a href="hilfe.html" class="header-help-link">Hilfe &amp; Datenschutz</a></p>
+        </div>
+        <div class="content" style="padding-bottom:30px;">
+            <p style="color:var(--muted);line-height:1.5;">
+                Falls die Weiterleitung nicht funktioniert, öffnen Sie:
+                <a href="index.html">Dashboard</a>,
+                <a href="tools/kursteams.html">Kursteams</a>,
+                <a href="tools/jahrgang.html">Jahrgangsgruppen</a>,
+                <a href="tools/arge.html">ARGEs</a>,
+                <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fallback für MSAL, falls ms365-config.js nicht lädt. Entra: Anwendungs-ID (Client). -->
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="app.css">
+    <script>
+        (function () {
+            const p = new URLSearchParams(window.location.search);
+            const modeRaw = (p.get('mode') || '').toLowerCase().trim();
+            const map = {
+                kursteams: 'tools/kursteams.html',
+                kursteam: 'tools/kursteams.html',
+                webuntis: 'tools/kursteams.html',
+                jahrgang: 'tools/jahrgang.html',
+                arge: 'tools/arge.html',
+                gruppenerstellung: 'tools/gruppenerstellung.html',
+                grouppolicy: 'tools/gruppenerstellung.html'
+            };
+            const target = map[modeRaw] || 'index.html';
+            window.location.replace(target);
+        })();
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0;url=index.html">
+    </noscript>
+</head>
+<body>
+    <div class="container" style="max-width:1100px;">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <p>Weiterleitung…</p>
+            <p class="header-help-row"><a href="hilfe.html" class="header-help-link">Hilfe &amp; Datenschutz</a></p>
+        </div>
+        <div class="content" style="padding-bottom:30px;">
+            <p style="color:var(--muted);line-height:1.5;">
+                Falls die Weiterleitung nicht funktioniert, öffnen Sie:
+                <a href="index.html">Dashboard</a>,
+                <a href="tools/kursteams.html">Kursteams</a>,
+                <a href="tools/jahrgang.html">Jahrgangsgruppen</a>,
+                <a href="tools/arge.html">ARGEs</a>,
+                <a href="tools/gruppenerstellung.html">Gruppenerstellung</a>.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -98,6 +347,7 @@
 
         .content {
             padding: 30px;
+            padding-bottom: 110px;
         }
 
         .step-content {
@@ -422,6 +672,14 @@
             background: rgba(255,255,255,0.12);
             border-top: 1px solid rgba(255,255,255,0.2);
         }
+        .bottom-toolbar {
+            position: sticky;
+            bottom: 0;
+            z-index: 20;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            justify-content: center;
+        }
 
         .toolbar .btn {
             margin: 0;
@@ -493,7 +751,7 @@
         @media (max-width: 768px) {
             .header h1 { font-size: 1.35em; }
             .step { min-width: 100px; font-size: 0.8em; padding: 8px 10px; }
-            .content { padding: 16px; }
+            .content { padding: 16px; padding-bottom: 110px; }
             .arge-step1-grid {
                 grid-template-columns: 1fr;
             }
@@ -640,11 +898,6 @@
             <h1>MS365-Schulverwaltung</h1>
             <p>Kursteams, Jahrgangsgruppen, ARGEs und Richtlinie für Gruppenerstellung</p>
             <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
-            <div class="toolbar">
-                <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand des gewählten Modus im Browser speichern">💾 Zwischenstand speichern</button>
-                <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand des gewählten Modus laden">📂 Gespeicherten Stand laden</button>
-                <button type="button" class="btn btn-danger" id="btnClearStorage" title="Gespeicherten Zwischenstand des gewählten Modus löschen">🗑️ Lokalen Speicher löschen</button>
-            </div>
         </div>
 
         <div class="mode-switch" style="padding:14px 20px;background:#eef;text-align:center;border-bottom:1px solid #dee2e6;">
@@ -667,10 +920,12 @@
             <div class="step active" data-step="0">0. Vorgehen</div>
             <div class="step" data-step="1">1. Daten importieren</div>
             <div class="step" data-step="2">2. Daten bereinigen</div>
-            <div class="step" data-step="2.5">3. Lehrer-Emails</div>
-            <div class="step" data-step="3">4. Teams konfigurieren</div>
-            <div class="step" data-step="4">5. Kursteams anlegen</div>
-            <div class="step" data-step="5">6. Optional: CSV &amp; PowerShell</div>
+            <div class="step" data-step="2.5">3. Manuelle Eingabe</div>
+            <div class="step" data-step="3">4. Lehrer zuordnen</div>
+            <div class="step" data-step="4">5. Teams konfigurieren</div>
+            <div class="step" data-step="5">6. Kursteams anlegen</div>
+            <div class="step" data-step="5.5">Optional: Schüler hinzufügen</div>
+            <div class="step" data-step="6">7. Optional: CSV &amp; PowerShell</div>
         </div>
 
         <div class="content">
@@ -688,7 +943,7 @@
                     </div>
                     <div class="kursteam-start-card">
                         <h3>Einzelzeilen (ohne Import)</h3>
-                        <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln in Schritt&nbsp;2 erfassen – für wenige Teams oder zum Ergänzen.</p>
+                    <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln erfassen – für wenige Teams oder zum Ergänzen.</p>
                         <button type="button" class="btn" onclick="startKursteamManual()">Zur manuellen Eingabe →</button>
                     </div>
                 </div>
@@ -753,23 +1008,31 @@
                 <h2>Schritt 2: Daten bereinigen und filtern</h2>
 
                 <div id="manualKursteamHint" class="alert alert-info" style="display:none;">
-                    <strong>Manuelle Erfassung:</strong> Zeilen unten prüfen, filtern und bei Bedarf Zeilen hinzufügen oder entfernen; danach Lehrer-E-Mails und Team-Konfiguration wie gewohnt.
+                    <strong>Manuelle Erfassung:</strong> Erst filtern, dann im nächsten Schritt Zeilen bearbeiten oder hinzufügen.
                 </div>
                 
                 <div class="alert alert-warning">
                     <strong>⚠️ Wichtig:</strong> Entfernen Sie unnötige Fächer (ORD, DIR, ...) und doppelte Einträge. Achten Sie auf klassenübergreifende Teams!
                 </div>
 
-                <p style="margin-bottom:12px;">
-                    <button type="button" class="btn btn-success" onclick="addManualDataRow()">➕ Unterrichtszeile hinzufügen</button>
-                </p>
-
                 <div class="filter-section">
                     <h3>Automatische Filter</h3>
                     
                     <div class="filter-group">
-                        <label>Fächer ausschließen (kommasepariert):</label>
-                        <input type="text" id="excludeSubjects" value="ORD,DIR,KV" placeholder="z.B. ORD,DIR,KV">
+                        <label>Fächer ausschließen:</label>
+
+                        <div class="subject-filter-toolbar">
+                            <div class="subject-filter-search">
+                                <label for="subjectFilterSearch" class="sr-only">Fächer suchen</label>
+                                <input type="text" id="subjectFilterSearch" placeholder="Fach suchen (z. B. ORD, D, MAM) …" autocomplete="off">
+                            </div>
+                            <button type="button" class="btn btn-small" id="subjectFilterExcludeNone">Keine ausschließen</button>
+                            <button type="button" class="btn btn-small" id="subjectFilterExcludeAll">Alle ausschließen</button>
+                            <button type="button" class="btn btn-small" id="subjectFilterResetDefault">Standard (ORD, DIR, KV)</button>
+                        </div>
+                        <div id="subjectFilterList" class="subject-filter-list" aria-label="Fächer-Liste (anklicken zum Ausschließen)"></div>
+                        <div id="subjectFilterSummary" class="subject-filter-summary"></div>
+                        <input type="hidden" id="excludeSubjects" value="ORD,DIR,KV">
                     </div>
 
                     <div class="filter-group">
@@ -799,11 +1062,11 @@
                     <table id="dataTable">
                         <thead>
                             <tr>
-                                <th>Aktion</th>
                                 <th>Klasse</th>
                                 <th>Fach</th>
                                 <th>Lehrer</th>
                                 <th>Gruppe</th>
+                                <th class="kt-action-col" aria-label="Aktion"></th>
                             </tr>
                         </thead>
                         <tbody id="dataTableBody">
@@ -811,15 +1074,91 @@
                     </table>
                 </div>
 
-                <button class="btn" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zu Lehrer-Emails →</button>
+                <button class="btn" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zur manuellen Eingabe →</button>
             </div>
 
-            <!-- Schritt 2.5: Lehrer-Email-Zuordnung -->
+            <!-- Schritt 2.5: Manuelle Dateneingabe -->
             <div class="step-content" data-step="2.5">
-                <h2>Schritt 3: Lehrer-Email-Zuordnung</h2>
+                <h2>Schritt 3: Manuelle Dateneingabe</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Tipp:</strong> Doppelklicken Sie auf eine Zelle, um sie zu bearbeiten. Mit <strong>Enter</strong> speichern, mit <strong>Esc</strong> abbrechen.
+                </div>
+                <p style="margin-bottom:12px;">
+                    <button type="button" class="btn btn-success" onclick="addManualDataRowInline()">➕ Neue Zeile</button>
+                </p>
+                <div class="filter-section" style="margin-top:0;">
+                    <h3>Filter &amp; Sortierung</h3>
+                    <div class="import-paste-file-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                        <div class="import-paste-file-col" style="min-width:0;">
+                            <div class="filter-group" style="margin:0;">
+                                <label for="manualFilterKlasse">Filter Klasse</label>
+                                <input type="text" id="manualFilterKlasse" placeholder="z. B. 1AK" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="import-paste-file-col" style="min-width:0;">
+                            <div class="filter-group" style="margin:0;">
+                                <label for="manualFilterFach">Filter Fach</label>
+                                <input type="text" id="manualFilterFach" placeholder="z. B. D, MAM" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="import-paste-file-col" style="min-width:0;">
+                            <div class="filter-group" style="margin:0;">
+                                <label for="manualFilterLehrer">Filter Lehrer</label>
+                                <input type="text" id="manualFilterLehrer" placeholder="z. B. ANDES" autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-small" id="manualFilterReset">Filter zurücksetzen</button>
+                    <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">
+                        Sortierung: Klicken Sie auf eine Spaltenüberschrift (Klasse/Fach/Lehrer/Gruppe) für aufsteigend/absteigend.
+                    </small>
+                </div>
+                <div class="table-container" id="editableDataTableContainer" style="display:none;">
+                    <table id="editableDataTable">
+                        <thead>
+                            <tr>
+                                <th class="kt-sortable-th" data-sort-key="klasse">Klasse</th>
+                                <th class="kt-sortable-th" data-sort-key="fach">Fach</th>
+                                <th class="kt-sortable-th" data-sort-key="lehrer">Lehrer</th>
+                                <th class="kt-sortable-th" data-sort-key="gruppe">Gruppe</th>
+                                <th class="kt-action-col" aria-label="Aktion"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="editableDataTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="filter-section" id="manualTeamsPreviewContainer" style="display:none;margin-top:16px;">
+                    <h3>Aktuell generierte Kursteams</h3>
+                    <p style="color:#6c757d;margin:0 0 10px;line-height:1.45;">
+                        Wird angezeigt, sobald in „Teams konfigurieren“ Team-Namen generiert wurden. Wenn Sie Daten hier ändern, müssen die Team-Namen danach neu generiert werden.
+                    </p>
+                    <div class="table-container" style="max-height: 340px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Team-Name</th>
+                                    <th>Gruppenmail</th>
+                                    <th>Besitzer</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="manualTeamsPreviewBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top: 30px;">
+                    <button class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
+                    <button class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5" style="margin-left:8px;">Weiter zu Lehrer zuordnen →</button>
+                </div>
+            </div>
+
+            <!-- Schritt 3: Lehrer zuordnen -->
+            <div class="step-content" data-step="3">
+                <h2>Schritt 4: Lehrer zuordnen</h2>
                 
                 <div class="alert alert-info">
-                    <strong>ℹ️ Wichtig:</strong> Laden Sie hier eine Liste mit Lehrerkürzel und E-Mail-Adressen hoch, damit die korrekten Besitzer-E-Mails verwendet werden.
+                    <strong>ℹ️ Hinweis:</strong> Die Zuordnungen werden automatisch aus den <strong>Tenant‑Grundeinstellungen</strong> (Lehrerliste) übernommen. Ergänzungen hier werden dort mitgespeichert.
                 </div>
 
                 <div class="stats" id="teacherRequiredStats" style="display:none;">
@@ -923,20 +1262,14 @@
                 </div>
 
                 <div style="margin-top: 30px;">
-                    <button class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
-                    <button class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5">Weiter zur Team-Konfiguration →</button>
+                    <button class="btn" onclick="goToStep(2.5)">← Zurück zur manuellen Eingabe</button>
+                    <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3">Weiter zur Team-Konfiguration →</button>
                 </div>
             </div>
 
-            <!-- Schritt 3: Konfiguration -->
-            <div class="step-content" data-step="3">
-                <h2>Schritt 3: Teams konfigurieren</h2>
-
-                <div class="alert alert-info">
-                    <strong>ℹ️ Namenskonvention:</strong><br>
-                    • 1. Klassen: SJXX-XX | Klasse | Fach-Kürzel<br>
-                    • 2.-5. Klassen: WSXX | Klasse | Fach-Kürzel oder SSXX | Klasse | Fach-Kürzel
-                </div>
+            <!-- Schritt 4: Konfiguration -->
+            <div class="step-content" data-step="4">
+                <h2>Schritt 5: Teams konfigurieren</h2>
 
                 <div class="filter-section">
                     <h3>Grundeinstellungen</h3>
@@ -952,8 +1285,33 @@
                     </div>
 
                     <div class="filter-group">
-                        <label>Trennzeichen für Team-Name:</label>
-                        <input type="text" id="teamSeparator" value=" | " placeholder="z.B.  |  oder -">
+                        <label>Team‑Name zusammenbauen (Drag &amp; Drop):</label>
+                        <div class="name-builder">
+                            <div id="teamNameBuilder" class="name-builder-dropzone" aria-label="Team-Name Bausteine (ziehbar zum Sortieren)"></div>
+                            <div class="name-builder-actions">
+                                <button type="button" class="btn btn-small" id="teamNameResetDefault">Standard</button>
+                            </div>
+                        </div>
+                        <div class="name-builder-palette" aria-label="Bausteine">
+                            <button type="button" class="btn btn-small" data-teamname-token="yearPrefix">+ Schuljahr</button>
+                            <button type="button" class="btn btn-small" data-teamname-token="klasse">+ Klasse</button>
+                            <button type="button" class="btn btn-small" data-teamname-token="fach">+ Fach</button>
+                            <button type="button" class="btn btn-small" data-teamname-token="gruppe">+ Gruppe</button>
+                        </div>
+                        <div class="name-builder-inputs" aria-label="Eigene Texte">
+                            <div class="filter-group">
+                                <label for="teamNameSepValue">Trenner</label>
+                                <input type="text" id="teamNameSepValue" value=" | " placeholder="z. B.  |  oder -">
+                            </div>
+                            <button type="button" class="btn btn-small" id="teamNameAddSep">Trenner hinzufügen</button>
+                            <div class="filter-group">
+                                <label for="teamNameTextValue">Eigener Text</label>
+                                <input type="text" id="teamNameTextValue" value="" placeholder="z. B. SJ oder 2026">
+                            </div>
+                            <button type="button" class="btn btn-small" id="teamNameAddText">Text hinzufügen</button>
+                        </div>
+                        <input type="hidden" id="teamSeparator" value=" | ">
+                        <div id="teamNamePreview" class="name-preview"></div>
                     </div>
 
                     <button class="btn" onclick="generateTeamNames()">Team-Namen generieren</button>
@@ -965,6 +1323,22 @@
 
                 <div class="alert alert-warning">
                     <strong>⚠️ Ungültige Zeichen in Gruppenmail:</strong> \ % & * + / = ? { } | &lt; &gt; ( ) ; : , [ ] " ö ä ü
+                </div>
+
+                <div class="table-container" id="teamsTableContainer" style="display:none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="kt-sortable-th" data-teams-sort-key="teamName">Team-Name</th>
+                                <th class="kt-sortable-th" data-teams-sort-key="gruppenmail">Gruppenmail (Nickname)</th>
+                                <th class="kt-sortable-th" data-teams-sort-key="besitzer">Besitzer (E-Mail)</th>
+                                <th class="kt-sortable-th" data-teams-sort-key="status">Status</th>
+                                <th>Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamsTableBody">
+                        </tbody>
+                    </table>
                 </div>
 
                 <div id="validationResults" style="display:none;">
@@ -985,28 +1359,12 @@
                     </div>
                 </div>
 
-                <div class="table-container" id="teamsTableContainer" style="display:none;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Team-Name</th>
-                                <th>Gruppenmail (Nickname)</th>
-                                <th>Besitzer (E-Mail)</th>
-                                <th>Status</th>
-                                <th>Aktion</th>
-                            </tr>
-                        </thead>
-                        <tbody id="teamsTableBody">
-                        </tbody>
-                    </table>
-                </div>
-
-                <button class="btn btn-success" onclick="goToStep(4)" id="continueBtn3" style="display:none;">Weiter zur Anlage (Graph) →</button>
+                <button class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;">Weiter zur Anlage (Graph) →</button>
             </div>
 
-            <!-- Schritt 4: Online-Anlage (Graph) -->
-            <div class="step-content" data-step="4">
-                <h2>Schritt 4: Kursteams anlegen (Microsoft Graph)</h2>
+            <!-- Schritt 5: Online-Anlage (Graph) -->
+            <div class="step-content" data-step="5">
+                <h2>Schritt 6: Kursteams anlegen (Microsoft Graph)</h2>
                 <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
                     Empfohlen: Anmeldung mit einem Konto, das in Microsoft Entra ID Gruppen erstellen darf (z. B. globaler Administrator oder entsprechende Administratorrolle). Besitzer-E-Mails müssen als Benutzer im Mandanten existieren.
                 </p>
@@ -1043,13 +1401,134 @@
                     <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;6.
                 </div>
 
-                <button type="button" class="btn" onclick="goToStep(3)">← Zurück zur Team-Konfiguration</button>
-                <button type="button" class="btn" onclick="goToStep(5)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
+                <button type="button" class="btn" onclick="goToStep(4)">← Zurück zur Team-Konfiguration</button>
+                <button type="button" class="btn btn-success" onclick="goToStep(5.5)" style="margin-left:8px;">Weiter: Optional Schüler hinzufügen →</button>
+                <button type="button" class="btn" onclick="goToStep(6)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
             </div>
 
-            <!-- Schritt 5: Optional CSV & PowerShell -->
-            <div class="step-content" data-step="5">
-                <h2>Schritt 5 (optional): CSV-Export &amp; PowerShell</h2>
+            <!-- Schritt 5.5 -->
+            <div class="step-content" data-step="5.5">
+                <h2>Optional: Schüler als Mitglieder hinzufügen (PowerShell + Microsoft Graph)</h2>
+                <div class="alert alert-info" style="line-height:1.55;">
+                    Dieser Schritt ist <strong>optional</strong>. Er erzeugt ein PowerShell‑Script (Microsoft.Graph), das nach der Team‑Anlage
+                    Schüler als <strong>Mitglieder</strong> in die jeweiligen Gruppen/Teams einträgt.<br>
+                    <strong>Format:</strong> pro Zeile <code>Klasse;UPN</code> oder <code>Klasse;Gruppe;UPN</code> (Gruppe = z. B. G1/G2 für Sprachgruppen).<br>
+                    Wenn ein Kursteam eine Gruppe (z. B. G1) hat, wird bevorzugt die passende <code>Klasse;Gruppe</code>‑Liste verwendet, sonst die Klassenliste.
+                </div>
+
+                <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                    <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
+                    <button type="button" class="btn" id="studentRosterOnlineLogin" onclick="window.ms365KursteamMembersGraphLogin && window.ms365KursteamMembersGraphLogin()">Bei Microsoft anmelden</button>
+                    <button type="button" class="btn btn-success" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;">Schüler jetzt hinzufügen</button>
+                    <div id="studentRosterOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                </div>
+
+                <div class="filter-section" style="margin-bottom:16px;">
+                    <h3>Schülerliste einfügen</h3>
+                    <div class="import-paste-file-grid" style="margin-bottom: 0;">
+                        <div class="import-paste-file-col">
+                            <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid #dee2e6; border-radius: 12px; background: #f8f9fa; flex: 1; display: flex; flex-direction: column;">
+                                <h4 style="margin-top: 0;">Copy &amp; Paste</h4>
+                                <textarea id="studentRosterPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="1A;schueler1@schule.de&#10;1A;schueler2@schule.de&#10;1A;G1;sprachgruppe1@schule.de&#10;# Kommentare sind erlaubt"></textarea>
+                                <p style="margin-top: 10px; margin-bottom: 0;">
+                                    <button type="button" class="btn btn-success" id="btnStudentRosterApply">Übernehmen</button>
+                                </p>
+                                <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Trenner: Semikolon, Tab, | oder mehrere Leerzeichen. Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
+                            </div>
+                        </div>
+                        <div class="import-paste-file-col">
+                            <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
+                            <div class="upload-area" id="studentRosterUploadArea">
+                                <div class="upload-icon">👩‍🎓</div>
+                                <h3>Schülerliste hier ablegen oder klicken</h3>
+                                <p>CSV oder Excel mit Klasse, optional Gruppe, UPN/E-Mail</p>
+                                <input type="file" id="studentRosterFileInput" accept=".csv,.xlsx,.xls">
+                            </div>
+                            <p style="color:#6c757d;margin-top:12px;margin-bottom:0;line-height:1.45;">
+                                Erwartete Spalten: <strong>Klasse</strong>, optional <strong>Gruppe</strong>, sowie <strong>UPN/E-Mail</strong> (z. B. <code>UPN</code>, <code>E-Mail</code>, <code>Email</code>).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-section" style="margin-top:0;">
+                    <h3>Zusammenfassung</h3>
+                    <div class="stats" id="studentRosterStats" style="margin-top:0;">
+                        <div class="stat-card">
+                            <div class="stat-label">Zeilen (gültig)</div>
+                            <div class="stat-value" id="studentRosterValidLines">0</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);">
+                            <div class="stat-label">Klassen erkannt</div>
+                            <div class="stat-value" id="studentRosterClassCount">0</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                            <div class="stat-label">Klasse+Gruppe Listen</div>
+                            <div class="stat-value" id="studentRosterClassGroupCount">0</div>
+                        </div>
+                    </div>
+                    <div class="filter-group" style="margin-top:10px;">
+                        <label class="checkbox-label" for="studentRosterPreferGroup">
+                            <input type="checkbox" id="studentRosterPreferGroup" checked>
+                            <span>Bei Teams mit Gruppe (z. B. G1) bevorzugt Klasse+Gruppe verwenden</span>
+                        </label>
+                    </div>
+                    <div class="filter-group" style="margin-top:6px;">
+                        <label class="checkbox-label" for="studentRosterSkipCombinedClasses">
+                            <input type="checkbox" id="studentRosterSkipCombinedClasses" checked>
+                            <span>Teams mit mehreren Klassen (z. B. „1A,1B“) überspringen</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-section" style="margin-top:0;">
+                    <h3>Teams auswählen</h3>
+                    <p style="color:#6c757d;margin:0 0 10px;line-height:1.45;">Hier können Sie festlegen, <strong>welche</strong> Kursteams Mitglieder bekommen. Standard: nur Teams, für die passende Schülerdaten gefunden wurden.</p>
+                    <p style="margin:0 0 10px;">
+                        <button type="button" class="btn btn-small" id="studentRosterSelectAll">Alle</button>
+                        <button type="button" class="btn btn-small" id="studentRosterSelectNone" style="margin-left:6px;">Keine</button>
+                        <button type="button" class="btn btn-small" id="studentRosterSelectMatched" style="margin-left:6px;">Nur passende</button>
+                        <button type="button" class="btn btn-small" id="studentRosterSelectInvert" style="margin-left:6px;">Invertieren</button>
+                    </p>
+                    <div class="filter-group" style="margin:0 0 10px;">
+                        <label class="checkbox-label" for="studentRosterHideNoMatch">
+                            <input type="checkbox" id="studentRosterHideNoMatch" checked>
+                            <span>Teams ohne Treffer ausblenden</span>
+                        </label>
+                    </div>
+                    <div class="table-container" style="max-height:340px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:72px;">Auswahl</th>
+                                    <th>Team</th>
+                                    <th>Gruppenmail</th>
+                                    <th style="width:140px;">Schüler gefunden</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentRosterTeamsBody">
+                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Teams oder Schülerliste – zuerst oben übernehmen.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;"><strong>Hinweis:</strong> Teams ohne gefundene Schüler werden nicht befüllt, auch wenn sie ausgewählt sind.</small>
+                </div>
+
+                <h3>Generiertes PowerShell‑Script</h3>
+                <div class="powershell-code">
+                    <button class="btn btn-small copy-btn" id="btnCopyStudentRosterPowerShell">📋 Kopieren</button>
+                    <pre id="studentRosterPowerShellScript"># Sobald eine Schülerliste übernommen wurde, erscheint hier das Script.</pre>
+                </div>
+
+                <div style="margin-top: 18px;">
+                    <button type="button" class="btn" onclick="goToStep(5)">← Zurück zur Anlage</button>
+                    <button type="button" class="btn" onclick="goToStep(6)" style="margin-left:8px;">Weiter zu optional: CSV &amp; PowerShell →</button>
+                </div>
+            </div>
+
+            <!-- Schritt 6: Optional CSV & PowerShell -->
+            <div class="step-content" data-step="6">
+                <h2>Schritt 7 (optional): CSV-Export &amp; PowerShell</h2>
                 <p style="color:#495057;margin-bottom:14px;line-height:1.45;">
                     Nur nötig, wenn Sie die Anlage <strong>nicht</strong> über Schritt&nbsp;4 im Browser durchführen möchten – z. B. auf einem Rechner ohne Anmeldung in diese Web-App oder mit dem Teams PowerShell-Modul.
                 </p>
@@ -1586,11 +2065,18 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
             </div>
         </div>
     </div>
-    <div id="toast" class="toast" role="status"></div>
+        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
+            <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand des gewählten Modus im Browser speichern">💾 Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand des gewählten Modus laden">📂 Gespeicherten Stand laden</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage" title="Gespeicherten Zwischenstand des gewählten Modus löschen">🗑️ Lokalen Speicher löschen</button>
+        </div>
+
+        <div id="toast" class="toast" role="status"></div>
 
     <!-- ms365-config zuerst ohne defer, damit window.MS365_MSAL_CONFIG sicher vor ARGE-Graph gesetzt ist -->
     <script src="ms365-config.js"></script>
     <script src="school-domain.js" defer></script>
+    <script src="tenant-settings.js" defer></script>
     <script src="polyglot-cmd.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 
@@ -1601,6 +2087,7 @@ New-Team -Template "EDU_Class" -DisplayName "SS2223 | 3HK | SPWS-SPANR" -MailNic
     <script src="kursteam/kursteam-import.js" defer></script>
     <script src="kursteam/kursteam-teacher-mapping.js" defer></script>
     <script src="kursteam/kursteam-teams.js" defer></script>
+    <script src="kursteam/kursteam-members.js" defer></script>
     <script src="kursteam/kursteam-steps-export.js" defer></script>
     <script src="jahrgang.js" defer></script>
     <script src="arge.js" defer></script>

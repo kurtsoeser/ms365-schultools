@@ -18,9 +18,15 @@
                         ? window.ms365GetSchoolDomainNoAt()
                         : '',
                 teamSeparator: document.getElementById('teamSeparator').value,
+                teamNamePattern: ns.teamNamePattern || null,
                 excludeSubjects: document.getElementById('excludeSubjects').value,
                 removeDuplicates: document.getElementById('removeDuplicates').checked,
-                kursteamEntryMode: ns.kursteamEntryMode
+                kursteamEntryMode: ns.kursteamEntryMode,
+                studentRosterRaw: ns.studentRosterRaw || '',
+                studentRosterPreferGroup: document.getElementById('studentRosterPreferGroup')?.checked ?? true,
+                studentRosterSkipCombinedClasses: document.getElementById('studentRosterSkipCombinedClasses')?.checked ?? true,
+                studentRosterHideNoMatch: document.getElementById('studentRosterHideNoMatch')?.checked ?? true,
+                studentRosterTeamSelection: ns.studentRosterTeamSelection || {}
             };
             localStorage.setItem(ns.STORAGE_KEY, JSON.stringify(state));
             ns.showToast('Kursteams: Zwischenstand gespeichert.');
@@ -62,8 +68,24 @@
                 }
             }
             document.getElementById('teamSeparator').value = state.teamSeparator !== undefined ? state.teamSeparator : ' | ';
+            ns.teamNamePattern = state.teamNamePattern || null;
+            if (typeof ns.renderTeamNameBuilder === 'function') ns.renderTeamNameBuilder();
             document.getElementById('excludeSubjects').value = state.excludeSubjects !== undefined ? state.excludeSubjects : 'ORD,DIR,KV';
             document.getElementById('removeDuplicates').checked = state.removeDuplicates !== false;
+            if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
+
+            ns.studentRosterRaw = state.studentRosterRaw || '';
+            const pref = document.getElementById('studentRosterPreferGroup');
+            const skip = document.getElementById('studentRosterSkipCombinedClasses');
+            const hide = document.getElementById('studentRosterHideNoMatch');
+            if (pref) pref.checked = state.studentRosterPreferGroup !== false;
+            if (skip) skip.checked = state.studentRosterSkipCombinedClasses !== false;
+            if (hide) hide.checked = state.studentRosterHideNoMatch !== false;
+            if (ns.studentRosterRaw && typeof ns.parseStudentRosterFromText === 'function') {
+                ns.parseStudentRosterFromText(ns.studentRosterRaw);
+            }
+            ns.studentRosterTeamSelection = state.studentRosterTeamSelection || {};
+            if (typeof ns.refreshStudentRosterUI === 'function') ns.refreshStudentRosterUI();
 
             if (ns.rawData.length) {
                 document.getElementById('totalRecords').textContent = ns.rawData.length;
