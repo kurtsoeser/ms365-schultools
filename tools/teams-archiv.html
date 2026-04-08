@@ -6,15 +6,20 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Teams archivieren</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
-            <p>Microsoft Teams archivieren oder wieder aktivieren</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-archive"></i>Teams archivieren</span>
+            </div>
+            <p>Teams archivieren oder reaktivieren (entspricht der verknüpften M365‑Gruppe). Optional die SharePoint‑Website der Gruppe schreibgeschützt stellen.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <a class="btn" href="../index.html">← Dashboard</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
@@ -44,8 +49,8 @@
                     <input type="text" id="taSearch" autocomplete="off" placeholder="z. B. 1a-mat@schule.at oder Kurs Mathematik 1a">
                 </div>
                 <p style="margin:10px 0 0;">
-                    <button type="button" class="btn" id="taBtnSearch">Team suchen</button>
-                    <button type="button" class="btn" id="taBtnLogin">Bei Microsoft anmelden</button>
+                    <button type="button" class="btn" id="taBtnSearch"><i class="bi bi-search"></i>Team suchen</button>
+                    <button type="button" class="btn" id="taBtnLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
                 </p>
                 <p id="taResolvedSummary" style="display:none;margin-top:14px;padding:12px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;color:#084298;font-size:0.95em;"></p>
 
@@ -60,8 +65,8 @@
                 </div>
 
                 <p style="margin:18px 0 0;">
-                    <button type="button" class="btn btn-success" id="taBtnArchive">Team archivieren</button>
-                    <button type="button" class="btn" id="taBtnUnarchive" style="margin-left:8px;">Archivierung aufheben</button>
+                    <button type="button" class="btn btn-success" id="taBtnArchive"><i class="bi bi-archive-fill"></i>Team archivieren</button>
+                    <button type="button" class="btn" id="taBtnUnarchive" style="margin-left:8px;"><i class="bi bi-arrow-counterclockwise"></i>Archivierung aufheben</button>
                 </p>
             </div>
 

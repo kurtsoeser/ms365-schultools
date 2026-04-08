@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe &amp; Datenschutz – MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -13,7 +14,7 @@
             padding: 24px;
         }
         .wrap {
-            max-width: 720px;
+            max-width: 980px;
             margin: 0 auto;
         }
         .card {
@@ -45,6 +46,77 @@
         }
         main h2:first-of-type { margin-top: 0; }
         main p { margin: 0 0 12px; }
+        main h3 {
+            font-size: 1.02em;
+            margin: 16px 0 8px;
+            color: #32325d;
+        }
+        .toc {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            background: #f8f9fa;
+        }
+        .toc ul {
+            margin: 10px 0 0;
+            padding-left: 18px;
+            line-height: 1.5;
+        }
+        .toc a { color: #5e72e4; font-weight: 700; text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        .tool {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #dee2e6;
+        }
+        .tool:first-of-type {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+        }
+        .pill {
+            display: inline-block;
+            font-size: 0.85em;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: #eef;
+            color: #32325d;
+            border: 1px solid rgba(94, 114, 228, 0.25);
+            margin-left: 8px;
+            vertical-align: baseline;
+        }
+        .mini-steps ol {
+            margin: 8px 0 12px;
+            padding-left: 22px;
+            line-height: 1.55;
+        }
+        .mini-steps li { margin: 6px 0; }
+        .hint {
+            margin: 10px 0 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+            color: #495057;
+        }
+        .warn {
+            margin: 10px 0 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #ffeeba;
+            background: #fff3cd;
+            color: #856404;
+        }
+        .ok {
+            margin: 10px 0 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #c3e6cb;
+            background: #d4edda;
+            color: #155724;
+        }
         code {
             background: #eef;
             padding: 2px 8px;
@@ -73,6 +145,34 @@
         .nav a.secondary {
             background: #6c757d;
         }
+        .site-credit-row {
+            position: fixed;
+            left: 16px;
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            margin: 0;
+            font-size: 0.95em;
+            z-index: 2000;
+        }
+        .site-credit-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(94, 114, 228, 0.25);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+            color: #32325d;
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .site-credit-link:hover { background: #fff; }
+        .site-credit-link .bi {
+            margin: 0;
+            color: rgba(50, 50, 93, 0.88);
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
     </style>
 </head>
 <body>
@@ -83,10 +183,233 @@
                 <p>Kursteams, Jahrgangsgruppen und ARGEs automatisiert vorbereiten</p>
             </header>
             <main>
-                <h2>Datenschutz</h2>
+                <div class="toc" aria-label="Inhaltsverzeichnis">
+                    <strong>Inhalt</strong>
+                    <ul>
+                        <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
+                        <li><a href="#voraussetzungen">Voraussetzungen (Graph / Berechtigungen)</a></li>
+                        <li><a href="#tool-tenant">Schul‑Grundeinstellungen</a></li>
+                        <li><a href="#tool-kursteams">Kursteams</a></li>
+                        <li><a href="#tool-jahrgang">Jahrgangsgruppen</a></li>
+                        <li><a href="#tool-arge">ARGEs</a></li>
+                        <li><a href="#tool-slg">Schüler:innen‑ &amp; Lehrer:innen‑Gruppen</a></li>
+                        <li><a href="#tool-gruppen-uebersicht">MS365‑Gruppen (Übersicht &amp; Bearbeiten)</a></li>
+                        <li><a href="#tool-teams-archiv">Teams archivieren</a></li>
+                        <li><a href="#tool-klassen-umbenennen">Klassen umbenennen</a></li>
+                        <li><a href="#tool-gruppenerstellung">Gruppenerstellung einschränken</a></li>
+                        <li><a href="#windows-cmd">Windows blockiert heruntergeladene .cmd?</a></li>
+                        <li><a href="#datenschutz">Datenschutz</a></li>
+                    </ul>
+                </div>
+
+                <h2 id="grundprinzip">Grundprinzip</h2>
+                <p>
+                    Die Tools erzeugen entweder <strong>Microsoft 365‑Objekte</strong> (Gruppen/Teams) über <strong>Microsoft Graph</strong>
+                    <em>oder</em> sie erzeugen <strong>PowerShell‑Skripte / .cmd‑Pakete</strong>, die Sie lokal ausführen.
+                    Die “Stammdaten” (Domain, Fächer, Lehrkräfte, Klassen, Schüler) kommen aus den <a href="tenant.html">Schul‑Grundeinstellungen</a>.
+                </p>
+                <div class="hint" id="datenspeicher">
+                    <strong>Datenhaltung:</strong> Es gibt keinen Server. Zwischenstände und Stammdaten werden lokal im Browser gespeichert
+                    (LocalStorage/SessionStorage). Viele Tools haben zusätzlich <strong>Export/Import</strong> (JSON/CSV), um zwischen PCs/Browsers zu wechseln.
+                </div>
+
+                <h2 id="voraussetzungen">Voraussetzungen (Graph / Berechtigungen)</h2>
+                <p>
+                    Wenn ein Tool “Online (Microsoft Graph)” anbietet, erfolgt die Anmeldung über MSAL im Browser. Dafür braucht die App‑Registrierung in Entra
+                    passende <strong>delegierte Berechtigungen</strong> (und meist <strong>Administratorzustimmung</strong>).
+                </p>
+                <div class="warn">
+                    <strong>Wichtig:</strong> Die “Berechtigung” ist immer eine Kombination aus
+                    (a) in Entra erteilten Scopes <em>und</em> (b) den Rechten des angemeldeten Kontos (z. B. Gruppen verwalten, Teams erstellen, Directory schreiben).
+                </div>
+
+                <h2 id="datenschutz">Datenschutz</h2>
                 <p>Es gibt keinen Server. Importierte Dateien und Einstellungen werden nur in diesem Browser verarbeitet; optional können Sie den Zwischenstand <strong>pro Modus</strong> (Kursteams, Jahrgangsgruppen, ARGEs) getrennt lokal speichern.</p>
 
-                <h2>Windows blockiert heruntergeladene .cmd?</h2>
+                <h2>Module / Werkzeuge (Mini‑Anleitungen)</h2>
+
+                <section class="tool" id="tool-tenant" aria-label="Schul-Grundeinstellungen">
+                    <h3>Schul‑Grundeinstellungen <span class="pill">Basisdaten</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Speichert die gemeinsame Basis: <code>Domain</code>, <code>Fächer</code>, <code>Lehrer</code>, optional <code>Schüler</code>
+                        und <code>Klassen</code>. Diese Daten werden von Kursteams, Jahrgang und ARGE übernommen bzw. teilweise zurück‑synchronisiert.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li><strong>Domain</strong> ohne <code>@</code> eintragen (z. B. <code>ms365.schule</code>).</li>
+                            <li>Listen füllen: per <strong>Copy &amp; Paste</strong> oder <strong>CSV/XLSX‑Import</strong> (Vorlagen gibt’s direkt im Tool).</li>
+                            <li>Mit <strong>Speichern</strong> sichern (lokal im Browser). Optional Export/Import (JSON) zum Übertragen.</li>
+                        </ol>
+                    </div>
+                    <div class="hint">
+                        <strong>Tipp:</strong> Viele Tools übernehmen automatisch Daten, wenn das jeweilige Eingabefeld leer ist (z. B. Jahrgang übernimmt Klassen, ARGE übernimmt Fächer).
+                    </div>
+                    <p><a href="tenant.html">→ Schul‑Grundeinstellungen öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-kursteams" aria-label="Kursteams">
+                    <h3>Kursteams <span class="pill">Wizard</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Aus Unterrichtszeilen (<code>Lehrer</code>, <code>Fach</code>, <code>Klasse</code>, optional <code>Gruppe</code>) werden
+                        Team‑Entwürfe erzeugt: Team‑Name, Gruppenmail (Nickname), Besitzer‑UPN/E‑Mail. Anlage erfolgt wahlweise direkt über Graph oder per CSV/PowerShell.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung (Hauptweg)</strong>
+                        <ol>
+                            <li><strong>Daten importieren</strong>: Copy &amp; Paste (3 Spalten) oder CSV/XLSX.</li>
+                            <li><strong>Bereinigen</strong>: unnötige Fächer ausschließen, Duplikate entfernen, klassenübergreifende Teams prüfen.</li>
+                            <li><strong>Lehrer zuordnen</strong>: Kürzel → E‑Mail (kommt aus der Schul‑Liste; fehlende werden aus <code>Kürzel@Domain</code> generiert).</li>
+                            <li><strong>Team‑Namen generieren</strong>: Baukasten (Drag &amp; Drop), dann validieren.</li>
+                            <li><strong>Anlegen</strong>: Online per Graph (Login → “Kursteams jetzt anlegen”) oder Schritt “CSV/PowerShell” nutzen.</li>
+                        </ol>
+                    </div>
+                    <div class="hint">
+                        <strong>Optional:</strong> Schüler als Mitglieder hinzufügen (separater Schritt). Format z. B. <code>Klasse;UPN</code> oder <code>Klasse;Gruppe;UPN</code>.
+                    </div>
+                    <p><a href="tools/kursteams.html">→ Kursteams öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-jahrgang" aria-label="Jahrgangsgruppen">
+                    <h3>Jahrgangsgruppen <span class="pill">Gruppen/Teams</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Erstellt Microsoft 365‑Gruppen (Unified) je Klasse mit Mail‑Nickname‑Schema
+                        <code>&lt;Präfix&gt;&lt;Jahr&gt;-&lt;Kürzel&gt;</code> (z. B. <code>jg2030-AK</code>). Optional wird auch Teams “bereitgestellt”.
+                        Ausgeführt wird über generiertes PowerShell/.cmd (und je nach Build auch online).
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li><strong>Klassenliste</strong> einfügen (z. B. <code>1AK;2030;Klasse 1A‑HAK</code> oder nur <code>1AK</code>).</li>
+                            <li><strong>Besitzer</strong> (UPN) pro Gruppe setzen.</li>
+                            <li><strong>Mitglieder</strong> optional: pro Klasse eine UPN‑Liste (eine Zeile pro Person).</li>
+                            <li><strong>Einstellungen</strong>: primäre SMTP per Exchange setzen und/oder Teams erstellen.</li>
+                            <li><strong>Ausführen</strong>: Script kopieren oder <code>Jahrgangsgruppen‑Anlage.cmd</code> herunterladen.</li>
+                        </ol>
+                    </div>
+                    <p><a href="tools/jahrgang.html">→ Jahrgangsgruppen öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-arge" aria-label="ARGEs">
+                    <h3>ARGEs <span class="pill">Gruppen/Teams</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Erstellt Microsoft 365‑Gruppen für Arbeitsgemeinschaften aus einer einfachen Liste
+                        (eine Zeile pro Thema/Fach). Daraus werden <code>ARGE …</code>‑Anzeigenamen und Mail‑Nicknames (z. B. <code>arge-de</code>) generiert.
+                        Optional: Teams anbinden, SMTP per Exchange setzen, Admin zusätzlich als Besitzer.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>In Schritt 1 je Zeile ein Thema einfügen (z. B. <code>Deutsch</code>, <code>Robotics</code>). Optional auch <code>Anzeigename;MailNickname</code>.</li>
+                            <li>Vorschau prüfen und bei Bedarf per Doppelklick Zellen korrigieren.</li>
+                            <li>Besitzer (UPN) eintragen, optional Mitgliederlisten ergänzen.</li>
+                            <li>Einstellungen wählen (Exchange‑SMTP/Teams/Admin‑Owner) und dann online ausführen oder Script/.cmd nutzen.</li>
+                        </ol>
+                    </div>
+                    <p><a href="tools/arge.html">→ ARGEs öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-slg" aria-label="Schüler- und Lehrergruppen">
+                    <h3>Schüler:innen‑ &amp; Lehrer:innen‑Gruppen <span class="pill">Mitglieder synchronisieren</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Legt zwei Unified‑Gruppen (typisch <code>schueler</code> und <code>lehrer</code>) an oder nutzt bestehende Gruppen,
+                        und fügt Mitglieder aus den Schul‑Listen hinzu (Duplikate werden übersprungen). Optional kann die Gruppe auch als Team erstellt werden.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> Schüler/Lehrer mit gültigen E‑Mails pflegen.</li>
+                            <li>Im Tool anmelden, Gruppen “neu” anlegen oder “bestehend” auswählen (GUID / Suche).</li>
+                            <li>Mit <strong>„Liste → Gruppe“</strong> die Mitgliedschaften synchronisieren.</li>
+                            <li>Fehlende Personen bei Bedarf manuell ergänzen (eine Zeile pro UPN/E‑Mail).</li>
+                        </ol>
+                    </div>
+                    <div class="hint">
+                        <strong>Hinweis:</strong> Entfernen von Mitgliedern macht dieses Tool nicht – dafür eignet sich die Gruppenübersicht oder das Entra‑Portal.
+                    </div>
+                    <p><a href="tools/schueler-lehrer-gruppen.html">→ Schüler/Lehrer‑Gruppen öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-gruppen-uebersicht" aria-label="Gruppenübersicht">
+                    <h3>MS365‑Gruppen (Übersicht) <span class="pill">Lesen &amp; Bearbeiten</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Listet Unified‑Gruppen im Mandanten (inkl. Teams) mit Besitzern, Mitgliederanzahl und Erstellungsdatum.
+                        Optional können Besitzer/Mitglieder gesucht und hinzugefügt werden.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>Anmelden → <strong>Gruppen laden</strong>.</li>
+                            <li>Optional filterbar (nur Teams / Textfilter / Besitzerfilter) und als CSV exportierbar.</li>
+                            <li>Zum Bearbeiten: Gruppe in der Tabelle <strong>auswählen</strong> → Benutzer suchen → als Besitzer/Mitglied hinzufügen.</li>
+                        </ol>
+                    </div>
+                    <div class="warn">
+                        <strong>Grenze:</strong> Die Namensliste zeigt aus Performance‑Gründen nur eine erste Seite (max. 40 Namen sichtbar), die Mitgliederzahl kommt separat über <code>…/members/$count</code>.
+                    </div>
+                    <p><a href="tools/gruppen-uebersicht.html">→ Gruppenübersicht öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-teams-archiv" aria-label="Teams archivieren">
+                    <h3>Teams archivieren <span class="pill">Graph‑Aktion</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Archiviert ein Microsoft Team (oder hebt die Archivierung auf). Die Team‑ID ist die GUID der zugehörigen Unified‑Gruppe.
+                        Optional kann die SharePoint‑Teamwebsite für Mitglieder schreibgeschützt gesetzt werden.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>Team‑/Gruppen‑ID (GUID) einfügen <em>oder</em> per Anzeigename/E‑Mail suchen.</li>
+                            <li>Anmelden → <strong>Team archivieren</strong> oder <strong>Archivierung aufheben</strong>.</li>
+                            <li>Protokoll unten prüfen (asynchrone Operation kann etwas dauern).</li>
+                        </ol>
+                    </div>
+                    <p><a href="tools/teams-archiv.html">→ Teams archivieren öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-klassen-umbenennen" aria-label="Klassen umbenennen">
+                    <h3>Klassen umbenennen <span class="pill">Schuljahreswechsel</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Liest Unified‑Gruppen und berechnet eine Vorschau für eine Umbenennungsregel (typisch:
+                        <code>Klasse 1A → Klasse 2A</code>). Ausgeführt wird dann ein <code>PATCH /groups</code> auf <code>displayName</code>.
+                        <strong>Mail‑Nickname und Gruppen‑E‑Mail bleiben unverändert.</strong>
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>Anmelden → <strong>Gruppen laden</strong> (optional “nur Teams” / Textfilter).</li>
+                            <li>Regel festlegen: Präfix (z. B. <code>Klasse</code>) und optional Bulk‑Ersetzungen.</li>
+                            <li>Vorschau berechnen und kontrollieren → erst dann ausführen.</li>
+                        </ol>
+                    </div>
+                    <div class="warn">
+                        <strong>Achtung:</strong> Das ist eine echte Änderung im Mandanten. Bitte die Vorschau vollständig prüfen, bevor “Jetzt umbenennen” geklickt wird.
+                    </div>
+                    <p><a href="tools/klassen-umbenennen.html">→ Klassen umbenennen öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-gruppenerstellung" aria-label="Gruppenerstellung einschränken">
+                    <h3>Gruppenerstellung einschränken <span class="pill">Directory Setting</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Setzt die Entra‑Directory‑Einstellung <code>Group.Unified</code>, sodass nur Mitglieder einer
+                        <strong>Sicherheitsgruppe</strong> M365‑Gruppen/Teams erstellen dürfen (<code>EnableGroupCreation=false</code>,
+                        <code>GroupCreationAllowedGroupId=&lt;GUID&gt;</code>). Kann auch wieder entfernt werden.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>Sicherheitsgruppe anlegen (oder vorhandene GUID eintragen / suchen).</li>
+                            <li>Mitglieder dieser Sicherheitsgruppe im Entra‑Portal verwalten.</li>
+                            <li>Im Tool anmelden → “Einschränkung anwenden” oder “Status lesen” / “Einstellung entfernen”.</li>
+                        </ol>
+                    </div>
+                    <div class="warn">
+                        <strong>Berechtigungen:</strong> benötigt u. a. <code>Directory.ReadWrite.All</code> (delegiert) und Admin‑Zustimmung.
+                    </div>
+                    <p><a href="tools/gruppenerstellung.html">→ Gruppenerstellung einschränken öffnen</a></p>
+                </section>
+
+                <h2 id="windows-cmd">Windows blockiert heruntergeladene .cmd?</h2>
                 <p>Das ist normal (Internetsicherheit / Mark of the Web). <strong>Lösung:</strong> Rechtsklick auf die Datei → <strong>Eigenschaften</strong> → unten <strong>Zulassen</strong> aktivieren → OK. Danach erneut doppelklicken.</p>
                 <p>Alternativ in PowerShell:</p>
                 <p><code>Unblock-File -LiteralPath '…\Downloads\…-Anlage.cmd'</code></p>
@@ -98,5 +421,6 @@
             </main>
         </div>
     </div>
+    <p class="site-credit-row"><a href="https://www.kurtrocks.com/" class="site-credit-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-info-circle" aria-hidden="true"></i>kurtrocks.com</a></p>
 </body>
 </html>

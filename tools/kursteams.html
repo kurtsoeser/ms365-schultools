@@ -7,6 +7,7 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Kursteams</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* Kursteams-spezifische Layouts */
         .kursteam-start-grid {
@@ -71,10 +72,14 @@
     <div class="container">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
-            <p>Kursteams</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-mortarboard"></i>Kursteams</span>
+            </div>
+            <p>Unterrichtsdaten aus WebUntis importieren oder manuell erfassen, Kursteam‑Namen und Besitzer festlegen, Teams als <code>EDU_Class</code> per Graph oder PowerShell anlegen.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <a class="btn" href="../index.html" title="Zurück zum Dashboard" style="text-decoration:none;display:inline-block;">← Dashboard</a>
+                <a class="btn" href="../index.html" title="Zurück zum Dashboard" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
@@ -103,14 +108,14 @@
                             <h3>Mit Import starten</h3>
                             <p>Einfügen oder Datei – siehe Schritt&nbsp;1.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()">Weiter zum Import →</button>
+                                <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()"><i class="bi bi-arrow-right-circle"></i>Weiter zum Import</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
                             <h3>Einzelzeilen (ohne Import)</h3>
                             <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln erfassen – für wenige Teams oder zum Ergänzen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" onclick="startKursteamManual()">Zur manuellen Eingabe →</button>
+                                <button type="button" class="btn btn-success" onclick="startKursteamManual()"><i class="bi bi-pencil-square"></i>Zur manuellen Eingabe</button>
                             </div>
                         </div>
                     </div>
@@ -140,13 +145,13 @@
                         <div class="import-paste-file-col">
                             <h4 style="margin:0 0 10px;color:#32325d;">Datei-Import</h4>
                             <div class="upload-area" id="uploadArea">
-                                <div class="upload-icon">📁</div>
+                                <div class="upload-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></div>
                                 <h3>Datei hier ablegen oder klicken zum Auswählen</h3>
                                 <p>Unterstützte Formate: CSV, XLSX, XLS</p>
                                 <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
                             </div>
                             <p style="margin-top:12px;margin-bottom:0;">
-                                <button type="button" class="btn" onclick="downloadKursteamImportTemplateXlsx()">XLSX-Vorlage herunterladen</button>
+                                <button type="button" class="btn" onclick="downloadKursteamImportTemplateXlsx()"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage herunterladen</button>
                             </p>
                             <div class="alert alert-info" style="margin-top:12px;margin-bottom:0;">
                                 Vollständige Fächerliste mit Spalten z. B. <code>U-Nr</code>, <code>Lehrer</code>, <code>Fach</code>, <code>Klasse(n)</code>, <code>Schülergruppe</code>.
@@ -170,7 +175,7 @@
                             </div>
                         </div>
                         <div class="step-nav-row step-nav-row--forward-only">
-                            <button class="btn btn-success" onclick="goToStep(2)">Weiter zur Bereinigung →</button>
+                            <button class="btn btn-success" onclick="goToStep(2)"><i class="bi bi-arrow-right-circle"></i>Weiter zur Bereinigung</button>
                         </div>
                     </div>
                 </div>
@@ -208,7 +213,7 @@
                             </label>
                         </div>
                         <button class="btn btn-success" id="btnApplyFilters" onclick="applyFilters()">Filter anwenden</button>
-                        <button class="btn btn-danger" onclick="resetFilters()">Filter zurücksetzen</button>
+                        <button class="btn btn-danger" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i>Filter zurücksetzen</button>
                     </div>
                     <div id="filterStats" style="display:none;">
                         <div class="stats">
@@ -237,7 +242,7 @@
                         </table>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button class="btn btn-success" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;">Weiter zur manuellen Eingabe →</button>
+                        <button class="btn btn-success" onclick="goToStep(2.5)" id="continueBtn2" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zur manuellen Eingabe</button>
                     </div>
                 </div>
 
@@ -248,7 +253,7 @@
                         <strong>ℹ️ Tipp:</strong> Doppelklicken Sie auf eine Zelle, um sie zu bearbeiten. Mit <strong>Enter</strong> speichern, mit <strong>Esc</strong> abbrechen.
                     </div>
                     <p style="margin-bottom:12px;">
-                        <button type="button" class="btn btn-success" onclick="addManualDataRowInline()">➕ Neue Zeile</button>
+                        <button type="button" class="btn btn-success" onclick="addManualDataRowInline()"><i class="bi bi-plus-circle"></i>Neue Zeile</button>
                     </p>
                     <div class="filter-section" style="margin-top:0;">
                         <h3>Filter &amp; Sortierung</h3>
@@ -311,8 +316,8 @@
                         </div>
                     </div>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(2)">← Zurück zur Bereinigung</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5">Weiter zu Lehrer zuordnen →</button>
+                        <button type="button" class="btn" onclick="goToStep(2)"><i class="bi bi-arrow-left"></i>Zurück zur Bereinigung</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(3)" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter zu Lehrer zuordnen</button>
                     </div>
                 </div>
 
@@ -320,7 +325,7 @@
                 <div class="step-content" data-step="3">
                     <h2>Schritt 4: Lehrer zuordnen</h2>
                     <div class="alert alert-info">
-                        <strong>ℹ️ Hinweis:</strong> Die Zuordnungen werden automatisch aus den <strong>Tenant‑Grundeinstellungen</strong> (Lehrerliste) übernommen. Ergänzungen hier werden dort mitgespeichert.
+                        <strong>ℹ️ Hinweis:</strong> Die Zuordnungen werden automatisch aus den <strong>Schul‑Grundeinstellungen</strong> (Lehrerliste) übernommen. Ergänzungen hier werden dort mitgespeichert.
                     </div>
                     <div class="stats" id="teacherRequiredStats" style="display:none;">
                         <div class="stat-card">
@@ -351,7 +356,7 @@
                             <div class="import-paste-file-col">
                                 <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
                                 <div class="upload-area" id="teacherUploadArea">
-                                    <div class="upload-icon">👨‍🏫</div>
+                                    <div class="upload-icon" aria-hidden="true"><i class="bi bi-person-video3"></i></div>
                                     <h3>Lehrer-Liste hier ablegen oder klicken</h3>
                                     <p>CSV oder Excel mit Lehrerkürzel und E-Mail-Adressen</p>
                                     <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
@@ -367,9 +372,9 @@
                             <div class="alert alert-success">
                                 ✅ <span id="teacherCount">0</span> Lehrer-E-Mail-Zuordnungen geladen
                             </div>
-                            <button class="btn btn-small" onclick="toggleTeacherMapping()">📋 Zuordnungen anzeigen/ausblenden</button>
-                            <button class="btn btn-small" onclick="addTeacherMapping()">➕ Zuordnung hinzufügen</button>
-                            <button class="btn btn-small btn-danger" onclick="clearTeacherMapping()">🗑️ Alle löschen</button>
+                            <button class="btn btn-small" onclick="toggleTeacherMapping()"><i class="bi bi-clipboard"></i>Zuordnungen anzeigen/ausblenden</button>
+                            <button class="btn btn-small" onclick="addTeacherMapping()"><i class="bi bi-plus-circle"></i>Zuordnung hinzufügen</button>
+                            <button class="btn btn-small btn-danger" onclick="clearTeacherMapping()"><i class="bi bi-trash"></i>Alle löschen</button>
                         </div>
                         <div id="teacherMappingTable" style="display:none; margin-top: 20px;">
                             <h4>Lehrer-E-Mail-Zuordnungen:</h4>
@@ -406,8 +411,8 @@
                         </div>
                     </div>
                     <div class="step-nav-row" style="margin-top: 30px;">
-                        <button type="button" class="btn" onclick="goToStep(2.5)">← Zurück zur manuellen Eingabe</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(4)" id="continueBtn3">Weiter zur Team-Konfiguration →</button>
+                        <button type="button" class="btn" onclick="goToStep(2.5)"><i class="bi bi-arrow-left"></i>Zurück zur manuellen Eingabe</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(4)" id="continueBtn3"><i class="bi bi-arrow-right-circle"></i>Weiter zur Team-Konfiguration</button>
                     </div>
                 </div>
 
@@ -452,7 +457,7 @@
                             <input type="hidden" id="teamSeparator" value=" | ">
                             <div id="teamNamePreview" class="name-preview"></div>
                         </div>
-                        <button type="button" class="btn btn-success kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()">Team-Namen generieren</button>
+                        <button type="button" class="btn btn-success kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()"><i class="bi bi-magic"></i>Team-Namen generieren</button>
                     </div>
                     <div class="table-container" id="teamsTableContainer" style="display:none;">
                         <table>
@@ -498,7 +503,7 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;">Weiter zur Anlage (Graph) →</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zur Anlage (Graph)</button>
                     </div>
                 </div>
 
@@ -510,18 +515,18 @@
                     </p>
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
                         <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
-                        <button type="button" class="btn" id="kursteamOnlineLogin" onclick="window.ms365KursteamGraphLogin && window.ms365KursteamGraphLogin()">Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="kursteamOnlineRun" onclick="window.ms365KursteamGraphRun && window.ms365KursteamGraphRun()" style="margin-left:8px;">Kursteams jetzt anlegen</button>
+                        <button type="button" class="btn" id="kursteamOnlineLogin" onclick="window.ms365KursteamGraphLogin && window.ms365KursteamGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                        <button type="button" class="btn btn-success" id="kursteamOnlineRun" onclick="window.ms365KursteamGraphRun && window.ms365KursteamGraphRun()" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Kursteams jetzt anlegen</button>
                         <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
                     <div class="alert alert-info">
                         <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;8.
                     </div>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(4)">← Zurück zur Team-Konfiguration</button>
+                        <button type="button" class="btn" onclick="goToStep(4)"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
                         <div class="step-nav-next-group">
-                            <button type="button" class="btn btn-success" onclick="goToStep(5.5)">Weiter: Optional Schüler hinzufügen →</button>
-                            <button type="button" class="btn btn-success" onclick="goToStep(6)">Weiter zu optional: CSV &amp; PowerShell →</button>
+                            <button type="button" class="btn btn-success" onclick="goToStep(5.5)"><i class="bi bi-person-plus"></i>Weiter: Optional Schüler hinzufügen</button>
+                            <button type="button" class="btn btn-success" onclick="goToStep(6)"><i class="bi bi-filetype-csv"></i>Weiter zu optional: CSV &amp; PowerShell</button>
                         </div>
                     </div>
                 </div>
@@ -538,8 +543,8 @@
 
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
                         <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
-                        <button type="button" class="btn" id="studentRosterOnlineLogin" onclick="window.ms365KursteamMembersGraphLogin && window.ms365KursteamMembersGraphLogin()">Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;">Schüler jetzt hinzufügen</button>
+                        <button type="button" class="btn" id="studentRosterOnlineLogin" onclick="window.ms365KursteamMembersGraphLogin && window.ms365KursteamMembersGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                        <button type="button" class="btn btn-success" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Schüler jetzt hinzufügen</button>
                         <div id="studentRosterOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
 
@@ -559,7 +564,7 @@
                             <div class="import-paste-file-col">
                                 <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
                                 <div class="upload-area" id="studentRosterUploadArea">
-                                    <div class="upload-icon">👩‍🎓</div>
+                                    <div class="upload-icon" aria-hidden="true"><i class="bi bi-person-workspace"></i></div>
                                     <h3>Schülerliste hier ablegen oder klicken</h3>
                                     <p>CSV oder Excel mit Klasse, optional Gruppe, UPN/E-Mail</p>
                                     <input type="file" id="studentRosterFileInput" accept=".csv,.xlsx,.xls">
@@ -636,13 +641,13 @@
 
                     <h3>Generiertes PowerShell‑Script</h3>
                     <div class="powershell-code">
-                        <button class="btn btn-small copy-btn" id="btnCopyStudentRosterPowerShell">📋 Kopieren</button>
+                        <button class="btn btn-small copy-btn" id="btnCopyStudentRosterPowerShell"><i class="bi bi-clipboard"></i>Kopieren</button>
                         <pre id="studentRosterPowerShellScript"># Sobald eine Schülerliste übernommen wurde, erscheint hier das Script.</pre>
                     </div>
 
                     <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(5)">← Zurück zur Anlage</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(6)">Weiter zu optional: CSV &amp; PowerShell →</button>
+                        <button type="button" class="btn" onclick="goToStep(5)"><i class="bi bi-arrow-left"></i>Zurück zur Anlage</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(6)"><i class="bi bi-filetype-csv"></i>Weiter zu optional: CSV &amp; PowerShell</button>
                     </div>
                 </div>
 
@@ -668,14 +673,14 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv">📥 neueteams.csv herunterladen</button>
+                        <button type="button" class="btn btn-success" onclick="downloadCSV()" id="btnDownloadCsv"><i class="bi bi-download"></i>neueteams.csv herunterladen</button>
                     </div>
                     <div class="alert alert-warning" style="margin-top:20px;">
                         <strong>⚠️ Wichtig:</strong> Führen Sie das Script im selben Verzeichnis wie die neueteams.csv aus. Admin-Anmeldung erforderlich!
                     </div>
                     <h3>PowerShell-Script:</h3>
                     <div class="powershell-code">
-                        <button class="btn btn-small copy-btn" onclick="copyPowerShell()">📋 Kopieren</button>
+                        <button class="btn btn-small copy-btn" onclick="copyPowerShell()"><i class="bi bi-clipboard"></i>Kopieren</button>
                         <pre id="powershellScript">$TeamsList = Import-Csv -Path .\neueteams.csv -Encoding UTF8
 Connect-MicrosoftTeams
 
@@ -695,19 +700,19 @@ foreach ($Team in $TeamsList) {
                     <div class="filter-section">
                         <h3>Fertiges Paket zum Doppelklicken</h3>
                         <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download).</p>
-                        <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()">📦 Kursteam-Anlage.cmd herunterladen</button>
+                        <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()"><i class="bi bi-box-seam"></i>Kursteam-Anlage.cmd herunterladen</button>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" onclick="resetApp()">🔄 Neue Teams erstellen</button>
+                        <button type="button" class="btn btn-success" onclick="resetApp()"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-            <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern">💾 Zwischenstand speichern</button>
-            <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden">📂 Gespeicherten Stand laden</button>
-            <button type="button" class="btn btn-danger" id="btnClearStorage" title="Gespeicherten Zwischenstand löschen">🗑️ Lokalen Speicher löschen</button>
+            <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern"><i class="bi bi-floppy"></i>Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden"><i class="bi bi-folder2-open"></i>Gespeicherten Stand laden</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage" title="Gespeicherten Zwischenstand löschen"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
         </div>
     </div>
 

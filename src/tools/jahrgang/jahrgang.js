@@ -145,7 +145,7 @@
         if (!lines.length) return;
         ta.value = lines.join('\n');
         scheduleJgPreviewFromTextarea();
-        showToast('Jahrgang: Klassen aus Tenant-Einstellungen übernommen.');
+        showToast('Jahrgang: Klassen aus Schul‑Einstellungen übernommen.');
     }
 
     let jgTenantClassesDebounce;
@@ -268,15 +268,6 @@
         const el = document.getElementById('jgDefaultYear');
         const raw = (el && el.value ? el.value : '').trim();
         if (/^\d{4}$/.test(raw)) return raw;
-        try {
-            if (typeof window.ms365TenantSettingsLoad === 'function') {
-                const s = window.ms365TenantSettingsLoad();
-                const y = String(s?.defaultGraduationYear || '').trim();
-                if (/^\d{4}$/.test(y)) return y;
-            }
-        } catch {
-            // ignore
-        }
         return '2030';
     }
 
@@ -896,7 +887,7 @@
             !window.ms365IsTenantSchoolDomainConfigured()
         ) {
             errEl.textContent =
-                'Bitte legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest (Seite „Tenant-Einstellungen“).';
+                'Bitte legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest (Seite „Schul‑Einstellungen“).';
             errEl.style.display = 'block';
             if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
                 window.ms365ShowTenantDomainRequiredModal();
@@ -955,7 +946,7 @@
             (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
                 !window.ms365IsTenantSchoolDomainConfigured())
         ) {
-            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest.');
+            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
             if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
                 window.ms365ShowTenantDomainRequiredModal();
             }
@@ -1066,7 +1057,7 @@
             (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
                 !window.ms365IsTenantSchoolDomainConfigured())
         ) {
-            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest.');
+            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
             if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
                 window.ms365ShowTenantDomainRequiredModal();
             }
@@ -1086,7 +1077,7 @@
 
     applyInitialModeFromUrl();
     // jahrgang.html zeigt das Jahrgang-Panel direkt (ohne Mode-Buttons):
-    // daher auch beim Seitenladen aus Tenant vorbefüllen.
+    // daher auch beim Seitenladen aus den Schul‑Einstellungen vorbefüllen.
     if (panelJ && panelJ.style.display !== 'none') {
         adoptJgClassesFromTenantSettingsIfEmpty();
         scheduleJgPreviewFromTextarea();

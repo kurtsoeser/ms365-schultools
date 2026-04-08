@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Weitere Teams &amp; Gruppen (5. Ausführen)</title>
+    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body data-wtg-page-step="5">
+    <div class="container">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>Weitere Teams &amp; Gruppen</span>
+            </div>
+            <p>Teil von „Weitere Teams &amp; Gruppen“: Gruppen und Teams per Microsoft Graph anlegen oder aktualisieren – mit Protokoll.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="weitere-teams-gruppen-4-einstellungen.html" style="margin-left:8px;"><i class="bi bi-arrow-return-left"></i>Zu Einstellungen</a>
+            </div>
+        </div>
+
+        <div id="panelWtg">
+            <div class="steps wtg-steps">
+                <div class="step completed" data-wtg-step="1">1. Liste</div>
+                <div class="step completed" data-wtg-step="2">2. Besitzer</div>
+                <div class="step completed" data-wtg-step="3">3. Mitglieder</div>
+                <div class="step completed" data-wtg-step="4">4. Einstellungen</div>
+                <div class="step active" data-wtg-step="5">5. Ausführen</div>
+            </div>
+
+            <div class="content">
+                <div class="wtg-step-content active" data-wtg-step="5">
+                    <h2>Ausführen (Online)</h2>
+                    <div class="alert alert-warning">
+                        <strong>Berechtigungen (Entra App):</strong> Delegiert <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong>. Administratorzustimmung erteilen.
+                    </div>
+                    <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                        <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
+                        <button type="button" class="btn" id="wtgOnlineLogin" onclick="window.ms365WtgGraphLogin && window.ms365WtgGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                        <button type="button" class="btn btn-success" id="wtgOnlineRun" onclick="window.ms365WtgGraphRun && window.ms365WtgGraphRun()" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Jetzt anlegen</button>
+                        <div id="wtgOnlineLog" style="margin-top:14px;max-height:320px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                    </div>
+                    <div class="step-nav-row step-nav-row--back-only">
+                        <a class="btn" href="weitere-teams-gruppen-4-einstellungen.html"><i class="bi bi-arrow-left"></i>Zurück</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
+            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
+            <button type="button" class="btn" id="btnExportWtgJson">⬇️ Export JSON</button>
+            <button type="button" class="btn" id="btnImportWtgJson">⬆️ Import JSON</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+        </div>
+        <input type="file" id="wtgImportJsonFile" accept="application/json,.json" style="display:none;">
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/tenant-settings-ui.js" defer></script>
+    <script src="../src/shared/step-progress.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-parse.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-state.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-graph.js" defer></script>
+</body>
+</html>
+

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schulverwaltung – Start</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="app.css">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,6 +13,7 @@
             min-height: 100vh;
             margin: 0;
             padding: 24px;
+            padding-bottom: 96px; /* Platz für fixierte Fußzeilen-Links */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -32,13 +35,31 @@
             margin: 0 0 8px;
             font-size: 1.6em;
         }
-        header p { margin: 0; opacity: 0.95; }
-        header a {
-            color: #fff;
-            font-weight: 600;
-            text-decoration: underline;
-            text-underline-offset: 2px;
+        .app-brand-logo {
+            margin: 2px auto 10px;
+            max-width: min(360px, 92vw);
+            display: flex;
+            justify-content: center;
         }
+        .app-brand-logo img {
+            display: block;
+            width: auto;
+            max-width: 100%;
+            max-height: 96px;
+            height: auto;
+            vertical-align: top;
+        }
+        header .app-tagline {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 1.02em;
+            font-weight: 500;
+            line-height: 1.35;
+            max-width: 36em;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        header p { margin: 0; opacity: 0.95; }
         main { padding: 22px; }
         .dashboard-intro {
             margin: 0 0 4px;
@@ -65,6 +86,17 @@
             min-height: 168px;
             display: flex;
             flex-direction: column;
+            transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+        }
+        .choice:hover {
+            transform: scale(1.012);
+            box-shadow: 0 10px 26px rgba(50, 50, 93, 0.12);
+            border-color: rgba(94, 114, 228, 0.26);
+            background: linear-gradient(180deg, rgba(94, 114, 228, 0.07) 0%, rgba(130, 94, 228, 0.035) 100%);
+        }
+        .choice:focus-within {
+            outline: 2px solid rgba(94, 114, 228, 0.55);
+            outline-offset: 3px;
         }
         .choice h2 { margin: 0 0 8px; font-size: 1.1em; color: #32325d; }
         .choice p { margin: 0 0 14px; color: #495057; line-height: 1.4; flex: 1; }
@@ -80,6 +112,12 @@
         }
         .choice.featured .btn {
             background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
+        }
+        .choice.featured:hover {
+            transform: scale(1.008);
+            box-shadow: 0 14px 32px rgba(50, 50, 93, 0.15);
+            border-color: rgba(94, 114, 228, 0.4);
+            background: linear-gradient(180deg, rgba(94, 114, 228, 0.14) 0%, rgba(130, 94, 228, 0.09) 100%);
         }
         .featured-split {
             display: grid;
@@ -182,6 +220,9 @@
             border-radius: 10px;
             font-weight: 600;
         }
+        .bi { display: inline-block; vertical-align: -0.125em; line-height: 1; }
+        .btn .bi { margin-right: 8px; font-size: 1.05em; opacity: 0.98; }
+        .choice h2 .bi { margin-right: 10px; opacity: 0.9; }
         .btn.alt {
             background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
         }
@@ -191,88 +232,99 @@
             color: #6c757d;
         }
         code { background: #eef; padding: 2px 6px; border-radius: 6px; }
-        .choice[data-tool-id] { cursor: grab; }
+        /* Kein Grab-/Verschiebe-Cursor; Ziehen zum Umsortieren bleibt möglich */
+        .choice[data-tool-id] { cursor: default; }
+        .choice a,
+        .choice .btn { cursor: pointer; }
+        .choice input,
+        .choice textarea,
+        .choice select { cursor: text; }
         .choice[data-tool-id].dragging { opacity: 0.55; transform: rotate(0.15deg); }
         .choice[data-tool-id].drag-over { outline: 2px dashed rgba(94, 114, 228, 0.65); outline-offset: 6px; }
-        .dashboard-reorder-hint { margin: 10px 0 0; color: #6c757d; font-size: 0.9em; }
+        .dashboard-reorder-hint { margin: 18px 0 0; color: #6c757d; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="card">
         <header>
             <h1>MS365-Schulverwaltung</h1>
-            <p>Wählen Sie aus, was Sie erstellen möchten. · <a href="hilfe.html">Hilfe &amp; Datenschutz</a></p>
+            <div class="app-brand-logo">
+                <img src="assets/schooltool.png" width="320" height="88" alt="Logo MS365-Schulverwaltung" decoding="async" />
+            </div>
+            <p class="app-tagline">Microsoft 365 in der Schule – strukturiert planen, sicher umsetzen.</p>
         </header>
         <main>
             <p class="dashboard-intro">Dashboard: Wählen Sie ein Werkzeug. Weitere Kacheln können später befüllt werden.</p>
-            <p class="dashboard-reorder-hint">Tipp: Die Werkzeug‑Kacheln können per <strong>Drag &amp; Drop</strong> umsortiert werden (wird lokal im Browser gespeichert).</p>
             <div class="grid" role="list" aria-label="Werkzeuge und Platzhalter">
-                <section class="choice featured" role="listitem" aria-label="Tenant-Grundeinstellungen">
+                <section class="choice featured" role="listitem" aria-label="Schul-Grundeinstellungen">
                     <div class="featured-split">
                         <div class="featured-main">
-                            <h2>Tenant‑Grundeinstellungen</h2>
+                            <h2><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</h2>
                             <p>Gemeinsame Basisdaten (lokal im Browser) für die Tools. Hier pflegst du Domain, Fächer, Lehrkräfte und optional Schüler.</p>
-                            <ul class="stats" aria-label="Tenant-Statistiken">
+                            <ul class="stats" aria-label="Schul-Statistiken">
                                 <li class="stat-pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
                                 <li class="stat-pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
                                 <li class="stat-pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
                                 <li class="stat-pill"><strong id="tenantStatClasses">–</strong> Klassen</li>
                             </ul>
-                            <a class="btn alt" href="tenant.html">Tenant‑Einstellungen öffnen</a>
+                            <a class="btn alt" href="tenant.html"><i class="bi bi-gear"></i>Schul‑Einstellungen öffnen</a>
                         </div>
                         <aside class="dashboard-domain" aria-label="Schul-E-Mail-Domain">
                             <label for="schoolEmailDomain">E-Mail-Domain der Schule (ohne @)</label>
                             <input type="text" id="schoolEmailDomain" name="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off" spellcheck="false">
                             <p class="domain-hint">
-                                Gilt für Kursteams, Jahrgang und ARGE. Vollständige Stammdaten: <a href="tenant.html">Tenant‑Einstellungen</a>.
+                                Gilt für Kursteams, Jahrgang und ARGE. Vollständige Stammdaten: <a href="tenant.html">Schul‑Einstellungen</a>.
                             </p>
                         </aside>
                     </div>
                 </section>
                 <section class="choice" role="listitem" aria-label="Schüler und Lehrer Gruppen" data-tool-id="slg" draggable="true">
-                    <h2>Schüler‑ und Lehrer:innen‑Gruppen</h2>
-                    <p>Zwei Microsoft 365‑Gruppen (<code>schueler@…</code> / <code>lehrer@…</code>) aus den Tenant‑Listen anlegen oder bestehende Gruppen mit Mitgliedern befüllen – schrittweise inkl. manueller Adressen.</p>
-                    <a class="btn" href="tools/schueler-lehrer-gruppen.html">Gruppen verwalten</a>
+                    <h2><i class="bi bi-people"></i>Schüler‑ und Lehrer:innen‑Gruppen</h2>
+                    <p>Zwei Microsoft 365‑Gruppen (<code>schueler@…</code> / <code>lehrer@…</code>) aus den Schul‑Listen anlegen oder bestehende Gruppen mit Mitgliedern befüllen – schrittweise inkl. manueller Adressen.</p>
+                    <a class="btn" href="tools/schueler-lehrer-gruppen.html"><i class="bi bi-people-fill"></i>Gruppen verwalten</a>
                 </section>
                 <section class="choice" role="listitem" data-tool-id="jahrgang" draggable="true">
-                    <h2>Jahrgangsgruppen</h2>
+                    <h2><i class="bi bi-diagram-3"></i>Jahrgangsgruppen</h2>
                     <p>Microsoft 365‑Gruppen (Unified Groups, keine Kursteams) nach Schema <code>jg&lt;Jahr&gt;-&lt;Kürzel&gt;</code> erstellen.</p>
-                    <a class="btn" href="tools/jahrgang.html">Jahrgangsgruppen erstellen</a>
+                    <a class="btn" href="tools/jahrgang.html"><i class="bi bi-plus-circle"></i>Jahrgangsgruppen erstellen</a>
                 </section>
                 <section class="choice" role="listitem" data-tool-id="arge" draggable="true">
-                    <h2>ARGEs</h2>
+                    <h2><i class="bi bi-people-gear"></i>ARGEs</h2>
                     <p>Microsoft 365‑Gruppen für Arbeitsgemeinschaften (z. B. <code>ARGE Deutsch</code>, <code>ARGEBB</code>) erstellen – inkl. Besitzer und Doppelklick‑Paket.</p>
-                    <a class="btn" href="tools/arge.html">ARGEs erstellen</a>
+                    <a class="btn" href="tools/arge.html"><i class="bi bi-magic"></i>ARGEs erstellen</a>
                 </section>
                 <section class="choice" role="listitem" data-tool-id="kursteams" draggable="true">
-                    <h2>Kursteams</h2>
+                    <h2><i class="bi bi-mortarboard"></i>Kursteams</h2>
                     <p>Import der <strong>WebUntis‑Fächerliste</strong> (CSV/Excel), optional manuelle Zeilen. Teams (Vorlage <code>EDU_Class</code>) vorbereiten und online oder per PowerShell anlegen.</p>
-                    <a class="btn" href="tools/kursteams.html">Kursteams erstellen</a>
+                    <a class="btn" href="tools/kursteams.html"><i class="bi bi-rocket-takeoff"></i>Kursteams erstellen</a>
                 </section>
-                <section class="choice choice-placeholder" role="listitem" aria-label="Weitere Teams und Gruppen (Platzhalter)" data-tool-id="placeholder5" draggable="true">
-                    <h2>Weitere Teams &amp; Gruppen</h2>
-                    <p>Kommt später. (Platzhalter)</p>
-                    <span class="placeholder-badge">In Planung</span>
+                <section class="choice" role="listitem" aria-label="Weitere Teams und Gruppen" data-tool-id="weitere-teams-gruppen" draggable="true">
+                    <h2><i class="bi bi-collection"></i>Weitere Teams &amp; Gruppen</h2>
+                    <p>Beliebige zusätzliche Microsoft‑365‑Gruppen/Teams anlegen: Liste manuell oder per Import, dann Besitzer, Mitglieder und Einstellungen festlegen und online per Microsoft Graph ausführen.</p>
+                    <a class="btn" href="tools/weitere-teams-gruppen.html"><i class="bi bi-box-arrow-up-right"></i>Tool öffnen</a>
                 </section>
                 <section class="choice" role="listitem" aria-label="Klassen umbenennen" data-tool-id="klassen-umbenennen" draggable="true">
-                    <h2>Klassen umbenennen</h2>
+                    <h2><i class="bi bi-pencil-square"></i>Klassen umbenennen</h2>
                     <p>Microsoft‑365‑Klassengruppen zum Schuljahreswechsel umbenennen (z. B. <code>Klasse 1A</code> → <code>Klasse 2A</code>) mit Vorschau und Microsoft Graph.</p>
-                    <a class="btn" href="tools/klassen-umbenennen.html">Klassen umbenennen</a>
+                    <a class="btn" href="tools/klassen-umbenennen.html"><i class="bi bi-arrow-repeat"></i>Klassen umbenennen</a>
                 </section>
                 <section class="choice" role="listitem" aria-label="Teams archivieren" data-tool-id="teams-archiv" draggable="true">
-                    <h2>Teams archivieren</h2>
+                    <h2><i class="bi bi-archive"></i>Teams archivieren</h2>
                     <p>Microsoft Teams per Graph archivieren oder wieder aktivieren (gleiche GUID wie die M365‑Gruppe). Optional SharePoint‑Website schreibgeschützt.</p>
-                    <a class="btn" href="tools/teams-archiv.html">Teams archivieren</a>
+                    <a class="btn" href="tools/teams-archiv.html"><i class="bi bi-archive-fill"></i>Teams archivieren</a>
                 </section>
                 <section class="choice" role="listitem" aria-label="Microsoft 365-Gruppen anzeigen" data-tool-id="gruppen-uebersicht" draggable="true">
-                    <h2>MS365‑Gruppen</h2>
+                    <h2><i class="bi bi-list-ul"></i>MS365‑Gruppen</h2>
                     <p>Einheitliche Microsoft‑365‑Gruppen im Mandanten listen: Besitzer, Mitglieder und Erstellungsdatum (Microsoft Graph).</p>
-                    <a class="btn" href="tools/gruppen-uebersicht.html">Gruppenübersicht öffnen</a>
+                    <a class="btn" href="tools/gruppen-uebersicht.html"><i class="bi bi-search"></i>Gruppenübersicht öffnen</a>
                 </section>
             </div>
-            <p class="note">Tipp: Unter GitHub Pages ist diese Seite die Root-URL des Repos (z. B. <code>kurtsoeser.github.io/ms365-schultools/</code>).</p>
+            <p class="dashboard-reorder-hint">Tipp: Die Werkzeug‑Kacheln können per <strong>Drag &amp; Drop</strong> umsortiert werden (wird lokal im Browser gespeichert).</p>
+            <p class="note">Ein Projekt von Kurt Söser</p>
         </main>
     </div>
+
+    <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
 
     <script src="ms365-config.js"></script>
     <script src="src/shared/school-domain.js" defer></script>
@@ -319,7 +371,7 @@
                 'jahrgang',
                 'arge',
                 'kursteams',
-                'placeholder5',
+                'weitere-teams-gruppen',
                 'klassen-umbenennen',
                 'teams-archiv',
                 'gruppen-uebersicht'

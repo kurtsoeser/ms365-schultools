@@ -98,7 +98,7 @@
             lines.push('    exit 1');
             lines.push('}');
             lines.push('$mgCtx = Get-MgContext');
-            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
+            lines.push('Write-Host ("Angemeldet (Mandant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
             lines.push('');
         } else {
             lines.push('# Microsoft Graph: ARGE-Gruppen als Microsoft 365-Gruppen (Unified Group, kein Kursteam)');
@@ -151,7 +151,7 @@
             lines.push('    throw "Microsoft Graph: Keine Sitzung – Anmeldung nicht erfolgreich."');
             lines.push('}');
             lines.push('$mgCtx = Get-MgContext');
-            lines.push('Write-Host ("Angemeldet (Tenant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
+            lines.push('Write-Host ("Angemeldet (Mandant: {0})" -f $mgCtx.TenantId) -ForegroundColor Green');
             lines.push('');
         }
 

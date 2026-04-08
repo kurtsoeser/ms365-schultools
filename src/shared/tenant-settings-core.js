@@ -37,20 +37,6 @@
                 ? window.ms365GetSchoolDomainNoAt()
                 : normStr(o.domain);
 
-        const defaultGraduationYearRaw =
-            o.defaultGraduationYear !== undefined
-                ? o.defaultGraduationYear
-                : o.defaultAbschlussjahr !== undefined
-                  ? o.defaultAbschlussjahr
-                  : o.jgDefaultYear !== undefined
-                    ? o.jgDefaultYear
-                    : o.defaultYear !== undefined
-                      ? o.defaultYear
-                      : '2030';
-        const defaultGraduationYear = /^\d{4}$/.test(normStr(defaultGraduationYearRaw))
-            ? normStr(defaultGraduationYearRaw)
-            : '2030';
-
         const subjectsIn = Array.isArray(o.subjects) ? o.subjects : [];
         const teachersIn = Array.isArray(o.teachers) ? o.teachers : [];
         const studentsIn = Array.isArray(o.students) ? o.students : [];
@@ -109,7 +95,6 @@
         return {
             version: CURRENT_VERSION,
             domain: normStr(domain),
-            defaultGraduationYear,
             subjects,
             teachers,
             students,

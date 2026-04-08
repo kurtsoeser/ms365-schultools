@@ -6,25 +6,30 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Jahrgangsgruppen</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
-            <p>Jahrgangsgruppen (Microsoft 365-Gruppen)</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Jahrgangsgruppen</span>
+            </div>
+            <p>Jahrgangsgruppen mit festem Namensschema (z. B. <code>jg2026-7a</code>) als Microsoft‑365‑Gruppen vorbereiten und per Microsoft Graph anlegen.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <a class="btn" href="../index.html" style="text-decoration:none;">← Dashboard</a>
+                <a class="btn" href="../index.html" style="text-decoration:none;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div id="panelJahrgang">
             <div class="steps jg-steps">
-                <div class="step active" data-jg-step="1">1. Klassenliste</div>
-                <div class="step" data-jg-step="2">2. Besitzer</div>
-                <div class="step" data-jg-step="3">3. Mitglieder</div>
-                <div class="step" data-jg-step="4">4. Grundlagen &amp; Einstellungen</div>
-                <div class="step" data-jg-step="5">5. Ausführen</div>
+                <div class="step active" data-jg-step="1"><i class="bi bi-list-ul"></i>1. Klassenliste</div>
+                <div class="step" data-jg-step="2"><i class="bi bi-person-badge"></i>2. Besitzer</div>
+                <div class="step" data-jg-step="3"><i class="bi bi-people"></i>3. Mitglieder</div>
+                <div class="step" data-jg-step="4"><i class="bi bi-sliders2"></i>4. Grundlagen &amp; Einstellungen</div>
+                <div class="step" data-jg-step="5"><i class="bi bi-play-circle"></i>5. Ausführen</div>
             </div>
             <div class="content">
                 <div class="jg-step-content active" data-jg-step="1">
@@ -61,7 +66,7 @@
                     </div>
                     <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
                     <p style="margin:0 0 10px 0;">
-                        <button type="button" class="btn btn-small" id="jgPreviewAddRow">+ Zeile hinzufügen</button>
+                        <button type="button" class="btn btn-small" id="jgPreviewAddRow"><i class="bi bi-plus-circle"></i>Zeile hinzufügen</button>
                     </p>
                     <div class="table-container" style="max-height:280px;margin-bottom:12px;">
                         <table>
@@ -82,7 +87,7 @@
                     </div>
                     <p id="jgParseError" class="alert alert-warning" style="display:none;"></p>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" id="jgParseAndGo2">Weiter zu Besitzern →</button>
+                        <button type="button" class="btn btn-success" id="jgParseAndGo2"><i class="bi bi-arrow-right-circle"></i>Weiter zu Besitzern</button>
                     </div>
                 </div>
 
@@ -107,8 +112,8 @@
                         </table>
                     </div>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" id="jgBack1">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="jgGoTo3">Weiter zu Mitglieder →</button>
+                        <button type="button" class="btn" id="jgBack1"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-success" id="jgGoTo3"><i class="bi bi-arrow-right-circle"></i>Weiter zu Mitglieder</button>
                     </div>
                 </div>
 
@@ -133,8 +138,8 @@
                     </div>
                     <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Leerzeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" id="jgMemberBack">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="jgMemberNext">Weiter zu Grundlagen &amp; Einstellungen →</button>
+                        <button type="button" class="btn" id="jgMemberBack"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-success" id="jgMemberNext"><i class="bi bi-arrow-right-circle"></i>Weiter zu Grundlagen &amp; Einstellungen</button>
                     </div>
                 </div>
 
@@ -153,8 +158,8 @@
                         </div>
                     </div>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" id="jgBack2">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="jgGoTo4">Weiter zu Ausführen →</button>
+                        <button type="button" class="btn" id="jgBack2"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-success" id="jgGoTo4"><i class="bi bi-arrow-right-circle"></i>Weiter zu Ausführen</button>
                     </div>
                 </div>
 
@@ -165,28 +170,28 @@
                     </div>
                     <h3>Generiertes Script</h3>
                     <div class="powershell-code">
-                        <button type="button" class="btn btn-small copy-btn" id="jgCopyScript">📋 Kopieren</button>
+                        <button type="button" class="btn btn-small copy-btn" id="jgCopyScript"><i class="bi bi-clipboard"></i>Kopieren</button>
                         <pre id="jgPowerShellScript"></pre>
                     </div>
                     <div class="filter-section">
                         <h3>Fertiges Paket zum Doppelklicken</h3>
                         <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Jahrgangsgruppen-Anlage.cmd</strong> (PowerShell eingebettet).</p>
-                        <button type="button" class="btn btn-success" onclick="downloadJahrgangStandalonePackage()">📦 Jahrgangsgruppen-Anlage.cmd herunterladen</button>
+                        <button type="button" class="btn btn-success" onclick="downloadJahrgangStandalonePackage()"><i class="bi bi-box-seam"></i>Jahrgangsgruppen-Anlage.cmd herunterladen</button>
                     </div>
                     <div class="step-nav-row step-nav-row--back-only">
-                        <button type="button" class="btn" id="jgBack3">← Zurück</button>
+                        <button type="button" class="btn" id="jgBack3"><i class="bi bi-arrow-left"></i>Zurück</button>
                     </div>
                 </div>
             </div>
         </div>
         <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
-            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
-            <button type="button" class="btn" id="btnExportJgJson">⬇️ Export JSON</button>
-            <button type="button" class="btn" id="btnImportJgJson">⬆️ Import JSON</button>
-            <button type="button" class="btn" id="btnExportJgCsv">⬇️ Export CSV</button>
-            <button type="button" class="btn" id="btnImportJgCsv">⬆️ Import CSV</button>
-            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+            <button type="button" class="btn" id="btnSaveState"><i class="bi bi-floppy"></i>Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState"><i class="bi bi-folder2-open"></i>Gespeicherten Stand laden</button>
+            <button type="button" class="btn" id="btnExportJgJson"><i class="bi bi-download"></i>Export JSON</button>
+            <button type="button" class="btn" id="btnImportJgJson"><i class="bi bi-upload"></i>Import JSON</button>
+            <button type="button" class="btn" id="btnExportJgCsv"><i class="bi bi-download"></i>Export CSV</button>
+            <button type="button" class="btn" id="btnImportJgCsv"><i class="bi bi-upload"></i>Import CSV</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
         </div>
         <input type="file" id="jgImportJsonFile" accept="application/json,.json" style="display:none;">
         <input type="file" id="jgImportCsvFile" accept="text/csv,.csv,text/plain" style="display:none;">

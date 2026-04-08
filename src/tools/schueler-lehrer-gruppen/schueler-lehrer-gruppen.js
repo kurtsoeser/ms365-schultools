@@ -290,7 +290,7 @@
         const ttM = document.getElementById('slgStatTeachersMail');
         const warn = document.getElementById('slgTenantWarn');
 
-        if (elDom) elDom.textContent = domain || '(keine Domain in den Tenant‑Einstellungen)';
+        if (elDom) elDom.textContent = domain || '(keine Domain in den Schul‑Einstellungen)';
         if (elMS) elMS.textContent = domain ? 'schueler@' + domain : 'schueler@…';
         if (elML) elML.textContent = domain ? 'lehrer@' + domain : 'lehrer@…';
 
@@ -303,7 +303,7 @@
 
         if (warn) {
             const lines = [];
-            if (!domain) lines.push('Bitte in den Tenant‑Einstellungen eine Schul‑Domain eintragen (für die Adress‑Vorschau).');
+            if (!domain) lines.push('Bitte in den Schul‑Einstellungen eine Schul‑Domain eintragen (für die Adress‑Vorschau).');
             if (!studEmails.length) lines.push('Keine Schüler:innen mit E‑Mail in der Liste – Schritt 3 kann dort nichts übernehmen.');
             if (!teachEmails.length) lines.push('Keine Lehrer:innen mit E‑Mail in der Liste – Schritt 3 kann dort nichts übernehmen.');
             warn.style.display = lines.length ? 'block' : 'none';
@@ -589,7 +589,7 @@
                 token,
                 displayName,
                 mailNick,
-                'Alle Schüler:innen (MS365-Schulverwaltung / Tenant‑Liste)'
+                'Alle Schüler:innen (MS365-Schulverwaltung / Schul‑Liste)'
             );
             persistResolvedIds('schueler', g);
             setSummary('schueler', formatGroupSummary(g), true);
@@ -618,7 +618,7 @@
                 token,
                 displayName,
                 mailNick,
-                'Alle Lehrer:innen (MS365-Schulverwaltung / Tenant‑Liste)'
+                'Alle Lehrer:innen (MS365-Schulverwaltung / Schul‑Liste)'
             );
             persistResolvedIds('lehrer', g);
             setSummary('lehrer', formatGroupSummary(g), true);
@@ -806,7 +806,7 @@
         const settings = loadTenantSettings();
         const emails = collectStudentEmails(settings);
         if (!emails.length) {
-            toast('Keine Schüler:innen‑E‑Mails in den Tenant‑Einstellungen.');
+            toast('Keine Schüler:innen‑E‑Mails in den Schul‑Einstellungen.');
             return;
         }
         if (!resolvedSchuelerId) {
@@ -833,7 +833,7 @@
         const settings = loadTenantSettings();
         const emails = collectTeacherEmails(settings);
         if (!emails.length) {
-            toast('Keine Lehrer:innen‑E‑Mails in den Tenant‑Einstellungen.');
+            toast('Keine Lehrer:innen‑E‑Mails in den Schul‑Einstellungen.');
             return;
         }
         if (!resolvedLehrerId) {

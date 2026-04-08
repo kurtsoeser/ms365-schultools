@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Weitere Teams &amp; Gruppen (3. Mitglieder)</title>
+    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body data-wtg-page-step="3">
+    <div class="container">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>Weitere Teams &amp; Gruppen</span>
+            </div>
+            <p>Teil von „Weitere Teams &amp; Gruppen“: Mitglieder aus Listen oder manuell zuordnen, bevor die Gruppen angelegt werden.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="weitere-teams-gruppen-2-besitzer.html" style="margin-left:8px;"><i class="bi bi-arrow-return-left"></i>Zu Besitzer</a>
+            </div>
+        </div>
+
+        <div id="panelWtg">
+            <div class="steps wtg-steps">
+                <div class="step completed" data-wtg-step="1">1. Liste</div>
+                <div class="step completed" data-wtg-step="2">2. Besitzer</div>
+                <div class="step active" data-wtg-step="3">3. Mitglieder</div>
+                <div class="step" data-wtg-step="4">4. Einstellungen</div>
+                <div class="step" data-wtg-step="5">5. Ausführen</div>
+            </div>
+
+            <div class="content">
+                <div class="wtg-step-content active" data-wtg-step="3">
+                    <h2>Mitglieder (optional, pro Gruppe/Team)</h2>
+                    <div class="alert alert-info">
+                        <strong>Optional:</strong> Pro Eintrag eine Liste: <strong>UPN/E-Mail, eine pro Zeile</strong>.
+                    </div>
+                    <div class="table-container" style="max-height:560px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="min-width:160px;">Anzeigename</th>
+                                    <th style="min-width:86px;">Typ</th>
+                                    <th style="min-width:200px;">Gruppen-E-Mail (Vorschau)</th>
+                                    <th>Mitglieder (eine Zeile pro UPN)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wtgMembersBody">
+                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Daten – bitte zuerst Schritt 1 ausfüllen.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
+                    <div class="step-nav-row">
+                        <a class="btn" href="weitere-teams-gruppen-2-besitzer.html">← Zurück</a>
+                        <button type="button" class="btn btn-success" id="wtgMemberNext" style="margin-left:auto;">Weiter zu Einstellungen →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
+            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
+            <button type="button" class="btn" id="btnExportWtgJson">⬇️ Export JSON</button>
+            <button type="button" class="btn" id="btnImportWtgJson">⬆️ Import JSON</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+        </div>
+        <input type="file" id="wtgImportJsonFile" accept="application/json,.json" style="display:none;">
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/tenant-settings-ui.js" defer></script>
+    <script src="../src/shared/step-progress.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-parse.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-state.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg.js" defer></script>
+</body>
+</html>
+

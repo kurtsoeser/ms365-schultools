@@ -6,6 +6,7 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Schüler- und Lehrer:innen-Gruppen</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         @media (max-width: 900px) {
             .slg-two-col { grid-template-columns: 1fr !important; }
@@ -16,27 +17,31 @@
     <div class="container">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
-            <p>Schüler:innen- und Lehrer:innen-Gruppen (Microsoft 365-Gruppen)</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Schüler:innen‑ &amp; Lehrer:innen‑Gruppen</span>
+            </div>
+            <p>Zwei Microsoft‑365‑Gruppen für Schüler:innen und Lehrer:innen anlegen oder wählen, Mitglieder aus den Schul‑Listen zuordnen und optional als Teams bereitstellen.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <a class="btn" href="../index.html">← Dashboard</a>
-                <a class="btn" href="../tenant.html">Tenant‑Einstellungen</a>
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html"><i class="bi bi-gear"></i>Schul‑Einstellungen</a>
             </div>
         </div>
 
         <div id="panelSlg">
             <div class="steps slg-steps">
-                <div class="step active" data-slg-step="1">1. Daten prüfen</div>
-                <div class="step" data-slg-step="2">2. Gruppen</div>
-                <div class="step" data-slg-step="3">3. Aus Listen</div>
-                <div class="step" data-slg-step="4">4. Manuell</div>
+                <div class="step active" data-slg-step="1"><i class="bi bi-clipboard-check"></i>1. Daten prüfen</div>
+                <div class="step" data-slg-step="2"><i class="bi bi-people-fill"></i>2. Gruppen</div>
+                <div class="step" data-slg-step="3"><i class="bi bi-database"></i>3. Aus Listen</div>
+                <div class="step" data-slg-step="4"><i class="bi bi-pencil-square"></i>4. Manuell</div>
             </div>
             <div class="content">
                 <div class="slg-step-content active" data-slg-step="1">
-                    <h2>Schritt 1: Daten aus den Tenant‑Grundeinstellungen</h2>
+                    <h2>Schritt 1: Daten aus den Schul‑Grundeinstellungen</h2>
                     <div class="alert alert-info">
                         <strong>Quelle:</strong> Die Listen <strong>Schüler:innen</strong> und <strong>Lehrer:innen</strong> kommen aus den
-                        <a href="../tenant.html">Tenant‑Grundeinstellungen</a> (lokal im Browser). Für die geplanten Gruppen‑E‑Mail‑Adressen wird die
+                        <a href="../tenant.html">Schul‑Grundeinstellungen</a> (lokal im Browser). Für die geplanten Gruppen‑E‑Mail‑Adressen wird die
                         <strong>Schul‑Domain</strong> verwendet (ohne <code>@</code>).
                     </div>
                     <div class="filter-section">
@@ -55,7 +60,7 @@
                         <p id="slgTenantWarn" class="alert alert-warning" style="display:none;margin-top:12px;"></p>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" id="slgBtnNext1">Weiter zu Gruppen →</button>
+                        <button type="button" class="btn btn-success" id="slgBtnNext1"><i class="bi bi-arrow-right-circle"></i>Weiter zu Gruppen</button>
                     </div>
                 </div>
 
@@ -67,7 +72,7 @@
                         Es werden <strong>Microsoft 365‑Gruppen</strong> (<code>Unified</code>) mit den Mail‑Nicknames <code>schueler</code> und <code>lehrer</code> erstellt oder verwaltet.
                     </div>
                     <p style="margin:0 0 14px;">
-                        <button type="button" class="btn" id="slgBtnLogin">Bei Microsoft anmelden</button>
+                        <button type="button" class="btn" id="slgBtnLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
                     </p>
                     <div class="slg-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
                         <div class="filter-section" style="margin:0;">
@@ -93,7 +98,7 @@
                                     </label>
                                     <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Standard: aus. Benötigt Graph‑Berechtigung <code>Team.Create</code> (delegiert) und ggf. Admin‑Zustimmung.</small>
                                 </div>
-                                <button type="button" class="btn btn-success" id="slgBtnCreateSchueler">Gruppe anlegen</button>
+                                <button type="button" class="btn btn-success" id="slgBtnCreateSchueler"><i class="bi bi-plus-circle"></i>Gruppe anlegen</button>
                             </div>
                             <div id="slgSchuelerExistBlock" style="display:none;">
                                 <div class="filter-group">
@@ -104,8 +109,8 @@
                                     <label for="slgSchuelerGroupQuery">Suche (Mail‑Nickname oder Gruppen‑E‑Mail)</label>
                                     <input type="text" id="slgSchuelerGroupQuery" autocomplete="off" spellcheck="false" placeholder="schueler oder schueler@ms365.schule">
                                 </div>
-                                <button type="button" class="btn" id="slgBtnResolveSchueler">Gruppe laden / prüfen</button>
-                                <button type="button" class="btn" id="slgBtnFindSchuelerNick">Per Mail‑Nickname suchen</button>
+                                <button type="button" class="btn" id="slgBtnResolveSchueler"><i class="bi bi-search"></i>Gruppe laden / prüfen</button>
+                                <button type="button" class="btn" id="slgBtnFindSchuelerNick"><i class="bi bi-envelope"></i>Per Mail‑Nickname suchen</button>
                             </div>
                             <p id="slgSchuelerSummary" class="slg-group-summary" style="display:none;margin-top:12px;padding:10px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;font-size:0.92em;"></p>
                         </div>
@@ -132,7 +137,7 @@
                                     </label>
                                     <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Standard: aus. Benötigt Graph‑Berechtigung <code>Team.Create</code> (delegiert) und ggf. Admin‑Zustimmung.</small>
                                 </div>
-                                <button type="button" class="btn btn-success" id="slgBtnCreateLehrer">Gruppe anlegen</button>
+                                <button type="button" class="btn btn-success" id="slgBtnCreateLehrer"><i class="bi bi-plus-circle"></i>Gruppe anlegen</button>
                             </div>
                             <div id="slgLehrerExistBlock" style="display:none;">
                                 <div class="filter-group">
@@ -143,8 +148,8 @@
                                     <label for="slgLehrerGroupQuery">Suche (Mail‑Nickname oder Gruppen‑E‑Mail)</label>
                                     <input type="text" id="slgLehrerGroupQuery" autocomplete="off" spellcheck="false" placeholder="lehrer oder lehrer@ms365.schule">
                                 </div>
-                                <button type="button" class="btn" id="slgBtnResolveLehrer">Gruppe laden / prüfen</button>
-                                <button type="button" class="btn" id="slgBtnFindLehrerNick">Per Mail‑Nickname suchen</button>
+                                <button type="button" class="btn" id="slgBtnResolveLehrer"><i class="bi bi-search"></i>Gruppe laden / prüfen</button>
+                                <button type="button" class="btn" id="slgBtnFindLehrerNick"><i class="bi bi-envelope"></i>Per Mail‑Nickname suchen</button>
                             </div>
                             <p id="slgLehrerSummary" class="slg-group-summary" style="display:none;margin-top:12px;padding:10px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;font-size:0.92em;"></p>
                         </div>
@@ -153,25 +158,25 @@
                         <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups" target="_blank" rel="noopener">Entra: Gruppen</a>
                     </p>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" id="slgBtnBack2">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="slgBtnNext2">Weiter zu Listen →</button>
+                        <button type="button" class="btn" id="slgBtnBack2"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-success" id="slgBtnNext2"><i class="bi bi-arrow-right-circle"></i>Weiter zu Listen</button>
                     </div>
                 </div>
 
                 <div class="slg-step-content" data-slg-step="3">
-                    <h2>Schritt 3: Mitglieder aus den Tenant‑Listen hinzufügen</h2>
+                    <h2>Schritt 3: Mitglieder aus den Schul‑Listen hinzufügen</h2>
                     <div class="alert alert-info">
                         Es werden nur Zeilen mit <strong>gültiger E‑Mail</strong> berücksichtigt. Bereits vorhandene Mitglieder werden übersprungen (Duplikate).
                     </div>
                     <p style="margin:0 0 12px;">
-                        <button type="button" class="btn btn-success" id="slgBtnSyncStudents">Schüler:innen‑Liste → Schüler:innen‑Gruppe</button>
-                        <button type="button" class="btn btn-success" id="slgBtnSyncTeachers" style="margin-left:8px;">Lehrer:innen‑Liste → Lehrer:innen‑Gruppe</button>
+                        <button type="button" class="btn btn-success" id="slgBtnSyncStudents"><i class="bi bi-person-plus-fill"></i>Schüler:innen‑Liste → Schüler:innen‑Gruppe</button>
+                        <button type="button" class="btn btn-success" id="slgBtnSyncTeachers" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Lehrer:innen‑Liste → Lehrer:innen‑Gruppe</button>
                     </p>
                     <h3 style="margin:16px 0 8px;font-size:1rem;">Protokoll</h3>
                     <div id="slgSyncLog" style="max-height:220px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     <div class="step-nav-row">
-                        <button type="button" class="btn" id="slgBtnBack3">← Zurück</button>
-                        <button type="button" class="btn btn-success" id="slgBtnNext3">Weiter zu Manuell →</button>
+                        <button type="button" class="btn" id="slgBtnBack3"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-success" id="slgBtnNext3"><i class="bi bi-arrow-right-circle"></i>Weiter zu Manuell</button>
                     </div>
                 </div>
 
@@ -203,16 +208,16 @@
                         <a href="#" id="slgLinkLehrerEntra" style="display:none;" target="_blank" rel="noopener">Lehrer:innen‑Gruppe in Entra</a>
                     </p>
                     <div class="step-nav-row step-nav-row--back-only">
-                        <button type="button" class="btn" id="slgBtnBack4">← Zurück</button>
+                        <button type="button" class="btn" id="slgBtnBack4"><i class="bi bi-arrow-left"></i>Zurück</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-            <button type="button" class="btn" id="slgBtnSaveState">💾 Zwischenstand speichern</button>
-            <button type="button" class="btn" id="slgBtnLoadState">📂 Gespeicherten Stand laden</button>
-            <button type="button" class="btn btn-danger" id="slgBtnClearStorage">🗑️ Lokalen Speicher löschen</button>
+            <button type="button" class="btn" id="slgBtnSaveState"><i class="bi bi-floppy"></i>Zwischenstand speichern</button>
+            <button type="button" class="btn" id="slgBtnLoadState"><i class="bi bi-folder2-open"></i>Gespeicherten Stand laden</button>
+            <button type="button" class="btn btn-danger" id="slgBtnClearStorage"><i class="bi bi-trash"></i>Lokalen Speicher löschen</button>
         </div>
     </div>
 

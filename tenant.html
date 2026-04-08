@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schulverwaltung – Tenant-Grundeinstellungen</title>
+    <title>MS365-Schulverwaltung – Schul-Grundeinstellungen</title>
     <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .page-card {
             max-width: 1100px;
@@ -240,30 +241,34 @@
     <div class="container page-card">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
-            <p>Tenant-Grundeinstellungen</p>
-            <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener">Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name">Schul‑Grundeinstellungen</span>
+            </div>
+            <p>Domain, Fächer, Lehrkräfte, Klassen und Schüler:innen lokal im Browser pflegen – gemeinsame Datenbasis für Kursteams, Jahrgang, ARGE und Gruppen‑Tools.</p>
+            <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;">
-                        <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;">← Dashboard</a>
+                        <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                        <button type="button" class="btn" id="tenantSettingsExportHeader">Export (JSON)</button>
-                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;">Import (JSON)</label>
+                        <button type="button" class="btn" id="tenantSettingsExportHeader"><i class="bi bi-download"></i>Export (JSON)</button>
+                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="content">
-            <section class="settings" aria-label="Tenant-Grundeinstellungen">
-                <h2>Tenant-Grundeinstellungen</h2>
+            <section class="settings" aria-label="Schul-Grundeinstellungen">
+                <h2>Schul‑Grundeinstellungen</h2>
                 <p>Diese Daten werden <strong>lokal im Browser</strong> gespeichert und können von den Tools (Kursteams, Jahrgang, ARGE) als gemeinsame Basis verwendet werden.</p>
 
                 <form id="tenantSettingsForm" onsubmit="return false;">
-                    <section class="tile" aria-label="Tenant-Grundeinstellungen (Basis)">
+                    <section class="tile" aria-label="Schul-Grundeinstellungen (Basis)">
                         <div class="tile-head">
-                            <h3 class="tile-title">Tenant‑Grundeinstellungen</h3>
+                            <h3 class="tile-title">Schul‑Grundeinstellungen</h3>
                             <p class="tile-subtitle">Bitte hier starten: Domain festlegen, dann Listen befüllen.</p>
                         </div>
                         <div class="field">
@@ -273,16 +278,9 @@
                                 Wird auch für Vorschauen und automatische E-Mail-Erzeugung genutzt (z. B. <code>Kürzel@domain</code>).
                             </small>
                         </div>
-                        <div class="field">
-                            <label for="tenantDefaultGraduationYear">Standard‑Abschlussjahr (für Jahrgangsgruppen)</label>
-                            <input type="text" id="tenantDefaultGraduationYear" value="2030" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" autocomplete="off" style="max-width:10em;">
-                            <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                Wird in der Jahrgangsgruppen‑Vorschau als Default genutzt, wenn bei einer Klasse kein Jahr angegeben ist.
-                            </small>
-                        </div>
                     </section>
 
-                    <section class="tile" aria-label="Tenant-Grundeinstellungen (Listen)">
+                    <section class="tile" aria-label="Schul-Grundeinstellungen (Listen)">
                         <div class="tile-head">
                             <h3 class="tile-title">Listen</h3>
                             <p class="tile-subtitle">Import (CSV/XLSX), Vorlagen und Tabellenbearbeitung per Doppelklick.</p>
@@ -303,9 +301,9 @@
                                     Format: <code>Kürzel;Name</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantSubjectsImportFile" style="cursor:pointer;">Import (CSV/XLSX)</label>
+                                    <label class="btn" for="tenantSubjectsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantSubjectsImportFile" accept=".csv,.xlsx,.xls">
-                                    <button type="button" class="btn" id="tenantSubjectsTemplateXlsx">XLSX‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantSubjectsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Fächerliste als Tabelle" style="margin-top:12px;">
                                     <table class="teachers-table" aria-label="Fächerliste (editierbar per Doppelklick)">
@@ -322,7 +320,7 @@
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantSubjectsAddRow">+ Zeile</button>
+                                    <button type="button" class="btn btn-success" id="tenantSubjectsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
                                 </div>
                             </div>
                         </div>
@@ -335,9 +333,9 @@
                                     Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer).
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantTeachersImportFile" style="cursor:pointer;">Import (CSV/XLSX)</label>
+                                    <label class="btn" for="tenantTeachersImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantTeachersImportFile" accept=".csv,.xlsx,.xls">
-                                    <button type="button" class="btn" id="tenantTeachersTemplateXlsx">XLSX‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantTeachersTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Lehrerliste als Tabelle">
                                     <table class="teachers-table" aria-label="Lehrerliste (editierbar per Doppelklick)">
@@ -355,7 +353,7 @@
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantTeachersAddRow">+ Zeile</button>
+                                    <button type="button" class="btn btn-success" id="tenantTeachersAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
                                 </div>
                             </div>
                         </div>
@@ -368,9 +366,9 @@
                                     Format: <code>Klasse;Name;E-Mail</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;">Import (CSV/XLSX)</label>
+                                    <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls">
-                                    <button type="button" class="btn" id="tenantStudentsTemplateXlsx">XLSX‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantStudentsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
                                     <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
@@ -388,7 +386,7 @@
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantStudentsAddRow">+ Zeile</button>
+                                    <button type="button" class="btn btn-success" id="tenantStudentsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
                                 </div>
                             </div>
                         </div>
@@ -401,9 +399,9 @@
                                     Format: <code>Abkürzung;Abschlussjahr;Klasse;Klassenvorstand Name;Klassenvorstand E-Mail</code>. Abschlussjahr ist optional.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;">Import (CSV/XLSX)</label>
+                                    <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantClassesImportFile" accept=".csv,.xlsx,.xls">
-                                    <button type="button" class="btn" id="tenantClassesTemplateXlsx">XLSX‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantClassesTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Klassenliste als Tabelle">
                                     <table class="teachers-table" aria-label="Klassenliste (editierbar per Doppelklick)">
@@ -423,19 +421,19 @@
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantClassesAddRow">+ Zeile</button>
+                                    <button type="button" class="btn btn-success" id="tenantClassesAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
                                 </div>
                             </div>
                         </div>
                     </section>
 
                     <div class="settings-actions">
-                        <button type="button" class="btn btn-success" id="tenantSettingsSave">Speichern</button>
-                        <button type="button" class="btn" id="tenantSettingsReload">Neu laden</button>
-                        <button type="button" class="btn" id="tenantSettingsExport">Export (JSON)</button>
-                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;">Import (JSON)</label>
+                        <button type="button" class="btn btn-success" id="tenantSettingsSave"><i class="bi bi-check2-circle"></i>Speichern</button>
+                        <button type="button" class="btn" id="tenantSettingsReload"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                        <button type="button" class="btn" id="tenantSettingsExport"><i class="bi bi-download"></i>Export (JSON)</button>
+                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
                         <input type="file" id="tenantSettingsImportFile" accept="application/json,.json">
-                        <button type="button" class="btn btn-danger" id="tenantSettingsClear">Löschen</button>
+                        <button type="button" class="btn btn-danger" id="tenantSettingsClear"><i class="bi bi-trash"></i>Löschen</button>
                     </div>
                     <div id="tenantSettingsSummary" class="summary" role="status" aria-live="polite"></div>
                 </form>

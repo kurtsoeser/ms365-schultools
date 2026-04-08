@@ -117,7 +117,8 @@
         const fileImport = document.getElementById('tenantSettingsImportFile');
         const btnClear = document.getElementById('tenantSettingsClear');
         const summary = document.getElementById('tenantSettingsSummary');
-        const inpDefaultGradYear = document.getElementById('tenantDefaultGraduationYear');
+        const inpDefaultGradYear = null;
+        const domainInput = document.getElementById('schoolEmailDomain');
 
         function seedDemoDataIfEmptyStorage() {
             // Demo-Daten nur beim allerersten Start (wenn noch nichts gespeichert ist)
@@ -131,7 +132,6 @@
 
             const demo = {
                 domain: 'ms365.schule',
-                defaultGraduationYear: '2030',
                 subjects: [
                     { code: 'M', name: 'Mathematik' },
                     { code: 'D', name: 'Deutsch' },
@@ -175,8 +175,7 @@
             const classes = typeof parseLinesToClasses === 'function' ? parseLinesToClasses(taClasses ? taClasses.value : '') : [];
             const domain =
                 typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
-            const defaultGraduationYear = inpDefaultGradYear ? normStr(inpDefaultGradYear.value) : '';
-            save({ domain, defaultGraduationYear, subjects, teachers, students, classes });
+            save({ domain, subjects, teachers, students, classes });
         }
 
         function scheduleAutoSave() {
@@ -639,10 +638,15 @@
 
         function renderFromStorage() {
             const s = load();
-            if (inpDefaultGradYear) {
-                inpDefaultGradYear.value = /^\d{4}$/.test(normStr(s.defaultGraduationYear || ''))
-                    ? normStr(s.defaultGraduationYear)
-                    : '2030';
+            // Domain in UI-Feld zurückschreiben (wird auch von school-domain.js genutzt)
+            try {
+                if (domainInput) domainInput.value = normStr(s.domain || '');
+                if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
+                    const d = normStr(s.domain || '').replace(/^@+/, '');
+                    if (d) window.ms365SetSchoolDomainNoAt(d);
+                }
+            } catch {
+                // ignore
             }
             if (taSubjects) {
                 taSubjects.value = (s.subjects || []).map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
@@ -827,12 +831,12 @@
                 const classes = typeof parseLinesToClasses === 'function' ? parseLinesToClasses(taClasses ? taClasses.value : '') : [];
                 const domain =
                     typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
-                const defaultGraduationYear = inpDefaultGradYear ? normStr(inpDefaultGradYear.value) : '';
-                const saved = save({ domain, defaultGraduationYear, subjects, teachers, students, classes });
+                const saved = save({ domain, subjects, teachers, students, classes });
                 setSummary(
                     `Gespeichert: ${(saved.subjects || []).length} Fächer, ${(saved.teachers || []).length} Lehrkräfte, ${(saved.students || []).length} Schüler, ${(saved.classes || []).length} Klassen.`,
                     'ok'
                 );
+                renderSubjectsTableFromTextarea();
                 renderTeachersTableFromTextarea();
                 renderStudentsTableFromTextarea();
                 renderClassesTableFromTextarea();
@@ -933,13 +937,13 @@
         if (btnExport) {
             btnExport.addEventListener('click', () => {
                 const s = load();
-                downloadJson('tenant-einstellungen.json', s);
+                downloadJson('schule-einstellungen.json', s);
             });
         }
         if (btnExportHeader) {
             btnExportHeader.addEventListener('click', () => {
                 const s = load();
-                downloadJson('tenant-einstellungen.json', s);
+                downloadJson('schule-einstellungen.json', s);
             });
         }
 
@@ -960,7 +964,6 @@
                 } catch {
                     // ignore
                 }
-                if (inpDefaultGradYear) inpDefaultGradYear.value = '2030';
                 if (taSubjects) taSubjects.value = '';
                 if (taTeachers) taTeachers.value = '';
                 if (taStudents) taStudents.value = '';
@@ -969,7 +972,7 @@
                 renderTeachersTableFromTextarea();
                 renderStudentsTableFromTextarea();
                 renderClassesTableFromTextarea();
-                setSummary('Tenant-Grundeinstellungen gelöscht (nur lokaler Browser-Speicher).', 'warn');
+                setSummary('Schul‑Grundeinstellungen gelöscht (nur lokaler Browser-Speicher).', 'warn');
             });
         }
 
@@ -985,7 +988,6 @@
                         return;
                     }
                     const saved = save(obj);
-                    if (inpDefaultGradYear) inpDefaultGradYear.value = normStr(saved.defaultGraduationYear || '2030');
                     if (taSubjects) taSubjects.value = (saved.subjects || []).map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
                     if (taTeachers) taTeachers.value = (saved.teachers || []).map((x) => `${x.code};${x.name || ''};${x.email || ''}`.trim()).join('\n');
                     if (taStudents) taStudents.value = (saved.students || []).map((x) => `${x.klasse || ''};${x.name || ''};${x.email || ''}`.trim()).join('\n');
@@ -1006,15 +1008,11 @@
             });
         }
 
-        const domainInput = document.getElementById('schoolEmailDomain');
         if (domainInput) {
             domainInput.addEventListener('input', () => scheduleAutoSave());
             domainInput.addEventListener('change', () => scheduleAutoSave());
         }
-        if (inpDefaultGradYear) {
-            inpDefaultGradYear.addEventListener('input', () => scheduleAutoSave());
-            inpDefaultGradYear.addEventListener('change', () => scheduleAutoSave());
-        }
+        // Kein Standard-Abschlussjahr mehr in den Schul‑Grundeinstellungen
         if (taSubjects) taSubjects.addEventListener('input', () => scheduleAutoSave());
         if (taSubjects) taSubjects.addEventListener('input', () => renderSubjectsTableFromTextarea());
 

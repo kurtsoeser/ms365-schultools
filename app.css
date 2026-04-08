@@ -14,6 +14,8 @@
     --card: #fff;
     --border: #dee2e6;
     --soft: #f8f9fa;
+    --icon-muted: rgba(255, 255, 255, 0.92);
+    --icon-dim: rgba(33, 37, 41, 0.72);
 }
 
 * {
@@ -46,6 +48,37 @@ body {
     text-align: center;
 }
 
+.header-tool-indicator {
+    /* Header-Reihenfolge: Titel -> Logo -> Toolname -> Kurzbeschreibung */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 16px auto 8px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    font-size: 0.95em;
+    line-height: 1.2;
+    position: static;
+}
+.header-tool-indicator__label {
+    opacity: 0.92;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+.header-tool-indicator__label { display: none; }
+.header-tool-indicator__name {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 900;
+}
+
 .header h1 {
     font-size: 2em;
     margin-bottom: 10px;
@@ -56,19 +89,72 @@ body {
     font-size: 1.1em;
 }
 
-.header-help-row {
-    margin: 10px 0 18px;
-    font-size: 0.95em;
+/* Kurzbeschreibung unter Toolname (nicht der fixierte Hilfe-Link): max. 2 Zeilen */
+.header > p:not(.header-help-row) {
+    max-width: min(720px, 92vw);
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 6px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+.header > p:not(.header-help-row) code {
+    font-size: 0.92em;
+    font-family: Consolas, 'Segoe UI', monospace;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 1px 6px;
+    border-radius: 6px;
 }
 
-.header-help-link {
-    color: #fff;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    font-weight: 600;
+.header-help-row {
+    /* Nicht mehr im Header platzieren, sondern unten rechts auf der Seite fixieren */
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    top: auto;
+    transform: none;
+    margin: 0;
+    font-size: 0.95em;
+    z-index: 2000;
+}
+
+.header-help-link,
+.site-credit-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(94, 114, 228, 0.25);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+    color: #32325d;
+    text-decoration: none;
+    font-weight: 700;
     opacity: 0.98;
 }
-.header-help-link:hover { opacity: 1; }
+.header-help-link:hover,
+.site-credit-link:hover { opacity: 1; background: #fff; }
+
+.site-credit-row {
+    position: fixed;
+    left: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    font-size: 0.95em;
+    z-index: 2000;
+}
+.site-credit-link .bi {
+    margin: 0;
+    color: rgba(50, 50, 93, 0.88);
+    font-size: 1.1em;
+    opacity: 0.95;
+}
 
 .toolbar {
     display: flex;
@@ -110,6 +196,52 @@ body {
     margin: 10px 5px;
     display: inline-block;
     text-decoration: none;
+}
+
+/* Icons (Bootstrap Icons) */
+.bi {
+    display: inline-block;
+    vertical-align: -0.125em;
+    line-height: 1;
+}
+.btn .bi {
+    margin-right: 8px;
+    font-size: 1.05em;
+    opacity: 0.98;
+}
+.toolbar .btn .bi,
+.bottom-toolbar .btn .bi {
+    margin-right: 6px;
+}
+.header .header-help-link .bi {
+    margin: 0;
+    color: rgba(50, 50, 93, 0.9);
+}
+
+.header-tool-indicator .bi {
+    position: static;
+    transform: none;
+    margin: 0 0 6px;
+    opacity: 0.95;
+    font-size: 3.75em; /* 3× von 1.25em */
+    pointer-events: none;
+    display: block;
+}
+
+.header-tool-indicator__name {
+    display: block;
+    text-align: center;
+    font-size: 1.35em;
+    font-weight: 900;
+}
+
+.steps .step .bi {
+    margin-right: 6px;
+    opacity: 0.9;
+}
+
+.copy-btn .bi {
+    margin-right: 6px;
 }
 
 .toolbar .btn {

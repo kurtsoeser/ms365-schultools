@@ -36,7 +36,7 @@
         if (typeof window.ms365TenantSettingsGetTeacherEmailMap !== 'function') return;
         const map = window.ms365TenantSettingsGetTeacherEmailMap();
         if (!map || !Object.keys(map).length) return;
-        // Tenant ist Basis: fehlende Einträge ergänzen, bestehende (manuelle) nicht überschreiben.
+        // Schul‑Einstellungen sind Basis: fehlende Einträge ergänzen, bestehende (manuelle) nicht überschreiben.
         ns.teacherEmailMapping = ns.teacherEmailMapping || {};
         Object.entries(map).forEach(([k, v]) => {
             const kk = String(k || '').trim().toUpperCase();
@@ -273,8 +273,8 @@
     ns.removeTeacherMapping = function removeTeacherMapping(kuerzel) {
         delete ns.teacherEmailMapping[kuerzel];
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
-        // Löschungen werden bewusst NICHT automatisch in Tenant-Grundeinstellungen gespiegelt,
-        // um dort nicht versehentlich Daten zu verlieren. (Tenant bleibt die Basisquelle.)
+        // Löschungen werden bewusst NICHT automatisch in den Schul‑Grundeinstellungen gespiegelt,
+        // um dort nicht versehentlich Daten zu verlieren. (Schul‑Einstellungen bleiben die Basisquelle.)
         if (ns.currentStep === 3) ns.updateTeacherStats();
         else ns.displayTeacherMappingTable();
         if (Object.keys(ns.teacherEmailMapping).length === 0) {
@@ -472,7 +472,7 @@
     window.downloadTeacherLehrerTemplateCsv = ns.downloadTeacherLehrerTemplateCsv;
     window.downloadTeacherLehrerTemplateXlsx = ns.downloadTeacherLehrerTemplateXlsx;
 
-    // Tenant-Grundeinstellungen: Lehrerliste optional vorbefüllen (falls vorhanden)
+    // Schul‑Grundeinstellungen: Lehrerliste optional vorbefüllen (falls vorhanden)
     loadTenantTeacherEmailsIfEmpty();
 })();
 

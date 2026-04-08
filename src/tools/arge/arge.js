@@ -194,7 +194,7 @@
         if (!lines.length) return;
         ta.value = lines.join('\n');
         scheduleArgePreviewFromTextarea();
-        showToast('ARGE: Fächer aus Tenant-Einstellungen übernommen.');
+        showToast('ARGE: Fächer aus Schul‑Einstellungen übernommen.');
     }
 
     let argeTenantSubjectsDebounce;
@@ -394,7 +394,7 @@
 
                 const td2 = document.createElement('td');
                 td2.innerHTML = `<code>${getSubjectCodeForDisplayName(r.displayName, r.subjectCode) || ''}</code>`;
-                td2.title = 'Fach-Kürzel (aus Tenant-Einstellungen; sonst automatisch erzeugt)';
+                td2.title = 'Fach-Kürzel (aus Schul‑Einstellungen; sonst automatisch erzeugt)';
                 td2.addEventListener('dblclick', () => {
                     startCellEdit(td2, r.subjectCode, (next, meta) => {
                         const prev = argePreviewRows[i]?.subjectCode || '';
@@ -529,7 +529,7 @@
             td1.textContent = row.displayName;
             const tdCode = document.createElement('td');
             tdCode.innerHTML = `<code>${getSubjectCodeForDisplayName(row.displayName, row.subjectCode) || ''}</code>`;
-            tdCode.title = 'Fach-Kürzel (aus Tenant-Einstellungen; sonst automatisch erzeugt)';
+            tdCode.title = 'Fach-Kürzel (aus Schul‑Einstellungen; sonst automatisch erzeugt)';
             const td2 = document.createElement('td');
             td2.textContent = row.mailNick + '@' + domain;
             td2.style.fontFamily = 'Consolas,monospace';
@@ -583,7 +583,7 @@
             td1.textContent = row.displayName;
             const tdCode = document.createElement('td');
             tdCode.innerHTML = `<code>${getSubjectCodeForDisplayName(row.displayName, row.subjectCode) || ''}</code>`;
-            tdCode.title = 'Fach-Kürzel (aus Tenant-Einstellungen; sonst automatisch erzeugt)';
+            tdCode.title = 'Fach-Kürzel (aus Schul‑Einstellungen; sonst automatisch erzeugt)';
             const td2 = document.createElement('td');
             td2.textContent = row.mailNick + '@' + domain;
             const td3 = document.createElement('td');
@@ -858,7 +858,7 @@
             (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
                 !window.ms365IsTenantSchoolDomainConfigured())
         ) {
-            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest.');
+            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
             if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
                 window.ms365ShowTenantDomainRequiredModal();
             }
@@ -939,7 +939,7 @@
             !window.ms365IsTenantSchoolDomainConfigured()
         ) {
             errEl.textContent =
-                'Bitte legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest (Seite „Tenant-Einstellungen“).';
+                'Bitte legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest (Seite „Schul‑Einstellungen“).';
             errEl.style.display = 'block';
             if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
                 window.ms365ShowTenantDomainRequiredModal();
@@ -1014,7 +1014,7 @@
             (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
                 !window.ms365IsTenantSchoolDomainConfigured())
         ) {
-            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Tenant-Einstellungen fest.');
+            showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
             if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
                 window.ms365ShowTenantDomainRequiredModal();
             }

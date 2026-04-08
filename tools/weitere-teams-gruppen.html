@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Weitere Teams &amp; Gruppen</title>
+    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body data-wtg-page-step="1">
+    <div class="container">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>Weitere Teams &amp; Gruppen</span>
+            </div>
+            <p>Zusätzliche Microsoft‑365‑Gruppen und Teams definieren: Liste, Besitzer, Mitglieder und Einstellungen – Ausführung über Microsoft Graph in mehreren Schritten.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+            </div>
+        </div>
+
+        <div id="panelWtg">
+            <div class="steps wtg-steps">
+                <div class="step active" data-wtg-step="1"><i class="bi bi-list-ul"></i>1. Liste</div>
+                <div class="step" data-wtg-step="2"><i class="bi bi-person-badge"></i>2. Besitzer</div>
+                <div class="step" data-wtg-step="3"><i class="bi bi-people"></i>3. Mitglieder</div>
+                <div class="step" data-wtg-step="4"><i class="bi bi-sliders2"></i>4. Einstellungen</div>
+                <div class="step" data-wtg-step="5"><i class="bi bi-play-circle"></i>5. Ausführen</div>
+            </div>
+
+            <div class="content">
+                <div class="wtg-step-content active" data-wtg-step="1">
+                    <h2>Liste: Weitere Teams &amp; Gruppen</h2>
+                    <div class="alert alert-info">
+                        <strong>Einfach:</strong> eine Zeile pro Gruppe/Team (Anzeigename). Optional <code>Anzeigename;MailNickname</code> oder <code>Anzeigename;MailNickname;Team</code>.
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <label for="wtgDefaultPrefix">Präfix für Mail-Nickname (optional)</label>
+                            <input type="text" id="wtgDefaultPrefix" placeholder="z. B. ext, sonst leer" value="" maxlength="20" autocomplete="off">
+                        </div>
+                        <div class="filter-group" style="margin-top:4px;">
+                            <label class="checkbox-label" for="wtgUpperNick">
+                                <input type="checkbox" id="wtgUpperNick">
+                                <span>Mail-Nickname groß schreiben</span>
+                            </label>
+                        </div>
+                        <div class="filter-group" style="margin-top:10px;">
+                            <label for="wtgLines">Gruppen/Teams (eine Zeile pro Eintrag)</label>
+                            <textarea id="wtgLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="Elternverein&#10;Projektteam Nachhaltigkeit&#10;SG;schulgemeinschaft;Gruppe&#10;Schulsprecher;schulsprecher;Team"></textarea>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top:16px;font-size:1rem;">Vorschau (editierbar)</h3>
+                    <p style="margin:0 0 10px 0;">
+                        <button type="button" class="btn btn-small" id="wtgPreviewAddRow"><i class="bi bi-plus-circle"></i>Zeile hinzufügen</button>
+                    </p>
+                    <div class="table-container" style="max-height:320px;margin-bottom:12px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Anzeigename</th>
+                                    <th>Typ</th>
+                                    <th>Mail-Nickname</th>
+                                    <th>E-Mail (Vorschau)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wtgPreviewBody">
+                                <tr><td colspan="4" style="color:#6c757d;">Noch keine Zeilen – oben einfügen oder „+ Zeile hinzufügen“.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="wtgParseError" class="alert alert-warning" style="display:none;"></p>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn btn-success" id="wtgParseAndGo2"><i class="bi bi-arrow-right-circle"></i>Weiter zu Besitzern</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
+            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
+            <button type="button" class="btn" id="btnExportWtgJson">⬇️ Export JSON</button>
+            <button type="button" class="btn" id="btnImportWtgJson">⬆️ Import JSON</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+        </div>
+        <input type="file" id="wtgImportJsonFile" accept="application/json,.json" style="display:none;">
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/tenant-settings-ui.js" defer></script>
+    <script src="../src/shared/step-progress.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-parse.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-state.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg.js" defer></script>
+    <script src="../src/tools/weitere-teams-gruppen/wtg-graph.js" defer></script>
+</body>
+</html>
+

@@ -122,7 +122,7 @@
             const seeded =
                 typeof ns.seedWebuntisPasteIfEmpty === 'function' ? ns.seedWebuntisPasteIfEmpty() : false;
             if (seeded) {
-                ns.showToast('Demo: 6 Beispielzeilen aus Tenant-Standards vorbelegt.');
+                ns.showToast('Demo: 6 Beispielzeilen aus Schul‑Standards vorbelegt.');
             }
         }
 
