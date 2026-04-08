@@ -293,11 +293,13 @@ td.kt-action-col {
 .arge-step-content,
 .jg-step-content,
 .gp-step-content,
-.ku-step-content { display: none; }
+.ku-step-content,
+.slg-step-content { display: none; }
 .arge-step-content.active,
 .jg-step-content.active,
 .gp-step-content.active,
-.ku-step-content.active { display: block; animation: fadeIn 0.3s; }
+.ku-step-content.active,
+.slg-step-content.active { display: block; animation: fadeIn 0.3s; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -326,7 +328,7 @@ td.kt-action-col {
     margin-bottom: 8px;
     color: #495057;
 }
-.filter-group input:not([type="checkbox"]),
+.filter-group input:not([type="checkbox"]):not([type="radio"]),
 .filter-group select,
 .filter-group textarea {
     width: 100%;

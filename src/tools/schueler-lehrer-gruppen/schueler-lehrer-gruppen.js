@@ -611,9 +611,11 @@
     async function handleFindSchuelerNick() {
         try {
             const token = await getGraphToken();
-            const list = await findGroupsByMailNickname(token, 'schueler');
+            const nn = document.getElementById('slgSchuelerMailNick');
+            const nick = sanitizeMailNickname(nn ? nn.value : 'schueler') || 'schueler';
+            const list = await findGroupsByMailNickname(token, nick);
             if (!list.length) {
-                toast('Keine Gruppe mit Mail‑Nickname „schueler“ gefunden.');
+                toast('Keine Gruppe mit Mail‑Nickname „' + nick + '“ gefunden.');
                 return;
             }
             const g = list[0];
@@ -638,9 +640,11 @@
     async function handleFindLehrerNick() {
         try {
             const token = await getGraphToken();
-            const list = await findGroupsByMailNickname(token, 'lehrer');
+            const nn = document.getElementById('slgLehrerMailNick');
+            const nick = sanitizeMailNickname(nn ? nn.value : 'lehrer') || 'lehrer';
+            const list = await findGroupsByMailNickname(token, nick);
             if (!list.length) {
-                toast('Keine Gruppe mit Mail‑Nickname „lehrer“ gefunden.');
+                toast('Keine Gruppe mit Mail‑Nickname „' + nick + '“ gefunden.');
                 return;
             }
             const g = list[0];
@@ -857,6 +861,12 @@
             slgLehrerDisplayName: document.getElementById('slgLehrerDisplayName')
                 ? document.getElementById('slgLehrerDisplayName').value
                 : '',
+            slgSchuelerMailNick: document.getElementById('slgSchuelerMailNick')
+                ? document.getElementById('slgSchuelerMailNick').value
+                : 'schueler',
+            slgLehrerMailNick: document.getElementById('slgLehrerMailNick')
+                ? document.getElementById('slgLehrerMailNick').value
+                : 'lehrer',
             slgSchuelerGroupId: document.getElementById('slgSchuelerGroupId')
                 ? document.getElementById('slgSchuelerGroupId').value
                 : '',
@@ -891,6 +901,8 @@
         }
         setVal('slgSchuelerDisplayName', o.slgSchuelerDisplayName);
         setVal('slgLehrerDisplayName', o.slgLehrerDisplayName);
+        setVal('slgSchuelerMailNick', o.slgSchuelerMailNick);
+        setVal('slgLehrerMailNick', o.slgLehrerMailNick);
         setVal('slgSchuelerGroupId', o.slgSchuelerGroupId);
         setVal('slgLehrerGroupId', o.slgLehrerGroupId);
         setVal('slgManualLines', o.slgManualLines);

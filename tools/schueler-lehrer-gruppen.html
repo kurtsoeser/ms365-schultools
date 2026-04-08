@@ -73,8 +73,8 @@
                         <div class="filter-section" style="margin:0;">
                             <h3 style="margin:0 0 12px;font-size:1.05rem;">Schüler:innen‑Gruppe</h3>
                             <div class="filter-group">
-                                <label><input type="radio" name="slgSchuelerMode" value="new" checked> Neue Gruppe anlegen</label>
-                                <label style="display:block;margin-top:6px;"><input type="radio" name="slgSchuelerMode" value="existing"> Bestehende Gruppe verwenden</label>
+                                <label class="checkbox-label"><input type="radio" name="slgSchuelerMode" value="new" checked> <span>Neue Gruppe anlegen</span></label>
+                                <label class="checkbox-label" style="margin-top:6px;"><input type="radio" name="slgSchuelerMode" value="existing"> <span>Bestehende Gruppe verwenden</span></label>
                             </div>
                             <div id="slgSchuelerNewBlock">
                                 <div class="filter-group">
@@ -82,8 +82,9 @@
                                     <input type="text" id="slgSchuelerDisplayName" maxlength="200" value="Schüler:innen" autocomplete="off">
                                 </div>
                                 <div class="filter-group">
-                                    <label>Mail‑Nickname (fest)</label>
-                                    <input type="text" id="slgSchuelerMailNick" value="schueler" readonly style="background:#f1f3f5;">
+                                    <label for="slgSchuelerMailNick">Mail‑Nickname</label>
+                                    <input type="text" id="slgSchuelerMailNick" value="schueler" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin" placeholder="z. B. schueler">
+                                    <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Nur Buchstaben/Ziffern empfohlen. Das Tool normalisiert automatisch (entfernt Sonderzeichen, macht klein).</small>
                                 </div>
                                 <button type="button" class="btn btn-success" id="slgBtnCreateSchueler">Gruppe anlegen</button>
                             </div>
@@ -93,15 +94,15 @@
                                     <input type="text" id="slgSchuelerGroupId" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
                                 </div>
                                 <button type="button" class="btn" id="slgBtnResolveSchueler">Gruppe laden / prüfen</button>
-                                <button type="button" class="btn" id="slgBtnFindSchuelerNick">Per Mail‑Nickname „schueler“ suchen</button>
+                                <button type="button" class="btn" id="slgBtnFindSchuelerNick">Per Mail‑Nickname suchen</button>
                             </div>
                             <p id="slgSchuelerSummary" class="slg-group-summary" style="display:none;margin-top:12px;padding:10px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;font-size:0.92em;"></p>
                         </div>
                         <div class="filter-section" style="margin:0;">
                             <h3 style="margin:0 0 12px;font-size:1.05rem;">Lehrer:innen‑Gruppe</h3>
                             <div class="filter-group">
-                                <label><input type="radio" name="slgLehrerMode" value="new" checked> Neue Gruppe anlegen</label>
-                                <label style="display:block;margin-top:6px;"><input type="radio" name="slgLehrerMode" value="existing"> Bestehende Gruppe verwenden</label>
+                                <label class="checkbox-label"><input type="radio" name="slgLehrerMode" value="new" checked> <span>Neue Gruppe anlegen</span></label>
+                                <label class="checkbox-label" style="margin-top:6px;"><input type="radio" name="slgLehrerMode" value="existing"> <span>Bestehende Gruppe verwenden</span></label>
                             </div>
                             <div id="slgLehrerNewBlock">
                                 <div class="filter-group">
@@ -109,8 +110,9 @@
                                     <input type="text" id="slgLehrerDisplayName" maxlength="200" value="Lehrer:innen" autocomplete="off">
                                 </div>
                                 <div class="filter-group">
-                                    <label>Mail‑Nickname (fest)</label>
-                                    <input type="text" id="slgLehrerMailNick" value="lehrer" readonly style="background:#f1f3f5;">
+                                    <label for="slgLehrerMailNick">Mail‑Nickname</label>
+                                    <input type="text" id="slgLehrerMailNick" value="lehrer" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin" placeholder="z. B. lehrer">
+                                    <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Nur Buchstaben/Ziffern empfohlen. Das Tool normalisiert automatisch (entfernt Sonderzeichen, macht klein).</small>
                                 </div>
                                 <button type="button" class="btn btn-success" id="slgBtnCreateLehrer">Gruppe anlegen</button>
                             </div>
@@ -120,7 +122,7 @@
                                     <input type="text" id="slgLehrerGroupId" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
                                 </div>
                                 <button type="button" class="btn" id="slgBtnResolveLehrer">Gruppe laden / prüfen</button>
-                                <button type="button" class="btn" id="slgBtnFindLehrerNick">Per Mail‑Nickname „lehrer“ suchen</button>
+                                <button type="button" class="btn" id="slgBtnFindLehrerNick">Per Mail‑Nickname suchen</button>
                             </div>
                             <p id="slgLehrerSummary" class="slg-group-summary" style="display:none;margin-top:12px;padding:10px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;font-size:0.92em;"></p>
                         </div>
