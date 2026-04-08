@@ -377,9 +377,14 @@
                 filter +
                 '&$select=' +
                 encodeURIComponent(GROUP_LIST_SELECT) +
-                '&$orderby=displayName&$top=999';
+                '&$top=999';
 
             const groups = await fetchAllPages(token, initial);
+            groups.sort(function (a, b) {
+                const an = a && a.displayName ? String(a.displayName) : '';
+                const bn = b && b.displayName ? String(b.displayName) : '';
+                return an.localeCompare(bn, 'de');
+            });
             appendLog('Gefunden: ' + groups.length + ' einheitliche Gruppe(n).', 'ok');
 
             let list = groups;
