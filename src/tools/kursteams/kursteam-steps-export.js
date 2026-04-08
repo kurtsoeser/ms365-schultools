@@ -107,7 +107,7 @@
             /* ignore */
         }
 
-        const stepOrder = [0, 1, 2, 2.5, 3, 4, 5, 5.5, 6];
+        const stepOrder = [0, 1, 2, 2.5, 3, 4, 5, 6, 5.5];
         const currentIndex = stepOrder.indexOf(step);
         if (currentIndex >= 0) {
             for (let i = 0; i < currentIndex; i++) {
@@ -343,7 +343,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const panel = document.getElementById('panelWebuntis');
         if (!panel || typeof window.ms365ApplyStepProgress !== 'function') return;
-        const order = [0, 1, 2, 2.5, 3, 4, 5, 5.5, 6];
+        const order = [0, 1, 2, 2.5, 3, 4, 5, 6, 5.5];
         const step = typeof ns.currentStep === 'number' ? ns.currentStep : 0;
         window.ms365ApplyStepProgress(panel.querySelector('.steps'), step, order);
     });

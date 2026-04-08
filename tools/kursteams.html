@@ -66,6 +66,20 @@
             font-size: 0.95em;
         }
         tr.kt-team-draft-row td { vertical-align: middle; }
+        .kursteam-graph-disabled-host { position: relative; border-radius: 8px; }
+        .kursteam-graph-disabled-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            border-radius: 8px;
+            background: rgba(17, 24, 39, 0.68);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
     </style>
 </head>
 <body>
@@ -92,8 +106,8 @@
                 <div class="step" data-step="3">4. Lehrer zuordnen</div>
                 <div class="step" data-step="4">5. Teams konfigurieren</div>
                 <div class="step" data-step="5">6. Kursteams anlegen</div>
-                <div class="step step--optional" data-step="5.5" title="Optional">7. Optional: Schüler</div>
-                <div class="step step--optional" data-step="6" title="Optional">8. Optional: CSV/PowerShell</div>
+                <div class="step step--optional" data-step="6" title="Optional">7. CSV/PowerShell</div>
+                <div class="step step--optional" data-step="5.5" title="Optional">8. Optional: Schüler</div>
             </div>
 
             <div class="content">
@@ -503,7 +517,7 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zur Anlage (Graph)</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zu Schritt 6</button>
                     </div>
                 </div>
 
@@ -511,37 +525,33 @@
                 <div class="step-content" data-step="5">
                     <h2>Schritt 6: Kursteams anlegen (Microsoft Graph)</h2>
                     <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
-                        Empfohlen: Anmeldung mit einem Konto, das Gruppen erstellen darf. Besitzer-E-Mails müssen als Benutzer im Mandanten existieren.
+                        Echte Kursteams (<code>EDU_Class</code>) lassen sich in diesem Schritt im Browser derzeit nicht zuverlässig anlegen.
+                        Bitte fahren Sie mit <strong>Schritt&nbsp;7 (CSV/PowerShell)</strong> fort – dort funktioniert die Anlage wie gewohnt.
                     </p>
-                    <div class="alert alert-warning" style="line-height:1.55;margin-bottom:16px;">
-                        <strong>Vollständiges Kursteam (Aufgaben, Klassennotizbuch):</strong> Microsoft verlangt dafür zuerst eine
-                        Education-Klasse (<code>POST /education/classes</code>) und danach das Team-Template
-                        <code>educationClass</code> (<code>POST /teams</code>) – wie <code>New-Team -Template EDU_Class</code>.
-                        <code>POST /education/classes</code> ist in der Microsoft-Dokumentation für reine Browser-Anmeldung häufig
-                        <strong>nicht</strong> freigegeben. Wenn Schritt&nbsp;6 fehlschlägt, nutzen Sie bitte Schritt&nbsp;8
-                        <strong>Kursteam-Anlage.cmd</strong> (PowerShell): dort wird zuverlässig ein echtes Kursteam angelegt.
+                    <div class="alert alert-info" style="margin-bottom:16px;line-height:1.55;">
+                        <strong>Empfohlener Weg:</strong> Weiter zu <strong>Schritt&nbsp;7</strong> (CSV-Export &amp; PowerShell, z.&nbsp;B. <strong>Kursteam-Anlage.cmd</strong>).
+                        Optional danach <strong>Schritt&nbsp;8</strong> für Schüler als Mitglieder.
                     </div>
-                    <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
-                        <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
-                        <button type="button" class="btn" id="kursteamOnlineLogin" onclick="window.ms365KursteamGraphLogin && window.ms365KursteamGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="kursteamOnlineRun" onclick="window.ms365KursteamGraphRun && window.ms365KursteamGraphRun()" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Kursteams jetzt anlegen</button>
-                        <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
-                    </div>
-                    <div class="alert alert-info">
-                        <strong>Optional:</strong> Wenn Sie lieber lokal mit CSV und PowerShell arbeiten, wechseln Sie zu Schritt&nbsp;8.
-                    </div>
-                    <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(4)"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
-                        <div class="step-nav-next-group">
-                            <button type="button" class="btn btn-success" onclick="goToStep(5.5)"><i class="bi bi-person-plus"></i>Weiter: Optional Schüler hinzufügen</button>
-                            <button type="button" class="btn btn-success" onclick="goToStep(6)"><i class="bi bi-filetype-csv"></i>Weiter zu optional: CSV &amp; PowerShell</button>
+                    <div class="kursteam-graph-disabled-host filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                        <div id="kursteamGraphDisabledOverlay" class="kursteam-graph-disabled-overlay" aria-live="polite">
+                            <p style="margin:0;color:#fff;text-align:center;font-weight:600;font-size:1.05em;line-height:1.5;max-width:28rem;text-shadow:0 1px 2px rgba(0,0,0,0.45);">Microsoft unterstützt diese Funktion zur Zeit nicht.</p>
                         </div>
+                        <div style="position:relative;z-index:0;opacity:0.88;filter:grayscale(0.25);">
+                            <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
+                            <button type="button" class="btn btn-secondary" id="kursteamOnlineLogin" disabled aria-disabled="true"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                            <button type="button" class="btn btn-secondary" id="kursteamOnlineRun" disabled aria-disabled="true" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Kursteams jetzt anlegen</button>
+                            <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;pointer-events:none;"></div>
+                        </div>
+                    </div>
+                    <div class="step-nav-row step-nav-row--forward-only">
+                        <button type="button" class="btn" onclick="goToStep(4)"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(6)"><i class="bi bi-filetype-csv"></i>Weiter zu Schritt 7: CSV &amp; PowerShell</button>
                     </div>
                 </div>
 
                 <!-- Schritt 5.5 -->
                 <div class="step-content" data-step="5.5">
-                    <h2>Schritt 7 (optional): Schüler als Mitglieder hinzufügen (PowerShell + Microsoft Graph)</h2>
+                    <h2>Schritt 8 (optional): Schüler als Mitglieder hinzufügen (PowerShell + Microsoft Graph)</h2>
                     <div class="alert alert-info" style="line-height:1.55;">
                         Dieser Schritt ist <strong>optional</strong>. Er erzeugt ein PowerShell‑Script (Microsoft.Graph), das nach der Team‑Anlage
                         Schüler als <strong>Mitglieder</strong> in die jeweiligen Gruppen/Teams einträgt.<br>
@@ -654,14 +664,13 @@
                     </div>
 
                     <div class="step-nav-row">
-                        <button type="button" class="btn" onclick="goToStep(5)"><i class="bi bi-arrow-left"></i>Zurück zur Anlage</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(6)"><i class="bi bi-filetype-csv"></i>Weiter zu optional: CSV &amp; PowerShell</button>
+                        <button type="button" class="btn" onclick="goToStep(6)"><i class="bi bi-arrow-left"></i>Zurück zu Schritt 7 (CSV/PowerShell)</button>
                     </div>
                 </div>
 
-                <!-- Schritt 8 (optional), technisch data-step 6 -->
+                <!-- Schritt 7, technisch data-step 6 -->
                 <div class="step-content" data-step="6">
-                    <h2>Schritt 8 (optional): CSV-Export &amp; PowerShell</h2>
+                    <h2>Schritt 7: CSV-Export &amp; PowerShell</h2>
                     <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
                         <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
                     </div>
@@ -709,6 +718,9 @@ foreach ($Team in $TeamsList) {
                         <h3>Fertiges Paket zum Doppelklicken</h3>
                         <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download).</p>
                         <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()"><i class="bi bi-box-seam"></i>Kursteam-Anlage.cmd herunterladen</button>
+                    </div>
+                    <div class="step-nav-row">
+                        <button type="button" class="btn" onclick="goToStep(5.5)"><i class="bi bi-person-plus"></i>Optional: Schritt 8 – Schüler als Mitglieder</button>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
                         <button type="button" class="btn btn-success" onclick="resetApp()"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>

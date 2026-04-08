@@ -393,6 +393,7 @@
     }
 
     async function runKursteamOnline() {
+        if (isKursteamGraphOnlineDisabled()) return;
         const snapshotFn = window.ms365GetKursteamSnapshotForGraph;
         if (typeof snapshotFn !== 'function') {
             appendLog('Interner Fehler: Kursteam-Daten nicht verfügbar.', 'err');
@@ -425,7 +426,7 @@
         );
         appendLog(
             'Wichtig: POST /education/classes ist für delegierte Browser-Anmeldung oft gesperrt – dann schlägt die Anlage fehl; ' +
-                'nutzen Sie Schritt 8 „Kursteam-Anlage.cmd“ (PowerShell).',
+                'nutzen Sie Schritt 7 „Kursteam-Anlage.cmd“ (PowerShell).',
             'warn'
         );
 
@@ -483,7 +484,12 @@
         if (btnLogin) btnLogin.disabled = false;
     }
 
+    function isKursteamGraphOnlineDisabled() {
+        return !!document.getElementById('kursteamGraphDisabledOverlay');
+    }
+
     async function loginOnly() {
+        if (isKursteamGraphOnlineDisabled()) return;
         const btnLogin = document.getElementById('kursteamOnlineLogin');
         if (btnLogin) btnLogin.disabled = true;
         try {
