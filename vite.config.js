@@ -17,6 +17,7 @@ export default defineConfig(() => {
       emptyOutDir: true,
       rollupOptions: {
         input: {
+          welcome: resolve(__dirname, 'welcome.html'),
           index: resolve(__dirname, 'index.html'),
           schooltool: resolve(__dirname, 'ms365-schooltool.html'),
           tenant: resolve(__dirname, 'tenant.html'),

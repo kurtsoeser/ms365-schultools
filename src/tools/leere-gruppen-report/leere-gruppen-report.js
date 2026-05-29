@@ -1,4 +1,17 @@
 import { getEl } from '../../shared/utils/dom.js';
+import {
+    compareDe,
+    escapeHtml,
+    rowsToCsv,
+    getGraphToken,
+    graphRequest,
+    fetchAllPages,
+    fetchCount,
+    runPool,
+    kindBadgesHtml,
+    buildRow,
+    buildGroupsListInitialPath
+} from './leere-gruppen-core.js';
 
 const GRAPH_READ_SCOPES = [
     'https://graph.microsoft.com/User.Read',
@@ -9,29 +22,7 @@ const GRAPH_WRITE_SCOPES = [
     'https://graph.microsoft.com/Group.ReadWrite.All'
 ];
 
-function getCore() {
-    const c = window.ms365LeereGruppenCore;
-    if (!c) {
-        throw new Error('Skript "leere-gruppen-core.js" wurde nicht (vor) geladen.');
-    }
-    return c;
-}
-
 function bind() {
-    const core = getCore();
-    const {
-        compareDe,
-        escapeHtml,
-        rowsToCsv,
-        getGraphToken,
-        graphRequest,
-        fetchAllPages,
-        fetchCount,
-        runPool,
-        kindBadgesHtml,
-        buildRow,
-        buildGroupsListInitialPath
-    } = core;
 
     const progressEl = getEl('lgrProgress');
     const tbody = getEl('lgrTbody');

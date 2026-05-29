@@ -37,7 +37,8 @@ window.MS365_MSAL_CONFIG = {
                 return base.endsWith('/') ? base.slice(0, -1) : base;
             }
 
-            const base = isLocal ? '' : basePathForThisHost();
+            // Auch auf localhost den Repo-/Projektpfad mitnehmen (z. B. vite preview --base /MS365schule/).
+            const base = basePathForThisHost();
             // Immer stabile Redirect-Seite verwenden (keine Tool-Unterseite),
             // damit Entra nur 1 Redirect-URI pro Umgebung braucht.
             return origin + (base ? base : '') + '/ms365-schooltool.html';

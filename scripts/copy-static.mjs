@@ -57,6 +57,8 @@ async function main() {
     'app.js',
     'ms365-config.js',
     'ms365-config.example.js',
+    'access-config.js',
+    'access-config.example.js',
     'README.md'
   ];
 

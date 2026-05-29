@@ -2,6 +2,14 @@
     'use strict';
 
     const MSAL_LOADER_IMPORT = (function () {
+        // Vite-Bundle: import.meta.url zeigt auf assets/msal-auth-ui-*.js → msal-loader im selben Ordner.
+        try {
+            if (typeof import.meta !== 'undefined' && import.meta.url) {
+                return new URL('./msal-loader.js', import.meta.url).href;
+            }
+        } catch (_) {
+            // ignore
+        }
         const needle = 'msal-auth-ui.js';
         const rel = './msal-loader.js';
         const scripts = document.getElementsByTagName('script');
@@ -13,8 +21,18 @@
                 } catch (_) {}
             }
         }
+        // Fallback: Site-Root (nicht document.baseURI – unter /tools/*.html wäre das falsch).
         try {
-            return new URL('src/shared/msal-loader.js', document.baseURI).href;
+            const p = String(window.location.pathname || '/').split('?')[0].split('#')[0];
+            const iTools = p.toLowerCase().indexOf('/tools/');
+            const base =
+                iTools !== -1
+                    ? p.slice(0, iTools)
+                    : p.lastIndexOf('/') > 0
+                      ? p.slice(0, p.lastIndexOf('/'))
+                      : '';
+            const root = base.endsWith('/') ? base.slice(0, -1) : base;
+            return new URL((root ? root + '/' : '/') + 'src/shared/msal-loader.js', window.location.origin).href;
         } catch (_) {
             return 'src/shared/msal-loader.js';
         }
