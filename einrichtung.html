@@ -387,6 +387,8 @@
                         <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                         <a class="btn" href="tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</a>
                         <a class="btn" href="tools/schueler-lehrer-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-people"></i>Lehrerinnen &amp; Schülerinnen (Detail)</a>
+                        <a class="btn" href="tools/verwaltung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-building-gear"></i>Verwaltung (Detail)</a>
+                        <a class="btn" href="tools/arge-fachgruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</a>
                     </div>
                 </div>
             </div>
@@ -426,7 +428,7 @@
 
             <div id="swStep3" class="sw-panel" style="display:none;">
                 <h2>3. Verwaltung und Sammelgruppe</h2>
-                <p class="intro">Kontakte der Schulverwaltung (wie im Tab <strong>Verwaltung</strong> unter <a href="tenant.html">Schul‑Grundeinstellungen → Listen</a>, Format <code>Rolle;Name;E‑Mail</code>): Standardrollen (anpassbar, löschbar) und <strong>weitere Rollen</strong>. Pro Zeile: <strong>Microsoft‑Abgleich</strong> (Entra) und optional <strong>Benutzer anlegen</strong> (Administratorzustimmung <code>User.ReadWrite.All</code>). Speichern übernimmt alles in die Einstellungen. Optional eine <strong>Microsoft‑365‑Sammelgruppe</strong> anlegen oder verknüpfen und Mitglieder synchronisieren.</p>
+                <p class="intro">Kontakte der Schulverwaltung (wie im Tab <strong>Verwaltung</strong> unter <a href="tenant.html">Schul‑Grundeinstellungen → Listen</a>, Format <code>Rolle;Name;E‑Mail</code>): Standardrollen (anpassbar, löschbar) und <strong>weitere Rollen</strong>. Pro Zeile: <strong>Microsoft‑Abgleich</strong> (Entra) und optional <strong>Benutzer anlegen</strong> (Administratorzustimmung <code>User.ReadWrite.All</code>). Speichern übernimmt alles in die Einstellungen. Optional eine <strong>Microsoft‑365‑Sammelgruppe</strong> anlegen oder verknüpfen und Mitglieder synchronisieren. Spätere Pflege: <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.</p>
                 <div class="sw-field">
                     <label>Verwaltung / Schulorganisation</label>
                     <div class="teachers-table-wrap" aria-label="Verwaltungskontakte">
@@ -857,6 +859,11 @@
                         <p class="sw-next-card__desc">Sammelgruppen und Mitglieder im Detail, inkl. Graph‑Aktionen.</p>
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
+                    <a class="sw-next-card" href="tools/verwaltung.html">
+                        <span class="sw-next-card__title"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</span>
+                        <p class="sw-next-card__desc">Sammelgruppe der Schulverwaltung matchen oder anlegen, Owner und Mitglieder live pflegen.</p>
+                        <span class="sw-next-card__go">Öffnen →</span>
+                    </a>
                     <a class="sw-next-card" href="tools/gruppenerstellung.html">
                         <span class="sw-next-card__title"><i class="bi bi-folder-plus" aria-hidden="true"></i>Gruppenerstellung</span>
                         <p class="sw-next-card__desc">Weitere Microsoft‑365‑Gruppen nach Regeln und Vorlagen anlegen.</p>
@@ -882,9 +889,14 @@
                         <p class="sw-next-card__desc">Jahrgangs‑ und Klassenlisten für Gruppenarbeit vorbereiten.</p>
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
+                    <a class="sw-next-card" href="tools/arge-fachgruppen.html">
+                        <span class="sw-next-card__title"><i class="bi bi-collection" aria-hidden="true"></i>ARGE &amp; Fachgruppen</span>
+                        <p class="sw-next-card__desc">Fächer und Arbeitsgemeinschaften matchen oder anlegen, danach Owner/Mitglieder live pflegen.</p>
+                        <span class="sw-next-card__go">Öffnen →</span>
+                    </a>
                     <a class="sw-next-card" href="tools/archiv/arge.html">
                         <span class="sw-next-card__title"><i class="bi bi-archive" aria-hidden="true"></i>ARGE‑Assistent (Archiv)</span>
-                        <p class="sw-next-card__desc">Legacy‑Mehrschritt‑Werkzeug; Standard ist Schritt 7 bzw. Schul‑Einstellungen.</p>
+                        <p class="sw-next-card__desc">Legacy‑Mehrschritt‑Werkzeug; Standard ist ARGE &amp; Fachgruppen bzw. Schul‑Einstellungen.</p>
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
                     <a class="sw-next-card" href="tenant.html#classes">

@@ -1,9 +1,29 @@
 import { defineConfig } from 'vite';
+import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function withTrailingSlash(value) {
   if (!value) return '/';
   return value.endsWith('/') ? value : `${value}/`;
+}
+
+/** Alle HTML-Seiten eines Ordners als Vite-MPA-Entries (sonst 404 auf GitHub Pages). */
+function htmlEntriesFrom(relDir) {
+  const absDir = resolve(__dirname, relDir);
+  const entries = {};
+  let names;
+  try {
+    names = readdirSync(absDir);
+  } catch {
+    return entries;
+  }
+  for (const name of names) {
+    if (!name.endsWith('.html')) continue;
+    const rel = `${relDir}/${name}`.replace(/\\/g, '/');
+    const key = rel.replace(/[^a-zA-Z0-9]+/g, '_');
+    entries[key] = resolve(absDir, name);
+  }
+  return entries;
 }
 
 export default defineConfig(() => {
@@ -24,33 +44,8 @@ export default defineConfig(() => {
           einrichtung: resolve(__dirname, 'einrichtung.html'),
           ersteinrichtung: resolve(__dirname, 'ersteinrichtung.html'),
           help: resolve(__dirname, 'hilfe.html'),
-          kursteams: resolve(__dirname, 'tools/kursteams.html'),
-          jahrgang: resolve(__dirname, 'tools/jahrgang.html'),
-          arge: resolve(__dirname, 'tools/archiv/arge.html'),
-          argeLegacyRedirect: resolve(__dirname, 'tools/arge.html'),
-          gruppenerstellung: resolve(__dirname, 'tools/gruppenerstellung.html'),
-          teamsArchiv: resolve(__dirname, 'tools/archiv/teams-archiv.html'),
-          teamsArchivLegacyRedirect: resolve(__dirname, 'tools/teams-archiv.html'),
-          klassenUmbenennen: resolve(__dirname, 'tools/klassen-umbenennen.html'),
-          klassenUmbenennenWizardArchiv: resolve(__dirname, 'tools/archiv/klassen-umbenennen-wizard.html'),
-          schuelerLehrerGruppen: resolve(__dirname, 'tools/schueler-lehrer-gruppen.html'),
-          weitereTeamsGruppen: resolve(__dirname, 'tools/weitere-teams-gruppen.html'),
-          weitereTeamsGruppenBesitzer: resolve(__dirname, 'tools/weitere-teams-gruppen-2-besitzer.html'),
-          weitereTeamsGruppenMitglieder: resolve(__dirname, 'tools/weitere-teams-gruppen-3-mitglieder.html'),
-          weitereTeamsGruppenEinstellungen: resolve(__dirname, 'tools/weitere-teams-gruppen-4-einstellungen.html'),
-          weitereTeamsGruppenAusfuehren: resolve(__dirname, 'tools/weitere-teams-gruppen-5-ausfuehren.html'),
-          schulstrukturSync: resolve(__dirname, 'tools/schulstruktur-sync.html'),
-          abgleichen: resolve(__dirname, 'tools/abgleichen.html'),
-          postfaecher: resolve(__dirname, 'tools/postfaecher.html'),
-          personenVerwaltung: resolve(__dirname, 'tools/personen-verwaltung.html'),
-          verteilerlisten: resolve(__dirname, 'tools/verteilerlisten.html'),
-          leereGruppenReport: resolve(__dirname, 'tools/leere-gruppen-report.html'),
-          gaesteVerwalten: resolve(__dirname, 'tools/gaeste-verwalten.html'),
-          gastZugaengeLegacyRedirect: resolve(__dirname, 'tools/gast-zugaenge.html'),
-          gastEinladerLegacyRedirect: resolve(__dirname, 'tools/gast-einlader.html'),
-          organisationsAssistent: resolve(__dirname, 'tools/organisations-assistent.html'),
-          sharepointListeLehrer: resolve(__dirname, 'tools/sharepoint-liste-lehrer.html'),
-          sharepointListeSchultermine: resolve(__dirname, 'tools/sharepoint-liste-schultermine.html')
+          ...htmlEntriesFrom('tools'),
+          ...htmlEntriesFrom('tools/archiv')
         }
       }
     }

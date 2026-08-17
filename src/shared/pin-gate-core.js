@@ -63,29 +63,77 @@ export function resolveWelcomeUrl(scriptSrc) {
 }
 
 /**
- * @param {string | null | undefined} raw
- * @param {string} [fallback]
+ * Verzeichnis der App (dort liegt welcome.html / index.html).
+ * @param {string} [welcomeHref]
  */
-export function safeReturnPath(raw, fallback = 'index.html') {
-    const fb = fallback || 'index.html';
-    if (!raw) return fb;
+export function appBaseHref(welcomeHref) {
+    const href =
+        welcomeHref ||
+        (typeof location !== 'undefined' ? location.href : 'https://example.invalid/welcome.html');
+    return new URL('./', href).href;
+}
+
+/**
+ * Liefert eine gleiche-Origin-URL innerhalb der App (kein doppelter Unterordner).
+ * @param {string | null | undefined} raw Query `return` (Pfad, relativ oder absolut)
+ * @param {string} [welcomeHref] z. B. location.href der Willkommensseite
+ */
+export function resolveReturnUrl(raw, welcomeHref) {
+    const welcome =
+        welcomeHref ||
+        (typeof location !== 'undefined' ? location.href : 'https://example.invalid/welcome.html');
+    const fallback = new URL('index.html', welcome).href;
+    const base = new URL('./', welcome);
+
+    if (!raw) return fallback;
+
     let decoded = raw;
     try {
         decoded = decodeURIComponent(raw);
     } catch {
-        return fb;
+        return fallback;
     }
-    if (!decoded || decoded.includes('welcome.html')) return fb;
-    if (/^https?:\/\//i.test(decoded)) {
-        try {
-            const u = new URL(decoded);
-            if (typeof location !== 'undefined' && u.origin !== location.origin) return fb;
-            const path = u.pathname + u.search + u.hash;
-            return path.replace(/^\//, '') || fb;
-        } catch {
-            return fb;
-        }
+    if (!decoded || /welcome\.html/i.test(decoded)) return fallback;
+    if (decoded.startsWith('//')) return fallback;
+
+    let candidate;
+    try {
+        candidate = new URL(decoded, base);
+    } catch {
+        return fallback;
     }
-    if (decoded.startsWith('//')) return fb;
-    return decoded.replace(/^\//, '') || fb;
+
+    if (candidate.origin !== base.origin) return fallback;
+    if (/\/welcome\.html$/i.test(candidate.pathname)) return fallback;
+
+    const basePath = base.pathname.endsWith('/') ? base.pathname : base.pathname + '/';
+    const path = candidate.pathname;
+    const inApp = path === basePath.slice(0, -1) || path === basePath || path.startsWith(basePath);
+    if (!inApp) return fallback;
+
+    return candidate.href;
+}
+
+/**
+ * @param {string | null | undefined} raw
+ * @param {string} [fallback]
+ * @param {string} [welcomeHref]
+ */
+export function safeReturnPath(raw, fallback = 'index.html', welcomeHref) {
+    const welcome =
+        welcomeHref ||
+        (typeof location !== 'undefined' && /welcome\.html/i.test(location.pathname)
+            ? location.href
+            : new URL(fallback, 'https://example.invalid/').href.replace(/[^/]+$/, 'welcome.html'));
+    const resolved = resolveReturnUrl(raw, welcome);
+    try {
+        const u = new URL(resolved);
+        const base = new URL('./', welcome);
+        let rel = u.pathname;
+        if (rel.startsWith(base.pathname)) rel = rel.slice(base.pathname.length);
+        rel = rel.replace(/^\//, '');
+        return (rel || fallback) + u.search + u.hash;
+    } catch {
+        return fallback;
+    }
 }

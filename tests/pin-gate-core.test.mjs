@@ -7,6 +7,7 @@ import {
     isValidPin,
     isWelcomePath,
     normalizePin,
+    resolveReturnUrl,
     revokeAccess,
     safeReturnPath
 } from '../src/shared/pin-gate-core.js';
@@ -56,9 +57,34 @@ describe('pin-gate-core', () => {
     });
 
     it('safeReturnPath: blockiert welcome und fremde URLs', () => {
-        expect(safeReturnPath('/tools/kursteams.html')).toBe('tools/kursteams.html');
-        expect(safeReturnPath('/welcome.html')).toBe('index.html');
-        expect(safeReturnPath('//evil.example/x')).toBe('index.html');
-        expect(safeReturnPath(null)).toBe('index.html');
+        const welcome = 'https://example.com/ms365-schultools/welcome.html';
+        expect(safeReturnPath('/ms365-schultools/tools/kursteams.html', 'index.html', welcome)).toBe(
+            'tools/kursteams.html'
+        );
+        expect(safeReturnPath('/welcome.html', 'index.html', welcome)).toBe('index.html');
+        expect(safeReturnPath('//evil.example/x', 'index.html', welcome)).toBe('index.html');
+        expect(safeReturnPath(null, 'index.html', welcome)).toBe('index.html');
+    });
+
+    it('resolveReturnUrl: behält den App-Unterordner (kein doppelter Pfad)', () => {
+        const welcome = 'https://example.com/ms365-schultools/welcome.html';
+        expect(resolveReturnUrl('/ms365-schultools/', welcome)).toBe(
+            'https://example.com/ms365-schultools/'
+        );
+        expect(resolveReturnUrl('/ms365-schultools/index.html', welcome)).toBe(
+            'https://example.com/ms365-schultools/index.html'
+        );
+        expect(resolveReturnUrl('/ms365-schultools/tools/kursteams.html', welcome)).toBe(
+            'https://example.com/ms365-schultools/tools/kursteams.html'
+        );
+        expect(resolveReturnUrl('tools/kursteams.html', welcome)).toBe(
+            'https://example.com/ms365-schultools/tools/kursteams.html'
+        );
+        expect(resolveReturnUrl(null, welcome)).toBe(
+            'https://example.com/ms365-schultools/index.html'
+        );
+        expect(resolveReturnUrl('https://evil.example/x', welcome)).toBe(
+            'https://example.com/ms365-schultools/index.html'
+        );
     });
 });

@@ -93,6 +93,9 @@
         table.gz-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
         table.gz-table th, table.gz-table td { padding: 8px 10px; border-bottom: 1px solid #f0f1f3; text-align: left; vertical-align: top; }
         table.gz-table th { background: #fafbff; font-weight: 800; color: #32325d; position: sticky; top: 0; z-index: 1; }
+        table.gz-table th.is-sortable { cursor: pointer; user-select: none; }
+        table.gz-table th.is-sortable:hover { background: #eef1ff; }
+        .gz-sort-ind { margin-left: 4px; font-size: 0.85em; opacity: 0.75; }
 
         /* „Schreibender" Bereich (Gäste verwalten) */
         .panel-write .panel-head {
@@ -540,11 +543,11 @@
                                                 <input type="checkbox" id="gzMgrSelectAll" aria-label="Alle aktuell sichtbaren auswählen">
                                             </label>
                                         </th>
-                                        <th>Anzeigename</th>
-                                        <th>UPN / E-Mail</th>
-                                        <th>Status</th>
-                                        <th>Erstellt</th>
-                                        <th>Letzte Anmeldung</th>
+                                        <th class="is-sortable" data-sort-key="displayName">Anzeigename</th>
+                                        <th class="is-sortable" data-sort-key="upn">UPN / E-Mail</th>
+                                        <th class="is-sortable" data-sort-key="status">Status</th>
+                                        <th class="is-sortable" data-sort-key="created">Erstellt</th>
+                                        <th class="is-sortable" data-sort-key="lastSignIn">Letzte Anmeldung</th>
                                         <th style="text-align:right;">Aktionen</th>
                                     </tr>
                                 </thead>

@@ -191,4 +191,20 @@ describe('app-data-v2 setup', () => {
         expect(ctx.ms365AppDataV2.getClassTeamGruppenmailForKlasse('1HMA')).toBe('jg2031hma');
         expect(ctx.ms365AppDataV2.getClassTeamGruppenmailForKlasse('HMA')).toBe('jg2031hma');
     });
+
+    it('patchSetup merges verwaltungGroupId without wiping SLG matches', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.patchSetup({
+            matched: { schuelerGroupId: 's1', lehrerGroupId: 'l1' }
+        });
+        ctx.ms365AppDataV2.patchSetup({
+            matched: { verwaltungGroupId: 'v1' },
+            verwaltungDraft: { vwNewDisplayName: 'Schulverwaltung', vwNewMailNick: 'verwaltung' }
+        });
+        const su = ctx.ms365AppDataV2.getSetup();
+        expect(su.matched.schuelerGroupId).toBe('s1');
+        expect(su.matched.lehrerGroupId).toBe('l1');
+        expect(su.matched.verwaltungGroupId).toBe('v1');
+        expect(su.verwaltungDraft.vwNewMailNick).toBe('verwaltung');
+    });
 });

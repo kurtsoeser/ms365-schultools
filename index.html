@@ -343,6 +343,16 @@
                     <p>Zwei Microsoft 365‑Gruppen (<code>schueler@…</code> / <code>lehrer@…</code>) aus den Schul‑Listen anlegen oder bestehende Gruppen mit Mitgliedern befüllen – schrittweise inkl. manueller Adressen.</p>
                     <a class="btn" href="tools/schueler-lehrer-gruppen.html"><i class="bi bi-people-fill"></i>Gruppen verwalten</a>
                 </section>
+                <section class="choice" role="listitem" aria-label="Verwaltung" data-tool-id="verwaltung" data-cluster="anlegen" data-stack="m365" draggable="true">
+                    <h2><i class="bi bi-building-gear"></i>Verwaltung</h2>
+                    <p>Sammelgruppe der Schulverwaltung aus der Rolle‑Name‑Mail‑Liste anlegen oder mit einer bestehenden Microsoft‑365‑Gruppe abgleichen – danach Allgemein, Owner und Mitglieder live wie in der Gruppenverwaltung.</p>
+                    <a class="btn" href="tools/verwaltung.html"><i class="bi bi-building-gear"></i>Gruppe verwalten</a>
+                </section>
+                <section class="choice" role="listitem" aria-label="ARGE und Fachgruppen" data-tool-id="arge-fachgruppen" data-cluster="anlegen" data-stack="m365" draggable="true">
+                    <h2><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</h2>
+                    <p>Fächer und Arbeitsgemeinschaften aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – danach Allgemein, Owner und Mitglieder live wie in der Gruppenverwaltung.</p>
+                    <a class="btn" href="tools/arge-fachgruppen.html"><i class="bi bi-collection-fill"></i>Gruppen verwalten</a>
+                </section>
                 <section class="choice" role="listitem" data-tool-id="jahrgang" data-cluster="anlegen" data-stack="m365" draggable="true">
                     <h2><i class="bi bi-diagram-3"></i>Jahrgangsgruppen</h2>
                     <p>Microsoft 365‑Gruppen (Unified Groups, keine Kursteams) nach Schema <code>jg&lt;Jahr&gt;-&lt;Kürzel&gt;</code> erstellen.</p>
@@ -372,11 +382,6 @@
                     <h2><i class="bi bi-calendar2-range"></i>Organisations-Assistent</h2>
                     <p>Schuljahreswechsel auf der SOLL‑Struktur (Schuljahr, Archiv, Unterbaum‑Duplikat), Kohorten planen (Matura/Eltern‑Jahrgang) und Fachschafts‑Gruppen aus der Fächerliste – lokal in <code>app-data-v2</code>, mit Verknüpfung zu Klassen‑Einstellungen und Kursteams.</p>
                     <a class="btn" href="tools/organisations-assistent.html"><i class="bi bi-calendar2-check"></i>Assistent öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="SOLL/IST Abgleichen" data-tool-id="abgleichen" data-cluster="einblick" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-intersect"></i>Abgleichen (SOLL ↔ Tenant)</h2>
-                    <p>SOLL‑Struktur mit vorhandenen Gruppen/Teams im Tenant abgleichen, manuell zuordnen und Abweichungen gezielt korrigieren.</p>
-                    <a class="btn" href="tools/abgleichen.html"><i class="bi bi-intersect"></i>Öffnen</a>
                 </section>
                 <section class="choice" role="listitem" aria-label="Leere Gruppen Report" data-tool-id="leere-gruppen-report" data-cluster="einblick" data-stack="m365" draggable="true">
                     <h2><i class="bi bi-ui-checks-grid"></i>Leere Gruppen (Report)</h2>
@@ -471,13 +476,13 @@
 
             const DEFAULT_ORDER_M365 = [
                 'slg',
+                'verwaltung',
                 'jahrgang',
                 'kursteams',
                 'weitere-teams-gruppen',
                 'personen-verwaltung',
                 'schulstruktur-sync',
                 'organisations-assistent',
-                'abgleichen',
                 'leere-gruppen-report',
                 'gaeste-verwalten',
                 'postfaecher',

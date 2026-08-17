@@ -132,8 +132,86 @@
             .toUpperCase();
     }
 
+    function normalizeSammelgruppeCode(v) {
+        const c = String(v ?? '')
+            .trim()
+            .toLowerCase();
+        if (c === 'schueler' || c === 'lehrer' || c === 'verwaltung') return c;
+        return '';
+    }
+
+    function sammelgruppeFieldForCode(code) {
+        if (code === 'schueler') return 'schuelerGroupId';
+        if (code === 'lehrer') return 'lehrerGroupId';
+        if (code === 'verwaltung') return 'verwaltungGroupId';
+        return '';
+    }
+
+    function writeSammelgruppeCatalogLink(links, code, graphGroupId) {
+        const arr = Array.isArray(links) ? links.slice() : [];
+        const c = normalizeSammelgruppeCode(code);
+        if (!c) return arr;
+        const gid = graphGroupId ? String(graphGroupId).trim() : '';
+        const idx = arr.findIndex(function (x) {
+            return x && x.kind === 'sammelgruppe' && x.code === c;
+        });
+        if (idx >= 0) {
+            arr[idx] = Object.assign({}, arr[idx], {
+                graphGroupId: gid,
+                mode: gid ? arr[idx].mode || 'matched' : ''
+            });
+            return arr;
+        }
+        if (!gid) return arr;
+        arr.push({
+            kind: 'sammelgruppe',
+            code: c,
+            graphGroupId: gid,
+            displayName: '',
+            mailNickname: '',
+            mode: 'matched',
+            syncStatus: ''
+        });
+        return arr;
+    }
+
+    /**
+     * Eine Quelle: catalogLinks (inkl. Sammelgruppen). `matched.*GroupId` bleibt
+     * Spiegel für Wizard/SLG/Verwaltung. Lücken: die nicht-leere Seite gewinnt.
+     */
+    function fillSammelgruppeGaps(matched, catalogLinks) {
+        const m = matched && typeof matched === 'object' ? Object.assign({}, matched) : {};
+        let links = Array.isArray(catalogLinks) ? catalogLinks.slice() : [];
+        ['schueler', 'lehrer', 'verwaltung'].forEach(function (code) {
+            const field = sammelgruppeFieldForCode(code);
+            const link = links.find(function (x) {
+                return x && x.kind === 'sammelgruppe' && x.code === code;
+            });
+            const catId = link && link.graphGroupId ? String(link.graphGroupId).trim() : '';
+            const matId = m[field] ? String(m[field]).trim() : '';
+            const id = matId || catId;
+            m[field] = id || null;
+            links = writeSammelgruppeCatalogLink(links, code, id);
+        });
+        return { matched: m, catalogLinks: links };
+    }
+
     function normalizeCatalogLink(row) {
         const r = row && typeof row === 'object' ? row : {};
+        if (r.kind === 'sammelgruppe') {
+            const code = normalizeSammelgruppeCode(r.code);
+            if (!code) return null;
+            const mode = r.mode === 'created' || r.mode === 'matched' ? r.mode : '';
+            return {
+                kind: 'sammelgruppe',
+                code: code,
+                graphGroupId: r.graphGroupId ? String(r.graphGroupId).trim() : '',
+                displayName: String(r.displayName || '').trim(),
+                mailNickname: String(r.mailNickname || '').trim(),
+                mode: mode,
+                syncStatus: String(r.syncStatus || '').trim()
+            };
+        }
         const kind = r.kind === 'arge' ? 'arge' : 'subject';
         const code = normCode(r.code);
         if (!code) return null;
@@ -219,6 +297,9 @@
             d.catalogLinks.push(n);
         });
         d.directoryMatchByEmail = normalizeDirectoryMatchByEmail(x.directoryMatchByEmail);
+        const filled = fillSammelgruppeGaps(d.matched, d.catalogLinks);
+        d.matched = filled.matched;
+        d.catalogLinks = filled.catalogLinks;
         return d;
     }
 
@@ -578,7 +659,7 @@
                 if (em) delete mergedDir[em];
             });
         }
-        const next = normalizeSetup(
+        let next = normalizeSetup(
             Object.assign({}, cur, pCopy, {
                 matched: Object.assign({}, cur.matched, p.matched && typeof p.matched === 'object' ? p.matched : {}),
                 slgDraft: Object.assign({}, cur.slgDraft, p.slgDraft && typeof p.slgDraft === 'object' ? p.slgDraft : {}),
@@ -591,6 +672,32 @@
                 directoryMatchByEmail: mergedDir
             })
         );
+        const matchedPatched = p.matched && typeof p.matched === 'object';
+        const catalogPatched = Array.isArray(p.catalogLinks);
+        if (matchedPatched) {
+            ['schuelerGroupId', 'lehrerGroupId', 'verwaltungGroupId'].forEach(function (field) {
+                if (!Object.prototype.hasOwnProperty.call(p.matched, field)) return;
+                const id = p.matched[field] ? String(p.matched[field]).trim() : '';
+                next.matched[field] = id || null;
+                const code =
+                    field === 'schuelerGroupId' ? 'schueler' : field === 'lehrerGroupId' ? 'lehrer' : 'verwaltung';
+                next.catalogLinks = writeSammelgruppeCatalogLink(next.catalogLinks, code, id);
+            });
+        }
+        if (catalogPatched) {
+            ['schueler', 'lehrer', 'verwaltung'].forEach(function (code) {
+                const link = next.catalogLinks.find(function (x) {
+                    return x && x.kind === 'sammelgruppe' && x.code === code;
+                });
+                if (!link) return;
+                const field = sammelgruppeFieldForCode(code);
+                const id = link.graphGroupId ? String(link.graphGroupId).trim() : '';
+                next.matched[field] = id || null;
+            });
+        }
+        const filled = fillSammelgruppeGaps(next.matched, next.catalogLinks);
+        next.matched = filled.matched;
+        next.catalogLinks = filled.catalogLinks;
         c.setup = next;
         return saveV2(c);
     }
@@ -660,6 +767,59 @@
         return saveV2(cur);
     }
 
+    function catalogLinkSameKey(a, b) {
+        if (!a || !b || a.kind !== b.kind) return false;
+        if (a.kind === 'sammelgruppe') return a.code === b.code;
+        return normCode(a.code) === normCode(b.code);
+    }
+
+    function getCatalogLink(kind, code) {
+        const setup = getSetup();
+        const links = (setup && setup.catalogLinks) || [];
+        if (kind === 'sammelgruppe') {
+            const c = normalizeSammelgruppeCode(code);
+            if (!c) return null;
+            for (let i = 0; i < links.length; i++) {
+                if (links[i].kind === 'sammelgruppe' && links[i].code === c) return links[i];
+            }
+            return null;
+        }
+        const k = kind === 'arge' ? 'arge' : 'subject';
+        const c = normCode(code);
+        if (!c) return null;
+        for (let i = 0; i < links.length; i++) {
+            if (links[i].kind === k && normCode(links[i].code) === c) return links[i];
+        }
+        return null;
+    }
+
+    function upsertCatalogLink(entry) {
+        const n = normalizeCatalogLink(entry);
+        if (!n) return null;
+        const cur = getSetup();
+        const links = Array.isArray(cur.catalogLinks) ? cur.catalogLinks.slice() : [];
+        const idx = links.findIndex(function (x) {
+            return catalogLinkSameKey(x, n);
+        });
+        if (idx >= 0) links[idx] = n;
+        else links.push(n);
+        patchSetup({ catalogLinks: links });
+        return n;
+    }
+
+    function clearCatalogLinkGroup(kind, code) {
+        const existing = getCatalogLink(kind, code);
+        if (!existing) return null;
+        return upsertCatalogLink({
+            kind: kind,
+            code: code,
+            graphGroupId: '',
+            displayName: existing.displayName,
+            mailNickname: existing.mailNickname,
+            mode: ''
+        });
+    }
+
     window.ms365AppDataV2 = {
         STORAGE_KEY_V2,
         VERSION,
@@ -680,7 +840,10 @@
         upsertClassTeam,
         getClassTeamGruppenmailForKlasse,
         reconcileClassTeamsFromYearClasses,
-        mailNicknamePrefixSanitize
+        mailNicknamePrefixSanitize,
+        getCatalogLink,
+        upsertCatalogLink,
+        clearCatalogLinkGroup
     };
 })();
 

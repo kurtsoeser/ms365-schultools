@@ -94,7 +94,10 @@ import {
     parseMatchSelectValue,
     applyMatchLinkUpdate,
     persistedMatchSelectValuePure,
-    computeMatchDraftDirty
+    computeMatchDraftDirty,
+    catalogRefForStructureRow,
+    overlayCatalogOnMatchLinks,
+    catalogUpsertsFromOrphanMatchLinks
 } from './schulstruktur-sync-mapping.js';
 
 (function () {
@@ -181,10 +184,60 @@ import {
         return true;
     }
 
+    function structureRowForMatchId(structureId) {
+        const id = String(structureId || '');
+        const st = loadState();
+        if (isStructureTreeRootId(id)) {
+            const details = st.settings && st.settings.structRootDetails;
+            return mergeStructureTreeRootRow(id, details) || defaultStructureTreeRootRow(id);
+        }
+        const rows = Array.isArray(st.rows) ? st.rows : [];
+        return rows.find((r) => String(r.id) === id) || null;
+    }
+
+    function syncMatchToCatalogAndDirectory(structureId, tenantGroupId, tenantUserId) {
+        const api = window.ms365AppDataV2;
+        if (!api) return;
+        const row = structureRowForMatchId(structureId);
+        if (!row) return;
+        const ref = catalogRefForStructureRow(row);
+        if (ref && typeof api.upsertCatalogLink === 'function') {
+            const existing = typeof api.getCatalogLink === 'function' ? api.getCatalogLink(ref.kind, ref.code) : null;
+            api.upsertCatalogLink({
+                kind: ref.kind,
+                code: ref.code,
+                graphGroupId: tenantGroupId || '',
+                displayName: existing && existing.displayName ? existing.displayName : '',
+                mailNickname: existing && existing.mailNickname ? existing.mailNickname : '',
+                mode: tenantGroupId ? (existing && existing.mode) || 'matched' : ''
+            });
+        }
+        if (String(row.typ || '') !== 'Person' || typeof api.patchSetup !== 'function') return;
+        const em = String(row.personEmail || '')
+            .trim()
+            .toLowerCase();
+        if (!em || em.indexOf('@') === -1) return;
+        const uid = String(tenantUserId || '').trim();
+        if (uid) {
+            api.patchSetup({
+                directoryMatchByEmail: {
+                    [em]: {
+                        graphUserId: uid,
+                        displayName: String(row.personName || row.bezeichnung || ''),
+                        userPrincipalName: em
+                    }
+                }
+            });
+        } else {
+            api.patchSetup({ directoryMatchByEmailRemove: { [em]: true } });
+        }
+    }
+
     /**
      * Wrapper um {@link applyMatchLinkUpdate}, bindet die Pure-Funktion an
      * den persistierten Match-State und den `window`-Spiegel/Event.
-     * Pure-Logik lebt in `schulstruktur-sync-mapping.js`.
+     * Katalog-gemappte Knoten schreiben zusätzlich nach `catalogLinks` /
+     * `matched` bzw. Personen nach `directoryMatchByEmail`.
      */
     function saveMatchLinkPublic(structureId, tenantGroupId, note, tenantUserId) {
         const cur = loadMatchState().links || {};
@@ -194,6 +247,11 @@ import {
             note
         });
         saveMatchState(next);
+        try {
+            syncMatchToCatalogAndDirectory(structureId, tenantGroupId, tenantUserId);
+        } catch {
+            // ignore
+        }
         try {
             window.__ms365MatchLinks = next;
         } catch {

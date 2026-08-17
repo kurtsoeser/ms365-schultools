@@ -4,7 +4,7 @@ import {
     isPinGateEnabled,
     isValidPin,
     normalizePin,
-    safeReturnPath
+    resolveReturnUrl
 } from './pin-gate-core.js';
 
 (function () {
@@ -12,7 +12,7 @@ import {
 
     const config = typeof window !== 'undefined' ? window.MS365_ACCESS_CONFIG : null;
     const params = new URLSearchParams(location.search);
-    const returnTarget = safeReturnPath(params.get('return'));
+    const returnTarget = resolveReturnUrl(params.get('return'), location.href);
 
     if (isAccessGranted()) {
         location.replace(returnTarget);
@@ -24,8 +24,7 @@ import {
     const submitBtn = document.getElementById('welcome-pin-submit');
 
     if (!isPinGateEnabled(config)) {
-        const target = safeReturnPath(new URLSearchParams(location.search).get('return'));
-        location.replace(target);
+        location.replace(returnTarget);
         return;
     }
 

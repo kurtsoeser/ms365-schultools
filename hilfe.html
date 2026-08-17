@@ -193,8 +193,9 @@
                         <li><a href="#tool-tenant">Schul‑Grundeinstellungen</a></li>
                         <li><a href="#tool-kursteams">Kursteams</a></li>
                         <li><a href="#tool-jahrgang">Jahrgangsgruppen</a></li>
-                        <li><a href="#tool-arge">ARGEs</a></li>
+                        <li><a href="#tool-arge">ARGE &amp; Fachgruppen</a></li>
                         <li><a href="#tool-slg">Lehrerinnen &amp; Schülerinnen</a></li>
+                        <li><a href="#tool-verwaltung">Verwaltung</a></li>
                         <li><a href="#tool-personen-verwaltung">Personen‑Verwaltung</a></li>
                         <li><a href="#tool-teams-archiv">Teams archivieren (Archiv)</a></li>
                         <li><a href="#tool-klassen-umbenennen">Klassen‑Anzeigenamen (Schuljahreswechsel)</a></li>
@@ -293,24 +294,25 @@
                     <p><a href="tools/jahrgang.html">→ Jahrgangsgruppen öffnen</a></p>
                 </section>
 
-                <section class="tool" id="tool-arge" aria-label="ARGEs">
-                    <h3>ARGEs <span class="pill">Gruppen/Teams</span> <span class="pill" style="background:#e9ecef;color:#495057;">Archiv</span></h3>
+                <section class="tool" id="tool-arge" aria-label="ARGE und Fachgruppen">
+                    <h3>ARGE &amp; Fachgruppen <span class="pill">Gruppenverwaltung</span></h3>
                     <p>
-                        <strong>Aktuell empfohlen:</strong> ARGE‑Stammdaten und M365‑Gruppen in der <a href="einrichtung.html">Geführten Einrichtung</a> (Schritt 7) oder unter <a href="tenant.html">Schul‑Grundeinstellungen</a> → Tab ARGE.
-                    </p>
-                    <p>
-                        <strong>Legacy‑Assistent (Archiv):</strong> Mehrschritt‑Werkzeug mit Besitzern, Mitgliedern, Exchange‑SMTP, Teams und PowerShell/.cmd – für Sonderfälle weiter verfügbar.
+                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Katalogeinträge aus den Schul‑Einstellungen:
+                        <strong>Fachgruppen</strong> und <strong>ARGE</strong>. Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: Live‑Details (Allgemein, Owner, Mitglieder).
+                        Verknüpfungen liegen in denselben <code>catalogLinks</code> wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>
                         <ol>
-                            <li>In Schritt 1 je Zeile ein Thema einfügen (z. B. <code>Deutsch</code>, <code>Robotics</code>). Optional auch <code>Anzeigename;MailNickname</code>.</li>
-                            <li>Vorschau prüfen und bei Bedarf per Doppelklick Zellen korrigieren.</li>
-                            <li>Besitzer (UPN) eintragen, optional Mitgliederlisten ergänzen.</li>
-                            <li>Einstellungen wählen (Exchange‑SMTP/Teams/Admin‑Owner) und dann online ausführen oder Script/.cmd nutzen.</li>
+                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> Fächer und ARGE pflegen.</li>
+                            <li>Im Tool anmelden, links Fachgruppen oder ARGE wählen, Eintrag anklicken, Gruppe suchen und matchen – oder neu anlegen.</li>
+                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen.</li>
                         </ol>
                     </div>
-                    <p><a href="tools/archiv/arge.html">→ Legacy‑ARGE‑Assistent (Archiv) öffnen</a> · <a href="tools/arge.html">alte URL</a> leitet weiter.</p>
+                    <div class="hint">
+                        <strong>Hinweis:</strong> Es gibt keinen Listen‑Sync (keine Mitglieder in den Stammdaten). Der alte Mehrschritt‑Assistent bleibt unter <a href="tools/archiv/arge.html">Archiv</a>.
+                    </div>
+                    <p><a href="tools/arge-fachgruppen.html">→ ARGE &amp; Fachgruppen öffnen</a></p>
                 </section>
 
                 <section class="tool" id="tool-slg" aria-label="Lehrerinnen und Schülerinnen">
@@ -331,6 +333,27 @@
                         <strong>Hinweis:</strong> Listen‑Sync ist additiv (entfernt niemanden). Einzelne Owner und Mitglieder können Sie in den Tabs dieses Tools entfernen – oder in der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> bzw. im Entra‑Portal.
                     </div>
                     <p><a href="tools/schueler-lehrer-gruppen.html">→ Lehrerinnen &amp; Schülerinnen öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-verwaltung" aria-label="Verwaltung">
+                    <h3>Verwaltung <span class="pill">Gruppenverwaltung</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Sammelgruppe der Schulverwaltung.
+                        Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: dieselben Live‑Details (Allgemein, Owner, Mitglieder) wie in der Gruppenverwaltung, plus Listen‑Sync aus der Verwaltungsliste.
+                        Die Verknüpfung liegt in demselben <code>verwaltungGroupId</code> wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> unter Verwaltung Rolle;Name;E‑Mail pflegen; Direktion mit E‑Mail eintragen (für Besitzerrechte).</li>
+                            <li>Im Tool anmelden, Gruppe suchen und matchen – oder neu anlegen.</li>
+                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen. Optional <strong>Mitglieder synchronisieren</strong> (fügt fehlende Listen‑Adressen hinzu).</li>
+                        </ol>
+                    </div>
+                    <div class="hint">
+                        <strong>Hinweis:</strong> Listen‑Sync ist additiv (entfernt niemanden). Einzelne Owner und Mitglieder können Sie in den Tabs dieses Tools entfernen – oder in der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> bzw. im Entra‑Portal.
+                    </div>
+                    <p><a href="tools/verwaltung.html">→ Verwaltung öffnen</a></p>
                 </section>
 
                 <section class="tool" id="tool-personen-verwaltung" aria-label="Personen-Verwaltung">

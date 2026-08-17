@@ -23,6 +23,13 @@
  */
 
 import { normStr } from '../../shared/utils/strings.js';
+import {
+    STRUCT_TREE_ROOT_ADMIN,
+    STRUCT_TREE_ROOT_STUDENTS,
+    STRUCT_TREE_ROOT_TEACHERS,
+    isStructureTreeRootId,
+    isTopVerwaltungStructureNode
+} from './schulstruktur-sync-tree.js';
 
 /**
  * Form, in der ein gespeicherter Match-Link in der Links-Map abgelegt ist.
@@ -150,4 +157,143 @@ export function computeMatchDraftDirty(savedLink, currentSelectValue, currentNot
     }
     const savedNote = savedLink && savedLink.note ? String(savedLink.note).trim() : '';
     return curVal !== savedVal || curNote !== savedNote;
+}
+
+function normCatalogCode(v) {
+    return String(v || '')
+        .trim()
+        .toUpperCase();
+}
+
+function sammelgruppeCodeFromRootId(id) {
+    const s = String(id || '');
+    if (s === STRUCT_TREE_ROOT_STUDENTS) return 'schueler';
+    if (s === STRUCT_TREE_ROOT_TEACHERS) return 'lehrer';
+    if (s === STRUCT_TREE_ROOT_ADMIN) return 'verwaltung';
+    return '';
+}
+
+/**
+ * Katalog-Bezug einer SOLL-Zeile (Sammelgruppe / ARGE / Fachschaft).
+ * Sonstige Knoten (Jahrgang, Klasse, Kursteam, freie Gruppe, Person) → `null`.
+ *
+ * @param {object | null | undefined} row
+ * @returns {{ kind: 'sammelgruppe'|'arge'|'subject', code: string } | null}
+ */
+export function catalogRefForStructureRow(row) {
+    if (!row || typeof row !== 'object') return null;
+    const id = String(row.id || '');
+    if (isStructureTreeRootId(id)) {
+        const code = sammelgruppeCodeFromRootId(id);
+        return code ? { kind: 'sammelgruppe', code: code } : null;
+    }
+    if (isTopVerwaltungStructureNode(row)) return { kind: 'sammelgruppe', code: 'verwaltung' };
+    const typ = String(row.typ || '');
+    if (typ === 'Arbeitsgemeinschaft') {
+        const code = normCatalogCode(row.argeCode || row.bezeichnung);
+        return code ? { kind: 'arge', code: code } : null;
+    }
+    if (typ === 'Gruppe' && row.fachschaftFach) {
+        const code = normCatalogCode(row.ktFach || row.bezeichnung);
+        return code ? { kind: 'subject', code: code } : null;
+    }
+    return null;
+}
+
+function catalogGraphId(ref, setup) {
+    if (!ref) return '';
+    const links = setup && Array.isArray(setup.catalogLinks) ? setup.catalogLinks : [];
+    const matched = setup && setup.matched && typeof setup.matched === 'object' ? setup.matched : {};
+    if (ref.kind === 'sammelgruppe') {
+        const field =
+            ref.code === 'schueler'
+                ? 'schuelerGroupId'
+                : ref.code === 'lehrer'
+                  ? 'lehrerGroupId'
+                  : ref.code === 'verwaltung'
+                    ? 'verwaltungGroupId'
+                    : '';
+        const fromMatched = field && matched[field] ? String(matched[field]).trim() : '';
+        const link = links.find(function (x) {
+            return x && x.kind === 'sammelgruppe' && String(x.code || '') === ref.code;
+        });
+        const fromCat = link && link.graphGroupId ? String(link.graphGroupId).trim() : '';
+        return fromCat || fromMatched;
+    }
+    const link = links.find(function (x) {
+        return x && x.kind === ref.kind && normCatalogCode(x.code) === ref.code;
+    });
+    return link && link.graphGroupId ? String(link.graphGroupId).trim() : '';
+}
+
+/**
+ * SOLL-Match-Links mit Katalog/Sammelgruppen und Entra-Personen überlagern.
+ * Für katalog-gemappte Knoten gilt der Katalog (auch leer = unverknüpft).
+ *
+ * @param {Record<string, MatchLink>} links
+ * @param {object[]} rows
+ * @param {object | null | undefined} setup
+ * @returns {Record<string, MatchLink>}
+ */
+export function overlayCatalogOnMatchLinks(links, rows, setup) {
+    const next = links && typeof links === 'object' ? Object.assign({}, links) : {};
+    const dir =
+        setup && setup.directoryMatchByEmail && typeof setup.directoryMatchByEmail === 'object'
+            ? setup.directoryMatchByEmail
+            : {};
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+        if (!row || row.id == null) return;
+        const id = String(row.id);
+        const ref = catalogRefForStructureRow(row);
+        if (ref) {
+            const gid = catalogGraphId(ref, setup);
+            const prev = next[id] && typeof next[id] === 'object' ? next[id] : {};
+            if (gid) {
+                next[id] = Object.assign({}, prev, { tenantGroupId: gid });
+            } else if (prev.tenantGroupId) {
+                const copy = Object.assign({}, prev, { tenantGroupId: '' });
+                if (!normStr(copy.tenantUserId) && !normStr(copy.note)) delete next[id];
+                else next[id] = copy;
+            }
+        }
+        if (String(row.typ || '') !== 'Person') return;
+        const em = String(row.personEmail || '')
+            .trim()
+            .toLowerCase();
+        if (!em || em.indexOf('@') === -1) return;
+        const hit = dir[em];
+        const uid = hit && hit.graphUserId ? String(hit.graphUserId).trim() : '';
+        if (!uid) return;
+        const prev = next[id] && typeof next[id] === 'object' ? next[id] : {};
+        if (!normStr(prev.tenantUserId)) next[id] = Object.assign({}, prev, { tenantUserId: uid });
+    });
+    return next;
+}
+
+/**
+ * Match-Links, die noch nicht im Katalog stehen, als Upserts vorschlagen
+ * (einmalige Übernahme aus dem alten SOLL-Speicher).
+ *
+ * @param {object[]} rows
+ * @param {Record<string, MatchLink>} links
+ * @param {object | null | undefined} setup
+ * @returns {Array<{ kind: string, code: string, graphGroupId: string, mode: string }>}
+ */
+export function catalogUpsertsFromOrphanMatchLinks(rows, links, setup) {
+    const out = [];
+    const seen = new Set();
+    const map = links && typeof links === 'object' ? links : {};
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+        const ref = catalogRefForStructureRow(row);
+        if (!ref) return;
+        if (catalogGraphId(ref, setup)) return;
+        const saved = map[String(row.id || '')];
+        const gid = saved && saved.tenantGroupId ? String(saved.tenantGroupId).trim() : '';
+        if (!gid) return;
+        const k = ref.kind + ':' + ref.code;
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push({ kind: ref.kind, code: ref.code, graphGroupId: gid, mode: 'matched' });
+    });
+    return out;
 }

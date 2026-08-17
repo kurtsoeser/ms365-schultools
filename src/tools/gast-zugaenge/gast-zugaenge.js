@@ -679,6 +679,30 @@ async function gzFetchMemberships(token, userId) {
     return out;
 }
 
+function gzGuestSortValue(g, key) {
+    switch (key) {
+        case 'displayName':
+            return g.displayName || g.userPrincipalName || '';
+        case 'upn':
+            return g.userPrincipalName || g.mail || '';
+        case 'status': {
+            if (g.accountEnabled === false) return '0-deaktiviert';
+            const state = String(g.externalUserState || '').toLowerCase();
+            if (state === 'pendingacceptance') return '1-pending';
+            if (state === 'accepted') return '2-akzeptiert';
+            return '3-' + state;
+        }
+        case 'created':
+            return Date.parse(g.createdDateTime || '') || 0;
+        case 'lastSignIn': {
+            const d = gzLastSignInDate(g);
+            return d ? d.getTime() : 0;
+        }
+        default:
+            return '';
+    }
+}
+
 function bindManager() {
     const els = {
         btnLoad: document.getElementById('gzMgrBtnLoad'),
@@ -734,6 +758,7 @@ function bindManager() {
     let allGuests = [];
     let viewGuests = [];
     const selectedIds = new Set();
+    const sortState = { key: 'displayName', dir: 1 };
     let currentEditId = null;
     let currentDeleteId = null;
     let currentDeleteUpn = '';
@@ -780,7 +805,34 @@ function bindManager() {
             }
             return true;
         });
+
+        const key = sortState.key;
+        const dir = sortState.dir;
+        if (key === 'created' || key === 'lastSignIn') {
+            viewGuests.sort((a, b) => (gzGuestSortValue(a, key) - gzGuestSortValue(b, key)) * dir);
+        } else {
+            viewGuests.sort(
+                (a, b) => compareDe(String(gzGuestSortValue(a, key)), String(gzGuestSortValue(b, key))) * dir
+            );
+        }
+
         renderRows();
+        updateSortIndicators();
+    }
+
+    function updateSortIndicators() {
+        const ths = document.querySelectorAll('#gv-panel-tenant table.gz-table th.is-sortable');
+        ths.forEach((th) => {
+            const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+            th.dataset.label = label;
+            th.textContent = label;
+            if (th.dataset.sortKey === sortState.key) {
+                const ind = document.createElement('span');
+                ind.className = 'gz-sort-ind';
+                ind.textContent = sortState.dir === -1 ? '▼' : '▲';
+                th.appendChild(ind);
+            }
+        });
     }
 
     function renderRows() {
@@ -1347,6 +1399,19 @@ function bindManager() {
             if (e.target === els.bulkModal) closeModal(els.bulkModal);
         });
     }
+
+    document.querySelectorAll('#gv-panel-tenant table.gz-table th.is-sortable').forEach((th) => {
+        th.addEventListener('click', () => {
+            const k = th.dataset.sortKey;
+            if (!k) return;
+            if (sortState.key === k) sortState.dir = sortState.dir === 1 ? -1 : 1;
+            else {
+                sortState.key = k;
+                sortState.dir = 1;
+            }
+            applyFilters();
+        });
+    });
 
     // Suche/Filter
     let searchTimer = null;
