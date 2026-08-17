@@ -41,14 +41,19 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(lic).toContain('A1 für Schüler:innen');
     });
 
-    it('Personen-Modul erklärt den Ablauf für neue Konten kontrastreich', () => {
+    it('Personen-Modul erklärt den Ablauf für neue Konten im Neu-Dialog', () => {
         const html = read('tools/personen-verwaltung.html');
-        expect(html).toContain('class="pv-onboard"');
-        expect(html).toContain('Neue Person anlegen');
+        const iModal = html.indexOf('id="pvModalCreateBackdrop"');
+        const iOnboard = html.indexOf('class="pv-onboard"');
+        const iHeaderEnd = html.indexOf('class="content"');
+        expect(iModal).toBeGreaterThan(-1);
+        expect(iOnboard).toBeGreaterThan(iModal);
+        expect(iOnboard).toBeGreaterThan(iHeaderEnd);
         expect(html).toContain('Nutzungsort');
         expect(html).toContain('Microsoft weist keine Lizenz zu');
         expect(html).not.toContain('id="pvOnboardHint"');
         expect(html).not.toContain('1. Anlegen · 2. Nutzungsort · 3. Lizenz');
+        expect(html).not.toContain('Das ist kein Menü dieser Seite');
     });
 
     it('Personen-Modul kann Lizenzen zuweisen und entziehen', () => {
