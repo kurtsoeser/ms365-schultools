@@ -22,11 +22,17 @@
     /** @type {string|null} */
     let matchedGroupId = null;
 
-    /** @type {{ members: string[], direktion: string[], rows: { role: string, name: string, email: string }[] }} */
-    let listCache = { members: [], direktion: [], rows: [] };
+    /** @type {{ members: string[], direktion: string[], rows: { role: string, name: string, email: string, defaultKey?: string }[], roles: { code: string, name: string }[] }} */
+    let listCache = { members: [], direktion: [], rows: [], roles: [] };
 
     /** @type {'general'|'owners'|'members'} */
     let activeTab = 'general';
+
+    /** @type {'group'|'role'} */
+    let activeView = 'group';
+    /** @type {string} */
+    let activeRoleCode = '';
+    let listFilter = '';
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -101,9 +107,77 @@
         return window.ms365TenantSettingsLoad();
     }
 
+    function personMatchesRole(row, role) {
+        if (typeof window.ms365TenantSettingsPersonMatchesAdminRole === 'function') {
+            return window.ms365TenantSettingsPersonMatchesAdminRole(row, role);
+        }
+        if (!row || !role) return false;
+        const r = normStr(row.role).toLowerCase();
+        const n = normStr(role.name).toLowerCase();
+        const c = normStr(role.code).toLowerCase();
+        return !!(r && (r === n || r === c));
+    }
+
+    function roleCodeFromName(name) {
+        if (typeof window.ms365TenantSettingsAdminRoleCodeFromName === 'function') {
+            return window.ms365TenantSettingsAdminRoleCodeFromName(name);
+        }
+        return normStr(name)
+            .toUpperCase()
+            .replace(/\s+/g, '')
+            .replace(/[^A-Z0-9ÄÖÜß-]/g, '')
+            .slice(0, 24);
+    }
+
+    function uniqueRoleCode(desired, usedCodes) {
+        let code = roleCodeFromName(desired) || 'ROLLE';
+        const used = new Set(
+            (usedCodes || []).map(function (c) {
+                return String(c || '').toLowerCase();
+            })
+        );
+        if (!used.has(code.toLowerCase())) return code;
+        let i = 2;
+        while (used.has((code + String(i)).toLowerCase())) i += 1;
+        return (code + String(i)).slice(0, 24);
+    }
+
+    function getActiveRole() {
+        const code = normStr(activeRoleCode).toUpperCase();
+        if (!code) return null;
+        for (let i = 0; i < listCache.roles.length; i++) {
+            if (normStr(listCache.roles[i].code).toUpperCase() === code) return listCache.roles[i];
+        }
+        return null;
+    }
+
+    function peopleForRole(role) {
+        if (!role) return [];
+        return (listCache.rows || []).filter(function (row) {
+            return personMatchesRole(row, role);
+        });
+    }
+
+    function persistLists() {
+        const settings = loadTenantSettings() || {};
+        settings.admin = (listCache.rows || []).map(function (r) {
+            const row = { role: r.role || '', name: r.name || '', email: r.email || '' };
+            if (r.defaultKey) row.defaultKey = r.defaultKey;
+            return row;
+        });
+        settings.adminRoles = (listCache.roles || []).map(function (r) {
+            return { code: r.code || '', name: r.name || '' };
+        });
+        if (typeof window.ms365TenantSettingsSave === 'function') {
+            window.ms365TenantSettingsSave(settings);
+        }
+        readLists();
+    }
+
     function readLists() {
         const settings = loadTenantSettings();
         const admin = settings && Array.isArray(settings.admin) ? settings.admin : [];
+        const rolesIn = settings && Array.isArray(settings.adminRoles) ? settings.adminRoles : [];
         const members = [];
         const direktion = [];
         const rows = [];
@@ -113,17 +187,28 @@
             const role = normStr(row && (row.role || row.rolle || row.title));
             const name = normStr(row && row.name);
             const email = normEmail(row && row.email);
-            rows.push({ role: role, name: name, email: email });
+            const defaultKey = normStr(row && row.defaultKey);
+            const rec = { role: role, name: name, email: email };
+            if (defaultKey) rec.defaultKey = defaultKey;
+            rows.push(rec);
             if (email && email.indexOf('@') !== -1 && !seenM.has(email)) {
                 seenM.add(email);
                 members.push(email);
             }
-            if (!isDirektionRole(role)) return;
+            if (!isDirektionRole(role) && !isDirektionRole(defaultKey)) return;
             if (!email || email.indexOf('@') === -1 || seenD.has(email)) return;
             seenD.add(email);
             direktion.push(email);
         });
-        listCache = { members: members, direktion: direktion, rows: rows };
+        let roles = rolesIn.map(function (r) {
+            return { code: normStr(r && r.code).toUpperCase(), name: normStr(r && r.name) };
+        }).filter(function (r) {
+            return r.code || r.name;
+        });
+        if (typeof window.ms365TenantSettingsNormalizeAdminRoles === 'function') {
+            roles = window.ms365TenantSettingsNormalizeAdminRoles(roles, rows);
+        }
+        listCache = { members: members, direktion: direktion, rows: rows, roles: roles };
     }
 
     function contactLabel(row) {
@@ -168,11 +253,341 @@
         const line = document.getElementById('slgVerwaltungLine');
         if (count) count.textContent = String(listCache.members.length);
         if (line) line.textContent = matchedGroupId ? 'Gematcht: ' + matchedGroupId : 'Noch kein Match';
+        const groupBtn = document.querySelector('#slgListItems [data-vw-kind="group"]');
+        if (groupBtn) groupBtn.setAttribute('aria-current', activeView === 'group' ? 'true' : 'false');
+        renderRoleList();
         renderContactBox(
             document.getElementById('slgContactPreview'),
             'Keine Einträge in der Verwaltungsliste.',
             40
         );
+    }
+
+    function startCellEdit(td, initialValue, onCommit) {
+        const prevText = String(initialValue ?? '');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = prevText;
+        input.style.width = '100%';
+        input.style.font = 'inherit';
+        input.style.boxSizing = 'border-box';
+        td.replaceChildren(input);
+        input.focus();
+        input.select();
+        const commit = function () {
+            onCommit(normStr(input.value));
+        };
+        const cancel = function () {
+            onCommit(prevText, { cancelled: true });
+        };
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                commit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+            }
+        });
+        input.addEventListener('blur', commit);
+    }
+
+    function rolePassesFilter(role) {
+        const q = normStr(listFilter).toLowerCase();
+        if (!q) return true;
+        const people = peopleForRole(role);
+        const blob = [role.name, role.code]
+            .concat(
+                people.map(function (p) {
+                    return (p.name || '') + ' ' + (p.email || '');
+                })
+            )
+            .join(' ')
+            .toLowerCase();
+        return blob.indexOf(q) !== -1;
+    }
+
+    function renderRoleList() {
+        const host = document.getElementById('vwRoleList');
+        const summary = document.getElementById('vwRoleListSummary');
+        if (!host) return;
+        host.replaceChildren();
+        const roles = (listCache.roles || []).filter(rolePassesFilter);
+        if (summary) {
+            summary.textContent =
+                roles.length === (listCache.roles || []).length
+                    ? roles.length + ' Rolle(n)'
+                    : roles.length + ' von ' + String((listCache.roles || []).length) + ' Rollen';
+        }
+        if (!roles.length) {
+            const li = document.createElement('li');
+            const p = document.createElement('p');
+            p.className = 'muted';
+            p.style.margin = '10px 12px';
+            p.textContent = 'Keine Rollen – „+ Rolle“ oder Standardrollen.';
+            li.appendChild(p);
+            host.appendChild(li);
+            return;
+        }
+        roles.forEach(function (role) {
+            const people = peopleForRole(role);
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'slg-side-btn';
+            btn.setAttribute('data-vw-kind', 'role');
+            btn.setAttribute('data-vw-role-code', role.code || '');
+            const on = activeView === 'role' && normStr(activeRoleCode).toUpperCase() === normStr(role.code).toUpperCase();
+            btn.setAttribute('aria-current', on ? 'true' : 'false');
+            const nPeople = people.length;
+            btn.innerHTML =
+                '<span class="slg-side-main">' +
+                '<span class="slg-side-title">' +
+                escapeHtml(role.name || role.code || 'Rolle') +
+                '</span>' +
+                '<span class="muted slg-side-meta"><code>' +
+                escapeHtml(role.code || '') +
+                '</code></span></span>' +
+                '<span class="slg-side-count"><span class="n">' +
+                String(nPeople) +
+                '</span><span class="l">' +
+                (nPeople === 1 ? 'Person' : 'Personen') +
+                '</span></span>';
+            btn.addEventListener('click', function () {
+                setActiveView('role', role.code);
+            });
+            li.appendChild(btn);
+            host.appendChild(li);
+        });
+    }
+
+    function setActiveView(view, roleCode) {
+        activeView = view === 'role' ? 'role' : 'group';
+        activeRoleCode = activeView === 'role' ? String(roleCode || '') : '';
+        const groupPanel = document.getElementById('vwGroupPanel');
+        const rolePanel = document.getElementById('vwRolePanel');
+        const headActions = document.getElementById('vwGroupHeadActions');
+        const title = document.getElementById('slgDetailTitle');
+        const sub = document.getElementById('slgDetailSubtitle');
+        if (groupPanel) groupPanel.style.display = activeView === 'group' ? '' : 'none';
+        if (rolePanel) rolePanel.style.display = activeView === 'role' ? '' : 'none';
+        if (headActions) headActions.style.display = activeView === 'group' ? '' : 'none';
+        if (activeView === 'group') {
+            if (title) title.textContent = 'Sammelgruppe Verwaltung';
+            if (sub) sub.textContent = matchedGroupId ? 'Gematchte Microsoft‑365‑Gruppe' : 'Gruppe matchen oder anlegen';
+        } else {
+            const role = getActiveRole();
+            if (title) title.textContent = role && role.name ? role.name : 'Rolle';
+            if (sub) sub.textContent = 'Personen dieser Rolle pflegen';
+            fillRoleForm();
+            renderRolePeopleTable();
+        }
+        updateLeftListUi();
+    }
+
+    function fillRoleForm() {
+        const role = getActiveRole();
+        const inpN = document.getElementById('vwRoleName');
+        const inpC = document.getElementById('vwRoleCode');
+        if (inpN) inpN.value = role ? role.name || '' : '';
+        if (inpC) inpC.value = role ? role.code || '' : '';
+    }
+
+    function renderRolePeopleTable() {
+        const tbody = document.getElementById('vwRolePeopleBody');
+        if (!tbody) return;
+        tbody.replaceChildren();
+        const role = getActiveRole();
+        const people = peopleForRole(role);
+        if (!people.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 3;
+            td.style.color = '#6c757d';
+            td.textContent = 'Keine Personen – „+ Person“.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+        }
+        people.forEach(function (person) {
+            const globalIdx = listCache.rows.indexOf(person);
+            const tr = document.createElement('tr');
+            const tdName = document.createElement('td');
+            tdName.textContent = person.name || '';
+            tdName.title = 'Doppelklick zum Bearbeiten';
+            tdName.addEventListener('dblclick', function () {
+                startCellEdit(tdName, person.name, function (next, meta) {
+                    if (globalIdx < 0 || !listCache.rows[globalIdx]) return renderRolePeopleTable();
+                    if (!(meta && meta.cancelled)) listCache.rows[globalIdx].name = next;
+                    persistLists();
+                    updateLeftListUi();
+                    renderRolePeopleTable();
+                });
+            });
+            const tdEmail = document.createElement('td');
+            tdEmail.textContent = person.email || '';
+            tdEmail.title = 'Doppelklick zum Bearbeiten';
+            tdEmail.addEventListener('dblclick', function () {
+                startCellEdit(tdEmail, person.email, function (next, meta) {
+                    if (globalIdx < 0 || !listCache.rows[globalIdx]) return renderRolePeopleTable();
+                    if (!(meta && meta.cancelled)) listCache.rows[globalIdx].email = next.toLowerCase();
+                    persistLists();
+                    updateLeftListUi();
+                    renderRolePeopleTable();
+                });
+            });
+            const tdAction = document.createElement('td');
+            tdAction.className = 'action-cell';
+            const btnDel = document.createElement('button');
+            btnDel.type = 'button';
+            btnDel.className = 'mini-btn';
+            btnDel.textContent = '✕';
+            btnDel.title = 'Person löschen';
+            btnDel.addEventListener('click', function () {
+                if (globalIdx < 0) return;
+                listCache.rows.splice(globalIdx, 1);
+                persistLists();
+                updateLeftListUi();
+                renderRolePeopleTable();
+                toast('Person entfernt.');
+            });
+            tdAction.appendChild(btnDel);
+            tr.append(tdName, tdEmail, tdAction);
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function addRole() {
+        const name = await (typeof window.ms365AppDialogPrompt === 'function'
+            ? window.ms365AppDialogPrompt('Bezeichnung der neuen Rolle', '', {
+                  title: 'Rolle anlegen',
+                  inputLabel: 'Rolle'
+              })
+            : Promise.resolve(window.prompt('Bezeichnung der neuen Rolle')));
+        const label = normStr(name);
+        if (!label) return;
+        const exists = (listCache.roles || []).some(function (r) {
+            return normStr(r.name).toLowerCase() === label.toLowerCase();
+        });
+        if (exists) {
+            toast('Diese Rolle gibt es bereits.');
+            return;
+        }
+        const code = uniqueRoleCode(
+            label,
+            (listCache.roles || []).map(function (r) {
+                return r.code;
+            })
+        );
+        listCache.roles.push({ code: code, name: label });
+        persistLists();
+        setActiveView('role', code);
+        toast('Rolle angelegt.');
+    }
+
+    function addDefaultRoles() {
+        const defaults =
+            typeof window.ms365TenantSettingsDefaultAdminRoles === 'function'
+                ? window.ms365TenantSettingsDefaultAdminRoles()
+                : [];
+        const seen = new Set(
+            (listCache.roles || []).map(function (r) {
+                return String(r.code || '').toLowerCase();
+            })
+        );
+        let added = 0;
+        defaults.forEach(function (d) {
+            const k = String(d.code || '').toLowerCase();
+            if (k && seen.has(k)) return;
+            if (k) seen.add(k);
+            listCache.roles.push({ code: d.code, name: d.name });
+            added += 1;
+        });
+        persistLists();
+        updateLeftListUi();
+        toast(added ? added + ' Standardrolle(n) ergänzt.' : 'Standardrollen sind bereits vorhanden.');
+    }
+
+    function saveActiveRole() {
+        const role = getActiveRole();
+        if (!role) {
+            toast('Keine Rolle ausgewählt.');
+            return;
+        }
+        const inpN = document.getElementById('vwRoleName');
+        const inpC = document.getElementById('vwRoleCode');
+        const nextName = inpN ? normStr(inpN.value) : role.name;
+        const nextCode = inpC ? normStr(inpC.value).toUpperCase() : role.code;
+        if (!nextName) {
+            toast('Bitte eine Bezeichnung eingeben.');
+            return;
+        }
+        const oldName = role.name;
+        if (nextName !== oldName && typeof window.ms365TenantSettingsRenameAdminRole === 'function') {
+            const renamed = window.ms365TenantSettingsRenameAdminRole(listCache.roles, listCache.rows, oldName, nextName);
+            listCache.roles = renamed.roles;
+            listCache.rows = renamed.admin;
+        } else {
+            role.name = nextName;
+        }
+        const found =
+            (listCache.roles || []).find(function (r) {
+                return (
+                    normStr(r.name).toLowerCase() === nextName.toLowerCase() ||
+                    normStr(r.code).toUpperCase() === normStr(activeRoleCode).toUpperCase()
+                );
+            }) || role;
+        const clash = (listCache.roles || []).some(function (r) {
+            return r !== found && normStr(r.code).toUpperCase() === nextCode;
+        });
+        if (nextCode && !clash) found.code = nextCode;
+        else if (nextCode && clash) toast('Kürzel bereits vergeben – Bezeichnung gespeichert, Kürzel unverändert.');
+        persistLists();
+        const still = (listCache.roles || []).find(function (r) {
+            return normStr(r.name).toLowerCase() === nextName.toLowerCase();
+        });
+        setActiveView('role', still ? still.code : found.code);
+        toast('Rolle gespeichert.');
+    }
+
+    async function deleteActiveRole() {
+        const role = getActiveRole();
+        if (!role) return;
+        const people = peopleForRole(role);
+        if (people.length) {
+            toast('Rolle ist noch ' + people.length + ' Person(en) zugeordnet. Zuerst Personen entfernen oder umbenennen.');
+            return;
+        }
+        const ok = await dlgConfirm('Rolle „' + (role.name || role.code) + '“ wirklich löschen?', {
+            title: 'Rolle löschen',
+            okText: 'Löschen',
+            cancelText: 'Abbrechen'
+        });
+        if (!ok) return;
+        listCache.roles = (listCache.roles || []).filter(function (r) {
+            return normStr(r.code).toUpperCase() !== normStr(role.code).toUpperCase();
+        });
+        persistLists();
+        setActiveView('group');
+        toast('Rolle gelöscht.');
+    }
+
+    function addPersonToActiveRole() {
+        const role = getActiveRole();
+        if (!role) {
+            toast('Bitte zuerst eine Rolle wählen.');
+            return;
+        }
+        listCache.rows.push({
+            role: role.name || role.code,
+            name: '',
+            email: '',
+            defaultKey: role.name || ''
+        });
+        persistLists();
+        renderRolePeopleTable();
+        updateLeftListUi();
+        toast('Personenzeile hinzugefügt.');
     }
 
     function renderOwnerPreview() {
@@ -580,8 +995,40 @@
             updateLeftListUi();
             renderOwnerPreview();
             renderMemberPreview();
+            if (activeView === 'role') {
+                fillRoleForm();
+                renderRolePeopleTable();
+            }
             toast('Listen neu eingelesen.');
         });
+        onClick('vwBtnAddRole', function () {
+            addRole();
+        });
+        onClick('vwBtnDefaultRoles', function () {
+            addDefaultRoles();
+        });
+        onClick('vwBtnSaveRole', function () {
+            saveActiveRole();
+        });
+        onClick('vwBtnDeleteRole', function () {
+            deleteActiveRole();
+        });
+        onClick('vwBtnAddPerson', function () {
+            addPersonToActiveRole();
+        });
+        const groupBtn = document.querySelector('#slgListItems [data-vw-kind="group"]');
+        if (groupBtn) {
+            groupBtn.addEventListener('click', function () {
+                setActiveView('group');
+            });
+        }
+        const filter = document.getElementById('vwListFilter');
+        if (filter) {
+            filter.addEventListener('input', function () {
+                listFilter = filter.value || '';
+                renderRoleList();
+            });
+        }
         onClick('slgBtnSearch', function () {
             runSearchGroups();
         });
@@ -629,6 +1076,7 @@
         renderOwnerPreview();
         renderMemberPreview();
         wire();
+        setActiveView('group');
         if (!getActiveMatchedId()) {
             live().setMatchedMode(false);
             applyCreateDefaults();

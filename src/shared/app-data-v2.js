@@ -416,6 +416,7 @@
                 arges: [],
                 teachers: [],
                 admin: [],
+                adminRoles: [],
                 classTeams: []
             },
             years: {
@@ -505,6 +506,7 @@
                 out.core.arges = Array.isArray(coreObj.arges) ? deepClone(coreObj.arges) : [];
                 out.core.teachers = Array.isArray(coreObj.teachers) ? deepClone(coreObj.teachers) : [];
                 out.core.admin = Array.isArray(coreObj.admin) ? deepClone(coreObj.admin) : [];
+                out.core.adminRoles = Array.isArray(coreObj.adminRoles) ? deepClone(coreObj.adminRoles) : [];
 
                 const cur = out.years.current;
                 out.years.byLabel[cur] = {
@@ -599,6 +601,7 @@
         c.core.arges = Array.isArray(s.arges) ? deepClone(s.arges) : [];
         c.core.teachers = Array.isArray(s.teachers) ? deepClone(s.teachers) : [];
         c.core.admin = Array.isArray(s.admin) ? deepClone(s.admin) : [];
+        c.core.adminRoles = Array.isArray(s.adminRoles) ? deepClone(s.adminRoles) : [];
         c.core.classTeams = keepClassTeams;
         const cur = String(c.years.current || currentSchoolYearLabel());
         if (!c.years.byLabel[cur]) c.years.byLabel[cur] = { students: [], classes: [] };
@@ -758,6 +761,7 @@
         cur.core.arges = Array.isArray(o.arges) ? deepClone(o.arges) : [];
         cur.core.teachers = Array.isArray(o.teachers) ? deepClone(o.teachers) : [];
         cur.core.admin = Array.isArray(o.admin) ? deepClone(o.admin) : [];
+        cur.core.adminRoles = Array.isArray(o.adminRoles) ? deepClone(o.adminRoles) : [];
         const y = String(cur.years.current || currentSchoolYearLabel());
         if (!cur.years.byLabel[y]) cur.years.byLabel[y] = { students: [], classes: [] };
         cur.years.byLabel[y].students = Array.isArray(o.students) ? deepClone(o.students) : [];

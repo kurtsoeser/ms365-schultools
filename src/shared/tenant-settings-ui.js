@@ -501,6 +501,7 @@
         const parseLinesToArges = window.ms365TenantSettingsParseArgesLines;
         const parseLinesToTeachers = window.ms365TenantSettingsParseTeachersLines;
         const parseLinesToAdmin = window.ms365TenantSettingsParseAdminLines;
+        const parseLinesToAdminRoles = window.ms365TenantSettingsParseAdminRolesLines;
         const parseLinesToStudents = window.ms365TenantSettingsParseStudentsLines;
         const parseLinesToClasses = window.ms365TenantSettingsParseClassesLines;
         const load = window.ms365TenantSettingsLoad;
@@ -518,6 +519,10 @@
         const taAdmin = document.getElementById('tenantAdminLines');
         const adminTbody = document.getElementById('tenantAdminTableBody');
         const btnAddAdminRow = document.getElementById('tenantAdminAddRow');
+        const taAdminRoles = document.getElementById('tenantAdminRoleLines');
+        const adminRolesTbody = document.getElementById('tenantAdminRolesTableBody');
+        const btnAddAdminRoleRow = document.getElementById('tenantAdminRoleAddRow');
+        const btnAdminRolesDefaults = document.getElementById('tenantAdminRolesDefaults');
         const taStudents = document.getElementById('tenantStudentsLines');
         const studentsTbody = document.getElementById('tenantStudentsTableBody');
         const btnAddStudentRow = document.getElementById('tenantStudentsAddRow');
@@ -637,11 +642,12 @@
             const arges = typeof parseLinesToArges === 'function' ? parseLinesToArges(taArges ? taArges.value : '') : [];
             const teachers = typeof parseLinesToTeachers === 'function' ? parseLinesToTeachers(taTeachers ? taTeachers.value : '') : [];
             const admin = typeof parseLinesToAdmin === 'function' ? parseLinesToAdmin(taAdmin ? taAdmin.value : '') : [];
+            const adminRoles = typeof parseLinesToAdminRoles === 'function' ? parseLinesToAdminRoles(taAdminRoles ? taAdminRoles.value : '') : [];
             const students = typeof parseLinesToStudents === 'function' ? parseLinesToStudents(taStudents ? taStudents.value : '') : [];
             const classes = typeof parseLinesToClasses === 'function' ? parseLinesToClasses(taClasses ? taClasses.value : '') : [];
             const domain =
                 typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
-            const saved = save({ domain, subjects, arges, teachers, admin, students, classes });
+            const saved = save({ domain, subjects, arges, teachers, admin, adminRoles, students, classes });
             dispatchTenantSettingsChanged(saved, 'autosave');
         }
 
@@ -874,6 +880,13 @@
                 .join('\n');
         }
 
+        function adminRolesToLines(rows) {
+            return (rows || [])
+                .map((x) => `${normCode(x.code || '')};${normStr(x.name || '')}`.trim())
+                .filter(Boolean)
+                .join('\n');
+        }
+
         function getAdminFromTextarea() {
             return typeof parseLinesToAdmin === 'function' ? parseLinesToAdmin(taAdmin ? taAdmin.value : '') : [];
         }
@@ -881,6 +894,15 @@
         function setAdminTextareaFromRows(rows) {
             if (!taAdmin) return;
             taAdmin.value = adminToLines(rows);
+        }
+
+        function getAdminRolesFromTextarea() {
+            return typeof parseLinesToAdminRoles === 'function' ? parseLinesToAdminRoles(taAdminRoles ? taAdminRoles.value : '') : [];
+        }
+
+        function setAdminRolesTextareaFromRows(rows) {
+            if (!taAdminRoles) return;
+            taAdminRoles.value = adminRolesToLines(rows);
         }
 
         function getTeachersFromTextarea() {
@@ -1002,9 +1024,104 @@
             });
         }
 
+        function renderAdminRolesTableFromTextarea() {
+            if (!adminRolesTbody) return;
+            const rows = getAdminRolesFromTextarea();
+            adminRolesTbody.replaceChildren();
+
+            if (!rows.length) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 3;
+                td.style.color = '#6c757d';
+                td.textContent = 'Noch keine Rollen – oben einfügen, „+ Rolle“ oder Standardrollen.';
+                tr.appendChild(td);
+                adminRolesTbody.appendChild(tr);
+                return;
+            }
+
+            rows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+
+                const tdCode = document.createElement('td');
+                tdCode.innerHTML = `<code>${row.code || ''}</code>`;
+                tdCode.title = 'Doppelklick zum Bearbeiten';
+                tdCode.addEventListener('dblclick', () => {
+                    startCellEdit(tdCode, row.code, (next, meta) => {
+                        const all = getAdminRolesFromTextarea();
+                        if (!all[idx]) return renderAdminRolesTableFromTextarea();
+                        const prev = all[idx].code;
+                        all[idx].code = meta && meta.cancelled ? prev : normCode(next);
+                        setAdminRolesTextareaFromRows(all);
+                        renderAdminRolesTableFromTextarea();
+                        renderAdminTableFromTextarea();
+                        scheduleAutoSave();
+                    });
+                });
+
+                const tdName = document.createElement('td');
+                tdName.textContent = row.name || '';
+                tdName.title = 'Doppelklick zum Umbenennen (Personen werden mitgezogen)';
+                tdName.addEventListener('dblclick', () => {
+                    startCellEdit(tdName, row.name, (next, meta) => {
+                        const all = getAdminRolesFromTextarea();
+                        if (!all[idx]) return renderAdminRolesTableFromTextarea();
+                        const prev = all[idx].name;
+                        const nextName = meta && meta.cancelled ? prev : normStr(next);
+                        if (nextName && nextName !== prev && typeof window.ms365TenantSettingsRenameAdminRole === 'function') {
+                            const renamed = window.ms365TenantSettingsRenameAdminRole(all, getAdminFromTextarea(), prev, nextName);
+                            setAdminRolesTextareaFromRows(renamed.roles);
+                            setAdminTextareaFromRows(renamed.admin);
+                        } else {
+                            all[idx].name = nextName;
+                            setAdminRolesTextareaFromRows(all);
+                        }
+                        renderAdminRolesTableFromTextarea();
+                        renderAdminTableFromTextarea();
+                        scheduleAutoSave();
+                    });
+                });
+
+                const tdAction = document.createElement('td');
+                tdAction.className = 'action-cell';
+                const btnDel = document.createElement('button');
+                btnDel.type = 'button';
+                btnDel.className = 'mini-btn';
+                btnDel.textContent = '✕';
+                btnDel.title = 'Rolle löschen';
+                btnDel.addEventListener('click', () => {
+                    const people = getAdminFromTextarea().filter((p) => {
+                        if (typeof window.ms365TenantSettingsPersonMatchesAdminRole === 'function') {
+                            return window.ms365TenantSettingsPersonMatchesAdminRole(p, row);
+                        }
+                        return normStr(p.role).toLowerCase() === normStr(row.name).toLowerCase();
+                    });
+                    if (people.length) {
+                        window.alert(
+                            'Diese Rolle ist noch ' +
+                                people.length +
+                                ' Person(en) zugeordnet. Bitte zuerst umbenennen oder die Personen entfernen.'
+                        );
+                        return;
+                    }
+                    const all = getAdminRolesFromTextarea();
+                    all.splice(idx, 1);
+                    setAdminRolesTextareaFromRows(all);
+                    renderAdminRolesTableFromTextarea();
+                    renderAdminTableFromTextarea();
+                    scheduleAutoSave();
+                });
+                tdAction.appendChild(btnDel);
+
+                tr.append(tdCode, tdName, tdAction);
+                adminRolesTbody.appendChild(tr);
+            });
+        }
+
         function renderAdminTableFromTextarea() {
             if (!adminTbody) return;
             const rows = getAdminFromTextarea();
+            const roleCatalog = getAdminRolesFromTextarea();
             adminTbody.replaceChildren();
 
             if (!rows.length) {
@@ -1012,7 +1129,7 @@
                 const td = document.createElement('td');
                 td.colSpan = 4;
                 td.style.color = '#6c757d';
-                td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
+                td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Person“.';
                 tr.appendChild(td);
                 adminTbody.appendChild(tr);
                 return;
@@ -1022,19 +1139,41 @@
                 const tr = document.createElement('tr');
 
                 const tdRole = document.createElement('td');
-                tdRole.textContent = row.role || '';
-                tdRole.title = 'Doppelklick zum Bearbeiten';
-                tdRole.addEventListener('dblclick', () => {
-                    startCellEdit(tdRole, row.role, (next, meta) => {
-                        const all = getAdminFromTextarea();
-                        if (!all[idx]) return renderAdminTableFromTextarea();
-                        const prev = all[idx].role;
-                        all[idx].role = meta && meta.cancelled ? prev : normStr(next);
-                        setAdminTextareaFromRows(all);
-                        renderAdminTableFromTextarea();
-                        scheduleAutoSave();
-                    });
+                const sel = document.createElement('select');
+                sel.style.width = '100%';
+                sel.style.font = 'inherit';
+                const names = [];
+                const seenN = new Set();
+                roleCatalog.forEach((r) => {
+                    const n = normStr(r.name || r.code);
+                    if (!n) return;
+                    const k = n.toLowerCase();
+                    if (seenN.has(k)) return;
+                    seenN.add(k);
+                    names.push(n);
                 });
+                const current = normStr(row.role);
+                if (current && !seenN.has(current.toLowerCase())) names.unshift(current);
+                const optEmpty = document.createElement('option');
+                optEmpty.value = '';
+                optEmpty.textContent = '— Rolle —';
+                sel.appendChild(optEmpty);
+                names.forEach((n) => {
+                    const opt = document.createElement('option');
+                    opt.value = n;
+                    opt.textContent = n;
+                    if (current && n.toLowerCase() === current.toLowerCase()) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+                sel.addEventListener('change', () => {
+                    const all = getAdminFromTextarea();
+                    if (!all[idx]) return renderAdminTableFromTextarea();
+                    all[idx].role = normStr(sel.value);
+                    setAdminTextareaFromRows(all);
+                    renderAdminTableFromTextarea();
+                    scheduleAutoSave();
+                });
+                tdRole.appendChild(sel);
 
                 const tdName = document.createElement('td');
                 tdName.textContent = row.name || '';
@@ -1072,7 +1211,7 @@
                 btnDel.type = 'button';
                 btnDel.className = 'mini-btn';
                 btnDel.textContent = '✕';
-                btnDel.title = 'Zeile löschen';
+                btnDel.title = 'Person löschen';
                 btnDel.addEventListener('click', () => {
                     const all = getAdminFromTextarea();
                     all.splice(idx, 1);
@@ -1344,6 +1483,11 @@
                     .map((x) => `${x.role || ''};${x.name || ''};${x.email || ''}`.trim())
                     .join('\n');
             }
+            if (taAdminRoles) {
+                taAdminRoles.value = (s.adminRoles || [])
+                    .map((x) => `${x.code || ''};${x.name || ''}`.trim())
+                    .join('\n');
+            }
             if (taStudents) {
                 taStudents.value = (s.students || [])
                     .map((x) => `${x.klasse || ''};${x.name || ''};${x.email || ''}`.trim())
@@ -1357,6 +1501,7 @@
             renderSubjectsTableFromTextarea();
             renderArgesTableFromTextarea();
             renderTeachersTableFromTextarea();
+            renderAdminRolesTableFromTextarea();
             renderAdminTableFromTextarea();
             renderStudentsTableFromTextarea();
             renderClassesTableFromTextarea();
@@ -1549,12 +1694,13 @@
                 const subjects = typeof parseLinesToSubjects === 'function' ? parseLinesToSubjects(taSubjects ? taSubjects.value : '') : [];
                 const teachers = typeof parseLinesToTeachers === 'function' ? parseLinesToTeachers(taTeachers ? taTeachers.value : '') : [];
                 const admin = typeof parseLinesToAdmin === 'function' ? parseLinesToAdmin(taAdmin ? taAdmin.value : '') : [];
+                const adminRoles = typeof parseLinesToAdminRoles === 'function' ? parseLinesToAdminRoles(taAdminRoles ? taAdminRoles.value : '') : [];
                 const students = typeof parseLinesToStudents === 'function' ? parseLinesToStudents(taStudents ? taStudents.value : '') : [];
                 const classes = typeof parseLinesToClasses === 'function' ? parseLinesToClasses(taClasses ? taClasses.value : '') : [];
                 const domain =
                     typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
                 const arges = typeof parseLinesToArges === 'function' ? parseLinesToArges(taArges ? taArges.value : '') : [];
-                const saved = save({ domain, subjects, arges, teachers, admin, students, classes });
+                const saved = save({ domain, subjects, arges, teachers, admin, adminRoles, students, classes });
                 const ySave = getDisplayedSchoolYearLabel() || currentSchoolYearLabel();
                 setSummary(
                     `Gespeichert: schulweit ${(saved.subjects || []).length} Fächer, ${(saved.arges || []).length} ARGEs, ${(saved.teachers || []).length} Lehrkräfte, ${(saved.admin || []).length} Verwaltung — für Schuljahr ${ySave}: ${(saved.students || []).length} Schüler, ${(saved.classes || []).length} Klassen.`,
@@ -1563,6 +1709,7 @@
                 renderSubjectsTableFromTextarea();
                 renderArgesTableFromTextarea();
                 renderTeachersTableFromTextarea();
+                renderAdminRolesTableFromTextarea();
                 renderAdminTableFromTextarea();
                 renderStudentsTableFromTextarea();
                 renderClassesTableFromTextarea();
@@ -1863,11 +2010,13 @@
                 if (taArges) taArges.value = '';
                 if (taTeachers) taTeachers.value = '';
                 if (taAdmin) taAdmin.value = '';
+                if (taAdminRoles) taAdminRoles.value = '';
                 if (taStudents) taStudents.value = '';
                 if (taClasses) taClasses.value = '';
                 renderSubjectsTableFromTextarea();
                 renderArgesTableFromTextarea();
                 renderTeachersTableFromTextarea();
+                renderAdminRolesTableFromTextarea();
                 renderAdminTableFromTextarea();
                 renderStudentsTableFromTextarea();
                 renderClassesTableFromTextarea();
@@ -1899,11 +2048,13 @@
                     if (taArges) taArges.value = (saved.arges || []).map((x) => `${x.code};${x.name || ''};${(x.subjects || []).join(',')}`.trim()).join('\n');
                     if (taTeachers) taTeachers.value = (saved.teachers || []).map((x) => `${x.code};${x.name || ''};${x.email || ''}`.trim()).join('\n');
                     if (taAdmin) taAdmin.value = (saved.admin || []).map((x) => `${x.role || ''};${x.name || ''};${x.email || ''}`.trim()).join('\n');
+                    if (taAdminRoles) taAdminRoles.value = (saved.adminRoles || []).map((x) => `${x.code || ''};${x.name || ''}`.trim()).join('\n');
                     if (taStudents) taStudents.value = (saved.students || []).map((x) => `${x.klasse || ''};${x.name || ''};${x.email || ''}`.trim()).join('\n');
                     if (taClasses) taClasses.value = (saved.classes || []).map((x) => `${x.code || ''};${x.year || ''};${x.name || ''};${x.headName || ''};${x.headEmail || ''}`.trim()).join('\n');
                     renderSubjectsTableFromTextarea();
                     renderArgesTableFromTextarea();
                     renderTeachersTableFromTextarea();
+                    renderAdminRolesTableFromTextarea();
                     renderAdminTableFromTextarea();
                     renderStudentsTableFromTextarea();
                     renderClassesTableFromTextarea();
@@ -1957,10 +2108,6 @@
             taTeachers.addEventListener('input', () => renderTeachersTableFromTextarea());
             taTeachers.addEventListener('input', () => scheduleAutoSave());
         }
-        if (taAdmin) {
-            taAdmin.addEventListener('input', () => renderAdminTableFromTextarea());
-            taAdmin.addEventListener('input', () => scheduleAutoSave());
-        }
         if (btnAddTeacherRow) {
             btnAddTeacherRow.addEventListener('click', () => {
                 const all = getTeachersFromTextarea();
@@ -1970,11 +2117,50 @@
                 scheduleAutoSave();
             });
         }
+        if (taAdmin) {
+            taAdmin.addEventListener('input', () => renderAdminTableFromTextarea());
+            taAdmin.addEventListener('input', () => scheduleAutoSave());
+        }
+        if (taAdminRoles) {
+            taAdminRoles.addEventListener('input', () => renderAdminRolesTableFromTextarea());
+            taAdminRoles.addEventListener('input', () => renderAdminTableFromTextarea());
+            taAdminRoles.addEventListener('input', () => scheduleAutoSave());
+        }
         if (btnAddAdminRow) {
             btnAddAdminRow.addEventListener('click', () => {
                 const all = getAdminFromTextarea();
-                all.push({ role: '', name: '', email: '' });
+                const roles = getAdminRolesFromTextarea();
+                all.push({ role: roles[0] && roles[0].name ? roles[0].name : '', name: '', email: '' });
                 setAdminTextareaFromRows(all);
+                renderAdminTableFromTextarea();
+                scheduleAutoSave();
+            });
+        }
+        if (btnAddAdminRoleRow) {
+            btnAddAdminRoleRow.addEventListener('click', () => {
+                const all = getAdminRolesFromTextarea();
+                all.push({ code: '', name: '' });
+                setAdminRolesTextareaFromRows(all);
+                renderAdminRolesTableFromTextarea();
+                scheduleAutoSave();
+            });
+        }
+        if (btnAdminRolesDefaults) {
+            btnAdminRolesDefaults.addEventListener('click', () => {
+                const defaults =
+                    typeof window.ms365TenantSettingsDefaultAdminRoles === 'function'
+                        ? window.ms365TenantSettingsDefaultAdminRoles()
+                        : [];
+                const current = getAdminRolesFromTextarea();
+                const seen = new Set(current.map((r) => String(r.code || '').toLowerCase()));
+                defaults.forEach((d) => {
+                    const k = String(d.code || '').toLowerCase();
+                    if (k && seen.has(k)) return;
+                    if (k) seen.add(k);
+                    current.push(d);
+                });
+                setAdminRolesTextareaFromRows(current);
+                renderAdminRolesTableFromTextarea();
                 renderAdminTableFromTextarea();
                 scheduleAutoSave();
             });

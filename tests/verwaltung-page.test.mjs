@@ -14,5 +14,9 @@ describe('Verwaltungs-Modul Seite', () => {
         expect(html).toContain('src/tools/verwaltung/verwaltung-gruppenverwaltung.js');
         expect(html).toContain('id="slgVerwaltungCount"');
         expect(html).toContain('data-slg-kind="verwaltung"');
+        expect(html).toContain('id="vwRoleList"');
+        expect(html).toContain('id="vwRolePanel"');
+        expect(html).toContain('id="vwBtnAddRole"');
+        expect(html).toContain('id="vwRolePeopleBody"');
     });
 });

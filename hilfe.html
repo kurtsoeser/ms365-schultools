@@ -196,6 +196,7 @@
                         <li><a href="#tool-arge">ARGE &amp; Fachgruppen</a></li>
                         <li><a href="#tool-slg">Lehrerinnen &amp; Schülerinnen</a></li>
                         <li><a href="#tool-verwaltung">Verwaltung</a></li>
+                        <li><a href="#tool-wtg">Weitere Teams &amp; Gruppen (Wizard)</a></li>
                         <li><a href="#tool-personen-verwaltung">Personen‑Verwaltung</a></li>
                         <li><a href="#tool-teams-archiv">Teams archivieren (Archiv)</a></li>
                         <li><a href="#tool-klassen-umbenennen">Klassen‑Anzeigenamen (Schuljahreswechsel)</a></li>
@@ -339,24 +340,42 @@
                 </section>
 
                 <section class="tool" id="tool-verwaltung" aria-label="Verwaltung">
-                    <h3>Verwaltung <span class="pill">Gruppenverwaltung</span></h3>
+                    <h3>Verwaltung <span class="pill">Personen &amp; Gruppe</span></h3>
                     <p>
-                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Sammelgruppe der Schulverwaltung.
-                        Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: dieselben Live‑Details (Allgemein, Owner, Mitglieder) wie in der Gruppenverwaltung, plus Listen‑Sync aus der Verwaltungsliste.
-                        Die Verknüpfung liegt in denselben <code>catalogLinks</code> (Sammelgruppe <code>verwaltung</code>) wie in der <a href="einrichtung.html">geführten Einrichtung</a> und im Abgleichen-Modul.
+                        <strong>Was macht’s?</strong> Pflegt die <strong>Rollen und Personen</strong> der Schulverwaltung (Sekretariat, Direktion, Schularzt, Schulwart, …) – anlegen, umbenennen, zuordnen – dieselben Stammdaten wie unter <a href="tenant.html">Schul‑Grundeinstellungen</a>.
+                        Zusätzlich Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Sammelgruppe: ohne Match suchen oder neu anlegen, mit Match Live‑Details plus Listen‑Sync.
+                        Die Verknüpfung liegt in denselben <code>catalogLinks</code> (Sammelgruppe <code>verwaltung</code>) wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>
                         <ol>
-                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> unter Verwaltung Rolle;Name;E‑Mail pflegen; Direktion mit E‑Mail eintragen (für Besitzerrechte).</li>
-                            <li>Im Tool anmelden, Gruppe suchen und matchen – oder neu anlegen.</li>
-                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen. Optional <strong>Mitglieder synchronisieren</strong> (fügt fehlende Listen‑Adressen hinzu).</li>
+                            <li>Links eine Rolle wählen oder <strong>+ Rolle</strong> / Standardrollen. Bezeichnung und Kürzel rechts speichern.</li>
+                            <li>Personen (Name, E‑Mail) der Rolle hinzufügen – wie in den Stammdaten. Direktion mit E‑Mail eintragen (für Besitzerrechte der Sammelgruppe).</li>
+                            <li>Optional den Eintrag <strong>Sammelgruppe Verwaltung</strong> wählen, anmelden, Gruppe matchen oder anlegen, Mitglieder synchronisieren.</li>
                         </ol>
                     </div>
                     <div class="hint">
-                        <strong>Hinweis:</strong> Listen‑Sync ist additiv (entfernt niemanden). Einzelne Owner und Mitglieder können Sie in den Tabs dieses Tools entfernen – oder in der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> bzw. im Entra‑Portal.
+                        <strong>Hinweis:</strong> Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind. Listen‑Sync der Sammelgruppe ist additiv (entfernt niemanden).
                     </div>
                     <p><a href="tools/verwaltung.html">→ Verwaltung öffnen</a></p>
+                </section>
+
+                <section class="tool" id="tool-wtg" aria-label="Weitere Teams und Gruppen Wizard">
+                    <h3>Weitere Teams &amp; Gruppen <span class="pill">Wizard</span></h3>
+                    <p>
+                        <strong>Was macht’s?</strong> Einmal‑Assistent der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a>
+                        für zusätzliche Unified‑Gruppen/Teams <em>außerhalb</em> der Schul‑Kataloge (z. B. Elternverein, Projektteam).
+                        Kein Alltags‑Listenmodul – Einstieg über den Button <strong>Wizard: weitere Gruppen</strong> in der Gruppenverwaltung.
+                    </p>
+                    <div class="mini-steps">
+                        <strong>Mini‑Anleitung</strong>
+                        <ol>
+                            <li>In der Gruppenverwaltung <strong>Wizard: weitere Gruppen</strong> öffnen.</li>
+                            <li>Liste (eine Zeile pro Gruppe), Besitzer, Mitglieder und Einstellungen festlegen.</li>
+                            <li>Per Microsoft Graph ausführen; danach die neue Gruppe in der Gruppenverwaltung pflegen.</li>
+                        </ol>
+                    </div>
+                    <p><a href="tools/schulstruktur-sync.html">→ MS 365 Gruppenverwaltung öffnen</a></p>
                 </section>
 
                 <section class="tool" id="tool-personen-verwaltung" aria-label="Personen-Verwaltung">

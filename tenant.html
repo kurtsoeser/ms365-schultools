@@ -605,13 +605,38 @@
 
                         <div id="panelVerwaltung" class="tab-panel" role="tabpanel" aria-labelledby="tabVerwaltung">
                             <div class="field">
-                                <label for="tenantAdminLines">Verwaltung / Schulorganisation (eine Zeile pro Rolle)</label>
+                                <label for="tenantAdminRoleLines">Rollen der Schulverwaltung (Katalog)</label>
+                                <textarea id="tenantAdminRoleLines" spellcheck="false" placeholder="DIREKTION;Direktion&#10;SEKRETARIAT;Sekretariat&#10;SCHULARZT;Schularzt"></textarea>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Format: <code>Kürzel;Bezeichnung</code> – wie bei Fächern. Rollen anlegen, umbenennen oder löschen. Personen unten wählen eine Rolle aus diesem Katalog. Pflege auch im <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.
+                                </small>
+                                <div class="teachers-table-wrap" aria-label="Verwaltungsrollen als Tabelle" style="margin-top:12px;">
+                                    <table class="teachers-table" aria-label="Verwaltungsrollen (editierbar per Doppelklick)">
+                                        <thead>
+                                            <tr>
+                                                <th>Kürzel</th>
+                                                <th>Bezeichnung</th>
+                                                <th class="action-cell">Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tenantAdminRolesTableBody">
+                                            <tr><td colspan="3" style="color:#6c757d;">Noch keine Rollen – oben einfügen, „+ Rolle“ oder Standardrollen.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="tenantAdminRoleAddRow"><i class="bi bi-plus-circle"></i>Rolle</button>
+                                    <button type="button" class="btn" id="tenantAdminRolesDefaults"><i class="bi bi-arrow-counterclockwise"></i>Standardrollen</button>
+                                </div>
+                            </div>
+                            <div class="field" style="margin-top:18px;">
+                                <label for="tenantAdminLines">Personen (eine Zeile pro Person)</label>
                                 <textarea id="tenantAdminLines" spellcheck="false" placeholder="Direktion;Direktorin;vorname@schule.at&#10;Sekretariat;;sekretariat@schule.at"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Rolle;Name;E-Mail</code> (wie in der <a href="einrichtung.html">geführten Einrichtung</a>, Schritt 3). Weitere Rollen frei wählbar; dieselben Daten erscheinen dort nach Speichern wieder. Sammelgruppe matchen oder anlegen: <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.
+                                    Format: <code>Rolle;Name;E-Mail</code> (wie in der <a href="einrichtung.html">geführten Einrichtung</a>, Schritt 3). Rolle aus dem Katalog oder frei. Sammelgruppe: <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.
                                 </small>
-                                <div class="teachers-table-wrap" aria-label="Verwaltung als Tabelle" style="margin-top:12px;">
-                                    <table class="teachers-table" aria-label="Verwaltung (editierbar per Doppelklick)">
+                                <div class="teachers-table-wrap" aria-label="Verwaltungspersonen als Tabelle" style="margin-top:12px;">
+                                    <table class="teachers-table" aria-label="Verwaltungspersonen (editierbar per Doppelklick)">
                                         <thead>
                                             <tr>
                                                 <th>Rolle</th>
@@ -621,12 +646,12 @@
                                             </tr>
                                         </thead>
                                         <tbody id="tenantAdminTableBody">
-                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Person“.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantAdminAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                    <button type="button" class="btn btn-success" id="tenantAdminAddRow"><i class="bi bi-plus-circle"></i>Person</button>
                                 </div>
                             </div>
                         </div>

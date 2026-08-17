@@ -12,6 +12,122 @@
         return normStr(v).toUpperCase();
     }
 
+    const DEFAULT_ADMIN_ROLE_NAMES = [
+        'Direktion',
+        'Sekretariat',
+        'Administration',
+        'Schularzt',
+        'Schulwart',
+        'IT-Support',
+        'Bibliothek'
+    ];
+
+    function adminRoleCodeFromName(name) {
+        const c = normStr(name)
+            .toUpperCase()
+            .replace(/\s+/g, '')
+            .replace(/[^A-Z0-9ÄÖÜß-]/g, '')
+            .slice(0, 24);
+        return c;
+    }
+
+    function uniqueAdminRoleCode(desired, used) {
+        let code = adminRoleCodeFromName(desired) || 'ROLLE';
+        const usedSet = used instanceof Set ? used : new Set();
+        if (!usedSet.has(code.toLowerCase())) return code;
+        let i = 2;
+        while (usedSet.has((code + String(i)).toLowerCase())) i += 1;
+        return (code + String(i)).slice(0, 24);
+    }
+
+    function defaultAdminRoleCatalog() {
+        const used = new Set();
+        return DEFAULT_ADMIN_ROLE_NAMES.map(function (name) {
+            const code = uniqueAdminRoleCode(name, used);
+            used.add(code.toLowerCase());
+            return { code: code, name: name };
+        });
+    }
+
+    function personMatchesAdminRole(row, role) {
+        if (!row || !role) return false;
+        const r = normStr(row.role).toLowerCase();
+        const dk = normStr(row.defaultKey).toLowerCase();
+        const n = normStr(role.name).toLowerCase();
+        const c = normStr(role.code).toLowerCase();
+        if (n && (r === n || dk === n)) return true;
+        if (c && (r === c || dk === c)) return true;
+        return false;
+    }
+
+    function normalizeAdminRoleCatalog(rolesIn, adminIn) {
+        const seen = new Set();
+        const roles = [];
+        (Array.isArray(rolesIn) ? rolesIn : []).forEach(function (raw) {
+            const name = normStr(raw && (raw.name || raw.role || raw.bezeichnung));
+            let code = normCode(raw && raw.code);
+            if (!code && name) code = adminRoleCodeFromName(name);
+            if (!code && !name) return;
+            if (!code) code = uniqueAdminRoleCode(name, seen);
+            const key = code.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            roles.push({ code: code, name: name || code });
+        });
+        (Array.isArray(adminIn) ? adminIn : []).forEach(function (a) {
+            const name = normStr(a && (a.role || a.rolle || a.title));
+            if (!name) return;
+            const exists = roles.some(function (r) {
+                return r.name.toLowerCase() === name.toLowerCase() || r.code.toLowerCase() === name.toLowerCase();
+            });
+            if (exists) return;
+            const code = uniqueAdminRoleCode(name, seen);
+            seen.add(code.toLowerCase());
+            roles.push({ code: code, name: name });
+        });
+        return roles;
+    }
+
+    function renameAdminRole(roles, admin, fromName, toName) {
+        const from = normStr(fromName);
+        const to = normStr(toName);
+        const fromL = from.toLowerCase();
+        const nextRoles = (Array.isArray(roles) ? roles : []).map(function (r) {
+            const o = Object.assign({}, r);
+            if (normStr(o.name).toLowerCase() === fromL || normStr(o.code).toLowerCase() === fromL) {
+                o.name = to || o.name;
+                if (to && (!o.code || normStr(o.code).toLowerCase() === fromL)) {
+                    o.code = adminRoleCodeFromName(to) || o.code;
+                }
+            }
+            return o;
+        });
+        const nextAdmin = (Array.isArray(admin) ? admin : []).map(function (row) {
+            const o = Object.assign({}, row);
+            if (normStr(o.role).toLowerCase() === fromL) o.role = to;
+            if (normStr(o.defaultKey).toLowerCase() === fromL) o.defaultKey = to;
+            return o;
+        });
+        return { roles: normalizeAdminRoleCatalog(nextRoles, nextAdmin), admin: nextAdmin };
+    }
+
+    function parseLinesToAdminRoles(text) {
+        const out = [];
+        parseDelimitedLines(text).forEach((parts) => {
+            if (parts.length >= 2) {
+                const code = normCode(parts[0] || '');
+                const name = normStr(parts.slice(1).join(' '));
+                if (!code && !name) return;
+                out.push({ code: code || adminRoleCodeFromName(name), name: name || code });
+                return;
+            }
+            const name = normStr(parts[0] || '');
+            if (!name) return;
+            out.push({ code: adminRoleCodeFromName(name), name: name });
+        });
+        return out;
+    }
+
     /** Stabiler Mail-Nickname für Klassen-M365-Gruppe: jg{YYYY}{codeAlphaNum} (Kursteam/Umbenennen). */
     function deriveClassStableMailNickname(yearRaw, codeRaw) {
         const y = normStr(yearRaw);
@@ -106,13 +222,18 @@
             const email = normStr(a?.email).toLowerCase();
             const defaultKey = normStr(a?.defaultKey);
             if (!role && !name && !email) return;
-            const key = (defaultKey || role || name || email).toLowerCase();
+            const key = [role, name, email, defaultKey].join('\u0001').toLowerCase();
             if (adminSeen.has(key)) return;
             adminSeen.add(key);
             const row = { role, name, email };
             if (defaultKey) row.defaultKey = defaultKey;
             admin.push(row);
         });
+
+        const adminRoles = normalizeAdminRoleCatalog(
+            Array.isArray(o.adminRoles) ? o.adminRoles : (Array.isArray(o.verwaltungRollen) ? o.verwaltungRollen : []),
+            admin
+        );
 
         const students = [];
         studentsIn.forEach((s) => {
@@ -153,6 +274,7 @@
             arges,
             teachers,
             admin,
+            adminRoles,
             students,
             classes
         };
@@ -191,6 +313,7 @@
                         arges: c.core.arges,
                         teachers: c.core.teachers,
                         admin: c.core.admin,
+                        adminRoles: c.core.adminRoles,
                         students: y.students,
                         classes: y.classes
                     });
@@ -334,6 +457,12 @@
         });
         return out;
     };
+    window.ms365TenantSettingsParseAdminRolesLines = parseLinesToAdminRoles;
+    window.ms365TenantSettingsDefaultAdminRoles = defaultAdminRoleCatalog;
+    window.ms365TenantSettingsNormalizeAdminRoles = normalizeAdminRoleCatalog;
+    window.ms365TenantSettingsRenameAdminRole = renameAdminRole;
+    window.ms365TenantSettingsPersonMatchesAdminRole = personMatchesAdminRole;
+    window.ms365TenantSettingsAdminRoleCodeFromName = adminRoleCodeFromName;
     window.ms365TenantSettingsParseStudentsLines = parseLinesToStudents;
     window.ms365TenantSettingsParseClassesLines = parseLinesToClasses;
     window.ms365DeriveClassStableMailNickname = deriveClassStableMailNickname;

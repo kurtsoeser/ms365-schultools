@@ -264,6 +264,9 @@ import {
         s.admin = SW_ADMIN_DEFAULT_ROLES.map(function (slot) {
             return { defaultKey: slot, role: slot, name: '', email: '' };
         });
+        if (typeof window.ms365TenantSettingsDefaultAdminRoles === 'function') {
+            s.adminRoles = window.ms365TenantSettingsDefaultAdminRoles();
+        }
         if (typeof window.ms365TenantSettingsSave === 'function') {
             window.ms365TenantSettingsSave(s);
         }

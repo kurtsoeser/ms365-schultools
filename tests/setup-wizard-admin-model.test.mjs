@@ -6,7 +6,11 @@ import {
     normCode,
     normStr,
     randomTempPassword,
-    resolveAdminSlotFromRow
+    resolveAdminSlotFromRow,
+    defaultAdminRoleCatalog,
+    normalizeAdminRoleCatalog,
+    renameAdminRole,
+    personMatchesAdminRole
 } from '../src/shared/setup-wizard-admin-model.js';
 
 describe('setup-wizard-admin-model', () => {
@@ -33,5 +37,36 @@ describe('setup-wizard-admin-model', () => {
         expect(/[A-Z]/.test(pwd)).toBe(true);
         expect(/[a-z]/.test(pwd)).toBe(true);
         expect(/[0-9]/.test(pwd)).toBe(true);
+    });
+
+    it('defaultAdminRoleCatalog enthält Direktion und Sekretariat', () => {
+        const cat = defaultAdminRoleCatalog();
+        expect(cat.find((x) => x.name === 'Direktion').code).toBe('DIREKTION');
+        expect(cat.find((x) => x.name === 'IT-Support').code).toBe('IT-SUPPORT');
+        expect(cat.length).toBe(SW_ADMIN_DEFAULT_ROLES.length);
+    });
+
+    it('normalizeAdminRoleCatalog ergänzt Rollen aus Personen', () => {
+        const roles = normalizeAdminRoleCatalog([], [{ role: 'Schularzt', name: 'Dr. A', email: 'a@x.at' }]);
+        expect(roles.some((r) => r.name === 'Schularzt')).toBe(true);
+        expect(roles[0].code).toBe('SCHULARZT');
+    });
+
+    it('renameAdminRole zieht Personen mit', () => {
+        const r = renameAdminRole(
+            [{ code: 'SEK', name: 'Sekretariat' }],
+            [{ role: 'Sekretariat', name: 'Anna', email: 'a@x.at' }],
+            'Sekretariat',
+            'Schulsekretariat'
+        );
+        expect(r.roles[0].name).toBe('Schulsekretariat');
+        expect(r.admin[0].role).toBe('Schulsekretariat');
+    });
+
+    it('personMatchesAdminRole erkennt Name und Kürzel', () => {
+        const role = { code: 'DIREKTION', name: 'Direktion' };
+        expect(personMatchesAdminRole({ role: 'Direktion' }, role)).toBe(true);
+        expect(personMatchesAdminRole({ role: 'DIREKTION' }, role)).toBe(true);
+        expect(personMatchesAdminRole({ role: 'Sekretariat' }, role)).toBe(false);
     });
 });

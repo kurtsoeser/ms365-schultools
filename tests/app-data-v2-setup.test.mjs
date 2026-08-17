@@ -247,4 +247,21 @@ describe('app-data-v2 setup', () => {
         expect(su.matched.verwaltungGroupId).toBe('verw-1');
         expect(ctx.ms365AppDataV2.getCatalogLink('sammelgruppe', 'verwaltung').graphGroupId).toBe('verw-1');
     });
+
+    it('setCoreFromTenantSettings stores adminRoles', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.setCoreFromTenantSettings({
+            domain: 'modeebensee.at',
+            subjects: [],
+            arges: [],
+            teachers: [],
+            admin: [{ role: 'Direktion', name: '', email: '' }],
+            adminRoles: [{ code: 'DIREKTION', name: 'Direktion' }],
+            students: [],
+            classes: []
+        });
+        const c = ctx.ms365AppDataV2.getContainer();
+        expect(c.core.adminRoles).toEqual([{ code: 'DIREKTION', name: 'Direktion' }]);
+        expect(c.core.admin[0].role).toBe('Direktion');
+    });
 });
