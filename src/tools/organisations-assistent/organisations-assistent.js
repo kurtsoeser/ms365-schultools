@@ -128,6 +128,12 @@ function saveRunLog(runLog) {
     saveStructurePatch({ settings: nextSettings });
 }
 
+function savePlaybook(playbook) {
+    const settings = getSettings();
+    const nextSettings = setOrganisationAssist(settings, { playbook: playbook });
+    saveStructurePatch({ settings: nextSettings });
+}
+
 function statusLabel(status) {
     if (status === 'done') return 'erledigt';
     if (status === 'ready') return 'bereit';
