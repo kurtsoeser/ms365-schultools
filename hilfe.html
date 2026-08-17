@@ -275,23 +275,25 @@
                 </section>
 
                 <section class="tool" id="tool-jahrgang" aria-label="Jahrgangsgruppen">
-                    <h3>Jahrgangsgruppen <span class="pill">Gruppen/Teams</span></h3>
+                    <h3>Jahrgangsgruppen <span class="pill">Gruppenverwaltung</span></h3>
                     <p>
-                        <strong>Was macht’s?</strong> Erstellt Microsoft 365‑Gruppen (Unified) je Klasse mit Mail‑Nickname‑Schema
-                        <code>&lt;Präfix&gt;&lt;Jahr&gt;-&lt;Kürzel&gt;</code> (z. B. <code>jg2030-AK</code>). Optional wird auch Teams “bereitgestellt”.
-                        Ausgeführt wird über generiertes PowerShell/.cmd (und je nach Build auch online).
+                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die
+                        <strong>Klassen</strong> des aktuellen Schuljahrs aus den Schul‑Einstellungen. Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen
+                        (Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Kürzel). Mit Match: Live‑Details (Allgemein, Owner, Mitglieder).
+                        Verknüpfungen liegen in <code>classTeams</code> (dieselbe Klasse↔Gruppe‑Zuordnung wie in der geführten Einrichtung).
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>
                         <ol>
-                            <li><strong>Klassenliste</strong> einfügen (z. B. <code>1AK;2030;Klasse 1A‑HAK</code> oder nur <code>1AK</code>).</li>
-                            <li><strong>Besitzer</strong> (UPN) pro Gruppe setzen.</li>
-                            <li><strong>Mitglieder</strong> optional: pro Klasse eine UPN‑Liste (eine Zeile pro Person).</li>
-                            <li><strong>Einstellungen</strong>: primäre SMTP per Exchange setzen und/oder Teams erstellen.</li>
-                            <li><strong>Ausführen</strong>: Script kopieren oder <code>Jahrgangsgruppen‑Anlage.cmd</code> herunterladen.</li>
+                            <li>In den <a href="tenant.html#classes">Schul‑Grundeinstellungen</a> Klassen (Kürzel, Name, Abschlussjahr) pflegen.</li>
+                            <li>Im Tool anmelden, links eine Klasse wählen, Gruppe suchen und matchen – oder neu anlegen. Besitzer: Direktion.</li>
+                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen. Schüler‑E‑Mails der Klasse können additiv synchronisiert werden.</li>
                         </ol>
                     </div>
-                    <p><a href="tools/jahrgang.html">→ Jahrgangsgruppen öffnen</a></p>
+                    <div class="hint">
+                        <strong>Einmalige Neuanlage:</strong> Der bisherige Mehrschritt‑Wizard bleibt unter <a href="tools/jahrgang.html">Jahrgangsgruppen (Wizard)</a> erreichbar – für „alles neu einmal erstellen“, nicht für den Alltag.
+                    </div>
+                    <p><a href="tools/jahrgangsgruppen.html">→ Jahrgangsgruppen öffnen</a></p>
                 </section>
 
                 <section class="tool" id="tool-arge" aria-label="ARGE und Fachgruppen">
@@ -299,7 +301,7 @@
                     <p>
                         <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Katalogeinträge aus den Schul‑Einstellungen:
                         <strong>Fachgruppen</strong> und <strong>ARGE</strong>. Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: Live‑Details (Allgemein, Owner, Mitglieder).
-                        Verknüpfungen liegen in denselben <code>catalogLinks</code> wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
+                        Verknüpfungen (Fach, ARGE, Sammelgruppen Schüler/Lehrer/Verwaltung) liegen in denselben <code>catalogLinks</code> wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>
@@ -320,6 +322,7 @@
                     <p>
                         <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für zwei Sammelgruppen (Schüler:innen und Lehrer:innen).
                         Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: dieselben Live‑Details (Allgemein, Owner, Mitglieder) wie in der Gruppenverwaltung, plus Listen‑Sync aus den Schul‑Einstellungen.
+                        Die Sammelgruppen liegen in denselben <code>catalogLinks</code> wie Verwaltung, ARGE und die geführte Einrichtung.
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>
@@ -340,7 +343,7 @@
                     <p>
                         <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Sammelgruppe der Schulverwaltung.
                         Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: dieselben Live‑Details (Allgemein, Owner, Mitglieder) wie in der Gruppenverwaltung, plus Listen‑Sync aus der Verwaltungsliste.
-                        Die Verknüpfung liegt in demselben <code>verwaltungGroupId</code> wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
+                        Die Verknüpfung liegt in denselben <code>catalogLinks</code> (Sammelgruppe <code>verwaltung</code>) wie in der <a href="einrichtung.html">geführten Einrichtung</a> und im Abgleichen-Modul.
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>

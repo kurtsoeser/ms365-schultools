@@ -212,7 +212,7 @@
         if (shouldSkipTenantDomainPrompt()) return false;
         try {
             const p = window.location.pathname || '';
-            if (/\/tools\/(kursteams|arge|jahrgang)\.html/i.test(p)) return true;
+            if (/\/tools\/(kursteams|arge|jahrgang|jahrgangsgruppen)\.html/i.test(p)) return true;
             return false;
         } catch {
             return false;

@@ -265,6 +265,36 @@ import {
         return next;
     }
 
+    function readCatalogSetup() {
+        try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
+                return window.ms365AppDataV2.getSetup();
+            }
+        } catch {
+            // ignore
+        }
+        return { catalogLinks: [], matched: {}, directoryMatchByEmail: {} };
+    }
+
+    function structureRowsForCatalogMatch(rows, settings) {
+        const details = settings && settings.structRootDetails;
+        const roots = [
+            mergeStructureTreeRootRow(STRUCT_TREE_ROOT_STUDENTS, details),
+            mergeStructureTreeRootRow(STRUCT_TREE_ROOT_TEACHERS, details),
+            mergeStructureTreeRootRow(STRUCT_TREE_ROOT_ADMIN, details)
+        ].filter(Boolean);
+        return (Array.isArray(rows) ? rows : []).concat(roots);
+    }
+
+    function effectiveMatchLinksFromStore() {
+        const st = loadState();
+        return overlayCatalogOnMatchLinks(
+            loadMatchState().links || {},
+            structureRowsForCatalogMatch(st.rows, st.settings),
+            readCatalogSetup()
+        );
+    }
+
     async function graphProvisionStructureGroupRow(row) {
         const st = loadState();
         const schemaState = Object.assign({}, defaultAnlegenSchemas(), st.settings || {});
@@ -1475,7 +1505,7 @@ import {
             ].filter(Boolean);
             return { rows: (st.rows || []).concat(roots), memberships: st.memberships, settings: st.settings };
         },
-        loadMatchLinks: () => loadMatchState().links || {},
+        loadMatchLinks: () => effectiveMatchLinksFromStore(),
         suggestGroupForUnit: (unit) => suggestTenantGroupForUnitFromList(unit, loadTenantCache().rows || []),
         saveMatchLink: (structureId, tenantGroupId, note, tenantUserId) =>
             saveMatchLinkPublic(structureId, tenantGroupId, note, tenantUserId),
@@ -1811,6 +1841,28 @@ import {
         /** @type {'struktur'|'tenant'|'match'} */
         let mode = 'struktur';
 
+        function refreshEffectiveMatchLinks() {
+            links = overlayCatalogOnMatchLinks(
+                loadMatchState().links || {},
+                structureRowsForCatalogMatch(rowsStruktur, schemaState),
+                readCatalogSetup()
+            );
+            window.__ms365MatchLinks = links;
+        }
+
+        function migrateOrphanMatchLinksOnce() {
+            const api = window.ms365AppDataV2;
+            if (!api || typeof api.upsertCatalogLink !== 'function') return;
+            const upserts = catalogUpsertsFromOrphanMatchLinks(
+                structureRowsForCatalogMatch(rowsStruktur, schemaState),
+                loadMatchState().links || {},
+                readCatalogSetup()
+            );
+            upserts.forEach(function (u) {
+                api.upsertCatalogLink(u);
+            });
+        }
+
         // Default-Verwaltung beim Start sicherstellen (auch bei komplett leeren Daten)
         (function ensureDefaultVerwaltungOnInit() {
             const schuljahr = currentSchoolYearLabel();
@@ -1950,6 +2002,13 @@ import {
         } catch {
             // ignore
         }
+
+        try {
+            migrateOrphanMatchLinksOnce();
+        } catch {
+            // ignore
+        }
+        refreshEffectiveMatchLinks();
 
         // Graph/Create modal (Grundkonfiguration)
         const modal = getEl('ssStructCreateModal');
@@ -3232,7 +3291,7 @@ import {
                 } catch {
                     window.__ms365TenantUsersCache = [];
                 }
-                window.__ms365MatchLinks = links;
+                refreshEffectiveMatchLinks();
                 const td = getEl('ssTenantDetail');
                 if (td) td.style.display = 'none';
                 const sd = getEl('ssDetail');
@@ -3306,7 +3365,7 @@ import {
         /** Gespeicherte Match-Auswahl als g:/u:-Wert (wie im Dropdown), für Abgleich mit UI. */
         function persistedMatchSelectValueForRow(structureId) {
             const users = Array.isArray(window.__ms365TenantUsersCache) ? window.__ms365TenantUsersCache : [];
-            const links = loadMatchState().links || {};
+            refreshEffectiveMatchLinks();
             return persistedMatchSelectValuePure(structureId, links, (id) =>
                 users.some((u) => String(u.id) === String(id))
             );
@@ -3318,7 +3377,8 @@ import {
             const noteEl = getEl('ssMatchNote');
             if (!selTenant || !noteEl) return false;
             const users = Array.isArray(window.__ms365TenantUsersCache) ? window.__ms365TenantUsersCache : [];
-            const savedObj = (loadMatchState().links || {})[String(selectedId)] || null;
+            refreshEffectiveMatchLinks();
+            const savedObj = links[String(selectedId)] || null;
             return computeMatchDraftDirty(savedObj, selTenant.value, noteEl.value, (id) =>
                 users.some((u) => String(u.id) === String(id))
             );
@@ -4662,13 +4722,8 @@ import {
                     schemaState.structRootDetails[String(row.id)] = pickStorableStructureTreeRootFields(row);
                 }
                 saveState({ rows: rowsStruktur, memberships, settings: schemaState });
-
-                links[String(row.id)] = {
-                    tenantGroupId: gid,
-                    note: 'Auto: im Tenant angelegt',
-                    updatedAt: new Date().toISOString()
-                };
-                links = saveMatchState(links);
+                links = saveMatchLinkPublic(String(row.id), gid, 'Auto: im Tenant angelegt', '');
+                refreshEffectiveMatchLinks();
 
                 setTenantProgress(true, 'Fertig: im Tenant angelegt.', 1);
                 setTimeout(() => setTenantProgress(false, '', null), 1600);
@@ -5165,6 +5220,7 @@ import {
             if (!selectedId) return;
             const { tenantGroupId, tenantUserId } = parseMatchSelectValue(selectValue);
             links = saveMatchLinkPublic(String(selectedId), tenantGroupId, noteText || '', tenantUserId);
+            refreshEffectiveMatchLinks();
         }
 
         function suggestTenantGroupForUnit(unit) {

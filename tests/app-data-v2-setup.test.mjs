@@ -139,8 +139,10 @@ describe('app-data-v2 setup', () => {
         });
         const c = ctx.ms365AppDataV2.getContainer();
         expect(c.setup.matched.schuelerGroupId).toBe('s1');
-        expect(c.setup.catalogLinks.length).toBe(1);
-        expect(c.setup.catalogLinks[0].code).toBe('M');
+        const subject = c.setup.catalogLinks.find((x) => x.kind === 'subject' && x.code === 'M');
+        expect(subject && subject.graphGroupId).toBe('id-m');
+        const sch = c.setup.catalogLinks.find((x) => x.kind === 'sammelgruppe' && x.code === 'schueler');
+        expect(sch && sch.graphGroupId).toBe('s1');
     });
 
     it('getClassTeamGruppenmailForKlasse returns stable nick from registry', () => {
@@ -206,5 +208,43 @@ describe('app-data-v2 setup', () => {
         expect(su.matched.lehrerGroupId).toBe('l1');
         expect(su.matched.verwaltungGroupId).toBe('v1');
         expect(su.verwaltungDraft.vwNewMailNick).toBe('verwaltung');
+    });
+
+    it('copies matched Sammelgruppen into catalogLinks', () => {
+        const ctx = loadAppDataV2(store);
+        const n = ctx.ms365AppDataV2.normalizeSetup({
+            matched: { schuelerGroupId: 's-id', lehrerGroupId: 'l-id', verwaltungGroupId: 'v-id' }
+        });
+        const samm = n.catalogLinks.filter((x) => x.kind === 'sammelgruppe');
+        expect(samm.map((x) => x.code).sort()).toEqual(['lehrer', 'schueler', 'verwaltung']);
+        expect(samm.find((x) => x.code === 'schueler').graphGroupId).toBe('s-id');
+        expect(samm.find((x) => x.code === 'verwaltung').graphGroupId).toBe('v-id');
+    });
+
+    it('unmatch via patchSetup clears catalog Sammelgruppe', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.patchSetup({
+            matched: { schuelerGroupId: 's-id', lehrerGroupId: 'l-id' }
+        });
+        ctx.ms365AppDataV2.patchSetup({
+            matched: { schuelerGroupId: null }
+        });
+        const su = ctx.ms365AppDataV2.getSetup();
+        expect(su.matched.schuelerGroupId).toBe(null);
+        expect(su.matched.lehrerGroupId).toBe('l-id');
+        const sch = su.catalogLinks.find((x) => x.kind === 'sammelgruppe' && x.code === 'schueler');
+        expect(sch && sch.graphGroupId).toBe('');
+        const le = su.catalogLinks.find((x) => x.kind === 'sammelgruppe' && x.code === 'lehrer');
+        expect(le && le.graphGroupId).toBe('l-id');
+    });
+
+    it('catalog sammelgruppe fills matched when matched is empty', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.patchSetup({
+            catalogLinks: [{ kind: 'sammelgruppe', code: 'verwaltung', graphGroupId: 'verw-1', mode: 'matched' }]
+        });
+        const su = ctx.ms365AppDataV2.getSetup();
+        expect(su.matched.verwaltungGroupId).toBe('verw-1');
+        expect(ctx.ms365AppDataV2.getCatalogLink('sammelgruppe', 'verwaltung').graphGroupId).toBe('verw-1');
     });
 });

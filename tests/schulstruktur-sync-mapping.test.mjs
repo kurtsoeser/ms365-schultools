@@ -13,7 +13,10 @@ import {
     parseMatchSelectValue,
     applyMatchLinkUpdate,
     persistedMatchSelectValuePure,
-    computeMatchDraftDirty
+    computeMatchDraftDirty,
+    catalogRefForStructureRow,
+    overlayCatalogOnMatchLinks,
+    catalogUpsertsFromOrphanMatchLinks
 } from '../src/tools/schulstruktur-sync/schulstruktur-sync-mapping.js';
 
 describe('parseMatchSelectValue', () => {
@@ -214,5 +217,70 @@ describe('computeMatchDraftDirty', () => {
     it('Cleared-Saved + Eingabe leer = false', () => {
         const saved = { tenantGroupId: '', tenantUserId: '', note: '' };
         expect(computeMatchDraftDirty(saved, '', '')).toBe(false);
+    });
+});
+
+describe('catalogRefForStructureRow', () => {
+    it('mappt virtuelle Wurzeln auf Sammelgruppen', () => {
+        expect(catalogRefForStructureRow({ id: '__root_students__' })).toEqual({
+            kind: 'sammelgruppe',
+            code: 'schueler'
+        });
+        expect(catalogRefForStructureRow({ id: '__root_teachers__' })).toEqual({
+            kind: 'sammelgruppe',
+            code: 'lehrer'
+        });
+        expect(catalogRefForStructureRow({ id: '__root_admin__' })).toEqual({
+            kind: 'sammelgruppe',
+            code: 'verwaltung'
+        });
+    });
+
+    it('mappt Top-Verwaltung, ARGE und Fachschaft', () => {
+        expect(catalogRefForStructureRow({ id: 'x', parentId: '', bezeichnung: 'Verwaltung', typ: 'Gruppe' })).toEqual({
+            kind: 'sammelgruppe',
+            code: 'verwaltung'
+        });
+        expect(catalogRefForStructureRow({ id: 'a', typ: 'Arbeitsgemeinschaft', argeCode: 'rob' })).toEqual({
+            kind: 'arge',
+            code: 'ROB'
+        });
+        expect(
+            catalogRefForStructureRow({ id: 'f', typ: 'Gruppe', fachschaftFach: true, ktFach: 'D' })
+        ).toEqual({ kind: 'subject', code: 'D' });
+    });
+
+    it('lässt Jahrgang/Klasse/Person ohne Katalog-Ref', () => {
+        expect(catalogRefForStructureRow({ id: 'j', typ: 'Jahrgang' })).toBe(null);
+        expect(catalogRefForStructureRow({ id: 'p', typ: 'Person', personEmail: 'a@x.at' })).toBe(null);
+    });
+});
+
+describe('overlayCatalogOnMatchLinks', () => {
+    it('übernimmt Sammelgruppen-ID aus matched auf die Schüler-Wurzel', () => {
+        const out = overlayCatalogOnMatchLinks(
+            {},
+            [{ id: '__root_students__' }],
+            { matched: { schuelerGroupId: 'sg-1' }, catalogLinks: [] }
+        );
+        expect(out['__root_students__'].tenantGroupId).toBe('sg-1');
+    });
+
+    it('Katalog gewinnt gegen veralteten SOLL-Link', () => {
+        const out = overlayCatalogOnMatchLinks(
+            { a1: { tenantGroupId: 'old' } },
+            [{ id: 'a1', typ: 'Arbeitsgemeinschaft', argeCode: 'ROB' }],
+            { catalogLinks: [{ kind: 'arge', code: 'ROB', graphGroupId: 'new' }] }
+        );
+        expect(out.a1.tenantGroupId).toBe('new');
+    });
+
+    it('schlägt Orphan-SOLL-Links als Katalog-Upsert vor', () => {
+        const ups = catalogUpsertsFromOrphanMatchLinks(
+            [{ id: 'a1', typ: 'Arbeitsgemeinschaft', argeCode: 'ROB' }],
+            { a1: { tenantGroupId: 'g-rob' } },
+            { catalogLinks: [] }
+        );
+        expect(ups).toEqual([{ kind: 'arge', code: 'ROB', graphGroupId: 'g-rob', mode: 'matched' }]);
     });
 });
