@@ -9,24 +9,14 @@
         return G;
     }
 
+    function live() {
+        const L = window.ms365SlgLiveDetails;
+        if (!L) throw new Error('slg-live-details.js muss vor diesem Skript geladen werden.');
+        return L;
+    }
+
     async function getGraphToken() {
         return gug().getGraphToken();
-    }
-
-    async function searchUnifiedGroups(token, queryRaw) {
-        return gug().searchUnifiedGroups(token, queryRaw);
-    }
-
-    async function fetchGroup(token, id) {
-        return gug().fetchGroup(token, id);
-    }
-
-    async function createUnifiedGroup(token, displayName, mailNickname, description) {
-        return gug().createUnifiedGroup(token, displayName, mailNickname, description);
-    }
-
-    async function provisionTeamForGroup(token, gid) {
-        return gug().provisionTeamForGroup(token, gid);
     }
 
     /** @type {'schueler' | 'lehrer'} */
@@ -37,6 +27,9 @@
 
     /** @type {{ students: string[], teachers: string[], direktion: string[] }} */
     let listCache = { students: [], teachers: [], direktion: [] };
+
+    /** @type {'general'|'owners'|'members'} */
+    let activeTab = 'general';
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -54,6 +47,13 @@
         } else {
             window.alert(msg);
         }
+    }
+
+    function dlgConfirm(message, options) {
+        if (typeof window.ms365AppDialogConfirm === 'function') {
+            return window.ms365AppDialogConfirm(message, options || {});
+        }
+        return Promise.resolve(window.confirm(message));
     }
 
     function normStr(v) {
@@ -90,10 +90,6 @@
     function clearSyncLog() {
         const el = document.getElementById('slgSyncLog');
         if (el) el.replaceChildren();
-    }
-
-    async function syncEmailsToGroup(token, groupId, emails, label) {
-        return gug().syncEmailsToGroup(token, groupId, emails, label, appendSyncLog);
     }
 
     function loadTenantSettings() {
@@ -150,10 +146,8 @@
 
         const sLine = document.getElementById('slgSchuelerLine');
         const tLine = document.getElementById('slgLehrerLine');
-        const sInfo = matched.schuelerGroupId ? 'Gematcht: ' + matched.schuelerGroupId : 'Noch kein Match';
-        const tInfo = matched.lehrerGroupId ? 'Gematcht: ' + matched.lehrerGroupId : 'Noch kein Match';
-        if (sLine) sLine.textContent = sInfo;
-        if (tLine) tLine.textContent = tInfo;
+        if (sLine) sLine.textContent = matched.schuelerGroupId ? 'Gematcht: ' + matched.schuelerGroupId : 'Noch kein Match';
+        if (tLine) tLine.textContent = matched.lehrerGroupId ? 'Gematcht: ' + matched.lehrerGroupId : 'Noch kein Match';
     }
 
     function renderOwnerPreview() {
@@ -209,29 +203,24 @@
     }
 
     function setTab(tab) {
+        activeTab = tab === 'owners' || tab === 'members' ? tab : 'general';
         document.querySelectorAll('#slgDetailTabs .detail-tab-btn[data-slg-tab]').forEach(function (b) {
-            const on = b.getAttribute('data-slg-tab') === tab;
+            const on = b.getAttribute('data-slg-tab') === activeTab;
             b.setAttribute('aria-selected', on ? 'true' : 'false');
         });
         document.querySelectorAll('[data-slg-tab-content]').forEach(function (p) {
-            p.classList.toggle('active', p.getAttribute('data-slg-tab-content') === tab);
+            p.classList.toggle('active', p.getAttribute('data-slg-tab-content') === activeTab);
         });
-        if (tab === 'owners') renderOwnerPreview();
-        if (tab === 'members') renderMemberPreview();
+        const gid = getActiveMatchedId();
+        if (!gid) {
+            if (activeTab === 'owners') renderOwnerPreview();
+            if (activeTab === 'members') renderMemberPreview();
+            return;
+        }
+        live().onTab(activeTab, gid);
     }
 
-    function setActiveKind(kind) {
-        activeKind = kind === 'lehrer' ? 'lehrer' : 'schueler';
-        const title = document.getElementById('slgDetailTitle');
-        const sub = document.getElementById('slgDetailSubtitle');
-        if (title) title.textContent = activeKind === 'schueler' ? 'Schüler:innen' : 'Lehrer:innen';
-        if (sub) sub.textContent = 'Gruppe matchen oder anlegen';
-
-        document.querySelectorAll('button[data-slg-kind]').forEach(function (btn) {
-            const on = btn.getAttribute('data-slg-kind') === activeKind;
-            btn.setAttribute('aria-current', on ? 'true' : 'false');
-        });
-
+    function applyCreateDefaults() {
         const dn = document.getElementById('slgNewDisplayName');
         const nn = document.getElementById('slgNewMailNick');
         const desc = document.getElementById('slgNewDescription');
@@ -244,9 +233,6 @@
             if (nn && !nn.value) nn.value = 'lehrer';
             if (desc && !desc.value) desc.value = 'Alle Lehrer:innen (MS365-Schulverwaltung / Schul‑Liste)';
         }
-        renderMatchSummary();
-        renderMemberPreview();
-        setTab('general');
     }
 
     function getActiveMatchedId() {
@@ -256,46 +242,31 @@
     function setActiveMatchedId(id) {
         if (activeKind === 'schueler') matched.schuelerGroupId = id;
         else matched.lehrerGroupId = id;
+        live().resetCaches();
     }
 
-    function renderMatchSummary(group) {
-        const summary = document.getElementById('slgMatchSummary');
-        const kv = document.getElementById('slgMatchKv');
-        const btnOpen = document.getElementById('slgBtnOpenEntra');
-        const btnUn = document.getElementById('slgBtnUnmatch');
-        const btnRefresh = document.getElementById('slgBtnRefreshGroup');
-        const btnSync = document.getElementById('slgBtnSync');
+    function setActiveKind(kind) {
+        activeKind = kind === 'lehrer' ? 'lehrer' : 'schueler';
+        const title = document.getElementById('slgDetailTitle');
+        if (title) title.textContent = activeKind === 'schueler' ? 'Schüler:innen' : 'Lehrer:innen';
 
+        document.querySelectorAll('button[data-slg-kind]').forEach(function (btn) {
+            const on = btn.getAttribute('data-slg-kind') === activeKind;
+            btn.setAttribute('aria-current', on ? 'true' : 'false');
+        });
+
+        applyCreateDefaults();
+        live().resetCaches();
+        const host = document.getElementById('slgGroupSearchResults');
+        if (host) {
+            host.replaceChildren();
+            host.style.display = 'none';
+        }
         const gid = getActiveMatchedId();
-        const has = !!gid;
-        if (btnOpen) btnOpen.disabled = !has;
-        if (btnUn) btnUn.disabled = !has;
-        if (btnRefresh) btnRefresh.disabled = !has;
-        if (btnSync) btnSync.disabled = !has;
-
-        if (!has) {
-            if (summary) summary.textContent = 'Noch keine Gruppe gematcht.';
-            if (kv) kv.style.display = 'none';
-            updateLeftListUi();
-            return;
-        }
-        if (!group) {
-            if (summary) summary.innerHTML = 'Gematchte Gruppen‑ID: <code>' + escapeHtml(gid) + '</code>';
-            if (kv) kv.style.display = 'none';
-            updateLeftListUi();
-            return;
-        }
-        if (summary) summary.innerHTML = '<strong>OK:</strong> ' + escapeHtml(group.displayName || '(ohne Namen)');
-        if (kv) kv.style.display = '';
-        const kvName = document.getElementById('slgKvName');
-        const kvMail = document.getElementById('slgKvMail');
-        const kvNick = document.getElementById('slgKvNick');
-        const kvId = document.getElementById('slgKvId');
-        if (kvName) kvName.textContent = group.displayName || '–';
-        if (kvMail) kvMail.textContent = group.mail || '–';
-        if (kvNick) kvNick.textContent = group.mailNickname || '–';
-        if (kvId) kvId.textContent = group.id || '–';
+        live().setMatchedMode(!!gid);
+        live().fillForm(gid ? { id: gid } : null);
         updateLeftListUi();
+        setTab('general');
     }
 
     function renderGroupSearchResults(list) {
@@ -352,7 +323,10 @@
                 if (!g || !g.id) return;
                 setActiveMatchedId(String(g.id));
                 saveState();
-                renderMatchSummary(g);
+                live().fillForm(g);
+                live().setMatchedMode(true);
+                updateLeftListUi();
+                live().loadGroup({ silent: true });
                 toast('Gruppe gematcht.');
             });
 
@@ -372,7 +346,7 @@
         }
         try {
             const token = await getGraphToken();
-            const list = await searchUnifiedGroups(token, q);
+            const list = await gug().searchUnifiedGroups(token, q);
             renderGroupSearchResults(list);
             if (!list.length) toast('Keine passenden Gruppen gefunden.');
         } catch (e) {
@@ -393,30 +367,20 @@
             return;
         }
         try {
-            let token = await getGraphToken();
-            const g = await createUnifiedGroup(token, displayName, mailNick, desc);
+            const token = await getGraphToken();
+            const g = await gug().createUnifiedGroup(token, displayName, mailNick, desc);
             await ensureOwners(token, g.id);
             if (ct && ct.checked) {
                 toast('Gruppe angelegt – Team wird bereitgestellt …');
-                await provisionTeamForGroup(token, g.id);
+                await gug().provisionTeamForGroup(token, g.id);
             }
             setActiveMatchedId(String(g.id));
             saveState();
-            renderMatchSummary(g);
+            live().fillForm(g);
+            live().setMatchedMode(true);
+            updateLeftListUi();
+            await live().loadGroup({ silent: true });
             toast('Gruppe angelegt und gematcht.');
-        } catch (e) {
-            toast('Fehler: ' + (e.message || e));
-        }
-    }
-
-    async function runRefreshMatchedGroup() {
-        const gid = getActiveMatchedId();
-        if (!gid) return;
-        try {
-            const token = await getGraphToken();
-            const g = await fetchGroup(token, gid);
-            renderMatchSummary(g);
-            toast('Gruppe neu geladen.');
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
         }
@@ -426,7 +390,7 @@
         if (!getActiveMatchedId()) return;
         setActiveMatchedId(null);
         saveState();
-        renderMatchSummary();
+        live().loadGroup({ silent: true });
         toast('Match gelöst.');
     }
 
@@ -451,13 +415,18 @@
             return;
         }
         clearSyncLog();
-        appendSyncLog('Start: ' + (activeKind === 'schueler' ? 'Schüler:innen' : 'Lehrer:innen') + ' (' + emails.length + ' Adressen) …', '');
+        appendSyncLog(
+            'Start: ' + (activeKind === 'schueler' ? 'Schüler:innen' : 'Lehrer:innen') + ' (' + emails.length + ' Adressen) …',
+            ''
+        );
         try {
             const token = await getGraphToken();
             const label = activeKind === 'schueler' ? 'Schüler' : 'Lehrer';
-            const r = await syncEmailsToGroup(token, gid, emails, label);
+            const r = await gug().syncEmailsToGroup(token, gid, emails, label, appendSyncLog);
             appendSyncLog('Fertig: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
             await ensureOwners(token, gid);
+            live().invalidateMembership();
+            await live().loadMembers();
             toast('Synchronisation abgeschlossen.');
         } catch (e) {
             appendSyncLog('Abbruch: ' + (e.message || e), 'err');
@@ -474,10 +443,18 @@
                 schuelerGroupId: matched.schuelerGroupId,
                 lehrerGroupId: matched.lehrerGroupId
             },
-            slgNewDisplayName: document.getElementById('slgNewDisplayName') ? document.getElementById('slgNewDisplayName').value : '',
-            slgNewMailNick: document.getElementById('slgNewMailNick') ? document.getElementById('slgNewMailNick').value : '',
-            slgNewDescription: document.getElementById('slgNewDescription') ? document.getElementById('slgNewDescription').value : '',
-            slgNewCreateTeam: document.getElementById('slgNewCreateTeam') ? !!document.getElementById('slgNewCreateTeam').checked : false
+            slgNewDisplayName: document.getElementById('slgNewDisplayName')
+                ? document.getElementById('slgNewDisplayName').value
+                : '',
+            slgNewMailNick: document.getElementById('slgNewMailNick')
+                ? document.getElementById('slgNewMailNick').value
+                : '',
+            slgNewDescription: document.getElementById('slgNewDescription')
+                ? document.getElementById('slgNewDescription').value
+                : '',
+            slgNewCreateTeam: document.getElementById('slgNewCreateTeam')
+                ? !!document.getElementById('slgNewCreateTeam').checked
+                : false
         };
     }
 
@@ -491,9 +468,9 @@
         const nn = document.getElementById('slgNewMailNick');
         const dd = document.getElementById('slgNewDescription');
         const ct = document.getElementById('slgNewCreateTeam');
-        if (dn && o.slgNewDisplayName !== undefined) dn.value = String(o.slgNewDisplayName);
-        if (nn && o.slgNewMailNick !== undefined) nn.value = String(o.slgNewMailNick);
-        if (dd && o.slgNewDescription !== undefined) dd.value = String(o.slgNewDescription);
+        if (dn && o.slgNewDisplayName !== undefined) dn.value = String(o.slgNewDisplayName || '');
+        if (nn && o.slgNewMailNick !== undefined) nn.value = String(o.slgNewMailNick || '');
+        if (dd && o.slgNewDescription !== undefined) dd.value = String(o.slgNewDescription || '');
         if (ct && o.slgNewCreateTeam !== undefined) ct.checked = !!o.slgNewCreateTeam;
         setActiveKind(o.activeKind === 'lehrer' ? 'lehrer' : 'schueler');
     }
@@ -529,8 +506,7 @@
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
                 const su = window.ms365AppDataV2.getSetup();
-                const hasIds =
-                    su && su.matched && !!(su.matched.schuelerGroupId || su.matched.lehrerGroupId);
+                const hasIds = su && su.matched && !!(su.matched.schuelerGroupId || su.matched.lehrerGroupId);
                 if (hasIds || !rawLocal) {
                     const d = su.slgDraft || {};
                     applyStateObject({
@@ -565,7 +541,7 @@
                 });
             }
             saveState();
-            renderMatchSummary();
+            live().loadGroup({ silent: true });
             updateLeftListUi();
             toast('Zurückgesetzt.');
         } catch (e) {
@@ -579,6 +555,7 @@
         try {
             await getGraphToken();
             toast('Angemeldet.');
+            if (getActiveMatchedId()) await live().loadGroup({ silent: true });
         } catch (e) {
             toast('Anmeldung: ' + (e.message || e));
         } finally {
@@ -586,7 +563,36 @@
         }
     }
 
+    function onClick(id, fn) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', fn);
+    }
+
     function wire() {
+        live().bind({
+            toast: toast,
+            dlgConfirm: dlgConfirm,
+            getGroupId: getActiveMatchedId,
+            getActiveTab: function () {
+                return activeTab;
+            },
+            ensureDirektionOwners: function (token, gid) {
+                if (!(listCache.direktion && listCache.direktion.length)) {
+                    throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+                }
+                return ensureOwners(token, gid);
+            },
+            onUnmatched: function () {
+                renderOwnerPreview();
+                renderMemberPreview();
+                updateLeftListUi();
+            },
+            onAfterLoad: function () {
+                updateLeftListUi();
+            }
+        });
+        live().wire();
+
         const listHost = document.getElementById('slgListItems');
         if (listHost) {
             listHost.addEventListener('click', function (ev) {
@@ -597,78 +603,77 @@
                 const kind = item.getAttribute('data-slg-kind');
                 setActiveKind(kind === 'lehrer' ? 'lehrer' : 'schueler');
                 saveState();
+                if (getActiveMatchedId()) live().loadGroup({ silent: true });
             });
         }
 
         document.querySelectorAll('#slgDetailTabs .detail-tab-btn[data-slg-tab]').forEach(function (b) {
             b.addEventListener('click', function () {
-                const tab = b.getAttribute('data-slg-tab') || 'general';
-                setTab(tab);
+                setTab(b.getAttribute('data-slg-tab') || 'general');
             });
         });
 
-        document.getElementById('slgBtnLogin') &&
-            document.getElementById('slgBtnLogin').addEventListener('click', function () {
-                onLogin();
-            });
-        document.getElementById('slgBtnReloadLists') &&
-            document.getElementById('slgBtnReloadLists').addEventListener('click', function () {
-                readLists();
-                updateLeftListUi();
-                renderOwnerPreview();
-                renderMemberPreview();
-                toast('Listen neu eingelesen.');
-            });
+        onClick('slgBtnLogin', function () {
+            onLogin();
+        });
+        onClick('slgBtnReloadLists', function () {
+            readLists();
+            updateLeftListUi();
+            renderOwnerPreview();
+            renderMemberPreview();
+            toast('Listen neu eingelesen.');
+        });
+        onClick('slgBtnSearch', function () {
+            runSearchGroups();
+        });
+        onClick('slgBtnCreate', function () {
+            runCreateAndMatch();
+        });
+        onClick('slgBtnUnmatch', function () {
+            runUnmatch();
+        });
+        onClick('slgBtnOpenEntra', function () {
+            openEntraForMatched();
+        });
+        onClick('slgBtnSync', function () {
+            runSyncMembers();
+        });
 
-        document.getElementById('slgBtnSearch') &&
-            document.getElementById('slgBtnSearch').addEventListener('click', function () {
-                runSearchGroups();
+        const groupSearch = document.getElementById('slgGroupSearch');
+        if (groupSearch) {
+            groupSearch.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    runSearchGroups();
+                }
             });
-        document.getElementById('slgBtnCreate') &&
-            document.getElementById('slgBtnCreate').addEventListener('click', function () {
-                runCreateAndMatch();
-            });
-        document.getElementById('slgBtnRefreshGroup') &&
-            document.getElementById('slgBtnRefreshGroup').addEventListener('click', function () {
-                runRefreshMatchedGroup();
-            });
-        document.getElementById('slgBtnUnmatch') &&
-            document.getElementById('slgBtnUnmatch').addEventListener('click', function () {
-                runUnmatch();
-            });
-        document.getElementById('slgBtnOpenEntra') &&
-            document.getElementById('slgBtnOpenEntra').addEventListener('click', function () {
-                openEntraForMatched();
-            });
-        document.getElementById('slgBtnSync') &&
-            document.getElementById('slgBtnSync').addEventListener('click', function () {
-                runSyncMembers();
-            });
+        }
 
-        document.getElementById('slgBtnSaveState') &&
-            document.getElementById('slgBtnSaveState').addEventListener('click', function () {
-                saveState();
-                toast('Gespeichert.');
-            });
-        document.getElementById('slgBtnLoadState') &&
-            document.getElementById('slgBtnLoadState').addEventListener('click', function () {
-                loadState();
-                toast('Geladen.');
-            });
-        document.getElementById('slgBtnClearStorage') &&
-            document.getElementById('slgBtnClearStorage').addEventListener('click', function () {
-                clearStorage();
-            });
+        onClick('slgBtnSaveState', function () {
+            saveState();
+            toast('Gespeichert.');
+        });
+        onClick('slgBtnLoadState', function () {
+            loadState();
+            toast('Geladen.');
+            if (getActiveMatchedId()) live().loadGroup({ silent: true });
+        });
+        onClick('slgBtnClearStorage', function () {
+            clearStorage();
+        });
     }
 
     function init() {
         readLists();
         loadState();
         updateLeftListUi();
-        renderMatchSummary();
         renderOwnerPreview();
         renderMemberPreview();
         wire();
+        if (!getActiveMatchedId()) {
+            live().setMatchedMode(false);
+            applyCreateDefaults();
+        }
     }
 
     if (document.readyState === 'loading') {
@@ -677,4 +682,3 @@
         init();
     }
 })();
-

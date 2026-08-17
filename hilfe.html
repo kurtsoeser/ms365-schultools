@@ -314,22 +314,21 @@
                 </section>
 
                 <section class="tool" id="tool-slg" aria-label="Lehrerinnen und Schülerinnen">
-                    <h3>Lehrerinnen &amp; Schülerinnen <span class="pill">Mitglieder synchronisieren</span></h3>
+                    <h3>Lehrerinnen &amp; Schülerinnen <span class="pill">Gruppenverwaltung</span></h3>
                     <p>
-                        <strong>Was macht’s?</strong> Legt zwei Unified‑Gruppen (typisch <code>schueler</code> und <code>lehrer</code>) an oder nutzt bestehende Gruppen,
-                        und fügt Mitglieder aus den Schul‑Listen hinzu (Duplikate werden übersprungen). Als Gruppenbesitzer werden Personen mit Rolle Direktion (o. Ä.) aus der Verwaltungsliste gesetzt; fehlt diese Angabe, wird der angemeldete Benutzer Besitzer. Optional kann die Gruppe auch als Team erstellt werden.
+                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für zwei Sammelgruppen (Schüler:innen und Lehrer:innen).
+                        Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: dieselben Live‑Details (Allgemein, Owner, Mitglieder) wie in der Gruppenverwaltung, plus Listen‑Sync aus den Schul‑Einstellungen.
                     </p>
                     <div class="mini-steps">
                         <strong>Mini‑Anleitung</strong>
                         <ol>
-                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> Schüler/Lehrer mit gültigen E‑Mails pflegen; unter Verwaltung die Direktion mit E‑Mail eintragen (für Besitzerrechte an beiden Gruppen).</li>
-                            <li>Im Tool anmelden, Gruppen “neu” anlegen oder “bestehend” auswählen (GUID / Suche).</li>
-                            <li>Mit <strong>„Liste → Gruppe“</strong> die Mitgliedschaften synchronisieren.</li>
-                            <li>Fehlende Personen bei Bedarf manuell ergänzen (eine Zeile pro UPN/E‑Mail).</li>
+                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> Schüler/Lehrer mit gültigen E‑Mails pflegen; unter Verwaltung die Direktion mit E‑Mail eintragen (für Besitzerrechte).</li>
+                            <li>Im Tool anmelden, links Schüler:innen oder Lehrer:innen wählen, Gruppe suchen und matchen – oder neu anlegen.</li>
+                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen. Optional <strong>Mitglieder synchronisieren</strong> (fügt fehlende Listen‑Adressen hinzu).</li>
                         </ol>
                     </div>
                     <div class="hint">
-                        <strong>Hinweis:</strong> Entfernen von Mitgliedern macht dieses Tool nicht – dafür eignet sich die <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> oder das Entra‑Portal.
+                        <strong>Hinweis:</strong> Listen‑Sync ist additiv (entfernt niemanden). Einzelne Owner und Mitglieder können Sie in den Tabs dieses Tools entfernen – oder in der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> bzw. im Entra‑Portal.
                     </div>
                     <p><a href="tools/schueler-lehrer-gruppen.html">→ Lehrerinnen &amp; Schülerinnen öffnen</a></p>
                 </section>

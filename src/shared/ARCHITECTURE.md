@@ -335,8 +335,8 @@ aber gut planbar.
   2. ~~`jahrgang`~~ **fertig** (5 Files)
   3. ~~`weitere-teams-gruppen`~~ **fertig** (4 Files, 5 HTML-Entries)
   4. ~~`kursteams`~~ **fertig** (20 Files, größter Brocken)
-  5. `schueler-lehrer-gruppen` (2 Files: `schueler-lehrer-gruppen.js` +
-     `slg-gruppenverwaltung.js`)
+  5. `schueler-lehrer-gruppen` (3 Files: `schueler-lehrer-gruppen.js` +
+     `slg-gruppenverwaltung.js` + `slg-live-details.js`)
   6. `schulstruktur-sync` (2 Files: `schulstruktur-sync.js` +
      `structure-rules.js`) — Hauptdatei ist bereits ESM-ähnlich
      (16 thematische Module), nur der IIFE-Wrapper muss raus

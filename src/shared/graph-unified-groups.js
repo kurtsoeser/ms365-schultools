@@ -271,24 +271,54 @@
             '/groups/' +
             encodeURIComponent(id) +
             '?$select=' +
-            encodeURIComponent('id,displayName,mail,mailNickname,groupTypes,description');
+            encodeURIComponent(
+                'id,displayName,mail,mailNickname,groupTypes,description,visibility,expirationDateTime,resourceProvisioningOptions'
+            );
         return graphJson('GET', path, token, undefined);
     }
 
-    async function patchGroupDisplayName(token, groupId, displayName, description) {
+    function groupArtLabel(g) {
+        const opts = g && g.resourceProvisioningOptions;
+        if (Array.isArray(opts) && opts.indexOf('Team') !== -1) return 'Team';
+        if (isUnifiedGroup(g)) return 'Gruppe';
+        return '–';
+    }
+
+    async function patchGroup(token, groupId, opts) {
+        const o = opts && typeof opts === 'object' ? opts : {};
         const body = {};
-        if (displayName !== undefined && displayName !== null) {
-            body.displayName = String(displayName).trim();
+        if (o.displayName !== undefined && o.displayName !== null) {
+            body.displayName = String(o.displayName).trim();
         }
-        if (description !== undefined && description !== null) {
-            body.description = String(description).trim();
+        if (o.description !== undefined && o.description !== null) {
+            body.description = String(o.description).trim();
+        }
+        const vis = o.visibility !== undefined && o.visibility !== null ? String(o.visibility).trim() : '';
+        if (vis === 'Private' || vis === 'Public') {
+            body.visibility = vis;
         }
         if (!Object.keys(body).length) return {};
         return graphJson('PATCH', '/groups/' + encodeURIComponent(groupId), token, body);
     }
 
+    async function patchGroupDisplayName(token, groupId, displayName, description) {
+        return patchGroup(token, groupId, { displayName: displayName, description: description });
+    }
+
     function userRef(userId) {
         return 'https://graph.microsoft.com/v1.0/users/' + userId;
+    }
+
+    function directoryObjectRef(id) {
+        return 'https://graph.microsoft.com/v1.0/directoryObjects/' + id;
+    }
+
+    function personLabel(p) {
+        if (!p || typeof p !== 'object') return '';
+        const dn = p.displayName ? String(p.displayName).trim() : '';
+        const upn = p.userPrincipalName || p.mail ? String(p.userPrincipalName || p.mail).trim() : '';
+        if (dn && upn && dn !== upn) return dn + ' (' + upn + ')';
+        return dn || upn || (p.id ? String(p.id) : '');
     }
 
     function isDuplicateMemberError(e) {
@@ -298,6 +328,141 @@
             m.indexOf('One or more added object references already exist') !== -1 ||
             m.indexOf('already exist') !== -1
         );
+    }
+
+    function compareDe(a, b) {
+        try {
+            return String(a || '').localeCompare(String(b || ''), 'de', { sensitivity: 'base' });
+        } catch {
+            return String(a || '').localeCompare(String(b || ''));
+        }
+    }
+
+    async function fetchAllPagesSimple(token, initialPath, maxItems) {
+        const limit = typeof maxItems === 'number' && maxItems > 0 ? maxItems : 4000;
+        const out = [];
+        let next = initialPath;
+        let pages = 0;
+        while (next && pages < 40 && out.length < limit) {
+            pages++;
+            const data = await graphJson('GET', next, token, undefined);
+            const vals = data.value;
+            if (Array.isArray(vals)) {
+                for (let i = 0; i < vals.length; i++) out.push(vals[i]);
+            }
+            next = data['@odata.nextLink'] || null;
+        }
+        return out;
+    }
+
+    async function searchUsers(token, query) {
+        const q = normStr(query);
+        if (!q) return [];
+        const esc = odataEscape(q);
+        let filter;
+        if (q.indexOf('@') !== -1) {
+            filter = "(mail eq '" + esc + "' or userPrincipalName eq '" + esc + "')";
+        } else {
+            filter =
+                "(startswith(displayName,'" +
+                esc +
+                "') or startswith(userPrincipalName,'" +
+                esc +
+                "') or startswith(mail,'" +
+                esc +
+                "'))";
+        }
+        const path =
+            '/users?$filter=' +
+            encodeURIComponent(filter) +
+            '&$select=' +
+            encodeURIComponent(PERSON_SELECT) +
+            '&$top=25';
+        const data = await graphJson('GET', path, token, undefined);
+        return data.value || [];
+    }
+
+    async function fetchGroupOwners(token, groupId) {
+        const path =
+            '/groups/' +
+            encodeURIComponent(groupId) +
+            '/owners?$select=' +
+            encodeURIComponent(PERSON_SELECT) +
+            '&$top=200';
+        const owners = await fetchAllPagesSimple(token, path, 2000);
+        owners.sort(function (a, b) {
+            return compareDe(personLabel(a), personLabel(b));
+        });
+        return owners;
+    }
+
+    async function fetchGroupMemberCount(token, groupId) {
+        const path = '/groups/' + encodeURIComponent(groupId) + '/members/$count';
+        const res = await graphRequest('GET', path, token, undefined, { ConsistencyLevel: 'eventual' });
+        const text = await res.text();
+        if (!res.ok) return -1;
+        const n = parseInt(String(text).trim(), 10);
+        return isNaN(n) ? -1 : n;
+    }
+
+    async function fetchGroupMembers(token, groupId) {
+        let next =
+            '/groups/' +
+            encodeURIComponent(groupId) +
+            '/members?$select=' +
+            encodeURIComponent(PERSON_SELECT) +
+            '&$top=200';
+        const out = [];
+        let pages = 0;
+        while (next && pages < 40 && out.length < 2000) {
+            pages++;
+            const data = await graphJson('GET', next, token, undefined);
+            const vals = data.value || [];
+            for (let i = 0; i < vals.length; i++) out.push(vals[i]);
+            if (out.length >= 2000) break;
+            next = data['@odata.nextLink'] || null;
+        }
+        out.sort(function (a, b) {
+            return compareDe(personLabel(a), personLabel(b));
+        });
+        return { items: out, truncated: !!next || out.length >= 2000 };
+    }
+
+    async function addGroupOwner(token, groupId, userId) {
+        await graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/owners/$ref', token, {
+            '@odata.id': directoryObjectRef(userId)
+        });
+    }
+
+    async function removeGroupOwner(token, groupId, ownerId) {
+        await graphJson(
+            'DELETE',
+            '/groups/' + encodeURIComponent(groupId) + '/owners/' + encodeURIComponent(ownerId) + '/$ref',
+            token,
+            undefined
+        );
+    }
+
+    async function removeGroupMember(token, groupId, memberId) {
+        await graphJson(
+            'DELETE',
+            '/groups/' + encodeURIComponent(groupId) + '/members/' + encodeURIComponent(memberId) + '/$ref',
+            token,
+            undefined
+        );
+    }
+
+    async function addOwnerWithMemberFallback(token, groupId, userId) {
+        try {
+            await addGroupOwner(token, groupId, userId);
+        } catch (e1) {
+            try {
+                await graphAddMember(token, groupId, userId);
+            } catch (e2) {
+                if (!isDuplicateMemberError(e2)) throw e2;
+            }
+            await addGroupOwner(token, groupId, userId);
+        }
     }
 
     async function resolveUserByEmail(token, email) {
@@ -362,7 +527,7 @@
 
     async function graphAddMember(token, groupId, userId) {
         await graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/members/$ref', token, {
-            '@odata.id': userRef(userId)
+            '@odata.id': directoryObjectRef(userId)
         });
     }
 
@@ -466,16 +631,28 @@
         sanitizeMailNickname,
         sanitizeUnifiedGroupMailNickname,
         isUnifiedGroup,
+        groupArtLabel,
         searchUnifiedGroups,
         fetchGroup,
         createUnifiedGroup,
         provisionTeamForGroup,
         graphAddMember,
+        addGroupOwner,
+        removeGroupOwner,
+        removeGroupMember,
+        addOwnerWithMemberFallback,
+        fetchGroupOwners,
+        fetchGroupMembers,
+        fetchGroupMemberCount,
+        searchUsers,
+        personLabel,
         userRef,
+        directoryObjectRef,
         isDuplicateMemberError,
         resolveUserByEmail,
         ensureOwners,
         syncEmailsToGroup,
+        patchGroup,
         patchGroupDisplayName
     };
 })();
