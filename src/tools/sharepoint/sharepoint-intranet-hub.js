@@ -139,8 +139,54 @@
         $('fLastSiteUrl').value = webUrl;
         setPsScript(webUrl);
         $('fLog').textContent = 'Site bereit (laut Vorgang): ' + webUrl;
+        try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+                window.ms365AppDataV2.patchSetup({ intranetSiteUrl: webUrl });
+            }
+        } catch {
+            /* ignore */
+        }
+        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+            window.ms365ActionLog.append({
+                tool: 'sharepoint',
+                action: 'create-site',
+                target: webUrl,
+                summary: 'Kommunikationssite angelegt'
+            });
+        }
         toast('Kommunikationswebsite erstellt.');
+        await maybeCreateStartpaket(webUrl);
         return webUrl;
+    }
+
+    function packLog(msg) {
+        const el = $('fLog');
+        if (!el) return;
+        el.textContent += (el.textContent ? '\n' : '') + msg;
+    }
+
+    async function maybeCreateStartpaket(webUrl) {
+        const wantLehrer = $('fPackLehrer') && $('fPackLehrer').checked;
+        const wantTermine = $('fPackTermine') && $('fPackTermine').checked;
+        if (!wantLehrer && !wantTermine) return;
+        if (wantLehrer && window.ms365SpoLehrerListe && typeof window.ms365SpoLehrerListe.createList === 'function') {
+            packLog('Startpaket: Lehrerliste …');
+            try {
+                await window.ms365SpoLehrerListe.createList(webUrl, 'Lehrerinnen', packLog);
+                packLog('Lehrerliste fertig.');
+            } catch (e) {
+                packLog('Lehrerliste: ' + (e && e.message ? e.message : e));
+            }
+        }
+        if (wantTermine && window.ms365SpoSchultermine && typeof window.ms365SpoSchultermine.createList === 'function') {
+            packLog('Startpaket: Schultermine …');
+            try {
+                await window.ms365SpoSchultermine.createList(webUrl, 'Schultermine', packLog);
+                packLog('Schultermine-Liste fertig.');
+            } catch (e) {
+                packLog('Schultermine: ' + (e && e.message ? e.message : e));
+            }
+        }
     }
 
     async function registerHub() {
@@ -175,6 +221,21 @@
             $('fHubJson').textContent = JSON.stringify(hubJson, null, 2);
             $('fLog').textContent = 'Hub-Registrierung über SharePoint REST erfolgreich.\n' + siteUrl;
             toast('Als Hub-Website registriert.');
+            try {
+                if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+                    window.ms365AppDataV2.patchSetup({ intranetSiteUrl: siteUrl, intranetHubAt: new Date().toISOString() });
+                }
+            } catch {
+                /* ignore */
+            }
+            if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                window.ms365ActionLog.append({
+                    tool: 'sharepoint',
+                    action: 'register-hub',
+                    target: siteUrl,
+                    summary: 'Hub-Website registriert'
+                });
+            }
         } catch (e) {
             $('fHubJson').textContent = String(e && e.message ? e.message : e);
             $('fLog').textContent =
@@ -229,4 +290,14 @@
         el.addEventListener('input', refreshPreview);
     });
     refreshPreview();
+    try {
+        const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
+        const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+        if (saved) {
+            if ($('fLastSiteUrl')) $('fLastSiteUrl').value = saved;
+            if ($('fManualUrl') && !$('fManualUrl').value) $('fManualUrl').value = saved;
+        }
+    } catch {
+        /* ignore */
+    }
 })();

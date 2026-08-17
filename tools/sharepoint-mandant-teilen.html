@@ -1,474 +1,325 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schulverwaltung – SharePoint Freigaben (Mandant)</title>
+    <title>MS365-Schulverwaltung – Dateien teilen</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        /* Breite: global .page-card / .container aus app.css (1400px), nicht verengen */
-        .spo-lead {
-            color: #495057;
-            font-size: 0.98em;
-            line-height: 1.55;
-            margin: 0 0 8px;
+        .spo-ladder { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        @media (max-width: 900px) { .spo-ladder { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 520px) { .spo-ladder { grid-template-columns: 1fr; } }
+        .spo-ladder-step { /* mapped to tm-choice */ }
+        .spo-choice-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .spo-choice-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        @media (max-width: 900px) { .spo-choice-grid4 { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 560px) {
+            .spo-choice-grid2,
+            .spo-choice-grid4 { grid-template-columns: 1fr; }
         }
-        .spo-panel {
-            border: 1px solid var(--border, #dee2e6);
-            border-radius: 14px;
-            background: #fff;
-            padding: 18px 20px;
-            margin-bottom: 18px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        .spo-ps-host-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 10px; }
+        .spo-ps-host-row .tm-field { flex: 1; min-width: 220px; margin: 0; }
+        textarea.spo-ps-ta {
+            width: 100%; min-height: 180px; font-family: Consolas, ui-monospace, monospace; font-size: 0.82em;
+            padding: 12px; border-radius: 12px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text); margin-top: 12px;
         }
-        .spo-panel h2 {
-            margin: 0 0 6px;
-            font-size: 1.12em;
-            color: #32325d;
-            font-weight: 800;
-        }
-        .spo-panel .spo-sub {
-            margin: 0 0 16px;
-            font-size: 0.9em;
-            color: #6c757d;
-            line-height: 1.5;
-        }
-        .spo-klartext {
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-        }
-        .spo-klartext h3 { margin: 0 0 10px; font-size: 0.95em; color: #334155; font-weight: 800; }
-        .spo-klartext ul { margin: 0; padding-left: 1.15em; color: #334155; line-height: 1.55; font-size: 0.95em; }
-        .spo-klartext li { margin-bottom: 6px; }
-        .spo-klartext strong { color: #1e293b; }
-
-        .spo-ladder {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 8px;
-        }
-        @media (max-width: 900px) {
-            .spo-ladder { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 520px) {
-            .spo-ladder { grid-template-columns: 1fr; }
-        }
-        .spo-ladder-step {
-            position: relative;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px 12px 14px;
-            background: #fff;
-            cursor: pointer;
-            text-align: left;
-            font: inherit;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-        }
-        .spo-ladder-step:hover {
-            border-color: rgba(94, 114, 228, 0.45);
-            box-shadow: 0 4px 14px rgba(50, 50, 93, 0.08);
-        }
-        .spo-ladder-step.is-active {
-            border-color: rgba(94, 114, 228, 0.85);
-            background: linear-gradient(180deg, rgba(94, 114, 228, 0.08) 0%, #fff 55%);
-            box-shadow: 0 4px 16px rgba(94, 114, 228, 0.12);
-        }
-        .spo-ladder-step .step-title {
-            display: block;
-            font-weight: 800;
-            font-size: 0.92em;
-            color: #32325d;
-            margin-bottom: 6px;
-        }
-        .spo-ladder-step .step-desc {
-            font-size: 0.82em;
-            color: #64748b;
-            line-height: 1.45;
-        }
-        .spo-ladder-step .step-api {
-            display: block;
-            margin-top: 8px;
-            font-size: 0.72em;
-            font-family: ui-monospace, Consolas, monospace;
-            color: #94a3b8;
-            word-break: break-all;
-        }
-
-        .spo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
-        @media (max-width: 720px) { .spo-grid { grid-template-columns: 1fr; } }
-        .spo-field label { display: block; font-weight: 700; font-size: 0.9em; margin-bottom: 6px; color: #495057; }
-        .spo-field select, .spo-field textarea {
-            width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 10px; font: inherit;
-        }
-        .spo-field textarea { min-height: 88px; resize: vertical; }
-        .spo-field .hint { font-size: 0.85em; color: #6c757d; margin-top: 6px; line-height: 1.45; }
-        .spo-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-        .spo-log { font-family: Consolas, monospace; font-size: 0.85em; white-space: pre-wrap; word-break: break-word;
-            padding: 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; min-height: 2.5em; }
-        pre.spo-pre { max-height: 280px; overflow: auto; margin: 0; padding: 12px; background: #1e1e1e; color: #d4d4d4; border-radius: 10px; font-size: 0.82em; }
-
         .spo-readonly-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 14px;
-            margin-top: 12px;
-            padding: 4px 2px 8px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 8px;
         }
         .spo-readonly-pill {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 14px 16px 16px;
-            background: #fafbfc;
-            font-size: 0.88em;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: var(--soft); font-size: 0.88em;
         }
         .spo-readonly-pill .k {
             display: block;
-            font-weight: 800;
-            color: #334155;
-            margin: 0 0 10px;
-            font-size: 0.82em;
-            font-family: ui-monospace, Consolas, 'Segoe UI Mono', monospace;
-            word-break: break-all;
-        }
-        .spo-readonly-pill .spo-readonly-value {
-            display: block;
-            font-weight: 700;
-            font-size: 1.02em;
-            color: #0f172a;
-            line-height: 1.45;
-            margin: 0 0 12px;
-            word-break: break-word;
-        }
-        .spo-readonly-pill .d {
-            display: block;
-            font-size: 0.84em;
-            color: #64748b;
-            line-height: 1.5;
-            margin: 0;
-            padding-top: 12px;
-            border-top: 1px solid #e9ecef;
-        }
-        .spo-readonly-json {
-            display: block;
-            margin: 0 0 12px;
-            padding: 12px 12px;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 0.78em;
-            font-family: ui-monospace, Consolas, monospace;
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-height: 140px;
-            overflow: auto;
-            color: #1e293b;
-        }
-
-        .spo-admin-note {
-            border-left: 4px solid #fab005;
-            background: #fff9db;
-            padding: 12px 14px;
-            border-radius: 0 10px 10px 0;
-            font-size: 0.9em;
-            color: #5c4f00;
-            line-height: 1.5;
-            margin-top: 12px;
-        }
-        .spo-link-admin {
-            font-weight: 700;
-            color: #364fc7;
-        }
-        .spo-choice-grid2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 10px;
-        }
-        @media (max-width: 560px) { .spo-choice-grid2 { grid-template-columns: 1fr; } }
-        .spo-choice-grid4 {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-        @media (max-width: 900px) { .spo-choice-grid4 { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 520px) { .spo-choice-grid4 { grid-template-columns: 1fr; } }
-        .spo-choice-btn {
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 14px 12px;
-            background: #fff;
-            cursor: pointer;
-            text-align: left;
-            font: inherit;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-        }
-        .spo-choice-btn:hover {
-            border-color: rgba(94, 114, 228, 0.45);
-            box-shadow: 0 4px 14px rgba(50, 50, 93, 0.08);
-        }
-        .spo-choice-btn.is-active {
-            border-color: rgba(94, 114, 228, 0.85);
-            background: linear-gradient(180deg, rgba(94, 114, 228, 0.08) 0%, #fff 55%);
-            box-shadow: 0 4px 16px rgba(94, 114, 228, 0.12);
-        }
-        .spo-choice-btn .ct-title {
-            display: block;
-            font-weight: 800;
-            font-size: 0.95em;
-            color: #32325d;
-            margin-bottom: 6px;
-        }
-        .spo-choice-btn .ct-desc {
-            font-size: 0.82em;
-            color: #64748b;
-            line-height: 1.45;
-        }
-        .spo-choice-btn .ct-api {
-            display: block;
             margin-top: 8px;
-            font-size: 0.72em;
+            font-size: 0.7rem;
             font-family: ui-monospace, Consolas, monospace;
-            color: #94a3b8;
+            color: var(--muted);
+            word-break: break-all;
+            opacity: 0.65;
         }
-        .spo-ps-host-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: flex-end;
-            margin-top: 14px;
-        }
-        .spo-ps-host-row .spo-field { flex: 1; min-width: 220px; margin: 0; }
-        textarea.spo-ps-ta {
-            width: 100%;
-            min-height: 200px;
-            font-family: Consolas, ui-monospace, monospace;
-            font-size: 0.82em;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid #ced4da;
-            margin-top: 12px;
-        }
-        details.spo-json details { margin-top: 8px; }
-        summary.spo-json-sum {
-            cursor: pointer;
-            font-weight: 700;
-            color: #495057;
-            padding: 8px 0;
-        }
-        .visually-hidden {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
+        .spo-readonly-pill .spo-readonly-value { display: block; font-weight: 800; color: var(--heading); margin-bottom: 8px; }
+        .spo-readonly-pill .d { display: block; font-size: 0.84em; color: var(--muted); line-height: 1.45; }
+        .spo-readonly-json { display: none; }
+        .spo-admin-note {
+            border-left: 4px solid #fab005; background: color-mix(in srgb, #fab005 14%, var(--card));
+            padding: 12px 14px; border-radius: 0 12px 12px 0; font-size: 0.9em; color: var(--text); line-height: 1.45; margin: 8px 0 14px;
         }
     </style>
 </head>
 <body>
-    <div class="container page-card">
+    <div class="container page-card tm-page">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-share"></i>SharePoint – Mandanten-Freigaben</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-share"></i>Dateien teilen</span>
             </div>
-            <p class="spo-lead">Orientierung am <strong>SharePoint Admin Center</strong> (Teilen): Was Graph in <code>sharepointSettings</code> liefert, in Klartext – und dort bearbeiten, wo Microsoft dieselbe Logik anbindet.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <p>Wie weit dürfen Dateien und Ordner nach außen freigegeben werden?</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-sharepoint-teilen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div class="content">
-        <div class="alert alert-info" style="margin:0 0 16px;">
-            <strong>Berechtigungen:</strong> <code>SharePointTenantSettings.Read.All</code> / <code>ReadWrite.All</code> – angemeldeter Benutzer laut Microsoft <strong>SharePoint Administrator</strong> oder <strong>Global Administrator</strong>.
-        </div>
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-share"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Mandant</p>
+                    <h2>Teilen auf einen Blick</h2>
+                    <p>Stufe wählen, Domains steuern, speichern – ohne Technik-Jargon.</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <button type="button" class="btn" id="btnLoad"><i class="bi bi-cloud-download"></i>Stand laden</button>
+                    <button type="button" class="btn" id="btnSave"><i class="bi bi-check2-circle"></i>Speichern</button>
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>SharePoint- oder Global Admin</span>
+                </div>
+            </section>
 
-        <div class="spo-panel" id="panelKlartext" style="display:none;">
-            <h2><i class="bi bi-translate"></i>Aktueller Stand in Klartext</h2>
-            <p class="spo-sub">Kurz erklärt, was die geladenen Werte für SharePoint und OneDrive <em>praktisch</em> bedeuten.</p>
-            <div id="spoKlartext" class="spo-klartext" role="region" aria-live="polite"></div>
-        </div>
+            <section class="tm-panel" id="panelKlartext" style="display:none;">
+                <div class="tm-panel__head">
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Aktueller Stand</h3>
+                        <p>Kurz und bildhaft – was gerade gilt.</p>
+                    </div>
+                </div>
+                <div id="spoKlartext" role="region" aria-live="polite"></div>
+            </section>
 
-        <div class="spo-panel">
-            <h2><i class="bi bi-globe2"></i>Externes Teilen</h2>
-            <p class="spo-sub">Entspricht der Stufe „Wie weit nach außen?“ im Admin Center (für SharePoint und OneDrive gemeinsam über <code>sharingCapability</code>). Klicken Sie eine Stufe – unten wird das technische Dropdown mitgeführt.</p>
-            <div class="spo-ladder" role="group" aria-label="Stufe externes Teilen">
-                <button type="button" class="spo-ladder-step" data-sharing-cap="externalUserAndGuestSharing" id="capAnyone">
-                    <span class="step-title"><i class="bi bi-unlock"></i> Jeder</span>
-                    <span class="step-desc">Freigabe-Links ohne Anmeldung möglich („Jeder mit Link“).</span>
-                    <span class="step-api">externalUserAndGuestSharing</span>
-                </button>
-                <button type="button" class="spo-ladder-step" data-sharing-cap="externalUserSharingOnly" id="capGuests">
-                    <span class="step-title"><i class="bi bi-person-badge"></i> Neue &amp; vorhandene Gäste</span>
-                    <span class="step-desc">Externe Personen als Gäste; Anmeldung oder Bestätigungscode.</span>
-                    <span class="step-api">externalUserSharingOnly</span>
-                </button>
-                <button type="button" class="spo-ladder-step" data-sharing-cap="existingExternalUserSharingOnly" id="capExisting">
-                    <span class="step-title"><i class="bi bi-people"></i> Nur vorhandene Gäste</span>
-                    <span class="step-desc">Nur Personen, die bereits als Gast im Verzeichnis sind.</span>
-                    <span class="step-api">existingExternalUserSharingOnly</span>
-                </button>
-                <button type="button" class="spo-ladder-step" data-sharing-cap="disabled" id="capInternal">
-                    <span class="step-title"><i class="bi bi-building-lock"></i> Nur Organisation</span>
-                    <span class="step-desc">Kein Teilen nach außen – nur interne Konten.</span>
-                    <span class="step-api">disabled</span>
-                </button>
-            </div>
-            <div class="spo-field" style="margin-top:16px;">
-                <label for="fSharingCap">Technischer Wert (<code>sharingCapability</code>)</label>
-                <select id="fSharingCap" aria-label="sharingCapability Auswahl">
-                    <option value="disabled">disabled – nur intern</option>
-                    <option value="externalUserSharingOnly">externalUserSharingOnly – Gäste mit Anmeldung</option>
-                    <option value="externalUserAndGuestSharing">externalUserAndGuestSharing – inkl. anonyme Links</option>
-                    <option value="existingExternalUserSharingOnly">existingExternalUserSharingOnly – nur bestehende Gäste</option>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-globe2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Wie weit nach außen?</h3>
+                        <p>Eine Stufe tippen – von offen bis nur Schule.</p>
+                    </div>
+                </div>
+                <div class="spo-ladder tm-choice-grid" role="group" aria-label="Stufe externes Teilen" style="grid-template-columns:repeat(4,1fr);">
+                    <button type="button" class="tm-choice spo-ladder-step" data-sharing-cap="externalUserAndGuestSharing" id="capAnyone">
+                        <span class="tm-choice__icon"><i class="bi bi-unlock"></i></span>
+                        <span class="tm-choice__title">Jeder</span>
+                        <span class="tm-choice__desc">Links ohne Anmeldung möglich.</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-ladder-step" data-sharing-cap="externalUserSharingOnly" id="capGuests">
+                        <span class="tm-choice__icon"><i class="bi bi-person-badge"></i></span>
+                        <span class="tm-choice__title">Neue Gäste</span>
+                        <span class="tm-choice__desc">Externe mit Anmeldung oder Code.</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-ladder-step" data-sharing-cap="existingExternalUserSharingOnly" id="capExisting">
+                        <span class="tm-choice__icon"><i class="bi bi-people"></i></span>
+                        <span class="tm-choice__title">Nur bekannte Gäste</span>
+                        <span class="tm-choice__desc">Nur Gäste, die schon im Verzeichnis sind.</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-ladder-step" data-sharing-cap="disabled" id="capInternal">
+                        <span class="tm-choice__icon"><i class="bi bi-building-lock"></i></span>
+                        <span class="tm-choice__title">Nur Schule</span>
+                        <span class="tm-choice__desc">Kein Teilen nach außen.</span>
+                    </button>
+                </div>
+                <label class="tm-visually-hidden" for="fSharingCap">Technischer Wert</label>
+                <select id="fSharingCap" class="tm-visually-hidden" aria-hidden="true" tabindex="-1">
+                    <option value="disabled">disabled</option>
+                    <option value="externalUserSharingOnly">externalUserSharingOnly</option>
+                    <option value="externalUserAndGuestSharing">externalUserAndGuestSharing</option>
+                    <option value="existingExternalUserSharingOnly">existingExternalUserSharingOnly</option>
                 </select>
-            </div>
-        </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2><i class="bi bi-funnel"></i>Domain-Einschränkungen</h2>
-            <p class="spo-sub">Zusätzlich zur Stufe oben: welche E-Mail-Domains bei externem Teilen erlaubt oder blockiert sind (wie „Weitere externe Freigabeeinstellungen“ im Admin Center).</p>
-            <div class="spo-grid">
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fDomainMode"><code>sharingDomainRestrictionMode</code></label>
-                    <select id="fDomainMode">
-                        <option value="none">none – keine Domain-Listen</option>
-                        <option value="allowList">allowList – nur erlaubte Domains</option>
-                        <option value="blockList">blockList – alle außer blockierte</option>
-                    </select>
-                    <p class="hint" style="margin-top:8px;">Die Domain-Listen greifen nur zusammen mit <strong>allowList</strong> bzw. <strong>blockList</strong>.</p>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-funnel" aria-hidden="true"></i>
+                    <div>
+                        <h3>Domain-Filter</h3>
+                        <p>Zusätzlich: nur bestimmte E-Mail-Domains erlauben oder sperren.</p>
+                    </div>
                 </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fAllowDomains"><code>sharingAllowedDomainList</code> (eine Domain pro Zeile)</label>
-                    <textarea id="fAllowDomains" placeholder="partner.schule.at"></textarea>
+                <div class="tm-choice-grid" style="margin-bottom:14px;" id="domainModeCards" role="group" aria-label="Domain-Modus">
+                    <button type="button" class="tm-choice" data-domain-mode="none" id="domNone">
+                        <span class="tm-choice__icon"><i class="bi bi-dash-circle"></i></span>
+                        <span class="tm-choice__title">Kein Filter</span>
+                        <span class="tm-choice__desc">Domain-Listen greifen nicht.</span>
+                    </button>
+                    <button type="button" class="tm-choice" data-domain-mode="allowList" id="domAllow">
+                        <span class="tm-choice__icon"><i class="bi bi-check2-circle"></i></span>
+                        <span class="tm-choice__title">Nur erlaubte</span>
+                        <span class="tm-choice__desc">Nur Domains aus der Liste.</span>
+                    </button>
+                    <button type="button" class="tm-choice" data-domain-mode="blockList" id="domBlock">
+                        <span class="tm-choice__icon"><i class="bi bi-slash-circle"></i></span>
+                        <span class="tm-choice__title">Gesperrte ausnehmen</span>
+                        <span class="tm-choice__desc">Alles außer der Sperrliste.</span>
+                    </button>
                 </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fBlockDomains"><code>sharingBlockedDomainList</code> (eine Domain pro Zeile)</label>
-                    <textarea id="fBlockDomains"></textarea>
+                <label class="tm-visually-hidden" for="fDomainMode">Domain-Modus</label>
+                <select id="fDomainMode" class="tm-visually-hidden" aria-hidden="true" tabindex="-1">
+                    <option value="none">none</option>
+                    <option value="allowList">allowList</option>
+                    <option value="blockList">blockList</option>
+                </select>
+                <div class="tm-field">
+                    <label for="fAllowDomains">Erlaubte Domains (eine pro Zeile)</label>
+                    <textarea id="fAllowDomains" rows="3" placeholder="partner.schule.at"></textarea>
                 </div>
-            </div>
-        </div>
-
-        <div class="spo-panel">
-            <h2><i class="bi bi-person-check"></i>Gast- und Weitergabe-Verhalten</h2>
-            <p class="spo-sub">Optionen, die Microsoft ebenfalls in den erweiterten Freigabe-Einstellungen bündelt.</p>
-            <div class="spo-field spo-field--full" style="margin-bottom:10px;">
-                <label><input type="checkbox" id="fReshare"> <strong>Gäste dürfen erneut teilen</strong> (<code>isResharingByExternalUsersEnabled</code>)</label>
-                <p class="hint">Wenn aus: Gäste können Inhalte, die sie nicht besitzen, nicht weiter freigeben.</p>
-            </div>
-            <div class="spo-field spo-field--full">
-                <label><input type="checkbox" id="fMatchInvite"> <strong>Gast muss mit eingeladenem Konto anmelden</strong> (<code>isRequireAcceptingUserToMatchInvitedUserEnabled</code>)</label>
-                <p class="hint">Erhöht die Sicherheit bei Einladungen an eine bestimmte E-Mail-Adresse.</p>
-            </div>
-            <div class="spo-actions">
-                <button type="button" class="btn" id="btnLoad"><i class="bi bi-cloud-download"></i>Stand laden</button>
-                <button type="button" class="btn btn-success" id="btnSave"><i class="bi bi-check2-circle"></i>Änderungen speichern</button>
-            </div>
-        </div>
-
-        <div class="spo-panel">
-            <h2><i class="bi bi-link-45deg"></i>Datei- und Ordnerlinks</h2>
-            <p class="spo-sub">Welche <strong>Standardberechtigung</strong> (Lesen vs. Bearbeiten) und welcher <strong>Link-Typ</strong> beim Teilen vorgewählt ist – so wie im Screenshot des SharePoint Admin Centers.</p>
-            <div class="spo-admin-note">
-                <strong>Sie übersehen nichts im Graph-Teil:</strong> <code>GET/PATCH …/admin/sharepoint/settings</code> liefert dafür <strong>keine</strong> Properties (weder in v1.0 noch in der aktuellen beta-Doku). Online im Tool speicherbar sind weiter nur die Blöcke oben (Graph). Für <strong>Standard-Link</strong> und <strong>Standardberechtigung</strong> nutzen Sie das Admin Center oder das <strong>generierte PowerShell</strong> unten (<code>Set-SPOTenant</code>).
-            </div>
-
-            <h3 style="margin:22px 0 8px;font-size:1rem;color:#32325d;"><i class="bi bi-shield-check"></i> Standardberechtigung für Freigabelinks</h3>
-            <p class="hint" style="margin:0 0 10px;">Entspricht „Wählen Sie die Berechtigung aus, die standardmäßig für Freigabelinks ausgewählt ist“ – Parameter <code>-DefaultLinkPermission</code>.</p>
-            <input type="hidden" id="spoDefPerm" value="View">
-            <div class="spo-choice-grid2" role="group" aria-label="Standardberechtigung Freigabelink">
-                <button type="button" class="spo-choice-btn is-active" data-def-perm="View" id="permView">
-                    <span class="ct-title"><i class="bi bi-eye"></i> Anzeigen (Lesen)</span>
-                    <span class="ct-desc">Empfohlen, wenn Inhalte vor allem gelesen werden sollen.</span>
-                    <span class="ct-api">DefaultLinkPermission = View</span>
-                </button>
-                <button type="button" class="spo-choice-btn" data-def-perm="Edit" id="permEdit">
-                    <span class="ct-title"><i class="bi bi-pencil-square"></i> Bearbeiten</span>
-                    <span class="ct-desc">Standardmäßig Bearbeitungsrechte auf den Freigabelink.</span>
-                    <span class="ct-api">DefaultLinkPermission = Edit</span>
-                </button>
-            </div>
-
-            <h3 style="margin:22px 0 8px;font-size:1rem;color:#32325d;"><i class="bi bi-link-45deg"></i> Standardtyp des Links (Vorauswahl)</h3>
-            <p class="hint" style="margin:0 0 10px;">Welcher Radio-Button beim Teilen vorgewählt ist – Parameter <code>-DefaultSharingLinkType</code>.</p>
-            <input type="hidden" id="spoDefLinkType" value="Internal">
-            <div class="spo-choice-grid4" role="group" aria-label="Standardtyp Freigabelink">
-                <button type="button" class="spo-choice-btn" data-def-link="AnonymousAccess" id="linkAnyone">
-                    <span class="ct-title"><i class="bi bi-unlock"></i> Jeder mit dem Link</span>
-                    <span class="ct-desc">Anonymer Link (nur sinnvoll, wenn externe Freigabe „Jeder“ erlaubt ist).</span>
-                    <span class="ct-api">AnonymousAccess</span>
-                </button>
-                <button type="button" class="spo-choice-btn is-active" data-def-link="Internal" id="linkOrg">
-                    <span class="ct-title"><i class="bi bi-building"></i> Nur Organisation</span>
-                    <span class="ct-desc">Nur Personen in Ihrem Microsoft-365-Mandanten.</span>
-                    <span class="ct-api">Internal</span>
-                </button>
-                <button type="button" class="spo-choice-btn" data-def-link="Direct" id="linkSpecific">
-                    <span class="ct-title"><i class="bi bi-person-check"></i> Bestimmte Personen</span>
-                    <span class="ct-desc">Nur explizit genannte Personen (wie „Spezifische Personen“).</span>
-                    <span class="ct-api">Direct</span>
-                </button>
-                <button type="button" class="spo-choice-btn" data-def-link="None" id="linkNone">
-                    <span class="ct-title"><i class="bi bi-slash-circle"></i> Keine Vorgabe</span>
-                    <span class="ct-desc">Setzt den Typ auf <code>None</code> (selten gewünscht).</span>
-                    <span class="ct-api">None</span>
-                </button>
-            </div>
-
-            <h3 style="margin:22px 0 8px;font-size:1rem;color:#32325d;"><i class="bi bi-terminal"></i> PowerShell zum Anwenden</h3>
-            <p class="hint" style="margin:0 0 8px;">Tragen Sie Ihren SharePoint-Host ein (ohne <code>https://</code>) oder holen Sie ihn per Graph. Anschließend Skript in der <strong>SharePoint Online Management Shell</strong> oder Windows PowerShell mit Modul ausführen.</p>
-            <div class="spo-ps-host-row">
-                <div class="spo-field">
-                    <label for="spoPsHost">SharePoint-Host</label>
-                    <input type="text" id="spoPsHost" placeholder="contoso.sharepoint.com" spellcheck="false" autocomplete="off">
+                <div class="tm-field">
+                    <label for="fBlockDomains">Gesperrte Domains (eine pro Zeile)</label>
+                    <textarea id="fBlockDomains" rows="3"></textarea>
                 </div>
-                <button type="button" class="btn" id="btnSpoResolveHost"><i class="bi bi-cloud-download"></i>Hostname per Graph</button>
-            </div>
-            <textarea id="spoPsScript" class="spo-ps-ta" readonly aria-label="Generiertes PowerShell"></textarea>
-            <div class="spo-actions" style="margin-top:10px;">
-                <button type="button" class="btn btn-success" id="btnSpoPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
-                <button type="button" class="btn" id="btnSpoPsDownload"><i class="bi bi-download"></i>.ps1 herunterladen</button>
-            </div>
-            <p class="hint" style="margin-top:12px;">Dokumentation: <a href="https://learn.microsoft.com/en-us/powershell/module/sharepoint-online/set-spotenant" target="_blank" rel="noopener">Set-SPOTenant</a> · Admin Center: <a class="spo-link-admin" href="https://go.microsoft.com/fwlink/?linkid=2185213" target="_blank" rel="noopener">Teilen-Richtlinien</a></p>
-        </div>
+            </section>
 
-        <div class="spo-panel" id="panelReadonly" style="display:none;">
-            <h2><i class="bi bi-info-square"></i>Weitere Mandanten-Werte (nur Anzeige)</h2>
-            <p class="spo-sub">Aus derselben API-Antwort – zur Einordnung. Bearbeiten Sie diese Punkte in den jeweiligen Admin-Center-Bereichen oder über weitere Graph-Eigenschaften, sofern verfügbar.</p>
-            <div id="spoReadonlyGrid" class="spo-readonly-grid"></div>
-        </div>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-person-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Gast-Verhalten</h3>
+                        <p>Zwei klare Schalter für Weitergabe und Einladungen.</p>
+                    </div>
+                </div>
+                <div class="tm-toggle-grid">
+                    <label class="tm-toggle" for="fReshare">
+                        <input type="checkbox" id="fReshare">
+                        <span class="tm-toggle__icon"><i class="bi bi-arrow-repeat"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Gäste dürfen weiterteilen</span>
+                            <span class="tm-toggle__desc">Gäste können Inhalte erneut freigeben.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="fMatchInvite">
+                        <input type="checkbox" id="fMatchInvite">
+                        <span class="tm-toggle__icon"><i class="bi bi-envelope-check"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Einladung = Konto</span>
+                            <span class="tm-toggle__desc">Gast muss mit der eingeladenen Adresse anmelden.</span>
+                        </span>
+                    </label>
+                </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2>Protokoll</h2>
-            <div id="spoLog" class="spo-log">Noch keine Aktion.</div>
-        </div>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                    <div>
+                        <h3>Standard beim Teilen</h3>
+                        <p>Welche Link-Art und welche Rechte vorausgewählt sind.</p>
+                    </div>
+                </div>
+                <div class="spo-admin-note">
+                    Diese Werte speichert Graph hier nicht – dafür PowerShell unten oder das SharePoint Admin Center.
+                </div>
 
-        <div class="spo-panel">
-            <details>
-                <summary class="spo-json-sum">Rohantwort JSON (für Support / Doku)</summary>
-                <pre id="spoJson" class="spo-pre" style="margin-top:10px;">{}</pre>
-            </details>
-        </div>
+                <h4 style="margin:0 0 8px;font-size:0.95rem;color:var(--heading);">Standardrecht</h4>
+                <input type="hidden" id="spoDefPerm" value="View">
+                <div class="spo-choice-grid2" role="group" aria-label="Standardberechtigung">
+                    <button type="button" class="tm-choice spo-choice-btn is-active" data-def-perm="View" id="permView">
+                        <span class="tm-choice__icon"><i class="bi bi-eye"></i></span>
+                        <span class="tm-choice__title">Nur lesen</span>
+                        <span class="tm-choice__desc">Empfohlen für die meisten Freigaben.</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-choice-btn" data-def-perm="Edit" id="permEdit">
+                        <span class="tm-choice__icon"><i class="bi bi-pencil-square"></i></span>
+                        <span class="tm-choice__title">Bearbeiten</span>
+                        <span class="tm-choice__desc">Standardmäßig Schreibrechte.</span>
+                    </button>
+                </div>
+
+                <h4 style="margin:18px 0 8px;font-size:0.95rem;color:var(--heading);">Standard-Linktyp</h4>
+                <input type="hidden" id="spoDefLinkType" value="Internal">
+                <div class="spo-choice-grid4" role="group" aria-label="Standardtyp Freigabelink">
+                    <button type="button" class="tm-choice spo-choice-btn" data-def-link="AnonymousAccess" id="linkAnyone">
+                        <span class="tm-choice__icon"><i class="bi bi-unlock"></i></span>
+                        <span class="tm-choice__title">Jeder mit Link</span>
+                        <span class="tm-choice__desc">Anonym (nur wenn „Jeder“ erlaubt).</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-choice-btn is-active" data-def-link="Internal" id="linkOrg">
+                        <span class="tm-choice__icon"><i class="bi bi-building"></i></span>
+                        <span class="tm-choice__title">Nur Organisation</span>
+                        <span class="tm-choice__desc">Nur Personen Ihrer Schule.</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-choice-btn" data-def-link="Direct" id="linkSpecific">
+                        <span class="tm-choice__icon"><i class="bi bi-person-check"></i></span>
+                        <span class="tm-choice__title">Bestimmte Personen</span>
+                        <span class="tm-choice__desc">Nur explizit Genannte.</span>
+                    </button>
+                    <button type="button" class="tm-choice spo-choice-btn" data-def-link="None" id="linkNone">
+                        <span class="tm-choice__icon"><i class="bi bi-slash-circle"></i></span>
+                        <span class="tm-choice__title">Keine Vorgabe</span>
+                        <span class="tm-choice__desc">Selten sinnvoll.</span>
+                    </button>
+                </div>
+
+                <details class="tm-tech">
+                    <summary>PowerShell-Skript erzeugen</summary>
+                    <div class="spo-ps-host-row">
+                        <div class="tm-field">
+                            <label for="spoPsHost">SharePoint-Host</label>
+                            <input type="text" id="spoPsHost" placeholder="contoso.sharepoint.com" spellcheck="false" autocomplete="off">
+                        </div>
+                        <button type="button" class="btn" id="btnSpoResolveHost"><i class="bi bi-cloud-download"></i>Hostname holen</button>
+                    </div>
+                    <textarea id="spoPsScript" class="spo-ps-ta" readonly aria-label="Generiertes PowerShell"></textarea>
+                    <div class="tm-actions" style="margin-top:10px;">
+                        <button type="button" class="btn" id="btnSpoPsCopy"><i class="bi bi-clipboard"></i>Kopieren</button>
+                        <button type="button" class="btn" id="btnSpoPsDownload"><i class="bi bi-download"></i>.ps1</button>
+                    </div>
+                </details>
+            </section>
+
+            <section class="tm-panel" id="panelReadonly" style="display:none;">
+                <div class="tm-panel__head">
+                    <i class="bi bi-info-square" aria-hidden="true"></i>
+                    <div>
+                        <h3>Weitere Werte (nur Anzeige)</h3>
+                        <p>Zur Orientierung – Bearbeitung woanders im Admin Center.</p>
+                    </div>
+                </div>
+                <div id="spoReadonlyGrid" class="spo-readonly-grid"></div>
+            </section>
+
+            <section class="tm-panel">
+                <details class="tm-tech">
+                    <summary>Protokoll &amp; JSON</summary>
+                    <div id="spoLog" class="tm-log" style="margin-top:10px;">Noch keine Aktion.</div>
+                    <pre id="spoJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
+                </details>
+            </section>
         </div>
     </div>
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-mandant-teilen.js" defer></script>
+    <script>
+        (function () {
+            function syncDomainCards() {
+                var sel = document.getElementById('fDomainMode');
+                if (!sel) return;
+                var v = sel.value;
+                document.querySelectorAll('[data-domain-mode]').forEach(function (btn) {
+                    btn.classList.toggle('is-active', btn.getAttribute('data-domain-mode') === v);
+                });
+            }
+            document.querySelectorAll('[data-domain-mode]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var sel = document.getElementById('fDomainMode');
+                    if (!sel) return;
+                    sel.value = btn.getAttribute('data-domain-mode');
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    syncDomainCards();
+                });
+            });
+            var sel = document.getElementById('fDomainMode');
+            if (sel) sel.addEventListener('change', syncDomainCards);
+            document.addEventListener('DOMContentLoaded', syncDomainCards);
+            setTimeout(syncDomainCards, 400);
+        })();
+    </script>
 </body>
 </html>

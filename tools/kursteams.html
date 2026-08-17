@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -31,8 +32,8 @@
             margin-top: auto;
             padding-top: 8px;
         }
-        .kursteam-start-card h3 { margin: 0 0 8px; font-size: 1.1em; color: #32325d; }
-        .kursteam-start-card p { margin: 0 0 14px; color: #495057; line-height: 1.45; font-size: 0.95em; }
+        .kursteam-start-card h3 { margin: 0 0 8px; font-size: 1.1em; color: var(--heading); }
+        .kursteam-start-card p { margin: 0 0 14px; color: var(--text-secondary); line-height: 1.45; font-size: 0.95em; }
         .import-paste-file-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -63,9 +64,11 @@
             min-width: 0;
             box-sizing: border-box;
             padding: 8px 10px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 6px;
             font-size: 0.95em;
+            background: var(--input-bg);
+            color: var(--text);
         }
         tr.kt-team-draft-row td { vertical-align: middle; }
         .kursteam-graph-disabled-host { position: relative; border-radius: 8px; }
@@ -92,8 +95,8 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-mortarboard"></i>Kursteams</span>
             </div>
-            <p>Unterrichtsdaten aus WebUntis importieren oder manuell erfassen, Kursteam‑Namen und Besitzer festlegen, Teams als <code>EDU_Class</code> per Graph oder PowerShell anlegen.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Unterrichtsdaten aus WebUntis importieren oder manuell erfassen, Kursteam‑Namen und Besitzer festlegen. <strong>Anlage:</strong> über <strong>CSV/PowerShell</strong> (<code>Kursteam-Anlage.cmd</code>) – der empfohlene und derzeit einzige zuverlässige Weg.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-kursteams" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -112,8 +115,8 @@
                 <div class="step" data-step="3">3. Manuelle Eingabe</div>
                 <div class="step" data-step="4">4. Lehrer zuordnen</div>
                 <div class="step" data-step="5">5. Teams konfigurieren</div>
-                <div class="step" data-step="6">6. Kursteams anlegen</div>
-                <div class="step step--optional" data-step="7" title="Optional">7. CSV/PowerShell</div>
+                <div class="step step--optional" data-step="6" title="Derzeit nicht verfügbar – bitte überspringen">6. Graph (nicht verfügbar)</div>
+                <div class="step" data-step="7" title="Empfohlener Anlageweg">7. Anlegen (CSV/CMD)</div>
                 <div class="step step--optional" data-step="8" title="Optional">8. Optional: Schüler</div>
             </div>
 
@@ -122,7 +125,18 @@
                 <div class="step-content active" data-step="0">
                     <h2>Schritt 0: Vorgehen wählen</h2>
                     <div class="alert alert-info">
-                        <strong>Hauptweg:</strong> In Schritt&nbsp;1 <strong>Lehrer, Fach, Klasse</strong> per <strong>Copy&nbsp;&amp;&nbsp;Paste</strong> einfügen oder eine <strong>CSV/Excel-Datei</strong> laden. Anschließend Daten bereinigen, Lehrer-E-Mails, Team-Namen und Anlage.
+                        <strong>Hauptweg:</strong> Schritt&nbsp;1 Daten importieren → bereinigen → Lehrer zuordnen → Team-Namen prüfen → <strong>Schritt&nbsp;7: CSV/CMD herunterladen und ausführen</strong>.
+                        Die Browser-Anlage per Graph (Schritt&nbsp;6) ist derzeit nicht verfügbar.
+                    </div>
+                    <div class="alert" style="margin-top:12px;line-height:1.5;">
+                        <strong>Kurz-Checkliste</strong>
+                        <ol style="margin:8px 0 0;padding-left:1.25em;">
+                            <li>Import oder manuelle Zeilen</li>
+                            <li>Daten bereinigen und Lehrer-E-Mails prüfen</li>
+                            <li>Team-Namen erzeugen</li>
+                            <li><strong>Kursteam-Anlage.cmd</strong> (Schritt&nbsp;7) starten</li>
+                            <li>Optional: Schüler als Mitglieder (Schritt&nbsp;8)</li>
+                        </ol>
                     </div>
                     <div id="kursteamStep0Cards" class="kursteam-start-grid">
                         <div class="kursteam-start-card">
@@ -151,20 +165,20 @@
 
                     <div class="import-paste-file-grid">
                         <div class="import-paste-file-col">
-                            <div class="filter-section" style="margin-bottom:0;border:1px solid #5e72e4;border-radius:12px;padding:18px;background:#f8f9ff;flex:1;display:flex;flex-direction:column;">
-                                <h3 style="margin-top:0;color:#32325d;">1. Daten einfügen (Copy &amp; Paste)</h3>
+                            <div class="filter-section" style="margin-bottom:0;border: 1px solid var(--border-strong);border-radius:12px;padding:18px;background: var(--soft);flex:1;display:flex;flex-direction:column;">
+                                <h3 style="margin-top:0;color: var(--heading);">1. Daten einfügen (Copy &amp; Paste)</h3>
                                 <label for="webuntisPasteInput" class="sr-only">Daten einfügen (Lehrer, Fach, Klasse)</label>
-                                <textarea id="webuntisPasteInput" rows="14" wrap="off" spellcheck="false" placeholder="LOEV	GWS	1A&#10;HOLZE	GEO	1A&#10;FRECH	BW	1A&#10;…" style="width:100%;max-width:100%;padding:12px;border:1px solid #ced4da;border-radius:8px;font-family:Consolas,'Segoe UI',monospace;font-size:0.9em;line-height:1.45;box-sizing:border-box;resize:vertical;flex:1;min-height:200px;"></textarea>
+                                <textarea id="webuntisPasteInput" rows="14" wrap="off" spellcheck="false" placeholder="LOEV	GWS	1A&#10;HOLZE	GEO	1A&#10;FRECH	BW	1A&#10;…" style="width:100%;max-width:100%;padding:12px;border: 1px solid var(--input-border);border-radius:8px;font-family:Consolas,'Segoe UI',monospace;font-size:0.9em;line-height:1.45;box-sizing:border-box;resize:vertical;flex:1;min-height:200px;"></textarea>
                                 <p style="margin-top:12px;margin-bottom:0;">
                                     <button type="button" class="btn btn-success" onclick="importWebuntisFromPaste()">Übernehmen</button>
                                 </p>
-                                <p style="color:#495057;line-height:1.5;margin-top:12px;margin-bottom:0;font-size:0.95em;">
+                                <p style="color: var(--text-secondary);line-height:1.5;margin-top:12px;margin-bottom:0;font-size:0.95em;">
                                     Pro Zeile drei Spalten: <strong>Lehrer-Kürzel</strong>, <strong>Fach</strong>, <strong>Klasse</strong>. Trenner: <strong>Tab</strong>, <strong>|</strong> oder Leerzeichen.
                                 </p>
                             </div>
                         </div>
                         <div class="import-paste-file-col">
-                            <h4 style="margin:0 0 10px;color:#32325d;">Datei-Import</h4>
+                            <h4 style="margin:0 0 10px;color: var(--heading);">Datei-Import</h4>
                             <div class="upload-area" id="uploadArea">
                                 <div class="upload-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></div>
                                 <h3>Datei hier ablegen oder klicken zum Auswählen</h3>
@@ -299,7 +313,7 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-small" id="manualFilterReset">Filter zurücksetzen</button>
-                        <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">
+                        <small style="color: var(--muted);display:block;margin-top:8px;line-height:1.45;">
                             Sortierung: Klicken Sie auf eine Spaltenüberschrift (Klasse/Fach/Lehrer/Gruppe) für aufsteigend/absteigend.
                         </small>
                     </div>
@@ -319,7 +333,7 @@
                     </div>
                     <div class="filter-section" id="manualTeamsPreviewContainer" style="display:none;margin-top:16px;">
                         <h3>Aktuell generierte Kursteams</h3>
-                        <p style="color:#6c757d;margin:0 0 10px;line-height:1.45;">
+                        <p style="color: var(--muted);margin:0 0 10px;line-height:1.45;">
                             Wird angezeigt, sobald in „Teams konfigurieren“ Team-Namen generiert wurden. Wenn Sie Daten hier ändern, müssen die Team-Namen danach neu generiert werden.
                         </p>
                         <div class="table-container" style="max-height: 340px;">
@@ -366,23 +380,23 @@
                         <h3>Lehrer-Liste importieren</h3>
                         <div class="import-paste-file-grid" style="margin-bottom: 16px;">
                             <div class="import-paste-file-col">
-                                <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid #dee2e6; border-radius: 12px; background: #f8f9fa; flex: 1; display: flex; flex-direction: column;">
+                                <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); flex: 1; display: flex; flex-direction: column;">
                                     <h4 style="margin-top: 0;">Kürzel und E-Mail einfügen (Copy &amp; Paste)</h4>
-                                    <textarea id="teacherEmailPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="MU&#9;max.mustermann@schule.de&#10;BME&#9;anna.beispiel@schule.de&#10;oder: MU;max.mustermann@schule.de"></textarea>
+                                    <textarea id="teacherEmailPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid var(--input-border); border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="MU&#9;max.mustermann@schule.de&#10;BME&#9;anna.beispiel@schule.de&#10;oder: MU;max.mustermann@schule.de"></textarea>
                                     <p style="margin-top: 10px; margin-bottom: 0;">
                                         <button type="button" class="btn" onclick="importTeacherEmailsFromPaste()">In Zuordnung übernehmen</button>
                                     </p>
                                 </div>
                             </div>
                             <div class="import-paste-file-col">
-                                <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
+                                <h4 style="margin: 0 0 10px; color: var(--heading);">Datei-Import</h4>
                                 <div class="upload-area" id="teacherUploadArea">
                                     <div class="upload-icon" aria-hidden="true"><i class="bi bi-person-video3"></i></div>
                                     <h3>Lehrer-Liste hier ablegen oder klicken</h3>
                                     <p>CSV oder Excel mit Lehrerkürzel und E-Mail-Adressen</p>
                                     <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
                                 </div>
-                                <p style="color: #6c757d; margin-top: 12px; margin-bottom: 8px;">
+                                <p style="color: var(--muted); margin-top: 12px; margin-bottom: 8px;">
                                     Vorlagen zum Ausfüllen:
                                     <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateCsv()">CSV-Vorlage</button>
                                     <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateXlsx()">Excel-Vorlage</button>
@@ -447,7 +461,7 @@
                             <input type="text" id="yearPrefix" value="SJ26" placeholder="z.B. SJ26, WS25, SS25">
                         </div>
                         <div class="filter-group">
-                            <p style="color:#6c757d;margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
+                            <p style="color: var(--muted);margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
                         </div>
                         <div class="filter-group">
                             <label>Team‑Name zusammenbauen (Drag &amp; Drop):</label>
@@ -524,22 +538,22 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" onclick="goToStep(6)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zu Schritt 6</button>
+                        <button type="button" class="btn btn-success" onclick="goToStep(7)" id="continueBtn4" style="display:none;"><i class="bi bi-arrow-right-circle"></i>Weiter zur Anlage (CSV/CMD)</button>
                     </div>
                 </div>
 
                 <!-- Schritt 6 (Graph deaktiviert), data-step 6 -->
                 <div class="step-content" data-step="6">
-                    <h2>Schritt 6: Kursteams anlegen (Microsoft Graph)</h2>
-                    <p style="color:#495057;line-height:1.45;margin-bottom:16px;">
+                    <h2>Schritt 6: Browser-Anlage (derzeit nicht verfügbar)</h2>
+                    <p style="color: var(--text-secondary);line-height:1.45;margin-bottom:16px;">
                         Echte Kursteams (<code>EDU_Class</code>) lassen sich in diesem Schritt im Browser derzeit nicht zuverlässig anlegen.
-                        Bitte fahren Sie mit <strong>Schritt&nbsp;7 (CSV/PowerShell)</strong> fort – dort funktioniert die Anlage wie gewohnt.
+                        <strong>Primärweg:</strong> <strong>Schritt&nbsp;7 (CSV/CMD)</strong> – dort funktioniert die Anlage wie gewohnt.
                     </p>
                     <div class="alert alert-info" style="margin-bottom:16px;line-height:1.55;">
                         <strong>Empfohlener Weg:</strong> Weiter zu <strong>Schritt&nbsp;7</strong> (CSV-Export &amp; PowerShell, z.&nbsp;B. <strong>Kursteam-Anlage.cmd</strong>).
                         Optional danach <strong>Schritt&nbsp;8</strong> für Schüler als Mitglieder.
                     </div>
-                    <div class="kursteam-graph-disabled-host filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                    <div class="kursteam-graph-disabled-host filter-section" style="margin-bottom:20px;border: 1px solid var(--border);border-radius:8px;padding:16px;background: var(--soft);">
                         <div id="kursteamGraphDisabledOverlay" class="kursteam-graph-disabled-overlay" aria-live="polite">
                             <p style="margin:0;color:#fff;text-align:center;font-weight:600;font-size:1.05em;line-height:1.5;max-width:28rem;text-shadow:0 1px 2px rgba(0,0,0,0.45);">Microsoft unterstützt diese Funktion zur Zeit nicht.</p>
                         </div>
@@ -547,7 +561,7 @@
                             <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
                             <button type="button" class="btn btn-secondary" id="kursteamOnlineLogin" disabled aria-disabled="true"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
                             <button type="button" class="btn btn-secondary" id="kursteamOnlineRun" disabled aria-disabled="true" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Kursteams jetzt anlegen</button>
-                            <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;pointer-events:none;"></div>
+                            <div id="kursteamOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background: var(--card);border: 1px solid var(--input-border);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;pointer-events:none;"></div>
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
@@ -566,40 +580,40 @@
                         Wenn ein Kursteam eine Gruppe (z. B. G1) hat, wird bevorzugt die passende <code>Klasse;Gruppe</code>‑Liste verwendet, sonst die Klassenliste.
                     </div>
 
-                    <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
+                    <div class="filter-section" style="margin-bottom:20px;border: 1px solid var(--border);border-radius:8px;padding:16px;background: var(--soft);">
                         <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
-                        <p style="color:#495057;margin:0 0 12px;line-height:1.5;font-size:0.95em;">
+                        <p style="color: var(--text-secondary);margin:0 0 12px;line-height:1.5;font-size:0.95em;">
                             Zuerst <strong>Kursteams aus Microsoft laden</strong>: Es werden alle Team-Gruppen im Mandanten per Graph abgefragt (mailNickname).
                             Anschließend werden Schüler den passenden Teams nach <strong>Klasse/Gruppe</strong> (wie in der Liste) zugeordnet – dieselbe Logik wie beim PowerShell-Skript.
                         </p>
                         <button type="button" class="btn" id="studentRosterOnlineLogin" onclick="window.ms365KursteamMembersGraphLogin && window.ms365KursteamMembersGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
                         <button type="button" class="btn" id="studentRosterFetchGraphTeams" onclick="window.ms365KursteamMembersFetchGraphTeams && window.ms365KursteamMembersFetchGraphTeams()" style="margin-left:8px;"><i class="bi bi-cloud-download"></i>Kursteams aus Microsoft laden</button>
                         <button type="button" class="btn btn-success" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Schüler jetzt hinzufügen (online)</button>
-                        <div id="studentRosterOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                        <div id="studentRosterOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background: var(--card);border: 1px solid var(--input-border);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
 
                     <div class="filter-section" style="margin-bottom:16px;">
                         <h3>Schülerliste einfügen</h3>
                         <div class="import-paste-file-grid" style="margin-bottom: 0;">
                             <div class="import-paste-file-col">
-                                <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid #dee2e6; border-radius: 12px; background: #f8f9fa; flex: 1; display: flex; flex-direction: column;">
+                                <div class="filter-section" style="margin-bottom: 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); flex: 1; display: flex; flex-direction: column;">
                                     <h4 style="margin-top: 0;">Copy &amp; Paste</h4>
-                                    <textarea id="studentRosterPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="1A;schueler1@schule.de&#10;1A;schueler2@schule.de&#10;1A;G1;sprachgruppe1@schule.de&#10;# Kommentare sind erlaubt"></textarea>
+                                    <textarea id="studentRosterPasteInput" rows="10" style="width: 100%; max-width: 100%; box-sizing: border-box; font-family: Consolas, 'Segoe UI', monospace; font-size: 0.9em; padding: 10px; border: 1px solid var(--input-border); border-radius: 6px; flex: 1; min-height: 180px; resize: vertical;" placeholder="1A;schueler1@schule.de&#10;1A;schueler2@schule.de&#10;1A;G1;sprachgruppe1@schule.de&#10;# Kommentare sind erlaubt"></textarea>
                                     <p style="margin-top: 10px; margin-bottom: 0;">
                                         <button type="button" class="btn btn-success" id="btnStudentRosterApply">Übernehmen</button>
                                     </p>
-                                    <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;">Trenner: Semikolon, Tab, | oder mehrere Leerzeichen. Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
+                                    <small style="color: var(--muted);display:block;margin-top:10px;line-height:1.45;">Trenner: Semikolon, Tab, | oder mehrere Leerzeichen. Leere Zeilen und Zeilen mit <code>#</code> am Anfang werden ignoriert.</small>
                                 </div>
                             </div>
                             <div class="import-paste-file-col">
-                                <h4 style="margin: 0 0 10px; color: #32325d;">Datei-Import</h4>
+                                <h4 style="margin: 0 0 10px; color: var(--heading);">Datei-Import</h4>
                                 <div class="upload-area" id="studentRosterUploadArea">
                                     <div class="upload-icon" aria-hidden="true"><i class="bi bi-person-workspace"></i></div>
                                     <h3>Schülerliste hier ablegen oder klicken</h3>
                                     <p>CSV oder Excel mit Klasse, optional Gruppe, UPN/E-Mail</p>
                                     <input type="file" id="studentRosterFileInput" accept=".csv,.xlsx,.xls">
                                 </div>
-                                <p style="color:#6c757d;margin-top:12px;margin-bottom:0;line-height:1.45;">
+                                <p style="color: var(--muted);margin-top:12px;margin-bottom:0;line-height:1.45;">
                                     Erwartete Spalten: <strong>Klasse</strong>, optional <strong>Gruppe</strong>, sowie <strong>UPN/E-Mail</strong> (z. B. <code>UPN</code>, <code>E-Mail</code>, <code>Email</code>).
                                 </p>
                             </div>
@@ -638,7 +652,7 @@
 
                     <div class="filter-section" style="margin-top:0;">
                         <h3>Teams auswählen</h3>
-                        <p style="color:#6c757d;margin:0 0 10px;line-height:1.45;">Hier können Sie festlegen, <strong>welche</strong> Kursteams Mitglieder bekommen. Standard: nur Teams, für die passende Schülerdaten gefunden wurden.</p>
+                        <p style="color: var(--muted);margin:0 0 10px;line-height:1.45;">Hier können Sie festlegen, <strong>welche</strong> Kursteams Mitglieder bekommen. Standard: nur Teams, für die passende Schülerdaten gefunden wurden.</p>
                         <p style="margin:0 0 10px;">
                             <button type="button" class="btn btn-small" id="studentRosterSelectAll">Alle</button>
                             <button type="button" class="btn btn-small" id="studentRosterSelectNone" style="margin-left:6px;">Keine</button>
@@ -662,11 +676,11 @@
                                     </tr>
                                 </thead>
                                 <tbody id="studentRosterTeamsBody">
-                                    <tr><td colspan="4" style="color:#6c757d;">Noch keine Teams oder Schülerliste – zuerst oben übernehmen.</td></tr>
+                                    <tr><td colspan="4" style="color: var(--muted);">Noch keine Teams oder Schülerliste – zuerst oben übernehmen.</td></tr>
                                 </tbody>
                             </table>
                         </div>
-                        <small style="color:#6c757d;display:block;margin-top:10px;line-height:1.45;"><strong>Hinweis:</strong> Teams ohne gefundene Schüler werden nicht befüllt, auch wenn sie ausgewählt sind.</small>
+                        <small style="color: var(--muted);display:block;margin-top:10px;line-height:1.45;"><strong>Hinweis:</strong> Teams ohne gefundene Schüler werden nicht befüllt, auch wenn sie ausgewählt sind.</small>
                     </div>
 
                     <h3>Generiertes PowerShell‑Script</h3>
@@ -682,7 +696,10 @@
 
                 <!-- Schritt 7 (CSV/PowerShell), data-step 7 -->
                 <div class="step-content" data-step="7">
-                    <h2>Schritt 7: CSV-Export &amp; PowerShell</h2>
+                    <h2>Schritt 7: Anlegen per CSV &amp; CMD (empfohlen)</h2>
+                    <div class="alert alert-info" style="margin-bottom:16px;line-height:1.55;">
+                        <strong>Das ist der Primärweg.</strong> Laden Sie die CSV und die <strong>Kursteam-Anlage.cmd</strong> herunter, entsperren Sie die CMD bei Bedarf (Windows) und führen Sie sie aus.
+                    </div>
                     <div id="step4NoTeamsWarning" class="alert alert-warning" style="display:none;">
                         <strong>⚠️ Hinweis:</strong> Es sind noch keine gültigen Teams vorhanden. Bitte gehen Sie zu Schritt „Teams konfigurieren“ und klicken Sie auf <strong>Team-Namen generieren</strong>.
                     </div>
@@ -728,7 +745,7 @@ foreach ($Team in $TeamsList) {
                     </div>
                     <div class="filter-section">
                         <h3>Fertiges Paket zum Doppelklicken</h3>
-                        <p style="color:#495057;margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download).</p>
+                        <p style="color: var(--text-secondary);margin-bottom:12px;">Lädt <strong>eine</strong> Datei <strong>Kursteam-Anlage.cmd</strong> (enthält das PowerShell-Skript eingebettet – keine separate .ps1 im Download).</p>
                         <button type="button" class="btn btn-success" onclick="downloadKursteamStandalonePackage()"><i class="bi bi-box-seam"></i>Kursteam-Anlage.cmd herunterladen</button>
                     </div>
                     <div class="step-nav-row">
@@ -782,5 +799,6 @@ foreach ($Team in $TeamsList) {
     -->
     <script src="../src/shared/ms365-module-guard.js" defer></script>
     <script type="module" src="../src/tools/kursteams/kursteam-teams.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

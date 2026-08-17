@@ -50,6 +50,16 @@ export function isWelcomePath(pathname) {
     return /\/welcome\.html$/i.test(pathname || '');
 }
 
+/** Hilfe und Datenschutz ohne PIN-Sperre. */
+export function isHelpPath(pathname) {
+    return /\/hilfe\.html$/i.test(pathname || '');
+}
+
+/** Seiten, die die PIN-Sperre nicht auslösen. */
+export function isPinExemptPath(pathname) {
+    return isWelcomePath(pathname) || isHelpPath(pathname);
+}
+
 /**
  * @param {string} scriptSrc URL von pin-gate.js (…/src/shared/pin-gate.js)
  */

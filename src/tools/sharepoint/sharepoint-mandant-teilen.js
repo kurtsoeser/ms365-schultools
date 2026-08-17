@@ -123,68 +123,41 @@
         const reshare = $('fReshare').checked;
         const matchInv = $('fMatchInvite').checked;
 
-        const lines = [];
-        if (!lastRawSettings) {
-            lines.push(
-                '<em style="color:#64748b">Noch kein Abruf aus dem Mandanten – untenstehende Zusammenfassung zeigt nur die aktuellen Formularwerte. „Stand laden“ ausführen, um mit der Cloud zu vergleichen.</em>'
-            );
-        }
-        lines.push(
-            '<strong>Externes Teilen (Stufe):</strong> ' +
-                capLabelDe(cap) +
-                ' <span style="color:#64748b">(' +
-                cap +
-                ')</span>.'
-        );
-        lines.push('<strong>Domain-Modus:</strong> ' + domainModeDe(mode) + ' <span style="color:#64748b">(' + mode + ')</span>.');
+        const capTone =
+            cap === 'disabled' ? 'is-ok' : cap === 'externalUserAndGuestSharing' ? 'is-danger' : 'is-warn';
+        let domainValue = domainModeDe(mode);
         if (mode === 'allowList') {
-            const preview =
-                allow.length > 0
-                    ? allow
-                          .slice(0, 3)
-                          .map(function (d) {
-                              return escapeHtml(d);
-                          })
-                          .join('“, „')
-                    : '';
-            lines.push(
-                '<strong>Erlaubte Domains:</strong> ' +
-                    (allow.length
-                        ? allow.length + ' Einträge – z. B. „' + preview + (allow.length > 3 ? '“ …' : '“')
-                        : 'keine Einträge (Liste leer).')
-            );
+            domainValue = allow.length ? allow.length + ' erlaubte Domain(s)' : 'Erlaubnisliste leer';
         } else if (mode === 'blockList') {
-            lines.push(
-                '<strong>Blockierte Domains:</strong> ' +
-                    (block.length ? block.length + ' Einträge (Details in den Textfeldern).' : 'keine Einträge (Liste leer).')
-            );
-        } else {
-            lines.push('<strong>Domain-Listen:</strong> werden im Modus „none“ nicht ausgewertet.');
-        }
-        lines.push(
-            '<strong>Gäste erneut teilen:</strong> ' +
-                (reshare ? 'erlaubt' : 'nicht erlaubt') +
-                ' (<code>isResharingByExternalUsersEnabled</code>).'
-        );
-        lines.push(
-            '<strong>Einladung = Konto:</strong> ' +
-                (matchInv ? 'ja, Gast muss mit der eingeladenen Identität anmelden' : 'nein') +
-                ' (<code>isRequireAcceptingUserToMatchInvitedUserEnabled</code>).'
-        );
-
-        if (lastRawSettings && lastRawSettings.tenantDefaultTimezone) {
-            lines.push(
-                '<strong>Hinweis aus derselben API-Antwort:</strong> Standardzeitzone für neue Sites ist <code>' +
-                    escapeHtml(String(lastRawSettings.tenantDefaultTimezone)) +
-                    '</code> (wird im Werkzeug „Websiteerstellung“ bearbeitet).'
-            );
+            domainValue = block.length ? block.length + ' gesperrte Domain(s)' : 'Sperrliste leer';
         }
 
-        lines.push(
-            '<strong>Standard-Freigabelink (Lesen/Bearbeiten &amp; Link-Typ):</strong> steht <em>nicht</em> in <code>sharepointSettings</code> – dafür den Abschnitt <strong>„Datei- und Ordnerlinks“</strong> weiter unten (Icons + PowerShell) oder das SharePoint Admin Center nutzen.'
-        );
+        const note = lastRawSettings
+            ? ''
+            : '<p class="hint" style="margin:0 0 12px;">Noch nicht aus der Cloud geladen – zeigt die aktuellen Formularwerte. Oben „Stand laden“ tippen.</p>';
 
-        el.innerHTML = '<h3>Zusammenfassung</h3><ul><li>' + lines.join('</li><li>') + '</li></ul>';
+        el.innerHTML =
+            note +
+            '<div class="tm-glance">' +
+            '<div class="tm-glance__card ' +
+            capTone +
+            '"><i class="bi bi-globe2" aria-hidden="true"></i><span class="tm-glance__label">Teilen</span><span class="tm-glance__value">' +
+            escapeHtml(capLabelDe(cap)) +
+            '</span></div>' +
+            '<div class="tm-glance__card"><i class="bi bi-funnel" aria-hidden="true"></i><span class="tm-glance__label">Domains</span><span class="tm-glance__value">' +
+            escapeHtml(domainValue) +
+            '</span></div>' +
+            '<div class="tm-glance__card ' +
+            (reshare ? 'is-warn' : 'is-ok') +
+            '"><i class="bi bi-arrow-repeat" aria-hidden="true"></i><span class="tm-glance__label">Weiterteilen</span><span class="tm-glance__value">' +
+            (reshare ? 'Gäste dürfen' : 'Gäste nicht') +
+            '</span></div>' +
+            '<div class="tm-glance__card ' +
+            (matchInv ? 'is-ok' : '') +
+            '"><i class="bi bi-envelope-check" aria-hidden="true"></i><span class="tm-glance__label">Einladung</span><span class="tm-glance__value">' +
+            (matchInv ? 'Konto muss passen' : 'Flexibel') +
+            '</span></div>' +
+            '</div>';
         panel.style.display = '';
     }
 
@@ -246,12 +219,12 @@
                 const help = FIELD_HELP_DE[k] || 'Wert aus Microsoft Graph /admin/sharepoint/settings.';
                 return (
                     '<div class="spo-readonly-pill">' +
-                    '<span class="k">' +
-                    escapeHtml(k) +
+                    '<span class="d" style="border:0;padding:0;margin:0 0 8px;font-weight:800;color:var(--heading);font-size:0.9em;">' +
+                    escapeHtml(help) +
                     '</span>' +
                     formatValueMiddleHtml(raw[k]) +
-                    '<span class="d">' +
-                    escapeHtml(help) +
+                    '<span class="k">' +
+                    escapeHtml(k) +
                     '</span>' +
                     '</div>'
                 );
@@ -268,6 +241,11 @@
         $('fReshare').checked = !!s.isResharingByExternalUsersEnabled;
         $('fMatchInvite').checked = !!s.isRequireAcceptingUserToMatchInvitedUserEnabled;
         syncLadderUi();
+        try {
+            $('fDomainMode').dispatchEvent(new Event('change', { bubbles: true }));
+        } catch {
+            /* ignore */
+        }
     }
 
     function readPatchBody() {

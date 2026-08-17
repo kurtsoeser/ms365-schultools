@@ -1,192 +1,225 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
-    <title>MS365-Schulverwaltung – Jahrgangsgruppen</title>
+    <title>MS365-Schulverwaltung – Klassengruppen</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        .page-card { max-width: 1400px; margin: 0 auto; }
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(280px, 0.9fr) 1.2fr;
-            gap: 16px;
-            align-items: start;
-            padding-bottom: 8px;
-        }
-        @media (max-width: 1050px) {
-            .layout { grid-template-columns: 1fr; }
-        }
-        .panel {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: #fff;
-            overflow: hidden;
-        }
-        .panel-head {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, rgba(94, 114, 228, 0.10) 0%, rgba(130, 94, 228, 0.06) 100%);
-        }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
-        .panel-body { padding: 14px 16px; }
-        .muted { color: var(--muted); }
-        .mode-tabs {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            margin: 12px 0 0;
-        }
-        .mode-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-        .mode-actions .btn { margin: 0; padding: 10px 14px; border-radius: 10px; }
         .tree {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-            border: 1px solid var(--border);
-            border-radius: 12px;
             overflow: auto;
             max-height: min(62vh, 640px);
         }
-        .tree li { border-bottom: 1px solid #f0f1f3; }
-        .tree li:last-child { border-bottom: 0; }
-        .tree button {
-            width: 100%;
-            text-align: left;
-            background: transparent;
-            border: 0;
-            padding: 12px 14px;
-            cursor: pointer;
+        .tree li {
             display: flex;
-            gap: 12px;
+            align-items: stretch;
+        }
+        .tree li .jg-pick {
+            display: flex;
             align-items: center;
-            font: inherit;
-            box-sizing: border-box;
+            padding: 0 0 0 10px;
+            flex: 0 0 auto;
         }
-        .tree button:hover { background: rgba(94, 114, 228, 0.06); }
-        .tree button[aria-current="true"] { background: rgba(94, 114, 228, 0.10); }
-        .tree button .slg-side-main { flex: 1; min-width: 0; }
-        .tree button .slg-side-title {
-            font-weight: 900;
-            color: #32325d;
-            display: block;
-            line-height: 1.25;
-        }
-        .tree button .slg-side-meta {
-            display: block;
-            margin-top: 4px;
-            font-size: 0.88em;
-            line-height: 1.35;
-            word-break: break-word;
-        }
-        .detail-tabs-sticky {
-            position: sticky;
-            top: 0;
-            z-index: 4;
-            padding-top: 2px;
-            margin-top: 4px;
-            margin-bottom: 4px;
-            background: #fff;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-            box-shadow: 0 10px 22px rgba(50, 50, 93, 0.06);
-        }
-        .detail-tabs {
-            display: flex;
-            gap: 8px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            padding: 0;
+        .tree li .jg-pick input {
+            width: 16px;
+            height: 16px;
             margin: 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .detail-tab-btn {
-            appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.18);
-            border-bottom: 0;
-            background: linear-gradient(180deg, rgba(94, 114, 228, 0.06) 0%, rgba(255, 255, 255, 0.92) 100%);
-            color: #32325d;
-            border-top-left-radius: 14px;
-            border-top-right-radius: 14px;
-            padding: 10px 12px;
-            font-weight: 1000;
             cursor: pointer;
-            box-shadow: 0 8px 18px rgba(50, 50, 93, 0.08);
-            font: inherit;
         }
-        .detail-tab-btn[aria-selected="true"] {
-            background: #fff;
-            border-color: rgba(94, 114, 228, 0.30);
-            box-shadow: 0 12px 22px rgba(94, 114, 228, 0.16);
-            transform: translateY(1px);
+        .tree li .jg-pick input:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
         }
-        .detail-tab-btn:focus-visible {
-            outline: 2px solid rgba(94, 114, 228, 0.55);
-            outline-offset: 3px;
+        .tree button {
+            width: auto;
+            flex: 1;
+            min-width: 0;
         }
-        .tab-panel { display: none; margin-top: 12px; }
-        .tab-panel.active { display: block; }
-        .form-grid {
+        .jg-match-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .jg-match-badge .bi { font-size: 1.05em; }
+        .jg-match-badge.is-ok { color: #0f7b4c; }
+        .jg-match-badge.is-warn { color: #c0392b; }
+        .tree button.is-matched { box-shadow: inset 3px 0 0 #3cb371; }
+        .tree button.is-unmatched { box-shadow: inset 3px 0 0 #e07470; }
+        .jg-bulk {
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--soft);
+        }
+        .jg-bulk-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .jg-bulk-head-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .jg-bulk-head-title > .bi {
+            color: var(--brand1);
+            font-size: 1.15em;
+        }
+        .jg-bulk-head-title .slg-section-title { margin: 0; }
+        .jg-bulk-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border);
+            background: var(--card);
+            font-size: 0.82em;
+            font-weight: 700;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+        .jg-bulk-count .bi { margin: 0; }
+        .jg-bulk-count.is-active {
+            color: var(--brand1);
+            border-color: color-mix(in srgb, var(--brand1) 35%, var(--border));
+            background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+        }
+        .jg-bulk-hint {
+            margin: 0 0 12px;
+            font-size: 0.86em;
+            line-height: 1.4;
+        }
+        .jg-bulk-group { margin: 0 0 12px; }
+        .jg-bulk-group:last-child { margin-bottom: 0; }
+        .jg-bulk-group-label {
+            margin: 0 0 8px;
+            font-size: 0.72em;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .jg-bulk-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin: 0;
+        }
+        .jg-bulk-toolbar .btn {
+            margin: 0;
+            padding: 7px 12px;
+            font-size: 0.88em;
+        }
+        .jg-bulk-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .jg-bulk-tile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+            min-height: 84px;
+            padding: 12px 8px;
+            font-size: 0.86em;
+            line-height: 1.25;
+            text-align: center;
+            white-space: normal;
+        }
+        .jg-bulk-tile .bi {
+            margin: 0 !important;
+            font-size: 1.35em;
+            line-height: 1;
+        }
+        .jg-bulk-tile-label { font-weight: 750; }
+        .jg-bulk-tile small {
+            display: block;
+            font-size: 0.76em;
+            font-weight: 600;
+            opacity: 0.88;
+        }
+        .jg-bulk-tile.btn-danger {
+            box-shadow: none;
+        }
+        .jg-bulk-owner {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+        }
+        .jg-bulk-owner .field { margin: 0 0 8px; }
+        .jg-bulk-owner-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: stretch;
+        }
+        .jg-bulk-owner-row input,
+        .jg-bulk-owner-row select {
+            flex: 1;
+            min-width: 140px;
+        }
+        .jg-bulk-owner-row .btn {
+            margin: 0;
+            padding: 8px 12px;
+        }
+        .jg-bulk-status {
+            margin: 8px 0 0;
+            font-size: 0.88em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        .jg-catalog-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .jg-catalog-actions .btn { margin: 0; }
+        #jgClassModal .modal-box { max-width: 520px; }
+        #jgClassModal .field { margin: 0 0 12px; }
+        #jgClassModal .field label { display: block; margin-bottom: 4px; font-weight: 600; }
+        #jgClassModal .field input[type="text"] { width: 100%; box-sizing: border-box; }
+        #jgClassModal .jg-modal-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            margin-top: 12px;
         }
-        @media (max-width: 900px) {
-            .form-grid { grid-template-columns: 1fr; }
+        @media (max-width: 560px) {
+            .jg-bulk-actions { grid-template-columns: 1fr; }
+            .jg-bulk-tile {
+                flex-direction: row;
+                justify-content: flex-start;
+                min-height: 0;
+                text-align: left;
+                gap: 10px;
+                padding: 10px 12px;
+            }
+            .jg-bulk-tile-label small { display: inline; margin-left: 4px; }
         }
-        .field label { display: block; font-weight: 700; margin: 0 0 6px; color: #495057; }
-        .field input,
-        .field select,
-        .field textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font: inherit;
-            box-sizing: border-box;
-        }
-        .field textarea { min-height: 88px; resize: vertical; }
-        .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-        .detail-actions .btn { margin: 0; }
-        .hint {
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--soft);
-            color: #495057;
-            line-height: 1.45;
-        }
-        .slg-search-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
-        .slg-search-wrap input { flex: 1 1 220px; min-width: 180px; }
-        .slg-search-results { margin-top: 12px; }
-        .slg-section-title { font-weight: 1000; color: #32325d; margin: 0 0 6px; font-size: 0.98em; }
-        .slg-owner-member-box {
-            margin-top: 10px;
-            max-height: 240px;
-            overflow: auto;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 10px 12px;
-            background: #fff;
-            font-size: 0.92em;
-        }
-        .slg-sync-log {
-            max-height: 200px;
-            overflow: auto;
-            padding: 10px 12px;
-            background: #fff;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font-family: Consolas, monospace;
-            font-size: 0.85em;
-            line-height: 1.45;
-            margin-top: 8px;
+        @media (max-width: 520px) {
+            #jgClassModal .jg-modal-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -196,240 +229,149 @@
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Jahrgangsgruppen</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Klassengruppen</span>
             </div>
-            <p>Klassen aus den <strong>Schul‑Einstellungen</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen. Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Owner, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Alltagspflege: Klassen aus den <strong>Schul‑Einstellungen</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Klassen direkt hier erfassen (werden in die Schul‑Einstellungen des aktuellen Schuljahrs zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Owner, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-jahrgang" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="../tenant.html#classes" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Schul‑Einstellungen</a>
-                    </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                        <a class="btn" href="jahrgang.html" style="text-decoration:none;display:inline-block;" id="jgWizardLink"><i class="bi bi-magic"></i>Wizard: alle neu erstellen</a>
-                    </div>
-                </div>
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div class="content">
-            <div class="alert alert-warning" style="margin-top:0;">
-                <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
-                Dieses Werkzeug verwaltet Unified‑Gruppen je Klasse aus den Stammdaten des aktuellen Schuljahrs.
-            </div>
-
-            <div class="mode-tabs" aria-label="Anmeldung und Listen">
-                <div class="mode-actions">
-                    <button type="button" class="btn" id="slgBtnLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                    <button type="button" class="btn" id="slgBtnReloadLists"><i class="bi bi-arrow-clockwise"></i>Listen neu einlesen</button>
-                </div>
-            </div>
-            <p class="muted" style="margin:10px 0 16px; line-height:1.45;">
-                Quelle: <a href="../tenant.html#classes">Schul‑Einstellungen</a> (Klassen des aktuellen Schuljahrs). Besitzer beim Anlegen: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer. Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Klassenkürzel.
-            </p>
-
-            <div class="layout">
+            <div class="gd-layout">
                 <section class="panel" aria-label="Klassen auswählen">
                     <div class="panel-head">
                         <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Klassen</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;" id="jgYearLabel">Aktuelles Schuljahr – links Klasse wählen, rechts matchen oder anlegen.</p>
+                        <p class="muted" style="margin:8px 0 0; line-height:1.45;" id="jgYearLabel">Aktuelles Schuljahr – links Klasse wählen bzw. neu anlegen, rechts matchen oder eine Gruppe erstellen.</p>
                     </div>
                     <div class="panel-body">
                         <div class="field" style="margin:0 0 10px;">
                             <label for="jgListFilter">Liste filtern</label>
-                            <input type="search" id="jgListFilter" placeholder="Kürzel, Name oder Nickname …" autocomplete="off">
+                            <input type="search" id="jgListFilter" placeholder="Kürzel, Name oder Nickname …" autocomplete="off" style="width:100%; box-sizing:border-box;">
+                            <div class="jg-catalog-actions" role="group" aria-label="Klassenaktionen">
+                                <button type="button" class="btn btn-success" id="jgBtnAddClass" title="Neue Klasse anlegen und in die Schul-Einstellungen schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="btn" id="jgBtnEditClass" title="Ausgewählte Klasse bearbeiten" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
+                                <button type="button" class="btn" id="jgBtnDeleteClass" title="Ausgewählte Klasse aus den Schul-Einstellungen entfernen" disabled><i class="bi bi-trash"></i>Löschen</button>
+                                <button type="button" class="btn" id="slgBtnReloadLists" title="Klassenliste aus den Schul-Einstellungen neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                            </div>
                         </div>
                         <p class="muted" id="jgListSummary" style="margin:0 0 8px;">–</p>
-                        <ul class="tree" id="jgListItems" aria-label="Jahrgangsgruppen"></ul>
+                        <ul class="tree" id="jgListItems" aria-label="Klassengruppen"></ul>
+                        <div class="jg-bulk" aria-label="Sammelaktionen">
+                            <div class="jg-bulk-head">
+                                <div class="jg-bulk-head-title">
+                                    <i class="bi bi-layers" aria-hidden="true"></i>
+                                    <div class="slg-section-title">Sammelaktionen</div>
+                                </div>
+                                <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
+                            </div>
+                            <p class="jg-bulk-hint muted">Zuerst gematchte Klassen ankreuzen. Owner wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match.</p>
+                            <div class="jg-bulk-group" role="group" aria-label="Auswahl">
+                                <div class="jg-bulk-group-label">Auswahl</div>
+                                <div class="jg-bulk-toolbar">
+                                    <button type="button" class="btn btn-ghost" id="jgBtnSelectMatched" title="Alle gematchten Klassen in der aktuellen Liste ankreuzen"><i class="bi bi-check2-all"></i>Gematchte ankreuzen</button>
+                                    <button type="button" class="btn btn-ghost" id="jgBtnSelectNone" title="Alle Häkchen in der Klassenliste entfernen"><i class="bi bi-x-square"></i>Auswahl aufheben</button>
+                                </div>
+                            </div>
+                            <div class="jg-bulk-group" role="group" aria-label="Aktionen">
+                                <div class="jg-bulk-group-label">Aktionen</div>
+                                <div class="jg-bulk-actions">
+                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnSmtpAll" title="Exchange-Skript: primäre SMTP aller gematchten Klassen auf die Schul-Domain setzen">
+                                        <i class="bi bi-envelope-at" aria-hidden="true"></i>
+                                        <span class="jg-bulk-tile-label">SMTP-Skript<small>alle Klassen</small></span>
+                                    </button>
+                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnBulkOwner" title="Eine Person als Owner zu den angekreuzten Gruppen hinzufügen">
+                                        <i class="bi bi-person-plus" aria-hidden="true"></i>
+                                        <span class="jg-bulk-tile-label">Owner setzen<small>Person hinzufügen</small></span>
+                                    </button>
+                                    <button type="button" class="btn btn-danger jg-bulk-tile" id="jgBtnBulkDelete" title="Angekreuzte Microsoft-365-Gruppen löschen">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                        <span class="jg-bulk-tile-label">Löschen<small>ausgewählte Gruppen</small></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="jg-bulk-owner" id="jgBulkOwnerPanel" hidden>
+                                <div class="field">
+                                    <label for="jgBulkOwnerSearch">Benutzer suchen (wird Owner aller ausgewählten Gruppen)</label>
+                                    <div class="jg-bulk-owner-row">
+                                        <input type="text" id="jgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
+                                        <button type="button" class="btn" id="jgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label for="jgBulkOwnerResults">Treffer</label>
+                                    <div class="jg-bulk-owner-row">
+                                        <select id="jgBulkOwnerResults"></select>
+                                        <button type="button" class="btn btn-success" id="jgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Owner hinzufügen</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="jg-bulk-status muted" id="jgBulkStatus" hidden></p>
+                        </div>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
-                            <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung öffnen</a>
-                            · <a href="jahrgang.html" style="text-decoration:none; color:inherit;">Wizard: alle neu erstellen</a>
+                            <a href="../tenant.html#classes" style="text-decoration:none; color:inherit;"><i class="bi bi-gear"></i> Schul‑Einstellungen</a>
+                            · <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung</a>
+                            · <a href="jahrgang.html" style="text-decoration:none; color:inherit;" title="Nur für die einmalige Neuanlage aller Klassengruppen">Einmalig: alle neu anlegen (Wizard)</a>
                         </p>
                     </div>
                 </section>
 
                 <section class="panel" aria-label="Details">
-                    <div class="panel-head" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-                        <div>
-                            <h2 id="slgDetailTitle" style="margin:0;">Jahrgangsgruppe</h2>
-                            <div class="muted" id="slgDetailSubtitle" style="margin-top:6px;">Gruppe matchen oder anlegen</div>
-                        </div>
-                        <div class="detail-actions" style="margin-top:0;">
-                            <button type="button" class="btn" id="slgBtnOpenEntra" disabled><i class="bi bi-box-arrow-up-right"></i>Entra öffnen</button>
-                            <button type="button" class="btn btn-danger" id="slgBtnUnmatch" disabled><i class="bi bi-x-circle"></i>Match lösen</button>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div id="jgEmptyHint" class="hint" style="display:none;">
-                            Keine Klassen in diesem Schuljahr. Bitte unter <a href="../tenant.html#classes">Schul‑Einstellungen</a> Klassen pflegen.
-                        </div>
-                        <div id="jgDetailWrap">
-                        <div class="detail-tabs-sticky" aria-label="Detail-Tabs">
-                            <div class="detail-tabs" role="tablist" id="slgDetailTabs" aria-label="Tabs Details">
-                                <button type="button" class="detail-tab-btn" id="slgTabBtnGeneral" role="tab" data-slg-tab="general" aria-selected="true" aria-controls="slgTabGeneral">Allgemein</button>
-                                <button type="button" class="detail-tab-btn" id="slgTabBtnOwners" role="tab" data-slg-tab="owners" aria-selected="false" aria-controls="slgTabOwners">Owner</button>
-                                <button type="button" class="detail-tab-btn" id="slgTabBtnMembers" role="tab" data-slg-tab="members" aria-selected="false" aria-controls="slgTabMembers">Mitglieder</button>
-                            </div>
-                        </div>
-
-                        <div id="slgTabGeneral" class="tab-panel active" role="tabpanel" data-slg-tab-content="general" aria-labelledby="slgTabBtnGeneral">
-                            <div id="slgUnmatchedPanel">
-                                <div class="field" style="margin-top:0;">
-                                    <label for="slgGroupSearch">Bestehende Gruppe suchen (Name, Mail, Alias, Beschreibung)</label>
-                                    <div class="slg-search-wrap">
-                                        <input type="text" id="slgGroupSearch" autocomplete="off" placeholder="z. B. 1AK oder jg2030ak">
-                                        <button type="button" class="btn" id="slgBtnSearch"><i class="bi bi-search"></i>Suchen</button>
-                                    </div>
-                                    <div id="slgGroupSearchResults" class="slg-search-results" style="display:none;"></div>
-                                </div>
-
-                                <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);">
-                                    <div class="slg-section-title">Neue Gruppe anlegen</div>
-                                    <p class="muted" style="margin:0 0 10px;">Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit dieser Klasse. Optional auch als Team bereitstellen.</p>
-                                    <div class="form-grid" style="margin-top:0;">
-                                        <div class="field" style="grid-column:1 / -1;">
-                                            <label for="slgNewDisplayName">Anzeigename</label>
-                                            <input type="text" id="slgNewDisplayName" maxlength="200" autocomplete="off">
-                                        </div>
-                                        <div class="field">
-                                            <label for="slgNewMailNick">Alias / Mail‑Nickname</label>
-                                            <input type="text" id="slgNewMailNick" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin">
-                                        </div>
-                                        <div class="field">
-                                            <label for="slgNewDescription">Beschreibung</label>
-                                            <input type="text" id="slgNewDescription" maxlength="512" autocomplete="off">
-                                        </div>
-                                    </div>
-                                    <label class="checkbox-label" for="slgNewCreateTeam" style="margin-top:12px; display:inline-flex;">
-                                        <input type="checkbox" id="slgNewCreateTeam">
-                                        <span>Auch als <strong>Team</strong> anlegen (optional)</span>
-                                    </label>
-                                    <div class="detail-actions">
-                                        <button type="button" class="btn btn-success" id="slgBtnCreate"><i class="bi bi-plus-circle"></i>Anlegen &amp; matchen</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="slgMatchedPanel" style="display:none;">
-                                <div class="hint" style="margin-bottom:12px;">
-                                    Gematchte Microsoft 365‑Gruppe – Details wie in der <strong>MS&nbsp;365 Gruppenverwaltung</strong>. E‑Mail und Alias bleiben unverändert.
-                                </div>
-                                <div class="form-grid" style="margin-top:0;">
-                                    <div class="field">
-                                        <label for="slgLiveName">Anzeigename</label>
-                                        <input type="text" id="slgLiveName" maxlength="200" autocomplete="off">
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveArt">Art</label>
-                                        <input type="text" id="slgLiveArt" readonly>
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveMail">E‑Mail</label>
-                                        <input type="text" id="slgLiveMail" readonly>
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveVisibility">Sichtbarkeit</label>
-                                        <select id="slgLiveVisibility">
-                                            <option value="Private">Privat</option>
-                                            <option value="Public">Öffentlich</option>
-                                        </select>
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveExpires">Ablaufdatum</label>
-                                        <input type="text" id="slgLiveExpires" readonly placeholder="(kein Ablaufdatum)">
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveAlias">Alias</label>
-                                        <input type="text" id="slgLiveAlias" readonly>
-                                    </div>
-                                    <div class="field" style="grid-column:1 / -1;">
-                                        <label for="slgLiveDescription">Beschreibung</label>
-                                        <textarea id="slgLiveDescription" maxlength="1024" placeholder="Beschreibung der Microsoft‑365‑Gruppe"></textarea>
-                                    </div>
-                                    <div class="field" style="grid-column:1 / -1;">
-                                        <label for="slgLiveId">Gruppen‑ID</label>
-                                        <input type="text" id="slgLiveId" readonly style="font-family:Consolas, 'Segoe UI', monospace;">
-                                    </div>
-                                </div>
-                                <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="slgBtnUpdateGroup"><i class="bi bi-save"></i>Update</button>
-                                    <button type="button" class="btn" id="slgBtnRefreshGroup"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
-                                </div>
-                                <p class="muted" style="margin:12px 0 0; font-size:0.92em;">
-                                    Update speichert <strong>Anzeigename</strong>, <strong>Beschreibung</strong> und <strong>Sichtbarkeit</strong>. Zum Wechseln der Gruppe: „Match lösen“.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div id="slgTabOwners" class="tab-panel" role="tabpanel" data-slg-tab-content="owners" aria-labelledby="slgTabBtnOwners">
-                            <div id="slgOwnersUnmatched">
-                                <p class="muted" style="margin:0;">Owner werden aus der Verwaltungsliste (Rolle „Direktion“) abgeleitet und beim Anlegen gesetzt. Nach dem Match erscheinen hier die Live‑Owner aus Microsoft Graph.</p>
-                                <div class="slg-section-title" style="margin-top:14px;">Geplante Owner (Direktion)</div>
-                                <div id="slgOwnerPreview" class="slg-owner-member-box"></div>
-                            </div>
-                            <div id="slgOwnersMatched" style="display:none;">
-                                <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer (Owner)</h3>
-                                <div class="hint" style="margin-bottom:10px;">
-                                    Live aus Microsoft Graph. Der letzte Besitzer kann nicht entfernt werden.
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
-                                    <div class="field" style="margin:0;">
-                                        <label for="slgOwnerSearch">Benutzer suchen</label>
-                                        <input type="text" id="slgOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                    </div>
-                                    <button type="button" class="btn" id="slgOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                </div>
-                                <div class="field" style="margin-top:10px;">
-                                    <label for="slgOwnerSearchResults">Treffer</label>
-                                    <select id="slgOwnerSearchResults"></select>
-                                </div>
-                                <div class="detail-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="slgOwnerAddBtn"><i class="bi bi-person-plus"></i>Owner hinzufügen</button>
-                                    <button type="button" class="btn" id="slgOwnersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Owner neu laden</button>
-                                    <button type="button" class="btn" id="slgOwnersEnsureDirektionBtn"><i class="bi bi-shield-check"></i>Direktion setzen</button>
-                                </div>
-                                <div id="slgOwnersList" class="slg-owner-member-box" style="max-height:320px;" aria-label="Owner-Liste"></div>
-                            </div>
-                        </div>
-
-                        <div id="slgTabMembers" class="tab-panel" role="tabpanel" data-slg-tab-content="members" aria-labelledby="slgTabBtnMembers">
-                            <div id="slgMembersUnmatched">
-                                <p class="muted" style="margin:0;">Wenn in den Schul‑Einstellungen Schüler:innen mit E‑Mail für diese Klasse hinterlegt sind, können sie nach dem Match additiv synchronisiert werden. Sonst Mitglieder live in Graph pflegen.</p>
-                                <div class="slg-section-title" style="margin-top:14px;">Schüler:innen dieser Klasse</div>
-                                <div id="slgMemberPreview" class="slg-owner-member-box"></div>
-                            </div>
-                            <div id="slgMembersMatched" style="display:none;">
-                                <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Mitglieder</h3>
-                                <div class="hint" style="margin-bottom:10px;">
-                                    Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Schüler‑Adressen dieser Klasse hinzu (entfernt niemanden).
-                                </div>
-                                <div class="detail-actions" style="margin-top:0;">
-                                    <button type="button" class="btn btn-success" id="slgBtnSync"><i class="bi bi-person-plus-fill"></i>Mitglieder synchronisieren</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px;">
-                                    <div class="field" style="margin:0;">
-                                        <label for="slgMemberSearch">Benutzer suchen</label>
-                                        <input type="text" id="slgMemberSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                    </div>
-                                    <button type="button" class="btn" id="slgMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                </div>
-                                <div class="field" style="margin-top:10px;">
-                                    <label for="slgMemberSearchResults">Treffer</label>
-                                    <select id="slgMemberSearchResults"></select>
-                                </div>
-                                <div class="detail-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="slgMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
-                                    <button type="button" class="btn" id="slgMembersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Mitglieder neu laden</button>
-                                </div>
-                                <div id="slgMembersList" class="slg-owner-member-box" style="max-height:360px;" aria-label="Mitglieder-Liste"></div>
-                                <div class="slg-section-title" style="margin-top:16px;">Protokoll (Listen‑Sync)</div>
-                                <div id="slgSyncLog" class="slg-sync-log"></div>
-                            </div>
-                        </div>
-                        </div>
-                    </div>
+                    <div id="groupDetailHost"></div>
                 </section>
+            </div>
+            <details class="gd-page-info" id="jgPageInfo">
+                <summary><i class="bi bi-info-circle" aria-hidden="true"></i>Hinweise zu diesem Werkzeug</summary>
+                <div class="gd-page-info__body">
+                    <p>
+                        <strong>Quelle:</strong> <a href="../tenant.html#classes">Schul‑Einstellungen</a> (Klassen des aktuellen Schuljahrs).
+                        Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
+                        Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
+                        Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Klassenkürzel.
+                    </p>
+                    <p>
+                        <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
+                        Dieses Werkzeug verwaltet Unified‑Gruppen je Klasse aus den Stammdaten des aktuellen Schuljahrs.
+                        Die <strong>E‑Mail‑Domain</strong> einer Gruppe kann Graph nicht ändern. Unter dem Feld <strong>E‑Mail</strong> gibt es ein Exchange‑Skript für die Schul‑Domain.
+                    </p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <div id="jgClassModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="jgClassModalTitle" aria-hidden="true">
+        <div class="modal-box">
+            <h3 id="jgClassModalTitle">Neue Klasse anlegen</h3>
+            <p class="muted" id="jgClassModalHint" style="margin:0 0 14px; line-height:1.45;">Wird in die Schul‑Einstellungen des aktuellen Schuljahrs geschrieben.</p>
+            <div class="jg-modal-grid">
+                <div class="field">
+                    <label for="jgNewCode">Kürzel <span class="muted">(Pflicht)</span></label>
+                    <input type="text" id="jgNewCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. 1A">
+                </div>
+                <div class="field">
+                    <label for="jgNewYear">Abschlussjahr <span class="muted">(Pflicht)</span></label>
+                    <input type="text" id="jgNewYear" maxlength="4" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="z. B. 2030">
+                </div>
+            </div>
+            <div class="field">
+                <label for="jgNewName">Name <span class="muted">(Pflicht)</span></label>
+                <input type="text" id="jgNewName" maxlength="120" autocomplete="off" placeholder="z. B. 1A">
+            </div>
+            <div class="jg-modal-grid">
+                <div class="field">
+                    <label for="jgNewHeadName">Klassenvorstand <span class="muted">(optional)</span></label>
+                    <input type="text" id="jgNewHeadName" maxlength="120" autocomplete="off" placeholder="Name">
+                </div>
+                <div class="field">
+                    <label for="jgNewHeadEmail">KV‑E‑Mail <span class="muted">(optional)</span></label>
+                    <input type="text" id="jgNewHeadEmail" maxlength="160" autocomplete="off" placeholder="name@schule.at">
+                </div>
+            </div>
+            <p class="muted" id="jgClassModalError" style="margin:0; color:#c0392b; display:none;" role="alert"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn" id="jgClassModalCancel">Abbrechen</button>
+                <button type="button" class="btn btn-success" id="jgClassModalSave"><i class="bi bi-check-lg"></i>Anlegen</button>
             </div>
         </div>
     </div>
@@ -439,9 +381,13 @@
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
-    <script src="../src/shared/graph-unified-groups.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
+    <script type="module" src="../src/shared/student-class-lifecycle.js"></script>
     <script src="../src/tools/jahrgangsgruppen/jahrgangsgruppen.js" defer></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

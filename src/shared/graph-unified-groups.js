@@ -1,25 +1,6 @@
 (function () {
     'use strict';
 
-    const MSAL_LOADER_IMPORT = (function () {
-        const needle = 'graph-unified-groups.js';
-        const rel = './msal-loader.js';
-        const scripts = document.getElementsByTagName('script');
-        for (let i = scripts.length - 1; i >= 0; i--) {
-            const src = scripts[i].src || '';
-            if (src.indexOf(needle) !== -1) {
-                try {
-                    return new URL(rel, src).href;
-                } catch (_) {}
-            }
-        }
-        try {
-            return new URL('src/shared/msal-loader.js', document.baseURI).href;
-        } catch (_) {
-            return 'src/shared/msal-loader.js';
-        }
-    })();
-
     const GRAPH_SCOPES = [
         'https://graph.microsoft.com/User.Read',
         'https://graph.microsoft.com/User.Read.All',
@@ -29,6 +10,8 @@
     ];
 
     const PERSON_SELECT = 'id,displayName,mail,userPrincipalName';
+    const USER_LICENSE_SELECT =
+        'id,displayName,givenName,surname,mail,userPrincipalName,accountEnabled,userType,jobTitle,department,assignedLicenses';
 
     let msalMod = null;
     let pca = null;
@@ -41,9 +24,34 @@
         return normStr(v).toLowerCase();
     }
 
+    function noteAction(entry) {
+        try {
+            if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                window.ms365ActionLog.append(entry);
+                return;
+            }
+            const api = window.ms365AppDataV2;
+            if (!api || typeof api.getSetup !== 'function' || typeof api.patchSetup !== 'function') return;
+            const cur = api.getSetup() || {};
+            const list = Array.isArray(cur.actionLog) ? cur.actionLog.slice() : [];
+            list.push({
+                at: new Date().toISOString(),
+                tool: String((entry && entry.tool) || 'graph'),
+                action: String((entry && entry.action) || 'write'),
+                target: String((entry && entry.target) || ''),
+                summary: String((entry && entry.summary) || ''),
+                result: entry && entry.result === 'error' ? 'error' : 'ok'
+            });
+            while (list.length > 200) list.shift();
+            api.patchSetup({ actionLog: list });
+        } catch {
+            /* Protokoll darf Writes nicht blockieren */
+        }
+    }
+
     async function loadMsal() {
         if (msalMod) return msalMod;
-        const loader = await import(MSAL_LOADER_IMPORT);
+        const loader = await import('./msal-loader.js');
         if (typeof loader.loadMsalBrowser !== 'function') {
             throw new Error('MSAL-Loader: loadMsalBrowser fehlt.');
         }
@@ -272,16 +280,81 @@
             encodeURIComponent(id) +
             '?$select=' +
             encodeURIComponent(
-                'id,displayName,mail,mailNickname,groupTypes,description,visibility,expirationDateTime,resourceProvisioningOptions'
+                'id,displayName,mail,mailNickname,groupTypes,description,visibility,createdDateTime,expirationDateTime,renewedDateTime,resourceProvisioningOptions'
             );
-        return graphJson('GET', path, token, undefined);
+        const g = await graphJson('GET', path, token, undefined);
+        if (g && !g.expirationDateTime) {
+            try {
+                const extra = await graphJson(
+                    'GET',
+                    'https://graph.microsoft.com/beta/groups/' +
+                        encodeURIComponent(id) +
+                        '?$select=' +
+                        encodeURIComponent('expirationDateTime,renewedDateTime'),
+                    token
+                );
+                if (extra && extra.expirationDateTime) g.expirationDateTime = extra.expirationDateTime;
+                if (extra && extra.renewedDateTime && !g.renewedDateTime) g.renewedDateTime = extra.renewedDateTime;
+            } catch {
+                /* v1.0 bleibt */
+            }
+        }
+        return g;
+    }
+
+    function groupHasTeam(g) {
+        const opts = g && g.resourceProvisioningOptions;
+        return Array.isArray(opts) && opts.indexOf('Team') !== -1;
     }
 
     function groupArtLabel(g) {
-        const opts = g && g.resourceProvisioningOptions;
-        if (Array.isArray(opts) && opts.indexOf('Team') !== -1) return 'Team';
-        if (isUnifiedGroup(g)) return 'Gruppe';
+        if (isUnifiedGroup(g)) return 'Microsoft 365‑Gruppe';
+        if (g && g.securityEnabled && g.mailEnabled) return 'E-Mail-Sicherheitsgruppe';
+        if (g && g.securityEnabled && !g.mailEnabled) return 'Sicherheitsgruppe';
+        if (g && g.mailEnabled) return 'Mail-aktivierte Gruppe';
         return '–';
+    }
+
+    function teamDeepLink(groupId, tenantId) {
+        const gid = String(groupId || '').trim();
+        if (!gid) return '';
+        const tid = String(tenantId || '').trim();
+        let url =
+            'https://teams.microsoft.com/l/team/' +
+            encodeURIComponent(gid) +
+            '/conversations?groupId=' +
+            encodeURIComponent(gid);
+        if (tid) url += '&tenantId=' + encodeURIComponent(tid);
+        return url;
+    }
+
+    async function getTenantId() {
+        try {
+            const instance = await getPca();
+            const accounts = instance.getAllAccounts();
+            const a = accounts[0];
+            if (!a) return '';
+            return String(a.tenantId || (a.idTokenClaims && a.idTokenClaims.tid) || '').trim();
+        } catch {
+            return '';
+        }
+    }
+
+    async function fetchTeamWebUrl(token, groupId) {
+        const gid = String(groupId || '').trim();
+        if (!gid) return '';
+        try {
+            const t = await graphJson(
+                'GET',
+                '/teams/' + encodeURIComponent(gid) + '?$select=' + encodeURIComponent('id,webUrl'),
+                token
+            );
+            const w = t && t.webUrl ? String(t.webUrl).trim() : '';
+            if (w) return w;
+        } catch {
+            /* Fallback unten */
+        }
+        return teamDeepLink(gid, await getTenantId());
     }
 
     async function patchGroup(token, groupId, opts) {
@@ -297,12 +370,37 @@
         if (vis === 'Private' || vis === 'Public') {
             body.visibility = vis;
         }
+        if (o.mailNickname !== undefined && o.mailNickname !== null) {
+            body.mailNickname = sanitizeUnifiedGroupMailNickname(o.mailNickname);
+        }
         if (!Object.keys(body).length) return {};
-        return graphJson('PATCH', '/groups/' + encodeURIComponent(groupId), token, body);
+        try {
+            const res = await graphJson('PATCH', '/groups/' + encodeURIComponent(groupId), token, body);
+            noteAction({
+                tool: 'graph',
+                action: 'patch-group',
+                target: String(groupId),
+                summary: 'Gruppe aktualisiert' + (body.displayName ? ': ' + body.displayName : '')
+            });
+            return res;
+        } catch (e) {
+            noteAction({
+                tool: 'graph',
+                action: 'patch-group',
+                target: String(groupId),
+                summary: String(e && e.message ? e.message : e),
+                result: 'error'
+            });
+            throw e;
+        }
     }
 
     async function patchGroupDisplayName(token, groupId, displayName, description) {
         return patchGroup(token, groupId, { displayName: displayName, description: description });
+    }
+
+    async function renewGroup(token, groupId) {
+        return graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/renew', token, undefined);
     }
 
     function userRef(userId) {
@@ -338,7 +436,7 @@
         }
     }
 
-    async function fetchAllPagesSimple(token, initialPath, maxItems) {
+    async function fetchAllPagesSimple(token, initialPath, maxItems, onProgress) {
         const limit = typeof maxItems === 'number' && maxItems > 0 ? maxItems : 4000;
         const out = [];
         let next = initialPath;
@@ -351,8 +449,80 @@
                 for (let i = 0; i < vals.length; i++) out.push(vals[i]);
             }
             next = data['@odata.nextLink'] || null;
+            if (typeof onProgress === 'function') onProgress(out.length, pages, !!next);
         }
         return out;
+    }
+
+    async function fetchSubscribedSkus(token) {
+        try {
+            const data = await graphJson(
+                'GET',
+                '/subscribedSkus?$select=' +
+                    encodeURIComponent('skuId,skuPartNumber,prepaidUnits,consumedUnits,capabilityStatus'),
+                token,
+                undefined
+            );
+            const list = Array.isArray(data.value) ? data.value : [];
+            return { ok: true, skus: list };
+        } catch (e) {
+            return { ok: false, skus: [], error: e };
+        }
+    }
+
+    function skuLookupFromSubscribed(skus) {
+        const map = new Map();
+        (Array.isArray(skus) ? skus : []).forEach(function (s) {
+            const id = String((s && s.skuId) || '').toLowerCase();
+            if (!id) return;
+            map.set(id, {
+                skuId: id,
+                skuPartNumber: String((s && s.skuPartNumber) || '')
+            });
+        });
+        return map;
+    }
+
+    async function fetchUsersWithAssignedLicenses(token, onProgress) {
+        const path = '/users?$select=' + encodeURIComponent(USER_LICENSE_SELECT) + '&$top=999';
+        return fetchAllPagesSimple(token, path, 8000, onProgress);
+    }
+
+    async function fetchUsersByAssignedSkuIds(token, skuIds, onProgress) {
+        const ids = (Array.isArray(skuIds) ? skuIds : [])
+            .map(function (id) {
+                return String(id || '').toLowerCase();
+            })
+            .filter(Boolean);
+        const byId = new Map();
+        let filterFailed = 0;
+        for (let i = 0; i < ids.length; i++) {
+            const skuId = ids[i];
+            const filter = "assignedLicenses/any(s:s/skuId eq " + skuId + ")";
+            const path =
+                '/users?$filter=' +
+                encodeURIComponent(filter) +
+                '&$select=' +
+                encodeURIComponent(USER_LICENSE_SELECT) +
+                '&$top=999';
+            try {
+                const batch = await fetchAllPagesSimple(token, path, 4000, function (count) {
+                    if (typeof onProgress === 'function') {
+                        onProgress(byId.size + count, i + 1, ids.length);
+                    }
+                });
+                for (let j = 0; j < batch.length; j++) {
+                    const u = batch[j];
+                    if (u && u.id) byId.set(u.id, u);
+                }
+            } catch {
+                filterFailed++;
+            }
+        }
+        if (!byId.size && filterFailed === ids.length && ids.length) {
+            return fetchUsersWithAssignedLicenses(token, onProgress);
+        }
+        return Array.from(byId.values());
     }
 
     async function searchUsers(token, query) {
@@ -434,6 +604,29 @@
         });
     }
 
+    async function deleteUnifiedGroup(token, groupId) {
+        const id = String(groupId || '').trim();
+        if (!id) throw new Error('Gruppen-ID fehlt.');
+        try {
+            await graphJson('DELETE', '/groups/' + encodeURIComponent(id), token, undefined);
+            noteAction({
+                tool: 'graph',
+                action: 'delete-group',
+                target: id,
+                summary: 'Gruppe gelöscht'
+            });
+        } catch (e) {
+            noteAction({
+                tool: 'graph',
+                action: 'delete-group',
+                target: id,
+                summary: String(e && e.message ? e.message : e),
+                result: 'error'
+            });
+            throw e;
+        }
+    }
+
     async function removeGroupOwner(token, groupId, ownerId) {
         await graphJson(
             'DELETE',
@@ -492,9 +685,26 @@
             groupTypes: ['Unified'],
             visibility: 'Private'
         };
-        const group = await graphJson('POST', '/groups', token, body);
-        await sleep(1500);
-        return group;
+        try {
+            const group = await graphJson('POST', '/groups', token, body);
+            await sleep(1500);
+            noteAction({
+                tool: 'graph',
+                action: 'create-group',
+                target: nick,
+                summary: 'Gruppe angelegt: ' + String(displayName).trim()
+            });
+            return group;
+        } catch (e) {
+            noteAction({
+                tool: 'graph',
+                action: 'create-group',
+                target: nick,
+                summary: String(e && e.message ? e.message : e),
+                result: 'error'
+            });
+            throw e;
+        }
     }
 
     function buildPutTeamBody() {
@@ -620,9 +830,51 @@
         return { ok: ok, skip: skip, fail: fail };
     }
 
+    async function removeEmailsFromGroup(token, groupId, emails, label, onLog) {
+        const log =
+            onLog ||
+            function () {
+                /* noop */
+            };
+        let ok = 0;
+        let skip = 0;
+        let fail = 0;
+        for (let i = 0; i < emails.length; i++) {
+            const em = emails[i];
+            try {
+                const u = await resolveUserByEmail(token, em);
+                if (!u || !u.id) {
+                    log(label + ': Kein Benutzer für ' + em, 'warn');
+                    fail++;
+                    continue;
+                }
+                try {
+                    await removeGroupMember(token, groupId, u.id);
+                    ok++;
+                    log(label + ': ' + em + ' → entfernt', 'ok');
+                } catch (e) {
+                    const msg = String(e && e.message ? e.message : e);
+                    if (msg.indexOf('404') !== -1 || msg.indexOf('Request_ResourceNotFound') !== -1) {
+                        skip++;
+                        log(label + ': ' + em + ' (war kein Mitglied)', 'warn');
+                    } else {
+                        fail++;
+                        log(label + ': ' + em + ' — ' + msg, 'err');
+                    }
+                }
+            } catch (e) {
+                fail++;
+                log(label + ': ' + em + ' — ' + (e.message || e), 'err');
+            }
+            if ((i + 1) % 8 === 0) await sleep(120);
+        }
+        return { ok: ok, skip: skip, fail: fail };
+    }
+
     window.ms365GraphUnifiedGroups = {
         GRAPH_SCOPES,
         PERSON_SELECT,
+        USER_LICENSE_SELECT,
         getGraphToken,
         sleep,
         graphRequest,
@@ -631,7 +883,10 @@
         sanitizeMailNickname,
         sanitizeUnifiedGroupMailNickname,
         isUnifiedGroup,
+        groupHasTeam,
         groupArtLabel,
+        fetchTeamWebUrl,
+        teamDeepLink,
         searchUnifiedGroups,
         fetchGroup,
         createUnifiedGroup,
@@ -641,6 +896,7 @@
         removeGroupOwner,
         removeGroupMember,
         addOwnerWithMemberFallback,
+        deleteUnifiedGroup,
         fetchGroupOwners,
         fetchGroupMembers,
         fetchGroupMemberCount,
@@ -652,7 +908,13 @@
         resolveUserByEmail,
         ensureOwners,
         syncEmailsToGroup,
+        removeEmailsFromGroup,
         patchGroup,
-        patchGroupDisplayName
+        patchGroupDisplayName,
+        renewGroup,
+        fetchSubscribedSkus,
+        skuLookupFromSubscribed,
+        fetchUsersWithAssignedLicenses,
+        fetchUsersByAssignedSkuIds
     };
 })();

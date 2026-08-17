@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -8,116 +9,155 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Gruppenerstellung einschränken</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .gp-step-content { display: none; }
+        .gp-step-content.active { display: block; }
+        .tm-page .gp-steps.steps { margin-bottom: 8px; }
+    </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container page-card tm-page">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-shield-lock"></i>Gruppenerstellung einschränken</span>
             </div>
-            <p>Steuern, wer im Mandanten einheitliche Microsoft‑365‑Gruppen erstellen darf (Richtlinien für die Gruppenerstellung).</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Nur ausgewählte Personen dürfen noch Teams und Microsoft-365-Gruppen anlegen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-gruppenerstellung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                    </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;"></div>
-                </div>
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div id="panelGruppenPolicy">
             <div class="steps gp-steps">
-                <div class="step active" data-gp-step="1">1. Sicherheitsgruppe</div>
-                <div class="step" data-gp-step="2">2. Details, Mitglieder &amp; Richtlinie</div>
+                <div class="step active" data-gp-step="1">1. Wer darf?</div>
+                <div class="step" data-gp-step="2">2. Richtlinie setzen</div>
             </div>
+
             <div class="content">
                 <div class="gp-step-content active" data-gp-step="1">
-                    <h2>Schritt 1: Sicherheitsgruppe für berechtigte Ersteller</h2>
-                    <div class="alert alert-info">
-                        <p style="margin:0 0 10px;"><strong>Wie in der Doku:</strong> Für die Einschränkung der Gruppenerstellung wird eine <strong>reine Sicherheitsgruppe</strong> benötigt – also <code>securityEnabled</code> mit <code>mailEnabled = false</code>. <strong>Keine</strong> Microsoft‑365‑Gruppe, <strong>keine</strong> E‑Mail‑Sicherheitsgruppe und <strong>keine</strong> mail‑aktivierte Sicherheitsgruppe.</p>
-                        <p style="margin:0 0 10px;">In einem späteren Schritt setzt dieses Tool die Verzeichnisrichtlinie <strong>Group.Unified</strong>: <code>EnableGroupCreation=false</code> und Ihre Gruppe als <code>GroupCreationAllowedGroupId</code>. Damit gilt: <strong>Nur Mitglieder dieser einen Sicherheitsgruppe</strong> dürfen im Mandanten noch einheitliche <strong>Microsoft‑365‑Gruppen</strong> und damit verbundene <strong>Teams</strong> anlegen (alle anderen Benutzer:innen nicht).</p>
-                        <p style="margin:0;">Die Mitgliedschaft selbst pflegen Sie wie gewohnt im <strong>Microsoft Entra Admin Center</strong> – im nächsten Schritt finden Sie Direktlinks (Allgemein, Besitzer, Mitglieder) sowie eine Kurzübersicht aus Microsoft Graph.</p>
-                    </div>
-                    <div class="filter-section">
-                        <div class="filter-group">
-                            <label for="gpInputDisplayName">Anzeigename der Sicherheitsgruppe</label>
+                    <section class="tm-hero" aria-label="Wirkung">
+                        <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></div>
+                        <div>
+                            <p class="tm-hero__kicker">Zwei Schritte</p>
+                            <h2>Von „alle“ zu „nur diese Gruppe“</h2>
+                            <p>Eine Sicherheitsgruppe bestimmt, wer noch Gruppen und Teams erstellen darf.</p>
+                        </div>
+                    </section>
+
+                    <section class="tm-panel">
+                        <div class="tm-flow" aria-hidden="true">
+                            <div class="tm-flow__node">
+                                <i class="bi bi-people"></i>
+                                <strong>Alle</strong>
+                                <span>können Teams anlegen</span>
+                            </div>
+                            <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
+                            <div class="tm-flow__node">
+                                <i class="bi bi-person-badge"></i>
+                                <strong>Sicherheitsgruppe</strong>
+                                <span>z. B. „GruppenErsteller“</span>
+                            </div>
+                            <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
+                            <div class="tm-flow__node">
+                                <i class="bi bi-check2-circle"></i>
+                                <strong>Nur Mitglieder</strong>
+                                <span>dürfen noch erstellen</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="tm-panel">
+                        <div class="tm-panel__head">
+                            <i class="bi bi-key" aria-hidden="true"></i>
+                            <div>
+                                <h3>Sicherheitsgruppe wählen oder anlegen</h3>
+                                <p>Reine Sicherheitsgruppe – ohne E-Mail, keine Microsoft-365-Gruppe.</p>
+                            </div>
+                        </div>
+
+                        <div class="tm-field">
+                            <label for="gpInputDisplayName">Anzeigename</label>
                             <input type="text" id="gpInputDisplayName" autocomplete="off" maxlength="200" placeholder="z. B. GruppenErsteller">
                         </div>
-                        <p style="color:#6c757d;font-size:0.92em;margin:0 0 12px;line-height:1.45;">Optional: Gruppe hier per Microsoft Graph anlegen oder im Admin Center anlegen und die <strong>Object-ID</strong> unten eintragen.</p>
-                        <button type="button" class="btn btn-success" id="gpBtnCreateGroup">Sicherheitsgruppe per Graph anlegen</button>
-                        <div class="filter-group" style="margin-top:18px;">
-                            <label for="gpInputObjectId">Object-ID (GUID) oder Suche</label>
-                            <input type="text" id="gpInputObjectId" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false">
-                            <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Entweder die GUID aus dem Admin Center einfügen, oder Anzeigenamen oben ausfüllen und <strong>Gruppe suchen</strong> klicken.</small>
+                        <div class="tm-actions" style="margin-bottom:16px;">
+                            <button type="button" class="btn" id="gpBtnCreateGroup"><i class="bi bi-plus-lg"></i>Neue Gruppe anlegen</button>
                         </div>
-                        <button type="button" class="btn" id="gpBtnFindGroup">Gruppe suchen / Objekt-ID prüfen</button>
+
+                        <div class="tm-field">
+                            <label for="gpInputObjectId">Bestehende Gruppe (ID oder Suche)</label>
+                            <input type="text" id="gpInputObjectId" autocomplete="off" placeholder="GUID oder Anzeigename" spellcheck="false">
+                        </div>
+                        <div class="tm-actions">
+                            <button type="button" class="btn" id="gpBtnFindGroup"><i class="bi bi-search"></i>Gruppe suchen</button>
+                        </div>
                         <input type="hidden" id="gpResolvedObjectId" value="">
-                        <p id="gpResolvedSummary" style="display:none;margin-top:14px;padding:12px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;color:#084298;font-size:0.95em;"></p>
-                        <p style="color:#495057;line-height:1.5;margin:10px 0 0;">
-                            <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups" target="_blank" rel="noopener">Entra: Gruppen</a>
-                            · <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank" rel="noopener">Microsoft 365 Admin Center: Gruppen</a>
-                        </p>
-                    </div>
+                        <p id="gpResolvedSummary" style="display:none;margin-top:14px;padding:12px 14px;background:color-mix(in srgb, var(--brand1) 10%, var(--card));border-radius:12px;border:1px solid color-mix(in srgb, var(--brand1) 28%, var(--border));color:var(--heading);font-size:0.95em;"></p>
+
+                        <details class="tm-tech">
+                            <summary>Links zu Entra / Admin Center</summary>
+                            <p style="margin:10px 0 0;line-height:1.5;">
+                                <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups" target="_blank" rel="noopener">Entra: Gruppen</a>
+                                · <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank" rel="noopener">Microsoft 365 Admin Center</a>
+                            </p>
+                        </details>
+                    </section>
+
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn btn-success" id="gpBtnNext1">Weiter zu Details &amp; Richtlinie →</button>
+                        <button type="button" class="btn" id="gpBtnNext1">Weiter: Mitglieder &amp; Richtlinie →</button>
                     </div>
                 </div>
 
                 <div class="gp-step-content" data-gp-step="2">
-                    <h2>Schritt 2: Gruppe prüfen, Mitglieder und Richtlinie</h2>
-                    <div class="alert alert-info">
-                        <p style="margin:0 0 8px;"><strong>Gruppe in Entra:</strong> Anzeigename, Beschreibung und <strong>Mitglieder/Besitzer</strong> bearbeiten Sie im Portal – wie in der <strong>MS365‑Gruppenverwaltung</strong> (Struktur links, Details rechts). Unten sind Direktlinks; die Kachel „Gruppe (Graph)“ zeigt die zuletzt gelesenen Werte aus Microsoft Graph.</p>
-                        <p style="margin:0;"><strong>Richtlinie hier:</strong> Anmeldung und Schaltflächen darunter setzen bzw. lesen die Mandanten‑Einstellung <strong>Group.Unified</strong> (wer überhaupt M365‑Gruppen/Teams anlegen darf).</p>
-                    </div>
-                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;">
-                        <h3 style="margin:0 0 10px;font-size:1rem;">Gruppe in Microsoft Entra öffnen</h3>
-                        <p style="margin:0 0 10px;color:#495057;font-size:0.95em;line-height:1.5;">Entspricht den Tabs <strong>Allgemein</strong>, <strong>Besitzer</strong>, <strong>Mitglieder</strong> in der Verwaltungsoberfläche:</p>
-                        <p style="margin:0;display:flex;flex-wrap:wrap;gap:8px 14px;">
-                            <a href="#" target="_blank" rel="noopener" id="gpLinkOverview" style="display:none;"><i class="bi bi-card-text"></i> Allgemein (Übersicht)</a>
-                            <a href="#" target="_blank" rel="noopener" id="gpLinkOwners" style="display:none;"><i class="bi bi-person-badge"></i> Besitzer</a>
-                            <a href="#" target="_blank" rel="noopener" id="gpLinkMembers" style="display:none;"><i class="bi bi-people"></i> Mitglieder</a>
-                        </p>
-                    </div>
-                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background:#fff;border:1px solid #ced4da;border-radius:8px;">
-                        <h3 style="margin:0 0 10px;font-size:1rem;">Gruppe (Microsoft Graph)</h3>
-                        <p id="gpDetailsPlaceholder" style="margin:0;color:#6c757d;font-size:0.95em;">Wird geladen …</p>
-                        <dl id="gpDetailsDl" style="display:none;margin:0;font-size:0.95em;line-height:1.55;">
-                            <dt style="float:left;clear:left;width:11rem;color:#6c757d;">Anzeigename</dt><dd style="margin-left:11.5rem;" id="gpDetDisplayName">–</dd>
-                            <dt style="float:left;clear:left;width:11rem;color:#6c757d;">Art</dt><dd style="margin-left:11.5rem;" id="gpDetType">–</dd>
-                            <dt style="float:left;clear:left;width:11rem;color:#6c757d;">Beschreibung</dt><dd style="margin-left:11.5rem;" id="gpDetDescription">–</dd>
-                            <dt style="float:left;clear:left;width:11rem;color:#6c757d;">Mail‑Nickname</dt><dd style="margin-left:11.5rem;" id="gpDetMailNick">–</dd>
-                            <dt style="float:left;clear:left;width:11rem;color:#6c757d;">Gruppen‑ID</dt><dd style="margin-left:11.5rem;word-break:break-all;" id="gpDetId">–</dd>
-                        </dl>
-                    </div>
-                    <h3 style="margin:0 0 8px;font-size:1rem;">Verzeichnisrichtlinie (Group.Unified)</h3>
-                    <div class="alert alert-warning" style="margin-bottom:12px;">
-                        <strong>Berechtigungen:</strong> Die Anmeldung benötigt <strong>Directory.ReadWrite.All</strong> (delegiert) und <strong>Administratorzustimmung</strong>.
-                    </div>
-                    <div class="filter-section" style="margin-bottom:16px;">
-                        <button type="button" class="btn" id="gpBtnLogin">Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="gpBtnApply" style="margin-left:8px;">Einschränkung jetzt anwenden</button>
-                        <button type="button" class="btn" id="gpBtnRefreshStatus" style="margin-left:8px;">Status lesen</button>
-                        <button type="button" class="btn btn-danger" id="gpBtnRemove" style="margin-left:8px;">Einstellung entfernen (Standard)</button>
-                    </div>
-                    <h3 style="margin-top:0;font-size:1rem;">Protokoll</h3>
-                    <div id="gpOnlineLog" style="max-height:200px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
-                    <h3 style="margin-top:18px;font-size:1rem;">Aktueller Status (Group.Unified)</h3>
-                    <pre id="gpStatusPre" style="margin:0;padding:14px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;font-size:0.88em;white-space:pre-wrap;word-break:break-word;">Noch nicht gelesen – „Status lesen“ oder „Einschränkung jetzt anwenden“ wählen.</pre>
+                    <section class="tm-panel">
+                        <div class="tm-panel__head">
+                            <i class="bi bi-people" aria-hidden="true"></i>
+                            <div>
+                                <h3>Mitglieder pflegen</h3>
+                                <p>Wer in dieser Gruppe ist, darf weiterhin Teams/Gruppen anlegen.</p>
+                            </div>
+                        </div>
+                        <div id="groupDetailHost"></div>
+                    </section>
+
+                    <section class="tm-panel">
+                        <div class="tm-panel__head">
+                            <i class="bi bi-sliders" aria-hidden="true"></i>
+                            <div>
+                                <h3>Richtlinie anwenden</h3>
+                                <p>Schaltet die Mandanten-Einstellung um: nur diese Gruppe darf erstellen.</p>
+                            </div>
+                        </div>
+                        <span class="tm-perm" style="margin-bottom:12px;"><i class="bi bi-shield-check"></i>Directory.ReadWrite.All + Admin-Zustimmung</span>
+                        <div class="tm-actions">
+                            <button type="button" class="btn" id="gpBtnLogin"><i class="bi bi-box-arrow-in-right"></i>Anmelden</button>
+                            <button type="button" class="btn" id="gpBtnApply"><i class="bi bi-shield-check"></i>Einschränkung anwenden</button>
+                            <button type="button" class="btn" id="gpBtnRefreshStatus"><i class="bi bi-arrow-clockwise"></i>Status lesen</button>
+                            <button type="button" class="btn btn-danger" id="gpBtnRemove"><i class="bi bi-x-circle"></i>Zurücksetzen</button>
+                        </div>
+                        <details class="tm-tech" open>
+                            <summary>Status &amp; Protokoll</summary>
+                            <pre id="gpStatusPre" class="tm-log" style="margin-top:10px;">Noch nicht gelesen – „Status lesen“ oder „Einschränkung anwenden“ wählen.</pre>
+                            <div id="gpOnlineLog" class="tm-log" style="margin-top:10px;"></div>
+                        </details>
+                    </section>
+
                     <div class="step-nav-row step-nav-row--back-only">
-                        <button type="button" class="btn" id="gpBtnBack2">← Zurück zu Schritt 1</button>
+                        <button type="button" class="btn" id="gpBtnBack2">← Zurück</button>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="toolbar bottom-toolbar" aria-label="Zwischenstand">
-            <button type="button" class="btn" id="btnSaveState">💾 Zwischenstand speichern</button>
-            <button type="button" class="btn" id="btnLoadState">📂 Gespeicherten Stand laden</button>
-            <button type="button" class="btn btn-danger" id="btnClearStorage">🗑️ Lokalen Speicher löschen</button>
+            <button type="button" class="btn" id="btnSaveState">Zwischenstand speichern</button>
+            <button type="button" class="btn" id="btnLoadState">Stand laden</button>
+            <button type="button" class="btn btn-danger" id="btnClearStorage">Lokalen Speicher löschen</button>
         </div>
     </div>
 
@@ -129,7 +169,10 @@
     <script src="../src/shared/tenant-settings-ui.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
     <script src="../src/shared/step-progress.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
+    <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script type="module" src="../src/tools/gruppenerstellung/gruppenerstellung-policy.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>
-

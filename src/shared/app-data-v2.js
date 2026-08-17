@@ -2,8 +2,8 @@
     'use strict';
 
     const STORAGE_KEY_V2 = 'ms365-schooltool-data-v2';
-    /** Schema 3: setup (Wizard, SLG-Matches, Fach-/ARGE-Gruppen-Links) */
-    const VERSION = 3;
+    /** Schema 4: years.*.guardians, students.id/guardianIds, parentLists */
+    const VERSION = 4;
     const SLG_LEGACY_KEY = 'ms365-schueler-lehrer-gruppen-v2';
 
     function safeJsonParse(s) {
@@ -60,10 +60,47 @@
             subjectGroupMailPrefix: 'fach',
             /** Kleinbuchstaben/Ziffern; Vorschau/Anlage ARGE-Gruppen */
             argeGroupMailPrefix: 'ag',
+            /** Eltern-Verteiler: Baustein-Muster (wie Kursteam-Namen) */
+            elternClassAliasPattern: [
+                { type: 'text', value: 'eltern' },
+                { type: 'klasse' }
+            ],
+            elternClassDisplayPattern: [
+                { type: 'text', value: 'Eltern ' },
+                { type: 'klasse' }
+            ],
+            elternYearAliasPattern: [
+                { type: 'text', value: 'elternjg' },
+                { type: 'year' }
+            ],
+            elternYearDisplayPattern: [
+                { type: 'text', value: 'Eltern JG ' },
+                { type: 'year' }
+            ],
             /** E‑Mail (Kleinbuchstaben) → Entra-Benutzer (Einrichtungsassistent, optional) */
             directoryMatchByEmail: {},
-            catalogLinks: []
+            catalogLinks: [],
+            actionLog: [],
+            intranetSiteUrl: '',
+            intranetHubAt: null,
+            sisImportHistory: [],
+            elternSetup: { completedSteps: [], lastDiagnoseAt: null }
         };
+    }
+
+    function normalizeElternNamePattern(raw, fallback) {
+        if (window.ms365ElternGuardians && typeof window.ms365ElternGuardians.normalizeNamePattern === 'function') {
+            return window.ms365ElternGuardians.normalizeNamePattern(raw, fallback);
+        }
+        const arr = Array.isArray(raw) ? raw : [];
+        const out = [];
+        arr.forEach(function (p) {
+            if (!p || typeof p !== 'object') return;
+            const type = String(p.type || '').trim();
+            if (type === 'text') out.push({ type: 'text', value: String(p.value ?? '') });
+            else if (type === 'klasse' || type === 'year') out.push({ type: type });
+        });
+        return out.length ? out : Array.isArray(fallback) ? fallback.slice() : [];
     }
 
     function normEmailKey(v) {
@@ -130,6 +167,215 @@
         return String(v ?? '')
             .trim()
             .toUpperCase();
+    }
+
+    function stableLocalId(prefix, key) {
+        let h = 5381;
+        const s = String(key || '');
+        for (let i = 0; i < s.length; i++) h = (h << 5) + h + s.charCodeAt(i);
+        return String(prefix || 'x') + Math.abs(h >>> 0).toString(36);
+    }
+
+    function emptyYearBucket() {
+        return { students: [], classes: [], guardians: [], parentLists: [] };
+    }
+
+    function normalizeGuardian(row) {
+        const r = row && typeof row === 'object' ? row : {};
+        const email = normEmailKey(r.email);
+        const name = String(r.name || '').trim();
+        const phone = String(r.phone || '').trim();
+        const note = String(r.note || '').trim();
+        if (!email && !name) return null;
+        let id = String(r.id || '').trim();
+        if (!id) id = stableLocalId('g_', (email || name).toLowerCase());
+        return { id: id, name: name, email: email, phone: phone, note: note };
+    }
+
+    function normalizeParentList(row) {
+        const r = row && typeof row === 'object' ? row : {};
+        const scope = r.scope === 'year' ? 'year' : 'class';
+        let code = '';
+        if (scope === 'year') {
+            code = String(r.code || '').trim();
+            if (!/^\d{4}$/.test(code)) return null;
+        } else {
+            code = normCode(r.code);
+            if (!code) return null;
+        }
+        return {
+            scope: scope,
+            code: code,
+            displayName: String(r.displayName || '').trim(),
+            mailNickname: String(r.mailNickname || '').trim(),
+            graphGroupId: r.graphGroupId ? String(r.graphGroupId).trim() : '',
+            lastExportAt: String(r.lastExportAt || '').trim()
+        };
+    }
+
+    function normalizeStudentRow(row, usedIds) {
+        const r = row && typeof row === 'object' ? row : {};
+        const klasse = String(r.klasse || r.class || r.group || '').trim();
+        const name = String(r.name || '').trim();
+        const email = normEmailKey(r.email);
+        if (!klasse && !name && !email) return null;
+        let id = String(r.id || '').trim();
+        if (!id) id = stableLocalId('s_', [klasse, email || name].join('|').toLowerCase());
+        if (usedIds && usedIds.has(id)) {
+            let n = 2;
+            while (usedIds.has(id + '_' + n)) n++;
+            id = id + '_' + n;
+        }
+        if (usedIds) usedIds.add(id);
+        const guardianIds = [];
+        const seenG = new Set();
+        (Array.isArray(r.guardianIds) ? r.guardianIds : []).forEach(function (gid) {
+            const g = String(gid || '').trim();
+            if (!g || seenG.has(g)) return;
+            seenG.add(g);
+            guardianIds.push(g);
+        });
+        return { id: id, klasse: klasse, name: name, email: email, guardianIds: guardianIds };
+    }
+
+    function normalizeYearBucket(raw) {
+        const base = emptyYearBucket();
+        const y = raw && typeof raw === 'object' ? raw : {};
+        const usedStudentIds = new Set();
+        const students = [];
+        (Array.isArray(y.students) ? y.students : []).forEach(function (s) {
+            const n = normalizeStudentRow(s, usedStudentIds);
+            if (n) students.push(n);
+        });
+
+        const guardians = [];
+        const guardianIdSet = new Set();
+        const guardianEmailMap = new Map();
+        (Array.isArray(y.guardians) ? y.guardians : []).forEach(function (g) {
+            const n = normalizeGuardian(g);
+            if (!n) return;
+            if (guardianIdSet.has(n.id)) return;
+            if (n.email && guardianEmailMap.has(n.email)) {
+                const prev = guardianEmailMap.get(n.email);
+                if (!prev.name && n.name) prev.name = n.name;
+                if (!prev.phone && n.phone) prev.phone = n.phone;
+                if (!prev.note && n.note) prev.note = n.note;
+                return;
+            }
+            guardianIdSet.add(n.id);
+            if (n.email) guardianEmailMap.set(n.email, n);
+            guardians.push(n);
+        });
+
+        students.forEach(function (s) {
+            s.guardianIds = (s.guardianIds || []).filter(function (gid) {
+                return guardianIdSet.has(gid);
+            });
+        });
+
+        const parentLists = [];
+        const plKeys = new Set();
+        (Array.isArray(y.parentLists) ? y.parentLists : []).forEach(function (p) {
+            const n = normalizeParentList(p);
+            if (!n) return;
+            const key = n.scope + ':' + n.code;
+            if (plKeys.has(key)) return;
+            plKeys.add(key);
+            parentLists.push(n);
+        });
+
+        base.students = students;
+        base.classes = Array.isArray(y.classes) ? deepClone(y.classes) : [];
+        base.guardians = guardians;
+        base.parentLists = parentLists;
+        return base;
+    }
+
+    /**
+     * Schülerimport inkl. optionaler parentPairs; bestehende IDs/Zuordnungen erhalten.
+     */
+    function mergeStudentsImport(prevBucket, incomingStudents) {
+        const prev = normalizeYearBucket(prevBucket);
+        const oldByEmail = new Map();
+        const oldByKey = new Map();
+        prev.students.forEach(function (s) {
+            if (s.email) oldByEmail.set(s.email, s);
+            oldByKey.set([String(s.klasse || '').toLowerCase(), String(s.name || '').toLowerCase()].join('|'), s);
+        });
+
+        const guardians = prev.guardians.slice();
+        const byEmail = new Map();
+        guardians.forEach(function (g) {
+            if (g.email) byEmail.set(g.email, g);
+        });
+
+        function upsertGuardian(pair) {
+            const email = normEmailKey(pair && pair.email);
+            if (!email || email.indexOf('@') === -1) return '';
+            if (byEmail.has(email)) {
+                const g = byEmail.get(email);
+                const nm = String((pair && pair.name) || '').trim();
+                if (nm && !g.name) g.name = nm;
+                return g.id;
+            }
+            const g = normalizeGuardian({
+                name: String((pair && pair.name) || '').trim(),
+                email: email
+            });
+            if (!g) return '';
+            guardians.push(g);
+            byEmail.set(email, g);
+            return g.id;
+        }
+
+        const usedIds = new Set();
+        const students = [];
+        (Array.isArray(incomingStudents) ? incomingStudents : []).forEach(function (raw) {
+            const klasse = String(raw?.klasse || raw?.class || '').trim();
+            const name = String(raw?.name || '').trim();
+            const email = normEmailKey(raw?.email);
+            if (!klasse && !name && !email) return;
+            let prevS = email && oldByEmail.has(email) ? oldByEmail.get(email) : null;
+            if (!prevS) {
+                prevS = oldByKey.get([klasse.toLowerCase(), name.toLowerCase()].join('|')) || null;
+            }
+            const row = normalizeStudentRow(
+                {
+                    id: prevS ? prevS.id : raw?.id,
+                    klasse: klasse,
+                    name: name,
+                    email: email,
+                    guardianIds: prevS ? prevS.guardianIds : raw?.guardianIds
+                },
+                usedIds
+            );
+            if (!row) return;
+            const pairs = Array.isArray(raw?.parentPairs)
+                ? raw.parentPairs
+                : Array.isArray(raw?.parents)
+                  ? raw.parents
+                  : [];
+            if (pairs.length) {
+                const ids = [];
+                const seen = new Set();
+                pairs.forEach(function (p) {
+                    const gid = upsertGuardian(p);
+                    if (gid && !seen.has(gid)) {
+                        seen.add(gid);
+                        ids.push(gid);
+                    }
+                });
+                if (ids.length) row.guardianIds = ids;
+            }
+            students.push(row);
+        });
+
+        return normalizeYearBucket({
+            students: students,
+            classes: prev.classes,
+            guardians: guardians,
+            parentLists: prev.parentLists
+        });
     }
 
     function normalizeSammelgruppeCode(v) {
@@ -212,6 +458,20 @@
                 syncStatus: String(r.syncStatus || '').trim()
             };
         }
+        if (r.kind === 'cohort' || r.kind === 'eltern') {
+            const code = String(r.code || '').trim();
+            if (!/^\d{4}$/.test(code)) return null;
+            const mode = r.mode === 'created' || r.mode === 'matched' ? r.mode : '';
+            return {
+                kind: r.kind,
+                code: code,
+                graphGroupId: r.graphGroupId ? String(r.graphGroupId).trim() : '',
+                displayName: String(r.displayName || '').trim(),
+                mailNickname: String(r.mailNickname || '').trim(),
+                mode: mode,
+                syncStatus: String(r.syncStatus || '').trim()
+            };
+        }
         const kind = r.kind === 'arge' ? 'arge' : 'subject';
         const code = normCode(r.code);
         if (!code) return null;
@@ -285,6 +545,11 @@
         };
         d.subjectGroupMailPrefix = mailNicknamePrefixSanitize(x.subjectGroupMailPrefix, 24) || 'fach';
         d.argeGroupMailPrefix = mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24) || 'ag';
+        const def = defaultSetup();
+        d.elternClassAliasPattern = normalizeElternNamePattern(x.elternClassAliasPattern, def.elternClassAliasPattern);
+        d.elternClassDisplayPattern = normalizeElternNamePattern(x.elternClassDisplayPattern, def.elternClassDisplayPattern);
+        d.elternYearAliasPattern = normalizeElternNamePattern(x.elternYearAliasPattern, def.elternYearAliasPattern);
+        d.elternYearDisplayPattern = normalizeElternNamePattern(x.elternYearDisplayPattern, def.elternYearDisplayPattern);
         const linksIn = Array.isArray(x.catalogLinks) ? x.catalogLinks : [];
         const seen = new Set();
         d.catalogLinks = [];
@@ -300,6 +565,38 @@
         const filled = fillSammelgruppeGaps(d.matched, d.catalogLinks);
         d.matched = filled.matched;
         d.catalogLinks = filled.catalogLinks;
+        d.intranetSiteUrl = x.intranetSiteUrl ? String(x.intranetSiteUrl).trim() : '';
+        d.intranetHubAt = x.intranetHubAt != null && x.intranetHubAt !== '' ? String(x.intranetHubAt) : null;
+        const es = x.elternSetup && typeof x.elternSetup === 'object' ? x.elternSetup : {};
+        d.elternSetup = {
+            completedSteps: Array.isArray(es.completedSteps) ? es.completedSteps.map(function (t) { return String(t); }) : [],
+            lastDiagnoseAt: es.lastDiagnoseAt ? String(es.lastDiagnoseAt) : null
+        };
+        d.sisImportHistory = [];
+        (Array.isArray(x.sisImportHistory) ? x.sisImportHistory : []).slice(-20).forEach(function (row) {
+            if (!row || typeof row !== 'object') return;
+            d.sisImportHistory.push({
+                at: row.at ? String(row.at) : '',
+                source: row.source ? String(row.source) : '',
+                mode: row.mode === 'replace' ? 'replace' : 'merge',
+                added: Number(row.added) || 0,
+                updated: Number(row.updated) || 0,
+                removed: Number(row.removed) || 0,
+                conflicts: Number(row.conflicts) || 0
+            });
+        });
+        d.actionLog = [];
+        (Array.isArray(x.actionLog) ? x.actionLog : []).slice(-200).forEach(function (row) {
+            if (!row || typeof row !== 'object') return;
+            d.actionLog.push({
+                at: row.at ? String(row.at) : '',
+                tool: row.tool ? String(row.tool) : 'app',
+                action: row.action ? String(row.action) : 'write',
+                target: row.target ? String(row.target) : '',
+                summary: row.summary ? String(row.summary) : '',
+                result: row.result === 'error' || row.result === 'skip' ? row.result : 'ok'
+            });
+        });
         return d;
     }
 
@@ -322,19 +619,25 @@
         return ('jg' + yy + tail).toLowerCase().slice(0, 60);
     }
 
-    function normalizeClassTeam(row) {
-        const r = row && typeof row === 'object' ? row : {};
-        let nick = String(r.stableMailNickname || '')
+    function classTeamIdentityNick(raw) {
+        return String(raw || '')
             .trim()
             .replace(/[^a-zA-Z0-9]/g, '')
             .toLowerCase()
             .slice(0, 60);
+    }
+
+    function normalizeClassTeam(row) {
+        const r = row && typeof row === 'object' ? row : {};
+        let nick = classTeamIdentityNick(r.stableMailNickname);
         if (!nick) return null;
         const mode = r.mode === 'created' || r.mode === 'matched' ? r.mode : '';
         const y = String(r.abschlussJahr || r.year || '').trim();
         const abschlussJahr = /^\d{4}$/.test(y) ? y : '';
+        const mailNickname = mailNicknamePrefixSanitize(r.mailNickname || r.graphMailNickname || '', 60);
         return {
             stableMailNickname: nick,
+            mailNickname: mailNickname,
             graphGroupId: String(r.graphGroupId || '').trim(),
             classCode: normCode(r.classCode || r.code || ''),
             displayName: String(r.displayName || r.name || '').trim(),
@@ -462,7 +765,11 @@
         out.setup = normalizeSetup(o.setup);
 
         if (!out.years.current) out.years.current = currentSchoolYearLabel();
-        if (!out.years.byLabel[out.years.current]) out.years.byLabel[out.years.current] = { students: [], classes: [] };
+        const labels = Object.keys(out.years.byLabel || {});
+        labels.forEach(function (lab) {
+            out.years.byLabel[lab] = normalizeYearBucket(out.years.byLabel[lab]);
+        });
+        if (!out.years.byLabel[out.years.current]) out.years.byLabel[out.years.current] = emptyYearBucket();
 
         return out;
     }
@@ -509,10 +816,10 @@
                 out.core.adminRoles = Array.isArray(coreObj.adminRoles) ? deepClone(coreObj.adminRoles) : [];
 
                 const cur = out.years.current;
-                out.years.byLabel[cur] = {
+                out.years.byLabel[cur] = normalizeYearBucket({
                     students: Array.isArray(coreObj.students) ? deepClone(coreObj.students) : [],
                     classes: Array.isArray(coreObj.classes) ? deepClone(coreObj.classes) : []
-                };
+                });
             }
         } catch {
             // ignore
@@ -604,9 +911,10 @@
         c.core.adminRoles = Array.isArray(s.adminRoles) ? deepClone(s.adminRoles) : [];
         c.core.classTeams = keepClassTeams;
         const cur = String(c.years.current || currentSchoolYearLabel());
-        if (!c.years.byLabel[cur]) c.years.byLabel[cur] = { students: [], classes: [] };
-        c.years.byLabel[cur].students = Array.isArray(s.students) ? deepClone(s.students) : [];
-        c.years.byLabel[cur].classes = Array.isArray(s.classes) ? deepClone(s.classes) : [];
+        const prev = c.years.byLabel[cur] || emptyYearBucket();
+        const merged = mergeStudentsImport(prev, Array.isArray(s.students) ? s.students : []);
+        merged.classes = Array.isArray(s.classes) ? deepClone(s.classes) : [];
+        c.years.byLabel[cur] = normalizeYearBucket(merged);
         reconcileClassTeamsFromYearClasses(c, cur, c.years.byLabel[cur].classes);
         return saveV2(c);
     }
@@ -624,14 +932,14 @@
         const c = getContainer();
         const by = c.years.byLabel || {};
         if (!by[y]) {
-            let seed = { students: [], classes: [] };
+            let seed = emptyYearBucket();
             const copyFrom = String(o.copyFrom || '').trim();
             if (copyFrom && by[copyFrom]) {
-                // Kopie nur von Schüler/Klassen; alles andere ist global.
-                seed = {
-                    students: deepClone(by[copyFrom].students || []),
-                    classes: deepClone(by[copyFrom].classes || [])
-                };
+                // Kopie von Schüler/Klassen/Eltern; alles andere ist global.
+                seed = normalizeYearBucket(deepClone(by[copyFrom]));
+                seed.parentLists = (seed.parentLists || []).map(function (p) {
+                    return Object.assign({}, p, { graphGroupId: '', lastExportAt: '' });
+                });
             }
             by[y] = seed;
         }
@@ -721,11 +1029,27 @@
         const n = normalizeClassTeam(entry);
         if (!n) throw new Error('Klassen-Team: stableMailNickname fehlt oder ungültig.');
         let teams = normalizeCoreClassTeams(c.core.classTeams || []);
-        const idx = teams.findIndex(function (t) {
+        let idx = teams.findIndex(function (t) {
             return t.stableMailNickname === n.stableMailNickname;
         });
-        if (idx >= 0) teams[idx] = Object.assign({}, teams[idx], n);
-        else teams.push(n);
+        if (idx < 0 && n.graphGroupId) {
+            idx = teams.findIndex(function (t) {
+                return t.graphGroupId && t.graphGroupId === n.graphGroupId;
+            });
+        }
+        if (idx < 0 && n.classCode) {
+            idx = teams.findIndex(function (t) {
+                if (normCode(t.classCode) !== n.classCode) return false;
+                if (n.abschlussJahr && t.abschlussJahr && t.abschlussJahr !== n.abschlussJahr) return false;
+                return true;
+            });
+        }
+        if (idx >= 0) {
+            const prev = teams[idx];
+            const merged = Object.assign({}, prev, n);
+            if (!merged.mailNickname && prev.mailNickname) merged.mailNickname = prev.mailNickname;
+            teams[idx] = merged;
+        } else teams.push(n);
         c.core.classTeams = normalizeCoreClassTeams(teams);
         return saveV2(c);
     }
@@ -763,9 +1087,10 @@
         cur.core.admin = Array.isArray(o.admin) ? deepClone(o.admin) : [];
         cur.core.adminRoles = Array.isArray(o.adminRoles) ? deepClone(o.adminRoles) : [];
         const y = String(cur.years.current || currentSchoolYearLabel());
-        if (!cur.years.byLabel[y]) cur.years.byLabel[y] = { students: [], classes: [] };
-        cur.years.byLabel[y].students = Array.isArray(o.students) ? deepClone(o.students) : [];
-        cur.years.byLabel[y].classes = Array.isArray(o.classes) ? deepClone(o.classes) : [];
+        const prev = cur.years.byLabel[y] || emptyYearBucket();
+        const merged = mergeStudentsImport(prev, Array.isArray(o.students) ? o.students : []);
+        merged.classes = Array.isArray(o.classes) ? deepClone(o.classes) : [];
+        cur.years.byLabel[y] = normalizeYearBucket(merged);
         if (!Array.isArray(cur.core.classTeams)) cur.core.classTeams = [];
         reconcileClassTeamsFromYearClasses(cur, y, cur.years.byLabel[y].classes);
         return saveV2(cur);
@@ -774,6 +1099,7 @@
     function catalogLinkSameKey(a, b) {
         if (!a || !b || a.kind !== b.kind) return false;
         if (a.kind === 'sammelgruppe') return a.code === b.code;
+        if (a.kind === 'cohort' || a.kind === 'eltern') return String(a.code) === String(b.code);
         return normCode(a.code) === normCode(b.code);
     }
 
@@ -785,6 +1111,14 @@
             if (!c) return null;
             for (let i = 0; i < links.length; i++) {
                 if (links[i].kind === 'sammelgruppe' && links[i].code === c) return links[i];
+            }
+            return null;
+        }
+        if (kind === 'cohort' || kind === 'eltern') {
+            const c = String(code || '').trim();
+            if (!/^\d{4}$/.test(c)) return null;
+            for (let i = 0; i < links.length; i++) {
+                if (links[i].kind === kind && String(links[i].code) === c) return links[i];
             }
             return null;
         }
@@ -824,6 +1158,223 @@
         });
     }
 
+    function removeCatalogLink(kind, code) {
+        const existing = getCatalogLink(kind, code);
+        if (!existing) return false;
+        const cur = getSetup();
+        const links = Array.isArray(cur.catalogLinks) ? cur.catalogLinks.slice() : [];
+        const next = links.filter(function (x) {
+            return !catalogLinkSameKey(x, existing);
+        });
+        if (next.length === links.length) return false;
+        patchSetup({ catalogLinks: next });
+        return true;
+    }
+
+    function renameCatalogLink(kind, oldCode, newCode) {
+        const k = kind === 'arge' ? 'arge' : 'subject';
+        const from = normCode(oldCode);
+        const to = normCode(newCode);
+        if (!from || !to) return null;
+        if (from === to) return getCatalogLink(k, from);
+        const existing = getCatalogLink(k, from);
+        if (!existing) return null;
+        if (getCatalogLink(k, to)) {
+            throw new Error('Ziel-Kürzel hat bereits eine Verknüpfung.');
+        }
+        const cur = getSetup();
+        const links = Array.isArray(cur.catalogLinks) ? cur.catalogLinks.slice() : [];
+        const idx = links.findIndex(function (x) {
+            return catalogLinkSameKey(x, existing);
+        });
+        if (idx < 0) return null;
+        const moved = normalizeCatalogLink(
+            Object.assign({}, links[idx], {
+                kind: k,
+                code: to
+            })
+        );
+        if (!moved) return null;
+        links[idx] = moved;
+        patchSetup({ catalogLinks: links });
+        return moved;
+    }
+
+    function findClassTeamIndex(teams, classCode, abschlussJahr) {
+        const code = normCode(classCode);
+        const year = String(abschlussJahr || '').trim();
+        if (!code) return -1;
+        let fallback = -1;
+        for (let i = 0; i < teams.length; i++) {
+            if (normCode(teams[i].classCode) !== code) continue;
+            if (year && teams[i].abschlussJahr && teams[i].abschlussJahr === year) return i;
+            if (!year || !teams[i].abschlussJahr) fallback = i;
+        }
+        return fallback;
+    }
+
+    function patchClassTeamMeta(oldClassCode, oldAbschlussJahr, patch) {
+        const c = getContainer();
+        const teams = normalizeCoreClassTeams(c.core.classTeams || []);
+        const idx = findClassTeamIndex(teams, oldClassCode, oldAbschlussJahr);
+        if (idx < 0) return null;
+        const p = patch && typeof patch === 'object' ? patch : {};
+        const next = Object.assign({}, teams[idx]);
+        if (p.classCode != null) next.classCode = normCode(p.classCode);
+        if (p.displayName != null) next.displayName = String(p.displayName || '').trim();
+        if (p.abschlussJahr != null) {
+            const y = String(p.abschlussJahr || '').trim();
+            next.abschlussJahr = /^\d{4}$/.test(y) ? y : '';
+        }
+        teams[idx] = next;
+        c.core.classTeams = normalizeCoreClassTeams(teams);
+        saveV2(c);
+        return teams[idx];
+    }
+
+    function removeClassTeamByClassCode(classCode, abschlussJahr) {
+        const c = getContainer();
+        const teams = normalizeCoreClassTeams(c.core.classTeams || []);
+        const idx = findClassTeamIndex(teams, classCode, abschlussJahr);
+        if (idx < 0) return false;
+        teams.splice(idx, 1);
+        c.core.classTeams = normalizeCoreClassTeams(teams);
+        saveV2(c);
+        return true;
+    }
+
+    function getYearBucket(label) {
+        const c = getContainer();
+        const y = String(label || c.years.current || '').trim() || currentSchoolYearLabel();
+        if (!c.years.byLabel[y]) c.years.byLabel[y] = emptyYearBucket();
+        return { year: y, bucket: normalizeYearBucket(c.years.byLabel[y]) };
+    }
+
+    function saveYearBucket(label, bucket) {
+        const c = getContainer();
+        const y = String(label || c.years.current || '').trim() || currentSchoolYearLabel();
+        c.years.byLabel[y] = normalizeYearBucket(bucket);
+        return saveV2(c);
+    }
+
+    function upsertGuardian(entry, yearLabel) {
+        const { year, bucket } = getYearBucket(yearLabel);
+        const n = normalizeGuardian(entry);
+        if (!n) throw new Error('Erziehungsberechtigte: Name oder E-Mail fehlt.');
+        let idx = bucket.guardians.findIndex(function (g) {
+            return g.id === n.id;
+        });
+        if (idx < 0 && n.email) {
+            idx = bucket.guardians.findIndex(function (g) {
+                return g.email && g.email === n.email;
+            });
+        }
+        if (idx >= 0) {
+            const prev = bucket.guardians[idx];
+            bucket.guardians[idx] = Object.assign({}, prev, n, { id: prev.id });
+            saveYearBucket(year, bucket);
+            return bucket.guardians[idx];
+        }
+        bucket.guardians.push(n);
+        saveYearBucket(year, bucket);
+        return n;
+    }
+
+    function removeGuardian(guardianId, yearLabel) {
+        const gid = String(guardianId || '').trim();
+        if (!gid) return false;
+        const { year, bucket } = getYearBucket(yearLabel);
+        const before = bucket.guardians.length;
+        bucket.guardians = bucket.guardians.filter(function (g) {
+            return g.id !== gid;
+        });
+        bucket.students.forEach(function (s) {
+            s.guardianIds = (s.guardianIds || []).filter(function (id) {
+                return id !== gid;
+            });
+        });
+        if (bucket.guardians.length === before) return false;
+        saveYearBucket(year, bucket);
+        return true;
+    }
+
+    function setStudentGuardianIds(studentId, guardianIds, yearLabel) {
+        const sid = String(studentId || '').trim();
+        if (!sid) throw new Error('Schüler-ID fehlt.');
+        const { year, bucket } = getYearBucket(yearLabel);
+        const s = bucket.students.find(function (x) {
+            return x.id === sid;
+        });
+        if (!s) throw new Error('Schüler nicht gefunden.');
+        const valid = new Set(bucket.guardians.map(function (g) {
+            return g.id;
+        }));
+        const seen = new Set();
+        const next = [];
+        (Array.isArray(guardianIds) ? guardianIds : []).forEach(function (id) {
+            const g = String(id || '').trim();
+            if (!g || !valid.has(g) || seen.has(g)) return;
+            seen.add(g);
+            next.push(g);
+        });
+        s.guardianIds = next;
+        saveYearBucket(year, bucket);
+        return s;
+    }
+
+    function linkGuardianToStudent(studentId, guardianEntry, yearLabel) {
+        const { year, bucket } = getYearBucket(yearLabel);
+        const sid = String(studentId || '').trim();
+        const s = bucket.students.find(function (x) {
+            return x.id === sid;
+        });
+        if (!s) throw new Error('Schüler nicht gefunden.');
+        const n = normalizeGuardian(guardianEntry);
+        if (!n || !n.email) throw new Error('E-Mail der Erziehungsberechtigten fehlt.');
+        let g = bucket.guardians.find(function (x) {
+            return x.email === n.email;
+        });
+        if (!g) {
+            bucket.guardians.push(n);
+            g = n;
+        } else if (n.name && !g.name) {
+            g.name = n.name;
+        }
+        if (!s.guardianIds.includes(g.id)) s.guardianIds.push(g.id);
+        saveYearBucket(year, bucket);
+        return { student: s, guardian: g };
+    }
+
+    function unlinkGuardianFromStudent(studentId, guardianId, yearLabel) {
+        const sid = String(studentId || '').trim();
+        const gid = String(guardianId || '').trim();
+        const { year, bucket } = getYearBucket(yearLabel);
+        const s = bucket.students.find(function (x) {
+            return x.id === sid;
+        });
+        if (!s) return false;
+        const before = s.guardianIds.length;
+        s.guardianIds = (s.guardianIds || []).filter(function (id) {
+            return id !== gid;
+        });
+        if (s.guardianIds.length === before) return false;
+        saveYearBucket(year, bucket);
+        return true;
+    }
+
+    function upsertParentList(entry, yearLabel) {
+        const { year, bucket } = getYearBucket(yearLabel);
+        const n = normalizeParentList(entry);
+        if (!n) throw new Error('Elternliste: scope/code ungültig.');
+        const idx = bucket.parentLists.findIndex(function (p) {
+            return p.scope === n.scope && String(p.code) === String(n.code);
+        });
+        if (idx >= 0) bucket.parentLists[idx] = Object.assign({}, bucket.parentLists[idx], n);
+        else bucket.parentLists.push(n);
+        saveYearBucket(year, bucket);
+        return n;
+    }
+
     window.ms365AppDataV2 = {
         STORAGE_KEY_V2,
         VERSION,
@@ -847,7 +1398,24 @@
         mailNicknamePrefixSanitize,
         getCatalogLink,
         upsertCatalogLink,
-        clearCatalogLinkGroup
+        clearCatalogLinkGroup,
+        removeCatalogLink,
+        renameCatalogLink,
+        patchClassTeamMeta,
+        removeClassTeamByClassCode,
+        emptyYearBucket,
+        normalizeYearBucket,
+        normalizeGuardian,
+        normalizeStudentRow,
+        mergeStudentsImport,
+        getYearBucket,
+        saveYearBucket,
+        upsertGuardian,
+        removeGuardian,
+        setStudentGuardianIds,
+        linkGuardianToStudent,
+        unlinkGuardianFromStudent,
+        upsertParentList
     };
 })();
 

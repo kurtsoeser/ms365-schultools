@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -52,7 +53,10 @@
         }
         .pv-filter-sort { grid-column: 1 / -1; }
         @media (min-width: 640px) {
-            .tree-filter.pv-filters-3 { grid-template-columns: 1fr 1fr 1fr; }
+            .tree-filter.pv-filters-3 { grid-template-columns: 1fr 1fr; }
+        }
+        @media (min-width: 900px) {
+            .tree-filter.pv-filters-3 { grid-template-columns: 1fr 1fr 1fr 1fr; }
         }
 
         .tree {
@@ -133,77 +137,32 @@
         .stat .n { font-weight: 900; font-size: 1.15em; color: #32325d; }
         .stat .l { font-size: 0.88em; color: var(--muted); margin-top: 2px; }
 
-        .live-banner {
-            margin: 0 0 14px;
-            padding: 12px 14px;
+        .gd-page-info {
+            margin: 16px 0 0;
+            border: 1px solid var(--border);
             border-radius: 14px;
-            border: 1px solid rgba(94,114,228,0.22);
-            background: linear-gradient(135deg, rgba(94,114,228,0.12) 0%, rgba(45,206,137,0.10) 100%);
-            color: #32325d;
-            line-height: 1.45;
-            box-shadow: 0 10px 26px rgba(50,50,93,0.10);
+            background: var(--card);
         }
-        .live-banner strong { font-weight: 1000; }
-        .live-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: rgba(45,206,137,0.15);
-            border: 1px solid rgba(45,206,137,0.28);
-            color: #0d8050;
-            font-weight: 1000;
-            margin-right: 10px;
-            white-space: nowrap;
-        }
-
-        .detail-tabs-sticky {
-            position: sticky;
-            top: 0;
-            z-index: 4;
-            padding-top: 6px;
-            margin-top: 10px;
-            background: #fff;
-            border-bottom: 1px solid rgba(0,0,0,0.04);
-            box-shadow: 0 10px 22px rgba(50, 50, 93, 0.06);
-        }
-        .detail-tabs {
-            display: flex;
-            gap: 8px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            padding: 0;
-            margin: 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .detail-tab-btn {
-            appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.18);
-            border-bottom: 0;
-            background: linear-gradient(180deg, rgba(94,114,228,0.06) 0%, rgba(255,255,255,0.92) 100%);
-            color: #32325d;
-            border-top-left-radius: 14px;
-            border-top-right-radius: 14px;
-            padding: 10px 12px;
-            font-weight: 1000;
+        .gd-page-info > summary {
             cursor: pointer;
-            box-shadow: 0 8px 18px rgba(50, 50, 93, 0.08);
-            font: inherit;
+            padding: 12px 14px;
+            font-weight: 750;
+            color: var(--brand1);
+            list-style: none;
+            font-size: 0.92em;
         }
-        .detail-tab-btn[aria-selected="true"] {
-            background: #fff;
-            border-color: rgba(94, 114, 228, 0.30);
-            box-shadow: 0 12px 22px rgba(94, 114, 228, 0.16);
-            transform: translateY(1px);
+        .gd-page-info > summary::-webkit-details-marker { display: none; }
+        .gd-page-info > summary i { margin-right: 8px; }
+        .gd-page-info__body {
+            padding: 0 14px 14px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.92em;
+            line-height: 1.55;
         }
-        .detail-tab-btn:focus-visible {
-            outline: 2px solid rgba(94, 114, 228, 0.55);
-            outline-offset: 3px;
-        }
+        .gd-page-info__body p { margin: 10px 0 0; }
 
-        .tab-panel { display: none; margin-top: 12px; }
-        .tab-panel.active { display: block; }
+        /* Detail-Tabs: Styles kommen aus app.css (Design-Foundation) */
 
         .hint {
             padding: 10px 12px;
@@ -256,6 +215,31 @@
             position: sticky;
             top: 0;
         }
+        .pv-lic-usage-row,
+        .pv-lic-assign-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .pv-lic-usage-row input,
+        .pv-lic-assign-row select,
+        .pv-lic-assign-row input {
+            flex: 1 1 160px;
+            min-width: 0;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 10px;
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .pv-lic-assign-row { margin: 10px 0 8px; }
+        .pv-lic-section-title {
+            margin: 16px 0 8px;
+            font-size: 0.95em;
+            font-weight: 900;
+            color: #32325d;
+        }
 
         .pv-log {
             max-height: 180px;
@@ -282,6 +266,23 @@
             background: #fff;
             color: #32325d;
         }
+        #pvPanelProfil .field-editable label { color: #32325d; }
+        #pvPanelProfil .field-editable input,
+        #pvPanelProfil .field-editable select {
+            background: #fff;
+            border-color: rgba(94, 114, 228, 0.55);
+            box-shadow: 0 0 0 3px rgba(94, 114, 228, 0.12);
+        }
+        #pvPanelProfil .field-readonly label {
+            color: #868e96;
+            font-weight: 650;
+        }
+        #pvPanelProfil .field-readonly input {
+            background: #eef0f2;
+            color: #6c757d;
+            border-color: #dee2e6;
+            cursor: default;
+        }
         .field .pv-checkbox-row {
             display: flex;
             align-items: center;
@@ -302,7 +303,7 @@
         }
         .pv-modal-backdrop.active { display: flex; }
         .pv-modal {
-            width: min(640px, 96vw);
+            width: min(720px, 96vw);
             max-height: 92vh;
             overflow: auto;
             background: #fff;
@@ -330,6 +331,80 @@
             font-weight: 900;
             color: #32325d;
         }
+
+        .pv-onboard {
+            margin: 0 0 14px;
+            text-align: left;
+            background: color-mix(in srgb, var(--brand1) 10%, #fff);
+            border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border));
+            border-radius: 14px;
+            padding: 12px 14px 14px;
+        }
+        .pv-onboard__kicker {
+            margin: 0 0 4px;
+            color: #32325d;
+            font-size: 0.95em;
+            font-weight: 900;
+        }
+        .pv-onboard__why {
+            margin: 0 0 10px;
+            color: #495057;
+            font-size: 0.86em;
+            font-weight: 650;
+            line-height: 1.45;
+        }
+        .pv-onboard__steps {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+        @media (max-width: 640px) {
+            .pv-onboard__steps { grid-template-columns: 1fr; }
+        }
+        .pv-onboard__steps li {
+            background: #fff;
+            color: #32325d;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto auto;
+            column-gap: 10px;
+            row-gap: 2px;
+            align-items: start;
+        }
+        .pv-onboard__steps li.is-current {
+            border-color: color-mix(in srgb, var(--brand1) 55%, var(--border));
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 18%, transparent);
+        }
+        .pv-onboard__n {
+            grid-row: 1 / span 2;
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--brand1), var(--brand2));
+            color: #fff;
+            font-weight: 900;
+            font-size: 0.85em;
+        }
+        .pv-onboard__t {
+            font-weight: 900;
+            font-size: 0.9em;
+            color: #32325d;
+            line-height: 1.25;
+        }
+        .pv-onboard__d {
+            font-size: 0.78em;
+            line-height: 1.35;
+            color: #495057;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -340,32 +415,22 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-person-lines-fill"></i>Personen‑Verwaltung</span>
             </div>
-            <p style="display:none;"></p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Konten suchen, anlegen und Lizenzen prüfen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-personen-verwaltung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
-                    <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                        <button type="button" class="btn small-btn" id="pvBtnLogin"><i class="bi bi-person-badge"></i>Anmelden</button>
-                        <button type="button" class="btn btn-success small-btn" id="pvBtnLoad"><i class="bi bi-cloud-download"></i>Personen einlesen</button>
-                        <button type="button" class="btn small-btn" id="pvBtnCsv"><i class="bi bi-download"></i>CSV</button>
-                    </div>
-                </div>
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
-        <div class="content" style="padding-top: 0;">
-            <div class="live-banner" role="status">
-                <span class="live-badge"><i class="bi bi-broadcast"></i>VERZEICHNIS</span>
-                <strong>Microsoft Graph:</strong> Personen aus <code>/users</code> laden; <strong>Anlegen</strong>, <strong>Profil per PATCH</strong>, <strong>Konto beenden</strong> (Standard: deaktivieren). Gruppen: <strong>Group.Read.All</strong>.
-            </div>
-
+        <div class="content">
             <div class="layout">
                 <section class="panel" aria-label="Personenliste">
                     <div class="panel-head">
                         <h2><i class="bi bi-people" style="margin-right:10px;"></i>Personen</h2>
                         <div class="tree-actions">
                             <button type="button" class="btn btn-success small-btn" id="pvBtnNeu"><i class="bi bi-plus-circle"></i>Neu</button>
+                            <button type="button" class="btn btn-success small-btn" id="pvBtnLoad"><i class="bi bi-cloud-download"></i>Personen einlesen</button>
+                            <button type="button" class="btn small-btn" id="pvBtnCsv"><i class="bi bi-download"></i>CSV</button>
                         </div>
                         <div class="tree-filter pv-filters-3" aria-label="Filter">
                             <div>
@@ -388,6 +453,12 @@
                                 <label for="pvFilterDepartment">Abteilung</label>
                                 <select id="pvFilterDepartment" autocomplete="off">
                                     <option value="">(alle)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="pvFilterLicense">Lizenz</label>
+                                <select id="pvFilterLicense" autocomplete="off">
+                                    <option value="">(alle Lizenzen)</option>
                                 </select>
                             </div>
                             <div class="pv-filter-sort">
@@ -424,29 +495,84 @@
                     </div>
                     <div class="panel-body">
                         <div class="hint" id="pvHint">
-                            Links eine Person auswählen, um <strong>Profil</strong> und <strong>Gruppen</strong> anzuzeigen. Zuerst <strong>Personen einlesen</strong> wählen.
+                            Links eine Person auswählen, um <strong>Profil</strong>, <strong>Lizenzen</strong> und <strong>Gruppen</strong> anzuzeigen. Zuerst <strong>Personen einlesen</strong> wählen.
                         </div>
 
                         <div id="pvDetail" style="display:none;">
                             <p style="margin:0 0 8px;font-weight:900;color:#32325d;font-size:1.02em;" id="pvManageTitle"></p>
                             <div class="detail-actions" id="pvDetailActions">
-                                <button type="button" class="btn small-btn" id="pvBtnEdit"><i class="bi bi-pencil"></i>Bearbeiten</button>
-                                <button type="button" class="btn btn-success small-btn" id="pvBtnSave" style="display:none;">Speichern</button>
-                                <button type="button" class="btn small-btn" id="pvBtnCancelEdit" style="display:none;">Abbrechen</button>
+                                <button type="button" class="btn btn-success small-btn" id="pvBtnSave"><i class="bi bi-save"></i>Speichern</button>
+                                <button type="button" class="btn small-btn" id="pvBtnCancelEdit">Zurücksetzen</button>
                                 <button type="button" class="btn btn-danger small-btn" id="pvBtnDelete"><i class="bi bi-slash-circle"></i>Konto beenden …</button>
                             </div>
 
                             <div class="detail-tabs-sticky" aria-label="Detail-Tabs">
                                 <div class="detail-tabs" role="tablist">
                                     <button type="button" class="detail-tab-btn" role="tab" aria-selected="true" aria-controls="pvPanelProfil" id="pvTabProfil" data-pv-tab="profil">Profil</button>
+                                    <button type="button" class="detail-tab-btn" role="tab" aria-selected="false" aria-controls="pvPanelLizenzen" id="pvTabLizenzen" data-pv-tab="lizenzen">Lizenzen</button>
                                     <button type="button" class="detail-tab-btn" role="tab" aria-selected="false" aria-controls="pvPanelGruppen" id="pvTabGruppen" data-pv-tab="gruppen">Gruppen</button>
                                 </div>
                             </div>
 
                             <div id="pvPanelProfil" class="tab-panel active" role="tabpanel" aria-labelledby="pvTabProfil">
+                                <p class="hint" id="pvProfileHint" style="margin:0 0 12px;">
+                                    Felder mit violettem Rahmen sind direkt editierbar – <strong>Speichern</strong> schreibt nach Microsoft Graph (wie <strong>Update</strong> bei Gruppen).
+                                    Die SMTP-Adresse kann Graph ablehnen (dann den UPN ändern). Bei AD-synchronisierten Konten sind manche Felder schreibgeschützt.
+                                </p>
                                 <div class="form-grid" id="pvProfileFields"></div>
+                                <div class="detail-actions" style="margin-top:16px;">
+                                    <button type="button" class="btn btn-success" id="pvBtnSaveBottom"><i class="bi bi-save"></i>Speichern</button>
+                                </div>
+                            </div>
+                            <div id="pvPanelLizenzen" class="tab-panel" role="tabpanel" aria-labelledby="pvTabLizenzen" aria-hidden="true">
+                                <p id="pvLicHint" class="muted" style="margin:0 0 12px;font-size:0.9em;line-height:1.45;"></p>
+                                <div class="form-grid">
+                                    <div class="field">
+                                        <label for="pvLicUsageLocation">Nutzungsort (Ländercode)</label>
+                                        <div class="pv-lic-usage-row">
+                                            <input type="text" id="pvLicUsageLocation" maxlength="2" autocomplete="off" placeholder="AT" spellcheck="false">
+                                            <button type="button" class="btn small-btn" id="pvLicUsageSave">Speichern</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="pv-lic-section-title">Zugewiesene Lizenzen</p>
+                                <div class="pv-groups-wrap">
+                                    <table aria-label="Zugewiesene Lizenzen">
+                                        <thead>
+                                            <tr>
+                                                <th>Lizenz</th>
+                                                <th>SKU</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="pvLicAssignedBody"></tbody>
+                                    </table>
+                                </div>
+                                <p class="pv-lic-section-title">Lizenz zuweisen</p>
+                                <div class="pv-lic-assign-row">
+                                    <select id="pvLicAssignSelect" autocomplete="off">
+                                        <option value="">(Lizenz wählen)</option>
+                                    </select>
+                                    <button type="button" class="btn btn-success small-btn" id="pvLicAssignBtn">Zuweisen</button>
+                                </div>
+                                <p id="pvLicStatus" class="muted" style="margin:0;font-size:0.88em;"></p>
                             </div>
                             <div id="pvPanelGruppen" class="tab-panel" role="tabpanel" aria-labelledby="pvTabGruppen" aria-hidden="true">
+                                <p class="hint" id="pvGroupsHint" style="margin:0 0 12px;">
+                                    Gruppe suchen und diese Person als <strong>Mitglied hinzufügen</strong>. <strong>Entfernen</strong> gilt nur für direkte Mitgliedschaften.
+                                    Dynamische Gruppen und AD-synchronisierte Verteiler lehnt Graph oft ab.
+                                </p>
+                                <div class="pv-lic-assign-row" style="margin-top:0;">
+                                    <input type="search" id="pvGroupSearch" autocomplete="off" placeholder="Gruppenname, Mail, Alias oder Gruppen-ID">
+                                    <button type="button" class="btn small-btn" id="pvGroupSearchBtn"><i class="bi bi-search"></i>Suchen</button>
+                                </div>
+                                <div class="pv-lic-assign-row">
+                                    <select id="pvGroupSearchResults" autocomplete="off">
+                                        <option value="">(zuerst suchen)</option>
+                                    </select>
+                                    <button type="button" class="btn btn-success small-btn" id="pvGroupAddBtn">Zur Gruppe hinzufügen</button>
+                                    <button type="button" class="btn small-btn" id="pvGroupsReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                </div>
                                 <p id="pvGroupsProgress" class="muted" style="margin:0 0 10px;font-size:0.9em;"></p>
                                 <div class="pv-groups-wrap">
                                     <table aria-label="Gruppenmitgliedschaften">
@@ -455,7 +581,7 @@
                                                 <th>Anzeigename</th>
                                                 <th>E-Mail / SMTP</th>
                                                 <th>Typ</th>
-                                                <th>Gruppen-ID</th>
+                                                <th></th>
                                             </tr>
                                         </thead>
                                         <tbody id="pvGroupsTbody"></tbody>
@@ -469,6 +595,22 @@
 
             <h3 style="margin:0 0 8px;font-size:1rem;color:#32325d;">Protokoll</h3>
             <div id="pvLog" class="pv-log"></div>
+
+            <details class="gd-page-info" id="pvPageInfo">
+                <summary><i class="bi bi-info-circle" aria-hidden="true"></i>Hinweise zu diesem Werkzeug</summary>
+                <div class="gd-page-info__body">
+                    <p>
+                        <strong>Microsoft Graph:</strong> Personen aus <code>/users</code> laden;
+                        <strong>Anlegen</strong>, <strong>Profil per PATCH</strong>, <strong>Lizenzen zuweisen/entziehen</strong>,
+                        <strong>Gruppenmitgliedschaft</strong>, <strong>Konto beenden</strong> (Standard: deaktivieren).
+                        Gruppen: <strong>Group.ReadWrite.All</strong>.
+                    </p>
+                    <p>
+                        <strong>Neue Person:</strong> Zuerst Konto anlegen, dann Nutzungsort (Ländercode, z. B. AT),
+                        dann Lizenz. Ohne Nutzungsort lehnt Graph die Lizenzzuweisung ab. Gruppen sind danach optional.
+                    </p>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -481,6 +623,29 @@
                 <button type="button" class="pv-modal-close" id="pvModalCreateClose" aria-label="Schließen">×</button>
             </div>
             <div class="pv-modal-body">
+                <div class="pv-onboard" role="region" aria-labelledby="pvOnboardTitle">
+                    <p id="pvOnboardTitle" class="pv-onboard__kicker">Ablauf für dieses neue Konto</p>
+                    <p class="pv-onboard__why">
+                        Dieses Formular ist Schritt&nbsp;1. Microsoft weist keine Lizenz zu, solange kein Nutzungsort (Land) gesetzt ist. Gruppen danach optional.
+                    </p>
+                    <ol class="pv-onboard__steps">
+                        <li class="is-current">
+                            <span class="pv-onboard__n" aria-hidden="true">1</span>
+                            <span class="pv-onboard__t">Anlegen</span>
+                            <span class="pv-onboard__d">Formular ausfüllen und unten auf „Anlegen“ klicken.</span>
+                        </li>
+                        <li>
+                            <span class="pv-onboard__n" aria-hidden="true">2</span>
+                            <span class="pv-onboard__t">Nutzungsort</span>
+                            <span class="pv-onboard__d">Danach im Tab „Lizenzen“ das Land setzen (Österreich: AT).</span>
+                        </li>
+                        <li>
+                            <span class="pv-onboard__n" aria-hidden="true">3</span>
+                            <span class="pv-onboard__t">Lizenz</span>
+                            <span class="pv-onboard__d">Education-Lizenz zuweisen (A1, A3 oder A5).</span>
+                        </li>
+                    </ol>
+                </div>
                 <p class="muted" style="margin:0 0 12px;line-height:1.45;font-size:0.9em;">
                     Es wird ein <strong>Organisationskonto</strong> (Mitglied) angelegt – nicht für Gäste/Einladungen. Passwort muss die <strong>Kennwortrichtlinien</strong> des Mandanten erfüllen.
                 </p>
@@ -567,6 +732,8 @@
 
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module" src="../src/shared/graph-licenses.js"></script>
     <script src="../src/tools/personen-verwaltung/personen-verwaltung.js" defer></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

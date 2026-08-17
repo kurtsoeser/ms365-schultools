@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schulverwaltung – Organisations-Assistent</title>
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Schuljahr wechseln</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .page-card { max-width: 1200px; margin: 0 auto; }
@@ -20,7 +23,7 @@
         .panel-head {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, rgba(94, 114, 228, 0.10) 0%, rgba(130, 94, 228, 0.06) 100%);
+            background: var(--soft);
         }
         .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
         .panel-body { padding: 14px 16px; }
@@ -34,27 +37,16 @@
             line-height: 1.45;
             margin-bottom: 14px;
         }
-        .oa-tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 12px 0 16px;
+        .oa-year-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+            gap: 16px;
+            align-items: start;
         }
-        .oa-tab {
-            border: 1px solid #ced4da;
-            background: #fff;
-            padding: 10px 14px;
-            border-radius: 10px;
-            font: inherit;
-            font-weight: 700;
-            cursor: pointer;
-            color: #495057;
+        @media (max-width: 800px) {
+            .oa-year-grid { grid-template-columns: 1fr; }
         }
-        .oa-tab[aria-selected="true"] {
-            border-color: rgba(94, 114, 228, 0.45);
-            background: linear-gradient(135deg, rgba(94, 114, 228, 0.14) 0%, rgba(130, 94, 228, 0.08) 100%);
-            color: #32325d;
-        }
+        .oa-year-stat { margin: 0 0 8px; font-size: 1.35em; font-weight: 800; color: #32325d; }
         .struct-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -69,14 +61,104 @@
             border-radius: 10px;
             font: inherit;
         }
-        .struct-table-wrap { overflow: auto; max-height: 52vh; border: 1px solid var(--border); border-radius: 12px; }
-        table.oa-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
-        table.oa-table th, table.oa-table td { padding: 8px 10px; border-bottom: 1px solid #f0f1f3; text-align: left; }
-        table.oa-table th { background: #f8f9fa; position: sticky; top: 0; z-index: 1; }
-        .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .oa-copy {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin: 10px 0 12px;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+        .oa-progress {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: baseline;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #32325d;
+        }
+        .oa-progress-bar {
+            height: 8px;
+            border-radius: 99px;
+            background: #e9ecef;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .oa-progress-bar > span {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: #5e72e4;
+            border-radius: 99px;
+        }
+        .oa-check { list-style: none; margin: 0; padding: 0; }
+        .oa-check > li {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 10px 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f1f3;
+            align-items: start;
+        }
+        .oa-check > li:last-child { border-bottom: 0; }
+        .oa-check > li > input[type="checkbox"] { margin-top: 16px; }
+        .oa-check details.oa-step { min-width: 0; }
+        .oa-check details.oa-step > summary {
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 4px 0;
+        }
+        .oa-check details.oa-step > summary::-webkit-details-marker { display: none; }
+        .oa-check details.oa-step > summary::before {
+            content: '▸';
+            color: #5e72e4;
+            font-weight: 900;
+            line-height: 1.35;
+            margin-top: 2px;
+        }
+        .oa-check details.oa-step[open] > summary::before { content: '▾'; }
+        .oa-check .oa-step-sum { min-width: 0; flex: 1; }
+        .oa-check h3 { margin: 0; font-size: 1em; color: #32325d; }
+        .oa-check .oa-step-blurb { margin: 8px 0 0; color: #495057; line-height: 1.45; font-size: 0.92em; }
+        .oa-step-work {
+            margin-top: 12px;
+            padding: 14px 14px 4px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--soft);
+        }
+        .oa-step-work .hint { margin-bottom: 12px; background: #fff; }
+        .oa-step-cta { margin: 0; }
+        .oa-later {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 0.75em;
+            font-weight: 700;
+            color: #856404;
+            background: #fff3cd;
+            border-radius: 999px;
+            padding: 2px 8px;
+        }
         .link-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 0.95em; }
         .link-row a { color: #5e72e4; font-weight: 600; }
         #oaStatus { min-height: 1.4em; margin-top: 10px; }
+        details.oa-details {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: #fff;
+            margin-bottom: 18px;
+            padding: 0 16px 8px;
+        }
+        details.oa-details > summary {
+            cursor: pointer;
+            font-weight: 800;
+            color: #32325d;
+            padding: 14px 0;
+        }
     </style>
 </head>
 <body data-ms365-skip-tenant-domain-prompt="true">
@@ -85,148 +167,213 @@
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-calendar2-range"></i>Organisations-Assistent</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</span>
             </div>
-            <p>Schuljahreswechsel auf der <strong>SOLL-Struktur</strong>, Planung von <strong>Kohorten-Gruppen</strong> und <strong>Fachschafts-Gruppen</strong> aus der Fächerliste – alles lokal in <code>app-data-v2</code>, ohne Microsoft Graph.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Checkliste für den Jahreswechsel. Klappen Sie jeden Schritt auf und erledigen Sie die Arbeit direkt dort: Schuljahr aktivieren, Anzeigenamen +1, Abschlussjahrgang. Schülerliste, Unterrichtsteams und Fächer öffnen das jeweilige Werkzeug. Fachgruppen gehören nicht in diesen Wechsel – die pflegen Sie unter <a href="arge-fachgruppen.html">Fächer und ARGEs</a>.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-schuljahr" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
                     <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
                         <a class="btn" href="../tenant.html#classes" style="text-decoration:none;display:inline-block;"><i class="bi bi-sliders2-vertical"></i>Klassen &amp; Anzeigenamen</a>
-                        <a class="btn" href="kursteams.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-mortarboard"></i>Kursteams</a>
-                        <a class="btn" href="schulstruktur-sync.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-2"></i>MS 365 Gruppenverwaltung</a>
+                        <a class="btn" href="jahrgangsgruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-3"></i>Klassengruppen</a>
+                        <a class="btn" href="kursteams.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="content">
-            <div class="oa-tabs" role="tablist" aria-label="Bereiche">
-                <button type="button" class="oa-tab" id="oaTabsj" role="tab" data-oa-tab="sj" aria-selected="true" aria-controls="oaPanelsj">Schuljahreswechsel</button>
-                <button type="button" class="oa-tab" id="oaTabcoh" role="tab" data-oa-tab="coh" aria-selected="false" aria-controls="oaPanelcoh">Kohorten</button>
-                <button type="button" class="oa-tab" id="oaTabfach" role="tab" data-oa-tab="fach" aria-selected="false" aria-controls="oaPanelfach">Fachschafts-Gruppen</button>
-            </div>
-
-            <div id="oaPanelsj" role="tabpanel" aria-labelledby="oaTabsj">
-                <div class="hint">
-                    Hier bearbeitest du die <strong>Strukturzeilen</strong> (wie in der MS 365 Gruppenverwaltung): Schuljahr setzen, Zeilen archivieren (<code>Inaktiv</code>) oder ganze <strong>Unterbäume duplizieren</strong> (neue IDs, Mitgliedschaften kopiert, Sync zurück auf „Ausstehend“).
-                    <span id="oaClassTeamsHint" class="muted" style="display:block;margin-top:8px;"></span>
-                </div>
-                <section class="panel">
-                    <div class="panel-head"><h2><i class="bi bi-diagram-3"></i> Strukturzeilen</h2></div>
-                    <div class="panel-body">
-                        <div class="struct-toolbar">
-                            <div>
-                                <label for="oaStructYear">Filter Schuljahr</label>
-                                <select id="oaStructYear" aria-label="Schuljahr filtern"></select>
-                            </div>
-                            <button type="button" class="btn" id="oaStructRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
-                            <button type="button" class="btn" id="oaSelectAll">Alle markieren</button>
-                            <button type="button" class="btn" id="oaSelectNone">Keine</button>
-                            <span class="muted" style="align-self:center;"><span id="oaStructCount">0</span> Zeile(n)</span>
-                        </div>
-                        <div class="struct-table-wrap">
-                            <table class="oa-table" aria-label="Struktur">
-                                <thead>
-                                    <tr>
-                                        <th style="width:36px;"></th>
-                                        <th>Bezeichnung</th>
-                                        <th>Typ</th>
-                                        <th>Schuljahr</th>
-                                        <th>Status</th>
-                                        <th>Sync</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="oaStructTbody"></tbody>
-                            </table>
-                        </div>
-                        <div class="struct-toolbar" style="margin-top:16px;">
-                            <div>
-                                <label for="oaBulkYear">Schuljahr für Markierte setzen</label>
-                                <input type="text" id="oaBulkYear" placeholder="z. B. 2026/27" autocomplete="off">
-                            </div>
-                            <button type="button" class="btn btn-success" id="oaBulkYearBtn"><i class="bi bi-check2"></i>Anwenden</button>
-                        </div>
-                        <div class="struct-toolbar">
-                            <button type="button" class="btn" id="oaArchiveBtn"><i class="bi bi-archive"></i>Ausgewählte archivieren (Status Inaktiv)</button>
-                        </div>
-                        <div class="struct-toolbar">
-                            <div>
-                                <label for="oaDupYear">Unterbaum duplizieren → neues Schuljahr</label>
-                                <input type="text" id="oaDupYear" placeholder="Ziel-Schuljahr" autocomplete="off">
-                            </div>
-                            <button type="button" class="btn btn-success" id="oaDupBtn"><i class="bi bi-files"></i>Duplizieren</button>
-                        </div>
-                        <p class="muted" style="margin-top:10px;font-size:0.9em;">Mehrfachauswahl: pro markiertem <strong>Wurzelknoten</strong> wird der komplette Unterbaum kopiert. Liegt eine markierte Zeile unter einer anderen markierten Zeile, wird nur die obere Wurzel verwendet.</p>
+            <section class="panel" aria-labelledby="oaPlaybookHeading">
+                <div class="panel-head"><h2 id="oaPlaybookHeading"><i class="bi bi-list-check"></i> Checkliste Schuljahr wechseln</h2></div>
+                <div class="panel-body">
+                    <div class="oa-progress">
+                        <span id="oaProgressLabel">0 von 6</span>
+                        <span id="oaCurrentYear" style="font-weight:800;color:#32325d;">–</span>
+                        <span class="muted" id="oaProgressPct">0&nbsp;%</span>
                     </div>
-                </section>
-            </div>
-
-            <div id="oaPanelcoh" role="tabpanel" aria-labelledby="oaTabcoh" hidden>
-                <div class="hint">
-                    Plane Gruppen für <strong>Matura / Abschlussjahrgang</strong> oder <strong>Elternschaft nach Abschlussjahr</strong>. Die Daten werden unter <code>structure.settings.organisationAssist</code> gespeichert (lokal). Die eigentliche Gruppenanlage erfolgt in der <a href="schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> (Button <strong>Wizard: weitere Gruppen</strong>) oder der geführten Einrichtung – hier hast du konsistente Namens- und Nickname-Vorschläge.
-                </div>
-                <section class="panel">
-                    <div class="panel-head"><h2><i class="bi bi-people"></i> Kohorten planen</h2></div>
-                    <div class="panel-body">
-                        <div class="struct-toolbar">
-                            <div>
-                                <label for="oaCohortKind">Art</label>
-                                <select id="oaCohortKind">
-                                    <option value="matura">Matura / Abschlussjahrgang</option>
-                                    <option value="eltern">Elternschaft (Abschlussjahr der Kinder)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="oaCohortYear">Abschlussjahr (Kalenderjahr)</label>
-                                <input type="text" id="oaCohortYear" placeholder="2026" inputmode="numeric" maxlength="4" autocomplete="off">
-                            </div>
-                            <button type="button" class="btn btn-success" id="oaCohortAdd"><i class="bi bi-plus-lg"></i>Zur Planungsliste</button>
-                            <button type="button" class="btn" id="oaCohortClear"><i class="bi bi-trash"></i>Liste leeren</button>
-                        </div>
-                        <h3 style="font-size:1em;margin:16px 0 8px;">Gespeicherte Kohorten</h3>
-                        <ul id="oaCohortList" style="margin:0;padding-left:1.2em;line-height:1.55;"></ul>
+                    <div class="oa-progress-bar" aria-hidden="true"><span id="oaProgressFill"></span></div>
+                    <p class="muted" style="margin:0 0 8px;">Schritte 1–3 erledigen Sie hier – sie werden automatisch abgehakt. Schritte 4 und 6 haken sich ab, wenn Sammelgruppe bzw. alle Fächer/ARGEs verknüpft sind. Schritt 5 (Unterrichtsteams) nach der CSV/CMD-Anlage manuell abhaken.</p>
+                    <div id="oaOpenBox" class="hint" style="margin:0 0 14px;">
+                        <strong>Was ist offen?</strong>
+                        <ul id="oaOpenList" style="margin:8px 0 0;padding-left:1.2em;line-height:1.45;"></ul>
                     </div>
-                </section>
-            </div>
-
-            <div id="oaPanelfach" role="tabpanel" aria-labelledby="oaTabfach" hidden>
-                <div class="hint">
-                    Aus der <strong>schulweiten Fächerliste</strong> (Schul-Grundeinstellungen) werden Vorschläge für <strong>Fachschafts-Gruppen</strong> erzeugt. Das Präfix entspricht dem Einrichtungsassistenten (<code>subjectGroupMailPrefix</code>, z. B. <code>fach</code>). Über „Links vormerken“ trägst du Einträge in <code>catalogLinks</code> ein – wie beim Katalog im Einrichtungsassistenten; fehlende M365-Gruppen legst du z. B. in der <a href="schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> (Wizard: weitere Gruppen) oder über <a href="arge-fachgruppen.html">ARGE &amp; Fachgruppen</a> an.
-                </div>
-                <section class="panel">
-                    <div class="panel-head"><h2><i class="bi bi-book"></i> Fächer → Fachschafts-Gruppe</h2></div>
-                    <div class="panel-body">
-                        <div class="btn-row">
-                            <button type="button" class="btn" id="oaFachRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
-                            <button type="button" class="btn btn-success" id="oaFachAddLinks"><i class="bi bi-link-45deg"></i>Ausgewählte in Einrichtungsdaten vormerken</button>
-                            <a class="btn" href="../einrichtung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-signpost-2"></i>Einrichtungsassistent</a>
+                    <div id="oaRunBox" class="filter-section" style="margin:0 0 16px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--soft);">
+                        <h3 style="margin:0 0 8px;font-size:1.02em;">Vorschau des Wechsels</h3>
+                        <p id="oaRunMeta" class="muted" style="margin:0 0 10px;line-height:1.45;">Die Reihenfolge Jahr → Namen → Abschlussjahrgang → Schüler → Unterrichtsteams → Archiv. Kein Sammel-Schreiben nach Microsoft 365.</p>
+                        <div class="settings-actions" style="margin:0 0 10px;">
+                            <button type="button" class="btn" id="oaRunPreview"><i class="bi bi-eye"></i>Vorschau aktualisieren</button>
+                            <button type="button" class="btn" id="oaRunSaveLog"><i class="bi bi-journal-text"></i>Vorschau merken</button>
                         </div>
-                        <div class="struct-table-wrap" style="margin-top:14px;max-height:48vh;">
-                            <table class="oa-table" aria-label="Fächer">
-                                <thead>
-                                    <tr>
-                                        <th>Code</th>
-                                        <th>Name</th>
-                                        <th>Vorschlag mailNickname</th>
-                                        <th>catalogLink</th>
-                                        <th style="width:40px;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="oaFachTbody"></tbody>
-                            </table>
-                        </div>
+                        <ol id="oaRunActions" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ol>
+                        <p class="muted" style="margin:0 0 6px;font-weight:700;">Protokoll (lokal)</p>
+                        <div id="oaRunLog" class="muted" style="line-height:1.45;"></div>
                     </div>
-                </section>
-            </div>
+                    <ol class="oa-check" id="oaPlaybookList">
+                        <li>
+                            <input type="checkbox" id="oaStep-year" data-step-id="year" aria-labelledby="oaStepTitle-year">
+                            <details class="oa-step" id="year" data-oa-step="year">
+                                <summary>
+                                    <span class="oa-step-sum"><h3 id="oaStepTitle-year">1. Neues Schuljahr aktivieren</h3></span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-year"></p>
+                                <div class="oa-step-work">
+                                    <p class="muted" id="oaYearMeta" style="margin:0 0 12px;line-height:1.45;"></p>
+                                    <div class="oa-year-grid">
+                                        <div>
+                                            <div class="struct-toolbar" style="margin-bottom:0;">
+                                                <div>
+                                                    <label for="oaExistingYear">Vorhandenes Jahr wählen</label>
+                                                    <select id="oaExistingYear" aria-label="Vorhandenes Schuljahr"></select>
+                                                </div>
+                                                <div>
+                                                    <label for="oaNewYear">Oder neues Jahr</label>
+                                                    <input type="text" id="oaNewYear" placeholder="z. B. 2026/27" autocomplete="off">
+                                                </div>
+                                            </div>
+                                            <label class="oa-copy">
+                                                <input type="checkbox" id="oaCopyLists" checked>
+                                                <span>Schüler- und Klassenliste aus dem bisherigen Jahr kopieren (nur wenn das Zieljahr noch nicht existiert).</span>
+                                            </label>
+                                            <button type="button" class="btn btn-success" id="oaActivateYear"><i class="bi bi-check2"></i>Schuljahr aktivieren</button>
+                                            <p class="link-row"><a href="../tenant.html">Stammdaten (Klassenliste) öffnen</a></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="oaStep-names" data-step-id="names" aria-labelledby="oaStepTitle-names">
+                            <details class="oa-step" id="namen" data-oa-step="names">
+                                <summary>
+                                    <span class="oa-step-sum"><h3 id="oaStepTitle-names">2. Klassen-Anzeigenamen anpassen</h3></span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-names"></p>
+                                <div class="oa-step-work">
+                                    <div class="hint">
+                                        Dieselbe Klassengruppe behält den Mail‑Alias. Hier erhöhen Sie den <strong>Anzeigenamen</strong> (1HMA → 2HMA oder „Klasse 1A“ → „Klasse 2A“), speichern lokal und schreiben ausgewählte Zeilen nach Microsoft 365.
+                                        Voraussetzung für Microsoft 365: Anmeldung oben rechts und eine verknüpfte Gruppen-ID.
+                                    </div>
+                                    <div id="classTeamsRolloverRoot" aria-live="polite"></div>
+                                </div>
+                            </details>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="oaStep-graduates" data-step-id="graduates" aria-labelledby="oaStepTitle-graduates">
+                            <details class="oa-step" id="abschluss" data-oa-step="graduates">
+                                <summary>
+                                    <span class="oa-step-sum"><h3 id="oaStepTitle-graduates">3. Abschlussjahrgang prüfen</h3></span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-graduates"></p>
+                                <div class="oa-step-work">
+                                    <div class="hint">
+                                        Eine <strong>zusätzliche</strong> Gruppe für alle Klassen desselben Abschlussjahrs – nicht die Klassengruppe.
+                                        In dieser App heißt das durchgängig <strong>Abschlussjahrgang</strong> (nicht „Kohorte“).
+                                        Die Jahre kommen aus der Klassenliste des aktuellen Schuljahrs.
+                                        Erziehungsberechtigte legt diese App nicht als Benutzer oder Gäste an.
+                                    </div>
+                                    <div class="gd-layout" style="padding-bottom:0;">
+                                        <div>
+                                            <div class="field" style="margin:0 0 10px;">
+                                                <span class="muted" style="display:block;font-weight:700;margin-bottom:4px;">Aus den Stammdaten</span>
+                                                <div class="gd-filter-row">
+                                                    <button type="button" class="btn" id="oaCohortReload"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                                                </div>
+                                            </div>
+                                            <p class="muted" id="oaCohortSummary" style="margin:0 0 8px;">–</p>
+                                            <ul class="tree tree--scroll" id="oaCohortListItems" aria-label="Abschlussjahre"></ul>
+                                        </div>
+                                        <div>
+                                            <p class="muted" id="oaCohortEmptyHint" style="margin:0;">Keine Abschlussjahre gefunden.</p>
+                                            <div id="oaCohortDetailWrap">
+                                                <div id="oaCohortDetailHost"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="oaStep-students" data-step-id="students" aria-labelledby="oaStepTitle-students">
+                            <details class="oa-step" data-oa-step="students">
+                                <summary>
+                                    <span class="oa-step-sum"><h3 id="oaStepTitle-students">4. Schülerliste und Sammelgruppe</h3></span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-students"></p>
+                                <div class="oa-step-work">
+                                    <p class="muted" id="oaStepStatus-students" style="margin:0 0 10px;line-height:1.45;" hidden></p>
+                                    <p class="oa-step-cta"><a class="btn" data-oa-step-href="students" href="schueler-lehrer-gruppen.html" style="text-decoration:none;"><i class="bi bi-people"></i>Schüler und Lehrkräfte öffnen</a></p>
+                                </div>
+                            </details>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="oaStep-kursteams" data-step-id="kursteams" aria-labelledby="oaStepTitle-kursteams">
+                            <details class="oa-step" data-oa-step="kursteams">
+                                <summary>
+                                    <span class="oa-step-sum"><h3 id="oaStepTitle-kursteams">5. Unterrichtsteams neu anlegen</h3></span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-kursteams"></p>
+                                <div class="oa-step-work">
+                                    <p class="muted" id="oaStepStatus-kursteams" style="margin:0 0 10px;line-height:1.45;" hidden></p>
+                                    <p class="oa-step-cta"><a class="btn" data-oa-step-href="kursteams" href="kursteams.html" style="text-decoration:none;"><i class="bi bi-mortarboard"></i>Unterrichtsteams öffnen</a>
+                                    <a class="btn" href="teams-archiv.html" style="text-decoration:none;margin-left:8px;"><i class="bi bi-archive"></i>Alte Teams archivieren</a></p>
+                                </div>
+                            </details>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="oaStep-subjects" data-step-id="subjects" aria-labelledby="oaStepTitle-subjects">
+                            <details class="oa-step" data-oa-step="subjects">
+                                <summary>
+                                    <span class="oa-step-sum"><h3 id="oaStepTitle-subjects">6. Fachgruppen und ARGEs prüfen</h3></span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-subjects"></p>
+                                <div class="oa-step-work">
+                                    <p class="muted" id="oaStepStatus-subjects" style="margin:0 0 10px;line-height:1.45;" hidden></p>
+                                    <p class="oa-step-cta"><a class="btn" data-oa-step-href="subjects" href="arge-fachgruppen.html" style="text-decoration:none;"><i class="bi bi-collection"></i>Fächer und ARGEs öffnen</a></p>
+                                </div>
+                            </details>
+                        </li>
+                        <li data-optional="1">
+                            <input type="checkbox" id="oaStep-expert" data-step-id="expert" aria-labelledby="oaStepTitle-expert">
+                            <details class="oa-step" id="oaExpertDetails" data-oa-step="expert">
+                                <summary>
+                                    <span class="oa-step-sum">
+                                        <h3 id="oaStepTitle-expert">7. Optional: SOLL-Struktur (Experten) <span class="oa-later">optional</span></h3>
+                                    </span>
+                                </summary>
+                                <p class="oa-step-blurb" id="oaStepBlurb-expert"></p>
+                                <div class="oa-step-work">
+                                    <div class="hint">
+                                        Der Schuljahreswechsel für Klassengruppen läuft in Schritt 2: derselbe Mail‑Alias, nur der Anzeigename +1.
+                                        Der Strukturbaum der Gruppenverwaltung ist ein anderes Modell.
+                                        Unterbäume dort zu <strong>duplizieren</strong> erzeugt neue Zeilen – für Klassengruppen mit stabilem Alias der falsche Weg.
+                                    </div>
+                                    <p class="muted" id="oaExpertMeta" style="margin:0 0 12px;line-height:1.45;">–</p>
+                                    <p class="oa-step-cta"><a class="btn" data-oa-step-href="expert" href="schulstruktur-sync.html?mode=struktur" style="text-decoration:none;">Gruppenverwaltung öffnen</a></p>
+                                </div>
+                            </details>
+                        </li>
+                    </ol>
+                </div>
+            </section>
 
             <p id="oaStatus" aria-live="polite"></p>
         </div>
     </div>
 
+    <div id="toast" class="toast" role="status"></div>
+
     <script src="../ms365-config.js"></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
-    <script src="../src/tools/organisations-assistent/organisations-assistent.js" defer></script>
+    <script src="../src/shared/graph-rename-preview.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/class-teams-rollover-ui.js" defer></script>
+    <script src="../src/shared/group-detail/group-detail.js" defer></script>
+    <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
+    <script type="module" src="../src/tools/organisations-assistent/organisations-assistent.js"></script>
 </body>
 </html>

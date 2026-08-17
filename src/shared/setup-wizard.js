@@ -503,7 +503,9 @@ import {
         return out;
     }
 
-    function saveSwAdminList() {
+    function persistSwAdminListFromTableSilent() {
+        const tbody = document.getElementById('swAdminTableBody');
+        if (!tbody) return;
         const s = loadTenantSettings() || {};
         const rows = gatherSwAdminRowsFromTable().filter(function (r) {
             return r && (normStr(r.role) || normStr(r.name) || normStr(r.email));
@@ -513,6 +515,10 @@ import {
             window.ms365TenantSettingsSave(s);
         }
         readLists();
+    }
+
+    function saveSwAdminList() {
+        persistSwAdminListFromTableSilent();
         renderSwAdminTableBody();
         refreshSwStatsVerwaltung();
         refreshSwOwnerSummary('Verwaltung', 'verwaltung');
@@ -761,6 +767,7 @@ import {
             const inp = document.getElementById('swDomain');
             const s = loadTenantSettings();
             if (inp && s && s.domain) inp.value = s.domain;
+            refreshSwGraphDefaultDomainHint();
         }
         if (step === 3) {
             syncSetupFromAppData();
@@ -1123,21 +1130,88 @@ import {
             }
             if (rerenderKind === 'teachers') renderSwTeachersTableFromTextarea();
             else if (rerenderKind === 'students') renderSwStudentsTableFromTextarea();
-            else if (rerenderKind === 'admin') renderSwAdminTableBody();
+            else if (rerenderKind === 'admin') {
+                persistSwAdminListFromTableSilent();
+                renderSwAdminTableBody();
+            }
         } catch (e) {
             toast('Abgleich: ' + (e.message || e));
         }
     }
 
-    async function runCreateEntraUserForVerwaltungRow(emailRaw, nameHint) {
+    function mailNicknameFromUpn(upn) {
+        const local = String(upn || '').split('@')[0] || 'user';
+        return G().sanitizeMailNickname(local.replace(/[^a-zA-Z0-9]/g, '') || 'user');
+    }
+
+    function patchDirectoryMatchKeys(emailKeys, payload) {
+        const patch = {};
+        const seen = {};
+        (emailKeys || []).forEach(function (k) {
+            const em = normEmail(k);
+            if (!em || em.indexOf('@') === -1 || seen[em]) return;
+            seen[em] = true;
+            patch[em] = payload;
+        });
+        if (!Object.keys(patch).length) return;
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+            window.ms365AppDataV2.patchSetup({ directoryMatchByEmail: patch });
+        }
+    }
+
+    function directoryMatchUserPayload(user, iso) {
+        return {
+            graphUserId: String(user && user.id ? user.id : '').trim(),
+            displayName: String((user && (user.displayName || user.displayNameHint)) || '').trim(),
+            userPrincipalName: String((user && (user.userPrincipalName || user.upn)) || '').trim(),
+            notFound: false,
+            checkedAt: iso || new Date().toISOString()
+        };
+    }
+
+    async function createEntraUserViaGraph(token, upn, displayName) {
+        const pwd = randomTempPassword();
+        const mailNick = mailNicknameFromUpn(upn);
+        const body = {
+            accountEnabled: true,
+            displayName: String(displayName).trim(),
+            mailNickname: mailNick,
+            userPrincipalName: String(upn).trim(),
+            passwordProfile: {
+                forceChangePasswordNextSignIn: true,
+                password: pwd
+            }
+        };
+        const created = await G().graphJson('POST', '/users', token, body, undefined);
+        const uid = String(created.id || '').trim();
+        if (!uid) throw new Error('Keine Benutzer-ID von Graph erhalten.');
+        return {
+            id: uid,
+            password: pwd,
+            upn: String(upn).trim(),
+            displayName: String(displayName).trim(),
+            mailNickname: mailNick
+        };
+    }
+
+    function rerenderAfterDirectoryChange(rerenderKind) {
+        if (rerenderKind === 'teachers') renderSwTeachersTableFromTextarea();
+        else if (rerenderKind === 'students') renderSwStudentsTableFromTextarea();
+        else if (rerenderKind === 'admin') {
+            persistSwAdminListFromTableSilent();
+            renderSwAdminTableBody();
+        }
+    }
+
+    async function runCreateEntraUserInteractive(emailRaw, nameHint, rerenderKind) {
         const em = normEmail(emailRaw);
         if (!em || em.indexOf('@') === -1) {
             toast('Bitte zuerst eine gültige E‑Mail eintragen.');
             return;
         }
+        const kind = rerenderKind || 'admin';
         const dom = em.split('@')[1] || '';
-        const defUpn = em;
-        const upn = await dlgPrompt('Benutzer-Principalname (UPN), z. B. vorname.nachname@' + dom + ':', defUpn, {
+        const upn = await dlgPrompt('Benutzer-Principalname (UPN), z. B. vorname.nachname@' + dom + ':', em, {
             title: 'Entra-Benutzer',
             inputLabel: 'UPN'
         });
@@ -1148,14 +1222,13 @@ import {
             { title: 'Entra-Benutzer', inputLabel: 'Anzeigename' }
         );
         if (displayName == null || !normStr(displayName)) return;
-        const mailNick = G().sanitizeMailNickname(String(upn.split('@')[0] || 'user').replace(/[^a-zA-Z0-9]/g, ''));
-        const pwd = randomTempPassword();
+        const mailNick = mailNicknameFromUpn(upn);
         try {
             const tokenProbe = await G().getGraphToken();
             const existing = await G().resolveUserByEmail(tokenProbe, em);
             if (existing && existing.id) {
                 toast('Unter dieser E‑Mail existiert bereits ein Entra-Benutzer – Abgleich verwenden.');
-                verifyGraphDirectoryOneEmail(em, 'admin');
+                verifyGraphDirectoryOneEmail(em, kind);
                 return;
             }
         } catch {
@@ -1177,45 +1250,34 @@ import {
         }
         try {
             const token = await G().getGraphToken();
-            const body = {
-                accountEnabled: true,
-                displayName: String(displayName).trim(),
-                mailNickname: mailNick,
-                userPrincipalName: String(upn).trim(),
-                passwordProfile: {
-                    forceChangePasswordNextSignIn: true,
-                    password: pwd
-                }
-            };
-            const created = await G().graphJson('POST', '/users', token, body, undefined);
-            const uid = String(created.id || '').trim();
-            if (!uid) throw new Error('Keine Benutzer-ID von Graph erhalten.');
+            const created = await createEntraUserViaGraph(token, upn, displayName);
             const iso = new Date().toISOString();
-            const emKey = normEmail(upn);
-            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
-                window.ms365AppDataV2.patchSetup({
-                    directoryMatchByEmail: {
-                        [emKey]: {
-                            graphUserId: uid,
-                            displayName: String(displayName).trim(),
-                            userPrincipalName: String(upn).trim(),
-                            notFound: false,
-                            checkedAt: iso
-                        }
-                    }
-                });
-            }
+            patchDirectoryMatchKeys(
+                [em, created.upn],
+                directoryMatchUserPayload(
+                    {
+                        id: created.id,
+                        displayName: created.displayName,
+                        userPrincipalName: created.upn
+                    },
+                    iso
+                )
+            );
             await dlgAlert(
                 'Benutzer angelegt.\n\nEinmaliges Kennwort:\n' +
-                    pwd +
+                    created.password +
                     '\n\n(Bitte sicher übergeben / in Entra ändern.)',
                 { title: 'Kennwort notieren', okText: 'Verstanden' }
             );
-            renderSwAdminTableBody();
+            rerenderAfterDirectoryChange(kind);
             toast('Entra-Benutzer angelegt.');
         } catch (e) {
             toast('Benutzer anlegen: ' + (e.message || e));
         }
+    }
+
+    async function runCreateEntraUserForVerwaltungRow(emailRaw, nameHint) {
+        return runCreateEntraUserInteractive(emailRaw, nameHint, 'admin');
     }
 
     async function runVerifyGraphDirectoryRows(rows, getEmail, label, btnId, onDone) {
@@ -1290,6 +1352,159 @@ import {
         );
     }
 
+    function personNeedsEntraAccount(row) {
+        const em = normEmail(row && row.email);
+        if (!em || em.indexOf('@') === -1) return false;
+        const m = getDirectoryMatchForEmail(em);
+        if (m && m.graphUserId) return false;
+        return true;
+    }
+
+    async function runCreateMissingEntraUsers(opts) {
+        const getRows = opts && opts.getRows;
+        const rerenderKind = (opts && opts.rerenderKind) || 'teachers';
+        const btnId = opts && opts.btnId;
+        const title = (opts && opts.title) || 'Benutzer anlegen';
+        const toastPrefix = (opts && opts.toastPrefix) || 'Benutzer';
+        const noneMsg =
+            (opts && opts.noneMsg) ||
+            'Keine fehlenden Personen: alle mit E‑Mail sind bereits Microsoft 365 zugeordnet – oder es fehlt eine E‑Mail.';
+        const whoOne = (opts && opts.whoOne) || '1 Person hat';
+        const whoMany = opts && opts.whoMany;
+        const rows = typeof getRows === 'function' ? getRows() : [];
+        const seen = new Set();
+        const candidates = [];
+        rows.forEach(function (row) {
+            if (!personNeedsEntraAccount(row)) return;
+            const em = normEmail(row.email);
+            if (seen.has(em)) return;
+            seen.add(em);
+            candidates.push(row);
+        });
+        if (!candidates.length) {
+            toast(noneMsg);
+            return;
+        }
+        const n = candidates.length;
+        const who = n === 1 ? whoOne : typeof whoMany === 'function' ? whoMany(n) : n + ' Personen haben';
+        if (
+            !(await dlgConfirm(
+                who +
+                    ' noch keinen zugeordneten Microsoft‑365‑Benutzer.\n\n' +
+                    'Es werden Konten mit der Listen‑E‑Mail als Anmeldename (UPN) und dem Namen als Anzeigename angelegt. Bereits vorhandene Konten werden nur zugeordnet.\n' +
+                    'Temporäre Kennwörter werden danach einmal angezeigt.\n\nFortfahren?',
+                { title: title, okText: 'Anlegen' }
+            ))
+        ) {
+            return;
+        }
+        const btn = btnId ? document.getElementById(btnId) : null;
+        const pwdNotes = [];
+        const failNotes = [];
+        let created = 0;
+        let existed = 0;
+        let failed = 0;
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.setAttribute('aria-busy', 'true');
+            }
+            const token = await G().getGraphToken();
+            const iso = new Date().toISOString();
+            const updates = {};
+            for (let i = 0; i < candidates.length; i++) {
+                const row = candidates[i];
+                const em = normEmail(row.email);
+                const displayName = normStr(row.name) || em.split('@')[0];
+                try {
+                    const existing = await G().resolveUserByEmail(token, em);
+                    if (existing && existing.id) {
+                        updates[em] = directoryMatchUserPayload(existing, iso);
+                        existed++;
+                    } else {
+                        const createdUser = await createEntraUserViaGraph(token, em, displayName);
+                        updates[em] = directoryMatchUserPayload(
+                            {
+                                id: createdUser.id,
+                                displayName: createdUser.displayName,
+                                userPrincipalName: createdUser.upn
+                            },
+                            iso
+                        );
+                        pwdNotes.push(displayName + ' <' + em + '>: ' + createdUser.password);
+                        created++;
+                    }
+                } catch (e) {
+                    failed++;
+                    failNotes.push(displayName + ' <' + em + '>: ' + (e.message || e));
+                }
+                if (i < candidates.length - 1 && typeof G().sleep === 'function') {
+                    await G().sleep(450);
+                }
+            }
+            if (Object.keys(updates).length && window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+                window.ms365AppDataV2.patchSetup({ directoryMatchByEmail: updates });
+            }
+            rerenderAfterDirectoryChange(rerenderKind);
+            const parts = [];
+            if (created) parts.push(created + ' angelegt');
+            if (existed) parts.push(existed + ' bereits vorhanden');
+            if (failed) parts.push(failed + ' fehlgeschlagen');
+            toast(toastPrefix + ': ' + (parts.length ? parts.join(', ') : 'Keine Änderung.'));
+            if (pwdNotes.length) {
+                await dlgAlert(
+                    'Temporäre Kennwörter (bitte sicher notieren und übergeben):\n\n' + pwdNotes.join('\n'),
+                    { title: 'Kennwörter notieren', okText: 'Verstanden' }
+                );
+            }
+            if (failNotes.length) {
+                await dlgAlert('Nicht angelegt:\n\n' + failNotes.join('\n'), {
+                    title: 'Fehler bei der Anlage',
+                    okText: 'OK'
+                });
+            }
+        } catch (e) {
+            toast(toastPrefix + ' anlegen: ' + (e.message || e));
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.removeAttribute('aria-busy');
+            }
+        }
+    }
+
+    async function runCreateMissingTeachersEntra() {
+        return runCreateMissingEntraUsers({
+            getRows: getSwTeachersFromTextarea,
+            rerenderKind: 'teachers',
+            btnId: 'swBtnCreateMissingTeachers',
+            title: 'Lehrkräfte anlegen',
+            toastPrefix: 'Lehrkräfte',
+            noneMsg:
+                'Keine fehlenden Lehrkräfte: alle mit E‑Mail sind bereits Microsoft 365 zugeordnet – oder es fehlt eine E‑Mail.',
+            whoOne: '1 Lehrkraft hat',
+            whoMany: function (n) {
+                return n + ' Lehrkräfte haben';
+            }
+        });
+    }
+
+    async function runCreateMissingStudentsEntra() {
+        return runCreateMissingEntraUsers({
+            getRows: getSwStudentsFromTextarea,
+            rerenderKind: 'students',
+            btnId: 'swBtnCreateMissingStudents',
+            title: 'Schüler:innen anlegen',
+            toastPrefix: 'Schüler:innen',
+            noneMsg:
+                'Keine fehlenden Schüler:innen: alle mit E‑Mail sind bereits Microsoft 365 zugeordnet – oder es fehlt eine E‑Mail.',
+            whoOne: '1 Schüler:in hat',
+            whoMany: function (n) {
+                return n + ' Schüler:innen haben';
+            }
+        });
+    }
+
     async function runVerifyStudentsGraph() {
         const rows = getSwStudentsFromTextarea();
         await runVerifyGraphDirectoryRows(
@@ -1315,23 +1530,49 @@ import {
             'Verwaltung',
             'swBtnVerifyVerwaltungGraph',
             function () {
+                persistSwAdminListFromTableSilent();
                 renderSwAdminTableBody();
             }
         );
     }
 
     function saveDomainStep() {
-        const s = loadTenantSettings() || {};
         const inp = document.getElementById('swDomain');
-        s.domain = inp ? normStr(inp.value).replace(/^@+/, '') : '';
-        if (typeof window.ms365TenantSettingsSave === 'function') {
-            window.ms365TenantSettingsSave(s);
+        const domain = inp ? normStr(inp.value).replace(/^@+/, '') : '';
+        if (inp) inp.value = domain;
+        if (!domain) {
+            toast('Bitte eine Domain ohne @ eingeben, z. B. schule.at.');
+            return;
         }
+        const s = loadTenantSettings() || {};
+        s.domain = domain;
+        if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
+            window.ms365SetSchoolDomainNoAt(domain);
+        }
+        let saved = s;
+        if (typeof window.ms365TenantSettingsSave === 'function') {
+            saved = window.ms365TenantSettingsSave(s) || s;
+        }
+        const stored = normStr(saved && saved.domain).replace(/^@+/, '') || domain;
+        if (inp) inp.value = stored;
+        try {
+            window.dispatchEvent(
+                new CustomEvent('ms365-tenant-settings-changed', {
+                    detail: { settings: saved, reason: 'wizard-domain' }
+                })
+            );
+        } catch {
+            // ignore
+        }
+        if (typeof window.ms365RefreshContextBar === 'function') {
+            window.ms365RefreshContextBar();
+        }
+        refreshSwGraphDefaultDomainHint();
         readLists();
         refreshSwSmtpPreviewHint('Lehrer');
         refreshSwSmtpPreviewHint('Schueler');
         refreshSwSmtpPreviewHint('Verwaltung');
-        toast('Domain gespeichert.');
+        toast('Domain gespeichert: ' + stored);
     }
 
     function wizardStartCellEdit(td, initialValue, onCommit) {
@@ -1406,7 +1647,7 @@ import {
             const td = document.createElement('td');
             td.colSpan = 5;
             td.style.color = '#6c757d';
-            td.textContent = 'Noch keine Einträge – oben einfügen, importieren oder „+ Zeile“.';
+            td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen, importieren oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
             refreshSwStatsTeachers();
@@ -1464,15 +1705,26 @@ import {
             const tdAction = document.createElement('td');
             tdAction.className = 'action-cell';
             tdAction.style.whiteSpace = 'nowrap';
+            const wrap = document.createElement('div');
+            wrap.style.cssText =
+                'display:inline-flex;flex-wrap:nowrap;gap:6px;align-items:center;justify-content:flex-end;';
             const btnMs = document.createElement('button');
             btnMs.type = 'button';
             btnMs.className = 'mini-btn';
             btnMs.style.background = '#5e72e4';
-            btnMs.style.marginRight = '6px';
             btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
             btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
             btnMs.addEventListener('click', function () {
                 verifyGraphDirectoryOneEmail(row.email, 'teachers');
+            });
+            const btnCr = document.createElement('button');
+            btnCr.type = 'button';
+            btnCr.className = 'mini-btn';
+            btnCr.style.background = '#11cdef';
+            btnCr.title = 'Neuen Benutzer in Microsoft Entra ID anlegen (User.ReadWrite.All)';
+            btnCr.innerHTML = '<i class="bi bi-person-plus" aria-hidden="true"></i>';
+            btnCr.addEventListener('click', function () {
+                runCreateEntraUserInteractive(row.email, row.name, 'teachers');
             });
             const btnDel = document.createElement('button');
             btnDel.type = 'button';
@@ -1485,8 +1737,10 @@ import {
                 setSwTeachersTextareaFromRows(all);
                 renderSwTeachersTableFromTextarea();
             });
-            tdAction.appendChild(btnMs);
-            tdAction.appendChild(btnDel);
+            wrap.appendChild(btnMs);
+            wrap.appendChild(btnCr);
+            wrap.appendChild(btnDel);
+            tdAction.appendChild(wrap);
 
             tr.appendChild(tdCode);
             tr.appendChild(tdName);
@@ -1540,7 +1794,7 @@ import {
             const td = document.createElement('td');
             td.colSpan = 5;
             td.style.color = '#6c757d';
-            td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
+            td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
             refreshSwStatsStudents();
@@ -1598,15 +1852,26 @@ import {
             const tdAction = document.createElement('td');
             tdAction.className = 'action-cell';
             tdAction.style.whiteSpace = 'nowrap';
+            const wrap = document.createElement('div');
+            wrap.style.cssText =
+                'display:inline-flex;flex-wrap:nowrap;gap:6px;align-items:center;justify-content:flex-end;';
             const btnMs = document.createElement('button');
             btnMs.type = 'button';
             btnMs.className = 'mini-btn';
             btnMs.style.background = '#5e72e4';
-            btnMs.style.marginRight = '6px';
             btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
             btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
             btnMs.addEventListener('click', function () {
                 verifyGraphDirectoryOneEmail(row.email, 'students');
+            });
+            const btnCr = document.createElement('button');
+            btnCr.type = 'button';
+            btnCr.className = 'mini-btn';
+            btnCr.style.background = '#11cdef';
+            btnCr.title = 'Neuen Benutzer in Microsoft Entra ID anlegen (User.ReadWrite.All)';
+            btnCr.innerHTML = '<i class="bi bi-person-plus" aria-hidden="true"></i>';
+            btnCr.addEventListener('click', function () {
+                runCreateEntraUserInteractive(row.email, row.name, 'students');
             });
             const btnDel = document.createElement('button');
             btnDel.type = 'button';
@@ -1619,8 +1884,10 @@ import {
                 setSwStudentsTextareaFromRows(all);
                 renderSwStudentsTableFromTextarea();
             });
-            tdAction.appendChild(btnMs);
-            tdAction.appendChild(btnDel);
+            wrap.appendChild(btnMs);
+            wrap.appendChild(btnCr);
+            wrap.appendChild(btnDel);
+            tdAction.appendChild(wrap);
 
             tr.appendChild(tdClass);
             tr.appendChild(tdName);
@@ -1636,6 +1903,59 @@ import {
     function getTenantDomainForPreview() {
         const s = loadTenantSettings() || {};
         return normStr(s.domain || '').replace(/^@+/, '');
+    }
+
+    function domainFromEmail(mail) {
+        const m = String(mail || '').trim().toLowerCase();
+        const i = m.lastIndexOf('@');
+        return i >= 0 ? m.slice(i + 1) : '';
+    }
+
+    async function refreshSwGraphDefaultDomainHint() {
+        const el = document.getElementById('swDomainGraphHint');
+        if (!el) return;
+        const school = getTenantDomainForPreview();
+        el.textContent =
+            'Neue Microsoft‑365‑Gruppen erhalten die E‑Mail‑Domain, die in Entra als Standard festgelegt ist – nicht automatisch die Schul‑Domain oben.';
+        try {
+            const token = await G().getGraphToken();
+            const org = await G().graphJson('GET', '/organization?$select=verifiedDomains', token, undefined);
+            const row = org && Array.isArray(org.value) ? org.value[0] : org;
+            const list = (row && row.verifiedDomains) || [];
+            let defName = '';
+            list.forEach(function (d) {
+                if (d && d.isDefault) defName = String(d.name || '').trim();
+            });
+            if (!defName) return;
+            if (school && defName.toLowerCase() !== school.toLowerCase()) {
+                el.innerHTML =
+                    'Dieser Tenant legt neue Gruppen‑Mails unter <code>' +
+                    escapeHtml(defName) +
+                    '</code> an (Entra‑Standarddomain). Die Schul‑Domain <code>' +
+                    escapeHtml(school) +
+                    '</code> wird dafür von Graph nicht gesetzt. In Microsoft 365 unter <strong>Einstellungen → Domains</strong> die Schul‑Domain als Standard festlegen, wenn Gruppen darunter liegen sollen.';
+            } else {
+                el.innerHTML =
+                    'Tenant‑Standarddomain: <code>' +
+                    escapeHtml(defName) +
+                    '</code> – neue Gruppen‑Mails sollten darunter liegen.';
+            }
+        } catch {
+            // Hinweis bleibt der Fallback-Text
+        }
+    }
+
+    function toastGroupCreated(label, group, nick) {
+        const actual = String((group && group.mail) || '').trim();
+        const school = getTenantDomainForPreview().toLowerCase();
+        const actDom = domainFromEmail(actual);
+        let msg = (label || 'Gruppe') + ' angelegt';
+        if (actual) msg += ': ' + actual;
+        else if (nick) msg += ' (Alias ' + nick + ')';
+        if (school && actDom && actDom !== school) {
+            msg += ' — Graph nutzt die Tenant‑Standarddomain, nicht ' + school + ' aus Schritt 2.';
+        }
+        toast(msg);
     }
 
     function sanitizeNickForSmtpPreview(raw) {
@@ -1660,18 +1980,22 @@ import {
         const dom = getTenantDomainForPreview();
         if (!nick) {
             out.innerHTML =
-                '<span>Primäre SMTP nach Speichern der Domain (Schritt 2): </span><code>…@…</code>';
+                '<span>Ziel‑SMTP nach Speichern der Domain (Schritt 2): </span><code>…@…</code>';
             return;
         }
         if (!dom) {
             out.innerHTML =
-                'Vorschau primäre SMTP: <code>' +
+                'Ziel‑SMTP (Schul‑Domain): <code>' +
                 escapeHtml(nick) +
                 '@…</code> <span style="color:var(--muted)">(Schul‑Domain in Schritt 2 speichern)</span>';
             return;
         }
         out.innerHTML =
-            'Vorschau primäre SMTP: <code>' + escapeHtml(nick) + '@' + escapeHtml(dom) + '</code>';
+            'Ziel‑SMTP (Schul‑Domain): <code>' +
+            escapeHtml(nick) +
+            '@' +
+            escapeHtml(dom) +
+            '</code> <span style="color:var(--muted)">(Graph legt oft die Tenant‑Standarddomain an)</span>';
     }
 
     function countSwTeacherListStats() {
@@ -2004,7 +2328,9 @@ import {
     function smtpPreviewCellHtml(sliceKind, code, link) {
         const p = buildSmtpPreviewPartsForRow(sliceKind, code, link);
         const isLinked = !!(link && normStr(link.graphGroupId) && normStr(link.mailNickname));
-        const title = isLinked ? 'Verknüpfte Gruppe (Mail‑Nickname @ Domain)' : 'Vorschau beim Anlegen (Präfix + Kürzel, ggf. ohne Domain)';
+        const title = isLinked
+            ? 'Verknüpfte Gruppe (Mail‑Nickname @ Schul‑Domain; tatsächliche Graph‑Mail kann die Tenant‑Standarddomain nutzen)'
+            : 'Ziel‑SMTP beim Anlegen (Präfix + Kürzel @ Schul‑Domain). Graph setzt oft die Tenant‑Standarddomain.';
         return (
             '<td class="sw-smtp-preview" title="' +
             escapeHtml(title) +
@@ -2976,7 +3302,7 @@ import {
                 token,
                 dn,
                 nick,
-                'Klasse/Kohorte (stabiler Alias ' + nick + ') – MS365-Schulverwaltung'
+                'Klassengruppe (stabiler Alias ' + nick + ') – MS365-Schulverwaltung'
             );
             await ensureOwnersDirektionOnly(token, g.id);
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.upsertClassTeam === 'function') {
@@ -2989,7 +3315,7 @@ import {
                     mode: 'created'
                 });
             }
-            toast('Klassen‑Gruppe angelegt.');
+            toastGroupCreated('Klassen‑Gruppe', g, nick);
             renderClassesTable();
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
@@ -3029,7 +3355,7 @@ import {
                 mailNickname: g.mailNickname || nick,
                 mode: 'created'
             });
-            toast('Gruppe angelegt.');
+            toastGroupCreated('Gruppe', g, nick);
             fillCatalogSlice(kind === 'arge' ? 'arge' : 'subject');
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
@@ -3228,7 +3554,7 @@ import {
                         if (forKind === 'verwaltung') persistVerwaltungFull();
                         else persistMatched();
                         renderSwMatchSummaryForKind(forKind, g);
-                        toast('Gruppe angelegt.');
+                        toastGroupCreated('Gruppe', g, c.nick);
                     } catch (e) {
                         toast('Fehler: ' + (e.message || e));
                     }
@@ -3525,9 +3851,17 @@ import {
             document.getElementById('swBtnVerifyTeachersGraph').addEventListener('click', function () {
                 runVerifyTeachersGraph();
             });
+        document.getElementById('swBtnCreateMissingTeachers') &&
+            document.getElementById('swBtnCreateMissingTeachers').addEventListener('click', function () {
+                runCreateMissingTeachersEntra();
+            });
         document.getElementById('swBtnVerifyStudentsGraph') &&
             document.getElementById('swBtnVerifyStudentsGraph').addEventListener('click', function () {
                 runVerifyStudentsGraph();
+            });
+        document.getElementById('swBtnCreateMissingStudents') &&
+            document.getElementById('swBtnCreateMissingStudents').addEventListener('click', function () {
+                runCreateMissingStudentsEntra();
             });
         document.getElementById('swBtnSaveSubjectsBulk') &&
             document.getElementById('swBtnSaveSubjectsBulk').addEventListener('click', saveSubjectsBulk);

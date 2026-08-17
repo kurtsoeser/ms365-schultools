@@ -13,6 +13,12 @@
         return L;
     }
 
+    function gd() {
+        const G = window.ms365GroupDetail;
+        if (!G) throw new Error('group-detail.js muss vor diesem Skript geladen werden.');
+        return G;
+    }
+
     function dataV2() {
         return window.ms365AppDataV2 || null;
     }
@@ -21,12 +27,14 @@
     let activeKind = 'subject';
     let activeCode = '';
     let listFilter = '';
+    /** @type {'create' | 'edit'} */
+    let catalogModalMode = 'create';
+    /** Original-Kürzel beim Bearbeiten (für Umbenennung / Match-Migration). */
+    let catalogEditOriginalCode = '';
     /** @type {{ code: string, name: string, subjects?: string[] }[]} */
     let catalog = { subject: [], arge: [] };
     /** @type {string[]} */
     let direktion = [];
-    /** @type {'general'|'owners'|'members'} */
-    let activeTab = 'general';
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -59,13 +67,6 @@
     }
     function normEmail(v) {
         return normStr(v).toLowerCase();
-    }
-    function escapeHtml(s) {
-        return String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
     }
 
     function getCatalogLink(kind, code) {
@@ -135,6 +136,417 @@
             out.push(em);
         });
         direktion = out;
+    }
+
+    function dispatchTenantSettingsChanged(saved, reason) {
+        try {
+            window.dispatchEvent(
+                new CustomEvent('ms365-tenant-settings-changed', {
+                    detail: { settings: saved, reason: reason || 'afg-catalog' }
+                })
+            );
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    function setCatalogModalError(msg) {
+        const el = document.getElementById('afgCatalogModalError');
+        if (!el) return;
+        const text = normStr(msg);
+        el.textContent = text;
+        el.style.display = text ? '' : 'none';
+    }
+
+    function fillArgeSubjectPicker(selectedCodes) {
+        const host = document.getElementById('afgNewSubjectsList');
+        const empty = document.getElementById('afgNewSubjectsEmpty');
+        if (!host) return;
+        host.replaceChildren();
+        const selected = new Set(
+            (Array.isArray(selectedCodes) ? selectedCodes : []).map(function (c) {
+                return normCode(c);
+            })
+        );
+        const subjects = catalog.subject.slice().sort(function (a, b) {
+            return String(a.code || '').localeCompare(String(b.code || ''), 'de', { sensitivity: 'base' });
+        });
+        if (empty) empty.style.display = subjects.length ? 'none' : '';
+        subjects.forEach(function (row) {
+            const id = 'afgSubj_' + normCode(row.code);
+            const lab = document.createElement('label');
+            lab.setAttribute('for', id);
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = id;
+            cb.value = normCode(row.code);
+            if (selected.has(normCode(row.code))) cb.checked = true;
+            const span = document.createElement('span');
+            span.textContent = (row.name || row.code) + (row.name && row.code ? ' (' + row.code + ')' : '');
+            lab.appendChild(cb);
+            lab.appendChild(span);
+            host.appendChild(lab);
+        });
+    }
+
+    function selectedArgeSubjects() {
+        const host = document.getElementById('afgNewSubjectsList');
+        if (!host) return [];
+        const out = [];
+        const seen = new Set();
+        host.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
+            const code = normCode(cb.value);
+            if (!code || seen.has(code)) return;
+            seen.add(code);
+            out.push(code);
+        });
+        return out;
+    }
+
+    function updateCatalogActionButtons() {
+        const has = !!getActiveRow();
+        const editBtn = document.getElementById('afgBtnEditCatalog');
+        const delBtn = document.getElementById('afgBtnDeleteCatalog');
+        if (editBtn) editBtn.disabled = !has;
+        if (delBtn) delBtn.disabled = !has;
+    }
+
+    function openCatalogModal(mode) {
+        const modal = document.getElementById('afgCatalogModal');
+        if (!modal) return;
+        catalogModalMode = mode === 'edit' ? 'edit' : 'create';
+        const isArge = activeKind === 'arge';
+        const title = document.getElementById('afgCatalogModalTitle');
+        const hint = document.getElementById('afgCatalogModalHint');
+        const wrap = document.getElementById('afgNewSubjectsWrap');
+        const codeEl = document.getElementById('afgNewCode');
+        const nameEl = document.getElementById('afgNewName');
+        const saveBtn = document.getElementById('afgCatalogModalSave');
+        const row = catalogModalMode === 'edit' ? getActiveRow() : null;
+
+        if (catalogModalMode === 'edit' && !row) {
+            toast('Bitte zuerst einen Katalogeintrag wählen.');
+            return;
+        }
+
+        catalogEditOriginalCode = catalogModalMode === 'edit' ? normCode(row.code) : '';
+
+        if (title) {
+            if (catalogModalMode === 'edit') {
+                title.textContent = isArge ? 'ARGE bearbeiten' : 'Fachgruppe bearbeiten';
+            } else {
+                title.textContent = isArge ? 'Neue ARGE anlegen' : 'Neue Fachgruppe anlegen';
+            }
+        }
+        if (hint) {
+            if (catalogModalMode === 'edit') {
+                hint.textContent = isArge
+                    ? 'Änderungen werden in die Schul‑Einstellungen geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt.'
+                    : 'Änderungen werden in die Schul‑Einstellungen geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt.';
+            } else {
+                hint.textContent = isArge
+                    ? 'Die ARGE wird in die Schul‑Einstellungen geschrieben und erscheint danach im Katalog.'
+                    : 'Das Fach wird in die Schul‑Einstellungen geschrieben und erscheint danach im Katalog.';
+            }
+        }
+        if (wrap) wrap.hidden = !isArge;
+        if (isArge) {
+            fillArgeSubjectPicker(catalogModalMode === 'edit' && row ? row.subjects || [] : []);
+        }
+        if (codeEl) codeEl.value = catalogModalMode === 'edit' && row ? row.code || '' : '';
+        if (nameEl) nameEl.value = catalogModalMode === 'edit' && row ? row.name || '' : '';
+        if (saveBtn) {
+            saveBtn.innerHTML =
+                catalogModalMode === 'edit'
+                    ? '<i class="bi bi-check-lg"></i>Speichern'
+                    : '<i class="bi bi-check-lg"></i>Anlegen';
+        }
+        setCatalogModalError('');
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        if (codeEl) {
+            setTimeout(function () {
+                codeEl.focus();
+                try {
+                    codeEl.select();
+                } catch (_) {
+                    /* ignore */
+                }
+            }, 30);
+        }
+    }
+
+    function closeCatalogModal() {
+        const modal = document.getElementById('afgCatalogModal');
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        catalogModalMode = 'create';
+        catalogEditOriginalCode = '';
+        setCatalogModalError('');
+    }
+
+    function codeExistsInKind(kind, code, exceptCode) {
+        const list = rowsForKind(kind);
+        const key = normCode(code);
+        const skip = normCode(exceptCode);
+        return list.some(function (r) {
+            const c = normCode(r.code);
+            if (skip && c === skip) return false;
+            return c === key;
+        });
+    }
+
+    function remapSubjectCodeInArges(arges, fromCode, toCode) {
+        const from = normCode(fromCode);
+        const to = normCode(toCode);
+        if (!from) return Array.isArray(arges) ? arges.slice() : [];
+        return (Array.isArray(arges) ? arges : []).map(function (a) {
+            const subjects = Array.isArray(a.subjects) ? a.subjects : [];
+            const nextSubj = [];
+            const seen = new Set();
+            subjects.forEach(function (s) {
+                let c = normCode(s);
+                if (c === from) c = to;
+                if (!c || seen.has(c)) return;
+                seen.add(c);
+                nextSubj.push(c);
+            });
+            return Object.assign({}, a, { subjects: nextSubj });
+        });
+    }
+
+    function stripSubjectFromArges(arges, subjectCode) {
+        const drop = normCode(subjectCode);
+        return (Array.isArray(arges) ? arges : []).map(function (a) {
+            const subjects = (Array.isArray(a.subjects) ? a.subjects : []).filter(function (s) {
+                return normCode(s) !== drop;
+            });
+            return Object.assign({}, a, { subjects: subjects });
+        });
+    }
+
+    function persistCatalogCreate(kind, entry) {
+        if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
+            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+        }
+        const current = window.ms365TenantSettingsLoad() || {};
+        const next = Object.assign({}, current);
+        if (kind === 'arge') {
+            const list = Array.isArray(current.arges) ? current.arges.slice() : [];
+            list.push({
+                code: entry.code,
+                name: entry.name,
+                subjects: Array.isArray(entry.subjects) ? entry.subjects.slice() : []
+            });
+            next.arges = list;
+        } else {
+            const list = Array.isArray(current.subjects) ? current.subjects.slice() : [];
+            list.push({ code: entry.code, name: entry.name });
+            next.subjects = list;
+        }
+        const saved = window.ms365TenantSettingsSave(next);
+        dispatchTenantSettingsChanged(saved, 'afg-catalog-create');
+        return saved;
+    }
+
+    function persistCatalogUpdate(kind, originalCode, entry) {
+        if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
+            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+        }
+        const from = normCode(originalCode);
+        const to = normCode(entry.code);
+        const current = window.ms365TenantSettingsLoad() || {};
+        const next = Object.assign({}, current);
+
+        if (kind === 'arge') {
+            const list = Array.isArray(current.arges) ? current.arges.slice() : [];
+            const idx = list.findIndex(function (r) {
+                return normCode(r.code) === from;
+            });
+            if (idx < 0) throw new Error('ARGE nicht mehr gefunden.');
+            list[idx] = {
+                code: to,
+                name: entry.name,
+                subjects: Array.isArray(entry.subjects) ? entry.subjects.slice() : []
+            };
+            next.arges = list;
+        } else {
+            const list = Array.isArray(current.subjects) ? current.subjects.slice() : [];
+            const idx = list.findIndex(function (r) {
+                return normCode(r.code) === from;
+            });
+            if (idx < 0) throw new Error('Fach nicht mehr gefunden.');
+            list[idx] = { code: to, name: entry.name };
+            next.subjects = list;
+            if (from !== to) {
+                next.arges = remapSubjectCodeInArges(current.arges, from, to);
+            }
+        }
+
+        const saved = window.ms365TenantSettingsSave(next);
+        if (from !== to) {
+            const api = dataV2();
+            if (api && typeof api.renameCatalogLink === 'function') {
+                try {
+                    api.renameCatalogLink(kind, from, to);
+                } catch (e) {
+                    throw new Error((e && e.message) || String(e));
+                }
+            }
+        }
+        dispatchTenantSettingsChanged(saved, 'afg-catalog-update');
+        return saved;
+    }
+
+    function persistCatalogDelete(kind, code) {
+        if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
+            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+        }
+        const key = normCode(code);
+        const current = window.ms365TenantSettingsLoad() || {};
+        const next = Object.assign({}, current);
+        if (kind === 'arge') {
+            next.arges = (Array.isArray(current.arges) ? current.arges : []).filter(function (r) {
+                return normCode(r.code) !== key;
+            });
+        } else {
+            next.subjects = (Array.isArray(current.subjects) ? current.subjects : []).filter(function (r) {
+                return normCode(r.code) !== key;
+            });
+            next.arges = stripSubjectFromArges(current.arges, key);
+        }
+        const saved = window.ms365TenantSettingsSave(next);
+        const api = dataV2();
+        if (api && typeof api.removeCatalogLink === 'function') {
+            api.removeCatalogLink(kind, key);
+        } else if (api && typeof api.clearCatalogLinkGroup === 'function') {
+            api.clearCatalogLinkGroup(kind, key);
+        }
+        dispatchTenantSettingsChanged(saved, 'afg-catalog-delete');
+        return saved;
+    }
+
+    async function offerCreateM365Group(kind, code) {
+        const label = kind === 'arge' ? 'ARGE' : 'Fachgruppe';
+        const ok = await dlgConfirm(
+            label +
+                ' „' +
+                code +
+                '“ ist im Katalog. Jetzt auch eine Microsoft‑365‑Gruppe anlegen und matchen?',
+            {
+                title: 'M365‑Gruppe anlegen?',
+                okText: 'Ja, anlegen',
+                cancelText: 'Später'
+            }
+        );
+        if (!ok) return;
+        const btn = document.getElementById('slgBtnCreate');
+        if (btn) {
+            btn.click();
+            return;
+        }
+        toast('Bitte rechts unter „Neue Gruppe anlegen“ auf „Anlegen & matchen“ klicken.');
+    }
+
+    async function submitCatalogModal() {
+        const kind = activeKind;
+        const codeEl = document.getElementById('afgNewCode');
+        const nameEl = document.getElementById('afgNewName');
+        const code = normCode(codeEl && codeEl.value);
+        const name = normStr(nameEl && nameEl.value);
+        const editing = catalogModalMode === 'edit';
+        const original = catalogEditOriginalCode;
+
+        if (!code) {
+            setCatalogModalError('Bitte ein Kürzel eingeben.');
+            if (codeEl) codeEl.focus();
+            return;
+        }
+        if (!name) {
+            setCatalogModalError('Bitte einen Namen eingeben.');
+            if (nameEl) nameEl.focus();
+            return;
+        }
+        if (codeExistsInKind(kind, code, editing ? original : '')) {
+            setCatalogModalError(
+                (kind === 'arge' ? 'ARGE' : 'Fach') + ' mit Kürzel „' + code + '“ gibt es bereits.'
+            );
+            if (codeEl) codeEl.focus();
+            return;
+        }
+
+        const entry =
+            kind === 'arge'
+                ? { code: code, name: name, subjects: selectedArgeSubjects() }
+                : { code: code, name: name };
+
+        try {
+            if (editing) persistCatalogUpdate(kind, original, entry);
+            else persistCatalogCreate(kind, entry);
+        } catch (e) {
+            setCatalogModalError((e && e.message) || String(e));
+            return;
+        }
+
+        closeCatalogModal();
+        readLists();
+        setActiveCode(code);
+        toast(
+            (kind === 'arge' ? 'ARGE' : 'Fachgruppe') +
+                ' „' +
+                code +
+                '“ ' +
+                (editing ? 'gespeichert.' : 'angelegt.')
+        );
+        if (!editing) await offerCreateM365Group(kind, code);
+    }
+
+    async function deleteActiveCatalogEntry() {
+        const row = getActiveRow();
+        if (!row) {
+            toast('Bitte zuerst einen Katalogeintrag wählen.');
+            return;
+        }
+        const kind = activeKind;
+        const code = normCode(row.code);
+        const label = kind === 'arge' ? 'ARGE' : 'Fachgruppe';
+        const link = getCatalogLink(kind, code);
+        const matched = !!(link && link.graphGroupId);
+        let msg =
+            label +
+            ' „' +
+            (row.name || code) +
+            '“ (' +
+            code +
+            ') aus den Schul‑Einstellungen entfernen?';
+        if (matched) {
+            msg +=
+                '\n\nDie Verknüpfung zur Microsoft‑365‑Gruppe wird gelöst. Die Gruppe selbst bleibt in Entra erhalten.';
+        }
+        if (kind === 'subject') {
+            msg += '\n\nFalls ARGEs dieses Fach referenzieren, wird die Zuordnung dort entfernt.';
+        }
+        const ok = await dlgConfirm(msg, {
+            title: label + ' löschen?',
+            okText: 'Löschen',
+            cancelText: 'Abbrechen',
+            danger: true
+        });
+        if (!ok) return;
+        try {
+            persistCatalogDelete(kind, code);
+        } catch (e) {
+            toast((e && e.message) || String(e));
+            return;
+        }
+        readLists();
+        ensureActiveCode();
+        renderLeftList();
+        applyCreateDefaults();
+        refreshMatchUi();
+        updateCatalogActionButtons();
+        toast(label + ' „' + code + '“ gelöscht.');
     }
 
     function renderOwnerPreview() {
@@ -209,24 +621,6 @@
         renderMemberPreview();
     }
 
-    function setTab(tab) {
-        activeTab = tab === 'owners' || tab === 'members' ? tab : 'general';
-        document.querySelectorAll('#slgDetailTabs .detail-tab-btn[data-slg-tab]').forEach(function (b) {
-            const on = b.getAttribute('data-slg-tab') === activeTab;
-            b.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        document.querySelectorAll('[data-slg-tab-content]').forEach(function (p) {
-            p.classList.toggle('active', p.getAttribute('data-slg-tab-content') === activeTab);
-        });
-        const gid = getActiveGroupId();
-        if (!gid) {
-            if (activeTab === 'owners') renderOwnerPreview();
-            if (activeTab === 'members') renderMemberPreview();
-            return;
-        }
-        live().onTab(activeTab, gid);
-    }
-
     function renderLeftList() {
         const host = document.getElementById('afgListItems');
         const summary = document.getElementById('afgListSummary');
@@ -292,6 +686,7 @@
             li.appendChild(btn);
             host.appendChild(li);
         });
+        updateCatalogActionButtons();
     }
 
     function ensureActiveCode() {
@@ -314,14 +709,10 @@
         ensureActiveCode();
         const search = document.getElementById('slgGroupSearch');
         if (search) search.value = '';
-        const host = document.getElementById('slgGroupSearchResults');
-        if (host) {
-            host.replaceChildren();
-            host.style.display = 'none';
-        }
+        gd().clearSearchResults();
         renderLeftList();
         applyCreateDefaults();
-        setTab('general');
+        gd().setTab('general');
         refreshMatchUi();
     }
 
@@ -329,14 +720,10 @@
         activeCode = normCode(code);
         const search = document.getElementById('slgGroupSearch');
         if (search) search.value = '';
-        const host = document.getElementById('slgGroupSearchResults');
-        if (host) {
-            host.replaceChildren();
-            host.style.display = 'none';
-        }
+        gd().clearSearchResults();
         renderLeftList();
         applyCreateDefaults();
-        setTab('general');
+        gd().setTab('general');
         refreshMatchUi();
         if (getActiveGroupId()) live().loadGroup({ silent: true });
     }
@@ -354,123 +741,7 @@
         renderLeftList();
     }
 
-    function renderGroupSearchResults(list) {
-        const host = document.getElementById('slgGroupSearchResults');
-        if (!host) return;
-        host.replaceChildren();
-        host.style.display = 'block';
-        if (!list || !list.length) {
-            const p = document.createElement('div');
-            p.className = 'muted';
-            p.textContent = 'Keine passenden Microsoft 365‑Gruppen (Unified) gefunden.';
-            host.appendChild(p);
-            return;
-        }
-        const box = document.createElement('div');
-        box.style.border = '1px solid #ced4da';
-        box.style.borderRadius = '12px';
-        box.style.background = '#fff';
-        box.style.overflow = 'hidden';
-        list.forEach(function (g, idx) {
-            const row = document.createElement('div');
-            row.style.display = 'grid';
-            row.style.gridTemplateColumns = '1fr auto';
-            row.style.gap = '10px';
-            row.style.padding = '10px 12px';
-            row.style.borderTop = idx === 0 ? '0' : '1px solid #eef1f4';
-            row.style.alignItems = 'center';
-            const left = document.createElement('div');
-            const dn = normStr(g && g.displayName) || '(ohne Namen)';
-            const mail = normStr(g && g.mail) || '–';
-            const nick = normStr(g && g.mailNickname) || '–';
-            left.innerHTML =
-                '<div style="font-weight:700;line-height:1.25;">' +
-                escapeHtml(dn) +
-                '</div>' +
-                '<div class="muted" style="margin-top:2px;">Mail‑Nickname: <code>' +
-                escapeHtml(nick) +
-                '</code> · SMTP: ' +
-                escapeHtml(mail) +
-                '</div>' +
-                '<div class="muted" style="margin-top:2px;">Gruppen‑ID: <code>' +
-                escapeHtml(g && g.id ? g.id : '') +
-                '</code></div>';
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-success';
-            btn.textContent = 'Matchen';
-            btn.addEventListener('click', function () {
-                if (!g || !g.id || !activeCode) return;
-                persistMatch(g, 'matched');
-                live().fillForm(g);
-                live().setMatchedMode(true);
-                live().loadGroup({ silent: true });
-                toast('Gruppe gematcht.');
-            });
-            row.appendChild(left);
-            row.appendChild(btn);
-            box.appendChild(row);
-        });
-        host.appendChild(box);
-    }
-
-    async function runSearchGroups() {
-        if (!activeCode) {
-            toast('Bitte zuerst einen Katalogeintrag wählen.');
-            return;
-        }
-        const inp = document.getElementById('slgGroupSearch');
-        const q = inp && inp.value ? inp.value.trim() : '';
-        if (!q) {
-            toast('Bitte einen Suchbegriff eingeben.');
-            return;
-        }
-        try {
-            const token = await gug().getGraphToken();
-            const list = await gug().searchUnifiedGroups(token, q);
-            renderGroupSearchResults(list);
-            if (!list.length) toast('Keine passenden Gruppen gefunden.');
-        } catch (e) {
-            toast('Fehler: ' + (e.message || e));
-        }
-    }
-
-    async function runCreateAndMatch() {
-        if (!activeCode) {
-            toast('Bitte zuerst einen Katalogeintrag wählen.');
-            return;
-        }
-        const dn = document.getElementById('slgNewDisplayName');
-        const nn = document.getElementById('slgNewMailNick');
-        const dd = document.getElementById('slgNewDescription');
-        const ct = document.getElementById('slgNewCreateTeam');
-        const displayName = dn ? dn.value : '';
-        const mailNick = nn ? nn.value : '';
-        const desc = dd ? dd.value : '';
-        if (!normStr(displayName) || !normStr(mailNick)) {
-            toast('Bitte Anzeigename und Alias/Mail‑Nickname ausfüllen.');
-            return;
-        }
-        try {
-            const token = await gug().getGraphToken();
-            const g = await gug().createUnifiedGroup(token, displayName, mailNick, desc);
-            await gug().ensureOwners(token, g.id, direktion || []);
-            if (ct && ct.checked) {
-                toast('Gruppe angelegt – Team wird bereitgestellt …');
-                await gug().provisionTeamForGroup(token, g.id);
-            }
-            persistMatch(g, 'created');
-            live().fillForm(g);
-            live().setMatchedMode(true);
-            await live().loadGroup({ silent: true });
-            toast('Gruppe angelegt und gematcht.');
-        } catch (e) {
-            toast('Fehler: ' + (e.message || e));
-        }
-    }
-
-    function runUnmatch() {
-        if (!getActiveGroupId()) return;
+    function persistUnmatch() {
         const api = dataV2();
         if (api && typeof api.clearCatalogLinkGroup === 'function') {
             api.clearCatalogLinkGroup(activeKind, activeCode);
@@ -478,33 +749,6 @@
             persistMatch({ id: '', displayName: '', mailNickname: '' }, '');
         }
         renderLeftList();
-        live().loadGroup({ silent: true });
-        toast('Match gelöst.');
-    }
-
-    function openEntraForMatched() {
-        const gid = getActiveGroupId();
-        if (!gid) return;
-        window.open(
-            'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Members/groupId/' +
-                encodeURIComponent(gid),
-            '_blank',
-            'noopener'
-        );
-    }
-
-    async function onLogin() {
-        const btn = document.getElementById('slgBtnLogin');
-        if (btn) btn.disabled = true;
-        try {
-            await gug().getGraphToken();
-            toast('Angemeldet.');
-            if (getActiveGroupId()) await live().loadGroup({ silent: true });
-        } catch (e) {
-            toast('Anmeldung: ' + (e.message || e));
-        } finally {
-            if (btn) btn.disabled = false;
-        }
     }
 
     function onClick(id, fn) {
@@ -512,29 +756,66 @@
         if (el) el.addEventListener('click', fn);
     }
 
-    function wire() {
-        live().bind({
-            toast: toast,
-            dlgConfirm: dlgConfirm,
-            getGroupId: getActiveGroupId,
-            getActiveTab: function () {
-                return activeTab;
+    function mountDetail() {
+        gd().mount('#groupDetailHost', {
+            title: 'Fachgruppe',
+            searchPlaceholder: 'z. B. ARGE Sprachen oder fach-d',
+            unmatchedCreateHint:
+                'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Optional auch als Team bereitstellen.',
+            membersUnmatchedHint:
+                'In den Stammdaten gibt es keine Mitgliederliste für Fach/ARGE. Nach dem Match können Sie Mitglieder live in Graph pflegen.',
+            membersUnmatchedTitle: 'Hinweis aus den Schul‑Einstellungen',
+            membersMatchedHint:
+                'Live aus Microsoft Graph. Es gibt keinen automatischen Listen‑Sync – Mitglieder hier suchen, hinzufügen oder entfernen.',
+            emptyHintHtml:
+                'Keine Einträge in dieser Liste. Legen Sie einen Eintrag über <strong>Neu</strong> an oder pflegen Sie Fächer bzw. ARGE unter <a href="../tenant.html">Schul‑Einstellungen</a>.',
+            features: {
+                syncMembers: false,
+                emptyHint: true
             },
-            ensureDirektionOwners: function (token, gid) {
-                if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
-                return gug().ensureOwners(token, gid, direktion);
+            ids: { emptyHint: 'afgEmptyHint', wrap: 'afgDetailWrap' },
+            live: {
+                toast: toast,
+                dlgConfirm: dlgConfirm,
+                getGroupId: getActiveGroupId,
+                ensureDirektionOwners: function (token, gid) {
+                    if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+                    return gug().ensureOwners(token, gid, direktion);
+                },
+                onUnmatched: function () {
+                    renderOwnerPreview();
+                    renderMemberPreview();
+                    renderLeftList();
+                },
+                onAfterLoad: function () {
+                    renderLeftList();
+                }
             },
-            onUnmatched: function () {
-                renderOwnerPreview();
-                renderMemberPreview();
-                renderLeftList();
+            match: {
+                persistMatch: persistMatch,
+                persistUnmatch: persistUnmatch,
+                canSearch: function () {
+                    return activeCode
+                        ? { ok: true }
+                        : { ok: false, message: 'Bitte zuerst einen Katalogeintrag wählen.' };
+                },
+                canCreate: function () {
+                    return activeCode
+                        ? { ok: true }
+                        : { ok: false, message: 'Bitte zuerst einen Katalogeintrag wählen.' };
+                },
+                ensureOwners: function (token, gid) {
+                    return gug().ensureOwners(token, gid, direktion || []);
+                }
             },
-            onAfterLoad: function () {
-                renderLeftList();
+            onTabUnmatched: function (tab) {
+                if (tab === 'owners') renderOwnerPreview();
+                if (tab === 'members') renderMemberPreview();
             }
         });
-        live().wire();
+    }
 
+    function wire() {
         document.querySelectorAll('[data-afg-kind]').forEach(function (b) {
             b.addEventListener('click', function () {
                 setActiveKind(b.getAttribute('data-afg-kind') === 'arge' ? 'arge' : 'subject');
@@ -557,12 +838,6 @@
                 renderLeftList();
             });
         }
-        document.querySelectorAll('#slgDetailTabs .detail-tab-btn[data-slg-tab]').forEach(function (b) {
-            b.addEventListener('click', function () {
-                setTab(b.getAttribute('data-slg-tab') || 'general');
-            });
-        });
-        onClick('slgBtnLogin', onLogin);
         onClick('slgBtnReloadLists', function () {
             readLists();
             ensureActiveCode();
@@ -571,22 +846,46 @@
             refreshMatchUi();
             toast('Listen neu eingelesen.');
         });
-        onClick('slgBtnSearch', runSearchGroups);
-        onClick('slgBtnCreate', runCreateAndMatch);
-        onClick('slgBtnUnmatch', runUnmatch);
-        onClick('slgBtnOpenEntra', openEntraForMatched);
-        const groupSearch = document.getElementById('slgGroupSearch');
-        if (groupSearch) {
-            groupSearch.addEventListener('keydown', function (ev) {
-                if (ev.key === 'Enter') {
-                    ev.preventDefault();
-                    runSearchGroups();
-                }
+        onClick('afgBtnAddCatalog', function () {
+            openCatalogModal('create');
+        });
+        onClick('afgBtnEditCatalog', function () {
+            openCatalogModal('edit');
+        });
+        onClick('afgBtnDeleteCatalog', function () {
+            void deleteActiveCatalogEntry();
+        });
+        onClick('afgCatalogModalCancel', function () {
+            closeCatalogModal();
+        });
+        onClick('afgCatalogModalSave', function () {
+            void submitCatalogModal();
+        });
+        const modal = document.getElementById('afgCatalogModal');
+        if (modal) {
+            modal.addEventListener('click', function (ev) {
+                if (ev.target === modal) closeCatalogModal();
             });
         }
+        const codeEl = document.getElementById('afgNewCode');
+        const nameEl = document.getElementById('afgNewName');
+        function onModalKeydown(ev) {
+            if (ev.key !== 'Enter' || ev.shiftKey) return;
+            const modalOpen = modal && modal.classList.contains('open');
+            if (!modalOpen) return;
+            ev.preventDefault();
+            void submitCatalogModal();
+        }
+        if (codeEl) codeEl.addEventListener('keydown', onModalKeydown);
+        if (nameEl) nameEl.addEventListener('keydown', onModalKeydown);
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Escape') return;
+            if (modal && modal.classList.contains('open')) closeCatalogModal();
+        });
     }
 
     function init() {
+        mountDetail();
         readLists();
         ensureActiveCode();
         wire();

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
@@ -203,45 +204,24 @@
             border-color: #ffeeba;
         }
 
+        /* Tabs: Basis aus app.css; leichte Tenant-Anpassung */
         .tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
             margin-top: 0;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-        }
-        .tab-btn {
-            appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.25);
-            background: #f8f9ff;
-            color: #32325d;
-            border-radius: 12px;
-            padding: 12px 16px;
-            font-weight: 900;
-            cursor: pointer;
-            box-shadow: 0 6px 16px rgba(50, 50, 93, 0.06);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            margin-bottom: 4px;
         }
         .tab-btn > i {
             font-size: 1.08rem;
             flex-shrink: 0;
             opacity: 0.95;
-        }
-        .tab-btn[aria-selected="true"] {
-            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
-            border-color: transparent;
-            color: #fff;
-            box-shadow: 0 10px 24px rgba(94, 114, 228, 0.25);
+            margin-right: 0;
         }
         .tab-btn[aria-selected="true"] > i {
             opacity: 1;
+            color: var(--brand1);
         }
         .tab-panel {
             display: none;
-            margin-top: 12px;
+            margin-top: 16px;
         }
         .tab-panel.active {
             display: block;
@@ -424,15 +404,15 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</span>
             </div>
             <p>Stammdaten (schulweit) und schuljahresbezogene Listen zentral pflegen – gemeinsame Datenbasis für Kursteams, Jahrgang, ARGE und Gruppen‑Tools.</p>
-            <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p class="header-help-row"><a href="hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;">
                         <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                        <button type="button" class="btn" id="tenantSettingsExportHeader"><i class="bi bi-download"></i>Export (JSON)</button>
-                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
+                        <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
+                        <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
                     </div>
                 </div>
             </div>
@@ -445,7 +425,7 @@
                     <div class="ts-settings-head">
                         <div class="ts-settings-intro">
                             <p>Diese <strong>Zentrale</strong> speichert Daten <strong>lokal im Browser</strong>. <strong>Stammdaten</strong> (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) gelten <strong>schulweit</strong> und ändern sich in der Regel selten. <strong>Schüler:innen, Klassen</strong> und <strong>Klassen‑Gruppen (Microsoft 365)</strong> orientieren sich am <strong>Schuljahr</strong> (oben rechts neben „Quellen &amp; Werkzeuge“).</p>
-                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools.</p>
+                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Mit <strong>Browser-Backup</strong> übertragen Sie alle lokalen Daten in einen anderen Browser (Microsoft-Anmeldung nicht enthalten).</p>
                         </div>
                     </div>
                     <div class="ts-hub-year-row">
@@ -457,6 +437,16 @@
                                 <a class="btn" href="tools/schulstruktur-sync.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">MS 365 Gruppenverwaltung <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
                                 <a class="btn" href="ersteinrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Experten‑Ansicht <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
                             </div>
+                            <details id="tenantActionLogPanel" style="margin-top:12px;">
+                                <summary style="cursor:pointer;font-weight:800;color:var(--ink);">Aktionsprotokoll (lokal)</summary>
+                                <p class="muted" style="margin:8px 0;font-size:0.92em;line-height:1.4;">Was diese App in Microsoft 365 geschrieben hat – nur in diesem Browser, ohne Server.</p>
+                                <ul id="tenantActionLogList" style="margin:0 0 10px;padding-left:1.2em;line-height:1.45;max-height:220px;overflow:auto;"></ul>
+                                <div class="settings-actions">
+                                    <button type="button" class="btn" id="tenantActionLogRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                                    <button type="button" class="btn" id="tenantActionLogExport"><i class="bi bi-download"></i>JSON exportieren</button>
+                                    <button type="button" class="btn" id="tenantActionLogClear">Protokoll leeren</button>
+                                </div>
+                            </details>
                         </div>
                         <div class="ts-year-strip" aria-label="Aktuelles Schuljahr">
                             <div class="ts-year-strip__inner">
@@ -575,12 +565,45 @@
                                 <label for="tenantTeachersLines">Lehrerliste (eine Zeile pro Lehrkraft)</label>
                                 <textarea id="tenantTeachersLines" placeholder="MU;Max Mustermann;max.mustermann@schule.de&#10;BME;Anna Beispiel;anna.beispiel@schule.de"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer).
+                                    Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer). Bestehende Konten mit A1/A3/A5 für Lehrpersonal können Sie aus dem Tenant einlesen.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <label class="btn" for="tenantTeachersImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantTeachersImportFile" accept=".csv,.xlsx,.xls">
                                     <button type="button" class="btn" id="tenantTeachersTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantBtnImportTeachersFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Lehrpersonal einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
+                                </div>
+                                <div id="tenantTeacherTenantImportPanel" class="sw-lic-import" hidden>
+                                    <h3>Bestehende Lehrkräfte aus dem Tenant</h3>
+                                    <p>Benutzer mit Education‑Lizenz für Lehrpersonal (A1, A3, A5). Kürzel sind Vorschläge; bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
+                                    <div id="tenantTeacherTenantImportSkuFilters" class="sw-lic-filters"></div>
+                                    <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantImportActiveOnly" checked> Nur aktive Konten</label>
+                                    <div class="sw-lic-text-filter">
+                                        <label class="sr-only" for="tenantTeacherTenantImportTextFilter">Name, E-Mail oder Kürzel filtern</label>
+                                        <input type="search" id="tenantTeacherTenantImportTextFilter" placeholder="Name, E-Mail oder Kürzel filtern …" autocomplete="off">
+                                    </div>
+                                    <p id="tenantTeacherTenantImportStatus" class="muted" style="margin-top:8px;"></p>
+                                    <div class="settings-actions" style="margin-top:8px;">
+                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNew">Nur neue auswählen</button>
+                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectAll">Alle auswählen</button>
+                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNone">Alle abwählen</button>
+                                        <button type="button" class="btn btn-success" id="tenantBtnTeacherTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                                    </div>
+                                    <div class="teachers-table-wrap" aria-label="Vorschau Lehrkräfte aus dem Tenant">
+                                        <table class="teachers-table" aria-label="Lehrkräfte aus Microsoft 365">
+                                            <thead>
+                                                <tr>
+                                                    <th class="sw-lic-check-col"><input type="checkbox" id="tenantTeacherTenantSelectAllRows" title="Alle sichtbaren auswählen oder abwählen" aria-label="Alle sichtbaren auswählen oder abwählen"></th>
+                                                    <th>Kürzel</th>
+                                                    <th>Name</th>
+                                                    <th>E-Mail</th>
+                                                    <th>Lizenz</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tenantTeacherTenantImportBody"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Lehrerliste als Tabelle">
                                     <table class="teachers-table" aria-label="Lehrerliste (editierbar per Doppelklick)">
@@ -685,14 +708,68 @@
                         <div id="panelStudents" class="tab-panel active" role="tabpanel" aria-labelledby="tabStudents">
                             <div class="field">
                                 <label for="tenantStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
-                                <textarea id="tenantStudentsLines" placeholder="1AK;Max Mustermann;max.mustermann@schule.de&#10;1AK;Anna Beispiel;anna.beispiel@schule.de"></textarea>
+                                <textarea id="tenantStudentsLines" placeholder="1AK;Max Mustermann;max.mustermann@schule.de&#10;1B;Dave Grohl;dave.grohl@schule.de;Jane Grohl;jane@mail.com;John Grohl;john@mail.com"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Klasse;Name;E-Mail</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
+                                    Format: <code>Klasse;Name;E-Mail</code> — optional: <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>
+                        (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
+                        Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>.
+                        Vorlagen: XLSX (inkl. Anleitung) oder CSV. Elternkontakte lokal speichern und unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a> pflegen.
                                 </small>
-                                <div class="settings-actions" style="margin-top:10px;">
+                                <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
+                                    <label for="tenantStudentsImportSource" style="font-weight:700;margin:0 8px 0 0;">Quelle</label>
+                                    <select id="tenantStudentsImportSource" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                        <option value="auto" selected>Automatisch erkennen</option>
+                                        <option value="ms365">MS365-Vorlage</option>
+                                        <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
+                                        <option value="webuntis">WebUntis</option>
+                                    </select>
                                     <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                    <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls">
+                                    <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt">
                                     <button type="button" class="btn" id="tenantStudentsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantStudentsTemplateCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
+                                    <button type="button" class="btn" id="tenantBtnImportStudentsFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
+                                </div>
+                                <div id="tenantSisDiff" class="alert alert-info" hidden style="margin-top:12px;">
+                                    <strong>Import-Vorschau (lokal)</strong>
+                                    <p id="tenantSisDiffMeta" style="margin:8px 0;line-height:1.45;">Nach dem Datei-Import erscheint hier der Unterschied zur aktuellen Liste.</p>
+                                    <ul id="tenantSisDiffList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                                    <div class="settings-actions">
+                                        <button type="button" class="btn btn-success" id="tenantSisDiffMerge"><i class="bi bi-intersect"></i>Zusammenführen</button>
+                                        <button type="button" class="btn" id="tenantSisDiffReplace"><i class="bi bi-arrow-repeat"></i>Liste ersetzen</button>
+                                        <button type="button" class="btn" id="tenantSisDiffCancel">Verwerfen</button>
+                                    </div>
+                                </div>
+                                <div id="tenantStudentTenantImportPanel" class="sw-lic-import" hidden>
+                                    <h3>Bestehende Schüler:innen aus dem Tenant</h3>
+                                    <p>Benutzer mit Education‑Lizenz für Schüler:innen (A1, A3, A5). Klasse aus der Entra‑Abteilung, falls hinterlegt; sonst vor der Übernahme eintragen. Bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
+                                    <div id="tenantStudentTenantImportSkuFilters" class="sw-lic-filters"></div>
+                                    <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantImportActiveOnly" checked> Nur aktive Konten</label>
+                                    <div class="sw-lic-text-filter">
+                                        <label class="sr-only" for="tenantStudentTenantImportTextFilter">Name, E-Mail oder Klasse filtern</label>
+                                        <input type="search" id="tenantStudentTenantImportTextFilter" placeholder="Name, E-Mail oder Klasse filtern …" autocomplete="off">
+                                    </div>
+                                    <p id="tenantStudentTenantImportStatus" class="muted" style="margin-top:8px;"></p>
+                                    <div class="settings-actions" style="margin-top:8px;">
+                                        <button type="button" class="btn" id="tenantBtnStudentTenantSelectNew">Nur neue auswählen</button>
+                                        <button type="button" class="btn" id="tenantBtnStudentTenantSelectAll">Alle auswählen</button>
+                                        <button type="button" class="btn" id="tenantBtnStudentTenantSelectNone">Alle abwählen</button>
+                                        <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                                    </div>
+                                    <div class="teachers-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
+                                        <table class="teachers-table" aria-label="Schüler:innen aus Microsoft 365">
+                                            <thead>
+                                                <tr>
+                                                    <th class="sw-lic-check-col"><input type="checkbox" id="tenantStudentTenantSelectAllRows" title="Alle sichtbaren auswählen oder abwählen" aria-label="Alle sichtbaren auswählen oder abwählen"></th>
+                                                    <th>Klasse</th>
+                                                    <th>Name</th>
+                                                    <th>E-Mail</th>
+                                                    <th>Lizenz</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tenantStudentTenantImportBody"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
                                     <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
@@ -711,6 +788,15 @@
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <button type="button" class="btn btn-success" id="tenantStudentsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                </div>
+                                <div id="tenantStudentLifecycle" class="alert alert-info" hidden style="margin-top:14px;">
+                                    <strong>Klassenwechsel in Microsoft 365</strong>
+                                    <p id="tenantStudentLifecycleMeta" style="margin:8px 0;line-height:1.45;">Nach dem Speichern oder Import erscheint hier die Vorschau: wer in welche Klassengruppe bzw. Sammelgruppe kommt oder sie verlässt.</p>
+                                    <ul id="tenantStudentLifecycleList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                                    <div class="settings-actions">
+                                        <button type="button" class="btn btn-success" id="tenantStudentLifecycleApply"><i class="bi bi-check2-circle"></i>In Microsoft 365 anwenden</button>
+                                        <button type="button" class="btn" id="tenantStudentLifecycleDismiss">Nur Stammdaten behalten</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -765,11 +851,14 @@
                     <div class="settings-actions">
                         <button type="button" class="btn btn-success" id="tenantSettingsSave"><i class="bi bi-check2-circle"></i>Speichern</button>
                         <button type="button" class="btn" id="tenantSettingsReload"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
-                        <button type="button" class="btn" id="tenantSettingsExport"><i class="bi bi-download"></i>Export (JSON)</button>
-                        <label class="btn" for="tenantSettingsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
-                        <input type="file" id="tenantSettingsImportFile" accept="application/json,.json">
+                        <button type="button" class="btn" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
+                        <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
+                        <input type="file" id="browserBackupImportFile" accept="application/json,.json">
                         <button type="button" class="btn btn-danger" id="tenantSettingsClear"><i class="bi bi-trash"></i>Löschen</button>
                     </div>
+
+                    <p class="tile-subtitle" style="margin-top:10px;">Browser-Backup enthält Stammdaten, Einrichtung und Werkzeug-Zwischenstände aus diesem Browser. Alte Schuldaten-JSON-Dateien werden weiterhin erkannt. Die Microsoft-Anmeldung muss im anderen Browser neu erfolgen.</p>
+                    <div id="browserBackupStatus" class="summary" role="status" aria-live="polite"></div>
 
                     <div id="tenantSettingsSummary" class="summary" role="status" aria-live="polite"></div>
                 </form>
@@ -781,12 +870,19 @@
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="src/shared/eltern-guardians.js" defer></script>
+    <script src="src/shared/school-sis-import.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
+    <script src="src/shared/action-log.js" defer></script>
     <script src="src/shared/tenant-settings-core.js" defer></script>
     <script src="src/shared/graph-rename-preview.js" defer></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
-    <script src="src/shared/graph-unified-groups.js" defer></script>
+    <script src="src/shared/theme-toggle.js" defer></script>
+    <script type="module" src="src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="src/shared/teacher-tenant-import-ui.js"></script>
+    <script type="module" src="src/shared/student-class-lifecycle.js"></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
+    <script src="src/shared/browser-backup.js" defer></script>
     <script src="src/shared/class-teams-rollover-ui.js" defer></script>
     <script>
         (function () {
@@ -850,36 +946,6 @@
                 check();
                 window.addEventListener('hashchange', check);
             })();
-        })();
-
-        (function () {
-            'use strict';
-            const step1 = document.getElementById('tenantStep1');
-            const step2 = document.getElementById('tenantStep2');
-            const domainInp = document.getElementById('schoolEmailDomain');
-
-            if (!step1 || !step2 || !domainInp) return;
-
-            function hasDomain() {
-                return String(domainInp.value || '').trim().length >= 3;
-            }
-
-            function autoFold() {
-                if (hasDomain()) {
-                    step2.open = true;
-                    step1.open = false;
-                } else {
-                    step1.open = true;
-                }
-            }
-
-            domainInp.addEventListener('change', autoFold);
-            domainInp.addEventListener('blur', autoFold);
-            domainInp.addEventListener('input', () => {
-                if (hasDomain()) autoFold();
-            });
-
-            setTimeout(autoFold, 0);
         })();
     </script>
 </body>

@@ -100,6 +100,13 @@ window.MS365_MSAL_CONFIG = {
         a.appendChild(document.createTextNode('kurtrocks.com'));
         p.appendChild(a);
         document.body.appendChild(p);
+        try {
+            if (window.ms365Theme && typeof window.ms365Theme.mount === 'function') {
+                window.ms365Theme.mount();
+            }
+        } catch {
+            /* ignore */
+        }
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {

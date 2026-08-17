@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../../access-config.js"></script>
     <script src="../../src/shared/pin-gate.js"></script>
@@ -19,7 +20,7 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-archive"></i>ARGEs <span style="font-weight:600;opacity:0.85;">(Archiv)</span></span>
             </div>
             <p>Legacy‑Assistent: Arbeitsgemeinschaften als Microsoft‑365‑Gruppen planen (Besitzer, Mitglieder, Skript). Für die übliche Einrichtung reichen <a href="../../einrichtung.html">Geführte Einrichtung</a> (Schritt 7) und <a href="../../tenant.html">Schul‑Grundeinstellungen</a> → ARGE.</p>
-            <p class="header-help-row"><a href="../../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p class="header-help-row"><a href="../../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -212,5 +213,6 @@
     <script src="../../src/shared/polyglot-cmd.js" defer></script>
     <script src="../../src/shared/step-progress.js" defer></script>
     <script type="module" src="../../src/tools/arge/arge.js"></script>
+    <script src="../../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

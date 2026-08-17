@@ -17,6 +17,8 @@
  *    - Team.Create (Kursteams: POST /teams mit Template educationClass)
  *    - EduRoster.ReadWrite (wird für POST /education/classes mitangefordert; laut Microsoft oft nur App-Only – dann scheitert Kursteam im Browser, siehe Kursteam-Anlage.cmd)
  *    - User.Read.All
+ *    - Place.Read.All (optional, Werkzeug „Freigegebene Postfächer“: Räume aus Places erkennen und von Shared trennen)
+ *    - Reports.Read.All (optional, Werkzeug „Freigegebene Postfächer“: Mailbox-Usage-Report mit Recipient Type = Shared; angemeldete Person braucht zusätzlich eine Berichts-/Admin-Rolle)
  *    - User.ReadWrite.All (Schulstruktur-Sync: Benutzer per Graph aus Typ „Person“ anlegen)
  *    - User.Read (Profil des angemeldeten Benutzers / für GET /me)
  *    - Group.Read.All (optional, lesende Reports: „Leere Gruppen“, „Gast-Zugänge“-Teamliste; sonst deckt Group.ReadWrite.All)

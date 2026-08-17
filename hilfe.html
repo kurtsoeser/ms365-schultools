@@ -1,123 +1,233 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hilfe &amp; Datenschutz – MS365-Schulverwaltung</title>
+    <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schulverwaltung</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="app.css">
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        body { padding-bottom: 88px; }
+        .help-layout {
+            display: grid;
+            grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+            min-height: 70vh;
+        }
+        .help-nav {
+            background: linear-gradient(180deg, #f7f8fc 0%, #fff 48%);
+            border-right: 1px solid var(--border);
+            padding: 18px 16px 28px;
+        }
+        .help-nav-sticky {
+            position: sticky;
+            top: 0;
+            max-height: calc(100vh - 24px);
+            overflow: auto;
+        }
+        .help-search-label {
+            display: block;
+            font-weight: 800;
+            color: #32325d;
+            margin-bottom: 8px;
+            font-size: 0.92em;
+        }
+        .help-search-wrap {
+            position: relative;
+            margin-bottom: 8px;
+        }
+        .help-search-wrap > .bi-search {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            pointer-events: none;
+        }
+        .help-search-wrap input {
+            width: 100%;
+            padding: 10px 38px 10px 38px;
+            border: 1px solid #ced4da;
+            border-radius: 12px;
+            font: inherit;
+            font-size: 0.95em;
+        }
+        .help-search-wrap input:focus {
+            outline: 2px solid rgba(94, 114, 228, 0.45);
+            outline-offset: 2px;
+            border-color: rgba(94, 114, 228, 0.45);
+        }
+        .help-search-clear {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #6c757d;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+        }
+        .help-search-clear:hover { background: #eef; color: #32325d; }
+        .help-search-meta {
+            min-height: 1.3em;
+            margin: 0 0 10px;
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+        .help-search-hint {
+            margin: 0 0 14px;
+            color: #868e96;
+            font-size: 0.8em;
+            line-height: 1.35;
+        }
+        .help-toc {
             margin: 0;
-            padding: 24px;
+            padding: 0;
+            list-style: none;
         }
-        .wrap {
-            max-width: 980px;
-            margin: 0 auto;
+        .help-toc a {
+            display: block;
+            color: #495057;
+            text-decoration: none;
+            font-weight: 650;
+            font-size: 0.92em;
+            padding: 6px 8px;
+            border-radius: 8px;
+            line-height: 1.3;
         }
-        .card {
-            background: white;
-            border-radius: 14px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
+        .help-toc a:hover { background: rgba(94, 114, 228, 0.08); color: #32325d; }
+        .help-toc a[aria-current="location"] {
+            background: rgba(94, 114, 228, 0.12);
+            color: #32325d;
+            font-weight: 800;
         }
-        header {
-            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
-            color: white;
-            padding: 28px 22px;
-            text-align: center;
+        .help-toc-group {
+            margin: 12px 0 4px;
+            padding: 0 8px;
+            font-size: 0.72em;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #868e96;
         }
-        header h1 {
+        .help-toc ul {
             margin: 0 0 8px;
-            font-size: 1.6em;
+            padding: 0;
+            list-style: none;
         }
-        header p { margin: 0; opacity: 0.95; }
-        main {
-            padding: 22px 24px 28px;
+        .help-main {
+            padding: 22px 28px 48px;
             color: #32325d;
             line-height: 1.55;
+            max-width: 860px;
         }
-        main h2 {
-            font-size: 1.15em;
-            margin: 22px 0 10px;
-            color: #32325d;
+        .help-main h2 {
+            font-size: 1.28em;
+            margin: 0 0 10px;
+            scroll-margin-top: 16px;
         }
-        main h2:first-of-type { margin-top: 0; }
-        main p { margin: 0 0 12px; }
-        main h3 {
-            font-size: 1.02em;
-            margin: 16px 0 8px;
-            color: #32325d;
+        .help-main h3 {
+            font-size: 1.05em;
+            margin: 0 0 8px;
+            scroll-margin-top: 16px;
         }
-        .toc {
-            margin: 0 0 16px;
-            padding: 12px 14px;
-            border: 1px solid #dee2e6;
-            border-radius: 12px;
+        .help-main p { margin: 0 0 12px; }
+        .help-kicker {
+            margin: 0 0 6px;
+            font-size: 0.78em;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #5e72e4;
+        }
+        .help-lead {
+            font-size: 1.05em;
+            color: #495057;
+            margin-bottom: 16px;
+        }
+        .help-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 22px;
+        }
+        .help-chips a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 10px;
             background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #32325d;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.88em;
         }
-        .toc ul {
-            margin: 10px 0 0;
-            padding-left: 18px;
-            line-height: 1.5;
+        .help-chips a:hover {
+            border-color: rgba(94, 114, 228, 0.4);
+            background: rgba(94, 114, 228, 0.08);
         }
-        .toc a { color: #5e72e4; font-weight: 700; text-decoration: none; }
-        .toc a:hover { text-decoration: underline; }
-        .tool {
-            margin-top: 18px;
-            padding-top: 18px;
-            border-top: 1px solid #dee2e6;
+        .help-section {
+            margin: 0 0 28px;
+            padding-top: 8px;
         }
-        .tool:first-of-type {
-            margin-top: 0;
-            padding-top: 0;
-            border-top: 0;
+        .help-section + .help-section {
+            border-top: 1px solid #eef;
+            padding-top: 22px;
+        }
+        .help-article {
+            margin: 0 0 22px;
+            padding-bottom: 6px;
         }
         .pill {
             display: inline-block;
-            font-size: 0.85em;
-            font-weight: 700;
-            padding: 2px 10px;
+            font-size: 0.78em;
+            font-weight: 800;
+            padding: 2px 9px;
             border-radius: 999px;
             background: #eef;
             color: #32325d;
             border: 1px solid rgba(94, 114, 228, 0.25);
-            margin-left: 8px;
-            vertical-align: baseline;
+            margin-left: 6px;
+            vertical-align: middle;
         }
         .mini-steps ol {
             margin: 8px 0 12px;
             padding-left: 22px;
-            line-height: 1.55;
         }
         .mini-steps li { margin: 6px 0; }
-        .hint {
+        .hint, .warn, .ok, .rec {
             margin: 10px 0 12px;
             padding: 10px 12px;
             border-radius: 10px;
+            line-height: 1.5;
+        }
+        .hint {
             border: 1px solid #dee2e6;
             background: #f8f9fa;
             color: #495057;
         }
         .warn {
-            margin: 10px 0 12px;
-            padding: 10px 12px;
-            border-radius: 10px;
             border: 1px solid #ffeeba;
             background: #fff3cd;
             color: #856404;
         }
         .ok {
-            margin: 10px 0 12px;
-            padding: 10px 12px;
-            border-radius: 10px;
             border: 1px solid #c3e6cb;
             background: #d4edda;
             color: #155724;
+        }
+        .rec {
+            border: 1px solid rgba(94, 114, 228, 0.28);
+            background: rgba(94, 114, 228, 0.07);
+            color: #32325d;
         }
         code {
             background: #eef;
@@ -126,386 +236,860 @@
             font-size: 0.92em;
             word-break: break-all;
         }
-        .nav {
-            margin-top: 24px;
-            padding-top: 18px;
-            border-top: 1px solid #dee2e6;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .nav a {
-            display: inline-block;
-            text-decoration: none;
-            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
-            color: white;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.95em;
-        }
-        .nav a.secondary {
-            background: #6c757d;
-        }
-        .site-credit-row {
-            position: fixed;
-            left: 16px;
-            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-            margin: 0;
-            font-size: 0.95em;
-            z-index: 2000;
-        }
-        .site-credit-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
+        .help-empty {
+            margin: 0 0 18px;
+            padding: 14px 16px;
+            border: 1px dashed #ced4da;
             border-radius: 12px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(94, 114, 228, 0.25);
-            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+            color: #6c757d;
+        }
+        .help-faq {
+            margin: 0 0 10px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .help-faq summary {
+            cursor: pointer;
+            font-weight: 800;
+            padding: 12px 14px;
             color: #32325d;
-            text-decoration: none;
-            font-weight: 700;
+            list-style: none;
         }
-        .site-credit-link:hover { background: #fff; }
-        .site-credit-link .bi {
-            margin: 0;
-            color: rgba(50, 50, 93, 0.88);
-            font-size: 1.1em;
-            opacity: 0.95;
+        .help-faq summary::-webkit-details-marker { display: none; }
+        .help-faq summary::before {
+            content: "▸";
+            display: inline-block;
+            margin-right: 8px;
+            color: #5e72e4;
         }
+        .help-faq[open] summary::before { content: "▾"; }
+        .help-faq .faq-body { padding: 0 14px 14px; }
+        .help-open {
+            margin-top: 8px;
+        }
+        .help-open a { font-weight: 700; color: #5e72e4; text-decoration: none; }
+        .help-open a:hover { text-decoration: underline; }
+        .help-toc-mobile { display: none; }
+        @media (max-width: 900px) {
+            .help-layout { grid-template-columns: 1fr; }
+            .help-nav {
+                border-right: 0;
+                border-bottom: 1px solid var(--border);
+            }
+            .help-nav-sticky { position: static; max-height: none; }
+            .help-toc-desktop { display: none; }
+            .help-toc-mobile { display: block; }
+            .help-toc-mobile summary {
+                cursor: pointer;
+                font-weight: 800;
+                color: #32325d;
+                padding: 8px 0;
+            }
+            .help-main { padding: 18px 16px 40px; }
+        }
+        body.help-searching .help-kicker { opacity: 0.7; }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <div class="card">
-            <header>
-                <h1>MS365-Schulverwaltung</h1>
-                <p>Kursteams, Jahrgangsgruppen und ARGEs automatisiert vorbereiten</p>
-            </header>
-            <main>
-                <div class="toc" aria-label="Inhaltsverzeichnis">
-                    <strong>Inhalt</strong>
-                    <ul>
-                        <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
-                        <li><a href="#voraussetzungen">Voraussetzungen (Graph / Berechtigungen)</a></li>
-                        <li><a href="#tool-tenant">Schul‑Grundeinstellungen</a></li>
-                        <li><a href="#tool-kursteams">Kursteams</a></li>
-                        <li><a href="#tool-jahrgang">Jahrgangsgruppen</a></li>
-                        <li><a href="#tool-arge">ARGE &amp; Fachgruppen</a></li>
-                        <li><a href="#tool-slg">Lehrerinnen &amp; Schülerinnen</a></li>
-                        <li><a href="#tool-verwaltung">Verwaltung</a></li>
-                        <li><a href="#tool-wtg">Weitere Teams &amp; Gruppen (Wizard)</a></li>
-                        <li><a href="#tool-personen-verwaltung">Personen‑Verwaltung</a></li>
-                        <li><a href="#tool-teams-archiv">Teams archivieren (Archiv)</a></li>
-                        <li><a href="#tool-klassen-umbenennen">Klassen‑Anzeigenamen (Schuljahreswechsel)</a></li>
-                        <li><a href="#tool-gruppenerstellung">Gruppenerstellung einschränken</a></li>
-                        <li><a href="#tool-gaeste-verwalten">Gäste verwalten</a></li>
-                        <li><a href="#windows-cmd">Windows blockiert heruntergeladene .cmd?</a></li>
-                        <li><a href="#datenschutz">Datenschutz</a></li>
-                    </ul>
+    <div class="container page-card" id="helpRoot">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Dokumentation:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Hinweise</span>
+            </div>
+            <p>Anleitungen, empfohlene Abläufe, FAQ und Datenschutzerklärung – passend zu den Werkzeugen dieser App.</p>
+            <div class="toolbar">
+                <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="#datenschutz" style="text-decoration:none;display:inline-block;"><i class="bi bi-shield-lock"></i>Datenschutz</a>
+                <a class="btn" href="#faq" style="text-decoration:none;display:inline-block;"><i class="bi bi-chat-left-text"></i>FAQ</a>
+            </div>
+        </div>
+
+        <div class="help-layout">
+            <aside class="help-nav" data-help-nav aria-label="Inhalt und Suche">
+                <div class="help-nav-sticky">
+                    <label class="help-search-label" for="helpSearch">Hilfe durchsuchen</label>
+                    <div class="help-search-wrap">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input type="search" id="helpSearch" name="q" autocomplete="off" placeholder="z. B. Eltern, Backup, Schuljahr …">
+                        <button type="button" class="help-search-clear" id="helpSearchClear" hidden title="Suche leeren" aria-label="Suche leeren">×</button>
+                    </div>
+                    <p class="help-search-meta" id="helpSearchMeta"></p>
+                    <p class="help-search-hint">Tipp: Taste <kbd>/</kbd> fokussiert die Suche.</p>
+
+                    <nav class="help-toc-desktop" aria-label="Inhaltsverzeichnis">
+                        <p class="help-toc-group">Einstieg</p>
+                        <ul class="help-toc">
+                            <li><a href="#schnellstart">Schnellstart</a></li>
+                            <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
+                            <li><a href="#einrichtung">Geführte Einrichtung</a></li>
+                            <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
+                        </ul>
+                        <div data-help-nav-group>
+                            <p class="help-toc-group">Werkzeuge</p>
+                            <ul class="help-toc">
+                                <li><a href="#tool-tenant">Stammdaten</a></li>
+                                <li><a href="#tool-jahrgang">Klassengruppen</a></li>
+                                <li><a href="#tool-kursteams">Unterrichtsteams</a></li>
+                                <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
+                                <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
+                                <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
+                                <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
+                                <li><a href="#tool-verwaltung">Verwaltung</a></li>
+                                <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
+                                <li><a href="#tool-postfaecher">Postfächer</a></li>
+                                <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
+                                <li><a href="#tool-eltern-verteiler">Eltern-Verteiler</a></li>
+                                <li><a href="#tool-intranet">Schul-Intranet</a></li>
+                                <li><a href="#tool-gruppenerstellung">Wer darf Teams anlegen</a></li>
+                                <li><a href="#tool-schulstruktur">Gruppenverwaltung</a></li>
+                                <li><a href="#tool-leere-gruppen">Leere Gruppen</a></li>
+                            </ul>
+                        </div>
+                        <p class="help-toc-group">Nachschlagen</p>
+                        <ul class="help-toc">
+                            <li><a href="#faq">FAQ</a></li>
+                            <li><a href="#windows-cmd">Windows-Hinweise</a></li>
+                            <li><a href="#datenschutz">Datenschutz</a></li>
+                        </ul>
+                    </nav>
+
+                    <details class="help-toc-mobile">
+                        <summary>Inhaltsverzeichnis</summary>
+                        <nav aria-label="Inhaltsverzeichnis mobil">
+                            <p class="help-toc-group">Einstieg</p>
+                            <ul class="help-toc">
+                                <li><a href="#schnellstart">Schnellstart</a></li>
+                                <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
+                                <li><a href="#einrichtung">Geführte Einrichtung</a></li>
+                                <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
+                            </ul>
+                            <div data-help-nav-group>
+                                <p class="help-toc-group">Werkzeuge</p>
+                                <ul class="help-toc">
+                                    <li><a href="#tool-tenant">Stammdaten</a></li>
+                                    <li><a href="#tool-jahrgang">Klassengruppen</a></li>
+                                    <li><a href="#tool-kursteams">Unterrichtsteams</a></li>
+                                    <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
+                                    <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
+                                    <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
+                                    <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
+                                    <li><a href="#tool-verwaltung">Verwaltung</a></li>
+                                    <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
+                                    <li><a href="#tool-postfaecher">Postfächer</a></li>
+                                    <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
+                                    <li><a href="#tool-eltern-verteiler">Eltern-Verteiler</a></li>
+                                    <li><a href="#tool-intranet">Schul-Intranet</a></li>
+                                    <li><a href="#tool-gruppenerstellung">Wer darf Teams anlegen</a></li>
+                                    <li><a href="#tool-schulstruktur">Gruppenverwaltung</a></li>
+                                    <li><a href="#tool-leere-gruppen">Leere Gruppen</a></li>
+                                </ul>
+                            </div>
+                            <p class="help-toc-group">Nachschlagen</p>
+                            <ul class="help-toc">
+                                <li><a href="#faq">FAQ</a></li>
+                                <li><a href="#windows-cmd">Windows-Hinweise</a></li>
+                                <li><a href="#datenschutz">Datenschutz</a></li>
+                            </ul>
+                        </nav>
+                    </details>
                 </div>
+            </aside>
 
-                <h2 id="grundprinzip">Grundprinzip</h2>
-                <p>
-                    Die Tools erzeugen entweder <strong>Microsoft 365‑Objekte</strong> (Gruppen/Teams) über <strong>Microsoft Graph</strong>
-                    <em>oder</em> sie erzeugen <strong>PowerShell‑Skripte / .cmd‑Pakete</strong>, die Sie lokal ausführen.
-                    Die “Stammdaten” (Domain, Fächer, Lehrkräfte, Klassen, Schüler) kommen aus den <a href="tenant.html">Schul‑Grundeinstellungen</a>.
-                </p>
-                <div class="hint" id="datenspeicher">
-                    <strong>Datenhaltung:</strong> Es gibt keinen Server. Zwischenstände und Stammdaten werden lokal im Browser gespeichert
-                    (LocalStorage/SessionStorage). Viele Tools haben zusätzlich <strong>Export/Import</strong> (JSON/CSV), um zwischen PCs/Browsers zu wechseln.
-                </div>
+            <main class="help-main">
+                <p class="help-empty" id="helpSearchEmpty" hidden>Kein Abschnitt passt zu dieser Suche. Versuchen Sie z. B. „Backup“, „Eltern“, „Schuljahr“, „Gast“ oder „PowerShell“.</p>
 
-                <h2 id="voraussetzungen">Voraussetzungen (Graph / Berechtigungen)</h2>
-                <p>
-                    Wenn ein Tool “Online (Microsoft Graph)” anbietet, erfolgt die Anmeldung über MSAL im Browser. Dafür braucht die App‑Registrierung in Entra
-                    passende <strong>delegierte Berechtigungen</strong> (und meist <strong>Administratorzustimmung</strong>).
-                </p>
-                <div class="warn">
-                    <strong>Wichtig:</strong> Die “Berechtigung” ist immer eine Kombination aus
-                    (a) in Entra erteilten Scopes <em>und</em> (b) den Rechten des angemeldeten Kontos (z. B. Gruppen verwalten, Teams erstellen, Directory schreiben).
-                </div>
-
-                <h2 id="datenschutz">Datenschutz</h2>
-                <p>Es gibt keinen Server. Importierte Dateien und Einstellungen werden nur in diesem Browser verarbeitet; optional können Sie den Zwischenstand <strong>pro Modus</strong> (Kursteams, Jahrgangsgruppen, ARGEs) getrennt lokal speichern.</p>
-
-                <h2>Module / Werkzeuge (Mini‑Anleitungen)</h2>
-
-                <section class="tool" id="tool-tenant" aria-label="Schul-Grundeinstellungen">
-                    <h3>Schul‑Grundeinstellungen <span class="pill">Basisdaten</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Speichert die gemeinsame Basis: <code>Domain</code>, <code>Fächer</code>, <code>Lehrer</code>, optional <code>Schüler</code>
-                        und <code>Klassen</code>. Diese Daten werden von Kursteams, Jahrgang und ARGE übernommen bzw. teilweise zurück‑synchronisiert.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li><strong>Domain</strong> ohne <code>@</code> eintragen (z. B. <code>ms365.schule</code>).</li>
-                            <li>Listen füllen: per <strong>Copy &amp; Paste</strong> oder <strong>CSV/XLSX‑Import</strong> (Vorlagen gibt’s direkt im Tool).</li>
-                            <li>Mit <strong>Speichern</strong> sichern (lokal im Browser). Optional Export/Import (JSON) zum Übertragen.</li>
-                        </ol>
-                    </div>
-                    <div class="hint">
-                        <strong>Tipp:</strong> Viele Tools übernehmen automatisch Daten, wenn das jeweilige Eingabefeld leer ist (z. B. Jahrgang übernimmt Klassen, ARGE übernimmt Fächer).
-                    </div>
-                    <p><a href="tenant.html">→ Schul‑Grundeinstellungen öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="schnellstart">
+                    <p class="help-kicker">Einstieg</p>
+                    <article class="help-article" data-help-article data-search="schnellstart start erstes mal dashboard aufgaben pin anmeldung">
+                        <h2 id="schnellstart">Schnellstart</h2>
+                        <p class="help-lead">Die App läuft vollständig im Browser. Sie pflegt Schul-Stammdaten lokal und spricht Microsoft 365 über Graph oder über erzeugte PowerShell-Skripte an. Es gibt keinen Schul-Server hinter dieser Oberfläche.</p>
+                        <div class="help-chips" aria-label="Häufige Einstiege">
+                            <a href="#einrichtung"><i class="bi bi-signpost-2"></i>Schule einrichten</a>
+                            <a href="#tool-schuljahr"><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</a>
+                            <a href="#tool-eltern-verteiler"><i class="bi bi-people"></i>Eltern-Verteiler</a>
+                            <a href="#faq"><i class="bi bi-chat-left-text"></i>FAQ</a>
+                            <a href="#datenschutz"><i class="bi bi-shield-lock"></i>Datenschutz</a>
+                        </div>
+                        <div class="rec">
+                            <strong>Empfohlener Einstieg für eine neue Schule:</strong>
+                            gleichen Browser jeden Tag verwenden (nicht privat/inkognito) →
+                            <a href="einrichtung.html">geführte Einrichtung</a> durcharbeiten →
+                            Stammdaten prüfen → Klassengruppen matchen → Sammelgruppen Schüler/Lehrkräfte →
+                            Unterrichtsteams aus dem Stundenplan → Browser-Backup speichern.
+                        </div>
+                        <div class="mini-steps">
+                            <strong>So starten Sie am ersten Tag</strong>
+                            <ol>
+                                <li>PIN eingeben (falls der Zugangsschutz aktiv ist). Die Sitzung gilt für diesen Browser-Tab.</li>
+                                <li>Oben rechts bei Microsoft 365 anmelden – mit einem Konto, das Gruppen und Benutzer verwalten darf.</li>
+                                <li>Auf dem Dashboard unter <strong>Was möchten Sie tun?</strong> die Aufgabe wählen. Darunter liegen alle Werkzeuge in Themen-Tabs; die Suche findet sie auch über Synonyme.</li>
+                                <li>Nach größeren Änderungen unten auf dem Dashboard <strong>Browser-Backup</strong> exportieren.</li>
+                            </ol>
+                        </div>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-kursteams" aria-label="Kursteams">
-                    <h3>Kursteams <span class="pill">Wizard</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Aus Unterrichtszeilen (<code>Lehrer</code>, <code>Fach</code>, <code>Klasse</code>, optional <code>Gruppe</code>) werden
-                        Team‑Entwürfe erzeugt: Team‑Name, Gruppenmail (Nickname), Besitzer‑UPN/E‑Mail. Die Anlage erfolgt per <strong>CSV/PowerShell</strong> (empfohlen); die Online‑Anlage im Browser ist durch Microsoft‑Einschränkungen oft nicht verfügbar.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung (Hauptweg)</strong>
-                        <ol>
-                            <li><strong>Daten importieren</strong>: Copy &amp; Paste (3 Spalten) oder CSV/XLSX.</li>
-                            <li><strong>Bereinigen</strong>: unnötige Fächer ausschließen, Duplikate entfernen, klassenübergreifende Teams prüfen.</li>
-                            <li><strong>Lehrer zuordnen</strong>: Kürzel → E‑Mail (kommt aus der Schul‑Liste; fehlende werden aus <code>Kürzel@Domain</code> generiert).</li>
-                            <li><strong>Team‑Namen generieren</strong>: Baukasten (Drag &amp; Drop), dann validieren.</li>
-                            <li><strong>Anlegen</strong>: Schritt „CSV/PowerShell“ (z. B. <code>Kursteam-Anlage.cmd</code>) – die Graph‑Anlage im Browser ist derzeit nicht unterstützt.</li>
-                        </ol>
-                    </div>
-                    <div class="hint">
-                        <strong>Optional:</strong> Schüler als Mitglieder hinzufügen (separater Schritt). Format z. B. <code>Klasse;UPN</code> oder <code>Klasse;Gruppe;UPN</code>.
-                    </div>
-                    <p><a href="tools/kursteams.html">→ Kursteams öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="grundprinzip">
+                    <article class="help-article" data-help-article data-search="grundprinzip lokal browser localstorage sessionstorage backup graph powershell cmd ohne server stammdaten">
+                        <h2 id="grundprinzip">Grundprinzip &amp; Datenhaltung</h2>
+                        <p>
+                            Die Werkzeuge erzeugen entweder <strong>Microsoft-365-Objekte</strong> (Gruppen, Teams, Benutzer) über
+                            <strong>Microsoft Graph</strong> <em>oder</em> sie erzeugen <strong>PowerShell-Skripte / .cmd-Pakete</strong>,
+                            die Sie lokal ausführen. Die Stammdaten (Domain, Fächer, Lehrkräfte, Klassen, Schüler:innen)
+                            kommen aus den <a href="tenant.html">Schul-Grundeinstellungen</a>.
+                        </p>
+                        <div class="hint" id="datenspeicher">
+                            <strong>Datenhaltung:</strong> Es gibt keinen App-Server. Zwischenstände und Stammdaten liegen in
+                            diesem Browser (<code>localStorage</code> / <code>sessionStorage</code>). Über <strong>Browser-Backup</strong>
+                            (Dashboard, Stammdaten oder Einrichtung) übertragen Sie <em>alle</em> lokalen App-Daten als JSON
+                            in einen anderen Browser. Die Microsoft-Anmeldung ist nicht enthalten und muss dort neu erfolgen.
+                            Einzelne Werkzeuge haben zusätzlich eigenen Export/Import (JSON/CSV).
+                        </div>
+                        <div class="warn">
+                            <strong>Wichtig:</strong> Ein privates Fenster, ein anderer Browser oder das Löschen der Websitedaten
+                            leert die Stammdaten. Vor einem Schuljahreswechsel oder einem PC-Wechsel immer ein Backup exportieren.
+                        </div>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-jahrgang" aria-label="Jahrgangsgruppen">
-                    <h3>Jahrgangsgruppen <span class="pill">Gruppenverwaltung</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die
-                        <strong>Klassen</strong> des aktuellen Schuljahrs aus den Schul‑Einstellungen. Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen
-                        (Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Kürzel). Mit Match: Live‑Details (Allgemein, Owner, Mitglieder).
-                        Verknüpfungen liegen in <code>classTeams</code> (dieselbe Klasse↔Gruppe‑Zuordnung wie in der geführten Einrichtung).
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>In den <a href="tenant.html#classes">Schul‑Grundeinstellungen</a> Klassen (Kürzel, Name, Abschlussjahr) pflegen.</li>
-                            <li>Im Tool anmelden, links eine Klasse wählen, Gruppe suchen und matchen – oder neu anlegen. Besitzer: Direktion.</li>
-                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen. Schüler‑E‑Mails der Klasse können additiv synchronisiert werden.</li>
-                        </ol>
-                    </div>
-                    <div class="hint">
-                        <strong>Einmalige Neuanlage:</strong> Der bisherige Mehrschritt‑Wizard bleibt unter <a href="tools/jahrgang.html">Jahrgangsgruppen (Wizard)</a> erreichbar – für „alles neu einmal erstellen“, nicht für den Alltag.
-                    </div>
-                    <p><a href="tools/jahrgangsgruppen.html">→ Jahrgangsgruppen öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="einrichtung">
+                    <article class="help-article" data-help-article id="tool-einrichtung" data-search="einrichtung wizard setup domain verwaltung lehrer schüler fächer arge klassen übersicht erste schritte">
+                        <h2 id="einrichtung">Geführte Einrichtung</h2>
+                        <p>
+                            <strong>Was macht’s?</strong> Der einmalige Assistent legt die Schule in dieser App an:
+                            Anmeldung, Schul-Domain, Verwaltung, Lehrkräfte, Schüler:innen, Fächer, ARGE, Klassen, Übersicht.
+                            Die Listen landen in denselben Stammdaten wie unter <a href="tenant.html">Schul-Grundeinstellungen</a>.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Empfohlene Reihenfolge</strong>
+                            <ol>
+                                <li><strong>Anmeldung:</strong> Konto mit Admin-Rechten. Ohne Zustimmung der Graph-Berechtigungen bleiben Online-Aktionen leer.</li>
+                                <li><strong>Schul-Domain:</strong> ohne <code>@</code>, z. B. <code>ms365.schule</code>. Daraus werden UPNs und Gruppenmails gebaut.</li>
+                                <li><strong>Verwaltung:</strong> wenigstens die Direktion mit E-Mail – sie wird als Besitzerin vieler Sammelgruppen vorgeschlagen.</li>
+                                <li><strong>Lehrkräfte / Schüler:innen:</strong> CSV/XLSX, Copy &amp; Paste oder <strong>Aus Microsoft 365 einlesen</strong> (Konten mit A1/A3/A5).</li>
+                                <li><strong>Fächer, ARGE, Klassen:</strong> Kürzel und Namen pflegen. Klassen brauchen ein Abschlussjahr.</li>
+                                <li><strong>Übersicht:</strong> prüfen, dann Gruppen in den Alltags-Werkzeugen matchen oder neu anlegen – nicht alles auf einmal erzwingen.</li>
+                            </ol>
+                        </div>
+                        <div class="rec">
+                            <strong>Empfehlung:</strong> Bestehende Microsoft-365-Gruppen nicht doppelt anlegen.
+                            Nach der Einrichtung in den jeweiligen Werkzeugen <em>suchen und verknüpfen</em> (Match).
+                            Neu anlegen nur, wenn wirklich keine passende Gruppe existiert.
+                        </div>
+                        <p class="help-open"><a href="einrichtung.html">→ Geführte Einrichtung öffnen</a></p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-arge" aria-label="ARGE und Fachgruppen">
-                    <h3>ARGE &amp; Fachgruppen <span class="pill">Gruppenverwaltung</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Katalogeinträge aus den Schul‑Einstellungen:
-                        <strong>Fachgruppen</strong> und <strong>ARGE</strong>. Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: Live‑Details (Allgemein, Owner, Mitglieder).
-                        Verknüpfungen (Fach, ARGE, Sammelgruppen Schüler/Lehrer/Verwaltung) liegen in denselben <code>catalogLinks</code> wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> Fächer und ARGE pflegen.</li>
-                            <li>Im Tool anmelden, links Fachgruppen oder ARGE wählen, Eintrag anklicken, Gruppe suchen und matchen – oder neu anlegen.</li>
-                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen.</li>
-                        </ol>
-                    </div>
-                    <div class="hint">
-                        <strong>Hinweis:</strong> Es gibt keinen Listen‑Sync (keine Mitglieder in den Stammdaten). Der alte Mehrschritt‑Assistent bleibt unter <a href="tools/archiv/arge.html">Archiv</a>.
-                    </div>
-                    <p><a href="tools/arge-fachgruppen.html">→ ARGE &amp; Fachgruppen öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="voraussetzungen">
+                    <article class="help-article" data-help-article data-search="graph msal entra berechtigung scope admin zustimmung directory group team user">
+                        <h2 id="voraussetzungen">Anmeldung &amp; Berechtigungen</h2>
+                        <p>
+                            Online-Aktionen nutzen MSAL im Browser. Die App-Registrierung in Entra braucht passende
+                            <strong>delegierte Berechtigungen</strong> und in der Regel <strong>Administratorzustimmung</strong>.
+                            Zusätzlich entscheidet das angemeldete Konto, was wirklich erlaubt ist.
+                        </p>
+                        <div class="warn">
+                            <strong>Zwei Schichten:</strong> (a) in Entra erteilte Scopes <em>und</em>
+                            (b) die Rechte des Kontos (Gruppen verwalten, Teams erstellen, Verzeichnis schreiben).
+                            Fehlt eines von beiden, schlägt die Aktion fehl – auch wenn die App „Online“ anbietet.
+                        </div>
+                        <div class="hint">
+                            <strong>Praxis:</strong> Für den Schulalltag ein IT-/Admin-Konto verwenden, nicht das persönliche Lehrkräfte-Konto.
+                            Nach der Anmeldung bleiben Sie in diesem Browser angemeldet, bis Sie sich abmelden oder die Websitedaten löschen.
+                        </div>
+                        <p>
+                            Welche Graph-Berechtigungen die App anfordert, steht in <code>ms365-config.example.js</code>
+                            (Vorlage zur Entra-App). Schul-Admins legen in der Regel <em>keine</em> eigene App an:
+                            sie öffnen die vorhandene URL und stimmen einmal pro Mandant zu.
+                        </p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-slg" aria-label="Lehrerinnen und Schülerinnen">
-                    <h3>Lehrerinnen &amp; Schülerinnen <span class="pill">Gruppenverwaltung</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für zwei Sammelgruppen (Schüler:innen und Lehrer:innen).
-                        Ohne Match: bestehende Unified‑Gruppe suchen oder neu anlegen. Mit Match: dieselben Live‑Details (Allgemein, Owner, Mitglieder) wie in der Gruppenverwaltung, plus Listen‑Sync aus den Schul‑Einstellungen.
-                        Die Sammelgruppen liegen in denselben <code>catalogLinks</code> wie Verwaltung, ARGE und die geführte Einrichtung.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>In den <a href="tenant.html">Schul‑Grundeinstellungen</a> Schüler/Lehrer mit gültigen E‑Mails pflegen; unter Verwaltung die Direktion mit E‑Mail eintragen (für Besitzerrechte).</li>
-                            <li>Im Tool anmelden, links Schüler:innen oder Lehrer:innen wählen, Gruppe suchen und matchen – oder neu anlegen.</li>
-                            <li>Nach dem Match Allgemein/Owner/Mitglieder wie in der Gruppenverwaltung pflegen. Optional <strong>Mitglieder synchronisieren</strong> (fügt fehlende Listen‑Adressen hinzu).</li>
-                        </ol>
-                    </div>
-                    <div class="hint">
-                        <strong>Hinweis:</strong> Listen‑Sync ist additiv (entfernt niemanden). Einzelne Owner und Mitglieder können Sie in den Tabs dieses Tools entfernen – oder in der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> bzw. im Entra‑Portal.
-                    </div>
-                    <p><a href="tools/schueler-lehrer-gruppen.html">→ Lehrerinnen &amp; Schülerinnen öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="tool-tenant">
+                    <p class="help-kicker">Stammdaten</p>
+                    <article class="help-article" data-help-article data-search="stammdaten tenant schul-grundeinstellungen domain fächer lehrer klassen schüler sokrates webuntis import csv xlsx schuljahr">
+                        <h2 id="tool-tenant">Schul-Grundeinstellungen <span class="pill">Basisdaten</span></h2>
+                        <p>
+                            <strong>Was macht’s?</strong> Die gemeinsame Basis: Domain, Fächer, ARGE, Lehrkräfte, Verwaltung,
+                            Schüler:innen und Klassen. Alle anderen Werkzeuge lesen diese Listen. Schüler und Klassen hängen am
+                            <strong>aktuellen Schuljahr</strong>; Domain und Fächer gelten schulweit.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Mini-Anleitung</strong>
+                            <ol>
+                                <li>Domain ohne <code>@</code> eintragen und speichern.</li>
+                                <li>Listen füllen: Copy &amp; Paste, CSV/XLSX-Vorlage oder Import aus Sokrates/WebUntis.</li>
+                                <li>Lehrkräfte und Schüler:innen optional <strong>aus Microsoft 365 einlesen</strong> (Lizenzfilter A1/A3/A5).</li>
+                                <li>Speichern. Mit <strong>Browser-Backup</strong> alle lokalen Daten sichern oder in einen anderen Browser übertragen.</li>
+                            </ol>
+                        </div>
+                        <div class="hint">
+                            <strong>Schülerimport:</strong> Vorlage <code>Klasse;Name;E-Mail;Eltern1;Eltern1Mail;…</code>
+                            oder Quellformat Sokrates / WebUntis. Erziehungsberechtigte werden nur lokal zugeordnet –
+                            nicht als Benutzer oder Gäste im Tenant angelegt.
+                        </div>
+                        <p class="help-open"><a href="tenant.html">→ Stammdaten öffnen</a></p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-verwaltung" aria-label="Verwaltung">
-                    <h3>Verwaltung <span class="pill">Personen &amp; Gruppe</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Pflegt die <strong>Rollen und Personen</strong> der Schulverwaltung (Sekretariat, Direktion, Schularzt, Schulwart, …) – anlegen, umbenennen, zuordnen – dieselben Stammdaten wie unter <a href="tenant.html">Schul‑Grundeinstellungen</a>.
-                        Zusätzlich Spezialfall der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> für die Sammelgruppe: ohne Match suchen oder neu anlegen, mit Match Live‑Details plus Listen‑Sync.
-                        Die Verknüpfung liegt in denselben <code>catalogLinks</code> (Sammelgruppe <code>verwaltung</code>) wie in der <a href="einrichtung.html">geführten Einrichtung</a>.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>Links eine Rolle wählen oder <strong>+ Rolle</strong> / Standardrollen. Bezeichnung und Kürzel rechts speichern.</li>
-                            <li>Personen (Name, E‑Mail) der Rolle hinzufügen – wie in den Stammdaten. Direktion mit E‑Mail eintragen (für Besitzerrechte der Sammelgruppe).</li>
-                            <li>Optional den Eintrag <strong>Sammelgruppe Verwaltung</strong> wählen, anmelden, Gruppe matchen oder anlegen, Mitglieder synchronisieren.</li>
-                        </ol>
-                    </div>
-                    <div class="hint">
-                        <strong>Hinweis:</strong> Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind. Listen‑Sync der Sammelgruppe ist additiv (entfernt niemanden).
-                    </div>
-                    <p><a href="tools/verwaltung.html">→ Verwaltung öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="unterricht">
+                    <p class="help-kicker" id="unterricht">Unterricht &amp; Klassen</p>
+
+                    <article class="help-article" data-help-article data-search="klassengruppe jahrgang jahrgangsgruppe klasse matchen anlegen schüler owner">
+                        <h3 id="tool-jahrgang">Klassengruppen <span class="pill">Gruppenverwaltung</span></h3>
+                        <p>
+                            Spezialfall der <a href="tools/schulstruktur-sync.html">Gruppenverwaltung</a> für die Klassen
+                            des aktuellen Schuljahrs. Ohne Match: bestehende Unified-Gruppe suchen oder neu anlegen
+                            (Mail-Nickname typisch <code>jg</code> + Abschlussjahr + Kürzel). Mit Match: Live-Details
+                            (Allgemein, Owner, Mitglieder). Die Verknüpfung liegt in <code>classTeams</code>.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Vorgangsweise</strong>
+                            <ol>
+                                <li>Klassen in den <a href="tenant.html#classes">Stammdaten</a> pflegen (Kürzel, Name, Abschlussjahr).</li>
+                                <li>Anmelden, links eine Klasse wählen, Gruppe suchen und matchen – oder nur dann neu anlegen, wenn nichts passt.</li>
+                                <li>Besitzerin: Direktion. Schüler-E-Mails der Klasse können additiv synchronisiert werden (entfernt niemanden).</li>
+                            </ol>
+                        </div>
+                        <div class="hint">
+                            Selten nötig: einmalige Neuanlage aller Klassengruppen unter
+                            <a href="tools/jahrgang.html">Klassengruppen (einmalige Neuanlage)</a> –
+                            nicht für den Alltag (dort reicht Matchen/Listenansicht).
+                        </div>
+                        <p class="help-open"><a href="tools/jahrgangsgruppen.html">→ Klassengruppen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="kursteam unterrichtsteams stundenplan webuntis fach csv powershell anlage">
+                        <h3 id="tool-kursteams">Unterrichtsteams <span class="pill">Wizard</span></h3>
+                        <p>
+                            Aus Unterrichtszeilen (<code>Lehrer</code>, <code>Fach</code>, <code>Klasse</code>, optional <code>Gruppe</code>)
+                            werden Team-Entwürfe: Name, Gruppenmail, Besitzer-UPN. Die Anlage erfolgt per <strong>CSV/PowerShell</strong>
+                            (empfohlen); die Online-Anlage im Browser ist durch Microsoft-Einschränkungen oft nicht verfügbar.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Hauptweg</strong>
+                            <ol>
+                                <li>Stundenplan importieren (Copy &amp; Paste oder CSV/XLSX aus WebUntis).</li>
+                                <li>Bereinigen: unnötige Fächer ausschließen, Duplikate entfernen, klassenübergreifende Teams prüfen.</li>
+                                <li>Lehrer zuordnen: Kürzel → E-Mail aus der Schul-Liste; fehlende als <code>Kürzel@Domain</code>.</li>
+                                <li>Team-Namen im Baukasten erzeugen und prüfen.</li>
+                                <li>Anlegen über Schritt „CSV/PowerShell“ (z. B. <code>Kursteam-Anlage.cmd</code>).</li>
+                            </ol>
+                        </div>
+                        <div class="hint">
+                            Optional Schüler als Mitglieder (separater Schritt), Format z. B. <code>Klasse;UPN</code>
+                            oder <code>Klasse;Gruppe;UPN</code>.
+                        </div>
+                        <p class="help-open"><a href="tools/kursteams.html">→ Unterrichtsteams öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="arge fachgruppe fachschaft arbeitsgemeinschaft katalog">
+                        <h3 id="tool-arge">Fächer &amp; ARGEs <span class="pill">Gruppenverwaltung</span></h3>
+                        <p>
+                            Spezialfall der Gruppenverwaltung für Katalogeinträge aus den Stammdaten: Fachgruppen und ARGE.
+                            Ohne Match suchen oder neu anlegen, mit Match Live-Details pflegen.
+                            Verknüpfungen liegen in denselben <code>catalogLinks</code> wie in der Einrichtung.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Fächer und ARGE in den Stammdaten pflegen.</li>
+                                <li>Links Fachgruppen oder ARGE wählen, Eintrag anklicken, Gruppe matchen oder anlegen.</li>
+                                <li>Owner und Mitglieder in den Tabs pflegen. Es gibt keinen Listen-Sync aus den Stammdaten.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/arge-fachgruppen.html">→ Fächer und ARGEs öffnen</a></p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-wtg" aria-label="Weitere Teams und Gruppen Wizard">
-                    <h3>Weitere Teams &amp; Gruppen <span class="pill">Wizard</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Einmal‑Assistent der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a>
-                        für zusätzliche Unified‑Gruppen/Teams <em>außerhalb</em> der Schul‑Kataloge (z. B. Elternverein, Projektteam).
-                        Kein Alltags‑Listenmodul – Einstieg über den Button <strong>Wizard: weitere Gruppen</strong> in der Gruppenverwaltung.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>In der Gruppenverwaltung <strong>Wizard: weitere Gruppen</strong> öffnen.</li>
-                            <li>Liste (eine Zeile pro Gruppe), Besitzer, Mitglieder und Einstellungen festlegen.</li>
-                            <li>Per Microsoft Graph ausführen; danach die neue Gruppe in der Gruppenverwaltung pflegen.</li>
-                        </ol>
-                    </div>
-                    <p><a href="tools/schulstruktur-sync.html">→ MS 365 Gruppenverwaltung öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="personen">
+                    <p class="help-kicker" id="personen">Personen &amp; Zugänge</p>
+
+                    <article class="help-article" data-help-article data-search="personen verwaltung benutzer lizenz a1 a3 profil gruppen deaktivieren löschen">
+                        <h3 id="tool-personen-verwaltung">Personen-Verwaltung <span class="pill">Verzeichnis</span></h3>
+                        <p>
+                            Liest Benutzer aus Entra, filtert nach Kontotyp, Status, Abteilung und Lizenz.
+                            Tabs: Profil (PATCH), Lizenzen zuweisen/entziehen, Gruppenmitgliedschaft.
+                            Neu: Organisationskonto anlegen. Konto beenden: Standard ist Deaktivieren; DELETE nur mit extra Häkchen.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li><strong>Personen einlesen</strong> (Anmeldung folgt bei Bedarf automatisch).</li>
+                                <li>Optional nach Lizenz filtern (z. B. A3 Lehrpersonal, A1 Schüler:innen).</li>
+                                <li>Person wählen, Profil speichern oder Lizenzen/Gruppen ändern.</li>
+                                <li>Neue Konten: <strong>Anlegen</strong> → <strong>Nutzungsort</strong> (z. B. AT) → <strong>Lizenz</strong>. Ohne Land weist Microsoft keine Lizenz zu.</li>
+                            </ol>
+                        </div>
+                        <div class="warn">
+                            Schreibzugriff braucht Admin-Rechte (<code>User.ReadWrite.All</code>, <code>Group.ReadWrite.All</code>,
+                            für SKUs <code>Organization.Read.All</code>). <code>DELETE</code> ist dauerhaft.
+                        </div>
+                        <p class="help-open"><a href="tools/personen-verwaltung.html">→ Personen-Verwaltung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="gast gäste b2b einladen einlader audit umbenennen löschen extern">
+                        <h3 id="tool-gaeste-verwalten">Gäste verwalten <span class="pill">Externe Konten</span></h3>
+                        <p>Vier Register: Teams mit Gast-Mitgliedern, B2B-Einladungen aus dem Audit, alle Gäste im Tenant (umbenennen/löschen), wer einladen darf.</p>
+                        <div class="mini-steps">
+                            <strong>Gast-Einlader einschränken</strong>
+                            <ol>
+                                <li>Rollenfähige Sicherheitsgruppe anlegen oder wählen (keine mail-aktivierte Gruppe).</li>
+                                <li>Status lesen, dann Einschränkung anwenden (<code>allowInvitesFrom = adminsAndGuestInviters</code> + Rolle „Gasteinladende:r“).</li>
+                                <li>Fallback: Mitglieder einzeln der Rolle zuweisen, wenn die Gruppe nicht rollenfähig ist.</li>
+                            </ol>
+                        </div>
+                        <div class="warn">
+                            Lesend u. a. <code>Group.Read.All</code>, <code>AuditLog.Read.All</code>.
+                            Schreibend <code>User.ReadWrite.All</code>, <code>Policy.ReadWrite.Authorization</code>,
+                            <code>RoleManagement.ReadWrite.Directory</code>. Ein Löschen entfernt das Gast-Konto dauerhaft.
+                        </div>
+                        <p class="help-open"><a href="tools/gaeste-verwalten.html">→ Gäste öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="sammelgruppe schüler lehrer listen-sync additiv">
+                        <h3 id="tool-slg">Lehrerinnen &amp; Schülerinnen <span class="pill">Sammelgruppen</span></h3>
+                        <p>
+                            Zwei Sammelgruppen (alle Schüler:innen, alle Lehrkräfte). Nach dem Match dieselben Live-Details
+                            wie in der Gruppenverwaltung, plus additiver Listen-Sync aus den Stammdaten.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>In den Stammdaten gültige E-Mails pflegen; Direktion für Besitzerrechte eintragen.</li>
+                                <li>Gruppe suchen und matchen oder neu anlegen.</li>
+                                <li>Optional <strong>Mitglieder synchronisieren</strong> – fügt fehlende Adressen hinzu, entfernt niemanden.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/schueler-lehrer-gruppen.html">→ Schüler und Lehrkräfte öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="verwaltung sekretariat direktion schularzt rolle sammelgruppe">
+                        <h3 id="tool-verwaltung">Verwaltung <span class="pill">Personen &amp; Gruppe</span></h3>
+                        <p>
+                            Rollen und Personen der Schulverwaltung (dieselben Stammdaten wie in den Grundeinstellungen)
+                            plus Sammelgruppe: matchen oder anlegen, danach Listen-Sync.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Rolle wählen oder anlegen, Bezeichnung und Kürzel speichern.</li>
+                                <li>Personen mit E-Mail zuordnen. Direktion nicht vergessen.</li>
+                                <li>Optional Sammelgruppe matchen und Mitglieder synchronisieren.</li>
+                            </ol>
+                        </div>
+                        <div class="hint">Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind.</div>
+                        <p class="help-open"><a href="tools/verwaltung.html">→ Verwaltung öffnen</a></p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-personen-verwaltung" aria-label="Personen-Verwaltung">
-                    <h3>Personen‑Verwaltung <span class="pill">Verzeichnis</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Liest Benutzerkonten aus Microsoft Entra (<code>/users</code>), filtert, zeigt <strong>Profil</strong> und <strong>Gruppen</strong> (direkte Mitgliedschaften).
-                        Optional: <strong>Neu</strong> (Mitglied anlegen), <strong>Bearbeiten</strong> mit <code>PATCH</code>, <strong>Konto beenden</strong>: Standard ist <strong>Deaktivieren</strong> (UPN‑Bestätigung); optional <strong>DELETE</strong> mit gesondertem Häkchen.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>Anmelden → <strong>Personen einlesen</strong>.</li>
-                            <li>Person wählen; <strong>Profil</strong> bearbeiten (Speichern) oder Tab <strong>Gruppen</strong>.</li>
-                            <li><strong>Neu</strong> für ein Organisationskonto (UPN, Anzeigename, Mail‑Nickname, Kennwort).</li>
-                        </ol>
-                    </div>
-                    <div class="warn">
-                        <strong>Schreibzugriff:</strong> Anlegen, Profil und Kontoende (Deaktivieren oder <code>DELETE</code>) erfordern <code>User.ReadWrite.All</code> (delegiert) und passende Administratorrechte. <code>DELETE</code> ist dauerhaft – nur mit explizitem Häkchen und UPN‑Bestätigung.
-                    </div>
-                    <p><a href="tools/personen-verwaltung.html">→ Personen‑Verwaltung öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="tool-schuljahr">
+                    <p class="help-kicker">Schuljahr</p>
+                    <article class="help-article" data-help-article data-search="schuljahr wechseln checkliste anzeigenamen abschlussjahrgang maturajg fortschreiben">
+                        <h2 id="tool-schuljahr">Schuljahr wechseln <span class="pill">Checkliste</span></h2>
+                        <p>
+                            Eine Checkliste, keine zweite Gruppenverwaltung. Jeden Schritt aufklappen und dort erledigen.
+                            Fachgruppen und ARGEs gehören <em>nicht</em> in diesen Wechsel – die prüfen Sie unter Fächer und ARGEs.
+                            Erziehungsberechtigte werden nicht als Benutzer oder Gäste aufgenommen.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Empfohlene Reihenfolge im Sommer</strong>
+                            <ol>
+                                <li>Browser-Backup exportieren.</li>
+                                <li>Neues Schuljahr eintragen und <strong>aktivieren</strong> (Listen nur kopieren, wenn das Jahr noch nicht existiert).</li>
+                                <li>Klassen-Anzeigenamen +1 vorschlagen, lokal speichern, ausgewählte Zeilen nach Microsoft 365 schreiben.</li>
+                                <li>Abschlussjahrgang: extra Gruppe anlegen oder vorhandene verknüpfen (Alias z. B. <code>maturajg2026</code>).</li>
+                                <li>Schülerliste aktualisieren, Sammelgruppe Schüler abgleichen, Unterrichtsteams aus dem neuen Stundenplan anlegen.</li>
+                                <li>Fachgruppen nur stichprobenartig prüfen – nicht umbenennen.</li>
+                            </ol>
+                        </div>
+                        <div class="rec">
+                            <strong>Klassengruppen:</strong> Mail-Alias bleibt. Nur der Anzeigename ändert sich (1HMA → 2HMA).
+                            Den Strukturbaum der Gruppenverwaltung nicht duplizieren – das ist nicht der Alltags-Wechsel.
+                        </div>
+                        <p class="help-open"><a href="tools/organisations-assistent.html">→ Schuljahr wechseln öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="klassen anzeigenamen umbenennen schuljahreswechsel mail-nickname">
+                        <h3 id="tool-klassen-umbenennen">Klassen-Anzeigenamen <span class="pill">Schuljahreswechsel</span></h3>
+                        <p>
+                            Empfohlen im Playbook <a href="tools/organisations-assistent.html#namen">Schuljahr wechseln</a>.
+                            Dieselbe Oberfläche liegt in den Stammdaten unter Tab Klassen:
+                            Vorschläge (+1), lokal speichern, ausgewählte Zeilen per Graph schreiben
+                            (<code>displayName</code> nur – Mail-Nickname unverändert).
+                        </p>
+                        <p class="help-open">
+                            <a href="tenant.html#classes">→ Stammdaten, Tab Klassen</a>
+                            · <a href="tools/archiv/klassen-umbenennen-wizard.html">Alter Assistent (Archiv)</a>
+                        </p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-teams-archiv" aria-label="Teams archivieren Archiv">
-                    <h3>Teams archivieren <span class="pill">Archiv</span> <span class="pill">Graph‑Aktion</span></h3>
-                    <p>
-                        <strong>Empfohlen:</strong> In der <a href="tools/schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> (Tenant‑Modus) ein Team wählen → <strong>Details</strong> → Abschnitt <strong>Team‑Archiv</strong> → <strong>Update</strong> (inkl. optionaler SharePoint‑Option).
-                    </p>
-                    <p>
-                        <strong>Legacy‑Seite (Archiv):</strong> weiterhin ein eigenständiges Formular mit Suche und Protokoll unter
-                        <a href="tools/archiv/teams-archiv.html">tools/archiv/teams-archiv.html</a> (Weiterleitung von <code>tools/teams-archiv.html</code>).
-                        Die Team‑ID ist die GUID der zugehörigen Unified‑Gruppe.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung (Legacy‑Seite)</strong>
-                        <ol>
-                            <li>Team‑/Gruppen‑ID (GUID) einfügen <em>oder</em> per Anzeigename/E‑Mail suchen.</li>
-                            <li>Anmelden → <strong>Team archivieren</strong> oder <strong>Archivierung aufheben</strong>.</li>
-                            <li>Protokoll unten prüfen (asynchrone Operation kann etwas dauern).</li>
-                        </ol>
-                    </div>
-                    <p><a href="tools/archiv/teams-archiv.html">→ Teams archivieren (Archiv) öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="kommunikation">
+                    <p class="help-kicker" id="kommunikation">Kommunikation</p>
+
+                    <article class="help-article" data-help-article data-search="postfach mailbox shared exchange sekretariat raum gerät powershell">
+                        <h3 id="tool-postfaecher">Gemeinsame Postfächer <span class="pill">Exchange</span></h3>
+                        <p>
+                            Freigegebene Postfächer (und optional Räume/Geräte) einlesen, Details zeigen,
+                            PowerShell für Erstellung und Berechtigungen erzeugen.
+                            Zuverlässigster Weg: Exchange-Export als JSON, dann Import – Graph allein erkennt Shared-Postfächer oft nur als deaktivierte Konten.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li><strong>Export</strong> klicken, Skript in Exchange Online ausführen, JSON hier importieren.</li>
+                                <li>Typ filtern (Freigegebene / Räume / Geräte), Postfach wählen, Details prüfen.</li>
+                                <li><strong>Neu</strong> erzeugt ein Anlege-Skript; Berechtigungen ebenfalls per generiertem Skript.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/postfaecher.html">→ Postfächer öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="verteilerliste mail-aktivierte sicherheitsgruppe exchange graph read-only">
+                        <h3 id="tool-verteilerlisten">E-Mail-Verteiler <span class="pill">Exchange</span></h3>
+                        <p>
+                            Verteilerlisten und mail-aktivierte Sicherheitsgruppen lesen (Graph ist hier nur lesend).
+                            Anlegen, Ändern und Löschen nur über generiertes Exchange-Online-PowerShell
+                            (<code>New-/Set-/Remove-DistributionGroup</code>).
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Graph einlesen für eine schnelle Übersicht <em>oder</em> Exchange-Export JSON für Mitglieder und Besitzer.</li>
+                                <li>Liste wählen oder <strong>Neu</strong> – Skript kopieren und in Exchange Online ausführen.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/verteilerlisten.html">→ Verteilerlisten öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="eltern verteiler erziehungsberechtigte gal mail contact hidden klasse jahrgang">
+                        <h3 id="tool-eltern-verteiler">Eltern-Verteiler <span class="pill">Exchange</span></h3>
+                        <p>
+                            Erziehungsberechtigte lokal den Schüler:innen zuordnen und daraus klassen- bzw. jahrgangsweise
+                            Exchange-Verteiler erzeugen (z. B. <code>Eltern 1B</code>). Listen erscheinen in der GAL;
+                            Privatmails bleiben verborgen (Mail Contacts versteckt, DL mit versteckter Mitgliedschaft).
+                            Eltern werden <em>nicht</em> als Benutzer oder Gäste angelegt.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Vorlage laden oder Sokrates/WebUntis-Export wählen; optional Elternspalten schon im Schülerimport.</li>
+                                <li>Klasse oder Jahrgang wählen → PowerShell erzeugen → in Exchange Online ausführen.</li>
+                                <li>Lehrkräfte schreiben an die Gruppenadresse, ohne die Privatmails zu sehen.</li>
+                            </ol>
+                        </div>
+                        <div class="rec">
+                            Alias und Anzeigename per Baustein-Schema (wie bei Kursteams), z. B. <code>eltern-1a</code>.
+                            Schema festlegen, bevor die erste Liste in Exchange liegt – spätere Alias-Änderungen sind aufwendig.
+                        </div>
+                        <p class="help-open"><a href="tools/eltern-verteiler.html">→ Eltern-Verteiler öffnen</a></p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-klassen-umbenennen" aria-label="Klassen-Anzeigenamen Schuljahreswechsel">
-                    <h3>Klassen‑Anzeigenamen <span class="pill">Schuljahreswechsel</span></h3>
-                    <p>
-                        <strong>Empfohlen:</strong> In den <a href="tenant.html#classes">Schul‑Einstellungen</a> (Schritt „Schüler, Klassen &amp; Klassen‑Gruppen“) den Tab <strong>Klassen</strong> öffnen.
-                        Dort der Block <strong>„Klassen‑Gruppen (Microsoft 365): Anzeigename nach Schuljahreswechsel“</strong>: Vorschläge (+1), lokal speichern, ausgewählte Zeilen per Graph schreiben (<code>displayName</code> nur – <strong>Mail‑Nickname unverändert</strong>).
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>Schuljahr oben wählen, Tab <strong>Klassen</strong>.</li>
-                            <li>Präfix setzen → <strong>Vorschläge übernehmen</strong> → bei Bedarf „Neuer Name“ anpassen.</li>
-                            <li><strong>Neue Namen lokal speichern</strong>; für M365: Zeilen markieren → <strong>Ausgewählte in Microsoft 365 schreiben</strong> (Anmeldung im Seitenkopf).</li>
-                        </ol>
-                    </div>
-                    <p>
-                        <a href="tenant.html#classes">→ Schul‑Einstellungen (Tab Klassen) öffnen</a>
-                        · <a href="tools/archiv/klassen-umbenennen-wizard.html">Alter 4‑Schritt‑Assistent (Archiv)</a>
-                    </p>
+                <section class="help-section" data-help-section aria-labelledby="website">
+                    <p class="help-kicker" id="website">Schulwebsite</p>
+
+                    <article class="help-article" data-help-article data-search="intranet hub kommunikationssite sharepoint">
+                        <h3 id="tool-intranet">Schul-Intranet <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Kommunikationswebsite per Graph anlegen und als Hub registrieren.
+                            Die Hub-Registrierung kann im Browser an CORS scheitern – dann das generierte PowerShell verwenden.
+                        </p>
+                        <p class="help-open"><a href="tools/sharepoint-intranet-hub.html">→ Intranet &amp; Hub öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="lehrerliste sharepoint liste stammdaten">
+                        <h3 id="tool-lehrerliste">Lehrerliste <span class="pill">SharePoint</span></h3>
+                        <p>Lehrkräfte aus den Stammdaten als neue SharePoint-Liste auf einer gewählten Website anlegen.</p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-lehrer.html">→ Lehrerliste öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="schultermine kalender sharepoint power automate">
+                        <h3 id="tool-schultermine">Schultermine-Liste <span class="pill">SharePoint</span></h3>
+                        <p>Leere Liste mit vorbereiteten Spalten für Schultermine – zum Befüllen oder für Power Automate / Outlook.</p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-gruppenerstellung" aria-label="Gruppenerstellung einschränken">
-                    <h3>Gruppenerstellung einschränken <span class="pill">Directory Setting</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Setzt die Entra‑Directory‑Einstellung <code>Group.Unified</code>, sodass nur Mitglieder einer
-                        <strong>Sicherheitsgruppe</strong> M365‑Gruppen/Teams erstellen dürfen (<code>EnableGroupCreation=false</code>,
-                        <code>GroupCreationAllowedGroupId=&lt;GUID&gt;</code>). Kann auch wieder entfernt werden.
-                    </p>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung</strong>
-                        <ol>
-                            <li>Reine Sicherheitsgruppe anlegen oder wählen (keine mail‑aktivierte Gruppe; GUID oder Suche).</li>
-                            <li>Im zweiten Schritt: Gruppe in Entra öffnen (Mitglieder/Besitzer pflegen), Kurzinfos aus Graph prüfen, im Tool anmelden und “Einschränkung anwenden” bzw. Status lesen oder Einstellung entfernen.</li>
-                        </ol>
-                    </div>
-                    <div class="warn">
-                        <strong>Berechtigungen:</strong> benötigt u. a. <code>Directory.ReadWrite.All</code> (delegiert) und Admin‑Zustimmung.
-                    </div>
-                    <p><a href="tools/gruppenerstellung.html">→ Gruppenerstellung einschränken öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="regeln">
+                    <p class="help-kicker" id="regeln">Regeln &amp; Ordnung</p>
+
+                    <article class="help-article" data-help-article data-search="gruppenerstellung einschränken EnableGroupCreation sicherheitsgruppe directory setting">
+                        <h3 id="tool-gruppenerstellung">Wer darf Teams anlegen <span class="pill">Directory Setting</span></h3>
+                        <p>
+                            Setzt <code>Group.Unified</code> so, dass nur Mitglieder einer reinen Sicherheitsgruppe
+                            M365-Gruppen/Teams erstellen dürfen. Kann wieder entfernt werden.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Reine Sicherheitsgruppe wählen oder anlegen (nicht mail-aktiviert).</li>
+                                <li>Mitglieder pflegen, im Tool anmelden, Einschränkung anwenden oder Status lesen.</li>
+                            </ol>
+                        </div>
+                        <div class="warn">Braucht u. a. <code>Directory.ReadWrite.All</code> (delegiert) und Admin-Zustimmung.</div>
+                        <p class="help-open"><a href="tools/gruppenerstellung.html">→ Gruppenerstellung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="sharepoint websiteerstellung speicher zeitzone mandant">
+                        <h3 id="tool-sharepoint-website">Neue Websites <span class="pill">Mandant</span></h3>
+                        <p>Mandanten-Einstellungen zur SharePoint-Websiteerstellung (wer Sites anlegen darf, Speicherkontingent, Zeitzone).</p>
+                        <p class="help-open"><a href="tools/sharepoint-mandant-website.html">→ Websiteerstellung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="sharepoint teilen freigabe onedrive gast extern datei">
+                        <h3 id="tool-sharepoint-teilen">Dateien teilen <span class="pill">Mandant</span></h3>
+                        <p>Freigabeeinstellungen des Mandanten (anonyme Links, Gäste, OneDrive). Vor dem Lockern mit der Schulleitung / dem Datenschutz abstimmen.</p>
+                        <p class="help-open"><a href="tools/sharepoint-mandant-teilen.html">→ Freigaben öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="gruppenverwaltung schulstruktur abgleichen verwalten baum owner mitglieder archiv">
+                        <h3 id="tool-schulstruktur">Alle Gruppen und Teams <span class="pill">Gruppenverwaltung</span></h3>
+                        <p>
+                            Drei Reiter: <strong>Verwalten</strong> (Live-Gruppen), <strong>Abgleichen</strong> (SOLL mit Tenant verknüpfen),
+                            <strong>Schulstruktur</strong> (geplanter Baum lokal). Details rechts: Anzeigename, Beschreibung, Owner, Mitglieder, Team-Archiv.
+                        </p>
+                        <div class="rec">
+                            Alltag: zuerst <strong>Verwalten</strong> einlesen. Die Schulstruktur ist die Planung – nicht der Schuljahreswechsel.
+                        </div>
+                        <p class="help-open">
+                            <a href="tools/schulstruktur-sync.html">→ Gruppenverwaltung</a>
+                            · <a href="tools/schulstruktur-sync.html?mode=struktur">Schulstruktur</a>
+                        </p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="weitere teams gruppen wizard elternverein projekt">
+                        <h3 id="tool-wtg">Weitere Teams &amp; Gruppen <span class="pill">Wizard</span></h3>
+                        <p>
+                            Einmal-Assistent für Unified-Gruppen außerhalb der Schul-Kataloge (Elternverein, Projektteam).
+                            Einstieg über <strong>Wizard: weitere Gruppen</strong> in der Gruppenverwaltung.
+                        </p>
+                        <p class="help-open"><a href="tools/schulstruktur-sync.html">→ Gruppenverwaltung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="leere gruppen report ohne mitglieder ohne besitzer aufräumen">
+                        <h3 id="tool-leere-gruppen">Leere Gruppen finden <span class="pill">Report</span></h3>
+                        <p>Gruppen ohne Besitzer oder ohne Mitglieder finden und gezielt aufräumen. Vor dem Löschen prüfen, ob Dateien oder Planner noch gebraucht werden.</p>
+                        <p class="help-open"><a href="tools/leere-gruppen-report.html">→ Leere Gruppen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="teams archivieren unarchive sharepoint">
+                        <h3 id="tool-teams-archiv">Teams archivieren <span class="pill">Graph</span></h3>
+                        <p>
+                            Empfohlen: in der Gruppenverwaltung ein Team wählen → Details → Abschnitt Team-Archiv → Update
+                            (optional SharePoint). Legacy-Formular: <a href="tools/archiv/teams-archiv.html">tools/archiv/teams-archiv.html</a>.
+                        </p>
+                    </article>
                 </section>
 
-                <section class="tool" id="tool-gaeste-verwalten" aria-label="Gäste verwalten">
-                    <h3>Gäste verwalten <span class="pill">Externe Konten</span> <span class="pill">Authorization Policy + Rolle</span></h3>
-                    <p>
-                        <strong>Was macht’s?</strong> Bündelt alle Aufgaben rund um <strong>externe Konten (Gäste)</strong> im Mandanten in einem Werkzeug mit vier Registerkarten:
-                    </p>
-                    <ol style="margin:0 0 10px 1.2em;line-height:1.55;">
-                        <li><strong>Teams mit Gast‑Mitgliedern</strong> – Übersicht, in welchen Teams Gäste enthalten sind (lesend, <code>Group.Read.All</code>).</li>
-                        <li><strong>B2B‑/Gast‑Einladungen (Verzeichnis‑Audit)</strong> – protokollierte Vorgänge wie „Invite external user“ aus dem Entra‑Audit (lesend, zusätzlich <code>AuditLog.Read.All</code>; <code>GET /invitations</code> existiert in Graph nicht).</li>
-                        <li><strong>Alle Gäste im Tenant</strong> – schreibender Bereich: Gast‑Konten suchen/filtern, <strong>umbenennen</strong>, Firma/Funktion pflegen, <strong>dauerhaft löschen</strong> (mit UPN‑Bestätigung). Benötigt <code>User.ReadWrite.All</code>.</li>
-                        <li><strong>Gast‑Einlader (Berechtigung)</strong> – tenantweit festlegen, wer Gäste einladen darf: <code>authorizationPolicy.allowInvitesFrom = adminsAndGuestInviters</code> + Rolle <strong>„Gasteinladende:r“</strong> (englisch <em>Guest Inviter</em>) einer rollenfähigen Sicherheitsgruppe zuweisen.</li>
-                    </ol>
-                    <div class="mini-steps">
-                        <strong>Mini‑Anleitung „Gast‑Einlader“ (Register 4)</strong>
-                        <ol>
-                            <li>Schritt 1: Rollenfähige Sicherheitsgruppe anlegen (Knopf im Tool) oder bestehende per GUID/Namen wählen.</li>
-                            <li>Schritt 2: Anmelden, <strong>Status lesen</strong>, dann <strong>„Einschränkung jetzt anwenden“</strong>. Das setzt die Tenant‑Einstellung und weist der Gruppe die Rolle zu.</li>
-                            <li>Bei <strong>nicht rollenfähigen</strong> oder <strong>mail‑aktivierten</strong> Sicherheitsgruppen: Fallback „<strong>Mitglieder ↔ Rolle synchronisieren</strong>“ fügt jedes Mitglied einzeln der Rolle hinzu (optional auch aufräumen).</li>
-                            <li>Zum Rückbau: <code>allowInvitesFrom</code> auf <code>everyone</code> zurücksetzen oder Gruppe aus der Rolle entfernen.</li>
-                        </ol>
-                    </div>
-                    <div class="warn">
-                        <strong>Berechtigungen (delegiert, Admin‑Zustimmung):</strong>
-                        Lesend: <code>Group.Read.All</code>, <code>AuditLog.Read.All</code>, <code>User.Read.All</code>.
-                        Schreibend: <code>User.ReadWrite.All</code> (Gäste verwalten),
-                        <code>Policy.ReadWrite.Authorization</code>, <code>RoleManagement.ReadWrite.Directory</code>, <code>Group.ReadWrite.All</code> (Berechtigung).
-                    </div>
-                    <div class="hint">
-                        <strong>DSGVO:</strong> Gast‑UPNs/Namen sind personenbezogen. Exporte (CSV) nur speichern, wenn Ihre Organisation das erlaubt; ein Löschen entfernt das Gast‑Konto dauerhaft und entzieht alle Berechtigungen.
-                    </div>
-                    <div class="hint">
-                        <strong>Hinweis (Register 4):</strong> Rollenfähige Gruppen müssen reine Sicherheitsgruppen sein (<code>securityEnabled=true</code>, <code>mailEnabled=false</code>). Mail‑aktivierte Sicherheitsgruppen können in Entra eine Verzeichnisrolle nicht direkt tragen – dafür gibt es den Fallback (Mitglieder einzeln).
-                    </div>
-                    <p><a href="tools/gaeste-verwalten.html">→ Gäste verwalten öffnen</a></p>
+                <section class="help-section" data-help-section aria-labelledby="faq">
+                    <p class="help-kicker">Nachschlagen</p>
+                    <h2 id="faq">Häufige Fragen</h2>
+                    <p>Konkrete Empfehlungen aus dem Schulalltag. Die Suche oben findet auch diese Antworten.</p>
+
+                    <details class="help-faq" data-help-faq data-search="welches konto admin anmelden rechte">
+                        <summary>Mit welchem Konto soll ich mich anmelden?</summary>
+                        <div class="faq-body">
+                            <p>Mit einem IT- oder Administrationskonto, das Gruppen, Teams und Benutzer schreiben darf – nicht mit dem persönlichen Lehrkräfte-Konto. Globaler Admin ist oft nötig für Directory-Settings (Gruppenerstellung, Gast-Einlader) und SharePoint-Mandanteneinstellungen. Für den Alltag reicht häufig ein Konto mit Gruppen-Administrator plus User-Administrator.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="graph oder powershell wann cmd skript">
+                        <summary>Graph im Browser oder PowerShell – was soll ich nehmen?</summary>
+                        <div class="faq-body">
+                            <p><strong>Graph im Browser:</strong> Gruppen matchen, Owner/Mitglieder pflegen, Personen suchen, Gäste, Archiv, Stammdaten schreiben.</p>
+                            <p><strong>PowerShell / .cmd:</strong> Unterrichtsteams anlegen, Exchange-Objekte (Postfächer, Verteiler, Eltern-DLs), wenn Graph schreibgeschützt oder durch Microsoft eingeschränkt ist.</p>
+                            <p>Wenn ein Werkzeug beide Wege anbietet und Graph scheitert: das erzeugte Skript ist der unterstützte Weg, kein Notbehelf.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="gruppe bereits vorhanden matchen nicht doppelt anlegen">
+                        <summary>Wir haben schon Klassengruppen in Microsoft 365. Neu anlegen?</summary>
+                        <div class="faq-body">
+                            <p>Nein. In Klassengruppen (bzw. ARGE, Sammelgruppen) die bestehende Gruppe suchen und <strong>matchen</strong>. Neu anlegen nur, wenn wirklich keine passende Unified-Gruppe existiert. Doppelte Gruppen zerreißen Dateien, Notizen und Mitgliedschaften.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="listen-sync entfernt niemanden mitglieder zu viel">
+                        <summary>Der Listen-Sync hat alte Schüler:innen nicht entfernt. Ist das ein Fehler?</summary>
+                        <div class="faq-body">
+                            <p>Nein. Der Sync ist bewusst <strong>additiv</strong>: fehlende Adressen kommen hinzu, niemand fliegt automatisch raus. Personen gezielt in den Mitglieder-Tabs entfernen oder in Entra. So verhindert die App, dass ein unvollständiger Import die halbe Klasse löscht.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="eltern gast benutzer contact verteiler">
+                        <summary>Sollen Eltern als Gäste in den Tenant?</summary>
+                        <div class="faq-body">
+                            <p><strong>Empfehlung dieser App: nein.</strong> Eltern-Mails gehören in den <a href="#tool-eltern-verteiler">Eltern-Verteiler</a> (versteckte Mail Contacts + DL). Gäste sind für externe Mitarbeit (Projekt, Supervision), nicht für den Klassenbrief. Weniger Konten, weniger DSGVO-Risiko, klarere GAL.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="backup anderer pc browser chrome edge">
+                        <summary>Wie komme ich mit den Daten auf einen anderen PC?</summary>
+                        <div class="faq-body">
+                            <p>Dashboard → <strong>Browser-Backup</strong> → JSON speichern. Am Ziel-PC dieselbe App öffnen → Backup importieren. Danach erneut bei Microsoft anmelden. Nicht enthalten: MSAL-Tokens. Enthalten: Stammdaten, Verknüpfungen, Dashboard-Favoriten und lokale Werkzeugstände mit Präfix <code>ms365-</code>.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="daten weg privates fenster cache gelöscht">
+                        <summary>Die Stammdaten sind leer – wo sind die Listen?</summary>
+                        <div class="faq-body">
+                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: letztes Browser-Backup importieren. Wenn keines existiert, Listen erneut aus Sokrates/WebUntis oder aus Microsoft 365 einlesen. Richten Sie nach der ersten Einrichtung einen Ablageort für das JSON-Backup ein (nicht in der Download-Ablage vergessen).</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="berechtigung 403 consent admin zustimmung">
+                        <summary>Die Anmeldung klappt, Schreiben aber nicht (403 / Consent).</summary>
+                        <div class="faq-body">
+                            <p>In Entra prüfen: delegierte Graph-Berechtigungen inkl. Administratorzustimmung. Danach das Konto: darf diese Person Gruppen/Benutzer ändern? Nach neu erteilter Zustimmung einmal ab- und wieder anmelden. Einzelne Werkzeuge listen die nötigen Scopes in ihrem Hinweisblock.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="kursteams online education class cmd">
+                        <summary>Unterrichtsteams lassen sich im Browser nicht anlegen.</summary>
+                        <div class="faq-body">
+                            <p>Das ist erwartet. Microsoft schränkt <code>educationClass</code> / Edu-Roster oft auf App-only ein. Nutzen Sie den Schritt CSV/PowerShell bzw. <code>Kursteam-Anlage.cmd</code>. Vorher die Entwürfe in der App bereinigen – das Skript legt genau das an, was die Vorschau zeigt.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="anzeigename alias mail-nickname klasse umbenennen">
+                        <summary>Ändert „Anzeigename +1“ auch die E-Mail der Klassengruppe?</summary>
+                        <div class="faq-body">
+                            <p>Nein. Nur <code>displayName</code> (1HMA → 2HMA). Der Mail-Nickname bleibt, damit Kalender, Planner und alte Mails nicht brechen. Das ist gewollt.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="pin zugangsschutz welcome session">
+                        <summary>Wozu der PIN auf der Willkommensseite?</summary>
+                        <div class="faq-body">
+                            <p>Ein Zugangshindernis im Browser (Session), kein Login-Server und keine Verschlüsselung der Stammdaten. PINs stehen in <code>access-config.js</code> (Vorlage: <code>access-config.example.js</code>). Für echten Schutz braucht es Server-Authentifizierung vor dem Hosting. Den PIN nicht in Screenshots oder Tickets schreiben.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="favoriten suche dashboard tabs">
+                        <summary>Wie finde ich ein Werkzeug schnell wieder?</summary>
+                        <div class="faq-body">
+                            <p>Dashboard-Suche (Synonyme wie „Gast“, „Eltern“, „Intranet“) oder Stern für Favoriten. Die Aufgabenkarten oben sind der Alltags-Einstieg; die Tabs darunter die vollständige Liste.</p>
+                        </div>
+                    </details>
                 </section>
 
-                <h2 id="windows-cmd">Windows blockiert heruntergeladene .cmd?</h2>
-                <p>Das ist normal (Internetsicherheit / Mark of the Web). <strong>Lösung:</strong> Rechtsklick auf die Datei → <strong>Eigenschaften</strong> → unten <strong>Zulassen</strong> aktivieren → OK. Danach erneut doppelklicken.</p>
-                <p>Alternativ in PowerShell:</p>
-                <p><code>Unblock-File -LiteralPath '…\Downloads\…-Anlage.cmd'</code></p>
+                <section class="help-section" data-help-section aria-labelledby="windows-cmd">
+                    <article class="help-article" data-help-article data-search="windows cmd mark of the web unblock smartscreen powershell hinweise">
+                        <h2 id="windows-cmd">Windows-Hinweise</h2>
+                        <p id="hinweise">
+                            Aus dem Browser heruntergeladene <code>.cmd</code>-Dateien tragen oft die Zone „Internet“ (Mark of the Web).
+                            Windows blockiert dann den Start – auch bei einer einzelnen Datei im Ordner Downloads.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Lösung</strong>
+                            <ol>
+                                <li>Rechtsklick auf die Datei → <strong>Eigenschaften</strong>.</li>
+                                <li>Unten <strong>Zulassen</strong> (engl. Unblock) aktivieren → OK.</li>
+                                <li>Erneut doppelklicken.</li>
+                            </ol>
+                        </div>
+                        <p>Alternative in PowerShell:</p>
+                        <p><code>Unblock-File -LiteralPath "$env:USERPROFILE\Downloads\Kursteam-Anlage.cmd"</code></p>
+                        <div class="hint">
+                            Bei SmartScreen („Windows hat den PC geschützt“): <strong>Weitere Informationen</strong> →
+                            <strong>Trotzdem ausführen</strong> – nur wenn Sie die Datei in dieser App selbst erzeugt haben.
+                            Eine 100 % warnungsfreie Ausführung aus dem Internet ohne Signatur kann Windows nicht garantieren.
+                        </div>
+                        <div class="rec">
+                            <strong>Betrieb:</strong> Edge oder Chrome, normales Fenster, dieselbe Schule immer im selben Profil.
+                            Vor Schuljahreswechsel und vor großen PowerShell-Läufen Browser-Backup plus (bei Exchange) JSON-Export ablegen.
+                        </div>
+                    </article>
+                </section>
 
-                <nav class="nav" aria-label="Navigation">
-                    <a href="index.html">← Zurück zur Startseite</a>
-                    <a href="ms365-schooltool.html" class="secondary">Zum Tool</a>
-                </nav>
+                <section class="help-section" data-help-section aria-labelledby="datenschutz">
+                    <article class="help-article" data-help-article data-search="datenschutz dsgvo localstorage msal graph microsoft keine server auftragsverarbeitung export csv">
+                        <h2 id="datenschutz">Datenschutz</h2>
+                        <p>
+                            Diese Erklärung beschreibt die <strong>Browser-App MS365-Schulverwaltung</strong>
+                            (statische HTML/JS-Seiten). Sie ergänzt die Datenschutzhinweise Ihrer Schule und von Microsoft 365,
+                            ersetzt sie aber nicht.
+                        </p>
+
+                        <h3>Verantwortlichkeit</h3>
+                        <p>
+                            Für personenbezogene Daten im Microsoft-365-Mandanten der Schule ist die <strong>Schule bzw. der Schulerhalter</strong>
+                            Verantwortliche im Sinne der DSGVO. Microsoft ist (typischerweise) Auftragsverarbeiter für Microsoft 365.
+                            Diese App ist ein <strong>lokales Hilfsmittel</strong> ohne eigenen Backend-Server: sie speichert nichts
+                            „in der App in der Cloud“, sondern im Browser der bedienenden Person und – wenn Sie Aktionen ausführen –
+                            im Microsoft-Mandanten.
+                        </p>
+
+                        <h3>Keine App-Server, keine App-Analytik</h3>
+                        <p>
+                            Es gibt keinen Anwendungsserver dieser Software, der Listen entgegennimmt oder protokolliert.
+                            Importierte Dateien und Einstellungen werden <strong>in diesem Browser</strong> verarbeitet.
+                            Die Seiten selbst können von einem statischen Host (z. B. internem Webserver oder GitHub Pages) ausgeliefert werden;
+                            das Hosting sieht höchstens übliche Zugriffsprotokolle des Webservers, nicht Ihre Stammdaten-Listen.
+                        </p>
+
+                        <h3>Welche Daten lokal liegen</h3>
+                        <p>Im <code>localStorage</code> dieses Ursprungs (Keys mit Präfix <code>ms365-</code> bzw. <code>webuntis-</code>) können u. a. liegen:</p>
+                        <ul>
+                            <li>Schul-Domain, Schuljahr, Fächer, ARGE, Lehrkräfte, Verwaltung, Schüler:innen, Klassen</li>
+                            <li>Zuordnungen zu Microsoft-365-Gruppen (IDs, Anzeigenamen)</li>
+                            <li>Zwischenstände einzelner Werkzeuge, Dashboard-Favoriten und Tab-Wahl</li>
+                            <li>optional Erziehungsberechtigte (Name/E-Mail) für den Eltern-Verteiler</li>
+                        </ul>
+                        <p>
+                            Die Microsoft-Anmeldung (MSAL) legt Tokens getrennt ab; sie sind <strong>nicht</strong> Teil des Browser-Backups.
+                            Der optionale PIN-Schutz speichert nur „Zugang gewährt“ in der Session, nicht die Stammdaten verschlüsselt.
+                        </p>
+
+                        <h3>Welche Daten zu Microsoft gehen</h3>
+                        <p>
+                            Nur wenn Sie sich anmelden und eine Online-Aktion auslösen (einlesen, anlegen, ändern, archivieren),
+                            sendet der Browser Anfragen an Microsoft Graph bzw. Login. Inhalt sind die von Ihnen angestoßenen
+                            Vorgänge (z. B. Gruppennamen, Mitglieds-UPNs, Lizenz-SKUs). Ohne Klick auf solche Aktionen bleiben
+                            die Listen im Browser.
+                        </p>
+                        <p>
+                            PowerShell-Skripte und CSV-Downloads verlassen den Browser als lokale Dateien. Sobald Sie sie ausführen
+                            oder weitergeben, gelten die Regeln Ihrer IT und der DSGVO für Dateien mit Personenbezug.
+                        </p>
+
+                        <h3>Drittanbieter in der Oberfläche</h3>
+                        <p>
+                            Die Seiten laden Styles/Icons von einem öffentlichen CDN (Bootstrap Icons). Für die Microsoft-Anmeldung
+                            wird Microsoft Login verwendet. Es werden von dieser App keine Tracking-Pixel oder Werbenetze eingebunden.
+                        </p>
+
+                        <h3>Speicherdauer</h3>
+                        <p>
+                            Lokal: bis Sie Daten löschen, ein Backup überschreibt oder der Browser den Speicher leert.
+                            Im Mandanten: nach den Aufbewahrungs- und Löschkonzepten der Schule (Entra, Exchange, SharePoint, Teams).
+                        </p>
+
+                        <h3>Betroffenenrechte</h3>
+                        <p>
+                            Auskunft, Berichtigung und Löschung zu Konten und Gruppen richten sich an die Schule
+                            (IT / Datenschutzbeauftragte) und werden in Microsoft 365 bzw. den Schulverwaltungsquellen umgesetzt.
+                            Das lokale Browser-Backup und Exports (CSV/JSON) sind Kopien: nach einer Korrektur im Mandanten
+                            veraltete Dateien löschen oder neu erzeugen.
+                        </p>
+
+                        <h3>Empfehlungen für den Schulbetrieb</h3>
+                        <ul>
+                            <li>App nur auf dienstlichen Geräten / dienstlichen Browserprofilen nutzen.</li>
+                            <li>Browser-Backups und Skript-Downloads wie andere Dateien mit Schüler- und Elterndaten behandeln (Zugriff beschränken, nicht in Tickets anhängen).</li>
+                            <li>Eltern nicht als Gäste anlegen, wenn ein Verteiler reicht.</li>
+                            <li>Gast-Exporte und Personen-CSVs nur speichern, wenn Ihre Organisation das erlaubt.</li>
+                            <li>Konto-Löschen in der Personen-Verwaltung nur mit UPN-Bestätigung und nach dem schulischen Offboarding.</li>
+                        </ul>
+                        <div class="ok">
+                            Kurz: Die App schickt Ihre Listen nicht an einen eigenen Server. Was in Microsoft 365 landet,
+                            landet dort, weil Sie eine Aktion ausgelöst haben – mit dem Konto, mit dem Sie angemeldet sind.
+                        </div>
+                    </article>
+                </section>
             </main>
         </div>
     </div>
     <p class="site-credit-row"><a href="https://www.kurtrocks.com/" class="site-credit-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-info-circle" aria-hidden="true"></i>kurtrocks.com</a></p>
+    <script src="src/shared/help-page.js" defer></script>
+    <script src="src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

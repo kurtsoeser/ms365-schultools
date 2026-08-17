@@ -15,6 +15,12 @@
         return L;
     }
 
+    function gd() {
+        const G = window.ms365GroupDetail;
+        if (!G) throw new Error('group-detail.js muss vor diesem Skript geladen werden.');
+        return G;
+    }
+
     async function getGraphToken() {
         return gug().getGraphToken();
     }
@@ -24,9 +30,6 @@
 
     /** @type {{ members: string[], direktion: string[], rows: { role: string, name: string, email: string, defaultKey?: string }[], roles: { code: string, name: string }[] }} */
     let listCache = { members: [], direktion: [], rows: [], roles: [] };
-
-    /** @type {'general'|'owners'|'members'} */
-    let activeTab = 'general';
 
     /** @type {'group'|'role'} */
     let activeView = 'group';
@@ -620,23 +623,6 @@
         );
     }
 
-    function setTab(tab) {
-        activeTab = tab === 'owners' || tab === 'members' ? tab : 'general';
-        document.querySelectorAll('#slgDetailTabs .detail-tab-btn[data-slg-tab]').forEach(function (b) {
-            const on = b.getAttribute('data-slg-tab') === activeTab;
-            b.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        document.querySelectorAll('[data-slg-tab-content]').forEach(function (p) {
-            p.classList.toggle('active', p.getAttribute('data-slg-tab-content') === activeTab);
-        });
-        if (!matchedGroupId) {
-            if (activeTab === 'owners') renderOwnerPreview();
-            if (activeTab === 'members') renderMemberPreview();
-            return;
-        }
-        live().onTab(activeTab, matchedGroupId);
-    }
-
     function applyCreateDefaults() {
         const dn = document.getElementById('slgNewDisplayName');
         const nn = document.getElementById('slgNewMailNick');
@@ -653,140 +639,6 @@
     function setActiveMatchedId(id) {
         matchedGroupId = id ? String(id) : null;
         live().resetCaches();
-    }
-
-    function renderGroupSearchResults(list) {
-        const host = document.getElementById('slgGroupSearchResults');
-        if (!host) return;
-        host.replaceChildren();
-        if (!list || !list.length) {
-            host.style.display = 'block';
-            const p = document.createElement('div');
-            p.className = 'muted';
-            p.textContent = 'Keine passenden Microsoft 365‑Gruppen (Unified) gefunden.';
-            host.appendChild(p);
-            return;
-        }
-        host.style.display = 'block';
-
-        const box = document.createElement('div');
-        box.style.border = '1px solid #ced4da';
-        box.style.borderRadius = '12px';
-        box.style.background = '#fff';
-        box.style.overflow = 'hidden';
-
-        list.forEach(function (g, idx) {
-            const row = document.createElement('div');
-            row.style.display = 'grid';
-            row.style.gridTemplateColumns = '1fr auto';
-            row.style.gap = '10px';
-            row.style.padding = '10px 12px';
-            row.style.borderTop = idx === 0 ? '0' : '1px solid #eef1f4';
-            row.style.alignItems = 'center';
-
-            const left = document.createElement('div');
-            const dn = normStr(g && g.displayName) || '(ohne Namen)';
-            const mail = normStr(g && g.mail) || '–';
-            const nick = normStr(g && g.mailNickname) || '–';
-            left.innerHTML =
-                '<div style="font-weight:700;line-height:1.25;">' +
-                escapeHtml(dn) +
-                '</div>' +
-                '<div class="muted" style="margin-top:2px;">Mail‑Nickname: <code>' +
-                escapeHtml(nick) +
-                '</code> · SMTP: ' +
-                escapeHtml(mail) +
-                '</div>' +
-                '<div class="muted" style="margin-top:2px;">Gruppen‑ID: <code>' +
-                escapeHtml(g && g.id ? g.id : '') +
-                '</code></div>';
-
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-success';
-            btn.textContent = 'Matchen';
-            btn.addEventListener('click', function () {
-                if (!g || !g.id) return;
-                setActiveMatchedId(String(g.id));
-                saveState();
-                live().fillForm(g);
-                live().setMatchedMode(true);
-                updateLeftListUi();
-                live().loadGroup({ silent: true });
-                toast('Gruppe gematcht.');
-            });
-
-            row.appendChild(left);
-            row.appendChild(btn);
-            box.appendChild(row);
-        });
-        host.appendChild(box);
-    }
-
-    async function runSearchGroups() {
-        const inp = document.getElementById('slgGroupSearch');
-        const q = inp && inp.value ? inp.value.trim() : '';
-        if (!q) {
-            toast('Bitte einen Suchbegriff eingeben.');
-            return;
-        }
-        try {
-            const token = await getGraphToken();
-            const list = await gug().searchUnifiedGroups(token, q);
-            renderGroupSearchResults(list);
-            if (!list.length) toast('Keine passenden Gruppen gefunden.');
-        } catch (e) {
-            toast('Fehler: ' + (e.message || e));
-        }
-    }
-
-    async function runCreateAndMatch() {
-        const dn = document.getElementById('slgNewDisplayName');
-        const nn = document.getElementById('slgNewMailNick');
-        const dd = document.getElementById('slgNewDescription');
-        const ct = document.getElementById('slgNewCreateTeam');
-        const displayName = dn ? dn.value : '';
-        const mailNick = nn ? nn.value : '';
-        const desc = dd ? dd.value : '';
-        if (!normStr(displayName) || !normStr(mailNick)) {
-            toast('Bitte Anzeigename und Alias/Mail‑Nickname ausfüllen.');
-            return;
-        }
-        try {
-            const token = await getGraphToken();
-            const g = await gug().createUnifiedGroup(token, displayName, mailNick, desc);
-            await ensureOwners(token, g.id);
-            if (ct && ct.checked) {
-                toast('Gruppe angelegt – Team wird bereitgestellt …');
-                await gug().provisionTeamForGroup(token, g.id);
-            }
-            setActiveMatchedId(String(g.id));
-            saveState();
-            live().fillForm(g);
-            live().setMatchedMode(true);
-            updateLeftListUi();
-            await live().loadGroup({ silent: true });
-            toast('Gruppe angelegt und gematcht.');
-        } catch (e) {
-            toast('Fehler: ' + (e.message || e));
-        }
-    }
-
-    function runUnmatch() {
-        if (!getActiveMatchedId()) return;
-        setActiveMatchedId(null);
-        saveState();
-        live().loadGroup({ silent: true });
-        toast('Match gelöst.');
-    }
-
-    function openEntraForMatched() {
-        const gid = getActiveMatchedId();
-        if (!gid) return;
-        const url =
-            'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Members/groupId/' +
-            encodeURIComponent(gid);
-        window.open(url, '_blank', 'noopener');
     }
 
     async function runSyncMembers() {
@@ -854,15 +706,11 @@
         if (dd && o.vwNewDescription !== undefined) dd.value = String(o.vwNewDescription || '');
         if (ct && o.vwNewCreateTeam !== undefined) ct.checked = !!o.vwNewCreateTeam;
         live().resetCaches();
-        const host = document.getElementById('slgGroupSearchResults');
-        if (host) {
-            host.replaceChildren();
-            host.style.display = 'none';
-        }
+        gd().clearSearchResults();
         live().setMatchedMode(!!matchedGroupId);
         live().fillForm(matchedGroupId ? { id: matchedGroupId } : null);
         updateLeftListUi();
-        setTab('general');
+        gd().setTab('general');
     }
 
     function saveState() {
@@ -937,59 +785,71 @@
         }
     }
 
-    async function onLogin() {
-        const btn = document.getElementById('slgBtnLogin');
-        if (btn) btn.disabled = true;
-        try {
-            await getGraphToken();
-            toast('Angemeldet.');
-            if (getActiveMatchedId()) await live().loadGroup({ silent: true });
-        } catch (e) {
-            toast('Anmeldung: ' + (e.message || e));
-        } finally {
-            if (btn) btn.disabled = false;
-        }
-    }
-
     function onClick(id, fn) {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', fn);
     }
 
-    function wire() {
-        live().bind({
-            toast: toast,
-            dlgConfirm: dlgConfirm,
-            getGroupId: getActiveMatchedId,
-            getActiveTab: function () {
-                return activeTab;
+    function mountDetail() {
+        gd().mount('#groupDetailHost', {
+            title: 'Sammelgruppe Verwaltung',
+            searchPlaceholder: 'z. B. verwaltung oder @schule.at',
+            unmatchedCreateHint:
+                'Legt eine Microsoft 365‑Gruppe (Unified) an. Optional auch als Team bereitstellen.',
+            membersUnmatchedHint:
+                'Mitglieder kommen aus der Verwaltungsliste. Nach dem Match können Sie live verwalten und die Liste synchronisieren.',
+            membersUnmatchedTitle: 'Vorschau Verwaltungsliste (erste 30)',
+            membersMatchedHint:
+                'Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Adressen aus der Verwaltungsliste hinzu (entfernt niemanden).',
+            features: { syncMembers: true },
+            ids: {
+                wrap: 'vwGroupPanel',
+                headActions: 'vwGroupHeadActions',
+                afterWrap: 'vwRolePanel'
             },
-            ensureDirektionOwners: function (token, gid) {
-                if (!(listCache.direktion && listCache.direktion.length)) {
-                    throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+            live: {
+                toast: toast,
+                dlgConfirm: dlgConfirm,
+                getGroupId: getActiveMatchedId,
+                ensureDirektionOwners: function (token, gid) {
+                    if (!(listCache.direktion && listCache.direktion.length)) {
+                        throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+                    }
+                    return ensureOwners(token, gid);
+                },
+                onUnmatched: function () {
+                    renderOwnerPreview();
+                    renderMemberPreview();
+                    updateLeftListUi();
+                },
+                onAfterLoad: function () {
+                    updateLeftListUi();
                 }
-                return ensureOwners(token, gid);
             },
-            onUnmatched: function () {
-                renderOwnerPreview();
-                renderMemberPreview();
-                updateLeftListUi();
+            match: {
+                persistMatch: function (g) {
+                    setActiveMatchedId(String(g.id));
+                    saveState();
+                },
+                persistUnmatch: function () {
+                    setActiveMatchedId(null);
+                    saveState();
+                },
+                ensureOwners: function (token, gid) {
+                    return ensureOwners(token, gid);
+                },
+                afterMatch: function () {
+                    updateLeftListUi();
+                }
             },
-            onAfterLoad: function () {
-                updateLeftListUi();
+            onTabUnmatched: function (tab) {
+                if (tab === 'owners') renderOwnerPreview();
+                if (tab === 'members') renderMemberPreview();
             }
         });
-        live().wire();
+    }
 
-        document.querySelectorAll('#slgDetailTabs .detail-tab-btn[data-slg-tab]').forEach(function (b) {
-            b.addEventListener('click', function () {
-                setTab(b.getAttribute('data-slg-tab') || 'general');
-            });
-        });
-
-        onClick('slgBtnLogin', function () {
-            onLogin();
-        });
+    function wire() {
         onClick('slgBtnReloadLists', function () {
             readLists();
             updateLeftListUi();
@@ -1029,32 +889,9 @@
                 renderRoleList();
             });
         }
-        onClick('slgBtnSearch', function () {
-            runSearchGroups();
-        });
-        onClick('slgBtnCreate', function () {
-            runCreateAndMatch();
-        });
-        onClick('slgBtnUnmatch', function () {
-            runUnmatch();
-        });
-        onClick('slgBtnOpenEntra', function () {
-            openEntraForMatched();
-        });
         onClick('slgBtnSync', function () {
             runSyncMembers();
         });
-
-        const groupSearch = document.getElementById('slgGroupSearch');
-        if (groupSearch) {
-            groupSearch.addEventListener('keydown', function (ev) {
-                if (ev.key === 'Enter') {
-                    ev.preventDefault();
-                    runSearchGroups();
-                }
-            });
-        }
-
         onClick('slgBtnSaveState', function () {
             saveState();
             toast('Gespeichert.');
@@ -1070,6 +907,7 @@
     }
 
     function init() {
+        mountDetail();
         readLists();
         loadState();
         updateLeftListUi();

@@ -1,135 +1,396 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schulverwaltung – Intranet &amp; Hub-Website</title>
-    <link rel="stylesheet" href="../app.css">
+    10|    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        .spo-panel {
-            border: 1px solid var(--border, #dee2e6);
-            border-radius: 14px;
-            background: #fff;
-            padding: 16px 18px;
-            margin-bottom: 16px;
+        .ih-preview {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--card);
+            box-shadow: var(--shadow);
+            margin-bottom: 4px;
         }
-        .spo-panel h2 { margin: 0 0 12px; font-size: 1.08em; color: #32325d; }
-        .spo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
-        @media (max-width: 720px) { .spo-grid { grid-template-columns: 1fr; } }
-        .spo-field label { display: block; font-weight: 700; font-size: 0.9em; margin-bottom: 6px; color: #495057; }
-        .spo-field input[type="text"], .spo-field input[type="email"], .spo-field select {
-            width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 10px; font: inherit;
+        .ih-preview__chrome {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--soft);
+            border-bottom: 1px solid var(--border);
         }
-        .spo-field .hint { font-size: 0.85em; color: #6c757d; margin-top: 6px; line-height: 1.45; }
-        .spo-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-        .spo-log { font-family: Consolas, monospace; font-size: 0.85em; white-space: pre-wrap; word-break: break-word;
-            padding: 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; min-height: 3em; }
-        pre.spo-pre { max-height: 220px; overflow: auto; margin: 0; padding: 12px; background: #1e1e1e; color: #d4d4d4; border-radius: 10px; font-size: 0.82em; }
-        textarea.spo-ps { width: 100%; min-height: 120px; font-family: Consolas, monospace; font-size: 0.85em; padding: 10px; border-radius: 10px; }
-        .url-preview { font-weight: 800; color: #32325d; word-break: break-all; }
+        .ih-preview__dots span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--muted) 45%, transparent);
+            margin-right: 4px;
+        }
+        .ih-preview__url {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--brand1);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+        }
+        .ih-preview__hero {
+            padding: 28px 22px 22px;
+            background:
+                radial-gradient(420px 120px at 10% 0%, color-mix(in srgb, var(--brand1) 28%, transparent), transparent 70%),
+                linear-gradient(135deg, color-mix(in srgb, var(--brand1) 88%, #000), color-mix(in srgb, var(--brand2) 88%, #000));
+            color: #fff;
+        }
+        .ih-preview__hero-kicker {
+            margin: 0 0 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+        .ih-preview__hero h3 {
+            margin: 0 0 6px;
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        .ih-preview__hero p {
+            margin: 0;
+            opacity: 0.92;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            max-width: 42ch;
+        }
+        .ih-preview__tiles {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 14px;
+            background: var(--soft);
+        }
+        @media (max-width: 560px) {
+            .ih-preview__tiles { grid-template-columns: 1fr; }
+        }
+        .ih-preview__tile {
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            padding: 12px;
+            min-height: 72px;
+        }
+        .ih-preview__tile i {
+            display: block;
+            color: var(--brand1);
+            font-size: 1.15rem;
+            margin-bottom: 6px;
+        }
+        .ih-preview__tile strong {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--heading);
+            margin-bottom: 2px;
+        }
+        .ih-preview__tile span {
+            font-size: 0.75rem;
+            color: var(--muted);
+            line-height: 1.3;
+        }
+        .ih-hub-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .ih-host-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .ih-host-row input { flex: 1; min-width: 220px; }
+        .spo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px 18px;
+        }
+        @media (max-width: 720px) {
+            .spo-grid { grid-template-columns: 1fr; }
+        }
+        textarea.spo-ps {
+            width: 100%;
+            min-height: 120px;
+            font-family: Consolas, ui-monospace, monospace;
+            font-size: 0.85em;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--input-border);
+            background: var(--input-bg);
+            color: var(--text);
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <div class="container page-card">
+    <div class="container page-card tm-page">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-house-door"></i>SharePoint – Intranet (Kommunikationssite) &amp; Hub</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-house-door"></i>SharePoint – Intranet &amp; Hub</span>
             </div>
-            <p>Kommunikationswebsite per <strong>Microsoft Graph (beta)</strong> anlegen und anschließend als <strong>Hub-Website</strong> registrieren. Die Hub-Registrierung nutzt SharePoint-REST (<code>RegisterHubSite</code>) – das kann im Browser an <strong>CORS</strong> scheitern; dann das generierte <strong>PowerShell</strong> verwenden.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <p>Schulintranet anlegen und als Hub verbinden – in zwei klaren Schritten.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-intranet" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div class="content">
-        <div class="alert alert-info" style="margin:0 0 16px;">
-            <strong>Graph:</strong> <code>Sites.Read.All</code>, <code>Sites.Create.All</code> (delegiert, Admin-Zustimmung). <strong>Hub per REST:</strong> in Entra zusätzlich <strong>Office 365 SharePoint Online</strong> → <code>Sites.FullControl.All</code> (delegiert) für <code>https://&lt;IhrHost&gt;.sharepoint.com/</code>.
-        </div>
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-building"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">SharePoint</p>
+                    <h2>Schulwebsite anlegen</h2>
+                    <p>Kommunikationssite, optional Hub, Lehrerliste und Schultermine – ein Startpaket für das Intranet.</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites anlegen &amp; Hub-Rechte</span>
+                </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2><i class="bi bi-cloud-plus"></i>1. Kommunikationssite erstellen</h2>
-            <div class="spo-grid">
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fHost">SharePoint-Host (z. B. contoso.sharepoint.com)</label>
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                        <input type="text" id="fHost" placeholder="wird aus Graph /sites/root ermittelt" spellcheck="false" style="flex:1;min-width:220px;">
-                        <button type="button" class="btn" id="btnHost"><i class="bi bi-search"></i>Hostname ermitteln</button>
+            <section class="tm-panel">
+                <div class="tm-flow" aria-hidden="true">
+                    <div class="tm-flow__node">
+                        <i class="bi bi-cloud-plus"></i>
+                        <strong>1. Site</strong>
+                        <span>Kommunikationswebsite</span>
+                    </div>
+                    <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="tm-flow__node">
+                        <i class="bi bi-diagram-3"></i>
+                        <strong>2. Hub</strong>
+                        <span>Als Hub registrieren</span>
+                    </div>
+                    <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="tm-flow__node">
+                        <i class="bi bi-collection"></i>
+                        <strong>3. Listen</strong>
+                        <span>Lehrer &amp; Termine</span>
+                    </div>
+                    <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="tm-flow__node">
+                        <i class="bi bi-people"></i>
+                        <strong>Fertig</strong>
+                        <span>Navigation für die Schule</span>
                     </div>
                 </div>
-                <div class="spo-field">
-                    <label for="fSlug">Kurzname unter /sites/</label>
-                    <input type="text" id="fSlug" value="intranet" spellcheck="false" autocomplete="off">
-                </div>
-                <div class="spo-field">
-                    <label for="fLocale">Sprache / Gebietsschema</label>
-                    <input type="text" id="fLocale" value="de-de" spellcheck="false">
-                </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label>Vorschau <code>webUrl</code></label>
-                    <p class="url-preview" id="fPreviewUrl">–</p>
-                </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fTitle">Titel der Website</label>
-                    <input type="text" id="fTitle" value="Intranet" maxlength="200">
-                </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fDesc">Beschreibung (optional)</label>
-                    <input type="text" id="fDesc" placeholder="Schulintranet" maxlength="500">
-                </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fOwner">Website-Besitzer (UPN / E-Mail in Entra)</label>
-                    <input type="email" id="fOwner" placeholder="admin@schule.at" autocomplete="username">
-                </div>
-                <div class="spo-field spo-field--full" style="grid-column:1/-1;">
-                    <label><input type="checkbox" id="fShareByMail"> Teilen per E-Mail für diese Site erlauben (<code>shareByEmailEnabled</code>)</label>
-                </div>
-            </div>
-            <div class="spo-actions">
-                <button type="button" class="btn btn-success" id="btnCreate"><i class="bi bi-plus-circle"></i>Site anlegen (Graph beta)</button>
-            </div>
-            <p class="hint" style="margin-top:12px;color:#6c757d;font-size:0.9em;line-height:1.5;">
-                Vorlage: <code>sitepagepublishing</code> (Kommunikationssite). Der Vorgang läuft asynchron (HTTP 202) – das Tool pollt den Status.
-            </p>
-        </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2><i class="bi bi-diagram-3"></i>2. Als Hub-Website registrieren</h2>
-            <input type="hidden" id="fLastSiteUrl" value="">
-            <div class="spo-field" style="margin-bottom:12px;">
-                <label for="fManualUrl">Site-URL (falls manuell / bestehende Site)</label>
-                <input type="text" id="fManualUrl" placeholder="https://…sharepoint.com/sites/intranet" spellcheck="false">
-            </div>
-            <div class="spo-actions">
-                <button type="button" class="btn btn-success" id="btnHub"><i class="bi bi-link-45deg"></i>Als Hub registrieren (REST, sonst PS)</button>
-            </div>
-            <h3 style="margin:18px 0 8px;font-size:1rem;">PowerShell-Fallback</h3>
-            <textarea id="fPsHub" class="spo-ps" readonly></textarea>
-            <div class="spo-actions" style="margin-top:10px;">
-                <button type="button" class="btn" id="btnPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
-            </div>
-            <pre id="fHubJson" class="spo-pre" style="margin-top:12px;">{}</pre>
-        </div>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                    <div>
+                        <h3>Live-Vorschau</h3>
+                        <p>Titel, Beschreibung und Adresse – so wirkt das Intranet ungefähr.</p>
+                    </div>
+                </div>
+                <div class="ih-preview" aria-hidden="true">
+                    <div class="ih-preview__chrome">
+                        <div class="ih-preview__dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                        <div class="ih-preview__url" id="ihPreviewChromeUrl">https://…/sites/intranet</div>
+                    </div>
+                    <div class="ih-preview__hero">
+                        <p class="ih-preview__hero-kicker">Kommunikationssite</p>
+                        <h3 id="ihPreviewTitle">Intranet</h3>
+                        <p id="ihPreviewDesc">Schulintranet</p>
+                        <div class="ih-hub-badge"><i class="bi bi-diagram-3"></i> Hub-fähig</div>
+                    </div>
+                    <div class="ih-preview__tiles">
+                        <div class="ih-preview__tile">
+                            <i class="bi bi-newspaper"></i>
+                            <strong>News</strong>
+                            <span>Aktuelles für die Schule</span>
+                        </div>
+                        <div class="ih-preview__tile">
+                            <i class="bi bi-calendar3"></i>
+                            <strong>Termine</strong>
+                            <span>Kalender &amp; Hinweise</span>
+                        </div>
+                        <div class="ih-preview__tile">
+                            <i class="bi bi-link-45deg"></i>
+                            <strong>Schnelllinks</strong>
+                            <span>Tools &amp; Portale</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="hint" style="margin:12px 0 0;">Technische URL: <strong class="url-preview" id="fPreviewUrl" style="font-weight:800;color:var(--heading);word-break:break-all;">–</strong></p>
+            </section>
 
-        <div class="spo-panel">
-            <h2>Protokoll</h2>
-            <div id="fLog" class="spo-log">Noch keine Aktion.</div>
-        </div>
-        <div class="spo-panel">
-            <h2>Technische Antwort (Site-Erstellung)</h2>
-            <pre id="fJson" class="spo-pre">{}</pre>
-        </div>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-cloud-plus" aria-hidden="true"></i>
+                    <div>
+                        <h3>1. Kommunikationssite erstellen</h3>
+                        <p>Name, Adresse und Besitzer – dann anlegen.</p>
+                    </div>
+                </div>
+                <div class="spo-grid">
+                    <div class="tm-field" style="grid-column:1/-1;">
+                        <label for="fHost">SharePoint-Host</label>
+                        <div class="ih-host-row">
+                            <input type="text" id="fHost" placeholder="contoso.sharepoint.com" spellcheck="false">
+                            <button type="button" class="btn" id="btnHost"><i class="bi bi-search"></i>Hostname ermitteln</button>
+                        </div>
+                    </div>
+                    <div class="tm-field">
+                        <label for="fSlug">Kurzname unter /sites/</label>
+                        <input type="text" id="fSlug" value="intranet" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="tm-field">
+                        <label for="fLocale">Sprache</label>
+                        <input type="text" id="fLocale" value="de-de" spellcheck="false">
+                    </div>
+                    <div class="tm-field" style="grid-column:1/-1;">
+                        <label for="fTitle">Titel der Website</label>
+                        <input type="text" id="fTitle" value="Intranet" maxlength="200">
+                    </div>
+                    <div class="tm-field" style="grid-column:1/-1;">
+                        <label for="fDesc">Beschreibung (optional)</label>
+                        <input type="text" id="fDesc" value="Schulintranet" placeholder="Schulintranet" maxlength="500">
+                    </div>
+                    <div class="tm-field" style="grid-column:1/-1;">
+                        <label for="fOwner">Website-Besitzer (E-Mail / UPN)</label>
+                        <input type="email" id="fOwner" placeholder="admin@schule.at" autocomplete="username">
+                    </div>
+                </div>
+                <div class="tm-toggle-grid" style="margin-top:4px;">
+                    <label class="tm-toggle" for="fShareByMail">
+                        <input type="checkbox" id="fShareByMail">
+                        <span class="tm-toggle__icon"><i class="bi bi-envelope"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Teilen per E-Mail</span>
+                            <span class="tm-toggle__desc">Für diese Site Freigaben per E-Mail erlauben.</span>
+                        </span>
+                    </label>
+                </div>
+                <div class="tm-actions" style="margin-top:14px;">
+                    <button type="button" class="btn" id="btnCreate"><i class="bi bi-plus-circle"></i>Site anlegen</button>
+                </div>
+                <div class="tm-toggle-grid" style="margin-top:12px;">
+                    <label class="tm-toggle" for="fPackLehrer">
+                        <input type="checkbox" id="fPackLehrer" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-people"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Lehrerliste mitanlegen</span>
+                            <span class="tm-toggle__desc">SharePoint-Liste aus den Stammdaten (Kürzel, E-Mail).</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="fPackTermine">
+                        <input type="checkbox" id="fPackTermine" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-calendar3"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Schultermine-Liste mitanlegen</span>
+                            <span class="tm-toggle__desc">Leere Liste mit Spalten (Beginn, Ende, Kategorie).</span>
+                        </span>
+                    </label>
+                </div>
+                <p class="hint" style="margin-top:8px;">Nach der Site können Sie die Listen auch später unter Lehrerliste / Schultermine nachziehen. Die Site-URL wird lokal gespeichert.</p>
+                <details class="tm-tech">
+                    <summary>Technische Hinweise</summary>
+                    <p class="hint" style="margin-top:10px;">Vorlage Kommunikationssite · Vorgang läuft asynchron (Graph pollt den Status). Berechtigungen: Sites lesen/erstellen.</p>
+                </details>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    <div>
+                        <h3>2. Als Hub-Website registrieren</h3>
+                        <p>Macht die Site zum Navigations-Hub für weitere Websites.</p>
+                    </div>
+                </div>
+                <input type="hidden" id="fLastSiteUrl" value="">
+                <div class="tm-field">
+                    <label for="fManualUrl">Site-URL (automatisch nach Schritt 1, oder manuell)</label>
+                    <input type="text" id="fManualUrl" placeholder="https://…sharepoint.com/sites/intranet" spellcheck="false">
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="btnHub"><i class="bi bi-link-45deg"></i>Als Hub registrieren</button>
+                </div>
+                <details class="tm-tech">
+                    <summary>PowerShell-Fallback &amp; Protokoll</summary>
+                    <p class="hint" style="margin-top:10px;">Falls die Browser-Registrierung an CORS scheitert: Skript kopieren und in der SharePoint-Shell ausführen.</p>
+                    <textarea id="fPsHub" class="spo-ps" readonly aria-label="PowerShell Hub"></textarea>
+                    <div class="tm-actions" style="margin-top:10px;">
+                        <button type="button" class="btn" id="btnPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
+                    </div>
+                    <div id="fLog" class="tm-log" style="margin-top:12px;">Noch keine Aktion.</div>
+                    <pre id="fHubJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
+                    <pre id="fJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
+                </details>
+            </section>
         </div>
     </div>
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/action-log.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="../src/tools/sharepoint/sharepoint-liste-lehrer.js" defer></script>
+    <script src="../src/tools/sharepoint/sharepoint-liste-schultermine.js" defer></script>
     <script src="../src/tools/sharepoint/sharepoint-intranet-hub.js" defer></script>
+    <script>
+        (function () {
+            function syncPreview() {
+                var titleEl = document.getElementById('ihPreviewTitle');
+                var descEl = document.getElementById('ihPreviewDesc');
+                var chrome = document.getElementById('ihPreviewChromeUrl');
+                var title = document.getElementById('fTitle');
+                var desc = document.getElementById('fDesc');
+                var preview = document.getElementById('fPreviewUrl');
+                if (titleEl && title) titleEl.textContent = String(title.value || '').trim() || 'Intranet';
+                if (descEl && desc) descEl.textContent = String(desc.value || '').trim() || 'Schulintranet';
+                var url = preview ? String(preview.textContent || '').trim() : '';
+                if (chrome) chrome.textContent = url && url !== '–' ? url : 'https://…/sites/intranet';
+            }
+            ['fTitle', 'fDesc', 'fHost', 'fSlug'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', syncPreview);
+                el.addEventListener('change', syncPreview);
+            });
+            var prev = document.getElementById('fPreviewUrl');
+            if (prev && typeof MutationObserver !== 'undefined') {
+                new MutationObserver(syncPreview).observe(prev, { childList: true, characterData: true, subtree: true });
+            }
+            document.addEventListener('DOMContentLoaded', syncPreview);
+            setTimeout(syncPreview, 200);
+        })();
+    </script>
 </body>
 </html>

@@ -2,9 +2,11 @@
 
 Einfache **reine Browser-App** (ohne Server): **Dashboard** (`index.html`), **Schul-Grundeinstellungen** (`tenant.html`) und mehrere Werkzeuge unter `tools/` – u. a. **Kursteams** (`tools/kursteams.html`, Logik in `src/tools/kursteams/`), **Jahrgangsgruppen** und **ARGEs** (Archiv). Exportdaten (z. B. WebUntis CSV/Excel) werden aufbereitet; Anlage per **Microsoft Graph** im Browser oder per **PowerShell**-Skripten/CMD-Downloads.
 
-## Datenschutz
+## Hilfe & Datenschutz
 
-Es werden **keine Daten** an einen Server gesendet. Verarbeitung erfolgt **lokal im Browser**. Optional können Sie pro Modus (**Kursteams**, **Jahrgangsgruppen**, **ARGEs**) einen getrennten Zwischenstand im **lokalen Speicher** dieses Browsers sichern (Schaltflächen oben in der App).
+Die Nutzerdokumentation liegt in **`hilfe.html`**: durchsuchbare Anleitungen zu allen Werkzeugen, empfohlene Abläufe, FAQ, Windows-Hinweise (u. a. blockierte `.cmd`) und die Datenschutzerklärung. In der App führt der Link **Hilfe, Datenschutz & Windows-Hinweise** (unten rechts) dorthin.
+
+Es werden **keine Stammdaten an einen App-Server** gesendet. Verarbeitung erfolgt **lokal im Browser** (`localStorage`). Über **Browser-Backup** (Dashboard / Stammdaten) lassen sich alle lokalen App-Daten als JSON zwischen Browsern übertragen; die Microsoft-Anmeldung ist darin nicht enthalten. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz).
 
 ## Nutzung
 

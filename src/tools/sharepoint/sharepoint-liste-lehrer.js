@@ -65,44 +65,44 @@
         }
     }
 
-    async function runCreate() {
-        $('splLog').textContent = '';
-        const webUrl = String($('splSiteUrl').value || '').trim();
-        const listTitle = String($('splListName').value || '').trim() || 'Lehrerinnen';
-        if (!webUrl) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
+    async function createLehrerList(webUrl, listTitle, logFn) {
+        const write = typeof logFn === 'function' ? logFn : log;
+        const url = String(webUrl || '').trim();
+        const title = String(listTitle || '').trim() || 'Lehrerinnen';
+        if (!url) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
 
         const teachers = loadTeachers();
         if (!teachers.length) {
             throw new Error('Keine Lehrkräfte in den Schul-Grundeinstellungen – zuerst unter Stammdaten pflegen.');
         }
 
-        log('Lehrkräfte aus lokalem Speicher: ' + teachers.length);
+        write('Lehrkräfte aus lokalem Speicher: ' + teachers.length);
         const token = await ensureToken();
-        log('Löse Website auf …');
-        const site = await G.resolveSiteFromWebUrl(token, webUrl);
+        write('Löse Website auf …');
+        const site = await G.resolveSiteFromWebUrl(token, url);
         const siteId = site && site.id ? String(site.id) : '';
         const siteTitle = site && site.displayName ? String(site.displayName) : '';
         if (!siteId) throw new Error('Site-ID fehlt in der Graph-Antwort.');
-        log('Site: ' + (siteTitle || siteId));
+        write('Site: ' + (siteTitle || siteId));
 
-        log('Erstelle Liste „' + listTitle + '" …');
+        write('Erstelle Liste „' + title + '" …');
         const created = await G.graphJson(
             'POST',
             G.graphPathSite(siteId) + '/lists',
             token,
             {
-                displayName: listTitle,
+                displayName: title,
                 list: { template: 'genericList' }
             },
             'v1.0'
         );
         const listId = created && created.id ? String(created.id) : '';
         if (!listId) throw new Error('Listen-ID fehlt in der Antwort.');
-        log('Liste angelegt, ID: ' + listId);
+        write('Liste angelegt, ID: ' + listId);
 
-        log('Füge Spalten hinzu (Kürzel, E-Mail, UPN) …');
+        write('Füge Spalten hinzu (Kürzel, E-Mail, UPN) …');
         await addColumnsLehrer(siteId, listId, token);
-        log('Spalten fertig.');
+        write('Spalten fertig.');
 
         const itemsPath = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/items';
         let ok = 0;
@@ -126,42 +126,76 @@
                 'v1.0'
             );
             ok++;
-            if (ok % 10 === 0) log('… ' + ok + ' Zeilen geschrieben');
+            if (ok % 10 === 0) write('… ' + ok + ' Zeilen geschrieben');
             await G.sleep(80);
         }
-        log('Fertig: ' + ok + ' Lehrkräfte als Listenelemente.');
+        write('Fertig: ' + ok + ' Lehrkräfte als Listenelemente.');
         const listWeb = created && created.webUrl ? String(created.webUrl) : '';
-        if (listWeb) log('Liste im Browser: ' + listWeb);
-        toast('Lehrerliste erstellt und befüllt.');
+        if (listWeb) write('Liste im Browser: ' + listWeb);
+        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+            window.ms365ActionLog.append({
+                tool: 'sharepoint',
+                action: 'create-lehrer-list',
+                target: url,
+                summary: 'Lehrerliste „' + title + '“ mit ' + ok + ' Einträgen'
+            });
+        }
+        return { listId: listId, webUrl: listWeb, count: ok };
     }
 
-    $('splBtnRun').addEventListener('click', function () {
-        if (!window.confirm('Neue Liste auf der angegebenen Website anlegen und alle Lehrkräfte aus den Grundeinstellungen eintragen?')) return;
-        runCreate().catch(function (e) {
-            log('FEHLER: ' + (e && e.message ? e.message : String(e)));
-            toast('Fehler: ' + (e && e.message ? e.message : e));
-        });
-    });
+    async function runCreate() {
+        const logEl = $('splLog');
+        if (logEl) logEl.textContent = '';
+        const webUrl = String($('splSiteUrl') && $('splSiteUrl').value || '').trim();
+        const listTitle = String($('splListName') && $('splListName').value || '').trim() || 'Lehrerinnen';
+        const created = await createLehrerList(webUrl, listTitle);
+        toast('Lehrerliste erstellt und befüllt.');
+        return created;
+    }
 
-    $('splBtnProbe').addEventListener('click', function () {
-        $('splLog').textContent = '';
-        const webUrl = String($('splSiteUrl').value || '').trim();
-        if (!webUrl) {
-            toast('Website-URL fehlt.');
-            return;
-        }
-        ensureToken()
-            .then(function (token) {
-                return G.resolveSiteFromWebUrl(token, webUrl);
-            })
-            .then(function (site) {
-                log('Site gefunden: ' + (site.displayName || '') + '\nid: ' + (site.id || ''));
-                if (site.webUrl) log('webUrl: ' + site.webUrl);
-                toast('Website erkannt.');
-            })
-            .catch(function (e) {
+    window.ms365SpoLehrerListe = { createList: createLehrerList };
+
+    const runBtn = $('splBtnRun');
+    if (runBtn) {
+        runBtn.addEventListener('click', function () {
+            if (!window.confirm('Neue Liste auf der angegebenen Website anlegen und alle Lehrkräfte aus den Grundeinstellungen eintragen?')) return;
+            runCreate().catch(function (e) {
                 log('FEHLER: ' + (e && e.message ? e.message : String(e)));
                 toast('Fehler: ' + (e && e.message ? e.message : e));
             });
-    });
+        });
+    }
+
+    const probeBtn = $('splBtnProbe');
+    if (probeBtn) {
+        probeBtn.addEventListener('click', function () {
+            if ($('splLog')) $('splLog').textContent = '';
+            const webUrl = String($('splSiteUrl') && $('splSiteUrl').value || '').trim();
+            if (!webUrl) {
+                toast('Website-URL fehlt.');
+                return;
+            }
+            ensureToken()
+                .then(function (token) {
+                    return G.resolveSiteFromWebUrl(token, webUrl);
+                })
+                .then(function (site) {
+                    log('Site gefunden: ' + (site.displayName || '') + '\nid: ' + (site.id || ''));
+                    if (site.webUrl) log('webUrl: ' + site.webUrl);
+                    toast('Website erkannt.');
+                })
+                .catch(function (e) {
+                    log('FEHLER: ' + (e && e.message ? e.message : String(e)));
+                    toast('Fehler: ' + (e && e.message ? e.message : e));
+                });
+        });
+    }
+
+    try {
+        const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
+        const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+        if (saved && $('splSiteUrl') && !$('splSiteUrl').value) $('splSiteUrl').value = saved;
+    } catch {
+        /* ignore */
+    }
 })();

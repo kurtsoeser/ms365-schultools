@@ -174,6 +174,47 @@
         return n || u || '';
     }
 
+    function accountDisplayName(a) {
+        if (!a) return '';
+        const n = a.name ? String(a.name).trim() : '';
+        const u = a.username ? String(a.username).trim() : '';
+        return n || u || '';
+    }
+
+    function closeAuthMenu() {
+        const menu = document.getElementById('ms365AuthMenu');
+        const trigger = document.getElementById('ms365AuthBadge');
+        const drop = document.getElementById('ms365AuthDropdown');
+        if (menu) menu.classList.remove('is-open');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        if (drop) drop.hidden = true;
+    }
+
+    function toggleAuthMenu() {
+        const menu = document.getElementById('ms365AuthMenu');
+        const trigger = document.getElementById('ms365AuthBadge');
+        const drop = document.getElementById('ms365AuthDropdown');
+        if (!menu || !trigger || !drop || menu.hidden) return;
+        const open = !menu.classList.contains('is-open');
+        menu.classList.toggle('is-open', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        drop.hidden = !open;
+    }
+
+    function bindAuthMenuDismiss() {
+        if (bindAuthMenuDismiss.bound) return;
+        bindAuthMenuDismiss.bound = true;
+        document.addEventListener('click', function (e) {
+            const menu = document.getElementById('ms365AuthMenu');
+            if (!menu || !menu.classList.contains('is-open')) return;
+            if (menu.contains(e.target)) return;
+            closeAuthMenu();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeAuthMenu();
+        });
+    }
+
     /**
      * Anmeldung per Redirect.
      * - Ohne opts.prompt: Microsoft entscheidet selbst (nutzt bestehende Browser-Session,
@@ -312,96 +353,134 @@
         }
     }
 
-    function ensureHeaderWidget() {
-        const header = $('.header') || $('header');
-        if (!header) return;
-        if ($('#ms365AuthWidget', header)) return;
-
-        // Prefer toolbar right side; otherwise append to header.
-        const toolbar = $('.toolbar', header) || header;
+    function createAuthWidget() {
         const wrap = document.createElement('div');
         wrap.id = 'ms365AuthWidget';
-        wrap.style.display = 'flex';
-        wrap.style.gap = '10px';
-        wrap.style.alignItems = 'center';
-        wrap.style.justifyContent = 'flex-end';
-        wrap.style.flexWrap = 'wrap';
-        wrap.style.marginLeft = 'auto';
+        wrap.className = 'ms365-auth-widget';
 
-        const badge = document.createElement('div');
-        badge.id = 'ms365AuthBadge';
-        badge.style.display = 'inline-flex';
-        badge.style.alignItems = 'center';
-        badge.style.gap = '8px';
-        badge.style.padding = '8px 10px';
-        badge.style.borderRadius = '999px';
-        badge.style.border = '1px solid rgba(94, 114, 228, 0.22)';
-        badge.style.background = 'rgba(255,255,255,0.86)';
-        badge.style.fontWeight = '900';
-        badge.style.color = '#32325d';
-        badge.style.fontSize = '0.92em';
-        badge.innerHTML = '<i class="bi bi-person-check"></i><span id="ms365AuthBadgeText">–</span>';
+        const actions = document.createElement('div');
+        actions.id = 'ms365AuthActions';
+        actions.className = 'ms365-auth-actions';
 
         const btn = document.createElement('button');
         btn.id = 'ms365AuthBtn';
         btn.type = 'button';
         btn.className = 'btn';
-        btn.style.margin = '0';
-        btn.style.padding = '10px 14px';
-        btn.style.borderRadius = '10px';
         btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i>Anmelden';
 
-        const actions = document.createElement('div');
-        actions.id = 'ms365AuthActions';
-        actions.style.display = 'flex';
-        actions.style.gap = '10px';
-        actions.style.alignItems = 'center';
-        actions.style.flexWrap = 'wrap';
+        const menu = document.createElement('div');
+        menu.id = 'ms365AuthMenu';
+        menu.className = 'ms365-auth-menu';
+        menu.hidden = true;
 
-        wrap.appendChild(badge);
+        const trigger = document.createElement('button');
+        trigger.id = 'ms365AuthBadge';
+        trigger.type = 'button';
+        trigger.className = 'ms365-auth-menu__trigger';
+        trigger.setAttribute('aria-haspopup', 'menu');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-controls', 'ms365AuthDropdown');
+        trigger.setAttribute('aria-label', 'Konto');
+        trigger.innerHTML =
+            '<i class="bi bi-person-circle" aria-hidden="true"></i>' +
+            '<span id="ms365AuthBadgeText">–</span>' +
+            '<i class="bi bi-chevron-down ms365-auth-menu__chevron" aria-hidden="true"></i>';
+
+        const drop = document.createElement('div');
+        drop.id = 'ms365AuthDropdown';
+        drop.className = 'ms365-auth-menu__panel';
+        drop.setAttribute('role', 'menu');
+        drop.hidden = true;
+        drop.innerHTML =
+            '<div class="ms365-auth-menu__meta">' +
+            '<div class="ms365-auth-menu__meta-name" id="ms365AuthMenuName"></div>' +
+            '<div class="ms365-auth-menu__meta-mail" id="ms365AuthMenuMail"></div>' +
+            '</div>' +
+            '<div class="ms365-auth-menu__ctx" aria-label="Schulkontext">' +
+            '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Schuljahr</span>' +
+            '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxYear">–</span></div>' +
+            '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Domain</span>' +
+            '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxDomain">–</span></div>' +
+            '</div>' +
+            '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthSwitchBtn" title="Konto wechseln / Anmeldung zurücksetzen">' +
+            '<i class="bi bi-arrow-repeat" aria-hidden="true"></i>Konto wechseln</button>' +
+            '<button type="button" class="ms365-auth-menu__item ms365-auth-menu__item--danger" role="menuitem" id="ms365AuthLogoutBtn">' +
+            '<i class="bi bi-box-arrow-right" aria-hidden="true"></i>Abmelden</button>';
+
+        menu.appendChild(trigger);
+        menu.appendChild(drop);
         wrap.appendChild(actions);
         wrap.appendChild(btn);
+        wrap.appendChild(menu);
+        return wrap;
+    }
 
-        // Wenn wir auf dem Dashboard-Header (kein .toolbar) sind, absolut oben rechts platzieren.
-        const hasToolbar = !!$('.toolbar', header);
-        if (!hasToolbar && header.tagName && header.tagName.toLowerCase() === 'header') {
-            try {
-                header.style.position = header.style.position || 'relative';
-            } catch {
-                // ignore
-            }
-            wrap.style.position = 'absolute';
-            wrap.style.top = '14px';
-            wrap.style.right = '14px';
-            wrap.style.zIndex = '5';
-            wrap.style.marginLeft = '0';
-            header.appendChild(wrap);
-            return;
+    function ensureAuthMenuBindings() {
+        const trigger = document.getElementById('ms365AuthBadge');
+        const switchBtn = document.getElementById('ms365AuthSwitchBtn');
+        const logoutBtn = document.getElementById('ms365AuthLogoutBtn');
+        if (trigger && !trigger.dataset.bound) {
+            trigger.dataset.bound = '1';
+            trigger.addEventListener('click', function (e) {
+                e.stopPropagation();
+                toggleAuthMenu();
+            });
         }
-
-        function isFlexLikeRow(el) {
-            if (!el || el.nodeType !== 1) return false;
-            try {
-                const inline = el.style && el.style.display;
-                if (inline === 'flex' || inline === 'inline-flex') return true;
-            } catch (_) {}
-            try {
-                const d = window.getComputedStyle(el).display;
-                return d === 'flex' || d === 'inline-flex';
-            } catch (_) {
-                return false;
-            }
+        if (switchBtn && !switchBtn.dataset.bound) {
+            switchBtn.dataset.bound = '1';
+            switchBtn.addEventListener('click', function () {
+                closeAuthMenu();
+                forceFreshLogin().catch(function () {});
+            });
         }
+        if (logoutBtn && !logoutBtn.dataset.bound) {
+            logoutBtn.dataset.bound = '1';
+            logoutBtn.addEventListener('click', function () {
+                closeAuthMenu();
+                logout().catch(function () {});
+            });
+        }
+        bindAuthMenuDismiss();
+    }
 
-        // If toolbar has a flex row wrapper, insert into that (inline oder per CSS).
-        const first = toolbar.firstElementChild;
-        const row = isFlexLikeRow(first) ? first : toolbar;
-        row.appendChild(wrap);
+    function placeAuthWidgetInMenuHeader() {
+        const header = $('.header') || $('header');
+        if (!header) return false;
+        let wrap = $('#ms365AuthWidget');
+        if (!wrap || !wrap.querySelector('#ms365AuthMenu')) {
+            if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
+            wrap = createAuthWidget();
+        }
+        try {
+            header.style.position = header.style.position || 'relative';
+        } catch {
+            /* ignore */
+        }
+        wrap.style.position = 'absolute';
+        wrap.style.top = '16px';
+        wrap.style.right = '16px';
+        wrap.style.zIndex = '6';
+        wrap.style.marginLeft = '0';
+        wrap.style.flexWrap = 'nowrap';
+        if (wrap.parentElement !== header) header.appendChild(wrap);
+        ensureAuthMenuBindings();
+        if (pca) setWidgetState();
+        try {
+            if (typeof window.ms365RefreshContextBar === 'function') window.ms365RefreshContextBar();
+        } catch {
+            /* ignore */
+        }
+        return true;
+    }
 
+    function ensureHeaderWidget() {
+        const header = $('.header') || $('header');
+        if (!header) return;
+        placeAuthWidgetInMenuHeader();
         try {
             window.dispatchEvent(new CustomEvent('ms365-auth-widget-ready'));
         } catch {
-            // ignore
+            /* ignore */
         }
     }
 
@@ -419,60 +498,48 @@
         }
     }
 
-    function ensureSwitchAccountButton() {
-        const widget = document.getElementById('ms365AuthWidget');
-        if (!widget) return null;
-        let extra = document.getElementById('ms365AuthSwitchBtn');
-        if (extra) return extra;
-        const a = getAccount();
-        if (!a) return null;
-        extra = document.createElement('button');
-        extra.id = 'ms365AuthSwitchBtn';
-        extra.type = 'button';
-        extra.className = 'btn';
-        extra.title = 'Konto wechseln / Anmeldung zurücksetzen (löscht den lokalen MSAL-Cache und meldet frisch an)';
-        extra.style.margin = '0';
-        extra.style.padding = '8px 12px';
-        extra.style.borderRadius = '10px';
-        extra.style.background = 'rgba(255,255,255,0.85)';
-        extra.style.color = '#32325d';
-        extra.style.border = '1px solid rgba(94, 114, 228, 0.35)';
-        extra.style.fontSize = '0.88em';
-        extra.style.fontWeight = '700';
-        extra.innerHTML = '<i class="bi bi-arrow-repeat"></i>Konto wechseln';
-        extra.onclick = () => forceFreshLogin().catch(() => {});
-        const badge = document.getElementById('ms365AuthBadge');
-        const mainBtn = document.getElementById('ms365AuthBtn');
-        if (badge && mainBtn && badge.parentElement) {
-            badge.parentElement.insertBefore(extra, mainBtn);
-        } else {
-            widget.appendChild(extra);
-        }
-        return extra;
-    }
-
     function setWidgetState() {
         const badgeText = document.getElementById('ms365AuthBadgeText');
         const btn = document.getElementById('ms365AuthBtn');
+        const menu = document.getElementById('ms365AuthMenu');
+        const trigger = document.getElementById('ms365AuthBadge');
+        const menuName = document.getElementById('ms365AuthMenuName');
+        const menuMail = document.getElementById('ms365AuthMenuMail');
+        const menuMeta = menu && menu.querySelector('.ms365-auth-menu__meta');
+        const switchBtn = document.getElementById('ms365AuthSwitchBtn');
+        const logoutBtn = document.getElementById('ms365AuthLogoutBtn');
         const a = getAccount();
-        if (badgeText) {
-            badgeText.textContent = a ? 'Angemeldet' : 'Nicht angemeldet';
-            if (a) badgeText.textContent = accountLabel(a);
+        const name = accountDisplayName(a);
+        const mail = a && a.username ? String(a.username) : '';
+        closeAuthMenu();
+        ensureAuthMenuBindings();
+        if (badgeText) badgeText.textContent = a ? name : 'Konto';
+        if (menuName) menuName.textContent = name;
+        if (menuMail) {
+            menuMail.textContent = mail && mail !== name ? mail : '';
+            menuMail.hidden = !(mail && mail !== name);
         }
+        if (menuMeta) menuMeta.hidden = !a;
+        if (switchBtn) switchBtn.hidden = !a;
+        if (logoutBtn) logoutBtn.hidden = !a;
+        if (trigger) {
+            trigger.setAttribute('aria-label', a ? 'Konto: ' + accountLabel(a) : 'Konto');
+            trigger.title = a ? accountLabel(a) : 'Konto';
+        }
+        if (menu) menu.hidden = false;
         if (btn) {
             if (a) {
-                btn.innerHTML = '<i class="bi bi-box-arrow-right"></i>Abmelden';
-                btn.onclick = () => logout().catch(() => {});
+                btn.hidden = true;
+                btn.onclick = null;
             } else {
+                btn.hidden = false;
+                btn.setAttribute('aria-label', 'Anmelden');
+                btn.title = 'Anmelden';
                 btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i>Anmelden';
-                btn.onclick = () => login(DEFAULT_SCOPES).catch(() => {});
+                btn.onclick = function () {
+                    login(DEFAULT_SCOPES).catch(function () {});
+                };
             }
-        }
-        const switchBtn = document.getElementById('ms365AuthSwitchBtn');
-        if (a) {
-            ensureSwitchAccountButton();
-        } else if (switchBtn && switchBtn.parentElement) {
-            switchBtn.parentElement.removeChild(switchBtn);
         }
     }
 
@@ -534,5 +601,12 @@
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
+    try {
+        window.addEventListener('ms365-menu-header-ready', function () {
+            placeAuthWidgetInMenuHeader();
+        });
+    } catch {
+        /* ignore */
+    }
 })();
 

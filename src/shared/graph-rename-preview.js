@@ -23,8 +23,39 @@
         return p + ' ' + String(next) + (m[2] || '');
     }
 
+    /**
+     * Namen ohne Präfix: "1HMA" → "2HMA", "10HAK" → "11HAK".
+     * @param {string} displayName
+     * @returns {string|null}
+     */
+    function incrementLeadingGrade(displayName) {
+        const s = String(displayName || '').trim();
+        const m = s.match(/^(\d{1,2})([A-Za-z][A-Za-z0-9\-]*)$/);
+        if (!m) return null;
+        const current = parseInt(m[1], 10);
+        if (!isFinite(current)) return null;
+        return String(current + 1) + m[2];
+    }
+
+    /**
+     * Vorschlag für den Schuljahreswechsel: zuerst Präfix-Muster, sonst führende Stufe.
+     * @param {string} displayName
+     * @param {string} [prefix]
+     * @returns {string|null}
+     */
+    function suggestDisplayNamePlusOne(displayName, prefix) {
+        const p = String(prefix || '').trim() || 'Klasse';
+        return (
+            computeNewDisplayNamePlusOne(displayName, p) ||
+            computeNewDisplayNamePlusOne(displayName, 'Klasse') ||
+            incrementLeadingGrade(displayName)
+        );
+    }
+
     window.ms365GraphRenamePreview = {
         computeNewDisplayNamePlusOne,
+        incrementLeadingGrade,
+        suggestDisplayNamePlusOne,
         escapeRe
     };
 })();

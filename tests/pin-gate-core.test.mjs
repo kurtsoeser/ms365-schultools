@@ -3,6 +3,8 @@ import {
     SESSION_KEY,
     grantAccess,
     isAccessGranted,
+    isHelpPath,
+    isPinExemptPath,
     isPinGateEnabled,
     isValidPin,
     isWelcomePath,
@@ -54,6 +56,14 @@ describe('pin-gate-core', () => {
     it('isWelcomePath', () => {
         expect(isWelcomePath('/repo/welcome.html')).toBe(true);
         expect(isWelcomePath('/index.html')).toBe(false);
+    });
+
+    it('Hilfe und Datenschutz lösen die PIN-Sperre nicht aus', () => {
+        expect(isHelpPath('/repo/hilfe.html')).toBe(true);
+        expect(isHelpPath('/index.html')).toBe(false);
+        expect(isPinExemptPath('/hilfe.html')).toBe(true);
+        expect(isPinExemptPath('/welcome.html')).toBe(true);
+        expect(isPinExemptPath('/tenant.html')).toBe(false);
     });
 
     it('safeReturnPath: blockiert welcome und fremde URLs', () => {

@@ -79,6 +79,15 @@ describe('tenant-settings adminRoles', () => {
     });
 });
 
+describe('Schülerlisten-Parser', () => {
+    it('parseStudentsLines behält leere Klasse (Import ohne Klassenzuordnung)', () => {
+        const ctx = loadTenantSettingsCore(new Map());
+        const rows = ctx.ms365TenantSettingsParseStudentsLines(';Lisa Beispiel;lisa@schule.at\n1A;Tom;tom@schule.at');
+        expect(rows[0]).toEqual({ klasse: '', name: 'Lisa Beispiel', email: 'lisa@schule.at' });
+        expect(rows[1].klasse).toBe('1A');
+    });
+});
+
 describe('Stammdaten Verwaltung UI', () => {
     it('enthält Rollenkatalog und Personenliste', () => {
         const html = readFileSync(join(projectRoot, 'tenant.html'), 'utf8');

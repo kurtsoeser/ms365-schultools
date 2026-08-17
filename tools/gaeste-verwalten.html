@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -29,7 +30,7 @@
         .gv-tab {
             border: 1px solid transparent;
             background: transparent;
-            color: #495057;
+            color: var(--text-secondary);
             padding: 10px 14px;
             border-radius: 10px;
             font: inherit;
@@ -42,7 +43,7 @@
             transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 120ms ease;
         }
         .gv-tab .bi { font-size: 1.05em; }
-        .gv-tab:hover { background: rgba(255, 255, 255, 0.9); color: #32325d; }
+        .gv-tab:hover { background: color-mix(in srgb, var(--brand1) 10%, var(--card)); color: var(--heading); }
         .gv-tab[aria-selected="true"] {
             background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
             color: #fff;
@@ -60,7 +61,7 @@
         .panel {
             border: 1px solid var(--border);
             border-radius: 14px;
-            background: #fff;
+            background: var(--card);
             overflow: hidden;
             margin-bottom: 18px;
         }
@@ -69,7 +70,7 @@
             border-bottom: 1px solid var(--border);
             background: linear-gradient(135deg, rgba(94, 114, 228, 0.10) 0%, rgba(130, 94, 228, 0.06) 100%);
         }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
+        .panel-head h2 { margin: 0; font-size: 1.05em; color: var(--heading); font-weight: 900; }
         .panel-body { padding: 14px 16px 22px; }
         .muted { color: var(--muted); }
         .hint {
@@ -77,7 +78,7 @@
             border-radius: 12px;
             border: 1px solid var(--border);
             background: var(--soft);
-            color: #495057;
+            color: var(--text-secondary);
             line-height: 1.45;
             margin-bottom: 14px;
         }
@@ -91,21 +92,21 @@
         .gz-toolbar .btn { margin: 0; }
         .gz-table-wrap { overflow: auto; max-height: 48vh; border: 1px solid var(--border); border-radius: 12px; }
         table.gz-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
-        table.gz-table th, table.gz-table td { padding: 8px 10px; border-bottom: 1px solid #f0f1f3; text-align: left; vertical-align: top; }
-        table.gz-table th { background: #fafbff; font-weight: 800; color: #32325d; position: sticky; top: 0; z-index: 1; }
+        table.gz-table th, table.gz-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+        table.gz-table th { background: var(--soft); font-weight: 800; color: var(--heading); position: sticky; top: 0; z-index: 1; }
         table.gz-table th.is-sortable { cursor: pointer; user-select: none; }
-        table.gz-table th.is-sortable:hover { background: #eef1ff; }
+        table.gz-table th.is-sortable:hover { background: color-mix(in srgb, var(--brand1) 12%, var(--card)); }
         .gz-sort-ind { margin-left: 4px; font-size: 0.85em; opacity: 0.75; }
 
         /* „Schreibender" Bereich (Gäste verwalten) */
         .panel-write .panel-head {
             background: linear-gradient(135deg, rgba(245, 101, 101, 0.12) 0%, rgba(237, 137, 54, 0.08) 100%);
         }
-        .panel-write .panel-head h2 { color: #9b2c2c; }
+        .panel-write .panel-head h2 { color: color-mix(in srgb, var(--danger1) 75%, var(--heading)); }
         .hint-warn {
-            background: linear-gradient(180deg, #fff5f5 0%, #fff 100%);
+            background: color-mix(in srgb, var(--danger1) 12%, var(--card));
             border-color: rgba(245, 101, 101, 0.35);
-            color: #7b2929;
+            color: color-mix(in srgb, var(--danger1) 70%, var(--heading));
         }
         .gz-filterbar {
             display: grid;
@@ -120,10 +121,13 @@
         .gz-filterbar select {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 10px;
             font: inherit;
             box-sizing: border-box;
+            background-color: var(--input-bg);
+            color: var(--text);
+            color-scheme: inherit;
         }
         .gz-row-actions {
             display: inline-flex;
@@ -157,7 +161,7 @@
         }
         .gz-badge-accepted { background: #c6f6d5; color: #22543d; }
         .gz-badge-pending { background: #feebc8; color: #7b341e; }
-        .gz-badge-disabled { background: #e2e8f0; color: #2d3748; }
+        .gz-badge-disabled { background: var(--surface-muted); color: var(--text); }
         .gz-badge-stale { background: #fed7d7; color: #742a2a; }
 
         /* Modal */
@@ -172,7 +176,7 @@
         }
         .gz-modal-backdrop.is-open { display: flex; }
         .gz-modal {
-            background: #fff;
+            background: var(--card);
             border-radius: 14px;
             max-width: 620px;
             width: 100%;
@@ -182,44 +186,44 @@
         }
         .gz-modal-head {
             padding: 14px 18px;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .gz-modal-head h3 { margin: 0; font-size: 1.05em; color: #32325d; }
+        .gz-modal-head h3 { margin: 0; font-size: 1.05em; color: var(--heading); }
         .gz-modal-body { padding: 16px 18px; }
         .gz-modal-foot {
             padding: 12px 18px;
-            border-top: 1px solid #e9ecef;
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
             gap: 10px;
-            background: #fafbff;
+            background: var(--soft);
         }
         .gz-field { margin-bottom: 12px; }
         .gz-field label {
             display: block;
             font-weight: 700;
-            color: #495057;
+            color: var(--text-secondary);
             margin-bottom: 4px;
             font-size: 0.9em;
         }
         .gz-field input {
             width: 100%;
             padding: 9px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 10px;
             font: inherit;
             box-sizing: border-box;
         }
-        .gz-field input:disabled { background: #f1f3f5; color: #6c757d; }
+        .gz-field input:disabled { background: var(--surface-muted); color: var(--muted); }
         .gz-delete-confirm-list {
             margin: 8px 0 14px;
             padding: 10px 12px;
             border: 1px solid #fed7d7;
             border-radius: 10px;
-            background: #fff5f5;
+            background: color-mix(in srgb, var(--danger1) 12%, var(--card));
             max-height: 180px;
             overflow: auto;
             font-size: 0.92em;
@@ -231,10 +235,10 @@
             border: 0;
             font-size: 1.4em;
             cursor: pointer;
-            color: #6c757d;
+            color: var(--muted);
             padding: 0 4px;
         }
-        .gz-modal-close:hover { color: #212529; }
+        .gz-modal-close:hover { color: var(--heading); }
 
         /* === Bulk-Auswahl / -Aktionen für Tenant-Gäste === */
         .gz-bulkbar {
@@ -247,8 +251,8 @@
             padding: 10px 14px;
             border-radius: 12px;
             border: 1px solid rgba(245, 101, 101, 0.35);
-            background: linear-gradient(180deg, #fff5f5 0%, #fff 100%);
-            color: #7b2929;
+            background: color-mix(in srgb, var(--danger1) 12%, var(--card));
+            color: color-mix(in srgb, var(--danger1) 70%, var(--heading));
             box-shadow: 0 2px 8px rgba(229, 62, 62, 0.06);
         }
         .gz-bulkbar[hidden] { display: none !important; }
@@ -259,7 +263,7 @@
             font-size: 0.95em;
         }
         .gz-bulkbar-info .bi { font-size: 1.1em; }
-        .gz-bulkbar-info .muted { color: #9b2c2c; opacity: 0.75; font-size: 0.88em; }
+        .gz-bulkbar-info .muted { color: color-mix(in srgb, var(--danger1) 75%, var(--heading)); opacity: 0.75; font-size: 0.88em; }
         .gz-bulkbar-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
         .gz-bulkbar-actions .btn { margin: 0; }
         .gz-checkbox-label {
@@ -277,15 +281,15 @@
         }
         .gz-checkbox-label input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
         table.gz-table .gz-col-select { width: 38px; text-align: center; }
-        table.gz-table tbody tr.is-selected { background: #fff5f5; }
+        table.gz-table tbody tr.is-selected { background: color-mix(in srgb, var(--danger1) 14%, var(--card)); }
         table.gz-table tbody tr.is-selected td { border-bottom-color: #fed7d7; }
 
         /* === Mitglieder-/Besitzer-Verwaltung im Gast-Einlader-Tab === */
         .gi-people-block {
             margin-bottom: 16px;
             padding: 14px;
-            background: #fff;
-            border: 1px solid #ced4da;
+            background: var(--card);
+            border: 1px solid var(--input-border);
             border-radius: 8px;
         }
         .gi-people-block h3 {
@@ -294,7 +298,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #32325d;
+            color: var(--heading);
         }
         .gi-people-block h3 .muted {
             margin-left: auto;
@@ -311,7 +315,7 @@
             flex: 1;
             min-width: 240px;
             padding: 9px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 8px;
             font: inherit;
             box-sizing: border-box;
@@ -321,9 +325,9 @@
             display: none;
             margin: 0 0 10px;
             padding: 8px;
-            border: 1px solid #b6d4fe;
+            border: 1px solid color-mix(in srgb, var(--brand1) 35%, var(--border));
             border-radius: 8px;
-            background: #f0f7ff;
+            background: color-mix(in srgb, var(--brand1) 10%, var(--card));
             font-size: 0.9em;
         }
         .gi-people-suggestions[data-open="1"] { display: block; }
@@ -336,12 +340,12 @@
             border-radius: 6px;
         }
         .gi-people-suggestions .gi-sugg-row + .gi-sugg-row { margin-top: 4px; }
-        .gi-people-suggestions .gi-sugg-row:hover { background: #e7f0ff; }
+        .gi-people-suggestions .gi-sugg-row:hover { background: color-mix(in srgb, var(--brand1) 14%, var(--card)); }
         .gi-people-suggestions .gi-sugg-row button {
             padding: 4px 10px;
             font-size: 0.85em;
             border-radius: 6px;
-            border: 1px solid #5e72e4;
+            border: 1px solid var(--border-strong);
             background: #5e72e4;
             color: #fff;
             cursor: pointer;
@@ -349,15 +353,15 @@
         .gi-people-suggestions .gi-sugg-row button:hover { background: #4f5fd1; border-color: #4f5fd1; }
         .gi-people-suggestions .gi-sugg-empty {
             padding: 6px 8px;
-            color: #6c757d;
+            color: var(--muted);
             font-style: italic;
         }
         .gi-people-tablewrap {
-            border: 1px solid #e9ecef;
+            border: 1px solid var(--border);
             border-radius: 8px;
             max-height: 240px;
             overflow: auto;
-            background: #fff;
+            background: var(--card);
         }
         .gi-people-table {
             width: 100%;
@@ -367,14 +371,14 @@
         .gi-people-table th,
         .gi-people-table td {
             padding: 8px 10px;
-            border-bottom: 1px solid #f0f1f3;
+            border-bottom: 1px solid var(--border);
             text-align: left;
             vertical-align: top;
         }
         .gi-people-table th {
-            background: #fafbff;
+            background: var(--soft);
             font-weight: 800;
-            color: #32325d;
+            color: var(--heading);
             position: sticky;
             top: 0;
             z-index: 1;
@@ -394,13 +398,13 @@
             border-radius: 999px;
             font-size: 0.75em;
             font-weight: 700;
-            background: #e2e8f0;
-            color: #2d3748;
+            background: var(--surface-muted);
+            color: var(--text);
             margin-left: 6px;
             vertical-align: middle;
         }
         .gi-people-table .gi-type-pill.is-group { background: #fef3c7; color: #92400e; }
-        .gi-people-table .gi-row-self { background: #f0fff4; }
+        .gi-people-table .gi-row-self { background: color-mix(in srgb, var(--ok1) 12%, var(--card)); }
     </style>
 </head>
 <body data-ms365-skip-tenant-domain-prompt="true">
@@ -412,7 +416,7 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Gäste verwalten</span>
             </div>
             <p>Zentrales Werkzeug für externe Konten im Mandanten: Teams mit Gast-Mitgliedern auflisten, B2B-/Gast-Einladungen aus dem Verzeichnis-Audit einsehen, alle Gast-Benutzer:innen im Tenant verwalten (umbenennen, löschen) sowie tenantweit festlegen, wer Gäste einladen darf (Rolle „Gasteinladende:r“ &amp; Authorization Policy). Schreibende Aktionen verlangen entsprechende Entra-Berechtigungen.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-gaeste-verwalten" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
                     <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -587,17 +591,17 @@
                                             <label for="giInputDisplayName">Anzeigename der Sicherheitsgruppe</label>
                                             <input type="text" id="giInputDisplayName" autocomplete="off" maxlength="200" placeholder="z. B. GastEinlader">
                                         </div>
-                                        <p style="color:#6c757d;font-size:0.92em;margin:0 0 12px;line-height:1.45;">Optional: Gruppe hier per Microsoft Graph als <strong>rollenfähige Sicherheitsgruppe</strong> anlegen. Alternativ eine bestehende Gruppe per Object-ID oder Namen unten finden.</p>
+                                        <p style="color: var(--muted);font-size:0.92em;margin:0 0 12px;line-height:1.45;">Optional: Gruppe hier per Microsoft Graph als <strong>rollenfähige Sicherheitsgruppe</strong> anlegen. Alternativ eine bestehende Gruppe per Object-ID oder Namen unten finden.</p>
                                         <button type="button" class="btn btn-success" id="giBtnCreateGroup"><i class="bi bi-plus-circle"></i>Rollenfähige Sicherheitsgruppe per Graph anlegen</button>
                                         <div class="filter-group" style="margin-top:18px;">
                                             <label for="giInputObjectId">Object-ID (GUID) oder Suche</label>
                                             <input type="text" id="giInputObjectId" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false">
-                                            <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">GUID aus dem Admin Center einfügen <strong>oder</strong> Anzeigenamen oben ausfüllen und <strong>Gruppe suchen</strong> klicken.</small>
+                                            <small style="color: var(--muted);display:block;margin-top:8px;line-height:1.45;">GUID aus dem Admin Center einfügen <strong>oder</strong> Anzeigenamen oben ausfüllen und <strong>Gruppe suchen</strong> klicken.</small>
                                         </div>
                                         <button type="button" class="btn" id="giBtnFindGroup"><i class="bi bi-search"></i>Gruppe suchen / Object-ID prüfen</button>
                                         <input type="hidden" id="giResolvedObjectId" value="">
-                                        <p id="giResolvedSummary" style="display:none;margin-top:14px;padding:12px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;color:#084298;font-size:0.95em;"></p>
-                                        <p style="color:#495057;line-height:1.5;margin:10px 0 0;">
+                                        <p id="giResolvedSummary" style="display:none;margin-top:14px;padding:12px;background: color-mix(in srgb, var(--brand1) 14%, var(--card));border-radius:8px;border: 1px solid color-mix(in srgb, var(--brand1) 35%, var(--border));color: var(--brand1);font-size:0.95em;"></p>
+                                        <p style="color: var(--text-secondary);line-height:1.5;margin:10px 0 0;">
                                             <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups" target="_blank" rel="noopener">Entra: Gruppen</a>
                                             · <a href="https://admin.microsoft.com/Adminportal/Home#/groups" target="_blank" rel="noopener">Microsoft 365 Admin Center: Gruppen</a>
                                             · <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RoleMenuBlade/~/AllRoles" target="_blank" rel="noopener">Entra: Verzeichnisrollen</a>
@@ -616,9 +620,9 @@
                                         <p style="margin:0;"><strong>Fallback für bestehende/mail-aktivierte Gruppen:</strong> Mitglieder werden mit der Rolle einzeln synchronisiert (neue dazu, optional entfernen).</p>
                                     </div>
 
-                                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;">
+                                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background: var(--soft);border: 1px solid var(--border);border-radius:8px;">
                                         <h3 style="margin:0 0 10px;font-size:1rem;">Gruppe in Microsoft Entra öffnen</h3>
-                                        <p style="margin:0 0 10px;color:#495057;font-size:0.95em;line-height:1.5;">Mitglieder/Besitzer pflegen Sie wie gewohnt im Portal – hier sind Direktlinks:</p>
+                                        <p style="margin:0 0 10px;color: var(--text-secondary);font-size:0.95em;line-height:1.5;">Mitglieder/Besitzer pflegen Sie wie gewohnt im Portal – hier sind Direktlinks:</p>
                                         <p style="margin:0;display:flex;flex-wrap:wrap;gap:8px 14px;">
                                             <a href="#" target="_blank" rel="noopener" id="giLinkOverview" style="display:none;"><i class="bi bi-card-text"></i> Allgemein (Übersicht)</a>
                                             <a href="#" target="_blank" rel="noopener" id="giLinkOwners" style="display:none;"><i class="bi bi-person-badge"></i> Besitzer</a>
@@ -627,17 +631,17 @@
                                         </p>
                                     </div>
 
-                                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background:#fff;border:1px solid #ced4da;border-radius:8px;">
+                                    <div class="filter-section" style="margin-bottom:16px;padding:14px;background: var(--card);border: 1px solid var(--input-border);border-radius:8px;">
                                         <h3 style="margin:0 0 10px;font-size:1rem;">Gruppe (Microsoft Graph)</h3>
-                                        <p id="giDetailsPlaceholder" style="margin:0;color:#6c757d;font-size:0.95em;">Wird geladen …</p>
+                                        <p id="giDetailsPlaceholder" style="margin:0;color: var(--muted);font-size:0.95em;">Wird geladen …</p>
                                         <dl id="giDetailsDl" style="display:none;margin:0;font-size:0.95em;line-height:1.55;">
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Anzeigename</dt><dd style="margin-left:13.5rem;" id="giDetDisplayName">–</dd>
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Art</dt><dd style="margin-left:13.5rem;" id="giDetType">–</dd>
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Rollenfähig</dt><dd style="margin-left:13.5rem;" id="giDetRoleAssignable">–</dd>
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Mail-aktiviert</dt><dd style="margin-left:13.5rem;" id="giDetMailEnabled">–</dd>
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Beschreibung</dt><dd style="margin-left:13.5rem;" id="giDetDescription">–</dd>
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Mitglieder</dt><dd style="margin-left:13.5rem;" id="giDetMemberCount">–</dd>
-                                            <dt style="float:left;clear:left;width:13rem;color:#6c757d;">Gruppen-ID</dt><dd style="margin-left:13.5rem;word-break:break-all;" id="giDetId">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Anzeigename</dt><dd style="margin-left:13.5rem;" id="giDetDisplayName">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Art</dt><dd style="margin-left:13.5rem;" id="giDetType">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Rollenfähig</dt><dd style="margin-left:13.5rem;" id="giDetRoleAssignable">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Mail-aktiviert</dt><dd style="margin-left:13.5rem;" id="giDetMailEnabled">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Beschreibung</dt><dd style="margin-left:13.5rem;" id="giDetDescription">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Mitglieder</dt><dd style="margin-left:13.5rem;" id="giDetMemberCount">–</dd>
+                                            <dt style="float:left;clear:left;width:13rem;color: var(--muted);">Gruppen-ID</dt><dd style="margin-left:13.5rem;word-break:break-all;" id="giDetId">–</dd>
                                         </dl>
                                     </div>
 
@@ -647,7 +651,7 @@
                                             Besitzer der Sicherheitsgruppe verwalten
                                             <span class="muted" id="giOwnersCount"></span>
                                         </h3>
-                                        <p style="margin:0 0 10px;color:#495057;font-size:0.92em;line-height:1.5;">Besitzer:innen können die Gruppe verwalten (Mitglieder hinzufügen/entfernen, Eigenschaften ändern). Für rollenfähige Sicherheitsgruppen besonders wichtig, weil Microsoft hier <em>keinen Self-Service</em> erlaubt.</p>
+                                        <p style="margin:0 0 10px;color: var(--text-secondary);font-size:0.92em;line-height:1.5;">Besitzer:innen können die Gruppe verwalten (Mitglieder hinzufügen/entfernen, Eigenschaften ändern). Für rollenfähige Sicherheitsgruppen besonders wichtig, weil Microsoft hier <em>keinen Self-Service</em> erlaubt.</p>
                                         <div class="gi-people-addrow">
                                             <input type="text" id="giOwnerAddInput" placeholder="UPN/E-Mail eintippen oder Anzeigename suchen …" autocomplete="off">
                                             <button type="button" class="btn btn-success" id="giBtnAddOwner"><i class="bi bi-plus-circle"></i>Besitzer hinzufügen</button>
@@ -676,7 +680,7 @@
                                             Mitglieder der Sicherheitsgruppe verwalten
                                             <span class="muted" id="giMembersCount"></span>
                                         </h3>
-                                        <p style="margin:0 0 10px;color:#495057;font-size:0.92em;line-height:1.5;">Mitglieder dieser Gruppe dürfen <strong>Gäste einladen</strong> (sofern die Richtlinie aus Abschnitt <em>„A) Richtlinie anwenden"</em> aktiv ist).</p>
+                                        <p style="margin:0 0 10px;color: var(--text-secondary);font-size:0.92em;line-height:1.5;">Mitglieder dieser Gruppe dürfen <strong>Gäste einladen</strong> (sofern die Richtlinie aus Abschnitt <em>„A) Richtlinie anwenden"</em> aktiv ist).</p>
                                         <div class="gi-people-addrow">
                                             <input type="text" id="giMemberAddInput" placeholder="UPN/E-Mail eintippen oder Anzeigename suchen …" autocomplete="off">
                                             <button type="button" class="btn btn-success" id="giBtnAddMember"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
@@ -712,13 +716,13 @@
                                     </div>
 
                                     <h3 style="margin-top:18px;font-size:1rem;">A) Richtlinie anwenden (empfohlen)</h3>
-                                    <p style="margin:6px 0 10px;color:#495057;line-height:1.5;">Setzt <code>allowInvitesFrom = adminsAndGuestInviters</code> und weist der Gruppe die Rolle „Gasteinladende:r“ zu. Erfordert eine <strong>rollenfähige</strong> Sicherheitsgruppe.</p>
+                                    <p style="margin:6px 0 10px;color: var(--text-secondary);line-height:1.5;">Setzt <code>allowInvitesFrom = adminsAndGuestInviters</code> und weist der Gruppe die Rolle „Gasteinladende:r“ zu. Erfordert eine <strong>rollenfähige</strong> Sicherheitsgruppe.</p>
                                     <div class="filter-section" style="margin-bottom:16px;">
                                         <button type="button" class="btn btn-success" id="giBtnApply"><i class="bi bi-shield-check"></i>Einschränkung jetzt anwenden (Gruppe ↔ Rolle)</button>
                                     </div>
 
                                     <h3 style="margin-top:18px;font-size:1rem;">B) Fallback: Mitglieder einzeln synchronisieren</h3>
-                                    <p style="margin:6px 0 10px;color:#495057;line-height:1.5;">Für <strong>nicht-rollenfähige</strong> oder <strong>mail-aktivierte</strong> Gruppen: Diese Aktion fügt jedes Mitglied der Gruppe <em>einzeln</em> als Träger der Rolle „Gasteinladende:r“ hinzu. „Aufräumen“ entfernt umgekehrt Rollenträger:innen, die nicht (mehr) in der Gruppe sind.</p>
+                                    <p style="margin:6px 0 10px;color: var(--text-secondary);line-height:1.5;">Für <strong>nicht-rollenfähige</strong> oder <strong>mail-aktivierte</strong> Gruppen: Diese Aktion fügt jedes Mitglied der Gruppe <em>einzeln</em> als Träger der Rolle „Gasteinladende:r“ hinzu. „Aufräumen“ entfernt umgekehrt Rollenträger:innen, die nicht (mehr) in der Gruppe sind.</p>
                                     <div class="filter-section" style="margin-bottom:16px;">
                                         <label style="display:inline-flex;align-items:center;gap:8px;margin:0 14px 8px 0;">
                                             <input type="checkbox" id="giChkCleanup" />
@@ -735,9 +739,9 @@
                                     </div>
 
                                     <h3 style="margin-top:18px;font-size:1rem;">Protokoll</h3>
-                                    <div id="giOnlineLog" style="max-height:220px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                                    <div id="giOnlineLog" style="max-height:220px;overflow:auto;padding:10px;background: var(--card);border: 1px solid var(--input-border);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                                     <h3 style="margin-top:18px;font-size:1rem;">Aktueller Status</h3>
-                                    <pre id="giStatusPre" style="margin:0;padding:14px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;font-size:0.88em;white-space:pre-wrap;word-break:break-word;">Noch nicht gelesen – „Status lesen“ wählen.</pre>
+                                    <pre id="giStatusPre" style="margin:0;padding:14px;background: var(--soft);border: 1px solid var(--border);border-radius:8px;font-size:0.88em;white-space:pre-wrap;word-break:break-word;">Noch nicht gelesen – „Status lesen“ wählen.</pre>
 
                                     <div class="step-nav-row step-nav-row--back-only">
                                         <button type="button" class="btn" id="giBtnBack2">← Zurück zu Schritt 1</button>
@@ -789,7 +793,7 @@
                     <label for="gzEditJobTitle">Funktion</label>
                     <input type="text" id="gzEditJobTitle" maxlength="128" autocomplete="off">
                 </div>
-                <div id="gzEditError" class="muted" style="color:#9b2c2c;font-size:0.9em;"></div>
+                <div id="gzEditError" class="muted" style="color: color-mix(in srgb, var(--danger1) 75%, var(--heading));font-size:0.9em;"></div>
             </div>
             <div class="gz-modal-foot">
                 <button type="button" class="btn" data-gz-close="edit">Abbrechen</button>
@@ -825,7 +829,7 @@
                     <label for="gzDelConfirm">Zur Bestätigung den UPN exakt eintippen:</label>
                     <input type="text" id="gzDelConfirm" autocomplete="off" placeholder="UPN hier eintippen">
                 </div>
-                <div id="gzDelError" class="muted" style="color:#9b2c2c;font-size:0.9em;"></div>
+                <div id="gzDelError" class="muted" style="color: color-mix(in srgb, var(--danger1) 75%, var(--heading));font-size:0.9em;"></div>
             </div>
             <div class="gz-modal-foot">
                 <button type="button" class="btn" data-gz-close="delete">Abbrechen</button>
@@ -853,14 +857,14 @@
                 </div>
                 <div id="gzBulkDelProgressWrap" style="display:none;margin-top:14px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                        <strong style="font-size:0.92em;color:#495057;">Fortschritt</strong>
+                        <strong style="font-size:0.92em;color: var(--text-secondary);">Fortschritt</strong>
                         <span class="muted" id="gzBulkDelProgressText" style="font-size:0.88em;">0 / 0</span>
                     </div>
-                    <div style="height:10px;border-radius:6px;background:#f1f3f5;overflow:hidden;border:1px solid #e9ecef;">
+                    <div style="height:10px;border-radius:6px;background: var(--surface-muted);overflow:hidden;border: 1px solid var(--border);">
                         <div id="gzBulkDelProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#e53e3e,#f56036);transition:width 200ms ease;"></div>
                     </div>
                 </div>
-                <div id="gzBulkDelError" class="muted" style="color:#9b2c2c;font-size:0.9em;margin-top:10px;line-height:1.4;"></div>
+                <div id="gzBulkDelError" class="muted" style="color: color-mix(in srgb, var(--danger1) 75%, var(--heading));font-size:0.9em;margin-top:10px;line-height:1.4;"></div>
             </div>
             <div class="gz-modal-foot">
                 <button type="button" class="btn" data-gz-close="bulk" id="gzBulkDelCancel">Abbrechen</button>
@@ -873,6 +877,7 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/step-progress.js" defer></script>
     <script src="../src/tools/gaeste-verwalten/gaeste-verwalten.js" defer></script>

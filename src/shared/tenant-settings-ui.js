@@ -219,7 +219,7 @@
         }
     };
 
-    /** Schüler-Zeilen: Klasse;Name;E-Mail */
+    /** Schüler-Zeilen: Klasse;Name;E-Mail[;Eltern1;Eltern1Mail;…] */
     function studentJsonRowsToSemicolonLines(jsonRows) {
         const out = [];
         (jsonRows || []).forEach((r) => {
@@ -236,9 +236,22 @@
             }
             const k = normStr(klasse);
             if (!k && !normStr(name) && !normStr(email)) return;
-            out.push({ klasse: k, name: normStr(name), email: normStr(email).toLowerCase() });
+            const parts = [k, normStr(name), normStr(email).toLowerCase()];
+            const e1 = getField(r, ['eltern1', 'erziehungsberechtigte1', 'mutter', 'parent1', 'guardian1']);
+            const e1m = getField(r, ['eltern1mail', 'eltern1-mail', 'eltern1email', 'parent1email', 'guardian1email', 'muttermail']);
+            const e2 = getField(r, ['eltern2', 'erziehungsberechtigte2', 'vater', 'parent2', 'guardian2']);
+            const e2m = getField(r, ['eltern2mail', 'eltern2-mail', 'eltern2email', 'parent2email', 'guardian2email', 'vatermail']);
+            if (normStr(e1m).includes('@') || normStr(e1).includes('@')) {
+                parts.push(normStr(e1));
+                parts.push(normStr(e1m || (String(e1).includes('@') ? e1 : '')).toLowerCase());
+            }
+            if (normStr(e2m).includes('@') || normStr(e2).includes('@')) {
+                parts.push(normStr(e2));
+                parts.push(normStr(e2m || (String(e2).includes('@') ? e2 : '')).toLowerCase());
+            }
+            out.push(parts.join(';'));
         });
-        return out.map((x) => [x.klasse, x.name || '', x.email || ''].filter(Boolean).join(';')).join('\n');
+        return out.join('\n');
     }
 
     function adminJsonRowsToSemicolonLines(jsonRows) {
@@ -348,20 +361,32 @@
     window.ms365StudentListImport = {
         isXlsxReady: ensureXlsxReady,
         downloadTemplate() {
+            if (window.ms365SchoolSisImport && typeof window.ms365SchoolSisImport.downloadXlsxTemplates === 'function') {
+                if (window.ms365SchoolSisImport.downloadXlsxTemplates()) return true;
+            }
             return downloadXlsxTemplate(
                 'Schuelerliste-Vorlage.xlsx',
                 [
-                    ['Klasse', 'Name', 'E-Mail'],
-                    ['1AK', 'Lisa Beispiel', 'lisa.beispiel@schule.de'],
-                    ['1AK', 'Max Muster', 'max.muster@schule.de']
+                    ['Klasse', 'Name', 'E-Mail', 'Eltern1', 'Eltern1Mail', 'Eltern2', 'Eltern2Mail'],
+                    ['1AK', 'Lisa Beispiel', 'lisa.beispiel@schule.de', 'Maria Beispiel', 'maria@mail.com', '', ''],
+                    ['1AK', 'Max Muster', 'max.muster@schule.de', 'Eva Muster', 'eva@mail.com', 'Tom Muster', 'tom@mail.com']
                 ],
                 'Schueler'
             );
         },
         downloadCsvTemplate() {
+            if (window.ms365SchoolSisImport && typeof window.ms365SchoolSisImport.downloadCsv === 'function') {
+                return window.ms365SchoolSisImport.downloadCsv(
+                    'Schueler-Eltern-Vorlage.csv',
+                    window.ms365SchoolSisImport.ms365TemplateAoa()
+                );
+            }
             try {
                 const BOM = '\ufeff';
-                const body = ['Klasse;Name;E-Mail', '1AK;Lisa Beispiel;lisa.beispiel@schule.de'].join('\r\n');
+                const body = [
+                    'Klasse;Name;E-Mail;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail',
+                    '1AK;Lisa Beispiel;lisa.beispiel@schule.de;Maria Beispiel;maria@mail.com;;'
+                ].join('\r\n');
                 const blob = new Blob([BOM + body], { type: 'text/csv;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -376,14 +401,50 @@
                 return false;
             }
         },
-        importFile(file, onLines, onError) {
-            importSpreadsheetFileToJsonRows(
-                file,
-                (rows) => {
-                    if (onLines) onLines(studentJsonRowsToSemicolonLines(rows));
-                },
-                onError
-            );
+        importFile(file, onLines, onError, sourceHint) {
+            if (!file) return;
+            if (!ensureXlsxReady()) {
+                if (onError) onError('Import: Excel-Bibliothek nicht geladen – Seite neu laden.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const name = String(file.name || '').toLowerCase();
+                    let wb;
+                    if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                        let s = String(e.target.result || '');
+                        if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+                        wb = XLSX.read(s, { type: 'string', FS: ';' });
+                        if (!sheetToJsonRows(wb).length) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                    } else {
+                        wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    }
+                    const sheetName = wb.SheetNames && wb.SheetNames[0];
+                    const sheet = sheetName ? wb.Sheets[sheetName] : null;
+                    const aoa = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) : [];
+                    const objectRows = sheetToJsonRows(wb);
+                    const sis = window.ms365SchoolSisImport;
+                    if (sis && typeof sis.importStudentsAndGuardians === 'function') {
+                        const result = sis.importStudentsAndGuardians({
+                            aoa: aoa,
+                            objectRows: objectRows,
+                            source: sourceHint || 'auto'
+                        });
+                        if (onLines) onLines(result.lines, result);
+                        return;
+                    }
+                    if (onLines) onLines(studentJsonRowsToSemicolonLines(objectRows));
+                } catch (err) {
+                    if (onError) onError('Import fehlgeschlagen: ' + (err?.message || String(err)));
+                }
+            };
+            reader.onerror = () => {
+                if (onError) onError('Datei konnte nicht gelesen werden.');
+            };
+            const name = String(file.name || '').toLowerCase();
+            if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
+            else reader.readAsArrayBuffer(file);
         }
     };
 
@@ -410,9 +471,9 @@
                 {
                     name: 'Schueler',
                     aoa: [
-                        ['Klasse', 'Name', 'E-Mail'],
-                        ['1AK', 'Lisa Beispiel', 'lisa.beispiel@schule.de'],
-                        ['1AK', 'Max Muster', 'max.muster@schule.de']
+                        ['Klasse', 'Name', 'E-Mail', 'Eltern1', 'Eltern1Mail', 'Eltern2', 'Eltern2Mail'],
+                        ['1AK', 'Lisa Beispiel', 'lisa.beispiel@schule.de', 'Maria Beispiel', 'maria@mail.com', '', ''],
+                        ['1AK', 'Max Muster', 'max.muster@schule.de', 'Eva Muster', 'eva@mail.com', 'Tom Muster', 'tom@mail.com']
                     ]
                 },
                 {
@@ -953,7 +1014,7 @@
                 const td = document.createElement('td');
                 td.colSpan = 4;
                 td.style.color = '#6c757d';
-                td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
+                td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
                 tr.appendChild(td);
                 teachersTbody.appendChild(tr);
                 return;
@@ -1228,13 +1289,240 @@
 
         function studentsToLines(rows) {
             return (rows || [])
-                .map((x) => `${normStr(x.klasse || '')};${normStr(x.name || '')};${normStr(x.email || '').toLowerCase()}`.trim())
+                .map((x) => {
+                    const base = `${normStr(x.klasse || '')};${normStr(x.name || '')};${normStr(x.email || '').toLowerCase()}`;
+                    const pairs = Array.isArray(x.parentPairs) ? x.parentPairs : [];
+                    if (!pairs.length) return base.trim();
+                    const extra = pairs
+                        .map((p) => `${normStr(p.name || '')};${normStr(p.email || '').toLowerCase()}`)
+                        .join(';');
+                    return `${base};${extra}`.trim();
+                })
                 .filter(Boolean)
                 .join('\n');
         }
 
         function getStudentsFromTextarea() {
             return typeof parseLinesToStudents === 'function' ? parseLinesToStudents(taStudents ? taStudents.value : '') : [];
+        }
+
+        let lastLifecyclePreview = null;
+        let pendingSisImport = null;
+
+        function sisApi() {
+            return window.ms365SchoolSisImport || null;
+        }
+
+        function hideSisDiff() {
+            pendingSisImport = null;
+            const box = document.getElementById('tenantSisDiff');
+            if (box) box.hidden = true;
+        }
+
+        function rememberSisHistory(diff, source, mode) {
+            try {
+                const api = window.ms365AppDataV2;
+                if (!api || typeof api.getSetup !== 'function' || typeof api.patchSetup !== 'function') return;
+                const setup = api.getSetup() || {};
+                const hist = Array.isArray(setup.sisImportHistory) ? setup.sisImportHistory.slice() : [];
+                const c = (diff && diff.counts) || {};
+                hist.push({
+                    at: new Date().toISOString(),
+                    source: source || '',
+                    mode: mode,
+                    added: c.added || 0,
+                    updated: c.updated || 0,
+                    removed: c.removed || 0,
+                    conflicts: c.conflicts || 0
+                });
+                api.patchSetup({ sisImportHistory: hist.slice(-20) });
+            } catch {
+                /* ignore */
+            }
+            if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                window.ms365ActionLog.append({
+                    tool: 'sis-import',
+                    action: mode === 'replace' ? 'replace' : 'merge',
+                    summary: (sisApi() && sisApi().summarizeSisDiff ? sisApi().summarizeSisDiff(diff) : '') + (source ? ' · ' + source : '')
+                });
+            }
+        }
+
+        function applyPendingSis(mode) {
+            const pending = pendingSisImport;
+            const sis = sisApi();
+            if (!pending || !sis || typeof sis.applySisImport !== 'function') return;
+            const next = sis.applySisImport(pending.existing, pending.records, { mode: mode });
+            if (taStudents) taStudents.value = sis.recordsToSemicolonLines(next);
+            renderStudentsTableFromTextarea();
+            const ySt = getDisplayedSchoolYearLabel() || currentSchoolYearLabel();
+            setSummary(
+                'Schülerimport übernommen (' +
+                    (mode === 'replace' ? 'ersetzt' : 'zusammengeführt') +
+                    '): ' +
+                    next.length +
+                    ' Zeilen — Schuljahr ' +
+                    ySt,
+                'ok'
+            );
+            rememberSisHistory(pending.diff, pending.source, mode);
+            renderStudentLifecyclePanel(pending.existing, getStudentsFromTextarea());
+            hideSisDiff();
+        }
+
+        function showSisDiffPreview(existing, result) {
+            const sis = sisApi();
+            const box = document.getElementById('tenantSisDiff');
+            const meta = document.getElementById('tenantSisDiffMeta');
+            const ul = document.getElementById('tenantSisDiffList');
+            if (!sis || typeof sis.diffSisImport !== 'function' || !box) {
+                if (taStudents) taStudents.value = (result && result.lines) || '';
+                renderStudentsTableFromTextarea();
+                return;
+            }
+            const records = result && Array.isArray(result.records) ? result.records : [];
+            const diff = sis.diffSisImport(existing || [], records);
+            pendingSisImport = {
+                existing: existing || [],
+                records: records,
+                source: result && result.source ? result.source : '',
+                diff: diff
+            };
+            if (meta) {
+                meta.textContent =
+                    (sis.summarizeSisDiff ? sis.summarizeSisDiff(diff) : '') +
+                    (result && result.source ? ' · Quelle ' + result.source : '') +
+                    '. Zusammenführen behält lokale Zeilen, die in der Datei fehlen.';
+            }
+            if (ul) {
+                ul.innerHTML = '';
+                (diff.conflicts || []).slice(0, 8).forEach(function (c) {
+                    const li = document.createElement('li');
+                    li.textContent = 'Konflikt: ' + (c.summary || c.type);
+                    ul.appendChild(li);
+                });
+                (diff.updated || []).slice(0, 6).forEach(function (u) {
+                    const li = document.createElement('li');
+                    const prev = u.previous || {};
+                    const rec = u.incoming || {};
+                    li.textContent =
+                        'Änderung: ' +
+                        (prev.name || prev.email || '') +
+                        (u.klasseChanged ? ' (' + (prev.klasse || '–') + ' → ' + (rec.klasse || '–') + ')' : '');
+                    ul.appendChild(li);
+                });
+                if (!ul.childNodes.length) {
+                    const li = document.createElement('li');
+                    li.textContent = (diff.counts && diff.counts.added ? diff.counts.added + ' neue Zeilen. ' : '') + 'Keine Konflikte erkannt.';
+                    ul.appendChild(li);
+                }
+            }
+            box.hidden = false;
+        }
+
+        function lifecycleApi() {
+            return window.ms365StudentClassLifecycle || null;
+        }
+
+        function getLifecycleContext() {
+            const empty = { classTeams: [], schuelerGroupId: '' };
+            try {
+                const api = window.ms365AppDataV2;
+                const c = api && typeof api.getContainer === 'function' ? api.getContainer() : null;
+                const classTeams = c && c.core && Array.isArray(c.core.classTeams) ? c.core.classTeams : [];
+                const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : c && c.setup;
+                const matched = setup && setup.matched ? setup.matched : {};
+                return {
+                    classTeams: classTeams,
+                    schuelerGroupId: matched.schuelerGroupId ? String(matched.schuelerGroupId) : ''
+                };
+            } catch {
+                return empty;
+            }
+        }
+
+        function renderStudentLifecyclePanel(prev, next) {
+            const host = document.getElementById('tenantStudentLifecycle');
+            const listEl = document.getElementById('tenantStudentLifecycleList');
+            const metaEl = document.getElementById('tenantStudentLifecycleMeta');
+            const lc = lifecycleApi();
+            if (!host || !lc) return;
+            const diff = lc.diffStudents(prev, next);
+            const ctx = getLifecycleContext();
+            const preview = lc.previewMemberships(diff, ctx.classTeams, ctx.schuelerGroupId);
+            lastLifecyclePreview = preview;
+            if (!lc.hasMembershipWork(preview)) {
+                host.hidden = true;
+                if (listEl) listEl.replaceChildren();
+                return;
+            }
+            const sum = lc.summarizePreview(preview);
+            host.hidden = false;
+            if (metaEl) {
+                metaEl.textContent =
+                    sum.join +
+                    ' Aufnahme(n), ' +
+                    sum.leave +
+                    ' Entfernung(en) in ' +
+                    sum.groupCount +
+                    ' Gruppe(n). Nur E-Mails mit zugeordneter Microsoft-365-Gruppe erscheinen hier.';
+            }
+            if (listEl) {
+                listEl.replaceChildren();
+                preview.groups.forEach(function (g) {
+                    const li = document.createElement('li');
+                    const joinN = g.join.length;
+                    const leaveN = g.leave.length;
+                    li.textContent =
+                        (g.label || g.groupId) +
+                        ': +' +
+                        joinN +
+                        (joinN ? ' (' + g.join.slice(0, 4).join(', ') + (joinN > 4 ? ' …' : '') + ')' : '') +
+                        ', −' +
+                        leaveN +
+                        (leaveN ? ' (' + g.leave.slice(0, 4).join(', ') + (leaveN > 4 ? ' …' : '') + ')' : '');
+                    listEl.appendChild(li);
+                });
+            }
+        }
+
+        async function applyStudentLifecyclePreview() {
+            const lc = lifecycleApi();
+            const gug = window.ms365GraphUnifiedGroups;
+            if (!lc || !gug || !lastLifecyclePreview || !lc.hasMembershipWork(lastLifecyclePreview)) {
+                setSummary('Keine Mitgliedschaftsänderungen zum Anwenden.', 'warn');
+                return;
+            }
+            const btn = document.getElementById('tenantStudentLifecycleApply');
+            if (btn) btn.disabled = true;
+            try {
+                const token = await gug.getGraphToken();
+                let ok = 0;
+                let fail = 0;
+                for (let i = 0; i < lastLifecyclePreview.groups.length; i++) {
+                    const g = lastLifecyclePreview.groups[i];
+                    if (g.join && g.join.length) {
+                        const r = await gug.syncEmailsToGroup(token, g.groupId, g.join, g.label, function () {});
+                        ok += r.ok || 0;
+                        fail += r.fail || 0;
+                    }
+                    if (g.leave && g.leave.length && typeof gug.removeEmailsFromGroup === 'function') {
+                        const r = await gug.removeEmailsFromGroup(token, g.groupId, g.leave, g.label, function () {});
+                        ok += r.ok || 0;
+                        fail += r.fail || 0;
+                    }
+                }
+                setSummary(
+                    'Mitgliedschaften in Microsoft 365 angewendet: ' + ok + ' OK' + (fail ? ', ' + fail + ' Fehler' : '') + '.',
+                    fail ? 'warn' : 'ok'
+                );
+                const host = document.getElementById('tenantStudentLifecycle');
+                if (host) host.hidden = true;
+            } catch (e) {
+                setSummary('Mitgliedschaften: ' + (e.message || e), 'warn');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         function setStudentsTextareaFromRows(rows) {
@@ -1252,7 +1540,7 @@
                 const td = document.createElement('td');
                 td.colSpan = 4;
                 td.style.color = '#6c757d';
-                td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
+                td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
                 tr.appendChild(td);
                 studentsTbody.appendChild(tr);
                 return;
@@ -1630,6 +1918,13 @@
         }
 
         function importStudentsRows(jsonRows) {
+            const prev = getStudentsFromTextarea();
+            const sis = window.ms365SchoolSisImport;
+            if (sis && typeof sis.importStudentsAndGuardians === 'function') {
+                const result = sis.importStudentsAndGuardians({ objectRows: jsonRows, source: 'auto' });
+                showSisDiffPreview(prev, result);
+                return;
+            }
             const out = [];
             (jsonRows || []).forEach((r) => {
                 let klasse = getField(r, ['klasse', 'class', 'gruppe', 'group']);
@@ -1637,8 +1932,6 @@
                 let email = getField(r, ['e-mail', 'email', 'mail', 'upn']);
                 if (!klasse && !name && !email) return;
 
-                // Heuristik für Teillisten: wenn "Name" eigentlich eine E-Mail ist (enthält @),
-                // dann korrekt zuordnen statt E-Mail als Name zu speichern.
                 const nameNorm = normStr(name);
                 const emailNorm = normStr(email).toLowerCase();
                 const nameLooksLikeEmail = nameNorm.includes('@');
@@ -1655,6 +1948,7 @@
             renderStudentsTableFromTextarea();
             const ySt = getDisplayedSchoolYearLabel() || currentSchoolYearLabel();
             setSummary(`Schüler importiert: ${out.length} (Schuljahr ${ySt})`, 'ok');
+            renderStudentLifecyclePanel(prev, out);
         }
 
         function importClassesRows(jsonRows) {
@@ -1691,6 +1985,8 @@
 
         if (btnSave) {
             btnSave.addEventListener('click', () => {
+                const prevLoaded = load();
+                const prevStudents = (prevLoaded && prevLoaded.students) || [];
                 const subjects = typeof parseLinesToSubjects === 'function' ? parseLinesToSubjects(taSubjects ? taSubjects.value : '') : [];
                 const teachers = typeof parseLinesToTeachers === 'function' ? parseLinesToTeachers(taTeachers ? taTeachers.value : '') : [];
                 const admin = typeof parseLinesToAdmin === 'function' ? parseLinesToAdmin(taAdmin ? taAdmin.value : '') : [];
@@ -1713,6 +2009,7 @@
                 renderAdminTableFromTextarea();
                 renderStudentsTableFromTextarea();
                 renderClassesTableFromTextarea();
+                renderStudentLifecyclePanel(prevStudents, students);
                 dispatchTenantSettingsChanged(saved, 'manual-save');
             });
         }
@@ -1834,10 +2131,85 @@
         if (fileStudents) {
             fileStudents.addEventListener('change', (e) => {
                 const f = e.target.files && e.target.files[0];
-                importFileToRows(f, (rows) => importStudentsRows(rows));
+                const sourceEl = document.getElementById('tenantStudentsImportSource');
+                const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
+                if (window.ms365StudentListImport && typeof window.ms365StudentListImport.importFile === 'function') {
+                    window.ms365StudentListImport.importFile(
+                        f,
+                        (lines, result) => {
+                            const prev = getStudentsFromTextarea();
+                            showSisDiffPreview(prev, result || { lines: lines, records: [], source: sourceHint });
+                        },
+                        (msg) => setSummary(msg, 'warn'),
+                        sourceHint
+                    );
+                } else {
+                    importFileToRows(f, (rows) => importStudentsRows(rows));
+                }
                 fileStudents.value = '';
             });
         }
+        const btnSisMerge = document.getElementById('tenantSisDiffMerge');
+        const btnSisReplace = document.getElementById('tenantSisDiffReplace');
+        const btnSisCancel = document.getElementById('tenantSisDiffCancel');
+        if (btnSisMerge) btnSisMerge.addEventListener('click', () => applyPendingSis('merge'));
+        if (btnSisReplace) btnSisReplace.addEventListener('click', () => applyPendingSis('replace'));
+        if (btnSisCancel) btnSisCancel.addEventListener('click', hideSisDiff);
+
+        function renderActionLog() {
+            const ul = document.getElementById('tenantActionLogList');
+            if (!ul) return;
+            ul.innerHTML = '';
+            const rows =
+                window.ms365ActionLog && typeof window.ms365ActionLog.list === 'function'
+                    ? window.ms365ActionLog.list(40)
+                    : [];
+            if (!rows.length) {
+                const li = document.createElement('li');
+                li.textContent = 'Noch keine Einträge.';
+                ul.appendChild(li);
+                return;
+            }
+            rows.forEach(function (row) {
+                const li = document.createElement('li');
+                const when = row.at ? String(row.at).replace('T', ' ').slice(0, 19) : '';
+                li.textContent =
+                    (when ? when + ' · ' : '') +
+                    (row.tool || 'app') +
+                    ': ' +
+                    (row.summary || row.action) +
+                    (row.result === 'error' ? ' (Fehler)' : '');
+                ul.appendChild(li);
+            });
+        }
+        const btnLogRefresh = document.getElementById('tenantActionLogRefresh');
+        const btnLogExport = document.getElementById('tenantActionLogExport');
+        const btnLogClear = document.getElementById('tenantActionLogClear');
+        if (btnLogRefresh) btnLogRefresh.addEventListener('click', renderActionLog);
+        if (btnLogExport) {
+            btnLogExport.addEventListener('click', function () {
+                if (!window.ms365ActionLog || typeof window.ms365ActionLog.exportJson !== 'function') return;
+                const blob = new Blob([window.ms365ActionLog.exportJson()], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'ms365-aktionsprotokoll.json';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () {
+                    URL.revokeObjectURL(url);
+                }, 250);
+            });
+        }
+        if (btnLogClear) {
+            btnLogClear.addEventListener('click', function () {
+                if (window.ms365ActionLog) window.ms365ActionLog.clear();
+                renderActionLog();
+            });
+        }
+        renderActionLog();
+
         if (fileClasses) {
             fileClasses.addEventListener('change', (e) => {
                 const f = e.target.files && e.target.files[0];
@@ -1891,16 +2263,21 @@
         }
         if (btnStudentsTpl) {
             btnStudentsTpl.addEventListener('click', () => {
-                const ok = downloadXlsxTemplate(
-                    'Schuelerliste-Vorlage.xlsx',
-                    [
-                        ['Klasse', 'Name', 'E-Mail'],
-                        ['1AK', 'Max Mustermann', 'max.mustermann@schule.de'],
-                        ['1AK', 'Anna Beispiel', 'anna.beispiel@schule.de']
-                    ],
-                    'Schueler'
-                );
+                const ok =
+                    window.ms365StudentListImport && typeof window.ms365StudentListImport.downloadTemplate === 'function'
+                        ? window.ms365StudentListImport.downloadTemplate()
+                        : false;
                 if (!ok) setSummary('Vorlage: Excel-Bibliothek nicht geladen – Seite neu laden.', 'warn');
+            });
+        }
+        const btnStudentsCsvTpl = document.getElementById('tenantStudentsTemplateCsv');
+        if (btnStudentsCsvTpl) {
+            btnStudentsCsvTpl.addEventListener('click', () => {
+                const ok =
+                    window.ms365StudentListImport && typeof window.ms365StudentListImport.downloadCsvTemplate === 'function'
+                        ? window.ms365StudentListImport.downloadCsvTemplate()
+                        : false;
+                if (!ok) setSummary('CSV-Vorlage konnte nicht erzeugt werden.', 'warn');
             });
         }
         if (btnClassesTpl) {
@@ -1965,6 +2342,10 @@
         if (btnExport) {
             btnExport.addEventListener('click', () => {
                 try {
+                    if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.downloadBackup === 'function') {
+                        window.ms365BrowserBackup.downloadBackup();
+                        return;
+                    }
                     if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.exportJson === 'function') {
                         downloadJson('ms365-schooltool-data-v2.json', window.ms365AppDataV2.exportJson());
                         return;
@@ -1978,6 +2359,10 @@
         if (btnExportHeader) {
             btnExportHeader.addEventListener('click', () => {
                 try {
+                    if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.downloadBackup === 'function') {
+                        window.ms365BrowserBackup.downloadBackup();
+                        return;
+                    }
                     if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.exportJson === 'function') {
                         downloadJson('ms365-schooltool-data-v2.json', window.ms365AppDataV2.exportJson());
                         return;
@@ -2035,15 +2420,27 @@
                         setSummary('Import fehlgeschlagen: keine gültige JSON-Datei.', 'warn');
                         return;
                     }
+                    if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.isBackupPayload === 'function' && window.ms365BrowserBackup.isBackupPayload(obj)) {
+                        const ok = await dlgConfirm(
+                            'Dieses Browser-Backup ersetzt alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser. Die Microsoft-Anmeldung bleibt unberührt. Fortfahren?',
+                            { title: 'Backup importieren', okText: 'Importieren', cancelText: 'Abbrechen', danger: true }
+                        );
+                        if (!ok) return;
+                        window.ms365BrowserBackup.applyBackup(obj);
+                        location.reload();
+                        return;
+                    }
+                    const isV2 =
+                        obj.version >= 2 && obj.core && obj.structure && obj.match;
                     try {
                         if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.importJson === 'function') {
                             window.ms365AppDataV2.importJson(obj);
                         }
-                    } catch (e) {
-                        setSummary('Import fehlgeschlagen: ' + (e?.message || String(e)), 'warn');
+                    } catch (errImport) {
+                        setSummary('Import fehlgeschlagen: ' + (errImport?.message || String(errImport)), 'warn');
                         return;
                     }
-                    const saved = save(obj);
+                    const saved = isV2 ? load() : save(obj);
                     if (taSubjects) taSubjects.value = (saved.subjects || []).map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
                     if (taArges) taArges.value = (saved.arges || []).map((x) => `${x.code};${x.name || ''};${(x.subjects || []).join(',')}`.trim()).join('\n');
                     if (taTeachers) taTeachers.value = (saved.teachers || []).map((x) => `${x.code};${x.name || ''};${x.email || ''}`.trim()).join('\n');
@@ -2177,6 +2574,15 @@
                 setStudentsTextareaFromRows(all);
                 renderStudentsTableFromTextarea();
                 scheduleAutoSave();
+            });
+        }
+        const btnLifecycleApply = document.getElementById('tenantStudentLifecycleApply');
+        if (btnLifecycleApply) btnLifecycleApply.addEventListener('click', () => applyStudentLifecyclePreview());
+        const btnLifecycleDismiss = document.getElementById('tenantStudentLifecycleDismiss');
+        if (btnLifecycleDismiss) {
+            btnLifecycleDismiss.addEventListener('click', () => {
+                const host = document.getElementById('tenantStudentLifecycle');
+                if (host) host.hidden = true;
             });
         }
 

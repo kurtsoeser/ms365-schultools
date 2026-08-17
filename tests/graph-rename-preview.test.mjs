@@ -30,4 +30,18 @@ describe('graph-rename-preview', () => {
         expect(fn('Klasse 10HAK', 'Klasse')).toBe('Klasse 11HAK');
         expect(fn('1A', 'Klasse')).toBe(null);
     });
+
+    it('incrementLeadingGrade erhöht 1HMA und 10HAK', () => {
+        const inc = ctx.ms365GraphRenamePreview.incrementLeadingGrade;
+        expect(inc('1HMA')).toBe('2HMA');
+        expect(inc('10HAK')).toBe('11HAK');
+        expect(inc('Klasse 1A')).toBe(null);
+    });
+
+    it('suggestDisplayNamePlusOne nutzt Präfix oder führende Stufe', () => {
+        const sug = ctx.ms365GraphRenamePreview.suggestDisplayNamePlusOne;
+        expect(sug('Klasse 1A', 'Klasse')).toBe('Klasse 2A');
+        expect(sug('1HMA', 'Klasse')).toBe('2HMA');
+        expect(sug('Projektteam', 'Klasse')).toBe(null);
+    });
 });

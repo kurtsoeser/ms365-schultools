@@ -1,12 +1,35 @@
 import { safeJsonParse } from '../../shared/utils/json.js';
 import { getEl } from '../../shared/utils/dom.js';
 import { compareDe } from '../../shared/utils/strings.js';
+import {
+    applyPlaceKindsToRows,
+    buildPlaceEmailKindMap,
+    classifyDirectorySharedMailboxCandidate,
+    countMailboxKinds,
+    filterRowsByMailboxKind,
+    inferMailboxKind,
+    mailboxKindLabel,
+    mergeReportWithDirectory,
+    normalizeMailboxKind,
+    sharedMailboxesFromUsageJson
+} from './postfaecher-load.js';
 
 const CACHE_KEY = 'ms365-postfaecher-cache-v1';
 const GRAPH_SCOPES = [
     'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/User.Read.All',
+    'https://graph.microsoft.com/Reports.Read.All'
+];
+const GRAPH_SCOPES_HEURISTIC = [
+    'https://graph.microsoft.com/User.Read',
     'https://graph.microsoft.com/User.Read.All'
 ];
+const GRAPH_SCOPES_PLACES = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/Place.Read.All'
+];
+const USER_SELECT =
+    'id,displayName,mail,userPrincipalName,mailNickname,accountEnabled,userType,givenName,surname,jobTitle,department,officeLocation,businessPhones,mobilePhone,assignedLicenses';
 
 function psSingleQuote(value) {
     return "'" + String(value == null ? '' : value).replace(/'/g, "''") + "'";
@@ -90,6 +113,170 @@ async function fetchAllPages(token, initialPath, onProgress, extraHeaders) {
     return out;
 }
 
+function sortMailboxRows(rows) {
+    const out = Array.isArray(rows) ? rows.slice() : [];
+    out.sort((a, b) => {
+        const conf = (x) => (x && x.highConfidence ? 0 : 1);
+        const c = conf(a) - conf(b);
+        if (c !== 0) return c;
+        return compareDe(a.name, b.name);
+    });
+    return out;
+}
+
+async function tryFetchUsers(token, filterExpr, onProgress, label) {
+    const filter = encodeURIComponent(filterExpr);
+    const initial =
+        '/users?$count=true&$filter=' + filter + '&$select=' + encodeURIComponent(USER_SELECT) + '&$top=999';
+    return fetchAllPages(token, initial, (p) => {
+        if (typeof onProgress === 'function') {
+            onProgress({
+                phase: 'directory',
+                message: `${label}: Seite ${p.page} – ${p.loaded} …` + (p.hasMore ? '' : '')
+            });
+        }
+    }, { ConsistencyLevel: 'eventual' });
+}
+
+/**
+ * Verzeichnis-basiert (funktioniert im Browser ohne Reports-Redirect).
+ * Mehrere Filter-Passes, weil Shared MBs je Tenant unterschiedlich aussehen.
+ */
+async function loadSharedMailboxesViaDirectory(token, onProgress) {
+    const buckets = [];
+    const errors = [];
+
+    // Pass 1: klassisch – deaktiviert + Mail (deckt die meisten Shared MBs ab)
+    try {
+        buckets.push(
+            ...(await tryFetchUsers(token, 'accountEnabled eq false and mail ne null', onProgress, 'Deaktivierte Konten'))
+        );
+    } catch (e) {
+        errors.push('Pass1: ' + (e?.message || e));
+    }
+
+    // Pass 2: ohne Lizenz + Mail (auch aktivierte Shared MBs / Resource-ähnlich)
+    try {
+        buckets.push(
+            ...(await tryFetchUsers(
+                token,
+                "mail ne null and userType eq 'Member' and assignedLicenses/$count eq 0",
+                onProgress,
+                'Konten ohne Lizenz'
+            ))
+        );
+    } catch (e) {
+        errors.push('Pass2: ' + (e?.message || e));
+    }
+
+    // Pass 3: einfache Abfrage ohne $count (manche Tenants blocken Advanced Queries)
+    if (!buckets.length) {
+        try {
+            if (typeof onProgress === 'function') {
+                onProgress({ phase: 'directory', message: 'Fallback: deaktivierte Konten (einfache Abfrage) …' });
+            }
+            const simplePath =
+                '/users?$filter=' +
+                encodeURIComponent('accountEnabled eq false') +
+                '&$select=' +
+                encodeURIComponent(USER_SELECT) +
+                '&$top=999';
+            buckets.push(...(await fetchAllPages(token, simplePath, undefined)));
+        } catch (e) {
+            errors.push('Pass3: ' + (e?.message || e));
+        }
+    }
+
+    if (!buckets.length && errors.length) {
+        throw new Error(errors.join(' | '));
+    }
+
+    const byId = new Map();
+    buckets.forEach((u) => {
+        const id = String(u?.id || '');
+        if (id) byId.set(id, u);
+    });
+
+    const rows = [];
+    byId.forEach((u) => {
+        const row = classifyDirectorySharedMailboxCandidate(u);
+        if (row) rows.push(row);
+    });
+
+    // Places (Räume) – optional, braucht Place.Read.All
+    let placeMap = new Map();
+    try {
+        if (typeof onProgress === 'function') {
+            onProgress({ phase: 'places', message: 'Places (Räume) werden gelesen …' });
+        }
+        let placeToken = token;
+        try {
+            placeToken = await getGraphToken(GRAPH_SCOPES_PLACES);
+        } catch {
+            // gleicher Token versuchen
+        }
+        const rooms = await fetchAllPages(
+            placeToken,
+            '/places/microsoft.graph.room?$select=id,displayName,emailAddress&$top=999',
+            (p) => {
+                if (typeof onProgress === 'function') {
+                    onProgress({
+                        phase: 'places',
+                        message: `Räume Seite ${p.page} – ${p.loaded} …`
+                    });
+                }
+            }
+        );
+        placeMap = buildPlaceEmailKindMap(
+            (rooms || []).map((r) => ({ ...r, kind: 'room', '@odata.type': '#microsoft.graph.room' }))
+        );
+    } catch {
+        // Places optional – Heuristik bleibt
+    }
+
+    const typed = applyPlaceKindsToRows(rows, placeMap);
+
+    if (typeof onProgress === 'function') {
+        const c = countMailboxKinds(typed);
+        onProgress({
+            phase: 'directory',
+            message: `Verzeichnis: ${typed.length} Kandidaten (${c.shared} freigegeben, ${c.room} Räume, ${c.equipment} Geräte) aus ${byId.size} Konten.`
+        });
+    }
+    return { rows: sortMailboxRows(typed), scanned: byId.size, errors };
+}
+
+/**
+ * JSON-Report ohne CSV-Redirect (CORS-sicherer als text/csv).
+ * Schlägt oft fehl (Rechte/RecipientType) – dann Verzeichnis nutzen.
+ */
+async function loadSharedMailboxesViaReportJson(token, onProgress) {
+    if (typeof onProgress === 'function') {
+        onProgress({ phase: 'report', message: 'Mailbox-Usage-Report (JSON) …' });
+    }
+    const path =
+        "https://graph.microsoft.com/beta/reports/getMailboxUsageDetail(period='D180')?$format=application/json";
+    const all = await fetchAllPages(token, path, (p) => {
+        if (typeof onProgress === 'function') {
+            onProgress({
+                phase: 'report',
+                message: `Report JSON Seite ${p.page} – ${p.loaded} …`
+            });
+        }
+    });
+    const parsed = sharedMailboxesFromUsageJson({ value: all });
+    if (!parsed.ok) {
+        throw new Error('Report-JSON ohne Recipient Type (Shared).');
+    }
+    let users = [];
+    try {
+        users = await tryFetchUsers(token, 'accountEnabled eq false and mail ne null', onProgress, 'Anreichern');
+    } catch {
+        // ignore
+    }
+    return sortMailboxRows(mergeReportWithDirectory(parsed.rows, users));
+}
+
 function loadCache() {
     try {
         const raw = localStorage.getItem(CACHE_KEY);
@@ -110,71 +297,95 @@ function saveCache(rows) {
     }
 }
 
+/**
+ * Primär: Verzeichnis (/users) – funktioniert im Browser zuverlässig.
+ * Optional: Report JSON zur Verfeinerung (ohne CSV-CORS-Redirect).
+ * Goldstandard bleibt Exchange-Export/Import.
+ */
 async function loadSharedMailboxesLive(onProgress) {
-    const token = await getGraphToken(GRAPH_SCOPES);
-    const select =
-        'id,displayName,mail,userPrincipalName,mailNickname,accountEnabled,userType,givenName,surname,jobTitle,department,officeLocation,businessPhones,mobilePhone';
-    const filter = encodeURIComponent('accountEnabled eq false and mail ne null');
-    const initial =
-        '/users?$count=true&$filter=' +
-        filter +
-        '&$select=' +
-        encodeURIComponent(select) +
-        '&$top=999';
-    const users = await fetchAllPages(token, initial, onProgress, { ConsistencyLevel: 'eventual' });
-    const mapped = (users || [])
-        .map((u) => {
-            const given = String(u.givenName || '').trim();
-            const sur = String(u.surname || '').trim();
-            const job = String(u.jobTitle || '').trim();
-            const dept = String(u.department || '').trim();
-            const off = String(u.officeLocation || '').trim();
-            const phones = Array.isArray(u.businessPhones) ? u.businessPhones.filter(Boolean) : [];
-            const mobile = String(u.mobilePhone || '').trim();
+    let warnParts = [];
+    let token = await getGraphToken(GRAPH_SCOPES_HEURISTIC);
 
-            // Heuristik:
-            // Shared Mailboxes haben häufig KEINE Personen-Profileigenschaften (givenName/surname/job/phones…).
-            // Deaktivierte Benutzerkonten dagegen oft schon.
-            const personSignals = [
-                given,
-                sur,
-                job,
-                dept,
-                off,
-                mobile,
-                phones.length ? 'phones' : ''
-            ].filter(Boolean).length;
-            const highConfidence = personSignals === 0;
+    if (typeof onProgress === 'function') {
+        onProgress({ phase: 'directory', message: 'Verzeichnis wird gelesen …' });
+    }
+    const dir = await loadSharedMailboxesViaDirectory(token, onProgress);
+    let rows = dir.rows || [];
+    let source = 'directory';
 
-            return {
-                id: String(u.id || ''),
-                name: String(u.displayName || ''),
-                mail: String(u.mail || ''),
-                upn: String(u.userPrincipalName || ''),
-                alias: String(u.mailNickname || ''),
-                highConfidence
-            };
-        })
-        .filter((x) => x.id);
-    mapped.sort((a, b) => compareDe(a.name, b.name));
-    saveCache(mapped);
-    return mapped;
+    // Optional: Report JSON nur wenn Verzeichnis nichts lieferte (vermeidet unnötigen Reports-Consent)
+    if (!rows.length) {
+        try {
+            token = await getGraphToken(GRAPH_SCOPES);
+            if (typeof onProgress === 'function') {
+                onProgress({ phase: 'report', message: 'Verzeichnis leer – versuche Report JSON …' });
+            }
+            const reportRows = await loadSharedMailboxesViaReportJson(token, onProgress);
+            if (reportRows.length) {
+                rows = sortMailboxRows(reportRows);
+                source = 'report';
+            }
+        } catch (reportErr) {
+            warnParts.push(
+                'Report fehlgeschlagen (' +
+                    String(reportErr?.message || reportErr) +
+                    '). Bitte Export/Import nutzen.'
+            );
+        }
+    }
+
+    if (dir.errors && dir.errors.length) {
+        warnParts.push('Teilfehler Verzeichnis: ' + dir.errors.join(' | '));
+    }
+
+    saveCache(rows);
+    return {
+        rows,
+        source,
+        warn: warnParts.join(' ')
+    };
 }
 
 function bind() {
     const cache = loadCache();
-    /** @type {{id:string,name:string,mail:string,upn:string,alias:string,highConfidence?:boolean}[]} */
-    let rows = cache.rows || [];
+    /** @type {{id:string,name:string,mail:string,upn:string,alias:string,highConfidence?:boolean,kind?:string}[]} */
+    let rows = (cache.rows || []).map((r) => ({
+        ...r,
+        kind: normalizeMailboxKind(r.kind) || inferMailboxKind(r)
+    }));
     let selectedId = '';
     let newMode = false;
 
     function filteredRows() {
+        const kindFilter = String(getEl('mbKindFilter')?.value || 'shared');
+        const byKind = filterRowsByMailboxKind(rows, kindFilter);
         const q = String(getEl('mbSearch')?.value || '').trim().toLowerCase();
-        if (!q) return rows;
-        return rows.filter((r) => {
-            const hay = (r.name + ' ' + r.mail + ' ' + r.upn + ' ' + r.alias).toLowerCase();
+        if (!q) return byKind;
+        return byKind.filter((r) => {
+            const hay = (r.name + ' ' + r.mail + ' ' + r.upn + ' ' + r.alias + ' ' + (r.kind || '')).toLowerCase();
             return hay.includes(q);
         });
+    }
+
+    function kindPill(kind) {
+        const k = normalizeMailboxKind(kind) || 'shared';
+        const el = document.createElement('div');
+        el.className = 'pill';
+        el.textContent = mailboxKindLabel(k);
+        if (k === 'room') {
+            el.style.borderColor = 'rgba(13,110,253,0.25)';
+            el.style.background = 'rgba(13,110,253,0.1)';
+            el.style.color = '#0b5ed7';
+        } else if (k === 'equipment') {
+            el.style.borderColor = 'rgba(111,66,193,0.25)';
+            el.style.background = 'rgba(111,66,193,0.1)';
+            el.style.color = '#6f42c1';
+        } else {
+            el.style.borderColor = 'rgba(25,135,84,0.25)';
+            el.style.background = 'rgba(25,135,84,0.1)';
+            el.style.color = '#198754';
+        }
+        return el;
     }
 
     function renderList() {
@@ -186,7 +397,14 @@ function bind() {
             const li = document.createElement('li');
             li.style.padding = '10px 12px';
             li.style.color = '#6c757d';
-            li.textContent = rows.length ? 'Keine Treffer.' : 'Noch keine Daten – Tenant einlesen.';
+            const kindFilter = String(getEl('mbKindFilter')?.value || 'shared');
+            if (!rows.length) {
+                li.textContent = 'Noch keine Daten – „Tenant einlesen“ oder Export/Import.';
+            } else if (kindFilter !== 'all') {
+                li.textContent = 'Keine Treffer in diesem Typ – Filter auf „Alle“ stellen oder Suche leeren.';
+            } else {
+                li.textContent = 'Keine Treffer.';
+            }
             tree.appendChild(li);
             return;
         }
@@ -211,6 +429,7 @@ function bind() {
             meta.className = 'pill';
             meta.textContent = r.mail || r.alias || '–';
 
+            btn.appendChild(kindPill(r.kind));
             if (r.highConfidence === false) {
                 const warn = document.createElement('div');
                 warn.className = 'pill';
@@ -241,10 +460,12 @@ function bind() {
         const m = getEl('mbMail');
         const u = getEl('mbUpn');
         const i = getEl('mbId');
+        const k = getEl('mbKind');
         if (n) n.value = cur.name || '';
         if (m) m.value = cur.mail || '';
         if (u) u.value = cur.upn || '';
         if (i) i.value = cur.id || '';
+        if (k) k.value = mailboxKindLabel(cur.kind || inferMailboxKind(cur));
     }
 
     function downloadText(filename, text) {
@@ -549,6 +770,7 @@ function bind() {
     });
 
     getEl('mbSearch')?.addEventListener('input', () => rerender());
+    getEl('mbKindFilter')?.addEventListener('change', () => rerender());
 
     getEl('mbCopyUpn')?.addEventListener('click', async () => {
         const cur = rows.find((x) => x.id === selectedId) || null;
@@ -631,16 +853,44 @@ function bind() {
         const btn = getEl('mbBtnLoadGraph');
         if (btn) btn.disabled = true;
         try {
-            setProgress(true, 'Starte – lese freigegebene Postfächer …');
-            rows = await loadSharedMailboxesLive((p) => {
-                setProgress(true, `Seite ${p.page} – bisher ${p.loaded} …` + (p.hasMore ? '' : ' (fertig)'));
+            setProgress(true, 'Starte – lese freigegebene Postfächer aus dem Verzeichnis …');
+            const result = await loadSharedMailboxesLive((p) => {
+                if (p && p.message) setProgress(true, p.message);
+                else if (p && p.page != null) {
+                    setProgress(true, `Seite ${p.page} – bisher ${p.loaded} …` + (p.hasMore ? '' : ' (fertig)'));
+                }
             });
-            setProgress(true, `Fertig: ${rows.length} freigegebene Postfächer.`);
-            setTimeout(() => setProgress(false, ''), 1600);
+            rows = result.rows || [];
+            const counts = countMailboxKinds(rows);
+            const srcLabel =
+                result.source === 'report+directory'
+                    ? 'Report+Verzeichnis'
+                    : result.source === 'directory'
+                      ? 'Verzeichnis'
+                      : String(result.source || 'Graph');
+            let msg = `Fertig (${srcLabel}): ${rows.length} Postfächer – ${counts.shared} freigegeben, ${counts.room} Räume, ${counts.equipment} Geräte.`;
+            if (result.warn) msg += ' Hinweis: ' + result.warn;
+            if (!rows.length) {
+                msg +=
+                    ' Keine Treffer im Verzeichnis. Bitte „Export“ (Exchange Online PowerShell) → „Import“ nutzen – das liest SharedMailbox zuverlässig.';
+            } else {
+                const unsure = rows.filter((r) => r.highConfidence === false).length;
+                if (unsure) {
+                    msg += ` Davon ${unsure} als „unsicher“ markiert.`;
+                }
+                msg += ' Filter oben: standardmäßig nur Freigegebene.';
+            }
+            setProgress(true, msg);
+            if (!result.warn && rows.length) setTimeout(() => setProgress(false, ''), 2800);
             selectedId = '';
             rerender();
         } catch (e) {
-            setProgress(true, 'Fehler: ' + (e?.message || String(e)));
+            setProgress(
+                true,
+                'Fehler: ' +
+                    (e?.message || String(e)) +
+                    ' – Alternative: Export (PowerShell) → Import JSON.'
+            );
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -657,18 +907,29 @@ function bind() {
         lines.push('');
         lines.push('$outFile = "shared-mailboxes-export.json"');
         lines.push('$items = @()');
-        lines.push('Get-EXOMailbox -ResultSize Unlimited -RecipientTypeDetails SharedMailbox | ForEach-Object {');
+        lines.push(
+            "Get-EXOMailbox -ResultSize Unlimited -RecipientTypeDetails SharedMailbox,RoomMailbox,EquipmentMailbox | ForEach-Object {"
+        );
+        lines.push('  $kind = switch ($_.RecipientTypeDetails) {');
+        lines.push("    'RoomMailbox' { 'room' }");
+        lines.push("    'EquipmentMailbox' { 'equipment' }");
+        lines.push("    Default { 'shared' }");
+        lines.push('  }');
         lines.push('  $items += [pscustomobject]@{');
         lines.push('    id = $_.ExternalDirectoryObjectId');
         lines.push('    name = $_.DisplayName');
         lines.push('    mail = $_.PrimarySmtpAddress');
         lines.push('    upn = $_.UserPrincipalName');
         lines.push('    alias = $_.Alias');
+        lines.push('    kind = $kind');
+        lines.push('    recipientTypeDetails = [string]$_.RecipientTypeDetails');
         lines.push('  }');
         lines.push('}');
         lines.push('$items | ConvertTo-Json -Depth 5 | Out-File -FilePath $outFile -Encoding UTF8');
         lines.push('Disconnect-ExchangeOnline -Confirm:$false | Out-Null');
-        lines.push('Write-Host ("OK: " + $items.Count + " Shared Mailboxes -> " + $outFile) -ForegroundColor Green');
+        lines.push(
+            'Write-Host ("OK: " + $items.Count + " Postfächer (Shared/Room/Equipment) -> " + $outFile) -ForegroundColor Green'
+        );
         return lines.join('\n');
     }
 
@@ -712,20 +973,37 @@ function bind() {
             const arr = Array.isArray(obj) ? obj : (obj && Array.isArray(obj.rows) ? obj.rows : null);
             if (!arr) throw new Error('Ungültiges JSON. Erwartet: Array oder { rows: [...] }.');
             rows = arr
-                .map((r) => ({
-                    id: String(r.id || ''),
-                    name: String(r.name || r.displayName || ''),
-                    mail: String(r.mail || ''),
-                    upn: String(r.upn || r.userPrincipalName || ''),
-                    alias: String(r.alias || r.mailNickname || '')
-                }))
+                .map((r) => {
+                    const name = String(r.name || r.displayName || '');
+                    const mail = String(r.mail || '');
+                    const upn = String(r.upn || r.userPrincipalName || '');
+                    const alias = String(r.alias || r.mailNickname || '');
+                    const kind =
+                        normalizeMailboxKind(r.kind) ||
+                        normalizeMailboxKind(r.recipientTypeDetails) ||
+                        inferMailboxKind({ name, alias, mail, upn });
+                    return {
+                        id: String(r.id || ''),
+                        name,
+                        mail,
+                        upn,
+                        alias,
+                        kind,
+                        highConfidence: true,
+                        source: 'import'
+                    };
+                })
                 .filter((x) => x.id);
             rows.sort((a, b) => compareDe(a.name, b.name));
             saveCache(rows);
             selectedId = '';
+            const c = countMailboxKinds(rows);
             rerender();
-            setProgress(true, `Import OK: ${rows.length} freigegebene Postfächer.`);
-            setTimeout(() => setProgress(false, ''), 1600);
+            setProgress(
+                true,
+                `Import OK: ${rows.length} – ${c.shared} freigegeben, ${c.room} Räume, ${c.equipment} Geräte.`
+            );
+            setTimeout(() => setProgress(false, ''), 2000);
         } catch (err) {
             setProgress(true, 'Import fehlgeschlagen: ' + (err?.message || String(err)));
         } finally {

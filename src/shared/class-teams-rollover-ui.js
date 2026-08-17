@@ -21,9 +21,56 @@
     }
 
     function toast(msg) {
+        const el = document.getElementById('toast');
+        if (el) {
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(function () {
+                el.classList.remove('show');
+            }, 3800);
+            return;
+        }
         if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
         else if (typeof window.ms365ShowToast === 'function') window.ms365ShowToast(msg);
         else window.alert(msg);
+    }
+
+    function repoHref(file) {
+        const path = String((typeof location !== 'undefined' && location.pathname) || '').replace(/\\/g, '/');
+        const prefix = /\/tools(?:\/|$)/i.test(path) ? '../' : '';
+        return prefix + String(file || '').replace(/^\//, '');
+    }
+
+    function suggestName(preview, cur, prefix) {
+        if (preview && typeof preview.suggestDisplayNamePlusOne === 'function') {
+            return preview.suggestDisplayNamePlusOne(cur, prefix) || '';
+        }
+        return (
+            preview.computeNewDisplayNamePlusOne(cur, prefix) ||
+            preview.computeNewDisplayNamePlusOne(cur, 'Klasse') ||
+            ''
+        );
+    }
+
+    function notifySaved(detail) {
+        try {
+            window.dispatchEvent(
+                new CustomEvent('ms365-class-teams-rollover-saved', { detail: detail || {} })
+            );
+        } catch {
+            /* ignore */
+        }
+    }
+
+    async function acquireToken(G) {
+        if (typeof window.ms365AuthAcquireToken === 'function') {
+            return window.ms365AuthAcquireToken(G.GRAPH_SCOPES || []);
+        }
+        if (G && typeof G.getGraphToken === 'function') {
+            return G.getGraphToken();
+        }
+        throw new Error('Graph-Anmeldung nicht verfügbar.');
     }
 
     function syncYearClassNames(ct, newDisplay) {
@@ -57,18 +104,19 @@
 
         if (!teams.length) {
             root.innerHTML =
-                '<p style="margin:0;line-height:1.5;color:var(--muted)">Noch keine Einträge in <code>classTeams</code>. ' +
-                'Anlegen in der <a href="einrichtung.html">Einrichtung</a> oder über die Klassenliste in den <a href="tenant.html">Schul‑Grundeinstellungen</a> (Bereich Schüler, Klassen &amp; Klassen‑Gruppen).</p>';
+                '<p style="margin:0;line-height:1.5;color:var(--muted)">Noch keine Klassengruppen in den lokalen Daten. ' +
+                'Anlegen in der <a href="' +
+                escapeHtml(repoHref('einrichtung.html')) +
+                '">Einrichtung</a> oder über die Klassenliste in den <a href="' +
+                escapeHtml(repoHref('tenant.html')) +
+                '">Schul‑Grundeinstellungen</a>.</p>';
             return;
         }
 
         const rows = teams
             .map(function (t) {
                 const cur = String(t.displayName || '').trim();
-                const sug =
-                    preview.computeNewDisplayNamePlusOne(cur, prefix) ||
-                    preview.computeNewDisplayNamePlusOne(cur, 'Klasse') ||
-                    '';
+                const sug = suggestName(preview, cur, prefix);
                 const gid = String(t.graphGroupId || '').trim();
                 const key = t.stableMailNickname;
                 const override = state.overrides[key];
@@ -118,8 +166,8 @@
             '<button type="button" class="btn" id="ctrBtnGraph">Ausgewählte in Microsoft 365 schreiben</button>' +
             '</div>' +
             '<small style="display:block;margin-top:8px;line-height:1.45;color:var(--muted)">' +
-            'Lokal: Register <code>classTeams</code> und Klassennamen im aktuellen Schuljahr (bei passendem Kürzel). ' +
-            'Graph: nur <strong>displayName</strong>, nicht der Mail‑Nickname. Anmeldung oben im Header nutzen.' +
+            'Der Mail‑Alias bleibt (z. B. <code>jg2031hma</code>). Lokal: Anzeigename der Klassengruppe und der Klassenliste im aktuellen Schuljahr. ' +
+            'Microsoft 365: nur der <strong>Anzeigename</strong>. Bitte oben im Header anmelden.' +
             '</small>' +
             '</div>' +
             '<div style="overflow:auto;border:1px solid var(--border);border-radius:12px">' +
@@ -155,7 +203,7 @@
             state.prefix = p;
             teams.forEach(function (t) {
                 const cur = String(t.displayName || '').trim();
-                const sug = preview.computeNewDisplayNamePlusOne(cur, p) || '';
+                const sug = suggestName(preview, cur, p);
                 if (sug) state.overrides[t.stableMailNickname] = sug;
             });
             render(root, state);
@@ -174,24 +222,24 @@
                 syncYearClassNames(Object.assign({}, t, { displayName: v }), v);
             });
             toast('Klassen‑Anzeigenamen lokal gespeichert.');
+            notifySaved({ local: true, graphOk: 0, graphFail: 0 });
             render(root, state);
         });
 
         $('#ctrBtnGraph', root).addEventListener('click', async function () {
             const G = window.ms365GraphUnifiedGroups;
-            const auth = window.ms365AuthAcquireToken;
-            if (!G || typeof G.patchGroupDisplayName !== 'function' || typeof auth !== 'function') {
-                toast('Graph-Modul oder Anmeldung nicht verfügbar.');
+            if (!G || typeof G.patchGroupDisplayName !== 'function') {
+                toast('Graph-Modul nicht verfügbar.');
                 return;
             }
             const checked = Array.prototype.slice.call(root.querySelectorAll('.ctr-graph-chk:checked'));
             if (!checked.length) {
-                toast('Keine Zeilen für Graph ausgewählt.');
+                toast('Keine Zeilen für Microsoft 365 ausgewählt.');
                 return;
             }
             let token;
             try {
-                token = await auth(G.GRAPH_SCOPES || []);
+                token = await acquireToken(G);
             } catch (e) {
                 toast(String((e && e.message) || e || 'Anmeldung fehlgeschlagen'));
                 return;
@@ -220,9 +268,24 @@
                     fail++;
                 }
             }
-            toast('Graph: ' + ok + ' OK' + (fail ? ', ' + fail + ' Fehler.' : '.'));
+            toast('Microsoft 365: ' + ok + ' OK' + (fail ? ', ' + fail + ' Fehler.' : '.'));
+            if (ok) notifySaved({ local: true, graphOk: ok, graphFail: fail });
             render(root, state);
         });
+    }
+
+    let mountedRoot = null;
+    let mountedState = null;
+
+    function refreshMounted() {
+        if (mountedRoot && mountedState) render(mountedRoot, mountedState);
+    }
+
+    function mount(root, initialState) {
+        if (!root) return;
+        mountedRoot = root;
+        mountedState = initialState || mountedState || { prefix: 'Klasse', overrides: {}, selected: {} };
+        render(mountedRoot, mountedState);
     }
 
     function init() {
@@ -236,7 +299,7 @@
         };
 
         function refresh() {
-            render(root, state);
+            mount(root, state);
         }
 
         if (document.readyState === 'loading') {
@@ -245,7 +308,11 @@
 
         const sel = document.getElementById('schoolYearSelect');
         if (sel) sel.addEventListener('change', refresh);
+        window.addEventListener('ms365-tenant-settings-changed', refresh);
     }
+
+    window.ms365ClassTeamsRolloverRefresh = refreshMounted;
+    window.ms365MountClassTeamsRollover = mount;
 
     init();
 })();

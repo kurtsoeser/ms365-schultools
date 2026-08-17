@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Eltern-Verteiler</title>
+    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .page-card { max-width: 1400px; margin: 0 auto; }
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.4fr);
+            gap: 16px;
+            align-items: start;
+            padding-bottom: 28px;
+        }
+        @media (max-width: 1050px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .panel-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(14, 116, 144, 0.10) 0%, rgba(45, 106, 79, 0.06) 100%);
+        }
+        .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
+        .panel-body { padding: 14px 16px; }
+        .muted { color: var(--muted); }
+        .ev-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 12px;
+        }
+        .ev-tabs .btn {
+            margin: 0;
+            padding: 7px 12px;
+            font-size: 0.9em;
+        }
+        .ev-tabs .btn[aria-selected="true"] {
+            background: #0e7490;
+            color: #fff;
+            border-color: #0e7490;
+        }
+        .tree-filter { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
+        .tree-filter label { display: block; font-weight: 700; color: #495057; margin-bottom: 6px; font-size: 0.92em; }
+        .tree-filter input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 10px;
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .tree {
+            margin: 12px 0 0;
+            padding: 0;
+            list-style: none;
+            max-height: 64vh;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        .tree li { border-bottom: 1px solid #f0f1f3; }
+        .tree li:last-child { border-bottom: 0; }
+        .tree button {
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            border: 0;
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            gap: 10px;
+            align-items: baseline;
+            flex-wrap: wrap;
+            font: inherit;
+        }
+        .tree button:hover { background: rgba(14, 116, 144, 0.06); }
+        .tree button[aria-current="true"] { background: rgba(14, 116, 144, 0.12); }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            border: 1px solid #e9ecef;
+            background: #f8f9fa;
+            font-size: 0.78em;
+            font-weight: 800;
+            color: #495057;
+        }
+        .pill.ok { background: #e8f7ef; border-color: #b7e4c7; color: #0f7b4c; }
+        .pill.warn { background: #fff4e6; border-color: #ffd8a8; color: #c2410c; }
+        .field { margin: 0 0 12px; }
+        .field label { display: block; font-weight: 700; margin: 0 0 6px; color: #495057; }
+        .field input, .field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 10px;
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .field textarea {
+            min-height: 200px;
+            font-family: Consolas, 'Segoe UI', monospace;
+            font-size: 0.9em;
+            line-height: 1.35;
+            resize: vertical;
+        }
+        .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+        .detail-actions .btn { margin: 0; }
+        .student-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin: 0 0 10px;
+            background: #fafbfc;
+        }
+        .student-card h3 {
+            margin: 0 0 8px;
+            font-size: 0.98em;
+            color: #32325d;
+        }
+        .guardian-row {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr auto;
+            gap: 8px;
+            align-items: center;
+            margin: 0 0 6px;
+        }
+        @media (max-width: 700px) {
+            .guardian-row { grid-template-columns: 1fr; }
+        }
+        .guardian-row input {
+            padding: 8px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .add-guardian {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr auto;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        @media (max-width: 700px) {
+            .add-guardian { grid-template-columns: 1fr; }
+        }
+        .bulk-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin: 0 0 12px;
+        }
+        .bulk-bar .btn { margin: 0; padding: 7px 11px; font-size: 0.88em; }
+        .ev-naming-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 900px) {
+            .ev-naming-grid { grid-template-columns: 1fr; }
+        }
+        .ev-naming-block {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: #fafbfc;
+        }
+        .ev-naming-block h3 {
+            margin: 0 0 10px;
+            font-size: 0.95em;
+            color: #32325d;
+        }
+        .ev-naming-block .name-builder-inputs {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .ev-naming-block .name-builder-inputs .field { flex: 1 1 140px; }
+        .ev-naming-block .name-preview {
+            margin-top: 8px;
+            font-weight: 800;
+            color: #0e7490;
+            font-size: 0.92em;
+        }
+        #evNamingPanel > summary::-webkit-details-marker,
+        #evImportPanel > summary::-webkit-details-marker { display: none; }
+        #evNamingPanel[open] > summary,
+        #evImportPanel[open] > summary { border-bottom: 1px solid var(--border); }
+        #evImportPanel .field select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 10px;
+            font: inherit;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body data-ms365-skip-tenant-domain-prompt="true">
+    <div class="container page-card">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Eltern-Verteiler</span>
+            </div>
+            <p>
+                Geführter Weg: Stammdaten importieren, Namensschema prüfen, Diagnose (GAL/Contacts/Alias), dann Exchange-Skript erzeugen.
+                Die Listen erscheinen in der GAL; einzelne Elternmails bleiben verborgen.
+            </p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-eltern-verteiler" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe &amp; Datenschutz</a></p>
+            <div class="toolbar">
+                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
+                    <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <a class="btn" href="../tenant.html" style="text-decoration:none;"><i class="bi bi-sliders2-vertical"></i>Stammdaten</a>
+                        <button type="button" class="btn" id="evBtnRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="hint" style="margin-bottom:14px;">
+                <strong>Datenschutz:</strong> Erziehungsberechtigte werden <em>nicht</em> als Benutzer oder Gäste angelegt.
+                Das Sync-Skript legt nur <strong>GAL-versteckte Mail Contacts</strong> und
+                <strong>Verteilerlisten mit versteckter Mitgliedschaft</strong> an (Gruppe selbst in der GAL sichtbar).
+                Ausführen erfordert Exchange-Admin-Rechte (<code>Connect-ExchangeOnline</code>).
+            </div>
+
+            <nav class="ev-tabs" id="evSetupSteps" aria-label="Einrichtungsschritte" style="margin-bottom:14px;">
+                <button type="button" class="btn" data-ev-step="1" aria-current="step">1. Stammdaten</button>
+                <button type="button" class="btn" data-ev-step="2">2. Naming</button>
+                <button type="button" class="btn" data-ev-step="3">3. Diagnose</button>
+                <button type="button" class="btn" data-ev-step="4">4. Skript</button>
+            </nav>
+
+            <details class="panel" id="evImportPanel" style="margin-bottom:16px;">
+                <summary class="panel-head" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <h2 style="margin:0;font-size:1.05em;"><i class="bi bi-upload" style="margin-right:8px;"></i>Import aus Schulverwaltung</h2>
+                    <span class="muted" style="font-size:0.88em;font-weight:700;">MS365-Vorlage · Sokrates · WebUntis · CSV/XLSX</span>
+                </summary>
+                <div class="panel-body">
+                    <p class="muted" style="margin-top:0;">
+                        <strong>Sokrates:</strong> Dynamische Suche → Standard → <em>111 Aktive Schüler (ErzBer)</em> bzw. Elternabfrage, Export CSV/XLSX
+                        (Spalten u. a. Klasse, Schülerkennzahl, Familienname, Vorname, Mailadresse).<br>
+                        <strong>WebUntis:</strong> Elternstammdaten-CSV mit Schüler-Schlüssel und Eltern-E-Mail
+                        (siehe Untis „Import Elternstammdaten“).<br>
+                        Oder die <strong>MS365-Vorlage</strong> mit Spalten Eltern1/Eltern1Mail ausfüllen.
+                    </p>
+                    <div class="bulk-bar" style="align-items:flex-end;">
+                        <div class="field" style="margin:0;min-width:220px;">
+                            <label for="evImportSource">Quelle</label>
+                            <select id="evImportSource">
+                                <option value="auto" selected>Automatisch erkennen</option>
+                                <option value="ms365">MS365-Vorlage</option>
+                                <option value="sokrates">Sokrates</option>
+                                <option value="webuntis">WebUntis</option>
+                            </select>
+                        </div>
+                        <label class="btn" for="evImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Datei wählen</label>
+                        <input type="file" id="evImportFile" accept=".csv,.xlsx,.xls,.txt" style="display:none;">
+                        <button type="button" class="btn" id="evTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>
+                        <button type="button" class="btn" id="evTplCsv"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
+                    </div>
+                    <p id="evImportStatus" class="muted" style="margin:10px 0 0;font-weight:700;"></p>
+                </div>
+            </details>
+
+            <details class="panel" id="evNamingPanel" style="margin-bottom:16px;">
+                <summary class="panel-head" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <h2 style="margin:0;font-size:1.05em;"><i class="bi bi-puzzle" style="margin-right:8px;"></i>Namensschema (Alias &amp; Anzeigename)</h2>
+                    <span class="muted" style="font-size:0.88em;font-weight:700;">Bausteine wie bei Kursteams · global speichern</span>
+                </summary>
+                <div class="panel-body">
+                    <p class="muted" style="margin-top:0;">
+                        Alias = Exchange-Mail-Nickname (nur ASCII, ohne Leerzeichen). Trenner z. B. <code>-</code> oder <code>_</code> oder leer.
+                        Beispiel: Text <code>eltern</code> + Trenner <code>-</code> + Klasse → <code>eltern-1a</code>.
+                    </p>
+                    <div class="ev-naming-grid">
+                        <div class="ev-naming-block" data-ev-pattern="classAlias">
+                            <h3>Klassen-Alias</h3>
+                            <div class="name-builder">
+                                <div class="name-builder-dropzone" data-ev-zone="classAlias" aria-label="Klassen-Alias Bausteine"></div>
+                            </div>
+                            <div class="name-builder-palette">
+                                <button type="button" class="btn btn-small" data-ev-add-token="klasse" data-ev-for="classAlias">+ Klasse</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="classAlias">+ Abschlussjahr</button>
+                            </div>
+                            <div class="name-builder-inputs">
+                                <div class="field" style="margin:0;">
+                                    <label>Trenner / Text</label>
+                                    <input type="text" data-ev-sep="classAlias" value="-" placeholder="- oder _ oder leer">
+                                </div>
+                                <button type="button" class="btn btn-small" data-ev-add-sep="classAlias">Trenner/Text</button>
+                                <button type="button" class="btn btn-small" data-ev-reset="classAlias">Standard</button>
+                            </div>
+                            <div class="name-preview" data-ev-preview="classAlias"></div>
+                        </div>
+                        <div class="ev-naming-block" data-ev-pattern="classDisplay">
+                            <h3>Klassen-Anzeigename</h3>
+                            <div class="name-builder">
+                                <div class="name-builder-dropzone" data-ev-zone="classDisplay" aria-label="Klassen-Anzeigename Bausteine"></div>
+                            </div>
+                            <div class="name-builder-palette">
+                                <button type="button" class="btn btn-small" data-ev-add-token="klasse" data-ev-for="classDisplay">+ Klasse</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="classDisplay">+ Abschlussjahr</button>
+                            </div>
+                            <div class="name-builder-inputs">
+                                <div class="field" style="margin:0;">
+                                    <label>Trenner / Text</label>
+                                    <input type="text" data-ev-sep="classDisplay" value=" " placeholder="Leerzeichen oder Text">
+                                </div>
+                                <button type="button" class="btn btn-small" data-ev-add-sep="classDisplay">Trenner/Text</button>
+                                <button type="button" class="btn btn-small" data-ev-reset="classDisplay">Standard</button>
+                            </div>
+                            <div class="name-preview" data-ev-preview="classDisplay"></div>
+                        </div>
+                        <div class="ev-naming-block" data-ev-pattern="yearAlias">
+                            <h3>Jahrgangs-Alias</h3>
+                            <div class="name-builder">
+                                <div class="name-builder-dropzone" data-ev-zone="yearAlias" aria-label="Jahrgangs-Alias Bausteine"></div>
+                            </div>
+                            <div class="name-builder-palette">
+                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="yearAlias">+ Abschlussjahr</button>
+                            </div>
+                            <div class="name-builder-inputs">
+                                <div class="field" style="margin:0;">
+                                    <label>Trenner / Text</label>
+                                    <input type="text" data-ev-sep="yearAlias" value="-" placeholder="- oder elternjg">
+                                </div>
+                                <button type="button" class="btn btn-small" data-ev-add-sep="yearAlias">Trenner/Text</button>
+                                <button type="button" class="btn btn-small" data-ev-reset="yearAlias">Standard</button>
+                            </div>
+                            <div class="name-preview" data-ev-preview="yearAlias"></div>
+                        </div>
+                        <div class="ev-naming-block" data-ev-pattern="yearDisplay">
+                            <h3>Jahrgangs-Anzeigename</h3>
+                            <div class="name-builder">
+                                <div class="name-builder-dropzone" data-ev-zone="yearDisplay" aria-label="Jahrgangs-Anzeigename Bausteine"></div>
+                            </div>
+                            <div class="name-builder-palette">
+                                <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="yearDisplay">+ Abschlussjahr</button>
+                            </div>
+                            <div class="name-builder-inputs">
+                                <div class="field" style="margin:0;">
+                                    <label>Trenner / Text</label>
+                                    <input type="text" data-ev-sep="yearDisplay" value=" " placeholder="Leerzeichen oder Text">
+                                </div>
+                                <button type="button" class="btn btn-small" data-ev-add-sep="yearDisplay">Trenner/Text</button>
+                                <button type="button" class="btn btn-small" data-ev-reset="yearDisplay">Standard</button>
+                            </div>
+                            <div class="name-preview" data-ev-preview="yearDisplay"></div>
+                        </div>
+                    </div>
+                    <div class="detail-actions">
+                        <button type="button" class="btn btn-success" id="evNamingSave"><i class="bi bi-save"></i>Schema speichern</button>
+                    </div>
+                </div>
+            </details>
+
+            <div class="panel" id="evDiagnosePanel" style="margin-bottom:16px;">
+                <div class="panel-head">
+                    <h2 style="margin:0;font-size:1.05em;"><i class="bi bi-heart-pulse" style="margin-right:8px;"></i>Diagnose</h2>
+                </div>
+                <div class="panel-body">
+                    <p class="muted" style="margin-top:0;">
+                        Prüft lokal Alias-Kollisionen, leere Listen und den letzten Skript-Export.
+                        GAL- und Contact-Flags prüft Exchange erst, wenn Sie das Diagnose-Skript ausführen (nur Lesen).
+                    </p>
+                    <p id="evDiagnoseSummary" class="muted" style="font-weight:700;"></p>
+                    <ul id="evDiagnoseIssues" style="margin:8px 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                    <p id="evDiagnoseHints" class="muted" style="line-height:1.45;"></p>
+                    <div class="detail-actions">
+                        <button type="button" class="btn" id="evDiagnoseRefresh"><i class="bi bi-arrow-clockwise"></i>Neu prüfen</button>
+                        <button type="button" class="btn" id="evDiagnoseScript"><i class="bi bi-terminal"></i>Exchange-Diagnose-Skript</button>
+                    </div>
+                    <div class="field" style="margin-top:12px;">
+                        <label for="evDiagnosePs">Diagnose-PowerShell (nur Get-*)</label>
+                        <textarea id="evDiagnosePs" readonly placeholder="Skript erscheint nach „Exchange-Diagnose-Skript“ …"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ev-tabs" role="tablist" aria-label="Ansicht">
+                <button type="button" class="btn" role="tab" id="evTabClass" aria-selected="true" data-ev-tab="class">Klassen</button>
+                <button type="button" class="btn" role="tab" id="evTabYear" aria-selected="false" data-ev-tab="year">Jahrgänge</button>
+            </div>
+
+            <div class="layout">
+                <section class="panel" aria-label="Listen">
+                    <div class="panel-head">
+                        <h2 id="evListTitle"><i class="bi bi-list-ul" style="margin-right:8px;"></i>Klassen-Elternlisten</h2>
+                        <div class="tree-filter">
+                            <div>
+                                <label for="evSearch">Suche</label>
+                                <input type="text" id="evSearch" placeholder="Klasse, Name, Alias …" autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="bulk-bar">
+                            <button type="button" class="btn btn-success" id="evBtnScriptSelected"><i class="bi bi-terminal"></i>Skript (Auswahl)</button>
+                            <button type="button" class="btn" id="evBtnScriptAll"><i class="bi bi-collection"></i>Skript (alle mit Eltern)</button>
+                            <span class="muted" id="evListMeta" style="font-size:0.88em;font-weight:700;"></span>
+                        </div>
+                        <ul class="tree" id="evList" aria-label="Elternlisten"></ul>
+                    </div>
+                </section>
+
+                <section class="panel" aria-label="Details">
+                    <div class="panel-head">
+                        <h2 id="evDetailTitle"><i class="bi bi-person-lines-fill" style="margin-right:8px;"></i>Details</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div id="evDetailEmpty" class="muted">Links eine Klasse oder einen Jahrgang wählen.</div>
+                        <div id="evDetail" hidden>
+                            <p id="evDetailSummary" class="muted" style="margin-top:0;"></p>
+                            <div class="detail-actions" style="margin-top:0;margin-bottom:12px;">
+                                <button type="button" class="btn btn-success" id="evBtnScriptOne"><i class="bi bi-terminal"></i>PowerShell für diese Liste</button>
+                                <label class="btn" style="cursor:pointer;margin:0;">
+                                    <input type="checkbox" id="evSelectList" style="margin-right:6px;">Für Sammel-Skript merken
+                                </label>
+                            </div>
+                            <div id="evStudentsWrap"></div>
+                            <div class="field" style="margin-top:16px;">
+                                <label for="evPsScript">Generiertes PowerShell-Skript</label>
+                                <textarea id="evPsScript" readonly placeholder="Skript erscheint hier …"></textarea>
+                            </div>
+                            <div class="detail-actions">
+                                <button type="button" class="btn btn-success" id="evPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
+                                <button type="button" class="btn" id="evPsDownload"><i class="bi bi-download"></i>.ps1 herunterladen</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/eltern-guardians.js" defer></script>
+    <script src="../src/shared/school-sis-import.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/action-log.js" defer></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/tools/eltern-verteiler/eltern-verteiler.js" defer></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+</body>
+</html>

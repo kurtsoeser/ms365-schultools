@@ -5,13 +5,14 @@
         'https://graph.microsoft.com/User.Read',
         'https://graph.microsoft.com/User.Read.All',
         'https://graph.microsoft.com/User.ReadWrite.All',
-        'https://graph.microsoft.com/Group.Read.All'
+        'https://graph.microsoft.com/Group.ReadWrite.All',
+        'https://graph.microsoft.com/Organization.Read.All'
     ];
 
     const USER_LIST_SELECT =
-        'id,displayName,givenName,surname,mail,userPrincipalName,jobTitle,department,' +
+        'id,displayName,givenName,surname,mail,mailNickname,userPrincipalName,jobTitle,department,' +
         'officeLocation,mobilePhone,businessPhones,companyName,preferredLanguage,accountEnabled,' +
-        'createdDateTime,userType';
+        'streetAddress,city,postalCode,country,createdDateTime,userType,assignedLicenses,usageLocation';
 
     const USER_REFRESH_SELECT = USER_LIST_SELECT;
 
@@ -23,12 +24,50 @@
     let loadedUsers = [];
     /** @type {string | null} */
     let selectedUserId = null;
-    /** @type {'profil' | 'gruppen'} */
+    let pendingTabAfterSelect = '';
+    /** @type {'profil' | 'lizenzen' | 'gruppen'} */
     let activeTab = 'profil';
     /** @type {Record<string, any>[] | null} */
     let cachedGroupsForSelection = null;
     /** @type {boolean} */
     let profileEditMode = false;
+    /** @type {Record<string, any>[]} */
+    let subscribedSkus = [];
+    /** @type {boolean} */
+    let subscribedSkusOk = false;
+    /** @type {boolean} */
+    let licenseBusy = false;
+    /** @type {boolean} */
+    let groupBusy = false;
+
+    function dlgConfirm(msg, opts) {
+        if (typeof window.ms365AppDialogConfirm === 'function') {
+            return window.ms365AppDialogConfirm(msg, opts);
+        }
+        return Promise.resolve(window.confirm(msg));
+    }
+
+    function dlgPrompt(msg, def, opts) {
+        if (typeof window.ms365AppDialogPrompt === 'function') {
+            return window.ms365AppDialogPrompt(msg, def, opts);
+        }
+        return Promise.resolve(window.prompt(msg, def));
+    }
+
+    function graphErrorFriendly(e) {
+        const raw = String(e && e.message ? e.message : e);
+        const idx = raw.indexOf('{');
+        if (idx !== -1) {
+            try {
+                const obj = JSON.parse(raw.slice(idx));
+                const inner = obj.error || obj;
+                if (inner && inner.message) return String(inner.message);
+            } catch {
+                // ignore
+            }
+        }
+        return raw;
+    }
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -165,8 +204,8 @@
         }
     }
 
-    async function graphJson(method, pathOrUrl, token, body) {
-        const res = await graphRequest(method, pathOrUrl, token, body);
+    async function graphJson(method, pathOrUrl, token, body, extraHeaders) {
+        const res = await graphRequest(method, pathOrUrl, token, body, extraHeaders);
         const text = await res.text();
         let data = null;
         if (text) {
@@ -303,29 +342,35 @@
         }) || null;
     }
 
-    function setProfileEditMode(on) {
-        profileEditMode = !!on;
-        updateDetailActionButtons();
-        const u = getSelectedUser();
-        if (u) renderProfileTab(u, profileEditMode);
-    }
-
     function updateDetailActionButtons() {
-        const edit = document.getElementById('pvBtnEdit');
         const save = document.getElementById('pvBtnSave');
+        const saveBottom = document.getElementById('pvBtnSaveBottom');
         const cancel = document.getElementById('pvBtnCancelEdit');
         const del = document.getElementById('pvBtnDelete');
         const hasSel = !!selectedUserId;
-        if (edit) {
-            edit.style.display = hasSel && !profileEditMode ? '' : 'none';
-            edit.disabled = !hasSel;
+        if (save) {
+            save.style.display = hasSel ? '' : 'none';
+            save.disabled = !hasSel;
         }
-        if (save) save.style.display = hasSel && profileEditMode ? '' : 'none';
-        if (cancel) cancel.style.display = hasSel && profileEditMode ? '' : 'none';
+        if (saveBottom) saveBottom.disabled = !hasSel;
+        if (cancel) {
+            cancel.style.display = hasSel ? '' : 'none';
+            cancel.disabled = !hasSel;
+        }
         if (del) {
-            del.style.display = hasSel && !profileEditMode ? '' : 'none';
+            del.style.display = hasSel ? '' : 'none';
             del.disabled = !hasSel;
         }
+    }
+
+    function Lic() {
+        return window.ms365GraphLicenses || null;
+    }
+
+    function userLicenseSummary(u) {
+        const api = Lic();
+        if (!api || typeof api.summarizeUserLicenses !== 'function') return null;
+        return api.summarizeUserLicenses(u);
     }
 
     function getVisibleRows() {
@@ -340,6 +385,9 @@
 
         const depSel = document.getElementById('pvFilterDepartment');
         const depVal = depSel && depSel.value ? String(depSel.value) : '';
+
+        const licSel = document.getElementById('pvFilterLicense');
+        const licVal = licSel && licSel.value ? String(licSel.value) : '';
 
         let rows = loadedUsers.slice();
 
@@ -365,6 +413,15 @@
             });
         }
 
+        if (licVal) {
+            const api = Lic();
+            if (api && typeof api.userMatchesLicenseFilter === 'function') {
+                rows = rows.filter(function (u) {
+                    return api.userMatchesLicenseFilter(u, licVal);
+                });
+            }
+        }
+
         if (q) {
             rows = rows.filter(function (u) {
                 const blob = [
@@ -383,7 +440,9 @@
                         return norm(x);
                     })
                     .join(' ');
-                return blob.indexOf(q) !== -1;
+                const sum = userLicenseSummary(u);
+                const lic = sum && sum.primaryLabel ? norm(sum.primaryLabel) : '';
+                return blob.indexOf(q) !== -1 || (lic && lic.indexOf(q) !== -1);
             });
         }
 
@@ -422,6 +481,27 @@
             sel.appendChild(o);
         }
         if (current && set.has(current)) sel.value = current;
+    }
+
+    function refreshLicenseFilter() {
+        const sel = document.getElementById('pvFilterLicense');
+        if (!sel) return;
+        const api = Lic();
+        const current = sel.value;
+        sel.replaceChildren();
+        const opts =
+            api && typeof api.buildLicenseFilterOptions === 'function'
+                ? api.buildLicenseFilterOptions(loadedUsers)
+                : [{ value: '', label: '(alle Lizenzen)' }];
+        for (let i = 0; i < opts.length; i++) {
+            const o = document.createElement('option');
+            o.value = opts[i].value;
+            o.textContent = opts[i].label;
+            sel.appendChild(o);
+        }
+        const values = {};
+        for (let j = 0; j < opts.length; j++) values[opts[j].value] = true;
+        if (current && values[current]) sel.value = current;
     }
 
     function updateStatsPanel() {
@@ -543,7 +623,8 @@
 
     function addProfileTextField(root, label, fieldKey, value, editable, fullWidth) {
         const wrap = document.createElement('div');
-        wrap.className = 'field' + (fullWidth ? ' field-full' : '');
+        wrap.className =
+            'field ' + (editable ? 'field-editable' : 'field-readonly') + (fullWidth ? ' field-full' : '');
         const lab = document.createElement('label');
         lab.setAttribute('for', 'pv_f_' + fieldKey);
         lab.textContent = label;
@@ -552,13 +633,13 @@
         inp.id = 'pv_f_' + fieldKey;
         inp.dataset.pvField = fieldKey;
         inp.readOnly = !editable;
+        inp.autocomplete = 'off';
         if (editable && (value === undefined || value === null || value === '')) {
             inp.value = '';
+            inp.placeholder = '–';
         } else {
             inp.value = dispVal(value);
         }
-        if (inp.value === '–') inp.style.color = 'var(--muted)';
-        else if (!editable) inp.style.color = '#32325d';
         wrap.appendChild(lab);
         wrap.appendChild(inp);
         root.appendChild(wrap);
@@ -566,7 +647,7 @@
 
     function addProfileAccountEnabled(root, u, editable) {
         const wrap = document.createElement('div');
-        wrap.className = 'field';
+        wrap.className = 'field ' + (editable ? 'field-editable' : 'field-readonly');
         const lab = document.createElement('label');
         lab.setAttribute('for', 'pv_f_accountEnabled');
         lab.textContent = 'Konto aktiv';
@@ -604,8 +685,8 @@
         root.replaceChildren();
         if (!u) return;
 
-        const ro = !editable;
         addProfileTextField(root, 'Anzeigename', 'displayName', u.displayName, editable, false);
+        addProfileTextField(root, 'Alias (Mail-Nickname)', 'mailNickname', u.mailNickname, editable, false);
         addProfileTextField(root, 'Vorname', 'givenName', u.givenName, editable, false);
         addProfileTextField(root, 'Nachname', 'surname', u.surname, editable, false);
         addProfileTextField(
@@ -617,25 +698,34 @@
             false
         );
         addProfileTextField(root, 'E-Mail (SMTP)', 'mail', u.mail, editable, false);
-        addProfileTextField(root, 'Objekt-ID', '_id', u.id, false, true);
-        addProfileTextField(root, 'Kontotyp', '_userType', userTypeLabel(u.userType), false, false);
-        addProfileAccountEnabled(root, u, editable);
-        addProfileTextField(root, 'Erstellt', '_created', formatDate(u.createdDateTime), false, false);
         addProfileTextField(root, 'Position', 'jobTitle', u.jobTitle, editable, false);
         addProfileTextField(root, 'Abteilung', 'department', u.department, editable, false);
         addProfileTextField(root, 'Firma', 'companyName', u.companyName, editable, false);
         addProfileTextField(root, 'Bürostandort', 'officeLocation', u.officeLocation, editable, false);
+        addProfileTextField(root, 'Straße', 'streetAddress', u.streetAddress, editable, true);
+        addProfileTextField(root, 'PLZ', 'postalCode', u.postalCode, editable, false);
+        addProfileTextField(root, 'Ort', 'city', u.city, editable, false);
+        addProfileTextField(root, 'Land', 'country', u.country, editable, false);
         addProfileTextField(root, 'Mobiltelefon', 'mobilePhone', u.mobilePhone, editable, false);
         const bp0 = u.businessPhones && u.businessPhones[0] ? u.businessPhones[0] : '';
         addProfileTextField(root, 'Geschäftstelefon (1. Zeile)', 'businessPhone0', bp0, editable, false);
         addProfileTextField(root, 'Sprache (z. B. de-AT)', 'preferredLanguage', u.preferredLanguage, editable, false);
-
-        if (ro) {
-            const inputs = root.querySelectorAll('input[readonly]');
-            for (let i = 0; i < inputs.length; i++) {
-                inputs[i].style.background = '#f8f9fa';
-            }
-        }
+        addProfileAccountEnabled(root, u, editable);
+        addProfileTextField(root, 'Kontotyp', '_userType', userTypeLabel(u.userType), false, false);
+        addProfileTextField(root, 'Objekt-ID', '_id', u.id, false, true);
+        addProfileTextField(root, 'Erstellt', '_created', formatDate(u.createdDateTime), false, false);
+        const licSum = userLicenseSummary(u);
+        const licText = licSum
+            ? licSum.hasAny
+                ? (licSum.licenses || [])
+                      .map(function (l) {
+                          return l.name || l.shortLabel;
+                      })
+                      .filter(Boolean)
+                      .join(', ')
+                : 'Keine'
+            : '–';
+        addProfileTextField(root, 'Lizenzen (Übersicht)', '_licenses', licText, false, true);
     }
 
     function readInputTrim(el) {
@@ -662,17 +752,25 @@
             'surname',
             'userPrincipalName',
             'mail',
+            'mailNickname',
             'jobTitle',
             'department',
             'companyName',
             'officeLocation',
+            'streetAddress',
+            'city',
+            'postalCode',
+            'country',
             'mobilePhone',
             'preferredLanguage'
         ];
         for (let i = 0; i < strFields.length; i++) {
             const k = strFields[i];
-            const nv = get(k);
+            let nv = get(k);
             if (nv === undefined) continue;
+            if (k === 'mailNickname' && nv) {
+                nv = sanitizeMailNickname(nv, '');
+            }
             const ov = u[k] == null ? '' : String(u[k]);
             if (String(nv) !== ov) {
                 patch[k] = nv === '' ? null : nv;
@@ -713,12 +811,13 @@
             loadedUsers[idx] = updated;
         }
         refreshDepartmentFilter();
+        refreshLicenseFilter();
         updateStatsPanel();
     }
 
     async function saveProfilePatch() {
         const u = getSelectedUser();
-        if (!u || !profileEditMode) return;
+        if (!u) return;
         const root = document.getElementById('pvProfileFields');
         const dnEl = root && root.querySelector('[data-pv-field="displayName"]');
         if (dnEl && readInputTrim(dnEl) === '') {
@@ -734,11 +833,15 @@
         const patch = buildPatchFromForm(u);
         if (!patch || Object.keys(patch).length === 0) {
             toast('Keine Änderungen.');
-            setProfileEditMode(false);
             return;
         }
-        const saveBtn = document.getElementById('pvBtnSave');
-        if (saveBtn) saveBtn.disabled = true;
+        const saveBtns = [
+            document.getElementById('pvBtnSave'),
+            document.getElementById('pvBtnSaveBottom')
+        ].filter(Boolean);
+        saveBtns.forEach(function (b) {
+            b.disabled = true;
+        });
         try {
             const token = await getGraphToken();
             await graphJson('PATCH', '/users/' + encodeURIComponent(u.id), token, patch);
@@ -746,16 +849,38 @@
             mergeUserIntoList(fresh);
             appendLog('Profil gespeichert (PATCH).', 'ok');
             toast('Gespeichert.');
-            profileEditMode = false;
+            profileEditMode = true;
             updateDetailActionButtons();
-            renderProfileTab(fresh, false);
+            renderProfileTab(fresh, true);
             renderUserTree();
         } catch (e) {
-            const msg = e && e.message ? e.message : String(e);
+            const msg = graphErrorFriendly(e);
             appendLog('PATCH: ' + msg, 'err');
             toast(msg);
         } finally {
-            if (saveBtn) saveBtn.disabled = false;
+            saveBtns.forEach(function (b) {
+                b.disabled = false;
+            });
+        }
+    }
+
+    async function resetProfileFromGraph() {
+        const u = getSelectedUser();
+        if (!u) return;
+        try {
+            const token = await getGraphToken();
+            const fresh = await refreshUserFromGraph(token, u.id);
+            mergeUserIntoList(fresh);
+            profileEditMode = true;
+            renderProfileTab(fresh, true);
+            renderUserTree();
+            appendLog('Profil neu geladen.', 'ok');
+            toast('Profil neu geladen.');
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            appendLog('Profil laden: ' + msg, 'err');
+            toast(msg);
+            renderProfileTab(u, true);
         }
     }
 
@@ -834,9 +959,10 @@
             const created = await graphJson('POST', '/users', token, body);
             const id = created && created.id ? created.id : null;
             appendLog('Benutzer angelegt: ' + (created.userPrincipalName || upn), 'ok');
-            toast('Benutzer angelegt.');
+            toast('Benutzer angelegt. Als Nächstes: Nutzungsort und Lizenz zuweisen.');
             closeCreateModal();
             if (id) {
+                pendingTabAfterSelect = 'lizenzen';
                 try {
                     const fresh = await refreshUserFromGraph(token, id);
                     mergeUserIntoList(fresh);
@@ -976,7 +1102,7 @@
             const td = document.createElement('td');
             td.colSpan = 4;
             td.style.color = '#6c757d';
-            td.textContent = 'Keine Gruppenmitgliedschaften gefunden (oder keine Leserechte).';
+            td.textContent = 'Keine direkten Gruppenmitgliedschaften gefunden.';
             tr.appendChild(td);
             tbody.appendChild(tr);
             return;
@@ -998,17 +1124,116 @@
             const tdT = document.createElement('td');
             tdT.textContent = groupTypeLabel(g);
             tdT.style.fontSize = '0.88em';
-            const tdI = document.createElement('td');
-            tdI.textContent = g.id || '–';
-            tdI.style.fontFamily = 'Consolas, monospace';
-            tdI.style.fontSize = '0.82em';
-            tdI.style.wordBreak = 'break-all';
+            const tdAct = document.createElement('td');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn small-btn';
+            btn.setAttribute('data-pv-group-remove', g.id || '');
+            btn.textContent = 'Entfernen';
+            tdAct.appendChild(btn);
             tr.appendChild(tdN);
             tr.appendChild(tdM);
             tr.appendChild(tdT);
-            tr.appendChild(tdI);
+            tr.appendChild(tdAct);
             tbody.appendChild(tr);
         }
+    }
+
+    function odataEscape(s) {
+        return String(s || '').replace(/'/g, "''");
+    }
+
+    function isGuid(s) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '').trim());
+    }
+
+    function isDuplicateMemberError(e) {
+        const m = String((e && e.message) || e || '');
+        return (
+            m.indexOf('added object references already exist') !== -1 ||
+            m.indexOf('One or more added object references already exist') !== -1 ||
+            m.indexOf('already exist') !== -1
+        );
+    }
+
+    function memberGroupIds() {
+        const set = new Set();
+        (cachedGroupsForSelection || []).forEach(function (g) {
+            const id = String((g && g.id) || '').toLowerCase();
+            if (id) set.add(id);
+        });
+        return set;
+    }
+
+    function fillGroupSearchResults(groups) {
+        const sel = document.getElementById('pvGroupSearchResults');
+        if (!sel) return;
+        sel.replaceChildren();
+        const already = memberGroupIds();
+        const filtered = (groups || []).filter(function (g) {
+            return g && g.id && !already.has(String(g.id).toLowerCase());
+        });
+        const o0 = document.createElement('option');
+        o0.value = '';
+        o0.textContent = filtered.length ? '(Gruppe wählen · ' + filtered.length + ')' : '(keine neue Treffer)';
+        sel.appendChild(o0);
+        filtered.forEach(function (g) {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            const mail = g.mail || g.mailNickname || '';
+            opt.textContent = (g.displayName || g.id) + (mail ? ' · ' + mail : '') + ' · ' + groupTypeLabel(g);
+            sel.appendChild(opt);
+        });
+    }
+
+    async function searchDirectoryGroups(token, queryRaw) {
+        const q = String(queryRaw || '').trim();
+        if (!q) return [];
+        const select = 'id,displayName,mail,mailNickname,groupTypes,securityEnabled,mailEnabled';
+        if (isGuid(q)) {
+            try {
+                const g = await graphJson(
+                    'GET',
+                    '/groups/' + encodeURIComponent(q) + '?$select=' + encodeURIComponent(select),
+                    token
+                );
+                return g && g.id ? [g] : [];
+            } catch {
+                return [];
+            }
+        }
+        try {
+            const phrase = q.replace(/"/g, '\\"').replace(/\r?\n/g, ' ').trim();
+            const aqs =
+                '(displayName:' + phrase + ' OR mail:' + phrase + ' OR mailNickname:' + phrase + ')';
+            const path =
+                '/groups?$search=' +
+                encodeURIComponent('"' + aqs + '"') +
+                '&$select=' +
+                encodeURIComponent(select) +
+                '&$top=25';
+            const data = await graphJson('GET', path, token, undefined, { ConsistencyLevel: 'eventual' });
+            return Array.isArray(data.value) ? data.value : [];
+        } catch {
+            // Fallback ohne $search
+        }
+        const esc = odataEscape(q);
+        const filter =
+            "startswith(displayName,'" +
+            esc +
+            "') or startswith(mailNickname,'" +
+            esc +
+            "') or startswith(mail,'" +
+            esc +
+            "')";
+        const path =
+            '/groups?$filter=' +
+            encodeURIComponent(filter) +
+            '&$select=' +
+            encodeURIComponent(select) +
+            '&$top=25';
+        const data = await graphJson('GET', path, token);
+        return Array.isArray(data.value) ? data.value : [];
     }
 
     async function fetchUserGroups(token, userId) {
@@ -1048,39 +1273,431 @@
         } catch (e) {
             cachedGroupsForSelection = [];
             renderGroupsTable([]);
-            const msg = e && e.message ? e.message : String(e);
+            const msg = graphErrorFriendly(e);
             if (prog) prog.textContent = 'Fehler: ' + msg;
             appendLog('Gruppen laden: ' + msg, 'err');
             toast('Gruppen: ' + msg);
         }
     }
 
-    function setTab(tab) {
-        activeTab = tab === 'gruppen' ? 'gruppen' : 'profil';
-        const pProf = document.getElementById('pvPanelProfil');
-        const pGrp = document.getElementById('pvPanelGruppen');
-        const bProf = document.getElementById('pvTabProfil');
-        const bGrp = document.getElementById('pvTabGruppen');
+    async function searchGroupsForAdd() {
+        const inp = document.getElementById('pvGroupSearch');
+        const q = inp && inp.value ? String(inp.value).trim() : '';
+        if (!q) {
+            toast('Bitte einen Gruppennamen, Alias oder eine ID eingeben.');
+            return;
+        }
+        const btn = document.getElementById('pvGroupSearchBtn');
+        const status = document.getElementById('pvGroupsProgress');
+        if (btn) btn.disabled = true;
+        try {
+            const token = await getGraphToken();
+            const list = await searchDirectoryGroups(token, q);
+            fillGroupSearchResults(list);
+            if (status) {
+                status.textContent = list.length
+                    ? 'Suche: ' + list.length + ' Treffer.'
+                    : 'Suche: keine Treffer.';
+            }
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            fillGroupSearchResults([]);
+            if (status) status.textContent = 'Suche: ' + msg;
+            toast(msg);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
 
-        if (pProf) {
-            pProf.classList.toggle('active', activeTab === 'profil');
-            pProf.setAttribute('aria-hidden', activeTab === 'profil' ? 'false' : 'true');
+    async function addSelectedUserToGroup() {
+        const u = getSelectedUser();
+        const sel = document.getElementById('pvGroupSearchResults');
+        const groupId = sel && sel.value ? String(sel.value).trim() : '';
+        if (!u || !groupId) {
+            toast('Bitte zuerst eine Gruppe aus den Treffern wählen.');
+            return;
         }
-        if (pGrp) {
-            pGrp.classList.toggle('active', activeTab === 'gruppen');
-            pGrp.setAttribute('aria-hidden', activeTab === 'gruppen' ? 'false' : 'true');
+        if (groupBusy) return;
+        const label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : groupId;
+        if (
+            !(await dlgConfirm(
+                'Diese Person zur Gruppe hinzufügen?\n\n' +
+                    (u.displayName || u.userPrincipalName || '') +
+                    '\n→ ' +
+                    label,
+                { title: 'Zur Gruppe hinzufügen', okText: 'Hinzufügen' }
+            ))
+        ) {
+            return;
         }
-        if (bProf) {
-            bProf.setAttribute('aria-selected', activeTab === 'profil' ? 'true' : 'false');
+        const btn = document.getElementById('pvGroupAddBtn');
+        groupBusy = true;
+        if (btn) btn.disabled = true;
+        try {
+            const token = await getGraphToken();
+            try {
+                await graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/members/$ref', token, {
+                    '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + u.id
+                });
+            } catch (e) {
+                if (!isDuplicateMemberError(e)) throw e;
+            }
+            appendLog('Mitglied hinzugefügt: ' + (u.displayName || u.id) + ' → ' + label, 'ok');
+            toast('Zur Gruppe hinzugefügt.');
+            cachedGroupsForSelection = null;
+            if (sel) {
+                sel.replaceChildren();
+                const o0 = document.createElement('option');
+                o0.value = '';
+                o0.textContent = '(zuerst suchen)';
+                sel.appendChild(o0);
+            }
+            await loadGroupsForSelected();
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            appendLog('Gruppe hinzufügen: ' + msg, 'err');
+            toast(msg);
+        } finally {
+            groupBusy = false;
+            if (btn) btn.disabled = false;
         }
-        if (bGrp) {
-            bGrp.setAttribute('aria-selected', activeTab === 'gruppen' ? 'true' : 'false');
+    }
+
+    async function removeUserFromGroup(groupIdRaw) {
+        const u = getSelectedUser();
+        const groupId = String(groupIdRaw || '').trim();
+        if (!u || !groupId || groupBusy) return;
+        const g = (cachedGroupsForSelection || []).find(function (x) {
+            return x && x.id === groupId;
+        });
+        const label = (g && (g.displayName || g.mail)) || groupId;
+        if (
+            !(await dlgConfirm(
+                'Mitgliedschaft entfernen?\n\n' +
+                    (u.displayName || u.userPrincipalName || '') +
+                    '\n← ' +
+                    label,
+                { title: 'Aus Gruppe entfernen', okText: 'Entfernen', danger: true }
+            ))
+        ) {
+            return;
         }
+        groupBusy = true;
+        try {
+            const token = await getGraphToken();
+            await graphJson(
+                'DELETE',
+                '/groups/' + encodeURIComponent(groupId) + '/members/' + encodeURIComponent(u.id) + '/$ref',
+                token
+            );
+            appendLog('Mitglied entfernt: ' + (u.displayName || u.id) + ' ← ' + label, 'ok');
+            toast('Aus der Gruppe entfernt.');
+            cachedGroupsForSelection = null;
+            await loadGroupsForSelected();
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            appendLog('Gruppe entfernen: ' + msg, 'err');
+            toast(msg);
+        } finally {
+            groupBusy = false;
+        }
+    }
+
+    function assignedSkuIdsOfUser(u) {
+        const list = u && Array.isArray(u.assignedLicenses) ? u.assignedLicenses : [];
+        return list
+            .map(function (l) {
+                return String((l && l.skuId) || '').toLowerCase();
+            })
+            .filter(Boolean);
+    }
+
+    function skuLookupFromSubscribed() {
+        const map = new Map();
+        subscribedSkus.forEach(function (s) {
+            const id = String((s && s.skuId) || '').toLowerCase();
+            if (!id) return;
+            map.set(id, { skuId: id, skuPartNumber: String((s && s.skuPartNumber) || '') });
+        });
+        return map;
+    }
+
+    function renderLicenseTab() {
+        const u = getSelectedUser();
+        const hint = document.getElementById('pvLicHint');
+        const usage = document.getElementById('pvLicUsageLocation');
+        const tbody = document.getElementById('pvLicAssignedBody');
+        const sel = document.getElementById('pvLicAssignSelect');
+        const status = document.getElementById('pvLicStatus');
+        if (!u) return;
+        if (usage) usage.value = String(u.usageLocation || '').toUpperCase();
+        if (hint) {
+            hint.textContent = subscribedSkusOk
+                ? 'Zuweisen und Entziehen über Microsoft Graph (assignLicense). Nutzungsort ist ein zweistelliger Ländercode (Österreich: AT).'
+                : 'Mandanten-SKUs konnten nicht gelesen werden (Organization.Read.All). Zuweisen über den Education-Katalog ist möglich; Graph lehnt unbekannte SKUs ab.';
+        }
+        if (status) status.textContent = '';
+
+        const api = Lic();
+        const lookup = skuLookupFromSubscribed();
+        const sum = api && typeof api.summarizeUserLicenses === 'function' ? api.summarizeUserLicenses(u, lookup) : null;
+        const licenses = sum && Array.isArray(sum.licenses) ? sum.licenses : [];
+
+        if (tbody) {
+            tbody.replaceChildren();
+            if (!licenses.length) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 3;
+                td.style.color = '#6c757d';
+                td.textContent = 'Keine Lizenz zugewiesen.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            } else {
+                licenses.forEach(function (lic) {
+                    const tr = document.createElement('tr');
+                    const tdName = document.createElement('td');
+                    tdName.textContent = lic.name || lic.shortLabel || lic.skuId;
+                    const tdSku = document.createElement('td');
+                    const code = document.createElement('code');
+                    code.textContent = String(lic.skuPartNumber || lic.skuId || '').slice(0, 42);
+                    tdSku.appendChild(code);
+                    const tdAct = document.createElement('td');
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn small-btn';
+                    btn.setAttribute('data-pv-lic-remove', lic.skuId);
+                    btn.textContent = 'Entziehen';
+                    tdAct.appendChild(btn);
+                    tr.appendChild(tdName);
+                    tr.appendChild(tdSku);
+                    tr.appendChild(tdAct);
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        if (sel) {
+            const assigned = assignedSkuIdsOfUser(u);
+            const opts =
+                api && typeof api.buildAssignableSkuOptions === 'function'
+                    ? api.buildAssignableSkuOptions(subscribedSkus, assigned, {
+                          fallbackCatalog: !subscribedSkusOk
+                      })
+                    : [];
+            sel.replaceChildren();
+            const o0 = document.createElement('option');
+            o0.value = '';
+            o0.textContent = opts.length ? '(Lizenz wählen)' : '(keine freie Lizenz)';
+            sel.appendChild(o0);
+            opts.forEach(function (o) {
+                const opt = document.createElement('option');
+                opt.value = o.skuId;
+                const rest = o.remaining == null ? '' : ' · ' + o.remaining + ' frei';
+                opt.textContent = (o.name || o.shortLabel) + rest;
+                opt.disabled = !!o.disabled;
+                sel.appendChild(opt);
+            });
+        }
+    }
+
+    async function loadSubscribedSkus(token) {
+        try {
+            const data = await graphJson(
+                'GET',
+                '/subscribedSkus?$select=' +
+                    encodeURIComponent('skuId,skuPartNumber,prepaidUnits,consumedUnits,capabilityStatus'),
+                token
+            );
+            subscribedSkus = Array.isArray(data.value) ? data.value : [];
+            subscribedSkusOk = true;
+            appendLog('Mandanten-Lizenzen: ' + subscribedSkus.length + ' SKU(s).', 'ok');
+        } catch (e) {
+            subscribedSkus = [];
+            subscribedSkusOk = false;
+            appendLog('Mandanten-Lizenzen nicht lesbar: ' + graphErrorFriendly(e), 'warn');
+        }
+    }
+
+    async function ensureUsageLocation(token, u, locationHint) {
+        const cur = String((u && u.usageLocation) || '').trim().toUpperCase();
+        if (/^[A-Z]{2}$/.test(cur)) return cur;
+        let next = String(locationHint || '').trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(next)) {
+            const asked = await dlgPrompt(
+                'Für die Lizenzzuweisung braucht das Konto einen Nutzungsort (Ländercode, z. B. AT).',
+                'AT',
+                { title: 'Nutzungsort', inputLabel: 'Ländercode', okText: 'Setzen' }
+            );
+            if (asked == null) return '';
+            next = String(asked).trim().toUpperCase();
+        }
+        if (!/^[A-Z]{2}$/.test(next)) {
+            toast('Ungültiger Ländercode (zwei Buchstaben, z. B. AT).');
+            return '';
+        }
+        await graphJson('PATCH', '/users/' + encodeURIComponent(u.id), token, { usageLocation: next });
+        u.usageLocation = next;
+        appendLog('Nutzungsort gesetzt: ' + next, 'ok');
+        return next;
+    }
+
+    async function assignSelectedLicense() {
+        const u = getSelectedUser();
+        const sel = document.getElementById('pvLicAssignSelect');
+        const skuId = sel && sel.value ? String(sel.value).toLowerCase() : '';
+        if (!u || !skuId) {
+            toast('Bitte eine Lizenz wählen.');
+            return;
+        }
+        if (licenseBusy) return;
+        const optLabel = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : skuId;
+        const isGuest = String(u.userType || '').toLowerCase() === 'guest';
+        if (
+            isGuest &&
+            !(await dlgConfirm(
+                'Gäste erhalten selten Education-Lizenzen. Trotzdem zuweisen?\n\n' + optLabel,
+                { title: 'Lizenz zuweisen', okText: 'Zuweisen' }
+            ))
+        ) {
+            return;
+        }
+        if (
+            !isGuest &&
+            !(await dlgConfirm('Lizenz zuweisen?\n\n' + optLabel + '\n\n' + (u.displayName || u.userPrincipalName || ''), {
+                title: 'Lizenz zuweisen',
+                okText: 'Zuweisen'
+            }))
+        ) {
+            return;
+        }
+        const usageEl = document.getElementById('pvLicUsageLocation');
+        const btn = document.getElementById('pvLicAssignBtn');
+        licenseBusy = true;
+        if (btn) btn.disabled = true;
+        try {
+            const token = await getGraphToken();
+            const loc = await ensureUsageLocation(token, u, usageEl ? usageEl.value : '');
+            if (!loc) return;
+            await graphJson('POST', '/users/' + encodeURIComponent(u.id) + '/assignLicense', token, {
+                addLicenses: [{ skuId: skuId, disabledPlans: [] }],
+                removeLicenses: []
+            });
+            const fresh = await refreshUserFromGraph(token, u.id);
+            mergeUserIntoList(fresh);
+            appendLog('Lizenz zugewiesen: ' + optLabel, 'ok');
+            toast('Lizenz zugewiesen.');
+            renderProfileTab(fresh, profileEditMode);
+            renderUserTree();
+            await loadSubscribedSkus(token);
+            renderLicenseTab();
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            appendLog('Lizenz zuweisen: ' + msg, 'err');
+            toast(msg);
+        } finally {
+            licenseBusy = false;
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function removeLicense(skuIdRaw) {
+        const u = getSelectedUser();
+        const skuId = String(skuIdRaw || '').toLowerCase();
+        if (!u || !skuId || licenseBusy) return;
+        const api = Lic();
+        const lookup = skuLookupFromSubscribed();
+        const info = api && typeof api.resolveSku === 'function' ? api.resolveSku(skuId) : { name: skuId };
+        const lookupPart = lookup.get(skuId);
+        const label =
+            api && lookupPart
+                ? api.resolveSku(skuId, lookupPart.skuPartNumber).name
+                : info.name || skuId;
+        if (
+            !(await dlgConfirm('Lizenz entziehen?\n\n' + label + '\n\n' + (u.displayName || u.userPrincipalName || ''), {
+                title: 'Lizenz entziehen',
+                okText: 'Entziehen',
+                danger: true
+            }))
+        ) {
+            return;
+        }
+        licenseBusy = true;
+        try {
+            const token = await getGraphToken();
+            await graphJson('POST', '/users/' + encodeURIComponent(u.id) + '/assignLicense', token, {
+                addLicenses: [],
+                removeLicenses: [skuId]
+            });
+            const fresh = await refreshUserFromGraph(token, u.id);
+            mergeUserIntoList(fresh);
+            appendLog('Lizenz entzogen: ' + label, 'ok');
+            toast('Lizenz entzogen.');
+            renderProfileTab(fresh, profileEditMode);
+            renderUserTree();
+            await loadSubscribedSkus(token);
+            renderLicenseTab();
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            appendLog('Lizenz entziehen: ' + msg, 'err');
+            toast(msg);
+        } finally {
+            licenseBusy = false;
+        }
+    }
+
+    async function saveUsageLocation() {
+        const u = getSelectedUser();
+        const inp = document.getElementById('pvLicUsageLocation');
+        if (!u || !inp) return;
+        const next = String(inp.value || '').trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(next)) {
+            toast('Ländercode: zwei Buchstaben, z. B. AT.');
+            return;
+        }
+        try {
+            const token = await getGraphToken();
+            await graphJson('PATCH', '/users/' + encodeURIComponent(u.id), token, { usageLocation: next });
+            const fresh = await refreshUserFromGraph(token, u.id);
+            mergeUserIntoList(fresh);
+            appendLog('Nutzungsort gespeichert: ' + next, 'ok');
+            toast('Nutzungsort gespeichert.');
+            renderLicenseTab();
+        } catch (e) {
+            const msg = graphErrorFriendly(e);
+            appendLog('Nutzungsort: ' + msg, 'err');
+            toast(msg);
+        }
+    }
+
+    function setTab(tab) {
+        if (tab === 'gruppen') activeTab = 'gruppen';
+        else if (tab === 'lizenzen') activeTab = 'lizenzen';
+        else activeTab = 'profil';
+
+        const rows = [
+            ['profil', 'pvPanelProfil', 'pvTabProfil'],
+            ['lizenzen', 'pvPanelLizenzen', 'pvTabLizenzen'],
+            ['gruppen', 'pvPanelGruppen', 'pvTabGruppen']
+        ];
+        rows.forEach(function (row) {
+            const on = activeTab === row[0];
+            const p = document.getElementById(row[1]);
+            const b = document.getElementById(row[2]);
+            if (p) {
+                p.classList.toggle('active', on);
+                p.setAttribute('aria-hidden', on ? 'false' : 'true');
+            }
+            if (b) b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
 
         if (activeTab === 'gruppen' && selectedUserId) {
             if (cachedGroupsForSelection === null) {
                 loadGroupsForSelected();
             }
+        }
+        if (activeTab === 'lizenzen' && selectedUserId) {
+            renderLicenseTab();
         }
     }
 
@@ -1088,7 +1705,17 @@
         selectedUserId = userId || null;
         cachedGroupsForSelection = null;
         activeTab = 'profil';
-        profileEditMode = false;
+        profileEditMode = !!selectedUserId;
+        const grpSel = document.getElementById('pvGroupSearchResults');
+        if (grpSel) {
+            grpSel.replaceChildren();
+            const o0 = document.createElement('option');
+            o0.value = '';
+            o0.textContent = '(zuerst suchen)';
+            grpSel.appendChild(o0);
+        }
+        const grpQ = document.getElementById('pvGroupSearch');
+        if (grpQ) grpQ.value = '';
 
         const hint = document.getElementById('pvHint');
         const detail = document.getElementById('pvDetail');
@@ -1108,38 +1735,11 @@
         if (detail) detail.style.display = '';
         if (title) title.textContent = u && u.displayName ? String(u.displayName) : '(ohne Anzeigename)';
 
-        renderProfileTab(u || null, false);
+        renderProfileTab(u || null, true);
         updateDetailActionButtons();
-
-        if (document.getElementById('pvTabProfil')) {
-            document.getElementById('pvTabProfil').setAttribute('aria-selected', 'true');
-        }
-        if (document.getElementById('pvTabGruppen')) {
-            document.getElementById('pvTabGruppen').setAttribute('aria-selected', 'false');
-        }
-        const pProf = document.getElementById('pvPanelProfil');
-        const pGrp = document.getElementById('pvPanelGruppen');
-        if (pProf) {
-            pProf.classList.add('active');
-            pProf.setAttribute('aria-hidden', 'false');
-        }
-        if (pGrp) {
-            pGrp.classList.remove('active');
-            pGrp.setAttribute('aria-hidden', 'true');
-        }
-
+        setTab(pendingTabAfterSelect || 'profil');
+        pendingTabAfterSelect = '';
         renderUserTree();
-    }
-
-    async function onLogin() {
-        try {
-            await getGraphToken();
-            toast('Angemeldet.');
-            appendLog('Anmeldung erfolgreich.', 'ok');
-        } catch (e) {
-            appendLog('Anmeldung: ' + (e && e.message ? e.message : String(e)), 'err');
-            toast(String(e && e.message ? e.message : e));
-        }
     }
 
     async function loadUsers() {
@@ -1168,18 +1768,36 @@
                 encodeURIComponent(USER_LIST_SELECT) +
                 '&$top=999&$orderby=displayName';
 
-            const users = await fetchAllPages(token, initial, function (count) {
-                if (progress) {
-                    progress.textContent = 'Gelesen: ' + count + ' Person(en) …';
-                }
-            });
+            let users;
+            try {
+                users = await fetchAllPages(token, initial, function (count) {
+                    if (progress) {
+                        progress.textContent = 'Gelesen: ' + count + ' Person(en) …';
+                    }
+                });
+            } catch (firstErr) {
+                appendLog(
+                    'Mit Sortierung fehlgeschlagen, lade ohne $orderby … ' +
+                        (firstErr && firstErr.message ? firstErr.message : ''),
+                    'warn'
+                );
+                const fallback =
+                    '/users?$select=' + encodeURIComponent(USER_LIST_SELECT) + '&$top=999';
+                users = await fetchAllPages(token, fallback, function (count) {
+                    if (progress) {
+                        progress.textContent = 'Gelesen: ' + count + ' Person(en) …';
+                    }
+                });
+            }
 
             users.sort(function (a, b) {
                 return compareStrings(a.displayName, b.displayName);
             });
             loadedUsers = users;
             appendLog('Fertig: ' + users.length + ' Person(en).', 'ok');
+            await loadSubscribedSkus(token);
             refreshDepartmentFilter();
+            refreshLicenseFilter();
             updateStatsPanel();
             if (progress) progress.textContent = '';
             updateProgressLine();
@@ -1209,7 +1827,8 @@
             'jobTitle',
             'id',
             'accountEnabled',
-            'userType'
+            'userType',
+            'license'
         ];
         const lines = [headers.join(';')];
         for (let i = 0; i < rows.length; i++) {
@@ -1217,7 +1836,13 @@
             const cells = [];
             for (let h = 0; h < headers.length; h++) {
                 const key = headers[h];
-                let v = u[key];
+                let v;
+                if (key === 'license') {
+                    const sum = userLicenseSummary(u);
+                    v = sum && sum.hasAny ? sum.primaryLabel : '';
+                } else {
+                    v = u[key];
+                }
                 if (v === undefined || v === null) v = '';
                 v = String(v).replace(/"/g, '""');
                 cells.push('"' + v + '"');
@@ -1234,7 +1859,6 @@
     }
 
     function bind() {
-        const btnL = document.getElementById('pvBtnLogin');
         const btnLoad = document.getElementById('pvBtnLoad');
         const btnCsv = document.getElementById('pvBtnCsv');
         const filt = document.getElementById('pvFilterText');
@@ -1243,7 +1867,6 @@
             renderUserTree();
         };
 
-        if (btnL) btnL.addEventListener('click', () => onLogin());
         if (btnLoad) btnLoad.addEventListener('click', () => loadUsers());
         if (btnCsv) {
             btnCsv.disabled = true;
@@ -1254,10 +1877,12 @@
         const ft = document.getElementById('pvFilterUserType');
         const fa = document.getElementById('pvFilterAccount');
         const fd = document.getElementById('pvFilterDepartment');
+        const fl = document.getElementById('pvFilterLicense');
         const fs = document.getElementById('pvSortKey');
         if (ft) ft.addEventListener('change', reRender);
         if (fa) fa.addEventListener('change', reRender);
         if (fd) fd.addEventListener('change', reRender);
+        if (fl) fl.addEventListener('change', reRender);
         if (fs) fs.addEventListener('change', reRender);
 
         if (tree) {
@@ -1273,10 +1898,51 @@
 
         document.querySelectorAll('.detail-tab-btn[data-pv-tab]').forEach(function (b) {
             b.addEventListener('click', function () {
-                const tab = b.getAttribute('data-pv-tab');
-                setTab(tab === 'gruppen' ? 'gruppen' : 'profil');
+                setTab(b.getAttribute('data-pv-tab'));
             });
         });
+
+        const licPanel = document.getElementById('pvPanelLizenzen');
+        if (licPanel) {
+            licPanel.addEventListener('click', function (ev) {
+                const t = ev.target;
+                if (!t || !t.closest) return;
+                const rm = t.closest('[data-pv-lic-remove]');
+                if (rm) removeLicense(rm.getAttribute('data-pv-lic-remove'));
+            });
+        }
+        document.getElementById('pvLicAssignBtn')?.addEventListener('click', function () {
+            assignSelectedLicense();
+        });
+        document.getElementById('pvLicUsageSave')?.addEventListener('click', function () {
+            saveUsageLocation();
+        });
+
+        document.getElementById('pvGroupSearchBtn')?.addEventListener('click', function () {
+            searchGroupsForAdd();
+        });
+        document.getElementById('pvGroupSearch')?.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                searchGroupsForAdd();
+            }
+        });
+        document.getElementById('pvGroupAddBtn')?.addEventListener('click', function () {
+            addSelectedUserToGroup();
+        });
+        document.getElementById('pvGroupsReloadBtn')?.addEventListener('click', function () {
+            cachedGroupsForSelection = null;
+            loadGroupsForSelected();
+        });
+        const grpPanel = document.getElementById('pvPanelGruppen');
+        if (grpPanel) {
+            grpPanel.addEventListener('click', function (ev) {
+                const t = ev.target;
+                if (!t || !t.closest) return;
+                const rm = t.closest('[data-pv-group-remove]');
+                if (rm) removeUserFromGroup(rm.getAttribute('data-pv-group-remove'));
+            });
+        }
 
         const btnNeu = document.getElementById('pvBtnNeu');
         if (btnNeu) btnNeu.addEventListener('click', () => openCreateModal());
@@ -1288,17 +1954,11 @@
             if (ev.target === ev.currentTarget) closeCreateModal();
         });
 
-        document.getElementById('pvBtnEdit')?.addEventListener('click', function () {
-            if (!getSelectedUser()) return;
-            setProfileEditMode(true);
-        });
         document.getElementById('pvBtnCancelEdit')?.addEventListener('click', function () {
-            profileEditMode = false;
-            updateDetailActionButtons();
-            const u = getSelectedUser();
-            if (u) renderProfileTab(u, false);
+            resetProfileFromGraph();
         });
         document.getElementById('pvBtnSave')?.addEventListener('click', () => saveProfilePatch());
+        document.getElementById('pvBtnSaveBottom')?.addEventListener('click', () => saveProfilePatch());
         document.getElementById('pvBtnDelete')?.addEventListener('click', () => openDeleteModal());
 
         document.getElementById('pvModalDeleteClose')?.addEventListener('click', closeDeleteModal);
@@ -1315,6 +1975,15 @@
 
         updateDetailActionButtons();
         renderUserTree();
+
+        try {
+            const q = new URLSearchParams(window.location.search);
+            const tab = String(q.get('tab') || '').toLowerCase();
+            if (tab === 'lizenzen' || tab === 'gruppen' || tab === 'profil') pendingTabAfterSelect = tab;
+            if (q.get('create') === '1') openCreateModal();
+        } catch {
+            /* ignore */
+        }
     }
 
     if (document.readyState === 'loading') {

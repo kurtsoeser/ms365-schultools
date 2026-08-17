@@ -92,9 +92,16 @@ function wtgStepNum(el) {
     return Number.isFinite(n) ? n : NaN;
 }
 
+function isSinglePageWizard() {
+    return document.querySelectorAll('.wtg-step-content').length > 1;
+}
+
+function currentUiStep() {
+    return isSinglePageWizard() ? wtgCurrentStep : getPageStep();
+}
+
 function goToWtgStep(step) {
     wtgCurrentStep = step;
-    // Legacy Single-Page Verhalten: falls noch irgendwo alle Steps in einer Datei sind.
     const stepContents = document.querySelectorAll('.wtg-step-content');
     if (stepContents && stepContents.length > 1) {
         stepContents.forEach((el) => {
@@ -109,9 +116,15 @@ function goToWtgStep(step) {
         if (typeof window.ms365ApplyStepProgress === 'function') {
             window.ms365ApplyStepProgress(document.querySelector('.wtg-steps'), step, [1, 2, 3, 4, 5]);
         }
+        try {
+            if (window.history && typeof window.history.replaceState === 'function') {
+                window.history.replaceState(null, '', '#step-' + step);
+            }
+        } catch {
+            /* ignore */
+        }
         return;
     }
-    // Multi-Page: navigate
     navigateToStep(step);
 }
 
@@ -600,25 +613,31 @@ if (btnParseAndGo2) btnParseAndGo2.addEventListener('click', () => {
     }));
 
     // Seite 1 → Seite 2
-    navigateToStep(2);
+    goToWtgStep(2);
 });
 
 const btnGoTo3 = document.getElementById('wtgGoTo3');
-if (btnGoTo3) btnGoTo3.addEventListener('click', () => navigateToStep(3));
+if (btnGoTo3) btnGoTo3.addEventListener('click', () => goToWtgStep(3));
+const backOwner = document.getElementById('wtgOwnerBack');
+if (backOwner) backOwner.addEventListener('click', () => goToWtgStep(1));
 const backMem = document.getElementById('wtgMemberBack');
-if (backMem) backMem.addEventListener('click', () => navigateToStep(2));
+if (backMem) backMem.addEventListener('click', () => goToWtgStep(2));
 const nextMem = document.getElementById('wtgMemberNext');
-if (nextMem) nextMem.addEventListener('click', () => navigateToStep(4));
+if (nextMem) nextMem.addEventListener('click', () => goToWtgStep(4));
+const backSet = document.getElementById('wtgSettingsBack');
+if (backSet) backSet.addEventListener('click', () => goToWtgStep(3));
 const btnGoTo5 = document.getElementById('wtgGoTo5');
 if (btnGoTo5) btnGoTo5.addEventListener('click', () => {
     const missing = wtgRows.filter((r) => !r.owner);
     if (missing.length) {
         showToast('Bitte für alle Einträge einen Besitzer (UPN) eintragen.');
-        navigateToStep(2);
+        goToWtgStep(2);
         return;
     }
-    navigateToStep(5);
+    goToWtgStep(5);
 });
+const backRun = document.getElementById('wtgRunBack');
+if (backRun) backRun.addEventListener('click', () => goToWtgStep(4));
 
 // step header keyboard support
 document.querySelectorAll('.wtg-steps .step').forEach((el) => {
@@ -627,7 +646,7 @@ document.querySelectorAll('.wtg-steps .step').forEach((el) => {
         const s = wtgStepNum(el);
         if (!Number.isFinite(s)) return;
         // Rückwärts immer erlauben; vorwärts nur, wenn Voraussetzungen erfüllt sind.
-        const current = getPageStep();
+        const current = currentUiStep();
         if (s <= current) {
             goToWtgStep(s);
             return;
@@ -683,17 +702,32 @@ if (btnImport && fileJson) {
 }
 
 // init
-const stepsInit = document.querySelector('.wtg-steps');
-if (stepsInit && typeof window.ms365ApplyStepProgress === 'function') {
-    const s = getPageStep();
-    wtgCurrentStep = s;
-    window.ms365ApplyStepProgress(stepsInit, s, [1, 2, 3, 4, 5]);
+function readHashStep() {
+    const raw = String((window.location && window.location.hash) || '').replace(/^#/, '').toLowerCase();
+    const m = raw.match(/^step-(\d)$/);
+    if (!m) return 0;
+    const n = parseInt(m[1], 10);
+    return n >= 1 && n <= 5 ? n : 0;
 }
-// Page init
-const pageStep = getPageStep();
-if (pageStep === 1) {
-    scheduleWtgPreviewFromTextarea();
+
+const stepsInit = document.querySelector('.wtg-steps');
+const hashStep = readHashStep();
+if (isSinglePageWizard()) {
+    wtgCurrentStep = hashStep || 1;
+    if (wtgCurrentStep > 1) loadWtgState();
+    else scheduleWtgPreviewFromTextarea();
+    goToWtgStep(wtgCurrentStep);
 } else {
-    loadWtgState();
+    if (stepsInit && typeof window.ms365ApplyStepProgress === 'function') {
+        const s = getPageStep();
+        wtgCurrentStep = s;
+        window.ms365ApplyStepProgress(stepsInit, s, [1, 2, 3, 4, 5]);
+    }
+    const pageStep = getPageStep();
+    if (pageStep === 1) {
+        scheduleWtgPreviewFromTextarea();
+    } else {
+        loadWtgState();
+    }
 }
 

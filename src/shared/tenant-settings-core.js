@@ -161,10 +161,10 @@
 
     function normalizeSettings(obj) {
         const o = obj && typeof obj === 'object' ? obj : {};
-        const domain =
-            typeof window.ms365GetSchoolDomainNoAt === 'function'
-                ? window.ms365GetSchoolDomainNoAt()
-                : normStr(o.domain);
+        let domain = normStr(o.domain).replace(/^@+/, '');
+        if (!domain && typeof window.ms365GetSchoolDomainNoAt === 'function') {
+            domain = normStr(window.ms365GetSchoolDomainNoAt()).replace(/^@+/, '');
+        }
 
         const subjectsIn = Array.isArray(o.subjects) ? o.subjects : [];
         const argesIn = Array.isArray(o.arges) ? o.arges : [];
@@ -241,7 +241,18 @@
             const name = normStr(s?.name);
             const email = normStr(s?.email).toLowerCase();
             if (!klasse && !name && !email) return;
-            students.push({ klasse, name, email });
+            const row = { klasse, name, email };
+            if (s?.id) row.id = normStr(s.id);
+            if (Array.isArray(s?.guardianIds)) row.guardianIds = s.guardianIds.slice();
+            if (Array.isArray(s?.parentPairs) && s.parentPairs.length) {
+                row.parentPairs = s.parentPairs
+                    .map((p) => ({
+                        name: normStr(p?.name),
+                        email: normStr(p?.email).toLowerCase()
+                    }))
+                    .filter((p) => p.email && p.email.includes('@'));
+            }
+            students.push(row);
         });
 
         const classesSeen = new Set();
@@ -314,7 +325,29 @@
                         teachers: c.core.teachers,
                         admin: c.core.admin,
                         adminRoles: c.core.adminRoles,
-                        students: y.students,
+                        students: (y.students || []).map(function (s) {
+                            const row = {
+                                id: s.id,
+                                klasse: s.klasse,
+                                name: s.name,
+                                email: s.email,
+                                guardianIds: Array.isArray(s.guardianIds) ? s.guardianIds.slice() : []
+                            };
+                            if (Array.isArray(y.guardians) && row.guardianIds.length) {
+                                const byId = new Map(
+                                    y.guardians.map(function (g) {
+                                        return [g.id, g];
+                                    })
+                                );
+                                row.parentPairs = row.guardianIds
+                                    .map(function (gid) {
+                                        const g = byId.get(gid);
+                                        return g ? { name: g.name || '', email: g.email || '' } : null;
+                                    })
+                                    .filter(Boolean);
+                            }
+                            return row;
+                        }),
                         classes: y.classes
                     });
                 }
@@ -376,13 +409,26 @@
 
     function parseLinesToStudents(text) {
         const out = [];
-        parseDelimitedLines(text).forEach((parts) => {
-            const klasse = normStr(parts[0] || '');
-            const name = normStr(parts[1] || '');
-            const email = normStr(parts[2] || '').toLowerCase();
-            if (!klasse && !name && !email) return;
-            out.push({ klasse, name, email });
-        });
+        const extractPairs =
+            window.ms365ElternGuardians && typeof window.ms365ElternGuardians.extractParentPairsFromParts === 'function'
+                ? window.ms365ElternGuardians.extractParentPairsFromParts
+                : null;
+        String(text || '')
+            .split(/\r\n|\n|\r/)
+            .forEach((line) => {
+                const t = normStr(line);
+                if (!t || t.startsWith('#')) return;
+                const parts = t.split(/[;\t,|]/).map((x) => normStr(x));
+                while (parts.length < 3) parts.push('');
+                const klasse = parts[0] || '';
+                const name = parts[1] || '';
+                const email = (parts[2] || '').toLowerCase();
+                if (!klasse && !name && !email) return;
+                const row = { klasse, name, email };
+                const pairs = extractPairs ? extractPairs(parts) : [];
+                if (pairs.length) row.parentPairs = pairs;
+                out.push(row);
+            });
         return out;
     }
 

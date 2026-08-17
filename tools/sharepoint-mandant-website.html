@@ -1,107 +1,129 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schulverwaltung – SharePoint Websiteerstellung</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        .spo-panel {
-            border: 1px solid var(--border, #dee2e6);
-            border-radius: 14px;
-            background: #fff;
-            padding: 16px 18px;
-            margin-bottom: 16px;
-        }
-        .spo-panel h2 { margin: 0 0 12px; font-size: 1.08em; color: #32325d; }
-        .spo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
-        @media (max-width: 720px) { .spo-grid { grid-template-columns: 1fr; } }
-        .spo-field label { display: block; font-weight: 700; font-size: 0.9em; margin-bottom: 6px; color: #495057; }
-        .spo-field input[type="text"], .spo-field input[type="number"], .spo-field select {
-            width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 10px; font: inherit;
-        }
-        .spo-field .hint { font-size: 0.85em; color: #6c757d; margin-top: 6px; line-height: 1.45; }
-        .spo-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-        .spo-log { font-family: Consolas, monospace; font-size: 0.85em; white-space: pre-wrap; word-break: break-word;
-            padding: 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; min-height: 2.5em; }
-        pre.spo-pre { max-height: 280px; overflow: auto; margin: 0; padding: 12px; background: #1e1e1e; color: #d4d4d4; border-radius: 10px; font-size: 0.82em; }
-    </style>
 </head>
 <body>
-    <div class="container page-card">
+    <div class="container page-card tm-page">
         <div class="header">
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-building-gear"></i>SharePoint – Websiteerstellung &amp; Speicher</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-building-gear"></i>SharePoint – Websiteerstellung</span>
             </div>
-            <p>Mandantenweite Einstellungen aus dem SharePoint Admin Center: wer Sites anlegen darf, Pfade, Standardzeitzone und Speicherlimit für <strong>neue</strong> Sites – per Microsoft Graph (<code>GET/PATCH /admin/sharepoint/settings</code>).</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <p>Steuern Sie, wer neue SharePoint-Websites anlegen darf – und welche Standards gelten.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-sharepoint-website" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
             </div>
         </div>
 
         <div class="content">
-        <div class="alert alert-info" style="margin:0 0 16px;">
-            <strong>Berechtigungen:</strong> <code>SharePointTenantSettings.Read.All</code> (Lesen) bzw. <code>SharePointTenantSettings.ReadWrite.All</code> (Speichern) – mit Administratorzustimmung. Der angemeldete Benutzer muss laut Microsoft <strong>SharePoint Administrator</strong> oder <strong>Global Administrator</strong> sein.
-        </div>
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-globe2"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Mandant</p>
+                    <h2>Neue Websites – wer darf, und wie?</h2>
+                    <p>Drei Schalter und ein paar Standards. Technische API-Namen sind ausgeblendet.</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <button type="button" class="btn" id="btnLoad"><i class="bi bi-cloud-download"></i>Stand laden</button>
+                    <button type="button" class="btn" id="btnSave"><i class="bi bi-check2-circle"></i>Speichern</button>
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>SharePoint- oder Global Admin</span>
+                </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2><i class="bi bi-sliders"></i>Werte</h2>
-            <div class="spo-grid">
-                <div class="spo-field spo-field--full" style="grid-column:1/-1;">
-                    <label><input type="checkbox" id="fSiteCreate"> Benutzer können SharePoint-Websites erstellen (<code>isSiteCreationEnabled</code>)</label>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-toggles2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Berechtigungen</h3>
+                        <p>Tippen Sie eine Karte an, um sie ein- oder auszuschalten.</p>
+                    </div>
                 </div>
-                <div class="spo-field spo-field--full" style="grid-column:1/-1;">
-                    <label><input type="checkbox" id="fSiteCreateUi"> Optionen „Website in SharePoint“ / freigegebene Bibliothek in OneDrive anzeigen (<code>isSiteCreationUIEnabled</code>)</label>
+                <div class="tm-toggle-grid">
+                    <label class="tm-toggle" for="fSiteCreate">
+                        <input type="checkbox" id="fSiteCreate">
+                        <span class="tm-toggle__icon" aria-hidden="true"><i class="bi bi-plus-square"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Websites erstellen</span>
+                            <span class="tm-toggle__desc">Personen dürfen neue SharePoint-Websites anlegen.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="fSiteCreateUi">
+                        <input type="checkbox" id="fSiteCreateUi">
+                        <span class="tm-toggle__icon" aria-hidden="true"><i class="bi bi-window-stack"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Erstellen-Menü anzeigen</span>
+                            <span class="tm-toggle__desc">„Website“ / freigegebene Bibliothek in der Oberfläche sichtbar.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="fPagesCreate">
+                        <input type="checkbox" id="fPagesCreate">
+                        <span class="tm-toggle__icon" aria-hidden="true"><i class="bi bi-file-earmark-richtext"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Moderne Seiten</span>
+                            <span class="tm-toggle__desc">Neue Seiten auf bestehenden Sites erlauben.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="fStorageAuto">
+                        <input type="checkbox" id="fStorageAuto">
+                        <span class="tm-toggle__icon" aria-hidden="true"><i class="bi bi-hdd-stack"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Speicher automatisch</span>
+                            <span class="tm-toggle__desc">Kontingent für Sites wird vom Mandanten verwaltet.</span>
+                        </span>
+                    </label>
                 </div>
-                <div class="spo-field spo-field--full" style="grid-column:1/-1;">
-                    <label><input type="checkbox" id="fPagesCreate"> Erstellung moderner Seiten auf Sites (<code>isSitePagesCreationEnabled</code>)</label>
-                </div>
-                <div class="spo-field spo-field--full" style="grid-column:1/-1;">
-                    <label><input type="checkbox" id="fStorageAuto"> Speicher automatisch verwalten (<code>isSitesStorageLimitAutomatic</code>)</label>
-                    <p class="hint">Wenn aktiviert, kann ein festes Kontingent pro neuer Site sinnlos sein – im Admin Center prüfen.</p>
-                </div>
-                <div class="spo-field">
-                    <label for="fManagedPath">Teamwebsites erstellen unter (<code>siteCreationDefaultManagedPath</code>)</label>
-                    <select id="fManagedPath"></select>
-                    <p class="hint">Zulässige Pfade (nur Lesen): <span id="fReadonlyPaths">–</span></p>
-                </div>
-                <div class="spo-field">
-                    <label for="fStorageMb">Standardspeicherlimit neue Sites (MB)</label>
-                    <input type="number" id="fStorageMb" min="0" step="1" placeholder="z. B. 26214400">
-                    <p class="hint" id="fStorageGbHint">–</p>
-                </div>
-                <div class="spo-field" style="grid-column:1/-1;">
-                    <label for="fTimezone">Standardzeitzone (<code>tenantDefaultTimezone</code>)</label>
-                    <input type="text" id="fTimezone" placeholder="(UTC+01:00) Amsterdam, Berlin, Bern, Rom, Stockholm, Wien" spellcheck="false">
-                    <p class="hint">Exakt wie in der Microsoft-Doku zu <a href="https://learn.microsoft.com/en-us/graph/api/resources/sharepointsettings" target="_blank" rel="noopener">sharepointSettings</a> / SharePoint-Zeitzonen.</p>
-                </div>
-            </div>
-            <div class="spo-actions">
-                <button type="button" class="btn" id="btnLoad"><i class="bi bi-cloud-download"></i>Aktuellen Stand laden</button>
-                <button type="button" class="btn btn-success" id="btnSave"><i class="bi bi-check2-circle"></i>Speichern (PATCH)</button>
-            </div>
-        </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2>Protokoll</h2>
-            <div id="spoLog" class="spo-log">Noch keine Aktion.</div>
-        </div>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                    <div>
+                        <h3>Standards für neue Sites</h3>
+                        <p>Pfad, Speicher und Zeitzone – greifen beim Anlegen neuer Websites.</p>
+                    </div>
+                </div>
+                <div class="spo-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;">
+                    <div class="tm-field">
+                        <label for="fManagedPath"><i class="bi bi-folder2-open"></i> Pfad für Teamwebsites</label>
+                        <select id="fManagedPath"></select>
+                        <p class="hint">Zulässige Pfade: <span id="fReadonlyPaths">–</span></p>
+                    </div>
+                    <div class="tm-field">
+                        <label for="fStorageMb"><i class="bi bi-device-hdd"></i> Speicherlimit (MB)</label>
+                        <input type="number" id="fStorageMb" min="0" step="1" placeholder="z. B. 26214400">
+                        <p class="hint" id="fStorageGbHint">–</p>
+                    </div>
+                    <div class="tm-field" style="grid-column:1/-1;">
+                        <label for="fTimezone"><i class="bi bi-clock"></i> Standardzeitzone</label>
+                        <input type="text" id="fTimezone" placeholder="(UTC+01:00) Amsterdam, Berlin, Bern, Rom, Stockholm, Wien" spellcheck="false">
+                    </div>
+                </div>
+            </section>
 
-        <div class="spo-panel">
-            <h2>Antwort (JSON)</h2>
-            <pre id="spoJson" class="spo-pre">{}</pre>
-        </div>
+            <section class="tm-panel">
+                <details class="tm-tech">
+                    <summary>Protokoll &amp; technische Antwort</summary>
+                    <div id="spoLog" class="tm-log" style="margin-top:10px;">Noch keine Aktion.</div>
+                    <pre id="spoJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
+                </details>
+            </section>
         </div>
     </div>
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-mandant-website.js" defer></script>
 </body>

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
@@ -11,7 +12,7 @@
     <style>
         /* Dashboard-spezifisch: nur Grid/Kacheln – Basislayout kommt aus app.css */
         body { padding-bottom: 96px; /* Platz für fixierte Fußzeilen-Links */ }
-        .header h1 { margin: 0 0 6px; font-size: 1.45em; }
+        .header h1 { margin: 0 auto 6px; font-size: 1.45em; }
         .app-brand-logo {
             margin: 2px auto 8px;
             max-width: min(320px, 92vw);
@@ -111,44 +112,180 @@
         .choice .btn { align-self: flex-start; margin-top: auto; }
         .choice.featured {
             grid-column: 1 / -1;
-            border: 1px solid rgba(94, 114, 228, 0.25);
-            background: linear-gradient(180deg, rgba(94, 114, 228, 0.10) 0%, rgba(130, 94, 228, 0.06) 100%);
-            box-shadow: 0 12px 34px rgba(50, 50, 93, 0.14);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(94, 114, 228, 0.18);
+            border-radius: 22px;
+            padding: 22px 24px;
+            background:
+                radial-gradient(720px 220px at 0% 0%, rgba(94, 114, 228, 0.16), transparent 55%),
+                radial-gradient(520px 180px at 100% 100%, rgba(130, 94, 228, 0.12), transparent 50%),
+                rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.9) inset,
+                0 14px 36px rgba(30, 36, 64, 0.07);
+        }
+        .choice.featured::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(30, 36, 64, 0.035) 1px, transparent 1px);
+            background-size: 18px 18px;
+            mask-image: linear-gradient(120deg, rgba(0, 0, 0, 0.4), transparent 70%);
+            pointer-events: none;
         }
         .choice.featured h2 {
-            font-size: 1.2em;
+            font-size: 1.22em;
+            font-weight: 750;
+            letter-spacing: -0.015em;
+            color: #1e2440;
+            margin: 0 0 12px;
         }
         .choice.featured .btn {
-            background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+            border-radius: 999px;
+            padding: 12px 18px;
+            box-shadow: 0 10px 22px rgba(94, 114, 228, 0.28);
         }
         .choice.featured:hover {
-            transform: scale(1.008);
-            box-shadow: 0 14px 32px rgba(50, 50, 93, 0.15);
-            border-color: rgba(94, 114, 228, 0.4);
-            background: linear-gradient(180deg, rgba(94, 114, 228, 0.14) 0%, rgba(130, 94, 228, 0.09) 100%);
+            transform: translateY(-2px);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.95) inset,
+                0 18px 40px rgba(30, 36, 64, 0.1);
+            border-color: rgba(94, 114, 228, 0.32);
+            background:
+                radial-gradient(720px 220px at 0% 0%, rgba(94, 114, 228, 0.2), transparent 55%),
+                radial-gradient(520px 180px at 100% 100%, rgba(130, 94, 228, 0.14), transparent 50%),
+                rgba(255, 255, 255, 0.88);
         }
         .featured-split {
+            position: relative;
+            z-index: 1;
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            align-items: start;
+            grid-template-columns: auto 1fr auto;
+            gap: 18px 22px;
+            align-items: center;
             width: 100%;
+        }
+        .featured-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            color: #5e72e4;
+            font-size: 1.45em;
+            background:
+                linear-gradient(145deg, rgba(255, 255, 255, 0.95), transparent 60%),
+                rgba(94, 114, 228, 0.14);
+            border: 1px solid rgba(94, 114, 228, 0.2);
+            box-shadow: 0 8px 18px rgba(94, 114, 228, 0.18);
         }
         .featured-main {
             min-width: 0;
         }
-        /* Domain-Kachel entfernt: Schul-Grundeinstellungen nutzt volle Breite */
-        .featured-split { grid-template-columns: 1fr; }
-        @media (max-width: 720px) {
+        .featured-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0 0 12px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.74em;
+            font-weight: 750;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #3d4db8;
+            background: rgba(94, 114, 228, 0.12);
+            border: 1px solid rgba(94, 114, 228, 0.16);
+        }
+        .featured-action {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .choice.featured .featured-action .btn {
+            margin-top: 0;
+            align-self: center;
+            white-space: nowrap;
+        }
+        .choice.featured h2 {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 4px;
+        }
+        .choice.featured h2 > .bi {
+            display: none;
+        }
+        .featured-info {
+            position: relative;
+            display: inline-flex;
+            margin-left: 4px;
+        }
+        .featured-info__btn {
+            appearance: none;
+            border: 0;
+            background: transparent;
+            color: #5e72e4;
+            cursor: help;
+            padding: 2px 6px;
+            margin: 0;
+            font: inherit;
+            line-height: 1;
+            border-radius: 999px;
+        }
+        .featured-info__btn:hover,
+        .featured-info__btn:focus-visible {
+            color: #32325d;
+            background: rgba(94, 114, 228, 0.12);
+            outline: none;
+        }
+        .featured-info__tip {
+            position: absolute;
+            left: 0;
+            top: calc(100% + 8px);
+            width: min(28em, 72vw);
+            padding: 10px 12px;
+            background: #1e2440;
+            color: #fff;
+            border-radius: 10px;
+            font-size: 0.78em;
+            font-weight: 500;
+            line-height: 1.45;
+            z-index: 6;
+            box-shadow: 0 10px 24px rgba(50, 50, 93, 0.22);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            text-align: left;
+        }
+        .featured-info:hover .featured-info__tip,
+        .featured-info:focus-within .featured-info__tip {
+            opacity: 1;
+            visibility: visible;
+        }
+        @media (max-width: 820px) {
             .featured-split {
-                grid-template-columns: 1fr;
+                grid-template-columns: auto 1fr;
+            }
+            .featured-action {
+                grid-column: 1 / -1;
+                justify-content: stretch;
+            }
+            .featured-action .btn {
+                width: 100%;
+                text-align: center;
             }
         }
         .choice .stats {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin: 0 0 14px;
+            margin: 0;
             padding: 0;
             list-style: none;
         }
@@ -156,17 +293,19 @@
             display: inline-flex;
             gap: 6px;
             align-items: baseline;
-            padding: 6px 10px;
+            padding: 7px 12px;
             border-radius: 999px;
-            background: #fff;
-            border: 1px solid #e9ecef;
-            color: #495057;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(94, 114, 228, 0.14);
+            color: #5c6578;
             font-size: 0.9em;
             font-weight: 600;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
         .choice .stat-pill strong {
-            font-weight: 900;
-            color: #32325d;
+            font-weight: 800;
+            color: #1e2440;
         }
         .choice-placeholder {
             border-style: dashed;
@@ -201,7 +340,7 @@
         .btn .bi { margin-right: 8px; font-size: 1.05em; opacity: 0.98; }
         .choice h2 .bi { margin-right: 10px; opacity: 0.9; }
         .btn.alt {
-            background: linear-gradient(135deg, #2dce89 0%, #11998e 100%);
+            background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
         }
         .note {
             margin-top: 14px;
@@ -221,117 +360,873 @@
         .dashboard-reorder-hint { margin: 18px 0 0; color: #6c757d; font-size: 0.9em; }
 
         .dashboard-featured {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
         .dashboard-featured .choice.featured {
             grid-column: auto;
         }
-        .dashboard-tabs {
-            margin-top: 4px;
+        .featured-context {
+            margin: 0 0 14px;
+            color: #5c6578;
+            font-size: 0.94em;
+            line-height: 1.5;
+        }
+        .featured-context strong {
+            color: #1e2440;
+            font-weight: 700;
+        }
+        .dashboard-backup-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .dashboard-local-footer {
+            margin: 28px 0 0;
+            padding: 18px 16px 14px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+        }
+        .dashboard-local-footer__hint {
+            margin: 0 0 12px;
+            color: #495057;
+            font-size: 0.95em;
+            font-weight: 700;
+        }
+        .dashboard-local-footer__note,
+        .dashboard-local-footer__status {
+            margin: 10px 0 0;
+            color: #6c757d;
+            font-size: 0.88em;
+            line-height: 1.4;
+        }
+        .dashboard-local-footer .btn {
+            margin: 0;
+        }
+        .dashboard-zone-divider {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 8px 0 22px;
+            color: #8790a3;
+            font-size: 0.82em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .dashboard-zone-divider::before,
+        .dashboard-zone-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(30, 36, 64, 0.12), transparent);
+        }
+        .dashboard-zone-divider span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #f3f4f8;
+            border: 1px solid rgba(30, 36, 64, 0.08);
+            color: #5c6578;
+            white-space: nowrap;
+        }
+
+        .dashboard-tools {
+            --tools-ink: #1e2440;
+            --tools-muted: #5c6578;
+            margin: 0 0 8px;
+            padding: 28px 24px 22px;
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(900px 260px at 92% -10%, rgba(94, 114, 228, 0.12), transparent 55%),
+                radial-gradient(640px 220px at 0% 100%, rgba(130, 94, 228, 0.08), transparent 50%),
+                linear-gradient(180deg, #f7f8fc 0%, #f1f3f9 100%);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.85) inset,
+                0 14px 36px rgba(30, 36, 64, 0.05);
+        }
+        .dashboard-tools::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(30, 36, 64, 0.04) 1px, transparent 1px);
+            background-size: 18px 18px;
+            mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.4), transparent 80%);
+            pointer-events: none;
+        }
+        .dashboard-tools-head {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 24px;
+            max-width: none;
+        }
+        .dashboard-tools-head-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px 24px;
+            margin: 0 0 14px;
+        }
+        .dashboard-tools-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0 0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.78em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #3d4db8;
+            background: rgba(94, 114, 228, 0.12);
+            border: 1px solid rgba(94, 114, 228, 0.18);
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .dashboard-tools-kicker .bi {
+            font-size: 0.95em;
+        }
+        .dashboard-tools-head h2 {
+            margin: 0;
+            font-size: clamp(1.4em, 2vw, 1.75em);
+            font-weight: 750;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            color: var(--tools-ink);
+            flex: 1;
+            min-width: 0;
+        }
+        .dashboard-tools-lead {
+            margin: 0;
+            color: var(--tools-muted);
+            font-size: 1.02em;
+            line-height: 1.55;
+            max-width: 58em;
+        }
+        @media (max-width: 560px) {
+            .dashboard-tools-head-row {
+                flex-direction: column-reverse;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            .dashboard-tools-kicker {
+                margin: 0;
+                align-self: flex-end;
+            }
+        }
+
+        .dashboard-catalog {
+            position: relative;
+            z-index: 1;
+            margin-top: 0;
         }
         .dashboard-tablist {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 12px;
-            padding: 4px 4px 0;
-            border-bottom: 1px solid #dee2e6;
-            background: linear-gradient(180deg, #fafbfc 0%, #fff 100%);
-            border-radius: 12px 12px 0 0;
+            gap: 8px;
+            margin: 0 0 20px;
+            padding: 10px;
+            border: 1px solid rgba(94, 114, 228, 0.12);
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 22px rgba(30, 36, 64, 0.04);
         }
         .dashboard-tab {
             position: relative;
             border: 1px solid transparent;
-            border-bottom: none;
             background: transparent;
-            color: #6c757d;
-            padding: 10px 16px 12px;
-            margin-bottom: -1px;
-            border-radius: 10px 10px 0 0;
+            color: #5c6578;
+            padding: 10px 14px;
+            border-radius: 11px;
             font: inherit;
-            font-size: 0.93em;
-            font-weight: 600;
+            font-size: 0.9em;
+            font-weight: 650;
             cursor: pointer;
-            transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+            transition: color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
         }
         .dashboard-tab:hover {
-            color: #32325d;
-            background: rgba(255, 255, 255, 0.85);
+            color: #1e2440;
+            background: rgba(94, 114, 228, 0.08);
         }
         .dashboard-tab[aria-selected="true"] {
-            color: #32325d;
+            color: #1e2440;
             background: #fff;
-            border-color: #dee2e6;
-            border-bottom-color: #fff;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+            border-color: rgba(94, 114, 228, 0.22);
+            box-shadow: 0 6px 16px rgba(94, 114, 228, 0.14);
+        }
+        .dashboard-tab .bi {
+            margin-right: 5px;
+            color: #5e72e4;
         }
         .dashboard-tabpanel {
-            padding-top: 4px;
+            padding-top: 2px;
         }
         .dashboard-tabpanel[hidden] {
             display: none !important;
         }
         .dashboard-cluster {
-            margin: 0 0 8px;
-        }
-        .dashboard-cluster:first-child {
-            margin-top: 4px;
-        }
-        .dashboard-cluster:last-child {
-            margin-bottom: 4px;
-        }
-        .dashboard-cluster + .dashboard-cluster {
-            margin-top: 10px;
-            padding-top: 18px;
-            border-top: 1px solid #e9ecef;
+            margin: 0;
+            padding: 6px 2px 0;
         }
         .dashboard-cluster-head {
-            margin: 4px 2px 0;
+            margin: 0 0 8px;
         }
         .dashboard-cluster-head h3 {
-            margin: 0 0 4px;
+            margin: 0 0 10px;
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 1.08em;
-            font-weight: 700;
-            color: #32325d;
+            font-size: 1.12em;
+            font-weight: 750;
+            letter-spacing: -0.01em;
+            color: #1e2440;
         }
         .dashboard-cluster-head h3 .bi {
-            opacity: 0.9;
-            font-size: 1.05em;
+            opacity: 0.95;
+            font-size: 1.08em;
             color: #5e72e4;
         }
         .dashboard-cluster-head p {
             margin: 0;
-            max-width: 54em;
-            color: #6c757d;
-            font-size: 0.9em;
-            line-height: 1.4;
+            max-width: 58em;
+            color: #5c6578;
+            font-size: 0.96em;
+            line-height: 1.5;
         }
         .dashboard-cluster .grid {
-            margin-top: 10px;
+            margin-top: 16px;
         }
-        #dash-panel-sharepoint .dashboard-cluster-head h3 .bi {
-            color: #107c10;
+        .dashboard-catalog .choice[data-tool-id] {
+            border-radius: 18px;
+            border-color: rgba(30, 36, 64, 0.08);
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.9) inset,
+                0 10px 24px rgba(30, 36, 64, 0.04);
+        }
+        .dashboard-catalog .choice[data-tool-id]:hover {
+            transform: translateY(-3px);
+            border-color: rgba(94, 114, 228, 0.28);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 16px 34px rgba(30, 36, 64, 0.09);
+        }
+        .dashboard-catalog .choice h2 {
+            margin-bottom: 10px;
+            color: #1e2440;
+        }
+        .dashboard-catalog .choice p {
+            margin-bottom: 16px;
+            color: #5c6578;
+            line-height: 1.45;
         }
 
-        /* Dezentes SharePoint-Grün (nur SharePoint-Register) */
-        .dashboard-grid--sharepoint .choice[data-tool-id] {
-            border-color: rgba(16, 124, 16, 0.22);
-            background: linear-gradient(165deg, rgba(16, 124, 16, 0.07) 0%, rgba(1, 120, 124, 0.04) 45%, #f7faf7 100%);
+        .dashboard-search {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 18px;
         }
-        .dashboard-grid--sharepoint .choice[data-tool-id]:hover {
-            border-color: rgba(16, 124, 16, 0.38);
-            box-shadow: 0 10px 26px rgba(16, 124, 16, 0.1);
-            background: linear-gradient(165deg, rgba(16, 124, 16, 0.11) 0%, rgba(1, 120, 124, 0.06) 40%, #f4faf4 100%);
+        .dashboard-search-label {
+            display: block;
+            font-weight: 700;
+            color: #1e2440;
+            margin-bottom: 10px;
+            font-size: 0.95em;
         }
-        .dashboard-grid--sharepoint .choice[data-tool-id]:focus-within {
-            outline-color: rgba(16, 124, 16, 0.45);
+        .dashboard-search-wrap {
+            position: relative;
         }
-        .dashboard-grid--sharepoint .choice[data-tool-id].drag-over {
-            outline-color: rgba(16, 124, 16, 0.55);
+        .dashboard-search-wrap > .bi-search {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8790a3;
+            pointer-events: none;
         }
+        .dashboard-search-wrap input {
+            width: 100%;
+            padding: 14px 16px 14px 44px;
+            border: 1px solid rgba(94, 114, 228, 0.16);
+            border-radius: 16px;
+            font: inherit;
+            font-size: 1.02em;
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 8px 20px rgba(30, 36, 64, 0.04);
+            transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+        }
+        .dashboard-search-wrap input:focus {
+            outline: none;
+            background: #fff;
+            border-color: rgba(94, 114, 228, 0.45);
+            box-shadow: 0 0 0 4px rgba(94, 114, 228, 0.12);
+        }
+        .dashboard-search-meta {
+            margin: 10px 0 0;
+            color: #8790a3;
+            font-size: 0.9em;
+            min-height: 1.3em;
+        }
+        .dashboard-search-empty {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 16px;
+            padding: 16px 18px;
+            border: 1px dashed rgba(94, 114, 228, 0.28);
+            border-radius: 14px;
+            color: #5c6578;
+            background: rgba(255, 255, 255, 0.7);
+            line-height: 1.5;
+        }
+        body.dashboard-searching .dashboard-tablist {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+        body.dashboard-searching .dashboard-tabpanel:not([hidden]) + .dashboard-tabpanel:not([hidden]) {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(30, 36, 64, 0.08);
+        }
+        .dashboard-tools .dashboard-reorder-hint {
+            position: relative;
+            z-index: 1;
+            margin: 20px 2px 4px;
+            color: #8790a3;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        @media (max-width: 720px) {
+            .dashboard-tools { padding: 22px 14px 16px; }
+        }
+        .dashboard-setup-hint {
+            margin: 0 0 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(94, 114, 228, 0.28);
+            background: rgba(94, 114, 228, 0.07);
+            color: #32325d;
+            line-height: 1.45;
+        }
+        .dashboard-setup-hint p {
+            margin: 0 0 10px;
+        }
+        .dashboard-setup-hint .btn {
+            margin: 0;
+        }
+
+        .dashboard-tasks {
+            --task-ink: #1e2440;
+            --task-muted: #5c6578;
+            --task-line: rgba(30, 36, 64, 0.08);
+            --task-surface: rgba(255, 255, 255, 0.78);
+            margin: 8px 0 10px;
+            padding: 30px 28px 28px;
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(900px 280px at 8% -20%, rgba(94, 114, 228, 0.18), transparent 55%),
+                radial-gradient(700px 240px at 96% 8%, rgba(130, 94, 228, 0.14), transparent 52%),
+                linear-gradient(180deg, #f5f6fc 0%, #eef0f8 100%);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        }
+        .dashboard-tasks::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(30, 36, 64, 0.045) 1px, transparent 1px);
+            background-size: 18px 18px;
+            mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 85%);
+            pointer-events: none;
+        }
+        .dashboard-tasks-head {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 32px;
+        }
+        .dashboard-tasks-head-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px 24px;
+            margin: 0 0 16px;
+        }
+        .dashboard-tasks-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0 0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.78em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #3d4db8;
+            background: rgba(94, 114, 228, 0.12);
+            border: 1px solid rgba(94, 114, 228, 0.18);
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .dashboard-tasks-kicker .bi {
+            font-size: 0.95em;
+        }
+        .dashboard-tasks-head h2 {
+            margin: 0;
+            font-size: clamp(1.45em, 2.2vw, 1.85em);
+            font-weight: 750;
+            letter-spacing: -0.02em;
+            line-height: 1.25;
+            color: var(--task-ink);
+            flex: 1;
+            min-width: 0;
+        }
+        .dashboard-tasks-lead {
+            margin: 0;
+            color: var(--task-muted);
+            font-size: 1.05em;
+            line-height: 1.6;
+            max-width: none;
+        }
+        .dash-task-grid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        @media (max-width: 980px) {
+            .dash-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .dashboard-tasks { padding: 24px 18px 20px; }
+        }
+        @media (max-width: 560px) {
+            .dash-task-grid { grid-template-columns: 1fr; }
+            .dashboard-tasks-head-row {
+                flex-direction: column-reverse;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 14px;
+            }
+            .dashboard-tasks-kicker {
+                margin: 0;
+                align-self: flex-end;
+            }
+        }
+        .dash-task {
+            --accent: #5e72e4;
+            --accent-soft: rgba(94, 114, 228, 0.14);
+            --accent-glow: rgba(94, 114, 228, 0.22);
+            position: relative;
+            border: 1px solid var(--task-line);
+            border-radius: 20px;
+            padding: 20px 18px 16px;
+            background: var(--task-surface);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.9) inset,
+                0 10px 28px rgba(30, 36, 64, 0.05);
+            transition:
+                transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 220ms ease,
+                border-color 220ms ease,
+                background 220ms ease;
+            animation: dash-task-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .dash-task:nth-child(1) { animation-delay: 40ms; }
+        .dash-task:nth-child(2) { animation-delay: 90ms; }
+        .dash-task:nth-child(3) { animation-delay: 140ms; }
+        .dash-task:nth-child(4) { animation-delay: 190ms; }
+        .dash-task:nth-child(5) { animation-delay: 240ms; }
+        .dash-task:nth-child(6) { animation-delay: 290ms; }
+        @keyframes dash-task-in {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .dash-task {
+                animation: none;
+                transition: none;
+            }
+            .dash-task:hover,
+            .dash-task:focus-within {
+                transform: none;
+            }
+            .dash-task:hover .dash-task-icon,
+            .dash-task:focus-within .dash-task-icon {
+                transform: none;
+            }
+        }
+        .dash-task[data-accent="setup"] {
+            --accent: #5e72e4;
+            --accent-soft: rgba(94, 114, 228, 0.16);
+            --accent-glow: rgba(94, 114, 228, 0.24);
+        }
+        .dash-task[data-accent="unterricht"] {
+            --accent: #5e72e4;
+            --accent-soft: rgba(94, 114, 228, 0.14);
+            --accent-glow: rgba(94, 114, 228, 0.22);
+        }
+        .dash-task[data-accent="gruppen"] {
+            --accent: #6b7cf0;
+            --accent-soft: rgba(107, 124, 240, 0.14);
+            --accent-glow: rgba(107, 124, 240, 0.2);
+        }
+        .dash-task[data-accent="personen"] {
+            --accent: #7a6cf0;
+            --accent-soft: rgba(122, 108, 240, 0.14);
+            --accent-glow: rgba(122, 108, 240, 0.2);
+        }
+        .dash-task[data-accent="schuljahr"] {
+            --accent: #825ee4;
+            --accent-soft: rgba(130, 94, 228, 0.14);
+            --accent-glow: rgba(130, 94, 228, 0.22);
+        }
+        .dash-task[data-accent="ordnung"] {
+            --accent: #5b6b9a;
+            --accent-soft: rgba(91, 107, 154, 0.13);
+            --accent-glow: rgba(91, 107, 154, 0.18);
+        }
+        .dash-task:hover,
+        .dash-task:focus-within {
+            transform: translateY(-4px);
+            border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.95) inset,
+                0 18px 40px rgba(30, 36, 64, 0.1),
+                0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+        }
+        .dash-task-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .dash-task-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            color: var(--accent);
+            background:
+                linear-gradient(145deg, rgba(255, 255, 255, 0.9), transparent 60%),
+                var(--accent-soft);
+            border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+            box-shadow: 0 8px 18px var(--accent-glow);
+            font-size: 1.35em;
+            transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .dash-task:hover .dash-task-icon,
+        .dash-task:focus-within .dash-task-icon {
+            transform: scale(1.06) rotate(-2deg);
+        }
+        .dash-task-index {
+            font-size: 0.78em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: color-mix(in srgb, var(--accent) 70%, #8790a3);
+            opacity: 0.85;
+            padding-top: 4px;
+        }
+        .dash-task h3 {
+            margin: 0 0 12px;
+            font-size: 1.08em;
+            font-weight: 750;
+            letter-spacing: -0.015em;
+            line-height: 1.3;
+            color: var(--task-ink);
+        }
+        .dash-task p {
+            margin: 0 0 18px;
+            color: var(--task-muted);
+            line-height: 1.5;
+            font-size: 0.94em;
+            flex: 1;
+        }
+        .dash-task-progress {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: -6px 0 14px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.78em;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #3d4db8;
+            background: rgba(94, 114, 228, 0.1);
+            border: 1px solid rgba(94, 114, 228, 0.16);
+            flex: 0 0 auto;
+        }
+        .dash-task-progress[data-tone="ok"] {
+            color: #146c43;
+            background: rgba(25, 135, 84, 0.1);
+            border-color: rgba(25, 135, 84, 0.2);
+        }
+        .dash-task-progress[data-tone="warn"] {
+            color: #9a6700;
+            background: rgba(255, 193, 7, 0.14);
+            border-color: rgba(255, 193, 7, 0.28);
+        }
+        .dash-task-progress[hidden] {
+            display: none !important;
+        }
+        .dash-task-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 4px;
+        }
+        .dash-task-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            padding: 9px 13px;
+            border-radius: 999px;
+            font: inherit;
+            font-size: 0.88em;
+            font-weight: 650;
+            text-decoration: none;
+            line-height: 1.2;
+            color: var(--task-ink);
+            background: rgba(30, 36, 64, 0.04);
+            border: 1px solid rgba(30, 36, 64, 0.08);
+            transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+        .dash-task-link:hover {
+            background: rgba(30, 36, 64, 0.07);
+            border-color: rgba(30, 36, 64, 0.14);
+            color: var(--task-ink);
+            transform: translateY(-1px);
+        }
+        .dash-task-link--primary {
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #1e2440));
+            border-color: transparent;
+            box-shadow: 0 8px 18px var(--accent-glow);
+        }
+        .dash-task-link--primary:hover {
+            color: #fff;
+            filter: brightness(1.05);
+            background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #1e2440));
+        }
+        .dash-task-link .bi {
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+
+        /* Karten mit 3 Aktionen: gestapelte Zeilen statt Pill-Haufen */
+        .dash-task-links--stack {
+            flex-direction: column;
+            flex-wrap: nowrap;
+            gap: 6px;
+        }
+        .dash-task-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            margin: 0;
+            padding: 11px 12px;
+            border-radius: 12px;
+            font: inherit;
+            font-size: 0.9em;
+            font-weight: 650;
+            text-decoration: none;
+            line-height: 1.25;
+            color: var(--task-ink);
+            background: rgba(30, 36, 64, 0.035);
+            border: 1px solid rgba(30, 36, 64, 0.07);
+            transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+        }
+        .dash-task-row:hover {
+            background: rgba(30, 36, 64, 0.06);
+            border-color: rgba(30, 36, 64, 0.12);
+            color: var(--task-ink);
+            transform: translateX(2px);
+        }
+        .dash-task-row__label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .dash-task-row__label .bi {
+            color: var(--accent);
+            opacity: 0.95;
+            font-size: 1.05em;
+            flex-shrink: 0;
+        }
+        .dash-task-row .bi-chevron-right {
+            color: #8790a3;
+            font-size: 0.95em;
+            flex-shrink: 0;
+        }
+        .dash-task-row--primary {
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #1e2440));
+            border-color: transparent;
+            box-shadow: 0 8px 18px var(--accent-glow);
+        }
+        .dash-task-row--primary:hover {
+            color: #fff;
+            filter: brightness(1.04);
+            background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #1e2440));
+        }
+        .dash-task-row--primary .dash-task-row__label .bi,
+        .dash-task-row--primary .bi-chevron-right {
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        /* Einrichtung: vollbreite Start-Banner (Markenfarben Blau–Violett) */
+        .dash-task--hero {
+            --accent: #5e72e4;
+            --accent-soft: rgba(94, 114, 228, 0.18);
+            --accent-glow: rgba(94, 114, 228, 0.3);
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 18px 22px;
+            align-items: center;
+            padding: 22px 24px;
+            border-radius: 22px;
+            border: 1px solid rgba(130, 94, 228, 0.35);
+            background:
+                radial-gradient(520px 180px at 0% 0%, rgba(130, 94, 228, 0.38), transparent 60%),
+                radial-gradient(420px 160px at 100% 100%, rgba(94, 114, 228, 0.32), transparent 55%),
+                linear-gradient(135deg, #5e72e4 0%, #6f5bd8 42%, #4c3f9a 100%);
+            color: #fff;
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.2) inset,
+                0 18px 40px rgba(76, 63, 154, 0.32);
+        }
+        .dash-task--hero:hover,
+        .dash-task--hero:focus-within {
+            transform: translateY(-3px);
+            border-color: rgba(255, 255, 255, 0.3);
+            background:
+                radial-gradient(520px 180px at 0% 0%, rgba(130, 94, 228, 0.44), transparent 60%),
+                radial-gradient(420px 160px at 100% 100%, rgba(94, 114, 228, 0.36), transparent 55%),
+                linear-gradient(135deg, #5e72e4 0%, #6f5bd8 42%, #4c3f9a 100%);
+            box-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.24) inset,
+                0 22px 48px rgba(76, 63, 154, 0.38);
+        }
+        .dash-task--hero .dash-task-top {
+            margin: 0;
+        }
+        .dash-task--hero .dash-task-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
+            font-size: 1.55em;
+            color: #f3f0ff;
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.24);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+        }
+        .dash-task--hero .dash-task-index {
+            display: none;
+        }
+        .dash-task--hero-body {
+            min-width: 0;
+        }
+        .dash-task--hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin: 0 0 14px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75em;
+            font-weight: 750;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #f3f0ff;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+        }
+        .dash-task--hero h3 {
+            margin: 0 0 12px;
+            color: #fff;
+            font-size: clamp(1.2em, 2vw, 1.4em);
+            line-height: 1.3;
+        }
+        .dash-task--hero p {
+            margin: 0;
+            color: rgba(243, 240, 255, 0.9);
+            font-size: 0.98em;
+            line-height: 1.55;
+            max-width: none;
+        }
+        .dash-task--hero .dash-task-links {
+            margin: 0;
+            padding: 0;
+            justify-content: flex-end;
+        }
+        .dash-task--hero .dash-task-link--primary {
+            padding: 13px 18px;
+            font-size: 0.98em;
+            color: #4c3f9a;
+            background: #fff;
+            border-color: transparent;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+        }
+        .dash-task--hero .dash-task-link--primary:hover {
+            color: #3d3480;
+            filter: none;
+            background: #f5f3ff;
+        }
+        .dash-task--hero .dash-task-link--primary .bi {
+            opacity: 1;
+        }
+        @media (max-width: 820px) {
+            .dash-task--hero {
+                grid-template-columns: auto 1fr;
+                padding: 18px;
+            }
+            .dash-task--hero .dash-task-links {
+                grid-column: 1 / -1;
+                justify-content: stretch;
+            }
+            .dash-task--hero .dash-task-link--primary {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        body.dashboard-searching .dashboard-tasks {
+            display: none;
+        }
+
     </style>
 </head>
 <body>
@@ -341,298 +1236,455 @@
             <div class="app-brand-logo">
                 <img src="assets/schooltool.png" width="320" height="88" alt="Logo MS365-Schulverwaltung" decoding="async" />
             </div>
-            <p class="app-tagline">Microsoft 365 in der Schule – strukturiert planen, sicher umsetzen.</p>
-            <div class="toolbar" aria-label="Menü">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</a>
-                        <a class="btn" href="einrichtung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-signpost-2"></i>Geführte Einrichtung</a>
-                        <a class="btn" href="ersteinrichtung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-3"></i>Experten: Struktur</a>
-                    </div>
-                </div>
-            </div>
+            <p class="app-tagline">Microsoft 365 als Schulplattform: alles, was die Schule braucht – strukturieren, vernetzen und über das Schuljahr hinweg im Griff behalten.</p>
         </div>
         <div class="content">
             <div class="dashboard-featured">
-                <section class="choice featured" aria-label="Schul-Grundeinstellungen">
+                <section class="choice featured" aria-label="Stammdaten der Schule">
                     <div class="featured-split">
+                        <div class="featured-icon" aria-hidden="true"><i class="bi bi-building"></i></div>
                         <div class="featured-main">
-                            <h2><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</h2>
-                            <p>Zentrale Basisdaten (lokal im Browser): <strong>Stammdaten</strong> schulweit (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) und Daten <strong>pro Schuljahr</strong> (Schüler:innen, Klassen, Klassen‑Gruppen in M365). <strong>Klassen‑Anzeigenamen</strong> zum Schuljahreswechsel: Tab <a href="tenant.html#classes" style="color:inherit;text-decoration:underline;">Klassen</a> in den Einstellungen.</p>
+                            <p class="featured-kicker"><i class="bi bi-database" aria-hidden="true"></i>Basisdaten</p>
+                            <h2>
+                                Stammdaten der Schule
+                                <span class="featured-info">
+                                    <button type="button" class="featured-info__btn" aria-label="Hinweis zu den Stammdaten" aria-describedby="featuredStammdatenHint">
+                                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                    </button>
+                                    <span id="featuredStammdatenHint" class="featured-info__tip" role="tooltip">Listen, die alle Werkzeuge nutzen: Domain, Fächer, Lehrkräfte, Klassen und Schülerinnen. Die Daten bleiben in diesem Browser – nichts wird auf einen Schul‑Server geschickt.</span>
+                                </span>
+                            </h2>
+                            <p class="featured-context">Aktuell: Schuljahr <strong id="tenantStatYear">–</strong> · Domain <strong id="tenantStatDomain">–</strong></p>
                             <ul class="stats" aria-label="Schul-Statistiken">
                                 <li class="stat-pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
                                 <li class="stat-pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
                                 <li class="stat-pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
                                 <li class="stat-pill"><strong id="tenantStatClasses">–</strong> Klassen</li>
                             </ul>
-                            <a class="btn alt" href="tenant.html"><i class="bi bi-gear"></i>Schul‑Einstellungen öffnen</a>
-                            <a class="btn" href="einrichtung.html" style="margin-left:10px;"><i class="bi bi-signpost-2"></i>Geführte Einrichtung</a>
-                            <a class="btn" href="ersteinrichtung.html" style="margin-left:10px;"><i class="bi bi-diagram-3"></i>Experten: Struktur</a>
+                        </div>
+                        <div class="featured-action">
+                            <a class="btn" href="tenant.html"><i class="bi bi-gear"></i>Stammdaten öffnen</a>
                         </div>
                     </div>
                 </section>
             </div>
 
-            <div class="dashboard-tabs" role="region" aria-label="Werkzeug-Katalog">
-                <div class="dashboard-tablist" role="tablist" aria-label="Register">
-                    <button type="button" class="dashboard-tab" role="tab" id="dash-tab-m365" aria-selected="true" aria-controls="dash-panel-m365" data-dashboard-tab="m365"><i class="bi bi-microsoft"></i> Microsoft 365</button>
-                    <button type="button" class="dashboard-tab" role="tab" id="dash-tab-sharepoint" aria-selected="false" aria-controls="dash-panel-sharepoint" data-dashboard-tab="sharepoint"><i class="bi bi-share"></i> SharePoint</button>
-                    <button type="button" class="dashboard-tab" role="tab" id="dash-tab-tools" aria-selected="false" aria-controls="dash-panel-tools" data-dashboard-tab="tools"><i class="bi bi-wrench-adjustable"></i> Weitere Tools</button>
+            <div class="dashboard-tasks" id="dashboard-tasks">
+                <div class="dashboard-tasks-head">
+                    <div class="dashboard-tasks-head-row">
+                        <h2>Was möchten Sie tun?</h2>
+                        <p class="dashboard-tasks-kicker"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>Schnellstart</p>
+                    </div>
+                    <p class="dashboard-tasks-lead">Wählen Sie die Aufgabe – die wichtigsten Wege starten hier. Darunter folgt der vollständige Werkzeugkatalog mit Suche und Themen.</p>
+                    <div class="dashboard-setup-hint" id="dashSetupHint" hidden>
+                        <p><strong>Noch nicht eingerichtet.</strong> Domain und Listen fehlen – starten Sie mit der geführten Einrichtung, bevor Sie Gruppen anlegen.</p>
+                        <a class="btn" href="einrichtung.html"><i class="bi bi-rocket-takeoff"></i>Zur Einrichtung</a>
+                    </div>
                 </div>
-
-                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-m365" aria-labelledby="dash-tab-m365">
-                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-gruppen">
-                        <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-gruppen"><i class="bi bi-diagram-3" aria-hidden="true"></i>Gruppen &amp; Teams</h3>
-                            <p>Schulstruktur im Tenant anlegen, matchen und pflegen – Sammelgruppen, Klassen, Kursteams und die zentrale Gruppenübersicht.</p>
-                        </header>
-                        <div class="grid dashboard-grid--m365" data-cluster-grid="gruppen" role="list" aria-label="Gruppen und Teams">
-                <section class="choice" role="listitem" aria-label="MS 365 Gruppenverwaltung" data-tool-id="schulstruktur-sync" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-diagram-2"></i>MS 365 Gruppenverwaltung</h2>
-                    <p>Übersicht und Pflege von Gruppen/Teams im Tenant: Owner/Mitglieder, Sichtbarkeit, Kursteams‑Indikator, Teams‑Archiv in den Details. Zusätzliche Gruppen ohne Schul‑Katalog über den Wizard <strong>Weitere Teams &amp; Gruppen</strong>.</p>
-                    <a class="btn" href="tools/schulstruktur-sync.html"><i class="bi bi-kanban"></i>Öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="Lehrerinnen und Schülerinnen" data-tool-id="slg" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-people"></i>Lehrerinnen &amp; Schülerinnen</h2>
-                    <p>Zwei Microsoft 365‑Gruppen (<code>schueler@…</code> / <code>lehrer@…</code>) aus den Schul‑Listen anlegen oder bestehende Gruppen mit Mitgliedern befüllen – schrittweise inkl. manueller Adressen.</p>
-                    <a class="btn" href="tools/schueler-lehrer-gruppen.html"><i class="bi bi-people-fill"></i>Gruppen verwalten</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="Verwaltung" data-tool-id="verwaltung" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-building-gear"></i>Verwaltung</h2>
-                    <p>Rollen und Personen der Schulverwaltung (Sekretariat, Direktion, Schularzt, …) pflegen – und optional die Sammelgruppe mit einer Microsoft‑365‑Gruppe abgleichen, danach Allgemein, Owner und Mitglieder live wie in der Gruppenverwaltung.</p>
-                    <a class="btn" href="tools/verwaltung.html"><i class="bi bi-building-gear"></i>Verwaltung öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="ARGE und Fachgruppen" data-tool-id="arge-fachgruppen" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</h2>
-                    <p>Fächer und Arbeitsgemeinschaften aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – danach Allgemein, Owner und Mitglieder live wie in der Gruppenverwaltung.</p>
-                    <a class="btn" href="tools/arge-fachgruppen.html"><i class="bi bi-collection-fill"></i>Gruppen verwalten</a>
-                </section>
-                <section class="choice" role="listitem" data-tool-id="jahrgang" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-diagram-3"></i>Jahrgangsgruppen</h2>
-                    <p>Klassen aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – danach Allgemein, Owner und Mitglieder live wie in der Gruppenverwaltung. Der Wizard bleibt für die einmalige Neuanlage aller Klassen.</p>
-                    <a class="btn" href="tools/jahrgangsgruppen.html"><i class="bi bi-diagram-3"></i>Gruppen verwalten</a>
-                </section>
-                <section class="choice" role="listitem" data-tool-id="kursteams" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-mortarboard"></i>Kursteams</h2>
-                    <p>Import der <strong>WebUntis‑Fächerliste</strong> (CSV/Excel), optional manuelle Zeilen. Teams (Vorlage <code>EDU_Class</code>) vorbereiten und online oder per PowerShell anlegen.</p>
-                    <a class="btn" href="tools/kursteams.html"><i class="bi bi-rocket-takeoff"></i>Kursteams erstellen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="Organisations-Assistent" data-tool-id="organisations-assistent" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-calendar2-range"></i>Organisations-Assistent</h2>
-                    <p>Schuljahreswechsel auf der SOLL‑Struktur (Schuljahr, Archiv, Unterbaum‑Duplikat), Kohorten planen (Matura/Eltern‑Jahrgang) und Fachschafts‑Gruppen aus der Fächerliste – lokal in <code>app-data-v2</code>, mit Verknüpfung zu Klassen‑Einstellungen und Kursteams.</p>
-                    <a class="btn" href="tools/organisations-assistent.html"><i class="bi bi-calendar2-check"></i>Assistent öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="Leere Gruppen Report" data-tool-id="leere-gruppen-report" data-cluster="gruppen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-ui-checks-grid"></i>Leere Gruppen (Report)</h2>
-                    <p>Gruppen/Teams mit Besitzer- und Mitgliederzahl aus Microsoft Graph (lesend). Keine Nutzungsmetriken – dafür Admin-Berichte nutzen.</p>
-                    <a class="btn" href="tools/leere-gruppen-report.html"><i class="bi bi-search"></i>Report öffnen</a>
-                </section>
+                <div class="dash-task-grid">
+                    <section class="dash-task dash-task--hero" id="dashTaskSetup" data-accent="setup" hidden>
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-rocket-takeoff"></i></div>
+                            <span class="dash-task-index">Start</span>
+                        </div>
+                        <div class="dash-task--hero-body">
+                            <p class="dash-task--hero-badge"><i class="bi bi-1-circle-fill" aria-hidden="true"></i> Hier beginnen</p>
+                            <h3>Schule einrichten</h3>
+                            <p>Noch nicht fertig eingerichtet? Starten Sie hier: bei Microsoft anmelden, Domain setzen und die wichtigsten Listen anlegen – danach greifen alle anderen Werkzeuge.</p>
+                        </div>
+                        <div class="dash-task-links">
+                            <a class="dash-task-link dash-task-link--primary" href="einrichtung.html">Einrichtung starten <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                         </div>
                     </section>
+                    <section class="dash-task" data-accent="unterricht" id="dashTaskUnterricht">
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></div>
+                            <span class="dash-task-index">01</span>
+                        </div>
+                        <h3>Klassen und Kurse anlegen</h3>
+                        <p>Alltag: Klassengruppen matchen. Unterrichtsteams aus dem Stundenplan per CSV/CMD anlegen.</p>
+                        <p class="dash-task-progress" id="dashProgUnterricht" hidden></p>
+                        <div class="dash-task-links dash-task-links--stack">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/jahrgangsgruppen.html">
+                                <span class="dash-task-row__label"><i class="bi bi-diagram-3" aria-hidden="true"></i>Klassengruppen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/kursteams.html">
+                                <span class="dash-task-row__label"><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Unterrichtsteams</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </section>
+                    <section class="dash-task" data-accent="gruppen" id="dashTaskGruppen">
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-people"></i></div>
+                            <span class="dash-task-index">02</span>
+                        </div>
+                        <h3>Sammelgruppen pflegen</h3>
+                        <p>Die großen Gruppen für alle Schülerinnen, alle Lehrkräfte, Verwaltung und Fächer.</p>
+                        <p class="dash-task-progress" id="dashProgGruppen" hidden></p>
+                        <div class="dash-task-links dash-task-links--stack">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/schueler-lehrer-gruppen.html">
+                                <span class="dash-task-row__label"><i class="bi bi-people-fill" aria-hidden="true"></i>Schüler und Lehrkräfte</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/verwaltung.html">
+                                <span class="dash-task-row__label"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/arge-fachgruppen.html">
+                                <span class="dash-task-row__label"><i class="bi bi-collection" aria-hidden="true"></i>Fächer und ARGEs</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </section>
+                    <section class="dash-task" data-accent="personen">
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-person-badge"></i></div>
+                            <span class="dash-task-index">03</span>
+                        </div>
+                        <h3>Personen und Gäste</h3>
+                        <p>Personen der Schule suchen, ein Konto anlegen oder externe Gäste einladen.</p>
+                        <div class="dash-task-links dash-task-links--stack">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/personen-verwaltung.html">
+                                <span class="dash-task-row__label"><i class="bi bi-search" aria-hidden="true"></i>Personen suchen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/personen-verwaltung.html?create=1">
+                                <span class="dash-task-row__label"><i class="bi bi-person-plus" aria-hidden="true"></i>Konto anlegen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/gaeste-verwalten.html">
+                                <span class="dash-task-row__label"><i class="bi bi-shield-check" aria-hidden="true"></i>Gäste</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </section>
+                    <section class="dash-task" data-accent="schuljahr" id="dashTaskSchuljahr">
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-calendar2-range"></i></div>
+                            <span class="dash-task-index">04</span>
+                        </div>
+                        <h3>Schuljahr wechseln</h3>
+                        <p>Neues Schuljahr aktivieren und die Checkliste durcharbeiten: Anzeigenamen, Abschlussjahrgang, Schülerliste, Unterrichtsteams.</p>
+                        <p class="dash-task-progress" id="dashProgSchuljahr" hidden></p>
+                        <div class="dash-task-links dash-task-links--stack">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/organisations-assistent.html">
+                                <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Schuljahr wechseln</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tenant.html#classes">
+                                <span class="dash-task-row__label"><i class="bi bi-pencil-square" aria-hidden="true"></i>Klassen-Anzeigenamen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </section>
+                    <section class="dash-task" data-accent="ordnung">
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-ui-checks-grid"></i></div>
+                            <span class="dash-task-index">05</span>
+                        </div>
+                        <h3>Aufräumen und prüfen</h3>
+                        <p>Hygiene: leere Gruppen und fehlende Owner. Danach alle Gruppen im Überblick.</p>
+                        <div class="dash-task-links dash-task-links--stack">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/leere-gruppen-report.html?problem=no-owners">
+                                <span class="dash-task-row__label"><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i>Hygiene</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/schulstruktur-sync.html">
+                                <span class="dash-task-row__label"><i class="bi bi-diagram-2" aria-hidden="true"></i>Alle Gruppen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/schulstruktur-sync.html?mode=struktur">
+                                <span class="dash-task-row__label"><i class="bi bi-kanban" aria-hidden="true"></i>SOLL-Baum (Experte)</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </section>
+                </div>
+            </div>
 
+            <p class="dashboard-zone-divider" aria-hidden="true"><span><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Oder gezielt navigieren</span></p>
+
+            <section class="dashboard-tools" id="dashboard-tools" aria-labelledby="dashboard-tools-title">
+                <div class="dashboard-tools-head">
+                    <div class="dashboard-tools-head-row">
+                        <h2 id="dashboard-tools-title">Alle Werkzeuge</h2>
+                        <p class="dashboard-tools-kicker"><i class="bi bi-tools" aria-hidden="true"></i>Werkzeugkatalog</p>
+                    </div>
+                    <p class="dashboard-tools-lead">Suchen Sie ein bestimmtes Modul oder wählen Sie ein Thema. Hier liegen alle Tools – unabhängig vom Schnellstart oben.</p>
+                </div>
+
+                <div class="dashboard-search" role="search">
+                    <label class="dashboard-search-label" for="dashSearch">Werkzeug suchen</label>
+                    <div class="dashboard-search-wrap">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input type="search" id="dashSearch" name="q" autocomplete="off" placeholder="z. B. Klasse, Gast, Eltern, Intranet …" />
+                    </div>
+                    <p class="dashboard-search-meta" id="dashSearchMeta"></p>
+                </div>
+                <p class="dashboard-search-empty" id="dashSearchEmpty" hidden>Kein Werkzeug passt zu dieser Suche. Versuchen Sie z. B. „Klasse“, „Gast“, „Eltern“ oder „Intranet“.</p>
+
+                <div class="dashboard-catalog" id="dash-catalog" role="region" aria-label="Werkzeug-Katalog">
+                    <div class="dashboard-tablist" role="tablist" aria-label="Themen">
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-unterricht" aria-selected="true" aria-controls="dash-panel-unterricht" data-dashboard-tab="unterricht"><i class="bi bi-mortarboard" aria-hidden="true"></i>Unterricht &amp; Klassen</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-personen" aria-selected="false" aria-controls="dash-panel-personen" data-dashboard-tab="personen" tabindex="-1"><i class="bi bi-person-badge" aria-hidden="true"></i>Personen &amp; Zugänge</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-schuljahr" aria-selected="false" aria-controls="dash-panel-schuljahr" data-dashboard-tab="schuljahr" tabindex="-1"><i class="bi bi-calendar2-range" aria-hidden="true"></i>Schuljahr</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-kommunikation" aria-selected="false" aria-controls="dash-panel-kommunikation" data-dashboard-tab="kommunikation" tabindex="-1"><i class="bi bi-envelope" aria-hidden="true"></i>Kommunikation</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-website" aria-selected="false" aria-controls="dash-panel-website" data-dashboard-tab="website" tabindex="-1"><i class="bi bi-house-door" aria-hidden="true"></i>Schulwebsite</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-regeln" aria-selected="false" aria-controls="dash-panel-regeln" data-dashboard-tab="regeln" tabindex="-1"><i class="bi bi-sliders2" aria-hidden="true"></i>Regeln &amp; Ordnung</button>
+                    </div>
+
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-unterricht" aria-labelledby="dash-tab-unterricht">
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-unterricht">
+                        <header class="dashboard-cluster-head">
+                            <h3 id="dash-cluster-unterricht"><i class="bi bi-mortarboard" aria-hidden="true"></i>Unterricht &amp; Klassen</h3>
+                            <p>Klassengruppen, Unterrichtsteams und Fachschaften für den laufenden Unterricht.</p>
+                        </header>
+                        <div class="grid" data-cluster-grid="unterricht" role="list" aria-label="Unterricht und Klassen">
+                            <section class="choice" role="listitem" aria-label="Klassengruppen" data-tool-id="jahrgang" data-cluster="unterricht" data-search="klasse klassengruppe jahrgang jahrgangsgruppe schüler klasse anlegen" draggable="true">
+                                <h2><i class="bi bi-diagram-3"></i>Klassengruppen</h2>
+                                <p>Alltag: Klassen matchen und Owner/Mitglieder pflegen. Einmalige Massenanlage nur über den Wizard in der Fußzeile des Werkzeugs.</p>
+                                <a class="btn" href="tools/jahrgangsgruppen.html"><i class="bi bi-diagram-3"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Unterrichtsteams" data-tool-id="kursteams" data-cluster="unterricht" data-search="kursteam unterricht stundenplan webuntis fach kurs team anlegen" draggable="true">
+                                <h2><i class="bi bi-mortarboard"></i>Unterrichtsteams</h2>
+                                <p>Unterrichtsteams aus dem Stundenplan vorbereiten und per CSV/CMD (<code>Kursteam-Anlage.cmd</code>) anlegen.</p>
+                                <a class="btn" href="tools/kursteams.html"><i class="bi bi-rocket-takeoff"></i>Anlegen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Fächer und ARGEs" data-tool-id="arge-fachgruppen" data-cluster="unterricht" data-search="arge fach fachgruppe fachschaft arbeitsgemeinschaft" draggable="true">
+                                <h2><i class="bi bi-collection"></i>Fächer und ARGEs</h2>
+                                <p>Eine Gruppe pro Fach oder Arbeitsgemeinschaft – aus den Listen in den Stammdaten.</p>
+                                <a class="btn" href="tools/arge-fachgruppen.html"><i class="bi bi-collection-fill"></i>Öffnen</a>
+                            </section>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-personen" aria-labelledby="dash-tab-personen" hidden>
                     <section class="dashboard-cluster" aria-labelledby="dash-cluster-personen">
                         <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-personen"><i class="bi bi-person-badge" aria-hidden="true"></i>Personen &amp; Gäste</h3>
-                            <p>Identitäten im Verzeichnis: interne Benutzer:innen und externe Gäste.</p>
+                            <h3 id="dash-cluster-personen"><i class="bi bi-person-badge" aria-hidden="true"></i>Personen &amp; Zugänge</h3>
+                            <p>Wer zur Schule gehört, große Sammelgruppen und externe Gäste.</p>
                         </header>
-                        <div class="grid dashboard-grid--m365" data-cluster-grid="personen" role="list" aria-label="Personen und Gäste">
-                <section class="choice" role="listitem" aria-label="Personen im Verzeichnis" data-tool-id="personen-verwaltung" data-cluster="personen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-person-lines-fill"></i>Personen‑Verwaltung</h2>
-                    <p>Benutzer:innen aus Entra laden, filtern, Stammdaten einsehen und Gruppenmitgliedschaften pro Person (Microsoft Graph).</p>
-                    <a class="btn" href="tools/personen-verwaltung.html"><i class="bi bi-people"></i>Personen öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="Gäste verwalten" data-tool-id="gaeste-verwalten" data-cluster="personen" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-people"></i>Gäste verwalten</h2>
-                    <p>Zentrales Werkzeug für externe Konten mit vier Unterbereichen: <strong>Teams mit Gast-Mitgliedern</strong>, <strong>B2B-/Gast-Einladungen</strong> aus dem Verzeichnis-Audit, <strong>alle Gäste im Tenant</strong> (umbenennen, löschen) und <strong>Gast-Einlader (Berechtigung)</strong> über <code>authorizationPolicy.allowInvitesFrom</code> und die Rolle „Gasteinladende:r“.</p>
-                    <a class="btn" href="tools/gaeste-verwalten.html"><i class="bi bi-shield-check"></i>Werkzeug öffnen</a>
-                </section>
-                        </div>
-                    </section>
-
-                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-email">
-                        <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-email"><i class="bi bi-envelope" aria-hidden="true"></i>E-Mail</h3>
-                            <p>Exchange-Objekte, die keine Microsoft-365-Gruppen sind: freigegebene Postfächer und Verteiler.</p>
-                        </header>
-                        <div class="grid dashboard-grid--m365" data-cluster-grid="email" role="list" aria-label="E-Mail-Werkzeuge">
-                <section class="choice" role="listitem" aria-label="Freigegebene Postfächer" data-tool-id="postfaecher" data-cluster="email" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-inbox"></i>Freigegebene Postfächer</h2>
-                    <p>Im Tenant einlesen und verwalten (v1: Einlesen + Details, heuristische Erkennung).</p>
-                    <a class="btn" href="tools/postfaecher.html"><i class="bi bi-search"></i>Freigegebene Postfächer öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="Verteilerlisten und mail-aktivierte Sicherheitsgruppen" data-tool-id="verteilerlisten" data-cluster="email" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-envelope-paper"></i>Verteilerlisten &amp; Sicherheitsgruppen</h2>
-                    <p>Klassische Verteilerlisten und mail‑aktivierte Sicherheitsgruppen einlesen (Microsoft Graph) und per generiertem Exchange‑Online‑PowerShell‑Skript anlegen, ändern, Mitglieder/Besitzer pflegen oder löschen.</p>
-                    <a class="btn" href="tools/verteilerlisten.html"><i class="bi bi-envelope-paper-fill"></i>Tool öffnen</a>
-                </section>
-                        </div>
-                    </section>
-
-                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-richtlinien">
-                        <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-richtlinien"><i class="bi bi-shield-lock" aria-hidden="true"></i>Richtlinien</h3>
-                            <p>Mandantenweite Regeln – wer darf Microsoft-365-Gruppen und Teams anlegen.</p>
-                        </header>
-                        <div class="grid dashboard-grid--m365" data-cluster-grid="richtlinien" role="list" aria-label="Richtlinien">
-                <section class="choice" role="listitem" aria-label="Gruppenerstellung einschränken" data-tool-id="gruppenerstellung" data-cluster="richtlinien" data-stack="m365" draggable="true">
-                    <h2><i class="bi bi-shield-lock"></i>Gruppenerstellung einschränken</h2>
-                    <p>Entra‑Directory‑Einstellung <code>Group.Unified</code>: nur Mitglieder einer Sicherheitsgruppe dürfen M365‑Gruppen/Teams anlegen; Status prüfen oder Einschränkung aufheben.</p>
-                    <a class="btn" href="tools/gruppenerstellung.html"><i class="bi bi-box-arrow-up-right"></i>Tool öffnen</a>
-                </section>
+                        <div class="grid" data-cluster-grid="personen" role="list" aria-label="Personen und Zugänge">
+                            <section class="choice" role="listitem" aria-label="Personen suchen" data-tool-id="personen-verwaltung" data-cluster="personen" data-search="person benutzer suche mitgliedschaft verzeichnis lehrer schüler lizenz a1 a3" draggable="true">
+                                <h2><i class="bi bi-person-lines-fill"></i>Personen suchen</h2>
+                                <p>Personen der Schule suchen, nach Lizenz filtern und sehen, in welchen Gruppen sie sind.</p>
+                                <a class="btn" href="tools/personen-verwaltung.html"><i class="bi bi-search"></i>Suchen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Gäste" data-tool-id="gaeste-verwalten" data-cluster="personen" data-search="gast gäste extern einladen einladung b2b eltern" draggable="true">
+                                <h2><i class="bi bi-people"></i>Gäste</h2>
+                                <p>Externe Personen einladen, Gäste in Teams prüfen und festlegen, wer einladen darf.</p>
+                                <a class="btn" href="tools/gaeste-verwalten.html"><i class="bi bi-shield-check"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Alle Schüler und alle Lehrkräfte" data-tool-id="slg" data-cluster="personen" data-search="sammelgruppe alle schüler alle lehrer lehrerinnen schülerinnen" draggable="true">
+                                <h2><i class="bi bi-people"></i>Alle Schüler und alle Lehrkräfte</h2>
+                                <p>Zwei Sammelgruppen anlegen oder mit den Listen aus den Stammdaten füllen: alle Schülerinnen und alle Lehrkräfte.</p>
+                                <a class="btn" href="tools/schueler-lehrer-gruppen.html"><i class="bi bi-people-fill"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schulverwaltung" data-tool-id="verwaltung" data-cluster="personen" data-search="sekretariat direktion schularzt verwaltung sammelgruppe" draggable="true">
+                                <h2><i class="bi bi-building-gear"></i>Schulverwaltung</h2>
+                                <p>Gruppe für Sekretariat, Direktion und weitere Verwaltungsrollen anlegen und Mitglieder pflegen.</p>
+                                <a class="btn" href="tools/verwaltung.html"><i class="bi bi-building-gear"></i>Öffnen</a>
+                            </section>
                         </div>
                     </section>
                 </div>
 
-                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-sharepoint" aria-labelledby="dash-tab-sharepoint" hidden>
-                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-sp-mandant">
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-schuljahr" aria-labelledby="dash-tab-schuljahr" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-schuljahr">
                         <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-sp-mandant"><i class="bi bi-building-gear" aria-hidden="true"></i>Mandant</h3>
-                            <p>SharePoint-Einstellungen für den ganzen Tenant: Websiteerstellung und Freigaben.</p>
+                            <h3 id="dash-cluster-schuljahr"><i class="bi bi-calendar2-range" aria-hidden="true"></i>Schuljahr wechseln</h3>
+                            <p>Einmal pro Jahr: neues Schuljahr aktivieren und Klassen sowie Teams nachziehen.</p>
                         </header>
-                        <div class="grid dashboard-grid--sharepoint" data-cluster-grid="mandant" role="list" aria-label="SharePoint-Mandant">
-                <section class="choice" role="listitem" aria-label="SharePoint Websiteerstellung" data-tool-id="sharepoint-mandant-website" data-cluster="mandant" data-stack="sharepoint" draggable="true">
-                    <h2><i class="bi bi-building-gear"></i>SharePoint – Websiteerstellung</h2>
-                    <p>Mandanten‑Einstellungen wie im Admin Center: Sites anlegen, Pfade, <strong>Standardzeitzone</strong>, Speicher für neue Sites – per Graph <code>admin/sharepoint/settings</code>.</p>
-                    <a class="btn" href="tools/sharepoint-mandant-website.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="SharePoint Mandanten Freigaben" data-tool-id="sharepoint-mandant-teilen" data-cluster="mandant" data-stack="sharepoint" draggable="true">
-                    <h2><i class="bi bi-share"></i>SharePoint – Mandanten‑Freigaben</h2>
-                    <p>Freigabe‑Stufe für SharePoint/OneDrive, Domain‑Listen und Gast‑Optionen über dieselbe Graph‑Admin‑API (was <code>sharepointSettings</code> hergibt).</p>
-                    <a class="btn" href="tools/sharepoint-mandant-teilen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                </section>
-                        </div>
-                    </section>
-
-                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-sp-inhalte">
-                        <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-sp-inhalte"><i class="bi bi-folder2-open" aria-hidden="true"></i>Inhalte</h3>
-                            <p>Intranet, Hub und Listen auf konkreten Websites anlegen.</p>
-                        </header>
-                        <div class="grid dashboard-grid--sharepoint" data-cluster-grid="inhalte" role="list" aria-label="SharePoint-Inhalte">
-                <section class="choice" role="listitem" aria-label="SharePoint Intranet und Hub" data-tool-id="sharepoint-intranet-hub" data-cluster="inhalte" data-stack="sharepoint" draggable="true">
-                    <h2><i class="bi bi-house-door"></i>SharePoint – Intranet &amp; Hub</h2>
-                    <p><strong>Kommunikationssite</strong> (Intranet) per Graph (beta) anlegen und als <strong>Hub‑Website</strong> registrieren (REST, mit PowerShell‑Fallback).</p>
-                    <a class="btn" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="SharePoint Lehrerliste" data-tool-id="sharepoint-liste-lehrer" data-cluster="inhalte" data-stack="sharepoint" draggable="true">
-                    <h2><i class="bi bi-table"></i>SharePoint – Lehrerliste</h2>
-                    <p>Lehrkräfte aus den <strong>Schul-Grundeinstellungen</strong> als neue Liste auf einer gewählten Website anlegen und Zeilen schreiben – per Graph (<code>Sites.ReadWrite.All</code>).</p>
-                    <a class="btn" href="tools/sharepoint-liste-lehrer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                </section>
-                <section class="choice" role="listitem" aria-label="SharePoint Schultermine Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="inhalte" data-stack="sharepoint" draggable="true">
-                    <h2><i class="bi bi-calendar3"></i>SharePoint – Schultermine-Liste</h2>
-                    <p>Leere Liste mit Spalten für Termine (Beginn/Ende, Kategorie, Outlook-ID, …) – Befüllung und Sync z. B. per <strong>Power Automate</strong>.</p>
-                    <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                </section>
+                        <div class="grid" data-cluster-grid="schuljahr" role="list" aria-label="Schuljahr wechseln">
+                            <section class="choice" role="listitem" aria-label="Schuljahr wechseln" data-tool-id="organisations-assistent" data-cluster="schuljahr" data-search="schuljahr schuljahreswechsel archiv kohorte matura abschlussjahrgang fortschreiben umbenennen" draggable="true">
+                                <h2><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</h2>
+                                <p>Checkliste: Schuljahr in den Stammdaten aktivieren, Klassen-Anzeigenamen anpassen, Abschlussjahrgang prüfen, Schülerliste und Unterrichtsteams nachziehen.</p>
+                                <a class="btn" href="tools/organisations-assistent.html"><i class="bi bi-calendar2-check"></i>Öffnen</a>
+                            </section>
                         </div>
                     </section>
                 </div>
 
-                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-tools" aria-labelledby="dash-tab-tools" hidden>
-                    <div class="grid dashboard-grid--tools" id="grid-tools" data-cluster-grid="tools" role="list" aria-label="Weitere Werkzeuge">
-                        <section class="choice choice-placeholder" aria-label="Platzhalter">
-                            <h2><i class="bi bi-hourglass-split"></i>Weitere Werkzeuge</h2>
-                            <p>Hier können später zusätzliche Hilfen und Integrationen ergänzt werden – getrennt von den Microsoft‑365‑ und SharePoint‑Standardkacheln.</p>
-                            <span class="placeholder-badge">In Planung</span>
-                        </section>
-                    </div>
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-kommunikation" aria-labelledby="dash-tab-kommunikation" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-kommunikation">
+                        <header class="dashboard-cluster-head">
+                            <h3 id="dash-cluster-kommunikation"><i class="bi bi-envelope" aria-hidden="true"></i>Kommunikation &amp; Post</h3>
+                            <p>Gemeinsame Postfächer und Verteiler für Sekretariat, Direktion und Eltern.</p>
+                        </header>
+                        <div class="grid" data-cluster-grid="kommunikation" role="list" aria-label="Kommunikation und Post">
+                            <section class="choice" role="listitem" aria-label="Gemeinsame Postfächer" data-tool-id="postfaecher" data-cluster="kommunikation" data-search="postfach mailbox sekretariat direktion e-mail exchange" draggable="true">
+                                <h2><i class="bi bi-inbox"></i>Gemeinsame Postfächer</h2>
+                                <p>Postfächer wie Sekretariat oder Direktion anzeigen, die mehrere Personen gemeinsam nutzen.</p>
+                                <a class="btn" href="tools/postfaecher.html"><i class="bi bi-inbox"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="E-Mail-Verteiler" data-tool-id="verteilerlisten" data-cluster="kommunikation" data-search="verteilerliste verteiler mail sicherheitsgruppe exchange skript" draggable="true">
+                                <h2><i class="bi bi-envelope-paper"></i>E-Mail-Verteiler</h2>
+                                <p>Klassische Verteilerlisten anzeigen und bei Bedarf per Skript anlegen oder ändern.</p>
+                                <a class="btn" href="tools/verteilerlisten.html"><i class="bi bi-envelope-paper-fill"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Eltern-Verteiler" data-tool-id="eltern-verteiler" data-cluster="kommunikation" data-search="eltern erziehungsberechtigte verteiler klasse jahrgang mail contact gal" draggable="true">
+                                <h2><i class="bi bi-people"></i>Eltern-Verteiler</h2>
+                                <p>Erziehungsberechtigte Schülern zuordnen und Klassen-/Jahrgangs-Verteilerlisten erzeugen (GAL ohne sichtbare Elternmails).</p>
+                                <a class="btn" href="tools/eltern-verteiler.html"><i class="bi bi-people-fill"></i>Öffnen</a>
+                            </section>
+                        </div>
+                    </section>
                 </div>
-            </div>
-            <p class="dashboard-reorder-hint" id="dashboard-reorder-hint">Tipp: Mit dem <strong>Stern</strong> wichtige Werkzeuge in ihrem Abschnitt nach oben pinnen. Per <strong>Drag &amp; Drop</strong> die Reihenfolge der Kacheln im jeweiligen Abschnitt anpassen.</p>
+
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-website" aria-labelledby="dash-tab-website" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-website">
+                        <header class="dashboard-cluster-head">
+                            <h3 id="dash-cluster-website"><i class="bi bi-house-door" aria-hidden="true"></i>Schulwebsite &amp; Listen</h3>
+                            <p>Zentrale Schul-Website und Listen für Lehrkräfte und Termine.</p>
+                        </header>
+                        <div class="grid" data-cluster-grid="website" role="list" aria-label="Schulwebsite und Listen">
+                            <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="website" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint" draggable="true">
+                                <h2><i class="bi bi-house-door"></i>Schul-Intranet</h2>
+                                <p>Schulwebsite anlegen: Kommunikationssite, Hub und Startlisten (Lehrer, Termine).</p>
+                                <a class="btn" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Lehrerliste" data-tool-id="sharepoint-liste-lehrer" data-cluster="website" data-search="lehrerliste sharepoint liste lehrkräfte website" draggable="true">
+                                <h2><i class="bi bi-table"></i>Lehrerliste</h2>
+                                <p>Die Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website anlegen.</p>
+                                <a class="btn" href="tools/sharepoint-liste-lehrer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schultermine-Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="website" data-search="schultermine termin kalender liste sharepoint website" draggable="true">
+                                <h2><i class="bi bi-calendar3"></i>Schultermine-Liste</h2>
+                                <p>Eine leere Termineliste anlegen (Beginn, Ende, Kategorie). Befüllen können Sie später.</p>
+                                <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-regeln" aria-labelledby="dash-tab-regeln" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-regeln">
+                        <header class="dashboard-cluster-head">
+                            <h3 id="dash-cluster-regeln"><i class="bi bi-sliders2" aria-hidden="true"></i>Regeln &amp; Ordnung</h3>
+                            <p>Wer darf was anlegen, Aufräumen und Übersicht aller Gruppen – vor allem für die IT.</p>
+                        </header>
+                        <div class="grid" data-cluster-grid="regeln" role="list" aria-label="Regeln und Ordnung">
+                            <section class="choice" role="listitem" aria-label="Wer darf Teams anlegen" data-tool-id="gruppenerstellung" data-cluster="regeln" data-search="gruppenerstellung einschränken wer darf teams anlegen richtlinie regel" draggable="true">
+                                <h2><i class="bi bi-shield-lock"></i>Wer darf Teams anlegen?</h2>
+                                <p>Festlegen, wer an der Schule neue Teams anlegen darf – damit nicht jede Person eigene Gruppen erzeugt.</p>
+                                <a class="btn" href="tools/gruppenerstellung.html"><i class="bi bi-shield-lock"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Neue Websites" data-tool-id="sharepoint-mandant-website" data-cluster="regeln" data-search="sharepoint website site anlegen zeitzone speicher mandant" draggable="true">
+                                <h2><i class="bi bi-building-gear"></i>Neue Websites</h2>
+                                <p>Regeln, ob und wie an der Schule neue Websites angelegt werden dürfen.</p>
+                                <a class="btn" href="tools/sharepoint-mandant-website.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Dateien teilen" data-tool-id="sharepoint-mandant-teilen" data-cluster="regeln" data-search="sharepoint teilen freigabe onedrive gast extern datei" draggable="true">
+                                <h2><i class="bi bi-share"></i>Dateien teilen</h2>
+                                <p>Regeln, wie stark Dateien innerhalb und außerhalb der Schule geteilt werden dürfen.</p>
+                                <a class="btn" href="tools/sharepoint-mandant-teilen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Alle Gruppen und Teams" data-tool-id="schulstruktur-sync" data-cluster="regeln" data-search="gruppenverwaltung alle gruppen teams übersicht abgleichen owner mitglieder archiv schulstruktur baum" draggable="true">
+                                <h2><i class="bi bi-diagram-2"></i>Alle Gruppen und Teams</h2>
+                                <p>Alle Gruppen der Schule anzeigen und pflegen. Zusätzliche Teams (Elternverein, Projekt) legen Sie hier über einen Assistenten an.</p>
+                                <a class="btn" href="tools/schulstruktur-sync.html"><i class="bi bi-kanban"></i>Öffnen</a>
+                                <a class="btn alt" href="tools/schulstruktur-sync.html?mode=struktur">Schulstruktur</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Leere Gruppen finden" data-tool-id="leere-gruppen-report" data-cluster="regeln" data-search="leer aufräumen ohne mitglieder ohne besitzer report" draggable="true">
+                                <h2><i class="bi bi-ui-checks-grid"></i>Leere Gruppen finden</h2>
+                                <p>Gruppen ohne Besitzer oder ohne Mitglieder finden – zum Aufräumen.</p>
+                                <a class="btn" href="tools/leere-gruppen-report.html"><i class="bi bi-search"></i>Prüfen</a>
+                            </section>
+                        </div>
+                    </section>
+                </div>
+                </div>
+                <p class="dashboard-reorder-hint" id="dashboard-reorder-hint">Oben der Schnellstart für den Schulalltag – hier der vollständige Katalog. Mit dem <strong>Stern</strong> können Sie Favoriten pinnen.</p>
+            </section>
+            <section class="dashboard-local-footer" aria-label="Lokale Daten in diesem Browser">
+                <p class="dashboard-local-footer__hint">Listen in diesem Browser</p>
+                <div class="dashboard-backup-actions">
+                    <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
+                    <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
+                    <input type="file" id="browserBackupImportFile" accept="application/json,.json">
+                </div>
+                <p class="dashboard-local-footer__note">Zum Wechseln des Browsers: Backup exportieren und in der anderen Browser-Instanz importieren. Die Microsoft-Anmeldung ist nicht enthalten.</p>
+                <p class="dashboard-local-footer__status" id="browserBackupStatus" role="status" aria-live="polite"></p>
+            </section>
             <p class="note">Ein Projekt von Kurt Söser</p>
         </div>
     </div>
 
-    <p class="header-help-row"><a href="hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+    <p class="header-help-row"><a href="hilfe.html" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
 
     <script src="ms365-config.js"></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
+    <script src="src/shared/theme-toggle.js" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
+    <script src="src/shared/app-dialog.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
     <script src="src/shared/tenant-settings-core.js" defer></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
+    <script src="src/shared/browser-backup.js" defer></script>
     <script>
         (function () {
             'use strict';
             const FAVORITES_KEY = 'ms365-dashboard-favorites-v1';
-            const TAB_KEY = 'ms365-dashboard-tab-v1';
-            const ORDER_KEY_M365 = 'ms365-dashboard-order-m365-v2';
-            const ORDER_KEY_SP = 'ms365-dashboard-order-sharepoint-v2';
-            const ORDER_KEY_TOOLS = 'ms365-dashboard-order-tools-v2';
+            const ORDER_KEY = 'ms365-dashboard-order-catalog-v1';
+            const LEGACY_ORDER_KEY_M365 = 'ms365-dashboard-order-m365-v3';
+            const LEGACY_ORDER_KEY_SP = 'ms365-dashboard-order-sharepoint-v2';
             const LEGACY_ORDER_KEY = 'ms365-dashboard-order-v1';
+            const TAB_KEY = 'ms365-dashboard-category-tab-v1';
+            const TAB_IDS = ['unterricht', 'personen', 'schuljahr', 'kommunikation', 'website', 'regeln'];
 
-            const DEFAULT_ORDER_M365 = [
-                'schulstruktur-sync',
-                'slg',
-                'verwaltung',
-                'arge-fachgruppen',
+            const DEFAULT_ORDER = [
                 'jahrgang',
                 'kursteams',
-                'organisations-assistent',
-                'leere-gruppen-report',
+                'arge-fachgruppen',
                 'personen-verwaltung',
                 'gaeste-verwalten',
+                'slg',
+                'verwaltung',
+                'organisations-assistent',
                 'postfaecher',
                 'verteilerlisten',
-                'gruppenerstellung'
-            ];
-            const DEFAULT_ORDER_SP = [
-                'sharepoint-mandant-website',
-                'sharepoint-mandant-teilen',
+                'eltern-verteiler',
                 'sharepoint-intranet-hub',
                 'sharepoint-liste-lehrer',
-                'sharepoint-liste-schultermine'
+                'sharepoint-liste-schultermine',
+                'gruppenerstellung',
+                'sharepoint-mandant-website',
+                'sharepoint-mandant-teilen',
+                'schulstruktur-sync',
+                'leere-gruppen-report'
             ];
-            const DEFAULT_ORDER_TOOLS = [];
+            const KNOWN_IDS = new Set(DEFAULT_ORDER);
 
-            const M365_ID_SET = new Set(DEFAULT_ORDER_M365);
-            const SP_ID_SET = new Set(DEFAULT_ORDER_SP);
+            const catalog = document.getElementById('dash-catalog');
+            const searchInput = document.getElementById('dashSearch');
+            const searchMeta = document.getElementById('dashSearchMeta');
+            const searchEmpty = document.getElementById('dashSearchEmpty');
+            if (!catalog) return;
 
-            const panelM365 = document.getElementById('dash-panel-m365');
-            const panelSp = document.getElementById('dash-panel-sharepoint');
-            const panelTools = document.getElementById('dash-panel-tools');
-            if (!panelM365 || !panelSp) return;
+            let activeTab = 'unterricht';
+            let searchQuery = '';
+
+            function isSearching() {
+                return searchQuery.length > 0;
+            }
+
+            function isKnownTab(tab) {
+                return TAB_IDS.indexOf(tab) !== -1;
+            }
 
             function panelForTab(tab) {
-                if (tab === 'm365') return panelM365;
-                if (tab === 'sharepoint') return panelSp;
-                return panelTools;
+                return document.getElementById('dash-panel-' + tab);
             }
 
-            function gridsInTab(tab) {
-                const panel = panelForTab(tab);
-                if (!panel) return [];
-                return Array.from(panel.querySelectorAll('[data-cluster-grid]'));
-            }
-
-            function cardsInTab(tab) {
-                const panel = panelForTab(tab);
-                if (!panel) return [];
-                return Array.from(panel.querySelectorAll('.choice[data-tool-id]'));
-            }
-
-            function orderKeyForTab(tab) {
-                if (tab === 'm365') return ORDER_KEY_M365;
-                if (tab === 'sharepoint') return ORDER_KEY_SP;
-                return ORDER_KEY_TOOLS;
-            }
-
-            function getTabForCard(el) {
-                if (!el) return 'm365';
-                if (panelM365 && panelM365.contains(el)) return 'm365';
-                if (panelSp && panelSp.contains(el)) return 'sharepoint';
-                return 'tools';
+            function gridsInCatalog() {
+                return Array.from(catalog.querySelectorAll('[data-cluster-grid]'));
             }
 
             function getAllToolCards() {
-                const out = [];
-                [panelM365, panelSp, panelTools].forEach(function (p) {
-                    if (!p) return;
-                    p.querySelectorAll('.choice[data-tool-id]').forEach(function (c) {
-                        out.push(c);
-                    });
-                });
-                return out;
+                return Array.from(catalog.querySelectorAll('.choice[data-tool-id]'));
             }
 
             function loadOrder(key) {
@@ -647,25 +1699,37 @@
             }
 
             function migrateLegacyOrderOnce() {
-                if (loadOrder(ORDER_KEY_M365) || loadOrder(ORDER_KEY_SP)) return;
-                const raw = localStorage.getItem(LEGACY_ORDER_KEY);
-                if (!raw) return;
-                let arr;
-                try {
-                    arr = JSON.parse(raw);
-                } catch {
-                    return;
+                if (loadOrder(ORDER_KEY)) return;
+                const m = loadOrder(LEGACY_ORDER_KEY_M365) || [];
+                const s = loadOrder(LEGACY_ORDER_KEY_SP) || [];
+                let merged = m.concat(s).filter(function (id) {
+                    return KNOWN_IDS.has(id);
+                });
+                if (!merged.length) {
+                    const raw = localStorage.getItem(LEGACY_ORDER_KEY);
+                    if (raw) {
+                        try {
+                            const arr = JSON.parse(raw);
+                            if (Array.isArray(arr)) {
+                                merged = arr.map(String).filter(function (id) {
+                                    return KNOWN_IDS.has(id);
+                                });
+                            }
+                        } catch {
+                            /* ignore */
+                        }
+                    }
                 }
-                if (!Array.isArray(arr)) return;
-                const m = arr.filter(function (id) {
-                    return M365_ID_SET.has(id);
-                });
-                const s = arr.filter(function (id) {
-                    return SP_ID_SET.has(id);
+                if (!merged.length) return;
+                const seen = new Set();
+                const unique = [];
+                merged.forEach(function (id) {
+                    if (seen.has(id)) return;
+                    seen.add(id);
+                    unique.push(id);
                 });
                 try {
-                    if (m.length) localStorage.setItem(ORDER_KEY_M365, JSON.stringify(m));
-                    if (s.length) localStorage.setItem(ORDER_KEY_SP, JSON.stringify(s));
+                    localStorage.setItem(ORDER_KEY, JSON.stringify(unique));
                 } catch {
                     /* ignore */
                 }
@@ -690,14 +1754,12 @@
                 }
             }
 
-            function mergeDisplayOrderForTab(tab) {
-                const defaultOrder =
-                    tab === 'm365' ? DEFAULT_ORDER_M365 : tab === 'sharepoint' ? DEFAULT_ORDER_SP : DEFAULT_ORDER_TOOLS;
-                const saved = loadOrder(orderKeyForTab(tab));
-                const full = saved && saved.length ? saved : [...defaultOrder];
+            function mergeDisplayOrder() {
+                const saved = loadOrder(ORDER_KEY);
+                const full = saved && saved.length ? saved : [...DEFAULT_ORDER];
                 const favOrder = loadFavorites();
                 const favSet = new Set(favOrder);
-                const cards = cardsInTab(tab);
+                const cards = getAllToolCards();
                 const byId = new Map(cards.map((c) => [c.getAttribute('data-tool-id'), c]));
                 const merged = [];
                 const used = new Set();
@@ -724,8 +1786,8 @@
                 return merged;
             }
 
-            function applyOrderForTab(tab, order) {
-                gridsInTab(tab).forEach(function (grid) {
+            function applyOrder(order) {
+                gridsInCatalog().forEach(function (grid) {
                     const cards = Array.from(grid.querySelectorAll(':scope > .choice[data-tool-id]'));
                     const byId = new Map(cards.map((c) => [c.getAttribute('data-tool-id'), c]));
                     const used = new Set();
@@ -745,39 +1807,64 @@
             }
 
             function applyAllOrders() {
-                applyOrderForTab('m365', mergeDisplayOrderForTab('m365'));
-                applyOrderForTab('sharepoint', mergeDisplayOrderForTab('sharepoint'));
-                applyOrderForTab('tools', mergeDisplayOrderForTab('tools'));
+                applyOrder(mergeDisplayOrder());
             }
 
             function favoriteOrderFollowingGrids() {
                 const favSet = new Set(loadFavorites());
-                const combined = [];
-                ['m365', 'sharepoint', 'tools'].forEach(function (t) {
-                    cardsInTab(t).forEach(function (c) {
-                        const id = c.getAttribute('data-tool-id');
-                        if (id) combined.push(id);
-                    });
-                });
                 const out = [];
-                combined.forEach(function (id) {
-                    if (favSet.has(id)) out.push(id);
+                getAllToolCards().forEach(function (c) {
+                    const id = c.getAttribute('data-tool-id');
+                    if (id && favSet.has(id)) out.push(id);
                 });
                 return out;
             }
 
-            function saveOrderForTab(tab) {
-                const panel = panelForTab(tab);
-                if (!panel) return;
-                const domOrder = Array.from(panel.querySelectorAll('.choice[data-tool-id]'))
+            function saveOrder() {
+                const domOrder = getAllToolCards()
                     .map((c) => c.getAttribute('data-tool-id'))
                     .filter(Boolean);
                 try {
-                    localStorage.setItem(orderKeyForTab(tab), JSON.stringify(domOrder));
+                    localStorage.setItem(ORDER_KEY, JSON.stringify(domOrder));
                 } catch {
                     /* ignore */
                 }
                 saveFavoritesOrder(favoriteOrderFollowingGrids());
+            }
+
+            function cardMatchesSearch(card, needle) {
+                if (!needle) return true;
+                const extra = card.getAttribute('data-search') || '';
+                const hay = ((card.textContent || '') + ' ' + extra).toLowerCase();
+                return hay.indexOf(needle) !== -1;
+            }
+
+            function showOnlyActiveTab() {
+                TAB_IDS.forEach(function (tab) {
+                    const panel = panelForTab(tab);
+                    if (!panel) return;
+                    if (tab === activeTab) panel.removeAttribute('hidden');
+                    else panel.setAttribute('hidden', 'hidden');
+                });
+            }
+
+            function setActiveTab(tab) {
+                activeTab = isKnownTab(tab) ? tab : 'unterricht';
+                try {
+                    localStorage.setItem(TAB_KEY, activeTab);
+                } catch {
+                    /* ignore */
+                }
+
+                document.querySelectorAll('[data-dashboard-tab]').forEach(function (btn) {
+                    const t = btn.getAttribute('data-dashboard-tab') || '';
+                    const on = t === activeTab;
+                    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+                    btn.tabIndex = on ? 0 : -1;
+                });
+
+                if (!isSearching()) showOnlyActiveTab();
+                syncDraggableState();
             }
 
             function panelVisible(card) {
@@ -785,11 +1872,53 @@
                 return panel && !panel.hidden;
             }
 
-            function syncDraggableState() {
+            function applySearchFilter() {
+                const needle = searchQuery;
+                const searching = needle.length > 0;
+                document.body.classList.toggle('dashboard-searching', searching);
+
+                let visibleCount = 0;
                 getAllToolCards().forEach(function (card) {
-                    card.hidden = false;
-                    card.draggable = panelVisible(card);
+                    const match = cardMatchesSearch(card, needle);
+                    card.hidden = !match;
+                    if (match) visibleCount += 1;
                 });
+
+                catalog.querySelectorAll('.dashboard-cluster').forEach(function (cluster) {
+                    const any = cluster.querySelector('.choice[data-tool-id]:not([hidden])');
+                    cluster.hidden = searching && !any;
+                });
+
+                if (searching) {
+                    TAB_IDS.forEach(function (tab) {
+                        const panel = panelForTab(tab);
+                        if (!panel) return;
+                        const hit = panel.querySelector('.choice[data-tool-id]:not([hidden])');
+                        if (hit) panel.removeAttribute('hidden');
+                        else panel.setAttribute('hidden', 'hidden');
+                    });
+                } else {
+                    showOnlyActiveTab();
+                }
+
+                getAllToolCards().forEach(function (card) {
+                    card.draggable = !searching && !card.hidden && panelVisible(card);
+                });
+
+                if (searchMeta) {
+                    searchMeta.textContent = searching
+                        ? visibleCount === 1
+                            ? '1 Werkzeug gefunden'
+                            : visibleCount + ' Werkzeuge gefunden'
+                        : '';
+                }
+                if (searchEmpty) {
+                    searchEmpty.hidden = !(searching && visibleCount === 0);
+                }
+            }
+
+            function syncDraggableState() {
+                applySearchFilter();
             }
 
             function setFavorite(id, on) {
@@ -868,7 +1997,7 @@
 
                     card.addEventListener('dragend', function () {
                         clearDragClasses();
-                        saveOrderForTab(getTabForCard(card));
+                        saveOrder();
                     });
 
                     card.addEventListener('dragover', function (e) {
@@ -895,56 +2024,30 @@
                         if (!dragging || dragging === card || dragging.parentElement !== gridEl) return;
                         card.classList.remove('drag-over');
                         gridEl.insertBefore(dragging, card);
-                        saveOrderForTab(getTabForCard(card));
+                        saveOrder();
                     });
                 });
             }
 
-            function setActiveTab(tab) {
-                try {
-                    localStorage.setItem(TAB_KEY, tab);
-                } catch {
-                    /* ignore */
-                }
-
-                document.querySelectorAll('[data-dashboard-tab]').forEach(function (btn) {
-                    const t = btn.getAttribute('data-dashboard-tab') || '';
-                    const on = t === tab;
-                    btn.setAttribute('aria-selected', on ? 'true' : 'false');
-                    btn.tabIndex = on ? 0 : -1;
-                });
-
-                const panels = {
-                    m365: document.getElementById('dash-panel-m365'),
-                    sharepoint: document.getElementById('dash-panel-sharepoint'),
-                    tools: document.getElementById('dash-panel-tools')
-                };
-                Object.keys(panels).forEach(function (k) {
-                    const p = panels[k];
-                    if (!p) return;
-                    if (k === tab) {
-                        p.removeAttribute('hidden');
-                    } else {
-                        p.setAttribute('hidden', 'hidden');
-                    }
-                });
-
-                syncDraggableState();
-            }
-
             document.querySelectorAll('[data-dashboard-tab]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    const t = btn.getAttribute('data-dashboard-tab') || 'm365';
-                    setActiveTab(t);
+                    setActiveTab(btn.getAttribute('data-dashboard-tab') || 'unterricht');
                 });
             });
 
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    searchQuery = String(searchInput.value || '').trim().toLowerCase();
+                    applySearchFilter();
+                });
+            }
+
             migrateLegacyOrderOnce();
 
-            let initialTab = 'm365';
+            let initialTab = 'unterricht';
             try {
                 const s = localStorage.getItem(TAB_KEY);
-                if (s === 'm365' || s === 'sharepoint' || s === 'tools') initialTab = s;
+                if (isKnownTab(s)) initialTab = s;
             } catch {
                 /* ignore */
             }
@@ -962,7 +2065,189 @@
             const elTeachers = document.getElementById('tenantStatTeachers');
             const elStudents = document.getElementById('tenantStatStudents');
             const elClasses = document.getElementById('tenantStatClasses');
+            const elYear = document.getElementById('tenantStatYear');
+            const elDomain = document.getElementById('tenantStatDomain');
+            const elSetupHint = document.getElementById('dashSetupHint');
+            const elTaskSetup = document.getElementById('dashTaskSetup');
+            const elProgUnterricht = document.getElementById('dashProgUnterricht');
+            const elProgGruppen = document.getElementById('dashProgGruppen');
+            const elProgSchuljahr = document.getElementById('dashProgSchuljahr');
             if (!elSubjects || !elTeachers || !elStudents || !elClasses) return;
+
+            function currentSchoolYear() {
+                try {
+                    if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
+                        const c = window.ms365AppDataV2.getContainer();
+                        return String((c && c.years && c.years.current) || '').trim();
+                    }
+                } catch {
+                    /* ignore */
+                }
+                return '';
+            }
+
+            function setupFinished() {
+                try {
+                    if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
+                        const setup = window.ms365AppDataV2.getSetup();
+                        return !!(setup && setup.finishedAt);
+                    }
+                } catch {
+                    /* ignore */
+                }
+                return false;
+            }
+
+            function readAppContainer() {
+                try {
+                    if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
+                        return window.ms365AppDataV2.getContainer();
+                    }
+                } catch {
+                    /* ignore */
+                }
+                return null;
+            }
+
+            function setProgress(el, text, tone) {
+                if (!el) return;
+                if (!text) {
+                    el.hidden = true;
+                    el.textContent = '';
+                    el.removeAttribute('data-tone');
+                    return;
+                }
+                el.hidden = false;
+                el.textContent = text;
+                if (tone) el.setAttribute('data-tone', tone);
+                else el.removeAttribute('data-tone');
+            }
+
+            function playbookDoneCount(container) {
+                const required = ['year', 'names', 'graduates', 'students', 'kursteams', 'subjects'];
+                const current = String((container && container.years && container.years.current) || '').trim();
+                const raw =
+                    container &&
+                    container.structure &&
+                    container.structure.settings &&
+                    container.structure.settings.organisationAssist &&
+                    container.structure.settings.organisationAssist.playbook
+                        ? container.structure.settings.organisationAssist.playbook
+                        : {};
+                const doneIn = raw.done && typeof raw.done === 'object' ? raw.done : {};
+                const done = {};
+                required.forEach(function (id) {
+                    done[id] = doneIn[id] === true;
+                });
+                const targetYear = String(raw.targetYear || '').trim();
+                if (targetYear && current && targetYear === current) done.year = true;
+
+                const setup = container && container.setup ? container.setup : {};
+                const matched = setup.matched || {};
+                const links = Array.isArray(setup.catalogLinks) ? setup.catalogLinks : [];
+                const hasSchueler =
+                    !!(matched.schuelerGroupId && String(matched.schuelerGroupId).trim()) ||
+                    links.some(function (l) {
+                        return l && l.kind === 'sammelgruppe' && l.code === 'schueler' && l.graphGroupId;
+                    });
+                if (hasSchueler) done.students = true;
+
+                const core = container && container.core ? container.core : {};
+                const subjectRows = Array.isArray(core.subjects) ? core.subjects : [];
+                const argeRows = Array.isArray(core.arges) ? core.arges : [];
+                const items = [];
+                subjectRows.forEach(function (row) {
+                    const code = row && typeof row === 'object' ? row.code : row;
+                    if (String(code || '').trim()) items.push({ kind: 'subject', code: String(code).trim().toLowerCase() });
+                });
+                argeRows.forEach(function (row) {
+                    const code = row && typeof row === 'object' ? row.code : row;
+                    if (String(code || '').trim()) items.push({ kind: 'arge', code: String(code).trim().toLowerCase() });
+                });
+                if (items.length) {
+                    const allLinked = items.every(function (item) {
+                        return links.some(function (l) {
+                            return (
+                                l &&
+                                l.kind === item.kind &&
+                                l.graphGroupId &&
+                                String(l.code || '')
+                                    .trim()
+                                    .toLowerCase() === item.code
+                            );
+                        });
+                    });
+                    if (allLinked) done.subjects = true;
+                }
+
+                let n = 0;
+                required.forEach(function (id) {
+                    if (done[id]) n += 1;
+                });
+                return { done: n, total: required.length };
+            }
+
+            function renderTaskProgress(s) {
+                const container = readAppContainer();
+                const classes = (s && s.classes) || [];
+                const classTeams =
+                    container && container.core && Array.isArray(container.core.classTeams)
+                        ? container.core.classTeams
+                        : [];
+                const matchedClasses = classTeams.filter(function (ct) {
+                    return ct && (ct.graphGroupId || ct.mode === 'matched' || ct.mode === 'created');
+                }).length;
+                if (classes.length) {
+                    const tone = matchedClasses >= classes.length ? 'ok' : matchedClasses ? 'warn' : '';
+                    setProgress(
+                        elProgUnterricht,
+                        matchedClasses + ' von ' + classes.length + ' Klassengruppen verknüpft',
+                        tone
+                    );
+                } else {
+                    setProgress(elProgUnterricht, '', '');
+                }
+
+                const matched = (container && container.setup && container.setup.matched) || {};
+                const links =
+                    container && container.setup && Array.isArray(container.setup.catalogLinks)
+                        ? container.setup.catalogLinks
+                        : [];
+                let sammel = 0;
+                if (matched.schuelerGroupId) sammel += 1;
+                if (matched.lehrerGroupId) sammel += 1;
+                if (matched.verwaltungGroupId) sammel += 1;
+                const subjectN = ((s && s.subjects) || []).length + ((s && s.arges) || []).length;
+                let subjectLinked = 0;
+                links.forEach(function (l) {
+                    if (l && (l.kind === 'subject' || l.kind === 'arge') && l.graphGroupId) subjectLinked += 1;
+                });
+                if (sammel || subjectN) {
+                    const parts = [];
+                    if (sammel) parts.push(sammel + '/3 Sammelgruppen');
+                    if (subjectN) parts.push(subjectLinked + '/' + subjectN + ' Fächer/ARGEs');
+                    const tone = sammel >= 2 && (!subjectN || subjectLinked >= subjectN) ? 'ok' : 'warn';
+                    setProgress(elProgGruppen, parts.join(' · '), tone);
+                } else {
+                    setProgress(elProgGruppen, '', '');
+                }
+
+                if (container) {
+                    const pb = playbookDoneCount(container);
+                    if (pb.done > 0 || String((container.years && container.years.current) || '').trim()) {
+                        const tone = pb.done >= pb.total ? 'ok' : pb.done ? 'warn' : '';
+                        setProgress(
+                            elProgSchuljahr,
+                            'Checkliste: ' + pb.done + ' von ' + pb.total + ' erledigt',
+                            tone
+                        );
+                    } else {
+                        setProgress(elProgSchuljahr, '', '');
+                    }
+                } else {
+                    setProgress(elProgSchuljahr, '', '');
+                }
+            }
 
             function render() {
                 if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
@@ -971,10 +2256,18 @@
                 const teachers = (s && s.teachers) || [];
                 const students = (s && s.students) || [];
                 const classes = (s && s.classes) || [];
+                const domain = String((s && s.domain) || '').trim();
+                const year = currentSchoolYear();
                 elSubjects.textContent = String(subjects.length);
                 elTeachers.textContent = String(teachers.length);
                 elStudents.textContent = String(students.length);
                 elClasses.textContent = String(classes.length);
+                if (elYear) elYear.textContent = year || 'noch nicht gesetzt';
+                if (elDomain) elDomain.textContent = domain || 'noch nicht gesetzt';
+                const showSetup = !setupFinished() && !domain;
+                if (elSetupHint) elSetupHint.hidden = !showSetup;
+                if (elTaskSetup) elTaskSetup.hidden = !showSetup;
+                renderTaskProgress(s);
                 return true;
             }
 

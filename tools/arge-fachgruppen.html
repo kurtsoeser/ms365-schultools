@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -8,43 +9,9 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – ARGE &amp; Fachgruppen</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        .page-card { max-width: 1400px; margin: 0 auto; }
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(280px, 0.9fr) 1.2fr;
-            gap: 16px;
-            align-items: start;
-            padding-bottom: 8px;
-        }
-        @media (max-width: 1050px) {
-            .layout { grid-template-columns: 1fr; }
-        }
-        .panel {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: #fff;
-            overflow: hidden;
-        }
-        .panel-head {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, rgba(94, 114, 228, 0.10) 0%, rgba(130, 94, 228, 0.06) 100%);
-        }
-        .panel-head h2 { margin: 0; font-size: 1.05em; color: #32325d; font-weight: 900; }
-        .panel-body { padding: 14px 16px; }
-        .muted { color: var(--muted); }
-        .mode-tabs {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            margin: 12px 0 0;
-        }
-        .mode-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-        .mode-actions .btn { margin: 0; padding: 10px 14px; border-radius: 10px; }
         .afg-kind-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
         .afg-kind-switch .btn { margin: 0; padding: 8px 12px; }
         .afg-kind-switch .btn[aria-pressed="true"] {
@@ -52,137 +19,35 @@
             border-color: rgba(94, 114, 228, 0.45);
             font-weight: 900;
         }
-        .tree {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-            border: 1px solid var(--border);
-            border-radius: 12px;
+        #afgCatalogModal .modal-box { max-width: 520px; }
+        #afgCatalogModal .field { margin: 0 0 12px; }
+        #afgCatalogModal .field label { display: block; margin-bottom: 4px; font-weight: 600; }
+        #afgCatalogModal .field input[type="text"] { width: 100%; box-sizing: border-box; }
+        .afg-subject-pick {
+            max-height: 160px;
             overflow: auto;
-            max-height: min(62vh, 640px);
+            border: 1px solid #e3e8ef;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #fafbfc;
         }
-        .tree li { border-bottom: 1px solid #f0f1f3; }
-        .tree li:last-child { border-bottom: 0; }
-        .tree button {
-            width: 100%;
-            text-align: left;
-            background: transparent;
-            border: 0;
-            padding: 12px 14px;
-            cursor: pointer;
+        .afg-subject-pick label {
             display: flex;
-            gap: 12px;
             align-items: center;
-            font: inherit;
-            box-sizing: border-box;
-        }
-        .tree button:hover { background: rgba(94, 114, 228, 0.06); }
-        .tree button[aria-current="true"] { background: rgba(94, 114, 228, 0.10); }
-        .tree button .slg-side-main { flex: 1; min-width: 0; }
-        .tree button .slg-side-title {
-            font-weight: 900;
-            color: #32325d;
-            display: block;
-            line-height: 1.25;
-        }
-        .tree button .slg-side-meta {
-            display: block;
-            margin-top: 4px;
-            font-size: 0.88em;
-            line-height: 1.35;
-            word-break: break-word;
-        }
-        .detail-tabs-sticky {
-            position: sticky;
-            top: 0;
-            z-index: 4;
-            padding-top: 2px;
-            margin-top: 4px;
-            margin-bottom: 4px;
-            background: #fff;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-            box-shadow: 0 10px 22px rgba(50, 50, 93, 0.06);
-        }
-        .detail-tabs {
-            display: flex;
             gap: 8px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            padding: 0;
+            font-weight: 500;
             margin: 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .detail-tab-btn {
-            appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.18);
-            border-bottom: 0;
-            background: linear-gradient(180deg, rgba(94, 114, 228, 0.06) 0%, rgba(255, 255, 255, 0.92) 100%);
-            color: #32325d;
-            border-top-left-radius: 14px;
-            border-top-right-radius: 14px;
-            padding: 10px 12px;
-            font-weight: 1000;
+            padding: 4px 0;
             cursor: pointer;
-            box-shadow: 0 8px 18px rgba(50, 50, 93, 0.08);
-            font: inherit;
         }
-        .detail-tab-btn[aria-selected="true"] {
-            background: #fff;
-            border-color: rgba(94, 114, 228, 0.30);
-            box-shadow: 0 12px 22px rgba(94, 114, 228, 0.16);
-            transform: translateY(1px);
+        .afg-subject-pick label + label { border-top: 1px solid #eef1f4; }
+        .afg-catalog-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
         }
-        .detail-tab-btn:focus-visible {
-            outline: 2px solid rgba(94, 114, 228, 0.55);
-            outline-offset: 3px;
-        }
-        .tab-panel { display: none; margin-top: 12px; }
-        .tab-panel.active { display: block; }
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 12px;
-        }
-        @media (max-width: 900px) {
-            .form-grid { grid-template-columns: 1fr; }
-        }
-        .field label { display: block; font-weight: 700; margin: 0 0 6px; color: #495057; }
-        .field input,
-        .field select,
-        .field textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 10px;
-            font: inherit;
-            box-sizing: border-box;
-        }
-        .field textarea { min-height: 88px; resize: vertical; }
-        .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-        .detail-actions .btn { margin: 0; }
-        .hint {
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--soft);
-            color: #495057;
-            line-height: 1.45;
-        }
-        .slg-search-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
-        .slg-search-wrap input { flex: 1 1 220px; min-width: 180px; }
-        .slg-search-results { margin-top: 12px; }
-        .slg-section-title { font-weight: 1000; color: #32325d; margin: 0 0 6px; font-size: 0.98em; }
-        .slg-owner-member-box {
-            margin-top: 10px;
-            max-height: 240px;
-            overflow: auto;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 10px 12px;
-            background: #fff;
-            font-size: 0.92em;
-        }
+        .afg-catalog-actions .btn { margin: 0; }
     </style>
 </head>
 <body>
@@ -193,8 +58,8 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</span>
             </div>
-            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen. Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Owner, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in der geführten Einrichtung.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Schul‑Einstellungen zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Owner, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in der geführten Einrichtung.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -206,26 +71,11 @@
         </div>
 
         <div class="content">
-            <div class="alert alert-warning" style="margin-top:0;">
-                <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
-                Dieses Werkzeug verwaltet Unified‑Gruppen je Fach bzw. ARGE aus den Stammdaten.
-            </div>
-
-            <div class="mode-tabs" aria-label="Anmeldung und Listen">
-                <div class="mode-actions">
-                    <button type="button" class="btn" id="slgBtnLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                    <button type="button" class="btn" id="slgBtnReloadLists"><i class="bi bi-arrow-clockwise"></i>Listen neu einlesen</button>
-                </div>
-            </div>
-            <p class="muted" style="margin:10px 0 16px; line-height:1.45;">
-                Quelle: <a href="../tenant.html">Schul‑Einstellungen</a> (Fächer / ARGE). Besitzer beim Anlegen: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
-            </p>
-
-            <div class="layout">
+            <div class="gd-layout">
                 <section class="panel" aria-label="Gruppen auswählen">
                     <div class="panel-head">
                         <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Katalog</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Links Fach oder ARGE wählen, rechts matchen oder anlegen – wie bei Lehrerinnen &amp; Schülerinnen.</p>
+                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Links Fach oder ARGE wählen bzw. neu anlegen, rechts mit Microsoft&nbsp;365 matchen oder eine Gruppe erstellen.</p>
                     </div>
                     <div class="panel-body">
                         <div class="afg-kind-switch" role="group" aria-label="Katalogart">
@@ -234,193 +84,65 @@
                         </div>
                         <div class="field" style="margin:0 0 10px;">
                             <label for="afgListFilter">Liste filtern</label>
-                            <input type="search" id="afgListFilter" placeholder="Kürzel oder Name …" autocomplete="off">
+                            <input type="search" id="afgListFilter" placeholder="Kürzel oder Name …" autocomplete="off" style="width:100%; box-sizing:border-box;">
+                            <div class="afg-catalog-actions" role="group" aria-label="Katalogaktionen">
+                                <button type="button" class="btn btn-success" id="afgBtnAddCatalog" title="Neuen Katalogeintrag anlegen und in die Schul-Einstellungen schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="btn" id="afgBtnEditCatalog" title="Ausgewählten Katalogeintrag bearbeiten" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
+                                <button type="button" class="btn" id="afgBtnDeleteCatalog" title="Ausgewählten Katalogeintrag löschen" disabled><i class="bi bi-trash"></i>Löschen</button>
+                                <button type="button" class="btn" id="slgBtnReloadLists" title="Katalog aus den Schul-Einstellungen neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                            </div>
                         </div>
                         <p class="muted" id="afgListSummary" style="margin:0 0 8px;">–</p>
-                        <ul class="tree" id="afgListItems" aria-label="Fach- und ARGE-Gruppen"></ul>
+                        <ul class="tree tree--scroll" id="afgListItems" aria-label="Fach- und ARGE-Gruppen"></ul>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
                             <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung öffnen</a>
-                            · <a href="archiv/arge.html" style="text-decoration:none; color:inherit;">Legacy‑ARGE‑Assistent</a>
+                            · <a href="archiv/arge.html" style="text-decoration:none; color:inherit;" title="Nur falls der Listenweg nicht reicht">Legacy‑ARGE‑Assistent (selten)</a>
                         </p>
                     </div>
                 </section>
 
                 <section class="panel" aria-label="Details">
-                    <div class="panel-head" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-                        <div>
-                            <h2 id="slgDetailTitle" style="margin:0;">Fachgruppe</h2>
-                            <div class="muted" id="slgDetailSubtitle" style="margin-top:6px;">Gruppe matchen oder anlegen</div>
-                        </div>
-                        <div class="detail-actions" style="margin-top:0;">
-                            <button type="button" class="btn" id="slgBtnOpenEntra" disabled><i class="bi bi-box-arrow-up-right"></i>Entra öffnen</button>
-                            <button type="button" class="btn btn-danger" id="slgBtnUnmatch" disabled><i class="bi bi-x-circle"></i>Match lösen</button>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div id="afgEmptyHint" class="hint" style="display:none;">
-                            Keine Einträge in dieser Liste. Bitte unter <a href="../tenant.html">Schul‑Einstellungen</a> Fächer bzw. ARGE pflegen.
-                        </div>
-                        <div id="afgDetailWrap">
-                        <div class="detail-tabs-sticky" aria-label="Detail-Tabs">
-                            <div class="detail-tabs" role="tablist" id="slgDetailTabs" aria-label="Tabs Details">
-                                <button type="button" class="detail-tab-btn" id="slgTabBtnGeneral" role="tab" data-slg-tab="general" aria-selected="true" aria-controls="slgTabGeneral">Allgemein</button>
-                                <button type="button" class="detail-tab-btn" id="slgTabBtnOwners" role="tab" data-slg-tab="owners" aria-selected="false" aria-controls="slgTabOwners">Owner</button>
-                                <button type="button" class="detail-tab-btn" id="slgTabBtnMembers" role="tab" data-slg-tab="members" aria-selected="false" aria-controls="slgTabMembers">Mitglieder</button>
-                            </div>
-                        </div>
-
-                        <div id="slgTabGeneral" class="tab-panel active" role="tabpanel" data-slg-tab-content="general" aria-labelledby="slgTabBtnGeneral">
-                            <div id="slgUnmatchedPanel">
-                                <div class="field" style="margin-top:0;">
-                                    <label for="slgGroupSearch">Bestehende Gruppe suchen (Name, Mail, Alias, Beschreibung)</label>
-                                    <div class="slg-search-wrap">
-                                        <input type="text" id="slgGroupSearch" autocomplete="off" placeholder="z. B. ARGE Sprachen oder fach-d">
-                                        <button type="button" class="btn" id="slgBtnSearch"><i class="bi bi-search"></i>Suchen</button>
-                                    </div>
-                                    <div id="slgGroupSearchResults" class="slg-search-results" style="display:none;"></div>
-                                </div>
-
-                                <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);">
-                                    <div class="slg-section-title">Neue Gruppe anlegen</div>
-                                    <p class="muted" style="margin:0 0 10px;">Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Optional auch als Team bereitstellen.</p>
-                                    <div class="form-grid" style="margin-top:0;">
-                                        <div class="field" style="grid-column:1 / -1;">
-                                            <label for="slgNewDisplayName">Anzeigename</label>
-                                            <input type="text" id="slgNewDisplayName" maxlength="200" autocomplete="off">
-                                        </div>
-                                        <div class="field">
-                                            <label for="slgNewMailNick">Alias / Mail‑Nickname</label>
-                                            <input type="text" id="slgNewMailNick" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin">
-                                        </div>
-                                        <div class="field">
-                                            <label for="slgNewDescription">Beschreibung</label>
-                                            <input type="text" id="slgNewDescription" maxlength="512" autocomplete="off">
-                                        </div>
-                                    </div>
-                                    <label class="checkbox-label" for="slgNewCreateTeam" style="margin-top:12px; display:inline-flex;">
-                                        <input type="checkbox" id="slgNewCreateTeam">
-                                        <span>Auch als <strong>Team</strong> anlegen (optional)</span>
-                                    </label>
-                                    <div class="detail-actions">
-                                        <button type="button" class="btn btn-success" id="slgBtnCreate"><i class="bi bi-plus-circle"></i>Anlegen &amp; matchen</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="slgMatchedPanel" style="display:none;">
-                                <div class="hint" style="margin-bottom:12px;">
-                                    Gematchte Microsoft 365‑Gruppe – Details wie in der <strong>MS&nbsp;365 Gruppenverwaltung</strong>. E‑Mail und Alias bleiben unverändert.
-                                </div>
-                                <div class="form-grid" style="margin-top:0;">
-                                    <div class="field">
-                                        <label for="slgLiveName">Anzeigename</label>
-                                        <input type="text" id="slgLiveName" maxlength="200" autocomplete="off">
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveArt">Art</label>
-                                        <input type="text" id="slgLiveArt" readonly>
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveMail">E‑Mail</label>
-                                        <input type="text" id="slgLiveMail" readonly>
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveVisibility">Sichtbarkeit</label>
-                                        <select id="slgLiveVisibility">
-                                            <option value="Private">Privat</option>
-                                            <option value="Public">Öffentlich</option>
-                                        </select>
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveExpires">Ablaufdatum</label>
-                                        <input type="text" id="slgLiveExpires" readonly placeholder="(kein Ablaufdatum)">
-                                    </div>
-                                    <div class="field">
-                                        <label for="slgLiveAlias">Alias</label>
-                                        <input type="text" id="slgLiveAlias" readonly>
-                                    </div>
-                                    <div class="field" style="grid-column:1 / -1;">
-                                        <label for="slgLiveDescription">Beschreibung</label>
-                                        <textarea id="slgLiveDescription" maxlength="1024" placeholder="Beschreibung der Microsoft‑365‑Gruppe"></textarea>
-                                    </div>
-                                    <div class="field" style="grid-column:1 / -1;">
-                                        <label for="slgLiveId">Gruppen‑ID</label>
-                                        <input type="text" id="slgLiveId" readonly style="font-family:Consolas, 'Segoe UI', monospace;">
-                                    </div>
-                                </div>
-                                <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="slgBtnUpdateGroup"><i class="bi bi-save"></i>Update</button>
-                                    <button type="button" class="btn" id="slgBtnRefreshGroup"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
-                                </div>
-                                <p class="muted" style="margin:12px 0 0; font-size:0.92em;">
-                                    Update speichert <strong>Anzeigename</strong>, <strong>Beschreibung</strong> und <strong>Sichtbarkeit</strong>. Zum Wechseln der Gruppe: „Match lösen“.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div id="slgTabOwners" class="tab-panel" role="tabpanel" data-slg-tab-content="owners" aria-labelledby="slgTabBtnOwners">
-                            <div id="slgOwnersUnmatched">
-                                <p class="muted" style="margin:0;">Owner werden aus der Verwaltungsliste (Rolle „Direktion“) abgeleitet und beim Anlegen gesetzt. Nach dem Match erscheinen hier die Live‑Owner aus Microsoft Graph.</p>
-                                <div class="slg-section-title" style="margin-top:14px;">Geplante Owner (Direktion)</div>
-                                <div id="slgOwnerPreview" class="slg-owner-member-box"></div>
-                            </div>
-                            <div id="slgOwnersMatched" style="display:none;">
-                                <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer (Owner)</h3>
-                                <div class="hint" style="margin-bottom:10px;">
-                                    Live aus Microsoft Graph. Der letzte Besitzer kann nicht entfernt werden.
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
-                                    <div class="field" style="margin:0;">
-                                        <label for="slgOwnerSearch">Benutzer suchen</label>
-                                        <input type="text" id="slgOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                    </div>
-                                    <button type="button" class="btn" id="slgOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                </div>
-                                <div class="field" style="margin-top:10px;">
-                                    <label for="slgOwnerSearchResults">Treffer</label>
-                                    <select id="slgOwnerSearchResults"></select>
-                                </div>
-                                <div class="detail-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="slgOwnerAddBtn"><i class="bi bi-person-plus"></i>Owner hinzufügen</button>
-                                    <button type="button" class="btn" id="slgOwnersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Owner neu laden</button>
-                                    <button type="button" class="btn" id="slgOwnersEnsureDirektionBtn"><i class="bi bi-shield-check"></i>Direktion setzen</button>
-                                </div>
-                                <div id="slgOwnersList" class="slg-owner-member-box" style="max-height:320px;" aria-label="Owner-Liste"></div>
-                            </div>
-                        </div>
-
-                        <div id="slgTabMembers" class="tab-panel" role="tabpanel" data-slg-tab-content="members" aria-labelledby="slgTabBtnMembers">
-                            <div id="slgMembersUnmatched">
-                                <p class="muted" style="margin:0;">In den Stammdaten gibt es keine Mitgliederliste für Fach/ARGE. Nach dem Match können Sie Mitglieder live in Graph pflegen.</p>
-                                <div class="slg-section-title" style="margin-top:14px;">Hinweis aus den Schul‑Einstellungen</div>
-                                <div id="slgMemberPreview" class="slg-owner-member-box"></div>
-                            </div>
-                            <div id="slgMembersMatched" style="display:none;">
-                                <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Mitglieder</h3>
-                                <div class="hint" style="margin-bottom:10px;">
-                                    Live aus Microsoft Graph. Es gibt keinen automatischen Listen‑Sync – Mitglieder hier suchen, hinzufügen oder entfernen.
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
-                                    <div class="field" style="margin:0;">
-                                        <label for="slgMemberSearch">Benutzer suchen</label>
-                                        <input type="text" id="slgMemberSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                    </div>
-                                    <button type="button" class="btn" id="slgMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                </div>
-                                <div class="field" style="margin-top:10px;">
-                                    <label for="slgMemberSearchResults">Treffer</label>
-                                    <select id="slgMemberSearchResults"></select>
-                                </div>
-                                <div class="detail-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="slgMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
-                                    <button type="button" class="btn" id="slgMembersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Mitglieder neu laden</button>
-                                </div>
-                                <div id="slgMembersList" class="slg-owner-member-box" style="max-height:360px;" aria-label="Mitglieder-Liste"></div>
-                            </div>
-                        </div>
-                        </div>
-                    </div>
+                    <div id="groupDetailHost"></div>
                 </section>
+            </div>
+            <details class="gd-page-info" id="afgPageInfo">
+                <summary><i class="bi bi-info-circle" aria-hidden="true"></i>Hinweise zu diesem Werkzeug</summary>
+                <div class="gd-page-info__body">
+                    <p>
+                        <strong>Quelle:</strong> <a href="../tenant.html">Schul‑Einstellungen</a> (Fächer / ARGE).
+                        Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
+                        Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
+                    </p>
+                    <p>
+                        <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
+                        Dieses Werkzeug verwaltet Unified‑Gruppen je Fach bzw. ARGE aus den Stammdaten.
+                    </p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <div id="afgCatalogModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="afgCatalogModalTitle" aria-hidden="true">
+        <div class="modal-box">
+            <h3 id="afgCatalogModalTitle">Neuen Katalogeintrag anlegen</h3>
+            <p class="muted" id="afgCatalogModalHint" style="margin:0 0 14px; line-height:1.45;">Wird in die Schul‑Einstellungen (Fächer / ARGE) geschrieben.</p>
+            <div class="field">
+                <label for="afgNewCode">Kürzel <span class="muted">(Pflicht)</span></label>
+                <input type="text" id="afgNewCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. M oder AGSPR">
+            </div>
+            <div class="field">
+                <label for="afgNewName">Name <span class="muted">(Pflicht)</span></label>
+                <input type="text" id="afgNewName" maxlength="120" autocomplete="off" placeholder="z. B. Mathematik">
+            </div>
+            <div class="field" id="afgNewSubjectsWrap" hidden>
+                <label for="afgNewSubjectsList">Zugeordnete Fächer <span class="muted">(optional)</span></label>
+                <div class="afg-subject-pick" id="afgNewSubjectsList" role="group" aria-label="Fächer für diese ARGE"></div>
+                <p class="muted" id="afgNewSubjectsEmpty" style="margin:6px 0 0; display:none;">Noch keine Fächer in den Schul‑Einstellungen – Sie können die ARGE trotzdem anlegen.</p>
+            </div>
+            <p class="muted" id="afgCatalogModalError" style="margin:0; color:#c0392b; display:none;" role="alert"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn" id="afgCatalogModalCancel">Abbrechen</button>
+                <button type="button" class="btn btn-success" id="afgCatalogModalSave"><i class="bi bi-check-lg"></i>Speichern</button>
             </div>
         </div>
     </div>
@@ -431,8 +153,10 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
-    <script src="../src/shared/graph-unified-groups.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <script src="../src/tools/arge-fachgruppen/arge-fachgruppen.js" defer></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

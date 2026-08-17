@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schulverwaltung – MS 365 Gruppenverwaltung</title>
     <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .page-card { max-width: 1400px; margin: 0 auto; }
@@ -247,13 +249,25 @@
             border: 1px solid rgba(94, 114, 228, 0.22);
             background: rgba(255,255,255,0.86);
             box-shadow: 0 10px 24px rgba(50, 50, 93, 0.10);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .mode-tabs .tab-btn {
+            appearance: none;
+            border: 1px solid rgba(94, 114, 228, 0.25);
+            background: #f8f9ff;
+            color: #32325d;
             padding: 12px 16px;
             border-radius: 14px;
             font-weight: 900;
+            font: inherit;
+            cursor: pointer;
         }
         .mode-tabs .tab-btn[aria-selected="true"] {
+            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+            border-color: transparent;
+            color: #fff;
             box-shadow: 0 12px 26px rgba(94, 114, 228, 0.26);
         }
         .mode-actions {
@@ -288,53 +302,7 @@
             white-space: nowrap;
         }
 
-        /* Detail-Tabs als Registerkarten + sticky */
-        .detail-tabs-sticky {
-            position: sticky;
-            top: 0;
-            z-index: 4;
-            padding-top: 6px;
-            margin-top: 10px;
-            background: #fff;
-            border-bottom: 1px solid rgba(0,0,0,0.04);
-            box-shadow: 0 10px 22px rgba(50, 50, 93, 0.06);
-        }
-        .detail-tabs {
-            display: flex;
-            gap: 8px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            padding: 0;
-            margin: 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .detail-tab-btn {
-            appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.18);
-            border-bottom: 0;
-            background: linear-gradient(180deg, rgba(94,114,228,0.06) 0%, rgba(255,255,255,0.92) 100%);
-            color: #32325d;
-            border-top-left-radius: 14px;
-            border-top-right-radius: 14px;
-            padding: 10px 12px;
-            font-weight: 1000;
-            cursor: pointer;
-            box-shadow: 0 8px 18px rgba(50, 50, 93, 0.08);
-        }
-        .detail-tab-btn[aria-selected="true"] {
-            background: #fff;
-            border-color: rgba(94, 114, 228, 0.30);
-            box-shadow: 0 12px 22px rgba(94, 114, 228, 0.16);
-            transform: translateY(1px);
-        }
-        .detail-tab-btn:focus-visible {
-            outline: 2px solid rgba(94, 114, 228, 0.55);
-            outline-offset: 3px;
-        }
-
-        /* Tab Panels: wirklich zuordnen/ausblenden */
-        .tab-panel { display: none; margin-top: 12px; }
-        .tab-panel.active { display: block; }
+        /* Detail-Tabs: Styles kommen aus app.css (Design-Foundation) */
 
         /* Baum ↔ Organigramm (SOLL) */
         #ssStructureViewTabsBar { margin-top: 10px; padding-top: 4px; }
@@ -381,14 +349,15 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-diagram-2"></i>MS 365 Gruppenverwaltung</span>
             </div>
-            <p>Gruppen/Teams im Tenant einlesen und verwalten: Anzeigename/Beschreibung, Owner/Mitglieder, Sichtbarkeit und Kursteam‑Indikator (Microsoft Graph). Zusätzliche Gruppen ohne Schul‑Katalog: Wizard <strong>Weitere Teams &amp; Gruppen</strong>.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p>Gruppen und Teams im Tenant einlesen und pflegen. Alltag: <strong>Verwalten</strong> (Live-Gruppen) und <strong>Abgleichen</strong>. Der Reiter <strong>SOLL-Baum (Experte)</strong> ist der geplante Strukturbaum – nicht der Weg für Klassengruppen im Schuljahreswechsel.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-schulstruktur" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;">
                         <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                        <a class="btn" href="leere-gruppen-report.html?problem=no-owners" style="text-decoration:none;display:inline-block;"><i class="bi bi-clipboard2-pulse"></i>Hygiene</a>
                         <a class="btn" href="weitere-teams-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-magic"></i>Wizard: weitere Gruppen</a>
                         <button type="button" class="btn" id="ssBtnExport"><i class="bi bi-download"></i>Export (JSON)</button>
                         <label class="btn" for="ssImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (JSON)</label>
@@ -399,7 +368,12 @@
         </div>
 
         <div class="content">
-            <div class="mode-tabs" aria-label="Aktionen">
+            <div class="mode-tabs" aria-label="Ansicht wechseln">
+                <div class="tabs" role="tablist" aria-label="Gruppenverwaltung-Modus">
+                    <button type="button" class="tab-btn" id="ssTabTenantTop" role="tab" aria-selected="true">Verwalten</button>
+                    <button type="button" class="tab-btn" id="ssTabAbgleichenTop" role="tab" aria-selected="false">Abgleichen</button>
+                    <button type="button" class="tab-btn" id="ssTabStrukturTop" role="tab" aria-selected="false">SOLL-Baum (Experte)</button>
+                </div>
                 <div class="mode-actions">
                     <button type="button" class="btn btn-success small-btn" id="ssBtnTenantLoadTop" style="display:none;">
                         <i class="bi bi-cloud-download"></i>Tenant einlesen
@@ -412,9 +386,14 @@
                 Du arbeitest gerade mit <strong>Live‑Daten</strong> aus Microsoft 365. Du kannst in den Details gezielt <strong>Anzeigename</strong>, <strong>Beschreibung</strong>, <strong>Owner</strong> und (je nach Typ) weitere Eigenschaften aktualisieren. Beim <strong>Tenant einlesen</strong> werden Besitzer- und Mitgliederzahlen per Graph <code>$count</code> ermittelt (für die Filter „ohne …“).
             </div>
 
+            <div class="live-banner" id="ssStrukturBanner" role="status" aria-live="polite" style="display:none;">
+                <span class="live-badge" style="background:rgba(45, 206, 137, 0.16);border-color:rgba(45, 206, 137, 0.28);color:#1a7a4c;"><i class="bi bi-diagram-3"></i>EXPERTE</span>
+                Das ist der <strong>SOLL-Baum</strong> (geplante Schule): Jahrgänge, Klassen, ARGEs, Kursteams. Für den Alltag reichen <strong>Verwalten</strong> und <strong>Abgleichen</strong>. Klassengruppen im Schuljahreswechsel laufen über Anzeigenamen, nicht über ein Duplizieren dieses Baums.
+            </div>
+
             <div class="live-banner" id="ssMatchBanner" role="status" aria-live="polite" style="display:none;">
                 <span class="live-badge" style="background:rgba(94,114,228,0.14);border-color:rgba(94,114,228,0.25);color:#32325d;"><i class="bi bi-intersect"></i>ABGLEICH</span>
-                Hier verknüpfst du die <strong>SOLL‑Struktur</strong> (aus „Anlegen“) mit bereits vorhandenen <strong>Tenant‑Gruppen/Teams</strong> („Verwalten“). Das Mapping wird lokal gespeichert (später: SharePoint).
+                Hier verknüpfst du die <strong>SOLL‑Struktur</strong> (aus „Schulstruktur“) mit bereits vorhandenen <strong>Tenant‑Gruppen/Teams</strong> („Verwalten“). Das Mapping wird lokal gespeichert (später: SharePoint).
             </div>
 
             <div class="layout">
@@ -779,166 +758,33 @@
                         </div>
 
                         <div id="ssTenantDetail" style="display:none;">
-                            <div class="detail-tabs-sticky" aria-label="Tenant-Details Tabs (sticky)">
-                                <div class="detail-tabs" role="tablist" aria-label="Tenant-Details Tabs">
-                                    <button type="button" class="detail-tab-btn" id="ssTenantTabAllgemeinBtn" role="tab" aria-selected="true" aria-controls="ssTenantTabAllgemein">Allgemein</button>
-                                    <button type="button" class="detail-tab-btn" id="ssTenantTabOwnerBtn" role="tab" aria-selected="false" aria-controls="ssTenantTabOwner">Owner</button>
-                                    <button type="button" class="detail-tab-btn" id="ssTenantTabMitgliederBtn" role="tab" aria-selected="false" aria-controls="ssTenantTabMitglieder">Mitglieder</button>
+                            <div id="groupDetailHost"></div>
+                            <div id="ssTenantBulkWrap" style="display:none; margin: 0 0 12px; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#fff;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                                    <div style="font-weight:1000; color:#32325d;">
+                                        <i class="bi bi-check2-square" style="margin-right:8px;"></i>
+                                        <span id="ssTenantBulkCount">0</span> ausgewählt (Bulk‑Modus)
+                                    </div>
+                                    <button type="button" class="btn btn-danger small-btn" id="ssTenantBulkClear"><i class="bi bi-x-circle"></i>Auswahl löschen</button>
                                 </div>
-                            </div>
 
-                            <div id="ssTenantTabAllgemein" class="tab-panel active" role="tabpanel" aria-labelledby="ssTenantTabAllgemeinBtn">
-                                <div class="form-grid">
-                                    <div class="field">
-                                        <label for="ssTenantName">Anzeigename</label>
-                                        <input type="text" id="ssTenantName">
+                                <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; margin-top:10px;">
+                                    <div class="field" style="margin:0;">
+                                        <label for="ssTenantBulkOwnerSearch">Owner suchen</label>
+                                        <input type="text" id="ssTenantBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                     </div>
-                                    <div class="field">
-                                        <label for="ssTenantArt">Art</label>
-                                        <input type="text" id="ssTenantArt" readonly>
-                                    </div>
-                                    <div class="field">
-                                        <label for="ssTenantMail">E‑Mail</label>
-                                        <input type="text" id="ssTenantMail" readonly>
-                                    </div>
-                                    <div class="field">
-                                        <label for="ssTenantVisibility">Sichtbarkeit</label>
-                                        <select id="ssTenantVisibility">
-                                            <option value="" selected>(nicht unterstützt)</option>
-                                            <option value="Private">Privat</option>
-                                            <option value="Public">Öffentlich</option>
-                                        </select>
-                                    </div>
-                                    <div class="field">
-                                        <label for="ssTenantExpires">Ablaufdatum</label>
-                                        <div style="display:flex; gap:10px; align-items:center;">
-                                            <input type="text" id="ssTenantExpires" readonly placeholder="(kein Ablaufdatum)">
-                                            <button type="button" class="btn small-btn" id="ssTenantRenewBtn" style="margin:0; padding:10px 12px;" title="Ablaufdatum verlängern" aria-label="Ablaufdatum verlängern">
-                                                <i class="bi bi-calendar2-plus"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="field">
-                                        <label for="ssTenantAlias">Alias</label>
-                                        <input type="text" id="ssTenantAlias" readonly>
-                                    </div>
-                                    <div class="field" style="grid-column:1 / -1;">
-                                        <label for="ssTenantDescription">Beschreibung</label>
-                                        <textarea id="ssTenantDescription" placeholder="Microsoft‑365‑Gruppe: Graph-Feld „description“ (optional)"></textarea>
-                                    </div>
-                                    <div id="ssTenantTeamArchiveWrap" class="field" style="grid-column:1 / -1; display:none;">
-                                        <label for="ssTenantArchiveState">Teams‑Archiv (Microsoft Teams)</label>
-                                        <small class="muted" style="display:block;margin:4px 0 8px;line-height:1.45;">Gilt für jede Microsoft 365‑Gruppe, an die ein Team gebunden ist (Allgemeines Team, Kursteam usw.). Reine Gruppen ohne Team können hier nicht archiviert werden.</small>
-                                        <select id="ssTenantArchiveState" style="max-width:420px;">
-                                            <option value="active">Aktiv (nicht archiviert)</option>
-                                            <option value="archived">Archiviert</option>
-                                        </select>
-                                        <p id="ssTenantArchiveHint" class="muted" style="margin:6px 0 0; font-size:0.88em; display:none;"></p>
-                                        <div class="field" style="margin-top:10px;">
-                                            <label style="display:flex; align-items:flex-start; gap:10px; font-weight:600; cursor:pointer;">
-                                                <input type="checkbox" id="ssTenantArchiveSpoReadonly" style="margin-top:4px;">
-                                                <span>SharePoint‑Teamwebsite für Mitglieder schreibgeschützt (<code>shouldSetSpoSiteReadOnlyForMembers</code>) – nur bei Archivierung, nur delegierte Anmeldung</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="field" style="grid-column:1 / -1;">
-                                        <label for="ssTenantId">Gruppen‑ID</label>
-                                        <input type="text" id="ssTenantId" readonly style="font-family:Consolas, 'Segoe UI', monospace;">
-                                    </div>
+                                    <button type="button" class="btn" id="ssTenantBulkOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
                                 </div>
-                                <div class="detail-actions">
-                                    <button type="button" class="btn btn-success" id="ssTenantUpdateBtn"><i class="bi bi-save"></i>Update</button>
-                                    <button type="button" class="btn" id="ssTenantReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
-                                    <button type="button" class="btn btn-danger" id="ssTenantDeleteBtn"><i class="bi bi-trash"></i>Löschen</button>
+                                <div class="field" style="margin-top:10px;">
+                                    <label for="ssTenantBulkOwnerResults">Treffer</label>
+                                    <select id="ssTenantBulkOwnerResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                 </div>
-                                <p class="muted" style="margin:12px 0 0; font-size:0.92em;">
-                                    Hinweis: Update speichert <strong>Anzeigename</strong>, <strong>Beschreibung</strong>, <strong>Sichtbarkeit</strong> (Unified) sowie optional den <strong>Teams‑Archiv‑Status</strong>, sofern an der Gruppe ein Microsoft‑Teams‑Workload hängt. E‑Mail/Alias bleiben unverändert. Archivierung erfordert die Graph‑Berechtigung <strong>TeamSettings.ReadWrite.All</strong>.
+                                <div class="detail-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="ssTenantBulkAddOwnerBtn"><i class="bi bi-people-fill"></i>Owner zu allen hinzufügen</button>
+                                </div>
+                                <p class="muted" style="margin:10px 0 0; font-size:0.9em;">
+                                    Tipp: Mit <strong>STRG</strong> (Windows) bzw. <strong>⌘</strong> (Mac) mehrere Einträge anklicken.
                                 </p>
-                            </div>
-
-                            <div id="ssTenantTabOwner" class="tab-panel" role="tabpanel" aria-labelledby="ssTenantTabOwnerBtn">
-                                <div class="settings-module" style="margin-top:14px;">
-                                    <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer (Owner)</h3>
-                                    <div class="hint" style="margin-bottom:10px;">
-                                        Besitzer steuern Verwaltung und (je nach Typ) Berechtigungen. Tipp: Entfernen des letzten Besitzers ist gesperrt.
-                                    </div>
-
-                                    <div id="ssTenantBulkWrap" style="display:none; margin: 0 0 12px; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#fff;">
-                                        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                                            <div style="font-weight:1000; color:#32325d;">
-                                                <i class="bi bi-check2-square" style="margin-right:8px;"></i>
-                                                <span id="ssTenantBulkCount">0</span> ausgewählt (Bulk‑Modus)
-                                            </div>
-                                            <button type="button" class="btn btn-danger small-btn" id="ssTenantBulkClear"><i class="bi bi-x-circle"></i>Auswahl löschen</button>
-                                        </div>
-
-                                        <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; margin-top:10px;">
-                                            <div class="field" style="margin:0;">
-                                                <label for="ssTenantBulkOwnerSearch">Owner suchen</label>
-                                                <input type="text" id="ssTenantBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                            </div>
-                                            <button type="button" class="btn" id="ssTenantBulkOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                        </div>
-                                        <div class="field" style="margin-top:10px;">
-                                            <label for="ssTenantBulkOwnerResults">Treffer</label>
-                                            <select id="ssTenantBulkOwnerResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
-                                        </div>
-                                        <div class="detail-actions" style="margin-top:10px;">
-                                            <button type="button" class="btn btn-success" id="ssTenantBulkAddOwnerBtn"><i class="bi bi-people-fill"></i>Owner zu allen hinzufügen</button>
-                                        </div>
-                                        <p class="muted" style="margin:10px 0 0; font-size:0.9em;">
-                                            Tipp: Mit <strong>STRG</strong> (Windows) bzw. <strong>⌘</strong> (Mac) mehrere Einträge anklicken.
-                                        </p>
-                                    </div>
-
-                                    <div id="ssTenantOwnerSingleWrap">
-                                        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
-                                            <div class="field" style="margin:0;">
-                                                <label for="ssOwnerSearch">Benutzer suchen</label>
-                                                <input type="text" id="ssOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                            </div>
-                                            <button type="button" class="btn" id="ssOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                        </div>
-                                        <div class="field" style="margin-top:10px;">
-                                            <label for="ssOwnerSearchResults">Treffer</label>
-                                            <select id="ssOwnerSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
-                                        </div>
-                                        <div class="detail-actions" style="margin-top:10px;">
-                                            <button type="button" class="btn btn-success" id="ssOwnerAddBtn"><i class="bi bi-person-plus"></i>Owner hinzufügen</button>
-                                            <button type="button" class="btn" id="ssOwnersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Owner neu laden</button>
-                                        </div>
-                                        <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Owner-Liste">
-                                            <div id="ssOwnersList" style="padding:10px 12px;"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="ssTenantTabMitglieder" class="tab-panel" role="tabpanel" aria-labelledby="ssTenantTabMitgliederBtn">
-                                <div class="settings-module" style="margin-top:14px;">
-                                    <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Mitglieder</h3>
-                                    <div class="hint" style="margin-bottom:10px;">
-                                        Mitglieder sind die „normalen“ Teilnehmer der Gruppe/des Teams. Hinweis: Bei sehr großen Gruppen wird die Liste aus Performance‑Gründen gekürzt angezeigt.
-                                    </div>
-                                    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
-                                        <div class="field" style="margin:0;">
-                                            <label for="ssMemberSearch">Benutzer suchen</label>
-                                            <input type="text" id="ssMemberSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
-                                        </div>
-                                        <button type="button" class="btn" id="ssMemberSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
-                                    </div>
-                                    <div class="field" style="margin-top:10px;">
-                                        <label for="ssMemberSearchResults">Treffer</label>
-                                        <select id="ssMemberSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
-                                    </div>
-                                    <div class="detail-actions" style="margin-top:10px;">
-                                        <button type="button" class="btn btn-success" id="ssMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>
-                                        <button type="button" class="btn" id="ssMembersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Mitglieder neu laden</button>
-                                    </div>
-                                    <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Mitglieder-Liste">
-                                        <div id="ssMembersList" style="padding:10px 12px;"></div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -1331,8 +1177,12 @@
 
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-detail/group-detail.js" defer></script>
+    <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <!-- structure-rules: Side-Effect-Import in schulstruktur-sync.js (Reihenfolge zu Modul-Bundles) -->
     <script src="../src/tools/schulstruktur-sync/schulstruktur-sync.js" type="module"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>
 

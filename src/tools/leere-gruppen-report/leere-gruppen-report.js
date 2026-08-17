@@ -67,6 +67,15 @@ function bind() {
     let currentDelete = null;
     let bulkInProgress = false;
 
+    try {
+        const q = new URLSearchParams(window.location.search);
+        const problem = String(q.get('problem') || '').trim();
+        const allowed = ['all', 'problem', 'no-owners', 'no-members', 'empty'];
+        if (filterProblem && allowed.indexOf(problem) >= 0) filterProblem.value = problem;
+    } catch {
+        /* ignore */
+    }
+
     function setProgress(on, text) {
         if (!progressEl) return;
         progressEl.style.display = on ? '' : 'none';

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../../access-config.js"></script>
     <script src="../../src/shared/pin-gate.js"></script>
@@ -24,7 +25,7 @@
                 Diese Seite bleibt als eigenständiges Legacy-Werkzeug erhalten.
             </p>
             <p>Teams archivieren oder reaktivieren (entspricht der verknüpften M365‑Gruppe). Optional die SharePoint‑Website der Gruppe schreibgeschützt stellen.</p>
-            <p class="header-help-row"><a href="../../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p class="header-help-row"><a href="../../hilfe.html#tool-teams-archiv" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -92,5 +93,6 @@
     <script src="../../ms365-config.js"></script>
     <script src="../../src/shared/app-dialog.js" defer></script>
     <script src="../../src/tools/teams-archiv/teams-archiv.js" defer></script>
+    <script src="../../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

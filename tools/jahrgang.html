@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
-    <title>MS365-Schulverwaltung – Jahrgangsgruppen (Wizard)</title>
+    <title>MS365-Schulverwaltung – Klassengruppen (einmalige Neuanlage)</title>
     <link rel="stylesheet" href="../app.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
@@ -16,10 +17,10 @@
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-magic"></i>Jahrgangsgruppen (Wizard)</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-magic"></i>Klassengruppen (einmalige Neuanlage)</span>
             </div>
-            <p>Einmalige Neuanlage aller Klassengruppen mit festem Namensschema (z. B. <code>jg2026-7a</code>) per Microsoft Graph oder Skript. Für die tägliche Pflege (Liste matchen, Owner/Mitglieder) die <a href="jahrgangsgruppen.html">Listenansicht</a> nutzen.</p>
-            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p><strong>Nicht der Alltagsweg.</strong> Einmalige Neuanlage aller Klassengruppen mit festem Namensschema (z. B. <code>jg2026-7a</code>) per Microsoft Graph oder Skript. Für die tägliche Pflege (Liste matchen, Owner/Mitglieder) die <a href="jahrgangsgruppen.html">Klassengruppen-Listenansicht</a> nutzen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-jahrgang" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -33,8 +34,8 @@
 
         <div class="content" style="padding-bottom:0;">
             <div class="alert alert-info" style="margin:0 0 12px;">
-                <strong>Wizard für die einmalige Neuanlage.</strong>
-                Klassen aus den Schul‑Einstellungen mit bestehenden Microsoft‑365‑Gruppen abgleichen oder einzeln anlegen: <a href="jahrgangsgruppen.html">Jahrgangsgruppen (Liste)</a>.
+                <strong>Wizard nur für die einmalige Neuanlage.</strong>
+                Alltag: Klassen matchen oder einzeln anlegen unter <a href="jahrgangsgruppen.html">Klassengruppen</a>.
             </div>
         </div>
 
@@ -159,7 +160,7 @@
                 </div>
 
                 <div class="jg-step-content" data-jg-step="4">
-                    <h2>Jahrgangsgruppen: Grundlagen &amp; Einstellungen</h2>
+                    <h2>Klassengruppen: Grundlagen &amp; Einstellungen</h2>
                     <div class="filter-section" style="padding-top:4px;">
                         <div style="display:flex;flex-direction:column;gap:16px;">
                             <label class="checkbox-label" for="jgExchangeSmtp" style="align-items:flex-start;">
@@ -183,7 +184,7 @@
                     <div class="filter-section" style="margin-bottom:20px;border:1px solid #dee2e6;border-radius:8px;padding:16px;background:#f8f9fa;">
                         <h3 style="margin-top:0;">Microsoft Graph im Browser</h3>
                         <button type="button" class="btn" id="jgOnlineLogin" onclick="window.ms365JahrgangGraphLogin && window.ms365JahrgangGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                        <button type="button" class="btn btn-success" id="jgOnlineRun" onclick="window.ms365JahrgangGraphRun && window.ms365JahrgangGraphRun()" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Jahrgangsgruppen jetzt anlegen</button>
+                        <button type="button" class="btn btn-success" id="jgOnlineRun" onclick="window.ms365JahrgangGraphRun && window.ms365JahrgangGraphRun()" style="margin-left:8px;"><i class="bi bi-play-fill"></i>Klassengruppen jetzt anlegen</button>
                         <div id="jgOnlineLog" style="margin-top:14px;max-height:220px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
                     <div class="alert alert-warning">
@@ -228,6 +229,7 @@
     <script src="../src/shared/polyglot-cmd.js" defer></script>
     <script src="../src/shared/step-progress.js" defer></script>
     <script type="module" src="../src/tools/jahrgang/jahrgang.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>
 

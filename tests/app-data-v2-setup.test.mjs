@@ -35,9 +35,9 @@ describe('app-data-v2 setup', () => {
         store = new Map();
     });
 
-    it('VERSION is 3', () => {
+    it('VERSION is 4', () => {
         const ctx = loadAppDataV2(store);
-        expect(ctx.ms365AppDataV2.VERSION).toBe(3);
+        expect(ctx.ms365AppDataV2.VERSION).toBe(4);
     });
 
     it('normalizeSetup merges catalog links uniquely', () => {
@@ -94,6 +94,34 @@ describe('app-data-v2 setup', () => {
         expect(s('a;b c', 24)).toBe('abc');
         const n = ctx.ms365AppDataV2.normalizeSetup({ subjectGroupMailPrefix: 'pre_fix-1' });
         expect(n.subjectGroupMailPrefix).toBe('pre_fix-1');
+    });
+
+    it('upsertClassTeam keeps Graph alias with underscores and identity without', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.upsertClassTeam({
+            stableMailNickname: 'jg_2030_1a',
+            mailNickname: 'jg_2030_1a',
+            graphGroupId: 'gid-1a',
+            classCode: '1A',
+            displayName: 'Klasse 1A',
+            abschlussJahr: '2030',
+            mode: 'matched'
+        });
+        const first = ctx.ms365AppDataV2.getContainer().core.classTeams[0];
+        expect(first.stableMailNickname).toBe('jg20301a');
+        expect(first.mailNickname).toBe('jg_2030_1a');
+        ctx.ms365AppDataV2.upsertClassTeam({
+            stableMailNickname: 'jg_2030_1a',
+            mailNickname: 'jg_2030_1a',
+            graphGroupId: 'gid-1a',
+            classCode: '1A',
+            displayName: 'Klasse 1A',
+            abschlussJahr: '2030',
+            mode: 'matched'
+        });
+        const teams = ctx.ms365AppDataV2.getContainer().core.classTeams.filter((t) => t.classCode === '1A');
+        expect(teams.length).toBe(1);
+        expect(teams[0].mailNickname).toBe('jg_2030_1a');
     });
 
     it('normalizeSetup includes verwaltungGroupId and verwaltungDraft', () => {
@@ -263,5 +291,96 @@ describe('app-data-v2 setup', () => {
         const c = ctx.ms365AppDataV2.getContainer();
         expect(c.core.adminRoles).toEqual([{ code: 'DIREKTION', name: 'Direktion' }]);
         expect(c.core.admin[0].role).toBe('Direktion');
+    });
+
+    it('normalizeSetup behält catalogLinks kind cohort und verwirft ungültige Jahre', () => {
+        const ctx = loadAppDataV2(store);
+        const n = ctx.ms365AppDataV2.normalizeSetup({
+            catalogLinks: [
+                {
+                    kind: 'cohort',
+                    code: '2026',
+                    graphGroupId: 'g-c',
+                    mode: 'matched',
+                    mailNickname: 'maturajg2026',
+                    displayName: 'Abschlussjahrgang 2026'
+                },
+                { kind: 'cohort', code: '26', graphGroupId: 'bad' },
+                { kind: 'subject', code: 'M', graphGroupId: 'g-m' }
+            ]
+        });
+        const coh = n.catalogLinks.filter((x) => x.kind === 'cohort');
+        expect(coh.length).toBe(1);
+        expect(coh[0].code).toBe('2026');
+        expect(coh[0].graphGroupId).toBe('g-c');
+        expect(coh[0].mailNickname).toBe('maturajg2026');
+        expect(n.catalogLinks.find((x) => x.kind === 'subject').code).toBe('M');
+    });
+
+    it('getCatalogLink und upsertCatalogLink arbeiten mit kind cohort', () => {
+        const ctx = loadAppDataV2(store);
+        const saved = ctx.ms365AppDataV2.upsertCatalogLink({
+            kind: 'cohort',
+            code: '2027',
+            graphGroupId: 'id-27',
+            mode: 'created',
+            mailNickname: 'maturajg2027'
+        });
+        expect(saved && saved.kind).toBe('cohort');
+        const link = ctx.ms365AppDataV2.getCatalogLink('cohort', '2027');
+        expect(link && link.graphGroupId).toBe('id-27');
+        ctx.ms365AppDataV2.clearCatalogLinkGroup('cohort', '2027');
+        expect(ctx.ms365AppDataV2.getCatalogLink('cohort', '2027').graphGroupId).toBe('');
+    });
+
+    it('normalizeSetup behält catalogLinks kind eltern getrennt von cohort', () => {
+        const ctx = loadAppDataV2(store);
+        const n = ctx.ms365AppDataV2.normalizeSetup({
+            catalogLinks: [
+                {
+                    kind: 'eltern',
+                    code: '2026',
+                    graphGroupId: 'g-el',
+                    mode: 'created',
+                    mailNickname: 'elternjg2026'
+                },
+                {
+                    kind: 'cohort',
+                    code: '2026',
+                    graphGroupId: 'g-co',
+                    mode: 'matched'
+                },
+                { kind: 'eltern', code: '26', graphGroupId: 'bad' }
+            ]
+        });
+        const el = n.catalogLinks.filter((x) => x.kind === 'eltern');
+        const co = n.catalogLinks.filter((x) => x.kind === 'cohort');
+        expect(el.length).toBe(1);
+        expect(co.length).toBe(1);
+        expect(el[0].graphGroupId).toBe('g-el');
+        expect(co[0].graphGroupId).toBe('g-co');
+    });
+
+    it('getCatalogLink und upsertCatalogLink arbeiten mit kind eltern', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.upsertCatalogLink({
+            kind: 'cohort',
+            code: '2026',
+            graphGroupId: 'g-co',
+            mode: 'matched'
+        });
+        const saved = ctx.ms365AppDataV2.upsertCatalogLink({
+            kind: 'eltern',
+            code: '2026',
+            graphGroupId: 'g-el',
+            mode: 'created',
+            mailNickname: 'elternjg2026'
+        });
+        expect(saved && saved.kind).toBe('eltern');
+        expect(ctx.ms365AppDataV2.getCatalogLink('eltern', '2026').graphGroupId).toBe('g-el');
+        expect(ctx.ms365AppDataV2.getCatalogLink('cohort', '2026').graphGroupId).toBe('g-co');
+        ctx.ms365AppDataV2.clearCatalogLinkGroup('eltern', '2026');
+        expect(ctx.ms365AppDataV2.getCatalogLink('eltern', '2026').graphGroupId).toBe('');
+        expect(ctx.ms365AppDataV2.getCatalogLink('cohort', '2026').graphGroupId).toBe('g-co');
     });
 });

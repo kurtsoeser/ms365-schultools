@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../../access-config.js"></script>
     <script src="../../src/shared/pin-gate.js"></script>
@@ -20,7 +21,7 @@
             </div>
             <p><strong>Archiv:</strong> Vier‑Schritt‑Assistent. Der empfohlene Weg ist jetzt die <a href="../../tenant.html#classes">Schul‑Einstellungen → Tab „Klassen“</a> (Block „Klassen‑Gruppen … Anzeigename nach Schuljahreswechsel“).</p>
             <p>Klassen‑Gruppen zum Schuljahreswechsel umbenennen (Anzeigename), mit Vorschau und Ausführung per Microsoft Graph – ohne Mail‑Nickname zu ändern.</p>
-            <p class="header-help-row"><a href="../../hilfe.html" class="header-help-link" target="_blank" rel="noopener"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <p class="header-help-row"><a href="../../hilfe.html#tool-klassen-umbenennen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <a class="btn" href="../../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
                 <a class="btn" href="../../tenant.html#classes" style="margin-left:8px;"><i class="bi bi-sliders2-vertical"></i>Schul‑Einstellungen (Klassen)</a>
@@ -203,5 +204,6 @@
     <script src="../../src/shared/tenant-settings-core.js" defer></script>
     <script src="../../src/shared/school-domain.js" defer></script>
     <script type="module" src="../../src/tools/klassen-umbenennen/klassen-umbenennen.js"></script>
+    <script src="../../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

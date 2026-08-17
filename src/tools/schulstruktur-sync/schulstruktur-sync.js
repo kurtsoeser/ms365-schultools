@@ -62,7 +62,6 @@ import {
     wireMatchTenantSearchOnce
 } from './schulstruktur-sync-match.js';
 import {
-    formatDateTimeAT,
     pillClass,
     applyFilters
 } from './schulstruktur-sync-stats.js';
@@ -999,6 +998,80 @@ import {
         }
     }
 
+    function tenantRowToLiveGroup(group) {
+        if (!group) return null;
+        const typ = String(group.typ || '');
+        const unified = typ === 'Team' || typ === 'Gruppe';
+        const hasTeam = typ === 'Team' || group.hasTeamsForArchive === true;
+        return {
+            id: group.id,
+            displayName: group.bezeichnung,
+            mail: group.mail,
+            mailNickname: group.alias,
+            description: group.description,
+            visibility: group.visibility,
+            expirationDateTime: group.expirationDateTime,
+            createdDateTime: group.createdDateTime,
+            groupTypes: unified ? ['Unified'] : [],
+            resourceProvisioningOptions: hasTeam ? ['Team'] : []
+        };
+    }
+
+    function applyTenantArchiveUi(group) {
+        const archWrap = getEl('slgTeamArchiveWrap');
+        const archSel = getEl('slgArchiveState');
+        const archHint = getEl('slgArchiveHint');
+        const archSpo = getEl('slgArchiveSpoReadonly');
+        if (!archWrap || !archSel || !archHint || !archSpo) return;
+        if (!group) {
+            archWrap.style.display = 'none';
+            return;
+        }
+        const typ = String(group.typ || '');
+        const unifiedLike = typ === 'Team' || typ === 'Gruppe';
+        archWrap.style.display = unifiedLike ? '' : 'none';
+        if (!unifiedLike) {
+            archSpo.checked = false;
+            return;
+        }
+        const st = group.teamIsArchived;
+        let cap = group.hasTeamsForArchive;
+        if (cap === undefined && (st === true || st === false)) {
+            cap = true;
+        }
+        const loadingCap = cap === undefined && st === undefined;
+        if (loadingCap) {
+            archSel.disabled = true;
+            archSel.value = 'active';
+            archHint.style.display = '';
+            archHint.textContent = 'Teams-Anbindung und Archiv-Status werden ermittelt …';
+            archSpo.disabled = true;
+            archSpo.checked = false;
+        } else if (cap === false) {
+            archSel.disabled = true;
+            archSel.value = 'active';
+            archHint.style.display = '';
+            archHint.textContent =
+                'Kein Microsoft Teams an dieser Microsoft 365-Gruppe (nur Gruppe ohne Team/Kursteam) – Teams-Archivierung ist nicht verfügbar.';
+            archSpo.disabled = true;
+            archSpo.checked = false;
+        } else if (cap === true && (st === true || st === false)) {
+            archSel.disabled = false;
+            archSel.value = st ? 'archived' : 'active';
+            archHint.style.display = 'none';
+            archHint.textContent = '';
+            archSpo.disabled = archSel.value !== 'archived';
+        } else {
+            archSel.disabled = true;
+            archSel.value = 'active';
+            archHint.style.display = '';
+            archHint.textContent =
+                'Teams ist vorhanden, der Archiv-Status konnte nicht gelesen werden. Bitte „Neu laden“ oder Berechtigungen prüfen.';
+            archSpo.disabled = true;
+            archSpo.checked = false;
+        }
+    }
+
     function showTenantDetail(group) {
         const hint = getEl('ssHint');
         const detail = getEl('ssDetail');
@@ -1006,85 +1079,27 @@ import {
         if (hint) hint.style.display = group ? 'none' : '';
         if (detail) detail.style.display = 'none';
         if (tenantDetail) tenantDetail.style.display = group ? '' : 'none';
-        if (!group) return;
-        getEl('ssTenantName').value = String(group.bezeichnung || '');
-        getEl('ssTenantArt').value = String(group.typ || '');
-        const expEl = getEl('ssTenantExpires');
-        if (expEl) {
-            const iso = group.expirationDateTime ? String(group.expirationDateTime).trim() : '';
-            if (!iso) {
-                expEl.value = '';
-            } else {
-                expEl.value = formatDateTimeAT(iso);
+        const L = window.ms365SlgLiveDetails;
+        if (!group) {
+            if (L) {
+                L.resetCaches();
+                L.fillForm(null);
             }
+            applyTenantArchiveUi(null);
+            return;
         }
-        getEl('ssTenantMail').value = String(group.mail || '');
-        const visEl = getEl('ssTenantVisibility');
-        if (visEl) {
-            const v = String(group.visibility || '').trim();
-            // Sichtbarkeit ist nur für Unified Gruppen relevant (Teams/M365-Gruppen)
-            const can = group.typ === 'Team' || group.typ === 'Gruppe';
-            visEl.disabled = !can;
-            if (!can) {
-                visEl.value = '';
-            } else {
-                visEl.value = v === 'Public' ? 'Public' : 'Private';
-            }
+        applyTenantArchiveUi(group);
+        if (!L) return;
+        const idEl = getEl('slgLiveId');
+        const already = idEl && String(idEl.value || '') === String(group.id || '');
+        if (!already) {
+            L.fillForm(tenantRowToLiveGroup(group));
+            L.setMatchedMode(true);
         }
-        getEl('ssTenantAlias').value = String(group.alias || '');
-        const desc = getEl('ssTenantDescription');
-        if (desc) desc.value = String(group.description || '');
-        getEl('ssTenantId').value = String(group.id || '');
-
-        const archWrap = getEl('ssTenantTeamArchiveWrap');
-        const archSel = getEl('ssTenantArchiveState');
-        const archHint = getEl('ssTenantArchiveHint');
-        const archSpo = getEl('ssTenantArchiveSpoReadonly');
-        if (archWrap && archSel && archHint && archSpo) {
-            const typ = String(group.typ || '');
-            const unifiedLike = typ === 'Team' || typ === 'Gruppe';
-            archWrap.style.display = unifiedLike ? '' : 'none';
-            if (!unifiedLike) {
-                archSpo.checked = false;
-            } else {
-                const st = group.teamIsArchived;
-                let cap = group.hasTeamsForArchive;
-                if (cap === undefined && (st === true || st === false)) {
-                    cap = true;
-                }
-                const loadingCap = cap === undefined && st === undefined;
-                if (loadingCap) {
-                    archSel.disabled = true;
-                    archSel.value = 'active';
-                    archHint.style.display = '';
-                    archHint.textContent = 'Teams-Anbindung und Archiv-Status werden ermittelt …';
-                    archSpo.disabled = true;
-                    archSpo.checked = false;
-                } else if (cap === false) {
-                    archSel.disabled = true;
-                    archSel.value = 'active';
-                    archHint.style.display = '';
-                    archHint.textContent =
-                        'Kein Microsoft Teams an dieser Microsoft 365-Gruppe (nur Gruppe ohne Team/Kursteam) – Teams-Archivierung ist nicht verfügbar.';
-                    archSpo.disabled = true;
-                    archSpo.checked = false;
-                } else if (cap === true && (st === true || st === false)) {
-                    archSel.disabled = false;
-                    archSel.value = st ? 'archived' : 'active';
-                    archHint.style.display = 'none';
-                    archHint.textContent = '';
-                    archSpo.disabled = archSel.value !== 'archived';
-                } else {
-                    archSel.disabled = true;
-                    archSel.value = 'active';
-                    archHint.style.display = '';
-                    archHint.textContent =
-                        'Teams ist vorhanden, der Archiv-Status konnte nicht gelesen werden. Bitte „Neu laden“ oder Berechtigungen prüfen.';
-                    archSpo.disabled = true;
-                    archSpo.checked = false;
-                }
-            }
-        }
+        const art = getEl('slgLiveArt');
+        if (art) art.value = String(group.typ || '');
+        const entra = getEl('slgBtnOpenEntra');
+        if (entra) entra.disabled = !group.id;
     }
 
     function readDetailToRow(row) {
@@ -1609,34 +1624,6 @@ import {
         return data.value || [];
     }
 
-    async function fetchAllPagesSimple(token, initialPath) {
-        const out = [];
-        let next = initialPath;
-        let pages = 0;
-        while (next && pages < 40 && out.length < 4000) {
-            pages++;
-            const data = await graphJson('GET', next, token, undefined, undefined);
-            const vals = data.value;
-            if (Array.isArray(vals)) for (let i = 0; i < vals.length; i++) out.push(vals[i]);
-            next = data['@odata.nextLink'] || null;
-        }
-        return out;
-    }
-
-    async function fetchGroupOwners(groupId) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-        const select = 'id,displayName,mail,userPrincipalName';
-        const path =
-            '/groups/' +
-            encodeURIComponent(groupId) +
-            '/owners?$select=' +
-            encodeURIComponent(select) +
-            '&$top=200';
-        const owners = await fetchAllPagesSimple(token, path);
-        owners.sort((a, b) => compareDe(personLabel(a), personLabel(b)));
-        return owners;
-    }
-
     async function graphGetCollectionCount(token, groupId, segment) {
         const gid = String(groupId || '').trim();
         if (!gid) return -1;
@@ -1647,11 +1634,6 @@ import {
         if (!res.ok) return -1;
         const n = parseInt(String(text).trim(), 10);
         return isNaN(n) ? -1 : n;
-    }
-
-    async function fetchGroupMemberCount(groupId) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-        return graphGetCollectionCount(token, groupId, 'members');
     }
 
     async function mapWithConcurrencyLimited(items, limit, fn) {
@@ -1682,29 +1664,6 @@ import {
         });
     }
 
-    async function fetchGroupMembers(groupId) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-        const select = 'id,displayName,mail,userPrincipalName';
-        let next =
-            '/groups/' +
-            encodeURIComponent(groupId) +
-            '/members?$select=' +
-            encodeURIComponent(select) +
-            '&$top=200';
-        const out = [];
-        let pages = 0;
-        while (next && pages < 40 && out.length < 2000) {
-            pages++;
-            const data = await graphJson('GET', next, token, undefined, undefined);
-            const vals = data.value || [];
-            for (let i = 0; i < vals.length; i++) out.push(vals[i]);
-            if (out.length >= 2000) break;
-            next = data['@odata.nextLink'] || null;
-        }
-        out.sort((a, b) => compareDe(personLabel(a), personLabel(b)));
-        return { items: out, truncated: !!next || out.length >= 2000 };
-    }
-
     /* `directoryObjectRef` lebt in `schulstruktur-sync-graph-helpers.js`. */
 
     async function addGroupOwner(groupId, userId) {
@@ -1717,27 +1676,6 @@ import {
         const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
         const body = { '@odata.id': directoryObjectRef(userId) };
         await graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/members/$ref', token, body, undefined);
-    }
-
-    async function removeGroupOwner(groupId, ownerId) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-        await graphJson(
-            'DELETE',
-            '/groups/' + encodeURIComponent(groupId) + '/owners/' + encodeURIComponent(ownerId) + '/$ref',
-            token,
-            undefined
-        );
-    }
-
-    async function removeGroupMember(groupId, memberId) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-        await graphJson(
-            'DELETE',
-            '/groups/' + encodeURIComponent(groupId) + '/members/' + encodeURIComponent(memberId) + '/$ref',
-            token,
-            undefined,
-            undefined
-        );
     }
 
     /* `isGraphDuplicateRefError` lebt in `schulstruktur-sync-graph-helpers.js`. */
@@ -1754,26 +1692,6 @@ import {
             }
             await addGroupOwner(groupId, userId);
         }
-    }
-
-    async function updateTenantGroup(groupId, displayName, description, visibility) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_WRITE);
-        const body = {
-            displayName: String(displayName || '').trim(),
-            description: String(description || '').trim()
-        };
-        if (!body.displayName) throw new Error('Bitte einen Anzeigenamen eingeben.');
-        const vis = String(visibility || '').trim();
-        if (vis === 'Private' || vis === 'Public') {
-            body.visibility = vis;
-        }
-        await graphJson('PATCH', '/groups/' + encodeURIComponent(groupId), token, body, undefined);
-    }
-
-    async function renewTenantGroup(groupId) {
-        const token = await getGraphToken(GRAPH_SCOPES_TENANT_WRITE);
-        // Renew extends expiration based on lifecycle policy (Graph action).
-        await graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/renew', token, undefined, undefined);
     }
 
     async function deleteTenantGroup(groupId) {
@@ -2901,10 +2819,6 @@ import {
             });
         }
 
-        function isTenantBulkMode() {
-            return mode === 'tenant' && tenantMultiSel && tenantMultiSel.size >= 2;
-        }
-
         function setTenantBulkModeUi(isBulk) {
             // Bulk-Controls (im Owner-Tab)
             const bulkWrap = getEl('ssTenantBulkWrap');
@@ -2912,38 +2826,32 @@ import {
             if (bulkWrap) bulkWrap.style.display = isBulk ? '' : 'none';
             if (bulkCount) bulkCount.textContent = String(tenantMultiSel ? tenantMultiSel.size : 0);
 
-            // Show either Bulk UI or Single UI (avoid duplicated "suchen/treffer")
-            const singleWrap = getEl('ssTenantOwnerSingleWrap');
-            if (singleWrap) singleWrap.style.display = isBulk ? 'none' : '';
-
             // Disable other details in bulk mode (Allgemein/Mitglieder + Single-Owner-Controls)
-            const allgPanel = getEl('ssTenantTabAllgemein');
-            const memPanel = getEl('ssTenantTabMitglieder');
+            const allgPanel = getEl('slgTabGeneral');
+            const memPanel = getEl('slgTabMembers');
             if (allgPanel) allgPanel.classList.toggle('bulk-disabled', !!isBulk);
             if (memPanel) memPanel.classList.toggle('bulk-disabled', !!isBulk);
 
             const disableIds = [
-                // Allgemein
-                'ssTenantName',
-                'ssTenantDescription',
-                'ssTenantArchiveState',
-                'ssTenantArchiveSpoReadonly',
-                'ssTenantUpdateBtn',
-                'ssTenantReloadBtn',
-                'ssTenantRenewBtn',
-                'ssTenantDeleteBtn',
-                // Owner (Single)
-                'ssOwnerSearch',
-                'ssOwnerSearchBtn',
-                'ssOwnerSearchResults',
-                'ssOwnerAddBtn',
-                'ssOwnersReloadBtn',
-                // Mitglieder
-                'ssMemberSearch',
-                'ssMemberSearchBtn',
-                'ssMemberSearchResults',
-                'ssMemberAddBtn',
-                'ssMembersReloadBtn'
+                'slgLiveName',
+                'slgLiveDescription',
+                'slgArchiveState',
+                'slgArchiveSpoReadonly',
+                'slgBtnUpdateGroup',
+                'slgBtnRefreshGroup',
+                'slgBtnRenewExpires',
+                'slgBtnDeleteGroup',
+                'slgBtnOpenEntra',
+                'slgOwnerSearch',
+                'slgOwnerSearchBtn',
+                'slgOwnerSearchResults',
+                'slgOwnerAddBtn',
+                'slgOwnersReloadBtn',
+                'slgMemberSearch',
+                'slgMemberSearchBtn',
+                'slgMemberSearchResults',
+                'slgMemberAddBtn',
+                'slgMembersReloadBtn'
             ];
             for (const id of disableIds) {
                 const el = getEl(id);
@@ -2956,10 +2864,12 @@ import {
             }
 
             // Make lists non-interactive in bulk mode (remove buttons etc.)
-            const ownersList = getEl('ssOwnersList');
-            const membersList = getEl('ssMembersList');
+            const ownersList = getEl('slgOwnersList');
+            const membersList = getEl('slgMembersList');
             if (ownersList) ownersList.classList.toggle('bulk-disabled', !!isBulk);
             if (membersList) membersList.classList.toggle('bulk-disabled', !!isBulk);
+            const singleWrap = getEl('slgOwnerSingleWrap');
+            if (singleWrap) singleWrap.style.display = isBulk ? 'none' : '';
         }
 
         function toggleStructureBranch(collapsedId) {
@@ -3012,7 +2922,10 @@ import {
                 const isBulk = tenantMultiSel.size >= 2;
                 setTenantBulkModeUi(isBulk);
                 // In Bulk-Modus automatisch Owner-Tab anzeigen (dort ist die Bulk-Maske).
-                if (isBulk) setTenantTab('own');
+                if (isBulk) {
+                    const G = window.ms365GroupDetail;
+                    if (G) G.setTab('owners');
+                }
             } else {
                 setTenantBulkModeUi(false);
             }
@@ -3023,11 +2936,6 @@ import {
             }
             if (mode === 'tenant') {
                 showTenantDetail(sel || null);
-                if (!sel) {
-                    ownersCache = [];
-                    renderOwnersList([]);
-                    fillUserSearchSelect([]);
-                }
                 const md = getEl('ssMatchDetail');
                 if (md) md.style.display = 'none';
             } else {
@@ -3352,10 +3260,8 @@ import {
             selectedId = id ? String(id) : '';
             rerender();
             if (mode === 'tenant' && selectedId) {
-                // Owner-Liste automatisch nachladen (für alle Gruppentypen möglich).
-                loadOwnersNow(false);
-                loadMembersNow(false);
-                void synchronizeTenantTeamArchiveFlag();
+                const L = window.ms365SlgLiveDetails;
+                if (L) L.loadGroup({ silent: true });
             }
             if (mode === 'struktur' && selectedId) {
                 renderStructMembershipUi();
@@ -3882,24 +3788,6 @@ import {
         const filterTypSel = getEl('ssFilterTyp');
 
         async function setActiveTab(nextMode) {
-            // „Anlegen“ wird als Grundkonfiguration verstanden und lebt im Modul „Schul‑Grundeinstellungen“.
-            if (nextMode === 'struktur') {
-                if (isEmbedStructure) {
-                    if (!(await confirmMatchLeaveIfNeeded(''))) return false;
-                    mode = 'struktur';
-                    selectedId = '';
-                    updateModeUi();
-                    rerender();
-                    return true;
-                }
-                if (!(await confirmMatchLeaveIfNeeded(''))) return false;
-                try {
-                    window.location.href = '../tenant.html';
-                } catch {
-                    // ignore
-                }
-                return true;
-            }
             if (!(await confirmMatchLeaveIfNeeded(''))) return false;
             mode = nextMode === 'tenant' ? 'tenant' : nextMode === 'match' ? 'match' : 'struktur';
             selectedId = '';
@@ -3908,6 +3796,13 @@ import {
             if (tabTenant) tabTenant.setAttribute('aria-selected', mode === 'tenant' ? 'true' : 'false');
             try {
                 sessionStorage.setItem(UI_MODE_KEY, mode);
+            } catch {
+                // ignore
+            }
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.set('mode', mode);
+                window.history.replaceState({}, '', u);
             } catch {
                 // ignore
             }
@@ -3936,9 +3831,11 @@ import {
             if (visWrap) visWrap.style.display = isTenant ? '' : 'none';
             const rosterWrap = getEl('ssTenantRosterFilterWrap');
             if (rosterWrap) rosterWrap.style.display = isTenant ? '' : 'none';
-            if (liveBanner) liveBanner.style.display = isTenant ? '' : 'none';
+            if (liveBanner) liveBanner.style.display = isTenant ? 'block' : 'none';
             const matchBanner = getEl('ssMatchBanner');
-            if (matchBanner) matchBanner.style.display = isMatch ? '' : 'none';
+            if (matchBanner) matchBanner.style.display = isMatch ? 'block' : 'none';
+            const strukturBanner = getEl('ssStrukturBanner');
+            if (strukturBanner) strukturBanner.style.display = !isTenant && !isMatch ? 'block' : 'none';
             // Im Tenant-Modus wollen wir "Typ" als Filter (Team/Gruppe/Sicherheitsgruppe …) nutzen.
             if (filterTypWrap) filterTypWrap.style.display = '';
             if (!isTenant) {
@@ -5264,50 +5161,32 @@ import {
             toast(sug ? 'Vorschlag gesetzt.' : 'Kein passender Vorschlag gefunden.');
         });
 
-        getEl('ssTenantArchiveState')?.addEventListener('change', () => {
-            const sel = getEl('ssTenantArchiveState');
-            const spo = getEl('ssTenantArchiveSpoReadonly');
-            if (!sel || !spo) return;
-            spo.disabled = sel.disabled || String(sel.value || '') !== 'archived';
-            if (String(sel.value || '') !== 'archived') spo.checked = false;
-        });
+        function mergeTenantCacheFromLive(g) {
+            if (!g || !g.id) return;
+            const idx = rowsTenant.findIndex((r) => String(r.id) === String(g.id));
+            if (idx === -1) return;
+            rowsTenant[idx] = Object.assign({}, rowsTenant[idx], {
+                bezeichnung: String(g.displayName || ''),
+                mail: String(g.mail || ''),
+                alias: String(g.mailNickname || ''),
+                description: String(g.description || ''),
+                visibility: String(g.visibility || ''),
+                expirationDateTime: String(g.expirationDateTime || ''),
+                createdDateTime: String(g.createdDateTime || '')
+            });
+            saveTenantCache(rowsTenant);
+        }
 
-        getEl('ssTenantReloadBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant' || !selectedId) return;
-            const btn = getEl('ssTenantReloadBtn');
-            if (btn) btn.disabled = true;
-            try {
-                setTenantProgress(true, 'Lade Gruppendetails …', 0.25);
-                const fresh = await fetchTenantGroupDetail(selectedId);
-                // Update cache row
-                const idx = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
-                if (idx !== -1) rowsTenant[idx] = Object.assign({}, rowsTenant[idx], fresh);
-                saveTenantCache(rowsTenant);
-                setTenantProgress(true, 'Details aktualisiert.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 1200);
-                rerender();
-            } catch (e) {
-                setTenantProgress(true, 'Neu laden: ' + (e?.message || String(e)), null);
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        });
-
-        getEl('ssTenantUpdateBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant' || !selectedId) return;
-            const btn = getEl('ssTenantUpdateBtn');
-            const btnReload = getEl('ssTenantReloadBtn');
-            const btnRenew = getEl('ssTenantRenewBtn');
-            const btnDelete = getEl('ssTenantDeleteBtn');
-            const archSel = getEl('ssTenantArchiveState');
-            const archSpo = getEl('ssTenantArchiveSpoReadonly');
-            const name = getEl('ssTenantName')?.value || '';
-            const desc = getEl('ssTenantDescription')?.value || '';
-            const vis = getEl('ssTenantVisibility')?.value || '';
+        async function applyTenantArchiveAfterUpdate() {
+            if (mode !== 'tenant' || !selectedId) return '';
+            const archSel = getEl('slgArchiveState');
+            const archSpo = getEl('slgArchiveSpoReadonly');
             const idxPre = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
             const rowPre = idxPre === -1 ? null : rowsTenant[idxPre];
             const baselineArchived =
-                rowPre && (rowPre.teamIsArchived === true || rowPre.teamIsArchived === false) ? rowPre.teamIsArchived : null;
+                rowPre && (rowPre.teamIsArchived === true || rowPre.teamIsArchived === false)
+                    ? rowPre.teamIsArchived
+                    : null;
             const wantArchived =
                 archSel && !archSel.disabled && String(archSel.value || '') === 'archived'
                     ? true
@@ -5329,96 +5208,37 @@ import {
                 baselineArchived !== null &&
                 wantArchived !== baselineArchived;
             const spoForArchive = !!(wantArchived && archSpo && archSpo.checked);
-            if (btn) btn.disabled = true;
-            if (btnReload) btnReload.disabled = true;
-            if (btnRenew) btnRenew.disabled = true;
-            if (btnDelete) btnDelete.disabled = true;
-            if (archSel) archSel.disabled = true;
-            if (archSpo) archSpo.disabled = true;
-            try {
-                if (!(await dlgConfirm('Änderungen im LIVE‑Tenant wirklich speichern?', { title: 'Tenant-Update', okText: 'Speichern' }))) return;
-                setTenantProgress(true, 'Update wird durchgeführt …', 0.35);
-                await updateTenantGroup(selectedId, name, desc, vis);
-                if (doArchiveMutation) {
-                    setTenantProgress(
-                        true,
-                        wantArchived ? 'Team wird archiviert …' : 'Archivierung wird aufgehoben …',
-                        0.5
-                    );
-                    await setTenantTeamArchiveState(selectedId, wantArchived, spoForArchive);
-                }
-                setTenantProgress(true, 'Update OK – lade Details neu …', 0.75);
+            if (doArchiveMutation) {
+                setTenantProgress(
+                    true,
+                    wantArchived ? 'Team wird archiviert …' : 'Archivierung wird aufgehoben …',
+                    0.5
+                );
+                await setTenantTeamArchiveState(selectedId, wantArchived, spoForArchive);
                 const fresh = await fetchTenantGroupDetail(selectedId);
                 const idx = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
-                if (idx !== -1) rowsTenant[idx] = Object.assign({}, rowsTenant[idx], fresh);
-                saveTenantCache(rowsTenant);
-                setTenantProgress(true, 'Fertig. Änderungen wurden gespeichert.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 1600);
-                rerender();
-            } catch (e) {
-                setTenantProgress(true, 'Update fehlgeschlagen: ' + (e?.message || String(e)), null);
-                toast('Update fehlgeschlagen: ' + (e?.message || String(e)));
-            } finally {
-                if (btn) btn.disabled = false;
-                if (btnReload) btnReload.disabled = false;
-                if (btnRenew) btnRenew.disabled = false;
-                if (btnDelete) btnDelete.disabled = false;
-                if (mode === 'tenant' && selectedId) {
-                    const r = rowsTenant.find((x) => String(x.id) === String(selectedId));
-                    if (r) showTenantDetail(r);
+                if (idx !== -1) {
+                    rowsTenant[idx] = Object.assign({}, rowsTenant[idx], fresh);
+                    saveTenantCache(rowsTenant);
+                    applyTenantArchiveUi(rowsTenant[idx]);
                 }
             }
-        });
+            rerender();
+            return '';
+        }
 
-        getEl('ssTenantRenewBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant' || !selectedId) return;
-            if (!(await dlgConfirm('Ablaufdatum dieser Gruppe/dieses Teams verlängern (Renew)?', { title: 'Renew', okText: 'Verlängern' }))) return;
-            const btn = getEl('ssTenantRenewBtn');
-            const btnReload = getEl('ssTenantReloadBtn');
-            const btnUpdate = getEl('ssTenantUpdateBtn');
-            const btnDelete = getEl('ssTenantDeleteBtn');
-            if (btn) btn.disabled = true;
-            if (btnReload) btnReload.disabled = true;
-            if (btnUpdate) btnUpdate.disabled = true;
-            if (btnDelete) btnDelete.disabled = true;
-            try {
-                setTenantProgress(true, 'Verlängere Ablaufdatum …', 0.45);
-                await renewTenantGroup(selectedId);
-                setTenantProgress(true, 'Renew OK – lade Details neu …', 0.75);
-                const fresh = await fetchTenantGroupDetail(selectedId);
-                const idx = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
-                if (idx !== -1) rowsTenant[idx] = Object.assign({}, rowsTenant[idx], fresh);
-                saveTenantCache(rowsTenant);
-                setTenantProgress(true, 'Fertig.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 1400);
-                rerender();
-            } catch (e) {
-                setTenantProgress(true, 'Renew fehlgeschlagen: ' + (e?.message || String(e)), null);
-            } finally {
-                if (btn) btn.disabled = false;
-                if (btnReload) btnReload.disabled = false;
-                if (btnUpdate) btnUpdate.disabled = false;
-                if (btnDelete) btnDelete.disabled = false;
-            }
-        });
-
-        getEl('ssTenantDeleteBtn')?.addEventListener('click', async () => {
+        async function deleteSelectedTenantGroup() {
             if (mode !== 'tenant' || !selectedId) return;
             if (
                 !(await dlgConfirm(
                     'Diese Gruppe/dieses Team wirklich LÖSCHEN? Dieser Vorgang kann nicht rückgängig gemacht werden.',
                     { title: 'Löschen', okText: 'Endgültig löschen', danger: true }
                 ))
-            )
+            ) {
                 return;
-            const btn = getEl('ssTenantDeleteBtn');
-            const btnReload = getEl('ssTenantReloadBtn');
-            const btnUpdate = getEl('ssTenantUpdateBtn');
-            const btnRenew = getEl('ssTenantRenewBtn');
+            }
+            const btn = getEl('slgBtnDeleteGroup');
             if (btn) btn.disabled = true;
-            if (btnReload) btnReload.disabled = true;
-            if (btnUpdate) btnUpdate.disabled = true;
-            if (btnRenew) btnRenew.disabled = true;
             try {
                 setTenantProgress(true, 'Lösche Gruppe/Team …', 0.45);
                 await deleteTenantGroup(selectedId);
@@ -5432,406 +5252,69 @@ import {
                 setTenantProgress(true, 'Löschen fehlgeschlagen: ' + (e?.message || String(e)), null);
             } finally {
                 if (btn) btn.disabled = false;
-                if (btnReload) btnReload.disabled = false;
-                if (btnUpdate) btnUpdate.disabled = false;
-                if (btnRenew) btnRenew.disabled = false;
-            }
-        });
-
-        function fillUserSearchSelect(users) {
-            const sel = getEl('ssOwnerSearchResults');
-            if (!sel) return;
-            sel.replaceChildren();
-            if (!users || !users.length) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = '(keine Treffer)';
-                sel.appendChild(opt);
-                return;
-            }
-            for (let i = 0; i < users.length; i++) {
-                const u = users[i];
-                const opt = document.createElement('option');
-                opt.value = u.id || '';
-                opt.textContent = personLabel(u) || (u.id ? String(u.id) : '');
-                sel.appendChild(opt);
             }
         }
 
-        function renderOwnersList(owners) {
-            const wrap = getEl('ssOwnersList');
-            if (!wrap) return;
-            wrap.replaceChildren();
-            const list = Array.isArray(owners) ? owners : [];
-            if (!list.length) {
-                const p = document.createElement('p');
-                p.style.margin = '0';
-                p.style.color = '#6c757d';
-                p.textContent = 'Keine Besitzer gefunden (Achtung: das ist meist ein Problem).';
-                wrap.appendChild(p);
-                return;
-            }
-            list.forEach((o) => {
-                const row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.justifyContent = 'space-between';
-                row.style.alignItems = 'flex-start';
-                row.style.gap = '10px';
-                row.style.padding = '8px 0';
-                row.style.borderBottom = '1px solid #e9ecef';
-                const txt = document.createElement('div');
-                txt.style.whiteSpace = 'pre-wrap';
-                txt.style.lineHeight = '1.35';
-                txt.style.fontSize = '0.92em';
-                txt.textContent = personLabel(o) || '–';
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'btn';
-                btn.style.padding = '6px 10px';
-                btn.style.fontSize = '0.85em';
-                btn.textContent = 'Entfernen';
-                btn.dataset.ssRemoveOwner = o.id || '';
-                row.appendChild(txt);
-                row.appendChild(btn);
-                wrap.appendChild(row);
+        function mountTenantGroupDetail() {
+            const G = window.ms365GroupDetail;
+            if (!G) throw new Error('group-detail.js muss vor diesem Skript geladen werden.');
+            G.mount('#groupDetailHost', {
+                title: 'Gruppe',
+                subtitle: 'Details der Microsoft 365‑Gruppe im Tenant',
+                features: {
+                    header: false,
+                    matchUi: false,
+                    openEntra: true,
+                    deleteGroup: true,
+                    teamArchive: true,
+                    syncMembers: false,
+                    ensureDirektion: false,
+                    aliasEditable: false,
+                    smtpSlot: false,
+                    visibilityUnsupported: true
+                },
+                ids: { ownerExtra: 'ssTenantBulkWrap' },
+                live: {
+                    toast: toast,
+                    dlgConfirm: dlgConfirm,
+                    getGroupId: function () {
+                        return mode === 'tenant' && selectedId ? String(selectedId) : null;
+                    },
+                    getGraphToken: function () {
+                        return getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
+                    },
+                    confirmUpdate: function () {
+                        return dlgConfirm('Änderungen im LIVE‑Tenant wirklich speichern?', {
+                            title: 'Tenant-Update',
+                            okText: 'Speichern'
+                        });
+                    },
+                    onAfterLoad: async function (g) {
+                        mergeTenantCacheFromLive(g);
+                        const row = rowsTenant.find((r) => String(r.id) === String(selectedId));
+                        const art = getEl('slgLiveArt');
+                        if (art && row) art.value = String(row.typ || '');
+                        await synchronizeTenantTeamArchiveFlag();
+                    },
+                    onAfterUpdate: async function () {
+                        return applyTenantArchiveAfterUpdate();
+                    },
+                    onDelete: function () {
+                        void deleteSelectedTenantGroup();
+                    }
+                }
             });
         }
-
-        let ownersCache = [];
-        async function loadOwnersNow(showProgress) {
-            if (mode !== 'tenant' || !selectedId) return;
-            const btnReload = getEl('ssOwnersReloadBtn');
-            const btnAdd = getEl('ssOwnerAddBtn');
-            const btnSearch = getEl('ssOwnerSearchBtn');
-            if (btnReload) btnReload.disabled = true;
-            if (btnAdd) btnAdd.disabled = true;
-            if (btnSearch) btnSearch.disabled = true;
-            try {
-                if (showProgress) setTenantProgress(true, 'Lade Owner …', 0.35);
-                ownersCache = await fetchGroupOwners(selectedId);
-                renderOwnersList(ownersCache);
-                try {
-                    const ix = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
-                    if (ix !== -1) {
-                        rowsTenant[ix] = Object.assign({}, rowsTenant[ix], { ownerCount: ownersCache.length });
-                        saveTenantCache(rowsTenant);
-                        rerender();
-                    }
-                } catch (_) {}
-                if (showProgress) {
-                    setTenantProgress(true, 'Owner geladen: ' + ownersCache.length, 1);
-                    setTimeout(() => setTenantProgress(false, '', null), 900);
-                }
-            } catch (e) {
-                setTenantProgress(true, 'Owner laden: ' + (e?.message || String(e)), null);
-            } finally {
-                if (btnReload) btnReload.disabled = false;
-                if (btnAdd) btnAdd.disabled = false;
-                if (btnSearch) btnSearch.disabled = false;
-            }
-        }
-
-        // Owner: Suche
-        getEl('ssOwnerSearchBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant') return;
-            const q = getEl('ssOwnerSearch')?.value || '';
-            const btn = getEl('ssOwnerSearchBtn');
-            if (btn) btn.disabled = true;
-            try {
-                const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-                const users = await graphSearchUsersForOwner(token, q);
-                fillUserSearchSelect(users);
-                toast('Suche: ' + users.length + ' Treffer.');
-            } catch (e) {
-                toast('Suche: ' + (e?.message || String(e)));
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        });
-
-        // Owner: hinzufügen
-        getEl('ssOwnerAddBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant' || !selectedId) return;
-            const sel = getEl('ssOwnerSearchResults');
-            const userId = sel && sel.value ? String(sel.value).trim() : '';
-            if (!userId) {
-                toast('Bitte zuerst einen Benutzer aus den Treffern auswählen.');
-                return;
-            }
-            const btn = getEl('ssOwnerAddBtn');
-            if (btn) btn.disabled = true;
-            try {
-                setTenantProgress(true, 'Owner wird hinzugefügt …', 0.45);
-                await addOwnerWithMemberFallback(selectedId, userId);
-                setTenantProgress(true, 'Owner hinzugefügt. Lade Liste neu …', 0.8);
-                await loadOwnersNow(false);
-                setTenantProgress(true, 'Fertig.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 900);
-            } catch (e) {
-                setTenantProgress(true, 'Owner hinzufügen: ' + (e?.message || String(e)), null);
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        });
-
-        // Owner: neu laden
-        getEl('ssOwnersReloadBtn')?.addEventListener('click', async () => {
-            await loadOwnersNow(true);
-        });
-
-        // Owner: entfernen (delegiert über Container)
-        getEl('ssOwnersList')?.addEventListener('click', async (ev) => {
-            if (mode !== 'tenant' || !selectedId) return;
-            const t = ev.target;
-            const btn = t && t.closest ? t.closest('button[data-ss-remove-owner]') : null;
-            if (!btn) return;
-            const ownerId = btn.getAttribute('data-ss-remove-owner') || '';
-            if (!ownerId) return;
-            if (ownersCache.length <= 1) {
-                toast('Der letzte Besitzer kann nicht entfernt werden.');
-                return;
-            }
-            if (!(await dlgConfirm('Diesen Owner wirklich entfernen?', { title: 'Owner', okText: 'Entfernen', danger: true }))) return;
-            try {
-                setTenantProgress(true, 'Owner wird entfernt …', 0.45);
-                await removeGroupOwner(selectedId, ownerId);
-                setTenantProgress(true, 'Owner entfernt. Lade Liste neu …', 0.8);
-                await loadOwnersNow(false);
-                setTenantProgress(true, 'Fertig.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 900);
-            } catch (e) {
-                setTenantProgress(true, 'Owner entfernen: ' + (e?.message || String(e)), null);
-            }
-        });
-
-        function fillMemberSearchSelect(users) {
-            const sel = getEl('ssMemberSearchResults');
-            if (!sel) return;
-            sel.replaceChildren();
-            if (!users || !users.length) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = '(keine Treffer)';
-                sel.appendChild(opt);
-                return;
-            }
-            for (let i = 0; i < users.length; i++) {
-                const u = users[i];
-                const opt = document.createElement('option');
-                opt.value = u.id || '';
-                opt.textContent = personLabel(u) || (u.id ? String(u.id) : '');
-                sel.appendChild(opt);
-            }
-        }
-
-        function renderMembersList(result, totalCount) {
-            const wrap = getEl('ssMembersList');
-            if (!wrap) return;
-            wrap.replaceChildren();
-            const list = result && Array.isArray(result.items) ? result.items : [];
-            const truncated = !!(result && result.truncated);
-
-            const head = document.createElement('div');
-            head.style.display = 'flex';
-            head.style.justifyContent = 'space-between';
-            head.style.alignItems = 'baseline';
-            head.style.gap = '10px';
-            head.style.marginBottom = '8px';
-            const left = document.createElement('div');
-            left.style.fontWeight = '900';
-            left.style.color = '#32325d';
-            const totalTxt = totalCount >= 0 ? String(totalCount) : String(list.length);
-            left.textContent = 'Mitglieder: ' + totalTxt + (truncated ? ' (Anzeige gekürzt)' : '');
-            const right = document.createElement('div');
-            right.className = 'pill';
-            right.textContent = truncated ? 'gekürzt' : 'vollständig';
-            head.appendChild(left);
-            head.appendChild(right);
-            wrap.appendChild(head);
-
-            if (!list.length) {
-                const p = document.createElement('p');
-                p.style.margin = '0';
-                p.style.color = '#6c757d';
-                p.textContent = 'Keine Mitglieder.';
-                wrap.appendChild(p);
-                return;
-            }
-
-            list.forEach((m) => {
-                const row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.justifyContent = 'space-between';
-                row.style.alignItems = 'flex-start';
-                row.style.gap = '10px';
-                row.style.padding = '8px 0';
-                row.style.borderBottom = '1px solid #e9ecef';
-                const txt = document.createElement('div');
-                txt.style.whiteSpace = 'pre-wrap';
-                txt.style.lineHeight = '1.35';
-                txt.style.fontSize = '0.92em';
-                txt.textContent = personLabel(m) || '–';
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'btn';
-                btn.style.padding = '6px 10px';
-                btn.style.fontSize = '0.85em';
-                btn.textContent = 'Entfernen';
-                btn.dataset.ssRemoveMember = m.id || '';
-                row.appendChild(txt);
-                row.appendChild(btn);
-                wrap.appendChild(row);
+        if (document.getElementById('groupDetailHost') && window.ms365GroupDetail) {
+            mountTenantGroupDetail();
+            getEl('slgArchiveState')?.addEventListener('change', () => {
+                const sel = getEl('slgArchiveState');
+                const spo = getEl('slgArchiveSpoReadonly');
+                if (!sel || !spo) return;
+                spo.disabled = sel.disabled || String(sel.value || '') !== 'archived';
+                if (String(sel.value || '') !== 'archived') spo.checked = false;
             });
         }
-
-        let membersCache = [];
-        let membersCountCache = -1;
-        async function loadMembersNow(showProgress) {
-            if (mode !== 'tenant' || !selectedId) return;
-            const btnReload = getEl('ssMembersReloadBtn');
-            const btnAdd = getEl('ssMemberAddBtn');
-            const btnSearch = getEl('ssMemberSearchBtn');
-            if (btnReload) btnReload.disabled = true;
-            if (btnAdd) btnAdd.disabled = true;
-            if (btnSearch) btnSearch.disabled = true;
-            try {
-                if (showProgress) setTenantProgress(true, 'Lade Mitglieder …', 0.35);
-                // Count (best effort)
-                try {
-                    membersCountCache = await fetchGroupMemberCount(selectedId);
-                } catch {
-                    membersCountCache = -1;
-                }
-                const result = await fetchGroupMembers(selectedId);
-                membersCache = result.items || [];
-                renderMembersList(result, membersCountCache);
-                try {
-                    const ix = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
-                    if (ix !== -1 && membersCountCache >= 0) {
-                        rowsTenant[ix] = Object.assign({}, rowsTenant[ix], { memberCount: membersCountCache });
-                        saveTenantCache(rowsTenant);
-                        rerender();
-                    }
-                } catch (_) {}
-                if (showProgress) {
-                    setTenantProgress(true, 'Mitglieder geladen.', 1);
-                    setTimeout(() => setTenantProgress(false, '', null), 900);
-                }
-            } catch (e) {
-                setTenantProgress(true, 'Mitglieder laden: ' + (e?.message || String(e)), null);
-            } finally {
-                if (btnReload) btnReload.disabled = false;
-                if (btnAdd) btnAdd.disabled = false;
-                if (btnSearch) btnSearch.disabled = false;
-            }
-        }
-
-        // Member: Suche
-        getEl('ssMemberSearchBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant') return;
-            const q = getEl('ssMemberSearch')?.value || '';
-            const btn = getEl('ssMemberSearchBtn');
-            if (btn) btn.disabled = true;
-            try {
-                const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
-                const users = await graphSearchUsersForOwner(token, q);
-                fillMemberSearchSelect(users);
-                toast('Suche: ' + users.length + ' Treffer.');
-            } catch (e) {
-                toast('Suche: ' + (e?.message || String(e)));
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        });
-
-        // Member: hinzufügen
-        getEl('ssMemberAddBtn')?.addEventListener('click', async () => {
-            if (mode !== 'tenant' || !selectedId) return;
-            const sel = getEl('ssMemberSearchResults');
-            const userId = sel && sel.value ? String(sel.value).trim() : '';
-            if (!userId) {
-                toast('Bitte zuerst einen Benutzer aus den Treffern auswählen.');
-                return;
-            }
-            const btn = getEl('ssMemberAddBtn');
-            if (btn) btn.disabled = true;
-            try {
-                setTenantProgress(true, 'Mitglied wird hinzugefügt …', 0.45);
-                await addGroupMember(selectedId, userId);
-                setTenantProgress(true, 'Mitglied hinzugefügt. Lade Liste neu …', 0.8);
-                await loadMembersNow(false);
-                setTenantProgress(true, 'Fertig.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 900);
-            } catch (e) {
-                const msg = e?.message || String(e);
-                if (/added object references already exist/i.test(msg) || /already exist/i.test(msg)) {
-                    setTenantProgress(true, 'Hinweis: Benutzer war bereits Mitglied.', 1);
-                    setTimeout(() => setTenantProgress(false, '', null), 900);
-                } else {
-                    setTenantProgress(true, 'Mitglied hinzufügen: ' + msg, null);
-                }
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        });
-
-        // Member: neu laden
-        getEl('ssMembersReloadBtn')?.addEventListener('click', async () => {
-            await loadMembersNow(true);
-        });
-
-        // Member: entfernen
-        getEl('ssMembersList')?.addEventListener('click', async (ev) => {
-            if (mode !== 'tenant' || !selectedId) return;
-            const t = ev.target;
-            const btn = t && t.closest ? t.closest('button[data-ss-remove-member]') : null;
-            if (!btn) return;
-            const memberId = btn.getAttribute('data-ss-remove-member') || '';
-            if (!memberId) return;
-            if (!(await dlgConfirm('Dieses Mitglied wirklich entfernen?', { title: 'Mitglied', okText: 'Entfernen', danger: true }))) return;
-            try {
-                setTenantProgress(true, 'Mitglied wird entfernt …', 0.45);
-                await removeGroupMember(selectedId, memberId);
-                setTenantProgress(true, 'Mitglied entfernt. Lade Liste neu …', 0.8);
-                await loadMembersNow(false);
-                setTenantProgress(true, 'Fertig.', 1);
-                setTimeout(() => setTenantProgress(false, '', null), 900);
-            } catch (e) {
-                setTenantProgress(true, 'Mitglied entfernen: ' + (e?.message || String(e)), null);
-            }
-        });
-
-        // Tenant-Detail Tabs (Allgemein / Owner / Mitglieder)
-        const tAllgBtn = getEl('ssTenantTabAllgemeinBtn');
-        const tOwnBtn = getEl('ssTenantTabOwnerBtn');
-        const tMemBtn = getEl('ssTenantTabMitgliederBtn');
-        const pAllg = getEl('ssTenantTabAllgemein');
-        const pOwn = getEl('ssTenantTabOwner');
-        const pMem = getEl('ssTenantTabMitglieder');
-        let tenantActiveTab = 'allg';
-
-        function setTenantTab(next) {
-            tenantActiveTab = next === 'own' ? 'own' : next === 'mem' ? 'mem' : 'allg';
-            if (tAllgBtn) tAllgBtn.setAttribute('aria-selected', tenantActiveTab === 'allg' ? 'true' : 'false');
-            if (tOwnBtn) tOwnBtn.setAttribute('aria-selected', tenantActiveTab === 'own' ? 'true' : 'false');
-            if (tMemBtn) tMemBtn.setAttribute('aria-selected', tenantActiveTab === 'mem' ? 'true' : 'false');
-            if (pAllg) pAllg.classList.toggle('active', tenantActiveTab === 'allg');
-            if (pOwn) pOwn.classList.toggle('active', tenantActiveTab === 'own');
-            if (pMem) pMem.classList.toggle('active', tenantActiveTab === 'mem');
-
-            // Lazy-load when switching tabs
-            if (mode === 'tenant' && selectedId) {
-                if (!isTenantBulkMode()) {
-                    if (tenantActiveTab === 'own') loadOwnersNow(false);
-                    if (tenantActiveTab === 'mem') loadMembersNow(false);
-                }
-            }
-        }
-
-        if (tAllgBtn) tAllgBtn.addEventListener('click', () => setTenantTab('allg'));
-        if (tOwnBtn) tOwnBtn.addEventListener('click', () => setTenantTab('own'));
-        if (tMemBtn) tMemBtn.addEventListener('click', () => setTenantTab('mem'));
-        setTenantTab('allg');
 
         // initial render (restore last tab if available)
         function readStartMode() {
