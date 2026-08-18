@@ -4,21 +4,30 @@
     var script = document.currentScript;
     var SESSION_KEY = 'ms365-access-granted-v1';
 
-    function injectContextBar() {
+    function injectScript(fileName, marker, asModule) {
         try {
             if (!script || !script.src) return;
-            if (/\/welcome\.html(?:\?|#|$)/i.test(location.pathname)) return;
-            if (/\/ms365-schooltool\.html(?:\?|#|$)/i.test(location.pathname)) return;
-            var src = new URL('context-bar.js', script.src).href;
-            if (document.querySelector('script[data-ms365-context-bar="1"]')) return;
+            if (document.querySelector('script[' + marker + '="1"]')) return;
             var s = document.createElement('script');
-            s.src = src;
-            s.defer = true;
-            s.setAttribute('data-ms365-context-bar', '1');
+            s.src = new URL(fileName, script.src).href;
+            if (asModule) s.type = 'module';
+            else s.defer = true;
+            s.setAttribute(marker, '1');
             (document.head || document.documentElement).appendChild(s);
         } catch (e) {
             /* ignore */
         }
+    }
+
+    function injectContextBar() {
+        if (/\/welcome\.html(?:\?|#|$)/i.test(location.pathname)) return;
+        if (/\/ms365-schooltool\.html(?:\?|#|$)/i.test(location.pathname)) return;
+        injectScript('context-bar.js', 'data-ms365-context-bar', false);
+    }
+
+    function injectPublishedStamp() {
+        if (/\/welcome\.html(?:\?|#|$)/i.test(location.pathname)) return;
+        injectScript('app-published-stamp.js', 'data-ms365-published-stamp', true);
     }
 
     if (/\/welcome\.html(?:\?|#|$)/i.test(location.pathname)) return;
@@ -44,4 +53,5 @@
     }
 
     injectContextBar();
+    injectPublishedStamp();
 })();

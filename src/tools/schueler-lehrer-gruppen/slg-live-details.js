@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    /** @type {null|{ toast: Function, dlgConfirm: Function, getGroupId: Function, getActiveTab: Function, ensureDirektionOwners: Function, onUnmatched: Function, onAfterLoad: Function, getGraphToken: Function, confirmUpdate: Function, alwaysMatched: boolean }} */
+    /** @type {null|{ toast: Function, dlgConfirm: Function, getGroupId: Function, getActiveTab: Function, ensureDirektionOwners: Function, onUnmatched: Function, onAfterLoad: Function, onMembersCount: Function, getGraphToken: Function, confirmUpdate: Function, alwaysMatched: boolean }} */
     let ctx = null;
     /** @type {object|null} */
     let liveGroup = null;
@@ -424,6 +424,9 @@
             const result = await gug().fetchGroupMembers(token, gid);
             membersLoadedForId = gid;
             renderMembersList(result, membersCountCache);
+            if (ctx && typeof ctx.onMembersCount === 'function') {
+                ctx.onMembersCount(gid, membersCountCache);
+            }
         } catch (e) {
             toast('Mitglieder laden: ' + (e.message || e));
         } finally {

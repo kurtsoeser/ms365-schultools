@@ -504,6 +504,32 @@ body {
     gap: 8px;
     flex-wrap: wrap;
 }
+
+.app-published-stamp {
+    position: fixed;
+    right: 16px;
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    padding: 0;
+    z-index: 1990;
+    font-size: 0.72em;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    color: var(--muted);
+    opacity: 0.82;
+    pointer-events: none;
+    white-space: nowrap;
+    text-align: right;
+}
+
+@media (max-width: 720px) {
+    .app-published-stamp {
+        right: auto;
+        left: 16px;
+        text-align: left;
+    }
+}
 .site-credit-link .bi,
 .ms365-theme-toggle .bi {
     margin: 0;

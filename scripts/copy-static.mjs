@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { writeAppBuildInfo } from './app-build-info.mjs';
 
 const projectRoot = path.resolve(process.cwd());
 const distRoot = path.resolve(projectRoot, 'dist');
@@ -17,6 +18,7 @@ const distRoot = path.resolve(projectRoot, 'dist');
  *   kopieren (Redirect/MSAL/mode-Map), damit der Build nicht von einer älteren
  *   Vorlage abweicht.
  * - `README.md`: optional für Deployment-Artefakte.
+ * - `app-build.json`: Zeitpunkt dieses Produktions-Builds (Fußzeilen-Stempel).
  */
 
 async function exists(p) {
@@ -65,6 +67,7 @@ async function main() {
   for (const f of rootFiles) await copyFileToDist(f);
 
   await copyDirToDist('src');
+  await writeAppBuildInfo(distRoot);
 }
 
 await main();

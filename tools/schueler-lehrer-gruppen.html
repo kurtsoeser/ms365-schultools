@@ -38,7 +38,7 @@
                 <section class="panel" aria-label="Gruppen auswählen">
                     <div class="panel-head">
                         <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Listen</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Wählen Sie links <strong>Schüler:innen</strong> oder <strong>Lehrer:innen</strong> – dieselbe Struktur wie in der MS&nbsp;365 Gruppenverwaltung.</p>
+                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Wählen Sie links <strong>Schüler:innen</strong> oder <strong>Lehrer:innen</strong>. Die Zahlen rechts: <strong>Liste</strong> (Stammdaten) und <strong>Gruppe</strong> (Mitglieder in Microsoft&nbsp;365) – gleich = grün, sonst rot.</p>
                     </div>
                     <div class="panel-body">
                         <div class="gd-filter-row" style="margin:0 0 10px; justify-content:flex-end;">
@@ -51,9 +51,16 @@
                                         <span class="slg-side-title"><i class="bi bi-people" aria-hidden="true"></i> Schüler:innen</span>
                                         <span class="muted slg-side-meta" id="slgSchuelerLine">–</span>
                                     </span>
-                                    <span class="slg-side-count">
-                                        <span class="n" id="slgSchuelerCount">0</span>
-                                        <span class="l">E‑Mails</span>
+                                    <span class="slg-side-count slg-side-count--dual" id="slgSchuelerCounts">
+                                        <span class="slg-side-kpi">
+                                            <span class="n" id="slgSchuelerCount">0</span>
+                                            <span class="l">Liste</span>
+                                        </span>
+                                        <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                                        <span class="slg-side-kpi">
+                                            <span class="n" id="slgSchuelerGroupCount">–</span>
+                                            <span class="l">Gruppe</span>
+                                        </span>
                                     </span>
                                 </button>
                             </li>
@@ -63,9 +70,16 @@
                                         <span class="slg-side-title"><i class="bi bi-person-badge" aria-hidden="true"></i> Lehrer:innen</span>
                                         <span class="muted slg-side-meta" id="slgLehrerLine">–</span>
                                     </span>
-                                    <span class="slg-side-count">
-                                        <span class="n" id="slgLehrerCount">0</span>
-                                        <span class="l">E‑Mails</span>
+                                    <span class="slg-side-count slg-side-count--dual" id="slgLehrerCounts">
+                                        <span class="slg-side-kpi">
+                                            <span class="n" id="slgLehrerCount">0</span>
+                                            <span class="l">Liste</span>
+                                        </span>
+                                        <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                                        <span class="slg-side-kpi">
+                                            <span class="n" id="slgLehrerGroupCount">–</span>
+                                            <span class="l">Gruppe</span>
+                                        </span>
                                     </span>
                                 </button>
                             </li>
@@ -92,6 +106,7 @@
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
                         Dieses Werkzeug verwaltet zwei <strong>Microsoft 365‑Gruppen (Unified)</strong>: eine für Schüler:innen und eine für Lehrer:innen. Mitglieder kommen aus den Schul‑Listen.
+                        Die Kennzahlen links vergleichen die Anzahl in der Schul‑Liste mit den Mitgliedern der gematchten Gruppe.
                     </p>
                 </div>
             </details>

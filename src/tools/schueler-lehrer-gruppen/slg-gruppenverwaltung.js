@@ -34,6 +34,11 @@
     /** @type {{ students: string[], teachers: string[], direktion: string[] }} */
     let listCache = { students: [], teachers: [], direktion: [] };
 
+    /** Graph-Mitgliederzahl je Gruppen-ID; fehlt der Eintrag, ist die Zahl noch unbekannt. */
+    /** @type {Record<string, number>} */
+    let graphMemberCounts = {};
+    let countsFetchGen = 0;
+
     function toast(msg) {
         const el = document.getElementById('toast');
         if (el) {
@@ -133,16 +138,98 @@
         listCache.direktion = collectDirektionOwnerEmails(settings);
     }
 
+    function graphCountFor(groupId) {
+        const id = String(groupId || '').trim();
+        if (!id) return null;
+        const n = graphMemberCounts[id];
+        return typeof n === 'number' && n >= 0 ? n : null;
+    }
+
+    function paintKindCounts(kind) {
+        const isLehrer = kind === 'lehrer';
+        const listN = isLehrer ? listCache.teachers.length : listCache.students.length;
+        const gid = isLehrer ? matched.lehrerGroupId : matched.schuelerGroupId;
+        const groupN = graphCountFor(gid);
+        const wrap = document.getElementById(isLehrer ? 'slgLehrerCounts' : 'slgSchuelerCounts');
+        const listEl = document.getElementById(isLehrer ? 'slgLehrerCount' : 'slgSchuelerCount');
+        const groupEl = document.getElementById(isLehrer ? 'slgLehrerGroupCount' : 'slgSchuelerGroupCount');
+        if (listEl) listEl.textContent = String(listN);
+        if (groupEl) groupEl.textContent = gid ? (groupN === null ? '–' : String(groupN)) : '–';
+        if (!wrap) return;
+        wrap.classList.remove('is-match', 'is-mismatch');
+        const known = gid && groupN !== null;
+        if (known) {
+            const same = listN === groupN;
+            wrap.classList.add(same ? 'is-match' : 'is-mismatch');
+            wrap.title = same
+                ? 'Schul-Liste und Gruppenmitglieder: je ' + listN + ' – Anzahl stimmt überein.'
+                : 'Schul-Liste: ' + listN + ' E-Mails · Gruppe: ' + groupN + ' Mitglieder. Die Anzahlen unterscheiden sich.';
+            wrap.setAttribute(
+                'aria-label',
+                (isLehrer ? 'Lehrer:innen' : 'Schüler:innen') +
+                    ': Liste ' +
+                    listN +
+                    ', Gruppe ' +
+                    groupN +
+                    (same ? ', gleich' : ', abweichend')
+            );
+        } else {
+            wrap.title = gid
+                ? 'Schul-Liste: ' + listN + ' E-Mails. Mitgliederzahl der gematchten Gruppe wird aus Microsoft Graph geladen.'
+                : 'Schul-Liste: ' + listN + ' E-Mails. Noch keine Microsoft-365-Gruppe gematcht.';
+            wrap.setAttribute(
+                'aria-label',
+                (isLehrer ? 'Lehrer:innen' : 'Schüler:innen') + ': Liste ' + listN + ', Gruppe unbekannt'
+            );
+        }
+    }
+
     function updateLeftListUi() {
-        const sCount = document.getElementById('slgSchuelerCount');
-        const tCount = document.getElementById('slgLehrerCount');
-        if (sCount) sCount.textContent = String(listCache.students.length);
-        if (tCount) tCount.textContent = String(listCache.teachers.length);
+        paintKindCounts('schueler');
+        paintKindCounts('lehrer');
 
         const sLine = document.getElementById('slgSchuelerLine');
         const tLine = document.getElementById('slgLehrerLine');
         if (sLine) sLine.textContent = matched.schuelerGroupId ? 'Gematcht: ' + matched.schuelerGroupId : 'Noch kein Match';
         if (tLine) tLine.textContent = matched.lehrerGroupId ? 'Gematcht: ' + matched.lehrerGroupId : 'Noch kein Match';
+    }
+
+    function rememberGraphMemberCount(groupId, count) {
+        const id = String(groupId || '').trim();
+        if (!id) return;
+        const n = typeof count === 'number' ? count : -1;
+        if (n < 0) return;
+        graphMemberCounts[id] = n;
+        updateLeftListUi();
+    }
+
+    async function refreshGraphMemberCounts() {
+        const ids = [];
+        if (matched.schuelerGroupId) ids.push(String(matched.schuelerGroupId));
+        if (matched.lehrerGroupId) ids.push(String(matched.lehrerGroupId));
+        if (!ids.length) {
+            updateLeftListUi();
+            return;
+        }
+        const gen = ++countsFetchGen;
+        try {
+            const token = await getGraphToken();
+            if (gen !== countsFetchGen) return;
+            await Promise.all(
+                ids.map(async function (id) {
+                    try {
+                        const n = await gug().fetchGroupMemberCount(token, id);
+                        if (typeof n === 'number' && n >= 0) graphMemberCounts[id] = n;
+                    } catch {
+                        /* Zahl bleibt unbekannt */
+                    }
+                })
+            );
+            if (gen !== countsFetchGen) return;
+            updateLeftListUi();
+        } catch {
+            /* Anmeldung abgebrochen oder Graph nicht erreichbar */
+        }
     }
 
     function renderOwnerPreview() {
@@ -294,6 +381,7 @@
             await ensureOwners(token, gid);
             live().invalidateMembership();
             await live().loadMembers();
+            await refreshGraphMemberCounts();
             toast('Synchronisation abgeschlossen.');
         } catch (e) {
             appendSyncLog('Abbruch: ' + (e.message || e), 'err');
@@ -402,6 +490,8 @@
         try {
             localStorage.removeItem(STORAGE_KEY);
             matched = { schuelerGroupId: null, lehrerGroupId: null };
+            graphMemberCounts = {};
+            countsFetchGen += 1;
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
                 window.ms365AppDataV2.patchSetup({
                     matched: { schuelerGroupId: null, lehrerGroupId: null }
@@ -450,6 +540,10 @@
                 },
                 onAfterLoad: function () {
                     updateLeftListUi();
+                    return refreshGraphMemberCounts();
+                },
+                onMembersCount: function (groupId, count) {
+                    rememberGraphMemberCount(groupId, count);
                 }
             },
             match: {
@@ -466,6 +560,7 @@
                 },
                 afterMatch: function () {
                     updateLeftListUi();
+                    refreshGraphMemberCounts();
                 }
             },
             onTabUnmatched: function (tab) {

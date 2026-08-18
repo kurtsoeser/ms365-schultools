@@ -11,6 +11,10 @@ import {
     collectEmails,
     randomTempPassword
 } from './setup-wizard-admin-model.js';
+import {
+    SW_MATCH_MEMBER_PREVIEW,
+    buildLinkedGroupSummaryHtml
+} from './setup-wizard-group-summary.js';
 
 (function () {
     'use strict';
@@ -678,24 +682,181 @@ import {
         else swMatched.schuelerGroupId = id;
     }
 
-    function renderSwMatchSummaryForKind(forKind, g) {
+    /** @type {Record<string, { gen: number, gid: string, snapshot: object|null, fullyLoaded: boolean, inFlight: boolean }>} */
+    const swMatchLiveByKind = {
+        lehrer: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false },
+        schueler: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false },
+        verwaltung: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false }
+    };
+
+    function swMatchLiveSlot(kind) {
+        return swMatchLiveByKind[kind] || swMatchLiveByKind.schueler;
+    }
+
+    function swAuthIsLoggedIn() {
+        try {
+            return typeof window.ms365AuthIsLoggedIn === 'function' && !!window.ms365AuthIsLoggedIn();
+        } catch {
+            return false;
+        }
+    }
+
+    function emptySwMatchSnapshot(gid, group) {
+        return {
+            groupId: gid,
+            group: group || null,
+            owners: [],
+            members: [],
+            memberCount: -1,
+            membersTruncated: false,
+            artLabel: '',
+            hasTeam: false,
+            status: group ? 'partial' : 'loading',
+            error: ''
+        };
+    }
+
+    function mergeSwMatchGroup(snapshot, group) {
+        if (!group) return snapshot;
+        snapshot.group = Object.assign({}, snapshot.group || {}, group);
+        if (!snapshot.groupId && group.id) snapshot.groupId = String(group.id);
+        return snapshot;
+    }
+
+    function paintSwMatchSummary(forKind) {
         const el = document.getElementById('swMatchSummary' + groupUiSuffix(forKind));
-        const gid = getGroupIdForKind(forKind);
         if (!el) return;
+        const gid = getGroupIdForKind(forKind);
         if (!gid) {
-            el.innerHTML = '<span style="color:var(--muted)">Noch keine Gruppe gewählt.</span>';
+            el.innerHTML = '<span class="sw-match-empty">Noch keine Gruppe gewählt.</span>';
             return;
         }
-        if (g) {
-            el.innerHTML =
-                '<strong>' +
-                escapeHtml(g.displayName || '') +
-                '</strong><br><span style="color:var(--muted)">ID: ' +
-                escapeHtml(g.id || '') +
-                '</span>';
-        } else {
-            el.innerHTML = 'Gruppen-ID: <code>' + escapeHtml(gid) + '</code>';
+        const slot = swMatchLiveSlot(forKind);
+        const snap =
+            slot.gid === gid && slot.snapshot
+                ? slot.snapshot
+                : emptySwMatchSnapshot(gid, slot.snapshot && slot.snapshot.group);
+        el.innerHTML = buildLinkedGroupSummaryHtml(snap);
+    }
+
+    function renderSwMatchSummaryForKind(forKind, g) {
+        const gid = getGroupIdForKind(forKind);
+        const slot = swMatchLiveSlot(forKind);
+        if (!gid) {
+            slot.gid = '';
+            slot.snapshot = null;
+            slot.fullyLoaded = false;
+            paintSwMatchSummary(forKind);
+            return;
         }
+        if (slot.gid !== gid) {
+            slot.gid = gid;
+            slot.snapshot = emptySwMatchSnapshot(gid, g || null);
+            slot.fullyLoaded = false;
+            slot.inFlight = false;
+            slot.gen += 1;
+        } else {
+            if (!slot.snapshot) slot.snapshot = emptySwMatchSnapshot(gid, g || null);
+            else mergeSwMatchGroup(slot.snapshot, g);
+        }
+        paintSwMatchSummary(forKind);
+        if (!slot.fullyLoaded) loadSwMatchLiveDetails(forKind);
+    }
+
+    async function fetchSwMatchMemberPreview(token, gid) {
+        const select = G().PERSON_SELECT || 'id,displayName,mail,userPrincipalName';
+        const path =
+            '/groups/' +
+            encodeURIComponent(gid) +
+            '/members?$select=' +
+            encodeURIComponent(select) +
+            '&$top=' +
+            String(SW_MATCH_MEMBER_PREVIEW);
+        const data = await G().graphJson('GET', path, token, undefined);
+        const items = (data && data.value) || [];
+        return { items: items, truncated: !!(data && data['@odata.nextLink']) };
+    }
+
+    async function loadSwMatchLiveDetails(forKind, opts) {
+        const gid = getGroupIdForKind(forKind);
+        const el = document.getElementById('swMatchSummary' + groupUiSuffix(forKind));
+        if (!gid || !el) return;
+        const slot = swMatchLiveSlot(forKind);
+        const force = !!(opts && opts.force);
+        if (slot.inFlight && slot.gid === gid && !force) return;
+        if (slot.fullyLoaded && slot.gid === gid && !force) return;
+
+        if (!force && !swAuthIsLoggedIn()) {
+            if (!slot.snapshot || slot.gid !== gid) slot.snapshot = emptySwMatchSnapshot(gid, null);
+            slot.snapshot.status = 'needsLogin';
+            slot.gid = gid;
+            paintSwMatchSummary(forKind);
+            return;
+        }
+
+        const gen = ++slot.gen;
+        slot.gid = gid;
+        slot.inFlight = true;
+        if (!slot.snapshot || slot.snapshot.groupId !== gid) slot.snapshot = emptySwMatchSnapshot(gid, slot.snapshot && slot.snapshot.group);
+        slot.snapshot.status = 'loading';
+        slot.snapshot.error = '';
+        paintSwMatchSummary(forKind);
+
+        try {
+            const token = await G().getGraphToken();
+            if (gen !== slot.gen || getGroupIdForKind(forKind) !== gid) return;
+            const [group, owners, memberCount, memberPage] = await Promise.all([
+                G().fetchGroup(token, gid),
+                G().fetchGroupOwners(token, gid),
+                G().fetchGroupMemberCount(token, gid).catch(function () {
+                    return -1;
+                }),
+                fetchSwMatchMemberPreview(token, gid).catch(function () {
+                    return { items: [], truncated: false };
+                })
+            ]);
+            if (gen !== slot.gen || getGroupIdForKind(forKind) !== gid) return;
+            const members = memberPage && memberPage.items ? memberPage.items : [];
+            const count = typeof memberCount === 'number' ? memberCount : members.length;
+            slot.snapshot = {
+                groupId: gid,
+                group: group || (slot.snapshot && slot.snapshot.group) || null,
+                owners: owners || [],
+                members: members,
+                memberCount: count,
+                membersTruncated: !!(memberPage && memberPage.truncated) || (count > members.length && members.length > 0),
+                artLabel: group ? G().groupArtLabel(group) : '',
+                hasTeam: !!(group && G().groupHasTeam(group)),
+                status: 'ready',
+                error: ''
+            };
+            slot.fullyLoaded = true;
+            paintSwMatchSummary(forKind);
+        } catch (e) {
+            if (gen !== slot.gen || getGroupIdForKind(forKind) !== gid) return;
+            if (!slot.snapshot) slot.snapshot = emptySwMatchSnapshot(gid, null);
+            slot.snapshot.status = 'error';
+            slot.snapshot.error = 'Details konnten nicht geladen werden: ' + (e && e.message ? e.message : String(e));
+            slot.fullyLoaded = false;
+            paintSwMatchSummary(forKind);
+        } finally {
+            if (gen === slot.gen) slot.inFlight = false;
+        }
+    }
+
+    function wireSwMatchSummaryRefresh(forKind) {
+        const el = document.getElementById('swMatchSummary' + groupUiSuffix(forKind));
+        if (!el || el.dataset.swMatchRefreshWired === '1') return;
+        el.dataset.swMatchRefreshWired = '1';
+        el.addEventListener('click', function (ev) {
+            const t = ev.target;
+            const node = t && t.nodeType === 1 ? t : t && t.parentElement;
+            const btn = node && node.closest ? node.closest('[data-sw-match-refresh]') : null;
+            if (!btn) return;
+            const slot = swMatchLiveSlot(forKind);
+            slot.fullyLoaded = false;
+            loadSwMatchLiveDetails(forKind, { force: true });
+        });
     }
 
     function renderSwSearchResults(list, forKind) {
@@ -709,14 +870,23 @@ import {
         list.forEach(function (g) {
             const row = document.createElement('div');
             row.style.cssText =
-                'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:#fff;';
+                'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--card,#fff);';
             const left = document.createElement('div');
+            const mailLine = g.mail ? ' · ' + escapeHtml(g.mail) : '';
+            const descLine = g.description
+                ? '<div style="font-size:0.86em;color:var(--muted);margin-top:4px;">' +
+                  escapeHtml(g.description) +
+                  '</div>'
+                : '';
             left.innerHTML =
                 '<div style="font-weight:800">' +
                 escapeHtml(g.displayName || '') +
                 '</div><div style="font-size:0.9em;color:var(--muted)"><code>' +
                 escapeHtml(g.mailNickname || '') +
-                '</code></div>';
+                '</code>' +
+                mailLine +
+                '</div>' +
+                descLine;
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'btn btn-success btn-sm';
@@ -725,6 +895,12 @@ import {
                 setGroupIdForKind(forKind, String(g.id));
                 if (forKind === 'verwaltung') persistVerwaltungFull();
                 else persistMatched();
+                const slot = swMatchLiveSlot(forKind);
+                slot.gid = String(g.id);
+                slot.snapshot = emptySwMatchSnapshot(String(g.id), g);
+                slot.fullyLoaded = false;
+                slot.inFlight = false;
+                slot.gen += 1;
                 renderSwMatchSummaryForKind(forKind, g);
                 toast('Gruppe verknüpft.');
             });
@@ -3512,6 +3688,7 @@ import {
 
         function bindGroupStep(forKind) {
             const suf = groupUiSuffix(forKind);
+            wireSwMatchSummaryRefresh(forKind);
             document.getElementById('swBtnSearchGrp' + suf) &&
                 document.getElementById('swBtnSearchGrp' + suf).addEventListener('click', async function () {
                     const inp = document.getElementById('swGroupSearch' + suf);
@@ -3553,6 +3730,7 @@ import {
                         setGroupIdForKind(forKind, String(g.id));
                         if (forKind === 'verwaltung') persistVerwaltungFull();
                         else persistMatched();
+                        swMatchLiveSlot(forKind).fullyLoaded = false;
                         renderSwMatchSummaryForKind(forKind, g);
                         toastGroupCreated('Gruppe', g, c.nick);
                     } catch (e) {
@@ -3594,6 +3772,8 @@ import {
                         swActiveKind = prevK;
                         if (forKind === 'verwaltung') await ensureOwnersForVerwaltungWizard(token, gid);
                         else await ensureOwnersForSlgKind(token, gid, forKind);
+                        swMatchLiveSlot(forKind).fullyLoaded = false;
+                        loadSwMatchLiveDetails(forKind, { force: true });
                         toast('Synchronisation beendet.');
                     } catch (e) {
                         toast('Fehler: ' + (e.message || e));

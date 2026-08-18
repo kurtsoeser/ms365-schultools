@@ -686,7 +686,8 @@
             ensureDirektionOwners: liveCtx.ensureDirektionOwners,
             onUnmatched: liveCtx.onUnmatched,
             onAfterLoad: liveCtx.onAfterLoad,
-            onAfterUpdate: liveCtx.onAfterUpdate
+            onAfterUpdate: liveCtx.onAfterUpdate,
+            onMembersCount: liveCtx.onMembersCount
         });
         if (!liveWired) {
             liveApi().wire();

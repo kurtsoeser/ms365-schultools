@@ -130,6 +130,36 @@
     margin-top: 2px;
     display: block;
 }
+.tree button .slg-side-count--dual {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    text-align: center;
+}
+.tree button .slg-side-count--dual .slg-side-kpi {
+    min-width: 2.4em;
+}
+.tree button .slg-side-count--dual .slg-side-kpi-sep {
+    font-weight: 800;
+    font-size: 1.05em;
+    line-height: 1.2;
+    color: var(--muted);
+    padding-top: 0.12em;
+}
+.tree button .slg-side-count--dual.is-match .n,
+.tree button .slg-side-count--dual.is-match .slg-side-kpi-sep {
+    color: var(--ok2);
+}
+.tree button .slg-side-count--dual.is-match .l {
+    color: color-mix(in srgb, var(--ok2) 78%, var(--muted));
+}
+.tree button .slg-side-count--dual.is-mismatch .n,
+.tree button .slg-side-count--dual.is-mismatch .slg-side-kpi-sep {
+    color: var(--danger1);
+}
+.tree button .slg-side-count--dual.is-mismatch .l {
+    color: color-mix(in srgb, var(--danger1) 78%, var(--muted));
+}
 
 .form-grid {
     display: grid;

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { appBuildInfoPlugin } from './scripts/app-build-info.mjs';
 
 function withTrailingSlash(value) {
   if (!value) return '/';
@@ -32,6 +33,7 @@ export default defineConfig(() => {
 
   return {
     base,
+    plugins: [appBuildInfoPlugin()],
     build: {
       outDir: 'dist',
       emptyOutDir: true,
