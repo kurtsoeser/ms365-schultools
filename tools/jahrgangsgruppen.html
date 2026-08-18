@@ -127,7 +127,7 @@
         }
         .jg-bulk-actions {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
         }
         .jg-bulk-tile {
@@ -266,7 +266,7 @@
                                 </div>
                                 <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
-                            <p class="jg-bulk-hint muted">Zuerst gematchte Klassen ankreuzen. Owner wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match.</p>
+                            <p class="jg-bulk-hint muted">Zuerst gematchte Klassen ankreuzen. Mitglieder gleicht die Schülerliste ab (fehlende dazu, klassenfremde Schüler weg; Lehrkräfte bleiben). Owner wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match.</p>
                             <div class="jg-bulk-group" role="group" aria-label="Auswahl">
                                 <div class="jg-bulk-group-label">Auswahl</div>
                                 <div class="jg-bulk-toolbar">
@@ -277,13 +277,17 @@
                             <div class="jg-bulk-group" role="group" aria-label="Aktionen">
                                 <div class="jg-bulk-group-label">Aktionen</div>
                                 <div class="jg-bulk-actions">
-                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnSmtpAll" title="Exchange-Skript: primäre SMTP aller gematchten Klassen auf die Schul-Domain setzen">
-                                        <i class="bi bi-envelope-at" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">SMTP-Skript<small>alle Klassen</small></span>
+                                    <button type="button" class="btn btn-success jg-bulk-tile" id="jgBtnBulkSyncMembers" title="Schüler:innen der Stammliste in die angekreuzten Klassengruppen übernehmen">
+                                        <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
+                                        <span class="jg-bulk-tile-label">Mitglieder<small>Stammliste abgleichen</small></span>
                                     </button>
                                     <button type="button" class="btn jg-bulk-tile" id="jgBtnBulkOwner" title="Eine Person als Owner zu den angekreuzten Gruppen hinzufügen">
                                         <i class="bi bi-person-plus" aria-hidden="true"></i>
                                         <span class="jg-bulk-tile-label">Owner setzen<small>Person hinzufügen</small></span>
+                                    </button>
+                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnSmtpAll" title="Exchange-Skript: primäre SMTP aller gematchten Klassen auf die Schul-Domain setzen">
+                                        <i class="bi bi-envelope-at" aria-hidden="true"></i>
+                                        <span class="jg-bulk-tile-label">SMTP-Skript<small>alle Klassen</small></span>
                                     </button>
                                     <button type="button" class="btn btn-danger jg-bulk-tile" id="jgBtnBulkDelete" title="Angekreuzte Microsoft-365-Gruppen löschen">
                                         <i class="bi bi-trash" aria-hidden="true"></i>
@@ -329,6 +333,7 @@
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
                         Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Klassenkürzel.
+                        Die Sammelaktion <strong>Mitglieder</strong> gleicht angekreuzte Gruppen mit der Schülerliste in den Schul‑Einstellungen ab.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.

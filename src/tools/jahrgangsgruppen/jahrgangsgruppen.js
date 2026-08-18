@@ -1127,6 +1127,73 @@
         el.replaceChildren();
     }
 
+    function collectStudentEmails() {
+        return students
+            .map(function (s) {
+                return String((s && s.email) || '')
+                    .trim()
+                    .toLowerCase();
+            })
+            .filter(function (em) {
+                return em.indexOf('@') !== -1;
+            });
+    }
+
+    /**
+     * @returns {Promise<{ empty: boolean, unchanged: boolean, join: number, leave: number, skip: number, fail: number }>}
+     */
+    async function syncMembersForGroup(token, row, gid, logFn) {
+        const log = typeof logFn === 'function' ? logFn : function () {};
+        const emails = emailsForClass(row);
+        const result = { empty: false, unchanged: false, join: 0, leave: 0, skip: 0, fail: 0 };
+        if (!emails.length) {
+            result.empty = true;
+            return result;
+        }
+        const lc = window.ms365StudentClassLifecycle;
+        let joinEmails = emails;
+        let leaveEmails = [];
+        if (lc && typeof lc.reconcileClassMembers === 'function' && typeof gug().fetchGroupMembers === 'function') {
+            const mem = await gug().fetchGroupMembers(token, gid);
+            const current = (mem.items || [])
+                .map(function (m) {
+                    return String((m && (m.mail || m.userPrincipalName)) || '')
+                        .trim()
+                        .toLowerCase();
+                })
+                .filter(function (em) {
+                    return em.indexOf('@') !== -1;
+                });
+            const rec = lc.reconcileClassMembers(emails, collectStudentEmails(), current);
+            joinEmails = rec.join;
+            leaveEmails = rec.leave;
+            log(
+                'Abgleich: +' + joinEmails.length + ' / −' + leaveEmails.length + ' (Lehrer und andere Mitglieder bleiben).',
+                ''
+            );
+        }
+        if (joinEmails.length) {
+            const r = await gug().syncEmailsToGroup(token, gid, joinEmails, 'Klasse', log);
+            result.join = r.ok || 0;
+            result.skip += r.skip || 0;
+            result.fail += r.fail || 0;
+            log('Aufnehmen: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
+        }
+        if (leaveEmails.length && typeof gug().removeEmailsFromGroup === 'function') {
+            const r = await gug().removeEmailsFromGroup(token, gid, leaveEmails, 'Klasse', log);
+            result.leave = r.ok || 0;
+            result.skip += r.skip || 0;
+            result.fail += r.fail || 0;
+            log('Entfernen: ' + r.ok + ' OK, übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
+        }
+        if (!joinEmails.length && !leaveEmails.length) {
+            result.unchanged = true;
+            log('Keine Änderungen gegenüber der Stammliste.', 'ok');
+        }
+        if (direktion.length) await gug().ensureOwners(token, gid, direktion);
+        return result;
+    }
+
     async function runSyncMembers() {
         const gid = getActiveGroupId();
         if (!gid) {
@@ -1142,49 +1209,7 @@
         appendSyncLog('Start: Klasse (' + emails.length + ' Adressen) …', '');
         try {
             const token = await gug().getGraphToken();
-            const lc = window.ms365StudentClassLifecycle;
-            let joinEmails = emails;
-            let leaveEmails = [];
-            if (lc && typeof lc.reconcileClassMembers === 'function' && typeof gug().fetchGroupMembers === 'function') {
-                const mem = await gug().fetchGroupMembers(token, gid);
-                const current = (mem.items || [])
-                    .map(function (m) {
-                        return String((m && (m.mail || m.userPrincipalName)) || '')
-                            .trim()
-                            .toLowerCase();
-                    })
-                    .filter(function (em) {
-                        return em.indexOf('@') !== -1;
-                    });
-                const allStudent = students
-                    .map(function (s) {
-                        return String((s && s.email) || '')
-                            .trim()
-                            .toLowerCase();
-                    })
-                    .filter(function (em) {
-                        return em.indexOf('@') !== -1;
-                    });
-                const rec = lc.reconcileClassMembers(emails, allStudent, current);
-                joinEmails = rec.join;
-                leaveEmails = rec.leave;
-                appendSyncLog(
-                    'Abgleich: +' + joinEmails.length + ' / −' + leaveEmails.length + ' (Lehrer und andere Mitglieder bleiben).',
-                    ''
-                );
-            }
-            if (joinEmails.length) {
-                const r = await gug().syncEmailsToGroup(token, gid, joinEmails, 'Klasse', appendSyncLog);
-                appendSyncLog('Aufnehmen: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
-            }
-            if (leaveEmails.length && typeof gug().removeEmailsFromGroup === 'function') {
-                const r = await gug().removeEmailsFromGroup(token, gid, leaveEmails, 'Klasse', appendSyncLog);
-                appendSyncLog('Entfernen: ' + r.ok + ' OK, übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
-            }
-            if (!joinEmails.length && !leaveEmails.length) {
-                appendSyncLog('Keine Änderungen gegenüber der Stammliste.', 'ok');
-            }
-            if (direktion.length) await gug().ensureOwners(token, gid, direktion);
+            await syncMembersForGroup(token, getActiveRow(), gid, appendSyncLog);
             live().invalidateMembership();
             await live().loadMembers();
             toast('Synchronisation abgeschlossen.');
@@ -1412,6 +1437,110 @@
         }
     }
 
+    async function runBulkSyncMembers() {
+        const items = collectSelectedMatched();
+        if (!items.length) {
+            toast('Bitte zuerst gematchte Klassen ankreuzen.');
+            return;
+        }
+        const preview =
+            items
+                .slice(0, 12)
+                .map(function (it) {
+                    return it.name;
+                })
+                .join('\n') + (items.length > 12 ? '\n…' : '');
+        if (
+            !(await dlgConfirm(
+                String(items.length) +
+                    ' Klassengruppe(n) mit der Schülerliste abgleichen?\n\n' +
+                    preview +
+                    '\n\nFehlende Schüler:innen dieser Klasse werden aufgenommen. Schüler:innen, die laut Stammliste in einer anderen Klasse stehen, werden entfernt. Lehrkräfte und sonstige Mitglieder bleiben.',
+                { title: 'Mitglieder synchronisieren', okText: 'Synchronisieren' }
+            ))
+        ) {
+            return;
+        }
+        const btn = document.getElementById('jgBtnBulkSyncMembers');
+        if (btn) btn.disabled = true;
+        let ok = 0;
+        let empty = 0;
+        let unchanged = 0;
+        let fail = 0;
+        let joinTotal = 0;
+        let leaveTotal = 0;
+        const lines = [];
+        setBulkStatus('Mitglieder werden abgeglichen …');
+        try {
+            const token = await gug().getGraphToken();
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                try {
+                    const r = await syncMembersForGroup(token, it.row, it.id, function () {});
+                    if (r.empty) {
+                        empty++;
+                        lines.push('keine Schüler  ' + it.name);
+                    } else if (r.fail) {
+                        fail++;
+                        joinTotal += r.join;
+                        leaveTotal += r.leave;
+                        lines.push(
+                            'teilweise  ' +
+                                it.name +
+                                ': +' +
+                                r.join +
+                                ' / −' +
+                                r.leave +
+                                ', Fehler ' +
+                                r.fail
+                        );
+                    } else if (r.unchanged) {
+                        unchanged++;
+                        lines.push('unverändert  ' + it.name);
+                    } else {
+                        ok++;
+                        joinTotal += r.join;
+                        leaveTotal += r.leave;
+                        lines.push('OK  ' + it.name + ': +' + r.join + ' / −' + r.leave);
+                    }
+                } catch (e) {
+                    fail++;
+                    lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
+                }
+                if ((i + 1) % 4 === 0) await sleep(200);
+            }
+            setBulkStatus(lines.join('\n'));
+            toast(
+                'Mitglieder: ' +
+                    ok +
+                    ' angepasst, ' +
+                    unchanged +
+                    ' unverändert' +
+                    (empty ? ', ' + empty + ' ohne Schüler' : '') +
+                    ', ' +
+                    fail +
+                    ' Fehler (+' +
+                    joinTotal +
+                    ' / −' +
+                    leaveTotal +
+                    ').'
+            );
+            if (getActiveGroupId()) {
+                try {
+                    live().invalidateMembership();
+                    if (gd().getActiveTab() === 'members') await live().loadMembers();
+                } catch {
+                    /* ignore */
+                }
+            }
+        } catch (e) {
+            setBulkStatus('Abbruch: ' + (e.message || e));
+            toast('Mitglieder: ' + (e.message || e));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
     async function runBulkDelete() {
         const items = collectSelectedMatched();
         if (!items.length) {
@@ -1502,7 +1631,7 @@
                 'Wenn in den Schul‑Einstellungen Schüler:innen mit E‑Mail für diese Klasse hinterlegt sind, können sie nach dem Match additiv synchronisiert werden. Sonst Mitglieder live in Graph pflegen.',
             membersUnmatchedTitle: 'Schüler:innen dieser Klasse',
             membersMatchedHint:
-                'Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Schüler‑Adressen dieser Klasse hinzu (entfernt niemanden).',
+                'Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Schüler‑Adressen dieser Klasse hinzu und entfernt Schüler:innen, die laut Stammliste in einer anderen Klasse stehen (Lehrkräfte bleiben).',
             emptyHintHtml:
                 'Keine Klassen in diesem Schuljahr. Legen Sie eine Klasse über <strong>Neu</strong> an oder pflegen Sie Klassen unter <a href="../tenant.html#classes">Schul‑Einstellungen</a>.',
             features: {
@@ -1656,6 +1785,9 @@
         });
         onClick('jgBtnSelectMatched', selectVisibleMatched);
         onClick('jgBtnSelectNone', clearSelection);
+        onClick('jgBtnBulkSyncMembers', function () {
+            runBulkSyncMembers().catch(function () {});
+        });
         onClick('jgBtnBulkOwner', function () {
             if (!collectSelectedMatched().length) {
                 toast('Bitte zuerst gematchte Klassen ankreuzen.');

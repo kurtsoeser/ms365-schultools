@@ -19,6 +19,7 @@ describe('Jahrgangsgruppen-Modul Seite', () => {
         expect(html).toContain('id="jgListItems"');
         expect(html).toContain('href="jahrgang.html"');
         expect(html).toContain('id="jgBtnSmtpAll"');
+        expect(html).toContain('id="jgBtnBulkSyncMembers"');
         expect(html).toContain('id="jgBtnBulkOwner"');
         expect(html).toContain('id="jgBtnBulkDelete"');
         expect(html).toContain('id="jgBtnSelectMatched"');
@@ -33,6 +34,7 @@ describe('Jahrgangsgruppen-Modul Seite', () => {
         expect(js).toContain('ms365GroupDetail');
         expect(js).toContain("mount('#groupDetailHost'");
         expect(js).toContain('runBulkSetOwner');
+        expect(js).toContain('runBulkSyncMembers');
         expect(js).toContain('runBulkDelete');
         expect(js).toContain('deleteUnifiedGroup');
         const graph = readFileSync(join(projectRoot, 'src/shared/graph-unified-groups.js'), 'utf8');
