@@ -98,6 +98,9 @@ import {
     overlayCatalogOnMatchLinks,
     catalogUpsertsFromOrphanMatchLinks
 } from './schulstruktur-sync-mapping.js';
+import '../../shared/graph-unified-groups.js';
+import '../schueler-lehrer-gruppen/slg-live-details.js';
+import '../../shared/group-detail/group-detail.js';
 
 (function () {
     'use strict';
@@ -1072,6 +1075,11 @@ import {
         }
     }
 
+    /** Wird in bind() gesetzt, damit Details auch nach verzögertem Script-Load eingehängt werden. */
+    let ensureTenantGroupDetailMounted = function () {
+        return !!(window.ms365GroupDetail && document.getElementById('slgLiveName'));
+    };
+
     function showTenantDetail(group) {
         const hint = getEl('ssHint');
         const detail = getEl('ssDetail');
@@ -1079,6 +1087,7 @@ import {
         if (hint) hint.style.display = group ? 'none' : '';
         if (detail) detail.style.display = 'none';
         if (tenantDetail) tenantDetail.style.display = group ? '' : 'none';
+        if (group) ensureTenantGroupDetailMounted();
         const L = window.ms365SlgLiveDetails;
         if (!group) {
             if (L) {
@@ -5255,6 +5264,20 @@ import {
             }
         }
 
+        let archiveStateWired = false;
+        function wireArchiveStateOnce() {
+            if (archiveStateWired) return;
+            const sel = getEl('slgArchiveState');
+            if (!sel) return;
+            archiveStateWired = true;
+            sel.addEventListener('change', () => {
+                const spo = getEl('slgArchiveSpoReadonly');
+                if (!spo) return;
+                spo.disabled = sel.disabled || String(sel.value || '') !== 'archived';
+                if (String(sel.value || '') !== 'archived') spo.checked = false;
+            });
+        }
+
         function mountTenantGroupDetail() {
             const G = window.ms365GroupDetail;
             if (!G) throw new Error('group-detail.js muss vor diesem Skript geladen werden.');
@@ -5304,17 +5327,20 @@ import {
                     }
                 }
             });
+            wireArchiveStateOnce();
         }
-        if (document.getElementById('groupDetailHost') && window.ms365GroupDetail) {
-            mountTenantGroupDetail();
-            getEl('slgArchiveState')?.addEventListener('change', () => {
-                const sel = getEl('slgArchiveState');
-                const spo = getEl('slgArchiveSpoReadonly');
-                if (!sel || !spo) return;
-                spo.disabled = sel.disabled || String(sel.value || '') !== 'archived';
-                if (String(sel.value || '') !== 'archived') spo.checked = false;
-            });
-        }
+
+        ensureTenantGroupDetailMounted = function () {
+            if (!document.getElementById('groupDetailHost')) return false;
+            try {
+                mountTenantGroupDetail();
+                return !!document.getElementById('slgLiveName');
+            } catch (e) {
+                console.error('Gruppen-Details konnten nicht eingehängt werden:', e);
+                return false;
+            }
+        };
+        ensureTenantGroupDetailMounted();
 
         // initial render (restore last tab if available)
         function readStartMode() {
