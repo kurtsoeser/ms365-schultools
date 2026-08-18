@@ -35,6 +35,13 @@
     let catalog = { subject: [], arge: [] };
     /** @type {string[]} */
     let direktion = [];
+    /** @type {{ subject: Set<string>, arge: Set<string> }} */
+    let selectedKeysByKind = { subject: new Set(), arge: new Set() };
+
+    function selectedKeys() {
+        if (!selectedKeysByKind[activeKind]) selectedKeysByKind[activeKind] = new Set();
+        return selectedKeysByKind[activeKind];
+    }
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -540,6 +547,7 @@
             toast((e && e.message) || String(e));
             return;
         }
+        selectedKeys().delete(code);
         readLists();
         ensureActiveCode();
         renderLeftList();
@@ -661,12 +669,15 @@
             p.textContent = hasRows ? 'Keine Treffer im Filter.' : 'Liste ist leer.';
             li.appendChild(p);
             host.appendChild(li);
+            updateBulkCount();
+            updateCatalogActionButtons();
             return;
         }
 
         list.forEach(function (row) {
             const link = getCatalogLink(activeKind, row.code);
             const gid = link && link.graphGroupId ? String(link.graphGroupId) : '';
+            const key = normCode(row.code);
             const li = document.createElement('li');
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -679,13 +690,40 @@
             t.textContent = (row.name || row.code) + (row.name && row.code ? ' (' + row.code + ')' : '');
             const meta = document.createElement('span');
             meta.className = 'muted slg-side-meta';
-            meta.textContent = gid ? 'Gematcht: ' + gid : 'Noch kein Match';
+            const badge = document.createElement('span');
+            badge.className = 'jg-match-badge ' + (gid ? 'is-ok' : 'is-warn');
+            const ico = document.createElement('i');
+            ico.className = gid ? 'bi bi-check-circle-fill' : 'bi bi-exclamation-circle-fill';
+            ico.setAttribute('aria-hidden', 'true');
+            badge.appendChild(ico);
+            badge.appendChild(document.createTextNode(gid ? 'Gematcht' : 'Kein Match'));
+            meta.appendChild(badge);
+            btn.classList.add(gid ? 'is-matched' : 'is-unmatched');
             main.appendChild(t);
             main.appendChild(meta);
             btn.appendChild(main);
+            const pick = document.createElement('label');
+            pick.className = 'afg-pick';
+            pick.title = gid ? 'Für Sammelaktion auswählen' : 'Nur gematchte Gruppen können ausgewählt werden';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.setAttribute('data-afg-pick', key);
+            cb.checked = gid ? selectedKeys().has(key) : false;
+            cb.disabled = !gid;
+            cb.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+            });
+            cb.addEventListener('change', function () {
+                if (cb.checked) selectedKeys().add(key);
+                else selectedKeys().delete(key);
+                updateBulkCount();
+            });
+            pick.appendChild(cb);
+            li.appendChild(pick);
             li.appendChild(btn);
             host.appendChild(li);
         });
+        updateBulkCount();
         updateCatalogActionButtons();
     }
 
@@ -707,6 +745,8 @@
             b.setAttribute('aria-pressed', b.getAttribute('data-afg-kind') === activeKind ? 'true' : 'false');
         });
         ensureActiveCode();
+        showBulkOwnerPanel(false);
+        setBulkStatus('', false);
         const search = document.getElementById('slgGroupSearch');
         if (search) search.value = '';
         gd().clearSearchResults();
@@ -741,14 +781,332 @@
         renderLeftList();
     }
 
-    function persistUnmatch() {
+    function persistUnmatchFor(kind, code) {
         const api = dataV2();
+        const k = kind === 'arge' ? 'arge' : 'subject';
+        const c = normCode(code);
         if (api && typeof api.clearCatalogLinkGroup === 'function') {
-            api.clearCatalogLinkGroup(activeKind, activeCode);
+            api.clearCatalogLinkGroup(k, c);
         } else {
-            persistMatch({ id: '', displayName: '', mailNickname: '' }, '');
+            upsertCatalogLink({
+                kind: k,
+                code: c,
+                graphGroupId: '',
+                displayName: '',
+                mailNickname: '',
+                mode: ''
+            });
         }
+        selectedKeysByKind[k] && selectedKeysByKind[k].delete(c);
+    }
+
+    function persistUnmatch() {
+        persistUnmatchFor(activeKind, activeCode);
         renderLeftList();
+    }
+
+    function sleep(ms) {
+        return new Promise(function (r) {
+            setTimeout(r, ms);
+        });
+    }
+
+    function setBulkStatus(text, show) {
+        const el = document.getElementById('afgBulkStatus');
+        if (!el) return;
+        if (show === false || !text) {
+            el.hidden = true;
+            el.textContent = '';
+            return;
+        }
+        el.hidden = false;
+        el.textContent = text;
+    }
+
+    function pruneSelection() {
+        const keep = new Set();
+        const list = rowsForKind(activeKind);
+        const keys = selectedKeys();
+        keys.forEach(function (key) {
+            let row = null;
+            for (let i = 0; i < list.length; i++) {
+                if (normCode(list[i].code) === key) {
+                    row = list[i];
+                    break;
+                }
+            }
+            if (!row) return;
+            const link = getCatalogLink(activeKind, row.code);
+            if (link && link.graphGroupId) keep.add(key);
+        });
+        selectedKeysByKind[activeKind] = keep;
+    }
+
+    function collectSelectedMatched() {
+        pruneSelection();
+        const out = [];
+        const list = rowsForKind(activeKind);
+        selectedKeys().forEach(function (key) {
+            let row = null;
+            for (let i = 0; i < list.length; i++) {
+                if (normCode(list[i].code) === key) {
+                    row = list[i];
+                    break;
+                }
+            }
+            if (!row) return;
+            const link = getCatalogLink(activeKind, row.code);
+            const id = link && link.graphGroupId ? String(link.graphGroupId).trim() : '';
+            if (!id) return;
+            out.push({
+                key: key,
+                row: row,
+                link: link,
+                id: id,
+                name: normStr(row.name) || normStr(row.code) || id
+            });
+        });
+        return out;
+    }
+
+    function updateBulkCount() {
+        pruneSelection();
+        const n = selectedKeys().size;
+        const el = document.getElementById('afgBulkCount');
+        if (el) {
+            const label = n === 1 ? '1 Gruppe ausgewählt' : String(n) + ' Gruppen ausgewählt';
+            el.innerHTML = '<i class="bi bi-check2-square" aria-hidden="true"></i>' + label;
+            el.classList.toggle('is-active', n > 0);
+        }
+    }
+
+    function visibleMatchedRows() {
+        const q = listFilter.toLowerCase();
+        return rowsForKind(activeKind).filter(function (row) {
+            const link = getCatalogLink(activeKind, row.code);
+            if (!link || !link.graphGroupId) return false;
+            if (!q) return true;
+            const hay = (row.code + ' ' + (row.name || '')).toLowerCase();
+            return hay.indexOf(q) !== -1;
+        });
+    }
+
+    function kindLabel(n) {
+        if (activeKind === 'arge') return n === 1 ? 'ARGE' : 'ARGEs';
+        return n === 1 ? 'Fachgruppe' : 'Fachgruppen';
+    }
+
+    function selectVisibleMatched() {
+        visibleMatchedRows().forEach(function (row) {
+            selectedKeys().add(normCode(row.code));
+        });
+        renderLeftList();
+        const n = collectSelectedMatched().length;
+        toast(
+            n
+                ? String(n) + ' gematchte ' + kindLabel(n) + ' angekreuzt.'
+                : 'Keine gematchten Gruppen in der aktuellen Liste.'
+        );
+    }
+
+    function clearSelection() {
+        selectedKeysByKind[activeKind] = new Set();
+        renderLeftList();
+    }
+
+    function showBulkOwnerPanel(show) {
+        const panel = document.getElementById('afgBulkOwnerPanel');
+        if (!panel) return;
+        panel.hidden = !show;
+        if (show) {
+            const inp = document.getElementById('afgBulkOwnerSearch');
+            if (inp) inp.focus();
+        }
+    }
+
+    function fillBulkOwnerSelect(users) {
+        const sel = document.getElementById('afgBulkOwnerResults');
+        if (!sel) return;
+        sel.replaceChildren();
+        if (!users || !users.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '(keine Treffer)';
+            sel.appendChild(opt);
+            return;
+        }
+        users.forEach(function (u) {
+            const opt = document.createElement('option');
+            opt.value = u.id || '';
+            opt.textContent = gug().personLabel(u) || (u.id ? String(u.id) : '');
+            sel.appendChild(opt);
+        });
+    }
+
+    async function runBulkOwnerSearch() {
+        const inp = document.getElementById('afgBulkOwnerSearch');
+        const q = inp ? String(inp.value || '').trim() : '';
+        if (!q) {
+            toast('Bitte einen Namen oder eine E‑Mail eingeben.');
+            return;
+        }
+        const btn = document.getElementById('afgBulkOwnerSearchBtn');
+        if (btn) btn.disabled = true;
+        try {
+            const token = await gug().getGraphToken();
+            const users = await gug().searchUsers(token, q);
+            fillBulkOwnerSelect(users);
+            toast('Suche: ' + users.length + ' Treffer.');
+        } catch (e) {
+            toast('Suche: ' + (e.message || e));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function runBulkSetOwner() {
+        const items = collectSelectedMatched();
+        if (!items.length) {
+            toast('Bitte zuerst gematchte ' + kindLabel(2) + ' ankreuzen.');
+            return;
+        }
+        const sel = document.getElementById('afgBulkOwnerResults');
+        const userId = sel && sel.value ? String(sel.value).trim() : '';
+        if (!userId) {
+            toast('Bitte zuerst einen Benutzer suchen und auswählen.');
+            showBulkOwnerPanel(true);
+            return;
+        }
+        const label = sel.options[sel.selectedIndex]
+            ? String(sel.options[sel.selectedIndex].textContent || '').trim()
+            : userId;
+        if (
+            !(await dlgConfirm(
+                '„' +
+                    label +
+                    '“ als Owner zu ' +
+                    String(items.length) +
+                    ' Gruppe(n) hinzufügen?\n\nBestehende Owner bleiben erhalten.',
+                { title: 'Owner setzen', okText: 'Hinzufügen' }
+            ))
+        ) {
+            return;
+        }
+        const applyBtn = document.getElementById('afgBulkOwnerApply');
+        if (applyBtn) applyBtn.disabled = true;
+        let ok = 0;
+        let skip = 0;
+        let fail = 0;
+        const lines = [];
+        setBulkStatus('Owner wird gesetzt …');
+        try {
+            const token = await gug().getGraphToken();
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                try {
+                    await gug().addOwnerWithMemberFallback(token, it.id, userId);
+                    ok++;
+                    lines.push('OK  ' + it.name);
+                } catch (e) {
+                    if (gug().isDuplicateMemberError(e)) {
+                        skip++;
+                        lines.push('schon Owner  ' + it.name);
+                    } else {
+                        fail++;
+                        lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
+                    }
+                }
+                if ((i + 1) % 6 === 0) await sleep(120);
+            }
+            setBulkStatus(lines.join('\n'));
+            toast('Owner: neu ' + ok + ', bereits vorhanden ' + skip + ', Fehler ' + fail + '.');
+            if (getActiveGroupId()) {
+                try {
+                    live().invalidateMembership();
+                    if (gd().getActiveTab() === 'owners') await live().loadOwners();
+                } catch {
+                    /* ignore */
+                }
+            }
+        } catch (e) {
+            setBulkStatus('Abbruch: ' + (e.message || e));
+            toast('Owner setzen: ' + (e.message || e));
+        } finally {
+            if (applyBtn) applyBtn.disabled = false;
+        }
+    }
+
+    async function runBulkDelete() {
+        const items = collectSelectedMatched();
+        if (!items.length) {
+            toast('Bitte zuerst gematchte ' + kindLabel(2) + ' ankreuzen.');
+            return;
+        }
+        const preview =
+            items
+                .slice(0, 12)
+                .map(function (it) {
+                    return it.name;
+                })
+                .join('\n') + (items.length > 12 ? '\n…' : '');
+        if (
+            !(await dlgConfirm(
+                String(items.length) +
+                    ' Microsoft‑365‑Gruppe(n) wirklich löschen?\n\n' +
+                    preview +
+                    '\n\nDie Gruppen verschwinden in Entra/Teams. Das lokale Match wird gelöst. Das lässt sich nicht rückgängig machen.',
+                { title: 'Gruppen löschen', okText: 'Löschen', danger: true }
+            ))
+        ) {
+            return;
+        }
+        const delBtn = document.getElementById('afgBtnBulkDelete');
+        if (delBtn) delBtn.disabled = true;
+        let ok = 0;
+        let fail = 0;
+        const lines = [];
+        const deletedKeys = [];
+        setBulkStatus('Gruppen werden gelöscht …');
+        try {
+            const token = await gug().getGraphToken();
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                try {
+                    if (typeof gug().deleteUnifiedGroup !== 'function') {
+                        throw new Error('deleteUnifiedGroup fehlt.');
+                    }
+                    await gug().deleteUnifiedGroup(token, it.id);
+                    persistUnmatchFor(activeKind, it.key);
+                    deletedKeys.push(it.key);
+                    ok++;
+                    lines.push('gelöscht  ' + it.name);
+                } catch (e) {
+                    const msg = String((e && e.message) || e || '');
+                    if (/\b404\b/.test(msg) || /Request_ResourceNotFound/i.test(msg)) {
+                        persistUnmatchFor(activeKind, it.key);
+                        deletedKeys.push(it.key);
+                        ok++;
+                        lines.push('bereits weg  ' + it.name);
+                    } else {
+                        fail++;
+                        lines.push('Fehler  ' + it.name + ': ' + msg);
+                    }
+                }
+                if ((i + 1) % 4 === 0) await sleep(200);
+            }
+            renderLeftList();
+            if (deletedKeys.indexOf(normCode(activeCode)) >= 0) {
+                refreshMatchUi();
+            }
+            setBulkStatus(lines.join('\n'));
+            toast('Löschen: ' + ok + ' erledigt, ' + fail + ' Fehler.');
+        } catch (e) {
+            renderLeftList();
+            setBulkStatus('Abbruch: ' + (e.message || e));
+            toast('Löschen: ' + (e.message || e));
+        } finally {
+            if (delBtn) delBtn.disabled = false;
+        }
     }
 
     function onClick(id, fn) {
@@ -882,6 +1240,33 @@
             if (ev.key !== 'Escape') return;
             if (modal && modal.classList.contains('open')) closeCatalogModal();
         });
+        onClick('afgBtnSelectMatched', selectVisibleMatched);
+        onClick('afgBtnSelectNone', clearSelection);
+        onClick('afgBtnBulkOwner', function () {
+            if (!collectSelectedMatched().length) {
+                toast('Bitte zuerst gematchte ' + kindLabel(2) + ' ankreuzen.');
+                return;
+            }
+            showBulkOwnerPanel(true);
+        });
+        onClick('afgBtnBulkDelete', function () {
+            runBulkDelete().catch(function () {});
+        });
+        onClick('afgBulkOwnerSearchBtn', function () {
+            runBulkOwnerSearch().catch(function () {});
+        });
+        onClick('afgBulkOwnerApply', function () {
+            runBulkSetOwner().catch(function () {});
+        });
+        const bulkOwnerSearch = document.getElementById('afgBulkOwnerSearch');
+        if (bulkOwnerSearch) {
+            bulkOwnerSearch.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    runBulkOwnerSearch().catch(function () {});
+                }
+            });
+        }
     }
 
     function init() {

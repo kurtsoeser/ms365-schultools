@@ -90,6 +90,18 @@
 }
 .tree button:hover { background: color-mix(in srgb, var(--brand1) 8%, transparent); }
 .tree button[aria-current="true"] { background: color-mix(in srgb, var(--brand1) 14%, transparent); }
+.tree button.is-matched { box-shadow: inset 3px 0 0 #3cb371; }
+.tree button.is-unmatched { box-shadow: inset 3px 0 0 #e07470; }
+.jg-match-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.jg-match-badge .bi { font-size: 1.05em; }
+.jg-match-badge.is-ok { color: #0f7b4c; }
+.jg-match-badge.is-warn { color: #c0392b; }
 .tree button .slg-side-main { flex: 1; min-width: 0; }
 .tree button .slg-side-title {
     font-weight: 750;
