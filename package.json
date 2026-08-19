@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:secrets": "node scripts/check-tracked-secrets.mjs",
+    "write-kursteams-config": "node scripts/write-kursteams-local-config.mjs",
     "lint": "eslint ."
   },
   "devDependencies": {

@@ -49,12 +49,47 @@ window.MS365_MSAL_CONFIG = {
 };
 
 /**
- * Kursteams Azure-Backend – functionKey aus Azure Portal eintragen (App-Schlüssel → default).
+ * Kursteams Azure-Backend – Basis-URL (öffentlich committbar).
+ * functionKey: nur lokal in ms365-config.local.js (siehe ms365-config.local.example.js).
  */
 window.MS365_KURSTEAMS_API = {
     baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
     functionKey: ''
 };
+
+(function loadMs365LocalConfig() {
+    if (typeof XMLHttpRequest === 'undefined' || typeof document === 'undefined') return;
+    try {
+        const scripts = document.getElementsByTagName('script');
+        let localUrl = '';
+        for (let i = scripts.length - 1; i >= 0; i--) {
+            const src = scripts[i].src || '';
+            if (/ms365-config\.js(\?|$)/i.test(src)) {
+                localUrl = src.replace(/ms365-config\.js(\?.*)?$/i, 'ms365-config.local.js$1');
+                break;
+            }
+        }
+        if (!localUrl) return;
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', localUrl, false);
+        xhr.send(null);
+        if (xhr.status !== 200 || !String(xhr.responseText || '').trim()) return;
+        // Lokale Override-Datei (gitignored) – optional, nur auf Ihrer Maschine / im Deployment
+        // eslint-disable-next-line no-new-func
+        new Function(xhr.responseText)();
+        const local = window.MS365_CONFIG_LOCAL;
+        if (!local || !window.MS365_KURSTEAMS_API) return;
+        const k = local.MS365_KURSTEAMS_API;
+        if (k && k.functionKey) {
+            window.MS365_KURSTEAMS_API.functionKey = String(k.functionKey).trim();
+        }
+        if (k && k.baseUrl) {
+            window.MS365_KURSTEAMS_API.baseUrl = String(k.baseUrl).trim();
+        }
+    } catch {
+        /* lokale Overrides optional */
+    }
+})();
 
 (function () {
     if (typeof document === 'undefined') return;

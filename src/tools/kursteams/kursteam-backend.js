@@ -372,7 +372,7 @@ function validateConfig() {
         return 'MS365_KURSTEAMS_API.baseUrl fehlt in ms365-config.js';
     }
     if (!cfg.functionKey) {
-        return 'MS365_KURSTEAMS_API.functionKey fehlt in ms365-config.js (Azure → Function App → App-Schlüssel)';
+        return 'MS365_KURSTEAMS_API.functionKey fehlt – in ms365-config.local.js eintragen (Vorlage: ms365-config.local.example.js; Azure → Function App → App-Schlüssel)';
     }
     return '';
 }

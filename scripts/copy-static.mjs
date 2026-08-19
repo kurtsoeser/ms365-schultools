@@ -59,12 +59,16 @@ async function main() {
     'app.js',
     'ms365-config.js',
     'ms365-config.example.js',
+    'ms365-config.local.example.js',
     'access-config.js',
     'access-config.example.js',
     'README.md'
   ];
 
   for (const f of rootFiles) await copyFileToDist(f);
+
+  // Optionale lokale Secrets (gitignored) für Preview/Deploy außerhalb von GitHub Actions
+  await copyFileToDist('ms365-config.local.js');
 
   await copyDirToDist('src');
   await writeAppBuildInfo(distRoot);

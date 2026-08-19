@@ -35,6 +35,11 @@ jobs:
           VITE_BASE: "/${{ github.event.repository.name }}/"
         run: npm run build
 
+      - name: Kursteams Function Key (GitHub Secret → dist/)
+        env:
+          KURSTEAMS_FUNCTION_KEY: ${{ secrets.KURSTEAMS_FUNCTION_KEY }}
+        run: node scripts/write-kursteams-local-config.mjs
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
