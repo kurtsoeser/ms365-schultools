@@ -10,6 +10,96 @@
     let membersCountCache = -1;
     let ownersLoadedForId = '';
     let membersLoadedForId = '';
+    let photoObjectUrl = '';
+
+    function revokePhotoObjectUrl() {
+        if (!photoObjectUrl) return;
+        try {
+            URL.revokeObjectURL(photoObjectUrl);
+        } catch {
+            /* ignore */
+        }
+        photoObjectUrl = '';
+    }
+
+    function groupPhotoInitials(displayName) {
+        if (typeof gug().groupPhotoInitials === 'function') {
+            return gug().groupPhotoInitials(displayName);
+        }
+        const s = String(displayName || '').trim();
+        if (!s) return '?';
+        const parts = s.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+        return s.slice(0, 2).toUpperCase();
+    }
+
+    function setGroupPhotoUi(opts) {
+        const wrap = document.getElementById('slgGroupPhotoWrap');
+        const img = document.getElementById('slgGroupPhotoImg');
+        const initials = document.getElementById('slgGroupPhotoInitials');
+        const removeBtn = document.getElementById('slgBtnRemoveGroupPhoto');
+        const fileInput = document.getElementById('slgGroupPhotoFile');
+        if (!wrap) return;
+
+        const matched = !!(opts && opts.matched);
+        if (!matched) {
+            revokePhotoObjectUrl();
+            wrap.style.display = 'none';
+            if (img) {
+                img.hidden = true;
+                img.removeAttribute('src');
+            }
+            if (initials) {
+                initials.hidden = false;
+                initials.textContent = '–';
+            }
+            if (removeBtn) removeBtn.hidden = true;
+            if (fileInput) fileInput.value = '';
+            return;
+        }
+
+        wrap.style.display = '';
+        const name = String((opts && opts.displayName) || '').trim();
+        if (initials) {
+            initials.textContent = groupPhotoInitials(name);
+        }
+        if (opts && opts.hasPhoto && opts.url) {
+            if (img) {
+                img.src = opts.url;
+                img.alt = name ? 'Gruppenbild: ' + name : 'Gruppenbild';
+                img.hidden = false;
+            }
+            if (initials) initials.hidden = true;
+            if (removeBtn) removeBtn.hidden = false;
+        } else {
+            revokePhotoObjectUrl();
+            if (img) {
+                img.hidden = true;
+                img.removeAttribute('src');
+            }
+            if (initials) initials.hidden = false;
+            if (removeBtn) removeBtn.hidden = true;
+        }
+    }
+
+    async function loadGroupPhoto(token, groupId, displayName) {
+        if (!document.getElementById('slgGroupPhotoWrap')) return;
+        revokePhotoObjectUrl();
+        const name = String(displayName || '').trim();
+        try {
+            const blob = await gug().fetchGroupPhotoBlob(token, groupId);
+            if (blob && blob.size) {
+                photoObjectUrl = URL.createObjectURL(blob);
+                setGroupPhotoUi({ matched: true, displayName: name, hasPhoto: true, url: photoObjectUrl });
+                return;
+            }
+        } catch {
+            /* Fallback: Initialen anzeigen */
+        }
+        setGroupPhotoUi({ matched: true, displayName: name, hasPhoto: false });
+    }
 
     function gug() {
         const G = window.ms365GraphUnifiedGroups;
@@ -97,6 +187,7 @@
             if (created) created.value = '';
             setTeamStatusEl(teamEl, '', false);
             syncTeamActions(false, '');
+            setGroupPhotoUi({ matched: false });
             return;
         }
         if (name) name.value = String(group.displayName || '');
@@ -146,6 +237,11 @@
             setTeamStatusEl(teamEl, hasTeam ? 'Team vorhanden' : 'Kein Team', hasTeam);
             syncTeamActions(hasTeam, hasTeam ? group.teamWebUrl || fallbackTeamUrl(group.id) : '');
         }
+        setGroupPhotoUi({
+            matched: true,
+            displayName: group.displayName || '',
+            hasPhoto: false
+        });
     }
 
     function setTeamStatusEl(el, text, hasTeam) {
@@ -261,25 +357,78 @@
     function resetCaches() {
         invalidateMembership();
         liveGroup = null;
+        revokePhotoObjectUrl();
     }
 
-    function fillUserSearchSelect(selId, users) {
-        const sel = document.getElementById(selId);
-        if (!sel) return;
-        sel.replaceChildren();
-        if (!users || !users.length) {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.textContent = '(keine Treffer)';
-            sel.appendChild(opt);
+    function fillUserSearchMultiChecklist(selId, users) {
+        const host = document.getElementById(selId);
+        if (!host) return;
+        host.replaceChildren();
+        const list = Array.isArray(users) ? users : [];
+        if (!list.length) {
+            const p = document.createElement('div');
+            p.className = 'muted';
+            p.textContent = '(keine Treffer)';
+            host.appendChild(p);
             return;
         }
-        users.forEach(function (u) {
-            const opt = document.createElement('option');
-            opt.value = u.id || '';
-            opt.textContent = gug().personLabel(u) || (u.id ? String(u.id) : '');
-            sel.appendChild(opt);
+
+        const selAllRow = document.createElement('label');
+        selAllRow.className = 'slg-user-checklist__selectall';
+        const selAllCb = document.createElement('input');
+        selAllCb.type = 'checkbox';
+        selAllCb.setAttribute('aria-label', 'Alle auswählen');
+        selAllRow.appendChild(selAllCb);
+        const selAllTxt = document.createElement('span');
+        selAllTxt.textContent = 'Alle auswählen (' + list.length + ')';
+        selAllRow.appendChild(selAllTxt);
+        host.appendChild(selAllRow);
+
+        const items = [];
+        list.forEach(function (u) {
+            const label = document.createElement('label');
+            label.className = 'slg-user-checklist__item';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = u.id || '';
+            cb.setAttribute('aria-label', gug().personLabel(u) || cb.value || 'Benutzer');
+            const txt = document.createElement('span');
+            txt.textContent = gug().personLabel(u) || (u.id ? String(u.id) : '');
+            label.appendChild(cb);
+            label.appendChild(txt);
+            cb.addEventListener('change', function () {
+                const checked = !!cb.checked;
+                label.classList.toggle('is-checked', checked);
+                const all = host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]');
+                const checkedCount = host.querySelectorAll(
+                    '.slg-user-checklist__item input[type="checkbox"]:checked'
+                ).length;
+                selAllCb.indeterminate = checkedCount > 0 && checkedCount < all.length;
+                selAllCb.checked = checkedCount === all.length;
+            });
+            host.appendChild(label);
+            items.push({ cb: cb, label: label });
         });
+
+        function syncSelectAll() {
+            const all = host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]');
+            const checkedCount = host.querySelectorAll(
+                '.slg-user-checklist__item input[type="checkbox"]:checked'
+            ).length;
+            selAllCb.indeterminate = checkedCount > 0 && checkedCount < all.length;
+            selAllCb.checked = checkedCount === all.length;
+        }
+
+        selAllCb.addEventListener('change', function () {
+            items.forEach(function (it) {
+                it.cb.checked = selAllCb.checked;
+                it.label.classList.toggle('is-checked', selAllCb.checked);
+            });
+            syncSelectAll();
+        });
+
+        // Init
+        syncSelectAll();
     }
 
     function renderPersonRows(wrap, list, emptyText, removeAttr) {
@@ -404,7 +553,7 @@
             ownersLoadedForId = gid;
             renderOwnersList(ownersCache);
         } catch (e) {
-            toast('Owner laden: ' + (e.message || e));
+            toast('Besitzer laden: ' + (e.message || e));
         } finally {
             setBusy(['slgOwnersReloadBtn', 'slgOwnerAddBtn', 'slgOwnerSearchBtn', 'slgOwnersEnsureDirektionBtn'], false);
         }
@@ -451,6 +600,7 @@
             fillForm(g);
             setMatchedMode(true);
             await resolveTeamLink(token, g);
+            await loadGroupPhoto(token, gid, g.displayName);
             if (ctx && ctx.onAfterLoad) await ctx.onAfterLoad(g);
             const tab = ctx && ctx.getActiveTab ? ctx.getActiveTab() : 'general';
             if (tab === 'owners') await loadOwnersNow();
@@ -537,7 +687,7 @@
         }
         if (
             !(await dlgConfirm(
-                'Für diese Microsoft 365‑Gruppe ein Microsoft Team anlegen?\n\nOwner und Mitglieder der Gruppe werden zum Team.',
+                'Für diese Microsoft 365‑Gruppe ein Microsoft Team anlegen?\n\nBesitzer und Mitglieder der Gruppe werden zum Team.',
                 { title: 'Team anlegen', okText: 'Team anlegen' }
             ))
         ) {
@@ -613,7 +763,7 @@
         try {
             const token = await graphToken();
             const users = await gug().searchUsers(token, q);
-            fillUserSearchSelect(selId, users);
+            fillUserSearchMultiChecklist(selId, users);
             toast('Suche: ' + users.length + ' Treffer.');
         } catch (e) {
             toast('Suche: ' + (e.message || e));
@@ -625,21 +775,43 @@
     async function runAddOwner() {
         const gid = getGroupId();
         if (!gid) return;
-        const sel = document.getElementById('slgOwnerSearchResults');
-        const userId = sel && sel.value ? String(sel.value).trim() : '';
-        if (!userId) {
-            toast('Bitte zuerst einen Benutzer aus den Treffern auswählen.');
+        const host = document.getElementById('slgOwnerSearchResults');
+        const checked = host
+            ? Array.from(host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]:checked'))
+            : [];
+        const selected = checked
+            .map(function (cb) {
+                const row = cb.closest('.slg-user-checklist__item');
+                const labelEl = row ? row.querySelector('span') : null;
+                const label = labelEl ? String(labelEl.textContent || '').trim() : String(cb.value || '');
+                return { id: String(cb.value || '').trim(), label: label };
+            })
+            .filter(function (x) {
+                return !!x.id;
+            });
+        if (!selected.length) {
+            toast('Bitte zuerst mindestens einen Benutzer aus den Treffern auswählen.');
             return;
         }
         const btn = document.getElementById('slgOwnerAddBtn');
         if (btn) btn.disabled = true;
         try {
             const token = await graphToken();
-            await gug().addOwnerWithMemberFallback(token, gid, userId);
+            let ok = 0;
+            let fail = 0;
+            for (const s of selected) {
+                try {
+                    await gug().addOwnerWithMemberFallback(token, gid, s.id);
+                    ok++;
+                } catch (e) {
+                    fail++;
+                }
+            }
             await loadOwnersNow();
-            toast('Owner hinzugefügt.');
+            toast(ok + ' Besitzer hinzugefügt' + (fail ? ', ' + fail + ' Fehler.' : '.'));
+            if (host) host.replaceChildren();
         } catch (e) {
-            toast('Owner hinzufügen: ' + (e.message || e));
+            toast('Besitzer hinzufügen: ' + (e.message || e));
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -652,7 +824,7 @@
             const token = await graphToken();
             await ctx.ensureDirektionOwners(token, gid);
             await loadOwnersNow();
-            toast('Direktion als Owner gesetzt.');
+            toast('Direktion als Besitzer gesetzt.');
         } catch (e) {
             toast('Direktion setzen: ' + (e.message || e));
         }
@@ -665,40 +837,90 @@
             toast('Der letzte Besitzer kann nicht entfernt werden.');
             return;
         }
-        if (!(await dlgConfirm('Diesen Owner wirklich entfernen?', { title: 'Owner', okText: 'Entfernen', danger: true }))) {
+        if (!(await dlgConfirm('Diesen Besitzer wirklich entfernen?', { title: 'Besitzer', okText: 'Entfernen', danger: true }))) {
             return;
         }
         try {
             const token = await graphToken();
             await gug().removeGroupOwner(token, gid, ownerId);
             await loadOwnersNow();
-            toast('Owner entfernt.');
+            toast('Besitzer entfernt.');
         } catch (e) {
-            toast('Owner entfernen: ' + (e.message || e));
+            toast('Besitzer entfernen: ' + (e.message || e));
         }
     }
 
     async function runAddMember() {
         const gid = getGroupId();
         if (!gid) return;
-        const sel = document.getElementById('slgMemberSearchResults');
-        const userId = sel && sel.value ? String(sel.value).trim() : '';
-        if (!userId) {
-            toast('Bitte zuerst einen Benutzer aus den Treffern auswählen.');
+        const host = document.getElementById('slgMemberSearchResults');
+        const checked = host
+            ? Array.from(
+                  host.querySelectorAll('.slg-user-checklist__item input[type="checkbox"]:checked')
+              )
+            : [];
+        const selected = checked
+            .map(function (cb) {
+                const row = cb.closest('.slg-user-checklist__item');
+                const labelEl = row ? row.querySelector('span') : null;
+                const label = labelEl ? String(labelEl.textContent || '').trim() : String(cb.value || '');
+                return { id: String(cb.value || '').trim(), label: label };
+            })
+            .filter(function (x) {
+                return !!x.id;
+            });
+        if (!selected.length) {
+            toast('Bitte zuerst mindestens einen Benutzer aus den Treffern auswählen.');
             return;
         }
         const btn = document.getElementById('slgMemberAddBtn');
         if (btn) btn.disabled = true;
         try {
             const token = await graphToken();
-            try {
-                await gug().graphAddMember(token, gid, userId);
-            } catch (e) {
-                if (!gug().isDuplicateMemberError(e)) throw e;
+            const groupNames = selected.map(function (x) {
+                return x.label;
+            });
+            if (
+                !(
+                    await dlgConfirm(
+                        'Diese Person(en) zur Gruppe hinzufügen?\n\n' +
+                            (selected.length > 1 ? selected.length + ' Benutzer\n\n' : 'Benutzer\n\n') +
+                            groupNames.join('\n'),
+                        { title: 'Mitglieder hinzufügen', okText: 'Hinzufügen' }
+                    )
+                )
+            ) {
+                return;
             }
+
+            let ok = 0;
+            let skip = 0;
+            let fail = 0;
+            for (const s of selected) {
+                try {
+                    await gug().graphAddMember(token, gid, s.id);
+                    ok++;
+                } catch (e) {
+                    if (gug().isDuplicateMemberError(e)) {
+                        skip++;
+                    } else {
+                        fail++;
+                        // Fehler pro Person werden in der Gesamt-Tost-Zeile zusammengefasst.
+                    }
+                }
+            }
+
             membersLoadedForId = '';
             await loadMembersNow();
-            toast('Mitglied hinzugefügt.');
+            toast(
+                ok + ' hinzugefügt' +
+                    (skip ? ', ' + skip + ' übersprungen' : '') +
+                    (fail ? ', ' + fail + ' Fehler.' : '.')
+            );
+            // Search results leeren
+            if (host) {
+                host.replaceChildren();
+            }
         } catch (e) {
             toast('Mitglied hinzufügen: ' + (e.message || e));
         } finally {
@@ -720,6 +942,77 @@
             toast('Mitglied entfernt.');
         } catch (e) {
             toast('Mitglied entfernen: ' + (e.message || e));
+        }
+    }
+
+    async function runUploadGroupPhoto(file) {
+        const gid = getGroupId();
+        if (!gid || !file) return;
+        const max =
+            typeof gug().GROUP_PHOTO_MAX_BYTES === 'number' ? gug().GROUP_PHOTO_MAX_BYTES : 4 * 1024 * 1024;
+        if (file.size > max) {
+            toast('Bild ist zu groß (max. 4 MB).');
+            return;
+        }
+        const okTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        const ct = String(file.type || '').trim() || 'image/jpeg';
+        if (okTypes.indexOf(ct) === -1) {
+            toast('Bitte JPEG, PNG oder WebP verwenden.');
+            return;
+        }
+        setBusy(['slgBtnRemoveGroupPhoto'], true);
+        try {
+            const token = await graphToken();
+            const hasTeam = !!(liveGroup && gug().groupHasTeam && gug().groupHasTeam(liveGroup));
+            await gug().setGroupPhoto(token, gid, file, ct);
+            const teamSync = await gug().syncTeamPhotoForGroup(token, gid, 'set', file, ct, { hasTeam: hasTeam });
+            if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.invalidate === 'function') {
+                window.ms365GroupPhotoThumb.invalidate(gid);
+            }
+            await loadGroupPhoto(token, gid, liveGroup && liveGroup.displayName);
+            const extra =
+                typeof gug().teamPhotoSyncHint === 'function' ? gug().teamPhotoSyncHint(teamSync) : '';
+            toast(('Gruppenbild hochgeladen.' + extra).trim());
+        } catch (e) {
+            toast('Gruppenbild: ' + (e.message || e));
+        } finally {
+            setBusy(['slgBtnRemoveGroupPhoto'], false);
+            const fi = document.getElementById('slgGroupPhotoFile');
+            if (fi) fi.value = '';
+        }
+    }
+
+    async function runRemoveGroupPhoto() {
+        const gid = getGroupId();
+        if (!gid) return;
+        if (
+            !(await dlgConfirm('Gruppenbild wirklich entfernen?', {
+                title: 'Gruppenbild',
+                okText: 'Entfernen',
+                danger: true
+            }))
+        ) {
+            return;
+        }
+        setBusy(['slgBtnRemoveGroupPhoto'], true);
+        try {
+            const token = await graphToken();
+            const hasTeam = !!(liveGroup && gug().groupHasTeam && gug().groupHasTeam(liveGroup));
+            await gug().deleteGroupPhoto(token, gid);
+            const teamSync = await gug().syncTeamPhotoForGroup(token, gid, 'delete', undefined, undefined, {
+                hasTeam: hasTeam
+            });
+            if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.invalidate === 'function') {
+                window.ms365GroupPhotoThumb.invalidate(gid);
+            }
+            await loadGroupPhoto(token, gid, liveGroup && liveGroup.displayName);
+            const extra =
+                typeof gug().teamPhotoSyncHint === 'function' ? gug().teamPhotoSyncHint(teamSync) : '';
+            toast(('Gruppenbild entfernt.' + extra).trim());
+        } catch (e) {
+            toast('Gruppenbild entfernen: ' + (e.message || e));
+        } finally {
+            setBusy(['slgBtnRemoveGroupPhoto'], false);
         }
     }
 
@@ -762,6 +1055,16 @@
         });
         bindEnter('slgMemberSearch', function () {
             runSearch('member');
+        });
+        const photoFile = document.getElementById('slgGroupPhotoFile');
+        if (photoFile) {
+            photoFile.addEventListener('change', function () {
+                const f = photoFile.files && photoFile.files[0];
+                if (f) runUploadGroupPhoto(f);
+            });
+        }
+        onClick('slgBtnRemoveGroupPhoto', function () {
+            runRemoveGroupPhoto();
         });
         const ownersList = document.getElementById('slgOwnersList');
         if (ownersList) {

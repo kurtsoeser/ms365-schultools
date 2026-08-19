@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .vite/
+backend/kursteams-api/local.settings.json
 
 # OS / editor
 .DS_Store

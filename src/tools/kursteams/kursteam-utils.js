@@ -48,8 +48,16 @@ ns.sanitizeGruppeForMail = function sanitizeGruppeForMail(g) {
     return s;
 };
 
+/** jg20301hma → jg2030-1hma (Lesbarkeit in Kursteam-Gruppenmail). */
+ns.formatKlasseSegmentForGruppenmail = function formatKlasseSegmentForGruppenmail(klasseForName) {
+    const s = String(klasseForName ?? '').trim().replace(/\s+/g, '-');
+    const m = s.match(/^jg(\d{4})([0-9A-Za-z].*)$/i);
+    if (m) return ('jg' + m[1] + '-' + m[2]).toLowerCase();
+    return s;
+};
+
 ns.buildGruppenmailBase = function buildGruppenmailBase(yearPrefix, klasseForName, fach, gruppe) {
-    const km = String(klasseForName).replace(/\s+/g, '-');
+    const km = ns.formatKlasseSegmentForGruppenmail(klasseForName);
     const fm = String(fach).replace(/\s+/g, '-');
     let base = `${yearPrefix}-${km}-${fm}`;
     const gs = gruppe ? ns.sanitizeGruppeForMail(gruppe) : '';

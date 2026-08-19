@@ -28,7 +28,7 @@ function createMemoryStorage(initial) {
     };
 }
 
-function loadBackup(store) {
+function loadBackup(store, sessionStore) {
     const full = join(projectRoot, 'src/shared/browser-backup.js');
     const code = readFileSync(full, 'utf8');
     const sandbox = {
@@ -46,6 +46,7 @@ function loadBackup(store) {
     };
     sandbox.window = sandbox;
     sandbox.localStorage = store;
+    sandbox.sessionStorage = sessionStore || createMemoryStorage();
     createContext(sandbox);
     runInContext(code, sandbox, { filename: full });
     return sandbox;
@@ -53,6 +54,7 @@ function loadBackup(store) {
 
 describe('browser-backup', () => {
     let store;
+    let sessionStore;
     let api;
 
     beforeEach(() => {
@@ -65,7 +67,14 @@ describe('browser-backup', () => {
             'acc-login.microsoftonline.com-idtoken-x': 'token',
             'unrelated-other-app': 'nope'
         });
-        api = loadBackup(store).ms365BrowserBackup;
+        sessionStore = createMemoryStorage({
+            'ms365-gaeste-verwalten-active-tab-v1': 'audit',
+            'ms365-gast-zugaenge-snapshot-v1': JSON.stringify({ teams: [], invitations: [], savedAt: '2026-08-17T13:00:00.000Z' }),
+            'ms365-access-granted-v1': '1',
+            'ms365-post-login-url': 'https://example.invalid/index.html',
+            'msal.interaction.status': 'busy'
+        });
+        api = loadBackup(store, sessionStore).ms365BrowserBackup;
     });
 
     it('erkennt App-Keys und blendet MSAL/fremde Keys aus', () => {
@@ -92,13 +101,26 @@ describe('browser-backup', () => {
 
     it('baut ein erkennbares Backup-Paket', () => {
         const now = new Date(2026, 7, 17, 15, 0, 0);
-        const payload = api.buildBackup(store, now);
-        expect(api.isBackupPayload(payload)).toBe(true);
+        const storeWithSchool = createMemoryStorage({
+            'ms365-schooltool-data-v2': JSON.stringify({ version: 4, core: { schoolName: 'BRG Muster', domain: 'brg-muster.at' }, structure: {}, match: {} }),
+            'ms365-dashboard-favorites-v1': JSON.stringify(['kursteams']),
+            'webuntis-teams-creator-state-v1': JSON.stringify({ step: 2 }),
+            'ms365-dashboard-expert-open-v1': '1'
+        });
+        const apiWithSchool = loadBackup(storeWithSchool, sessionStore).ms365BrowserBackup;
+        const payload = apiWithSchool.buildBackup(storeWithSchool, now);
+        expect(apiWithSchool.isBackupPayload(payload)).toBe(true);
         expect(payload.kind).toBe('ms365-browser-backup-v1');
-        expect(payload.version).toBe(1);
+        expect(payload.version).toBe(2);
         expect(payload.exportedAt).toBe(now.toISOString());
-        expect(payload.keyCount).toBe(4);
-        expect(api.backupFilename(now)).toBe('ms365-browser-backup-2026-08-17.json');
+        expect(payload.schoolName).toBe('BRG Muster');
+        expect(payload.domain).toBe('brg-muster.at');
+        expect(payload.keyCount).toBe(6);
+        expect(Object.keys(payload.sessionStorage || {}).sort()).toEqual([
+            'ms365-gaeste-verwalten-active-tab-v1',
+            'ms365-gast-zugaenge-snapshot-v1'
+        ]);
+        expect(apiWithSchool.backupFilename(now, storeWithSchool)).toBe('ms365-browser-backup-2026-08-17-BRG_Muster.json');
     });
 
     it('stellt ein Backup 1:1 wieder her und räumt Ziel-Reste weg', () => {
@@ -108,15 +130,24 @@ describe('browser-backup', () => {
             'ms365-dashboard-tab-v1': 'sharepoint',
             'msal.cache': 'keep-me'
         });
-        const result = api.applyBackup(payload, target);
+        const targetSession = createMemoryStorage({
+            'ms365-gaeste-verwalten-active-tab-v1': 'teams',
+            'ms365-post-login-url': '/keep-login',
+            'ms365-gast-zugaenge-snapshot-v1': '{"old":true}'
+        });
+        const result = api.applyBackup(payload, target, { sessionStorage: targetSession });
         expect(target.getItem('ms365-jahrgang-state-v1')).toBeNull();
         expect(target.getItem('ms365-dashboard-tab-v1')).toBeNull();
         expect(target.getItem('msal.cache')).toBe('keep-me');
         expect(JSON.parse(target.getItem('ms365-schooltool-data-v2')).core.domain).toBe('schule.at');
         expect(target.getItem('ms365-dashboard-expert-open-v1')).toBe('1');
         expect(target.getItem('webuntis-teams-creator-state-v1')).toContain('"step":2');
+        expect(targetSession.getItem('ms365-gaeste-verwalten-active-tab-v1')).toBe('audit');
+        expect(targetSession.getItem('ms365-gast-zugaenge-snapshot-v1')).toContain('"savedAt":"2026-08-17T13:00:00.000Z"');
+        expect(targetSession.getItem('ms365-post-login-url')).toBe('/keep-login');
         expect(result.written).toContain('ms365-schooltool-data-v2');
         expect(result.removed).toContain('ms365-jahrgang-state-v1');
+        expect(result.sessionWritten).toContain('ms365-gaeste-verwalten-active-tab-v1');
     });
 
     it('schreibt MSAL-Keys aus einer Datei nicht zurück', () => {

@@ -158,7 +158,7 @@ export function buildKursteamProvisionScript(csvFileName) {
     lines.push('  if ($r.Owners) {');
     lines.push('    $r.Owners.Split(";") | ForEach-Object {');
     lines.push('      $u = $_.Trim(); if ($u) {');
-    lines.push('        try { Add-TeamUser -GroupId $gid -User $u -Role Owner | Out-Null } catch { Write-Warning ("Owner fehlgeschlagen: " + $u) }');
+    lines.push('        try { Add-TeamUser -GroupId $gid -User $u -Role Owner | Out-Null } catch { Write-Warning ("Besitzer fehlgeschlagen: " + $u) }');
     lines.push('      }');
     lines.push('    }');
     lines.push('  }');

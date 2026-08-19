@@ -565,7 +565,7 @@
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Owner in den Schul‑Einstellungen gefunden.';
+            p.textContent = 'Keine Direktion‑Besitzer in den Schul‑Einstellungen gefunden.';
             el.appendChild(p);
             return;
         }
@@ -699,6 +699,16 @@
             badge.appendChild(document.createTextNode(gid ? 'Gematcht' : 'Kein Match'));
             meta.appendChild(badge);
             btn.classList.add(gid ? 'is-matched' : 'is-unmatched');
+            if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.createThumb === 'function') {
+                btn.insertBefore(
+                    window.ms365GroupPhotoThumb.createThumb({
+                        groupId: gid,
+                        displayName: (row.name || row.code || '').trim(),
+                        size: 'list'
+                    }),
+                    btn.firstChild
+                );
+            }
             main.appendChild(t);
             main.appendChild(meta);
             btn.appendChild(main);
@@ -723,6 +733,9 @@
             li.appendChild(btn);
             host.appendChild(li);
         });
+        if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.hydrate === 'function') {
+            window.ms365GroupPhotoThumb.hydrate(host);
+        }
         updateBulkCount();
         updateCatalogActionButtons();
     }
@@ -984,10 +997,10 @@
             !(await dlgConfirm(
                 '„' +
                     label +
-                    '“ als Owner zu ' +
+                    '“ als Besitzer zu ' +
                     String(items.length) +
-                    ' Gruppe(n) hinzufügen?\n\nBestehende Owner bleiben erhalten.',
-                { title: 'Owner setzen', okText: 'Hinzufügen' }
+                    ' Gruppe(n) hinzufügen?\n\nBestehende Besitzer bleiben erhalten.',
+                { title: 'Besitzer setzen', okText: 'Hinzufügen' }
             ))
         ) {
             return;
@@ -998,7 +1011,7 @@
         let skip = 0;
         let fail = 0;
         const lines = [];
-        setBulkStatus('Owner wird gesetzt …');
+        setBulkStatus('Besitzer wird gesetzt …');
         try {
             const token = await gug().getGraphToken();
             for (let i = 0; i < items.length; i++) {
@@ -1010,7 +1023,7 @@
                 } catch (e) {
                     if (gug().isDuplicateMemberError(e)) {
                         skip++;
-                        lines.push('schon Owner  ' + it.name);
+                        lines.push('schon Besitzer  ' + it.name);
                     } else {
                         fail++;
                         lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
@@ -1019,7 +1032,7 @@
                 if ((i + 1) % 6 === 0) await sleep(120);
             }
             setBulkStatus(lines.join('\n'));
-            toast('Owner: neu ' + ok + ', bereits vorhanden ' + skip + ', Fehler ' + fail + '.');
+            toast('Besitzer: neu ' + ok + ', bereits vorhanden ' + skip + ', Fehler ' + fail + '.');
             if (getActiveGroupId()) {
                 try {
                     live().invalidateMembership();
@@ -1030,7 +1043,7 @@
             }
         } catch (e) {
             setBulkStatus('Abbruch: ' + (e.message || e));
-            toast('Owner setzen: ' + (e.message || e));
+            toast('Besitzer setzen: ' + (e.message || e));
         } finally {
             if (applyBtn) applyBtn.disabled = false;
         }

@@ -1,9 +1,14 @@
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
+/**
+ * Schreibt neue/geänderte Kürzel→E-Mail-Zuordnungen zurück in die Schul-Einstellungen.
+ * Bestehende Einträge ohne E-Mail werden mit der neuen E-Mail ergänzt.
+ * Gibt die Anzahl der neu/aktualisierten Einträge zurück.
+ */
 function upsertTenantTeachersFromMapping(mapping) {
-    if (!mapping || typeof mapping !== 'object') return;
-    if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') return;
+    if (!mapping || typeof mapping !== 'object') return 0;
+    if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') return 0;
 
     const current = window.ms365TenantSettingsLoad();
     const teachers = Array.isArray(current && current.teachers) ? [...current.teachers] : [];
@@ -13,6 +18,7 @@ function upsertTenantTeachersFromMapping(mapping) {
         if (code) index.set(code, i);
     });
 
+    let changed = 0;
     Object.entries(mapping).forEach(([codeRaw, emailRaw]) => {
         const code = String(codeRaw || '').trim().toUpperCase();
         const email = String(emailRaw || '').trim().toLowerCase();
@@ -25,27 +31,57 @@ function upsertTenantTeachersFromMapping(mapping) {
             teachers.push({ code, name: '', email });
             index.set(code, teachers.length - 1);
         }
+        changed++;
     });
 
-    window.ms365TenantSettingsSave({ ...current, teachers });
+    if (changed > 0) window.ms365TenantSettingsSave({ ...current, teachers });
+    return changed;
 }
 
+/**
+ * Lädt ALLE Lehrer aus den Schul-Einstellungen (auch solche ohne E-Mail).
+ * Gibt Array von { code, name, email } zurück.
+ */
+function loadAllTenantTeachers() {
+    if (typeof window.ms365TenantSettingsLoad !== 'function') return [];
+    const s = window.ms365TenantSettingsLoad();
+    return Array.isArray(s && s.teachers) ? s.teachers : [];
+}
+
+/**
+ * Füllt ns.teacherEmailMapping aus den Schul-Einstellungen vor.
+ * Bestehende manuelle Einträge werden NICHT überschrieben.
+ * Gibt die Anzahl neu übernommener Einträge zurück.
+ */
 function loadTenantTeacherEmailsIfEmpty() {
-    if (typeof window.ms365TenantSettingsGetTeacherEmailMap !== 'function') return;
+    if (typeof window.ms365TenantSettingsGetTeacherEmailMap !== 'function') return 0;
     const map = window.ms365TenantSettingsGetTeacherEmailMap();
-    if (!map || !Object.keys(map).length) return;
-    // Schul‑Einstellungen sind Basis: fehlende Einträge ergänzen, bestehende (manuelle) nicht überschreiben.
+    if (!map || !Object.keys(map).length) return 0;
     ns.teacherEmailMapping = ns.teacherEmailMapping || {};
+    let added = 0;
     Object.entries(map).forEach(([k, v]) => {
         const kk = String(k || '').trim().toUpperCase();
-        if (!kk) return;
-        if (!ns.teacherEmailMapping[kk]) ns.teacherEmailMapping[kk] = v;
+        if (!kk || !v) return;
+        if (!ns.teacherEmailMapping[kk]) {
+            ns.teacherEmailMapping[kk] = v;
+            added++;
+        }
     });
     const el = document.getElementById('teacherCount');
     if (el) el.textContent = Object.keys(ns.teacherEmailMapping).length;
     const info = document.getElementById('teacherMappingInfo');
-    if (info) info.style.display = 'block';
+    if (info && Object.keys(ns.teacherEmailMapping).length) info.style.display = 'block';
+    return added;
 }
+
+/**
+ * Gibt alle Lehrer aus den Schul-Einstellungen zurück die in den importierten
+ * Unterrichtsdaten als Kürzel vorkommen aber noch keine E-Mail in den Einstellungen haben.
+ */
+ns.getTenantTeachersWithoutEmail = function getTenantTeachersWithoutEmail() {
+    const all = loadAllTenantTeachers();
+    return all.filter(t => t.code && !t.email);
+};
 
 /** Gleiche Spalten wie WebUntis-Lehrerliste (Kürzel, E-Mail, …). */
 ns.getKuerzelFromLehrerRow = function getKuerzelFromLehrerRow(row) {

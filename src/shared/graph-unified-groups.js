@@ -6,7 +6,8 @@
         'https://graph.microsoft.com/User.Read.All',
         'https://graph.microsoft.com/User.ReadWrite.All',
         'https://graph.microsoft.com/Group.ReadWrite.All',
-        'https://graph.microsoft.com/Team.Create'
+        'https://graph.microsoft.com/Team.Create',
+        'https://graph.microsoft.com/TeamSettings.ReadWrite.All'
     ];
 
     const PERSON_SELECT = 'id,displayName,mail,userPrincipalName';
@@ -182,6 +183,187 @@
             throw new Error(method + ' ' + path + ': ' + msg);
         }
         return data || {};
+    }
+
+    async function graphRawRequest(method, path, token, body, extraHeaders) {
+        const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
+        let attempt = 0;
+        while (true) {
+            const headers = { Authorization: 'Bearer ' + token };
+            if (extraHeaders && typeof extraHeaders === 'object') {
+                Object.assign(headers, extraHeaders);
+            }
+            const res = await fetch(url, {
+                method: method,
+                headers: headers,
+                body: body !== undefined ? body : undefined
+            });
+            if (res.status === 429 && attempt < 8) {
+                const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
+                await sleep((isNaN(ra) ? 5 : ra) * 1000);
+                attempt++;
+                continue;
+            }
+            return res;
+        }
+    }
+
+    const GROUP_PHOTO_MAX_BYTES = 4 * 1024 * 1024;
+
+    function groupPhotoInitials(displayName) {
+        const s = String(displayName || '').trim();
+        if (!s) return '?';
+        const parts = s.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+        return s.slice(0, 2).toUpperCase();
+    }
+
+    async function fetchGroupPhotoBlob(token, groupId) {
+        const gid = encodeURIComponent(normStr(groupId));
+        if (!gid) return null;
+        const path = '/groups/' + gid + '/photo/$value';
+        const res = await graphRawRequest('GET', path, token);
+        if (res.status === 404) return null;
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error('GET ' + path + ': ' + (text || String(res.status)));
+        }
+        return res.blob();
+    }
+
+    async function setGroupPhoto(token, groupId, imageBlob, contentType) {
+        const gid = encodeURIComponent(normStr(groupId));
+        if (!gid) throw new Error('Gruppen-ID fehlt.');
+        const blob = imageBlob instanceof Blob ? imageBlob : null;
+        if (!blob || !blob.size) throw new Error('Kein Bild.');
+        if (blob.size > GROUP_PHOTO_MAX_BYTES) {
+            throw new Error('Bild zu groß (max. 4 MB).');
+        }
+        const ct = normStr(contentType || blob.type || 'image/jpeg') || 'image/jpeg';
+        const path = '/groups/' + gid + '/photo/$value';
+        const res = await graphRawRequest('PUT', path, token, blob, { 'Content-Type': ct });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error('PUT ' + path + ': ' + (text || String(res.status)));
+        }
+        noteAction({
+            tool: 'graph',
+            action: 'groupPhotoSet',
+            target: decodeURIComponent(gid),
+            summary: 'Gruppenbild gesetzt'
+        });
+    }
+
+    async function deleteGroupPhoto(token, groupId) {
+        const gid = encodeURIComponent(normStr(groupId));
+        if (!gid) throw new Error('Gruppen-ID fehlt.');
+        const path = '/groups/' + gid + '/photo/$value';
+        const res = await graphRawRequest('DELETE', path, token);
+        if (res.status === 404) return;
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error('DELETE ' + path + ': ' + (text || String(res.status)));
+        }
+        noteAction({
+            tool: 'graph',
+            action: 'groupPhotoDelete',
+            target: decodeURIComponent(gid),
+            summary: 'Gruppenbild entfernt'
+        });
+    }
+
+    async function setTeamPhoto(token, teamId, imageBlob, contentType) {
+        const tid = encodeURIComponent(normStr(teamId));
+        if (!tid) throw new Error('Team-ID fehlt.');
+        const blob = imageBlob instanceof Blob ? imageBlob : null;
+        if (!blob || !blob.size) throw new Error('Kein Bild.');
+        if (blob.size > GROUP_PHOTO_MAX_BYTES) {
+            throw new Error('Bild zu groß (max. 4 MB).');
+        }
+        const ct = normStr(contentType || blob.type || 'image/jpeg') || 'image/jpeg';
+        const path = '/teams/' + tid + '/photo/$value';
+        const res = await graphRawRequest('PUT', path, token, blob, { 'Content-Type': ct });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error('PUT ' + path + ': ' + (text || String(res.status)));
+        }
+        noteAction({
+            tool: 'graph',
+            action: 'teamPhotoSet',
+            target: decodeURIComponent(tid),
+            summary: 'Teams-Bild gesetzt'
+        });
+    }
+
+    /**
+     * Teams-Foto entfernen. Graph unterstützt DELETE für Teams laut Doku oft nicht –
+     * Fehler werden abgefangen und als { ok: false } zurückgegeben.
+     */
+    async function deleteTeamPhoto(token, teamId) {
+        const tid = encodeURIComponent(normStr(teamId));
+        if (!tid) throw new Error('Team-ID fehlt.');
+        const path = '/teams/' + tid + '/photo/$value';
+        const res = await graphRawRequest('DELETE', path, token);
+        if (res.status === 404) {
+            return { ok: true, skipped: true, reason: 'Kein Teams-Bild vorhanden.' };
+        }
+        if (!res.ok) {
+            const text = await res.text();
+            return {
+                ok: false,
+                reason:
+                    res.status === 405 || res.status === 501
+                        ? 'Teams-Bild kann per Graph nicht gelöscht werden (Microsoft-Limitierung).'
+                        : 'DELETE ' + path + ': ' + (text || String(res.status))
+            };
+        }
+        noteAction({
+            tool: 'graph',
+            action: 'teamPhotoDelete',
+            target: decodeURIComponent(tid),
+            summary: 'Teams-Bild entfernt'
+        });
+        return { ok: true };
+    }
+
+    async function syncTeamPhotoForGroup(token, groupId, mode, imageBlob, contentType, opts) {
+        const gid = normStr(groupId);
+        if (!gid) return { ok: false, skipped: true, reason: 'Gruppen-ID fehlt.' };
+        const o = opts && typeof opts === 'object' ? opts : {};
+        let hasTeam = o.hasTeam === true || o.hasTeam === false ? o.hasTeam : null;
+        if (hasTeam === null) {
+            try {
+                const g = await fetchGroup(token, gid);
+                hasTeam = groupHasTeam(g);
+            } catch {
+                return { ok: false, skipped: true, reason: 'Team-Status unbekannt.' };
+            }
+        }
+        if (!hasTeam) {
+            return { ok: true, skipped: true, reason: 'Kein Microsoft Team.' };
+        }
+        try {
+            if (mode === 'set') {
+                await setTeamPhoto(token, gid, imageBlob, contentType);
+                return { ok: true };
+            }
+            if (mode === 'delete') {
+                return await deleteTeamPhoto(token, gid);
+            }
+        } catch (e) {
+            return { ok: false, reason: String(e && e.message ? e.message : e) };
+        }
+        return { ok: false, reason: 'Unbekannter Modus.' };
+    }
+
+    function teamPhotoSyncHint(result) {
+        if (!result || result.skipped) return '';
+        if (result.ok && !result.skipped) return ' Teams-Bild mitgesetzt.';
+        const r = String(result.reason || '').trim();
+        if (!r) return ' Teams-Bild konnte nicht mitgesetzt werden.';
+        return ' Teams: ' + r;
     }
 
     function odataEscape(s) {
@@ -674,6 +856,44 @@
         return list[0] || null;
     }
 
+    async function resolveUserByEmailForImport(token, email) {
+        const em = normEmail(email);
+        if (!em || em.indexOf('@') === -1) return null;
+        const esc = odataEscape(em);
+        const filter = "(mail eq '" + esc + "' or userPrincipalName eq '" + esc + "')";
+        const path =
+            '/users?$filter=' +
+            encodeURIComponent(filter) +
+            '&$select=' +
+            encodeURIComponent(USER_LICENSE_SELECT) +
+            '&$top=5';
+        const data = await graphJson('GET', path, token, undefined);
+        const list = data.value || [];
+        return list[0] || null;
+    }
+
+    async function resolveUsersByEmailsForImport(token, emails) {
+        const list = Array.isArray(emails) ? emails : [];
+        const seen = new Set();
+        const unique = [];
+        list.forEach(function (raw) {
+            const em = normEmail(raw);
+            if (!em || em.indexOf('@') === -1 || seen.has(em)) return;
+            seen.add(em);
+            unique.push(em);
+        });
+        const out = [];
+        for (let i = 0; i < unique.length; i++) {
+            try {
+                const u = await resolveUserByEmailForImport(token, unique[i]);
+                if (u) out.push(u);
+            } catch {
+                /* Einzelner Treffer fehlgeschlagen – überspringen */
+            }
+        }
+        return out;
+    }
+
     async function createUnifiedGroup(token, displayName, mailNickname, description) {
         const nick = sanitizeUnifiedGroupMailNickname(mailNickname);
         const body = {
@@ -906,12 +1126,23 @@
         directoryObjectRef,
         isDuplicateMemberError,
         resolveUserByEmail,
+        resolveUserByEmailForImport,
+        resolveUsersByEmailsForImport,
         ensureOwners,
         syncEmailsToGroup,
         removeEmailsFromGroup,
         patchGroup,
         patchGroupDisplayName,
         renewGroup,
+        GROUP_PHOTO_MAX_BYTES,
+        groupPhotoInitials,
+        fetchGroupPhotoBlob,
+        setGroupPhoto,
+        deleteGroupPhoto,
+        setTeamPhoto,
+        deleteTeamPhoto,
+        syncTeamPhotoForGroup,
+        teamPhotoSyncHint,
         fetchSubscribedSkus,
         skuLookupFromSubscribed,
         fetchUsersWithAssignedLicenses,

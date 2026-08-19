@@ -318,7 +318,7 @@ function mountGroupDetail() {
         title: 'Sicherheitsgruppe',
         subtitle: 'Gruppe für die Gruppenerstellungsrichtlinie',
         matchedHintHtml:
-            'Reine Sicherheitsgruppe für <strong>Group.Unified</strong>. Hervorgehobene Felder speichert <strong>Update</strong> (Anzeigename, Beschreibung). Owner und Mitglieder können Sie in den Tabs live pflegen oder in Entra öffnen.',
+            'Reine Sicherheitsgruppe für <strong>Group.Unified</strong>. Hervorgehobene Felder speichert <strong>Update</strong> (Anzeigename, Beschreibung). Besitzer und Mitglieder können Sie in den Tabs live pflegen oder in Entra öffnen.',
         updateHintHtml:
             'Update speichert <strong>Anzeigename</strong> und <strong>Beschreibung</strong>. Sichtbarkeit gilt nicht für Sicherheitsgruppen. Mitglieder dieser Gruppe dürfen nach dem Anwenden der Richtlinie M365‑Gruppen/Teams anlegen.',
         membersMatchedHint:

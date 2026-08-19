@@ -25,6 +25,7 @@ const GRAPH_WRITE_SCOPES = [
 function bind() {
 
     const progressEl = getEl('lgrProgress');
+    const previewPanel = getEl('lgrPreviewPanel');
     const tbody = getEl('lgrTbody');
     const btn = getEl('lgrBtnRun');
     const btnCsv = getEl('lgrBtnCsv');
@@ -629,6 +630,7 @@ function bind() {
         const scopeMode = String(getEl('lgrScope')?.value || 'unified');
         btn.disabled = true;
         btnCsv.disabled = true;
+        previewPanel?.setAttribute('hidden', '');
         lastRows = [];
         viewRows = [];
         selectedIds.clear();

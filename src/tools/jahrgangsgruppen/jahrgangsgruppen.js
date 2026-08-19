@@ -42,6 +42,188 @@
     let schoolYearLabel = '';
     /** @type {Set<string>} */
     let selectedKeys = new Set();
+    /** @type {Record<string, number>} */
+    let graphMemberCounts = {};
+    let countsFetchGen = 0;
+    /** @type {ReturnType<import('../../shared/membership-review-ui.js').createMembershipReview>|null} */
+    let membershipReview = null;
+
+    function graphCountFor(groupId) {
+        const id = String(groupId || '').trim();
+        if (!id) return null;
+        const n = graphMemberCounts[id];
+        return typeof n === 'number' && n >= 0 ? n : null;
+    }
+
+    function updateActiveClassCounts() {
+        const row = getActiveRow();
+        const gid = getActiveGroupId();
+        const listN = row ? emailsForClass(row).length : 0;
+        const groupN = graphCountFor(gid);
+        const wrap = document.getElementById('jgActiveClassCounts');
+        const listEl = document.getElementById('jgActiveListCount');
+        const groupEl = document.getElementById('jgActiveGroupCount');
+        if (wrap) wrap.hidden = !row;
+        if (listEl) listEl.textContent = String(listN);
+        if (groupEl) groupEl.textContent = gid ? (groupN === null ? '–' : String(groupN)) : '–';
+        if (wrap) {
+            wrap.classList.remove('is-match', 'is-mismatch');
+            const known = gid && groupN !== null;
+            if (known) {
+                const same = listN === groupN;
+                wrap.classList.add(same ? 'is-match' : 'is-mismatch');
+                wrap.title = same
+                    ? 'Klassenliste und Gruppe: je ' + listN + ' – Anzahl stimmt überein.'
+                    : 'Klassenliste: ' + listN + ' · Gruppe: ' + groupN + ' Mitglieder.';
+            } else {
+                wrap.title = gid
+                    ? 'Klassenliste: ' + listN + ' E-Mails. Mitgliederzahl wird aus Microsoft Graph geladen.'
+                    : 'Noch keine Microsoft-365-Gruppe gematcht.';
+            }
+        }
+        if (membershipReview) {
+            if (gid && groupN !== null && listN !== groupN && row) {
+                membershipReview.updateMismatchBar([
+                    {
+                        key: rowKey(row),
+                        label: 'Klasse ' + (row.name || row.code || ''),
+                        listN: listN,
+                        groupN: groupN,
+                        gid: gid
+                    }
+                ]);
+            } else {
+                membershipReview.updateMismatchBar([]);
+            }
+        }
+    }
+
+    async function refreshGraphMemberCounts() {
+        const gid = getActiveGroupId();
+        if (!gid) {
+            updateActiveClassCounts();
+            return;
+        }
+        const gen = ++countsFetchGen;
+        try {
+            const token = await gug().getGraphToken();
+            if (gen !== countsFetchGen) return;
+            const n = await gug().fetchGroupMemberCount(token, gid);
+            if (typeof n === 'number' && n >= 0) graphMemberCounts[gid] = n;
+            if (gen !== countsFetchGen) return;
+            updateActiveClassCounts();
+        } catch {
+            updateActiveClassCounts();
+        }
+    }
+
+    function initMembershipReview() {
+        const R = window.ms365MembershipReviewUi;
+        if (!R || typeof R.createMembershipReview !== 'function') return;
+        membershipReview = R.createMembershipReview({
+            mode: 'class',
+            tool: 'jg',
+            syncLabel: 'Klasse',
+            getGraphToken: function () {
+                return gug().getGraphToken();
+            },
+            getGroupId: function () {
+                return getActiveGroupId();
+            },
+            getLocalEmails: function () {
+                return emailsForClass(getActiveRow());
+            },
+            getAllStudentEmails: collectStudentEmails,
+            getActiveReviewKey: function () {
+                return rowKey(getActiveRow());
+            },
+            getReviewTitle: function () {
+                const row = getActiveRow();
+                if (!row) return 'Mitglieder-Abgleich';
+                return 'Mitglieder-Abgleich: ' + (row.name || row.code || 'Klasse');
+            },
+            toast: toast,
+            dlgConfirm: dlgConfirm,
+            appendSyncLog: appendSyncLog,
+            live: {
+                invalidateMembership: function () {
+                    live().invalidateMembership();
+                },
+                loadMembers: function () {
+                    return live().loadMembers();
+                }
+            },
+            refreshCounts: refreshGraphMemberCounts,
+            onAfterChange: async function () {
+                readLists();
+                renderLeftList();
+                renderMemberPreview();
+                updateActiveClassCounts();
+            },
+            openImport: async function (emails) {
+                const Ui = window.ms365MembershipImportUi;
+                if (!Ui || typeof Ui.openMembershipImportDialog !== 'function') {
+                    throw new Error('membership-import-ui.js fehlt.');
+                }
+                const row = getActiveRow();
+                return Ui.openMembershipImportDialog({
+                    kind: 'schueler',
+                    emails: emails,
+                    importOptions: { defaultClass: row && row.code ? row.code : '' },
+                    getGraphToken: function () {
+                        return gug().getGraphToken();
+                    },
+                    loadSettings: function () {
+                        return typeof window.ms365TenantSettingsLoad === 'function'
+                            ? window.ms365TenantSettingsLoad()
+                            : null;
+                    },
+                    saveSettings: function (settings) {
+                        if (typeof window.ms365TenantSettingsSave === 'function') {
+                            window.ms365TenantSettingsSave(settings);
+                        }
+                        readLists();
+                    },
+                    toast: toast,
+                    dlgConfirm: dlgConfirm,
+                    logAction: function (entry) {
+                        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                            window.ms365ActionLog.append(
+                                Object.assign({ tool: 'jg' }, entry || {})
+                            );
+                        }
+                    },
+                    onApplied: async function () {
+                        renderMemberPreview();
+                        updateActiveClassCounts();
+                        if (membershipReview && membershipReview.getState()) {
+                            await membershipReview.loadReview(rowKey(getActiveRow()));
+                        }
+                    }
+                });
+            },
+            logAction: function (action, target, summary) {
+                if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                    window.ms365ActionLog.append({
+                        tool: 'jg',
+                        action: action,
+                        target: target,
+                        summary: summary,
+                        result: 'ok'
+                    });
+                }
+            },
+            labels: {
+                onlyLocalTitle: 'Nur in der Klassenliste',
+                onlyLocalHint:
+                    'Schüler:innen dieser Klasse in den Stammdaten, aber nicht in der Microsoft-365-Gruppe.',
+                onlyGraphTitle: 'Nur in der Microsoft-365-Gruppe',
+                onlyGraphHint:
+                    'In der Gruppe, aber nicht als Schüler:in dieser Klasse geführt – importieren oder aus Gruppe entfernen.'
+            }
+        });
+        membershipReview.wire();
+    }
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -829,7 +1011,7 @@
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Owner in den Schul‑Einstellungen gefunden.';
+            p.textContent = 'Keine Direktion‑Besitzer in den Schul‑Einstellungen gefunden.';
             el.appendChild(p);
             return;
         }
@@ -923,6 +1105,8 @@
         renderOwnerPreview();
         renderMemberPreview();
         refreshSmtpHint();
+        updateActiveClassCounts();
+        void refreshGraphMemberCounts();
     }
 
     function renderLeftList() {
@@ -1003,6 +1187,16 @@
             badge.appendChild(document.createTextNode(gid ? 'Gematcht' : 'Kein Match'));
             meta.appendChild(badge);
             btn.classList.add(gid ? 'is-matched' : 'is-unmatched');
+            if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.createThumb === 'function') {
+                btn.insertBefore(
+                    window.ms365GroupPhotoThumb.createThumb({
+                        groupId: gid,
+                        displayName: (row.name || row.code || '').trim(),
+                        size: 'list'
+                    }),
+                    btn.firstChild
+                );
+            }
             main.appendChild(t);
             main.appendChild(meta);
             btn.appendChild(main);
@@ -1028,6 +1222,9 @@
             li.appendChild(btn);
             host.appendChild(li);
         });
+        if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.hydrate === 'function') {
+            window.ms365GroupPhotoThumb.hydrate(host);
+        }
         updateBulkCount();
         updateClassActionButtons();
     }
@@ -1212,6 +1409,7 @@
             await syncMembersForGroup(token, getActiveRow(), gid, appendSyncLog);
             live().invalidateMembership();
             await live().loadMembers();
+            await refreshGraphMemberCounts();
             toast('Synchronisation abgeschlossen.');
         } catch (e) {
             appendSyncLog('Abbruch: ' + (e.message || e), 'err');
@@ -1385,10 +1583,10 @@
             !(await dlgConfirm(
                 '„' +
                     label +
-                    '“ als Owner zu ' +
+                    '“ als Besitzer zu ' +
                     String(items.length) +
-                    ' Gruppe(n) hinzufügen?\n\nBestehende Owner bleiben erhalten.',
-                { title: 'Owner setzen', okText: 'Hinzufügen' }
+                    ' Gruppe(n) hinzufügen?\n\nBestehende Besitzer bleiben erhalten.',
+                { title: 'Besitzer setzen', okText: 'Hinzufügen' }
             ))
         ) {
             return;
@@ -1399,7 +1597,7 @@
         let skip = 0;
         let fail = 0;
         const lines = [];
-        setBulkStatus('Owner wird gesetzt …');
+        setBulkStatus('Besitzer wird gesetzt …');
         try {
             const token = await gug().getGraphToken();
             for (let i = 0; i < items.length; i++) {
@@ -1411,7 +1609,7 @@
                 } catch (e) {
                     if (gug().isDuplicateMemberError(e)) {
                         skip++;
-                        lines.push('schon Owner  ' + it.name);
+                        lines.push('schon Besitzer  ' + it.name);
                     } else {
                         fail++;
                         lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
@@ -1420,7 +1618,7 @@
                 if ((i + 1) % 6 === 0) await sleep(120);
             }
             setBulkStatus(lines.join('\n'));
-            toast('Owner: neu ' + ok + ', bereits vorhanden ' + skip + ', Fehler ' + fail + '.');
+            toast('Besitzer: neu ' + ok + ', bereits vorhanden ' + skip + ', Fehler ' + fail + '.');
             if (getActiveGroupId()) {
                 try {
                     live().invalidateMembership();
@@ -1431,7 +1629,7 @@
             }
         } catch (e) {
             setBulkStatus('Abbruch: ' + (e.message || e));
-            toast('Owner setzen: ' + (e.message || e));
+            toast('Besitzer setzen: ' + (e.message || e));
         } finally {
             if (applyBtn) applyBtn.disabled = false;
         }
@@ -1638,6 +1836,7 @@
                 aliasEditable: true,
                 smtpSlot: true,
                 syncMembers: true,
+                membershipReview: true,
                 emptyHint: true
             },
             ids: { emptyHint: 'jgEmptyHint', wrap: 'jgDetailWrap' },
@@ -1657,6 +1856,7 @@
                 onAfterLoad: function () {
                     syncPersistedAliasFromForm();
                     refreshSmtpHint();
+                    void refreshGraphMemberCounts();
                 },
                 onAfterUpdate: function (group) {
                     const aliasEl = document.getElementById('slgLiveAlias');
@@ -1828,6 +2028,7 @@
 
     function init() {
         mountDetail();
+        initMembershipReview();
         readLists();
         ensureActiveKey();
         wire();

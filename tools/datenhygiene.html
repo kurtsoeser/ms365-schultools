@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Datenhygiene</title>
+    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../src/shared/membership-hygiene.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-shield-check"></i>Datenhygiene</span>
+            </div>
+            <p>
+                Querschnitts-Abgleich: Vergleicht lokale Stammlisten mit gematchten Microsoft‑365‑Gruppen
+                (Schüler:innen- und Lehrer:innen-SLG, Verwaltung, Klassengruppen). Bei Abweichungen springen Sie ins jeweilige Werkzeug für den Detail-Diff.
+            </p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-datenhygiene" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Schul‑Einstellungen</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="dash-hygiene" id="dashHygiene" aria-label="Datenhygiene Gruppenabgleich">
+                <div class="dash-hygiene__head">
+                    <div class="dash-hygiene__head-main">
+                        <h2><i class="bi bi-intersect" aria-hidden="true"></i>Gruppenabgleich</h2>
+                        <p class="dash-hygiene__lead">
+                            „Jetzt prüfen“ lädt die Mitgliederzahlen aus Microsoft 365 (Anmeldung erforderlich).
+                            Grün = konsistent, rot = Abweichung zwischen Liste und Gruppe.
+                        </p>
+                    </div>
+                    <div class="dash-hygiene__actions">
+                        <button type="button" class="btn btn-success" id="dashHygieneScan">
+                            <i class="bi bi-arrow-clockwise"></i>Jetzt prüfen
+                        </button>
+                        <p class="dash-hygiene__status" id="dashHygieneStatus" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
+                <div class="dash-hygiene__summary" id="dashHygieneSummary" aria-label="Zusammenfassung"></div>
+                <p class="dash-hygiene__meta muted" id="dashHygieneMeta"></p>
+                <div class="dash-hygiene__table-wrap">
+                    <table class="dash-hygiene-table" aria-label="Gruppen-Abgleich">
+                        <thead>
+                            <tr>
+                                <th scope="col">Bereich</th>
+                                <th scope="col">Liste</th>
+                                <th scope="col">Gruppe</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashHygieneBody"></tbody>
+                    </table>
+                    <p class="dash-hygiene-empty" id="dashHygieneEmpty" hidden>Keine Klassen oder Sammelgruppen in den Stammdaten.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/shared/membership-hygiene.js"></script>
+    <script type="module" src="../src/shared/membership-hygiene-dashboard.js"></script>
+    <script type="module">
+        import { mountMembershipHygieneDashboard } from '../src/shared/membership-hygiene-dashboard.js';
+
+        function boot() {
+            if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
+            if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return false;
+            mountMembershipHygieneDashboard({ rootId: 'dashHygiene' });
+            return true;
+        }
+
+        let tries = 0;
+        const timer = setInterval(function () {
+            tries += 1;
+            if (boot() || tries > 40) clearInterval(timer);
+        }, 100);
+    </script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+</body>
+</html>

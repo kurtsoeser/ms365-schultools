@@ -18,7 +18,8 @@ function mountStamp(label) {
     }
     const el = createPublishedStampElement(label, document);
     if (!el) return;
-    document.body.appendChild(el);
+    const target = document.getElementById('ms365FixedFooterRight') || document.body;
+    target.appendChild(el);
 }
 
 async function loadAndMount() {

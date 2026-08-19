@@ -108,4 +108,6 @@
 
     injectContextBar();
     injectPublishedStamp();
+    injectScript('app-paths.js', 'data-ms365-app-paths', true);
+    injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
 })();

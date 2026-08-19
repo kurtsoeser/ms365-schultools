@@ -44,6 +44,7 @@
             renewExpiration: f.renewExpiration !== false,
             smtpSlot: !!f.smtpSlot,
             syncMembers: f.syncMembers !== false,
+            membershipReview: f.membershipReview === true,
             emptyHint: !!f.emptyHint,
             header: f.header !== false,
             matchUi: f.matchUi !== false,
@@ -96,7 +97,7 @@
                       : 'Update speichert <strong>Anzeigename</strong>, <strong>Beschreibung</strong> und <strong>Sichtbarkeit</strong> (Unified) sowie optional den <strong>Teams‑Archiv‑Status</strong>. E‑Mail/Alias bleiben unverändert.'),
             ownersUnmatchedHint:
                 o.ownersUnmatchedHint ||
-                'Owner werden aus der Verwaltungsliste (Rolle „Direktion“) abgeleitet und beim Anlegen gesetzt. Nach dem Match erscheinen hier die Live‑Owner aus Microsoft Graph.',
+                'Besitzer werden aus der Verwaltungsliste (Rolle „Direktion“) abgeleitet und beim Anlegen gesetzt. Nach dem Match erscheinen hier die Live‑Besitzer aus Microsoft Graph.',
             membersUnmatchedHint:
                 o.membersUnmatchedHint ||
                 'Nach dem Match können Mitglieder live in Microsoft Graph gepflegt werden.',
@@ -104,7 +105,7 @@
             membersMatchedHint:
                 o.membersMatchedHint ||
                 (f.syncMembers
-                    ? 'Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Adressen aus der Schul‑Liste hinzu (entfernt niemanden).'
+                    ? 'Live aus Microsoft Graph. „Mitglieder synchronisieren“ gleicht die Gruppe mit der Schul‑Liste ab: fehlende Adressen werden hinzugefügt, Mitglieder die nicht in der Liste stehen werden entfernt.'
                     : 'Live aus Microsoft Graph. Mitglieder hier suchen, hinzufügen oder entfernen.')
         };
     }
@@ -159,7 +160,7 @@
             '<div class="detail-tabs-sticky" aria-label="Detail-Tabs">' +
             '<div class="detail-tabs" role="tablist" id="slgDetailTabs" aria-label="Tabs Details">' +
             '<button type="button" class="detail-tab-btn" id="slgTabBtnGeneral" role="tab" data-slg-tab="general" aria-selected="true" aria-controls="slgTabGeneral">Allgemein</button>' +
-            '<button type="button" class="detail-tab-btn" id="slgTabBtnOwners" role="tab" data-slg-tab="owners" aria-selected="false" aria-controls="slgTabOwners">Owner</button>' +
+            '<button type="button" class="detail-tab-btn" id="slgTabBtnOwners" role="tab" data-slg-tab="owners" aria-selected="false" aria-controls="slgTabOwners">Besitzer</button>' +
             '<button type="button" class="detail-tab-btn" id="slgTabBtnMembers" role="tab" data-slg-tab="members" aria-selected="false" aria-controls="slgTabMembers">Mitglieder</button>' +
             '</div>' +
             '</div>' +
@@ -210,6 +211,21 @@
             '<div id="slgMatchedPanel"' +
             (f.matchUi ? ' style="display:none;"' : '') +
             '>' +
+            '<div class="gd-group-photo" id="slgGroupPhotoWrap">' +
+            '<div class="gd-group-photo__avatar" id="slgGroupPhotoAvatar" aria-hidden="true">' +
+            '<img id="slgGroupPhotoImg" alt="" hidden>' +
+            '<span id="slgGroupPhotoInitials" class="gd-group-photo__initials">–</span>' +
+            '</div>' +
+            '<div class="gd-group-photo__body">' +
+            '<div class="gd-group-photo__title">Gruppenbild</div>' +
+            '<div class="detail-actions gd-group-photo__actions">' +
+            '<label class="btn" for="slgGroupPhotoFile"><i class="bi bi-image"></i>Bild hochladen</label>' +
+            '<input type="file" id="slgGroupPhotoFile" accept="image/jpeg,image/png,image/webp" hidden>' +
+            '<button type="button" class="btn btn-ghost" id="slgBtnRemoveGroupPhoto" hidden><i class="bi bi-trash"></i>Entfernen</button>' +
+            '</div>' +
+            '<p class="muted gd-group-photo__hint">JPEG, PNG oder WebP, max. 4&nbsp;MB. Wird in Microsoft&nbsp;365 angezeigt; bei Gruppen mit Team wird das Bild zusätzlich per Graph an Teams mitgesetzt (Verzögerung/SharePoint-Sync möglich).</p>' +
+            '</div>' +
+            '</div>' +
             '<div class="hint" style="margin-bottom:12px;">' +
             t.matchedHintHtml +
             '</div>' +
@@ -359,7 +375,7 @@
                 '<p class="muted" style="margin:0;">' +
                 escapeHtml(t.ownersUnmatchedHint) +
                 '</p>' +
-                '<div class="slg-section-title" style="margin-top:14px;">Geplante Owner (Direktion)</div>' +
+                '<div class="slg-section-title" style="margin-top:14px;">Geplante Besitzer (Direktion)</div>' +
                 '<div id="slgOwnerPreview" class="slg-owner-member-box"></div>' +
                 '</div>';
         }
@@ -368,7 +384,7 @@
             (f.matchUi ? ' style="display:none;"' : '') +
             '>' +
             '<div id="slgOwnerSingleWrap">' +
-            '<h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer (Owner)</h3>' +
+            '<h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer</h3>' +
             '<div class="hint" style="margin-bottom:10px;">Live aus Microsoft Graph. Der letzte Besitzer kann nicht entfernt werden.</div>' +
             '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">' +
             '<div class="field" style="margin:0;">' +
@@ -379,18 +395,18 @@
             '</div>' +
             '<div class="field" style="margin-top:10px;">' +
             '<label for="slgOwnerSearchResults">Treffer</label>' +
-            '<select id="slgOwnerSearchResults"></select>' +
+            '<div id="slgOwnerSearchResults" class="slg-user-checklist" aria-label="Treffer"></div>' +
             '</div>' +
             '<div class="detail-actions" style="margin-top:10px;">' +
-            '<button type="button" class="btn btn-success" id="slgOwnerAddBtn"><i class="bi bi-person-plus"></i>Owner hinzufügen</button>' +
-            '<button type="button" class="btn" id="slgOwnersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Owner neu laden</button>';
+            '<button type="button" class="btn btn-success" id="slgOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>' +
+            '<button type="button" class="btn" id="slgOwnersReloadBtn"><i class="bi bi-arrow-clockwise"></i>Besitzer neu laden</button>';
         if (f.ensureDirektion) {
             html +=
                 '<button type="button" class="btn" id="slgOwnersEnsureDirektionBtn"><i class="bi bi-shield-check"></i>Direktion setzen</button>';
         }
         html +=
             '</div>' +
-            '<div id="slgOwnersList" class="slg-owner-member-box" style="max-height:320px;" aria-label="Owner-Liste"></div>' +
+            '<div id="slgOwnersList" class="slg-owner-member-box" style="max-height:320px;" aria-label="Besitzer-Liste"></div>' +
             '</div>' +
             '</div>' +
             '</div>' +
@@ -418,8 +434,12 @@
         if (f.syncMembers) {
             html +=
                 '<div class="detail-actions" style="margin-top:0;">' +
-                '<button type="button" class="btn btn-success" id="slgBtnSync"><i class="bi bi-person-plus-fill"></i>Mitglieder synchronisieren</button>' +
-                '</div>';
+                '<button type="button" class="btn btn-success" id="slgBtnSync"><i class="bi bi-person-plus-fill"></i>Mitglieder synchronisieren</button>';
+            if (f.membershipReview) {
+                html +=
+                    '<button type="button" class="btn" id="slgBtnMembershipReview"><i class="bi bi-intersect"></i>Mitglieder vergleichen</button>';
+            }
+            html += '</div>';
         }
         html +=
             '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px;">' +
@@ -431,7 +451,7 @@
             '</div>' +
             '<div class="field" style="margin-top:10px;">' +
             '<label for="slgMemberSearchResults">Treffer</label>' +
-            '<select id="slgMemberSearchResults"></select>' +
+            '<div id="slgMemberSearchResults" class="slg-user-checklist" aria-label="Treffer"></div>' +
             '</div>' +
             '<div class="detail-actions" style="margin-top:10px;">' +
             '<button type="button" class="btn btn-success" id="slgMemberAddBtn"><i class="bi bi-person-plus"></i>Mitglied hinzufügen</button>' +
@@ -516,27 +536,34 @@
         box.style.overflow = 'hidden';
         list.forEach(function (g, idx) {
             const row = document.createElement('div');
-            row.style.display = 'grid';
-            row.style.gridTemplateColumns = '1fr auto';
-            row.style.gap = '10px';
-            row.style.padding = '10px 12px';
-            row.style.borderTop = idx === 0 ? '0' : '1px solid #eef1f4';
-            row.style.alignItems = 'center';
-            const left = document.createElement('div');
+            row.className = 'slg-search-result-row';
+            if (idx === 0) row.style.borderTop = '0';
             const dn = normStr(g && g.displayName) || '(ohne Namen)';
             const mail = normStr(g && g.mail) || '–';
             const nick = normStr(g && g.mailNickname) || '–';
+            const gid = normStr(g && g.id);
+            if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.createThumb === 'function') {
+                row.appendChild(
+                    window.ms365GroupPhotoThumb.createThumb({
+                        groupId: gid,
+                        displayName: dn,
+                        size: 'search'
+                    })
+                );
+            }
+            const left = document.createElement('div');
+            left.className = 'slg-search-result-row__main';
             left.innerHTML =
-                '<div style="font-weight:700;line-height:1.25;">' +
+                '<div class="slg-search-result-row__title">' +
                 escapeHtml(dn) +
                 '</div>' +
-                '<div class="muted" style="margin-top:2px;">Mail‑Nickname: <code>' +
+                '<div class="muted slg-search-result-row__meta">Mail‑Nickname: <code>' +
                 escapeHtml(nick) +
                 '</code> · SMTP: ' +
                 escapeHtml(mail) +
                 '</div>' +
-                '<div class="muted" style="margin-top:2px;">Gruppen‑ID: <code>' +
-                escapeHtml(g && g.id ? g.id : '') +
+                '<div class="muted slg-search-result-row__meta">Gruppen‑ID: <code>' +
+                escapeHtml(gid) +
                 '</code></div>';
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -550,6 +577,9 @@
             box.appendChild(row);
         });
         host.appendChild(box);
+        if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.hydrate === 'function') {
+            window.ms365GroupPhotoThumb.hydrate(box);
+        }
     }
 
     function applyMatch(g, mode) {

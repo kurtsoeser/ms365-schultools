@@ -1,0 +1,11 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=stms365ktdev001;AccountKey=...;EndpointSuffix=core.windows.net",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_TENANT_ID": "1fd37d8a-2972-44d2-afcb-81ae47a5bc98",
+    "AZURE_CLIENT_ID": "c7e6f467-e6f3-4221-a9ee-574b35120029",
+    "AZURE_CLIENT_SECRET": "HIER-SECRET-WERT-NICHT-ID",
+    "KURSTEAMS_ALLOWED_TENANT_IDS": "1fd37d8a-2972-44d2-afcb-81ae47a5bc98"
+  }
+}

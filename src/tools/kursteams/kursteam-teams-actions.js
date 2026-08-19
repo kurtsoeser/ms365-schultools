@@ -33,7 +33,7 @@ function mount(ns) {
 
         try {
             const btn = document.getElementById('btnApplyFilters');
-            if (btn) btn.className = 'btn';
+            if (btn) btn.className = 'btn btn-brand';
         } catch (e) {
             /* ignore */
         }
@@ -45,6 +45,12 @@ function mount(ns) {
         document.getElementById('removedDuplicates').textContent = r.removedByFilter + r.removedByDuplicate;
         document.getElementById('filterStats').style.display = 'block';
         ns.displayFilteredData();
+        if (typeof ns.setContinueButton === 'function') {
+            ns.setContinueButton('continueBtn2', r.filtered.length > 0, r.filtered.length > 0 ? '' : undefined);
+        }
+        if (r.filtered.length > 0 && typeof ns.scrollToContinue === 'function') {
+            ns.scrollToContinue('continueBtn2');
+        }
     };
 
     ns.addManualDataRowInline = function addManualDataRowInline() {
@@ -111,7 +117,9 @@ function mount(ns) {
         if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         document.getElementById('filterStats').style.display = 'none';
         document.getElementById('dataTableContainer').style.display = 'none';
-        document.getElementById('continueBtn2').style.display = 'none';
+        if (typeof ns.setContinueButton === 'function') {
+            ns.setContinueButton('continueBtn2', false);
+        }
         const tbody = document.getElementById('dataTableBody');
         if (tbody) tbody.replaceChildren();
     };
@@ -161,7 +169,7 @@ function mount(ns) {
         if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         try {
             const btn = document.getElementById('btnApplyFilters');
-            if (btn) btn.className = 'btn btn-success';
+            if (btn) btn.className = 'btn btn-brand';
         } catch (e) {
             /* ignore */
         }
@@ -171,7 +179,7 @@ function mount(ns) {
     ns.generateTeamNames = function generateTeamNames() {
         try {
             const btn = document.getElementById('btnGenerateTeamNames');
-            if (btn) btn.className = 'btn kursteam-generate-teams-btn';
+            if (btn) btn.className = 'btn btn-brand kursteam-generate-teams-btn';
         } catch (e) {
             /* ignore */
         }
@@ -191,6 +199,8 @@ function mount(ns) {
             pattern,
             combineClassNames: ns.combineClassNames,
             buildGruppenmailBase: ns.buildGruppenmailBase,
+            formatKlasseSegmentForGruppenmail: ns.formatKlasseSegmentForGruppenmail,
+            sanitizeGruppeForMail: ns.sanitizeGruppeForMail,
             INVALID_CHARS_REPLACE: ns.INVALID_CHARS_REPLACE,
             INVALID_CHARS_TEST: ns.INVALID_CHARS_TEST,
             teacherEmailMapping: ns.teacherEmailMapping
@@ -200,6 +210,8 @@ function mount(ns) {
         document.getElementById('duplicateMailAdjustments').textContent = dupCount;
         ns.teamsGenerated = true;
         ns.displayTeamsData();
+        if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
+        if (typeof ns.scrollToContinue === 'function') ns.scrollToContinue('continueBtn4');
     };
 
     ns.displayTeamsData = function displayTeamsData() {

@@ -50,7 +50,16 @@
         }
         .jg-match-badge .bi { font-size: 1.05em; }
         .jg-match-badge.is-ok { color: #0f7b4c; }
-        .jg-match-badge.is-warn { color: #c0392b; }
+        .jg-active-counts {
+            display: inline-flex;
+            margin: 0 0 10px;
+            padding: 6px 12px;
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border);
+            background: var(--soft);
+            font-size: 0.88em;
+            font-weight: 700;
+        }
         .tree button.is-matched { box-shadow: inset 3px 0 0 #3cb371; }
         .tree button.is-unmatched { box-shadow: inset 3px 0 0 #e07470; }
         .jg-bulk {
@@ -231,7 +240,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Klassengruppen</span>
             </div>
-            <p>Alltagspflege: Klassen aus den <strong>Schul‑Einstellungen</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Klassen direkt hier erfassen (werden in die Schul‑Einstellungen des aktuellen Schuljahrs zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Owner, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
+            <p>Alltagspflege: Klassen aus den <strong>Schul‑Einstellungen</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Klassen direkt hier erfassen (werden in die Schul‑Einstellungen des aktuellen Schuljahrs zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-jahrgang" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -257,7 +266,38 @@
                             </div>
                         </div>
                         <p class="muted" id="jgListSummary" style="margin:0 0 8px;">–</p>
+                        <div id="jgActiveClassCounts" class="slg-side-count slg-side-count--dual jg-active-counts" hidden aria-live="polite">
+                            <span class="slg-side-kpi">
+                                <span class="n" id="jgActiveListCount">0</span>
+                                <span class="l">Liste</span>
+                            </span>
+                            <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                            <span class="slg-side-kpi">
+                                <span class="n" id="jgActiveGroupCount">–</span>
+                                <span class="l">Gruppe</span>
+                            </span>
+                        </div>
                         <ul class="tree" id="jgListItems" aria-label="Klassengruppen"></ul>
+                        <div id="slgMismatchBar" class="slg-mismatch-bar" hidden>
+                            <p class="slg-mismatch-bar__text"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Die Mitgliederzahlen weichen ab.</p>
+                            <div id="slgMismatchActions" class="slg-mismatch-bar__actions"></div>
+                        </div>
+                        <div id="slgDeviationPanel" class="slg-deviation-panel" hidden aria-live="polite">
+                            <div class="slg-deviation-panel__head">
+                                <h3 id="slgDeviationTitle" class="slg-deviation-panel__title">Abgleich</h3>
+                                <div class="slg-deviation-panel__head-actions">
+                                    <button type="button" class="btn btn-sm" id="slgMrReload" title="Abgleich neu laden"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                    <button type="button" class="btn btn-sm" id="slgDeviationClose" title="Panel schließen"><i class="bi bi-x-lg"></i>Schließen</button>
+                                </div>
+                            </div>
+                            <p id="slgDeviationSummary" class="muted slg-deviation-panel__summary"></p>
+                            <div id="slgDeviationActions" hidden aria-hidden="true">
+                                <button type="button" class="btn btn-sm btn-success" id="slgMrAddToGroup"><i class="bi bi-cloud-upload"></i>In Gruppe aufnehmen</button>
+                                <button type="button" class="btn btn-sm" id="slgMrImportLocal"><i class="bi bi-box-arrow-in-down"></i>In Schul-Liste importieren…</button>
+                                <button type="button" class="btn btn-sm btn-danger" id="slgMrRemoveFromGroup"><i class="bi bi-person-dash"></i>Aus Gruppe entfernen</button>
+                            </div>
+                            <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
+                        </div>
                         <div class="jg-bulk" aria-label="Sammelaktionen">
                             <div class="jg-bulk-head">
                                 <div class="jg-bulk-head-title">
@@ -266,7 +306,7 @@
                                 </div>
                                 <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
-                            <p class="jg-bulk-hint muted">Zuerst gematchte Klassen ankreuzen. Mitglieder gleicht die Schülerliste ab (fehlende dazu, klassenfremde Schüler weg; Lehrkräfte bleiben). Owner wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match.</p>
+                            <p class="jg-bulk-hint muted">Zuerst gematchte Klassen ankreuzen. Mitglieder gleicht die Schülerliste ab (fehlende dazu, klassenfremde Schüler weg; Lehrkräfte bleiben). Besitzer wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match.</p>
                             <div class="jg-bulk-group" role="group" aria-label="Auswahl">
                                 <div class="jg-bulk-group-label">Auswahl</div>
                                 <div class="jg-bulk-toolbar">
@@ -281,9 +321,9 @@
                                         <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
                                         <span class="jg-bulk-tile-label">Mitglieder<small>Stammliste abgleichen</small></span>
                                     </button>
-                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnBulkOwner" title="Eine Person als Owner zu den angekreuzten Gruppen hinzufügen">
+                                    <button type="button" class="btn jg-bulk-tile" id="jgBtnBulkOwner" title="Eine Person als Besitzer zu den angekreuzten Gruppen hinzufügen">
                                         <i class="bi bi-person-plus" aria-hidden="true"></i>
-                                        <span class="jg-bulk-tile-label">Owner setzen<small>Person hinzufügen</small></span>
+                                        <span class="jg-bulk-tile-label">Besitzer setzen<small>Person hinzufügen</small></span>
                                     </button>
                                     <button type="button" class="btn jg-bulk-tile" id="jgBtnSmtpAll" title="Exchange-Skript: primäre SMTP aller gematchten Klassen auf die Schul-Domain setzen">
                                         <i class="bi bi-envelope-at" aria-hidden="true"></i>
@@ -297,7 +337,7 @@
                             </div>
                             <div class="jg-bulk-owner" id="jgBulkOwnerPanel" hidden>
                                 <div class="field">
-                                    <label for="jgBulkOwnerSearch">Benutzer suchen (wird Owner aller ausgewählten Gruppen)</label>
+                                    <label for="jgBulkOwnerSearch">Benutzer suchen (wird Besitzer aller ausgewählten Gruppen)</label>
                                     <div class="jg-bulk-owner-row">
                                         <input type="text" id="jgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                         <button type="button" class="btn" id="jgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
@@ -307,7 +347,7 @@
                                     <label for="jgBulkOwnerResults">Treffer</label>
                                     <div class="jg-bulk-owner-row">
                                         <select id="jgBulkOwnerResults"></select>
-                                        <button type="button" class="btn btn-success" id="jgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Owner hinzufügen</button>
+                                        <button type="button" class="btn btn-success" id="jgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
                                     </div>
                                 </div>
                             </div>
@@ -389,9 +429,14 @@
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
+    <script src="../src/shared/action-log.js" defer></script>
     <script type="module" src="../src/shared/student-class-lifecycle.js"></script>
+    <script type="module" src="../src/shared/membership-reconcile.js"></script>
+    <script type="module" src="../src/shared/membership-import-ui.js"></script>
+    <script type="module" src="../src/shared/membership-review-ui.js"></script>
     <script src="../src/tools/jahrgangsgruppen/jahrgangsgruppen.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>

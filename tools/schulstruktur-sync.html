@@ -383,7 +383,7 @@
 
             <div class="live-banner" id="ssLiveBanner" role="status" aria-live="polite">
                 <span class="live-badge"><i class="bi bi-broadcast"></i>LIVE‑TENANT</span>
-                Du arbeitest gerade mit <strong>Live‑Daten</strong> aus Microsoft 365. Du kannst in den Details gezielt <strong>Anzeigename</strong>, <strong>Beschreibung</strong>, <strong>Owner</strong> und (je nach Typ) weitere Eigenschaften aktualisieren. Beim <strong>Tenant einlesen</strong> werden Besitzer- und Mitgliederzahlen per Graph <code>$count</code> ermittelt (für die Filter „ohne …“).
+                Du arbeitest gerade mit <strong>Live‑Daten</strong> aus Microsoft 365. Du kannst in den Details gezielt <strong>Anzeigename</strong>, <strong>Beschreibung</strong>, <strong>Besitzer</strong> und (je nach Typ) weitere Eigenschaften aktualisieren. Beim <strong>Tenant einlesen</strong> werden Besitzer- und Mitgliederzahlen per Graph <code>$count</code> ermittelt (für die Filter „ohne …“).
             </div>
 
             <div class="live-banner" id="ssStrukturBanner" role="status" aria-live="polite" style="display:none;">
@@ -517,7 +517,7 @@
                             <div class="detail-tabs-sticky" aria-label="Schulstruktur-Details Tabs (sticky)">
                                 <div class="detail-tabs" role="tablist" aria-label="Schulstruktur-Details Tabs">
                                     <button type="button" class="detail-tab-btn" id="ssStructTabAllgemeinBtn" role="tab" aria-selected="true" aria-controls="ssStructTabAllgemein">Allgemein</button>
-                                    <button type="button" class="detail-tab-btn" id="ssStructTabOwnerBtn" role="tab" aria-selected="false" aria-controls="ssStructTabOwner">Owner</button>
+                                    <button type="button" class="detail-tab-btn" id="ssStructTabOwnerBtn" role="tab" aria-selected="false" aria-controls="ssStructTabOwner">Besitzer</button>
                                     <button type="button" class="detail-tab-btn" id="ssStructTabMitgliederBtn" role="tab" aria-selected="false" aria-controls="ssStructTabMitglieder">Mitglieder</button>
                                 </div>
                             </div>
@@ -646,7 +646,7 @@
                                 <div id="ssStructTenantCreateWrap" class="hint" style="margin-top:12px; display:none;" aria-label="Im Tenant anlegen">
                                     <div style="font-weight:1000;color:#32325d;margin-bottom:8px;"><i class="bi bi-cloud-plus"></i>Im Tenant anlegen</div>
                                     <div class="muted" style="margin-bottom:10px; line-height:1.45;">
-                                        Erstellt (optional) eine <strong>M365‑Gruppe</strong> oder ein <strong>Team</strong> anhand deiner SOLL‑Einheit. Owner/Mitglieder aus „Anlegen“ werden – wenn vorhanden – übernommen.
+                                        Erstellt (optional) eine <strong>M365‑Gruppe</strong> oder ein <strong>Team</strong> anhand deiner SOLL‑Einheit. Besitzer/Mitglieder aus „Anlegen“ werden – wenn vorhanden – übernommen.
                                     </div>
                                     <div class="form-grid" style="margin-top:0;">
                                         <div class="field">
@@ -700,15 +700,15 @@
                                     <button type="button" class="btn btn-danger" id="ssBtnLoeschen"><i class="bi bi-trash"></i>Löschen</button>
                                 </div>
                                 <p class="muted" style="margin:12px 0 0; font-size:0.92em;">
-                                    Hinweis: Owner/Mitglieder-Listen gelten für Gruppen, Kursteams usw. (lokal gespeichert). Bei Typ „Person“ entfallen diese Register — Zuordnung von Benutzern steuerst du an der übergeordneten Gruppe.
+                                    Hinweis: Besitzer/Mitglieder-Listen gelten für Gruppen, Kursteams usw. (lokal gespeichert). Bei Typ „Person“ entfallen diese Register — Zuordnung von Benutzern steuerst du an der übergeordneten Gruppe.
                                 </p>
                             </div>
 
                             <div id="ssStructTabOwner" class="tab-panel" role="tabpanel" aria-labelledby="ssStructTabOwnerBtn">
                                 <div class="settings-module" style="margin-top:14px;">
-                                    <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Owner</h3>
+                                    <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer</h3>
                                     <div id="ssStructOwnerTabHint" class="hint" style="margin-bottom:10px;">
-                                        Owner für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.
+                                        Besitzer für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.
                                     </div>
                                     <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
                                         <div class="field" style="margin:0;">
@@ -722,9 +722,9 @@
                                         <select id="ssStructOwnerSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                     </div>
                                     <div class="detail-actions" style="margin-top:10px;">
-                                        <button type="button" class="btn btn-success" id="ssStructOwnerAddBtn"><i class="bi bi-person-plus"></i>Owner hinzufügen</button>
+                                        <button type="button" class="btn btn-success" id="ssStructOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>
                                     </div>
-                                    <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Owner-Liste (Schulstruktur)">
+                                    <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Besitzer-Liste (Schulstruktur)">
                                         <div id="ssStructOwnersList" style="padding:10px 12px;"></div>
                                     </div>
                                 </div>
@@ -770,7 +770,7 @@
 
                                 <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; margin-top:10px;">
                                     <div class="field" style="margin:0;">
-                                        <label for="ssTenantBulkOwnerSearch">Owner suchen</label>
+                                        <label for="ssTenantBulkOwnerSearch">Besitzer suchen</label>
                                         <input type="text" id="ssTenantBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                     </div>
                                     <button type="button" class="btn" id="ssTenantBulkOwnerSearchBtn" style="margin:0;"><i class="bi bi-search"></i>Suchen</button>
@@ -780,7 +780,7 @@
                                     <select id="ssTenantBulkOwnerResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                 </div>
                                 <div class="detail-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="ssTenantBulkAddOwnerBtn"><i class="bi bi-people-fill"></i>Owner zu allen hinzufügen</button>
+                                    <button type="button" class="btn btn-success" id="ssTenantBulkAddOwnerBtn"><i class="bi bi-people-fill"></i>Besitzer zu allen hinzufügen</button>
                                 </div>
                                 <p class="muted" style="margin:10px 0 0; font-size:0.9em;">
                                     Tipp: Mit <strong>STRG</strong> (Windows) bzw. <strong>⌘</strong> (Mac) mehrere Einträge anklicken.
@@ -1005,7 +1005,7 @@
                                 <div class="hint" id="ssStructEditHint" style="margin-bottom:12px;"></div>
                                 <div class="ss-tabs" role="tablist" aria-label="Details (SOLL-Struktur)" style="margin:0 0 10px;">
                                     <button type="button" class="ss-tab-btn active" id="ssStructEditTabAllgBtn" role="tab" aria-selected="true" aria-controls="ssStructEditTabAllg">Allgemein</button>
-                                    <button type="button" class="ss-tab-btn" id="ssStructEditTabOwnerBtn" role="tab" aria-selected="false" aria-controls="ssStructEditTabOwner">Owner</button>
+                                    <button type="button" class="ss-tab-btn" id="ssStructEditTabOwnerBtn" role="tab" aria-selected="false" aria-controls="ssStructEditTabOwner">Besitzer</button>
                                     <button type="button" class="ss-tab-btn" id="ssStructEditTabMitglBtn" role="tab" aria-selected="false" aria-controls="ssStructEditTabMitgl">Mitglieder</button>
                                 </div>
 
@@ -1115,9 +1115,9 @@
 
                                 <div id="ssStructEditTabOwner" class="tab-panel ss-tab-panel" role="tabpanel" aria-labelledby="ssStructEditTabOwnerBtn">
                                     <div class="settings-module" style="margin-top:14px;">
-                                        <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Owner</h3>
+                                        <h3 style="margin:0 0 10px;color:#32325d;font-size:1.05em;">Besitzer</h3>
                                         <div class="hint" style="margin-bottom:10px;">
-                                            Owner für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.
+                                            Besitzer für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.
                                         </div>
                                         <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
                                             <div class="field" style="margin:0;">
@@ -1131,9 +1131,9 @@
                                             <select id="ssStructEditOwnerSearchResults" style="width:100%;padding:10px 12px;border:1px solid #ced4da;border-radius:10px;font:inherit;"></select>
                                         </div>
                                         <div class="detail-actions" style="margin-top:10px;">
-                                            <button type="button" class="btn btn-success" id="ssStructEditOwnerAddBtn"><i class="bi bi-person-plus"></i>Owner hinzufügen</button>
+                                            <button type="button" class="btn btn-success" id="ssStructEditOwnerAddBtn"><i class="bi bi-person-plus"></i>Besitzer hinzufügen</button>
                                         </div>
-                                        <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Owner-Liste (Details Pop-Up)">
+                                        <div class="teachers-table-wrap" style="margin-top:12px;" aria-label="Besitzer-Liste (Details Pop-Up)">
                                             <div id="ssStructEditOwnersList" style="padding:10px 12px;"></div>
                                         </div>
                                     </div>
@@ -1178,6 +1178,7 @@
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script type="module" src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js"></script>
     <script type="module" src="../src/shared/group-detail/group-detail.js"></script>
     <!-- structure-rules / group-detail: Side-Effect-Import in schulstruktur-sync.js (Reihenfolge zu Modul-Bundles) -->

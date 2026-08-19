@@ -72,10 +72,17 @@ ns.applyWebuntisRows = function applyWebuntisRows(rows) {
     ns.rawData = rows;
     ns.filteredData = [...ns.rawData];
     ns.invalidateTeams();
+    if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
     document.getElementById('totalRecords').textContent = ns.rawData.length;
     document.getElementById('uniqueSubjects').textContent = new Set(ns.rawData.map(r => r.fach).filter(f => f)).size;
     document.getElementById('uniqueTeachers').textContent = new Set(ns.rawData.map(r => r.lehrer).filter(l => l)).size;
     document.getElementById('importStats').style.display = 'block';
+    if (typeof ns.setContinueButton === 'function') {
+        ns.setContinueButton('continueBtn1', ns.rawData.length > 0, '');
+    }
+    if (ns.rawData.length > 0 && typeof ns.scrollToContinue === 'function') {
+        ns.scrollToContinue('continueBtn1');
+    }
     if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 };
 
@@ -158,15 +165,80 @@ ns.importWebuntisFromPaste = function importWebuntisFromPaste() {
     );
 };
 
+/**
+ * Erkennt ob ein JSON-Datensatz aus einem Sokrates-Export stammt und mappt die Felder.
+ * Sokrates-Exporte haben typischerweise Spalten wie:
+ *   "Unterrichtsgegenstand", "Lehrperson" / "Lehrer/in", "Klasse" / "Klassen"
+ * Gibt { lehrer, fach, klasse, gruppe } zurück oder null wenn kein Sokrates-Muster.
+ */
+ns.trySocratesMapping = function trySocratesMapping(row) {
+    const fach =
+        (row['Unterrichtsgegenstand'] || row['Unterrichtsgegenstand (Abkürzung)'] ||
+         row['UG'] || row['UG-Kürzel'] || row['Gegenstand'] || row['Gegenstandskürzel'] || '').toString().trim();
+    const lehrer =
+        (row['Lehrer/in'] || row['Lehrperson'] || row['Lehrerin/Lehrer'] || row['LehrerIn'] ||
+         row['Lehrer Kürzel'] || row['LehrerKürzel'] || row['Lehrkraft'] || '').toString().trim();
+    const klasseRaw =
+        (row['Klassen'] || row['Schülerklasse'] || row['Klasse'] || row['Schulklasse'] || '').toString().trim();
+    const gruppe =
+        (row['Gruppe'] || row['Schülergruppe'] || row['Teilungsgruppe'] || '').toString().trim();
+
+    if (!fach && !lehrer) return null;
+    return { lehrer, fach, klasseRaw, gruppe };
+};
+
+/**
+ * Zeigt eine Diagnose-Meldung wenn der Import 0 Zeilen liefert.
+ * Gibt dem Nutzer Hinweis auf erkannte Spalten und empfohlene Spaltenbezeichnungen.
+ */
+ns.showImportDiagnosis = function showImportDiagnosis(jsonData) {
+    if (!jsonData || !jsonData.length) {
+        ns.showToast('Datei leer oder Format nicht erkannt – bitte XLSX-Vorlage verwenden.');
+        return;
+    }
+    const firstRow = ns.normalizeImportedRowKeys(jsonData[0]);
+    const erkannt = Object.keys(firstRow).join(', ') || '(keine)';
+    const erwartet = '"Lehrer", "Fach", "Klasse(n)" – oder Sokrates: "Lehrperson"/"Lehrer/in", "Unterrichtsgegenstand", "Klasse"';
+    ns.openModal(
+        'Import: Keine Daten erkannt',
+        '<p style="margin-bottom:10px;">Die Datei enthält <strong>0 verwertbare Zeilen</strong>.</p>' +
+        '<p style="margin-bottom:6px;"><strong>Erkannte Spalten:</strong></p>' +
+        '<code style="display:block;padding:8px;background:var(--soft);border-radius:6px;word-break:break-all;font-size:0.88em;">' +
+            ns.escapeHtml(erkannt) +
+        '</code>' +
+        '<p style="margin-top:10px;margin-bottom:4px;"><strong>Erwartete Spalten:</strong></p>' +
+        '<code style="display:block;padding:8px;background:var(--soft);border-radius:6px;font-size:0.88em;">' +
+            ns.escapeHtml(erwartet) +
+        '</code>' +
+        '<p style="margin-top:12px;color:var(--text-secondary);font-size:0.92em;">Tipp: <strong>XLSX-Vorlage</strong> herunterladen und mit Ihren Daten befüllen, oder Sokrates-Export direkt hochladen (Spalten werden automatisch erkannt).</p>',
+        null
+    );
+};
+
 ns.processImportedData = function processImportedData(data) {
     const rows = [];
     let id = 0;
+    let socratesHits = 0;
     data.forEach(origRaw => {
         const row = ns.normalizeImportedRowKeys(origRaw);
-        const lehrer = (row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '').toString().trim();
-        const fach = (row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '').toString().trim();
-        const klasseRaw = (row['Klasse(n)'] || row.Klasse || row.klasse || row.Class || '').toString().trim();
-        const gruppe = (row['Schülergruppe'] || row.Schülergruppe || row.Gruppe || row.gruppe || row.Group || '').toString().trim();
+
+        // Sokrates-Profil zuerst probieren
+        const soc = ns.trySocratesMapping(row);
+        let lehrer, fach, klasseRaw, gruppe;
+
+        if (soc && (soc.lehrer || soc.fach)) {
+            lehrer = soc.lehrer;
+            fach = soc.fach;
+            klasseRaw = soc.klasseRaw;
+            gruppe = soc.gruppe;
+            socratesHits++;
+        } else {
+            lehrer = (row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '').toString().trim();
+            fach = (row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '').toString().trim();
+            klasseRaw = (row['Klasse(n)'] || row.Klasse || row.klasse || row.Class || '').toString().trim();
+            gruppe = (row['Schülergruppe'] || row.Schülergruppe || row.Gruppe || row.gruppe || row.Group || '').toString().trim();
+        }
+
         if (!lehrer || !fach) return;
 
         const klassenParts = ns.splitKlassenCell(klasseRaw);
@@ -183,6 +255,16 @@ ns.processImportedData = function processImportedData(data) {
             });
         });
     });
+
+    if (!rows.length) {
+        ns.showImportDiagnosis(data);
+        return;
+    }
+
+    if (socratesHits > 0 && socratesHits > rows.length / 2) {
+        ns.showToast('Sokrates-Export erkannt – ' + rows.length + ' Zeile(n) importiert.');
+    }
+
     ns.applyWebuntisRows(rows);
 };
 
@@ -194,7 +276,13 @@ function handleFile(file) {
             let jsonData;
             if (name.endsWith('.csv')) {
                 const buf = new Uint8Array(e.target.result);
-                let text = new TextDecoder('utf-8').decode(buf);
+                // Latin-1 / Windows-1252 Fallback für österreichische Sonderzeichen
+                let text;
+                try {
+                    text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+                } catch {
+                    text = new TextDecoder('windows-1252').decode(buf);
+                }
                 if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
                 let workbook = XLSX.read(text, { type: 'string', FS: ';' });
                 let firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -204,6 +292,13 @@ function handleFile(file) {
                     const sh2 = wb2.Sheets[wb2.SheetNames[0]];
                     const j2 = XLSX.utils.sheet_to_json(sh2);
                     if (j2.length) jsonData = j2;
+                }
+                // Tab-getrennte CSV (z.B. WebUntis-Exporte)
+                if (!jsonData.length || Object.keys(jsonData[0] || {}).length < 2) {
+                    const wb3 = XLSX.read(text, { type: 'string', FS: '\t' });
+                    const sh3 = wb3.Sheets[wb3.SheetNames[0]];
+                    const j3 = XLSX.utils.sheet_to_json(sh3);
+                    if (j3.length) jsonData = j3;
                 }
             } else {
                 const data = new Uint8Array(e.target.result);
@@ -219,22 +314,30 @@ function handleFile(file) {
     reader.readAsArrayBuffer(file);
 }
 
-// Upload wiring
-if (ns.dom && ns.dom.uploadArea && ns.dom.fileInput) {
-    ns.dom.uploadArea.addEventListener('click', () => ns.dom.fileInput.click());
-    ns.dom.uploadArea.addEventListener('dragover', (e) => {
+function wireUploadArea() {
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    if (!uploadArea || !fileInput) return;
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
-        ns.dom.uploadArea.classList.add('dragover');
+        uploadArea.classList.add('dragover');
     });
-    ns.dom.uploadArea.addEventListener('dragleave', () => ns.dom.uploadArea.classList.remove('dragover'));
-    ns.dom.uploadArea.addEventListener('drop', (e) => {
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
-        ns.dom.uploadArea.classList.remove('dragover');
+        uploadArea.classList.remove('dragover');
         if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
     });
-    ns.dom.fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) handleFile(e.target.files[0]);
     });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireUploadArea);
+} else {
+    wireUploadArea();
 }
 
 ns.downloadKursteamImportTemplateXlsx = function downloadKursteamImportTemplateXlsx() {

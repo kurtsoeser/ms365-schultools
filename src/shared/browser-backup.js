@@ -1,5 +1,6 @@
 /**
- * Vollständiges lokales Browser-Backup (localStorage der App).
+ * Vollständiges lokales Browser-Backup (localStorage + wiederherstellbare
+ * sessionStorage-Daten der App).
  * Zum Übertragen zwischen Browsern/PCs. Microsoft-Anmeldung (MSAL) bleibt
  * bewusst außen vor – im Zielbrowser erneut anmelden.
  */
@@ -7,12 +8,27 @@
     'use strict';
 
     const KIND = 'ms365-browser-backup-v1';
-    const VERSION = 1;
+    const VERSION = 2;
+    const SESSION_SKIP_KEYS = {
+        'ms365-access-granted-v1': true,
+        'ms365-admin-access-granted-v1': true,
+        'ms365-post-login-url': true
+    };
 
     function getStore(storage) {
         if (storage) return storage;
         try {
             if (typeof localStorage !== 'undefined') return localStorage;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    function getSessionStore(storage) {
+        if (storage) return storage;
+        try {
+            if (typeof sessionStorage !== 'undefined') return sessionStorage;
         } catch {
             /* ignore */
         }
@@ -32,6 +48,12 @@
         if (isAuthKey(key)) return false;
         const k = String(key || '');
         return k.indexOf('ms365-') === 0 || k.indexOf('webuntis-') === 0;
+    }
+
+    function isRestorableSessionKey(key) {
+        const k = String(key || '');
+        if (!isAppStorageKey(k)) return false;
+        return !SESSION_SKIP_KEYS[k];
     }
 
     function listAppKeys(storage) {
@@ -85,6 +107,25 @@
         return out;
     }
 
+    function collectSessionStorage(storage) {
+        const store = getSessionStore(storage);
+        const out = {};
+        if (!store || typeof store.key !== 'function') return out;
+        const n = store.length || 0;
+        for (let i = 0; i < n; i++) {
+            const k = store.key(i);
+            if (!k || !isRestorableSessionKey(k)) continue;
+            try {
+                const raw = store.getItem(k);
+                if (raw == null) continue;
+                out[k] = encodeValue(raw);
+            } catch {
+                /* ignore unreadable keys */
+            }
+        }
+        return out;
+    }
+
     function asDate(d) {
         if (d && typeof d.getFullYear === 'function' && typeof d.toISOString === 'function') return d;
         return new Date();
@@ -98,19 +139,53 @@
         return y + '-' + m + '-' + day;
     }
 
-    function backupFilename(d) {
-        return 'ms365-browser-backup-' + localDateStamp(d) + '.json';
+    function sanitizeForFilename(raw) {
+        return String(raw || '')
+            .trim()
+            .replace(/[^a-zA-Z0-9äöüÄÖÜß._-]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '')
+            .slice(0, 48);
     }
 
-    function buildBackup(storage, now) {
+    function readSchoolMeta(storage) {
+        try {
+            const store = getStore(storage);
+            if (!store) return { schoolName: '', domain: '' };
+            const raw = store.getItem('ms365-schooltool-data-v2');
+            if (!raw) return { schoolName: '', domain: '' };
+            const parsed = JSON.parse(raw);
+            const core = parsed && parsed.core ? parsed.core : {};
+            return {
+                schoolName: String(core.schoolName || '').trim(),
+                domain: String(core.domain || '').trim()
+            };
+        } catch {
+            return { schoolName: '', domain: '' };
+        }
+    }
+
+    function backupFilename(d, storage) {
+        const { schoolName, domain } = readSchoolMeta(storage);
+        const school = sanitizeForFilename(schoolName || domain);
+        const suffix = school ? '-' + school : '';
+        return 'ms365-browser-backup-' + localDateStamp(d) + suffix + '.json';
+    }
+
+    function buildBackup(storage, now, sessionStorageArg) {
         const local = collectLocalStorage(storage);
+        const session = collectSessionStorage(sessionStorageArg);
         const when = asDate(now);
+        const { schoolName, domain } = readSchoolMeta(storage);
         return {
             kind: KIND,
             version: VERSION,
             exportedAt: when.toISOString(),
-            keyCount: Object.keys(local).length,
-            localStorage: local
+            schoolName: schoolName,
+            domain: domain,
+            keyCount: Object.keys(local).length + Object.keys(session).length,
+            localStorage: local,
+            sessionStorage: session
         };
     }
 
@@ -133,10 +208,20 @@
         if (!isBackupPayload(payload)) throw new Error('Kein gültiges Browser-Backup.');
         const store = getStore(storage);
         if (!store) throw new Error('localStorage ist nicht verfügbar.');
+        const sessionStore =
+            opts && Object.prototype.hasOwnProperty.call(opts, 'sessionStorage')
+                ? getSessionStore(opts.sessionStorage)
+                : getSessionStore();
         const replace = !opts || opts.replace !== false;
         const incoming = payload.localStorage;
+        const incomingSession =
+            payload.sessionStorage && typeof payload.sessionStorage === 'object' && !Array.isArray(payload.sessionStorage)
+                ? payload.sessionStorage
+                : {};
         const written = [];
         const removed = [];
+        const sessionWritten = [];
+        const sessionRemoved = [];
         const skipped = [];
         const errors = [];
 
@@ -166,12 +251,59 @@
             }
         });
 
+        if (sessionStore) {
+            if (replace) {
+                const n = sessionStore.length || 0;
+                const sessionKeys = [];
+                for (let i = 0; i < n; i++) {
+                    const k = sessionStore.key(i);
+                    if (k && isRestorableSessionKey(k)) sessionKeys.push(k);
+                }
+                sessionKeys.forEach(function (k) {
+                    if (!Object.prototype.hasOwnProperty.call(incomingSession, k)) {
+                        try {
+                            sessionStore.removeItem(k);
+                            sessionRemoved.push(k);
+                        } catch (e) {
+                            errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                        }
+                    }
+                });
+            }
+            Object.keys(incomingSession).forEach(function (k) {
+                if (!isRestorableSessionKey(k)) {
+                    skipped.push(k);
+                    return;
+                }
+                try {
+                    sessionStore.setItem(k, decodeValue(incomingSession[k]));
+                    sessionWritten.push(k);
+                } catch (e) {
+                    errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                }
+            });
+        }
+
         if (errors.length) {
             const err = new Error('Backup nur teilweise geschrieben: ' + errors.slice(0, 3).join('; '));
-            err.details = { written: written, removed: removed, skipped: skipped, errors: errors };
+            err.details = {
+                written: written,
+                removed: removed,
+                sessionWritten: sessionWritten,
+                sessionRemoved: sessionRemoved,
+                skipped: skipped,
+                errors: errors
+            };
             throw err;
         }
-        return { written: written, removed: removed, skipped: skipped, errors: errors };
+        return {
+            written: written,
+            removed: removed,
+            sessionWritten: sessionWritten,
+            sessionRemoved: sessionRemoved,
+            skipped: skipped,
+            errors: errors
+        };
     }
 
     function importPayload(obj, storage) {
@@ -215,7 +347,7 @@
 
     function downloadBackup(storage, now) {
         const payload = buildBackup(storage, now);
-        downloadJson(backupFilename(now), payload);
+        downloadJson(backupFilename(now, storage), payload);
         return payload;
     }
 
@@ -248,13 +380,15 @@
     function confirmImportMessage(obj) {
         if (isBackupPayload(obj)) {
             const n = Object.keys(obj.localStorage || {}).length;
+            const s = Object.keys(obj.sessionStorage || {}).length;
             const when = obj.exportedAt ? String(obj.exportedAt).replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : '';
             return (
                 'Dieses Browser-Backup enthält ' +
                 n +
-                ' gespeicherte Einträge' +
+                ' lokale Einträge' +
+                (s ? ' und ' + s + ' Sitzungs-Einträge' : '') +
                 (when ? ' (Stand: ' + when + ')' : '') +
-                '. Alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser werden ersetzt. Die Microsoft-Anmeldung bleibt unberührt. Fortfahren?'
+                '. Alle lokalen Schuldaten und wiederherstellbaren Werkzeug-Zwischenstände in diesem Browser werden ersetzt. Microsoft-Anmeldung und PIN-Freischaltungen bleiben unberührt. Fortfahren?'
             );
         }
         return 'Diese JSON-Datei enthält Schuldaten (kein vollständiges Browser-Backup). Vorhandene Stammdaten in diesem Browser werden überschrieben. Fortfahren?';
@@ -335,6 +469,7 @@
         isLegacyAppDataPayload: isLegacyAppDataPayload,
         listAppKeys: listAppKeys,
         collectLocalStorage: collectLocalStorage,
+        collectSessionStorage: collectSessionStorage,
         buildBackup: buildBackup,
         applyBackup: applyBackup,
         importPayload: importPayload,

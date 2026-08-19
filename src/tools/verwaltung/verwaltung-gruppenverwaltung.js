@@ -36,6 +36,177 @@
     /** @type {string} */
     let activeRoleCode = '';
     let listFilter = '';
+    /** @type {Record<string, number>} */
+    let graphMemberCounts = {};
+    let countsFetchGen = 0;
+    /** @type {ReturnType<import('../../shared/membership-review-ui.js').createMembershipReview>|null} */
+    let membershipReview = null;
+
+    function graphCountFor(groupId) {
+        const id = String(groupId || '').trim();
+        if (!id) return null;
+        const n = graphMemberCounts[id];
+        return typeof n === 'number' && n >= 0 ? n : null;
+    }
+
+    async function refreshGraphMemberCounts() {
+        const gid = matchedGroupId;
+        if (!gid) {
+            updateMismatchUi();
+            return;
+        }
+        const gen = ++countsFetchGen;
+        try {
+            const token = await getGraphToken();
+            if (gen !== countsFetchGen) return;
+            const n = await gug().fetchGroupMemberCount(token, gid);
+            if (typeof n === 'number' && n >= 0) graphMemberCounts[gid] = n;
+            if (gen !== countsFetchGen) return;
+            updateMismatchUi();
+        } catch {
+            updateMismatchUi();
+        }
+    }
+
+    function paintVerwaltungCounts() {
+        const listN = (listCache.members || []).length;
+        const gid = matchedGroupId;
+        const groupN = graphCountFor(gid);
+        const wrap = document.getElementById('slgVerwaltungCounts');
+        const listEl = document.getElementById('slgVerwaltungCount');
+        const groupEl = document.getElementById('slgVerwaltungGroupCount');
+        if (listEl) listEl.textContent = String(listN);
+        if (groupEl) groupEl.textContent = gid ? (groupN === null ? '–' : String(groupN)) : '–';
+        if (!wrap) return;
+        wrap.classList.remove('is-match', 'is-mismatch');
+        const known = gid && groupN !== null;
+        if (known) {
+            const same = listN === groupN;
+            wrap.classList.add(same ? 'is-match' : 'is-mismatch');
+            wrap.title = same
+                ? 'Verwaltungsliste und Gruppe: je ' + listN + ' – Anzahl stimmt überein.'
+                : 'Verwaltungsliste: ' + listN + ' · Gruppe: ' + groupN + ' Mitglieder.';
+        } else {
+            wrap.title = gid
+                ? 'Verwaltungsliste: ' + listN + ' E-Mails. Mitgliederzahl wird aus Microsoft Graph geladen.'
+                : 'Verwaltungsliste: ' + listN + ' E-Mails. Noch keine Gruppe gematcht.';
+        }
+    }
+
+    function updateMismatchUi() {
+        paintVerwaltungCounts();
+        if (!membershipReview) return;
+        const gid = matchedGroupId;
+        const listN = (listCache.members || []).length;
+        const groupN = graphCountFor(gid);
+        if (gid && groupN !== null && listN !== groupN) {
+            membershipReview.updateMismatchBar([
+                {
+                    key: 'verwaltung',
+                    label: 'Verwaltung',
+                    listN: listN,
+                    groupN: groupN,
+                    gid: gid
+                }
+            ]);
+        } else {
+            membershipReview.updateMismatchBar([]);
+        }
+    }
+
+    function initMembershipReview() {
+        const R = window.ms365MembershipReviewUi;
+        if (!R || typeof R.createMembershipReview !== 'function') return;
+        membershipReview = R.createMembershipReview({
+            mode: 'sammelgruppe',
+            tool: 'verwaltung',
+            syncLabel: 'Verwaltung',
+            getGraphToken: getGraphToken,
+            getGroupId: getActiveMatchedId,
+            getLocalEmails: function () {
+                return listCache.members || [];
+            },
+            getActiveReviewKey: function () {
+                return 'verwaltung';
+            },
+            getReviewTitle: function () {
+                return 'Mitglieder-Abgleich: Verwaltung';
+            },
+            toast: toast,
+            dlgConfirm: dlgConfirm,
+            appendSyncLog: appendSyncLog,
+            live: {
+                invalidateMembership: function () {
+                    live().invalidateMembership();
+                },
+                loadMembers: function () {
+                    return live().loadMembers();
+                }
+            },
+            refreshCounts: refreshGraphMemberCounts,
+            onAfterChange: async function () {
+                readLists();
+                updateLeftListUi();
+                renderMemberPreview();
+            },
+            openImport: async function (emails) {
+                const Ui = window.ms365MembershipImportUi;
+                if (!Ui || typeof Ui.openMembershipImportDialog !== 'function') {
+                    throw new Error('membership-import-ui.js fehlt.');
+                }
+                return Ui.openMembershipImportDialog({
+                    kind: 'verwaltung',
+                    emails: emails,
+                    getGraphToken: getGraphToken,
+                    loadSettings: function () {
+                        return loadTenantSettings();
+                    },
+                    saveSettings: function (settings) {
+                        if (typeof window.ms365TenantSettingsSave === 'function') {
+                            window.ms365TenantSettingsSave(settings);
+                        }
+                        readLists();
+                        persistLists();
+                    },
+                    toast: toast,
+                    dlgConfirm: dlgConfirm,
+                    logAction: function (entry) {
+                        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                            window.ms365ActionLog.append(
+                                Object.assign({ tool: 'verwaltung' }, entry || {})
+                            );
+                        }
+                    },
+                    onApplied: async function () {
+                        updateLeftListUi();
+                        renderMemberPreview();
+                        if (membershipReview && membershipReview.getState()) {
+                            await membershipReview.loadReview('verwaltung');
+                        }
+                    }
+                });
+            },
+            logAction: function (action, target, summary) {
+                if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                    window.ms365ActionLog.append({
+                        tool: 'verwaltung',
+                        action: action,
+                        target: target,
+                        summary: summary,
+                        result: 'ok'
+                    });
+                }
+            },
+            labels: {
+                onlyLocalTitle: 'Nur in der Verwaltungsliste',
+                onlyLocalHint: 'In den Stammdaten, aber nicht in der Microsoft-365-Gruppe.',
+                onlyGraphTitle: 'Nur in der Microsoft-365-Gruppe',
+                onlyGraphHint:
+                    'In der Gruppe online, aber nicht in der Verwaltungsliste – Rolle zuweisen und in Stammdaten übernehmen.'
+            }
+        });
+        membershipReview.wire();
+    }
 
     function toast(msg) {
         const el = document.getElementById('toast');
@@ -274,9 +445,7 @@
     }
 
     function updateLeftListUi() {
-        const count = document.getElementById('slgVerwaltungCount');
         const line = document.getElementById('slgVerwaltungLine');
-        if (count) count.textContent = String(listCache.members.length);
         if (line) line.textContent = matchedGroupId ? 'Gematcht: ' + matchedGroupId : 'Noch kein Match';
         const groupBtn = document.querySelector('#slgListItems [data-vw-kind="group"]');
         if (groupBtn) groupBtn.setAttribute('aria-current', activeView === 'group' ? 'true' : 'false');
@@ -286,6 +455,7 @@
             'Keine Einträge in der Verwaltungsliste.',
             40
         );
+        updateMismatchUi();
     }
 
     function startCellEdit(td, initialValue, onCommit) {
@@ -624,7 +794,7 @@
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Owner in den Schul‑Einstellungen gefunden.';
+            p.textContent = 'Keine Direktion‑Besitzer in den Schul‑Einstellungen gefunden.';
             el.appendChild(p);
             return;
         }
@@ -678,11 +848,52 @@
         appendSyncLog('Start: Verwaltung (' + emails.length + ' Adressen) …', '');
         try {
             const token = await getGraphToken();
-            const r = await gug().syncEmailsToGroup(token, gid, emails, 'Verwaltung', appendSyncLog);
-            appendSyncLog('Fertig: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
+            let joinEmails = emails;
+            let leaveEmails = [];
+            if (typeof gug().fetchGroupMembers === 'function') {
+                const mem = await gug().fetchGroupMembers(token, gid);
+                const current = (mem.items || [])
+                    .map(function (m) {
+                        return String((m && (m.mail || m.userPrincipalName)) || '')
+                            .trim()
+                            .toLowerCase();
+                    })
+                    .filter(function (em) {
+                        return em.indexOf('@') !== -1;
+                    });
+                const M = window.ms365MembershipReconcile;
+                if (M && typeof M.diffMemberships === 'function') {
+                    const diff = M.diffMemberships(emails, current);
+                    joinEmails = diff.onlyLocal;
+                    leaveEmails = diff.onlyGraph;
+                } else {
+                    const lc = window.ms365StudentClassLifecycle;
+                    if (lc && typeof lc.reconcileSammelgruppe === 'function') {
+                        const rec = lc.reconcileSammelgruppe(emails, current);
+                        joinEmails = rec.join;
+                        leaveEmails = rec.leave;
+                    }
+                }
+                appendSyncLog(
+                    'Abgleich mit Verwaltungsliste: +' + joinEmails.length + ' / −' + leaveEmails.length + '.',
+                    ''
+                );
+            }
+            if (joinEmails.length) {
+                const r = await gug().syncEmailsToGroup(token, gid, joinEmails, 'Verwaltung', appendSyncLog);
+                appendSyncLog('Aufnehmen: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
+            }
+            if (leaveEmails.length && typeof gug().removeEmailsFromGroup === 'function') {
+                const r = await gug().removeEmailsFromGroup(token, gid, leaveEmails, 'Verwaltung', appendSyncLog);
+                appendSyncLog('Entfernen: ' + r.ok + ' OK, übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
+            }
+            if (!joinEmails.length && !leaveEmails.length) {
+                appendSyncLog('Keine Änderungen gegenüber der Verwaltungsliste.', 'ok');
+            }
             await ensureOwners(token, gid);
             live().invalidateMembership();
             await live().loadMembers();
+            await refreshGraphMemberCounts();
             toast('Synchronisation abgeschlossen.');
         } catch (e) {
             appendSyncLog('Abbruch: ' + (e.message || e), 'err');
@@ -822,8 +1033,8 @@
                 'Mitglieder kommen aus der Verwaltungsliste. Nach dem Match können Sie live verwalten und die Liste synchronisieren.',
             membersUnmatchedTitle: 'Vorschau Verwaltungsliste (erste 30)',
             membersMatchedHint:
-                'Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Adressen aus der Verwaltungsliste hinzu (entfernt niemanden).',
-            features: { syncMembers: true },
+                'Live aus Microsoft Graph. „Mitglieder synchronisieren“ gleicht die Gruppe mit der Verwaltungsliste ab (fehlende hinzufügen, nicht gelistete entfernen).',
+            features: { syncMembers: true, membershipReview: true },
             ids: {
                 wrap: 'vwGroupPanel',
                 headActions: 'vwGroupHeadActions',
@@ -846,6 +1057,7 @@
                 },
                 onAfterLoad: function () {
                     updateLeftListUi();
+                    void refreshGraphMemberCounts();
                 }
             },
             match: {
@@ -930,6 +1142,7 @@
 
     function init() {
         mountDetail();
+        initMembershipReview();
         readLists();
         loadState();
         updateLeftListUi();
@@ -940,6 +1153,8 @@
         if (!getActiveMatchedId()) {
             live().setMatchedMode(false);
             applyCreateDefaults();
+        } else {
+            void refreshGraphMemberCounts();
         }
     }
 

@@ -992,8 +992,11 @@ function giStepNum(el) {
 
 function goToGiStep(step) {
     giCurrentStep = step;
+    let activePanel = null;
     document.querySelectorAll('.gi-step-content').forEach(function (el) {
-        el.classList.toggle('active', giStepNum(el) === step);
+        const isActive = giStepNum(el) === step;
+        el.classList.toggle('active', isActive);
+        if (isActive) activePanel = el;
     });
     document.querySelectorAll('.gi-steps .step').forEach(function (el) {
         const s = giStepNum(el);
@@ -1008,6 +1011,9 @@ function goToGiStep(step) {
         refreshStatusIntoUi().catch(function () {});
         refreshOwnersList(false).catch(function () {});
         refreshMembersList(false).catch(function () {});
+    }
+    if (activePanel && typeof activePanel.scrollIntoView === 'function') {
+        activePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 

@@ -44,6 +44,7 @@ ns.saveStateToStorage = function saveStateToStorage() {
             studentRosterTeamSelection: ns.studentRosterTeamSelection || {}
         };
         localStorage.setItem(ns.STORAGE_KEY, JSON.stringify(state));
+        ns.autoSaveDirty = false;
         ns.showToast('Kursteams: Zwischenstand gespeichert.');
     } catch (e) {
         ns.showToast('Speichern fehlgeschlagen: ' + e.message);
@@ -107,11 +108,17 @@ ns.loadStateFromStorage = function loadStateFromStorage() {
             document.getElementById('uniqueSubjects').textContent = new Set(ns.rawData.map(r => r.fach).filter(f => f)).size;
             document.getElementById('uniqueTeachers').textContent = new Set(ns.rawData.map(r => r.lehrer).filter(l => l)).size;
             document.getElementById('importStats').style.display = 'block';
+            if (typeof ns.setContinueButton === 'function') {
+                ns.setContinueButton('continueBtn1', true, '');
+            }
         }
         if (ns.filteredData.length) {
             document.getElementById('filteredRecords').textContent = ns.filteredData.length;
             document.getElementById('filterStats').style.display = 'block';
             if (typeof ns.displayFilteredData === 'function') ns.displayFilteredData();
+            if (typeof ns.setContinueButton === 'function') {
+                ns.setContinueButton('continueBtn2', true, '');
+            }
         }
         if (Object.keys(ns.teacherEmailMapping).length) {
             document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
@@ -120,6 +127,8 @@ ns.loadStateFromStorage = function loadStateFromStorage() {
         if (ns.teamsData.length && ns.teamsGenerated) {
             if (typeof ns.displayTeamsData === 'function') ns.displayTeamsData();
         }
+        if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
+        if (typeof ns.updateStep4Checklist === 'function') ns.updateStep4Checklist();
 
         const hasRows = state.rawData && state.rawData.length > 0;
         const stepRaw = state.currentStep !== undefined ? state.currentStep : (hasRows ? 1 : 0);
@@ -136,10 +145,40 @@ ns.clearStorage = function clearStorage() {
     ns.confirmModal('Lokalen Speicher löschen', 'Den gespeicherten Zwischenstand für Kursteams in diesem Browser wirklich löschen?', () => {
         try {
             localStorage.removeItem(ns.STORAGE_KEY);
+            ns.autoSaveDirty = false;
             ns.showToast('Kursteams: Lokaler Speicher wurde geleert.');
         } catch (e) {
             ns.showToast('Fehler: ' + e.message);
         }
     });
 };
+
+// Auto-Save: dirty-Flag setzen wenn Daten vorhanden
+ns.autoSaveDirty = false;
+
+ns.markAutoSaveDirty = function markAutoSaveDirty() {
+    ns.autoSaveDirty = true;
+};
+
+// Auto-Save alle 60 Sekunden, wenn dirty und Daten vorhanden
+setInterval(function () {
+    if (ns.autoSaveDirty && (ns.rawData.length || ns.teamsData.length)) {
+        try {
+            ns.saveStateToStorage();
+            ns.autoSaveDirty = false;
+        } catch (e) {
+            // Stiller Fehler beim Auto-Save – kein Toast (würde stören)
+        }
+    }
+}, 60000);
+
+// Warnung beim Schließen/Neuladen wenn ungespeicherte Daten vorhanden
+window.addEventListener('beforeunload', function (e) {
+    if (ns.autoSaveDirty && (ns.rawData.length || ns.teamsData.length)) {
+        const msg = 'Es gibt ungespeicherte Kursteams-Daten. Seite wirklich verlassen?';
+        e.preventDefault();
+        e.returnValue = msg;
+        return msg;
+    }
+});
 

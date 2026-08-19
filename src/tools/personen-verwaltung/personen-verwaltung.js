@@ -40,6 +40,70 @@
     /** @type {boolean} */
     let groupBusy = false;
 
+    const SESSION_CACHE_KEY = 'ms365-pv-users-cache-v1';
+    const SESSION_CACHE_MAX_AGE_MS = 30 * 60 * 1000; // 30 Minuten
+
+    function saveUsersToSession() {
+        try {
+            sessionStorage.setItem(
+                SESSION_CACHE_KEY,
+                JSON.stringify({
+                    savedAt: Date.now(),
+                    users: loadedUsers,
+                    skus: subscribedSkus,
+                    skusOk: subscribedSkusOk
+                })
+            );
+        } catch {
+            // sessionStorage voll oder nicht verfügbar – ignorieren
+        }
+    }
+
+    function loadUsersFromSession() {
+        try {
+            const raw = sessionStorage.getItem(SESSION_CACHE_KEY);
+            if (!raw) return false;
+            const obj = JSON.parse(raw);
+            if (!obj || !Array.isArray(obj.users) || !obj.users.length) return false;
+            const age = Date.now() - (obj.savedAt || 0);
+            if (age > SESSION_CACHE_MAX_AGE_MS) return false;
+            loadedUsers = obj.users;
+            subscribedSkus = Array.isArray(obj.skus) ? obj.skus : [];
+            subscribedSkusOk = !!obj.skusOk;
+            return obj.savedAt || null;
+        } catch {
+            return false;
+        }
+    }
+
+    function clearUsersFromSession() {
+        try { sessionStorage.removeItem(SESSION_CACHE_KEY); } catch { /* ignore */ }
+    }
+
+    function showCacheBanner(savedAt) {
+        const banner = document.getElementById('pvCacheBanner');
+        if (!banner) return;
+        const d = new Date(savedAt);
+        const time = d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+        banner.style.display = '';
+        banner.textContent = 'Daten aus dem Sitzungs-Cache (eingelesen um ' + time + '). ';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn small-btn';
+        btn.style.marginLeft = '8px';
+        btn.textContent = 'Jetzt neu einlesen';
+        btn.addEventListener('click', function () {
+            clearUsersFromSession();
+            loadUsers();
+        });
+        banner.appendChild(btn);
+    }
+
+    function hideCacheBanner() {
+        const banner = document.getElementById('pvCacheBanner');
+        if (banner) banner.style.display = 'none';
+    }
+
     function dlgConfirm(msg, opts) {
         if (typeof window.ms365AppDialogConfirm === 'function') {
             return window.ms365AppDialogConfirm(msg, opts);
@@ -1166,23 +1230,65 @@
     }
 
     function fillGroupSearchResults(groups) {
-        const sel = document.getElementById('pvGroupSearchResults');
-        if (!sel) return;
-        sel.replaceChildren();
+        const container = document.getElementById('pvGroupSearchResults');
+        if (!container) return;
+        container.replaceChildren();
         const already = memberGroupIds();
         const filtered = (groups || []).filter(function (g) {
             return g && g.id && !already.has(String(g.id).toLowerCase());
         });
-        const o0 = document.createElement('option');
-        o0.value = '';
-        o0.textContent = filtered.length ? '(Gruppe wählen · ' + filtered.length + ')' : '(keine neue Treffer)';
-        sel.appendChild(o0);
+        if (!filtered.length) {
+            const hint = document.createElement('span');
+            hint.className = 'pv-group-checklist-hint';
+            hint.textContent = groups && groups.length ? '(alle Treffer bereits Mitglied)' : '(keine Treffer)';
+            container.appendChild(hint);
+            return;
+        }
+        // Alle auswählen-Zeile
+        const selAllRow = document.createElement('label');
+        selAllRow.className = 'pv-group-checklist-selectall';
+        const selAllCb = document.createElement('input');
+        selAllCb.type = 'checkbox';
+        selAllCb.style.width = '16px';
+        selAllCb.style.height = '16px';
+        selAllCb.style.cursor = 'pointer';
+        selAllCb.style.accentColor = '#5e72e4';
+        selAllCb.setAttribute('aria-label', 'Alle auswählen');
+        selAllRow.appendChild(selAllCb);
+        const selAllTxt = document.createElement('span');
+        selAllTxt.textContent = 'Alle auswählen (' + filtered.length + ')';
+        selAllRow.appendChild(selAllTxt);
+        container.appendChild(selAllRow);
+
         filtered.forEach(function (g) {
-            const opt = document.createElement('option');
-            opt.value = g.id;
             const mail = g.mail || g.mailNickname || '';
-            opt.textContent = (g.displayName || g.id) + (mail ? ' · ' + mail : '') + ' · ' + groupTypeLabel(g);
-            sel.appendChild(opt);
+            const label = document.createElement('label');
+            label.className = 'pv-group-checklist-item';
+            label.setAttribute('data-pv-group-id', g.id);
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = g.id;
+            cb.addEventListener('change', function () {
+                label.classList.toggle('is-checked', cb.checked);
+                // Alle-auswählen-Checkbox aktualisieren
+                const allCbs = container.querySelectorAll('.pv-group-checklist-item input[type="checkbox"]');
+                const checkedCount = container.querySelectorAll('.pv-group-checklist-item input[type="checkbox"]:checked').length;
+                selAllCb.indeterminate = checkedCount > 0 && checkedCount < allCbs.length;
+                selAllCb.checked = checkedCount === allCbs.length;
+            });
+            label.appendChild(cb);
+            const txt = document.createElement('span');
+            txt.textContent = (g.displayName || g.id) + (mail ? ' · ' + mail : '') + ' · ' + groupTypeLabel(g);
+            label.appendChild(txt);
+            container.appendChild(label);
+        });
+
+        selAllCb.addEventListener('change', function () {
+            const allCbs = container.querySelectorAll('.pv-group-checklist-item input[type="checkbox"]');
+            allCbs.forEach(function (cb) {
+                cb.checked = selAllCb.checked;
+                cb.closest('.pv-group-checklist-item').classList.toggle('is-checked', selAllCb.checked);
+            });
         });
     }
 
@@ -1311,21 +1417,26 @@
 
     async function addSelectedUserToGroup() {
         const u = getSelectedUser();
-        const sel = document.getElementById('pvGroupSearchResults');
-        const groupId = sel && sel.value ? String(sel.value).trim() : '';
-        if (!u || !groupId) {
-            toast('Bitte zuerst eine Gruppe aus den Treffern wählen.');
+        const container = document.getElementById('pvGroupSearchResults');
+        const checkedBoxes = container
+            ? Array.from(container.querySelectorAll('.pv-group-checklist-item input[type="checkbox"]:checked'))
+            : [];
+        if (!u || !checkedBoxes.length) {
+            toast('Bitte zuerst mindestens eine Gruppe aus den Treffern auswählen.');
             return;
         }
         if (groupBusy) return;
-        const label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : groupId;
+        const groups = checkedBoxes.map(function (cb) {
+            const lbl = cb.closest('.pv-group-checklist-item');
+            return { id: cb.value, label: lbl ? (lbl.querySelector('span') ? lbl.querySelector('span').textContent : cb.value) : cb.value };
+        });
+        const groupNames = groups.map(function (g) { return '· ' + g.label; }).join('\n');
         if (
             !(await dlgConfirm(
-                'Diese Person zur Gruppe hinzufügen?\n\n' +
+                'Diese Person zu ' + groups.length + ' Gruppe(n) hinzufügen?\n\n' +
                     (u.displayName || u.userPrincipalName || '') +
-                    '\n→ ' +
-                    label,
-                { title: 'Zur Gruppe hinzufügen', okText: 'Hinzufügen' }
+                    '\n\n' + groupNames,
+                { title: 'Zu Gruppen hinzufügen', okText: 'Hinzufügen' }
             ))
         ) {
             return;
@@ -1335,22 +1446,32 @@
         if (btn) btn.disabled = true;
         try {
             const token = await getGraphToken();
-            try {
-                await graphJson('POST', '/groups/' + encodeURIComponent(groupId) + '/members/$ref', token, {
-                    '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + u.id
-                });
-            } catch (e) {
-                if (!isDuplicateMemberError(e)) throw e;
+            let ok = 0, fail = 0;
+            for (const g of groups) {
+                try {
+                    await graphJson('POST', '/groups/' + encodeURIComponent(g.id) + '/members/$ref', token, {
+                        '@odata.id': 'https://graph.microsoft.com/v1.0/directoryObjects/' + u.id
+                    });
+                    appendLog('Mitglied hinzugefügt: ' + (u.displayName || u.id) + ' → ' + g.label, 'ok');
+                    ok++;
+                } catch (e) {
+                    if (isDuplicateMemberError(e)) {
+                        appendLog('Bereits Mitglied: ' + g.label, 'warn');
+                        ok++;
+                    } else {
+                        appendLog('Fehler bei ' + g.label + ': ' + graphErrorFriendly(e), 'err');
+                        fail++;
+                    }
+                }
             }
-            appendLog('Mitglied hinzugefügt: ' + (u.displayName || u.id) + ' → ' + label, 'ok');
-            toast('Zur Gruppe hinzugefügt.');
+            toast(ok + ' Gruppe(n) hinzugefügt' + (fail ? ', ' + fail + ' Fehler.' : '.'));
             cachedGroupsForSelection = null;
-            if (sel) {
-                sel.replaceChildren();
-                const o0 = document.createElement('option');
-                o0.value = '';
-                o0.textContent = '(zuerst suchen)';
-                sel.appendChild(o0);
+            if (container) {
+                container.replaceChildren();
+                const hint = document.createElement('span');
+                hint.className = 'pv-group-checklist-hint';
+                hint.textContent = '(zuerst suchen)';
+                container.appendChild(hint);
             }
             await loadGroupsForSelected();
         } catch (e) {
@@ -1709,10 +1830,10 @@
         const grpSel = document.getElementById('pvGroupSearchResults');
         if (grpSel) {
             grpSel.replaceChildren();
-            const o0 = document.createElement('option');
-            o0.value = '';
-            o0.textContent = '(zuerst suchen)';
-            grpSel.appendChild(o0);
+            const hint = document.createElement('span');
+            hint.className = 'pv-group-checklist-hint';
+            hint.textContent = '(zuerst suchen)';
+            grpSel.appendChild(hint);
         }
         const grpQ = document.getElementById('pvGroupSearch');
         if (grpQ) grpQ.value = '';
@@ -1796,6 +1917,8 @@
             loadedUsers = users;
             appendLog('Fertig: ' + users.length + ' Person(en).', 'ok');
             await loadSubscribedSkus(token);
+            saveUsersToSession();
+            hideCacheBanner();
             refreshDepartmentFilter();
             refreshLicenseFilter();
             updateStatsPanel();
@@ -1972,6 +2095,17 @@
         document.getElementById('pvModalDeleteBackdrop')?.addEventListener('click', function (ev) {
             if (ev.target === ev.currentTarget) closeDeleteModal();
         });
+
+        // Cache-Restore: Daten aus sessionStorage wiederherstellen wenn vorhanden
+        const cachedAt = loadUsersFromSession();
+        if (cachedAt) {
+            refreshDepartmentFilter();
+            refreshLicenseFilter();
+            updateStatsPanel();
+            updateProgressLine();
+            showCacheBanner(cachedAt);
+            appendLog('Benutzerliste aus Sitzungs-Cache wiederhergestellt (' + loadedUsers.length + ' Person(en)).', 'ok');
+        }
 
         updateDetailActionButtons();
         renderUserTree();

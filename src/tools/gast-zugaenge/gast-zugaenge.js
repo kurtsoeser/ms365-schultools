@@ -707,9 +707,13 @@ function bindManager() {
     const els = {
         btnLoad: document.getElementById('gzMgrBtnLoad'),
         btnCsv: document.getElementById('gzMgrBtnCsv'),
+        btnSelectFiltered: document.getElementById('gzMgrBtnSelectFiltered'),
+        btnSelectFiltered3: document.getElementById('gzMgrBtnSelectFiltered3'),
         search: document.getElementById('gzMgrSearch'),
         filterStatus: document.getElementById('gzMgrFilterStatus'),
         filterStale: document.getElementById('gzMgrFilterStale'),
+        customDaysRow: document.getElementById('gzMgrCustomDaysRow'),
+        customDays: document.getElementById('gzMgrCustomDays'),
         tbody: document.getElementById('gzMgrTbody'),
         count: document.getElementById('gzMgrCount'),
         progress: document.getElementById('gzMgrProgress'),
@@ -776,6 +780,15 @@ function bindManager() {
         const status = String(els.filterStatus.value || 'all');
         const stale = String(els.filterStale.value || 'all');
 
+        // Benutzerdefinierter Schwellenwert
+        const isCustom = stale === 'custom';
+        if (els.customDaysRow) els.customDaysRow.style.display = isCustom ? '' : 'none';
+        // "Alle gefilterten auswählen"-Button in der Toolbar: sichtbar sobald Daten geladen
+        if (els.btnSelectFiltered3) {
+            els.btnSelectFiltered3.style.display = allGuests.length ? '' : 'none';
+        }
+        const customThreshold = isCustom ? (parseInt(String(els.customDays && els.customDays.value || '180'), 10) || 180) : 0;
+
         viewGuests = allGuests.filter((g) => {
             if (q) {
                 const hay =
@@ -798,6 +811,8 @@ function bindManager() {
                 const last = gzLastSignInDate(g);
                 if (stale === 'never') {
                     if (last) return false;
+                } else if (stale === 'custom') {
+                    if (gzDaysSince(last) <= customThreshold) return false;
                 } else {
                     const threshold = stale === 'stale90' ? 90 : stale === 'stale180' ? 180 : 365;
                     if (gzDaysSince(last) <= threshold) return false;
@@ -1421,6 +1436,32 @@ function bindManager() {
     });
     els.filterStatus.addEventListener('change', applyFilters);
     els.filterStale.addEventListener('change', applyFilters);
+
+    // Benutzerdefinierter Tageswert: bei Änderung sofort filtern
+    if (els.customDays) {
+        let customTimer = null;
+        els.customDays.addEventListener('input', () => {
+            if (customTimer) clearTimeout(customTimer);
+            customTimer = setTimeout(applyFilters, 300);
+        });
+    }
+
+    // "Alle gefilterten auswählen" – fügt alle aktuell sichtbaren (nicht selbst) zur Auswahl hinzu
+    function selectAllFiltered() {
+        const ids = selectableViewIds();
+        ids.forEach((id) => selectedIds.add(id));
+        const rows = els.tbody.querySelectorAll('tr[data-guest-id]');
+        rows.forEach((tr) => {
+            const id = tr.dataset.guestId;
+            if (!selectedIds.has(id)) return;
+            const cb = tr.querySelector('input[data-gz-sel="row"]');
+            if (cb) cb.checked = true;
+            tr.classList.add('is-selected');
+        });
+        updateSelectionUi();
+    }
+    if (els.btnSelectFiltered) els.btnSelectFiltered.addEventListener('click', selectAllFiltered);
+    if (els.btnSelectFiltered3) els.btnSelectFiltered3.addEventListener('click', selectAllFiltered);
 
     // ESC schließt offene Modale
     document.addEventListener('keydown', (e) => {

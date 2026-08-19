@@ -41,6 +41,36 @@ function buildTeamNameFromPattern(pattern, ctx) {
     return parts.join('');
 }
 
+function sanitizeGruppenmailPart(value) {
+    return String(value ?? '').trim().replace(/\s+/g, '-');
+}
+
+/**
+ * Gleiche Bausteine wie Team-Name – Trenner (text-Tokens) werden zu „-“ zwischen Segmenten.
+ * @param {object} [helpers] {{ formatKlasse?: fn, sanitizeGruppe?: fn }}
+ */
+function buildGruppenmailFromPattern(pattern, ctx, helpers) {
+    helpers = helpers || {};
+    const formatKlasse = helpers.formatKlasse || sanitizeGruppenmailPart;
+    const sanitizeGruppe =
+        helpers.sanitizeGruppe ||
+        function (g) {
+            if (!g || !String(g).trim()) return '';
+            return sanitizeGruppenmailPart(g);
+        };
+    const segments = [];
+    normalizePattern(pattern).forEach((p) => {
+        if (p.type === 'text') return;
+        let v = '';
+        if (p.type === 'yearPrefix') v = sanitizeGruppenmailPart(ctx.yearPrefix);
+        else if (p.type === 'klasse') v = formatKlasse(ctx.klasse);
+        else if (p.type === 'fach') v = sanitizeGruppenmailPart(ctx.fach);
+        else if (p.type === 'gruppe') v = sanitizeGruppe(ctx.gruppe);
+        if (v) segments.push(v);
+    });
+    return segments.join('-');
+}
+
 function tokenLabel(t) {
     if (t.type === 'yearPrefix') return 'Schuljahr';
     if (t.type === 'klasse') return 'Klasse';
@@ -54,5 +84,6 @@ window.ms365KursteamTeamNames = {
     defaultTeamNamePattern,
     normalizePattern,
     buildTeamNameFromPattern,
+    buildGruppenmailFromPattern,
     tokenLabel
 };

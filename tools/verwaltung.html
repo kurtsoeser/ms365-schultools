@@ -92,13 +92,40 @@
                                         <span class="slg-side-title"><i class="bi bi-building-gear" aria-hidden="true"></i> Sammelgruppe Verwaltung</span>
                                         <span class="muted slg-side-meta" id="slgVerwaltungLine">–</span>
                                     </span>
-                                    <span class="slg-side-count">
-                                        <span class="n" id="slgVerwaltungCount">0</span>
-                                        <span class="l">E‑Mails</span>
+                                    <span class="slg-side-count slg-side-count--dual" id="slgVerwaltungCounts">
+                                        <span class="slg-side-kpi">
+                                            <span class="n" id="slgVerwaltungCount">0</span>
+                                            <span class="l">Liste</span>
+                                        </span>
+                                        <span class="slg-side-kpi-sep" aria-hidden="true">/</span>
+                                        <span class="slg-side-kpi">
+                                            <span class="n" id="slgVerwaltungGroupCount">–</span>
+                                            <span class="l">Gruppe</span>
+                                        </span>
                                     </span>
                                 </button>
                             </li>
                         </ul>
+                        <div id="slgMismatchBar" class="slg-mismatch-bar" hidden>
+                            <p class="slg-mismatch-bar__text"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Die Mitgliederzahlen weichen ab.</p>
+                            <div id="slgMismatchActions" class="slg-mismatch-bar__actions"></div>
+                        </div>
+                        <div id="slgDeviationPanel" class="slg-deviation-panel" hidden aria-live="polite">
+                            <div class="slg-deviation-panel__head">
+                                <h3 id="slgDeviationTitle" class="slg-deviation-panel__title">Abgleich</h3>
+                                <div class="slg-deviation-panel__head-actions">
+                                    <button type="button" class="btn btn-sm" id="slgMrReload" title="Abgleich neu laden"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                    <button type="button" class="btn btn-sm" id="slgDeviationClose" title="Panel schließen"><i class="bi bi-x-lg"></i>Schließen</button>
+                                </div>
+                            </div>
+                            <p id="slgDeviationSummary" class="muted slg-deviation-panel__summary"></p>
+                            <div id="slgDeviationActions" hidden aria-hidden="true">
+                                <button type="button" class="btn btn-sm btn-success" id="slgMrAddToGroup"><i class="bi bi-cloud-upload"></i>In Gruppe aufnehmen</button>
+                                <button type="button" class="btn btn-sm" id="slgMrImportLocal"><i class="bi bi-box-arrow-in-down"></i>In Schul-Liste importieren…</button>
+                                <button type="button" class="btn btn-sm btn-danger" id="slgMrRemoveFromGroup"><i class="bi bi-person-dash"></i>Aus Gruppe entfernen</button>
+                            </div>
+                            <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
+                        </div>
                         <div class="slg-section-title" style="margin-top:16px;">Rollen</div>
                         <p class="muted" id="vwRoleListSummary" style="margin:0 0 8px;">–</p>
                         <ul class="tree" id="vwRoleList" aria-label="Verwaltungsrollen"></ul>
@@ -190,8 +217,13 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
+    <script src="../src/shared/action-log.js" defer></script>
+    <script type="module" src="../src/shared/membership-reconcile.js"></script>
+    <script type="module" src="../src/shared/membership-import-ui.js"></script>
+    <script type="module" src="../src/shared/membership-review-ui.js"></script>
     <script src="../src/tools/verwaltung/verwaltung-gruppenverwaltung.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>

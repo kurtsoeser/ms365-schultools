@@ -202,10 +202,23 @@ function renderLeftList() {
         meta.textContent = bits.join(' · ');
         main.appendChild(t);
         main.appendChild(meta);
+        if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.createThumb === 'function') {
+            btn.insertBefore(
+                window.ms365GroupPhotoThumb.createThumb({
+                    groupId: row.graphGroupId || '',
+                    displayName: row.displayName || '',
+                    size: 'list'
+                }),
+                btn.firstChild
+            );
+        }
         btn.appendChild(main);
         li.appendChild(btn);
         host.appendChild(li);
     });
+    if (window.ms365GroupPhotoThumb && typeof window.ms365GroupPhotoThumb.hydrate === 'function') {
+        window.ms365GroupPhotoThumb.hydrate(host);
+    }
 }
 
 function renderOwnerPreview() {

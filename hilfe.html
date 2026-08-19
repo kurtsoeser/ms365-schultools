@@ -545,7 +545,7 @@
                             Spezialfall der <a href="tools/schulstruktur-sync.html">Gruppenverwaltung</a> für die Klassen
                             des aktuellen Schuljahrs. Ohne Match: bestehende Unified-Gruppe suchen oder neu anlegen
                             (Mail-Nickname typisch <code>jg</code> + Abschlussjahr + Kürzel). Mit Match: Live-Details
-                            (Allgemein, Owner, Mitglieder). Die Verknüpfung liegt in <code>classTeams</code>.
+                            (Allgemein, Besitzer, Mitglieder). Die Verknüpfung liegt in <code>classTeams</code>.
                         </p>
                         <div class="mini-steps">
                             <strong>Vorgangsweise</strong>
@@ -553,6 +553,7 @@
                                 <li>Klassen in den <a href="tenant.html#classes">Stammdaten</a> pflegen (Kürzel, Name, Abschlussjahr).</li>
                                 <li>Anmelden, links eine Klasse wählen, Gruppe suchen und matchen – oder nur dann neu anlegen, wenn nichts passt.</li>
                                 <li>Besitzerin: Direktion. Schüler-E-Mails der Klasse können synchronisiert werden (einzeln oder als Sammelaktion für angekreuzte Klassen).</li>
+                                <li>Bei Abweichungen: Kennzahlen <strong>Liste / Gruppe</strong>, <strong>Abgleich öffnen</strong> oder <strong>Mitglieder vergleichen</strong> – Diff mit gezielten Aktionen; Import mit vorbefüllter Klasse.</li>
                             </ol>
                         </div>
                         <div class="hint">
@@ -561,6 +562,22 @@
                             nicht für den Alltag (dort reicht Matchen/Listenansicht).
                         </div>
                         <p class="help-open"><a href="tools/jahrgangsgruppen.html">→ Klassengruppen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="datenhygiene abgleich dashboard gruppen konsistent abweichung">
+                        <h3 id="tool-datenhygiene">Datenhygiene-Dashboard <span class="pill">Querschnitt</span></h3>
+                        <p>
+                            Unter <a href="tools/datenhygiene.html">Datenhygiene</a> sehen Sie alle gematchten Sammel- und Klassengruppen auf einen Blick:
+                            Mitgliederzahl in der lokalen Liste vs. Microsoft&nbsp;365.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li><strong>Jetzt prüfen</strong> – lädt die aktuellen Mitgliederzahlen aus Graph (Anmeldung erforderlich).</li>
+                                <li>Grün = konsistent, rot = Abweichung, grau = noch kein Match.</li>
+                                <li>Über <strong>Abgleich öffnen</strong> gelangen Sie ins jeweilige Werkzeug (SLG, Verwaltung, Klassengruppen) für den Detail-Diff.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/datenhygiene.html">→ Datenhygiene öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="kursteam unterrichtsteams stundenplan webuntis fach csv powershell anlage">
@@ -599,8 +616,8 @@
                             <ol>
                                 <li>Fächer und ARGE in den Stammdaten pflegen.</li>
                                 <li>Links Fachgruppen oder ARGE wählen, Eintrag anklicken, Gruppe matchen oder anlegen.</li>
-                                <li>Owner und Mitglieder in den Tabs pflegen. Es gibt keinen Listen-Sync aus den Stammdaten.</li>
-                                <li>Gematchte Gruppen können angekreuzt werden: Owner setzen oder Microsoft-365-Gruppen als Sammelaktion löschen.</li>
+                                <li>Besitzer und Mitglieder in den Tabs pflegen. Es gibt keinen Listen-Sync aus den Stammdaten.</li>
+                                <li>Gematchte Gruppen können angekreuzt werden: Besitzer setzen oder Microsoft-365-Gruppen als Sammelaktion löschen.</li>
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/arge-fachgruppen.html">→ Fächer und ARGEs öffnen</a></p>
@@ -663,7 +680,9 @@
                             <ol>
                                 <li>In den Stammdaten gültige E-Mails pflegen; Direktion für Besitzerrechte eintragen.</li>
                                 <li>Gruppe suchen und matchen oder neu anlegen.</li>
-                                <li>Optional <strong>Mitglieder synchronisieren</strong> – fügt fehlende Adressen hinzu, entfernt niemanden.</li>
+                                <li>Optional <strong>Mitglieder synchronisieren</strong> – gleicht die Gruppe mit der Schul‑Liste ab (fehlende hinzufügen, nicht gelistete entfernen).</li>
+                                <li>Bei Abweichungen: <strong>Abgleich öffnen</strong> oder <strong>Mitglieder vergleichen</strong> – Diff mit Checkboxen, gezielt in Gruppe aufnehmen, lokal übernehmen oder aus Gruppe entfernen.</li>
+                                <li><strong>Lokal übernehmen</strong> öffnet eine Import-Vorschau mit Education-Lizenz, bearbeitbarem Kürzel/Klasse/Name und Entra-Abgleich in die Stammdaten.</li>
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/schueler-lehrer-gruppen.html">→ Schüler und Lehrkräfte öffnen</a></p>
@@ -673,13 +692,15 @@
                         <h3 id="tool-verwaltung">Verwaltung <span class="pill">Personen &amp; Gruppe</span></h3>
                         <p>
                             Rollen und Personen der Schulverwaltung (dieselben Stammdaten wie in den Grundeinstellungen)
-                            plus Sammelgruppe: matchen oder anlegen, danach Listen-Sync.
+                            plus Sammelgruppe: matchen oder anlegen, danach bidirektionaler Listen-Sync.
+                            Links stehen <strong>Liste</strong> und <strong>Gruppe</strong> (Mitgliederzahlen) – bei Abweichung rot.
                         </p>
                         <div class="mini-steps">
                             <ol>
                                 <li>Rolle wählen oder anlegen, Bezeichnung und Kürzel speichern.</li>
                                 <li>Personen mit E-Mail zuordnen. Direktion nicht vergessen.</li>
-                                <li>Optional Sammelgruppe matchen und Mitglieder synchronisieren.</li>
+                                <li>Optional Sammelgruppe matchen und Mitglieder synchronisieren (fehlende hinzufügen, nicht gelistete entfernen).</li>
+                                <li>Bei Abweichungen: <strong>Abgleich öffnen</strong> oder <strong>Mitglieder vergleichen</strong>; <strong>Importieren</strong> legt Verwaltungskontakte mit Rolle in den Stammdaten an.</li>
                             </ol>
                         </div>
                         <div class="hint">Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind.</div>
@@ -848,7 +869,7 @@
                         <h3 id="tool-schulstruktur">Alle Gruppen und Teams <span class="pill">Gruppenverwaltung</span></h3>
                         <p>
                             Drei Reiter: <strong>Verwalten</strong> (Live-Gruppen), <strong>Abgleichen</strong> (SOLL mit Tenant verknüpfen),
-                            <strong>Schulstruktur</strong> (geplanter Baum lokal). Details rechts: Anzeigename, Beschreibung, Owner, Mitglieder, Team-Archiv.
+                            <strong>Schulstruktur</strong> (geplanter Baum lokal). Details rechts: Anzeigename, Beschreibung, Besitzer, Mitglieder, Team-Archiv.
                         </p>
                         <div class="rec">
                             Alltag: zuerst <strong>Verwalten</strong> einlesen. Die Schulstruktur ist die Planung – nicht der Schuljahreswechsel.
@@ -898,7 +919,7 @@
                     <details class="help-faq" data-help-faq data-search="graph oder powershell wann cmd skript">
                         <summary>Graph im Browser oder PowerShell – was soll ich nehmen?</summary>
                         <div class="faq-body">
-                            <p><strong>Graph im Browser:</strong> Gruppen matchen, Owner/Mitglieder pflegen, Personen suchen, Gäste, Archiv, Stammdaten schreiben.</p>
+                            <p><strong>Graph im Browser:</strong> Gruppen matchen, Besitzer/Mitglieder pflegen, Personen suchen, Gäste, Archiv, Stammdaten schreiben.</p>
                             <p><strong>PowerShell / .cmd:</strong> Unterrichtsteams anlegen, Exchange-Objekte (Postfächer, Verteiler, Eltern-DLs), wenn Graph schreibgeschützt oder durch Microsoft eingeschränkt ist.</p>
                             <p>Wenn ein Werkzeug beide Wege anbietet und Graph scheitert: das erzeugte Skript ist der unterstützte Weg, kein Notbehelf.</p>
                         </div>
@@ -911,10 +932,11 @@
                         </div>
                     </details>
 
-                    <details class="help-faq" data-help-faq data-search="listen-sync entfernt niemanden mitglieder zu viel">
+                    <details class="help-faq" data-help-faq data-search="listen-sync entfernt niemanden mitglieder zu viel abweichungen">
                         <summary>Der Listen-Sync hat alte Schüler:innen nicht entfernt. Ist das ein Fehler?</summary>
                         <div class="faq-body">
-                            <p>Nein. Der Sync ist bewusst <strong>additiv</strong>: fehlende Adressen kommen hinzu, niemand fliegt automatisch raus. Personen gezielt in den Mitglieder-Tabs entfernen oder in Entra. So verhindert die App, dass ein unvollständiger Import die halbe Klasse löscht.</p>
+                            <p>Das hängt vom Werkzeug ab. Bei <strong>Lehrerinnen &amp; Schülerinnen</strong> und <strong>Jahrgangsgruppen</strong> gleicht „Mitglieder synchronisieren“ die Gruppe mit der Stammliste ab – dabei können auch Personen entfernt werden, die nur online in der Gruppe stehen. Bei der <strong>Verwaltungs-Sammelgruppe</strong> ist der Sync dagegen bewusst <strong>additiv</strong> (nur hinzufügen).</p>
+                            <p>Wenn die Zahlen links rot sind, nutzen Sie bei Schüler/Lehrer <strong>Abweichungen anzeigen</strong>, um zu sehen, wer nur lokal oder nur in Microsoft&nbsp;365 steht, bevor Sie synchronisieren.</p>
                         </div>
                     </details>
 

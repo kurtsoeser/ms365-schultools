@@ -230,7 +230,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</span>
             </div>
-            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Schul‑Einstellungen zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Owner, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in der geführten Einrichtung.</p>
+            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Schul‑Einstellungen zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in der geführten Einrichtung.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
@@ -274,7 +274,7 @@
                                 </div>
                                 <span class="afg-bulk-count" id="afgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
-                            <p class="afg-bulk-hint muted">Zuerst gematchte Einträge ankreuzen. Owner wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match. Mitglieder gibt es hier nicht als Listen‑Sync – die pflegen Sie nach dem Match in den Tabs.</p>
+                            <p class="afg-bulk-hint muted">Zuerst gematchte Einträge ankreuzen. Besitzer wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match. Mitglieder gibt es hier nicht als Listen‑Sync – die pflegen Sie nach dem Match in den Tabs.</p>
                             <div class="afg-bulk-group" role="group" aria-label="Auswahl">
                                 <div class="afg-bulk-group-label">Auswahl</div>
                                 <div class="afg-bulk-toolbar">
@@ -285,9 +285,9 @@
                             <div class="afg-bulk-group" role="group" aria-label="Aktionen">
                                 <div class="afg-bulk-group-label">Aktionen</div>
                                 <div class="afg-bulk-actions">
-                                    <button type="button" class="btn afg-bulk-tile" id="afgBtnBulkOwner" title="Eine Person als Owner zu den angekreuzten Gruppen hinzufügen">
+                                    <button type="button" class="btn afg-bulk-tile" id="afgBtnBulkOwner" title="Eine Person als Besitzer zu den angekreuzten Gruppen hinzufügen">
                                         <i class="bi bi-person-plus" aria-hidden="true"></i>
-                                        <span class="afg-bulk-tile-label">Owner setzen<small>Person hinzufügen</small></span>
+                                        <span class="afg-bulk-tile-label">Besitzer setzen<small>Person hinzufügen</small></span>
                                     </button>
                                     <button type="button" class="btn btn-danger afg-bulk-tile" id="afgBtnBulkDelete" title="Angekreuzte Microsoft-365-Gruppen löschen">
                                         <i class="bi bi-trash" aria-hidden="true"></i>
@@ -297,7 +297,7 @@
                             </div>
                             <div class="afg-bulk-owner" id="afgBulkOwnerPanel" hidden>
                                 <div class="field">
-                                    <label for="afgBulkOwnerSearch">Benutzer suchen (wird Owner aller ausgewählten Gruppen)</label>
+                                    <label for="afgBulkOwnerSearch">Benutzer suchen (wird Besitzer aller ausgewählten Gruppen)</label>
                                     <div class="afg-bulk-owner-row">
                                         <input type="text" id="afgBulkOwnerSearch" placeholder="Name oder UPN/E‑Mail" autocomplete="off">
                                         <button type="button" class="btn" id="afgBulkOwnerSearchBtn"><i class="bi bi-search"></i>Suchen</button>
@@ -307,7 +307,7 @@
                                     <label for="afgBulkOwnerResults">Treffer</label>
                                     <div class="afg-bulk-owner-row">
                                         <select id="afgBulkOwnerResults"></select>
-                                        <button type="button" class="btn btn-success" id="afgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Owner hinzufügen</button>
+                                        <button type="button" class="btn btn-success" id="afgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
                                     </div>
                                 </div>
                             </div>
@@ -331,7 +331,7 @@
                         <strong>Quelle:</strong> <a href="../tenant.html">Schul‑Einstellungen</a> (Fächer / ARGE).
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
-                        Die Sammelaktionen gelten für angekreuzte, bereits gematchte Gruppen (Owner setzen oder Gruppen löschen).
+                        Die Sammelaktionen gelten für angekreuzte, bereits gematchte Gruppen (Besitzer setzen oder Gruppen löschen).
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
@@ -374,6 +374,7 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <script src="../src/tools/arge-fachgruppen/arge-fachgruppen.js" defer></script>

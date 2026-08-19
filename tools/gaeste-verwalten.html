@@ -13,6 +13,68 @@
     <script src="../ms365-config.js"></script>
     <style>
         .page-card { max-width: var(--app-max-width); margin: 0 auto; }
+        .gv-tablist {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(94, 114, 228, 0.06) 0%, rgba(130, 94, 228, 0.04) 100%);
+        }
+        .gv-tab {
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 10px 14px;
+            border-radius: 10px;
+            font: inherit;
+            font-size: 0.95em;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 120ms ease;
+            text-align: left;
+        }
+        .gv-tab:hover { background: color-mix(in srgb, var(--brand1) 10%, var(--card)); color: var(--heading); }
+        .gv-tab[aria-selected="true"] {
+            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+            color: #fff;
+            box-shadow: 0 6px 16px rgba(94, 114, 228, 0.28);
+        }
+        .gv-tab[aria-selected="true"]:hover { color: #fff; }
+        .gv-tab .bi { font-size: 1.05em; }
+        .gv-hero--tenant .gv-hero-icon { background: linear-gradient(135deg, #e53e3e 0%, #f97316 100%); }
+        .gv-hero--teams .gv-hero-icon { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); }
+        .gv-hero--audit .gv-hero-icon { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); }
+        .gv-hero--einlader .gv-hero-icon { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
+        .gv-hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .gv-hero-stat {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: color-mix(in srgb, var(--card) 88%, white);
+        }
+        .gv-hero-stat strong {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--heading);
+            font-size: 0.95rem;
+        }
+        .gv-hero-stat span {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
 
         /* === Tabs (vier Unterbereiche) === */
         .gv-tabs {
@@ -114,8 +176,32 @@
             gap: 10px;
             margin-bottom: 12px;
         }
+        .gz-filterbar-row2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .gz-filterbar-row2 label {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .gz-filterbar-row2 input[type="number"] {
+            width: 90px;
+            padding: 9px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            font: inherit;
+            box-sizing: border-box;
+            background-color: var(--input-bg);
+            color: var(--text);
+            color-scheme: inherit;
+        }
         @media (max-width: 800px) {
             .gz-filterbar { grid-template-columns: 1fr; }
+            .gv-hero-stats { grid-template-columns: 1fr; }
         }
         .gz-filterbar input,
         .gz-filterbar select {
@@ -405,6 +491,119 @@
         }
         .gi-people-table .gi-type-pill.is-group { background: #fef3c7; color: #92400e; }
         .gi-people-table .gi-row-self { background: color-mix(in srgb, var(--ok1) 12%, var(--card)); }
+        .gi-step-content { display: none; }
+        .gi-step-content.active { display: block; animation: fadeIn 0.25s ease; }
+        .gi-step-stage {
+            margin-top: 14px;
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: linear-gradient(180deg, color-mix(in srgb, var(--soft) 78%, var(--card)) 0%, var(--card) 100%);
+        }
+        .gi-step-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .gi-step-number {
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: #fff;
+            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+            box-shadow: 0 8px 20px rgba(94, 114, 228, 0.18);
+            flex: 0 0 auto;
+        }
+        .gi-step-header h2 {
+            margin: 0 0 4px;
+            font-size: 1.08rem;
+            color: var(--heading);
+        }
+        .gi-step-header p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .gi-step-checklist {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 0 0 16px;
+        }
+        .gi-step-check {
+            padding: 11px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            line-height: 1.45;
+        }
+        .gi-step-check strong {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--heading);
+        }
+        .gi-step-locknote {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid color-mix(in srgb, var(--brand1) 28%, var(--border));
+            background: color-mix(in srgb, var(--brand1) 10%, var(--card));
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .gi-step-locknote .bi {
+            margin-right: 6px;
+            color: var(--brand1);
+        }
+        @media (max-width: 800px) {
+            .gi-step-checklist { grid-template-columns: 1fr; }
+        }
+
+        /* Info-Details am Ende jedes Panels */
+        .gv-info-details {
+            margin-top: 18px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .gv-info-details summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.88em;
+            font-weight: 700;
+            color: var(--text-secondary);
+            background: var(--soft);
+            user-select: none;
+            list-style: none;
+        }
+        .gv-info-details summary::-webkit-details-marker { display: none; }
+        .gv-info-details summary::after {
+            content: '\25B8';
+            margin-left: auto;
+            font-size: 0.85em;
+            opacity: 0.55;
+            transition: transform 200ms;
+        }
+        .gv-info-details[open] summary::after { transform: rotate(90deg); }
+        .gv-info-details summary:hover { color: var(--heading); }
+        .gv-info-details .gv-info-body {
+            padding: 12px 16px;
+            font-size: 0.91em;
+            line-height: 1.55;
+            color: var(--text-secondary);
+        }
+        .gv-info-body p { margin: 0 0 8px; }
+        .gv-info-body p:last-child { margin: 0; }
     </style>
 </head>
 <body data-ms365-skip-tenant-domain-prompt="true">
@@ -441,9 +640,6 @@
                         <h2><i class="bi bi-microsoft-teams" style="margin-right:10px;"></i>Teams mit Gast-Mitgliedern</h2>
                     </div>
                     <div class="panel-body">
-                        <div class="hint">
-                            <strong>DSGVO / Aufbewahrung:</strong> Gast-UPNs und Namen sind personenbezogen; Exporte nur speichern, wenn Ihre Organisation das erlaubt. Delegierte Graph-Berechtigungen: mindestens <code>Group.Read.All</code> für die Teamliste; für den B2B-Block zusätzlich <code>AuditLog.Read.All</code> (Audit: u. a. „Invite external user“ – Microsoft Graph bietet keinen lesbaren Sammel-Endpunkt <code>GET /invitations</code>). Der angemeldete Benutzer braucht dafür typischerweise eine Berichts-/Security-Lese-Rolle in Entra. Mit <strong>Daten laden</strong> werden gleichzeitig die Teams <em>und</em> die B2B-Einladungen (Tab „Verzeichnis-Audit") geladen. Die Ergebnisse werden in dieser <strong>Browser-Tab-Sitzung</strong> zwischengespeichert (<code>sessionStorage</code>).
-                        </div>
                         <div class="gz-toolbar">
                             <button type="button" class="btn btn-success" id="gzBtnRun"><i class="bi bi-cloud-download"></i>Daten laden (Teams &amp; B2B-Audit)</button>
                             <button type="button" class="btn" id="gzBtnCsvTeams" disabled><i class="bi bi-download"></i>CSV Teams</button>
@@ -463,6 +659,15 @@
                                 <tbody id="gzTbodyTeams"></tbody>
                             </table>
                         </div>
+                        <details class="gv-info-details">
+                            <summary><i class="bi bi-info-circle"></i>Hinweise zu diesem Bereich</summary>
+                            <div class="gv-info-body">
+                                <p><strong>Was zeigt dieser Bereich?</strong> Alle Teams im Mandanten, in denen mindestens ein Gast-Konto Mitglied ist – ideal für Transparenz und Datenschutz-Abstimmungen.</p>
+                                <p><strong>DSGVO:</strong> Gast-UPNs und Namen sind personenbezogen. Exporte nur speichern, wenn Ihre Organisation das erlaubt.</p>
+                                <p><strong>Berechtigungen:</strong> <code>Group.Read.All</code> für die Teamliste; für den B2B-Block zusätzlich <code>AuditLog.Read.All</code>.</p>
+                                <p>Mit „Daten laden" werden Teams und B2B-Einladungen gleichzeitig geladen. Ergebnisse bleiben für diese Browser-Sitzung in <code>sessionStorage</code> gespeichert.</p>
+                            </div>
+                        </details>
                     </div>
                 </section>
             </div>
@@ -474,9 +679,6 @@
                         <h2><i class="bi bi-envelope-open" style="margin-right:10px;"></i>B2B-/Gast-Einladungen (Verzeichnis-Audit)</h2>
                     </div>
                     <div class="panel-body">
-                        <div class="hint">
-                            <strong>Lesender Block.</strong> Quelle ist das Entra-Verzeichnis-Audit (z. B. „Invite external user“). Die Daten werden gemeinsam mit dem Tab „Teams mit Gast-Mitgliedern“ über den Knopf <strong>Daten laden</strong> oben abgerufen. Hier sehen Sie nur die Ergebnisse – ein eigener Lade-Button ist daher nicht nötig.
-                        </div>
                         <p id="gzInvNote" class="muted" style="margin:0 0 10px; line-height:1.45;"></p>
                         <div class="gz-table-wrap">
                             <table class="gz-table" aria-label="B2B Einladungen Verzeichnis Audit">
@@ -490,6 +692,14 @@
                                 <tbody id="gzTbodyInv"></tbody>
                             </table>
                         </div>
+                        <details class="gv-info-details">
+                            <summary><i class="bi bi-info-circle"></i>Hinweise zu diesem Bereich</summary>
+                            <div class="gv-info-body">
+                                <p><strong>Was zeigt dieser Bereich?</strong> Protokollierte B2B-/Gast-Einladungen aus dem Entra-Verzeichnis-Audit (z. B. „Invite external user"), inklusive Zeitpunkt, Ergebnis und Kontext.</p>
+                                <p><strong>Lesender Bereich:</strong> Hier werden keine Daten verändert. Die Einladungsliste wird gemeinsam mit dem Tab „Teams mit Gast-Mitgliedern" über „Daten laden" abgerufen.</p>
+                                <p><strong>Berechtigungen:</strong> <code>AuditLog.Read.All</code> plus eine Berichts- oder Security-Lese-Rolle in Entra für den angemeldeten Benutzer.</p>
+                            </div>
+                        </details>
                     </div>
                 </section>
             </div>
@@ -501,12 +711,10 @@
                         <h2><i class="bi bi-pencil-square" style="margin-right:10px;"></i>Alle Gäste im Tenant – verwalten (Schreibender Bereich)</h2>
                     </div>
                     <div class="panel-body">
-                        <div class="hint hint-warn">
-                            <strong>Achtung – schreibende Aktionen:</strong> In diesem Bereich werden Gast-Benutzer des Tenants <strong>geändert oder dauerhaft entfernt</strong>. Erforderliche delegierte Graph-Berechtigungen: <code>User.Read.All</code> (Liste), <code>User.ReadWrite.All</code> (Bearbeiten/Löschen) und optional <code>Group.Read.All</code> (Mitgliedschaften-Vorschau vor dem Löschen), <code>AuditLog.Read.All</code> (letzte Anmeldung). Der angemeldete Benutzer benötigt eine Verwaltungsrolle in Entra (z. B. <em>Benutzeradministrator</em> oder <em>Gast-Einladungs-Administrator</em>). Eine eigene Sicherheits-Bestätigung verhindert ungewolltes Löschen.
-                        </div>
                         <div class="gz-toolbar">
                             <button type="button" class="btn btn-success" id="gzMgrBtnLoad"><i class="bi bi-cloud-download"></i>Gäste laden</button>
                             <button type="button" class="btn" id="gzMgrBtnCsv" disabled><i class="bi bi-download"></i>CSV Export</button>
+                            <button type="button" class="btn" id="gzMgrBtnSelectFiltered3" style="display:none;" title="Alle aktuell gefilterten Gäste in die Auswahl übernehmen"><i class="bi bi-check2-all"></i>Alle gefilterten auswählen</button>
                             <span id="gzMgrCount" class="muted" style="margin-left:auto;"></span>
                         </div>
                         <div class="gz-bulkbar" id="gzMgrBulkBar" hidden>
@@ -534,8 +742,17 @@
                                 <option value="stale90">Inaktiv seit &gt; 90 Tagen</option>
                                 <option value="stale180">Inaktiv seit &gt; 180 Tagen</option>
                                 <option value="stale365">Inaktiv seit &gt; 365 Tagen</option>
+                                <option value="custom">Inaktiv seit &gt; X Tagen …</option>
                                 <option value="never">Noch nie angemeldet</option>
                             </select>
+                        </div>
+                        <div class="gz-filterbar-row2" id="gzMgrCustomDaysRow" style="display:none;">
+                            <label for="gzMgrCustomDays"><i class="bi bi-calendar-x"></i> Inaktiv seit mehr als</label>
+                            <input type="number" id="gzMgrCustomDays" min="1" max="9999" value="180" aria-label="Anzahl Tage">
+                            <label>Tagen</label>
+                            <button type="button" class="btn" id="gzMgrBtnSelectFiltered" style="margin-left:auto;" title="Alle aktuell gefilterten Gäste in die Auswahl übernehmen">
+                                <i class="bi bi-check2-all"></i>Alle gefilterten auswählen
+                            </button>
                         </div>
                         <div id="gzMgrProgress" class="hint" style="display:none; margin-bottom:12px;"></div>
                         <div class="gz-table-wrap">
@@ -558,6 +775,15 @@
                                 <tbody id="gzMgrTbody"></tbody>
                             </table>
                         </div>
+                        <details class="gv-info-details">
+                            <summary><i class="bi bi-exclamation-triangle" style="color:#e53e3e;"></i>Wichtige Hinweise – schreibender Bereich</summary>
+                            <div class="gv-info-body">
+                                <p><strong>Schreibende Aktionen:</strong> In diesem Bereich werden Gast-Benutzer des Tenants <strong>geändert oder dauerhaft entfernt</strong>. Jede Löschaktion erfordert eine zusätzliche Bestätigung.</p>
+                                <p><strong>Berechtigungen:</strong> <code>User.Read.All</code> (Liste), <code>User.ReadWrite.All</code> (Bearbeiten/Löschen), optional <code>Group.Read.All</code> (Mitgliedschaftsvorschau) und <code>AuditLog.Read.All</code> (letzte Anmeldung).</p>
+                                <p>Der angemeldete Benutzer benötigt eine Verwaltungsrolle in Entra, z. B. <em>Benutzeradministrator</em> oder <em>Gast-Einladungs-Administrator</em>.</p>
+                                <p><strong>Tipp:</strong> Status-, Inaktivitäts- und Textsuche lassen sich kombinieren. Mit „Alle gefilterten auswählen" können passende Gäste bequem für eine Sammelaktion vorgemerkt werden.</p>
+                            </div>
+                        </details>
                     </div>
                 </section>
             </div>
@@ -569,10 +795,6 @@
                         <h2><i class="bi bi-person-plus-fill" style="margin-right:10px;"></i>Gast-Einlader (Berechtigung)</h2>
                     </div>
                     <div class="panel-body">
-                        <div class="hint">
-                            Tenant-Einstellung <code>authorizationPolicy.allowInvitesFrom</code> und Rolle <strong>„Gasteinladende:r“</strong> (englisch <em>Guest Inviter</em>): Festlegen, wer im Mandanten Gäste einladen darf – über eine Sicherheitsgruppe. Mit Fallback (Mitglieder einzeln zur Rolle).
-                        </div>
-
                         <div id="panelGastEinlader">
                             <div class="steps gi-steps">
                                 <div class="step active" data-gi-step="1">1. Sicherheitsgruppe</div>
@@ -580,7 +802,19 @@
                             </div>
                             <div class="content" style="padding:0;">
                                 <div class="gi-step-content active" data-gi-step="1">
-                                    <h2>Schritt 1: Sicherheitsgruppe für berechtigte Einladende</h2>
+                                    <div class="gi-step-stage">
+                                    <div class="gi-step-header">
+                                        <div class="gi-step-number">1</div>
+                                        <div>
+                                            <h2>Schritt 1: Sicherheitsgruppe für berechtigte Einladende</h2>
+                                            <p>In diesem Schritt wird zuerst die passende Sicherheitsgruppe angelegt oder ausgewählt. Erst danach wird in Schritt 2 die Richtlinie und Rolle darauf angewendet.</p>
+                                        </div>
+                                    </div>
+                                    <div class="gi-step-checklist">
+                                        <div class="gi-step-check"><strong>Ziel</strong>Eine geeignete Sicherheitsgruppe festlegen.</div>
+                                        <div class="gi-step-check"><strong>Empfehlung</strong>Rollenfähige, reine Sicherheitsgruppe verwenden.</div>
+                                        <div class="gi-step-check"><strong>Ergebnis</strong>Mit „Weiter“ wird die Gruppe nach Schritt 2 übernommen.</div>
+                                    </div>
                                     <div class="alert alert-info">
                                         <p style="margin:0 0 10px;"><strong>Empfohlen: rollenfähige Sicherheitsgruppe.</strong> Damit die Gruppe die Verzeichnisrolle <strong>Gasteinladende:r</strong> tragen kann, muss sie eine <strong>rollenfähige reine Sicherheitsgruppe</strong> sein (<code>securityEnabled=true</code>, <code>mailEnabled=false</code>, <code>isAssignableToRole=true</code>). Diese Option wird beim Anlegen unten gesetzt.</p>
                                         <p style="margin:0 0 10px;"><strong>Mail-aktivierte Sicherheitsgruppen können die Rolle nicht direkt tragen</strong> (Microsoft-Einschränkung). Für solche Gruppen bietet Schritt 2 einen Fallback an: Die Mitglieder werden <em>einzeln</em> der Rolle „Gasteinladende:r“ zugewiesen.</p>
@@ -610,10 +844,26 @@
                                     <div class="step-nav-row step-nav-row--forward-only">
                                         <button type="button" class="btn btn-success" id="giBtnNext1">Weiter zu Richtlinie &amp; Rolle →</button>
                                     </div>
+                                    </div>
                                 </div>
 
                                 <div class="gi-step-content" data-gi-step="2">
-                                    <h2>Schritt 2: Richtlinie, Rolle &amp; Mitglieder</h2>
+                                    <div class="gi-step-stage">
+                                    <div class="gi-step-header">
+                                        <div class="gi-step-number">2</div>
+                                        <div>
+                                            <h2>Schritt 2: Richtlinie, Rolle &amp; Mitglieder</h2>
+                                            <p>Hier arbeiten Sie nur noch mit der in Schritt 1 gewählten Gruppe weiter: Rolle zuweisen, Mitglieder pflegen und den Tenant sauber auf „Admins und Gasteinladende“ umstellen.</p>
+                                        </div>
+                                    </div>
+                                    <div class="gi-step-locknote">
+                                        <i class="bi bi-arrow-right-circle"></i>Dieser Schritt baut direkt auf Schritt 1 auf. Wenn hier keine passende Gruppe sichtbar ist, zuerst mit <strong>„Zurück zu Schritt 1“</strong> die Auswahl oder Anlage der Sicherheitsgruppe abschließen.
+                                    </div>
+                                    <div class="gi-step-checklist">
+                                        <div class="gi-step-check"><strong>Übernahme</strong>Die Gruppe aus Schritt 1 wird hier weiterverwendet.</div>
+                                        <div class="gi-step-check"><strong>Option A</strong>Rollenfähige Gruppe direkt der Rolle zuweisen.</div>
+                                        <div class="gi-step-check"><strong>Option B</strong>Fallback per Mitglieder-Synchronisierung nutzen.</div>
+                                    </div>
                                     <div class="alert alert-info">
                                         <p style="margin:0 0 8px;"><strong>Tenant-Einstellung:</strong> <code>authorizationPolicy.allowInvitesFrom</code> bestimmt, wer im Mandanten Gäste einladen darf. Für „nur ausgewählte Personen“ wählt dieses Tool den Wert <code>adminsAndGuestInviters</code> – damit zählen <strong>Admins</strong> und <strong>Träger:innen der Rolle „Gasteinladende:r“</strong>.</p>
                                         <p style="margin:0 0 8px;"><strong>Rolle „Gasteinladende:r“ (Guest Inviter):</strong> Wird die Sicherheitsgruppe der Rolle zugewiesen (rollenfähige Gruppe nötig), gelten <strong>alle Gruppenmitglieder</strong> als einladeberechtigt.</p>
@@ -745,6 +995,7 @@
 
                                     <div class="step-nav-row step-nav-row--back-only">
                                         <button type="button" class="btn" id="giBtnBack2">← Zurück zu Schritt 1</button>
+                                    </div>
                                     </div>
                                 </div>
                             </div>

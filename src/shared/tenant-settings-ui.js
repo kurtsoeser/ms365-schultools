@@ -4208,7 +4208,7 @@
                     }
                     if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.isBackupPayload === 'function' && window.ms365BrowserBackup.isBackupPayload(obj)) {
                         const ok = await dlgConfirm(
-                            'Dieses Browser-Backup ersetzt alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser. Die Microsoft-Anmeldung bleibt unberührt. Fortfahren?',
+                            'Dieses Browser-Backup ersetzt alle lokalen Schuldaten und wiederherstellbaren Werkzeug-Zwischenstände in diesem Browser. Microsoft-Anmeldung und PIN-Freischaltungen bleiben unberührt. Fortfahren?',
                             { title: 'Backup importieren', okText: 'Importieren', cancelText: 'Abbrechen', danger: true }
                         );
                         if (!ok) return;

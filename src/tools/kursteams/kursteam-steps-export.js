@@ -1,8 +1,14 @@
+import {
+    buildStandaloneKursteamPs1,
+    buildStandaloneKursteamPs1V2,
+    buildKursteamCsvPreviewPs1
+} from './kursteam-ps-export.js';
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
 ns.updateTeacherStats = function updateTeacherStats() {
-    const uniqueTeachers = new Set(ns.filteredData.map(row => row.lehrer.toUpperCase().trim()));
+    // Lehrer die in den importierten Unterrichtsdaten vorkommen
+    const uniqueTeachers = new Set((ns.filteredData || []).map(row => (row.lehrer || '').toUpperCase().trim()).filter(Boolean));
     const teachersArray = Array.from(uniqueTeachers);
     const mappedCount = teachersArray.filter(t => ns.teacherEmailMapping[t]).length;
     const unmappedCount = teachersArray.length - mappedCount;
@@ -12,14 +18,20 @@ ns.updateTeacherStats = function updateTeacherStats() {
     document.getElementById('unmappedTeachers').textContent = unmappedCount;
     document.getElementById('teacherRequiredStats').style.display = 'grid';
 
+    // Fehlende-Lehrer-Sektion
     if (unmappedCount > 0) ns.displayMissingTeachers(teachersArray);
     else document.getElementById('missingTeachersSection').style.display = 'none';
 
-    if (Object.keys(ns.teacherEmailMapping).length > 0) {
-        ns.displayTeacherMappingTableWithUsage(teachersArray);
-    }
+    // Zuordnungstabelle + Schul-Einstellungen-Sync-Panel
+    ns.displayTeacherMappingTableWithUsage(teachersArray);
+    ns.displayTenantTeacherSyncPanel(teachersArray);
+    if (typeof ns.updateStep4Checklist === 'function') ns.updateStep4Checklist();
 };
 
+/**
+ * Zeigt fehlende Lehrer (kommen in Unterrichtsdaten vor, haben aber keine E-Mail-Zuordnung).
+ * Schlägt E-Mail aus Schul-Einstellungen vor falls dort ein namensgleicher Eintrag ohne E-Mail existiert.
+ */
 ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
     const unmappedTeachers = allTeachers.filter(t => !ns.teacherEmailMapping[t]);
     if (unmappedTeachers.length === 0) {
@@ -30,50 +42,229 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
         typeof window.ms365GetTeacherEmailDomainSuffix === 'function'
             ? window.ms365GetTeacherEmailDomainSuffix()
             : '@';
+
+    // Schul-Einstellungen: Lehrer ohne E-Mail aber mit Name als Vorschlag-Quelle
+    const tenantTeachers = typeof window.ms365TenantSettingsLoad === 'function'
+        ? (window.ms365TenantSettingsLoad().teachers || [])
+        : [];
+    const tenantByCode = new Map(tenantTeachers.map(t => [String(t.code || '').toUpperCase(), t]));
+
     const tbody = document.getElementById('missingTeachersBody');
     tbody.replaceChildren();
     unmappedTeachers.forEach(kuerzel => {
-        const generatedEmail = kuerzel.toLowerCase() + emailDomain;
+        const tenantEntry = tenantByCode.get(kuerzel);
+        // Vorschlag: aus Schul-Einstellungen (Name→E-Mail ableiten) oder Domain-Fallback
+        const suggestedEmail = (tenantEntry && tenantEntry.email)
+            ? tenantEntry.email
+            : kuerzel.toLowerCase() + emailDomain;
+        const tenantName = tenantEntry && tenantEntry.name ? tenantEntry.name : '';
+        const inTenant = !!tenantEntry;
+
         const tr = document.createElement('tr');
+
+        // Kürzel + Schul-Einstellungen-Badge
         const td1 = document.createElement('td');
+        td1.style.whiteSpace = 'nowrap';
         const strong = document.createElement('strong');
         strong.textContent = kuerzel;
         td1.appendChild(strong);
+        if (tenantName) {
+            const small = document.createElement('div');
+            small.style.cssText = 'font-size:0.8em;color:var(--text-secondary);';
+            small.textContent = tenantName;
+            td1.appendChild(small);
+        }
+        if (inTenant) {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'font-size:0.72em;background:var(--brand1);color:#fff;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block;';
+            badge.title = 'In Schul-Einstellungen vorhanden';
+            badge.textContent = 'Schule ✓';
+            td1.appendChild(badge);
+        }
+
+        // E-Mail Eingabefeld (sofort editierbar)
         const td2 = document.createElement('td');
-        td2.textContent = generatedEmail;
+        const input = document.createElement('input');
+        input.type = 'email';
+        input.className = 'kt-team-draft-input';
+        input.placeholder = suggestedEmail;
+        input.value = suggestedEmail;
+        input.style.minWidth = '220px';
+        td2.appendChild(input);
+
+        // Aktion
         const td3 = document.createElement('td');
+        td3.style.whiteSpace = 'nowrap';
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn btn-small';
-        btn.textContent = '➕ Hinzufügen';
-        btn.addEventListener('click', () => ns.quickAddTeacher(kuerzel, generatedEmail));
+        btn.className = 'btn btn-small btn-brand';
+        btn.innerHTML = '<i class="bi bi-check2"></i> Übernehmen';
+        btn.addEventListener('click', () => {
+            const email = input.value.trim().toLowerCase();
+            if (!email || !email.includes('@')) {
+                ns.showToast('Bitte eine gültige E-Mail eingeben.');
+                input.focus();
+                return;
+            }
+            ns.quickAddTeacher(kuerzel, email, true);
+        });
         td3.appendChild(btn);
+
         tr.append(td1, td2, td3);
         tbody.appendChild(tr);
     });
     document.getElementById('missingTeachersSection').style.display = 'block';
 };
 
-ns.quickAddTeacher = function quickAddTeacher(kuerzel, suggestedEmail) {
+/**
+ * Schnelles Hinzufügen aus der Fehlenden-Tabelle (ohne Modal wenn direkt=true).
+ */
+ns.quickAddTeacher = function quickAddTeacher(kuerzel, suggestedEmail, direct) {
+    function doAdd(email) {
+        ns.teacherEmailMapping[kuerzel] = email;
+        document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
+        document.getElementById('teacherMappingInfo').style.display = 'block';
+        if (typeof window.ms365TenantSettingsSave === 'function') {
+            // In Schul-Einstellungen zurückschreiben
+            const current = window.ms365TenantSettingsLoad();
+            const teachers = Array.isArray(current && current.teachers) ? [...current.teachers] : [];
+            const idx = teachers.findIndex(t => String(t.code || '').toUpperCase() === kuerzel);
+            if (idx >= 0) {
+                teachers[idx] = { ...teachers[idx], email };
+            } else {
+                teachers.push({ code: kuerzel, name: '', email });
+            }
+            window.ms365TenantSettingsSave({ ...current, teachers });
+        }
+        if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
+        ns.showToast(kuerzel + ' → ' + email + ' gespeichert (auch in Schul-Einstellungen).');
+        ns.updateTeacherStats();
+    }
+
+    if (direct) {
+        doAdd(suggestedEmail);
+        return;
+    }
     ns.openModal(
         'E-Mail für ' + kuerzel,
         '<label for="quickEmail">E-Mail-Adresse</label><input type="email" id="quickEmail" value="' +
-            ns.attrEscape(suggestedEmail) +
-            '">',
+            ns.attrEscape(suggestedEmail) + '" style="width:100%;margin-top:6px;">',
         () => {
             const email = document.getElementById('quickEmail').value.trim().toLowerCase();
-            if (!email) {
-                ns.showToast('Bitte eine E-Mail eingeben.');
+            if (!email || !email.includes('@')) {
+                ns.showToast('Bitte eine gültige E-Mail eingeben.');
                 return;
             }
-            ns.teacherEmailMapping[kuerzel] = email;
-            document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
             ns.closeModal();
-            ns.updateTeacherStats();
-            document.getElementById('teacherMappingInfo').style.display = 'block';
+            doAdd(email);
         }
     );
 };
+
+/**
+ * Zeigt ein Panel mit Lehrern aus den Schul-Einstellungen die noch KEINE E-Mail haben –
+ * damit der User weiß was er noch in den Einstellungen ergänzen sollte.
+ * Außerdem: Lehrer aus Schul-Einstellungen die in den Unterrichtsdaten vorkommen aber
+ * noch nicht im Mapping sind → werden als Vorschlag angeboten.
+ */
+ns.displayTenantTeacherSyncPanel = function displayTenantTeacherSyncPanel(requiredTeachers) {
+    const panel = document.getElementById('tenantTeacherSyncPanel');
+    if (!panel) return;
+
+    if (typeof window.ms365TenantSettingsLoad !== 'function') {
+        panel.style.display = 'none';
+        return;
+    }
+
+    const tenantSettings = window.ms365TenantSettingsLoad();
+    const tenantTeachers = Array.isArray(tenantSettings.teachers) ? tenantSettings.teachers : [];
+
+    if (!tenantTeachers.length) {
+        panel.innerHTML = '<p style="color:var(--text-secondary);font-size:0.88em;margin:0;">' +
+            '<i class="bi bi-info-circle"></i> Keine Lehrer in den <strong>Schul-Grundeinstellungen</strong> hinterlegt. ' +
+            'Lehrerliste dort eintragen → hier automatisch verfügbar.</p>';
+        panel.style.display = 'block';
+        return;
+    }
+
+    // Lehrer aus Schul-Einstellungen die ein Kürzel haben und in Unterrichtsdaten vorkommen
+    const requiredSet = new Set(requiredTeachers);
+    const tenantMapped = tenantTeachers.filter(t => t.code && t.email && requiredSet.has(t.code.toUpperCase()));
+    const tenantUnmappedRequired = tenantTeachers.filter(t => t.code && !t.email && requiredSet.has(t.code.toUpperCase()));
+    const tenantNotRequired = tenantTeachers.filter(t => t.code && t.email && !requiredSet.has(t.code.toUpperCase()));
+    const tenantNoEmail = tenantTeachers.filter(t => t.code && !t.email && !requiredSet.has(t.code.toUpperCase()));
+
+    let html = '<p style="font-size:0.88em;color:var(--text-secondary);margin:0 0 10px;">' +
+        '<strong>' + tenantTeachers.length + '</strong> Lehrer in Schul-Einstellungen gespeichert – ' +
+        '<strong style="color:var(--ok1);">' + tenantMapped.length + '</strong> davon mit E-Mail und in diesen Unterrichtsdaten aktiv.';
+
+    if (tenantUnmappedRequired.length > 0) {
+        html += ' <strong style="color:#e6a817;">' + tenantUnmappedRequired.length + ' Lehrer</strong> ' +
+            'aus diesen Daten sind in den Schul-Einstellungen ohne E-Mail – dort ergänzen!';
+    }
+    html += '</p>';
+
+    // Fehlende E-Mails in Schul-Einstellungen (die in Unterrichtsdaten vorkommen)
+    if (tenantUnmappedRequired.length > 0) {
+        html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:0.88em;font-weight:600;color:var(--heading);">' +
+            '<i class="bi bi-exclamation-triangle-fill" style="color:#e6a817;"></i> ' +
+            tenantUnmappedRequired.length + ' Lehrer aus Unterrichtsdaten ohne E-Mail in Schul-Einstellungen</summary>' +
+            '<div style="margin-top:8px;overflow-x:auto;"><table style="width:100%;font-size:0.86em;"><thead><tr>' +
+            '<th>Kürzel</th><th>Name</th><th>Hinweis</th></tr></thead><tbody>';
+        tenantUnmappedRequired.forEach(t => {
+            const kuerzel = String(t.code || '').toUpperCase();
+            html += '<tr><td><strong>' + ns.escapeHtml(kuerzel) + '</strong></td>' +
+                '<td>' + ns.escapeHtml(t.name || '–') + '</td>' +
+                '<td style="color:#e6a817;font-size:0.85em;">Bitte in <em>Schul-Grundeinstellungen</em> → Lehrerliste ergänzen, ' +
+                'oder oben direkt ➕ Hinzufügen</td></tr>';
+        });
+        html += '</tbody></table></div></details>';
+    }
+
+    // Lehrer aus Schul-Einstellungen die in diesen Unterrichtsdaten NICHT vorkommen
+    if (tenantNoEmail.length > 0) {
+        html += '<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.85em;color:var(--muted);">' +
+            tenantNoEmail.length + ' weitere Lehrer in Schul-Einstellungen ohne E-Mail (nicht in diesen Daten)</summary>' +
+            '<p style="font-size:0.82em;color:var(--muted);margin:6px 0 0;">Diese Lehrer kommen in den importierten Unterrichtsdaten nicht vor – sie müssen hier nicht zugeordnet werden.</p></details>';
+    }
+
+    if (tenantNotRequired.length > 0) {
+        html += '<p style="font-size:0.82em;color:var(--muted);margin:6px 0 0;">' +
+            tenantNotRequired.length + ' weitere Lehrer mit E-Mail aus Schul-Einstellungen sind in diesen Unterrichtsdaten nicht aktiv.</p>';
+    }
+
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+};
+
+function getKursteamContentRoot() {
+    const panel = document.getElementById('panelWebuntis');
+    return panel ? panel.querySelector('.content') : null;
+}
+
+/** Verschachtelte .step-content-Blöcke (HTML-Fehler) als direkte Kinder von .content auslagern. */
+function repairKursteamStepDom() {
+    const content = getKursteamContentRoot();
+    if (!content) return false;
+
+    const steps = Array.from(content.querySelectorAll('.step-content'));
+    const needsRepair = steps.some((el) => el.parentElement !== content);
+    if (!needsRepair) return false;
+
+    steps.sort((a, b) => {
+        const sa = parseInt(String(a.getAttribute('data-step') || '0'), 10);
+        const sb = parseInt(String(b.getAttribute('data-step') || '0'), 10);
+        return (Number.isFinite(sa) ? sa : 0) - (Number.isFinite(sb) ? sb : 0);
+    });
+    steps.forEach((el) => content.appendChild(el));
+    return true;
+}
+
+function getKursteamStepContentEl(step) {
+    const content = getKursteamContentRoot();
+    if (!content) return null;
+    return content.querySelector(':scope > .step-content[data-step="' + step + '"]');
+}
 
 ns.goToStep = function goToStep(rawStep) {
     const panel = document.getElementById('panelWebuntis');
@@ -84,7 +275,7 @@ ns.goToStep = function goToStep(rawStep) {
 
     // Nur ab Schritt 6 (Graph/CSV/Schüler): generierte Teams nötig.
     // Schritt 5 („Teams konfigurieren“) ist bewusst ausgenommen — dort wird erst generiert.
-    if (step >= 6 && step <= 8) {
+    if (step === 7 || step === 8) {
         const validTeams = ns.teamsData.filter(t => t.isValid);
         if (!ns.teamsGenerated || validTeams.length === 0) {
             ns.showToast('Bitte zuerst unter „Teams konfigurieren“ auf „Team-Namen generieren“ klicken (mindestens ein gültiges Team).');
@@ -92,15 +283,23 @@ ns.goToStep = function goToStep(rawStep) {
         }
     }
 
-    panel.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-    panel.querySelectorAll('#panelWebuntis .steps > .step').forEach(el => {
+    let contentEl = getKursteamStepContentEl(step);
+    if (!contentEl && repairKursteamStepDom()) {
+        contentEl = getKursteamStepContentEl(step);
+    }
+    const tabEl =
+        panel.querySelector('.steps > .step[data-step="' + step + '"]') ||
+        document.querySelector('#panelWebuntis .steps > .step[data-step="' + step + '"]');
+    if (!contentEl || !tabEl) return;
+
+    const contentRoot = getKursteamContentRoot();
+    (contentRoot ? contentRoot.querySelectorAll(':scope > .step-content') : panel.querySelectorAll('.step-content')).forEach((el) =>
+        el.classList.remove('active')
+    );
+    panel.querySelectorAll('.steps > .step').forEach(el => {
         el.classList.remove('active');
         el.classList.remove('completed');
     });
-
-    const contentEl = panel.querySelector('.step-content[data-step="' + step + '"]');
-    const tabEl = panel.querySelector('#panelWebuntis .steps > .step[data-step="' + step + '"]');
-    if (!contentEl || !tabEl) return;
 
     contentEl.classList.add('active');
     tabEl.classList.add('active');
@@ -110,11 +309,11 @@ ns.goToStep = function goToStep(rawStep) {
         /* ignore */
     }
 
-    const stepOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    const stepOrder = [0, 1, 2, 3, 4, 5, 7, 8];
     const currentIndex = stepOrder.indexOf(step);
     if (currentIndex >= 0) {
         for (let i = 0; i < currentIndex; i++) {
-            const prev = panel.querySelector('#panelWebuntis .steps > .step[data-step="' + stepOrder[i] + '"]');
+            const prev = panel.querySelector('.steps > .step[data-step="' + stepOrder[i] + '"]');
             if (prev) prev.classList.add('completed');
         }
     }
@@ -128,6 +327,9 @@ ns.goToStep = function goToStep(rawStep) {
             ns.showToast('Demo: 6 Beispielzeilen aus Schul‑Standards vorbelegt.');
         }
     }
+    if (step === 2 && typeof ns.refreshSubjectFilterUI === 'function') {
+        ns.refreshSubjectFilterUI();
+    }
 
     const hint = document.getElementById('manualKursteamHint');
     if (hint) hint.style.display = step === 2 && ns.kursteamEntryMode === 'manual' ? 'block' : 'none';
@@ -138,12 +340,12 @@ ns.goToStep = function goToStep(rawStep) {
     }
     if (step === 4) {
         ns.updateTeacherStats();
-        const btnNextTeamCfg = document.getElementById('continueBtn3');
-        if (btnNextTeamCfg) btnNextTeamCfg.style.display = '';
+        if (typeof ns.updateStep4Checklist === 'function') ns.updateStep4Checklist();
     }
     if (step === 5) {
         const manRow = document.getElementById('kursteamManualAddRow');
         if (manRow) manRow.style.display = ns.teamsGenerated ? '' : 'none';
+        if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
     }
     if (step === 8) {
         if (typeof ns.seedStudentRosterFromTenantIfEmpty === 'function') {
@@ -158,6 +360,10 @@ ns.goToStep = function goToStep(rawStep) {
     const stepsBar = panel.querySelector('.steps');
     if (typeof window.ms365ApplyStepProgress === 'function') {
         window.ms365ApplyStepProgress(stepsBar, step, stepOrder);
+    }
+
+    if (typeof ns.focusStepHeading === 'function') {
+        requestAnimationFrame(() => ns.focusStepHeading(step));
     }
 };
 
@@ -186,6 +392,22 @@ ns.prepareCSVExport = function prepareCSVExport() {
         csvPreview += '... (' + (validTeams.length - 5) + ' weitere Teams)\n';
     }
     document.getElementById('csvPreview').textContent = csvPreview;
+
+    const psPreview = document.getElementById('powershellScript');
+    if (psPreview) {
+        psPreview.textContent = buildStandaloneKursteamPs1V2(validTeams, ns.psEscapeSingle);
+    }
+
+    const psCsvPreview = document.getElementById('powershellScriptCsv');
+    if (psCsvPreview) psCsvPreview.textContent = buildKursteamCsvPreviewPs1();
+
+    const btnMain = document.getElementById('btnDownloadKursteam');
+    if (btnMain) btnMain.disabled = validTeams.length === 0;
+
+    const btnClassic = document.getElementById('btnDownloadKursteamClassic');
+    if (btnClassic) btnClassic.disabled = validTeams.length === 0;
+
+    if (typeof ns.refreshKursteamBackendUi === 'function') ns.refreshKursteamBackendUi();
 };
 
 ns.downloadCSV = function downloadCSV() {
@@ -207,86 +429,24 @@ ns.downloadCSV = function downloadCSV() {
 };
 
 ns.copyPowerShell = function copyPowerShell() {
-    const script = document.getElementById('powershellScript').textContent;
+    const script = document.getElementById('powershellScript')?.textContent || '';
+    if (!script.trim()) {
+        ns.showToast('Kein Script – zuerst Teams generieren.');
+        return;
+    }
     navigator.clipboard.writeText(script).then(() => {
         ns.showToast('PowerShell-Script in die Zwischenablage kopiert.');
     });
 };
 
-function buildStandaloneKursteamPs1(validTeams) {
-    const stamp = new Date().toISOString();
-    const rows = validTeams.map(t =>
-        "    [PSCustomObject]@{ TeamName = '" +
-            ns.psEscapeSingle(t.teamName) +
-            "'; Gruppenmail = '" +
-            ns.psEscapeSingle(t.gruppenmail) +
-            "'; Besitzer = '" +
-            ns.psEscapeSingle(t.besitzer) +
-            "' }"
-    );
-    const loginBlock = [
-        'Write-Host ""',
-        'Write-Host "=== Anmeldung bei Microsoft Teams / Microsoft 365 ===" -ForegroundColor Cyan',
-        'Write-Host "Konten mit MFA: bitte Option A waehlen (Browser-Anmeldung)." -ForegroundColor Yellow',
-        'Write-Host ""',
-        'Write-Host " [A] Interaktive Anmeldung (empfohlen, MFA moeglich)"',
-        'Write-Host " [B] Benutzername + Passwort (Get-Credential) – oft nur ohne MFA zuverlaessig"',
-        'Write-Host ""',
-        '$loginChoice = Read-Host "Auswahl eingeben (A oder B, Standard A)"',
-        'if ($loginChoice -eq "B" -or $loginChoice -eq "b") {',
-        '    $script:Ms365Cred = Get-Credential -Message "Microsoft 365 / Teams Administrator"',
-        '    if ($null -eq $script:Ms365Cred) { Write-Error "Anmeldung abgebrochen."; exit 1 }',
-        '    Connect-MicrosoftTeams -Credential $script:Ms365Cred',
-        '} else {',
-        '    Connect-MicrosoftTeams',
-        '}',
-        ''
-    ].join('\r\n');
+ns.copyPowerShellCsv = function copyPowerShellCsv() {
+    const script = document.getElementById('powershellScriptCsv')?.textContent || '';
+    navigator.clipboard.writeText(script).then(() => {
+        ns.showToast('CSV-PowerShell in die Zwischenablage kopiert.');
+    });
+};
 
-    const lines = [];
-    lines.push('#Requires -Version 5.1');
-    lines.push('# Kursteam-Anlage (Microsoft Teams, Vorlage EDU_Class)');
-    lines.push('# Entspricht weiterhin Microsoft Learn: New-Team -Template "EDU_Class" (gueltige Werte: EDU_Class, EDU_PLC).');
-    lines.push('# Microsoft empfiehlt fuer Klassen-Teams das Modul MicrosoftTeams in Version 7.3.1 oder neuer.');
-    lines.push('# Erzeugt in der Browser-App am ' + stamp);
-    lines.push('# Daten sind unten eingebettet – keine separate CSV noetig.');
-    lines.push('');
-    lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
-    lines.push('$ErrorActionPreference = "Continue"');
-    lines.push('');
-    lines.push('if (-not (Get-Module -ListAvailable -Name MicrosoftTeams)) {');
-    lines.push('    Write-Host "Installiere Modul MicrosoftTeams (einmalig)..." -ForegroundColor Yellow');
-    lines.push('    Install-Module MicrosoftTeams -Scope CurrentUser -Force');
-    lines.push('}');
-    lines.push('Import-Module MicrosoftTeams -ErrorAction Stop');
-    lines.push('');
-    lines.push(loginBlock);
-    lines.push('$TeamsList = @(');
-    lines.push(rows.join(',\r\n'));
-    lines.push(')');
-    lines.push('');
-    lines.push('$i = 0');
-    lines.push('foreach ($Team in $TeamsList) {');
-    lines.push('    $i++');
-    lines.push('    try {');
-    lines.push(
-        '        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop'
-    );
-    lines.push('        Write-Host ("OK [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) -ForegroundColor Green');
-    lines.push('    }');
-    lines.push('    catch {');
-    lines.push('        Write-Warning ("Fehler [{0}] {1}: {2}" -f $i, $Team.Gruppenmail, $_.Exception.Message)');
-    lines.push('    }');
-    lines.push('    Start-Sleep -Seconds 2');
-    lines.push('}');
-    lines.push('');
-    lines.push('Write-Host ""');
-    lines.push('Write-Host "Fertig. Fenster schliesst nicht automatisch." -ForegroundColor Cyan');
-    lines.push('Read-Host "Enter druecken zum Beenden"');
-    return lines.join('\r\n');
-}
-
-ns.downloadKursteamStandalonePackage = function downloadKursteamStandalonePackage() {
+function downloadKursteamCmdPackage(filename, title, echoLine, buildPs1) {
     const validTeams = ns.teamsData.filter(t => t.isValid);
     if (!validTeams.length) {
         ns.showToast('Keine gültigen Teams – zuerst Team-Namen generieren.');
@@ -296,15 +456,33 @@ ns.downloadKursteamStandalonePackage = function downloadKursteamStandalonePackag
         ns.showToast('polyglot-cmd.js fehlt – Seite neu laden.');
         return;
     }
-    const ps1 = buildStandaloneKursteamPs1(validTeams);
-    const cmd = window.ms365BuildPolyglotCmd({
-        title: 'Kursteam-Anlage',
-        echoLine: 'Starte Kursteam-Anlage mit PowerShell ...',
-        psBody: ps1
-    });
-    ns.downloadBlob('Kursteam-Anlage.cmd', cmd);
-    ns.showToast('Kursteam-Anlage.cmd heruntergeladen – Doppelklick zum Start.');
+    const ps1 = buildPs1(validTeams, ns.psEscapeSingle);
+    const cmd = window.ms365BuildPolyglotCmd({ title, echoLine, psBody: ps1 });
+    ns.downloadBlob(filename, cmd);
+}
+
+ns.downloadKursteamStandalonePackage = function downloadKursteamStandalonePackage() {
+    downloadKursteamCmdPackage(
+        'Kursteam-Anlage.cmd',
+        'Kursteam-Anlage',
+        'Starte Kursteam-Anlage mit PowerShell ...',
+        buildStandaloneKursteamPs1V2
+    );
+    ns.showToast('Kursteam-Anlage.cmd heruntergeladen – bei Abbruch fortsetzbar.');
 };
+
+ns.downloadKursteamStandalonePackageClassic = function downloadKursteamStandalonePackageClassic() {
+    downloadKursteamCmdPackage(
+        'Kursteam-Anlage-einfach.cmd',
+        'Kursteam-Anlage (einfach)',
+        'Starte Kursteam-Anlage (einfache Variante) ...',
+        buildStandaloneKursteamPs1
+    );
+    ns.showToast('Kursteam-Anlage-einfach.cmd heruntergeladen.');
+};
+
+/** @deprecated Alias – nutzt jetzt die empfohlene Variante */
+ns.downloadKursteamStandalonePackageV2 = ns.downloadKursteamStandalonePackage;
 
 ns.resetApp = function resetApp() {
     ns.confirmModal('App zurücksetzen', 'Alle Daten in dieser Sitzung wirklich verwerfen? (Lokaler Zwischenstand bleibt, bis Sie ihn löschen.)', () => {
@@ -323,21 +501,27 @@ document.querySelectorAll('#panelWebuntis .steps > .step').forEach(step => {
     });
     step.addEventListener('click', function () {
         const stepNum = parseInt(String(this.dataset.step).trim(), 10);
-        const currentStepNum = parseInt(String(ns.currentStep).trim(), 10);
-        const current = Number.isFinite(currentStepNum) ? currentStepNum : 0;
         if (!Number.isFinite(stepNum) || stepNum < 0 || stepNum > 8) return;
-        if (stepNum <= current || this.classList.contains('completed')) {
-            ns.goToStep(stepNum);
-        }
+        ns.goToStep(stepNum);
     });
 });
 
 // Global exports für HTML onclick
-window.goToStep = ns.goToStep;
+window.goToStep = function goToStepExport(step) {
+    return ns.goToStep(step);
+};
 window.downloadCSV = ns.downloadCSV;
 window.copyPowerShell = ns.copyPowerShell;
 window.resetApp = ns.resetApp;
 window.downloadKursteamStandalonePackage = ns.downloadKursteamStandalonePackage;
+window.downloadKursteamStandalonePackageClassic = ns.downloadKursteamStandalonePackageClassic;
+window.downloadKursteamStandalonePackageV2 = ns.downloadKursteamStandalonePackageV2;
+window.copyPowerShellCsv = ns.copyPowerShellCsv;
+
+repairKursteamStepDom();
+// Defensive Initialisierung: falls ein Browser- oder HMR-Zwischenzustand
+// alle active-Klassen verloren hat, den aktuellen Schritt erneut aktivieren.
+ns.goToStep(Number.isFinite(ns.currentStep) ? ns.currentStep : 0);
 
 // Snapshot für Microsoft Graph im Browser (kursteam-graph.js).
 window.ms365GetKursteamSnapshotForGraph = function () {
@@ -355,9 +539,11 @@ window.ms365GetKursteamSnapshotForGraph = function () {
 document.addEventListener('DOMContentLoaded', () => {
     const panel = document.getElementById('panelWebuntis');
     if (!panel || typeof window.ms365ApplyStepProgress !== 'function') return;
-    const order = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    const order = [0, 1, 2, 3, 4, 5, 7, 8];
     const parsed = parseInt(String(ns.currentStep).trim(), 10);
     const step = Number.isFinite(parsed) ? parsed : 0;
     window.ms365ApplyStepProgress(panel.querySelector('.steps'), step, order);
 });
+
+
 

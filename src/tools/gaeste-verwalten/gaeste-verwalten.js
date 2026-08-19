@@ -99,6 +99,13 @@
                 focusTab(name);
             });
         });
+        document.querySelectorAll('[data-gv-jump]').forEach(function (card) {
+            card.addEventListener('click', function () {
+                const name = card.getAttribute('data-gv-jump') || DEFAULT_TAB;
+                activate(name);
+                focusTab(name);
+            });
+        });
         tabList.addEventListener('keydown', onKeydown);
 
         window.addEventListener('hashchange', function () {

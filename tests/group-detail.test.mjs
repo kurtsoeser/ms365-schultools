@@ -144,6 +144,7 @@ describe('Tenant-Gruppenverwaltung nutzt die zentrale Ansicht', () => {
         expect(html).toContain('src/shared/group-detail/group-detail.css');
         expect(html).toContain('src/tools/schueler-lehrer-gruppen/slg-live-details.js');
         expect(html).toContain('src/shared/graph-unified-groups.js');
+        expect(html).toContain('src/shared/group-photo-thumb.js');
         expect(html).toContain('id="ssTenantBulkWrap"');
         expect(html).not.toContain('id="ssTenantName"');
         expect(html).not.toContain('id="ssTenantUpdateBtn"');

@@ -85,6 +85,8 @@
             ],
             /** E‑Mail (Kleinbuchstaben) → Entra-Benutzer (Einrichtungsassistent, optional) */
             directoryMatchByEmail: {},
+            /** Klassen-Abkürzung (Großbuchstaben) → M365-Gruppeninfo (Einrichtungsassistent, optional) */
+            classGroupMatchByKey: {},
             catalogLinks: [],
             actionLog: [],
             intranetSiteUrl: '',
@@ -591,6 +593,15 @@
             d.catalogLinks.push(n);
         });
         d.directoryMatchByEmail = normalizeDirectoryMatchByEmail(x.directoryMatchByEmail);
+        const cgmRaw = x.classGroupMatchByKey && typeof x.classGroupMatchByKey === 'object' ? x.classGroupMatchByKey : {};
+        d.classGroupMatchByKey = {};
+        Object.keys(cgmRaw).forEach(function (k) {
+            const key = String(k).trim().toUpperCase();
+            if (!key) return;
+            const v = cgmRaw[k];
+            if (!v || typeof v !== 'object') return;
+            d.classGroupMatchByKey[key] = v;
+        });
         const filled = fillSammelgruppeGaps(d.matched, d.catalogLinks);
         d.matched = filled.matched;
         d.catalogLinks = filled.catalogLinks;
@@ -999,6 +1010,7 @@
         const p = partial && typeof partial === 'object' ? partial : {};
         const pCopy = Object.assign({}, p);
         delete pCopy.directoryMatchByEmail;
+        delete pCopy.classGroupMatchByKey;
         const mergedDir = Object.assign(
             {},
             cur.directoryMatchByEmail || {},
@@ -1010,6 +1022,11 @@
                 if (em) delete mergedDir[em];
             });
         }
+        const mergedCgm = Object.assign(
+            {},
+            cur.classGroupMatchByKey || {},
+            p.classGroupMatchByKey && typeof p.classGroupMatchByKey === 'object' ? p.classGroupMatchByKey : {}
+        );
         let next = normalizeSetup(
             Object.assign({}, cur, pCopy, {
                 matched: Object.assign({}, cur.matched, p.matched && typeof p.matched === 'object' ? p.matched : {}),
@@ -1020,7 +1037,8 @@
                     p.verwaltungDraft && typeof p.verwaltungDraft === 'object' ? p.verwaltungDraft : {}
                 ),
                 catalogLinks: Array.isArray(p.catalogLinks) ? p.catalogLinks : cur.catalogLinks,
-                directoryMatchByEmail: mergedDir
+                directoryMatchByEmail: mergedDir,
+                classGroupMatchByKey: mergedCgm
             })
         );
         const matchedPatched = p.matched && typeof p.matched === 'object';

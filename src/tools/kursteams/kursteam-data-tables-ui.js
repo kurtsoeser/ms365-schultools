@@ -153,7 +153,9 @@ function mount(ns) {
         });
         const hasRows = ns.filteredData.length > 0;
         document.getElementById('dataTableContainer').style.display = hasRows ? 'block' : 'none';
-        document.getElementById('continueBtn2').style.display = hasRows ? 'inline-block' : 'none';
+        if (typeof ns.setContinueButton === 'function') {
+            ns.setContinueButton('continueBtn2', hasRows, hasRows ? '' : undefined);
+        }
     };
 
     ns.displayEditableData = function displayEditableData() {

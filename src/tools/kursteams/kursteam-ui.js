@@ -57,25 +57,30 @@ ns.confirmModal = function confirmModal(title, message, onConfirm) {
 ns.invalidateTeams = function invalidateTeams() {
     ns.teamsData = [];
     ns.teamsGenerated = false;
+    if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
     document.getElementById('teamsTableContainer').style.display = 'none';
     document.getElementById('validationResults').style.display = 'none';
     const preview = document.getElementById('manualTeamsPreviewContainer');
     if (preview) preview.style.display = 'none';
-    // Nur „Weiter zur Anlage“ (Schritt Teams konfigurieren) ausblenden – nicht continueBtn3
-    // (Lehrer zuordnen → Team-Konfiguration), das ist reine Schritt-Navigation.
+    // Weiter zur Anlage nach Team-Generierung zurücksetzen.
     const c4 = document.getElementById('continueBtn4');
-    if (c4) c4.style.display = 'none';
-    // UX: Teams generieren wieder als "primäre Aktion" markieren.
+    if (c4 && typeof ns.setContinueButton === 'function') {
+        ns.setContinueButton('continueBtn4', false);
+    } else if (c4) {
+        c4.disabled = true;
+    }
     const gen = document.getElementById('btnGenerateTeamNames');
-    if (gen) gen.className = 'btn btn-success kursteam-generate-teams-btn';
+    if (gen) gen.className = 'btn btn-brand kursteam-generate-teams-btn';
     const manRow = document.getElementById('kursteamManualAddRow');
     if (manRow) manRow.style.display = 'none';
+    if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
 };
 
 // Modal wiring
 ns.dom.modalCancel.addEventListener('click', ns.closeModal);
 ns.dom.modalOk.addEventListener('click', () => {
     if (typeof modalOkHandler === 'function') modalOkHandler();
+    else ns.closeModal();
 });
 ns.dom.appModal.addEventListener('click', (e) => {
     if (e.target === ns.dom.appModal) ns.closeModal();
@@ -116,6 +121,32 @@ document.getElementById('btnClearStorage').addEventListener('click', () => {
     if (mode === 'gruppenerstellung' && typeof window.ms365ClearGruppenerstellung === 'function') return window.ms365ClearGruppenerstellung();
     if (typeof ns.clearStorage === 'function') ns.clearStorage();
 });
+
+/**
+ * Berechnet den Schuljahr-Präfix aus dem aktuellen Datum.
+ * Österreichisches Schuljahr: ab ca. 1. September (Monat >= 9 → neues Schuljahr).
+ * Beispiel: Aug 2026 → SJ26, Sep 2026 → SJ26/27 → Kürzel SJ26, Jan 2027 → SJ26.
+ */
+ns.calcYearPrefix = function calcYearPrefix() {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1-12
+    const year = now.getFullYear();
+    // Ab September beginnt das neue Schuljahr (z.B. Sep 2026 = SJ 2026/27)
+    const sjYear = month >= 9 ? year : year - 1;
+    return 'SJ' + String(sjYear).slice(-2);
+};
+
+// Schuljahr-Präfix beim Laden automatisch vorschlagen (nur wenn noch Standardwert)
+(function initYearPrefix() {
+    const el = document.getElementById('yearPrefix');
+    if (!el) return;
+    const suggested = ns.calcYearPrefix();
+    // Nur überschreiben wenn noch der hardcodierte Fallback-Wert steht
+    if (el.value === 'SJ26' || el.value === '') {
+        el.value = suggested;
+    }
+    el.title = 'Automatisch berechnet: ' + suggested + ' (ab September beginnt neues Schuljahr)';
+})();
 
 // Globale Helfer (für andere Module/HTML)
 window.ms365ShowToast = ns.showToast;

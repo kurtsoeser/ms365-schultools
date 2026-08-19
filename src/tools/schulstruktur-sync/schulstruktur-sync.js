@@ -712,7 +712,17 @@ import '../../shared/group-detail/group-detail.js';
                       ? String(r.typ || '–')
                       : String(r.typ || '–') + (r.schuljahr ? ' · ' + String(r.schuljahr) : '');
 
-            btn.appendChild(rowIcon);
+            btn.appendChild(
+                mode === 'tenant' &&
+                    window.ms365GroupPhotoThumb &&
+                    typeof window.ms365GroupPhotoThumb.createThumb === 'function'
+                    ? window.ms365GroupPhotoThumb.createThumb({
+                          groupId: String(r.id || ''),
+                          displayName: String(r.bezeichnung || ''),
+                          size: 'list'
+                      })
+                    : rowIcon
+            );
             btn.appendChild(name);
             btn.appendChild(meta2);
             btn.appendChild(meta);
@@ -742,6 +752,14 @@ import '../../shared/group-detail/group-detail.js';
                 li.appendChild(btn);
             }
             tree.appendChild(li);
+        }
+
+        if (
+            mode === 'tenant' &&
+            window.ms365GroupPhotoThumb &&
+            typeof window.ms365GroupPhotoThumb.hydrate === 'function'
+        ) {
+            window.ms365GroupPhotoThumb.hydrate(tree);
         }
     }
 
@@ -901,17 +919,17 @@ import '../../shared/group-detail/group-detail.js';
             Klasse:
                 'Klasse unter einem Jahrgang. Darunter: Kursteams (M365‑Teams, oft HiddenMembership) und ggf. Gruppen.',
             Arbeitsgemeinschaft:
-                'Lehrer:innen‑Fachgemeinschaft. In M365 oft eine eigene M365‑Gruppe oder ein Team; Owner/Mitglieder steuern Zugriff.',
+                'Lehrer:innen‑Fachgemeinschaft. In M365 oft eine eigene M365‑Gruppe oder ein Team; Besitzer/Mitglieder steuern Zugriff.',
             Kursteam:
-                'Kurs‑Team: in M365 typischerweise ein Team mit HiddenMembership; Owner/Mitglieder entsprechen Lehrkräften und SuS im Kurs.',
+                'Kurs‑Team: in M365 typischerweise ein Team mit HiddenMembership; Besitzer/Mitglieder entsprechen Lehrkräften und SuS im Kurs.',
             Gruppe:
-                'M365‑Gruppe oder Team (SOLL). Beschreibung wird bei „Im Tenant anlegen“ als Graph‑description genutzt; Owner/Mitglieder für das Gruppenobjekt.',
+                'M365‑Gruppe oder Team (SOLL). Beschreibung wird bei „Im Tenant anlegen“ als Graph‑description genutzt; Besitzer/Mitglieder für das Gruppenobjekt.',
             Person: ''
         };
         if (hintTyp) hintTyp.textContent = typHints[t] || '';
 
         const defOwn =
-            'Owner für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.';
+            'Besitzer für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.';
         const defMem =
             'Mitglieder für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.';
         if (hintOwn) hintOwn.textContent = t === 'Person' ? '' : defOwn;
@@ -4601,7 +4619,7 @@ import '../../shared/group-detail/group-detail.js';
                 const gid = String(created.id || '').trim();
                 if (!gid) throw new Error('Anlegen fehlgeschlagen: keine Gruppen-ID erhalten.');
 
-                setTenantProgress(true, 'Angelegt. Übernehme Owner/Mitglieder …', 0.45);
+                setTenantProgress(true, 'Angelegt. Übernehme Besitzer/Mitglieder …', 0.45);
                 if (target === 'team') {
                     setTenantProgress(true, 'Team wird erstellt …', 0.55);
                     await createTeamForGroup(gid);
@@ -5075,16 +5093,16 @@ import '../../shared/group-detail/group-detail.js';
             const sel = getEl('ssTenantBulkOwnerResults');
             const userId = sel && sel.value ? String(sel.value).trim() : '';
             if (!userId) {
-                toast('Bitte zuerst einen Owner aus den Treffern auswählen.');
+                toast('Bitte zuerst einen Besitzer aus den Treffern auswählen.');
                 return;
             }
-            if (!(await dlgConfirm('Owner wirklich zu ALLEN ausgewählten Gruppen/Teams hinzufügen?', { title: 'Bulk-Owner', okText: 'Hinzufügen' }))) return;
+            if (!(await dlgConfirm('Besitzer wirklich zu ALLEN ausgewählten Gruppen/Teams hinzufügen?', { title: 'Bulk-Besitzer', okText: 'Hinzufügen' }))) return;
 
             const ids = Array.from(tenantMultiSel);
             const btn = getEl('ssTenantBulkAddOwnerBtn');
             if (btn) btn.disabled = true;
             try {
-                setTenantProgress(true, 'Bulk: Owner wird gesetzt … 0 / ' + ids.length, 0.1);
+                setTenantProgress(true, 'Bulk: Besitzer wird gesetzt … 0 / ' + ids.length, 0.1);
                 let ok = 0;
                 let fail = 0;
                 await mapWithConcurrency(ids, 4, async (gid, idx) => {
@@ -5103,7 +5121,7 @@ import '../../shared/group-detail/group-detail.js';
                     }
                     if (idx % 2 === 0) {
                         const ratio = Math.min(0.95, (idx + 1) / ids.length);
-                        setTenantProgress(true, 'Bulk: Owner wird gesetzt … ' + (idx + 1) + ' / ' + ids.length, ratio);
+                        setTenantProgress(true, 'Bulk: Besitzer wird gesetzt … ' + (idx + 1) + ' / ' + ids.length, ratio);
                     }
                 });
                 try {

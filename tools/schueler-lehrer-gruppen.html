@@ -20,7 +20,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-people"></i>Lehrerinnen &amp; Schülerinnen</span>
             </div>
-            <p>Zwei Microsoft‑365‑Gruppen für Lehrerinnen &amp; Schülerinnen matchen oder anlegen. Nach dem Match gelten dieselben Details wie in der MS&nbsp;365 Gruppenverwaltung: Allgemein, Owner und Mitglieder live aus Graph. Mitglieder können zusätzlich aus den Schul‑Listen synchronisiert werden. Als <strong>Besitzer</strong> dienen Personen mit Rolle Direktion (o. Ä.) aus der Verwaltungsliste; sonst der angemeldete Benutzer.</p>
+            <p>Zwei Microsoft‑365‑Gruppen für Lehrerinnen &amp; Schülerinnen matchen oder anlegen. Nach dem Match gelten dieselben Details wie in der MS&nbsp;365 Gruppenverwaltung: Allgemein, Besitzer und Mitglieder live aus Graph. Mitglieder können zusätzlich aus den Schul‑Listen synchronisiert werden. Als <strong>Besitzer</strong> dienen Personen mit Rolle Direktion (o. Ä.) aus der Verwaltungsliste; sonst der angemeldete Benutzer.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-slg" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
@@ -38,7 +38,7 @@
                 <section class="panel" aria-label="Gruppen auswählen">
                     <div class="panel-head">
                         <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Listen</h2>
-                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Wählen Sie links <strong>Schüler:innen</strong> oder <strong>Lehrer:innen</strong>. Die Zahlen rechts: <strong>Liste</strong> (Stammdaten) und <strong>Gruppe</strong> (Mitglieder in Microsoft&nbsp;365) – gleich = grün, sonst rot.</p>
+                        <p class="muted" style="margin:8px 0 0; line-height:1.45;">Wählen Sie links <strong>Schüler:innen</strong> oder <strong>Lehrer:innen</strong>. Die Zahlen rechts: <strong>Liste</strong> (Stammdaten) und <strong>Gruppe</strong> (Mitglieder in Microsoft&nbsp;365) – gleich = grün, sonst rot. Bei Abweichung: <strong>Abgleich öffnen</strong> oder im Tab Mitglieder <strong>Mitglieder vergleichen</strong>.</p>
                     </div>
                     <div class="panel-body">
                         <div class="gd-filter-row" style="margin:0 0 10px; justify-content:flex-end;">
@@ -48,7 +48,7 @@
                             <li>
                                 <button type="button" class="slg-side-btn" data-slg-kind="schueler" aria-current="true">
                                     <span class="slg-side-main">
-                                        <span class="slg-side-title"><i class="bi bi-people" aria-hidden="true"></i> Schüler:innen</span>
+                                        <span class="slg-side-title">Schüler:innen</span>
                                         <span class="muted slg-side-meta" id="slgSchuelerLine">–</span>
                                     </span>
                                     <span class="slg-side-count slg-side-count--dual" id="slgSchuelerCounts">
@@ -67,7 +67,7 @@
                             <li>
                                 <button type="button" class="slg-side-btn" data-slg-kind="lehrer" aria-current="false">
                                     <span class="slg-side-main">
-                                        <span class="slg-side-title"><i class="bi bi-person-badge" aria-hidden="true"></i> Lehrer:innen</span>
+                                        <span class="slg-side-title">Lehrer:innen</span>
                                         <span class="muted slg-side-meta" id="slgLehrerLine">–</span>
                                     </span>
                                     <span class="slg-side-count slg-side-count--dual" id="slgLehrerCounts">
@@ -84,6 +84,26 @@
                                 </button>
                             </li>
                         </ul>
+                        <div id="slgMismatchBar" class="slg-mismatch-bar" hidden>
+                            <p class="slg-mismatch-bar__text"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Die Mitgliederzahlen weichen ab.</p>
+                            <div id="slgMismatchActions" class="slg-mismatch-bar__actions"></div>
+                        </div>
+                        <div id="slgDeviationPanel" class="slg-deviation-panel" hidden aria-live="polite">
+                            <div class="slg-deviation-panel__head">
+                                <h3 id="slgDeviationTitle" class="slg-deviation-panel__title">Abgleich</h3>
+                                <div class="slg-deviation-panel__head-actions">
+                                    <button type="button" class="btn btn-sm" id="slgMrReload" title="Abgleich neu laden"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                    <button type="button" class="btn btn-sm" id="slgDeviationClose" title="Panel schließen"><i class="bi bi-x-lg"></i>Schließen</button>
+                                </div>
+                            </div>
+                            <p id="slgDeviationSummary" class="muted slg-deviation-panel__summary"></p>
+                            <div id="slgDeviationActions" hidden aria-hidden="true">
+                                <button type="button" class="btn btn-sm btn-success" id="slgMrAddToGroup"><i class="bi bi-cloud-upload"></i>In Gruppe aufnehmen</button>
+                                <button type="button" class="btn btn-sm" id="slgMrImportLocal"><i class="bi bi-box-arrow-in-down"></i>In Schul-Liste importieren…</button>
+                                <button type="button" class="btn btn-sm btn-danger" id="slgMrRemoveFromGroup"><i class="bi bi-person-dash"></i>Aus Gruppe entfernen</button>
+                            </div>
+                            <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
+                        </div>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
                             <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;">
                                 <i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung öffnen
@@ -124,11 +144,16 @@
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/action-log.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <script type="module" src="../src/shared/student-class-lifecycle.js"></script>
+    <script type="module" src="../src/shared/membership-reconcile.js"></script>
+    <script type="module" src="../src/shared/membership-import-ui.js"></script>
+    <script type="module" src="../src/shared/membership-review-render.js"></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-gruppenverwaltung.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>

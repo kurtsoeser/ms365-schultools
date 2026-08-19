@@ -23,7 +23,7 @@
  *    - User.Read (Profil des angemeldeten Benutzers / für GET /me)
  *    - Group.Read.All (optional, lesende Reports: „Leere Gruppen“, „Gast-Zugänge“-Teamliste; sonst deckt Group.ReadWrite.All)
  *    - AuditLog.Read.All (optional, Werkzeug „Gast-Zugänge“: B2B-Einladungen aus Verzeichnis-Audit; GET /invitations existiert in Graph nicht)
- *    - TeamSettings.ReadWrite.All („Teams archivieren“ und Schulstruktur-Sync → Tenant-Details → Team-Archiv per Update: POST …/teams/{id}/archive|unarchive)
+ *    - TeamSettings.ReadWrite.All („Teams archivieren“, Team-Bild mit Gruppenfoto synchronisieren, Schulstruktur-Sync → Tenant-Details → Team-Archiv per Update: POST …/teams/{id}/archive|unarchive)
  *    - SharePointTenantSettings.Read.All / SharePointTenantSettings.ReadWrite.All (Werkzeuge „SharePoint – Websiteerstellung“ und „SharePoint – Mandanten-Freigaben“)
  *    - Sites.Read.All, Sites.Create.All (Sites.Read.All u. a. für „Hostname per Graph“ in „Intranet & Hub“ und „Mandanten-Freigaben“; Create nur Intranet)
  *    - Sites.ReadWrite.All (SharePoint-Listen „Lehrerliste“ / „Schultermine“: Site auflösen, Liste und Spalten anlegen, ggf. Zeilen schreiben)
@@ -43,4 +43,15 @@ window.MS365_MSAL_CONFIG = {
      * Standard: aktuelle Seiten-URL ohne Hash (Anker).
      */
     redirectUri: typeof window !== 'undefined' ? window.location.href.split('#')[0] : ''
+};
+
+/**
+ * Kursteams Azure-Backend (Schritt 6 – Online-Anlage).
+ * functionKey: Azure Portal → func-ms365-kursteams-dev → App-Schlüssel → default
+ * Nicht in öffentliche Repos committen, wenn der Key geheim bleiben soll.
+ */
+window.MS365_KURSTEAMS_API = {
+    baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
+    functionKey: '',
+    tenantId: '1fd37d8a-2972-44d2-afcb-81ae47a5bc98'  // Fallback; sonst Mandant der angemeldeten Person
 };

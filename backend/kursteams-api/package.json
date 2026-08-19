@@ -1,0 +1,23 @@
+{
+  "name": "ms365-kursteams-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Azure Functions API – Kursteams anlegen via Microsoft Graph (App-Only)",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "func start",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.0",
+    "@azure/msal-node": "^2.16.2",
+    "@azure/storage-blob": "^12.26.0",
+    "@azure/storage-queue": "^12.25.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.0"
+  }
+}

@@ -149,12 +149,21 @@ describe('app-data-v2 setup', () => {
         expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 2, _einrichtungWizardLayout: 7 }).wizardStep).toBe(2);
     });
 
-    it('normalizeSetup allows wizardStep 9 and layout 9', () => {
+    it('normalizeSetup migriert layout9/10 wizardStep 6–9 um +2 auf layout11', () => {
         const ctx = loadAppDataV2(store);
-        const n = ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 9, _einrichtungWizardLayout: 9 });
-        expect(n.wizardStep).toBe(9);
-        expect(n._einrichtungWizardLayout).toBe(9);
-        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 8, _einrichtungWizardLayout: 8 }).wizardStep).toBe(8);
+        // layout9 hatte 9 Schritte; Schritte 6–9 werden auf layout11 (11 Schritte) verschoben (+2)
+        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 9, _einrichtungWizardLayout: 9 }).wizardStep).toBe(11);
+        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 8, _einrichtungWizardLayout: 9 }).wizardStep).toBe(10);
+        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 6, _einrichtungWizardLayout: 9 }).wizardStep).toBe(8);
+        // Schritte 1–5 bleiben unverändert
+        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 5, _einrichtungWizardLayout: 9 }).wizardStep).toBe(5);
+        // layout10 verhält sich genauso
+        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 8, _einrichtungWizardLayout: 10 }).wizardStep).toBe(10);
+        // layout11 (aktuell) – keine Migration
+        expect(ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 9, _einrichtungWizardLayout: 11 }).wizardStep).toBe(9);
+        // Ergebnis trägt immer layout11
+        const n = ctx.ms365AppDataV2.normalizeSetup({ wizardStep: 3, _einrichtungWizardLayout: 9 });
+        expect(n._einrichtungWizardLayout).toBe(11);
     });
 
     it('patchSetup preserves catalogLinks when omitted in partial', () => {

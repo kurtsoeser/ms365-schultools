@@ -48,6 +48,15 @@ window.MS365_MSAL_CONFIG = {
     })()
 };
 
+/**
+ * Kursteams Azure-Backend – functionKey aus Azure Portal eintragen (App-Schlüssel → default).
+ */
+window.MS365_KURSTEAMS_API = {
+    baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
+    functionKey: '',
+    tenantId: '1fd37d8a-2972-44d2-afcb-81ae47a5bc98'  // Fallback; sonst Mandant der angemeldeten Person
+};
+
 (function () {
     if (typeof document === 'undefined') return;
 
@@ -83,23 +92,69 @@ window.MS365_MSAL_CONFIG = {
         }
     }
 
+    function ensureFooterContainer() {
+        let footer = document.getElementById('ms365FixedFooter');
+        if (footer) return footer;
+        footer = document.createElement('div');
+        footer.id = 'ms365FixedFooter';
+        footer.className = 'app-fixed-footer';
+
+        const left = document.createElement('div');
+        left.id = 'ms365FixedFooterLeft';
+        left.className = 'app-fixed-footer__left';
+
+        const right = document.createElement('div');
+        right.id = 'ms365FixedFooterRight';
+        right.className = 'app-fixed-footer__right';
+
+        footer.appendChild(left);
+        footer.appendChild(right);
+        document.body.appendChild(footer);
+        return footer;
+    }
+
+    function moveFooterItemsIntoFooter() {
+        const footer = ensureFooterContainer();
+        const left = footer.querySelector('#ms365FixedFooterLeft');
+        const right = footer.querySelector('#ms365FixedFooterRight');
+        if (!left || !right) return;
+
+        const siteCredit = document.querySelector('.site-credit-row');
+        const helpRow = document.querySelector('.header-help-row');
+        const stamp = document.getElementById('ms365AppPublishedStamp');
+
+        if (siteCredit && siteCredit.parentElement !== left) left.appendChild(siteCredit);
+        if (stamp && stamp.parentElement !== right) right.appendChild(stamp);
+        if (helpRow && helpRow.parentElement !== right) right.appendChild(helpRow);
+    }
+
     function injectSiteCredit() {
-        if (document.getElementById('siteCreditKurtrocks')) return;
-        const p = document.createElement('p');
+        let p = document.getElementById('siteCreditKurtrocks') || document.querySelector('.site-credit-row');
+        if (!p) {
+            p = document.createElement('p');
+            p.className = 'site-credit-row';
+            document.body.appendChild(p);
+        }
         p.id = 'siteCreditKurtrocks';
-        p.className = 'site-credit-row';
-        const a = document.createElement('a');
-        a.className = 'site-credit-link';
-        a.href = 'https://www.kurtrocks.com/';
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        const icon = document.createElement('i');
-        icon.className = 'bi bi-info-circle';
-        icon.setAttribute('aria-hidden', 'true');
-        a.appendChild(icon);
-        a.appendChild(document.createTextNode('kurtrocks.com'));
-        p.appendChild(a);
-        document.body.appendChild(p);
+
+        let a = p.querySelector('.site-credit-link');
+        if (!a) {
+            a = document.createElement('a');
+            a.className = 'site-credit-link';
+            a.href = 'https://www.kurtrocks.com/';
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-info-circle';
+            icon.setAttribute('aria-hidden', 'true');
+            a.appendChild(icon);
+            a.appendChild(document.createTextNode('kurtrocks.com'));
+            p.appendChild(a);
+        }
+        a.title = 'Ein Projekt von Kurt Söser';
+        a.setAttribute('aria-label', 'kurtrocks.com - Ein Projekt von Kurt Söser');
+
+        moveFooterItemsIntoFooter();
         try {
             if (window.ms365Theme && typeof window.ms365Theme.mount === 'function') {
                 window.ms365Theme.mount();
@@ -112,9 +167,11 @@ window.MS365_MSAL_CONFIG = {
         document.addEventListener('DOMContentLoaded', () => {
             ensureGlobalAuthUi();
             injectSiteCredit();
+            moveFooterItemsIntoFooter();
         });
     } else {
         ensureGlobalAuthUi();
         injectSiteCredit();
+        moveFooterItemsIntoFooter();
     }
 })();

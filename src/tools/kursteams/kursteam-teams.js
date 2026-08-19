@@ -1,4 +1,5 @@
 import './kursteam-utils.js';
+import './kursteam-step-nav.js';
 import './kursteam-team-names.js';
 import './kursteam-filter-logic.js';
 import './kursteam-subject-filter-logic.js';
@@ -17,6 +18,7 @@ import './kursteam-teacher-mapping.js';
 import './kursteam-members.js';
 import './kursteam-steps-export.js';
 import './kursteam-graph.js';
+import './kursteam-backend.js';
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 

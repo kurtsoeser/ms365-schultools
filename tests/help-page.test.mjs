@@ -103,6 +103,7 @@ describe('Hilfe-Seite', () => {
             'sharepoint-mandant-website': 'tool-sharepoint-website',
             'sharepoint-mandant-teilen': 'tool-sharepoint-teilen',
             'schulstruktur-sync': 'tool-schulstruktur',
+            datenhygiene: 'tool-datenhygiene',
             'leere-gruppen-report': 'tool-leere-gruppen'
         };
         toolIds.forEach(function (id) {

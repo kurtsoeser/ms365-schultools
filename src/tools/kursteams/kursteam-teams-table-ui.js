@@ -190,8 +190,7 @@ function render(ns) {
 
     document.getElementById('teamsTableContainer').style.display = 'block';
     document.getElementById('validationResults').style.display = 'block';
-    const c4 = document.getElementById('continueBtn4');
-    if (c4) c4.style.display = 'inline-block';
+    if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
 
     const manRow = document.getElementById('kursteamManualAddRow');
     if (manRow) manRow.style.display = ns.teamsGenerated ? '' : 'none';

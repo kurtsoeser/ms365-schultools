@@ -14,6 +14,8 @@ function buildTeamEntriesFromRows(rows, options) {
     const pattern = options.pattern;
     const combineClassNames = options.combineClassNames;
     const buildGruppenmailBase = options.buildGruppenmailBase;
+    const formatKlasseSegmentForGruppenmail = options.formatKlasseSegmentForGruppenmail;
+    const sanitizeGruppeForMail = options.sanitizeGruppeForMail;
     const INVALID_CHARS_REPLACE = options.INVALID_CHARS_REPLACE;
     const INVALID_CHARS_TEST = options.INVALID_CHARS_TEST;
     const teacherEmailMapping = options.teacherEmailMapping || {};
@@ -40,7 +42,19 @@ function buildTeamEntriesFromRows(rows, options) {
         } catch {
             // ignore
         }
-        const gruppenmailRaw = buildGruppenmailBase(yearPrefix, klasseForGruppenmail, row.fach, row.gruppe).replace(/\s+/g, '-');
+        const mailCtx = {
+            yearPrefix,
+            klasse: klasseForGruppenmail,
+            fach: row.fach,
+            gruppe: row.gruppe
+        };
+        const mailHelpers = {
+            formatKlasse: formatKlasseSegmentForGruppenmail,
+            sanitizeGruppe: sanitizeGruppeForMail
+        };
+        const gruppenmailRaw = pattern && typeof KT.buildGruppenmailFromPattern === 'function'
+            ? KT.buildGruppenmailFromPattern(pattern, mailCtx, mailHelpers)
+            : buildGruppenmailBase(yearPrefix, klasseForGruppenmail, row.fach, row.gruppe);
 
         const originalGruppenmail = gruppenmailRaw;
         let gruppenmail = gruppenmailRaw.replace(INVALID_CHARS_REPLACE, '');
