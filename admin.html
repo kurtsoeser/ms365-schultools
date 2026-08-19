@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schulverwaltung – Admin</title>
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <script src="access-config.js"></script>
+    <script src="src/shared/pin-gate.js"></script>
+</head>
+<body data-ms365-skip-tenant-domain-prompt="true">
+    <div class="container page-card">
+        <div class="header">
+            <h1>MS365-Schulverwaltung – Admin</h1>
+            <p style="color: var(--muted); line-height: 1.5;">
+                Hinweis: Diese App ist serverlos. Admin-Änderungen (PINs / Release-Notes) werden in <code>localStorage</code> gespeichert und gelten nur in diesem Browserprofil.
+            </p>
+            <div class="toolbar">
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <a class="btn" href="welcome.html" style="text-decoration:none;display:inline-block;">
+                        <i class="bi bi-arrow-left"></i>Zurück
+                    </a>
+                    <button type="button" class="btn btn-danger" id="adminLogoutBtn">
+                        <i class="bi bi-box-arrow-right"></i>Admin-Session beenden
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="settings" aria-label="User-PIN Verwaltung">
+                <h2>User-Zugänge (PINs)</h2>
+
+                <div class="field">
+                    <label for="adminAccessEnabled">PIN-Sperre aktiv</label>
+                    <input type="checkbox" id="adminAccessEnabled" checked>
+                </div>
+
+                <div class="field">
+                    <label for="adminUserPinsText">Gültige User-PINs (eine pro Zeile)</label>
+                    <textarea id="adminUserPinsText" placeholder="z.B. Schul-PIN"></textarea>
+                </div>
+
+                <div class="settings-actions" style="margin-top: 12px;">
+                    <button type="button" class="btn" id="adminSavePinsBtn">
+                        <i class="bi bi-floppy"></i>PINs speichern
+                    </button>
+                </div>
+
+                <div class="settings-actions" style="margin-top: 12px;">
+                    <button type="button" class="btn" id="adminExportAccessBtn" title="JSON-Export für neue Schulen (ohne Server)">
+                        <i class="bi bi-download"></i>Export (neue Schule)
+                    </button>
+
+                    <label class="btn" for="adminImportAccessFile" style="cursor:pointer;">
+                        <i class="bi bi-upload"></i>Import (JSON)
+                    </label>
+                    <input type="file" id="adminImportAccessFile" accept="application/json,.json" style="display:none;">
+
+                    <button type="button" class="btn btn-success" id="adminImportAccessBtn">
+                        <i class="bi bi-box-arrow-in-right"></i>Import ausführen
+                    </button>
+                </div>
+            </section>
+
+            <section class="settings" aria-label="Release Notes" style="margin-top: 18px;">
+                <h2>Release Notes</h2>
+
+                <div class="tile">
+                    <div class="tile-head">
+                        <h3 class="tile-title">Neue Einträge</h3>
+                        <p class="tile-subtitle">Wer neue PINs hat, sieht die Neuerungen beim nächsten Öffnen.</p>
+                    </div>
+
+                    <div class="field">
+                        <label for="adminReleaseTitleInput">Titel</label>
+                        <input type="text" id="adminReleaseTitleInput" placeholder="z.B. Update Kursteams" />
+                    </div>
+
+                    <div class="field">
+                        <label for="adminReleaseBodyInput">Text</label>
+                        <textarea id="adminReleaseBodyInput" placeholder="Kurzbeschreibung (Markdown-frei, Text vorformatiert)"></textarea>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button type="button" class="btn" id="adminAddReleaseNoteBtn">
+                            <i class="bi bi-plus-circle"></i>Release-Note hinzufügen
+                        </button>
+                        <button type="button" class="btn btn-danger" id="adminClearReleaseNotesBtn">
+                            <i class="bi bi-trash"></i>Release-Notes löschen
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <h3 style="margin: 0 0 10px; font-size: 1.08em; color: #32325d; font-weight: 900;">
+                        Aktuelle Release Notes
+                    </h3>
+                    <div id="adminReleaseNotesList"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script type="module" src="src/shared/admin-panel.js"></script>
+    <script src="src/shared/theme-toggle.js" defer></script>
+</body>
+</html>
+

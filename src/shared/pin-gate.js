@@ -3,6 +3,39 @@
 
     var script = document.currentScript;
     var SESSION_KEY = 'ms365-access-granted-v1';
+    var ADMIN_SESSION_KEY = 'ms365-admin-access-granted-v1';
+    var ACCESS_OVERRIDE_KEY = 'ms365-schooltool-access-override-v1';
+
+    function safeLoadJson(key) {
+        try {
+            var raw = localStorage.getItem(key);
+            if (!raw) return null;
+            return JSON.parse(String(raw));
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function effectiveUserAccessConfig(config) {
+        var override = safeLoadJson(ACCESS_OVERRIDE_KEY);
+        var enabled =
+            override && typeof override.enabled === 'boolean'
+                ? override.enabled
+                : !!(config && config.enabled !== false);
+
+        var pinsFromOverride = override && Array.isArray(override.pins) ? override.pins : null;
+        var pins =
+            pinsFromOverride && pinsFromOverride.length ? pinsFromOverride : config && Array.isArray(config.pins) ? config.pins : [];
+
+        return { enabled: enabled, pins: pins };
+    }
+
+    function adminPinsFromConfig(config) {
+        if (!config) return [];
+        if (Array.isArray(config.adminPins) && config.adminPins.length) return config.adminPins;
+        if (typeof config.adminPin === 'string' && config.adminPin) return [config.adminPin];
+        return [];
+    }
 
     function injectScript(fileName, marker, asModule) {
         try {
@@ -35,9 +68,30 @@
     var isHelpPage = /\/hilfe\.html(?:\?|#|$)/i.test(location.pathname);
 
     var config = typeof window !== 'undefined' ? window.MS365_ACCESS_CONFIG : null;
-    var needsPin =
-        !!(config && config.enabled !== false && Array.isArray(config.pins) && config.pins.length);
-    if (!isHelpPage && needsPin && sessionStorage.getItem(SESSION_KEY) !== '1') {
+
+    var isAdminPage = /\/admin\.html(?:\?|#|$)/i.test(location.pathname);
+    if (isAdminPage) {
+        var adminPins = adminPinsFromConfig(config);
+        var needsAdminGate = !!(config && config.enabled !== false);
+        if (!isHelpPage && needsAdminGate && sessionStorage.getItem(ADMIN_SESSION_KEY) !== '1') {
+            var welcomeAdmin = 'welcome.html';
+            if (script && script.src) {
+                try {
+                    welcomeAdmin = new URL('../../welcome.html', script.src).href;
+                } catch (e) {
+                    /* keep relative fallback */
+                }
+            }
+            var retAdmin = location.pathname + location.search + location.hash;
+            var sepA = welcomeAdmin.indexOf('?') >= 0 ? '&' : '?';
+            location.replace(welcomeAdmin + sepA + 'return=' + encodeURIComponent(retAdmin) + '&mode=admin');
+            return;
+        }
+    }
+
+    var userAccess = effectiveUserAccessConfig(config);
+    var needsPin = !!(userAccess && userAccess.enabled !== false && Array.isArray(userAccess.pins) && userAccess.pins.length);
+    if (!isAdminPage && !isHelpPage && needsPin && sessionStorage.getItem(SESSION_KEY) !== '1') {
         var welcome = 'welcome.html';
         if (script && script.src) {
             try {

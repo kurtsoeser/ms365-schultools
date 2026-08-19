@@ -40,6 +40,7 @@ export default defineConfig(() => {
       rollupOptions: {
         input: {
           welcome: resolve(__dirname, 'welcome.html'),
+          admin: resolve(__dirname, 'admin.html'),
           index: resolve(__dirname, 'index.html'),
           schooltool: resolve(__dirname, 'ms365-schooltool.html'),
           tenant: resolve(__dirname, 'tenant.html'),

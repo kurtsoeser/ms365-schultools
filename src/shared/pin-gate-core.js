@@ -4,6 +4,8 @@
 
 export const SESSION_KEY = 'ms365-access-granted-v1';
 
+export const ADMIN_SESSION_KEY = 'ms365-admin-access-granted-v1';
+
 /** @param {Storage} [storage] */
 export function isAccessGranted(storage = sessionStorage) {
     return storage.getItem(SESSION_KEY) === '1';
@@ -17,6 +19,21 @@ export function grantAccess(storage = sessionStorage) {
 /** @param {Storage} [storage] */
 export function revokeAccess(storage = sessionStorage) {
     storage.removeItem(SESSION_KEY);
+}
+
+/** @param {Storage} [storage] */
+export function isAdminAccessGranted(storage = sessionStorage) {
+    return storage.getItem(ADMIN_SESSION_KEY) === '1';
+}
+
+/** @param {Storage} [storage] */
+export function grantAdminAccess(storage = sessionStorage) {
+    storage.setItem(ADMIN_SESSION_KEY, '1');
+}
+
+/** @param {Storage} [storage] */
+export function revokeAdminAccess(storage = sessionStorage) {
+    storage.removeItem(ADMIN_SESSION_KEY);
 }
 
 /** @param {unknown} pin */

@@ -51,6 +51,71 @@
             line-height: 1.35;
         }
 
+        /* Status-Kachel */
+        .ts-status-tile {
+            background: var(--soft, #f8f9fa);
+            padding: 12px 16px 10px;
+        }
+        .ts-status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .ts-status-title {
+            font-weight: 700;
+            font-size: 0.97em;
+            color: #32325d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ts-status-refresh {
+            padding: 3px 8px;
+            font-size: 0.82em;
+            opacity: 0.7;
+        }
+        .ts-status-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .ts-status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.83em;
+            font-weight: 600;
+            line-height: 1.3;
+            white-space: nowrap;
+            cursor: default;
+        }
+        .ts-status-chip--ok {
+            background: color-mix(in srgb, #0d8050 12%, transparent);
+            color: #0d8050;
+        }
+        .ts-status-chip--warn {
+            background: color-mix(in srgb, #f59f00 14%, transparent);
+            color: #7a5000;
+        }
+        .ts-status-chip--error {
+            background: color-mix(in srgb, #c0392b 12%, transparent);
+            color: #a93226;
+        }
+        .ts-status-chip--muted {
+            background: color-mix(in srgb, #6c757d 12%, transparent);
+            color: #6c757d;
+        }
+        .ts-status-chip[title] { cursor: help; }
+        .ts-status-chip i { font-size: 1em; }
+        .ts-status-footer {
+            margin: 8px 0 0;
+            font-size: 0.78em;
+            color: var(--muted);
+        }
+
         .settings h2 {
             margin: 0 0 8px;
             font-size: 1.25em;
@@ -208,6 +273,17 @@
         .tabs {
             margin-top: 0;
             margin-bottom: 4px;
+        }
+        .tabs--reorderable .tab-btn[draggable="true"] {
+            cursor: grab;
+        }
+        .tabs--reorderable .tab-btn.is-dragging {
+            opacity: 0.55;
+            cursor: grabbing;
+        }
+        .tabs--reorderable .tab-btn.is-drop-target {
+            outline: 2px dashed rgba(94, 114, 228, 0.45);
+            outline-offset: 2px;
         }
         .tab-btn > i {
             font-size: 1.08rem;
@@ -424,78 +500,57 @@
                 <form id="tenantSettingsForm" onsubmit="return false;">
                     <div class="ts-settings-head">
                         <div class="ts-settings-intro">
-                            <p>Diese <strong>Zentrale</strong> speichert Daten <strong>lokal im Browser</strong>. <strong>Stammdaten</strong> (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) gelten <strong>schulweit</strong> und ändern sich in der Regel selten. <strong>Schüler:innen, Klassen</strong> und <strong>Klassen‑Gruppen (Microsoft 365)</strong> orientieren sich am <strong>Schuljahr</strong> (oben rechts neben „Quellen &amp; Werkzeuge“).</p>
+                            <p>Diese <strong>Zentrale</strong> speichert Daten <strong>lokal im Browser</strong>. <strong>Stammdaten</strong> (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) gelten <strong>schulweit</strong> und ändern sich in der Regel selten. <strong>Schüler:innen, Klassen</strong> und <strong>Klassen‑Gruppen (Microsoft 365)</strong> orientieren sich am gewählten <strong>Schuljahr</strong>.</p>
                             <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Mit <strong>Browser-Backup</strong> übertragen Sie alle lokalen Daten in einen anderen Browser (Microsoft-Anmeldung nicht enthalten).</p>
                         </div>
                     </div>
-                    <div class="ts-hub-year-row">
-                        <div class="settings-module ts-hub-tools" aria-label="Weitere Einstiegspunkte">
-                            <h3>Quellen &amp; Werkzeuge</h3>
-                            <p style="margin:0 0 10px;color:var(--muted);font-size:0.92em;line-height:1.4;">Daten können hier gepflegt oder in der Einrichtung bzw. Gruppenverwaltung importiert und übernommen werden.</p>
-                            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                                <a class="btn btn-success" href="einrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Geführte Einrichtung <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-                                <a class="btn" href="tools/schulstruktur-sync.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">MS 365 Gruppenverwaltung <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                                <a class="btn" href="ersteinrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Experten‑Ansicht <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                            </div>
-                            <details id="tenantActionLogPanel" style="margin-top:12px;">
-                                <summary style="cursor:pointer;font-weight:800;color:var(--ink);">Aktionsprotokoll (lokal)</summary>
-                                <p class="muted" style="margin:8px 0;font-size:0.92em;line-height:1.4;">Was diese App in Microsoft 365 geschrieben hat – nur in diesem Browser, ohne Server.</p>
-                                <ul id="tenantActionLogList" style="margin:0 0 10px;padding-left:1.2em;line-height:1.45;max-height:220px;overflow:auto;"></ul>
-                                <div class="settings-actions">
-                                    <button type="button" class="btn" id="tenantActionLogRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
-                                    <button type="button" class="btn" id="tenantActionLogExport"><i class="bi bi-download"></i>JSON exportieren</button>
-                                    <button type="button" class="btn" id="tenantActionLogClear">Protokoll leeren</button>
-                                </div>
-                            </details>
+
+                    <!-- Status-Übersicht: Was fehlt noch? -->
+                    <section class="tile ts-status-tile" id="tenantStatusOverview" aria-label="Übersicht: Was fehlt noch?">
+                        <div class="ts-status-header">
+                            <span class="ts-status-title"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Status</span>
+                            <button type="button" class="btn ts-status-refresh" id="tenantStatusRefresh" title="Übersicht aktualisieren" aria-label="Status-Übersicht aktualisieren">
+                                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                            </button>
                         </div>
-                        <div class="ts-year-strip" aria-label="Aktuelles Schuljahr">
-                            <div class="ts-year-strip__inner">
-                                <label class="ts-year-strip__title" for="schoolYearSelect">
-                                    <i class="bi bi-calendar3" aria-hidden="true"></i>
-                                    Schuljahr
-                                </label>
-                                <div class="ts-year-strip__controls">
-                                    <select id="schoolYearSelect" class="ts-year-strip__select" aria-describedby="schoolYearStripHint"></select>
-                                    <button type="button" class="btn ts-year-strip__add" id="schoolYearAddBtn" title="Weiteres Schuljahr anlegen" aria-label="Neues Schuljahr anlegen"><i class="bi bi-plus-lg" aria-hidden="true"></i><span class="ts-year-strip__add-text"> Schuljahr</span></button>
-                                </div>
-                                <p id="schoolYearStripHint" class="ts-year-strip__hint">Gilt für Schüler:innen, Klassen und Klassen‑Gruppen. Stammdaten (Domain, Fächer, …) sind schulweit und unabhängig vom Schuljahr.</p>
+                        <div class="ts-status-grid" id="tenantStatusGrid">
+                            <!-- wird per JS befüllt -->
+                        </div>
+                        <p class="ts-status-footer" id="tenantStatusLastCheck"></p>
+                    </section>
+
+                    <section class="tile" aria-label="Bereiche der Schul-Grundeinstellungen">
+                        <div class="tabs tabs--reorderable" id="tenantMainTabs" role="tablist" aria-label="Schul-Grundeinstellungen: Hauptbereiche">
+                            <button type="button" class="tab-btn" id="tabMainStammdaten" role="tab" aria-selected="true" aria-controls="panelMainStammdaten"><i class="bi bi-journal-text" aria-hidden="true"></i>Stammdaten</button>
+                            <button type="button" class="tab-btn" id="tabMainSubjects" role="tab" aria-selected="false" aria-controls="panelMainSubjects"><i class="bi bi-journal-text" aria-hidden="true"></i>Fächer</button>
+                            <button type="button" class="tab-btn" id="tabMainArges" role="tab" aria-selected="false" aria-controls="panelMainArges"><i class="bi bi-diagram-3" aria-hidden="true"></i>ARGE</button>
+                            <button type="button" class="tab-btn" id="tabMainLehrer" role="tab" aria-selected="false" aria-controls="panelMainLehrer"><i class="bi bi-person-workspace" aria-hidden="true"></i>Lehrer</button>
+                            <button type="button" class="tab-btn" id="tabMainKlassen" role="tab" aria-selected="false" aria-controls="panelMainKlassen"><i class="bi bi-mortarboard" aria-hidden="true"></i>Klassen</button>
+                            <button type="button" class="tab-btn" id="tabMainSchueler" role="tab" aria-selected="false" aria-controls="panelStudentsData"><i class="bi bi-people" aria-hidden="true"></i>Schüler</button>
+                            <button type="button" class="tab-btn" id="tabMainSchuelervertretung" role="tab" aria-selected="false" aria-controls="panelStudentCouncilData"><i class="bi bi-megaphone" aria-hidden="true"></i>Schülervertretung</button>
+                            <button type="button" class="tab-btn" id="tabMainVerwaltung" role="tab" aria-selected="false" aria-controls="panelMainVerwaltung"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</button>
+                            <button type="button" class="tab-btn" id="tabMainSga" role="tab" aria-selected="false" aria-controls="panelMainSga"><i class="bi bi-megaphone" aria-hidden="true"></i>SGA</button>
+                            <button type="button" class="tab-btn" id="tabMainWerkzeuge" role="tab" aria-selected="false" aria-controls="panelMainWerkzeuge"><i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Werkzeuge</button>
+                        </div>
+
+                        <div id="panelMainStammdaten" class="tab-panel active" role="tabpanel" aria-labelledby="tabMainStammdaten">
+                            <div class="field">
+                                <label for="schoolName">Schulname</label>
+                                <input type="text" id="schoolName" placeholder="z. B. MS Musterstadt" autocomplete="off">
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Freie Bezeichnung der Schule für die lokalen Stammdaten dieser App.
+                                </small>
+                            </div>
+                            <div class="field">
+                                <label for="schoolEmailDomain">E-Mail-Domain der Schule (ohne @)</label>
+                                <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off">
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Wird für Vorschauen und automatische E-Mail-Erzeugung genutzt (z. B. <code>Kürzel@domain</code>).
+                                </small>
                             </div>
                         </div>
-                    </div>
 
-                    <details class="ts-step" id="tenantStep1" open>
-                        <summary>
-                            <div class="ts-step-title">
-                                <span class="ts-step-n" aria-hidden="true"><i class="bi bi-building"></i></span>
-                                <div style="min-width:0;">
-                                    <div class="ts-step-label">Stammdaten (schulweit)</div>
-                                    <div class="ts-step-desc">E-Mail-Domain und darunter vier Tabs: Fächer, ARGE, Lehrkräfte, Verwaltung (schuljahrunabhängig)</div>
-                                </div>
-                            </div>
-                            <span class="ts-step-chevron">▾</span>
-                        </summary>
-                        <div class="ts-step-body">
-                            <section class="tile" aria-label="Stammdaten der Schule">
-                                <div class="tile-head">
-                                    <h3 class="tile-title">Stammdaten</h3>
-                                    <p class="tile-subtitle">Gelten für <strong>alle Schuljahre</strong> und alle Tools, die diese Listen lesen. Import (CSV/XLSX), Vorlagen und Tabellenbearbeitung per Doppelklick.</p>
-                                </div>
-                                <div class="field">
-                                    <label for="schoolEmailDomain">E-Mail-Domain der Schule (ohne @)</label>
-                                    <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off">
-                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                        Wird für Vorschauen und automatische E-Mail-Erzeugung genutzt (z. B. <code>Kürzel@domain</code>).
-                                    </small>
-                                </div>
-
-                                <div class="tabs" role="tablist" aria-label="Grundeinstellungen: Stammdaten" style="margin-top:14px;">
-                                    <button type="button" class="tab-btn" id="tabSubjects" role="tab" aria-selected="true" aria-controls="panelSubjects"><i class="bi bi-journal-text" aria-hidden="true"></i>Fächer</button>
-                                    <button type="button" class="tab-btn" id="tabArges" role="tab" aria-selected="false" aria-controls="panelArges"><i class="bi bi-diagram-3" aria-hidden="true"></i>ARGE</button>
-                                    <button type="button" class="tab-btn" id="tabTeachers" role="tab" aria-selected="false" aria-controls="panelTeachers"><i class="bi bi-person-chalkboard" aria-hidden="true"></i>Lehrer</button>
-                                    <button type="button" class="tab-btn" id="tabVerwaltung" role="tab" aria-selected="false" aria-controls="panelVerwaltung"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</button>
-                                </div>
-
-                        <div id="panelSubjects" class="tab-panel active" role="tabpanel" aria-labelledby="tabSubjects">
+                            <div id="panelMainSubjects" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSubjects">
                             <div class="field">
                                 <label for="tenantSubjectsLines">Fächerliste (eine Zeile pro Fach)</label>
                                 <textarea id="tenantSubjectsLines" placeholder="D;Deutsch&#10;M;Mathematik&#10;E;Englisch"></textarea>
@@ -527,7 +582,7 @@
                             </div>
                         </div>
 
-                        <div id="panelArges" class="tab-panel" role="tabpanel" aria-labelledby="tabArges">
+                            <div id="panelMainArges" class="tab-panel" role="tabpanel" aria-labelledby="tabMainArges">
                             <div class="field">
                                 <label for="tenantArgesLines">Arbeitsgruppen / ARGE (eine Zeile pro ARGE)</label>
                                 <textarea id="tenantArgesLines" spellcheck="false" placeholder="SPRACHEN;Sprachen;D,E&#10;NAWI;Naturwissenschaften;BIO,CH,PH"></textarea>
@@ -560,7 +615,117 @@
                             </div>
                         </div>
 
-                        <div id="panelTeachers" class="tab-panel" role="tabpanel" aria-labelledby="tabTeachers">
+                        <div id="panelMainVerwaltung" class="tab-panel" role="tabpanel" aria-labelledby="tabMainVerwaltung">
+                            <div class="field">
+                                <label for="tenantAdminBundleLines">Verwaltung</label>
+                                <textarea id="tenantAdminBundleLines" spellcheck="false" placeholder="Direktion;DIR;Herbert Mittendorfer;direktion@schule.at&#10;Schulwart;SCHULWART;Robert Reininger;robert@schule.at&#10;Schulwart;SCHULWART;Zweite Person;zweite@schule.at&#10;Sekretariat;SEKRETARIAT;;"></textarea>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Pro Zeile: <code>Bezeichnung;Kürzel;Person;E-Mail</code>. Dieselbe Bezeichnung kann mehrfach vorkommen, wenn mehrere Personen dieselbe Funktion haben. Person und E-Mail dürfen leer bleiben.
+                                </small>
+                            </div>
+
+                            <!--
+                                Kompatibilitäts-Markup:
+                                `tenant-settings-ui.js` erwartet optional auch eine „Rollenkatalog/Personen“-Ansicht
+                                mit diesen IDs (u. a. für automatische Tests). Die aktuelle UI nutzt
+                                hauptsächlich `tenantAdminBundleLines`, daher bleibt diese Sektion verborgen.
+                            -->
+                            <div style="display:none;">
+                                <label for="tenantAdminRoleLines">Personen (eine Zeile pro Person)</label>
+                                <textarea id="tenantAdminRoleLines" spellcheck="false"></textarea>
+                                <button type="button" id="tenantAdminRoleAddRow"></button>
+                                <table>
+                                    <tbody id="tenantAdminRolesTableBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="field" style="margin-top:18px;">
+                                <label>Verwaltungstabelle</label>
+                                <div class="teachers-table-wrap" aria-label="Verwaltungstabelle" style="margin-top:12px;">
+                                    <table class="teachers-table" aria-label="Verwaltung" style="min-width:920px;">
+                                        <thead>
+                                            <tr>
+                                                <th>Bezeichnung</th>
+                                                <th>Kürzel</th>
+                                                <th>Person</th>
+                                                <th>E-Mail</th>
+                                                <th title="Microsoft-365-Abgleich">M365</th>
+                                                <th class="action-cell">Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tenantAdminUnifiedTableBody">
+                                            <tr><td colspan="6" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Eintrag“.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="tenantAdminAddRow"><i class="bi bi-plus-circle"></i>Eintrag</button>
+                                    <button type="button" class="btn" id="tenantAdminRolesDefaults"><i class="bi bi-arrow-counterclockwise"></i>Standardbezeichnungen</button>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyVerwaltungGraph" title="Alle E-Mail-Adressen in der Verwaltung in Microsoft Entra prüfen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panelMainSga" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSga">
+                            <div class="field">
+                                <label for="tenantSgaMode">SGA: Typ</label>
+                                <select id="tenantSgaMode" style="padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                    <option value="group">Microsoft-365-Gruppe</option>
+                                    <option value="distribution">E-Mail-Verteilerliste</option>
+                                </select>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Der SGA kommt an jeder Schule vor. Hier pflegen Sie zuerst die gewünschte Art und darunter die Mitglieder.
+                                </small>
+                            </div>
+                            <div class="field" style="margin-top:18px;">
+                                <label>SGA-Gruppe in Microsoft 365</label>
+                                <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;">
+                                    <span id="tenantSgaGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifySgaGroup" title="SGA-Gruppe in Microsoft 365 anhand erwarteter Mail-Nickname/Name suchen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="tenantBtnCreateSgaGroup" title="SGA-Gruppe in Microsoft 365 per Graph anlegen">
+                                        <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
+                                    </button>
+                                </div>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Hinweis: Für „E-Mail-Verteilerliste“ wird aktuell (für den Gruppen-Existenzcheck) eine Microsoft‑365‑Gruppe angelegt.
+                                </small>
+                            </div>
+                            <div class="field" style="margin-top:18px;">
+                                <label for="tenantSgaLines">SGA-Mitglieder</label>
+                                <textarea id="tenantSgaLines" spellcheck="false" placeholder="Lehrer;Maria Beispiel;maria@schule.at&#10;Schueler;Ali Demo;ali@schule.at&#10;Extern;Max Extern;max.extern@example.org"></textarea>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Format: <code>Gruppe;Name;E-Mail</code> mit <code>Lehrer</code>, <code>Schüler</code> oder <code>Extern</code>. Zielbild: typischerweise 3 Lehrkräfte, 3 Schüler:innen und 3 Externe.
+                                </small>
+                                <div class="teachers-table-wrap" aria-label="SGA-Mitglieder als Tabelle" style="margin-top:12px;">
+                                    <table class="teachers-table" aria-label="SGA-Mitglieder (editierbar per Doppelklick)">
+                                        <thead>
+                                            <tr>
+                                                <th>Gruppe</th>
+                                                <th>Name</th>
+                                                <th>E-Mail</th>
+                                                <th>M365</th>
+                                                <th class="action-cell">Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tenantSgaTableBody">
+                                            <tr><td colspan="5" style="color:#6c757d;">Noch keine SGA-Mitglieder – oben einfügen oder „+ Zeile“.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="tenantSgaAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifySgaGraph" title="Alle E-Mail-Adressen der SGA-Mitglieder in Microsoft Entra prüfen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panelMainLehrer" class="tab-panel" role="tabpanel" aria-labelledby="tabMainLehrer">
                             <div class="field">
                                 <label for="tenantTeachersLines">Lehrerliste (eine Zeile pro Lehrkraft)</label>
                                 <textarea id="tenantTeachersLines" placeholder="MU;Max Mustermann;max.mustermann@schule.de&#10;BME;Anna Beispiel;anna.beispiel@schule.de"></textarea>
@@ -612,201 +777,178 @@
                                                 <th>Kürzel</th>
                                                 <th>Name</th>
                                                 <th>E-Mail</th>
+                                                <th title="Microsoft-365-Abgleich">M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tenantTeachersTableBody">
-                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <button type="button" class="btn btn-success" id="tenantTeachersAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyTeachersGraph" title="Alle E-Mail-Adressen der Lehrkräfte in Microsoft Entra prüfen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="panelVerwaltung" class="tab-panel" role="tabpanel" aria-labelledby="tabVerwaltung">
-                            <div class="field">
-                                <label for="tenantAdminRoleLines">Rollen der Schulverwaltung (Katalog)</label>
-                                <textarea id="tenantAdminRoleLines" spellcheck="false" placeholder="DIREKTION;Direktion&#10;SEKRETARIAT;Sekretariat&#10;SCHULARZT;Schularzt"></textarea>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Bezeichnung</code> – wie bei Fächern. Rollen anlegen, umbenennen oder löschen. Personen unten wählen eine Rolle aus diesem Katalog. Pflege auch im <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.
-                                </small>
-                                <div class="teachers-table-wrap" aria-label="Verwaltungsrollen als Tabelle" style="margin-top:12px;">
-                                    <table class="teachers-table" aria-label="Verwaltungsrollen (editierbar per Doppelklick)">
-                                        <thead>
-                                            <tr>
-                                                <th>Kürzel</th>
-                                                <th>Bezeichnung</th>
-                                                <th class="action-cell">Aktion</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tenantAdminRolesTableBody">
-                                            <tr><td colspan="3" style="color:#6c757d;">Noch keine Rollen – oben einfügen, „+ Rolle“ oder Standardrollen.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantAdminRoleAddRow"><i class="bi bi-plus-circle"></i>Rolle</button>
-                                    <button type="button" class="btn" id="tenantAdminRolesDefaults"><i class="bi bi-arrow-counterclockwise"></i>Standardrollen</button>
-                                </div>
-                            </div>
-                            <div class="field" style="margin-top:18px;">
-                                <label for="tenantAdminLines">Personen (eine Zeile pro Person)</label>
-                                <textarea id="tenantAdminLines" spellcheck="false" placeholder="Direktion;Direktorin;vorname@schule.at&#10;Sekretariat;;sekretariat@schule.at"></textarea>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Rolle;Name;E-Mail</code> (wie in der <a href="einrichtung.html">geführten Einrichtung</a>, Schritt 3). Rolle aus dem Katalog oder frei. Sammelgruppe: <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.
-                                </small>
-                                <div class="teachers-table-wrap" aria-label="Verwaltungspersonen als Tabelle" style="margin-top:12px;">
-                                    <table class="teachers-table" aria-label="Verwaltungspersonen (editierbar per Doppelklick)">
-                                        <thead>
-                                            <tr>
-                                                <th>Rolle</th>
-                                                <th>Name</th>
-                                                <th>E-Mail</th>
-                                                <th class="action-cell">Aktion</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tenantAdminTableBody">
-                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Person“.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantAdminAddRow"><i class="bi bi-plus-circle"></i>Person</button>
-                                </div>
-                            </div>
-                        </div>
-                            </section>
-                        </div>
-                    </details>
-
-                    <details class="ts-step" id="tenantStep2" open>
-                        <summary>
-                            <div class="ts-step-title">
-                                <span class="ts-step-n" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
-                                <div style="min-width:0;">
-                                    <div class="ts-step-label">Schüler, Klassen &amp; Klassen‑Gruppen</div>
-                                    <div class="ts-step-desc">Speicherung pro gewähltem Schuljahr; M365‑Anzeigenamen</div>
-                                </div>
-                            </div>
-                            <span class="ts-step-chevron">▾</span>
-                        </summary>
-                        <div class="ts-step-body">
-                            <section class="tile" aria-label="Schuljahresbezogene Daten">
-                                <div class="tile-head">
-                                    <h3 class="tile-title">Schuljahr &amp; Klassen</h3>
-                                    <p class="tile-subtitle">Schüler:innen und Klassen gelten für das <strong>gewählte Schuljahr</strong> (Wechsel oben rechts neben „Quellen &amp; Werkzeuge“). Klassen‑Gruppen (Microsoft 365) beziehen sich auf dasselbe Schuljahr.</p>
-                                </div>
-
-                                <div class="tabs" role="tablist" aria-label="Grundeinstellungen: Schuljahresbezug">
-                                    <button type="button" class="tab-btn" id="tabStudents" role="tab" aria-selected="true" aria-controls="panelStudents">Schüler</button>
-                                    <button type="button" class="tab-btn" id="tabClasses" role="tab" aria-selected="false" aria-controls="panelClasses">Klassen</button>
-                                </div>
-
-                        <div id="panelStudents" class="tab-panel active" role="tabpanel" aria-labelledby="tabStudents">
-                            <div class="field">
-                                <label for="tenantStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
-                                <textarea id="tenantStudentsLines" placeholder="1AK;Max Mustermann;max.mustermann@schule.de&#10;1B;Dave Grohl;dave.grohl@schule.de;Jane Grohl;jane@mail.com;John Grohl;john@mail.com"></textarea>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Klasse;Name;E-Mail</code> — optional: <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>
-                        (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
-                        Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>.
-                        Vorlagen: XLSX (inkl. Anleitung) oder CSV. Elternkontakte lokal speichern und unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a> pflegen.
-                                </small>
-                                <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
-                                    <label for="tenantStudentsImportSource" style="font-weight:700;margin:0 8px 0 0;">Quelle</label>
-                                    <select id="tenantStudentsImportSource" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                        <option value="auto" selected>Automatisch erkennen</option>
-                                        <option value="ms365">MS365-Vorlage</option>
-                                        <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
-                                        <option value="webuntis">WebUntis</option>
-                                    </select>
-                                    <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                    <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt">
-                                    <button type="button" class="btn" id="tenantStudentsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
-                                    <button type="button" class="btn" id="tenantStudentsTemplateCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
-                                    <button type="button" class="btn" id="tenantBtnImportStudentsFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
-                                </div>
-                                <div id="tenantSisDiff" class="alert alert-info" hidden style="margin-top:12px;">
-                                    <strong>Import-Vorschau (lokal)</strong>
-                                    <p id="tenantSisDiffMeta" style="margin:8px 0;line-height:1.45;">Nach dem Datei-Import erscheint hier der Unterschied zur aktuellen Liste.</p>
-                                    <ul id="tenantSisDiffList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
-                                    <div class="settings-actions">
-                                        <button type="button" class="btn btn-success" id="tenantSisDiffMerge"><i class="bi bi-intersect"></i>Zusammenführen</button>
-                                        <button type="button" class="btn" id="tenantSisDiffReplace"><i class="bi bi-arrow-repeat"></i>Liste ersetzen</button>
-                                        <button type="button" class="btn" id="tenantSisDiffCancel">Verwerfen</button>
+                        <div id="panelStudentsData" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSchueler">
+                                <div class="field">
+                                    <label for="tenantStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
+                                    <textarea id="tenantStudentsLines" placeholder="1AK;Max Mustermann;max.mustermann@schule.de&#10;1B;Dave Grohl;dave.grohl@schule.de;Jane Grohl;jane@mail.com;John Grohl;john@mail.com"></textarea>
+                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                        Format: <code>Klasse;Name;E-Mail</code> — optional: <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>
+                            (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
+                            Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>.
+                            Vorlagen: XLSX (inkl. Anleitung) oder CSV. Elternkontakte lokal speichern und unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a> pflegen.
+                                    </small>
+                                    <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
+                                        <label for="tenantStudentsImportSource" style="font-weight:700;margin:0 8px 0 0;">Quelle</label>
+                                        <select id="tenantStudentsImportSource" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                            <option value="auto" selected>Automatisch erkennen</option>
+                                            <option value="ms365">MS365-Vorlage</option>
+                                            <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
+                                            <option value="webuntis">WebUntis</option>
+                                        </select>
+                                        <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
+                                        <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt">
+                                        <button type="button" class="btn" id="tenantStudentsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
+                                        <button type="button" class="btn" id="tenantStudentsTemplateCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
+                                        <button type="button" class="btn" id="tenantBtnImportStudentsFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
                                     </div>
-                                </div>
-                                <div id="tenantStudentTenantImportPanel" class="sw-lic-import" hidden>
-                                    <h3>Bestehende Schüler:innen aus dem Tenant</h3>
-                                    <p>Benutzer mit Education‑Lizenz für Schüler:innen (A1, A3, A5). Klasse aus der Entra‑Abteilung, falls hinterlegt; sonst vor der Übernahme eintragen. Bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
-                                    <div id="tenantStudentTenantImportSkuFilters" class="sw-lic-filters"></div>
-                                    <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantImportActiveOnly" checked> Nur aktive Konten</label>
-                                    <div class="sw-lic-text-filter">
-                                        <label class="sr-only" for="tenantStudentTenantImportTextFilter">Name, E-Mail oder Klasse filtern</label>
-                                        <input type="search" id="tenantStudentTenantImportTextFilter" placeholder="Name, E-Mail oder Klasse filtern …" autocomplete="off">
+                                    <div id="tenantSisDiff" class="alert alert-info" hidden style="margin-top:12px;">
+                                        <strong>Import-Vorschau (lokal)</strong>
+                                        <p id="tenantSisDiffMeta" style="margin:8px 0;line-height:1.45;">Nach dem Datei-Import erscheint hier der Unterschied zur aktuellen Liste.</p>
+                                        <ul id="tenantSisDiffList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                                        <div class="settings-actions">
+                                            <button type="button" class="btn btn-success" id="tenantSisDiffMerge"><i class="bi bi-intersect"></i>Zusammenführen</button>
+                                            <button type="button" class="btn" id="tenantSisDiffReplace"><i class="bi bi-arrow-repeat"></i>Liste ersetzen</button>
+                                            <button type="button" class="btn" id="tenantSisDiffCancel">Verwerfen</button>
+                                        </div>
                                     </div>
-                                    <p id="tenantStudentTenantImportStatus" class="muted" style="margin-top:8px;"></p>
-                                    <div class="settings-actions" style="margin-top:8px;">
-                                        <button type="button" class="btn" id="tenantBtnStudentTenantSelectNew">Nur neue auswählen</button>
-                                        <button type="button" class="btn" id="tenantBtnStudentTenantSelectAll">Alle auswählen</button>
-                                        <button type="button" class="btn" id="tenantBtnStudentTenantSelectNone">Alle abwählen</button>
-                                        <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                                    <div id="tenantStudentTenantImportPanel" class="sw-lic-import" hidden>
+                                        <h3>Bestehende Schüler:innen aus dem Tenant</h3>
+                                        <p>Benutzer mit Education‑Lizenz für Schüler:innen (A1, A3, A5). Klasse aus der Entra‑Abteilung, falls hinterlegt; sonst vor der Übernahme eintragen. Bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
+                                        <div id="tenantStudentTenantImportSkuFilters" class="sw-lic-filters"></div>
+                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantImportActiveOnly" checked> Nur aktive Konten</label>
+                                        <div class="sw-lic-text-filter">
+                                            <label class="sr-only" for="tenantStudentTenantImportTextFilter">Name, E-Mail oder Klasse filtern</label>
+                                            <input type="search" id="tenantStudentTenantImportTextFilter" placeholder="Name, E-Mail oder Klasse filtern …" autocomplete="off">
+                                        </div>
+                                        <p id="tenantStudentTenantImportStatus" class="muted" style="margin-top:8px;"></p>
+                                        <div class="settings-actions" style="margin-top:8px;">
+                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectNew">Nur neue auswählen</button>
+                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectAll">Alle auswählen</button>
+                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectNone">Alle abwählen</button>
+                                            <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                                        </div>
+                                        <div class="teachers-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
+                                            <table class="teachers-table" aria-label="Schüler:innen aus Microsoft 365">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="sw-lic-check-col"><input type="checkbox" id="tenantStudentTenantSelectAllRows" title="Alle sichtbaren auswählen oder abwählen" aria-label="Alle sichtbaren auswählen oder abwählen"></th>
+                                                        <th>Klasse</th>
+                                                        <th>Name</th>
+                                                        <th>E-Mail</th>
+                                                        <th>Lizenz</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tenantStudentTenantImportBody"></tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                    <div class="teachers-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
-                                        <table class="teachers-table" aria-label="Schüler:innen aus Microsoft 365">
+                                    <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
+                                        <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
                                             <thead>
                                                 <tr>
-                                                    <th class="sw-lic-check-col"><input type="checkbox" id="tenantStudentTenantSelectAllRows" title="Alle sichtbaren auswählen oder abwählen" aria-label="Alle sichtbaren auswählen oder abwählen"></th>
                                                     <th>Klasse</th>
                                                     <th>Name</th>
                                                     <th>E-Mail</th>
-                                                    <th>Lizenz</th>
-                                                    <th>Status</th>
+                                                    <th title="Microsoft-365-Abgleich">M365</th>
+                                                    <th class="action-cell">Aktion</th>
                                                 </tr>
                                             </thead>
-                                            <tbody id="tenantStudentTenantImportBody"></tbody>
+                                            <tbody id="tenantStudentsTableBody">
+                                                <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            </tbody>
                                         </table>
                                     </div>
-                                </div>
-                                <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
-                                    <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
-                                        <thead>
-                                            <tr>
-                                                <th>Klasse</th>
-                                                <th>Name</th>
-                                                <th>E-Mail</th>
-                                                <th class="action-cell">Aktion</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tenantStudentsTableBody">
-                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantStudentsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
-                                </div>
-                                <div id="tenantStudentLifecycle" class="alert alert-info" hidden style="margin-top:14px;">
-                                    <strong>Klassenwechsel in Microsoft 365</strong>
-                                    <p id="tenantStudentLifecycleMeta" style="margin:8px 0;line-height:1.45;">Nach dem Speichern oder Import erscheint hier die Vorschau: wer in welche Klassengruppe bzw. Sammelgruppe kommt oder sie verlässt.</p>
-                                    <ul id="tenantStudentLifecycleList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
-                                    <div class="settings-actions">
-                                        <button type="button" class="btn btn-success" id="tenantStudentLifecycleApply"><i class="bi bi-check2-circle"></i>In Microsoft 365 anwenden</button>
-                                        <button type="button" class="btn" id="tenantStudentLifecycleDismiss">Nur Stammdaten behalten</button>
+                                    <div class="settings-actions" style="margin-top:10px;">
+                                        <button type="button" class="btn btn-success" id="tenantStudentsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentsGraph" title="Alle E-Mail-Adressen der Schüler:innen in Microsoft Entra prüfen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                        </button>
+                                    </div>
+                                    <div id="tenantStudentLifecycle" class="alert alert-info" hidden style="margin-top:14px;">
+                                        <strong>Klassenwechsel in Microsoft 365</strong>
+                                        <p id="tenantStudentLifecycleMeta" style="margin:8px 0;line-height:1.45;">Nach dem Speichern oder Import erscheint hier die Vorschau: wer in welche Klassengruppe bzw. Sammelgruppe kommt oder sie verlässt.</p>
+                                        <ul id="tenantStudentLifecycleList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                                        <div class="settings-actions">
+                                            <button type="button" class="btn btn-success" id="tenantStudentLifecycleApply"><i class="bi bi-check2-circle"></i>In Microsoft 365 anwenden</button>
+                                            <button type="button" class="btn" id="tenantStudentLifecycleDismiss">Nur Stammdaten behalten</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div id="panelClasses" class="tab-panel" role="tabpanel" aria-labelledby="tabClasses">
+                        <div id="panelStudentCouncilData" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSchuelervertretung">
+                                <div class="field">
+                                    <label>Schülervertretung-Gruppe in Microsoft 365</label>
+                                    <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;">
+                                        <span id="tenantStudentCouncilGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentCouncilGroup" title="Schülervertretung-Gruppe in Microsoft 365 anhand erwarteter Mail-Nickname/Name suchen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
+                                        </button>
+                                        <button type="button" class="btn btn-success" id="tenantBtnCreateStudentCouncilGroup" title="Schülervertretung-Gruppe in Microsoft 365 per Graph anlegen">
+                                            <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
+                                        </button>
+                                    </div>
+                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                        Match erfolgt anhand erwarteter Mail-Nickname (aus „Schulname“ + Schuljahr).
+                                    </small>
+                                    <label for="tenantStudentCouncilLines">Schülervertretung</label>
+                                    <textarea id="tenantStudentCouncilLines" spellcheck="false" placeholder="3A;Anna Beispiel;anna@schule.at&#10;4B;Ben Demo;ben@schule.at&#10;5C;Carla Muster;carla@schule.at"></textarea>
+                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                        Format: <code>Klasse;Name;E-Mail</code>. Diese Gruppe ist schuljahresbezogen und typischerweise mit wenigen Schüler:innen befüllt.
+                                    </small>
+                                    <div class="teachers-table-wrap" aria-label="Schülervertretung als Tabelle" style="margin-top:12px;">
+                                        <table class="teachers-table" aria-label="Schülervertretung (editierbar per Doppelklick)">
+                                            <thead>
+                                                <tr>
+                                                    <th>Klasse</th>
+                                                    <th>Name</th>
+                                                    <th>E-Mail</th>
+                                                    <th>M365</th>
+                                                    <th class="action-cell">Aktion</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tenantStudentCouncilTableBody">
+                                                <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="settings-actions" style="margin-top:10px;">
+                                        <button type="button" class="btn btn-success" id="tenantStudentCouncilAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentCouncilGraph" title="Alle E-Mail-Adressen der Schülervertretung in Microsoft Entra prüfen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        <div id="panelMainKlassen" class="tab-panel" role="tabpanel" aria-labelledby="tabMainKlassen">
                             <div class="field">
                                 <label for="tenantClassesLines">Klassenliste (eine Zeile pro Klasse)</label>
                                 <textarea id="tenantClassesLines" placeholder="1AK;2030;1A-Klasse;Max Mustermann;max.mustermann@schule.de&#10;2BK;2029;2B-Klasse;Anna Beispiel;anna.beispiel@schule.de"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
                                     Format: <code>Abkürzung;Abschlussjahr;Klasse;Klassenvorstand Name;Klassenvorstand E-Mail</code>. Abschlussjahr ist optional.
+                                </small>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Den <strong>Schuljahreswechsel der Klassen‑Gruppen</strong> erledigen Sie im eigenen Werkzeug <a href="tools/klassen-umbenennen.html">Schuljahreswechsel</a>.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
@@ -822,31 +964,57 @@
                                                 <th>Klasse</th>
                                                 <th>Klassenvorstand</th>
                                                 <th>E-Mail</th>
+                                                <th title="Klassengruppe in Microsoft 365">M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tenantClassesTableBody">
-                                            <tr><td colspan="6" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            <tr><td colspan="7" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <button type="button" class="btn btn-success" id="tenantClassesAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyClassesGraph" title="Klassengruppen in Microsoft 365 prüfen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> Klassengruppen prüfen (Bulk)
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    <div id="panelMainWerkzeuge" class="tab-panel" role="tabpanel" aria-labelledby="tabMainWerkzeuge">
+                        <div class="tile-head">
+                            <h3 class="tile-title">Weitere Werkzeuge</h3>
+                            <p class="tile-subtitle">Quellen, Tools und das aktive Schuljahr.</p>
+                        </div>
+                        <div class="ts-hub-year-row">
+                            <div class="settings-module ts-hub-tools" aria-label="Weitere Einstiegspunkte">
+                                <h3>Quellen &amp; Werkzeuge</h3>
+                                <p style="margin:0 0 10px;color:var(--muted);font-size:0.92em;line-height:1.4;">Daten können auch in der Einrichtung bzw. Gruppenverwaltung importiert und übernommen werden.</p>
+                                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                                    <a class="btn btn-success" href="einrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Geführte Einrichtung <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                                    <a class="btn" href="tools/schulstruktur-sync.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">MS 365 Gruppenverwaltung <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                    <a class="btn" href="tools/klassen-umbenennen.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Schuljahreswechsel <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                    <a class="btn" href="ersteinrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Experten‑Ansicht <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                                </div>
+                            </div>
+                            <div class="ts-year-strip" aria-label="Aktuelles Schuljahr">
+                                <div class="ts-year-strip__inner">
+                                    <label class="ts-year-strip__title" for="schoolYearSelect">
+                                        <i class="bi bi-calendar3" aria-hidden="true"></i>
+                                        Schuljahr
+                                    </label>
+                                    <div class="ts-year-strip__controls">
+                                        <select id="schoolYearSelect" class="ts-year-strip__select" aria-describedby="schoolYearStripHint"></select>
+                                        <button type="button" class="btn ts-year-strip__add" id="schoolYearAddBtn" title="Weiteres Schuljahr anlegen" aria-label="Neues Schuljahr anlegen"><i class="bi bi-plus-lg" aria-hidden="true"></i><span class="ts-year-strip__add-text"> Schuljahr</span></button>
+                                    </div>
+                                    <p id="schoolYearStripHint" class="ts-year-strip__hint">Gilt für Schüler:innen, Klassen und Klassen‑Gruppen. Stammdaten (Domain, Fächer, …) sind schulweit und unabhängig vom Schuljahr.</p>
                                 </div>
                             </div>
                         </div>
-
-                                <div class="field" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
-                                    <label>Klassen‑Gruppen (Microsoft 365): Anzeigename nach Schuljahreswechsel</label>
-                                    <small style="color:var(--muted);display:block;margin:8px 0 12px;line-height:1.45;">
-                                        Hängt vom gewählten Schuljahr ab (Anzeigenamen enthalten z. B. <code>SJ2026/27</code>). Stabile Gruppen‑E‑Mails bleiben gleich; hier passen Sie den <strong>Anzeigenamen</strong> lokal und optional in Entra ID / Microsoft 365 an.
-                                        Voraussetzung für Graph: Anmeldung über das Widget oben und Einträge mit <code>graphGroupId</code> aus der Einrichtung.
-                                    </small>
-                                    <div id="classTeamsRolloverRoot" aria-live="polite"></div>
-                                </div>
-                            </section>
-                        </div>
-                    </details>
+                    </div>
+                    </section>
 
                     <div class="settings-actions">
                         <button type="button" class="btn btn-success" id="tenantSettingsSave"><i class="bi bi-check2-circle"></i>Speichern</button>
@@ -883,11 +1051,90 @@
     <script type="module" src="src/shared/student-class-lifecycle.js"></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
-    <script src="src/shared/class-teams-rollover-ui.js" defer></script>
     <script>
         (function () {
             'use strict';
-            function wireTabGroup(tabs, defaultBtnId) {
+            function initDraggableTabOrder(containerId, storageKey) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const buttons = Array.from(container.querySelectorAll('.tab-btn[role="tab"]'));
+                if (!buttons.length) return;
+                const initialIds = buttons.map((btn) => btn.id).filter(Boolean);
+                try {
+                    const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                    if (Array.isArray(saved) && saved.length) {
+                        saved.forEach((id) => {
+                            const btn = document.getElementById(String(id));
+                            if (btn && btn.parentElement === container) container.appendChild(btn);
+                        });
+                        initialIds.forEach((id) => {
+                            const btn = document.getElementById(id);
+                            if (btn && btn.parentElement === container) container.appendChild(btn);
+                        });
+                    }
+                } catch {
+                    // ignore
+                }
+
+                let draggingId = '';
+                function saveOrder() {
+                    try {
+                        const ids = Array.from(container.querySelectorAll('.tab-btn[role="tab"]'))
+                            .map((btn) => btn.id)
+                            .filter(Boolean);
+                        localStorage.setItem(storageKey, JSON.stringify(ids));
+                    } catch {
+                        // ignore
+                    }
+                }
+                function clearDropMarkers() {
+                    container.querySelectorAll('.tab-btn.is-drop-target').forEach((btn) => btn.classList.remove('is-drop-target'));
+                }
+
+                buttons.forEach((btn) => {
+                    btn.setAttribute('draggable', 'true');
+                    btn.title = 'Zum Umsortieren ziehen';
+                    if (btn.dataset.dndBound) return;
+                    btn.dataset.dndBound = '1';
+                    btn.addEventListener('dragstart', (ev) => {
+                        draggingId = btn.id;
+                        btn.classList.add('is-dragging');
+                        if (ev.dataTransfer) {
+                            ev.dataTransfer.effectAllowed = 'move';
+                            ev.dataTransfer.setData('text/plain', btn.id);
+                        }
+                    });
+                    btn.addEventListener('dragover', (ev) => {
+                        ev.preventDefault();
+                        if (!draggingId || draggingId === btn.id) return;
+                        clearDropMarkers();
+                        btn.classList.add('is-drop-target');
+                        const draggingEl = document.getElementById(draggingId);
+                        if (!draggingEl || draggingEl === btn || draggingEl.parentElement !== container) return;
+                        const rect = btn.getBoundingClientRect();
+                        const before = ev.clientX < rect.left + rect.width / 2;
+                        if (before) container.insertBefore(draggingEl, btn);
+                        else container.insertBefore(draggingEl, btn.nextSibling);
+                    });
+                    btn.addEventListener('drop', (ev) => {
+                        ev.preventDefault();
+                        clearDropMarkers();
+                        saveOrder();
+                    });
+                    btn.addEventListener('dragend', () => {
+                        btn.classList.remove('is-dragging');
+                        clearDropMarkers();
+                        draggingId = '';
+                        saveOrder();
+                    });
+                });
+            }
+
+            function wireTabGroup(tabs, defaultBtnId, storageKey) {
+                const byButton = {};
+                tabs.forEach(({ btn, panel }) => {
+                    byButton[btn] = panel;
+                });
                 function setActive(activeBtnId) {
                     tabs.forEach(({ btn, panel }) => {
                         const b = document.getElementById(btn);
@@ -896,56 +1143,74 @@
                         if (b) b.setAttribute('aria-selected', on ? 'true' : 'false');
                         if (p) p.classList.toggle('active', on);
                     });
+                    try {
+                        if (storageKey && byButton[activeBtnId]) localStorage.setItem(storageKey, activeBtnId);
+                    } catch {
+                        // ignore
+                    }
+                }
+                function resolveHashTabId() {
+                    const raw = String(location.hash || '')
+                        .replace(/^#/, '')
+                        .toLowerCase();
+                    if (!raw) return '';
+                    const mapping = {
+                        stammdaten: 'tabMainStammdaten',
+                        faecher: 'tabMainSubjects',
+                        subjects: 'tabMainSubjects',
+                        arge: 'tabMainArges',
+                        arges: 'tabMainArges',
+                        verwaltung: 'tabMainVerwaltung',
+                        sga: 'tabMainSga',
+                        lehrer: 'tabMainLehrer',
+                        schueler: 'tabMainSchueler',
+                        schuelervertretung: 'tabMainSchuelervertretung',
+                        klassen: 'tabMainKlassen',
+                        classes: 'tabMainKlassen',
+                        panelclasses: 'tabMainKlassen',
+                        werkzeuge: 'tabMainWerkzeuge'
+                    };
+                    return mapping[raw] || '';
                 }
                 tabs.forEach(({ btn }) => {
                     const b = document.getElementById(btn);
                     if (!b) return;
                     b.addEventListener('click', () => setActive(btn));
                 });
-                setActive(defaultBtnId);
+                let initialBtnId = defaultBtnId;
+                try {
+                    if (storageKey) {
+                        const stored = localStorage.getItem(storageKey) || '';
+                        if (stored && byButton[stored]) initialBtnId = stored;
+                    }
+                } catch {
+                    // ignore
+                }
+                const fromHash = resolveHashTabId();
+                if (fromHash && byButton[fromHash]) initialBtnId = fromHash;
+                setActive(initialBtnId);
+                window.addEventListener('hashchange', () => {
+                    const nextBtnId = resolveHashTabId();
+                    if (nextBtnId && byButton[nextBtnId]) setActive(nextBtnId);
+                });
             }
+            initDraggableTabOrder('tenantMainTabs', 'ms365-tenant-main-tab-order-v1');
             wireTabGroup(
                 [
-                    { btn: 'tabSubjects', panel: 'panelSubjects' },
-                    { btn: 'tabArges', panel: 'panelArges' },
-                    { btn: 'tabTeachers', panel: 'panelTeachers' },
-                    { btn: 'tabVerwaltung', panel: 'panelVerwaltung' }
+                    { btn: 'tabMainStammdaten', panel: 'panelMainStammdaten' },
+                    { btn: 'tabMainSubjects', panel: 'panelMainSubjects' },
+                    { btn: 'tabMainArges', panel: 'panelMainArges' },
+                    { btn: 'tabMainVerwaltung', panel: 'panelMainVerwaltung' },
+                    { btn: 'tabMainSga', panel: 'panelMainSga' },
+                    { btn: 'tabMainLehrer', panel: 'panelMainLehrer' },
+                    { btn: 'tabMainSchueler', panel: 'panelStudentsData' },
+                    { btn: 'tabMainSchuelervertretung', panel: 'panelStudentCouncilData' },
+                    { btn: 'tabMainKlassen', panel: 'panelMainKlassen' },
+                    { btn: 'tabMainWerkzeuge', panel: 'panelMainWerkzeuge' }
                 ],
-                'tabSubjects'
+                'tabMainStammdaten',
+                'ms365-tenant-main-active-tab-v1'
             );
-            wireTabGroup(
-                [
-                    { btn: 'tabStudents', panel: 'panelStudents' },
-                    { btn: 'tabClasses', panel: 'panelClasses' }
-                ],
-                'tabStudents'
-            );
-
-            (function applyHashOpenClassesTab() {
-                function openClassesTab() {
-                    const tabStudents = document.getElementById('tabStudents');
-                    const tabClasses = document.getElementById('tabClasses');
-                    const pStudents = document.getElementById('panelStudents');
-                    const pClasses = document.getElementById('panelClasses');
-                    if (!tabClasses || !pClasses) return;
-                    if (tabStudents) tabStudents.setAttribute('aria-selected', 'false');
-                    tabClasses.setAttribute('aria-selected', 'true');
-                    if (pStudents) pStudents.classList.remove('active');
-                    pClasses.classList.add('active');
-                    window.setTimeout(function () {
-                        const roll = document.getElementById('classTeamsRolloverRoot');
-                        if (roll) roll.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 120);
-                }
-                function check() {
-                    const raw = String(location.hash || '')
-                        .replace(/^#/, '')
-                        .toLowerCase();
-                    if (raw === 'classes' || raw === 'panelclasses' || raw === 'klassen') openClassesTab();
-                }
-                check();
-                window.addEventListener('hashchange', check);
-            })();
         })();
     </script>
 </body>

@@ -58,6 +58,86 @@
             margin-bottom: 8px;
             color: #32325d;
         }
+
+        .welcome-mode-row {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin: 12px 0 10px;
+            color: #32325d;
+            font-weight: 650;
+            font-size: 0.95em;
+        }
+
+        .welcome-mode-row label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .welcome-release-notes {
+            margin-top: 14px;
+            padding: 12px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--soft);
+        }
+
+        .welcome-release-notes h3 {
+            margin: 0 0 8px;
+            font-size: 1.02em;
+            color: #32325d;
+        }
+
+        .welcome-release-notes .note {
+            padding: 10px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #fff;
+        }
+
+        .welcome-release-notes .note + .note {
+            margin-top: 10px;
+        }
+
+        .welcome-release-notes .note h4 {
+            margin: 0 0 6px;
+            font-size: 0.98em;
+            color: #32325d;
+        }
+
+        .welcome-release-notes .note .meta {
+            color: var(--muted);
+            font-size: 0.85em;
+            margin-bottom: 6px;
+        }
+
+        .welcome-release-notes .note pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: Consolas, 'Segoe UI', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+            color: #212529;
+        }
+
+        .welcome-continue-row {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .welcome-continue-row button {
+            border: none;
+            border-radius: 12px;
+            padding: 10px 16px;
+            font: inherit;
+            font-weight: 800;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+        }
         .welcome-pin-row {
             display: flex;
             gap: 10px;
@@ -130,6 +210,18 @@
             <div class="welcome-body">
                 <form id="welcome-pin-form" autocomplete="off">
                     <label for="welcome-pin-input">Zugangs-PIN</label>
+
+                    <div class="welcome-mode-row" aria-label="Zugangsmodus">
+                        <label>
+                            <input type="radio" name="welcome-pin-mode" value="user" checked />
+                            Schulzugang
+                        </label>
+                        <label>
+                            <input type="radio" name="welcome-pin-mode" value="admin" />
+                            Admin (Master-PIN)
+                        </label>
+                    </div>
+
                     <div class="welcome-pin-row">
                         <input
                             id="welcome-pin-input"
@@ -151,6 +243,15 @@
                     </p>
                     <p id="welcome-pin-error" class="welcome-error" hidden role="alert"></p>
                 </form>
+
+                <div id="welcome-release-notes-wrap" class="welcome-release-notes" style="display:none;">
+                    <h3>Was gibt's neu</h3>
+                    <div id="welcome-release-notes-list"></div>
+                    <div class="welcome-continue-row">
+                        <button type="button" id="welcome-continue-btn">Weiter</button>
+                    </div>
+                </div>
+
                 <p class="welcome-footer">
                     Microsoft-Anmeldung (Entra ID) erfolgt danach in den jeweiligen Werkzeugen wie bisher.
                 </p>

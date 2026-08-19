@@ -12,5 +12,10 @@ window.MS365_ACCESS_CONFIG = {
      * Gültige PINs (mehrere möglich). Vergleich ohne Berücksichtigung von
      * Groß-/Kleinschreibung; Leerzeichen am Anfang/Ende werden ignoriert.
      */
-    pins: ['MS365-Schule', 'IT-Team']
+    pins: ['MS365-Schule', 'IT-Team'],
+    /**
+     * Optionaler Master-PIN für die Admin-Oberfläche (admin.html).
+     * Nur für den Betreiber gedacht.
+     */
+    adminPin: 'DEIN_ADMIN_MASTER_PIN'
 };
