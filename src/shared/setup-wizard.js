@@ -9,6 +9,7 @@ import {
     collectDirektionOwnerEmails,
     collectAdminOwnerEmails,
     collectEmails,
+    deriveAdministrationEntries,
     randomTempPassword
 } from './setup-wizard-admin-model.js';
 import {
@@ -26,7 +27,13 @@ import {
     };
 
     let swActiveKind = 'lehrer';
-    let swMatched = { schuelerGroupId: null, lehrerGroupId: null, verwaltungGroupId: null };
+    let swMatched = {
+        schuelerGroupId: null,
+        lehrerGroupId: null,
+        verwaltungGroupId: null,
+        sgaGroupId: null,
+        studentCouncilGroupId: null
+    };
     let swListCache = { students: [], teachers: [], direktion: [], adminEmails: [] };
     /** @type {{ lehrer: { dn: string, nick: string, desc: string, team: boolean }, schueler: { dn: string, nick: string, desc: string, team: boolean } }} */
     let swGroupFormCache = {
@@ -41,6 +48,8 @@ import {
     function groupUiSuffix(kind) {
         if (kind === 'lehrer') return 'Lehrer';
         if (kind === 'verwaltung') return 'Verwaltung';
+        if (kind === 'sga') return 'Sga';
+        if (kind === 'studentCouncil') return 'StudentCouncil';
         return 'Schueler';
     }
 
@@ -265,12 +274,16 @@ import {
 
     function seedDefaultAdminRolesToSettings() {
         const s = loadTenantSettings() || {};
-        s.admin = SW_ADMIN_DEFAULT_ROLES.map(function (slot) {
+        const admin = SW_ADMIN_DEFAULT_ROLES.map(function (slot) {
             return { defaultKey: slot, role: slot, name: '', email: '' };
         });
-        if (typeof window.ms365TenantSettingsDefaultAdminRoles === 'function') {
-            s.adminRoles = window.ms365TenantSettingsDefaultAdminRoles();
-        }
+        const roles =
+            typeof window.ms365TenantSettingsDefaultAdminRoles === 'function'
+                ? window.ms365TenantSettingsDefaultAdminRoles()
+                : [];
+        s.administration = deriveAdministrationEntries(roles, admin);
+        s.admin = admin;
+        s.adminRoles = roles;
         if (typeof window.ms365TenantSettingsSave === 'function') {
             window.ms365TenantSettingsSave(s);
         }
@@ -515,6 +528,7 @@ import {
             return r && (normStr(r.role) || normStr(r.name) || normStr(r.email));
         });
         s.admin = rows;
+        s.administration = deriveAdministrationEntries(Array.isArray(s.adminRoles) ? s.adminRoles : [], rows);
         if (typeof window.ms365TenantSettingsSave === 'function') {
             window.ms365TenantSettingsSave(s);
         }
@@ -584,6 +598,8 @@ import {
                     swMatched.schuelerGroupId = su.matched.schuelerGroupId || null;
                     swMatched.lehrerGroupId = su.matched.lehrerGroupId || null;
                     swMatched.verwaltungGroupId = su.matched.verwaltungGroupId || null;
+                    swMatched.sgaGroupId = su.matched.sgaGroupId || null;
+                    swMatched.studentCouncilGroupId = su.matched.studentCouncilGroupId || null;
                 }
             }
         } catch {
@@ -673,12 +689,16 @@ import {
     function getGroupIdForKind(kind) {
         if (kind === 'lehrer') return swMatched.lehrerGroupId;
         if (kind === 'verwaltung') return swMatched.verwaltungGroupId;
+        if (kind === 'sga') return swMatched.sgaGroupId;
+        if (kind === 'studentCouncil') return swMatched.studentCouncilGroupId;
         return swMatched.schuelerGroupId;
     }
 
     function setGroupIdForKind(kind, id) {
         if (kind === 'lehrer') swMatched.lehrerGroupId = id;
         else if (kind === 'verwaltung') swMatched.verwaltungGroupId = id;
+        else if (kind === 'sga') swMatched.sgaGroupId = id;
+        else if (kind === 'studentCouncil') swMatched.studentCouncilGroupId = id;
         else swMatched.schuelerGroupId = id;
     }
 
@@ -686,7 +706,9 @@ import {
     const swMatchLiveByKind = {
         lehrer: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false },
         schueler: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false },
-        verwaltung: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false }
+        verwaltung: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false },
+        sga: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false },
+        studentCouncil: { gen: 0, gid: '', snapshot: null, fullyLoaded: false, inFlight: false }
     };
 
     function swMatchLiveSlot(kind) {
@@ -911,7 +933,7 @@ import {
     }
 
     function showStep(n) {
-        const step = Math.max(1, Math.min(9, parseInt(n, 10) || 1));
+        const step = Math.max(1, Math.min(11, parseInt(n, 10) || 1));
         if (swPrevWizardStep === 3 && step !== swPrevWizardStep) {
             captureVerwaltungFormToCache();
             persistVerwaltungDraftPatch();
@@ -922,7 +944,7 @@ import {
         }
         swPrevWizardStep = step;
 
-        for (let i = 1; i <= 9; i++) {
+        for (let i = 1; i <= 11; i++) {
             const panel = document.getElementById('swStep' + i);
             if (panel) panel.style.display = i === step ? 'block' : 'none';
         }
@@ -978,20 +1000,32 @@ import {
             refreshSwWizardAuxiliaryForStep(5);
         }
         if (step === 6) {
+            syncSetupFromAppData();
+            fillSgaTextarea();
+            renderSwMatchSummaryForKind('sga');
+            refreshSwWizardAuxiliaryForStep(6);
+        }
+        if (step === 7) {
+            syncSetupFromAppData();
+            fillStudentCouncilTextarea();
+            renderSwMatchSummaryForKind('studentCouncil');
+            refreshSwWizardAuxiliaryForStep(7);
+        }
+        if (step === 8) {
             readGroupPrefixesFromSetupToDom();
             fillSubjectsBulkFromSettings();
             fillCatalogSlice('subject');
         }
-        if (step === 7) {
+        if (step === 9) {
             readGroupPrefixesFromSetupToDom();
             fillArgesBulkFromSettings();
             fillCatalogSlice('arge');
         }
-        if (step === 8) {
+        if (step === 10) {
             fillClassesBulkTextarea();
             renderClassesTable();
         }
-        if (step === 9) {
+        if (step === 11) {
             refreshSwStep9Summary();
         }
     }
@@ -1007,6 +1041,8 @@ import {
         const subjects = Array.isArray(s.subjects) ? s.subjects.length : 0;
         const arges = Array.isArray(s.arges) ? s.arges.length : 0;
         const classes = Array.isArray(s.classes) ? s.classes.length : 0;
+        const sga = Array.isArray(s.sga) ? s.sga.length : 0;
+        const studentCouncil = Array.isArray(s.studentCouncil) ? s.studentCouncil.length : 0;
         let schoolYear = '–';
         let klassenTeams = 0;
         let klassenTeamsLinked = 0;
@@ -1028,6 +1064,8 @@ import {
         let mVerw = false;
         let mLehr = false;
         let mSch = false;
+        let mSga = false;
+        let mSv = false;
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
                 const su = window.ms365AppDataV2.getSetup();
@@ -1041,6 +1079,8 @@ import {
                 mVerw = !!normStr(m.verwaltungGroupId);
                 mLehr = !!normStr(m.lehrerGroupId);
                 mSch = !!normStr(m.schuelerGroupId);
+                mSga = !!normStr(m.sgaGroupId);
+                mSv = !!normStr(m.studentCouncilGroupId);
             }
         } catch {
             // ignore
@@ -1071,6 +1111,16 @@ import {
             students +
             ' · Sammelgruppe verknüpft: ' +
             yn(mSch) +
+            '</li>' +
+            '<li><strong>SGA</strong>: ' +
+            sga +
+            ' Eintrag(e) · Gruppe verknüpft: ' +
+            yn(mSga) +
+            '</li>' +
+            '<li><strong>Schülervertretung</strong>: ' +
+            studentCouncil +
+            ' Eintrag(e) · Gruppe verknüpft: ' +
+            yn(mSv) +
             '</li>' +
             '<li><strong>Fächer</strong>: ' +
             subjects +
@@ -1126,6 +1176,7 @@ import {
         try {
             if (normStr(payload.verwaltungLines) && window.ms365TenantSettingsParseAdminLines) {
                 s.admin = window.ms365TenantSettingsParseAdminLines(payload.verwaltungLines);
+                s.administration = deriveAdministrationEntries(Array.isArray(s.adminRoles) ? s.adminRoles : [], s.admin);
                 touched++;
             }
             if (normStr(payload.lehrerLines) && window.ms365TenantSettingsParseTeachersLines) {
@@ -1134,6 +1185,14 @@ import {
             }
             if (normStr(payload.schuelerLines) && window.ms365TenantSettingsParseStudentsLines) {
                 s.students = window.ms365TenantSettingsParseStudentsLines(payload.schuelerLines);
+                touched++;
+            }
+            if (normStr(payload.sgaLines) && window.ms365TenantSettingsParseSgaLines) {
+                s.sga = window.ms365TenantSettingsParseSgaLines(payload.sgaLines);
+                touched++;
+            }
+            if (normStr(payload.studentCouncilLines) && window.ms365TenantSettingsParseStudentCouncilLines) {
+                s.studentCouncil = window.ms365TenantSettingsParseStudentCouncilLines(payload.studentCouncilLines);
                 touched++;
             }
             if (normStr(payload.faecherLines) && window.ms365TenantSettingsParseSubjectsLines) {
@@ -1156,6 +1215,8 @@ import {
                 renderSwAdminTableBody();
                 fillTeachersTextarea();
                 fillStudentsTextarea();
+                fillSgaTextarea();
+                fillStudentCouncilTextarea();
                 fillSubjectsBulkFromSettings();
                 fillCatalogSlice('subject');
                 fillArgesBulkFromSettings();
@@ -1166,7 +1227,7 @@ import {
             toast(
                 touched
                     ? 'Gesamt-Excel: ' + touched + ' Liste(n) in die Schul‑Einstellungen übernommen (gespeichert).'
-                    : 'Gesamt-Excel: keine Daten erkannt (Blattnamen wie „Schueler“, „Lehrer“, … und erste Datenzeile prüfen).'
+                    : 'Gesamt-Excel: keine Daten erkannt (Blattnamen wie „Schueler“, „Lehrer“, „SGA“, „StudentCouncil“, … und erste Datenzeile prüfen).'
             );
         } catch (e) {
             toast('Gesamt-Import: ' + (e.message || e));
@@ -1222,6 +1283,295 @@ import {
         refreshSwStatsStudents();
         refreshSwOwnerSummary('Schueler', 'schueler');
         toast('Schüler:innen gespeichert.');
+    }
+
+    function sgaToLines(rows) {
+        return (rows || [])
+            .map(function (x) {
+                let scope = normStr(x && x.scope);
+                if (scope === 'teacher') scope = 'Lehrer';
+                else if (scope === 'student') scope = 'Schueler';
+                else if (scope === 'external') scope = 'Extern';
+                return [scope, normStr(x && x.name), normEmail(x && x.email)].join(';').trim();
+            })
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    function getSwSgaFromTextarea() {
+        const ta = document.getElementById('swSgaLines');
+        if (!ta || typeof window.ms365TenantSettingsParseSgaLines !== 'function') return [];
+        return window.ms365TenantSettingsParseSgaLines(ta.value);
+    }
+
+    function setSwSgaTextareaFromRows(rows) {
+        const ta = document.getElementById('swSgaLines');
+        if (ta) ta.value = sgaToLines(rows);
+    }
+
+    function fillSgaTextarea() {
+        const ta = document.getElementById('swSgaLines');
+        const sel = document.getElementById('swSgaMode');
+        const s = loadTenantSettings();
+        if (ta && s && Array.isArray(s.sga)) ta.value = sgaToLines(s.sga);
+        if (sel && s) sel.value = String(s.sgaMode || 'group') === 'distribution' ? 'distribution' : 'group';
+        renderSwSgaTableFromTextarea();
+        restoreWizardGroupStatus('sga');
+    }
+
+    function saveSgaList() {
+        const s = loadTenantSettings() || {};
+        const ta = document.getElementById('swSgaLines');
+        const sel = document.getElementById('swSgaMode');
+        if (window.ms365TenantSettingsParseSgaLines && ta) {
+            s.sga = window.ms365TenantSettingsParseSgaLines(ta.value);
+        }
+        s.sgaMode = sel && String(sel.value || '') === 'distribution' ? 'distribution' : 'group';
+        if (typeof window.ms365TenantSettingsSave === 'function') window.ms365TenantSettingsSave(s);
+        readLists();
+        renderSwSgaTableFromTextarea();
+        refreshSwStatsSga();
+        toast('SGA gespeichert.');
+    }
+
+    function studentCouncilToLines(rows) {
+        return (rows || [])
+            .map(function (x) {
+                return [normStr(x && x.klasse), normStr(x && x.name), normEmail(x && x.email)].join(';').trim();
+            })
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    function getSwStudentCouncilFromTextarea() {
+        const ta = document.getElementById('swStudentCouncilLines');
+        if (!ta || typeof window.ms365TenantSettingsParseStudentCouncilLines !== 'function') return [];
+        return window.ms365TenantSettingsParseStudentCouncilLines(ta.value);
+    }
+
+    function setSwStudentCouncilTextareaFromRows(rows) {
+        const ta = document.getElementById('swStudentCouncilLines');
+        if (ta) ta.value = studentCouncilToLines(rows);
+    }
+
+    function fillStudentCouncilTextarea() {
+        const ta = document.getElementById('swStudentCouncilLines');
+        const s = loadTenantSettings();
+        if (ta && s && Array.isArray(s.studentCouncil)) ta.value = studentCouncilToLines(s.studentCouncil);
+        renderSwStudentCouncilTableFromTextarea();
+        restoreWizardGroupStatus('studentCouncil');
+    }
+
+    function saveStudentCouncilList() {
+        const s = loadTenantSettings() || {};
+        const ta = document.getElementById('swStudentCouncilLines');
+        if (window.ms365TenantSettingsParseStudentCouncilLines && ta) {
+            s.studentCouncil = window.ms365TenantSettingsParseStudentCouncilLines(ta.value);
+        }
+        if (typeof window.ms365TenantSettingsSave === 'function') window.ms365TenantSettingsSave(s);
+        readLists();
+        renderSwStudentCouncilTableFromTextarea();
+        refreshSwStatsStudentCouncil();
+        toast('Schülervertretung gespeichert.');
+    }
+
+    function renderWizardDirectoryActionCell(tr, row, rerenderKind, onDelete) {
+        const tdAct = document.createElement('td');
+        tdAct.className = 'action-cell';
+        tdAct.style.whiteSpace = 'nowrap';
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:inline-flex;flex-wrap:nowrap;gap:6px;align-items:center;justify-content:flex-end;';
+        const btnMs = document.createElement('button');
+        btnMs.type = 'button';
+        btnMs.className = 'mini-btn';
+        btnMs.style.background = '#5e72e4';
+        btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
+        btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
+        btnMs.addEventListener('click', function () {
+            verifyGraphDirectoryOneEmail(row && row.email, rerenderKind);
+        });
+        const btnCr = document.createElement('button');
+        btnCr.type = 'button';
+        btnCr.className = 'mini-btn';
+        btnCr.style.background = '#11cdef';
+        btnCr.title = 'Neuen Benutzer in Microsoft Entra ID anlegen';
+        btnCr.innerHTML = '<i class="bi bi-person-plus" aria-hidden="true"></i>';
+        btnCr.addEventListener('click', function () {
+            runCreateEntraUserInteractive(row && row.email, row && row.name, rerenderKind);
+        });
+        const btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.className = 'mini-btn';
+        btnDel.textContent = '✕';
+        btnDel.title = 'Zeile entfernen';
+        btnDel.addEventListener('click', onDelete);
+        wrap.appendChild(btnMs);
+        wrap.appendChild(btnCr);
+        wrap.appendChild(btnDel);
+        tdAct.appendChild(wrap);
+        return tdAct;
+    }
+
+    function renderSwSgaTableFromTextarea() {
+        const tbody = document.getElementById('swSgaTableBody');
+        if (!tbody) return;
+        const rows = getSwSgaFromTextarea();
+        tbody.replaceChildren();
+        if (!rows.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.style.color = '#6c757d';
+            td.textContent = 'Noch keine SGA-Mitglieder – oben einfügen oder „+ Zeile“.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            refreshSwStatsSga();
+            return;
+        }
+        rows.forEach(function (row, idx) {
+            const tr = document.createElement('tr');
+            const tdScope = document.createElement('td');
+            const sel = document.createElement('select');
+            sel.style.width = '100%';
+            sel.style.font = 'inherit';
+            [
+                { value: '', label: '— Gruppe —' },
+                { value: 'teacher', label: 'Lehrer' },
+                { value: 'student', label: 'Schüler' },
+                { value: 'external', label: 'Extern' }
+            ].forEach(function (entry) {
+                const opt = document.createElement('option');
+                opt.value = entry.value;
+                opt.textContent = entry.label;
+                if ((row.scope || '') === entry.value) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', function () {
+                const all = getSwSgaFromTextarea();
+                if (!all[idx]) return renderSwSgaTableFromTextarea();
+                all[idx].scope = normStr(sel.value);
+                setSwSgaTextareaFromRows(all);
+                renderSwSgaTableFromTextarea();
+            });
+            tdScope.appendChild(sel);
+
+            const tdName = document.createElement('td');
+            tdName.textContent = row.name || '';
+            tdName.title = 'Doppelklick zum Bearbeiten';
+            tdName.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdName, row.name, function (next, meta) {
+                    const all = getSwSgaFromTextarea();
+                    if (!all[idx]) return renderSwSgaTableFromTextarea();
+                    const prev = all[idx].name;
+                    all[idx].name = meta && meta.cancelled ? prev : normStr(next);
+                    setSwSgaTextareaFromRows(all);
+                    renderSwSgaTableFromTextarea();
+                });
+            });
+
+            const tdEmail = document.createElement('td');
+            tdEmail.textContent = row.email || '';
+            tdEmail.title = 'Doppelklick zum Bearbeiten';
+            tdEmail.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdEmail, row.email, function (next, meta) {
+                    const all = getSwSgaFromTextarea();
+                    if (!all[idx]) return renderSwSgaTableFromTextarea();
+                    const prev = all[idx].email;
+                    all[idx].email = meta && meta.cancelled ? prev : normEmail(next);
+                    setSwSgaTextareaFromRows(all);
+                    renderSwSgaTableFromTextarea();
+                });
+            });
+
+            const tdMs = createSwDirectoryMatchTd(row.email);
+            const tdAct = renderWizardDirectoryActionCell(tr, row, 'sga', function () {
+                const all = getSwSgaFromTextarea();
+                all.splice(idx, 1);
+                setSwSgaTextareaFromRows(all);
+                renderSwSgaTableFromTextarea();
+            });
+            tr.appendChild(tdScope);
+            tr.appendChild(tdName);
+            tr.appendChild(tdEmail);
+            tr.appendChild(tdMs);
+            tr.appendChild(tdAct);
+            tbody.appendChild(tr);
+        });
+        refreshSwStatsSga();
+    }
+
+    function renderSwStudentCouncilTableFromTextarea() {
+        const tbody = document.getElementById('swStudentCouncilTableBody');
+        if (!tbody) return;
+        const rows = getSwStudentCouncilFromTextarea();
+        tbody.replaceChildren();
+        if (!rows.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.style.color = '#6c757d';
+            td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            refreshSwStatsStudentCouncil();
+            return;
+        }
+        rows.forEach(function (row, idx) {
+            const tr = document.createElement('tr');
+            const tdClass = document.createElement('td');
+            tdClass.textContent = row.klasse || '';
+            tdClass.title = 'Doppelklick zum Bearbeiten';
+            tdClass.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdClass, row.klasse, function (next, meta) {
+                    const all = getSwStudentCouncilFromTextarea();
+                    if (!all[idx]) return renderSwStudentCouncilTableFromTextarea();
+                    const prev = all[idx].klasse;
+                    all[idx].klasse = meta && meta.cancelled ? prev : normStr(next);
+                    setSwStudentCouncilTextareaFromRows(all);
+                    renderSwStudentCouncilTableFromTextarea();
+                });
+            });
+            const tdName = document.createElement('td');
+            tdName.textContent = row.name || '';
+            tdName.title = 'Doppelklick zum Bearbeiten';
+            tdName.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdName, row.name, function (next, meta) {
+                    const all = getSwStudentCouncilFromTextarea();
+                    if (!all[idx]) return renderSwStudentCouncilTableFromTextarea();
+                    const prev = all[idx].name;
+                    all[idx].name = meta && meta.cancelled ? prev : normStr(next);
+                    setSwStudentCouncilTextareaFromRows(all);
+                    renderSwStudentCouncilTableFromTextarea();
+                });
+            });
+            const tdEmail = document.createElement('td');
+            tdEmail.textContent = row.email || '';
+            tdEmail.title = 'Doppelklick zum Bearbeiten';
+            tdEmail.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdEmail, row.email, function (next, meta) {
+                    const all = getSwStudentCouncilFromTextarea();
+                    if (!all[idx]) return renderSwStudentCouncilTableFromTextarea();
+                    const prev = all[idx].email;
+                    all[idx].email = meta && meta.cancelled ? prev : normEmail(next);
+                    setSwStudentCouncilTextareaFromRows(all);
+                    renderSwStudentCouncilTableFromTextarea();
+                });
+            });
+            const tdMs = createSwDirectoryMatchTd(row.email);
+            const tdAct = renderWizardDirectoryActionCell(tr, row, 'studentCouncil', function () {
+                const all = getSwStudentCouncilFromTextarea();
+                all.splice(idx, 1);
+                setSwStudentCouncilTextareaFromRows(all);
+                renderSwStudentCouncilTableFromTextarea();
+            });
+            tr.appendChild(tdClass);
+            tr.appendChild(tdName);
+            tr.appendChild(tdEmail);
+            tr.appendChild(tdMs);
+            tr.appendChild(tdAct);
+            tbody.appendChild(tr);
+        });
+        refreshSwStatsStudentCouncil();
     }
 
     function getDirectoryMatchForEmail(emailRaw) {
@@ -1306,6 +1656,8 @@ import {
             }
             if (rerenderKind === 'teachers') renderSwTeachersTableFromTextarea();
             else if (rerenderKind === 'students') renderSwStudentsTableFromTextarea();
+            else if (rerenderKind === 'sga') renderSwSgaTableFromTextarea();
+            else if (rerenderKind === 'studentCouncil') renderSwStudentCouncilTableFromTextarea();
             else if (rerenderKind === 'admin') {
                 persistSwAdminListFromTableSilent();
                 renderSwAdminTableBody();
@@ -1373,6 +1725,8 @@ import {
     function rerenderAfterDirectoryChange(rerenderKind) {
         if (rerenderKind === 'teachers') renderSwTeachersTableFromTextarea();
         else if (rerenderKind === 'students') renderSwStudentsTableFromTextarea();
+        else if (rerenderKind === 'sga') renderSwSgaTableFromTextarea();
+        else if (rerenderKind === 'studentCouncil') renderSwStudentCouncilTableFromTextarea();
         else if (rerenderKind === 'admin') {
             persistSwAdminListFromTableSilent();
             renderSwAdminTableBody();
@@ -1681,6 +2035,38 @@ import {
         });
     }
 
+    async function runCreateMissingSgaEntra() {
+        return runCreateMissingEntraUsers({
+            getRows: getSwSgaFromTextarea,
+            rerenderKind: 'sga',
+            btnId: 'swBtnCreateMissingSga',
+            title: 'SGA-Mitglieder anlegen',
+            toastPrefix: 'SGA',
+            noneMsg:
+                'Keine fehlenden SGA-Mitglieder: alle mit E‑Mail sind bereits Microsoft 365 zugeordnet – oder es fehlt eine E‑Mail.',
+            whoOne: '1 SGA-Mitglied hat',
+            whoMany: function (n) {
+                return n + ' SGA-Mitglieder haben';
+            }
+        });
+    }
+
+    async function runCreateMissingStudentCouncilEntra() {
+        return runCreateMissingEntraUsers({
+            getRows: getSwStudentCouncilFromTextarea,
+            rerenderKind: 'studentCouncil',
+            btnId: 'swBtnCreateMissingStudentCouncil',
+            title: 'Schülervertretung anlegen',
+            toastPrefix: 'Schülervertretung',
+            noneMsg:
+                'Keine fehlenden Einträge in der Schülervertretung: alle mit E‑Mail sind bereits Microsoft 365 zugeordnet – oder es fehlt eine E‑Mail.',
+            whoOne: '1 Eintrag der Schülervertretung hat',
+            whoMany: function (n) {
+                return n + ' Einträge der Schülervertretung haben';
+            }
+        });
+    }
+
     async function runVerifyStudentsGraph() {
         const rows = getSwStudentsFromTextarea();
         await runVerifyGraphDirectoryRows(
@@ -1692,6 +2078,36 @@ import {
             'swBtnVerifyStudentsGraph',
             function () {
                 renderSwStudentsTableFromTextarea();
+            }
+        );
+    }
+
+    async function runVerifySgaGraph() {
+        const rows = getSwSgaFromTextarea();
+        await runVerifyGraphDirectoryRows(
+            rows,
+            function (r) {
+                return r.email;
+            },
+            'SGA',
+            'swBtnVerifySgaGraph',
+            function () {
+                renderSwSgaTableFromTextarea();
+            }
+        );
+    }
+
+    async function runVerifyStudentCouncilGraph() {
+        const rows = getSwStudentCouncilFromTextarea();
+        await runVerifyGraphDirectoryRows(
+            rows,
+            function (r) {
+                return r.email;
+            },
+            'Schülervertretung',
+            'swBtnVerifyStudentCouncilGraph',
+            function () {
+                renderSwStudentCouncilTableFromTextarea();
             }
         );
     }
@@ -2194,6 +2610,26 @@ import {
         return { total: rows.length, withEmail: withEm };
     }
 
+    function countSwSgaListStats() {
+        const rows = getSwSgaFromTextarea();
+        let withEm = 0;
+        rows.forEach(function (r) {
+            const em = normEmail(r && r.email);
+            if (em && em.indexOf('@') !== -1) withEm++;
+        });
+        return { total: rows.length, withEmail: withEm };
+    }
+
+    function countSwStudentCouncilListStats() {
+        const rows = getSwStudentCouncilFromTextarea();
+        let withEm = 0;
+        rows.forEach(function (r) {
+            const em = normEmail(r && r.email);
+            if (em && em.indexOf('@') !== -1) withEm++;
+        });
+        return { total: rows.length, withEmail: withEm };
+    }
+
     function countSwVerwaltungTableStats() {
         const rows = gatherSwAdminRowsFromTable();
         let withEm = 0;
@@ -2202,6 +2638,27 @@ import {
             if (em && em.indexOf('@') !== -1) withEm++;
         });
         return { total: rows.length, withEmail: withEm };
+    }
+
+    function refreshSwStatsSga() {
+        const el = document.getElementById('swStatsSga');
+        if (!el) return;
+        const st = countSwSgaListStats();
+        el.textContent = 'SGA: ' + st.total + ' Einträge, davon ' + st.withEmail + ' mit E‑Mail.';
+    }
+
+    function refreshSwStatsStudentCouncil() {
+        const el = document.getElementById('swStatsStudentCouncil');
+        if (!el) return;
+        const st = countSwStudentCouncilListStats();
+        const y = getCurrentWizardSchoolYearLabel();
+        el.textContent =
+            'Schülervertretung: ' +
+            st.total +
+            ' Einträge, davon ' +
+            st.withEmail +
+            ' mit E‑Mail' +
+            (y ? ' — Schuljahr ' + y + '.' : '.');
     }
 
     function refreshSwStatsTeachers() {
@@ -2434,7 +2891,239 @@ import {
             refreshSwSmtpPreviewHint('Schueler');
             refreshSwStatsStudents();
             refreshSwOwnerSummary('Schueler', 'schueler');
+            refreshWizardYearHints();
+        } else if (step === 6) {
+            readLists();
+            refreshSwStatsSga();
+        } else if (step === 7) {
+            readLists();
+            refreshSwStatsStudentCouncil();
+            refreshWizardYearHints();
+        } else if (step === 10) {
+            refreshWizardYearHints();
         }
+    }
+
+    function getCurrentWizardSchoolYearLabel() {
+        try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
+                const c = window.ms365AppDataV2.getContainer();
+                return c && c.years && c.years.current ? String(c.years.current) : '';
+            }
+        } catch {
+            // ignore
+        }
+        return '';
+    }
+
+    function refreshWizardYearHints() {
+        const y = getCurrentWizardSchoolYearLabel();
+        const txt = y
+            ? 'Aktives Schuljahr: ' + y + '. Die Daten in diesem Schritt werden genau für dieses Schuljahr gespeichert.'
+            : 'Die Daten in diesem Schritt sind schuljahresbezogen.';
+        const a = document.getElementById('swYearHintStudents');
+        const b = document.getElementById('swYearHintStudentCouncil');
+        const c = document.getElementById('swYearHintClasses');
+        if (a) a.textContent = txt;
+        if (b) b.textContent = txt;
+        if (c) c.textContent = txt;
+    }
+
+    function wizardGroupStatusCell(kind) {
+        return document.getElementById(kind === 'sga' ? 'swSgaGroupMatchCell' : 'swStudentCouncilGroupMatchCell');
+    }
+
+    function setWizardGroupStatus(kind, payload, expectedNick) {
+        const el = wizardGroupStatusCell(kind);
+        if (!el) return;
+        el.style.fontSize = '0.88em';
+        el.style.lineHeight = '1.35';
+        el.style.background = '';
+        el.style.color = 'var(--muted)';
+        el.title = '';
+        if (!payload) {
+            el.textContent = 'Noch nicht geprüft';
+            return;
+        }
+        if (payload.loading) {
+            el.textContent = 'Prüfe …';
+            return;
+        }
+        if (payload.found && payload.group) {
+            const g = payload.group || {};
+            const gid = normStr(g.id);
+            const short = gid.length > 14 ? gid.slice(0, 12) + '…' : gid;
+            const shownNick = expectedNick ? expectedNick : normStr(g.mailNickname);
+            el.innerHTML =
+                '<span style="color:#0d8050;font-weight:700;">✓</span> <code style="font-size:0.92em;">' +
+                escapeHtml(shownNick || '') +
+                '</code>';
+            el.title =
+                (g.displayName ? String(g.displayName) : '') +
+                (g.mail ? '\nMail: ' + String(g.mail) : '') +
+                (gid ? '\nObject-ID: ' + short : '');
+            el.style.background = 'color-mix(in srgb, #0d8050 8%, transparent)';
+            el.style.color = 'var(--text)';
+            return;
+        }
+        if (payload.notFound) {
+            el.innerHTML =
+                '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
+            el.title = 'Keine passende Gruppe in Microsoft 365 gefunden';
+            return;
+        }
+        if (payload.error) {
+            el.textContent = 'Fehler';
+            el.title = String(payload.error || '');
+            return;
+        }
+        el.textContent = '–';
+    }
+
+    function schoolBaseNickForWizard() {
+        const s = loadTenantSettings() || {};
+        const nm = normStr(s && s.schoolName);
+        return nm.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 24);
+    }
+
+    function expectedSgaGroupMailNicknameForWizard() {
+        const base = schoolBaseNickForWizard();
+        if (!base) return '';
+        return G().sanitizeUnifiedGroupMailNickname('sga' + base);
+    }
+
+    function expectedSgaGroupDisplayNameForWizard() {
+        const s = loadTenantSettings() || {};
+        const nm = normStr(s && s.schoolName);
+        return nm ? 'SGA ' + nm : '';
+    }
+
+    function expectedStudentCouncilGroupMailNicknameForWizard() {
+        const base = schoolBaseNickForWizard();
+        if (!base) return '';
+        const yLbl = getCurrentWizardSchoolYearLabel();
+        const digits = String(yLbl || '').replace(/\D/g, '').slice(0, 6);
+        return G().sanitizeUnifiedGroupMailNickname('sv' + digits + base);
+    }
+
+    function expectedStudentCouncilGroupDisplayNameForWizard() {
+        const s = loadTenantSettings() || {};
+        const nm = normStr(s && s.schoolName);
+        const yLbl = getCurrentWizardSchoolYearLabel();
+        if (!nm) return '';
+        return 'Schülervertretung ' + nm + ' ' + yLbl;
+    }
+
+    function restoreWizardGroupStatus(kind) {
+        const gid = getGroupIdForKind(kind);
+        if (!gid) {
+            setWizardGroupStatus(kind, null);
+            return;
+        }
+        if (kind === 'sga') {
+            setWizardGroupStatus(
+                kind,
+                { found: true, group: { id: gid, displayName: expectedSgaGroupDisplayNameForWizard(), mailNickname: expectedSgaGroupMailNicknameForWizard() } },
+                expectedSgaGroupMailNicknameForWizard()
+            );
+        } else {
+            setWizardGroupStatus(
+                kind,
+                { found: true, group: { id: gid, displayName: expectedStudentCouncilGroupDisplayNameForWizard(), mailNickname: expectedStudentCouncilGroupMailNicknameForWizard() } },
+                expectedStudentCouncilGroupMailNicknameForWizard()
+            );
+        }
+    }
+
+    async function verifyWizardSchoolGroup(kind) {
+        const expectedNick =
+            kind === 'sga' ? expectedSgaGroupMailNicknameForWizard() : expectedStudentCouncilGroupMailNicknameForWizard();
+        const expectedDn =
+            kind === 'sga' ? expectedSgaGroupDisplayNameForWizard() : expectedStudentCouncilGroupDisplayNameForWizard();
+        if (!expectedNick || !expectedDn) {
+            setGroupIdForKind(kind, null);
+            persistMatched();
+            setWizardGroupStatus(kind, { notFound: true }, expectedNick || '');
+            toast((kind === 'sga' ? 'SGA' : 'Schülervertretung') + ': Bitte zuerst Schulname' + (kind === 'studentCouncil' ? ' und Schuljahr' : '') + ' setzen.');
+            return { found: false, notFound: true };
+        }
+        setWizardGroupStatus(kind, { loading: true }, expectedNick);
+        const token = await G().getGraphToken();
+        const queries = [expectedNick, expectedDn].filter(Boolean);
+        let hits = [];
+        for (let i = 0; i < queries.length; i++) {
+            const q = queries[i];
+            hits = await G().searchUnifiedGroups(token, q);
+            if (hits && hits.length) break;
+        }
+        const storedId = getGroupIdForKind(kind);
+        const nickLc = normStr(expectedNick).toLowerCase();
+        const matchById =
+            storedId && Array.isArray(hits)
+                ? hits.find(function (g) {
+                    return normStr(g && g.id) === storedId;
+                })
+                : null;
+        const matchByNick =
+            Array.isArray(hits) &&
+            hits.find(function (g) {
+                const mn = normStr(g && g.mailNickname).toLowerCase();
+                if (mn && mn === nickLc) return true;
+                const mail = normStr(g && g.mail).toLowerCase();
+                return mail && mail.startsWith(nickLc + '@');
+            });
+        const match = matchById || matchByNick || null;
+        if (match) {
+            setGroupIdForKind(kind, String(match.id || ''));
+            persistMatched();
+            setWizardGroupStatus(kind, { found: true, group: match }, expectedNick);
+            renderSwMatchSummaryForKind(kind, match);
+            return { found: true, group: match };
+        }
+        setGroupIdForKind(kind, null);
+        persistMatched();
+        setWizardGroupStatus(kind, { notFound: true }, expectedNick);
+        renderSwMatchSummaryForKind(kind);
+        return { found: false, notFound: true };
+    }
+
+    async function createWizardSchoolGroup(kind) {
+        const expectedNick =
+            kind === 'sga' ? expectedSgaGroupMailNicknameForWizard() : expectedStudentCouncilGroupMailNicknameForWizard();
+        const expectedDn =
+            kind === 'sga' ? expectedSgaGroupDisplayNameForWizard() : expectedStudentCouncilGroupDisplayNameForWizard();
+        if (!expectedNick || !expectedDn) {
+            toast((kind === 'sga' ? 'SGA' : 'Schülervertretung') + ': Bitte zuerst Schulname' + (kind === 'studentCouncil' ? ' und Schuljahr' : '') + ' setzen.');
+            return null;
+        }
+        const existing = await verifyWizardSchoolGroup(kind).catch(function () {
+            return { found: false };
+        });
+        if (existing && existing.found && existing.group && existing.group.id) return existing.group;
+        setWizardGroupStatus(kind, { loading: true }, expectedNick);
+        const token = await G().getGraphToken();
+        const desc = kind === 'sga' ? 'MS365-Schulverwaltung – SGA' : 'MS365-Schulverwaltung – Schülervertretung';
+        const created = await G().createUnifiedGroup(token, expectedDn, expectedNick, desc);
+        if (kind === 'sga') {
+            const modeEl = document.getElementById('swSgaMode');
+            const mode = modeEl && String(modeEl.value || '') === 'distribution' ? 'distribution' : 'group';
+            if (mode === 'group') {
+                try {
+                    await G().provisionTeamForGroup(token, created && created.id ? created.id : '');
+                } catch {
+                    // optional
+                }
+            }
+            if (created && created.id) await ensureOwnersForVerwaltungWizard(token, created.id);
+        } else if (created && created.id) {
+            await ensureOwnersForSlgKind(token, created.id, 'schueler');
+        }
+        setGroupIdForKind(kind, String((created && created.id) || ''));
+        persistMatched();
+        setWizardGroupStatus(kind, { found: true, group: created }, expectedNick);
+        renderSwMatchSummaryForKind(kind, created);
+        toastGroupCreated(kind === 'sga' ? 'SGA-Gruppe' : 'Schülervertretung-Gruppe', created, expectedNick);
+        return created;
     }
 
     /**
@@ -3685,6 +4374,10 @@ import {
             document.getElementById('swBtnSaveTeachers').addEventListener('click', saveTeachersList);
         document.getElementById('swBtnSaveStudents') &&
             document.getElementById('swBtnSaveStudents').addEventListener('click', saveStudentsList);
+        document.getElementById('swBtnSaveSga') &&
+            document.getElementById('swBtnSaveSga').addEventListener('click', saveSgaList);
+        document.getElementById('swBtnSaveStudentCouncil') &&
+            document.getElementById('swBtnSaveStudentCouncil').addEventListener('click', saveStudentCouncilList);
 
         function bindGroupStep(forKind) {
             const suf = groupUiSuffix(forKind);
@@ -3801,6 +4494,8 @@ import {
         bindGroupStep('lehrer');
         bindGroupStep('schueler');
         bindGroupStep('verwaltung');
+        wireSwMatchSummaryRefresh('sga');
+        wireSwMatchSummaryRefresh('studentCouncil');
 
         ['Lehrer', 'Schueler', 'Verwaltung'].forEach(function (suf) {
             const nick = document.getElementById('swNewNick' + suf);
@@ -4020,12 +4715,38 @@ import {
                 renderSwStudentsTableFromTextarea();
             });
         }
+        const swTaSga = document.getElementById('swSgaLines');
+        if (swTaSga) {
+            swTaSga.addEventListener('input', function () {
+                renderSwSgaTableFromTextarea();
+            });
+        }
+        const swTaStudentCouncil = document.getElementById('swStudentCouncilLines');
+        if (swTaStudentCouncil) {
+            swTaStudentCouncil.addEventListener('input', function () {
+                renderSwStudentCouncilTableFromTextarea();
+            });
+        }
         document.getElementById('swBtnStudentsAddRow') &&
             document.getElementById('swBtnStudentsAddRow').addEventListener('click', function () {
                 const all = getSwStudentsFromTextarea();
                 all.push({ klasse: '1x', name: '', email: '' });
                 setSwStudentsTextareaFromRows(all);
                 renderSwStudentsTableFromTextarea();
+            });
+        document.getElementById('swBtnSgaAddRow') &&
+            document.getElementById('swBtnSgaAddRow').addEventListener('click', function () {
+                const all = getSwSgaFromTextarea();
+                all.push({ scope: '', name: '', email: '' });
+                setSwSgaTextareaFromRows(all);
+                renderSwSgaTableFromTextarea();
+            });
+        document.getElementById('swBtnStudentCouncilAddRow') &&
+            document.getElementById('swBtnStudentCouncilAddRow').addEventListener('click', function () {
+                const all = getSwStudentCouncilFromTextarea();
+                all.push({ klasse: '', name: '', email: '' });
+                setSwStudentCouncilTextareaFromRows(all);
+                renderSwStudentCouncilTableFromTextarea();
             });
         document.getElementById('swBtnVerifyTeachersGraph') &&
             document.getElementById('swBtnVerifyTeachersGraph').addEventListener('click', function () {
@@ -4039,10 +4760,108 @@ import {
             document.getElementById('swBtnVerifyStudentsGraph').addEventListener('click', function () {
                 runVerifyStudentsGraph();
             });
+        document.getElementById('swBtnVerifySgaGraph') &&
+            document.getElementById('swBtnVerifySgaGraph').addEventListener('click', function () {
+                runVerifySgaGraph();
+            });
+        document.getElementById('swBtnVerifyStudentCouncilGraph') &&
+            document.getElementById('swBtnVerifyStudentCouncilGraph').addEventListener('click', function () {
+                runVerifyStudentCouncilGraph();
+            });
         document.getElementById('swBtnCreateMissingStudents') &&
             document.getElementById('swBtnCreateMissingStudents').addEventListener('click', function () {
                 runCreateMissingStudentsEntra();
             });
+        document.getElementById('swBtnCreateMissingSga') &&
+            document.getElementById('swBtnCreateMissingSga').addEventListener('click', function () {
+                runCreateMissingSgaEntra();
+            });
+        document.getElementById('swBtnCreateMissingStudentCouncil') &&
+            document.getElementById('swBtnCreateMissingStudentCouncil').addEventListener('click', function () {
+                runCreateMissingStudentCouncilEntra();
+            });
+        document.getElementById('swBtnVerifySgaGroup') &&
+            document.getElementById('swBtnVerifySgaGroup').addEventListener('click', async function () {
+                try {
+                    await verifyWizardSchoolGroup('sga');
+                } catch (e) {
+                    toast('SGA-Gruppe prüfen: ' + (e.message || e));
+                }
+            });
+        document.getElementById('swBtnCreateSgaGroup') &&
+            document.getElementById('swBtnCreateSgaGroup').addEventListener('click', async function () {
+                try {
+                    await createWizardSchoolGroup('sga');
+                } catch (e) {
+                    toast('SGA-Gruppe anlegen: ' + (e.message || e));
+                }
+            });
+        document.getElementById('swBtnVerifyStudentCouncilGroup') &&
+            document.getElementById('swBtnVerifyStudentCouncilGroup').addEventListener('click', async function () {
+                try {
+                    await verifyWizardSchoolGroup('studentCouncil');
+                } catch (e) {
+                    toast('Schülervertretung prüfen: ' + (e.message || e));
+                }
+            });
+        document.getElementById('swBtnCreateStudentCouncilGroup') &&
+            document.getElementById('swBtnCreateStudentCouncilGroup').addEventListener('click', async function () {
+                try {
+                    await createWizardSchoolGroup('studentCouncil');
+                } catch (e) {
+                    toast('Schülervertretung anlegen: ' + (e.message || e));
+                }
+            });
+        document.getElementById('swBtnSyncMembersSga') &&
+            document.getElementById('swBtnSyncMembersSga').addEventListener('click', async function () {
+                const gid = getGroupIdForKind('sga');
+                const emails = collectEmails(getSwSgaFromTextarea());
+                if (!gid) return toast('Zuerst die SGA-Gruppe prüfen oder anlegen.');
+                if (!emails.length) return toast('Keine E‑Mails in der SGA-Liste (oben speichern).');
+                try {
+                    const token = await G().getGraphToken();
+                    const logEl = document.getElementById('swSyncLogSga');
+                    if (logEl) logEl.replaceChildren();
+                    await G().syncEmailsToGroup(token, gid, emails, 'SGA', function (msg, kind) {
+                        appendSwLogToSuffix('Sga', msg, kind);
+                    });
+                    await ensureOwnersForVerwaltungWizard(token, gid);
+                    swMatchLiveSlot('sga').fullyLoaded = false;
+                    loadSwMatchLiveDetails('sga', { force: true });
+                    toast('SGA synchronisiert.');
+                } catch (e) {
+                    toast('SGA synchronisieren: ' + (e.message || e));
+                }
+            });
+        document.getElementById('swBtnSyncMembersStudentCouncil') &&
+            document.getElementById('swBtnSyncMembersStudentCouncil').addEventListener('click', async function () {
+                const gid = getGroupIdForKind('studentCouncil');
+                const emails = collectEmails(getSwStudentCouncilFromTextarea());
+                if (!gid) return toast('Zuerst die Schülervertretungs-Gruppe prüfen oder anlegen.');
+                if (!emails.length) return toast('Keine E‑Mails in der Schülervertretungsliste (oben speichern).');
+                try {
+                    const token = await G().getGraphToken();
+                    const logEl = document.getElementById('swSyncLogStudentCouncil');
+                    if (logEl) logEl.replaceChildren();
+                    await G().syncEmailsToGroup(token, gid, emails, 'Schülervertretung', function (msg, kind) {
+                        appendSwLogToSuffix('StudentCouncil', msg, kind);
+                    });
+                    await ensureOwnersForSlgKind(token, gid, 'schueler');
+                    swMatchLiveSlot('studentCouncil').fullyLoaded = false;
+                    loadSwMatchLiveDetails('studentCouncil', { force: true });
+                    toast('Schülervertretung synchronisiert.');
+                } catch (e) {
+                    toast('Schülervertretung synchronisieren: ' + (e.message || e));
+                }
+            });
+        const swSgaMode = document.getElementById('swSgaMode');
+        if (swSgaMode) {
+            swSgaMode.addEventListener('change', function () {
+                setGroupIdForKind('sga', null);
+                persistMatched();
+                setWizardGroupStatus('sga', null);
+            });
+        }
         document.getElementById('swBtnSaveSubjectsBulk') &&
             document.getElementById('swBtnSaveSubjectsBulk').addEventListener('click', saveSubjectsBulk);
         const swTaSubjects = document.getElementById('swSubjectsBulk');
@@ -4105,11 +4924,11 @@ import {
             document.getElementById('swBtnSaveArgesBulk').addEventListener('click', saveArgesBulk);
         document.getElementById('swBtnSkipSubjects') &&
             document.getElementById('swBtnSkipSubjects').addEventListener('click', function () {
-                showStep(7);
+                showStep(9);
             });
         document.getElementById('swBtnSkipArges') &&
             document.getElementById('swBtnSkipArges').addEventListener('click', function () {
-                showStep(8);
+                showStep(10);
             });
         document.getElementById('swBtnSaveClassesBulk') &&
             document.getElementById('swBtnSaveClassesBulk').addEventListener('click', saveClassesBulk);
@@ -4126,9 +4945,9 @@ import {
                 setSwClassesTextareaFromRows(all);
                 renderClassesTable();
             });
-        document.getElementById('swBtnStep8Next') &&
-            document.getElementById('swBtnStep8Next').addEventListener('click', function () {
-                showStep(9);
+        document.getElementById('swBtnStep10Next') &&
+            document.getElementById('swBtnStep10Next').addEventListener('click', function () {
+                showStep(11);
             });
         document.getElementById('swBtnFinish') &&
             document.getElementById('swBtnFinish').addEventListener('click', function () {
@@ -4140,6 +4959,8 @@ import {
                             'verwaltung',
                             'teachers',
                             'students',
+                            'sga',
+                            'studentCouncil',
                             'subjects',
                             'arges',
                             'classes'
@@ -4169,10 +4990,12 @@ import {
         else if (hash === 'step7') start = 7;
         else if (hash === 'step8') start = 8;
         else if (hash === 'step9') start = 9;
+        else if (hash === 'step10') start = 10;
+        else if (hash === 'step11') start = 11;
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
                 const ws = window.ms365AppDataV2.getSetup().wizardStep;
-                if (ws >= 1 && ws <= 9) start = ws;
+                if (ws >= 1 && ws <= 11) start = ws;
             }
         } catch {
             // ignore

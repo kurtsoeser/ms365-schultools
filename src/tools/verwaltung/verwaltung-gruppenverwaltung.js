@@ -161,6 +161,27 @@
         });
     }
 
+    function administrationGroupsFromLists(roles, rows) {
+        if (typeof window.ms365TenantSettingsAdminRolesAndAdminToGroups === 'function') {
+            return window.ms365TenantSettingsAdminRolesAndAdminToGroups(roles, rows);
+        }
+        return (Array.isArray(roles) ? roles : []).map(function (r) {
+            return {
+                code: r.code || '',
+                name: r.name || '',
+                people: (Array.isArray(rows) ? rows : [])
+                    .filter(function (row) {
+                        return personMatchesRole(row, r);
+                    })
+                    .map(function (row) {
+                        const person = { name: row.name || '', email: row.email || '' };
+                        if (row.defaultKey) person.defaultKey = row.defaultKey;
+                        return person;
+                    })
+            };
+        });
+    }
+
     function persistLists() {
         const settings = loadTenantSettings() || {};
         settings.admin = (listCache.rows || []).map(function (r) {
@@ -171,6 +192,7 @@
         settings.adminRoles = (listCache.roles || []).map(function (r) {
             return { code: r.code || '', name: r.name || '' };
         });
+        settings.administration = administrationGroupsFromLists(listCache.roles || [], listCache.rows || []);
         if (typeof window.ms365TenantSettingsSave === 'function') {
             window.ms365TenantSettingsSave(settings);
         }

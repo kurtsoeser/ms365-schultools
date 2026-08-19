@@ -89,26 +89,204 @@
     }
 
     function renameAdminRole(roles, admin, fromName, toName) {
-        const from = normStr(fromName);
+        const groups = adminRolesAndAdminToGroups(roles, admin);
+        const nextGroups = renameAdminRoleInGroups(groups, fromName, toName);
+        return {
+            roles: deriveAdminRolesFromGroups(nextGroups),
+            admin: deriveAdminPeopleFromGroups(nextGroups)
+        };
+    }
+
+    function isAdministrationGrouped(entries) {
+        return (
+            Array.isArray(entries) &&
+            entries.some(function (entry) {
+                return entry && Array.isArray(entry.people);
+            })
+        );
+    }
+
+    function normalizeAdminPersonEntry(row) {
+        const person = {
+            name: normStr(row && row.name),
+            email: normStr(row && row.email).toLowerCase()
+        };
+        const defaultKey = normStr(row && row.defaultKey);
+        if (defaultKey) person.defaultKey = defaultKey;
+        return person;
+    }
+
+    function deriveAdminPeopleFromGroups(groups) {
+        const out = [];
+        (Array.isArray(groups) ? groups : []).forEach(function (group) {
+            const roleName = normStr(group && group.name);
+            (Array.isArray(group && group.people) ? group.people : []).forEach(function (personRow) {
+                const person = normalizeAdminPersonEntry(personRow);
+                if (!roleName && !person.name && !person.email) return;
+                const row = { role: roleName, name: person.name, email: person.email };
+                if (person.defaultKey) row.defaultKey = person.defaultKey;
+                out.push(row);
+            });
+        });
+        return out;
+    }
+
+    function deriveAdminRolesFromGroups(groups) {
+        const out = [];
+        const seen = new Set();
+        (Array.isArray(groups) ? groups : []).forEach(function (group) {
+            const name = normStr(group && group.name);
+            let code = normCode(group && group.code);
+            if (!code && name) code = adminRoleCodeFromName(name);
+            if (!code && !name) return;
+            const key = (name || code).toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push({ code: code || adminRoleCodeFromName(name), name: name || code });
+        });
+        return out;
+    }
+
+    function adminRolesAndAdminToGroups(rolesIn, adminIn) {
+        const roles = normalizeAdminRoleCatalog(rolesIn, adminIn);
+        const groupMap = new Map();
+        roles.forEach(function (role) {
+            const name = normStr(role && role.name);
+            const code = normCode(role && role.code) || adminRoleCodeFromName(name);
+            if (!name && !code) return;
+            groupMap.set(name.toLowerCase(), { code: code, name: name || code, people: [] });
+        });
+        (Array.isArray(adminIn) ? adminIn : []).forEach(function (row) {
+            const roleName = normStr(row && (row.role || row.rolle || row.title));
+            if (!roleName) return;
+            const key = roleName.toLowerCase();
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    code: adminRoleCodeFromName(roleName),
+                    name: roleName,
+                    people: []
+                });
+            }
+            const person = normalizeAdminPersonEntry(row);
+            if (!person.name && !person.email) return;
+            groupMap.get(key).people.push(person);
+        });
+        return Array.from(groupMap.values());
+    }
+
+    function flatKindEntriesToGroups(entries) {
+        const administration = Array.isArray(entries) ? entries : [];
+        const roles = normalizeAdminRoleCatalog(
+            administration
+                .filter(function (entry) {
+                    return entry && entry.kind === 'role';
+                })
+                .map(function (entry) {
+                    return { code: normCode(entry.code), name: normStr(entry.name) };
+                }),
+            administration
+                .filter(function (entry) {
+                    return entry && entry.kind === 'person';
+                })
+                .map(function (entry) {
+                    return {
+                        role: normStr(entry.role),
+                        name: normStr(entry.name),
+                        email: normStr(entry.email).toLowerCase(),
+                        defaultKey: normStr(entry.defaultKey)
+                    };
+                })
+        );
+        const admin = administration
+            .filter(function (entry) {
+                return entry && entry.kind === 'person';
+            })
+            .map(function (entry) {
+                const row = {
+                    role: normStr(entry.role),
+                    name: normStr(entry.name),
+                    email: normStr(entry.email).toLowerCase()
+                };
+                const defaultKey = normStr(entry.defaultKey);
+                if (defaultKey) row.defaultKey = defaultKey;
+                return row;
+            });
+        return adminRolesAndAdminToGroups(roles, admin);
+    }
+
+    function normalizeGroupedAdministrationEntries(groupsIn) {
+        const out = [];
+        const seen = new Set();
+        (Array.isArray(groupsIn) ? groupsIn : []).forEach(function (group) {
+            const name = normStr(group && group.name);
+            const code = normCode(group && group.code) || adminRoleCodeFromName(name);
+            if (!name && !code) return;
+            const key = (name || code).toLowerCase();
+            let target = out.find(function (entry) {
+                return (entry.name || entry.code).toLowerCase() === key;
+            });
+            if (!target) {
+                target = { code: code, name: name || code, people: [] };
+                out.push(target);
+                seen.add(key);
+            }
+            const peopleSeen = new Set(
+                target.people.map(function (person) {
+                    return [person.name, person.email].join('\u0001').toLowerCase();
+                })
+            );
+            (Array.isArray(group && group.people) ? group.people : []).forEach(function (personRow) {
+                const person = normalizeAdminPersonEntry(personRow);
+                if (!person.name && !person.email) return;
+                const personKey = [person.name, person.email].join('\u0001').toLowerCase();
+                if (peopleSeen.has(personKey)) return;
+                peopleSeen.add(personKey);
+                target.people.push(person);
+            });
+        });
+        return out;
+    }
+
+    function renameAdminRoleInGroups(groups, fromName, toName) {
+        const fromL = normStr(fromName).toLowerCase();
         const to = normStr(toName);
-        const fromL = from.toLowerCase();
-        const nextRoles = (Array.isArray(roles) ? roles : []).map(function (r) {
-            const o = Object.assign({}, r);
-            if (normStr(o.name).toLowerCase() === fromL || normStr(o.code).toLowerCase() === fromL) {
-                o.name = to || o.name;
-                if (to && (!o.code || normStr(o.code).toLowerCase() === fromL)) {
-                    o.code = adminRoleCodeFromName(to) || o.code;
+        return (Array.isArray(groups) ? groups : []).map(function (group) {
+            const next = Object.assign({}, group, {
+                people: (Array.isArray(group.people) ? group.people : []).map(function (person) {
+                    return Object.assign({}, person);
+                })
+            });
+            if (normStr(next.name).toLowerCase() === fromL || normStr(next.code).toLowerCase() === fromL) {
+                next.name = to || next.name;
+                if (to && (!next.code || normStr(next.code).toLowerCase() === fromL)) {
+                    next.code = adminRoleCodeFromName(to) || next.code;
                 }
             }
-            return o;
+            return next;
         });
-        const nextAdmin = (Array.isArray(admin) ? admin : []).map(function (row) {
-            const o = Object.assign({}, row);
-            if (normStr(o.role).toLowerCase() === fromL) o.role = to;
-            if (normStr(o.defaultKey).toLowerCase() === fromL) o.defaultKey = to;
-            return o;
-        });
-        return { roles: normalizeAdminRoleCatalog(nextRoles, nextAdmin), admin: nextAdmin };
+    }
+
+    function normalizeAdministrationEntries(entriesIn, rolesIn, adminIn) {
+        if (isAdministrationGrouped(entriesIn)) {
+            return normalizeGroupedAdministrationEntries(entriesIn);
+        }
+        if (
+            Array.isArray(entriesIn) &&
+            entriesIn.some(function (entry) {
+                return entry && (entry.kind === 'role' || entry.kind === 'person');
+            })
+        ) {
+            return flatKindEntriesToGroups(entriesIn);
+        }
+        return adminRolesAndAdminToGroups(rolesIn, adminIn);
+    }
+
+    function deriveAdminRolesFromAdministration(entries) {
+        return deriveAdminRolesFromGroups(normalizeAdministrationEntries(entries, [], []));
+    }
+
+    function deriveAdminPeopleFromAdministration(entries) {
+        return deriveAdminPeopleFromGroups(normalizeAdministrationEntries(entries, [], []));
     }
 
     function parseLinesToAdminRoles(text) {
@@ -161,6 +339,7 @@
 
     function normalizeSettings(obj) {
         const o = obj && typeof obj === 'object' ? obj : {};
+        const schoolName = normStr(o.schoolName || o.name || o.school);
         let domain = normStr(o.domain).replace(/^@+/, '');
         if (!domain && typeof window.ms365GetSchoolDomainNoAt === 'function') {
             domain = normStr(window.ms365GetSchoolDomainNoAt()).replace(/^@+/, '');
@@ -169,9 +348,14 @@
         const subjectsIn = Array.isArray(o.subjects) ? o.subjects : [];
         const argesIn = Array.isArray(o.arges) ? o.arges : [];
         const teachersIn = Array.isArray(o.teachers) ? o.teachers : [];
-        const adminIn = Array.isArray(o.admin) ? o.admin : (Array.isArray(o.administration) ? o.administration : []);
+        const administrationIn = Array.isArray(o.administration) ? o.administration : [];
+        const adminIn = Array.isArray(o.admin) ? o.admin : [];
+        const adminRolesIn = Array.isArray(o.adminRoles) ? o.adminRoles : (Array.isArray(o.verwaltungRollen) ? o.verwaltungRollen : []);
         const studentsIn = Array.isArray(o.students) ? o.students : [];
+        const studentCouncilIn = Array.isArray(o.studentCouncil) ? o.studentCouncil : [];
         const classesIn = Array.isArray(o.classes) ? o.classes : [];
+        const sgaIn = Array.isArray(o.sga) ? o.sga : [];
+        const sgaModeIn = normStr(o.sgaMode).toLowerCase();
 
         const subjectsSeen = new Set();
         const subjects = [];
@@ -214,26 +398,9 @@
             teachers.push({ code, name, email });
         });
 
-        const adminSeen = new Set();
-        const admin = [];
-        adminIn.forEach((a) => {
-            const role = normStr(a?.role || a?.rolle || a?.title);
-            const name = normStr(a?.name);
-            const email = normStr(a?.email).toLowerCase();
-            const defaultKey = normStr(a?.defaultKey);
-            if (!role && !name && !email) return;
-            const key = [role, name, email, defaultKey].join('\u0001').toLowerCase();
-            if (adminSeen.has(key)) return;
-            adminSeen.add(key);
-            const row = { role, name, email };
-            if (defaultKey) row.defaultKey = defaultKey;
-            admin.push(row);
-        });
-
-        const adminRoles = normalizeAdminRoleCatalog(
-            Array.isArray(o.adminRoles) ? o.adminRoles : (Array.isArray(o.verwaltungRollen) ? o.verwaltungRollen : []),
-            admin
-        );
+        const administration = normalizeAdministrationEntries(administrationIn, adminRolesIn, adminIn);
+        const admin = deriveAdminPeopleFromGroups(administration);
+        const adminRoles = deriveAdminRolesFromGroups(administration);
 
         const students = [];
         studentsIn.forEach((s) => {
@@ -253,6 +420,15 @@
                     .filter((p) => p.email && p.email.includes('@'));
             }
             students.push(row);
+        });
+
+        const studentCouncil = [];
+        studentCouncilIn.forEach((s) => {
+            const klasse = normStr(s?.klasse || s?.class || s?.group || s?.Klassse || s?.Klasse);
+            const name = normStr(s?.name);
+            const email = normStr(s?.email).toLowerCase();
+            if (!klasse && !name && !email) return;
+            studentCouncil.push({ klasse, name, email });
         });
 
         const classesSeen = new Set();
@@ -278,15 +454,41 @@
             classes.push({ code, name, year, headName, headEmail, stableMailNickname });
         });
 
+        const sga = [];
+        const sgaSeen = new Set();
+        sgaIn.forEach((row) => {
+            const scopeRaw = normStr(row?.scope || row?.type || row?.gruppe || row?.rolle).toLowerCase();
+            const scope =
+                scopeRaw === 'lehrer' || scopeRaw === 'teacher'
+                    ? 'teacher'
+                    : scopeRaw === 'schueler' || scopeRaw === 'schüler' || scopeRaw === 'student'
+                      ? 'student'
+                      : scopeRaw === 'extern' || scopeRaw === 'external'
+                        ? 'external'
+                        : '';
+            const name = normStr(row?.name);
+            const email = normStr(row?.email).toLowerCase();
+            if (!scope && !name && !email) return;
+            const key = [scope, name, email].join('\u0001').toLowerCase();
+            if (sgaSeen.has(key)) return;
+            sgaSeen.add(key);
+            sga.push({ scope, name, email });
+        });
+
         return {
             version: CURRENT_VERSION,
+            schoolName,
             domain: normStr(domain),
             subjects,
             arges,
             teachers,
+            administration,
             admin,
             adminRoles,
+            sgaMode: sgaModeIn === 'distribution' ? 'distribution' : 'group',
+            sga,
             students,
+            studentCouncil,
             classes
         };
     }
@@ -319,10 +521,12 @@
                     const cur = String((c.years && c.years.current) || '');
                     const y = (c.years && c.years.byLabel && cur && c.years.byLabel[cur]) ? c.years.byLabel[cur] : { students: [], classes: [] };
                     return normalizeSettings({
+                        schoolName: c.core.schoolName,
                         domain: c.core.domain,
                         subjects: c.core.subjects,
                         arges: c.core.arges,
                         teachers: c.core.teachers,
+                        administration: c.core.administration,
                         admin: c.core.admin,
                         adminRoles: c.core.adminRoles,
                         students: (y.students || []).map(function (s) {
@@ -348,6 +552,17 @@
                             }
                             return row;
                         }),
+                        studentCouncil: Array.isArray(y.studentCouncil)
+                            ? y.studentCouncil.map(function (s) {
+                                  return {
+                                      klasse: s.klasse,
+                                      name: s.name,
+                                      email: s.email
+                                  };
+                              })
+                            : [],
+                        sgaMode: c.core.sgaMode,
+                        sga: c.core.sga,
                         classes: y.classes
                     });
                 }
@@ -432,6 +647,24 @@
         return out;
     }
 
+    function parseLinesToStudentCouncil(text) {
+        const out = [];
+        String(text || '')
+            .split(/\r\n|\n|\r/)
+            .forEach((line) => {
+                const t = normStr(line);
+                if (!t || t.startsWith('#')) return;
+                const parts = t.split(/[;\t,|]/).map((x) => normStr(x));
+                while (parts.length < 3) parts.push('');
+                const klasse = parts[0] || '';
+                const name = parts[1] || '';
+                const email = (parts[2] || '').toLowerCase();
+                if (!klasse && !name && !email) return;
+                out.push({ klasse, name, email });
+            });
+        return out;
+    }
+
     function parseLinesToClasses(text) {
         const out = [];
         parseDelimitedLines(text).forEach((parts) => {
@@ -465,6 +698,26 @@
             if (!code && !name && !y && !headName && !headEmail) return;
             const stableMailNickname = deriveClassStableMailNickname(y, code);
             out.push({ code, name, year: y, headName, headEmail, stableMailNickname });
+        });
+        return out;
+    }
+
+    function parseLinesToSga(text) {
+        const out = [];
+        parseDelimitedLines(text).forEach((parts) => {
+            const scopeRaw = normStr(parts[0] || '').toLowerCase();
+            const scope =
+                scopeRaw === 'lehrer' || scopeRaw === 'teacher'
+                    ? 'teacher'
+                    : scopeRaw === 'schueler' || scopeRaw === 'schüler' || scopeRaw === 'student'
+                      ? 'student'
+                      : scopeRaw === 'extern' || scopeRaw === 'external'
+                        ? 'external'
+                        : '';
+            const name = normStr(parts[1] || '');
+            const email = normStr(parts[2] || '').toLowerCase();
+            if (!scope && !name && !email) return;
+            out.push({ scope, name, email });
         });
         return out;
     }
@@ -503,6 +756,104 @@
         });
         return out;
     };
+    window.ms365TenantSettingsParseAdminGroupsLines = function (text) {
+        const raw = String(text || '');
+        const low = raw.toLowerCase();
+        if (low.includes('# rollen') || low.includes('# personen') || low.includes('[rollen]') || low.includes('[personen]')) {
+            const roleLines = [];
+            const peopleLines = [];
+            let mode = 'roles';
+            raw.split(/\r\n|\n|\r/).forEach(function (line) {
+                const t = normStr(line);
+                if (!t) return;
+                const lineLow = t.toLowerCase();
+                if (lineLow === '# rollen' || lineLow === '[rollen]' || lineLow === 'rollen:') {
+                    mode = 'roles';
+                    return;
+                }
+                if (lineLow === '# personen' || lineLow === '[personen]' || lineLow === 'personen:') {
+                    mode = 'people';
+                    return;
+                }
+                if (t.startsWith('#')) return;
+                const parts = t.split(/[;\t,|]/).map(function (x) {
+                    return normStr(x);
+                });
+                const looksLikePerson = parts.length >= 3 || t.includes('@');
+                if (mode === 'people' || looksLikePerson) peopleLines.push(t);
+                else roleLines.push(t);
+            });
+            return adminRolesAndAdminToGroups(parseLinesToAdminRoles(roleLines.join('\n')), window.ms365TenantSettingsParseAdminLines(peopleLines.join('\n')));
+        }
+        const groupMap = new Map();
+        parseDelimitedLines(text).forEach(function (parts) {
+            let code = '';
+            let name = '';
+            let personName = '';
+            let email = '';
+            if (parts.length >= 4) {
+                const first = normStr(parts[0] || '');
+                const second = normStr(parts[1] || '');
+                const firstLooksLikeCode = !!first && first === normCode(first) && !/\s/.test(first);
+                const secondLooksLikeCode = !!second && second === normCode(second) && !/\s/.test(second);
+                if (firstLooksLikeCode && !secondLooksLikeCode) {
+                    code = normCode(first);
+                    name = second;
+                } else {
+                    name = first;
+                    code = normCode(second);
+                }
+                personName = normStr(parts[2] || '');
+                email = normStr(parts[3] || '').toLowerCase();
+            } else if (parts.length === 3) {
+                name = normStr(parts[0] || '');
+                personName = normStr(parts[1] || '');
+                email = normStr(parts[2] || '').toLowerCase();
+                code = adminRoleCodeFromName(name);
+            } else if (parts.length === 2) {
+                code = normCode(parts[0] || '');
+                name = normStr(parts[1] || '');
+            } else {
+                name = normStr(parts[0] || '');
+                code = adminRoleCodeFromName(name);
+            }
+            if (!name && !code && !personName && !email) return;
+            const key = (name || code).toLowerCase();
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    code: code || adminRoleCodeFromName(name),
+                    name: name || code,
+                    people: []
+                });
+            }
+            const group = groupMap.get(key);
+            if (code && !group.code) group.code = code;
+            if (name && !group.name) group.name = name;
+            if (personName || email) {
+                group.people.push({ name: personName, email: email });
+            }
+        });
+        return normalizeGroupedAdministrationEntries(Array.from(groupMap.values()));
+    };
+    window.ms365TenantSettingsAdminGroupsToLines = function (groups) {
+        const lines = [];
+        (Array.isArray(groups) ? groups : []).forEach(function (group) {
+            const code = normStr(group && group.code);
+            const name = normStr(group && group.name);
+            const people = Array.isArray(group && group.people) ? group.people : [];
+            if (!people.length) {
+                lines.push([name, code, '', ''].join(';'));
+                return;
+            }
+            people.forEach(function (person) {
+                lines.push(
+                    [name, code, normStr(person && person.name), normStr(person && person.email).toLowerCase()].join(';')
+                );
+            });
+        });
+        return lines.join('\n').trim();
+    };
+    window.ms365TenantSettingsAdminRolesAndAdminToGroups = adminRolesAndAdminToGroups;
     window.ms365TenantSettingsParseAdminRolesLines = parseLinesToAdminRoles;
     window.ms365TenantSettingsDefaultAdminRoles = defaultAdminRoleCatalog;
     window.ms365TenantSettingsNormalizeAdminRoles = normalizeAdminRoleCatalog;
@@ -510,7 +861,9 @@
     window.ms365TenantSettingsPersonMatchesAdminRole = personMatchesAdminRole;
     window.ms365TenantSettingsAdminRoleCodeFromName = adminRoleCodeFromName;
     window.ms365TenantSettingsParseStudentsLines = parseLinesToStudents;
+    window.ms365TenantSettingsParseStudentCouncilLines = parseLinesToStudentCouncil;
     window.ms365TenantSettingsParseClassesLines = parseLinesToClasses;
+    window.ms365TenantSettingsParseSgaLines = parseLinesToSga;
     window.ms365DeriveClassStableMailNickname = deriveClassStableMailNickname;
 })();
 

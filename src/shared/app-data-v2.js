@@ -33,7 +33,13 @@
             completedSteps: [],
             finishedAt: null,
             lastVisitedAt: null,
-            matched: { schuelerGroupId: null, lehrerGroupId: null, verwaltungGroupId: null },
+            matched: {
+                schuelerGroupId: null,
+                lehrerGroupId: null,
+                verwaltungGroupId: null,
+                sgaGroupId: null,
+                studentCouncilGroupId: null
+            },
             slgDraft: {
                 activeKind: 'schueler',
                 slgNewDisplayName: '',
@@ -177,7 +183,7 @@
     }
 
     function emptyYearBucket() {
-        return { students: [], classes: [], guardians: [], parentLists: [] };
+        return { students: [], studentCouncil: [], classes: [], guardians: [], parentLists: [] };
     }
 
     function normalizeGuardian(row) {
@@ -238,6 +244,15 @@
         return { id: id, klasse: klasse, name: name, email: email, guardianIds: guardianIds };
     }
 
+    function normalizeStudentCouncilRow(row) {
+        const r = row && typeof row === 'object' ? row : {};
+        const klasse = String(r.klasse || r.class || r.group || '').trim();
+        const name = String(r.name || '').trim();
+        const email = normEmailKey(r.email);
+        if (!klasse && !name && !email) return null;
+        return { klasse: klasse, name: name, email: email };
+    }
+
     function normalizeYearBucket(raw) {
         const base = emptyYearBucket();
         const y = raw && typeof raw === 'object' ? raw : {};
@@ -246,6 +261,12 @@
         (Array.isArray(y.students) ? y.students : []).forEach(function (s) {
             const n = normalizeStudentRow(s, usedStudentIds);
             if (n) students.push(n);
+        });
+
+        const studentCouncil = [];
+        (Array.isArray(y.studentCouncil) ? y.studentCouncil : []).forEach(function (s) {
+            const n = normalizeStudentCouncilRow(s);
+            if (n) studentCouncil.push(n);
         });
 
         const guardians = [];
@@ -285,6 +306,7 @@
         });
 
         base.students = students;
+        base.studentCouncil = studentCouncil;
         base.classes = Array.isArray(y.classes) ? deepClone(y.classes) : [];
         base.guardians = guardians;
         base.parentLists = parentLists;
@@ -491,12 +513,14 @@
         const d = defaultSetup();
         const x = s && typeof s === 'object' ? s : {};
         let ws = parseInt(x.wizardStep, 10);
+        const layout11 = x._einrichtungWizardLayout === 11;
+        const layout10 = x._einrichtungWizardLayout === 10;
         const layout9 = x._einrichtungWizardLayout === 9;
         const layout8 = x._einrichtungWizardLayout === 8;
         const layout7 = x._einrichtungWizardLayout === 7;
         const layout6 = x._einrichtungWizardLayout === 6;
-        // Nur echte Layout-Upgrades (6/7 → 8); bei bereits 8 oder 9 keine erneute Verschiebung
-        if (!layout8 && !layout9 && !isNaN(ws)) {
+        // Nur echte Layout-Upgrades; bei bereits aktuellem Layout keine erneute Verschiebung
+        if (!layout8 && !layout9 && !layout10 && !layout11 && !isNaN(ws)) {
             // Layout 7 → 8: neuer Schritt „Verwaltung“ vor Lehrkräften (alte 3–7 werden 4–8)
             if (layout7 && ws >= 3 && ws <= 7) ws += 1;
             // Sehr alt: 5 Schritte (4=Katalog, 5=Klassen) → +1 für eingefügte Personen-Schritte
@@ -504,8 +528,11 @@
             // Vorher 6 Schritte: Klassen war Schritt 6 → jetzt Schritt 7
             if (layout6 && ws === 6) ws = 7;
         }
-        d.wizardStep = !isNaN(ws) && ws >= 1 && ws <= 9 ? ws : 1;
-        d._einrichtungWizardLayout = 9;
+        if (!isNaN(ws)) {
+            if ((layout9 || layout10) && ws >= 6 && ws <= 9) ws += 2;
+        }
+        d.wizardStep = !isNaN(ws) && ws >= 1 && ws <= 11 ? ws : 1;
+        d._einrichtungWizardLayout = 11;
         d.completedSteps = Array.isArray(x.completedSteps) ? x.completedSteps.map((t) => String(t)) : [];
         d.finishedAt = x.finishedAt != null && x.finishedAt !== '' ? String(x.finishedAt) : null;
         d.lastVisitedAt = x.lastVisitedAt != null && x.lastVisitedAt !== '' ? String(x.lastVisitedAt) : null;
@@ -513,7 +540,9 @@
         d.matched = {
             schuelerGroupId: m.schuelerGroupId ? String(m.schuelerGroupId).trim() : null,
             lehrerGroupId: m.lehrerGroupId ? String(m.lehrerGroupId).trim() : null,
-            verwaltungGroupId: m.verwaltungGroupId ? String(m.verwaltungGroupId).trim() : null
+            verwaltungGroupId: m.verwaltungGroupId ? String(m.verwaltungGroupId).trim() : null,
+            sgaGroupId: m.sgaGroupId ? String(m.sgaGroupId).trim() : null,
+            studentCouncilGroupId: m.studentCouncilGroupId ? String(m.studentCouncilGroupId).trim() : null
         };
         const dr = x.slgDraft && typeof x.slgDraft === 'object' ? x.slgDraft : {};
         const srcLehrer = String(dr.slgOwnerSourceLehrer || '').trim();
@@ -714,12 +743,16 @@
         return {
             version: VERSION,
             core: {
+                schoolName: '',
                 domain: '',
                 subjects: [],
                 arges: [],
                 teachers: [],
+                administration: [],
                 admin: [],
                 adminRoles: [],
+                sgaMode: 'group',
+                sga: [],
                 classTeams: []
             },
             years: {
@@ -808,10 +841,12 @@
             const rawCore = localStorage.getItem('ms365-tenant-settings-v1');
             const coreObj = rawCore ? safeJsonParse(rawCore) : null;
             if (coreObj && typeof coreObj === 'object') {
+                out.core.schoolName = String(coreObj.schoolName || coreObj.name || '').trim();
                 out.core.domain = String(coreObj.domain || '').trim();
                 out.core.subjects = Array.isArray(coreObj.subjects) ? deepClone(coreObj.subjects) : [];
                 out.core.arges = Array.isArray(coreObj.arges) ? deepClone(coreObj.arges) : [];
                 out.core.teachers = Array.isArray(coreObj.teachers) ? deepClone(coreObj.teachers) : [];
+                out.core.administration = Array.isArray(coreObj.administration) ? deepClone(coreObj.administration) : [];
                 out.core.admin = Array.isArray(coreObj.admin) ? deepClone(coreObj.admin) : [];
                 out.core.adminRoles = Array.isArray(coreObj.adminRoles) ? deepClone(coreObj.adminRoles) : [];
 
@@ -903,16 +938,21 @@
         const c = getContainer();
         const keepClassTeams = normalizeCoreClassTeams(c.core.classTeams || []);
         const s = v1Settings && typeof v1Settings === 'object' ? v1Settings : {};
+        c.core.schoolName = String(s.schoolName || '').trim();
         c.core.domain = String(s.domain || '').trim();
         c.core.subjects = Array.isArray(s.subjects) ? deepClone(s.subjects) : [];
         c.core.arges = Array.isArray(s.arges) ? deepClone(s.arges) : [];
         c.core.teachers = Array.isArray(s.teachers) ? deepClone(s.teachers) : [];
+        c.core.administration = Array.isArray(s.administration) ? deepClone(s.administration) : [];
         c.core.admin = Array.isArray(s.admin) ? deepClone(s.admin) : [];
         c.core.adminRoles = Array.isArray(s.adminRoles) ? deepClone(s.adminRoles) : [];
+        c.core.sgaMode = String(s.sgaMode || '').trim() === 'distribution' ? 'distribution' : 'group';
+        c.core.sga = Array.isArray(s.sga) ? deepClone(s.sga) : [];
         c.core.classTeams = keepClassTeams;
         const cur = String(c.years.current || currentSchoolYearLabel());
         const prev = c.years.byLabel[cur] || emptyYearBucket();
         const merged = mergeStudentsImport(prev, Array.isArray(s.students) ? s.students : []);
+        merged.studentCouncil = Array.isArray(s.studentCouncil) ? deepClone(s.studentCouncil) : [];
         merged.classes = Array.isArray(s.classes) ? deepClone(s.classes) : [];
         c.years.byLabel[cur] = normalizeYearBucket(merged);
         reconcileClassTeamsFromYearClasses(c, cur, c.years.byLabel[cur].classes);
@@ -1080,15 +1120,20 @@
         }
         // Legacy: treat as tenant-settings-core v1 payload, update only core+current year
         const cur = getContainer();
+        cur.core.schoolName = String(o.schoolName || '').trim();
         cur.core.domain = String(o.domain || '').trim();
         cur.core.subjects = Array.isArray(o.subjects) ? deepClone(o.subjects) : [];
         cur.core.arges = Array.isArray(o.arges) ? deepClone(o.arges) : [];
         cur.core.teachers = Array.isArray(o.teachers) ? deepClone(o.teachers) : [];
+        cur.core.administration = Array.isArray(o.administration) ? deepClone(o.administration) : [];
         cur.core.admin = Array.isArray(o.admin) ? deepClone(o.admin) : [];
         cur.core.adminRoles = Array.isArray(o.adminRoles) ? deepClone(o.adminRoles) : [];
+        cur.core.sgaMode = String(o.sgaMode || '').trim() === 'distribution' ? 'distribution' : 'group';
+        cur.core.sga = Array.isArray(o.sga) ? deepClone(o.sga) : [];
         const y = String(cur.years.current || currentSchoolYearLabel());
         const prev = cur.years.byLabel[y] || emptyYearBucket();
         const merged = mergeStudentsImport(prev, Array.isArray(o.students) ? o.students : []);
+        merged.studentCouncil = Array.isArray(o.studentCouncil) ? deepClone(o.studentCouncil) : [];
         merged.classes = Array.isArray(o.classes) ? deepClone(o.classes) : [];
         cur.years.byLabel[y] = normalizeYearBucket(merged);
         if (!Array.isArray(cur.core.classTeams)) cur.core.classTeams = [];

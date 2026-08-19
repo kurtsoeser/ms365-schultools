@@ -104,6 +104,8 @@ function goToWtgStep(step) {
     wtgCurrentStep = step;
     const stepContents = document.querySelectorAll('.wtg-step-content');
     if (stepContents && stepContents.length > 1) {
+        if (step === 2) rebuildWtgOwnerTableFromRows();
+        if (step === 3) rebuildWtgMembersTableFromRows();
         stepContents.forEach((el) => {
             el.classList.toggle('active', wtgStepNum(el) === step);
         });
@@ -112,7 +114,6 @@ function goToWtgStep(step) {
             el.classList.toggle('active', s === step);
             el.classList.toggle('completed', s < step);
         });
-        if (step === 3) rebuildWtgMembersTableFromRows();
         if (typeof window.ms365ApplyStepProgress === 'function') {
             window.ms365ApplyStepProgress(document.querySelector('.wtg-steps'), step, [1, 2, 3, 4, 5]);
         }

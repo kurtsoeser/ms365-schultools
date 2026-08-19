@@ -511,10 +511,12 @@
                 <button type="button" data-sw-step="3" aria-selected="false"><i class="bi bi-building-gear"></i> 3. Verwaltung</button>
                 <button type="button" data-sw-step="4" aria-selected="false"><i class="bi bi-person-badge"></i> 4. Lehrer:innen</button>
                 <button type="button" data-sw-step="5" aria-selected="false"><i class="bi bi-people"></i> 5. Schüler:innen</button>
-                <button type="button" data-sw-step="6" aria-selected="false"><i class="bi bi-book"></i> 6. Fächer</button>
-                <button type="button" data-sw-step="7" aria-selected="false"><i class="bi bi-diagram-3"></i> 7. ARGE</button>
-                <button type="button" data-sw-step="8" aria-selected="false"><i class="bi bi-mortarboard"></i> 8. Klassen</button>
-                <button type="button" data-sw-step="9" aria-selected="false"><i class="bi bi-ui-checks-grid"></i> 9. Übersicht</button>
+                <button type="button" data-sw-step="6" aria-selected="false"><i class="bi bi-megaphone"></i> 6. SGA</button>
+                <button type="button" data-sw-step="7" aria-selected="false"><i class="bi bi-people"></i> 7. Schülervertretung</button>
+                <button type="button" data-sw-step="8" aria-selected="false"><i class="bi bi-book"></i> 8. Fächer</button>
+                <button type="button" data-sw-step="9" aria-selected="false"><i class="bi bi-diagram-3"></i> 9. ARGE</button>
+                <button type="button" data-sw-step="10" aria-selected="false"><i class="bi bi-mortarboard"></i> 10. Klassen</button>
+                <button type="button" data-sw-step="11" aria-selected="false"><i class="bi bi-ui-checks-grid"></i> 11. Übersicht</button>
             </nav>
 
             <div id="swStep1" class="sw-panel">
@@ -766,6 +768,7 @@
             <div id="swStep5" class="sw-panel" style="display:none;">
                 <h2>5. Schüler:innen und Sammelgruppe</h2>
                 <p class="intro">Schüler:innen wie in den Schul‑Grundeinstellungen: pro Zeile <code>Klasse;Name;E‑Mail</code>. Die meisten Schulen haben die Konten bereits (AD‑Sync) und mit <strong>Microsoft 365 A1 oder A3 für Schüler:innen</strong> lizenziert – <strong>Aus Microsoft 365 einlesen</strong> übernimmt diese Konten; die Klasse ist ein Vorschlag (z. B. aus der Abteilung) und danach editierbar. Die Tabelle: <strong>Doppelklick</strong> zum Bearbeiten. <strong>Import</strong> aus CSV/XLSX wie bei den Lehrkräften. Über <strong>E‑Mails mit Microsoft prüfen</strong> den Entra‑Abgleich; fehlende Konten können Sie anlegen. Anschließend die Sammelgruppe: Standard <strong>neu anlegen</strong>, alternativ <strong>verknüpfen</strong>.</p>
+                <p id="swYearHintStudents" class="intro" style="font-size:0.92em;color:var(--muted);"></p>
                 <div class="sw-field">
                     <label for="swStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
                     <textarea id="swStudentsLines" spellcheck="false" placeholder="1A;Lisa Beispiel;lisa@schule.at"></textarea>
@@ -815,7 +818,7 @@
                     <div class="settings-actions" style="margin-top:8px;">
                         <label class="btn" for="swSchuldatenMasterImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import Gesamt‑Excel</label>
                         <input type="file" id="swSchuldatenMasterImportFile" accept=".xlsx,.xls">
-                        <small style="color:var(--muted);display:block;width:100%;margin-top:6px;line-height:1.45;">Nur <strong>.xlsx</strong>: erkannte Blätter (Verwaltung, Lehrer, Schueler, Faecher, ARGE, Klassen) werden <strong>sofort in die Schul‑Einstellungen geschrieben</strong> und in den Schritten 3–8 angezeigt (Gruppen/Sammelgruppen wie bisher dort speichern).</small>
+                        <small style="color:var(--muted);display:block;width:100%;margin-top:6px;line-height:1.45;">Nur <strong>.xlsx</strong>: erkannte Blätter (Verwaltung, Lehrer, Schueler, SGA, StudentCouncil, Faecher, ARGE, Klassen) werden <strong>sofort in die Schul‑Einstellungen geschrieben</strong> und in den Schritten 3–10 angezeigt (Gruppen/Sammelgruppen wie bisher dort speichern).</small>
                     </div>
                     <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
                         <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
@@ -904,7 +907,106 @@
             </div>
 
             <div id="swStep6" class="sw-panel" style="display:none;">
-                <h2>6. Fächer (Fachgruppen)</h2>
+                <h2>6. SGA</h2>
+                <p class="intro">Hier pflegen Sie den <strong>SGA</strong> als feste schulweite Gruppe. Zuerst den Gruppentyp festlegen, dann Mitglieder pflegen, E‑Mails prüfen und danach die Microsoft‑365‑Gruppe prüfen oder anlegen.</p>
+                <div class="sw-field">
+                    <label for="swSgaMode">SGA-Typ</label>
+                    <select id="swSgaMode" style="padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                        <option value="group">Microsoft-365-Gruppe</option>
+                        <option value="distribution">E-Mail-Verteilerliste</option>
+                    </select>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Hinweis: Für den automatischen Graph-Abgleich wird derzeit auch im Modus „Verteilerliste“ mit einer Microsoft-365-Gruppe gearbeitet.</small>
+                </div>
+                <div class="sw-field">
+                    <label>SGA-Gruppe in Microsoft 365</label>
+                    <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;">
+                        <span id="swSgaGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                        <button type="button" class="btn btn-primary" id="swBtnVerifySgaGroup"><i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen</button>
+                        <button type="button" class="btn btn-success" id="swBtnCreateSgaGroup"><i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen</button>
+                    </div>
+                </div>
+                <div class="sw-field">
+                    <label for="swSgaLines">SGA-Mitglieder</label>
+                    <textarea id="swSgaLines" spellcheck="false" placeholder="Lehrer;Maria Beispiel;maria@schule.at&#10;Schueler;Ali Demo;ali@schule.at&#10;Extern;Max Extern;max.extern@example.org"></textarea>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Format: <code>Gruppe;Name;E-Mail</code> mit <code>Lehrer</code>, <code>Schüler</code> oder <code>Extern</code>.</small>
+                    <div class="teachers-table-wrap" aria-label="SGA-Mitglieder als Tabelle" style="margin-top:12px;">
+                        <table class="teachers-table" aria-label="SGA-Mitglieder (editierbar per Doppelklick)">
+                            <thead>
+                                <tr>
+                                    <th>Gruppe</th>
+                                    <th>Name</th>
+                                    <th>E-Mail</th>
+                                    <th>Microsoft 365</th>
+                                    <th class="action-cell">Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="swSgaTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
+                        <button type="button" class="btn btn-success" id="swBtnSgaAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                        <button type="button" class="btn btn-success" id="swBtnSaveSga"><i class="bi bi-floppy"></i>SGA speichern</button>
+                        <button type="button" class="btn" id="swBtnVerifySgaGraph"><i class="bi bi-microsoft"></i>E‑Mails mit Microsoft prüfen</button>
+                        <button type="button" class="btn" id="swBtnCreateMissingSga"><i class="bi bi-person-plus"></i>Fehlende Benutzer anlegen</button>
+                        <button type="button" class="btn btn-success" id="swBtnSyncMembersSga"><i class="bi bi-person-plus-fill"></i>Mitglieder synchronisieren</button>
+                    </div>
+                    <div id="swStatsSga" class="sw-wiz-stats" aria-live="polite"></div>
+                    <div id="swMatchSummarySga" class="sw-match-summary" style="margin-top:14px;padding:12px;border-radius:12px;background:var(--soft);border:1px solid var(--border);"></div>
+                    <div class="sw-field">
+                        <label>Protokoll</label>
+                        <div id="swSyncLogSga" style="max-height:160px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:8px;font-family:Consolas,monospace;font-size:0.82em;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="swStep7" class="sw-panel" style="display:none;">
+                <h2>7. Schülervertretung</h2>
+                <p class="intro">Die Schülervertretung ist <strong>schuljahresbezogen</strong>. Pflegen Sie hier die Mitgliederliste, prüfen Sie die E‑Mails und gleichen Sie anschließend die Microsoft‑365‑Gruppe ab oder legen Sie sie an.</p>
+                <p id="swYearHintStudentCouncil" class="intro" style="font-size:0.92em;color:var(--muted);"></p>
+                <div class="sw-field">
+                    <label>Schülervertretung-Gruppe in Microsoft 365</label>
+                    <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;">
+                        <span id="swStudentCouncilGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                        <button type="button" class="btn btn-primary" id="swBtnVerifyStudentCouncilGroup"><i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen</button>
+                        <button type="button" class="btn btn-success" id="swBtnCreateStudentCouncilGroup"><i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen</button>
+                    </div>
+                </div>
+                <div class="sw-field">
+                    <label for="swStudentCouncilLines">Schülervertretung</label>
+                    <textarea id="swStudentCouncilLines" spellcheck="false" placeholder="3A;Anna Beispiel;anna@schule.at&#10;4B;Ben Demo;ben@schule.at"></textarea>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Format: <code>Klasse;Name;E-Mail</code>.</small>
+                    <div class="teachers-table-wrap" aria-label="Schülervertretung als Tabelle" style="margin-top:12px;">
+                        <table class="teachers-table" aria-label="Schülervertretung (editierbar per Doppelklick)">
+                            <thead>
+                                <tr>
+                                    <th>Klasse</th>
+                                    <th>Name</th>
+                                    <th>E-Mail</th>
+                                    <th>Microsoft 365</th>
+                                    <th class="action-cell">Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="swStudentCouncilTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
+                        <button type="button" class="btn btn-success" id="swBtnStudentCouncilAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                        <button type="button" class="btn btn-success" id="swBtnSaveStudentCouncil"><i class="bi bi-floppy"></i>Schülervertretung speichern</button>
+                        <button type="button" class="btn" id="swBtnVerifyStudentCouncilGraph"><i class="bi bi-microsoft"></i>E‑Mails mit Microsoft prüfen</button>
+                        <button type="button" class="btn" id="swBtnCreateMissingStudentCouncil"><i class="bi bi-person-plus"></i>Fehlende Benutzer anlegen</button>
+                        <button type="button" class="btn btn-success" id="swBtnSyncMembersStudentCouncil"><i class="bi bi-person-plus-fill"></i>Mitglieder synchronisieren</button>
+                    </div>
+                    <div id="swStatsStudentCouncil" class="sw-wiz-stats" aria-live="polite"></div>
+                    <div id="swMatchSummaryStudentCouncil" class="sw-match-summary" style="margin-top:14px;padding:12px;border-radius:12px;background:var(--soft);border:1px solid var(--border);"></div>
+                    <div class="sw-field">
+                        <label>Protokoll</label>
+                        <div id="swSyncLogStudentCouncil" style="max-height:160px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:8px;font-family:Consolas,monospace;font-size:0.82em;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="swStep8" class="sw-panel" style="display:none;">
+                <h2>8. Fächer (Fachgruppen)</h2>
                 <p class="intro">Fächer wie in den Grundeinstellungen: eine Zeile <code>Kürzel;Bezeichnung</code> im Textfeld oder direkt in der Tabelle. <strong>Eine Tabelle</strong> für alles: Kürzel/Name bearbeiten (<strong>Doppelklick</strong>), SMTP‑Vorschau, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional <strong>Auto‑Match</strong> oder Schritt überspringen.</p>
                 <div class="sw-field">
                     <label for="swSubjectGroupPrefix">Präfix für Mail‑Nickname neuer Fachgruppen</label>
@@ -941,8 +1043,8 @@
                 </div>
             </div>
 
-            <div id="swStep7" class="sw-panel" style="display:none;">
-                <h2>7. Arbeitsgruppen (ARGE)</h2>
+            <div id="swStep9" class="sw-panel" style="display:none;">
+                <h2>9. Arbeitsgruppen (ARGE)</h2>
                 <p class="intro">ARGEs wie in den Grundeinstellungen: eine Zeile <code>Kürzel;Bezeichnung</code> im Textfeld oder direkt in der Tabelle. <strong>Eine Tabelle</strong> für alles: Kürzel/Bezeichnung bearbeiten (<strong>Doppelklick</strong>), SMTP‑Vorschau, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional <strong>Auto‑Match</strong> oder Schritt überspringen.</p>
                 <div class="sw-field">
                     <label for="swArgeGroupPrefix">Präfix für Mail‑Nickname neuer ARGE‑Gruppen</label>
@@ -979,10 +1081,11 @@
                 </div>
             </div>
 
-            <div id="swStep8" class="sw-panel" style="display:none;">
-                <h2>8. Klassen (stabile Microsoft‑365‑Gruppen)</h2>
+            <div id="swStep10" class="sw-panel" style="display:none;">
+                <h2>10. Klassen (stabile Microsoft‑365‑Gruppen)</h2>
                 <p class="intro">Pro <strong>Klassengruppe</strong> legen Sie <strong>einmal</strong> eine Gruppe mit <strong>festem Mail‑Alias</strong> an (Schema <code>jg{Abschlussjahr}{Kürzel}</code>, z. B. <code>jg2031hma</code>). Der <strong>Anzeigename</strong> kann später pro Schuljahr geändert werden (z. B. <code>1HMA</code> → <code>2HMA</code>) – technische ID bleibt. Die Spalte <strong>Vorschau SMTP</strong> zeigt die <em>Zieladresse</em> mit der Schul‑Domain aus Schritt 2. Graph selbst setzt beim Anlegen die Tenant‑Standarddomain (siehe Schritt 2). Wie bei <strong>ARGE</strong>: eine Zeile <code>Kürzel;Abschlussjahr;Bezeichnung</code> im Textfeld oder direkt in der Tabelle – <strong>Doppelklick</strong> zum Bearbeiten, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional Klassenvorstand: <code>…;Name;E‑Mail</code> wie in den <a href="tenant.html">Grundeinstellungen</a>.</p>
                 <p class="intro" style="font-size:0.95em;">Nach dem Schuljahreswechsel: Klassen‑Anzeigenamen unter <a href="tenant.html#classes">Schul‑Einstellungen → Tab „Klassen“</a> anpassen (inkl. Microsoft 365).</p>
+                <p id="swYearHintClasses" class="intro" style="font-size:0.92em;color:var(--muted);"></p>
                 <div class="sw-field">
                     <label for="swClassesBulk">Klassen (Rohliste)</label>
                     <textarea id="swClassesBulk" spellcheck="false" placeholder="HMA;2031;1HMA"></textarea>
@@ -1008,12 +1111,12 @@
                 </div>
                 <div class="sw-toolbar" style="flex-wrap:wrap;">
                     <button type="button" class="btn btn-success" id="swBtnSaveClassesBulk"><i class="bi bi-floppy"></i>Speichern &amp; Tabelle aktualisieren</button>
-                    <button type="button" class="btn btn-success" id="swBtnStep8Next"><i class="bi bi-arrow-right-circle"></i>Weiter zur Übersicht</button>
+                    <button type="button" class="btn btn-success" id="swBtnStep10Next"><i class="bi bi-arrow-right-circle"></i>Weiter zur Übersicht</button>
                 </div>
             </div>
 
-            <div id="swStep9" class="sw-panel" style="display:none;">
-                <h2>9. Kurzüberblick &amp; nächste Schritte</h2>
+            <div id="swStep11" class="sw-panel" style="display:none;">
+                <h2>11. Kurzüberblick &amp; nächste Schritte</h2>
                 <p class="intro">Die geführte Einrichtung ist damit inhaltlich abgeschlossen, sobald Sie die Stammdaten gepflegt haben. Unten sehen Sie eine <strong>Zusammenfassung</strong> aus den gespeicherten Schul‑Einstellungen; danach können Sie direkt in passende Werkzeuge wechseln – z. B. <strong>Kursteams</strong>, weitere <strong>Gruppen/Teams</strong>, <strong>Personen</strong> oder die <strong>Schul‑Grundeinstellungen</strong> für Feinkorrekturen.</p>
                 <div id="swStep9SummaryBody" class="sw-wiz-stats" aria-live="polite"></div>
                 <h3 style="margin:22px 0 8px;font-size:1.05em;color:#32325d;">Empfohlene Werkzeuge</h3>

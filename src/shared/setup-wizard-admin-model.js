@@ -89,26 +89,261 @@ export function normalizeAdminRoleCatalog(rolesIn, adminIn) {
 }
 
 export function renameAdminRole(roles, admin, fromName, toName) {
-    const from = normStr(fromName);
+    const groups = adminRolesAndAdminToGroups(roles, admin);
+    const nextGroups = renameAdminRoleInGroups(groups, fromName, toName);
+    return {
+        roles: deriveAdminRolesFromGroups(nextGroups),
+        admin: deriveAdminFromGroups(nextGroups)
+    };
+}
+
+export function isAdministrationGrouped(entries) {
+    return (
+        Array.isArray(entries) &&
+        entries.some(function (entry) {
+            return entry && Array.isArray(entry.people);
+        })
+    );
+}
+
+function normalizeAdminPersonEntry(row) {
+    const person = {
+        name: normStr(row && row.name),
+        email: normEmail(row && row.email)
+    };
+    const defaultKey = normStr(row && row.defaultKey);
+    if (defaultKey) person.defaultKey = defaultKey;
+    return person;
+}
+
+export function deriveAdminFromGroups(groups) {
+    const out = [];
+    (Array.isArray(groups) ? groups : []).forEach(function (group) {
+        const roleName = normStr(group && group.name);
+        (Array.isArray(group && group.people) ? group.people : []).forEach(function (personRow) {
+            const person = normalizeAdminPersonEntry(personRow);
+            if (!roleName && !person.name && !person.email) return;
+            const row = { role: roleName, name: person.name, email: person.email };
+            if (person.defaultKey) row.defaultKey = person.defaultKey;
+            out.push(migrateAdminRowDefaultKey(row));
+        });
+    });
+    return out;
+}
+
+export function deriveAdminRolesFromGroups(groups) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(groups) ? groups : []).forEach(function (group) {
+        const name = normStr(group && group.name);
+        let code = normStr(group && group.code).toUpperCase();
+        if (!code && name) code = adminRoleCodeFromName(name);
+        if (!code && !name) return;
+        const key = (name || code).toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({ code: code || adminRoleCodeFromName(name), name: name || code });
+    });
+    return out;
+}
+
+export function adminRolesAndAdminToGroups(rolesIn, adminIn) {
+    const roles = normalizeAdminRoleCatalog(rolesIn, adminIn);
+    const groupMap = new Map();
+    roles.forEach(function (role) {
+        const name = normStr(role && role.name);
+        const code = normStr(role && role.code).toUpperCase() || adminRoleCodeFromName(name);
+        if (!name && !code) return;
+        groupMap.set(name.toLowerCase(), { code: code, name: name || code, people: [] });
+    });
+    (Array.isArray(adminIn) ? adminIn : []).forEach(function (row) {
+        const migrated = migrateAdminRowDefaultKey(row);
+        const roleName = normStr(migrated.role);
+        if (!roleName) return;
+        const key = roleName.toLowerCase();
+        if (!groupMap.has(key)) {
+            groupMap.set(key, {
+                code: adminRoleCodeFromName(roleName),
+                name: roleName,
+                people: []
+            });
+        }
+        const person = normalizeAdminPersonEntry(migrated);
+        if (!person.name && !person.email) return;
+        groupMap.get(key).people.push(person);
+    });
+    return Array.from(groupMap.values());
+}
+
+function flatKindEntriesToGroups(entries) {
+    const administration = Array.isArray(entries) ? entries : [];
+    const roles = normalizeAdminRoleCatalog(
+        administration
+            .filter(function (entry) {
+                return entry && entry.kind === 'role';
+            })
+            .map(function (entry) {
+                return { code: normStr(entry.code).toUpperCase(), name: normStr(entry.name) };
+            }),
+        administration
+            .filter(function (entry) {
+                return entry && entry.kind === 'person';
+            })
+            .map(function (entry) {
+                return {
+                    role: normStr(entry.role),
+                    name: normStr(entry.name),
+                    email: normEmail(entry.email),
+                    defaultKey: normStr(entry.defaultKey)
+                };
+            })
+    );
+    const admin = administration
+        .filter(function (entry) {
+            return entry && entry.kind === 'person';
+        })
+        .map(function (entry) {
+            const row = {
+                role: normStr(entry.role),
+                name: normStr(entry.name),
+                email: normEmail(entry.email)
+            };
+            const defaultKey = normStr(entry.defaultKey);
+            if (defaultKey) row.defaultKey = defaultKey;
+            return migrateAdminRowDefaultKey(row);
+        });
+    return adminRolesAndAdminToGroups(roles, admin);
+}
+
+export function normalizeAdministrationGroups(entriesIn, rolesIn, adminIn) {
+    if (isAdministrationGrouped(entriesIn)) {
+        return normalizeGroupedAdministrationEntries(entriesIn);
+    }
+    if (
+        Array.isArray(entriesIn) &&
+        entriesIn.some(function (entry) {
+            return entry && (entry.kind === 'role' || entry.kind === 'person');
+        })
+    ) {
+        return flatKindEntriesToGroups(entriesIn);
+    }
+    return adminRolesAndAdminToGroups(rolesIn, adminIn);
+}
+
+export function normalizeGroupedAdministrationEntries(groupsIn) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(groupsIn) ? groupsIn : []).forEach(function (group) {
+        const name = normStr(group && group.name);
+        const code = normStr(group && group.code).toUpperCase() || adminRoleCodeFromName(name);
+        if (!name && !code) return;
+        const key = (name || code).toLowerCase();
+        let target = out.find(function (entry) {
+            return (entry.name || entry.code).toLowerCase() === key;
+        });
+        if (!target) {
+            target = { code: code, name: name || code, people: [] };
+            out.push(target);
+            seen.add(key);
+        }
+        const peopleSeen = new Set(
+            target.people.map(function (person) {
+                return [person.name, person.email].join('\u0001').toLowerCase();
+            })
+        );
+        (Array.isArray(group && group.people) ? group.people : []).forEach(function (personRow) {
+            const person = normalizeAdminPersonEntry(personRow);
+            if (!person.name && !person.email) return;
+            const personKey = [person.name, person.email].join('\u0001').toLowerCase();
+            if (peopleSeen.has(personKey)) return;
+            peopleSeen.add(personKey);
+            target.people.push(person);
+        });
+    });
+    return out;
+}
+
+export function groupsToDisplayRows(groups) {
+    const rows = [];
+    (Array.isArray(groups) ? groups : []).forEach(function (group, groupIdx) {
+        const people = Array.isArray(group.people) ? group.people : [];
+        if (!people.length) {
+            rows.push({
+                groupIdx: groupIdx,
+                personIdx: -1,
+                code: group.code || '',
+                name: group.name || '',
+                personName: '',
+                email: ''
+            });
+            return;
+        }
+        people.forEach(function (person, personIdx) {
+            rows.push({
+                groupIdx: groupIdx,
+                personIdx: personIdx,
+                code: group.code || '',
+                name: group.name || '',
+                personName: person.name || '',
+                email: person.email || '',
+                defaultKey: person.defaultKey || ''
+            });
+        });
+    });
+    return rows;
+}
+
+export function adminGroupsToLines(groups) {
+    const lines = [];
+    (Array.isArray(groups) ? groups : []).forEach(function (group) {
+        const code = normStr(group && group.code);
+        const name = normStr(group && group.name);
+        const people = Array.isArray(group && group.people) ? group.people : [];
+        if (!people.length) {
+            lines.push([code, name, '', ''].join(';'));
+            return;
+        }
+        people.forEach(function (person) {
+            lines.push([code, name, normStr(person && person.name), normEmail(person && person.email)].join(';'));
+        });
+    });
+    return lines.join('\n').trim();
+}
+
+export function renameAdminRoleInGroups(groups, fromName, toName) {
+    const fromL = normStr(fromName).toLowerCase();
     const to = normStr(toName);
-    const fromL = from.toLowerCase();
-    const nextRoles = (Array.isArray(roles) ? roles : []).map(function (r) {
-        const o = Object.assign({}, r);
-        if (normStr(o.name).toLowerCase() === fromL || normStr(o.code).toLowerCase() === fromL) {
-            o.name = to || o.name;
-            if (to && (!o.code || normStr(o.code).toLowerCase() === fromL)) {
-                o.code = adminRoleCodeFromName(to) || o.code;
+    return (Array.isArray(groups) ? groups : []).map(function (group) {
+        const next = Object.assign({}, group, {
+            people: (Array.isArray(group.people) ? group.people : []).map(function (person) {
+                return Object.assign({}, person);
+            })
+        });
+        if (normStr(next.name).toLowerCase() === fromL || normStr(next.code).toLowerCase() === fromL) {
+            next.name = to || next.name;
+            if (to && (!next.code || normStr(next.code).toLowerCase() === fromL)) {
+                next.code = adminRoleCodeFromName(to) || next.code;
             }
         }
-        return o;
+        return next;
     });
-    const nextAdmin = (Array.isArray(admin) ? admin : []).map(function (row) {
-        const o = Object.assign({}, row);
-        if (normStr(o.role).toLowerCase() === fromL) o.role = to;
-        if (normStr(o.defaultKey).toLowerCase() === fromL) o.defaultKey = to;
-        return o;
-    });
-    return { roles: normalizeAdminRoleCatalog(nextRoles, nextAdmin), admin: nextAdmin };
+}
+
+export function deriveAdministrationEntries(roles, admin) {
+    return adminRolesAndAdminToGroups(roles, admin);
+}
+
+export function splitAdministrationEntries(entries) {
+    if (isAdministrationGrouped(entries)) {
+        return {
+            roles: deriveAdminRolesFromGroups(entries),
+            admin: deriveAdminFromGroups(entries)
+        };
+    }
+    return {
+        roles: deriveAdminRolesFromGroups(flatKindEntriesToGroups(entries)),
+        admin: deriveAdminFromGroups(flatKindEntriesToGroups(entries))
+    };
 }
 
 /** Kanonischer Standard-Slot nur bei gesetztem defaultKey (vermeidet Kollision mit freier Rolle „Direktion“). */
@@ -146,7 +381,11 @@ export function isDirektionAdminRow(row) {
 }
 
 export function getAdminDisplayRowsFromSettings(settings) {
-    const adminArr = settings && Array.isArray(settings.admin) ? settings.admin : [];
+    const split =
+        settings && Array.isArray(settings.administration)
+            ? splitAdministrationEntries(settings.administration)
+            : { admin: settings && Array.isArray(settings.admin) ? settings.admin : [] };
+    const adminArr = split.admin;
     if (adminArr.length) {
         return adminArr.map(function (r) {
             return migrateAdminRowDefaultKey(r);
@@ -160,7 +399,11 @@ export function getAdminDisplayRowsFromSettings(settings) {
 export function collectDirektionOwnerEmails(settings) {
     const out = [];
     const seen = new Set();
-    const admin = settings && Array.isArray(settings.admin) ? settings.admin : [];
+    const split =
+        settings && Array.isArray(settings.administration)
+            ? splitAdministrationEntries(settings.administration)
+            : { admin: settings && Array.isArray(settings.admin) ? settings.admin : [] };
+    const admin = split.admin;
     admin.forEach(function (row) {
         if (!isDirektionAdminRow(row)) return;
         const em = normEmail(row && row.email);
@@ -175,7 +418,11 @@ export function collectDirektionOwnerEmails(settings) {
 export function collectAdminOwnerEmails(settings) {
     const out = [];
     const seen = new Set();
-    const admin = settings && Array.isArray(settings.admin) ? settings.admin : [];
+    const split =
+        settings && Array.isArray(settings.administration)
+            ? splitAdministrationEntries(settings.administration)
+            : { admin: settings && Array.isArray(settings.admin) ? settings.admin : [] };
+    const admin = split.admin;
     admin.forEach(function (row) {
         const em = normEmail(row && row.email);
         if (!em || em.indexOf('@') === -1) return;

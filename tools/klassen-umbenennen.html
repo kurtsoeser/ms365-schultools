@@ -6,21 +6,50 @@
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schulverwaltung – Weiterleitung</title>
-    <link rel="canonical" href="../tenant.html#classes">
-    <script>
-        (function () {
-            window.location.replace('../tenant.html#classes');
-        })();
-    </script>
-    <meta http-equiv="refresh" content="0;url=../tenant.html#classes">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Schuljahreswechsel</title>
+    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
-<body>
-    <p style="font-family:system-ui,sans-serif;padding:1.5rem;">
-        Klassen‑Anzeigenamen pflegen Sie in den <strong>Schul‑Einstellungen</strong> unter <strong>Tab „Klassen“</strong>.
-        <a href="../tenant.html#classes">Weiter zur Seite</a>
-        · <a href="archiv/klassen-umbenennen-wizard.html">alter 4‑Schritt‑Assistent (Archiv)</a>
-    </p>
+<body data-ms365-skip-tenant-domain-prompt="true">
+    <div class="container page-card">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-arrow-repeat"></i>Schuljahreswechsel</span>
+            </div>
+            <p>Klassen-Gruppen nach dem Schuljahreswechsel umbenennen, Vorschläge prüfen und Anzeigenamen lokal oder direkt in Microsoft 365 aktualisieren.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                        <a class="btn" href="../tenant.html#classes" style="text-decoration:none;display:inline-block;">Klassen in Grundeinstellungen</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="settings" aria-label="Schuljahreswechsel Klassen-Gruppen">
+                <h2>Klassen-Gruppen: Anzeigename nach Schuljahreswechsel</h2>
+                <p>Dieses Werkzeug ist bewusst von den Schul-Grundeinstellungen getrennt. Die Klassen-Stammdaten pflegen Sie weiterhin unter <a href="../tenant.html#classes">Schul-Grundeinstellungen → Klassen</a>; hier geht es nur um den Wechsel der Anzeigenamen.</p>
+                <p>Stabile Gruppen-E-Mails bzw. Mail-Aliase bleiben gleich. Geändert wird lokal und optional in Microsoft 365 nur der <strong>Anzeigename</strong>. Voraussetzung für das Schreiben nach Microsoft 365: Anmeldung über das Widget oben und vorhandene <code>graphGroupId</code>-Einträge aus der Einrichtung.</p>
+                <div id="classTeamsRolloverRoot" aria-live="polite"></div>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/graph-rename-preview.js" defer></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/class-teams-rollover-ui.js" defer></script>
 </body>
 </html>

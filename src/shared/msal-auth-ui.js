@@ -402,6 +402,8 @@
             '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Domain</span>' +
             '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxDomain">–</span></div>' +
             '</div>' +
+            '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthActionLogLink" href="action-log.html">' +
+            '<i class="bi bi-journal-text" aria-hidden="true"></i>Aktionsprotokoll</a>' +
             '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthSwitchBtn" title="Konto wechseln / Anmeldung zurücksetzen">' +
             '<i class="bi bi-arrow-repeat" aria-hidden="true"></i>Konto wechseln</button>' +
             '<button type="button" class="ms365-auth-menu__item ms365-auth-menu__item--danger" role="menuitem" id="ms365AuthLogoutBtn">' +
@@ -417,6 +419,7 @@
 
     function ensureAuthMenuBindings() {
         const trigger = document.getElementById('ms365AuthBadge');
+        const actionLogLink = document.getElementById('ms365AuthActionLogLink');
         const switchBtn = document.getElementById('ms365AuthSwitchBtn');
         const logoutBtn = document.getElementById('ms365AuthLogoutBtn');
         if (trigger && !trigger.dataset.bound) {
@@ -431,6 +434,12 @@
             switchBtn.addEventListener('click', function () {
                 closeAuthMenu();
                 forceFreshLogin().catch(function () {});
+            });
+        }
+        if (actionLogLink && !actionLogLink.dataset.bound) {
+            actionLogLink.dataset.bound = '1';
+            actionLogLink.addEventListener('click', function () {
+                closeAuthMenu();
             });
         }
         if (logoutBtn && !logoutBtn.dataset.bound) {
