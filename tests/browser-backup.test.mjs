@@ -111,7 +111,7 @@ describe('browser-backup', () => {
         const payload = apiWithSchool.buildBackup(storeWithSchool, now);
         expect(apiWithSchool.isBackupPayload(payload)).toBe(true);
         expect(payload.kind).toBe('ms365-browser-backup-v1');
-        expect(payload.version).toBe(2);
+        expect(payload.version).toBe(3);
         expect(payload.exportedAt).toBe(now.toISOString());
         expect(payload.schoolName).toBe('BRG Muster');
         expect(payload.domain).toBe('brg-muster.at');
@@ -155,7 +155,7 @@ describe('browser-backup', () => {
         const result = api.applyBackup(
             {
                 kind: api.KIND,
-                version: 1,
+                version: 3,
                 localStorage: {
                     'ms365-school-email-domain-v1': 'schule.at',
                     'msal.token.keys.abc': 'stolen'

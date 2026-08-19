@@ -8,12 +8,27 @@
     'use strict';
 
     const KIND = 'ms365-browser-backup-v1';
-    const VERSION = 2;
+    const VERSION = 3;
     const SESSION_SKIP_KEYS = {
         'ms365-access-granted-v1': true,
         'ms365-admin-access-granted-v1': true,
         'ms365-post-login-url': true
     };
+
+    /** Bekannte Schlüssel – dient der Inventar-Anzeige (Export umfasst alle ms365-* / webuntis-*). */
+    const STORAGE_CATALOG = [
+        { label: 'Zentrale Schuldaten', keys: ['ms365-schooltool-data-v2', 'ms365-tenant-settings-v1', 'ms365-school-email-domain-v1'] },
+        { label: 'Einrichtung & Demo', keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1'] },
+        { label: 'Dashboard', keys: ['ms365-dashboard-favorites-v1', 'ms365-dashboard-order-catalog-v1', 'ms365-dashboard-category-tab-v1'] },
+        { label: 'Schulstruktur (Legacy-Spiegel)', keys: ['ms365-schulstruktur-sync-v1', 'ms365-schulstruktur-match-v1', 'ms365-schulstruktur-tenant-cache-v1'] },
+        { label: 'Kursteams / WebUntis', keys: ['webuntis-teams-creator-state-v1'] },
+        { label: 'Klassen & Jahrgang', keys: ['ms365-jahrgang-state-v1'] },
+        { label: 'Gruppen & SLG', keys: ['ms365-schueler-lehrer-gruppen-v1', 'ms365-schueler-lehrer-gruppen-v2', 'ms365-verwaltung-gruppe-v1'] },
+        { label: 'Fächer / ARGE / Weitere Teams', keys: ['ms365-arge-state-v1', 'ms365-arge-state-v2', 'ms365-wtg-state-v1'] },
+        { label: 'Personen, Gäste, Hygiene', keys: ['ms365-hygiene-scan-v2', 'ms365-gast-einlader-policy-v1', 'ms365-gast-zugaenge-snapshot-v1', 'ms365-gruppenerstellung-policy-v1'] },
+        { label: 'Verteiler & UI', keys: ['ms365-verteilerlisten-cache-v1', 'ms365-theme-v1', 'ms365-ss-graph-collapsed-v1'] },
+        { label: 'Admin & Hinweise', keys: ['ms365-schooltool-access-override-v1', 'ms365-schooltool-release-notes-v1', 'ms365-schooltool-release-notes-last-seen-at-v1'] }
+    ];
 
     function getStore(storage) {
         if (storage) return storage;
@@ -165,6 +180,134 @@
         }
     }
 
+    function readDemoModeFlag(storage) {
+        try {
+            const store = getStore(storage);
+            return !!(store && store.getItem('ms365-demo-mode-v1') === '1');
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Vor dem Export: offene Änderungen aus app-data-v2 / Stammdaten in localStorage spiegeln,
+     * damit das Backup möglichst vollständig und konsistent ist.
+     */
+    function syncStorageBeforeBackup() {
+        try {
+            if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return;
+            const c = window.ms365AppDataV2.getContainer();
+            if (typeof window.ms365AppDataV2.setContainer === 'function') {
+                window.ms365AppDataV2.setContainer(c);
+            }
+            const core = c && c.core ? c.core : {};
+            const curYear = c && c.years ? String(c.years.current || '').trim() : '';
+            const bucket =
+                curYear && c.years.byLabel && c.years.byLabel[curYear] ? c.years.byLabel[curYear] : null;
+            if (typeof window.ms365TenantSettingsSave === 'function') {
+                window.ms365TenantSettingsSave({
+                    schoolName: core.schoolName,
+                    domain: core.domain,
+                    subjects: core.subjects,
+                    arges: core.arges,
+                    teachers: core.teachers,
+                    administration: core.administration,
+                    admin: core.admin,
+                    adminRoles: core.adminRoles,
+                    sgaMode: core.sgaMode,
+                    sga: core.sga,
+                    students: bucket && bucket.students ? bucket.students : [],
+                    studentCouncil: bucket && bucket.studentCouncil ? bucket.studentCouncil : [],
+                    classes: bucket && bucket.classes ? bucket.classes : []
+                });
+            }
+            if (typeof window.ms365SetSchoolDomainNoAt === 'function' && core.domain) {
+                window.ms365SetSchoolDomainNoAt(core.domain);
+            }
+        } catch {
+            /* Backup soll trotzdem laufen */
+        }
+    }
+
+    function buildInventory(local, session) {
+        const localKeys = Object.keys(local || {});
+        const sessionKeys = Object.keys(session || {});
+        const known = new Set();
+        STORAGE_CATALOG.forEach(function (cat) {
+            cat.keys.forEach(function (k) {
+                known.add(k);
+            });
+        });
+
+        const categories = STORAGE_CATALOG.map(function (cat) {
+            const present = cat.keys.filter(function (k) {
+                return Object.prototype.hasOwnProperty.call(local, k);
+            });
+            return {
+                label: cat.label,
+                keys: present,
+                count: present.length
+            };
+        }).filter(function (c) {
+            return c.count > 0;
+        });
+
+        const otherLocal = localKeys.filter(function (k) {
+            return !known.has(k);
+        });
+        const otherSession = sessionKeys.filter(function () {
+            return true;
+        });
+
+        if (otherLocal.length) {
+            categories.push({ label: 'Weitere lokale Einträge', keys: otherLocal.sort(), count: otherLocal.length });
+        }
+        if (otherSession.length) {
+            categories.push({
+                label: 'Werkzeug-Sitzung (sessionStorage)',
+                keys: otherSession.sort(),
+                count: otherSession.length
+            });
+        }
+
+        return {
+            categories: categories,
+            localKeyCount: localKeys.length,
+            sessionKeyCount: sessionKeys.length
+        };
+    }
+
+    function inventorySummaryText(inventory) {
+        if (!inventory || !inventory.categories || !inventory.categories.length) return '';
+        return inventory.categories
+            .map(function (c) {
+                return c.label + ': ' + c.count;
+            })
+            .join(' · ');
+    }
+
+    function postImportNormalize(storage) {
+        try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
+                window.ms365AppDataV2.getContainer();
+            }
+            if (typeof window.ms365SetSchoolDomainNoAt === 'function' && typeof window.ms365TenantSettingsLoad === 'function') {
+                const t = window.ms365TenantSettingsLoad();
+                if (t && t.domain) window.ms365SetSchoolDomainNoAt(t.domain);
+            }
+            window.dispatchEvent(
+                new CustomEvent('ms365-tenant-settings-changed', { detail: { source: 'browser-backup-import' } })
+            );
+            window.dispatchEvent(
+                new CustomEvent('ms365-demo-mode-changed', {
+                    detail: { active: readDemoModeFlag(storage) }
+                })
+            );
+        } catch {
+            /* ignore */
+        }
+    }
+
     function backupFilename(d, storage) {
         const { schoolName, domain } = readSchoolMeta(storage);
         const school = sanitizeForFilename(schoolName || domain);
@@ -173,20 +316,31 @@
     }
 
     function buildBackup(storage, now, sessionStorageArg) {
+        syncStorageBeforeBackup();
         const local = collectLocalStorage(storage);
         const session = collectSessionStorage(sessionStorageArg);
         const when = asDate(now);
         const { schoolName, domain } = readSchoolMeta(storage);
-        return {
+        const inventory = buildInventory(local, session);
+        const payload = {
             kind: KIND,
             version: VERSION,
             exportedAt: when.toISOString(),
             schoolName: schoolName,
             domain: domain,
+            demoModeActive: readDemoModeFlag(storage),
             keyCount: Object.keys(local).length + Object.keys(session).length,
+            localKeyCount: Object.keys(local).length,
+            sessionKeyCount: Object.keys(session).length,
+            inventory: inventory,
+            includesPrefixes: ['ms365-', 'webuntis-'],
+            excludesNote:
+                'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung und kurzlebige Login-Weiterleitungen.',
             localStorage: local,
             sessionStorage: session
         };
+        payload.inventorySummary = inventorySummaryText(inventory);
+        return payload;
     }
 
     function isBackupPayload(obj) {
@@ -194,6 +348,7 @@
             obj &&
             typeof obj === 'object' &&
             obj.kind === KIND &&
+            (obj.version === undefined || obj.version >= 2) &&
             obj.localStorage &&
             typeof obj.localStorage === 'object' &&
             !Array.isArray(obj.localStorage)
@@ -296,6 +451,7 @@
             };
             throw err;
         }
+        postImportNormalize(storage);
         return {
             written: written,
             removed: removed,
@@ -382,14 +538,31 @@
             const n = Object.keys(obj.localStorage || {}).length;
             const s = Object.keys(obj.sessionStorage || {}).length;
             const when = obj.exportedAt ? String(obj.exportedAt).replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : '';
-            return (
+            const school = String(obj.schoolName || obj.domain || '').trim();
+            const demo = obj.demoModeActive ? ' (Demo-Modus war aktiv)' : '';
+            const summary =
+                obj.inventorySummary ||
+                inventorySummaryText(
+                    obj.inventory ||
+                        buildInventory(obj.localStorage || {}, obj.sessionStorage || {})
+                );
+            let msg =
                 'Dieses Browser-Backup enthält ' +
                 n +
-                ' lokale Einträge' +
-                (s ? ' und ' + s + ' Sitzungs-Einträge' : '') +
+                ' lokale und ' +
+                s +
+                ' Sitzungs-Einträge' +
                 (when ? ' (Stand: ' + when + ')' : '') +
-                '. Alle lokalen Schuldaten und wiederherstellbaren Werkzeug-Zwischenstände in diesem Browser werden ersetzt. Microsoft-Anmeldung und PIN-Freischaltungen bleiben unberührt. Fortfahren?'
-            );
+                (school ? ' für „' + school + '“' : '') +
+                demo +
+                '.\n\n';
+            if (summary) {
+                msg += 'Enthalten u. a.: ' + summary + '.\n\n';
+            }
+            msg +=
+                'Alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser werden ersetzt. ' +
+                'Microsoft-Anmeldung und PIN-Freischaltung bleiben unberührt. Fortfahren?';
+            return msg;
         }
         return 'Diese JSON-Datei enthält Schuldaten (kein vollständiges Browser-Backup). Vorhandene Stammdaten in diesem Browser werden überschrieben. Fortfahren?';
     }
@@ -542,7 +715,14 @@
     function onExportClick() {
         try {
             const payload = downloadBackup();
-            setStatus('Backup gespeichert: ' + payload.keyCount + ' Einträge.', 'ok');
+            const parts = [payload.keyCount + ' Einträge'];
+            if (payload.localKeyCount != null) {
+                parts[0] = payload.localKeyCount + ' lokal';
+                if (payload.sessionKeyCount) parts.push(payload.sessionKeyCount + ' Sitzung');
+            }
+            let status = 'Backup gespeichert: ' + parts.join(', ') + '.';
+            if (payload.inventorySummary) status += ' ' + payload.inventorySummary + '.';
+            setStatus(status, 'ok');
         } catch (e) {
             setStatus('Export fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
         }
@@ -603,6 +783,9 @@
         collectLocalStorage: collectLocalStorage,
         collectSessionStorage: collectSessionStorage,
         buildBackup: buildBackup,
+        syncStorageBeforeBackup: syncStorageBeforeBackup,
+        buildInventory: buildInventory,
+        postImportNormalize: postImportNormalize,
         applyBackup: applyBackup,
         importPayload: importPayload,
         backupFilename: backupFilename,
