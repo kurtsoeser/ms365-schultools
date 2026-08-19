@@ -9,7 +9,7 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Geführte Einrichtung</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=6">
     <style>
         .sw-nav {
             display: flex;
@@ -21,9 +21,9 @@
         }
         .sw-nav button {
             appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.25);
-            background: #f8f9ff;
-            color: #32325d;
+            border: 1px solid var(--border-strong);
+            background: var(--surface-muted);
+            color: var(--heading);
             border-radius: 12px;
             padding: 10px 14px;
             font-weight: 800;
@@ -40,32 +40,34 @@
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 18px;
-            background: #fff;
-            box-shadow: 0 10px 26px rgba(50, 50, 93, 0.08);
+            background: var(--card);
+            box-shadow: var(--shadow);
         }
         .sw-panel h2 {
             margin: 0 0 10px;
             font-size: 1.15em;
-            color: #32325d;
+            color: var(--heading);
         }
         .sw-panel p.intro {
             margin: 0 0 14px;
-            color: #495057;
+            color: var(--text-secondary);
             line-height: 1.45;
         }
         .sw-field label {
             display: block;
             font-weight: 600;
             margin: 10px 0 6px;
-            color: #495057;
+            color: var(--text-secondary);
         }
         .sw-field input[type="text"],
         .sw-field textarea {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 10px;
             font: inherit;
+            background: var(--input-bg);
+            color: var(--text);
         }
         .sw-field textarea {
             min-height: 140px;
@@ -78,140 +80,20 @@
         }
         #swSearchResults:empty { display: none; }
         .sw-table-wrap { overflow-x: auto; margin-top: 14px; }
-        .sw-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+        .sw-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.92em; color: var(--text); }
         .sw-table-wrap th, .sw-table-wrap td {
             border: 1px solid var(--border);
             padding: 8px 10px;
             text-align: left;
         }
-        .sw-table-wrap th { background: #f8f9fa; font-weight: 800; }
+        .sw-table-wrap th { background: var(--soft); font-weight: 800; color: var(--heading); }
 
-        /* Wie Schul‑Grundeinstellungen: Vorschau-Tabelle + Doppelklick */
-        .settings-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            margin-top: 12px;
-        }
-        .settings-actions .btn {
-            margin: 0;
-            padding: 10px 14px;
-            border-radius: 10px;
-        }
-        .settings-actions input[type="file"] {
-            display: none;
-        }
-        .teachers-table-wrap {
-            margin-top: 10px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: auto;
-            background: #fff;
-        }
-        .teachers-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.92em;
-            min-width: 520px;
-        }
-        .teachers-table th,
-        .teachers-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: top;
-        }
-        .teachers-table th {
-            position: sticky;
-            top: 0;
-            background: var(--brand1);
-            color: #fff;
-            text-align: left;
-            font-weight: 700;
-            z-index: 1;
-        }
-        .teachers-table td code {
-            font-family: Consolas, 'Segoe UI', monospace;
-            background: #eef;
-            padding: 2px 6px;
-            border-radius: 6px;
-        }
-        .teachers-table .action-cell {
-            width: 1%;
-            white-space: nowrap;
-        }
+        /* Tabellen: Basis in app.css (.teachers-table-wrap, .cell-editor, #swStep3 inputs) */
         .teachers-table thead th.action-cell {
             text-align: right;
         }
-        .teachers-table .mini-btn {
-            background: var(--danger1);
-            color: #fff;
-            border: 0;
-            border-radius: 10px;
-            padding: 6px 10px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .cell-editor {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 9px 11px;
-            border: 1px solid rgba(94, 114, 228, 0.45);
-            border-radius: 10px;
-            font: inherit;
-            font-size: 0.98em;
-            background: #fff;
-            color: var(--text);
-            outline: none;
-            line-height: 1.35;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .cell-editor:focus {
-            border-color: var(--brand1);
-            box-shadow: 0 0 0 3px rgba(94, 114, 228, 0.22);
-        }
 
-        /* Schritt 3 Verwaltung: Name, E-Mail und freie Rolle – einheitlich (type=email sonst oft kantiger Browser-Look) */
-        #swStep3 .teachers-table input[data-sw-admin-name],
-        #swStep3 .teachers-table input[data-sw-admin-email],
-        #swStep3 .teachers-table input[data-sw-admin-role] {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 9px 11px;
-            font: inherit;
-            font-size: 0.98em;
-            line-height: 1.4;
-            color: var(--text);
-            background: linear-gradient(180deg, #fcfdff 0%, #f6f8ff 100%);
-            border: 1px solid rgba(94, 114, 228, 0.38);
-            border-radius: 10px;
-            appearance: none;
-            -webkit-appearance: none;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-        }
-        #swStep3 .teachers-table input[data-sw-admin-name]::placeholder,
-        #swStep3 .teachers-table input[data-sw-admin-email]::placeholder,
-        #swStep3 .teachers-table input[data-sw-admin-role]::placeholder {
-            color: #8b95a8;
-        }
-        #swStep3 .teachers-table input[data-sw-admin-name]:hover,
-        #swStep3 .teachers-table input[data-sw-admin-email]:hover,
-        #swStep3 .teachers-table input[data-sw-admin-role]:hover {
-            border-color: rgba(94, 114, 228, 0.55);
-        }
-        #swStep3 .teachers-table input[data-sw-admin-name]:focus,
-        #swStep3 .teachers-table input[data-sw-admin-email]:focus,
-        #swStep3 .teachers-table input[data-sw-admin-role]:focus {
-            outline: none;
-            background: #fff;
-            border-color: var(--brand1);
-            box-shadow: 0 0 0 3px rgba(94, 114, 228, 0.24);
-        }
-        #swStep3 .teachers-table td {
-            vertical-align: middle;
-        }
-
-        /* Sammelgruppe: Abgleich vs. Neuanlage (wie Grundeinstellungen-Tabs) */
+        /* Wie Stammdaten: Vorschau-Tabelle + Doppelklick */
         .sw-grp-tabs {
             margin-top: 4px;
             padding: 14px 14px 16px;
@@ -229,9 +111,9 @@
         }
         .sw-grp-tabs .tab-btn {
             appearance: none;
-            border: 1px solid rgba(94, 114, 228, 0.25);
-            background: #fff;
-            color: #32325d;
+            border: 1px solid var(--border-strong);
+            background: var(--card);
+            color: var(--heading);
             border-radius: 12px;
             padding: 11px 14px;
             font-weight: 800;
@@ -260,10 +142,10 @@
             margin-top: 10px;
             padding: 10px 12px;
             border-radius: 10px;
-            background: var(--soft, #f8f9fa);
+            background: var(--soft);
             border: 1px solid var(--border);
             font-size: 0.9em;
-            color: #495057;
+            color: var(--text-secondary);
             line-height: 1.45;
         }
         .sw-next-grid {
@@ -279,16 +161,16 @@
             padding: 14px 16px;
             border: 1px solid var(--border);
             border-radius: 14px;
-            background: linear-gradient(180deg, #fcfdff 0%, #f6f8ff 100%);
+            background: var(--card);
             text-decoration: none;
-            color: #32325d;
-            box-shadow: 0 6px 18px rgba(50, 50, 93, 0.06);
+            color: var(--heading);
+            box-shadow: var(--shadow);
             transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
         }
         .sw-next-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 28px rgba(50, 50, 93, 0.12);
-            border-color: rgba(94, 114, 228, 0.35);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--border-strong);
         }
         .sw-next-card__title {
             font-weight: 800;
@@ -304,7 +186,7 @@
         .sw-next-card__desc {
             margin: 0;
             font-size: 0.9em;
-            color: #495057;
+            color: var(--text-secondary);
             line-height: 1.45;
             flex: 1;
         }
@@ -333,7 +215,7 @@
             display: block;
             font-weight: 700;
             margin-bottom: 6px;
-            color: #32325d;
+            color: var(--heading);
         }
         .sw-owner-block__hint {
             display: block;
@@ -490,7 +372,7 @@
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</a>
+                        <a class="btn" href="tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-sliders2-vertical"></i>Stammdaten</a>
                         <a class="btn" href="tools/schueler-lehrer-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-people"></i>Lehrerinnen &amp; Schülerinnen (Detail)</a>
                         <a class="btn" href="tools/verwaltung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-building-gear"></i>Verwaltung (Detail)</a>
                         <a class="btn" href="tools/arge-fachgruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</a>
@@ -541,7 +423,7 @@
 
             <div id="swStep3" class="sw-panel" style="display:none;">
                 <h2>3. Verwaltung und Sammelgruppe</h2>
-                <p class="intro">Kontakte der Schulverwaltung (wie im Tab <strong>Verwaltung</strong> unter <a href="tenant.html">Schul‑Grundeinstellungen</a>): Rollenkatalog (anlegbar, umbenennbar) und Personen mit <code>Rolle;Name;E‑Mail</code>. Standardrollen und <strong>weitere Rollen</strong>. Pro Zeile: <strong>Microsoft‑Abgleich</strong> (Entra) und optional <strong>Benutzer anlegen</strong> (Administratorzustimmung <code>User.ReadWrite.All</code>). Speichern übernimmt alles in die Einstellungen. Optional eine <strong>Microsoft‑365‑Sammelgruppe</strong> anlegen oder verknüpfen. Spätere Pflege von Rollen, Personen und Sammelgruppe: <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.</p>
+                <p class="intro">Kontakte der Schulverwaltung (wie im Tab <strong>Verwaltung</strong> unter <a href="tenant.html">Stammdaten</a>): Rollenkatalog (anlegbar, umbenennbar) und Personen mit <code>Rolle;Name;E‑Mail</code>. Standardrollen und <strong>weitere Rollen</strong>. Pro Zeile: <strong>Microsoft‑Abgleich</strong> (Entra) und optional <strong>Benutzer anlegen</strong> (Administratorzustimmung <code>User.ReadWrite.All</code>). Speichern übernimmt alles in die Einstellungen. Optional eine <strong>Microsoft‑365‑Sammelgruppe</strong> anlegen oder verknüpfen. Spätere Pflege von Rollen, Personen und Sammelgruppe: <a href="tools/verwaltung.html">Verwaltungs‑Modul</a>.</p>
                 <div class="sw-field">
                     <label>Verwaltung / Schulorganisation</label>
                     <div class="teachers-table-wrap" aria-label="Verwaltungskontakte">
@@ -632,12 +514,12 @@
 
             <div id="swStep4" class="sw-panel" style="display:none;">
                 <h2>4. Lehrer:innen und Sammelgruppe</h2>
-                <p class="intro">Lehrkräfte wie in den Schul‑Grundeinstellungen: pro Zeile <code>Kürzel;Name;E‑Mail</code>. Die meisten Schulen haben die Konten bereits (AD‑Sync) und mit <strong>Microsoft 365 A1 oder A3 für Lehrpersonal</strong> lizenziert – <strong>Aus Microsoft 365 einlesen</strong> übernimmt diese Konten; Kürzel sind Vorschläge und danach editierbar. Die Tabelle: <strong>Doppelklick</strong> zum Bearbeiten. Über <strong>E‑Mails mit Microsoft prüfen</strong> den Entra‑Abgleich; fehlende Konten können Sie anlegen (<code>User.ReadWrite.All</code>). Anschließend die Sammelgruppe: Standard <strong>neu anlegen</strong>, alternativ <strong>verknüpfen</strong>.</p>
+                <p class="intro">Lehrkräfte wie in den Stammdaten: pro Zeile <code>Kürzel;Name;E‑Mail</code>. Die meisten Schulen haben die Konten bereits (AD‑Sync) und mit <strong>Microsoft 365 A1 oder A3 für Lehrpersonal</strong> lizenziert – <strong>Aus Microsoft 365 einlesen</strong> übernimmt diese Konten; Kürzel sind Vorschläge und danach editierbar. Die Tabelle: <strong>Doppelklick</strong> zum Bearbeiten. Über <strong>E‑Mails mit Microsoft prüfen</strong> den Entra‑Abgleich; fehlende Konten können Sie anlegen (<code>User.ReadWrite.All</code>). Anschließend die Sammelgruppe: Standard <strong>neu anlegen</strong>, alternativ <strong>verknüpfen</strong>.</p>
                 <div class="sw-field">
                     <label for="swTeachersLines">Lehrerliste (eine Zeile pro Lehrkraft)</label>
                     <textarea id="swTeachersLines" spellcheck="false" placeholder="XY;Max Mustermann;max@schule.at"></textarea>
                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                        Format: <code>Kürzel;Name;E‑Mail</code>. E‑Mail ist optional, aber empfohlen (für Kursteams‑Besitzer und Entra‑Abgleich). <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Lehrkräfte nach Lizenz (A1/A3/A5). Import (CSV/XLSX), Vorlagen und Tabellenbearbeitung per Doppelklick – wie in den <a href="tenant.html">Schul‑Grundeinstellungen</a>.
+                        Format: <code>Kürzel;Name;E‑Mail</code>. E‑Mail ist optional, aber empfohlen (für Kursteams‑Besitzer und Entra‑Abgleich). <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Lehrkräfte nach Lizenz (A1/A3/A5). Import (CSV/XLSX), Vorlagen und Tabellenbearbeitung per Doppelklick – wie in den <a href="tenant.html">Stammdaten</a>.
                     </small>
                     <div class="settings-actions">
                         <label class="btn" for="swTeachersImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
@@ -767,13 +649,13 @@
 
             <div id="swStep5" class="sw-panel" style="display:none;">
                 <h2>5. Schüler:innen und Sammelgruppe</h2>
-                <p class="intro">Schüler:innen wie in den Schul‑Grundeinstellungen: pro Zeile <code>Klasse;Name;E‑Mail</code>. Die meisten Schulen haben die Konten bereits (AD‑Sync) und mit <strong>Microsoft 365 A1 oder A3 für Schüler:innen</strong> lizenziert – <strong>Aus Microsoft 365 einlesen</strong> übernimmt diese Konten; die Klasse ist ein Vorschlag (z. B. aus der Abteilung) und danach editierbar. Die Tabelle: <strong>Doppelklick</strong> zum Bearbeiten. <strong>Import</strong> aus CSV/XLSX wie bei den Lehrkräften. Über <strong>E‑Mails mit Microsoft prüfen</strong> den Entra‑Abgleich; fehlende Konten können Sie anlegen. Anschließend die Sammelgruppe: Standard <strong>neu anlegen</strong>, alternativ <strong>verknüpfen</strong>.</p>
+                <p class="intro">Schüler:innen wie in den Stammdaten: pro Zeile <code>Klasse;Name;E‑Mail</code>. Die meisten Schulen haben die Konten bereits (AD‑Sync) und mit <strong>Microsoft 365 A1 oder A3 für Schüler:innen</strong> lizenziert – <strong>Aus Microsoft 365 einlesen</strong> übernimmt diese Konten; die Klasse ist ein Vorschlag (z. B. aus der Abteilung) und danach editierbar. Die Tabelle: <strong>Doppelklick</strong> zum Bearbeiten. <strong>Import</strong> aus CSV/XLSX wie bei den Lehrkräften. Über <strong>E‑Mails mit Microsoft prüfen</strong> den Entra‑Abgleich; fehlende Konten können Sie anlegen. Anschließend die Sammelgruppe: Standard <strong>neu anlegen</strong>, alternativ <strong>verknüpfen</strong>.</p>
                 <p id="swYearHintStudents" class="intro" style="font-size:0.92em;color:var(--muted);"></p>
                 <div class="sw-field">
                     <label for="swStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
                     <textarea id="swStudentsLines" spellcheck="false" placeholder="1A;Lisa Beispiel;lisa@schule.at"></textarea>
                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                        Format: <code>Klasse;Name;E‑Mail</code> (wie in den <a href="tenant.html">Schul‑Grundeinstellungen</a>). <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Schüler:innen nach Lizenz (A1/A3/A5). Tabelle: Doppelklick zum Bearbeiten; E‑Mail für Entra‑Abgleich.
+                        Format: <code>Klasse;Name;E‑Mail</code> (wie in den <a href="tenant.html">Stammdaten</a>). <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Schüler:innen nach Lizenz (A1/A3/A5). Tabelle: Doppelklick zum Bearbeiten; E‑Mail für Entra‑Abgleich.
                     </small>
                     <div class="settings-actions" style="margin-top:10px;">
                         <label class="btn" for="swStudentsImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import Schüler (CSV/XLSX)</label>
@@ -818,7 +700,7 @@
                     <div class="settings-actions" style="margin-top:8px;">
                         <label class="btn" for="swSchuldatenMasterImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import Gesamt‑Excel</label>
                         <input type="file" id="swSchuldatenMasterImportFile" accept=".xlsx,.xls">
-                        <small style="color:var(--muted);display:block;width:100%;margin-top:6px;line-height:1.45;">Nur <strong>.xlsx</strong>: erkannte Blätter (Verwaltung, Lehrer, Schueler, SGA, StudentCouncil, Faecher, ARGE, Klassen) werden <strong>sofort in die Schul‑Einstellungen geschrieben</strong> und in den Schritten 3–10 angezeigt (Gruppen/Sammelgruppen wie bisher dort speichern).</small>
+                        <small style="color:var(--muted);display:block;width:100%;margin-top:6px;line-height:1.45;">Nur <strong>.xlsx</strong>: erkannte Blätter (Verwaltung, Lehrer, Schueler, SGA, StudentCouncil, Faecher, ARGE, Klassen) werden <strong>sofort in die Stammdaten geschrieben</strong> und in den Schritten 3–10 angezeigt (Gruppen/Sammelgruppen wie bisher dort speichern).</small>
                     </div>
                     <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
                         <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
@@ -1007,7 +889,7 @@
 
             <div id="swStep8" class="sw-panel" style="display:none;">
                 <h2>8. Fächer (Fachgruppen)</h2>
-                <p class="intro">Fächer wie in den Grundeinstellungen: eine Zeile <code>Kürzel;Bezeichnung</code> im Textfeld oder direkt in der Tabelle. <strong>Eine Tabelle</strong> für alles: Kürzel/Name bearbeiten (<strong>Doppelklick</strong>), SMTP‑Vorschau, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional <strong>Auto‑Match</strong> oder Schritt überspringen.</p>
+                <p class="intro">Fächer wie in den Stammdaten: eine Zeile <code>Kürzel;Bezeichnung</code> im Textfeld oder direkt in der Tabelle. <strong>Eine Tabelle</strong> für alles: Kürzel/Name bearbeiten (<strong>Doppelklick</strong>), SMTP‑Vorschau, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional <strong>Auto‑Match</strong> oder Schritt überspringen.</p>
                 <div class="sw-field">
                     <label for="swSubjectGroupPrefix">Präfix für Mail‑Nickname neuer Fachgruppen</label>
                     <input type="text" id="swSubjectGroupPrefix" maxlength="24" autocomplete="off" spellcheck="false" placeholder="fach" title="Kleinbuchstaben nach Speichern. Erlaubt u. a. a–z, 0–9, Punkt, Bindestrich, Unterstrich. Entfernt u. a. @ ( ) \ [ ] &quot; ; : &lt; &gt; , und Leerzeichen (Microsoft mailNickname).">
@@ -1016,7 +898,7 @@
                 <div class="sw-field">
                     <label for="swSubjectsBulk">Fächer (Rohliste)</label>
                     <textarea id="swSubjectsBulk" spellcheck="false" placeholder="D;Deutsch&#10;M;Mathematik"></textarea>
-                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die Fächerliste in die Schul‑Einstellungen.</small>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die Fächerliste in die Stammdaten.</small>
                     <div class="teachers-table-wrap" aria-label="Fächer und Microsoft-365-Abgleich" style="margin-top:12px;">
                         <table class="teachers-table" aria-label="Fächer: Liste und M365-Abgleich" style="min-width:720px;">
                             <thead>
@@ -1045,7 +927,7 @@
 
             <div id="swStep9" class="sw-panel" style="display:none;">
                 <h2>9. Arbeitsgruppen (ARGE)</h2>
-                <p class="intro">ARGEs wie in den Grundeinstellungen: eine Zeile <code>Kürzel;Bezeichnung</code> im Textfeld oder direkt in der Tabelle. <strong>Eine Tabelle</strong> für alles: Kürzel/Bezeichnung bearbeiten (<strong>Doppelklick</strong>), SMTP‑Vorschau, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional <strong>Auto‑Match</strong> oder Schritt überspringen.</p>
+                <p class="intro">ARGEs wie in den Stammdaten: eine Zeile <code>Kürzel;Bezeichnung</code> im Textfeld oder direkt in der Tabelle. <strong>Eine Tabelle</strong> für alles: Kürzel/Bezeichnung bearbeiten (<strong>Doppelklick</strong>), SMTP‑Vorschau, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional <strong>Auto‑Match</strong> oder Schritt überspringen.</p>
                 <div class="sw-field">
                     <label for="swArgeGroupPrefix">Präfix für Mail‑Nickname neuer ARGE‑Gruppen</label>
                     <input type="text" id="swArgeGroupPrefix" maxlength="24" autocomplete="off" spellcheck="false" placeholder="ag" title="Wie Fach‑Präfix: a–z, 0–9, . - _ u. a.; keine @ ( ) &quot; ; : &lt; &gt; , Leerzeichen (Microsoft mailNickname).">
@@ -1054,7 +936,7 @@
                 <div class="sw-field">
                     <label for="swArgesBulk">Arbeitsgruppen / ARGEs (Rohliste)</label>
                     <textarea id="swArgesBulk" spellcheck="false" placeholder="ARGE;ARGE Beispiel"></textarea>
-                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die ARGE‑Liste in die Schul‑Einstellungen.</small>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die ARGE‑Liste in die Stammdaten.</small>
                     <div class="teachers-table-wrap" aria-label="ARGE und Microsoft-365-Abgleich" style="margin-top:12px;">
                         <table class="teachers-table" aria-label="ARGE: Liste und M365-Abgleich" style="min-width:720px;">
                             <thead>
@@ -1083,13 +965,13 @@
 
             <div id="swStep10" class="sw-panel" style="display:none;">
                 <h2>10. Klassen (stabile Microsoft‑365‑Gruppen)</h2>
-                <p class="intro">Pro <strong>Klassengruppe</strong> legen Sie <strong>einmal</strong> eine Gruppe mit <strong>festem Mail‑Alias</strong> an (Schema <code>jg{Abschlussjahr}{Kürzel}</code>, z. B. <code>jg2031hma</code>). Der <strong>Anzeigename</strong> kann später pro Schuljahr geändert werden (z. B. <code>1HMA</code> → <code>2HMA</code>) – technische ID bleibt. Die Spalte <strong>Vorschau SMTP</strong> zeigt die <em>Zieladresse</em> mit der Schul‑Domain aus Schritt 2. Graph selbst setzt beim Anlegen die Tenant‑Standarddomain (siehe Schritt 2). Wie bei <strong>ARGE</strong>: eine Zeile <code>Kürzel;Abschlussjahr;Bezeichnung</code> im Textfeld oder direkt in der Tabelle – <strong>Doppelklick</strong> zum Bearbeiten, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional Klassenvorstand: <code>…;Name;E‑Mail</code> wie in den <a href="tenant.html">Grundeinstellungen</a>.</p>
-                <p class="intro" style="font-size:0.95em;">Nach dem Schuljahreswechsel: Klassen‑Anzeigenamen unter <a href="tenant.html#classes">Schul‑Einstellungen → Tab „Klassen“</a> anpassen (inkl. Microsoft 365).</p>
+                <p class="intro">Pro <strong>Klassengruppe</strong> legen Sie <strong>einmal</strong> eine Gruppe mit <strong>festem Mail‑Alias</strong> an (Schema <code>jg{Abschlussjahr}{Kürzel}</code>, z. B. <code>jg2031hma</code>). Der <strong>Anzeigename</strong> kann später pro Schuljahr geändert werden (z. B. <code>1HMA</code> → <code>2HMA</code>) – technische ID bleibt. Die Spalte <strong>Vorschau SMTP</strong> zeigt die <em>Zieladresse</em> mit der Schul‑Domain aus Schritt 2. Graph selbst setzt beim Anlegen die Tenant‑Standarddomain (siehe Schritt 2). Wie bei <strong>ARGE</strong>: eine Zeile <code>Kürzel;Abschlussjahr;Bezeichnung</code> im Textfeld oder direkt in der Tabelle – <strong>Doppelklick</strong> zum Bearbeiten, Microsoft‑365‑Verknüpfung (Object‑ID) sowie <strong>Suchen</strong> / <strong>Anlegen</strong> pro Zeile. Optional Klassenvorstand: <code>…;Name;E‑Mail</code> wie in den <a href="tenant.html">Stammdaten</a>.</p>
+                <p class="intro" style="font-size:0.95em;">Nach dem Schuljahreswechsel: Klassen‑Anzeigenamen unter <a href="tenant.html#classes">Stammdaten → Tab „Klassen“</a> anpassen (inkl. Microsoft 365).</p>
                 <p id="swYearHintClasses" class="intro" style="font-size:0.92em;color:var(--muted);"></p>
                 <div class="sw-field">
                     <label for="swClassesBulk">Klassen (Rohliste)</label>
                     <textarea id="swClassesBulk" spellcheck="false" placeholder="HMA;2031;1HMA"></textarea>
-                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die Klassenliste in die Schul‑Einstellungen. Der stabile Alias ergibt sich aus Abschlussjahr und Kürzel (Vorschau‑Spalte).</small>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die Klassenliste in die Stammdaten. Der stabile Alias ergibt sich aus Abschlussjahr und Kürzel (Vorschau‑Spalte).</small>
                     <div class="teachers-table-wrap" aria-label="Klassen und Microsoft-365-Abgleich" style="margin-top:12px;">
                         <table class="teachers-table" aria-label="Klassen: Liste und M365-Abgleich" style="min-width:780px;">
                             <thead>
@@ -1117,7 +999,7 @@
 
             <div id="swStep11" class="sw-panel" style="display:none;">
                 <h2>11. Kurzüberblick &amp; nächste Schritte</h2>
-                <p class="intro">Die geführte Einrichtung ist damit inhaltlich abgeschlossen, sobald Sie die Stammdaten gepflegt haben. Unten sehen Sie eine <strong>Zusammenfassung</strong> aus den gespeicherten Schul‑Einstellungen; danach können Sie direkt in passende Werkzeuge wechseln – z. B. <strong>Kursteams</strong>, weitere <strong>Gruppen/Teams</strong>, <strong>Personen</strong> oder die <strong>Schul‑Grundeinstellungen</strong> für Feinkorrekturen.</p>
+                <p class="intro">Die geführte Einrichtung ist damit inhaltlich abgeschlossen, sobald Sie die Stammdaten gepflegt haben. Unten sehen Sie eine <strong>Zusammenfassung</strong> aus den gespeicherten Stammdaten; danach können Sie direkt in passende Werkzeuge wechseln – z. B. <strong>Kursteams</strong>, weitere <strong>Gruppen/Teams</strong>, <strong>Personen</strong> oder die <strong>Stammdaten</strong> für Feinkorrekturen.</p>
                 <div id="swStep9SummaryBody" class="sw-wiz-stats" aria-live="polite"></div>
                 <h3 style="margin:22px 0 8px;font-size:1.05em;color:#32325d;">Empfohlene Werkzeuge</h3>
                 <div class="sw-next-grid" aria-label="Weiterführende Werkzeuge">
@@ -1127,7 +1009,7 @@
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
                     <a class="sw-next-card" href="tenant.html">
-                        <span class="sw-next-card__title"><i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Schul‑Grundeinstellungen</span>
+                        <span class="sw-next-card__title"><i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Stammdaten</span>
                         <p class="sw-next-card__desc">Domain, Listen, Schuljahr und Importe zentral bearbeiten.</p>
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
@@ -1178,7 +1060,7 @@
                     </a>
                     <a class="sw-next-card" href="tenant.html#classes">
                         <span class="sw-next-card__title"><i class="bi bi-pencil-square" aria-hidden="true"></i>Klassen‑Anzeigenamen</span>
-                        <p class="sw-next-card__desc">Schul‑Einstellungen, Tab „Klassen“: M365‑Anzeigenamen nach Schuljahreswechsel.</p>
+                        <p class="sw-next-card__desc">Stammdaten, Tab „Klassen“: M365‑Anzeigenamen nach Schuljahreswechsel.</p>
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
                     <a class="sw-next-card" href="tools/schulstruktur-sync.html">

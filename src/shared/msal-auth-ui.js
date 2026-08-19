@@ -353,6 +353,44 @@
         }
     }
 
+    /** Popup-Anmeldung (ohne Seiten-Redirect) – für Einrichtung und Werkzeuge mit lokalen Formularen. */
+    async function acquireTokenPopup(scopes) {
+        const instance = await ensurePca();
+        const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
+        let accounts = instance.getAllAccounts();
+        if (!accounts.length) {
+            await instance.loginPopup({ scopes: scopeList, prompt: 'select_account' });
+            accounts = instance.getAllAccounts();
+        }
+        if (!accounts.length) {
+            throw new Error('Anmeldung abgebrochen.');
+        }
+        const a = getAccount() || accounts[0];
+        if (a && typeof instance.setActiveAccount === 'function') {
+            instance.setActiveAccount(a);
+        }
+        const req = { scopes: scopeList, account: a };
+        try {
+            const token = (await instance.acquireTokenSilent(req)).accessToken;
+            setWidgetState();
+            return token;
+        } catch (e) {
+            if (looksLikeBrokenCache(e)) {
+                try {
+                    await clearMsalCache(instance);
+                } catch {
+                    // ignore
+                }
+            }
+            if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
+                const token = (await instance.acquireTokenPopup(req)).accessToken;
+                setWidgetState();
+                return token;
+            }
+            throw e;
+        }
+    }
+
     function createAuthWidget() {
         const wrap = document.createElement('div');
         wrap.id = 'ms365AuthWidget';
@@ -607,6 +645,26 @@
     window.ms365AuthSwitchAccount = switchAccount;
     window.ms365AuthLogout = logout;
     window.ms365AuthAcquireToken = acquireToken;
+    window.ms365AuthAcquireTokenPopup = acquireTokenPopup;
+    window.ms365AuthRefreshWidget = setWidgetState;
+    window.ms365AuthGetTenantId = async function ms365AuthGetTenantId() {
+        try {
+            await ensurePca();
+            const a = getAccount();
+            if (!a) return '';
+            return String(a.tenantId || (a.idTokenClaims && a.idTokenClaims.tid) || '').trim();
+        } catch {
+            return '';
+        }
+    };
+    window.ms365AuthGetUserPrincipalName = function ms365AuthGetUserPrincipalName() {
+        try {
+            const a = getAccount();
+            return a && a.username ? String(a.username).trim() : '';
+        } catch {
+            return '';
+        }
+    };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();

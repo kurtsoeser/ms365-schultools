@@ -1,0 +1,110 @@
+/* Kontext-Hilfe (ⓘ) – Dashboard, Werkzeugkarten, Fortschrittszeilen */
+.context-tip,
+.featured-info {
+    position: relative;
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.context-tip__btn,
+.featured-info__btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #5e72e4;
+    cursor: help;
+    padding: 2px 6px;
+    margin: 0;
+    font: inherit;
+    line-height: 1;
+    border-radius: 999px;
+}
+
+.context-tip__btn:hover,
+.context-tip__btn:focus-visible,
+.featured-info__btn:hover,
+.featured-info__btn:focus-visible {
+    color: #32325d;
+    background: rgba(94, 114, 228, 0.12);
+    outline: none;
+}
+
+.context-tip__bubble,
+.featured-info__tip {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 8px);
+    width: min(28em, 72vw);
+    padding: 10px 12px;
+    background: #1e2440;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.78em;
+    font-weight: 500;
+    line-height: 1.45;
+    z-index: 20;
+    box-shadow: 0 10px 24px rgba(50, 50, 93, 0.22);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    text-align: left;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.context-tip:hover .context-tip__bubble,
+.context-tip:focus-within .context-tip__bubble,
+.featured-info:hover .featured-info__tip,
+.featured-info:focus-within .featured-info__tip {
+    opacity: 1;
+    visibility: visible;
+}
+
+.context-tip--align-right .context-tip__bubble {
+    left: auto;
+    right: 0;
+}
+
+.context-tip--inline {
+    margin-left: 2px;
+}
+
+.dash-task h3,
+.dashboard-catalog .choice h2,
+.choice.featured h2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 2px;
+}
+
+.dash-task-progress-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 4px;
+    margin: -6px 0 14px;
+    flex: 0 0 auto;
+}
+
+.dash-task-progress-row[hidden] {
+    display: none !important;
+}
+
+html[data-theme="dark"] .context-tip__bubble,
+html[data-theme="dark"] .featured-info__tip {
+    background: #2a3050;
+    color: #e8eaf4;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .context-tip__bubble,
+    :root:not([data-theme]) .featured-info__tip {
+        background: #2a3050;
+        color: #e8eaf4;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+}

@@ -76,7 +76,7 @@
             subtitle: o.subtitle || 'Gruppe matchen oder anlegen',
             emptyHintHtml:
                 o.emptyHintHtml ||
-                'Keine Einträge in dieser Liste. Bitte unter <a href="../tenant.html">Schul‑Einstellungen</a> pflegen.',
+                'Keine Einträge in dieser Liste. Bitte unter <a href="../tenant.html">Stammdaten</a> pflegen.',
             searchPlaceholder: o.searchPlaceholder || 'Name, Mail oder Alias …',
             unmatchedCreateHint:
                 o.unmatchedCreateHint ||

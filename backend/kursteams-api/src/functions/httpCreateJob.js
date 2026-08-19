@@ -38,7 +38,8 @@ app.http('httpCreateJob', {
         try {
             const job = await createJob({
                 tenantId: validated.tenantId,
-                teams: validated.teams
+                teams: validated.teams,
+                mailDomain: validated.mailDomain
             });
             context.log('Kursteam-Job angelegt:', job.id, 'Teams:', job.total);
             return jsonResponse(202, {

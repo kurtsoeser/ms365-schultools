@@ -4,7 +4,34 @@ const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
 let pollTimer = null;
 let running = false;
+let jobPollStartedAt = 0;
 const loggedEntryKeys = new Set();
+
+/** Grobe Sekunden pro Team (Graph + Teams-Bereitstellung + Pause im Backend). */
+const SECONDS_PER_TEAM_ESTIMATE = 50;
+const POLL_INTERVAL_MS = 5000;
+const MAX_LOG_LINES = 400;
+const LARGE_JOB_THRESHOLD = 25;
+
+function formatDuration(totalSeconds) {
+    const s = Math.max(0, Math.round(totalSeconds));
+    if (s < 60) return 'ca. ' + s + ' s';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return 'ca. ' + h + ' h ' + m + ' min';
+    if (m > 0 && sec > 0) return 'ca. ' + m + ' min ' + sec + ' s';
+    return 'ca. ' + m + ' min';
+}
+
+function estimateJobDurationSeconds(total) {
+    return Math.max(30, Math.ceil(Number(total) || 0) * SECONDS_PER_TEAM_ESTIMATE);
+}
+
+function maxPollAttemptsForTotal(total) {
+    const perTeamPolls = Math.ceil(SECONDS_PER_TEAM_ESTIMATE / (POLL_INTERVAL_MS / 1000));
+    return Math.min(8640, Math.max(24, Math.ceil(Number(total) || 1) * perTeamPolls * 1.25));
+}
 
 function resetEntryLogKeys() {
     loggedEntryKeys.clear();
@@ -26,21 +53,100 @@ function appendEntryLog(entry, total) {
 
 function renderJobProgress(job) {
     if (!job || !job.entries) return;
+    const total = job.total || job.entries.length || 0;
     const done = (job.completed || 0) + (job.failed || 0);
+    const ok = job.completed || 0;
+    const failed = job.failed || 0;
+    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+
+    let etaText = '';
+    if (jobPollStartedAt && done > 0 && done < total) {
+        const elapsedSec = (Date.now() - jobPollStartedAt) / 1000;
+        const remainingSec = ((total - done) * elapsedSec) / done;
+        etaText = 'Restzeit ' + formatDuration(remainingSec);
+    } else if (jobPollStartedAt && done >= total && total > 0) {
+        etaText = 'Dauer ' + formatDuration((Date.now() - jobPollStartedAt) / 1000);
+    }
+
+    setProgressBar(
+        pct,
+        done + ' / ' + total + ' Teams' + (failed ? ' (' + ok + ' OK, ' + failed + ' Fehler)' : ''),
+        etaText
+    );
     setProgress(
         'Job ' +
             job.status +
             ' – ' +
             done +
             '/' +
-            job.total +
+            total +
             ' (OK: ' +
-            (job.completed || 0) +
+            ok +
             ', Fehler: ' +
-            (job.failed || 0) +
+            failed +
             ')'
     );
-    job.entries.forEach((entry) => appendEntryLog(entry, job.total));
+    job.entries.forEach((entry) => appendEntryLog(entry, total));
+}
+
+function setProgressBar(percent, label, etaText) {
+    const wrap = document.getElementById('kursteamBackendProgressWrap');
+    const bar = document.getElementById('kursteamBackendProgressBar');
+    const labelEl = document.getElementById('kursteamBackendProgressLabel');
+    const etaEl = document.getElementById('kursteamBackendProgressEta');
+    if (wrap) wrap.style.display = 'block';
+    if (bar) {
+        bar.style.width = percent + '%';
+        bar.setAttribute('aria-valuenow', String(percent));
+    }
+    if (labelEl) labelEl.textContent = label || '';
+    if (etaEl) etaEl.textContent = etaText || '';
+}
+
+function hideProgressBar() {
+    const wrap = document.getElementById('kursteamBackendProgressWrap');
+    if (wrap) wrap.style.display = 'none';
+    const bar = document.getElementById('kursteamBackendProgressBar');
+    if (bar) {
+        bar.style.width = '0%';
+        bar.setAttribute('aria-valuenow', '0');
+    }
+    const labelEl = document.getElementById('kursteamBackendProgressLabel');
+    const etaEl = document.getElementById('kursteamBackendProgressEta');
+    if (labelEl) labelEl.textContent = '';
+    if (etaEl) etaEl.textContent = '';
+}
+
+function updateDurationHint(teamCount) {
+    const el = document.getElementById('kursteamBackendDurationHint');
+    if (!el) return;
+    const n = Number(teamCount) || 0;
+    if (n < 1) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+    }
+    const est = estimateJobDurationSeconds(n);
+    el.style.display = 'block';
+    if (n >= LARGE_JOB_THRESHOLD) {
+        el.className = 'alert alert-warning';
+        el.innerHTML =
+            '<strong>Viele Teams (' +
+            n +
+            '):</strong> Die Online-Anlage kann ' +
+            formatDuration(est) +
+            ' dauern (oft länger bei Microsoft-Drosselung). ' +
+            '<strong>Browser-Tab geöffnet lassen</strong> – Fortschritt aktualisiert sich alle 5 Sekunden. ' +
+            'Das Protokoll scrollt; bei sehr vielen Einträgen werden ältere Zeilen aus dem sichtbaren Bereich entfernt.';
+    } else {
+        el.className = 'alert alert-info';
+        el.innerHTML =
+            'Geschätzte Laufzeit für ' +
+            n +
+            ' Team(s): ' +
+            formatDuration(est) +
+            '. Das Protokoll darunter hat feste Höhe und scrollt automatisch.';
+    }
 }
 
 function getApiConfig() {
@@ -69,6 +175,9 @@ function appendBackendLog(msg, kind) {
     else if (kind === 'ok') line.style.color = '#0d8050';
     else if (kind === 'warn') line.style.color = '#856404';
     el.appendChild(line);
+    while (el.childElementCount > MAX_LOG_LINES) {
+        el.removeChild(el.firstChild);
+    }
     el.scrollTop = el.scrollHeight;
 }
 
@@ -125,43 +234,136 @@ async function apiRequest(path, options) {
     return data;
 }
 
-async function resolveTenantIdFromLogin() {
-    if (typeof window.ms365AuthEnsureInitialized === 'function') {
-        await window.ms365AuthEnsureInitialized();
+function resolveMailDomain(pack) {
+    if (pack && pack.mailDomain) {
+        return String(pack.mailDomain)
+            .trim()
+            .replace(/^@+/, '');
     }
-    if (typeof window.ms365AuthAcquireToken === 'function') {
-        try {
-            await window.ms365AuthAcquireToken(['User.Read']);
-        } catch {
-            /* Anmeldung optional, wenn tenantId in Config steht */
+    if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
+        const d = String(window.ms365GetSchoolDomainNoAt() || '')
+            .trim()
+            .replace(/^@+/, '');
+        if (d) return d;
+    }
+    if (pack && pack.teams && pack.teams.length) {
+        return emailDomain(pack.teams[0].besitzer);
+    }
+    return '';
+}
+
+function emailDomain(addr) {
+    const m = String(addr || '')
+        .trim()
+        .match(/@([^@]+)$/i);
+    return m ? m[1].toLowerCase() : '';
+}
+
+async function resolveTenantIdFromLogin() {
+    if (typeof window.ms365AuthGetTenantId === 'function') {
+        return await window.ms365AuthGetTenantId();
+    }
+    return '';
+}
+
+function getLoginUpn() {
+    if (typeof window.ms365AuthGetUserPrincipalName === 'function') {
+        return window.ms365AuthGetUserPrincipalName();
+    }
+    return '';
+}
+
+/**
+ * @param {string} tenantId
+ * @param {Array<{ besitzer: string }>} teams
+ * @returns {{ ok: boolean, message?: string }}
+ */
+function validateTenantContext(tenantId, teams) {
+    const loginUpn = getLoginUpn();
+    const loginDomain = emailDomain(loginUpn);
+
+    if (!tenantId) {
+        return {
+            ok: false,
+            message:
+                'Kein Mandant erkannt. Bitte unten links bei Microsoft mit dem Schul-Konto anmelden.'
+        };
+    }
+
+    if (!loginUpn) {
+        return {
+            ok: false,
+            message:
+                'Bitte bei Microsoft anmelden, bevor Kursteams online angelegt werden.'
+        };
+    }
+
+    const ownerDomains = new Set(
+        teams.map((t) => emailDomain(t.besitzer)).filter(Boolean)
+    );
+    if (loginDomain && ownerDomains.size) {
+        const foreign = [...ownerDomains].filter((d) => d !== loginDomain);
+        if (foreign.length) {
+            return {
+                ok: false,
+                message:
+                    'Die Besitzer-E-Mails (' +
+                    [...ownerDomains].join(', ') +
+                    ') passen nicht zum angemeldeten Konto (' +
+                    loginUpn +
+                    '). Bitte Konto wechseln oder Besitzer in Schritt 5 korrigieren.'
+            };
         }
     }
 
-    const pca =
-        window.__ms365Pca ||
-        (typeof window.ms365AuthEnsureInitialized === 'function'
-            ? await window.ms365AuthEnsureInitialized().then(() => window.__ms365Pca)
-            : null);
-    const accounts = pca && typeof pca.getAllAccounts === 'function' ? pca.getAllAccounts() : [];
-    const account = accounts && accounts[0];
-    const tid =
-        account &&
-        (account.tenantId ||
-            (account.idTokenClaims && account.idTokenClaims.tid) ||
-            '');
-    return tid ? String(tid).trim() : '';
+    return { ok: true };
 }
 
 async function resolveTenantId() {
     const fromLogin = await resolveTenantIdFromLogin();
     if (fromLogin) return fromLogin;
 
-    const cfg = getApiConfig();
-    if (cfg.tenantId) return cfg.tenantId;
-
     throw new Error(
-        'tenantId fehlt: Bei Microsoft anmelden oder MS365_KURSTEAMS_API.tenantId in ms365-config.js setzen.'
+        'Mandant nicht erkannt. Bitte unten links bei Microsoft mit dem Konto des Ziel-Mandanten anmelden.'
     );
+}
+
+async function updateBackendTenantHint() {
+    const el = document.getElementById('kursteamBackendTenantHint');
+    if (!el) return;
+
+    const loginUpn = getLoginUpn();
+    let tenantId = '';
+    try {
+        tenantId = await resolveTenantIdFromLogin();
+    } catch {
+        tenantId = '';
+    }
+
+    if (!loginUpn && !tenantId) {
+        el.style.display = 'block';
+        el.className = 'alert alert-warning';
+        el.innerHTML =
+            '<strong>Bitte bei Microsoft anmelden</strong> – mit dem Konto der Schule, in der die Kursteams angelegt werden sollen.';
+        return;
+    }
+
+    const pack =
+        typeof window.ms365GetKursteamSnapshotForGraph === 'function'
+            ? window.ms365GetKursteamSnapshotForGraph()
+            : null;
+    if (pack && pack.teams && pack.teams.length) {
+        const check = validateTenantContext(tenantId, pack.teams);
+        if (!check.ok) {
+            el.style.display = 'block';
+            el.className = 'alert alert-warning';
+            el.innerHTML = '<strong>Hinweis:</strong> ' + check.message;
+            return;
+        }
+    }
+
+    el.style.display = 'none';
+    el.innerHTML = '';
 }
 
 function validateConfig() {
@@ -196,6 +398,9 @@ ns.refreshKursteamBackendUi = function refreshKursteamBackendUi() {
     if (run) {
         run.disabled = !!cfgErr || validTeams.length === 0 || running;
     }
+
+    updateDurationHint(validTeams.length);
+    updateBackendTenantHint();
 };
 
 async function checkBackendHealth() {
@@ -237,9 +442,10 @@ function stopPolling() {
     }
 }
 
-async function pollJob(jobId) {
-    const maxAttempts = 72;
+async function pollJob(jobId, totalTeams) {
+    const maxAttempts = maxPollAttemptsForTotal(totalTeams);
     let attempts = 0;
+    jobPollStartedAt = Date.now();
 
     return new Promise((resolve, reject) => {
         pollTimer = setInterval(async () => {
@@ -255,13 +461,19 @@ async function pollJob(jobId) {
                 }
                 if (attempts >= maxAttempts) {
                     stopPolling();
-                    reject(new Error('Timeout: Job nach 6 Minuten noch nicht abgeschlossen.'));
+                    reject(
+                        new Error(
+                            'Timeout: Job nach ' +
+                                formatDuration(maxAttempts * (POLL_INTERVAL_MS / 1000)) +
+                                ' noch nicht abgeschlossen – Backend läuft ggf. weiter; Job-ID im Protokoll.'
+                        )
+                    );
                 }
             } catch (e) {
                 stopPolling();
                 reject(e);
             }
-        }, 5000);
+        }, POLL_INTERVAL_MS);
     });
 }
 
@@ -295,24 +507,44 @@ async function runKursteamBackend() {
     setButtonsDisabled(true);
     clearBackendLog();
     resetEntryLogKeys();
+    jobPollStartedAt = 0;
+    hideProgressBar();
     setProgress('');
-    appendBackendLog('Start – Kursteams-Backend (' + pack.teams.length + ' Teams) …');
+    const teamCount = pack.teams.length;
+    const estSec = estimateJobDurationSeconds(teamCount);
+    appendBackendLog('Start – Kursteams-Backend (' + teamCount + ' Teams) …');
+    appendBackendLog(
+        'Geschätzte Laufzeit: ' +
+            formatDuration(estSec) +
+            (teamCount >= LARGE_JOB_THRESHOLD
+                ? ' – bei vielen Teams kann es deutlich länger dauern; Tab geöffnet lassen.'
+                : ''),
+        teamCount >= LARGE_JOB_THRESHOLD ? 'warn' : undefined
+    );
 
     try {
         const tenantId = await resolveTenantId();
-        appendBackendLog('Mandant: ' + tenantId);
+        const tenantCheck = validateTenantContext(tenantId, pack.teams);
+        if (!tenantCheck.ok) {
+            throw new Error(tenantCheck.message);
+        }
 
         const created = await apiRequest('/jobs', {
             method: 'POST',
-            body: { tenantId, teams: pack.teams }
+            body: {
+                tenantId,
+                mailDomain: resolveMailDomain(pack),
+                teams: pack.teams
+            }
         });
         appendBackendLog(
             'Job gestartet: ' + created.jobId + ' (' + created.total + ' Teams)',
             'ok'
         );
+        setProgressBar(0, '0 / ' + created.total + ' Teams', 'Restzeit ' + formatDuration(estSec));
         setProgress('Job ' + created.status + ' …');
 
-        const finalJob = await pollJob(created.jobId);
+        const finalJob = await pollJob(created.jobId, created.total);
         renderJobProgress(finalJob);
 
         if (finalJob.status === 'completed' && (finalJob.failed || 0) === 0) {

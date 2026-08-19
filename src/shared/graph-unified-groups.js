@@ -116,6 +116,12 @@
     }
 
     async function getGraphToken() {
+        if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
+            return window.ms365AuthAcquireTokenPopup(GRAPH_SCOPES);
+        }
+        if (typeof window.ms365AuthAcquireToken === 'function') {
+            return window.ms365AuthAcquireToken(GRAPH_SCOPES);
+        }
         const instance = await getPca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {

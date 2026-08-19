@@ -172,7 +172,7 @@ function getPrefix() {
 }
 
 /**
- * Leere ARGE-Liste aus den zentralen Schul‑Einstellungen füllen.
+ * Leere ARGE-Liste aus den zentralen Stammdaten füllen.
  * Bevorzugt den Tab „ARGE“ (Stammdaten `arges`); nur wenn dort nichts liegt, Fallback auf Fächer (`subjects`).
  * Nur `Kürzel;Bezeichnung` — keine dritte Spalte (Fächer-Zuordnung), damit die ARGE‑Zeilenparser nicht mit Mail‑Nicknames kollidieren.
  */
@@ -197,7 +197,7 @@ function adoptArgeLinesFromTenantSettingsIfEmpty() {
         if (!lines.length) return;
         ta.value = lines.join('\n');
         scheduleArgePreviewFromTextarea();
-        showToast('ARGE: Liste aus Schul‑Einstellungen (ARGE‑Stammdaten) übernommen.');
+        showToast('ARGE: Liste aus Stammdaten (ARGE‑Stammdaten) übernommen.');
         return;
     }
     const subjects = Array.isArray(s?.subjects) ? s.subjects : [];
@@ -213,7 +213,7 @@ function adoptArgeLinesFromTenantSettingsIfEmpty() {
     if (!lines.length) return;
     ta.value = lines.join('\n');
     scheduleArgePreviewFromTextarea();
-    showToast('ARGE: Keine ARGE‑Stammdaten — Fächer aus Schul‑Einstellungen übernommen (Fallback).');
+    showToast('ARGE: Keine ARGE‑Stammdaten — Fächer aus Stammdaten übernommen (Fallback).');
 }
 
 let argeTenantSubjectsDebounce;
@@ -412,7 +412,7 @@ function renderArgePreviewTableBody() {
 
             const td2 = document.createElement('td');
             td2.innerHTML = `<code>${getSubjectCodeForDisplayName(r.displayName, r.subjectCode) || ''}</code>`;
-            td2.title = 'Fach-Kürzel (aus Schul‑Einstellungen; sonst automatisch erzeugt)';
+            td2.title = 'Fach-Kürzel (aus Stammdaten; sonst automatisch erzeugt)';
             td2.addEventListener('dblclick', () => {
                 startCellEdit(td2, r.subjectCode, (next, meta) => {
                     const prev = argePreviewRows[i]?.subjectCode || '';
@@ -547,7 +547,7 @@ function rebuildArgeMembersTableFromRows() {
         td1.textContent = row.displayName;
         const tdCode = document.createElement('td');
         tdCode.innerHTML = `<code>${getSubjectCodeForDisplayName(row.displayName, row.subjectCode) || ''}</code>`;
-        tdCode.title = 'Fach-Kürzel (aus Schul‑Einstellungen; sonst automatisch erzeugt)';
+        tdCode.title = 'Fach-Kürzel (aus Stammdaten; sonst automatisch erzeugt)';
         const td2 = document.createElement('td');
         td2.textContent = row.mailNick + '@' + domain;
         td2.style.fontFamily = 'Consolas,monospace';
@@ -601,7 +601,7 @@ function rebuildArgeOwnerTableFromRows() {
         td1.textContent = row.displayName;
         const tdCode = document.createElement('td');
         tdCode.innerHTML = `<code>${getSubjectCodeForDisplayName(row.displayName, row.subjectCode) || ''}</code>`;
-        tdCode.title = 'Fach-Kürzel (aus Schul‑Einstellungen; sonst automatisch erzeugt)';
+        tdCode.title = 'Fach-Kürzel (aus Stammdaten; sonst automatisch erzeugt)';
         const td2 = document.createElement('td');
         td2.textContent = row.mailNick + '@' + domain;
         const td3 = document.createElement('td');
@@ -876,7 +876,7 @@ function downloadArgeStandalonePackage() {
         (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
             !window.ms365IsTenantSchoolDomainConfigured())
     ) {
-        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
+        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Stammdaten fest.');
         if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
             window.ms365ShowTenantDomainRequiredModal();
         }
@@ -957,7 +957,7 @@ document.getElementById('argeParseAndGo3').addEventListener('click', () => {
         !window.ms365IsTenantSchoolDomainConfigured()
     ) {
         errEl.textContent =
-            'Bitte legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest (Seite „Schul‑Einstellungen“).';
+            'Bitte legen Sie die E-Mail-Domain der Schule in den Stammdaten fest (Seite „Stammdaten“).';
         errEl.style.display = 'block';
         if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
             window.ms365ShowTenantDomainRequiredModal();
@@ -1032,7 +1032,7 @@ document.getElementById('argeGoTo4').addEventListener('click', () => {
         (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
             !window.ms365IsTenantSchoolDomainConfigured())
     ) {
-        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
+        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Stammdaten fest.');
         if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
             window.ms365ShowTenantDomainRequiredModal();
         }

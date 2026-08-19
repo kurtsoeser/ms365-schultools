@@ -1,6 +1,8 @@
 /* Gemeinsames Styling für alle Tool-Seiten (tools/*.html)
  * Design-Foundation: Tokens (Light/Dark), Buttons, Tabs, Panels.
  */
+@import url('src/shared/tools-dark.css');
+@import url('src/shared/dashboard-dark.css');
 
 :root {
     color-scheme: light;
@@ -36,8 +38,17 @@
     --icon-muted: rgba(255, 255, 255, 0.92);
     --icon-dim: rgba(33, 37, 41, 0.72);
 
-    --app-max-width: 2000px;
     --app-page-padding: 24px;
+    --app-shell-width: min(1920px, calc(100vw - 2 * var(--app-page-padding)));
+    --app-content-max: 1920px;
+    --app-shell-max: 1920px;
+    --app-max-width: 1920px;
+}
+
+html {
+    min-height: 100%;
+    overflow-x: clip;
+    background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -144,25 +155,41 @@ html[data-theme="light"] {
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+    background: transparent;
     min-height: 100vh;
+    width: 100%;
+    margin: 0;
     padding: var(--app-page-padding);
     color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Hauptinhalt: feste Shell-Breite, nie breiter als 1920px */
+body > .container,
+body > .page-card,
+body > .container.page-card,
+body > .welcome-wrap {
+    box-sizing: border-box;
+    width: var(--app-shell-width);
+    max-width: var(--app-content-max);
+    flex: 1 1 auto;
+    margin-inline: auto;
 }
 
 .container {
-    max-width: var(--app-max-width);
-    margin: 0 auto;
+    width: 100%;
+    max-width: var(--app-content-max);
     background: var(--card);
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
     overflow: hidden;
 }
 
-/* Kompatibilität: einige Seiten nutzen "page-card" als Layout-Wrap */
 .page-card {
-    max-width: var(--app-max-width);
-    margin: 0 auto;
+    width: 100%;
+    max-width: var(--app-content-max);
 }
 
 .header {
@@ -455,11 +482,14 @@ body {
 }
 
 .app-fixed-footer {
-    position: fixed;
-    left: 16px;
-    right: 16px;
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-    z-index: 2000;
+    position: relative;
+    width: var(--app-shell-width);
+    max-width: var(--app-content-max);
+    margin-top: auto;
+    margin-inline: auto;
+    padding-top: 12px;
+    flex: 0 0 auto;
+    z-index: 1;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -632,7 +662,7 @@ html[data-theme="dark"] .header-help-link .bi {
     justify-content: center;
 }
 
-.content { padding: 30px; padding-bottom: 110px; color: var(--text); }
+.content { padding: 30px; color: var(--text); }
 
 .btn {
     background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
@@ -1774,3 +1804,346 @@ html[data-theme="dark"] .ms365-header-nav .btn:hover {
     }
 }
 
+/* ========== Stammdaten-/Einrichtungs-Tabellen (theme-aware) ========== */
+
+.teachers-table-wrap {
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: auto;
+    background: var(--card);
+}
+
+.teachers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92em;
+    min-width: 420px;
+    color: var(--text);
+}
+
+.teachers-table th,
+.teachers-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+}
+
+.teachers-table th {
+    position: sticky;
+    top: 0;
+    background: var(--brand1);
+    color: #fff;
+    text-align: left;
+    font-weight: 700;
+    z-index: 1;
+}
+
+.teachers-table td code {
+    font-family: Consolas, 'Segoe UI', monospace;
+    background: var(--code-bg);
+    color: var(--text);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.teachers-table .action-cell {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.teachers-table .mini-btn {
+    background: var(--danger1);
+    color: #fff;
+    border: 0;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.cell-editor {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.98em;
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+    line-height: 1.35;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cell-editor:focus {
+    border-color: var(--brand1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand1) 24%, transparent);
+}
+
+.cell-editor::placeholder {
+    color: var(--muted);
+}
+
+/* Einrichtung Schritt 3: Verwaltungstabelle mit Inline-Inputs */
+#swStep3 .teachers-table input[data-sw-admin-name],
+#swStep3 .teachers-table input[data-sw-admin-email],
+#swStep3 .teachers-table input[data-sw-admin-role] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    font: inherit;
+    font-size: 0.98em;
+    line-height: 1.4;
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#swStep3 .teachers-table input[data-sw-admin-name]::placeholder,
+#swStep3 .teachers-table input[data-sw-admin-email]::placeholder,
+#swStep3 .teachers-table input[data-sw-admin-role]::placeholder {
+    color: var(--muted);
+}
+
+#swStep3 .teachers-table input[data-sw-admin-name]:hover,
+#swStep3 .teachers-table input[data-sw-admin-email]:hover,
+#swStep3 .teachers-table input[data-sw-admin-role]:hover {
+    border-color: var(--border-strong);
+}
+
+#swStep3 .teachers-table input[data-sw-admin-name]:focus,
+#swStep3 .teachers-table input[data-sw-admin-email]:focus,
+#swStep3 .teachers-table input[data-sw-admin-role]:focus {
+    outline: none;
+    background: var(--input-bg);
+    border-color: var(--brand1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand1) 24%, transparent);
+}
+
+#swStep3 .teachers-table td {
+    vertical-align: middle;
+}
+
+.settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 12px;
+}
+.settings-actions .btn {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+}
+.settings-actions input[type="file"] {
+    display: none;
+}
+
+/* Theme-aware Surfaces (Stammdaten, Einrichtung, Werkzeuge) */
+.tile,
+.settings-module,
+.ts-step,
+.ts-step-body,
+.ts-year-strip,
+.sw-panel {
+    background: var(--card);
+    color: var(--text);
+}
+
+.tile-title,
+.settings h2,
+.settings-module h3,
+.sw-panel h2,
+.ts-step-label,
+.ts-step-n,
+.ts-step-chevron,
+.ts-status-title,
+.ts-hub-tools h3,
+.ts-year-strip__select {
+    color: var(--heading);
+}
+
+.tile-subtitle,
+.settings p,
+.sw-panel p.intro,
+.ts-step-desc,
+.field label,
+.sw-field label {
+    color: var(--text-secondary);
+}
+
+.ts-step > summary {
+    background: color-mix(in srgb, var(--card) 65%, transparent);
+}
+
+.ts-year-strip__select {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+}
+
+/* Status-Chips & Zusammenfassungen */
+html[data-theme="dark"] .ts-status-chip--ok {
+    background: color-mix(in srgb, #34d399 18%, transparent);
+    color: #6ee7b7;
+}
+html[data-theme="dark"] .ts-status-chip--warn {
+    background: color-mix(in srgb, #fbbf24 18%, transparent);
+    color: #fcd34d;
+}
+html[data-theme="dark"] .ts-status-chip--error {
+    background: color-mix(in srgb, #fb7185 18%, transparent);
+    color: #fda4af;
+}
+html[data-theme="dark"] .ts-status-chip--muted {
+    background: color-mix(in srgb, var(--muted) 18%, transparent);
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .summary {
+    color: #7dd3fc;
+    background: color-mix(in srgb, #0ea5e9 14%, var(--card));
+    border-color: color-mix(in srgb, #0ea5e9 30%, transparent);
+}
+html[data-theme="dark"] .summary[data-kind="ok"] {
+    color: #6ee7b7;
+    background: color-mix(in srgb, #34d399 14%, var(--card));
+    border-color: color-mix(in srgb, #34d399 30%, transparent);
+}
+html[data-theme="dark"] .summary[data-kind="warn"] {
+    color: #fcd34d;
+    background: color-mix(in srgb, #fbbf24 14%, var(--card));
+    border-color: color-mix(in srgb, #fbbf24 30%, transparent);
+}
+
+/* Sync-Log / Konsolen-Ausgabe */
+[id^="swSyncLog"],
+[id$="OnlineLog"] {
+    background: var(--input-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--input-border) !important;
+}
+
+/* Einrichtung: Navigation & Tabs */
+.sw-nav button {
+    background: var(--surface-muted);
+    color: var(--heading);
+    border-color: var(--border-strong);
+}
+.sw-nav button.active {
+    color: #fff;
+}
+.sw-grp-tabs .tab-btn {
+    background: var(--card);
+    color: var(--heading);
+    border-color: var(--border-strong);
+}
+.sw-grp-tabs .tab-btn[aria-selected="true"] {
+    color: #fff;
+}
+
+/* Tabellen: explizite Dark-Mode-Sperre gegen weiße Inline-Styles */
+html[data-theme="dark"] .teachers-table-wrap,
+html[data-theme="dark"] .teachers-table tbody tr,
+html[data-theme="dark"] .teachers-table td {
+    background-color: var(--card) !important;
+    color: var(--text) !important;
+}
+
+html[data-theme="dark"] .teachers-table th {
+    background: var(--brand1) !important;
+    color: #fff !important;
+}
+
+html[data-theme="dark"] .tile,
+html[data-theme="dark"] .settings-module,
+html[data-theme="dark"] .ts-step,
+html[data-theme="dark"] .ts-step-body,
+html[data-theme="dark"] .ts-year-strip,
+html[data-theme="dark"] .sw-panel {
+    background: var(--card) !important;
+    color: var(--text) !important;
+    box-shadow: var(--shadow);
+}
+
+html[data-theme="dark"] .sw-lic-row-exists {
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card)) !important;
+}
+
+html[data-theme="dark"] .sw-lic-pill {
+    background: var(--code-bg);
+    color: var(--text);
+}
+
+html[data-theme="dark"] .sw-lic-chip {
+    color: var(--text-secondary);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .teachers-table-wrap,
+    :root:not([data-theme]) .teachers-table tbody tr,
+    :root:not([data-theme]) .teachers-table td {
+        background-color: var(--card) !important;
+        color: var(--text) !important;
+    }
+    :root:not([data-theme]) .tile,
+    :root:not([data-theme]) .settings-module,
+    :root:not([data-theme]) .ts-step,
+    :root:not([data-theme]) .ts-step-body,
+    :root:not([data-theme]) .ts-year-strip,
+    :root:not([data-theme]) .sw-panel {
+        background: var(--card) !important;
+        color: var(--text) !important;
+    }
+    :root:not([data-theme]) .ts-status-chip--ok {
+        background: color-mix(in srgb, #34d399 18%, transparent);
+        color: #6ee7b7;
+    }
+    :root:not([data-theme]) .ts-status-chip--warn {
+        background: color-mix(in srgb, #fbbf24 18%, transparent);
+        color: #fcd34d;
+    }
+    :root:not([data-theme]) .summary[data-kind="ok"] {
+        color: #6ee7b7;
+        background: color-mix(in srgb, #34d399 14%, var(--card));
+    }
+    :root:not([data-theme]) .summary[data-kind="warn"] {
+        color: #fcd34d;
+        background: color-mix(in srgb, #fbbf24 14%, var(--card));
+    }
+}
+
+/* Inline-Stile mit festen Hellmodus-Farben im Dunkelmodus korrigieren */
+html[data-theme="dark"] [style*="color:#6c757d"],
+html[data-theme="dark"] [style*="color: #6c757d"],
+html[data-theme="dark"] [style*="color:#32325d"],
+html[data-theme="dark"] [style*="color: #32325d"],
+html[data-theme="dark"] [style*="color:#495057"],
+html[data-theme="dark"] [style*="color: #495057"] {
+    color: var(--muted) !important;
+}
+
+html[data-theme="dark"] [style*="background:#fff"],
+html[data-theme="dark"] [style*="background: #fff"],
+html[data-theme="dark"] [style*="background:#ffffff"],
+html[data-theme="dark"] [style*="background: #ffffff"] {
+    background: var(--input-bg) !important;
+    color: var(--text) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) [style*="color:#6c757d"],
+    :root:not([data-theme]) [style*="color: #6c757d"],
+    :root:not([data-theme]) [style*="background:#fff"],
+    :root:not([data-theme]) [style*="background: #fff"] {
+        color: var(--muted) !important;
+        background: var(--input-bg) !important;
+    }
+}

@@ -417,6 +417,128 @@
         return imported;
     }
 
+    function clearRestorableSessionKeys(sessionStorageArg) {
+        const sessionStore = getSessionStore(sessionStorageArg);
+        const removed = [];
+        if (!sessionStore || typeof sessionStore.key !== 'function') return removed;
+        const n = sessionStore.length || 0;
+        const sessionKeys = [];
+        for (let i = 0; i < n; i++) {
+            const k = sessionStore.key(i);
+            if (k && isRestorableSessionKey(k)) sessionKeys.push(k);
+        }
+        sessionKeys.forEach(function (k) {
+            try {
+                sessionStore.removeItem(k);
+                removed.push(k);
+            } catch {
+                /* ignore */
+            }
+        });
+        return removed;
+    }
+
+    /**
+     * Löscht alle lokalen App-Daten (ms365-* / webuntis-*), nicht die Microsoft-Anmeldung (MSAL).
+     */
+    function clearAllAppData(opts) {
+        const store = getStore(opts && opts.storage);
+        if (!store) throw new Error('localStorage ist nicht verfügbar.');
+        const removed = [];
+        const errors = [];
+        listAppKeys(store).forEach(function (k) {
+            try {
+                store.removeItem(k);
+                removed.push(k);
+            } catch (e) {
+                errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+            }
+        });
+        const sessionRemoved = clearRestorableSessionKeys(opts && opts.sessionStorage);
+        if (errors.length) {
+            throw new Error(errors.slice(0, 3).join('; '));
+        }
+        try {
+            window.dispatchEvent(new CustomEvent('ms365-demo-mode-changed', { detail: { active: false } }));
+        } catch {
+            /* ignore */
+        }
+        return {
+            removed: removed.length,
+            keys: removed,
+            sessionRemoved: sessionRemoved.length
+        };
+    }
+
+    async function resetAllAppData(reload) {
+        const ok = await dlgConfirm(
+            'Alle lokalen App-Daten in diesem Browser löschen?\n\n' +
+                'Entfernt werden: Stammdaten, Einrichtungsstand, Werkzeug-Zwischenstände, Demo-Modus und Favoriten. ' +
+                'Nicht gelöscht: Ihre Microsoft-Anmeldung (oben rechts) und der PIN-Zugang dieser Seite.\n\n' +
+                'Tipp: Vorher „Browser-Backup“ exportieren, falls Sie Daten behalten möchten.',
+            {
+                title: 'Alles zurücksetzen',
+                okText: 'Alles löschen',
+                cancelText: 'Abbrechen',
+                danger: true
+            }
+        );
+        if (!ok) return { cancelled: true };
+        const result = clearAllAppData();
+        if (reload !== false) {
+            location.reload();
+        }
+        return result;
+    }
+
+    async function resetAndLoadDemo(reload) {
+        const ok = await dlgConfirm(
+            'Demo-Daten der MS365 Musterschule laden?\n\n' +
+                'Zuerst werden alle lokalen App-Daten in diesem Browser gelöscht, danach die umfangreiche Muster-Schule ' +
+                '(Stammdaten, Verknüpfungen, Beispiel-Schüler:innen, Eltern, Kursteams-Zwischenstand).\n\n' +
+                'Ihre Microsoft-Anmeldung bleibt erhalten.',
+            {
+                title: 'Demo-Daten laden',
+                okText: 'Demo laden',
+                cancelText: 'Abbrechen'
+            }
+        );
+        if (!ok) return { cancelled: true };
+        clearAllAppData({ reload: false });
+        if (!window.ms365DemoMode || typeof window.ms365DemoMode.activate !== 'function') {
+            throw new Error('Demo-Modul nicht geladen.');
+        }
+        if (!window.ms365DemoMode.activate()) {
+            throw new Error('Demo-Daten konnten nicht geladen werden.');
+        }
+        if (reload !== false) {
+            location.reload();
+        }
+        return { demo: true };
+    }
+
+    function onResetClick() {
+        resetAllAppData(true).catch(function (e) {
+            setStatus('Zurücksetzen fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
+            return dlgAlert('Zurücksetzen fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), {
+                title: 'Alles zurücksetzen'
+            });
+        });
+    }
+
+    function onDemoLoadClick() {
+        resetAndLoadDemo(true)
+            .then(function (res) {
+                if (res && res.cancelled) setStatus('Demo-Laden abgebrochen.', 'warn');
+            })
+            .catch(function (e) {
+                setStatus('Demo-Laden fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
+                return dlgAlert('Demo-Laden fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), {
+                    title: 'Demo-Daten laden'
+                });
+            });
+    }
+
     function onExportClick() {
         try {
             const payload = downloadBackup();
@@ -458,6 +580,16 @@
         const fileImport = document.getElementById('browserBackupImportFile');
         bindImportInput(fileImport);
         document.querySelectorAll('[data-ms365-backup="import-file"]').forEach(bindImportInput);
+        document.querySelectorAll('[data-ms365-backup="reset"]').forEach(function (btn) {
+            if (!btn || btn.dataset.ms365BackupBound === '1') return;
+            btn.dataset.ms365BackupBound = '1';
+            btn.addEventListener('click', onResetClick);
+        });
+        document.querySelectorAll('[data-ms365-backup="demo"]').forEach(function (btn) {
+            if (!btn || btn.dataset.ms365BackupBound === '1') return;
+            btn.dataset.ms365BackupBound = '1';
+            btn.addEventListener('click', onDemoLoadClick);
+        });
     }
 
     window.ms365BrowserBackup = {
@@ -476,6 +608,9 @@
         backupFilename: backupFilename,
         downloadBackup: downloadBackup,
         importFile: importFile,
+        clearAllAppData: clearAllAppData,
+        resetAllAppData: resetAllAppData,
+        resetAndLoadDemo: resetAndLoadDemo,
         bindUi: bindUi
     };
 

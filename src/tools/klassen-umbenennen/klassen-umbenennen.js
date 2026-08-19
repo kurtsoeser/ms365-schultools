@@ -410,10 +410,10 @@ function renderLoadedGroupsTable() {
     if (summary) {
         if (showTenantClassesInStep1) {
             summary.textContent = tenantClassesFull.length
-                ? 'Klassen aus Schul‑Einstellungen: ' +
+                ? 'Klassen aus Stammdaten: ' +
                   tenantClassesFull.length +
                   '. Für ID/Besitzer bitte zusätzlich „Gruppen laden“ ausführen.'
-                : 'Keine Klassen in den Schul‑Einstellungen gefunden.';
+                : 'Keine Klassen in den Stammdaten gefunden.';
         } else {
             summary.textContent =
                 'Vorschau (Schritt 1): ' +
@@ -456,7 +456,7 @@ function renderLoadedGroupsTable() {
             const c = document.createElement('td');
             c.colSpan = 8;
             c.style.color = '#6c757d';
-            c.textContent = 'Keine Klassen – bitte in den Schul‑Einstellungen pflegen.';
+            c.textContent = 'Keine Klassen – bitte in den Stammdaten pflegen.';
             tr.appendChild(c);
             tbody.appendChild(tr);
         }
@@ -487,7 +487,7 @@ function renderLoadedGroupsTable() {
         tr.appendChild(td(displayName));
         tr.appendChild(td(mailNick || '—'));
         tr.appendChild(td(mailPreview || '—'));
-        // Besitzer aus den Schul‑Einstellungen (Klassenvorstand); Graph-Owners bleiben in ownersText als Fallback sichtbar
+        // Besitzer aus den Stammdaten (Klassenvorstand); Graph-Owners bleiben in ownersText als Fallback sichtbar
         tr.appendChild(td((tc && tc.headName) || '—'));
         tr.appendChild(td((tc && tc.headEmail) || ownersText || '—'));
         tbody.appendChild(tr);
@@ -587,7 +587,7 @@ async function buildPreview() {
     const prefixInp = document.getElementById('kuPrefix');
     const prefix = prefixInp && prefixInp.value ? prefixInp.value : 'Klasse';
 
-    // Testmodus: Vorschau aus Klassen aus den Schul‑Einstellungen erlauben (ohne Graph / ohne echte Gruppen-IDs)
+    // Testmodus: Vorschau aus Klassen aus den Stammdaten erlauben (ohne Graph / ohne echte Gruppen-IDs)
     if (!loadedGroups.length && showTenantClassesInStep1) {
         const tenantClasses = getTenantClassesFull();
         previewRows = [];
@@ -1031,7 +1031,7 @@ function loadTenantClassesIntoStep1Table() {
     const next1 = document.getElementById('kuNext1');
     if (next1) next1.disabled = false;
     const status = document.getElementById('kuLoadStatus');
-    if (status) status.textContent = 'Testdaten geladen (Klassen aus Schul‑Einstellungen).';
+    if (status) status.textContent = 'Testdaten geladen (Klassen aus Stammdaten).';
 }
 
 async function runRename() {

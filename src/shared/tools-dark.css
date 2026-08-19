@@ -1,0 +1,323 @@
+/* Dunkelmodus für Werkzeug-Seiten (tools/*.html, group-detail, gemeinsame Muster) */
+
+/* ── Panels & Layout ── */
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .ss-modal,
+html[data-theme="dark"] details.oa-details,
+html[data-theme="dark"] .oa-step-work .hint {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+
+html[data-theme="dark"] .panel-head,
+html[data-theme="dark"] .ss-modal-head {
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card)) !important;
+    border-bottom-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .panel-head h2,
+html[data-theme="dark"] .ss-modal-head h3,
+html[data-theme="dark"] .pv-tree-title,
+html[data-theme="dark"] .oa-check h3,
+html[data-theme="dark"] .oa-year-stat,
+html[data-theme="dark"] .oa-progress,
+html[data-theme="dark"] details.oa-details > summary {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .panel-body,
+html[data-theme="dark"] .ss-modal-body {
+    color: var(--text) !important;
+}
+
+/* ── LIVE-Tenant-Banner & Status-Hinweise ── */
+html[data-theme="dark"] .live-banner {
+    color: var(--text) !important;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--brand1) 16%, var(--card)) 0%,
+        color-mix(in srgb, #34d399 14%, var(--card)) 100%
+    ) !important;
+    border-color: color-mix(in srgb, #34d399 30%, var(--border)) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+html[data-theme="dark"] .live-banner strong {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .live-badge {
+    color: #6ee7b7 !important;
+    background: color-mix(in srgb, #34d399 20%, transparent) !important;
+    border-color: color-mix(in srgb, #34d399 40%, transparent) !important;
+}
+
+/* ── Stat-Karten ── */
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .gv-hero-stat {
+    background: var(--surface-muted) !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .stat .n {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .stat .l {
+    color: var(--muted) !important;
+}
+
+/* ── Pills & Badges ── */
+html[data-theme="dark"] .pill {
+    background: var(--surface-muted) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .pill.ok {
+    color: #6ee7b7 !important;
+    background: color-mix(in srgb, #34d399 14%, transparent) !important;
+    border-color: color-mix(in srgb, #34d399 30%, transparent) !important;
+}
+
+html[data-theme="dark"] .pill.warn {
+    color: #fcd34d !important;
+    background: color-mix(in srgb, #fbbf24 14%, transparent) !important;
+    border-color: color-mix(in srgb, #fbbf24 28%, transparent) !important;
+}
+
+html[data-theme="dark"] .pill.err {
+    color: #fda4af !important;
+    background: color-mix(in srgb, #fb7185 12%, transparent) !important;
+    border-color: color-mix(in srgb, #fb7185 28%, transparent) !important;
+}
+
+html[data-theme="dark"] .pill.muted-pill,
+html[data-theme="dark"] .pill.dl {
+    color: var(--muted) !important;
+    background: var(--soft) !important;
+    border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .jg-match-badge.is-ok {
+    color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] .jg-match-badge.is-warn {
+    color: #fda4af !important;
+}
+
+/* ── Tabs (Modus, SS, Verteiler) ── */
+html[data-theme="dark"] .mode-tabs .tabs,
+html[data-theme="dark"] .ss-tabs {
+    background: color-mix(in srgb, var(--card) 85%, transparent) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+html[data-theme="dark"] .mode-tabs .tab-btn:not([aria-selected="true"]),
+html[data-theme="dark"] .ss-tab-btn:not(.active):not([aria-selected="true"]) {
+    background: var(--surface-muted) !important;
+    color: var(--heading) !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .ss-tab-btn.active,
+html[data-theme="dark"] .ss-tab-btn[aria-selected="true"] {
+    background: var(--card) !important;
+    color: var(--heading) !important;
+    border-color: var(--border-strong) !important;
+}
+
+html[data-theme="dark"] .ss-modal-close {
+    background: var(--surface-muted) !important;
+    color: var(--heading) !important;
+    border-color: var(--border) !important;
+}
+
+/* ── Baum & Filter ── */
+html[data-theme="dark"] .tree li {
+    border-bottom-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .tree button:hover {
+    background: color-mix(in srgb, var(--brand1) 10%, transparent) !important;
+}
+
+html[data-theme="dark"] .tree button[aria-current="true"] {
+    background: color-mix(in srgb, var(--brand1) 16%, transparent) !important;
+}
+
+html[data-theme="dark"] .tree-filter label,
+html[data-theme="dark"] .field label,
+html[data-theme="dark"] .struct-toolbar label {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .tree-filter select,
+html[data-theme="dark"] .tree-filter input,
+html[data-theme="dark"] .struct-toolbar input,
+html[data-theme="dark"] .struct-toolbar select {
+    background: var(--input-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--input-border) !important;
+}
+
+html[data-theme="dark"] .field input[readonly] {
+    background: var(--soft) !important;
+    color: var(--text) !important;
+    border-color: var(--input-border) !important;
+}
+
+html[data-theme="dark"] .pv-tree-icon {
+    background: color-mix(in srgb, var(--brand1) 16%, transparent) !important;
+    color: var(--brand1) !important;
+}
+
+/* ── Hinweise ── */
+html[data-theme="dark"] .hint {
+    background: var(--soft) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .oa-check .oa-step-blurb {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .oa-step-work {
+    background: var(--soft) !important;
+    border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .oa-later {
+    color: #fcd34d !important;
+    background: color-mix(in srgb, #fbbf24 16%, transparent) !important;
+}
+
+html[data-theme="dark"] .oa-check > li {
+    border-bottom-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .oa-progress-bar {
+    background: var(--surface-muted) !important;
+}
+
+/* ── Graph / Organigramm ── */
+html[data-theme="dark"] #ssGraphWrap {
+    background: linear-gradient(180deg, var(--soft) 0%, var(--card) 42%) !important;
+    border-color: var(--border) !important;
+}
+
+/* ── Organisations-Assistent & Hilfe-ähnliche Boxen ── */
+html[data-theme="dark"] .help-toc a:hover {
+    color: var(--heading) !important;
+}
+
+/* ── Gäste-Verwalten Hero-Stats ── */
+html[data-theme="dark"] .gv-hero-stat strong {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .gv-hero-stat span {
+    color: var(--text-secondary) !important;
+}
+
+/* ── Eltern-Verteiler / Postfächer Karten ── */
+html[data-theme="dark"] .ev-card,
+html[data-theme="dark"] .pf-card {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+}
+
+/* ── Kursteams / spezifische helle Boxen ── */
+html[data-theme="dark"] .kt-step,
+html[data-theme="dark"] .kt-panel {
+    background: var(--card) !important;
+    color: var(--text) !important;
+}
+
+/* ── Hilfe-Seite ── */
+html[data-theme="dark"] .help-toc a,
+html[data-theme="dark"] .help-section h2,
+html[data-theme="dark"] .help-section h3,
+html[data-theme="dark"] .help-faq summary {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .help-section p,
+html[data-theme="dark"] .help-section li,
+html[data-theme="dark"] .help-faq p {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .help-callout,
+html[data-theme="dark"] .help-warn {
+    background: color-mix(in srgb, #fbbf24 12%, var(--card)) !important;
+    border-color: color-mix(in srgb, #fbbf24 28%, transparent) !important;
+    color: #fcd34d !important;
+}
+
+html[data-theme="dark"] .help-card {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .help-search input {
+    background: var(--input-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--input-border) !important;
+}
+
+/* ── Welcome-Seite ── */
+html[data-theme="dark"] .welcome-card,
+html[data-theme="dark"] .welcome-choice {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+
+html[data-theme="dark"] .welcome-choice h2 {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .welcome-choice p {
+    color: var(--text-secondary) !important;
+}
+
+/* ── prefers-color-scheme (ohne explizite Wahl) ── */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .panel,
+    :root:not([data-theme]) .ss-modal {
+        background: var(--card) !important;
+    }
+    :root:not([data-theme]) .panel-head h2,
+    :root:not([data-theme]) .pv-tree-title {
+        color: var(--heading) !important;
+    }
+    :root:not([data-theme]) .live-banner {
+        color: var(--text) !important;
+    }
+    :root:not([data-theme]) .live-badge {
+        color: #6ee7b7 !important;
+    }
+    :root:not([data-theme]) .stat {
+        background: var(--surface-muted) !important;
+    }
+    :root:not([data-theme]) .stat .n {
+        color: var(--heading) !important;
+    }
+    :root:not([data-theme]) .mode-tabs .tab-btn:not([aria-selected="true"]) {
+        background: var(--surface-muted) !important;
+        color: var(--heading) !important;
+    }
+    :root:not([data-theme]) .pill.ok {
+        color: #6ee7b7 !important;
+    }
+    :root:not([data-theme]) .hint {
+        color: var(--text-secondary) !important;
+    }
+}

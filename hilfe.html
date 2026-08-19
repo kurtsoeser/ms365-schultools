@@ -8,9 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schulverwaltung</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=6">
     <style>
-        body { padding-bottom: 88px; }
+        body { padding-bottom: 0; }
         .help-layout {
             display: grid;
             grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
@@ -174,6 +174,26 @@
             border-color: rgba(94, 114, 228, 0.4);
             background: rgba(94, 114, 228, 0.08);
         }
+        .help-glossary {
+            display: grid;
+            gap: 0;
+            margin: 16px 0 0;
+        }
+        .help-glossary dt {
+            margin: 0;
+            font-weight: 750;
+            color: #32325d;
+        }
+        .help-glossary dd {
+            margin: 4px 0 0;
+            color: #495057;
+            line-height: 1.55;
+        }
+        .help-glossary dd + dt {
+            margin-top: 8px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(30, 36, 64, 0.08);
+        }
         .help-section {
             margin: 0 0 28px;
             padding-top: 8px;
@@ -324,6 +344,7 @@
                         <p class="help-toc-group">Einstieg</p>
                         <ul class="help-toc">
                             <li><a href="#schnellstart">Schnellstart</a></li>
+                            <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                             <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
                             <li><a href="#einrichtung">Geführte Einrichtung</a></li>
                             <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
@@ -351,6 +372,7 @@
                         </div>
                         <p class="help-toc-group">Nachschlagen</p>
                         <ul class="help-toc">
+                            <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                             <li><a href="#faq">FAQ</a></li>
                             <li><a href="#windows-cmd">Windows-Hinweise</a></li>
                             <li><a href="#datenschutz">Datenschutz</a></li>
@@ -363,6 +385,7 @@
                             <p class="help-toc-group">Einstieg</p>
                             <ul class="help-toc">
                                 <li><a href="#schnellstart">Schnellstart</a></li>
+                                <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                                 <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
                                 <li><a href="#einrichtung">Geführte Einrichtung</a></li>
                                 <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
@@ -390,6 +413,7 @@
                             </div>
                             <p class="help-toc-group">Nachschlagen</p>
                             <ul class="help-toc">
+                                <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                                 <li><a href="#faq">FAQ</a></li>
                                 <li><a href="#windows-cmd">Windows-Hinweise</a></li>
                                 <li><a href="#datenschutz">Datenschutz</a></li>
@@ -409,6 +433,7 @@
                         <p class="help-lead">Die App läuft vollständig im Browser. Sie pflegt Schul-Stammdaten lokal und spricht Microsoft 365 über Graph oder über erzeugte PowerShell-Skripte an. Es gibt keinen Schul-Server hinter dieser Oberfläche.</p>
                         <div class="help-chips" aria-label="Häufige Einstiege">
                             <a href="#einrichtung"><i class="bi bi-signpost-2"></i>Schule einrichten</a>
+                            <a href="#begriffe"><i class="bi bi-book"></i>Begriffe</a>
                             <a href="#tool-schuljahr"><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</a>
                             <a href="#tool-eltern-verteiler"><i class="bi bi-people"></i>Eltern-Verteiler</a>
                             <a href="#faq"><i class="bi bi-chat-left-text"></i>FAQ</a>
@@ -433,6 +458,45 @@
                     </article>
                 </section>
 
+                <section class="help-section" data-help-section aria-labelledby="begriffe">
+                    <p class="help-kicker">Nachschlagen</p>
+                    <article class="help-article" data-help-article data-search="begriffe glossar nomenklatur microsoft 365 stammdaten sammelgruppe klassengruppe verknüpfen entra teams datenhygiene arge besitzer mitglieder gal">
+                        <h2 id="begriffe">Begriffe in 30 Sekunden</h2>
+                        <p class="help-lead">Kurz erklärt – ohne Microsoft-Jargon zuerst. Auf dem Dashboard finden Sie an vielen Stellen ein <strong>ⓘ</strong>-Symbol mit derselben Art Hinweis.</p>
+                        <dl class="help-glossary">
+                            <dt>Stammdaten</dt>
+                            <dd>Die Listen Ihrer Schule in dieser App: Domain, Fächer, Lehrkräfte, Klassen, Schülerinnen. Sie liegen im Browser – nicht auf einem Schul-Server.</dd>
+
+                            <dt>Sammelgruppen</dt>
+                            <dd>Große Microsoft-365-Gruppen für viele Personen auf einmal – z. B. „Alle Schülerinnen“ oder „Alle Lehrkräfte“. Nützlich für E-Mail und Berechtigungen.</dd>
+
+                            <dt>Klassengruppen · Verknüpfen</dt>
+                            <dd>Eine Microsoft-365-Gruppe pro Klasse. <em>Verknüpfen</em> heißt: Eine bestehende Gruppe in Microsoft 365 der Klasse in den Stammdaten zuordnen – statt eine neue anzulegen.</dd>
+
+                            <dt>Unterrichtsteams (Kursteams)</dt>
+                            <dd>Microsoft-Teams für den Unterricht – meist ein Team pro Fach/Kurs aus dem Stundenplan (z. B. WebUntis-Export).</dd>
+
+                            <dt>Microsoft 365 · Teams</dt>
+                            <dd>Die Schulplattform von Microsoft: E-Mail, Dateien, Teams für Chats/Unterricht, Gruppen für Berechtigungen. Die App steuert Teile davon über Ihre Anmeldung.</dd>
+
+                            <dt>Entra ID (Anmeldung)</dt>
+                            <dd>Früher „Azure AD“ – das Verzeichnis aller Schul-Konten. Oben rechts melden Sie sich an, damit die App Gruppen und Personen lesen oder anlegen darf.</dd>
+
+                            <dt>Datenhygiene (Abgleich M365)</dt>
+                            <dd>Abgleich: Stimmen die Mitglieder in Microsoft-365-Gruppen noch mit Ihren Stammlisten überein? Zeigt Abweichungen, bevor etwas „still falsch“ wird.</dd>
+
+                            <dt>ARGE</dt>
+                            <dd>Arbeitsgemeinschaft oder Fachschaft – oft eine eigene Gruppe pro Fach oder AG, z. B. für alle Deutsch-Lehrkräfte.</dd>
+
+                            <dt>Besitzer und Mitglieder</dt>
+                            <dd>Rollen in Microsoft-365-Gruppen: <em>Mitglieder</em> gehören dazu; <em>Besitzerinnen</em> dürfen die Gruppe verwalten (Mitglieder ändern, Einstellungen).</dd>
+
+                            <dt>GAL (Globales Adressbuch)</dt>
+                            <dd>Das zentrale Adressbuch in Exchange/Microsoft 365. Relevant z. B. bei Eltern-Verteilern, wenn Eltern-E-Mails nicht für alle sichtbar sein sollen.</dd>
+                        </dl>
+                    </article>
+                </section>
+
                 <section class="help-section" data-help-section aria-labelledby="grundprinzip">
                     <article class="help-article" data-help-article data-search="grundprinzip lokal browser localstorage sessionstorage backup graph powershell cmd ohne server stammdaten">
                         <h2 id="grundprinzip">Grundprinzip &amp; Datenhaltung</h2>
@@ -440,7 +504,7 @@
                             Die Werkzeuge erzeugen entweder <strong>Microsoft-365-Objekte</strong> (Gruppen, Teams, Benutzer) über
                             <strong>Microsoft Graph</strong> <em>oder</em> sie erzeugen <strong>PowerShell-Skripte / .cmd-Pakete</strong>,
                             die Sie lokal ausführen. Die Stammdaten (Domain, Fächer, Lehrkräfte, Klassen, Schüler:innen)
-                            kommen aus den <a href="tenant.html">Schul-Grundeinstellungen</a>.
+                            kommen aus den <a href="tenant.html">Stammdaten</a>.
                         </p>
                         <div class="hint" id="datenspeicher">
                             <strong>Datenhaltung:</strong> Es gibt keinen App-Server. Zwischenstände und Stammdaten liegen in
@@ -462,7 +526,7 @@
                         <p>
                             <strong>Was macht’s?</strong> Der einmalige Assistent legt die Schule in dieser App an:
                             Anmeldung, Schul-Domain, Verwaltung, Lehrkräfte, Schüler:innen, Fächer, ARGE, Klassen, Übersicht.
-                            Die Listen landen in denselben Stammdaten wie unter <a href="tenant.html">Schul-Grundeinstellungen</a>.
+                            Die Listen landen in denselben Stammdaten wie unter <a href="tenant.html">Stammdaten</a>.
                         </p>
                         <div class="mini-steps">
                             <strong>Empfohlene Reihenfolge</strong>
@@ -512,7 +576,7 @@
                 <section class="help-section" data-help-section aria-labelledby="tool-tenant">
                     <p class="help-kicker">Stammdaten</p>
                     <article class="help-article" data-help-article data-search="stammdaten tenant schul-grundeinstellungen domain fächer lehrer klassen schüler sokrates webuntis import csv xlsx schuljahr">
-                        <h2 id="tool-tenant">Schul-Grundeinstellungen <span class="pill">Basisdaten</span></h2>
+                        <h2 id="tool-tenant">Stammdaten <span class="pill">Basisdaten</span></h2>
                         <p>
                             <strong>Was macht’s?</strong> Die gemeinsame Basis: Domain, Fächer, ARGE, Lehrkräfte, Verwaltung,
                             Schüler:innen und Klassen. Alle anderen Werkzeuge lesen diese Listen. Schüler und Klassen hängen am
@@ -565,7 +629,7 @@
                     </article>
 
                     <article class="help-article" data-help-article data-search="datenhygiene abgleich dashboard gruppen konsistent abweichung">
-                        <h3 id="tool-datenhygiene">Datenhygiene-Dashboard <span class="pill">Querschnitt</span></h3>
+                        <h3 id="tool-datenhygiene">Datenhygiene (Abgleich M365) <span class="pill">Querschnitt</span></h3>
                         <p>
                             Unter <a href="tools/datenhygiene.html">Datenhygiene</a> sehen Sie alle gematchten Sammel- und Klassengruppen auf einen Blick:
                             Mitgliederzahl in der lokalen Liste vs. Microsoft&nbsp;365.
@@ -574,7 +638,7 @@
                             <ol>
                                 <li><strong>Jetzt prüfen</strong> – lädt die aktuellen Mitgliederzahlen aus Graph (Anmeldung erforderlich).</li>
                                 <li>Grün = konsistent, rot = Abweichung, grau = noch kein Match.</li>
-                                <li>Über <strong>Abgleich öffnen</strong> gelangen Sie ins jeweilige Werkzeug (SLG, Verwaltung, Klassengruppen) für den Detail-Diff.</li>
+                                <li>Über <strong>Abgleich öffnen</strong> gelangen Sie ins jeweilige Werkzeug (Sammelgruppen, Verwaltung, Klassengruppen) für den Detail-Vergleich.</li>
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/datenhygiene.html">→ Datenhygiene öffnen</a></p>
@@ -691,7 +755,7 @@
                     <article class="help-article" data-help-article data-search="verwaltung sekretariat direktion schularzt rolle sammelgruppe">
                         <h3 id="tool-verwaltung">Verwaltung <span class="pill">Personen &amp; Gruppe</span></h3>
                         <p>
-                            Rollen und Personen der Schulverwaltung (dieselben Stammdaten wie in den Grundeinstellungen)
+                            Rollen und Personen der Schulverwaltung (dieselben Stammdaten)
                             plus Sammelgruppe: matchen oder anlegen, danach bidirektionaler Listen-Sync.
                             Links stehen <strong>Liste</strong> und <strong>Gruppe</strong> (Mitgliederzahlen) – bei Abweichung rot.
                         </p>
@@ -835,7 +899,7 @@
                 </section>
 
                 <section class="help-section" data-help-section aria-labelledby="regeln">
-                    <p class="help-kicker" id="regeln">Regeln &amp; Ordnung</p>
+                    <p class="help-kicker" id="regeln">Einstellungen &amp; Übersicht</p>
 
                     <article class="help-article" data-help-article data-search="gruppenerstellung einschränken EnableGroupCreation sicherheitsgruppe directory setting">
                         <h3 id="tool-gruppenerstellung">Wer darf Teams anlegen <span class="pill">Directory Setting</span></h3>

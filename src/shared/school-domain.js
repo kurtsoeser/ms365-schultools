@@ -176,12 +176,12 @@
             wrap.setAttribute('aria-modal', 'true');
             wrap.innerHTML =
                 '<div class="modal-box">' +
-                '<h3>Schul‑Einstellungen</h3>' +
-                '<p style="margin:0 0 12px;line-height:1.5;color:#495057;">Für dieses Werkzeug muss die <strong>E-Mail-Domain der Schule</strong> (ohne @) in den Schul‑Einstellungen gespeichert sein.</p>' +
+                '<h3>Stammdaten</h3>' +
+                '<p style="margin:0 0 12px;line-height:1.5;color:#495057;">Für dieses Werkzeug muss die <strong>E-Mail-Domain der Schule</strong> (ohne @) in den Stammdaten gespeichert sein.</p>' +
                 '<p style="margin:0;line-height:1.45;color:#6c757d;font-size:0.95em;">Dort legen Sie die Domain einmal zentral fest; sie gilt für Kursteams, Jahrgangsgruppen und ARGEs.</p>' +
                 '<div class="modal-actions">' +
                 '<button type="button" class="btn" id="ms365TenantDomainModalLater">Schließen</button>' +
-                '<button type="button" class="btn btn-success" id="ms365TenantDomainModalGo">Zu den Schul‑Einstellungen</button>' +
+                '<button type="button" class="btn btn-success" id="ms365TenantDomainModalGo">Zu den Stammdaten</button>' +
                 '</div></div>';
             document.body.appendChild(wrap);
             wrap.querySelector('#ms365TenantDomainModalLater').addEventListener('click', closeTenantDomainModal);

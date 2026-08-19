@@ -620,7 +620,7 @@
         if (!rows.length) {
             const li = document.createElement('li');
             li.innerHTML =
-                '<div class="muted" style="padding:12px;">Keine Einträge. Schüler und optional Eltern in den <a href="../tenant.html">Schul-Grundeinstellungen</a> pflegen.</div>';
+                '<div class="muted" style="padding:12px;">Keine Einträge. Schüler und optional Eltern in den <a href="../tenant.html">Stammdaten</a> pflegen.</div>';
             ul.appendChild(li);
             return;
         }

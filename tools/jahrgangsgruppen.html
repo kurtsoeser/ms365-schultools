@@ -8,8 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Klassengruppen</title>
-    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../app.css?v=6">
     <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .tree {
@@ -240,7 +241,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Klassengruppen</span>
             </div>
-            <p>Alltagspflege: Klassen aus den <strong>Schul‑Einstellungen</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Klassen direkt hier erfassen (werden in die Schul‑Einstellungen des aktuellen Schuljahrs zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
+            <p>Alltagspflege: Klassen aus den <strong>Stammdaten</strong> mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Klassen direkt hier erfassen (werden in die Stammdaten des aktuellen Schuljahrs zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen liegen in <code>classTeams</code> (pro Klasse: Mail‑Nickname, Graph‑ID).</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-jahrgang" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -248,6 +249,7 @@
         </div>
 
         <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen in den Stammdaten. Legen Sie Klassen in der Einrichtung oder unter Stammdaten an – oder starten Sie die Demo."></div>
             <div class="gd-layout">
                 <section class="panel" aria-label="Klassen auswählen">
                     <div class="panel-head">
@@ -259,10 +261,10 @@
                             <label for="jgListFilter">Liste filtern</label>
                             <input type="search" id="jgListFilter" placeholder="Kürzel, Name oder Nickname …" autocomplete="off" style="width:100%; box-sizing:border-box;">
                             <div class="jg-catalog-actions" role="group" aria-label="Klassenaktionen">
-                                <button type="button" class="btn btn-success" id="jgBtnAddClass" title="Neue Klasse anlegen und in die Schul-Einstellungen schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="btn btn-success" id="jgBtnAddClass" title="Neue Klasse anlegen und in die Stammdaten schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
                                 <button type="button" class="btn" id="jgBtnEditClass" title="Ausgewählte Klasse bearbeiten" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
-                                <button type="button" class="btn" id="jgBtnDeleteClass" title="Ausgewählte Klasse aus den Schul-Einstellungen entfernen" disabled><i class="bi bi-trash"></i>Löschen</button>
-                                <button type="button" class="btn" id="slgBtnReloadLists" title="Klassenliste aus den Schul-Einstellungen neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                                <button type="button" class="btn" id="jgBtnDeleteClass" title="Ausgewählte Klasse aus den Stammdaten entfernen" disabled><i class="bi bi-trash"></i>Löschen</button>
+                                <button type="button" class="btn" id="slgBtnReloadLists" title="Klassenliste aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
                             </div>
                         </div>
                         <p class="muted" id="jgListSummary" style="margin:0 0 8px;">–</p>
@@ -354,7 +356,7 @@
                             <p class="jg-bulk-status muted" id="jgBulkStatus" hidden></p>
                         </div>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
-                            <a href="../tenant.html#classes" style="text-decoration:none; color:inherit;"><i class="bi bi-gear"></i> Schul‑Einstellungen</a>
+                            <a href="../tenant.html#classes" style="text-decoration:none; color:inherit;"><i class="bi bi-gear"></i> Stammdaten</a>
                             · <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung</a>
                             · <a href="jahrgang.html" style="text-decoration:none; color:inherit;" title="Nur für die einmalige Neuanlage aller Klassengruppen">Einmalig: alle neu anlegen (Wizard)</a>
                         </p>
@@ -369,11 +371,11 @@
                 <summary><i class="bi bi-info-circle" aria-hidden="true"></i>Hinweise zu diesem Werkzeug</summary>
                 <div class="gd-page-info__body">
                     <p>
-                        <strong>Quelle:</strong> <a href="../tenant.html#classes">Schul‑Einstellungen</a> (Klassen des aktuellen Schuljahrs).
+                        <strong>Quelle:</strong> <a href="../tenant.html#classes">Stammdaten</a> (Klassen des aktuellen Schuljahrs).
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
                         Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Klassenkürzel.
-                        Die Sammelaktion <strong>Mitglieder</strong> gleicht angekreuzte Gruppen mit der Schülerliste in den Schul‑Einstellungen ab.
+                        Die Sammelaktion <strong>Mitglieder</strong> gleicht angekreuzte Gruppen mit der Schülerliste in den Stammdaten ab.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.
@@ -388,7 +390,7 @@
     <div id="jgClassModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="jgClassModalTitle" aria-hidden="true">
         <div class="modal-box">
             <h3 id="jgClassModalTitle">Neue Klasse anlegen</h3>
-            <p class="muted" id="jgClassModalHint" style="margin:0 0 14px; line-height:1.45;">Wird in die Schul‑Einstellungen des aktuellen Schuljahrs geschrieben.</p>
+            <p class="muted" id="jgClassModalHint" style="margin:0 0 14px; line-height:1.45;">Wird in die Stammdaten des aktuellen Schuljahrs geschrieben.</p>
             <div class="jg-modal-grid">
                 <div class="field">
                     <label for="jgNewCode">Kürzel <span class="muted">(Pflicht)</span></label>
@@ -428,6 +430,8 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>

@@ -62,11 +62,13 @@ app.storageQueue('queueProcessJob', {
                         besitzer: entry.besitzer
                     },
                     log,
-                    job.tenantId
+                    job.tenantId,
+                    job.mailDomain
                 );
                 entry.status = 'ok';
                 entry.groupId = result.groupId;
-                entry.message = 'OK → ' + entry.gruppenmail;
+                entry.message =
+                    'OK → ' + (result.smtp || entry.gruppenmail + (job.mailDomain ? '@' + job.mailDomain : ''));
                 job.completed++;
             } catch (e) {
                 entry.status = 'error';

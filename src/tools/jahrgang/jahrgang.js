@@ -135,7 +135,7 @@ function adoptJgClassesFromTenantSettingsIfEmpty() {
     if (!lines.length) return;
     ta.value = lines.join('\n');
     scheduleJgPreviewFromTextarea();
-    showToast('Jahrgang: Klassen aus Schul‑Einstellungen übernommen.');
+    showToast('Jahrgang: Klassen aus Stammdaten übernommen.');
 }
 
 let jgTenantClassesDebounce;
@@ -877,7 +877,7 @@ document.getElementById('jgParseAndGo2').addEventListener('click', () => {
         !window.ms365IsTenantSchoolDomainConfigured()
     ) {
         errEl.textContent =
-            'Bitte legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest (Seite „Schul‑Einstellungen“).';
+            'Bitte legen Sie die E-Mail-Domain der Schule in den Stammdaten fest (Seite „Stammdaten“).';
         errEl.style.display = 'block';
         if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
             window.ms365ShowTenantDomainRequiredModal();
@@ -936,7 +936,7 @@ document.getElementById('jgGoTo4').addEventListener('click', () => {
         (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
             !window.ms365IsTenantSchoolDomainConfigured())
     ) {
-        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
+        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Stammdaten fest.');
         if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
             window.ms365ShowTenantDomainRequiredModal();
         }
@@ -1083,7 +1083,7 @@ function downloadJahrgangStandalonePackage() {
         (typeof window.ms365IsTenantSchoolDomainConfigured !== 'function' ||
             !window.ms365IsTenantSchoolDomainConfigured())
     ) {
-        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Schul‑Einstellungen fest.');
+        showToast('Für die Exchange-Option legen Sie die E-Mail-Domain der Schule in den Stammdaten fest.');
         if (typeof window.ms365ShowTenantDomainRequiredModal === 'function') {
             window.ms365ShowTenantDomainRequiredModal();
         }
@@ -1103,7 +1103,7 @@ window.downloadJahrgangStandalonePackage = downloadJahrgangStandalonePackage;
 
 applyInitialModeFromUrl();
 // jahrgang.html zeigt das Jahrgang-Panel direkt (ohne Mode-Buttons):
-// daher auch beim Seitenladen aus den Schul‑Einstellungen vorbefüllen.
+// daher auch beim Seitenladen aus den Stammdaten vorbefüllen.
 if (panelJ && panelJ.style.display !== 'none') {
     adoptJgClassesFromTenantSettingsIfEmpty();
     scheduleJgPreviewFromTextarea();

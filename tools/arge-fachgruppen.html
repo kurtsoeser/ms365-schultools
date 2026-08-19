@@ -8,8 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – ARGE &amp; Fachgruppen</title>
-    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../app.css?v=6">
     <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .afg-kind-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -230,19 +231,20 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</span>
             </div>
-            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Schul‑Einstellungen mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Schul‑Einstellungen zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in der geführten Einrichtung.</p>
+            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Stammdaten mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Stammdaten zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in der geführten Einrichtung.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Schul‑Einstellungen</a>
+                        <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Fächer oder ARGEs in den Stammdaten. Pflegen Sie den Katalog unter Stammdaten – oder starten Sie die Demo."></div>
             <div class="gd-layout">
                 <section class="panel" aria-label="Gruppen auswählen">
                     <div class="panel-head">
@@ -258,10 +260,10 @@
                             <label for="afgListFilter">Liste filtern</label>
                             <input type="search" id="afgListFilter" placeholder="Kürzel oder Name …" autocomplete="off" style="width:100%; box-sizing:border-box;">
                             <div class="afg-catalog-actions" role="group" aria-label="Katalogaktionen">
-                                <button type="button" class="btn btn-success" id="afgBtnAddCatalog" title="Neuen Katalogeintrag anlegen und in die Schul-Einstellungen schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="btn btn-success" id="afgBtnAddCatalog" title="Neuen Katalogeintrag anlegen und in die Stammdaten schreiben"><i class="bi bi-plus-lg"></i>Neu</button>
                                 <button type="button" class="btn" id="afgBtnEditCatalog" title="Ausgewählten Katalogeintrag bearbeiten" disabled><i class="bi bi-pencil"></i>Bearbeiten</button>
                                 <button type="button" class="btn" id="afgBtnDeleteCatalog" title="Ausgewählten Katalogeintrag löschen" disabled><i class="bi bi-trash"></i>Löschen</button>
-                                <button type="button" class="btn" id="slgBtnReloadLists" title="Katalog aus den Schul-Einstellungen neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
+                                <button type="button" class="btn" id="slgBtnReloadLists" title="Katalog aus den Stammdaten neu laden"><i class="bi bi-arrow-clockwise"></i>Neu einlesen</button>
                             </div>
                         </div>
                         <p class="muted" id="afgListSummary" style="margin:0 0 8px;">–</p>
@@ -328,7 +330,7 @@
                 <summary><i class="bi bi-info-circle" aria-hidden="true"></i>Hinweise zu diesem Werkzeug</summary>
                 <div class="gd-page-info__body">
                     <p>
-                        <strong>Quelle:</strong> <a href="../tenant.html">Schul‑Einstellungen</a> (Fächer / ARGE).
+                        <strong>Quelle:</strong> <a href="../tenant.html">Stammdaten</a> (Fächer / ARGE).
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
                         Die Sammelaktionen gelten für angekreuzte, bereits gematchte Gruppen (Besitzer setzen oder Gruppen löschen).
@@ -345,7 +347,7 @@
     <div id="afgCatalogModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="afgCatalogModalTitle" aria-hidden="true">
         <div class="modal-box">
             <h3 id="afgCatalogModalTitle">Neuen Katalogeintrag anlegen</h3>
-            <p class="muted" id="afgCatalogModalHint" style="margin:0 0 14px; line-height:1.45;">Wird in die Schul‑Einstellungen (Fächer / ARGE) geschrieben.</p>
+            <p class="muted" id="afgCatalogModalHint" style="margin:0 0 14px; line-height:1.45;">Wird in die Stammdaten (Fächer / ARGE) geschrieben.</p>
             <div class="field">
                 <label for="afgNewCode">Kürzel <span class="muted">(Pflicht)</span></label>
                 <input type="text" id="afgNewCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. M oder AGSPR">
@@ -357,7 +359,7 @@
             <div class="field" id="afgNewSubjectsWrap" hidden>
                 <label for="afgNewSubjectsList">Zugeordnete Fächer <span class="muted">(optional)</span></label>
                 <div class="afg-subject-pick" id="afgNewSubjectsList" role="group" aria-label="Fächer für diese ARGE"></div>
-                <p class="muted" id="afgNewSubjectsEmpty" style="margin:6px 0 0; display:none;">Noch keine Fächer in den Schul‑Einstellungen – Sie können die ARGE trotzdem anlegen.</p>
+                <p class="muted" id="afgNewSubjectsEmpty" style="margin:6px 0 0; display:none;">Noch keine Fächer in den Stammdaten – Sie können die ARGE trotzdem anlegen.</p>
             </div>
             <p class="muted" id="afgCatalogModalError" style="margin:0; color:#c0392b; display:none;" role="alert"></p>
             <div class="modal-actions">
@@ -373,6 +375,8 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script src="../src/shared/group-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>

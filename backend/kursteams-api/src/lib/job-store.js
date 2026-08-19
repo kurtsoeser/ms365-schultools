@@ -39,7 +39,7 @@ function blobName(jobId) {
 }
 
 /**
- * @param {{ tenantId: string, teams: Array<{ teamName: string, gruppenmail: string, besitzer: string }> }} input
+ * @param {{ tenantId: string, teams: Array<{ teamName: string, gruppenmail: string, besitzer: string }>, mailDomain?: string }} input
  */
 async function createJob(input) {
     const id = randomUUID();
@@ -47,6 +47,7 @@ async function createJob(input) {
     const job = {
         id,
         tenantId: input.tenantId,
+        mailDomain: String(input.mailDomain || '').trim(),
         status: 'queued',
         createdAt: now,
         updatedAt: now,

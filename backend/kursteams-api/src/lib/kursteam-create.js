@@ -9,6 +9,7 @@ const {
     pollTeamsAsyncOperation
 } = require('./graph-client');
 const { getAppOnlyToken } = require('./msal-app-only');
+const { applySchoolDomainSmtp } = require('./exchange-smtp');
 
 function sanitizeEducationClassCode(t) {
     const raw = (t && (t.gruppenmail || t.teamName)) || 'Klasse';
@@ -174,9 +175,10 @@ async function provisionKursteamPostTeamsEducationTemplate(token, gid, log, tena
  * @param {{ teamName: string, gruppenmail: string, besitzer: string }} team
  * @param {(msg: string) => void} log
  * @param {string} tenantId
- * @returns {Promise<{ groupId: string, ownerId: string }>}
+ * @param {string} [mailDomain] Schul-Domain ohne @ (z. B. modeebensee.at)
+ * @returns {Promise<{ groupId: string, ownerId: string, smtp?: string }>}
  */
-async function createSingleKursteam(team, log, tenantId) {
+async function createSingleKursteam(team, log, tenantId, mailDomain) {
     let token = await getAppOnlyToken(tenantId);
 
     const owner = await graphJson(
@@ -192,7 +194,22 @@ async function createSingleKursteam(team, log, tenantId) {
     await waitForGroupOwners(token, gid, log);
     await provisionKursteamPostTeamsEducationTemplate(token, gid, log, tenantId);
 
-    return { groupId: gid, ownerId };
+    let smtp = '';
+    if (mailDomain) {
+        token = await getAppOnlyToken(tenantId);
+        const smtpResult = await applySchoolDomainSmtp({
+            tenantId,
+            groupId: gid,
+            mailNickname: team.gruppenmail,
+            mailDomain,
+            ownerUpn: team.besitzer,
+            graphToken: token,
+            log
+        });
+        if (smtpResult.smtp) smtp = smtpResult.smtp;
+    }
+
+    return { groupId: gid, ownerId, smtp };
 }
 
 module.exports = {

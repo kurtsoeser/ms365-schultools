@@ -52,6 +52,5 @@ window.MS365_MSAL_CONFIG = {
  */
 window.MS365_KURSTEAMS_API = {
     baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
-    functionKey: '',
-    tenantId: '1fd37d8a-2972-44d2-afcb-81ae47a5bc98'  // Fallback; sonst Mandant der angemeldeten Person
+    functionKey: ''
 };

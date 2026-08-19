@@ -109,7 +109,7 @@
                 escapeHtml(repoHref('einrichtung.html')) +
                 '">Einrichtung</a> oder über die Klassenliste in den <a href="' +
                 escapeHtml(repoHref('tenant.html')) +
-                '">Schul‑Grundeinstellungen</a>.</p>';
+                '">Stammdaten</a>.</p>';
             return;
         }
 

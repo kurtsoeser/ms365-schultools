@@ -658,69 +658,6 @@
             return '';
         }
 
-        function seedDemoDataIfEmptyStorage() {
-            // Demo-Daten nur beim allerersten Start (wenn noch nichts gespeichert ist)
-            try {
-                const raw = localStorage.getItem('ms365-tenant-settings-v1');
-                if (raw) return false;
-            } catch {
-                // wenn localStorage nicht lesbar ist: nicht seeden
-                return false;
-            }
-
-            const demo = {
-                schoolName: 'MS365 Musterschule',
-                domain: 'ms365.schule',
-                subjects: [
-                    { code: 'M', name: 'Mathematik' },
-                    { code: 'D', name: 'Deutsch' },
-                    { code: 'E', name: 'Englisch' }
-                ],
-                arges: [
-                    { code: 'SPRACHEN', name: 'Sprachen', subjects: ['D', 'E'] },
-                    { code: 'NAWI', name: 'Naturwissenschaften', subjects: ['BIO', 'CH', 'PH'] }
-                ],
-                teachers: [
-                    { code: 'LEH', name: 'Vorname Lehrer', email: 'vorname.lehrer@ms365.schule' },
-                    { code: 'MUS', name: 'Max Muster', email: 'max.muster@ms365.schule' }
-                ],
-                sgaMode: 'group',
-                sga: [
-                    { scope: 'teacher', name: 'Vorname Lehrer', email: 'vorname.lehrer@ms365.schule' },
-                    { scope: 'student', name: 'Anna Beispiel', email: 'anna.beispiel@ms365.schule' },
-                    { scope: 'external', name: 'Eva Extern', email: 'eva.extern@example.org' }
-                ],
-                students: [
-                    { klasse: '1A', name: 'Anna Beispiel', email: 'anna.beispiel@ms365.schule' },
-                    { klasse: '1A', name: 'Ben Demo', email: 'ben.demo@ms365.schule' },
-                    { klasse: '1B', name: 'Carla Test', email: 'carla.test@ms365.schule' },
-                    { klasse: '2A', name: 'David Probe', email: 'david.probe@ms365.schule' },
-                    { klasse: '2A', name: 'Eva Sample', email: 'eva.sample@ms365.schule' }
-                ],
-                studentCouncil: [
-                    { klasse: '1A', name: 'Anna Beispiel', email: 'anna.beispiel@ms365.schule' },
-                    { klasse: '1B', name: 'Carla Test', email: 'carla.test@ms365.schule' },
-                    { klasse: '2A', name: 'Eva Sample', email: 'eva.sample@ms365.schule' }
-                ],
-                classes: [
-                    { code: '1A', year: '2030', name: 'Klasse 1A', headName: 'Vorname Lehrer', headEmail: 'vorname.lehrer@ms365.schule' },
-                    { code: '1B', year: '2030', name: 'Klasse 1B', headName: 'Max Muster', headEmail: 'max.muster@ms365.schule' },
-                    { code: '2A', year: '2030', name: 'Klasse 2A', headName: 'Vorname Lehrer', headEmail: 'vorname.lehrer@ms365.schule' }
-                ]
-            };
-
-            const saved = save(demo);
-            // Domain auch in der UI sichtbar machen
-            try {
-                if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
-                    window.ms365SetSchoolDomainNoAt(saved.domain);
-                }
-            } catch {
-                // ignore
-            }
-            return true;
-        }
-
         let autoSaveTimer = null;
         let __syncGuard = 0;
 
@@ -787,7 +724,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 5;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
                 tr.appendChild(td);
                 argesTbody.appendChild(tr);
@@ -1217,7 +1154,7 @@
         const em = normStr(emailRaw).toLowerCase();
         const m = em && em.indexOf('@') !== -1 ? getDirectoryMatchByEmail(em) : null;
         if (!em || em.indexOf('@') === -1) {
-            tdMs.style.color = '#6c757d';
+            tdMs.style.color = 'var(--muted)';
             tdMs.textContent = '–';
             tdMs.title = 'E‑Mail nötig für Abgleich mit Microsoft Entra';
         } else if (m && m.graphUserId) {
@@ -1238,7 +1175,7 @@
                 '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
             tdMs.title = 'Kein Benutzer mit mail oder UPN gleich dieser E‑Mail';
         } else {
-            tdMs.style.color = '#6c757d';
+            tdMs.style.color = 'var(--muted)';
             tdMs.textContent = '–';
             tdMs.title = 'Noch nicht geprüft – Prüfen-Button in der Aktionsspalte';
         }
@@ -1328,7 +1265,7 @@
         td.style.lineHeight = '1.35';
         const key = classMatchKey(row);
         if (!key) {
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = '?';
             td.title = 'Abkürzung oder Klassenname nötig für den Abgleich';
             return td;
@@ -1353,7 +1290,7 @@
                 '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
             td.title = 'Keine passende Klassengruppe gefunden';
         } else {
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = '?';
             td.title = 'Noch nicht geprüft';
         }
@@ -1562,7 +1499,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 3;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
                 tr.appendChild(td);
                 subjectsTbody.appendChild(tr);
@@ -1809,7 +1746,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 6;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Eintrag“.';
                 tr.appendChild(td);
                 adminUnifiedTbody.appendChild(tr);
@@ -1892,7 +1829,7 @@
                     const em = row.email ? row.email.trim().toLowerCase() : '';
                     const m = em && em.indexOf('@') !== -1 ? getDirectoryMatchByEmail(em) : null;
                     if (!em || em.indexOf('@') === -1) {
-                        tdMs.style.color = '#6c757d';
+                        tdMs.style.color = 'var(--muted)';
                         tdMs.textContent = '–';
                         tdMs.title = 'E‑Mail nötig für Abgleich mit Microsoft Entra';
                     } else if (m && m.graphUserId) {
@@ -1911,7 +1848,7 @@
                             '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
                         tdMs.title = 'Kein Benutzer mit mail oder UPN gleich dieser E‑Mail';
                     } else {
-                        tdMs.style.color = '#6c757d';
+                        tdMs.style.color = 'var(--muted)';
                         tdMs.textContent = '–';
                         tdMs.title = 'Noch nicht geprüft – Prüfen-Button in der Aktionsspalte';
                     }
@@ -2031,7 +1968,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 5;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
                 tr.appendChild(td);
                 teachersTbody.appendChild(tr);
@@ -2164,7 +2101,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 3;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Rollen – oben einfügen, „+ Rolle“ oder Standardrollen.';
                 tr.appendChild(td);
                 adminRolesTbody.appendChild(tr);
@@ -2263,7 +2200,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 4;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Person“.';
                 tr.appendChild(td);
                 adminTbody.appendChild(tr);
@@ -2395,7 +2332,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 5;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine SGA-Mitglieder – oben einfügen oder „+ Zeile“.';
                 tr.appendChild(td);
                 sgaTbody.appendChild(tr);
@@ -2571,7 +2508,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 4;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
                 tr.appendChild(td);
                 studentCouncilTbody.appendChild(tr);
@@ -3218,7 +3155,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 5;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
                 tr.appendChild(td);
                 studentsTbody.appendChild(tr);
@@ -3367,7 +3304,7 @@
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 7;
-                td.style.color = '#6c757d';
+                td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
                 tr.appendChild(td);
                 classesTbody.appendChild(tr);
@@ -4191,7 +4128,7 @@
                 renderStudentsTableFromTextarea();
                 renderStudentCouncilTableFromTextarea();
                 renderClassesTableFromTextarea();
-                setSummary('Schul‑Grundeinstellungen gelöscht (nur lokaler Browser-Speicher).', 'warn');
+                setSummary('Stammdaten gelöscht (nur lokaler Browser-Speicher).', 'warn');
             });
         }
 
@@ -4275,7 +4212,7 @@
                 scheduleAutoSave();
             });
         }
-        // Kein Standard-Abschlussjahr mehr in den Schul‑Grundeinstellungen
+        // Kein Standard-Abschlussjahr mehr in den Stammdaten
         if (taSubjects) taSubjects.addEventListener('input', () => scheduleAutoSave());
         if (taSubjects) taSubjects.addEventListener('input', () => renderSubjectsTableFromTextarea());
 
@@ -4660,11 +4597,10 @@
             btnStatusRefresh.addEventListener('click', () => renderStatusOverview());
         }
 
-        const seeded = seedDemoDataIfEmptyStorage();
         renderFromStorage();
-        if (seeded) {
+        if (window.ms365DemoMode && window.ms365DemoMode.isActive()) {
             setSummary(
-                'Demo-Daten geladen: Stammdaten, Verwaltung inkl. SGA sowie Schüler, Schülervertretung und Klassen für das aktuelle Schuljahr. Du kannst alles anpassen oder löschen.',
+                'Demo-Modus: Beispieldaten der MS365 Musterschule. Zum Beenden zurück zum Dashboard und „Demo beenden“ wählen.',
                 'ok'
             );
         }

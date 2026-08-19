@@ -28,6 +28,45 @@ function buildKursteamLoginBlock() {
     ].join('\r\n');
 }
 
+function buildKursteamExchangeBlock(domainTrim) {
+    if (!domainTrim) return { header: [], afterTeamOk: [] };
+    const header = [
+        '$Ms365SetExchangeSmtp = $true',
+        "$Ms365ExchangeDomain = '" + domainTrim.replace(/'/g, "''") + "'",
+        '$script:Ms365ExoConnected = $false',
+        'function Ensure-KtExchangeOnline {',
+        '    if ($script:Ms365ExoConnected) { return }',
+        '    Write-Host "Exchange Online: Anmeldung für Schul-Domain …" -ForegroundColor Yellow',
+        '    try { Import-Module ExchangeOnlineManagement -ErrorAction Stop } catch {',
+        '        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force -AllowClobber',
+        '        Import-Module ExchangeOnlineManagement -ErrorAction Stop',
+        '    }',
+        '    Connect-ExchangeOnline -ShowBanner:$false',
+        '    $script:Ms365ExoConnected = $true',
+        '}',
+        ''
+    ];
+    const afterTeamOk = [
+        '        if ($Ms365SetExchangeSmtp -and $Ms365ExchangeDomain) {',
+        '            Ensure-KtExchangeOnline',
+        '            $wantedSmtp = "$($Team.Gruppenmail)@$Ms365ExchangeDomain"',
+        '            for ($ei = 0; $ei -lt 6; $ei++) {',
+        '                try {',
+        '                    $ktTeam = Get-Team -MailNickName $Team.Gruppenmail -ErrorAction Stop',
+        '                    Set-UnifiedGroup -Identity $ktTeam.GroupId -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop',
+        '                    Write-Host ("  Exchange: PrimarySmtpAddress = {0}" -f $wantedSmtp) -ForegroundColor Green',
+        '                    break',
+        '                } catch {',
+        '                    if ($ei -lt 5) { Start-Sleep -Seconds 15 } else {',
+        '                        Write-Warning ("Exchange: PrimarySmtpAddress nicht gesetzt: {0}" -f $_.Exception.Message)',
+        '                    }',
+        '                }',
+        '            }',
+        '        }'
+    ];
+    return { header, afterTeamOk };
+}
+
 function buildKursteamTeamRows(validTeams, escapeFn) {
     return validTeams.map(t =>
         "    [PSCustomObject]@{ TeamName = '" +
@@ -62,11 +101,13 @@ function kursteamPsHeader(stamp, variantLabel) {
 }
 
 /** Einfache Variante ohne Checkpoint/Retry (Alternative für kleine Mengen). */
-export function buildStandaloneKursteamPs1(validTeams, escapeFn = psEscapeForExport) {
+export function buildStandaloneKursteamPs1(validTeams, escapeFn = psEscapeForExport, domain = '') {
     const stamp = new Date().toISOString();
     const rows = buildKursteamTeamRows(validTeams, escapeFn);
+    const exo = buildKursteamExchangeBlock(String(domain || '').trim());
     const lines = kursteamPsHeader(stamp, 'einfach');
     lines.push(buildKursteamLoginBlock());
+    exo.header.forEach((l) => lines.push(l));
     lines.push('$TeamsList = @(');
     lines.push(rows.join(',\r\n'));
     lines.push(')');
@@ -85,6 +126,7 @@ export function buildStandaloneKursteamPs1(validTeams, escapeFn = psEscapeForExp
     lines.push('            continue');
     lines.push('        }');
     lines.push('        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop');
+    exo.afterTeamOk.forEach((l) => lines.push(l));
     lines.push('        Write-Host ("OK [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) -ForegroundColor Green');
     lines.push('    }');
     lines.push('    catch {');
@@ -104,39 +146,49 @@ export function buildStandaloneKursteamPs1(validTeams, escapeFn = psEscapeForExp
 }
 
 /** CSV-basiertes Vorschau-Script (Schritt 7, ohne eingebettete Daten). */
-export function buildKursteamCsvPreviewPs1() {
-    return [
+export function buildKursteamCsvPreviewPs1(domain = '') {
+    const exo = buildKursteamExchangeBlock(String(domain || '').trim());
+    const lines = [
         '$TeamsList = Import-Csv -Path .\\neueteams.csv -Encoding UTF8',
         'Connect-MicrosoftTeams',
-        '',
-        '$i = 0; $skipped = 0; $failed = 0',
-        'foreach ($Team in $TeamsList) {',
-        '    $i++',
-        '    try {',
-        '        # Idempotenz: Team bereits vorhanden?',
-        '        $existing = Get-Team -MailNickName $Team.Gruppenmail -ErrorAction SilentlyContinue',
-        '        if ($existing) {',
-        '            Write-Host "ÜBERSPRUNGEN [$i/$($TeamsList.Count)] $($Team.Gruppenmail) (existiert)" -ForegroundColor Yellow',
-        '            $skipped++; continue',
-        '        }',
-        '        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop',
-        '        Write-Host "OK [$i/$($TeamsList.Count)] $($Team.Gruppenmail)" -ForegroundColor Green',
-        '    }',
-        '    catch {',
-        '        Write-Warning "Fehler [$i] $($Team.Gruppenmail): $($_.Exception.Message)"',
-        '        $failed++',
-        '    }',
-        '    Start-Sleep -Seconds 2',
-        '}',
-        'Write-Host ""',
-        'Write-Host "Fertig: $($i-$skipped-$failed) neu, $skipped übersprungen, $failed Fehler" -ForegroundColor Cyan'
-    ].join('\r\n');
+        ''
+    ];
+    exo.header.forEach((l) => lines.push(l));
+    lines.push('$i = 0; $skipped = 0; $failed = 0');
+    lines.push('foreach ($Team in $TeamsList) {');
+    lines.push('    $i++');
+    lines.push('    try {');
+    lines.push('        # Idempotenz: Team bereits vorhanden?');
+    lines.push('        $existing = Get-Team -MailNickName $Team.Gruppenmail -ErrorAction SilentlyContinue');
+    lines.push('        if ($existing) {');
+    lines.push('            Write-Host "ÜBERSPRUNGEN [$i/$($TeamsList.Count)] $($Team.Gruppenmail) (existiert)" -ForegroundColor Yellow');
+    lines.push('            $skipped++; continue');
+    lines.push('        }');
+    lines.push('        $null = New-Team -Template "EDU_Class" -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer -ErrorAction Stop');
+    exo.afterTeamOk.forEach((l) => lines.push(l));
+    lines.push('        Write-Host "OK [$i/$($TeamsList.Count)] $($Team.Gruppenmail)" -ForegroundColor Green');
+    lines.push('    }');
+    lines.push('    catch {');
+    lines.push('        Write-Warning "Fehler [$i] $($Team.Gruppenmail): $($_.Exception.Message)"');
+    lines.push('        $failed++');
+    lines.push('    }');
+    lines.push('    Start-Sleep -Seconds 2');
+    lines.push('}');
+    lines.push('Write-Host ""');
+    lines.push('Write-Host "Fertig: $($i-$skipped-$failed) neu, $skipped übersprungen, $failed Fehler" -ForegroundColor Cyan');
+    if (exo.header.length) {
+        lines.push('if ($script:Ms365ExoConnected) {');
+        lines.push('    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}');
+        lines.push('}');
+    }
+    return lines.join('\r\n');
 }
 
 /** Empfohlener Generator: Checkpoint, Retry, ETA, Log. */
-export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForExport) {
+export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForExport, domain = '') {
     const stamp = new Date().toISOString();
     const rows = buildKursteamTeamRows(validTeams, escapeFn);
+    const exo = buildKursteamExchangeBlock(String(domain || '').trim());
     const lines = kursteamPsHeader(stamp, 'empfohlen');
     lines.push('# Checkpoint/Resume, Retry bei Drosselung, Fortschritt/ETA, Log neben der CMD-Datei.');
     lines.push('');
@@ -209,6 +261,7 @@ export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForE
     lines.push('}');
     lines.push('');
     lines.push(buildKursteamLoginBlock());
+    exo.header.forEach((l) => lines.push(l));
     lines.push('$TeamsList = @(');
     lines.push(rows.join(',\r\n'));
     lines.push(')');
@@ -253,6 +306,7 @@ export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForE
     lines.push('        }');
     lines.push('        $result = Invoke-KtTeamCreateWithRetry -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer');
     lines.push('        if ($result.ok) {');
+    exo.afterTeamOk.forEach((l) => lines.push(l));
     lines.push('            Write-KtLog ("OK [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) Green');
     lines.push('            $created++');
     lines.push('            $completedSet[$Team.Gruppenmail] = $true');

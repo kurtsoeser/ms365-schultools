@@ -54,7 +54,10 @@ function validateTeamsPayload(body) {
         }
         teams.push({ teamName, gruppenmail, besitzer });
     }
-    return { tenantId, teams };
+    const mailDomain = String(body.mailDomain || '')
+        .trim()
+        .replace(/^@+/, '');
+    return { tenantId, teams, mailDomain };
 }
 
 module.exports = { jsonResponse, corsPreflightResponse, validateTeamsPayload, CORS_HEADERS };

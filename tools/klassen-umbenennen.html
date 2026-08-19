@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Schuljahreswechsel</title>
-    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../app.css?v=6">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body data-ms365-skip-tenant-domain-prompt="true">
@@ -25,7 +25,7 @@
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="../tenant.html#classes" style="text-decoration:none;display:inline-block;">Klassen in Grundeinstellungen</a>
+                        <a class="btn" href="../tenant.html#classes" style="text-decoration:none;display:inline-block;">Klassen in Stammdaten</a>
                     </div>
                 </div>
             </div>
@@ -34,7 +34,7 @@
         <div class="content">
             <section class="settings" aria-label="Schuljahreswechsel Klassen-Gruppen">
                 <h2>Klassen-Gruppen: Anzeigename nach Schuljahreswechsel</h2>
-                <p>Dieses Werkzeug ist bewusst von den Schul-Grundeinstellungen getrennt. Die Klassen-Stammdaten pflegen Sie weiterhin unter <a href="../tenant.html#classes">Schul-Grundeinstellungen → Klassen</a>; hier geht es nur um den Wechsel der Anzeigenamen.</p>
+                <p>Dieses Werkzeug ist bewusst von den Stammdaten getrennt. Die Klassenlisten pflegen Sie weiterhin unter <a href="../tenant.html#classes">Stammdaten → Klassen</a>; hier geht es nur um den Wechsel der Anzeigenamen in Microsoft&nbsp;365.</p>
                 <p>Stabile Gruppen-E-Mails bzw. Mail-Aliase bleiben gleich. Geändert wird lokal und optional in Microsoft 365 nur der <strong>Anzeigename</strong>. Voraussetzung für das Schreiben nach Microsoft 365: Anmeldung über das Widget oben und vorhandene <code>graphGroupId</code>-Einträge aus der Einrichtung.</p>
                 <div id="classTeamsRolloverRoot" aria-live="polite"></div>
             </section>

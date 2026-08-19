@@ -270,7 +270,7 @@
         return out;
     }
 
-    /** Rollen aus Schul‑Einstellungen → Verwaltung, die als M365‑Gruppenbesitzer (Direktion) gelten. */
+    /** Rollen aus Stammdaten → Verwaltung, die als M365‑Gruppenbesitzer (Direktion) gelten. */
     function isDirektionRole(roleRaw) {
         const r = normStr(roleRaw).toLowerCase();
         if (!r) return false;
@@ -321,7 +321,7 @@
         const ttM = document.getElementById('slgStatTeachersMail');
         const warn = document.getElementById('slgTenantWarn');
 
-        if (elDom) elDom.textContent = domain || '(keine Domain in den Schul‑Einstellungen)';
+        if (elDom) elDom.textContent = domain || '(keine Domain in den Stammdaten)';
         if (elMS) elMS.textContent = domain ? 'schueler@' + domain : 'schueler@…';
         if (elML) elML.textContent = domain ? 'lehrer@' + domain : 'lehrer@…';
 
@@ -334,7 +334,7 @@
 
         if (warn) {
             const lines = [];
-            if (!domain) lines.push('Bitte in den Schul‑Einstellungen eine Schul‑Domain eintragen (für die Adress‑Vorschau).');
+            if (!domain) lines.push('Bitte in den Stammdaten eine Schul‑Domain eintragen (für die Adress‑Vorschau).');
             if (!studEmails.length) lines.push('Keine Schüler:innen mit E‑Mail in der Liste – Schritt 3 kann dort nichts übernehmen.');
             if (!teachEmails.length) lines.push('Keine Lehrer:innen mit E‑Mail in der Liste – Schritt 3 kann dort nichts übernehmen.');
             const dirEm = collectDirektionOwnerEmails(settings);
@@ -1085,7 +1085,7 @@
         const settings = loadTenantSettings();
         const emails = collectStudentEmails(settings);
         if (!emails.length) {
-            toast('Keine Schüler:innen‑E‑Mails in den Schul‑Einstellungen.');
+            toast('Keine Schüler:innen‑E‑Mails in den Stammdaten.');
             return;
         }
         if (!resolvedSchuelerId) {
@@ -1113,7 +1113,7 @@
         const settings = loadTenantSettings();
         const emails = collectTeacherEmails(settings);
         if (!emails.length) {
-            toast('Keine Lehrer:innen‑E‑Mails in den Schul‑Einstellungen.');
+            toast('Keine Lehrer:innen‑E‑Mails in den Stammdaten.');
             return;
         }
         if (!resolvedLehrerId) {

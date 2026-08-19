@@ -559,7 +559,7 @@
         const actDom = domainFromMail(actual);
         if (!domain) {
             el.innerHTML =
-                'Keine Schul‑Domain gespeichert. Bitte in den <a href="../tenant.html">Schul‑Einstellungen</a> oder in der Einrichtung (Schritt 2) setzen.';
+                'Keine Schul‑Domain gespeichert. Bitte in den <a href="../tenant.html">Stammdaten</a> oder in der Einrichtung (Schritt 2) setzen.';
             return;
         }
         let html =
@@ -580,7 +580,7 @@
     async function runSmtpScript(onlyActive) {
         const pack = collectSmtpScriptItems(onlyActive);
         if (!pack.domain) {
-            toast('Bitte zuerst die Schul‑Domain in den Schul‑Einstellungen oder in der Einrichtung (Schritt 2) speichern.');
+            toast('Bitte zuerst die Schul‑Domain in den Stammdaten oder in der Einrichtung (Schritt 2) speichern.');
             return;
         }
         if (!pack.items.length) {
@@ -724,8 +724,8 @@
         if (hint) {
             hint.textContent =
                 classModalMode === 'edit'
-                    ? 'Änderungen werden in die Schul‑Einstellungen geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt (Mail‑Nickname bleibt).'
-                    : 'Die Klasse wird in die Schul‑Einstellungen des aktuellen Schuljahrs geschrieben und erscheint danach in der Liste.';
+                    ? 'Änderungen werden in die Stammdaten geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt (Mail‑Nickname bleibt).'
+                    : 'Die Klasse wird in die Stammdaten des aktuellen Schuljahrs geschrieben und erscheint danach in der Liste.';
         }
         if (codeEl) codeEl.value = classModalMode === 'edit' && row ? row.code || '' : '';
         if (nameEl) nameEl.value = classModalMode === 'edit' && row ? row.name || '' : '';
@@ -767,7 +767,7 @@
 
     function persistClassCreate(entry) {
         if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
-            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+            throw new Error('Stammdaten nicht verfügbar (tenant-settings-core.js).');
         }
         const current = window.ms365TenantSettingsLoad() || {};
         const next = Object.assign({}, current);
@@ -788,7 +788,7 @@
 
     function persistClassUpdate(originalCode, originalYear, entry) {
         if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
-            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+            throw new Error('Stammdaten nicht verfügbar (tenant-settings-core.js).');
         }
         const from = normCode(originalCode);
         const to = normCode(entry.code);
@@ -828,7 +828,7 @@
 
     function persistClassDelete(code, year) {
         if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
-            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+            throw new Error('Stammdaten nicht verfügbar (tenant-settings-core.js).');
         }
         const key = normCode(code);
         const current = window.ms365TenantSettingsLoad() || {};
@@ -847,7 +847,7 @@
 
     async function offerCreateM365Group(code) {
         const ok = await dlgConfirm(
-            'Klasse „' + code + '“ ist in den Schul‑Einstellungen. Jetzt auch eine Microsoft‑365‑Gruppe anlegen und matchen?',
+            'Klasse „' + code + '“ ist in den Stammdaten. Jetzt auch eine Microsoft‑365‑Gruppe anlegen und matchen?',
             {
                 title: 'M365‑Gruppe anlegen?',
                 okText: 'Ja, anlegen',
@@ -948,7 +948,7 @@
             (row.name || code) +
             '“ (' +
             code +
-            ') aus den Schul‑Einstellungen entfernen?';
+            ') aus den Stammdaten entfernen?';
         if (matched) {
             msg +=
                 '\n\nDie Verknüpfung zur Microsoft‑365‑Gruppe wird gelöst. Die Gruppe selbst bleibt in Entra erhalten.';
@@ -1011,7 +1011,7 @@
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Besitzer in den Schul‑Einstellungen gefunden.';
+            p.textContent = 'Keine Direktion‑Besitzer in den Stammdaten gefunden.';
             el.appendChild(p);
             return;
         }
@@ -1399,7 +1399,7 @@
         }
         const emails = emailsForClass(getActiveRow());
         if (!emails.length) {
-            toast('Keine Schüler‑E‑Mails für diese Klasse in den Schul‑Einstellungen.');
+            toast('Keine Schüler‑E‑Mails für diese Klasse in den Stammdaten.');
             return;
         }
         clearSyncLog();
@@ -1826,12 +1826,12 @@
             unmatchedCreateHint:
                 'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit dieser Klasse. Optional auch als Team bereitstellen.',
             membersUnmatchedHint:
-                'Wenn in den Schul‑Einstellungen Schüler:innen mit E‑Mail für diese Klasse hinterlegt sind, können sie nach dem Match additiv synchronisiert werden. Sonst Mitglieder live in Graph pflegen.',
+                'Wenn in den Stammdaten Schüler:innen mit E‑Mail für diese Klasse hinterlegt sind, können sie nach dem Match additiv synchronisiert werden. Sonst Mitglieder live in Graph pflegen.',
             membersUnmatchedTitle: 'Schüler:innen dieser Klasse',
             membersMatchedHint:
                 'Live aus Microsoft Graph. „Mitglieder synchronisieren“ fügt fehlende Schüler‑Adressen dieser Klasse hinzu und entfernt Schüler:innen, die laut Stammliste in einer anderen Klasse stehen (Lehrkräfte bleiben).',
             emptyHintHtml:
-                'Keine Klassen in diesem Schuljahr. Legen Sie eine Klasse über <strong>Neu</strong> an oder pflegen Sie Klassen unter <a href="../tenant.html#classes">Schul‑Einstellungen</a>.',
+                'Keine Klassen in diesem Schuljahr. Legen Sie eine Klasse über <strong>Neu</strong> an oder pflegen Sie Klassen unter <a href="../tenant.html#classes">Stammdaten</a>.',
             features: {
                 aliasEditable: true,
                 smtpSlot: true,
@@ -1845,7 +1845,7 @@
                 dlgConfirm: dlgConfirm,
                 getGroupId: getActiveGroupId,
                 ensureDirektionOwners: function (token, gid) {
-                    if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+                    if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Stammdaten.');
                     return gug().ensureOwners(token, gid, direktion);
                 },
                 onUnmatched: function () {

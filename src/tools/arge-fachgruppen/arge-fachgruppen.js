@@ -248,12 +248,12 @@
         if (hint) {
             if (catalogModalMode === 'edit') {
                 hint.textContent = isArge
-                    ? 'Änderungen werden in die Schul‑Einstellungen geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt.'
-                    : 'Änderungen werden in die Schul‑Einstellungen geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt.';
+                    ? 'Änderungen werden in die Stammdaten geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt.'
+                    : 'Änderungen werden in die Stammdaten geschrieben. Bei neuem Kürzel wird ein vorhandenes Match mit umgehängt.';
             } else {
                 hint.textContent = isArge
-                    ? 'Die ARGE wird in die Schul‑Einstellungen geschrieben und erscheint danach im Katalog.'
-                    : 'Das Fach wird in die Schul‑Einstellungen geschrieben und erscheint danach im Katalog.';
+                    ? 'Die ARGE wird in die Stammdaten geschrieben und erscheint danach im Katalog.'
+                    : 'Das Fach wird in die Stammdaten geschrieben und erscheint danach im Katalog.';
             }
         }
         if (wrap) wrap.hidden = !isArge;
@@ -335,7 +335,7 @@
 
     function persistCatalogCreate(kind, entry) {
         if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
-            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+            throw new Error('Stammdaten nicht verfügbar (tenant-settings-core.js).');
         }
         const current = window.ms365TenantSettingsLoad() || {};
         const next = Object.assign({}, current);
@@ -359,7 +359,7 @@
 
     function persistCatalogUpdate(kind, originalCode, entry) {
         if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
-            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+            throw new Error('Stammdaten nicht verfügbar (tenant-settings-core.js).');
         }
         const from = normCode(originalCode);
         const to = normCode(entry.code);
@@ -408,7 +408,7 @@
 
     function persistCatalogDelete(kind, code) {
         if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
-            throw new Error('Schul‑Einstellungen nicht verfügbar (tenant-settings-core.js).');
+            throw new Error('Stammdaten nicht verfügbar (tenant-settings-core.js).');
         }
         const key = normCode(code);
         const current = window.ms365TenantSettingsLoad() || {};
@@ -526,7 +526,7 @@
             (row.name || code) +
             '“ (' +
             code +
-            ') aus den Schul‑Einstellungen entfernen?';
+            ') aus den Stammdaten entfernen?';
         if (matched) {
             msg +=
                 '\n\nDie Verknüpfung zur Microsoft‑365‑Gruppe wird gelöst. Die Gruppe selbst bleibt in Entra erhalten.';
@@ -565,7 +565,7 @@
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Besitzer in den Schul‑Einstellungen gefunden.';
+            p.textContent = 'Keine Direktion‑Besitzer in den Stammdaten gefunden.';
             el.appendChild(p);
             return;
         }
@@ -1135,11 +1135,11 @@
                 'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Optional auch als Team bereitstellen.',
             membersUnmatchedHint:
                 'In den Stammdaten gibt es keine Mitgliederliste für Fach/ARGE. Nach dem Match können Sie Mitglieder live in Graph pflegen.',
-            membersUnmatchedTitle: 'Hinweis aus den Schul‑Einstellungen',
+            membersUnmatchedTitle: 'Hinweis aus den Stammdaten',
             membersMatchedHint:
                 'Live aus Microsoft Graph. Es gibt keinen automatischen Listen‑Sync – Mitglieder hier suchen, hinzufügen oder entfernen.',
             emptyHintHtml:
-                'Keine Einträge in dieser Liste. Legen Sie einen Eintrag über <strong>Neu</strong> an oder pflegen Sie Fächer bzw. ARGE unter <a href="../tenant.html">Schul‑Einstellungen</a>.',
+                'Keine Einträge in dieser Liste. Legen Sie einen Eintrag über <strong>Neu</strong> an oder pflegen Sie Fächer bzw. ARGE unter <a href="../tenant.html">Stammdaten</a>.',
             features: {
                 syncMembers: false,
                 emptyHint: true
@@ -1150,7 +1150,7 @@
                 dlgConfirm: dlgConfirm,
                 getGroupId: getActiveGroupId,
                 ensureDirektionOwners: function (token, gid) {
-                    if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+                    if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Stammdaten.');
                     return gug().ensureOwners(token, gid, direktion);
                 },
                 onUnmatched: function () {

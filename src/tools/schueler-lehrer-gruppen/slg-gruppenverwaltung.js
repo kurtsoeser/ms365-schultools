@@ -565,7 +565,7 @@
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Besitzer in den Schul‑Einstellungen gefunden.';
+            p.textContent = 'Keine Direktion‑Besitzer in den Stammdaten gefunden.';
             el.appendChild(p);
             return;
         }
@@ -853,7 +853,7 @@
                 getGroupId: getActiveMatchedId,
                 ensureDirektionOwners: function (token, gid) {
                     if (!(listCache.direktion && listCache.direktion.length)) {
-                        throw new Error('Keine Direktion‑Adressen in den Schul‑Einstellungen.');
+                        throw new Error('Keine Direktion‑Adressen in den Stammdaten.');
                     }
                     return ensureOwners(token, gid);
                 },

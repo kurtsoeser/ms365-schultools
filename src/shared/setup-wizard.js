@@ -53,7 +53,7 @@ import {
         return 'Schueler';
     }
 
-    /** Schulbezug für Gruppen-Beschreibungen (Domain aus Grundeinstellungen, falls gesetzt). */
+    /** Schulbezug für Gruppen-Beschreibungen (Domain aus Stammdaten, falls gesetzt). */
     function schoolPhraseForWizardGroupDesc() {
         try {
             const s = loadTenantSettings();
@@ -387,7 +387,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Keine Einträge – „Standardrollen einfügen“ oder „Weitere Rolle“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -720,6 +720,20 @@ import {
             return typeof window.ms365AuthIsLoggedIn === 'function' && !!window.ms365AuthIsLoggedIn();
         } catch {
             return false;
+        }
+    }
+
+    function refreshSwAuthStatus() {
+        const el = document.getElementById('swAuthStatus');
+        if (!el) return;
+        if (swAuthIsLoggedIn()) {
+            const label =
+                typeof window.ms365AuthGetAccountLabel === 'function' ? window.ms365AuthGetAccountLabel() : '';
+            el.textContent = label
+                ? 'Angemeldet als ' + label + '.'
+                : 'Angemeldet (Token für Microsoft Graph erhalten).';
+        } else {
+            el.textContent = 'Noch nicht angemeldet.';
         }
     }
 
@@ -1089,7 +1103,7 @@ import {
             return v ? 'Ja' : 'Nein';
         };
         box.innerHTML =
-            '<p style="margin:0 0 10px;font-weight:700;color:#32325d;">Kurzüberblick</p>' +
+            '<p style="margin:0 0 10px;font-weight:700;color:var(--heading);">Kurzüberblick</p>' +
             '<ul style="margin:0;padding-left:1.2em;line-height:1.55;">' +
             '<li><strong>Schuljahr</strong> (Listen): ' +
             escapeHtml(schoolYear) +
@@ -1140,7 +1154,7 @@ import {
             klassenTeamsLinked +
             ')</li>' +
             '</ul>' +
-            '<p style="margin:12px 0 0;color:var(--muted);font-size:0.92em;line-height:1.45;">Hinweis: Die Zahlen stammen aus den lokal gespeicherten <strong>Schul‑Einstellungen</strong> und dem Einrichtungs‑Setup (Gruppen‑Verknüpfungen). Nach Änderungen in früheren Schritten hierher wechseln, um die Übersicht zu aktualisieren.</p>';
+            '<p style="margin:12px 0 0;color:var(--muted);font-size:0.92em;line-height:1.45;">Hinweis: Die Zahlen stammen aus den lokal gespeicherten <strong>Stammdaten</strong> und dem Einrichtungs‑Setup (Gruppen‑Verknüpfungen). Nach Änderungen in früheren Schritten hierher wechseln, um die Übersicht zu aktualisieren.</p>';
     }
 
     function fillTeachersTextarea() {
@@ -1226,7 +1240,7 @@ import {
             }
             toast(
                 touched
-                    ? 'Gesamt-Excel: ' + touched + ' Liste(n) in die Schul‑Einstellungen übernommen (gespeichert).'
+                    ? 'Gesamt-Excel: ' + touched + ' Liste(n) in die Stammdaten übernommen (gespeichert).'
                     : 'Gesamt-Excel: keine Daten erkannt (Blattnamen wie „Schueler“, „Lehrer“, „SGA“, „StudentCouncil“, … und erste Datenzeile prüfen).'
             );
         } catch (e) {
@@ -1421,7 +1435,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine SGA-Mitglieder – oben einfügen oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -1509,7 +1523,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -1593,7 +1607,7 @@ import {
         td.style.lineHeight = '1.35';
         const em = normEmail(emailRaw);
         if (!em || em.indexOf('@') === -1) {
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = '–';
             td.title = 'E‑Mail nötig für Abgleich mit Microsoft Entra';
             return td;
@@ -1616,7 +1630,7 @@ import {
                 '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
             td.title = 'Kein Benutzer mit mail oder UPN gleich dieser E‑Mail';
         } else {
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = '–';
             td.title = 'Noch nicht geprüft – „E‑Mails mit Microsoft prüfen“ oder Symbol in der Aktionsspalte';
         }
@@ -2238,7 +2252,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen, importieren oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -2385,7 +2399,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -3299,7 +3313,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine Fächer – oben einfügen oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -3417,7 +3431,7 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 5;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine Arbeitsgruppen – oben einfügen oder „+ Zeile“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
@@ -3935,9 +3949,9 @@ import {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 6;
-            td.style.color = '#6c757d';
+            td.style.color = 'var(--muted)';
             td.innerHTML =
-                'Noch keine Klassen – oben einfügen, „+ Zeile“ oder in den <a href="tenant.html">Grundeinstellungen</a> pflegen.';
+                'Noch keine Klassen – oben einfügen, „+ Zeile“ oder in den <a href="tenant.html">Stammdaten</a> pflegen.';
             tr.appendChild(td);
             tbody.appendChild(tr);
             return;
@@ -4361,8 +4375,7 @@ import {
             document.getElementById('swBtnLogin').addEventListener('click', async function () {
                 try {
                     await G().getGraphToken();
-                    const el = document.getElementById('swAuthStatus');
-                    if (el) el.textContent = 'Angemeldet (Token für Microsoft Graph erhalten).';
+                    refreshSwAuthStatus();
                     toast('Anmeldung OK.');
                 } catch (e) {
                     toast('Anmeldung: ' + (e.message || e));
@@ -5007,6 +5020,8 @@ import {
         }
         fillCatalogTextareas();
         readGroupPrefixesFromSetupToDom();
+        refreshSwAuthStatus();
+        window.addEventListener('ms365-auth-widget-ready', refreshSwAuthStatus);
         showStep(start);
     }
 

@@ -6,6 +6,15 @@ import {
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
+function getKursteamMailDomain() {
+    if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
+        return String(window.ms365GetSchoolDomainNoAt() || '')
+            .trim()
+            .replace(/^@+/, '');
+    }
+    return '';
+}
+
 ns.updateTeacherStats = function updateTeacherStats() {
     // Lehrer die in den importierten Unterrichtsdaten vorkommen
     const uniqueTeachers = new Set((ns.filteredData || []).map(row => (row.lehrer || '').toUpperCase().trim()).filter(Boolean));
@@ -22,7 +31,7 @@ ns.updateTeacherStats = function updateTeacherStats() {
     if (unmappedCount > 0) ns.displayMissingTeachers(teachersArray);
     else document.getElementById('missingTeachersSection').style.display = 'none';
 
-    // Zuordnungstabelle + Schul-Einstellungen-Sync-Panel
+    // Zuordnungstabelle + Stammdaten-Sync-Panel
     ns.displayTeacherMappingTableWithUsage(teachersArray);
     ns.displayTenantTeacherSyncPanel(teachersArray);
     if (typeof ns.updateStep4Checklist === 'function') ns.updateStep4Checklist();
@@ -30,7 +39,7 @@ ns.updateTeacherStats = function updateTeacherStats() {
 
 /**
  * Zeigt fehlende Lehrer (kommen in Unterrichtsdaten vor, haben aber keine E-Mail-Zuordnung).
- * Schlägt E-Mail aus Schul-Einstellungen vor falls dort ein namensgleicher Eintrag ohne E-Mail existiert.
+ * Schlägt E-Mail aus Stammdaten vor falls dort ein namensgleicher Eintrag ohne E-Mail existiert.
  */
 ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
     const unmappedTeachers = allTeachers.filter(t => !ns.teacherEmailMapping[t]);
@@ -43,7 +52,7 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
             ? window.ms365GetTeacherEmailDomainSuffix()
             : '@';
 
-    // Schul-Einstellungen: Lehrer ohne E-Mail aber mit Name als Vorschlag-Quelle
+    // Stammdaten: Lehrer ohne E-Mail aber mit Name als Vorschlag-Quelle
     const tenantTeachers = typeof window.ms365TenantSettingsLoad === 'function'
         ? (window.ms365TenantSettingsLoad().teachers || [])
         : [];
@@ -53,7 +62,7 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
     tbody.replaceChildren();
     unmappedTeachers.forEach(kuerzel => {
         const tenantEntry = tenantByCode.get(kuerzel);
-        // Vorschlag: aus Schul-Einstellungen (Name→E-Mail ableiten) oder Domain-Fallback
+        // Vorschlag: aus Stammdaten (Name→E-Mail ableiten) oder Domain-Fallback
         const suggestedEmail = (tenantEntry && tenantEntry.email)
             ? tenantEntry.email
             : kuerzel.toLowerCase() + emailDomain;
@@ -62,7 +71,7 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
 
         const tr = document.createElement('tr');
 
-        // Kürzel + Schul-Einstellungen-Badge
+        // Kürzel + Stammdaten-Badge
         const td1 = document.createElement('td');
         td1.style.whiteSpace = 'nowrap';
         const strong = document.createElement('strong');
@@ -77,7 +86,7 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
         if (inTenant) {
             const badge = document.createElement('span');
             badge.style.cssText = 'font-size:0.72em;background:var(--brand1);color:#fff;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block;';
-            badge.title = 'In Schul-Einstellungen vorhanden';
+            badge.title = 'In Stammdaten vorhanden';
             badge.textContent = 'Schule ✓';
             td1.appendChild(badge);
         }
@@ -125,7 +134,7 @@ ns.quickAddTeacher = function quickAddTeacher(kuerzel, suggestedEmail, direct) {
         document.getElementById('teacherCount').textContent = Object.keys(ns.teacherEmailMapping).length;
         document.getElementById('teacherMappingInfo').style.display = 'block';
         if (typeof window.ms365TenantSettingsSave === 'function') {
-            // In Schul-Einstellungen zurückschreiben
+            // In Stammdaten zurückschreiben
             const current = window.ms365TenantSettingsLoad();
             const teachers = Array.isArray(current && current.teachers) ? [...current.teachers] : [];
             const idx = teachers.findIndex(t => String(t.code || '').toUpperCase() === kuerzel);
@@ -137,7 +146,7 @@ ns.quickAddTeacher = function quickAddTeacher(kuerzel, suggestedEmail, direct) {
             window.ms365TenantSettingsSave({ ...current, teachers });
         }
         if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
-        ns.showToast(kuerzel + ' → ' + email + ' gespeichert (auch in Schul-Einstellungen).');
+        ns.showToast(kuerzel + ' → ' + email + ' gespeichert (auch in Stammdaten).');
         ns.updateTeacherStats();
     }
 
@@ -162,9 +171,9 @@ ns.quickAddTeacher = function quickAddTeacher(kuerzel, suggestedEmail, direct) {
 };
 
 /**
- * Zeigt ein Panel mit Lehrern aus den Schul-Einstellungen die noch KEINE E-Mail haben –
+ * Zeigt ein Panel mit Lehrern aus den Stammdaten die noch KEINE E-Mail haben –
  * damit der User weiß was er noch in den Einstellungen ergänzen sollte.
- * Außerdem: Lehrer aus Schul-Einstellungen die in den Unterrichtsdaten vorkommen aber
+ * Außerdem: Lehrer aus Stammdaten die in den Unterrichtsdaten vorkommen aber
  * noch nicht im Mapping sind → werden als Vorschlag angeboten.
  */
 ns.displayTenantTeacherSyncPanel = function displayTenantTeacherSyncPanel(requiredTeachers) {
@@ -181,13 +190,13 @@ ns.displayTenantTeacherSyncPanel = function displayTenantTeacherSyncPanel(requir
 
     if (!tenantTeachers.length) {
         panel.innerHTML = '<p style="color:var(--text-secondary);font-size:0.88em;margin:0;">' +
-            '<i class="bi bi-info-circle"></i> Keine Lehrer in den <strong>Schul-Grundeinstellungen</strong> hinterlegt. ' +
+            '<i class="bi bi-info-circle"></i> Keine Lehrer in den <strong>Stammdaten</strong> hinterlegt. ' +
             'Lehrerliste dort eintragen → hier automatisch verfügbar.</p>';
         panel.style.display = 'block';
         return;
     }
 
-    // Lehrer aus Schul-Einstellungen die ein Kürzel haben und in Unterrichtsdaten vorkommen
+    // Lehrer aus Stammdaten die ein Kürzel haben und in Unterrichtsdaten vorkommen
     const requiredSet = new Set(requiredTeachers);
     const tenantMapped = tenantTeachers.filter(t => t.code && t.email && requiredSet.has(t.code.toUpperCase()));
     const tenantUnmappedRequired = tenantTeachers.filter(t => t.code && !t.email && requiredSet.has(t.code.toUpperCase()));
@@ -195,42 +204,42 @@ ns.displayTenantTeacherSyncPanel = function displayTenantTeacherSyncPanel(requir
     const tenantNoEmail = tenantTeachers.filter(t => t.code && !t.email && !requiredSet.has(t.code.toUpperCase()));
 
     let html = '<p style="font-size:0.88em;color:var(--text-secondary);margin:0 0 10px;">' +
-        '<strong>' + tenantTeachers.length + '</strong> Lehrer in Schul-Einstellungen gespeichert – ' +
+        '<strong>' + tenantTeachers.length + '</strong> Lehrer in Stammdaten gespeichert – ' +
         '<strong style="color:var(--ok1);">' + tenantMapped.length + '</strong> davon mit E-Mail und in diesen Unterrichtsdaten aktiv.';
 
     if (tenantUnmappedRequired.length > 0) {
         html += ' <strong style="color:#e6a817;">' + tenantUnmappedRequired.length + ' Lehrer</strong> ' +
-            'aus diesen Daten sind in den Schul-Einstellungen ohne E-Mail – dort ergänzen!';
+            'aus diesen Daten sind in den Stammdaten ohne E-Mail – dort ergänzen!';
     }
     html += '</p>';
 
-    // Fehlende E-Mails in Schul-Einstellungen (die in Unterrichtsdaten vorkommen)
+    // Fehlende E-Mails in Stammdaten (die in Unterrichtsdaten vorkommen)
     if (tenantUnmappedRequired.length > 0) {
         html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:0.88em;font-weight:600;color:var(--heading);">' +
             '<i class="bi bi-exclamation-triangle-fill" style="color:#e6a817;"></i> ' +
-            tenantUnmappedRequired.length + ' Lehrer aus Unterrichtsdaten ohne E-Mail in Schul-Einstellungen</summary>' +
+            tenantUnmappedRequired.length + ' Lehrer aus Unterrichtsdaten ohne E-Mail in Stammdaten</summary>' +
             '<div style="margin-top:8px;overflow-x:auto;"><table style="width:100%;font-size:0.86em;"><thead><tr>' +
             '<th>Kürzel</th><th>Name</th><th>Hinweis</th></tr></thead><tbody>';
         tenantUnmappedRequired.forEach(t => {
             const kuerzel = String(t.code || '').toUpperCase();
             html += '<tr><td><strong>' + ns.escapeHtml(kuerzel) + '</strong></td>' +
                 '<td>' + ns.escapeHtml(t.name || '–') + '</td>' +
-                '<td style="color:#e6a817;font-size:0.85em;">Bitte in <em>Schul-Grundeinstellungen</em> → Lehrerliste ergänzen, ' +
+                '<td style="color:#e6a817;font-size:0.85em;">Bitte in <em>Stammdaten</em> → Lehrerliste ergänzen, ' +
                 'oder oben direkt ➕ Hinzufügen</td></tr>';
         });
         html += '</tbody></table></div></details>';
     }
 
-    // Lehrer aus Schul-Einstellungen die in diesen Unterrichtsdaten NICHT vorkommen
+    // Lehrer aus Stammdaten die in diesen Unterrichtsdaten NICHT vorkommen
     if (tenantNoEmail.length > 0) {
         html += '<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.85em;color:var(--muted);">' +
-            tenantNoEmail.length + ' weitere Lehrer in Schul-Einstellungen ohne E-Mail (nicht in diesen Daten)</summary>' +
+            tenantNoEmail.length + ' weitere Lehrer in Stammdaten ohne E-Mail (nicht in diesen Daten)</summary>' +
             '<p style="font-size:0.82em;color:var(--muted);margin:6px 0 0;">Diese Lehrer kommen in den importierten Unterrichtsdaten nicht vor – sie müssen hier nicht zugeordnet werden.</p></details>';
     }
 
     if (tenantNotRequired.length > 0) {
         html += '<p style="font-size:0.82em;color:var(--muted);margin:6px 0 0;">' +
-            tenantNotRequired.length + ' weitere Lehrer mit E-Mail aus Schul-Einstellungen sind in diesen Unterrichtsdaten nicht aktiv.</p>';
+            tenantNotRequired.length + ' weitere Lehrer mit E-Mail aus Stammdaten sind in diesen Unterrichtsdaten nicht aktiv.</p>';
     }
 
     panel.innerHTML = html;
@@ -351,7 +360,7 @@ ns.goToStep = function goToStep(rawStep) {
         if (typeof ns.seedStudentRosterFromTenantIfEmpty === 'function') {
             const seeded = ns.seedStudentRosterFromTenantIfEmpty();
             if (seeded === 'demo') ns.showToast('Demo: Schülerliste aus Schul‑Standards vorbelegt.');
-            else if (seeded === 'tenant') ns.showToast('Schülerliste aus Schul‑Einstellungen übernommen.');
+            else if (seeded === 'tenant') ns.showToast('Schülerliste aus Stammdaten übernommen.');
         }
         if (typeof ns.refreshStudentRosterUI === 'function') ns.refreshStudentRosterUI();
     }
@@ -395,11 +404,11 @@ ns.prepareCSVExport = function prepareCSVExport() {
 
     const psPreview = document.getElementById('powershellScript');
     if (psPreview) {
-        psPreview.textContent = buildStandaloneKursteamPs1V2(validTeams, ns.psEscapeSingle);
+        psPreview.textContent = buildStandaloneKursteamPs1V2(validTeams, ns.psEscapeSingle, getKursteamMailDomain());
     }
 
     const psCsvPreview = document.getElementById('powershellScriptCsv');
-    if (psCsvPreview) psCsvPreview.textContent = buildKursteamCsvPreviewPs1();
+    if (psCsvPreview) psCsvPreview.textContent = buildKursteamCsvPreviewPs1(getKursteamMailDomain());
 
     const btnMain = document.getElementById('btnDownloadKursteam');
     if (btnMain) btnMain.disabled = validTeams.length === 0;
@@ -456,7 +465,7 @@ function downloadKursteamCmdPackage(filename, title, echoLine, buildPs1) {
         ns.showToast('polyglot-cmd.js fehlt – Seite neu laden.');
         return;
     }
-    const ps1 = buildPs1(validTeams, ns.psEscapeSingle);
+    const ps1 = buildPs1(validTeams, ns.psEscapeSingle, getKursteamMailDomain());
     const cmd = window.ms365BuildPolyglotCmd({ title, echoLine, psBody: ps1 });
     ns.downloadBlob(filename, cmd);
 }
@@ -527,7 +536,14 @@ ns.goToStep(Number.isFinite(ns.currentStep) ? ns.currentStep : 0);
 window.ms365GetKursteamSnapshotForGraph = function () {
     const validTeams = ns.teamsData.filter(t => t.isValid);
     if (!validTeams.length) return null;
+    let mailDomain = '';
+    if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
+        mailDomain = String(window.ms365GetSchoolDomainNoAt() || '')
+            .trim()
+            .replace(/^@+/, '');
+    }
     return {
+        mailDomain,
         teams: validTeams.map(t => ({
             teamName: t.teamName,
             gruppenmail: t.gruppenmail,

@@ -7,8 +7,9 @@
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
-    <title>MS365-Schulverwaltung – Schul-Grundeinstellungen</title>
-    <link rel="stylesheet" href="app.css">
+    <title>MS365-Schulverwaltung – Stammdaten</title>
+    <link rel="stylesheet" href="app.css?v=6">
+    <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* Layout-Breite ist zentral in app.css definiert (page-card/container) */
@@ -25,7 +26,7 @@
             border: 1px solid var(--border);
             border-radius: 14px;
             padding: 16px;
-            background: #fff;
+            background: var(--card);
         }
         .tile + .tile {
             margin-top: 16px;
@@ -41,7 +42,7 @@
         .tile-title {
             margin: 0;
             font-size: 1.08em;
-            color: #32325d;
+            color: var(--heading);
             font-weight: 900;
         }
         .tile-subtitle {
@@ -65,7 +66,7 @@
         .ts-status-title {
             font-weight: 700;
             font-size: 0.97em;
-            color: #32325d;
+            color: var(--heading);
             display: flex;
             align-items: center;
             gap: 6px;
@@ -105,8 +106,8 @@
             color: #a93226;
         }
         .ts-status-chip--muted {
-            background: color-mix(in srgb, #6c757d 12%, transparent);
-            color: #6c757d;
+            background: color-mix(in srgb, var(--muted) 12%, transparent);
+            color: var(--muted);
         }
         .ts-status-chip[title] { cursor: help; }
         .ts-status-chip i { font-size: 1em; }
@@ -119,12 +120,12 @@
         .settings h2 {
             margin: 0 0 8px;
             font-size: 1.25em;
-            color: #32325d;
+            color: var(--heading);
         }
 
         .settings p {
             margin: 0 0 12px;
-            color: #495057;
+            color: var(--text-secondary);
             line-height: 1.45;
             font-size: 0.95em;
         }
@@ -133,16 +134,18 @@
             display: block;
             font-weight: 600;
             margin: 10px 0 6px;
-            color: #495057;
+            color: var(--text-secondary);
         }
 
         .field input,
         .field textarea {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 10px;
             font: inherit;
+            background: var(--input-bg);
+            color: var(--text);
         }
 
         .field textarea {
@@ -153,79 +156,19 @@
             resize: vertical;
         }
 
-        .teachers-table-wrap {
-            margin-top: 10px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: auto;
-            background: #fff;
-        }
-
-        .teachers-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.92em;
-            min-width: 520px;
-        }
-
-        .teachers-table th,
-        .teachers-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: top;
-        }
-
-        .teachers-table th {
-            position: sticky;
-            top: 0;
-            background: var(--brand1);
-            color: #fff;
-            text-align: left;
-            font-weight: 700;
-            z-index: 1;
-        }
-
-        .teachers-table td code {
-            font-family: Consolas, 'Segoe UI', monospace;
-            background: #eef;
-            padding: 2px 6px;
-            border-radius: 6px;
-        }
-
-        .teachers-table .action-cell {
-            width: 1%;
-            white-space: nowrap;
-        }
-
-        .teachers-table .mini-btn {
-            background: var(--danger1);
-            color: #fff;
-            border: 0;
-            border-radius: 10px;
-            padding: 6px 10px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .cell-editor {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid var(--brand1);
-            border-radius: 10px;
-            font: inherit;
-        }
+        /* Tabellen: Basis in app.css (.teachers-table-wrap) */
 
         .settings-module {
             margin-top: 14px;
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 14px;
-            background: #fff;
+            background: var(--card);
         }
 
         .settings-module h3 {
             margin: 0 0 10px;
-            color: #32325d;
+            color: var(--heading);
             font-size: 1.05em;
         }
 
@@ -307,9 +250,9 @@
         .ts-step {
             border: 1px solid var(--border);
             border-radius: 16px;
-            background: #fff;
+            background: var(--card);
             overflow: hidden;
-            box-shadow: 0 10px 26px rgba(50, 50, 93, 0.08);
+            box-shadow: var(--shadow);
         }
         .ts-step + .ts-step { margin-top: 16px; }
         .ts-step > summary {
@@ -320,7 +263,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            background: rgba(255, 255, 255, 0.65);
+            background: color-mix(in srgb, var(--card) 65%, transparent);
             border-bottom: 1px solid var(--border);
             backdrop-filter: blur(6px);
         }
@@ -338,9 +281,9 @@
             width: 32px;
             height: 32px;
             border-radius: 999px;
-            background: rgba(94,114,228,0.18);
-            border: 1px solid rgba(94,114,228,0.28);
-            color: #32325d;
+            background: color-mix(in srgb, var(--brand1) 18%, transparent);
+            border: 1px solid color-mix(in srgb, var(--brand1) 28%, transparent);
+            color: var(--heading);
             font-weight: 1000;
             flex: 0 0 auto;
         }
@@ -350,22 +293,22 @@
         }
         .ts-step-label {
             font-weight: 1000;
-            color: #32325d;
+            color: var(--heading);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .ts-step-desc {
-            color: #6c757d;
+            color: var(--muted);
             font-weight: 700;
             font-size: 0.9em;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .ts-step-chevron { font-weight: 900; color: #32325d; opacity: 0.9; flex: 0 0 auto; }
+        .ts-step-chevron { font-weight: 900; color: var(--heading); opacity: 0.9; flex: 0 0 auto; }
         .ts-step[open] .ts-step-chevron { transform: rotate(180deg); }
-        .ts-step-body { padding: 16px; background: #fff; }
+        .ts-step-body { padding: 16px; background: var(--card); }
 
         .ts-settings-head {
             margin-bottom: 14px;
@@ -409,8 +352,8 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 0;
-            background: #fff;
-            box-shadow: 0 2px 12px rgba(50, 50, 93, 0.06);
+            background: var(--card);
+            box-shadow: var(--shadow);
             overflow: hidden;
         }
         .ts-year-strip__inner {
@@ -425,7 +368,7 @@
             font-weight: 900;
             letter-spacing: 0.06em;
             text-transform: uppercase;
-            color: #6c757d;
+            color: var(--muted);
             cursor: pointer;
         }
         .ts-year-strip__title i {
@@ -443,13 +386,13 @@
             flex: 1;
             min-width: 0;
             padding: 10px 12px;
-            border: 1px solid #ced4da;
+            border: 1px solid var(--input-border);
             border-radius: 10px;
             font: inherit;
             font-weight: 800;
             font-size: 1rem;
-            color: #32325d;
-            background: #f8f9fc;
+            color: var(--heading);
+            background: var(--input-bg);
         }
         .ts-year-strip__add {
             flex: 0 0 auto;
@@ -467,7 +410,7 @@
         .ts-hub-tools h3 {
             margin: 0 0 8px;
             font-size: 1em;
-            color: #32325d;
+            color: var(--heading);
         }
     </style>
 </head>
@@ -477,7 +420,7 @@
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-sliders2-vertical"></i>Schul‑Grundeinstellungen</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-sliders2-vertical"></i>Stammdaten</span>
             </div>
             <p>Stammdaten (schulweit) und schuljahresbezogene Listen zentral pflegen – gemeinsame Datenbasis für Kursteams, Jahrgang, ARGE und Gruppen‑Tools.</p>
             <p class="header-help-row"><a href="hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
@@ -495,8 +438,9 @@
         </div>
 
         <div class="content">
-            <section class="settings" aria-label="Schul-Grundeinstellungen">
-                <h2>Schul‑Grundeinstellungen</h2>
+            <div id="tenantEmptyStateMount"></div>
+            <section class="settings" aria-label="Stammdaten der Schule">
+                <h2>Stammdaten</h2>
                 <form id="tenantSettingsForm" onsubmit="return false;">
                     <div class="ts-settings-head">
                         <div class="ts-settings-intro">
@@ -519,8 +463,8 @@
                         <p class="ts-status-footer" id="tenantStatusLastCheck"></p>
                     </section>
 
-                    <section class="tile" aria-label="Bereiche der Schul-Grundeinstellungen">
-                        <div class="tabs tabs--reorderable" id="tenantMainTabs" role="tablist" aria-label="Schul-Grundeinstellungen: Hauptbereiche">
+                    <section class="tile" aria-label="Bereiche der Stammdaten">
+                        <div class="tabs tabs--reorderable" id="tenantMainTabs" role="tablist" aria-label="Stammdaten: Hauptbereiche">
                             <button type="button" class="tab-btn" id="tabMainStammdaten" role="tab" aria-selected="true" aria-controls="panelMainStammdaten"><i class="bi bi-journal-text" aria-hidden="true"></i>Stammdaten</button>
                             <button type="button" class="tab-btn" id="tabMainSubjects" role="tab" aria-selected="false" aria-controls="panelMainSubjects"><i class="bi bi-journal-text" aria-hidden="true"></i>Fächer</button>
                             <button type="button" class="tab-btn" id="tabMainArges" role="tab" aria-selected="false" aria-controls="panelMainArges"><i class="bi bi-diagram-3" aria-hidden="true"></i>ARGE</button>
@@ -1041,6 +985,7 @@
     <script src="src/shared/eltern-guardians.js" defer></script>
     <script src="src/shared/school-sis-import.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
+    <script src="src/shared/demo-mode.js" defer></script>
     <script src="src/shared/action-log.js" defer></script>
     <script src="src/shared/tenant-settings-core.js" defer></script>
     <script src="src/shared/graph-rename-preview.js" defer></script>
@@ -1049,6 +994,8 @@
     <script type="module" src="src/shared/graph-unified-groups.js"></script>
     <script type="module" src="src/shared/teacher-tenant-import-ui.js"></script>
     <script type="module" src="src/shared/student-class-lifecycle.js"></script>
+    <script src="src/shared/demo-mode.js" defer></script>
+    <script src="src/shared/empty-state-ui.js" defer></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script>

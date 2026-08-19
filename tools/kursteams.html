@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
     <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
@@ -9,7 +9,8 @@
     <!-- Fallback für MSAL, falls ms365-config.js nicht lädt -->
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Kursteams</title>
-    <link rel="stylesheet" href="../app.css">
+    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* =============================================
@@ -335,6 +336,7 @@
             </div>
 
             <div class="content">
+                <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten für Kursteams. Importieren Sie später Stundenplan-Daten – zuerst Einrichtung oder Demo auf dem Dashboard."></div>
                 <!-- Schritt 0 -->
                 <div class="step-content active" data-step="0">
                     <div class="kt-step-header">
@@ -354,7 +356,7 @@
                         <ul class="kt-checklist">
                             <li><span class="kt-cl-num">1</span><span>Unterrichtsdaten <strong>importieren</strong> (WebUntis, Sokrates, Excel) oder manuell eingeben</span></li>
                             <li><span class="kt-cl-num">2</span><span>Fächer <strong>bereinigen</strong> – ORD, DIR, KV automatisch herausfiltern</span></li>
-                            <li><span class="kt-cl-num">3</span><span>Lehrer-Kürzel → <strong>E-Mail zuordnen</strong> (aus Schul-Einstellungen oder Paste)</span></li>
+                            <li><span class="kt-cl-num">3</span><span>Lehrer-Kürzel → <strong>E-Mail zuordnen</strong> (aus Stammdaten oder Paste)</span></li>
                             <li><span class="kt-cl-num">4</span><span>Team-Namen <strong>generieren &amp; prüfen</strong></span></li>
                             <li><span class="kt-cl-num">5</span><span><strong>Kursteam-Anlage.cmd herunterladen</strong> und per Doppelklick starten (MFA-fähig)</span></li>
                             <li><span class="kt-cl-num">+</span><span><em>Optional:</em> Schüler als Mitglieder per PowerShell-Script hinzufügen</span></li>
@@ -621,7 +623,7 @@
                         <div class="kt-step-badge"><i class="bi bi-person-check-fill"></i></div>
                         <div class="kt-step-header-text">
                             <h2>Schritt 4 – Lehrer-E-Mails zuordnen</h2>
-                            <p>Kürzel → E-Mail. Wird automatisch aus den Schul-Einstellungen vorbelegt und bei Änderungen dort mitgespeichert.</p>
+                            <p>Kürzel → E-Mail. Wird automatisch aus den Stammdaten vorbelegt und bei Änderungen dort mitgespeichert.</p>
                         </div>
                     </div>
 
@@ -651,7 +653,7 @@
                         <h3 style="color:#c47a00;"><i class="bi bi-exclamation-triangle-fill" style="color:#e6a817;margin-right:6px;"></i>Fehlende E-Mail-Zuordnungen</h3>
                         <p style="font-size:0.88em;color:var(--text-secondary);margin:0 0 12px;">
                             Diese Lehrer kommen in den Unterrichtsdaten vor, haben aber noch keine E-Mail-Adresse.
-                            E-Mail direkt eingeben und <strong>Übernehmen</strong> klicken – wird automatisch in den Schul-Einstellungen gespeichert.
+                            E-Mail direkt eingeben und <strong>Übernehmen</strong> klicken – wird automatisch in den Stammdaten gespeichert.
                         </p>
                         <div class="table-container" style="max-height:360px;">
                             <table>
@@ -667,9 +669,9 @@
                         </div>
                     </div>
 
-                    <!-- ❷ Sync-Status mit Schul-Einstellungen -->
+                    <!-- ❷ Sync-Status mit Stammdaten -->
                     <div id="tenantTeacherSyncPanel" class="kt-filter-box" style="display:none;border-left-color:var(--brand1);margin-top:0;">
-                        <h3><i class="bi bi-arrow-repeat" style="color:var(--brand1);margin-right:6px;"></i>Schul-Einstellungen – Lehrerliste</h3>
+                        <h3><i class="bi bi-arrow-repeat" style="color:var(--brand1);margin-right:6px;"></i>Stammdaten – Lehrerliste</h3>
                         <!-- Inhalt wird per JS befüllt -->
                     </div>
 
@@ -763,7 +765,7 @@
                     </ul>
 
                     <div class="filter-section">
-                        <h3>Grundeinstellungen</h3>
+                        <h3>Stammdaten</h3>
                         <div class="filter-group">
                             <label>Schuljahr-Präfix:</label>
                             <input type="text" id="yearPrefix" value="" placeholder="z.B. SJ26, WS25, SS25" title="Wird automatisch aus dem aktuellen Datum berechnet">
@@ -1023,15 +1025,26 @@
                         <div class="kt-dl-icon" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:12px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-cloud-upload-fill"></i></div>
                         <div style="flex:1;">
                             <h4>Online anlegen (Azure-Backend)</h4>
-                            <p>Sendet Ihre Team-Liste an die Kursteams-API (App-Only, Template <code>educationClass</code>). Kein PowerShell nötig – Fortschritt erscheint im Log.</p>
+                            <p>Sendet Ihre Team-Liste an die Kursteams-API (App-Only, Template <code>educationClass</code>). Fortschrittsbalken, geschätzte Restzeit und scrollbares Protokoll – Seite während des Jobs geöffnet lassen.</p>
                             <div id="kursteamBackendConfigHint" class="alert alert-warning" style="display:none;margin:10px 0;font-size:0.9em;"></div>
+                            <div id="kursteamBackendDurationHint" class="alert alert-info" style="display:none;margin:10px 0;font-size:0.9em;"></div>
                             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
                                 <button type="button" class="btn btn-brand" id="kursteamBackendRun"><i class="bi bi-cloud-upload"></i>Kursteams online anlegen</button>
                                 <button type="button" class="btn btn-small" id="kursteamBackendHealth"><i class="bi bi-heart-pulse"></i>Backend prüfen</button>
                             </div>
-                            <div id="kursteamBackendProgress" style="font-size:0.9em;color:var(--text-muted,#666);margin-bottom:8px;"></div>
-                            <div id="kursteamBackendLog" style="max-height:220px;overflow:auto;padding:10px;background:var(--card);border:1px solid var(--input-border);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
-                            <p style="margin:10px 0 0;font-size:0.85em;color:var(--text-muted,#666);">Konfiguration: <code>ms365-config.js</code> → <code>MS365_KURSTEAMS_API</code> (URL, Function Key, tenantId). Teams-Bereitstellung kann einige Minuten dauern.</p>
+                            <div id="kursteamBackendProgressWrap" style="display:none;margin-bottom:10px;" aria-live="polite">
+                                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:0.85em;color:var(--text-muted,#666);margin-bottom:5px;flex-wrap:wrap;">
+                                    <span id="kursteamBackendProgressLabel">0 / 0</span>
+                                    <span id="kursteamBackendProgressEta"></span>
+                                </div>
+                                <div style="height:10px;background:var(--input-border,#e0e0e0);border-radius:999px;overflow:hidden;" role="presentation">
+                                    <div id="kursteamBackendProgressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="height:100%;width:0%;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);transition:width 0.35s ease;border-radius:999px;"></div>
+                                </div>
+                                <div id="kursteamBackendProgress" style="font-size:0.85em;color:var(--text-muted,#666);margin-top:6px;"></div>
+                            </div>
+                            <div id="kursteamBackendTenantHint" class="alert alert-info" style="display:none;margin-bottom:10px;font-size:0.9em;"></div>
+                            <div id="kursteamBackendLog" role="log" aria-label="Protokoll Kursteam-Job" title="Scrollbares Protokoll – bei vielen Teams nach unten scrollen" style="max-height:260px;overflow-y:auto;overflow-x:hidden;padding:10px;background:var(--card);border:1px solid var(--input-border);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+                            <p style="margin:10px 0 0;font-size:0.85em;color:var(--text-muted,#666);">Konfiguration: <code>ms365-config.js</code> → <code>MS365_KURSTEAMS_API</code> (URL und Function Key). Der Mandant wird aus Ihrer Microsoft-Anmeldung übernommen.</p>
                         </div>
                     </div>
                     <div class="kt-download-box" style="border-color:#11998e;">
@@ -1134,6 +1147,8 @@ Connect-MicrosoftTeams
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/tenant-settings-ui.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>

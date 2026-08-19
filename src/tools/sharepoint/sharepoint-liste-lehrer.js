@@ -73,7 +73,7 @@
 
         const teachers = loadTeachers();
         if (!teachers.length) {
-            throw new Error('Keine Lehrkräfte in den Schul-Grundeinstellungen – zuerst unter Stammdaten pflegen.');
+            throw new Error('Keine Lehrkräfte in den Stammdaten – zuerst dort pflegen.');
         }
 
         write('Lehrkräfte aus lokalem Speicher: ' + teachers.length);
@@ -158,7 +158,7 @@
     const runBtn = $('splBtnRun');
     if (runBtn) {
         runBtn.addEventListener('click', function () {
-            if (!window.confirm('Neue Liste auf der angegebenen Website anlegen und alle Lehrkräfte aus den Grundeinstellungen eintragen?')) return;
+            if (!window.confirm('Neue Liste auf der angegebenen Website anlegen und alle Lehrkräfte aus den Stammdaten eintragen?')) return;
             runCreate().catch(function (e) {
                 log('FEHLER: ' + (e && e.message ? e.message : String(e)));
                 toast('Fehler: ' + (e && e.message ? e.message : e));

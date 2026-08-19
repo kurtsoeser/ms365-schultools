@@ -1,0 +1,292 @@
+/* Einmaliger Willkommens-Dialog (Dashboard) */
+.ms365-onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 16px;
+    background: rgba(15, 18, 32, 0.52);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.ms365-onboarding-overlay.is-open {
+    display: flex;
+}
+
+.ms365-onboarding-card {
+    width: min(520px, 100%);
+    border-radius: 18px;
+    background: var(--card, #fff);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+}
+
+.ms365-onboarding-header {
+    padding: 22px 24px 16px;
+    background: linear-gradient(135deg, var(--brand1, #5e72e4) 0%, var(--brand2, #825ee4) 100%);
+    color: #fff;
+}
+
+.ms365-onboarding-header h2 {
+    margin: 0 0 8px;
+    font-size: 1.25em;
+    font-weight: 800;
+}
+
+.ms365-onboarding-header p {
+    margin: 0;
+    opacity: 0.95;
+    line-height: 1.45;
+    font-size: 0.95em;
+}
+
+.ms365-onboarding-steps {
+    display: flex;
+    gap: 8px;
+    padding: 14px 24px 0;
+}
+
+.ms365-onboarding-step-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(94, 114, 228, 0.18);
+    transition: background 180ms ease;
+}
+
+.ms365-onboarding-step-dot.is-active,
+.ms365-onboarding-step-dot.is-done {
+    background: #5e72e4;
+}
+
+.ms365-onboarding-body {
+    padding: 20px 24px 8px;
+}
+
+.ms365-onboarding-panel[hidden] {
+    display: none !important;
+}
+
+.ms365-onboarding-panel h3 {
+    margin: 0 0 10px;
+    font-size: 1.05em;
+    color: #32325d;
+}
+
+.ms365-onboarding-panel p {
+    margin: 0;
+    color: #495057;
+    line-height: 1.55;
+}
+
+.ms365-onboarding-panel ul {
+    margin: 10px 0 0;
+    padding-left: 20px;
+    color: #495057;
+    line-height: 1.5;
+}
+
+.ms365-onboarding-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 24px 20px;
+}
+
+.ms365-onboarding-footer .btn {
+    margin: 0;
+}
+
+.ms365-onboarding-skip {
+    border: none;
+    background: transparent;
+    color: var(--muted, #6c757d);
+    font: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+    padding: 8px 4px;
+    text-decoration: underline;
+}
+
+.ms365-onboarding-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+/* Leere Zustände (Banner) */
+.ms365-empty-state-banner {
+    margin: 0 0 16px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px dashed rgba(94, 114, 228, 0.35);
+    background: linear-gradient(135deg, rgba(94, 114, 228, 0.06) 0%, rgba(130, 94, 228, 0.04) 100%);
+}
+
+.ms365-empty-state-banner p {
+    margin: 0 0 12px;
+    color: #495057;
+    line-height: 1.55;
+}
+
+.ms365-empty-state-banner__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.ms365-empty-state-banner__actions .btn {
+    margin: 0;
+}
+
+.ms365-empty-state-banner__actions .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(94, 114, 228, 0.28);
+    color: #3d4db8;
+}
+
+/* Kompakter „Ihr Stand“ auf dem Dashboard */
+.dash-stand {
+    margin: 0 0 18px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    border: 1px solid rgba(94, 114, 228, 0.14);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(247, 248, 252, 0.95) 100%);
+    box-shadow: 0 8px 22px rgba(30, 36, 64, 0.05);
+}
+
+.dash-stand__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px 20px;
+}
+
+.dash-stand__title {
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.02em;
+    font-weight: 750;
+    color: #1e2440;
+}
+
+.dash-stand__meta {
+    margin: 0;
+    color: #5c6578;
+    font-size: 0.94em;
+    line-height: 1.5;
+}
+
+.dash-stand__meta strong {
+    color: #1e2440;
+}
+
+.dash-stand__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dash-stand__pill {
+    display: inline-flex;
+    gap: 6px;
+    align-items: baseline;
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(94, 114, 228, 0.12);
+    font-size: 0.88em;
+    font-weight: 600;
+    color: #5c6578;
+}
+
+.dash-stand__pill strong {
+    font-weight: 800;
+    color: #1e2440;
+}
+
+.dash-stand__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.dash-stand__actions .btn {
+    margin: 0;
+    padding: 10px 14px;
+    font-size: 0.92em;
+}
+
+.dash-stand__hygiene {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(30, 36, 64, 0.08);
+}
+
+.dash-stand__hygiene-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    margin-bottom: 8px;
+}
+
+.dash-stand__hygiene-head h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95em;
+    font-weight: 700;
+    color: #32325d;
+}
+
+.dash-stand__hygiene .dash-hygiene__summary {
+    margin: 0 0 6px;
+}
+
+.dash-stand__hygiene .dash-hygiene-teaser__meta {
+    margin: 0;
+    font-size: 0.86em;
+}
+
+.dash-stand__empty-note {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(94, 114, 228, 0.06);
+    color: #5c6578;
+    font-size: 0.9em;
+    line-height: 1.45;
+}
+
+.dash-stand[hidden],
+.dash-stand__hygiene[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 640px) {
+    .dash-stand__actions {
+        width: 100%;
+    }
+    .dash-stand__actions .btn {
+        flex: 1 1 auto;
+        text-align: center;
+        justify-content: center;
+    }
+}
