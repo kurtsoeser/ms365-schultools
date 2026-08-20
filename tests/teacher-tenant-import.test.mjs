@@ -79,7 +79,7 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         const html = read('tools/personen-verwaltung.html');
         expect(html).toContain('id="pvGroupSearch"');
         expect(html).toContain('id="pvGroupAddBtn"');
-        expect(html).toContain('Zur Gruppe hinzufügen');
+        expect(html).toContain('Zu gewählten Gruppen hinzufügen');
         const js = read('src/tools/personen-verwaltung/personen-verwaltung.js');
         expect(js).toContain('Group.ReadWrite.All');
         expect(js).toContain('/members/$ref');
