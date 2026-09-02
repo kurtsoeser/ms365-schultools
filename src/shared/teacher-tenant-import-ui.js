@@ -348,6 +348,11 @@ function bindLicenseTenantImport(cfg) {
         }
     }
 
+    function closePanel() {
+        const panel = el(cfg.panelId);
+        if (panel) panel.hidden = true;
+    }
+
     function applySelected() {
         const selected = state.preview.filter(function (r) {
             return r.selected;
@@ -367,6 +372,7 @@ function bindLicenseTenantImport(cfg) {
                 : 'Keine Änderungen (Auswahl war bereits in der Liste).'
         );
         rebuildPreview();
+        closePanel();
     }
 
     const btn = el(cfg.btnId);
@@ -378,6 +384,12 @@ function bindLicenseTenantImport(cfg) {
         applyBtn.disabled = true;
         applyBtn.addEventListener('click', applySelected);
     }
+    function bindClose(id) {
+        const closeBtn = id ? el(id) : null;
+        if (closeBtn) closeBtn.addEventListener('click', closePanel);
+    }
+    bindClose(cfg.closeBtnId);
+    bindClose(cfg.closeFooterBtnId);
     const selNew = el(cfg.selectNewBtnId);
     if (selNew) {
         selNew.addEventListener('click', function () {
@@ -488,6 +500,8 @@ function autoBind() {
             skuFiltersId: 'swTeacherTenantImportSkuFilters',
             tbodyId: 'swTeacherTenantImportBody',
             applyBtnId: 'swBtnTeacherTenantApply',
+            closeBtnId: 'swBtnTeacherTenantClose',
+            closeFooterBtnId: 'swBtnTeacherTenantCloseFooter',
             selectNewBtnId: 'swBtnTeacherTenantSelectNew',
             selectAllBtnId: 'swBtnTeacherTenantSelectAll',
             selectNoneBtnId: 'swBtnTeacherTenantSelectNone',
@@ -513,6 +527,8 @@ function autoBind() {
             skuFiltersId: 'tenantTeacherTenantImportSkuFilters',
             tbodyId: 'tenantTeacherTenantImportBody',
             applyBtnId: 'tenantBtnTeacherTenantApply',
+            closeBtnId: 'tenantBtnTeacherTenantClose',
+            closeFooterBtnId: 'tenantBtnTeacherTenantCloseFooter',
             selectNewBtnId: 'tenantBtnTeacherTenantSelectNew',
             selectAllBtnId: 'tenantBtnTeacherTenantSelectAll',
             selectNoneBtnId: 'tenantBtnTeacherTenantSelectNone',
@@ -537,6 +553,8 @@ function autoBind() {
             skuFiltersId: 'swStudentTenantImportSkuFilters',
             tbodyId: 'swStudentTenantImportBody',
             applyBtnId: 'swBtnStudentTenantApply',
+            closeBtnId: 'swBtnStudentTenantClose',
+            closeFooterBtnId: 'swBtnStudentTenantCloseFooter',
             selectNewBtnId: 'swBtnStudentTenantSelectNew',
             selectAllBtnId: 'swBtnStudentTenantSelectAll',
             selectNoneBtnId: 'swBtnStudentTenantSelectNone',
@@ -562,6 +580,8 @@ function autoBind() {
             skuFiltersId: 'tenantStudentTenantImportSkuFilters',
             tbodyId: 'tenantStudentTenantImportBody',
             applyBtnId: 'tenantBtnStudentTenantApply',
+            closeBtnId: 'tenantBtnStudentTenantClose',
+            closeFooterBtnId: 'tenantBtnStudentTenantCloseFooter',
             selectNewBtnId: 'tenantBtnStudentTenantSelectNew',
             selectAllBtnId: 'tenantBtnStudentTenantSelectAll',
             selectNoneBtnId: 'tenantBtnStudentTenantSelectNone',

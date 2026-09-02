@@ -181,8 +181,67 @@
         return out.map((x) => [x.code, x.name || '', x.email || ''].filter(Boolean).join(';')).join('\n');
     }
 
+    function teachersRowsToAoa(rows) {
+        const aoa = [['Kürzel', 'Name', 'E-Mail']];
+        (rows || []).forEach((r) => {
+            aoa.push([normCode(r.code || ''), normStr(r.name || ''), normStr(r.email || '').toLowerCase()]);
+        });
+        return aoa;
+    }
+
+    function csvEscapeField(v) {
+        const s = String(v ?? '');
+        if (/[;"\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+    }
+
+    function downloadTeachersCsv(filename, rows) {
+        try {
+            const aoa = teachersRowsToAoa(rows);
+            const body = aoa.map((line) => line.map(csvEscapeField).join(';')).join('\r\n');
+            const blob = new Blob(['\ufeff' + body], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'Lehrerliste.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 250);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function compareTeachersDe(a, b) {
+        return String(a ?? '').localeCompare(String(b ?? ''), 'de', { sensitivity: 'base' });
+    }
+
+    /** @param {'code'|'name'|'email'} key @param {1|-1} dir */
+    function sortTeacherRows(rows, key, dir) {
+        const d = dir === -1 ? -1 : 1;
+        const k = key === 'email' || key === 'name' ? key : 'code';
+        return (rows || []).slice().sort((a, b) => {
+            let av = a && a[k];
+            let bv = b && b[k];
+            if (k === 'code') {
+                av = normCode(av);
+                bv = normCode(bv);
+            } else if (k === 'email') {
+                av = normStr(av).toLowerCase();
+                bv = normStr(bv).toLowerCase();
+            } else {
+                av = normStr(av);
+                bv = normStr(bv);
+            }
+            return compareTeachersDe(av, bv) * d;
+        });
+    }
+
     window.ms365TeacherListImport = {
         isXlsxReady: ensureXlsxReady,
+        sortRows: sortTeacherRows,
         downloadTemplate() {
             return downloadXlsxTemplate(
                 'Lehrerliste-Vorlage.xlsx',
@@ -195,22 +254,15 @@
             );
         },
         downloadCsvTemplate() {
-            try {
-                const BOM = '\ufeff';
-                const body = ['Kürzel;Name;E-Mail', 'MU;Max Mustermann;max.mustermann@schule.de'].join('\r\n');
-                const blob = new Blob([BOM + body], { type: 'text/csv;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'Lehrerliste-Vorlage.csv';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 250);
-                return true;
-            } catch {
-                return false;
-            }
+            return downloadTeachersCsv('Lehrerliste-Vorlage.csv', [
+                { code: 'MU', name: 'Max Mustermann', email: 'max.mustermann@schule.de' }
+            ]);
+        },
+        exportCsv(rows, filename) {
+            return downloadTeachersCsv(filename || 'Lehrerliste.csv', rows);
+        },
+        exportXlsx(rows, filename) {
+            return downloadXlsxTemplate(filename || 'Lehrerliste.xlsx', teachersRowsToAoa(rows), 'Lehrer');
         },
         importFile(file, onLines, onError) {
             importSpreadsheetFileToJsonRows(
@@ -256,6 +308,62 @@
             out.push(parts.join(';'));
         });
         return out.join('\n');
+    }
+
+    function studentsRowsToAoa(rows) {
+        const aoa = [['Klasse', 'Name', 'E-Mail', 'Eltern1', 'Eltern1Mail', 'Eltern2', 'Eltern2Mail']];
+        (rows || []).forEach((r) => {
+            const pairs = Array.isArray(r.parentPairs) ? r.parentPairs : [];
+            const p1 = pairs[0] || {};
+            const p2 = pairs[1] || {};
+            aoa.push([
+                normStr(r.klasse || ''),
+                normStr(r.name || ''),
+                normStr(r.email || '').toLowerCase(),
+                normStr(p1.name || ''),
+                normStr(p1.email || '').toLowerCase(),
+                normStr(p2.name || ''),
+                normStr(p2.email || '').toLowerCase()
+            ]);
+        });
+        return aoa;
+    }
+
+    function downloadStudentsCsv(filename, rows) {
+        try {
+            const aoa = studentsRowsToAoa(rows);
+            const body = aoa.map((line) => line.map(csvEscapeField).join(';')).join('\r\n');
+            const blob = new Blob(['\ufeff' + body], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'Schuelerliste.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 250);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /** @param {'klasse'|'name'|'email'} key @param {1|-1} dir */
+    function sortStudentRows(rows, key, dir) {
+        const d = dir === -1 ? -1 : 1;
+        const k = key === 'email' || key === 'name' ? key : 'klasse';
+        return (rows || []).slice().sort((a, b) => {
+            let av = a && a[k];
+            let bv = b && b[k];
+            if (k === 'email') {
+                av = normStr(av).toLowerCase();
+                bv = normStr(bv).toLowerCase();
+            } else {
+                av = normStr(av);
+                bv = normStr(bv);
+            }
+            return compareTeachersDe(av, bv) * d;
+        });
     }
 
     function adminJsonRowsToSemicolonLines(jsonRows) {
@@ -364,6 +472,7 @@
 
     window.ms365StudentListImport = {
         isXlsxReady: ensureXlsxReady,
+        sortRows: sortStudentRows,
         downloadTemplate() {
             if (window.ms365SchoolSisImport && typeof window.ms365SchoolSisImport.downloadXlsxTemplates === 'function') {
                 if (window.ms365SchoolSisImport.downloadXlsxTemplates()) return true;
@@ -385,25 +494,20 @@
                     window.ms365SchoolSisImport.ms365TemplateAoa()
                 );
             }
-            try {
-                const BOM = '\ufeff';
-                const body = [
-                    'Klasse;Name;E-Mail;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail',
-                    '1AK;Lisa Beispiel;lisa.beispiel@schule.de;Maria Beispiel;maria@mail.com;;'
-                ].join('\r\n');
-                const blob = new Blob([BOM + body], { type: 'text/csv;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'Schuelerliste-Vorlage.csv';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 250);
-                return true;
-            } catch {
-                return false;
-            }
+            return downloadStudentsCsv('Schuelerliste-Vorlage.csv', [
+                {
+                    klasse: '1AK',
+                    name: 'Lisa Beispiel',
+                    email: 'lisa.beispiel@schule.de',
+                    parentPairs: [{ name: 'Maria Beispiel', email: 'maria@mail.com' }]
+                }
+            ]);
+        },
+        exportCsv(rows, filename) {
+            return downloadStudentsCsv(filename || 'Schuelerliste.csv', rows);
+        },
+        exportXlsx(rows, filename) {
+            return downloadXlsxTemplate(filename || 'Schuelerliste.xlsx', studentsRowsToAoa(rows), 'Schueler');
         },
         importFile(file, onLines, onError, sourceHint) {
             if (!file) return;
@@ -582,8 +686,13 @@
         const btnAddArgeRow = document.getElementById('tenantArgesAddRow');
         const taTeachers = document.getElementById('tenantTeachersLines');
         const teachersTbody = document.getElementById('tenantTeachersTableBody');
+        const teachersTable = teachersTbody ? teachersTbody.closest('table') : null;
         const btnAddTeacherRow = document.getElementById('tenantTeachersAddRow');
         const btnVerifyTeachersGraph = document.getElementById('tenantBtnVerifyTeachersGraph');
+        const btnTeachersExportCsv = document.getElementById('tenantTeachersExportCsv');
+        const btnTeachersExportXlsx = document.getElementById('tenantTeachersExportXlsx');
+        /** @type {{ key: 'code'|'name'|'email'|null, dir: 1|-1 }} */
+        const teachersSortState = { key: null, dir: 1 };
         const taAdminBundle = document.getElementById('tenantAdminBundleLines');
         const taAdmin = document.getElementById('tenantAdminLines');
         const adminTbody = document.getElementById('tenantAdminTableBody');
@@ -603,8 +712,13 @@
         const btnCreateSgaGroup = document.getElementById('tenantBtnCreateSgaGroup');
         const taStudents = document.getElementById('tenantStudentsLines');
         const studentsTbody = document.getElementById('tenantStudentsTableBody');
+        const studentsTable = studentsTbody ? studentsTbody.closest('table') : null;
         const btnAddStudentRow = document.getElementById('tenantStudentsAddRow');
         const btnVerifyStudentsGraph = document.getElementById('tenantBtnVerifyStudentsGraph');
+        const btnStudentsExportCsv = document.getElementById('tenantStudentsExportCsv');
+        const btnStudentsExportXlsx = document.getElementById('tenantStudentsExportXlsx');
+        /** @type {{ key: 'klasse'|'name'|'email'|null, dir: 1|-1 }} */
+        const studentsSortState = { key: null, dir: 1 };
         const taStudentCouncil = document.getElementById('tenantStudentCouncilLines');
         const studentCouncilTbody = document.getElementById('tenantStudentCouncilTableBody');
         const btnAddStudentCouncilRow = document.getElementById('tenantStudentCouncilAddRow');
@@ -1082,69 +1196,17 @@
 
     async function runVerifyVerwaltungGraphBulk() {
         if (!btnVerifyVerwaltungGraph) return;
-        const rows = groupsToDisplayRows(getAdministrationGroups());
-        const api = graphApi();
-        const btn = btnVerifyVerwaltungGraph;
-        if (!rows || !rows.length) {
-            setSummary('Keine Verwaltungseinträge vorhanden.', 'warn');
-            return;
-        }
-
-        const iso = new Date().toISOString();
-        const updates = {};
-        let found = 0;
-        let missed = 0;
-        let skipped = 0;
-        const seen = new Set();
-
-        try {
-            btn.disabled = true;
-            btn.setAttribute('aria-busy', 'true');
-            setSummary('Microsoft-365-Abgleich (Bulk) läuft …', 'warn');
-
-            const token = await api.getGraphToken();
-
-            for (let i = 0; i < rows.length; i++) {
-                const em = normStr(rows[i] && rows[i].email).toLowerCase();
-                if (!em || em.indexOf('@') === -1) {
-                    skipped++;
-                    continue;
-                }
-                if (seen.has(em)) continue;
-                seen.add(em);
-
-                try {
-                    const u = await api.resolveUserByEmail(token, em);
-                    if (u && u.id) {
-                        updates[em] = directoryMatchUserPayload(u, iso);
-                        found++;
-                    } else {
-                        updates[em] = { notFound: true, checkedAt: iso };
-                        missed++;
-                    }
-                } catch {
-                    updates[em] = { notFound: true, checkedAt: iso };
-                    missed++;
-                }
-
-                if (typeof api.sleep === 'function' && i < rows.length - 1) {
-                    await api.sleep(450);
-                }
+        await runVerifyGraphDirectoryRows(
+            groupsToDisplayRows(getAdministrationGroups()),
+            function (r) {
+                return r && r.email;
+            },
+            'Verwaltung',
+            btnVerifyVerwaltungGraph,
+            function () {
+                renderAdminUnifiedTableFromBundle();
             }
-
-            if (Object.keys(updates).length && window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
-                window.ms365AppDataV2.patchSetup({ directoryMatchByEmail: updates });
-            }
-
-            renderAdminUnifiedTableFromBundle();
-            const kind = missed ? 'warn' : 'ok';
-            setSummary('Verwaltung: ' + found + ' gefunden, ' + missed + ' nicht gefunden, ' + skipped + ' ohne gültige E‑Mail', kind);
-        } catch (e) {
-            setSummary('Microsoft-365-Abgleich: ' + (e && e.message ? e.message : String(e)), 'warn');
-        } finally {
-            btn.disabled = false;
-            btn.removeAttribute('aria-busy');
-        }
+        );
     }
 
     function buildDirectoryMatchCell(tr, emailRaw) {
@@ -1188,45 +1250,92 @@
         let missed = 0;
         let skipped = 0;
         const seen = new Set();
+        const unique = [];
         const iso = new Date().toISOString();
+        (rows || []).forEach(function (row) {
+            const em = normStr(getEmail(row) || '').toLowerCase();
+            if (!em || em.indexOf('@') === -1) {
+                skipped++;
+                return;
+            }
+            if (seen.has(em)) return;
+            seen.add(em);
+            unique.push(em);
+        });
         try {
             if (btn) {
                 btn.disabled = true;
                 btn.setAttribute('aria-busy', 'true');
             }
-            setSummary(label + ': Microsoft-365-Abgleich läuft …', 'warn');
-            const token = await graphApi().getGraphToken();
-            for (let i = 0; i < rows.length; i++) {
-                const em = normStr(getEmail(rows[i]) || '').toLowerCase();
-                if (!em || em.indexOf('@') === -1) {
-                    skipped++;
-                    continue;
-                }
-                if (seen.has(em)) continue;
-                seen.add(em);
-                try {
-                    const u = await graphApi().resolveUserByEmail(token, em);
-                    if (u && u.id) {
-                        updates[em] = directoryMatchUserPayload(u, iso);
-                        found++;
-                    } else {
-                        updates[em] = { notFound: true, checkedAt: iso };
-                        missed++;
+            if (!unique.length) {
+                setSummary(label + ': keine gültigen E‑Mails zum Abgleich.', 'warn');
+                return;
+            }
+            setSummary(
+                label +
+                    ': Microsoft-365-Abgleich läuft … (' +
+                    unique.length +
+                    ' Adresse' +
+                    (unique.length === 1 ? '' : 'n') +
+                    ')',
+                'warn'
+            );
+            const api = graphApi();
+            const token = await api.getGraphToken();
+            let byEmail = null;
+            if (typeof api.resolveUsersByEmailsBulk === 'function') {
+                const bulk = await api.resolveUsersByEmailsBulk(token, unique, function (p) {
+                    if (!p) return;
+                    if (p.phase === 'directory') {
+                        setSummary(
+                            label +
+                                ': Verzeichnis laden … ' +
+                                (p.loaded || 0) +
+                                ' Benutzer · Abgleich ' +
+                                unique.length +
+                                ' E‑Mails',
+                            'warn'
+                        );
+                    } else if (p.phase === 'lookup') {
+                        setSummary(
+                            label + ': Abgleich ' + ((p.done || 0) + 1) + '/' + (p.total || unique.length) + ' …',
+                            'warn'
+                        );
                     }
-                } catch {
+                });
+                byEmail = bulk && bulk.byEmail ? bulk.byEmail : new Map();
+            } else {
+                byEmail = new Map();
+                for (let i = 0; i < unique.length; i++) {
+                    const em = unique[i];
+                    setSummary(label + ': Abgleich ' + (i + 1) + '/' + unique.length + ' …', 'warn');
+                    try {
+                        const u = await api.resolveUserByEmail(token, em);
+                        byEmail.set(em, u && u.id ? u : null);
+                    } catch {
+                        byEmail.set(em, null);
+                    }
+                }
+            }
+            unique.forEach(function (em) {
+                const u = byEmail.get(em);
+                if (u && u.id) {
+                    updates[em] = directoryMatchUserPayload(u, iso);
+                    found++;
+                } else {
                     updates[em] = { notFound: true, checkedAt: iso };
                     missed++;
                 }
-                if (typeof graphApi().sleep === 'function' && i < rows.length - 1) {
-                    await graphApi().sleep(450);
-                }
-            }
+            });
             if (Object.keys(updates).length && window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
                 window.ms365AppDataV2.patchSetup({ directoryMatchByEmail: updates });
             }
             if (typeof onDone === 'function') onDone();
             renderStatusOverview();
-            setSummary(label + ': ' + found + ' gefunden, ' + missed + ' nicht gefunden, ' + skipped + ' ohne gültige E‑Mail', missed ? 'warn' : 'ok');
+            setSummary(
+                label + ': ' + found + ' gefunden, ' + missed + ' nicht gefunden, ' + skipped + ' ohne gültige E‑Mail',
+                missed ? 'warn' : 'ok'
+            );
         } catch (e) {
             setSummary('Microsoft-365-Abgleich: ' + (e && e.message ? e.message : String(e)), 'warn');
         } finally {
@@ -1930,6 +2039,47 @@
             taTeachers.value = teachersToLines(rows);
         }
 
+        function updateTeachersSortIndicators() {
+            if (!teachersTable) return;
+            teachersTable.querySelectorAll('th.is-sortable').forEach((th) => {
+                const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+                th.dataset.label = label;
+                th.textContent = label;
+                th.setAttribute('aria-sort', 'none');
+                if (teachersSortState.key && th.dataset.sortKey === teachersSortState.key) {
+                    const ind = document.createElement('span');
+                    ind.className = 'teachers-sort-ind';
+                    ind.setAttribute('aria-hidden', 'true');
+                    ind.textContent = teachersSortState.dir === -1 ? '▼' : '▲';
+                    th.appendChild(ind);
+                    th.setAttribute('aria-sort', teachersSortState.dir === -1 ? 'descending' : 'ascending');
+                }
+            });
+        }
+
+        function applyTeachersSort(key) {
+            if (!key || (key !== 'code' && key !== 'name' && key !== 'email')) return;
+            if (teachersSortState.key === key) {
+                teachersSortState.dir = teachersSortState.dir === 1 ? -1 : 1;
+            } else {
+                teachersSortState.key = key;
+                teachersSortState.dir = 1;
+            }
+            const api = window.ms365TeacherListImport;
+            const all = getTeachersFromTextarea();
+            const sorted =
+                api && typeof api.sortRows === 'function'
+                    ? api.sortRows(all, teachersSortState.key, teachersSortState.dir)
+                    : all.slice().sort((a, b) => {
+                          const av = String((a && a[key]) || '');
+                          const bv = String((b && b[key]) || '');
+                          return av.localeCompare(bv, 'de', { sensitivity: 'base' }) * teachersSortState.dir;
+                      });
+            setTeachersTextareaFromRows(sorted);
+            renderTeachersTableFromTextarea();
+            scheduleAutoSave();
+        }
+
         function startCellEdit(td, initialValue, onCommit) {
             const prevText = String(initialValue ?? '');
             const input = document.createElement('input');
@@ -1963,6 +2113,7 @@
             if (!teachersTbody) return;
             const rows = getTeachersFromTextarea();
             teachersTbody.replaceChildren();
+            updateTeachersSortIndicators();
 
             if (!rows.length) {
                 const tr = document.createElement('tr');
@@ -3146,20 +3297,90 @@
             taStudents.value = studentsToLines(rows);
         }
 
+        function updateStudentsSortIndicators() {
+            if (!studentsTable) return;
+            studentsTable.querySelectorAll('th.is-sortable').forEach((th) => {
+                const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+                th.dataset.label = label;
+                th.textContent = label;
+                th.setAttribute('aria-sort', 'none');
+                if (studentsSortState.key && th.dataset.sortKey === studentsSortState.key) {
+                    const ind = document.createElement('span');
+                    ind.className = 'teachers-sort-ind';
+                    ind.setAttribute('aria-hidden', 'true');
+                    ind.textContent = studentsSortState.dir === -1 ? '▼' : '▲';
+                    th.appendChild(ind);
+                    th.setAttribute('aria-sort', studentsSortState.dir === -1 ? 'descending' : 'ascending');
+                }
+            });
+        }
+
+        function applyStudentsSort(key) {
+            if (!key || (key !== 'klasse' && key !== 'name' && key !== 'email')) return;
+            if (studentsSortState.key === key) {
+                studentsSortState.dir = studentsSortState.dir === 1 ? -1 : 1;
+            } else {
+                studentsSortState.key = key;
+                studentsSortState.dir = 1;
+            }
+            const api = window.ms365StudentListImport;
+            const all = getStudentsFromTextarea();
+            const sorted =
+                api && typeof api.sortRows === 'function'
+                    ? api.sortRows(all, studentsSortState.key, studentsSortState.dir)
+                    : all.slice().sort((a, b) => {
+                          const av = String((a && a[key]) || '');
+                          const bv = String((b && b[key]) || '');
+                          return av.localeCompare(bv, 'de', { sensitivity: 'base' }) * studentsSortState.dir;
+                      });
+            setStudentsTextareaFromRows(sorted);
+            renderStudentsTableFromTextarea();
+            scheduleAutoSave();
+        }
+
         function renderStudentsTableFromTextarea() {
             if (!studentsTbody) return;
             const rows = getStudentsFromTextarea();
             studentsTbody.replaceChildren();
+            updateStudentsSortIndicators();
 
             if (!rows.length) {
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
-                td.colSpan = 5;
+                td.colSpan = 7;
                 td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
                 tr.appendChild(td);
                 studentsTbody.appendChild(tr);
                 return;
+            }
+
+            function buildParentCell(pair, extraCount) {
+                const td = document.createElement('td');
+                td.className = 'students-parent-cell';
+                const p = pair || {};
+                const pName = normStr(p.name || '');
+                const pMail = normStr(p.email || '').toLowerCase();
+                if (!pName && !pMail) {
+                    td.textContent = '–';
+                    td.style.color = 'var(--muted)';
+                    td.title = 'Kein Erziehungsberechtigter';
+                    return td;
+                }
+                td.textContent = pName || pMail;
+                if (extraCount > 0) {
+                    const more = document.createElement('span');
+                    more.className = 'students-parent-more';
+                    more.textContent = ' +' + extraCount;
+                    td.appendChild(more);
+                }
+                const tipParts = [];
+                if (pName && pMail) tipParts.push(pName);
+                if (pMail) tipParts.push(pMail);
+                else if (pName) tipParts.push(pName);
+                if (extraCount > 0) tipParts.push('(+ ' + extraCount + ' weitere)');
+                td.title = tipParts.join(' · ') || 'Erziehungsberechtigte:r';
+                return td;
             }
 
             rows.forEach((row, idx) => {
@@ -3206,6 +3427,10 @@
                         renderStudentsTableFromTextarea();
                     });
                 });
+
+                const pairs = Array.isArray(row.parentPairs) ? row.parentPairs : [];
+                const tdParent1 = buildParentCell(pairs[0], 0);
+                const tdParent2 = buildParentCell(pairs[1], Math.max(0, pairs.length - 2));
 
                 const tdMs = buildDirectoryMatchCell(tr, row.email);
 
@@ -3270,7 +3495,7 @@
                 });
                 tdAction.appendChild(btnDel);
 
-                tr.append(tdClass, tdName, tdEmail, tdMs, tdAction);
+                tr.append(tdClass, tdName, tdEmail, tdParent1, tdParent2, tdMs, tdAction);
                 studentsTbody.appendChild(tr);
             });
         }
@@ -3617,6 +3842,8 @@
                 out.push({ code: c, name: normStr(name), email: normStr(email).toLowerCase() });
             });
             if (taTeachers) taTeachers.value = teachersToLines(out);
+            teachersSortState.key = null;
+            teachersSortState.dir = 1;
             renderTeachersTableFromTextarea();
             setSummary(`Lehrkräfte importiert: ${out.length} (schulweit)`, 'ok');
         }
@@ -3649,6 +3876,8 @@
                 out.push({ klasse: normStr(klasse), name: normStr(name), email: normStr(email).toLowerCase() });
             });
             if (taStudents) taStudents.value = studentsToLines(out);
+            studentsSortState.key = null;
+            studentsSortState.dir = 1;
             renderStudentsTableFromTextarea();
             const ySt = getDisplayedSchoolYearLabel() || currentSchoolYearLabel();
             setSummary(`Schüler importiert: ${out.length} (Schuljahr ${ySt})`, 'ok');
@@ -4242,8 +4471,24 @@
         }
 
         if (taTeachers) {
-            taTeachers.addEventListener('input', () => renderTeachersTableFromTextarea());
+            taTeachers.addEventListener('input', () => {
+                teachersSortState.key = null;
+                teachersSortState.dir = 1;
+                renderTeachersTableFromTextarea();
+            });
             taTeachers.addEventListener('input', () => scheduleAutoSave());
+        }
+        if (teachersTable && !teachersTable.dataset.teachersSortBound) {
+            teachersTable.dataset.teachersSortBound = '1';
+            teachersTable.querySelectorAll('th.is-sortable').forEach((th) => {
+                th.addEventListener('click', () => applyTeachersSort(th.dataset.sortKey));
+                th.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applyTeachersSort(th.dataset.sortKey);
+                    }
+                });
+            });
         }
         if (btnAddTeacherRow) {
             btnAddTeacherRow.addEventListener('click', () => {
@@ -4252,6 +4497,40 @@
                 setTeachersTextareaFromRows(all);
                 renderTeachersTableFromTextarea();
                 scheduleAutoSave();
+            });
+        }
+        if (btnTeachersExportCsv) {
+            btnTeachersExportCsv.addEventListener('click', () => {
+                const api = window.ms365TeacherListImport;
+                const rows = getTeachersFromTextarea();
+                if (!rows.length) {
+                    setSummary('Lehrerliste ist leer – nichts zu exportieren.', 'warn');
+                    return;
+                }
+                if (!api || typeof api.exportCsv !== 'function' || !api.exportCsv(rows)) {
+                    setSummary('CSV-Export fehlgeschlagen.', 'warn');
+                    return;
+                }
+                setSummary('Lehrerliste als CSV exportiert (' + rows.length + ').', 'ok');
+            });
+        }
+        if (btnTeachersExportXlsx) {
+            btnTeachersExportXlsx.addEventListener('click', () => {
+                const api = window.ms365TeacherListImport;
+                const rows = getTeachersFromTextarea();
+                if (!rows.length) {
+                    setSummary('Lehrerliste ist leer – nichts zu exportieren.', 'warn');
+                    return;
+                }
+                if (!api || (typeof api.isXlsxReady === 'function' && !api.isXlsxReady())) {
+                    setSummary('Excel-Bibliothek nicht geladen – Seite neu laden.', 'warn');
+                    return;
+                }
+                if (!api || typeof api.exportXlsx !== 'function' || !api.exportXlsx(rows)) {
+                    setSummary('XLSX-Export fehlgeschlagen.', 'warn');
+                    return;
+                }
+                setSummary('Lehrerliste als XLSX exportiert (' + rows.length + ').', 'ok');
             });
         }
         if (btnVerifyTeachersGraph && !btnVerifyTeachersGraph.dataset.tenantVerifyTeachersBound) {
@@ -4369,8 +4648,24 @@
         }
 
         if (taStudents) {
-            taStudents.addEventListener('input', () => renderStudentsTableFromTextarea());
+            taStudents.addEventListener('input', () => {
+                studentsSortState.key = null;
+                studentsSortState.dir = 1;
+                renderStudentsTableFromTextarea();
+            });
             taStudents.addEventListener('input', () => scheduleAutoSave());
+        }
+        if (studentsTable && !studentsTable.dataset.studentsSortBound) {
+            studentsTable.dataset.studentsSortBound = '1';
+            studentsTable.querySelectorAll('th.is-sortable').forEach((th) => {
+                th.addEventListener('click', () => applyStudentsSort(th.dataset.sortKey));
+                th.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applyStudentsSort(th.dataset.sortKey);
+                    }
+                });
+            });
         }
         if (btnAddStudentRow) {
             btnAddStudentRow.addEventListener('click', () => {
@@ -4379,6 +4674,40 @@
                 setStudentsTextareaFromRows(all);
                 renderStudentsTableFromTextarea();
                 scheduleAutoSave();
+            });
+        }
+        if (btnStudentsExportCsv) {
+            btnStudentsExportCsv.addEventListener('click', () => {
+                const api = window.ms365StudentListImport;
+                const rows = getStudentsFromTextarea();
+                if (!rows.length) {
+                    setSummary('Schülerliste ist leer – nichts zu exportieren.', 'warn');
+                    return;
+                }
+                if (!api || typeof api.exportCsv !== 'function' || !api.exportCsv(rows)) {
+                    setSummary('CSV-Export fehlgeschlagen.', 'warn');
+                    return;
+                }
+                setSummary('Schülerliste als CSV exportiert (' + rows.length + ').', 'ok');
+            });
+        }
+        if (btnStudentsExportXlsx) {
+            btnStudentsExportXlsx.addEventListener('click', () => {
+                const api = window.ms365StudentListImport;
+                const rows = getStudentsFromTextarea();
+                if (!rows.length) {
+                    setSummary('Schülerliste ist leer – nichts zu exportieren.', 'warn');
+                    return;
+                }
+                if (!api || (typeof api.isXlsxReady === 'function' && !api.isXlsxReady())) {
+                    setSummary('Excel-Bibliothek nicht geladen – Seite neu laden.', 'warn');
+                    return;
+                }
+                if (!api || typeof api.exportXlsx !== 'function' || !api.exportXlsx(rows)) {
+                    setSummary('XLSX-Export fehlgeschlagen.', 'warn');
+                    return;
+                }
+                setSummary('Schülerliste als XLSX exportiert (' + rows.length + ').', 'ok');
             });
         }
         if (btnVerifyStudentsGraph && !btnVerifyStudentsGraph.dataset.tenantVerifyStudentsBound) {

@@ -539,22 +539,6 @@
             return -1;
         }
 
-        const parentOwnerIncoming = new Map();
-        incoming.forEach(function (rec) {
-            parentEmailsOf(rec).forEach(function (em) {
-                const owner = studentKey(rec);
-                if (parentOwnerIncoming.has(em) && parentOwnerIncoming.get(em) !== owner) {
-                    conflicts.push({
-                        type: 'parent-dup',
-                        email: em,
-                        summary: 'Elternmail ' + em + ' ist in der Datei mehreren Schüler:innen zugeordnet.'
-                    });
-                } else {
-                    parentOwnerIncoming.set(em, owner);
-                }
-            });
-        });
-
         incoming.forEach(function (rec) {
             const idx = findExisting(rec);
             if (idx < 0) {

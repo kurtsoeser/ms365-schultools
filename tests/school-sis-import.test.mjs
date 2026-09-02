@@ -79,6 +79,27 @@ describe('school-sis-import', () => {
         expect(aoa.length).toBeGreaterThan(2);
     });
 
+    it('diffSisImport wertet geteilte Elternmails bei Geschwistern nicht als Konflikt', () => {
+        const sis = ctx.ms365SchoolSisImport;
+        const incoming = [
+            {
+                klasse: '1A',
+                name: 'Anna',
+                email: 'anna@schule.at',
+                parentPairs: [{ name: 'Maria', email: 'eltern@mail.com' }]
+            },
+            {
+                klasse: '3B',
+                name: 'Ben',
+                email: 'ben@schule.at',
+                parentPairs: [{ name: 'Maria', email: 'eltern@mail.com' }]
+            }
+        ];
+        const diff = sis.diffSisImport([], incoming);
+        expect(diff.conflicts).toHaveLength(0);
+        expect(diff.counts.added).toBe(2);
+    });
+
     it('diffSisImport erkennt neu, geändert und Konflikte', () => {
         const sis = ctx.ms365SchoolSisImport;
         const existing = [

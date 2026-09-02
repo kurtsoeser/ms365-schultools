@@ -177,6 +177,7 @@ describe('Eltern / Erziehungsberechtigte', () => {
         const ctx = loadModules(store);
         const script = ctx.ms365ElternGuardians.buildElternSyncScript({
             domain: 'schule.at',
+            schoolName: 'Testschule',
             lists: [
                 {
                     displayName: 'Eltern 1B',
@@ -195,6 +196,12 @@ describe('Eltern / Erziehungsberechtigte', () => {
         expect(script).toContain('New-DistributionGroup');
         expect(script).toContain('Add-DistributionGroupMember');
         expect(script).toContain('jane@mail.com');
+        expect(script).toContain('Connect-ExchangeOnline');
+        expect(script).toContain('Get-AcceptedDomain');
+        expect(script).toContain('$ExpectedDomain');
+        expect(script).toContain('schule.at');
+        expect(script).toContain('Testschule');
+        expect(script).toMatch(/Read-Host.*JA/);
     });
 
     it('parseLinesToStudents liest optionale Elternspalten', () => {
@@ -237,8 +244,11 @@ describe('Eltern / Erziehungsberechtigte', () => {
         expect(report.counts.lists).toBeGreaterThan(0);
         expect(report.issues.some((i) => i.code === 'no-parents')).toBe(true);
         expect(report.hints.gal).toMatch(/GAL/);
-        const script = ctx.ms365ElternGuardians.buildElternDiagnoseScript(report.lists, 'schule.at');
+        const script = ctx.ms365ElternGuardians.buildElternDiagnoseScript(report.lists, 'schule.at', 'Testschule');
         expect(script).toMatch(/Get-DistributionGroup/);
         expect(script).toMatch(/HiddenFromAddressListsEnabled/);
+        expect(script).toContain('Connect-ExchangeOnline');
+        expect(script).toContain('Get-AcceptedDomain');
+        expect(script).toContain('$Ms365ReadOnly = $true');
     });
 });

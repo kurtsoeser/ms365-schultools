@@ -900,6 +900,118 @@
         return out;
     }
 
+    /**
+     * Baut aus Graph-User-Objekten einen E-Mail→User-Index (mail, UPN, otherMails).
+     * @param {Array<object>} users
+     * @returns {Map<string, object>}
+     */
+    function indexUsersByEmail(users) {
+        const byEmail = new Map();
+        function put(key, u) {
+            const k = normEmail(key);
+            if (!k || k.indexOf('@') === -1) return;
+            if (!byEmail.has(k)) byEmail.set(k, u);
+        }
+        const list = Array.isArray(users) ? users : [];
+        for (let i = 0; i < list.length; i++) {
+            const u = list[i];
+            if (!u || !u.id) continue;
+            put(u.mail, u);
+            put(u.userPrincipalName, u);
+            const others = Array.isArray(u.otherMails) ? u.otherMails : [];
+            for (let j = 0; j < others.length; j++) put(others[j], u);
+        }
+        return byEmail;
+    }
+
+    /**
+     * Lädt User-Verzeichnis (mail/UPN/otherMails) und baut einen Lookup.
+     * Effizient für Bulk-Abgleich vieler E-Mails (Klassenstärke / ganze Schule).
+     * @param {string} token
+     * @param {(loaded: number, pages: number, hasMore: boolean) => void} [onProgress]
+     * @returns {Promise<Map<string, object>>}
+     */
+    async function buildUserEmailLookup(token, onProgress) {
+        const select = 'id,displayName,mail,userPrincipalName,otherMails';
+        const path = '/users?$select=' + encodeURIComponent(select) + '&$top=999';
+        const users = await fetchAllPagesSimple(token, path, 20000, onProgress);
+        return indexUsersByEmail(users);
+    }
+
+    /**
+     * Löst viele E-Mails gegen Entra auf.
+     * Ab ~25 Adressen: einmaliges Verzeichnis laden + lokaler Match (statt N Graph-Calls).
+     * @param {string} token
+     * @param {string[]} emails
+     * @param {(p: { phase: string, loaded?: number, done?: number, total?: number }) => void} [onProgress]
+     * @returns {Promise<{ byEmail: Map<string, object|null>, found: number, missed: number, mode: string, directorySize: number }>}
+     */
+    async function resolveUsersByEmailsBulk(token, emails, onProgress) {
+        const list = Array.isArray(emails) ? emails : [];
+        const seen = new Set();
+        const unique = [];
+        list.forEach(function (raw) {
+            const em = normEmail(raw);
+            if (!em || em.indexOf('@') === -1 || seen.has(em)) return;
+            seen.add(em);
+            unique.push(em);
+        });
+        const byEmail = new Map();
+        let found = 0;
+        let missed = 0;
+        let directorySize = 0;
+        if (!unique.length) {
+            return { byEmail: byEmail, found: 0, missed: 0, mode: 'empty', directorySize: 0 };
+        }
+
+        const useDirectory = unique.length >= 25;
+        if (useDirectory) {
+            if (typeof onProgress === 'function') onProgress({ phase: 'directory', loaded: 0, total: unique.length });
+            const lookup = await buildUserEmailLookup(token, function (loaded, pages, hasMore) {
+                directorySize = loaded;
+                if (typeof onProgress === 'function') {
+                    onProgress({ phase: 'directory', loaded: loaded, pages: pages, hasMore: !!hasMore, total: unique.length });
+                }
+            });
+            directorySize = Math.max(directorySize, lookup.size);
+            for (let i = 0; i < unique.length; i++) {
+                const em = unique[i];
+                const u = lookup.get(em) || null;
+                byEmail.set(em, u);
+                if (u && u.id) found++;
+                else missed++;
+            }
+            if (typeof onProgress === 'function') {
+                onProgress({ phase: 'done', done: unique.length, total: unique.length, found: found, missed: missed });
+            }
+            return { byEmail: byEmail, found: found, missed: missed, mode: 'directory', directorySize: directorySize };
+        }
+
+        for (let i = 0; i < unique.length; i++) {
+            const em = unique[i];
+            if (typeof onProgress === 'function') {
+                onProgress({ phase: 'lookup', done: i, total: unique.length });
+            }
+            try {
+                const u = await resolveUserByEmail(token, em);
+                if (u && u.id) {
+                    byEmail.set(em, u);
+                    found++;
+                } else {
+                    byEmail.set(em, null);
+                    missed++;
+                }
+            } catch {
+                byEmail.set(em, null);
+                missed++;
+            }
+        }
+        if (typeof onProgress === 'function') {
+            onProgress({ phase: 'done', done: unique.length, total: unique.length, found: found, missed: missed });
+        }
+        return { byEmail: byEmail, found: found, missed: missed, mode: 'lookup', directorySize: 0 };
+    }
+
     async function createUnifiedGroup(token, displayName, mailNickname, description) {
         const nick = sanitizeUnifiedGroupMailNickname(mailNickname);
         const body = {
@@ -1134,6 +1246,9 @@
         resolveUserByEmail,
         resolveUserByEmailForImport,
         resolveUsersByEmailsForImport,
+        buildUserEmailLookup,
+        indexUsersByEmail,
+        resolveUsersByEmailsBulk,
         ensureOwners,
         syncEmailsToGroup,
         removeEmailsFromGroup,

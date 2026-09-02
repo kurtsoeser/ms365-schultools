@@ -1490,11 +1490,29 @@ input[type="file"] { display: none; }
     border-radius: 12px;
     background: linear-gradient(135deg, rgba(94, 114, 228, 0.07) 0%, rgba(130, 94, 228, 0.04) 100%);
 }
+.sw-lic-import-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 8px;
+}
+.sw-lic-import-head h3 {
+    margin: 0;
+    flex: 1 1 auto;
+}
+.sw-lic-import-close {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    line-height: 1;
+    min-width: 0;
+}
 .sw-lic-import h3 {
     margin: 0 0 8px;
     font-size: 1.02em;
     color: #32325d;
 }
+.sw-lic-import-head + p,
 .sw-lic-import > p {
     margin: 0 0 10px;
     line-height: 1.45;
@@ -1840,12 +1858,43 @@ html[data-theme="dark"] .ms365-header-nav .btn:hover {
     z-index: 1;
 }
 
+.teachers-table th.is-sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.teachers-table th.is-sortable:hover,
+.teachers-table th.is-sortable:focus-visible {
+    background: color-mix(in srgb, var(--brand1) 82%, #000);
+    outline: none;
+}
+
+.teachers-table .teachers-sort-ind {
+    opacity: 0.95;
+    margin-left: 6px;
+    font-weight: 900;
+}
+
 .teachers-table td code {
     font-family: Consolas, 'Segoe UI', monospace;
     background: var(--code-bg);
     color: var(--text);
     padding: 2px 6px;
     border-radius: 6px;
+}
+
+.teachers-table .students-parent-cell {
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.teachers-table .students-parent-more {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.85em;
 }
 
 .teachers-table .action-cell {

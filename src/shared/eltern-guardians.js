@@ -331,33 +331,183 @@
             });
     }
 
-    function psHeader(lines) {
-        lines.push('#Requires -Modules ExchangeOnlineManagement');
-        lines.push('# Eltern-Verteiler: Mail Contacts (GAL-versteckt) + Distribution Groups');
+    /**
+     * Gemeinsamer Kopf: Modul, Exchange-Anmeldung, Domain-/Schul-Check, interaktive Bestätigung.
+     * @param {string[]} lines
+     * @param {{ domain?: string, schoolName?: string, title?: string, readOnly?: boolean }} [opts]
+     */
+    function psHeader(lines, opts) {
+        const o = opts && typeof opts === 'object' ? opts : {};
+        const domain = normStr(o.domain).replace(/^@+/, '').toLowerCase();
+        const school = normStr(o.schoolName) || '(Schulname in Stammdaten nicht gesetzt)';
+        const title = normStr(o.title) || 'Eltern-Verteiler';
+        const readOnly = !!o.readOnly;
+        const stamp = new Date().toISOString();
+
+        lines.push('#Requires -Version 5.1');
+        lines.push('# ' + title + ': Mail Contacts (GAL-versteckt) + Distribution Groups');
         lines.push('# - DL in GAL sichtbar, Mitgliedschaft versteckt (HiddenGroupMembershipEnabled)');
         lines.push('# - Einzelne Elternmails nicht in der GAL (HiddenFromAddressListsEnabled am Contact)');
-        lines.push('# Vor dem Ausführen: Connect-ExchangeOnline');
+        lines.push('# Erzeugt in der Browser-App am ' + stamp);
+        lines.push('# Erwartete Schule: ' + school);
+        lines.push('# Erwartete Domain: ' + (domain || '(fehlt – bitte in Stammdaten setzen)'));
+        lines.push('# Ausführen z. B.: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\eltern-verteiler-sync.ps1');
+        if (readOnly) lines.push('# Modus: nur Diagnose (Get-*), keine Änderungen');
+        lines.push('');
+        lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
+        lines.push('$ErrorActionPreference = "Stop"');
+        lines.push('');
+        lines.push('$ExpectedSchool = ' + psQuote(school));
+        lines.push('$ExpectedDomain = ' + psQuote(domain));
+        lines.push('$Ms365ReadOnly = $' + (readOnly ? 'true' : 'false'));
+        lines.push('$script:Ms365ExoConnectedByScript = $false');
+        lines.push('');
+        lines.push('Write-Host ""');
+        lines.push('Write-Host "========================================" -ForegroundColor Cyan');
+        lines.push('Write-Host ("  {0} – Vorprüfung" -f ' + psQuote(title) + ') -ForegroundColor Cyan');
+        lines.push('Write-Host "========================================" -ForegroundColor Cyan');
+        lines.push('Write-Host ""');
+        lines.push('');
+        lines.push('if (-not $ExpectedDomain) {');
+        lines.push(
+            '  Write-Host "FEHLER: In den Stammdaten fehlt die Schul-Domain. Bitte in der App unter Stammdaten setzen und Skript neu erzeugen." -ForegroundColor Red'
+        );
+        lines.push('  exit 1');
+        lines.push('}');
+        lines.push('');
+        lines.push('# --- 1) Modul ExchangeOnlineManagement ---');
+        lines.push('if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {');
+        lines.push('  Write-Host "Installiere ExchangeOnlineManagement (einmalig, CurrentUser) ..." -ForegroundColor Yellow');
+        lines.push('  Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force -AllowClobber');
+        lines.push('}');
+        lines.push('Import-Module ExchangeOnlineManagement -ErrorAction Stop');
+        lines.push('Write-Host "Modul ExchangeOnlineManagement geladen." -ForegroundColor Green');
+        lines.push('');
+        lines.push('# --- 2) Anmeldung Exchange Online ---');
+        lines.push('$conn = $null');
+        lines.push('try {');
+        lines.push('  $conn = Get-ConnectionInformation -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Connected" } | Select-Object -First 1');
+        lines.push('} catch { $conn = $null }');
+        lines.push('if (-not $conn) {');
+        lines.push('  Write-Host "Anmeldung bei Exchange Online (Admin-Konto dieser Schule) ..." -ForegroundColor Yellow');
+        lines.push('  Write-Host "Hinweis: Anmelde-Fenster ggf. im Hintergrund – Taskleiste prüfen." -ForegroundColor Gray');
+        lines.push('  Connect-ExchangeOnline -ShowBanner:$false | Out-Null');
+        lines.push('  $script:Ms365ExoConnectedByScript = $true');
+        lines.push('  try {');
+        lines.push('    $conn = Get-ConnectionInformation -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Connected" } | Select-Object -First 1');
+        lines.push('  } catch { $conn = $null }');
+        lines.push('} else {');
+        lines.push('  Write-Host ("Bestehende Exchange-Sitzung wird genutzt: {0}" -f $conn.UserPrincipalName) -ForegroundColor Cyan');
+        lines.push('}');
+        lines.push('if (-not $conn) {');
+        lines.push('  # Fallback für ältere Modul-Versionen ohne Get-ConnectionInformation');
+        lines.push(
+            '  $conn = [pscustomobject]@{ UserPrincipalName = "(nach Connect-ExchangeOnline)"; Organization = "(unbekannt)"; TenantId = ""; State = "Connected" }'
+        );
+        lines.push('}');
+        lines.push('Write-Host ("Angemeldet als: {0}" -f $conn.UserPrincipalName) -ForegroundColor Green');
+        lines.push('if ($conn.Organization) { Write-Host ("Organisation:  {0}" -f $conn.Organization) -ForegroundColor Green }');
+        lines.push('if ($conn.TenantId) { Write-Host ("Tenant-ID:     {0}" -f $conn.TenantId) -ForegroundColor Gray }');
+        lines.push('');
+        lines.push('# --- 3) Richtiger Mandant? Schul-Domain muss Accepted Domain sein ---');
+        lines.push('$accepted = @()');
+        lines.push('try {');
+        lines.push('  $accepted = @(Get-AcceptedDomain -ErrorAction Stop | ForEach-Object {');
+        lines.push('    ([string]$_.DomainName).Trim().ToLowerInvariant()');
+        lines.push('  })');
+        lines.push('} catch {');
+        lines.push(
+            '  Write-Host ("FEHLER: Accepted Domains konnten nicht gelesen werden (fehlende Rechte?): {0}" -f $_.Exception.Message) -ForegroundColor Red'
+        );
+        lines.push('  exit 1');
+        lines.push('}');
+        lines.push('if ($accepted -notcontains $ExpectedDomain.ToLowerInvariant()) {');
+        lines.push(
+            '  Write-Host ("FEHLER: Erwartete Schul-Domain „{0}“ ist in DIESEM Mandanten keine akzeptierte Domain." -f $ExpectedDomain) -ForegroundColor Red'
+        );
+        lines.push('  Write-Host ("Vorhandene Domains: {0}" -f ($accepted -join ", ")) -ForegroundColor Yellow');
+        lines.push(
+            '  Write-Host "Vermutlich falsches Konto oder falsche Schule/Tenant. Abbruch – es wurde nichts geändert." -ForegroundColor Red'
+        );
+        lines.push('  exit 1');
+        lines.push('}');
+        lines.push('Write-Host ("Schul-Domain OK: {0}" -f $ExpectedDomain) -ForegroundColor Green');
+        lines.push('');
+        lines.push('# --- 4) Rechte-Smoke-Test (Verteiler + Mail Contacts) ---');
+        lines.push('try {');
+        lines.push('  $null = Get-DistributionGroup -ResultSize 1 -ErrorAction Stop');
+        lines.push('  Write-Host "Recht Get-DistributionGroup: OK" -ForegroundColor Green');
+        lines.push('} catch {');
+        lines.push(
+            '  Write-Host ("FEHLER: Keine Berechtigung für Verteilerlisten (Exchange Administrator o.ä. nötig): {0}" -f $_.Exception.Message) -ForegroundColor Red'
+        );
+        lines.push('  exit 1');
+        lines.push('}');
+        lines.push('try {');
+        lines.push('  $null = Get-MailContact -ResultSize 1 -ErrorAction Stop');
+        lines.push('  Write-Host "Recht Get-MailContact: OK" -ForegroundColor Green');
+        lines.push('} catch {');
+        lines.push(
+            '  Write-Host ("FEHLER: Keine Berechtigung für Mail Contacts: {0}" -f $_.Exception.Message) -ForegroundColor Red'
+        );
+        lines.push('  exit 1');
+        lines.push('}');
+        lines.push('');
+        lines.push('# --- 5) Interaktive Bestätigung ---');
+        lines.push('Write-Host ""');
+        lines.push('Write-Host "Zielschule (laut App): $ExpectedSchool" -ForegroundColor White');
+        lines.push('Write-Host "Domain:               $ExpectedDomain" -ForegroundColor White');
+        lines.push('Write-Host "Angemeldet:           $($conn.UserPrincipalName)" -ForegroundColor White');
+        lines.push('if ($Ms365ReadOnly) {');
+        lines.push(
+            '  Write-Host "Modus: nur Diagnose (keine Änderungen an Listen/Contacts)." -ForegroundColor Cyan'
+        );
+        lines.push('} else {');
+        lines.push(
+            '  Write-Host "Modus: Sync – legt/aktualisiert Mail Contacts und Eltern-Verteilerlisten." -ForegroundColor Yellow'
+        );
+        lines.push('}');
+        lines.push(
+            '$confirm = Read-Host "Wenn Konto und Schule stimmen, tippen Sie JA (Großbuchstaben) und Enter – sonst Abbruch"'
+        );
+        lines.push('if ($confirm -ne "JA") {');
+        lines.push('  Write-Host "Abgebrochen – es wurde nichts geändert." -ForegroundColor Yellow');
+        lines.push('  exit 0');
+        lines.push('}');
+        lines.push('Write-Host "Bestätigt. Starte Ausführung ..." -ForegroundColor Green');
+        lines.push('Write-Host ""');
         lines.push('$ErrorActionPreference = "Continue"');
         lines.push('');
     }
 
     function psFooter(lines) {
         lines.push('');
+        lines.push('Write-Host ""');
         lines.push('Write-Host "Fertig." -ForegroundColor Cyan');
+        lines.push('if ($script:Ms365ExoConnectedByScript) {');
+        lines.push('  try { Disconnect-ExchangeOnline -Confirm:$false | Out-Null } catch {}');
+        lines.push('  Write-Host "Exchange-Sitzung getrennt." -ForegroundColor Gray');
+        lines.push('}');
     }
 
     /**
      * Vollständiges Sync-Skript für eine oder mehrere Eltern-Listen.
-     * @param {{ lists: array, domain?: string, managedBy?: string[] }} opts
+     * @param {{ lists: array, domain?: string, schoolName?: string, managedBy?: string[] }} opts
      * lists[].guardians = [{email, name}]
      */
     function buildElternSyncScript(opts) {
         const o = opts && typeof opts === 'object' ? opts : {};
         const lists = Array.isArray(o.lists) ? o.lists : [];
         const domain = normStr(o.domain).replace(/^@+/, '');
+        const schoolName = normStr(o.schoolName);
         const managedBy = Array.isArray(o.managedBy) ? o.managedBy.map(normEmail).filter(Boolean) : [];
         const lines = [];
-        psHeader(lines);
+        psHeader(lines, {
+            domain: domain,
+            schoolName: schoolName,
+            title: 'Eltern-Verteiler Sync',
+            readOnly: false
+        });
 
         if (!lists.length) {
             lines.push('Write-Host "Keine Listen ausgewählt." -ForegroundColor Yellow');
@@ -379,6 +529,15 @@
                 }
             });
         });
+
+        lines.push(
+            'Write-Host ("Sync: {0} Liste(n), {1} eindeutige Eltern-Contact(s)" -f ' +
+                lists.length +
+                ', ' +
+                allContacts.size +
+                ') -ForegroundColor Cyan'
+        );
+        lines.push('');
 
         lines.push('# === 1) Mail Contacts anlegen/aktualisieren (nicht in GAL) ===');
         lines.push('$Contacts = @(');
@@ -405,8 +564,15 @@
         );
         lines.push('      Write-Host ("Contact angelegt: " + $c.Email) -ForegroundColor Green');
         lines.push('    } catch {');
-        lines.push('      Write-Host ("FEHLER Contact " + $c.Email + ": " + $_.Exception.Message) -ForegroundColor Red');
-        lines.push('      continue');
+        lines.push('      try {');
+        lines.push(
+            '        New-MailContact -Name $c.Alias -ExternalEmailAddress $c.Email -Alias $c.Alias -ErrorAction Stop | Out-Null'
+        );
+        lines.push('        Write-Host ("Contact angelegt (Alias als Name): " + $c.Email) -ForegroundColor Green');
+        lines.push('      } catch {');
+        lines.push('        Write-Host ("FEHLER Contact " + $c.Email + ": " + $_.Exception.Message) -ForegroundColor Red');
+        lines.push('        continue');
+        lines.push('      }');
         lines.push('    }');
         lines.push('  }');
         lines.push('  try {');
@@ -442,15 +608,27 @@
             lines.push('  $dg = Get-DistributionGroup -Identity $DisplayName -ErrorAction SilentlyContinue');
             lines.push('}');
             lines.push('if (-not $dg) {');
-            const newArgs = ['-Name $DisplayName', '-DisplayName $DisplayName', '-Alias $Alias', '-Type Distribution', '-HiddenGroupMembershipEnabled'];
+            const newArgs = [
+                '-Name $DisplayName',
+                '-DisplayName $DisplayName',
+                '-Alias $Alias',
+                '-Type Distribution',
+                '-HiddenGroupMembershipEnabled'
+            ];
             if (smtp) newArgs.push('-PrimarySmtpAddress $Smtp');
-            lines.push('  New-DistributionGroup ' + newArgs.join(' ') + ' | Out-Null');
-            lines.push('  Write-Host ("DL angelegt: " + $DisplayName) -ForegroundColor Green');
-            lines.push('  $dg = Get-DistributionGroup -Identity $Alias -ErrorAction Stop');
+            lines.push('  try {');
+            lines.push('    New-DistributionGroup ' + newArgs.join(' ') + ' -ErrorAction Stop | Out-Null');
+            lines.push('    Write-Host ("DL angelegt: " + $DisplayName) -ForegroundColor Green');
+            lines.push('    $dg = Get-DistributionGroup -Identity $Alias -ErrorAction Stop');
+            lines.push('  } catch {');
+            lines.push('    Write-Host ("FEHLER DL anlegen " + $DisplayName + ": " + $_.Exception.Message) -ForegroundColor Red');
+            lines.push('    $dg = $null');
+            lines.push('  }');
             lines.push('} else {');
             lines.push('  Write-Host ("DL vorhanden: " + $dg.DisplayName) -ForegroundColor Cyan');
             lines.push('}');
             lines.push('');
+            lines.push('if ($dg) {');
             lines.push('# GAL sichtbar, Mitgliedschaft versteckt, keine externen Absender');
             lines.push(
                 'Set-DistributionGroup -Identity $dg.Identity -HiddenFromAddressListsEnabled $false -HiddenGroupMembershipEnabled:$true -RequireSenderAuthenticationEnabled $true -ErrorAction SilentlyContinue'
@@ -486,6 +664,7 @@
             lines.push(
                 'Get-DistributionGroup -Identity $dg.Identity | Format-List DisplayName,PrimarySmtpAddress,Alias,HiddenFromAddressListsEnabled,HiddenGroupMembershipEnabled'
             );
+            lines.push('}');
             lines.push('');
         });
 
@@ -599,10 +778,15 @@
         };
     }
 
-    function buildElternDiagnoseScript(lists, domain) {
+    function buildElternDiagnoseScript(lists, domain, schoolName) {
         const rows = Array.isArray(lists) ? lists : [];
         const lines = [];
-        psHeader(lines);
+        psHeader(lines, {
+            domain: domain,
+            schoolName: schoolName,
+            title: 'Eltern-Verteiler Diagnose',
+            readOnly: true
+        });
         lines.push('# Diagnose: GAL-Sichtbarkeit der Verteiler + Hide-from-GAL der Contacts');
         lines.push('# Keine Änderungen – nur Get-*');
         lines.push('');
@@ -630,9 +814,6 @@
         lines.push(
             'Get-MailContact -ResultSize 20 | Select-Object DisplayName,PrimarySmtpAddress,HiddenFromAddressListsEnabled | Format-Table -AutoSize'
         );
-        if (domain) {
-            lines.push('# Domain-Hinweis: ' + String(domain));
-        }
         psFooter(lines);
         return lines.join('\n');
     }

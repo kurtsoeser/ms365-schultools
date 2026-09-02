@@ -25,6 +25,7 @@
         tab: 'class', // class | year
         selectedKey: '',
         selectedKeys: new Set(),
+        lastScriptLabel: '',
         classRows: [],
         yearRows: [],
         patterns: {
@@ -564,6 +565,21 @@
         return String((c && c.core && c.core.domain) || '').replace(/^@+/, '');
     }
 
+    function schoolName() {
+        const a = api();
+        const c = a && a.getContainer ? a.getContainer() : null;
+        return String((c && c.core && c.core.schoolName) || '').trim();
+    }
+
+    function ensureScriptPrerequisites() {
+        const dom = domain();
+        if (!dom) {
+            toast('Schul-Domain fehlt in den Stammdaten – bitte zuerst setzen.', 'err');
+            return false;
+        }
+        return true;
+    }
+
     function reloadSoll() {
         const { bucket } = currentBucket();
         const g = eg();
@@ -586,11 +602,87 @@
         }) || null;
     }
 
+    function pruneSelectedKeys() {
+        const valid = new Set(rowsForTab().map(rowKey));
+        Array.from(state.selectedKeys).forEach(function (key) {
+            if (!valid.has(key)) state.selectedKeys.delete(key);
+        });
+    }
+
+    function selectedCountWithParents() {
+        let n = 0;
+        state.selectedKeys.forEach(function (key) {
+            const r = findRow(key);
+            if (r && r.guardianCount > 0) n += 1;
+        });
+        return n;
+    }
+
+    function setListSelected(key, on) {
+        if (on) state.selectedKeys.add(key);
+        else state.selectedKeys.delete(key);
+        const sel = getEl('evSelectList');
+        if (sel && key === state.selectedKey) sel.checked = !!on;
+        updateListMeta();
+    }
+
+    function selectAllWithParents() {
+        rowsForTab().forEach(function (r) {
+            if (r.guardianCount > 0) state.selectedKeys.add(rowKey(r));
+        });
+        renderList();
+        renderDetail();
+        toast(selectedCountWithParents() + ' Listen ausgewählt', 'ok');
+    }
+
+    function clearSelection() {
+        state.selectedKeys.clear();
+        renderList();
+        renderDetail();
+        toast('Auswahl geleert', 'ok');
+    }
+
+    function updateListMeta() {
+        const meta = getEl('evListMeta');
+        if (!meta) return;
+        const withParents = rowsForTab().filter(function (r) {
+            return r.guardianCount > 0;
+        }).length;
+        const selected = selectedCountWithParents();
+        meta.textContent =
+            rowsForTab().length +
+            ' Listen · ' +
+            withParents +
+            ' mit Elternmails · ' +
+            selected +
+            ' ausgewählt · Schuljahr ' +
+            (currentBucket().year || '–');
+    }
+
+    function showScriptForLists(lists, toastMsg) {
+        if (!lists.length) return;
+        if (!ensureScriptPrerequisites()) return;
+        const keepKey = lists.some(function (r) {
+            return rowKey(r) === state.selectedKey;
+        });
+        if (!keepKey) state.selectedKey = rowKey(lists[0]);
+        renderList();
+        renderDetail();
+        const script = buildScriptForLists(lists);
+        setScript(script);
+        markExported(lists);
+        state.lastScriptLabel =
+            lists.length > 1
+                ? 'sammel-' + lists.length
+                : lists[0].mailNickname || lists[0].code || 'sync';
+        toast(toastMsg || 'Skript erzeugt', 'ok');
+    }
+
     function renderList() {
         const ul = getEl('evList');
-        const meta = getEl('evListMeta');
         const title = getEl('evListTitle');
         if (!ul) return;
+        pruneSelectedKeys();
         const q = String((getEl('evSearch') && getEl('evSearch').value) || '')
             .trim()
             .toLowerCase();
@@ -606,17 +698,7 @@
                     ? '<i class="bi bi-calendar3" style="margin-right:8px;"></i>Jahrgangs-Elternlisten'
                     : '<i class="bi bi-list-ul" style="margin-right:8px;"></i>Klassen-Elternlisten';
         }
-        if (meta) {
-            const withParents = rowsForTab().filter(function (r) {
-                return r.guardianCount > 0;
-            }).length;
-            meta.textContent =
-                rowsForTab().length +
-                ' Listen · ' +
-                withParents +
-                ' mit Elternmails · Schuljahr ' +
-                (currentBucket().year || '–');
-        }
+        updateListMeta();
         if (!rows.length) {
             const li = document.createElement('li');
             li.innerHTML =
@@ -626,10 +708,34 @@
         }
         rows.forEach(function (r) {
             const li = document.createElement('li');
+            const row = document.createElement('div');
+            row.className = 'tree-row';
+            const key = rowKey(r);
+            const isCurrent = key === state.selectedKey;
+            if (isCurrent) row.setAttribute('data-current', 'true');
+
+            const checkLabel = document.createElement('label');
+            checkLabel.className = 'tree-check';
+            checkLabel.title =
+                r.guardianCount > 0
+                    ? 'Für Sammel-Skript auswählen'
+                    : 'Keine Elternmails – nicht auswählbar';
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.setAttribute('aria-label', 'Auswählen: ' + (r.displayName || r.code));
+            check.disabled = !(r.guardianCount > 0);
+            check.checked = state.selectedKeys.has(key);
+            check.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+            });
+            check.addEventListener('change', function () {
+                setListSelected(key, check.checked);
+            });
+            checkLabel.appendChild(check);
+
             const btn = document.createElement('button');
             btn.type = 'button';
-            const key = rowKey(r);
-            if (key === state.selectedKey) btn.setAttribute('aria-current', 'true');
+            if (isCurrent) btn.setAttribute('aria-current', 'true');
             const pillClass = r.guardianCount > 0 ? 'ok' : 'warn';
             btn.innerHTML =
                 '<span style="font-weight:900;color:#32325d;">' +
@@ -651,7 +757,10 @@
                 renderList();
                 renderDetail();
             });
-            li.appendChild(btn);
+
+            row.appendChild(checkLabel);
+            row.appendChild(btn);
+            li.appendChild(row);
             ul.appendChild(li);
         });
     }
@@ -699,9 +808,10 @@
         }
         if (sel) {
             sel.checked = state.selectedKeys.has(state.selectedKey);
+            sel.disabled = !(row.guardianCount > 0);
             sel.onchange = function () {
-                if (sel.checked) state.selectedKeys.add(state.selectedKey);
-                else state.selectedKeys.delete(state.selectedKey);
+                setListSelected(state.selectedKey, sel.checked);
+                renderList();
             };
         }
 
@@ -849,7 +959,11 @@
                 primarySmtp: ''
             };
         });
-        return g.buildElternSyncScript({ lists: payload, domain: domain() });
+        return g.buildElternSyncScript({
+            lists: payload,
+            domain: domain(),
+            schoolName: schoolName()
+        });
     }
 
     function setScript(text) {
@@ -909,6 +1023,7 @@
     function setTab(tab) {
         state.tab = tab === 'year' ? 'year' : 'class';
         state.selectedKey = '';
+        state.selectedKeys.clear();
         document.querySelectorAll('[data-ev-tab]').forEach(function (btn) {
             btn.setAttribute('aria-selected', btn.getAttribute('data-ev-tab') === state.tab ? 'true' : 'false');
         });
@@ -963,8 +1078,13 @@
                 const eg = window.ms365ElternGuardians;
                 const ta = getEl('evDiagnosePs');
                 if (!eg || typeof eg.buildElternDiagnoseScript !== 'function') return;
+                if (!ensureScriptPrerequisites()) return;
                 const report = renderDiagnose();
-                const script = eg.buildElternDiagnoseScript(report && report.lists, domainFromCore());
+                const script = eg.buildElternDiagnoseScript(
+                    report && report.lists,
+                    domainFromCore() || domain(),
+                    schoolName()
+                );
                 if (ta) ta.value = script;
                 toast('Diagnose-Skript erzeugt', 'ok');
             });
@@ -987,12 +1107,13 @@
                 const row = findRow(state.selectedKey);
                 if (!row) return toast('Keine Liste gewählt', 'err');
                 if (!row.guardianCount) return toast('Keine Elternmails für diese Liste', 'err');
-                const script = buildScriptForLists([row]);
-                setScript(script);
-                markExported([row]);
-                toast('Skript erzeugt', 'ok');
+                showScriptForLists([row], 'Skript erzeugt');
             });
         }
+        const btnSelAll = getEl('evBtnSelectAll');
+        if (btnSelAll) btnSelAll.addEventListener('click', selectAllWithParents);
+        const btnSelNone = getEl('evBtnSelectNone');
+        if (btnSelNone) btnSelNone.addEventListener('click', clearSelection);
         const btnSel = getEl('evBtnScriptSelected');
         if (btnSel) {
             btnSel.addEventListener('click', function () {
@@ -1001,11 +1122,8 @@
                     .filter(function (r) {
                         return r && r.guardianCount > 0;
                     });
-                if (!lists.length) return toast('Keine gemerkten Listen mit Elternmails', 'err');
-                const script = buildScriptForLists(lists);
-                setScript(script);
-                markExported(lists);
-                toast('Sammel-Skript erzeugt (' + lists.length + ')', 'ok');
+                if (!lists.length) return toast('Keine Listen ausgewählt (Checkboxen links oder „Alle auswählen“)', 'err');
+                showScriptForLists(lists, 'Sammel-Skript erzeugt (' + lists.length + ')');
             });
         }
         const btnAll = getEl('evBtnScriptAll');
@@ -1015,10 +1133,7 @@
                     return r.guardianCount > 0;
                 });
                 if (!lists.length) return toast('Keine Listen mit Elternmails', 'err');
-                const script = buildScriptForLists(lists);
-                setScript(script);
-                markExported(lists);
-                toast('Skript für ' + lists.length + ' Listen', 'ok');
+                showScriptForLists(lists, 'Skript für ' + lists.length + ' Listen');
             });
         }
         const copy = getEl('evPsCopy');
@@ -1033,7 +1148,10 @@
             dl.addEventListener('click', function () {
                 const ta = getEl('evPsScript');
                 const row = findRow(state.selectedKey);
-                downloadPs(ta ? ta.value : '', row ? row.mailNickname || row.code : 'sync');
+                const base =
+                    state.lastScriptLabel ||
+                    (row ? row.mailNickname || row.code : 'sync');
+                downloadPs(ta ? ta.value : '', base);
             });
         }
     }

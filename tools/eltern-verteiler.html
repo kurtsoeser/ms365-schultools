@@ -73,12 +73,38 @@
         }
         .tree li { border-bottom: 1px solid #f0f1f3; }
         .tree li:last-child { border-bottom: 0; }
+        .tree-row {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+        }
+        .tree-row:hover { background: rgba(14, 116, 144, 0.06); }
+        .tree-row[data-current="true"] { background: rgba(14, 116, 144, 0.12); }
+        .tree-check {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 10px 4px 10px 12px;
+            cursor: pointer;
+        }
+        .tree-check input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: #0e7490;
+        }
+        .tree-check input:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
         .tree button {
-            width: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
             text-align: left;
             background: transparent;
             border: 0;
-            padding: 10px 12px;
+            padding: 10px 12px 10px 8px;
             cursor: pointer;
             display: flex;
             gap: 10px;
@@ -86,8 +112,8 @@
             flex-wrap: wrap;
             font: inherit;
         }
-        .tree button:hover { background: rgba(14, 116, 144, 0.06); }
-        .tree button[aria-current="true"] { background: rgba(14, 116, 144, 0.12); }
+        .tree button:hover { background: transparent; }
+        .tree button[aria-current="true"] { background: transparent; }
         .pill {
             display: inline-flex;
             align-items: center;
@@ -243,7 +269,8 @@
                 <strong>Datenschutz:</strong> Erziehungsberechtigte werden <em>nicht</em> als Benutzer oder Gäste angelegt.
                 Das Sync-Skript legt nur <strong>GAL-versteckte Mail Contacts</strong> und
                 <strong>Verteilerlisten mit versteckter Mitgliedschaft</strong> an (Gruppe selbst in der GAL sichtbar).
-                Ausführen erfordert Exchange-Admin-Rechte (<code>Connect-ExchangeOnline</code>).
+                Beim Start prüft das PowerShell-Skript Modul, Exchange-Anmeldung, Schul-Domain im Mandanten und Rechte;
+                Sie müssen mit <code>JA</code> bestätigen, dass Konto und Schule stimmen (Exchange-Admin nötig).
             </div>
 
             <nav class="ev-tabs" id="evSetupSteps" aria-label="Einrichtungsschritte" style="margin-bottom:14px;">
@@ -418,6 +445,8 @@
                     </div>
                     <div class="panel-body">
                         <div class="bulk-bar">
+                            <button type="button" class="btn" id="evBtnSelectAll" title="Alle Listen mit Elternmails auswählen"><i class="bi bi-check2-square"></i>Alle auswählen</button>
+                            <button type="button" class="btn" id="evBtnSelectNone" title="Auswahl leeren"><i class="bi bi-square"></i>Auswahl leeren</button>
                             <button type="button" class="btn btn-success" id="evBtnScriptSelected"><i class="bi bi-terminal"></i>Skript (Auswahl)</button>
                             <button type="button" class="btn" id="evBtnScriptAll"><i class="bi bi-collection"></i>Skript (alle mit Eltern)</button>
                             <span class="muted" id="evListMeta" style="font-size:0.88em;font-weight:700;"></span>
@@ -436,13 +465,17 @@
                             <p id="evDetailSummary" class="muted" style="margin-top:0;"></p>
                             <div class="detail-actions" style="margin-top:0;margin-bottom:12px;">
                                 <button type="button" class="btn btn-success" id="evBtnScriptOne"><i class="bi bi-terminal"></i>PowerShell für diese Liste</button>
-                                <label class="btn" style="cursor:pointer;margin:0;">
-                                    <input type="checkbox" id="evSelectList" style="margin-right:6px;">Für Sammel-Skript merken
+                                <label class="btn" style="cursor:pointer;margin:0;" title="Entspricht der Checkbox in der linken Liste">
+                                    <input type="checkbox" id="evSelectList" style="margin-right:6px;">In Auswahl für Sammel-Skript
                                 </label>
                             </div>
                             <div id="evStudentsWrap"></div>
                             <div class="field" style="margin-top:16px;">
                                 <label for="evPsScript">Generiertes PowerShell-Skript</label>
+                                <p class="muted" style="margin:6px 0 8px;font-size:0.88em;">
+                                    In PowerShell 5.1+ ausführen. Vor dem Sync: Anmeldung, Domain-Check und Bestätigung mit <strong>JA</strong>.
+                                    Schul-Domain muss in den <a href="../tenant.html">Stammdaten</a> hinterlegt sein.
+                                </p>
                                 <textarea id="evPsScript" readonly placeholder="Skript erscheint hier …"></textarea>
                             </div>
                             <div class="detail-actions">

@@ -6,10 +6,8 @@ import {
     getGraphToken,
     graphRequest,
     fetchAllPages,
-    fetchCount,
-    runPool,
+    enrichGroupsWithCounts,
     kindBadgesHtml,
-    buildRow,
     buildGroupsListInitialPath
 } from './leere-gruppen-core.js';
 
@@ -649,32 +647,26 @@ function bind() {
                 headers
             );
 
-            const tasks = groups.map((g) => async () => {
-                const id = String(g.id || '');
-                if (!id) return null;
-                const [owners, members] = await Promise.all([
-                    fetchCount(token, id, 'owners'),
-                    fetchCount(token, id, 'members')
-                ]);
-                return buildRow(g, owners, members);
-            });
+            if (!groups.length) {
+                setProgress(true, 'Keine Gruppen im gewählten Umfang gefunden.');
+                setTimeout(() => setProgress(false, ''), 3200);
+                return;
+            }
 
-            setProgress(true, 'Besitzer/Mitglieder zählen … 0 / ' + tasks.length);
-            const concurrency = 4;
-            let done = 0;
-            const enriched = await runPool(
-                tasks.map((fn) => async () => {
-                    const row = await fn();
-                    done++;
-                    if (done % 5 === 0 || done === tasks.length) {
-                        setProgress(true, 'Besitzer/Mitglieder zählen … ' + done + ' / ' + tasks.length);
+            setProgress(true, 'Besitzer/Mitglieder zählen … 0 / ' + groups.length);
+            lastRows = await enrichGroupsWithCounts(
+                token,
+                groups,
+                (p) => {
+                    if (p.done % 10 === 0 || p.done === p.total) {
+                        setProgress(true, 'Besitzer/Mitglieder zählen … ' + p.done + ' / ' + p.total);
                     }
-                    return row;
-                }),
-                concurrency
+                },
+                {
+                    concurrency: 2,
+                    getToken: () => getGraphToken(GRAPH_READ_SCOPES)
+                }
             );
-
-            lastRows = enriched.filter(Boolean);
             lastRows.sort((a, b) => compareDe(a.displayName, b.displayName));
             setFilterControlsEnabled(true);
             applyFiltersAndSort();
@@ -682,7 +674,17 @@ function bind() {
             setProgress(true, 'Fertig: ' + lastRows.length + ' Gruppen ausgewertet.');
             setTimeout(() => setProgress(false, ''), 2400);
         } catch (e) {
-            setProgress(true, 'Fehler: ' + (e && e.message ? e.message : String(e)));
+            if (lastRows.length) {
+                setFilterControlsEnabled(true);
+                applyFiltersAndSort();
+                btnCsv.disabled = false;
+            }
+            setProgress(
+                true,
+                'Fehler: ' +
+                    (e && e.message ? e.message : String(e)) +
+                    (lastRows.length ? ' (Teilergebnis: ' + lastRows.length + ' Gruppen)' : '')
+            );
         } finally {
             btn.disabled = false;
         }

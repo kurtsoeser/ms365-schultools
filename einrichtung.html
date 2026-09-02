@@ -526,11 +526,16 @@
                         <input type="file" id="swTeachersImportFile" accept=".xlsx,.xls,.csv">
                         <button type="button" class="btn" id="swBtnTeachersTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                         <button type="button" class="btn" id="swBtnTeachersTplCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
+                        <button type="button" class="btn" id="swBtnTeachersExportCsv" title="Aktuelle Lehrerliste als CSV herunterladen"><i class="bi bi-download"></i>Export CSV</button>
+                        <button type="button" class="btn" id="swBtnTeachersExportXlsx" title="Aktuelle Lehrerliste als Excel herunterladen"><i class="bi bi-file-earmark-excel"></i>Export XLSX</button>
                         <button type="button" class="btn" id="swBtnSchuldatenMasterTpl4" title="Eine Excel-Datei mit Blättern für Verwaltung, Lehrer, Schüler, Fächer, ARGE und Klassen"><i class="bi bi-files"></i>Excel alle Listen</button>
                         <button type="button" class="btn" id="swBtnImportTeachersFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Lehrpersonal einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
                     </div>
                     <div id="swTeacherTenantImportPanel" class="sw-lic-import" hidden>
-                        <h3>Bestehende Lehrkräfte aus dem Tenant</h3>
+                        <div class="sw-lic-import-head">
+                            <h3>Bestehende Lehrkräfte aus dem Tenant</h3>
+                            <button type="button" class="btn sw-lic-import-close" id="swBtnTeacherTenantClose" title="Einlesen schließen" aria-label="Einlesen schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                        </div>
                         <p>Es werden Benutzer mit zugewiesener Education‑Lizenz für Lehrpersonal gelesen (A1, A3, A5 – oft aus dem lokalen AD‑Sync). Kürzel sind Vorschläge; vor der Übernahme anpassbar. Bereits vorhandene E‑Mails bleiben in der Liste und werden nicht verdoppelt.</p>
                         <div id="swTeacherTenantImportSkuFilters" class="sw-lic-filters"></div>
                         <label class="sw-lic-chip"><input type="checkbox" id="swTeacherTenantImportActiveOnly" checked> Nur aktive Konten</label>
@@ -544,6 +549,7 @@
                             <button type="button" class="btn" id="swBtnTeacherTenantSelectAll">Alle auswählen</button>
                             <button type="button" class="btn" id="swBtnTeacherTenantSelectNone">Alle abwählen</button>
                             <button type="button" class="btn btn-success" id="swBtnTeacherTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                            <button type="button" class="btn" id="swBtnTeacherTenantCloseFooter">Schließen</button>
                         </div>
                         <div class="teachers-table-wrap" aria-label="Vorschau Lehrkräfte aus dem Tenant">
                             <table class="teachers-table" aria-label="Lehrkräfte aus Microsoft 365">
@@ -562,12 +568,12 @@
                         </div>
                     </div>
                     <div class="teachers-table-wrap" aria-label="Lehrerliste als Tabelle">
-                        <table class="teachers-table" aria-label="Lehrerliste (editierbar per Doppelklick)">
+                        <table class="teachers-table" id="swTeachersTable" aria-label="Lehrerliste (editierbar per Doppelklick)">
                             <thead>
                                 <tr>
-                                    <th>Kürzel</th>
-                                    <th>Name</th>
-                                    <th>E‑Mail</th>
+                                    <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Kürzel sortieren (Auf-/Absteigend; übernimmt die Reihenfolge ins Textfeld)">Kürzel</th>
+                                    <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (Auf-/Absteigend; übernimmt die Reihenfolge ins Textfeld)">Name</th>
+                                    <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (Auf-/Absteigend; übernimmt die Reihenfolge ins Textfeld)">E‑Mail</th>
                                     <th>Microsoft 365</th>
                                     <th class="action-cell">Aktion</th>
                                 </tr>
@@ -662,11 +668,16 @@
                         <input type="file" id="swStudentsImportFile" accept=".xlsx,.xls,.csv">
                         <button type="button" class="btn" id="swBtnStudentsTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage Schüler</button>
                         <button type="button" class="btn" id="swBtnStudentsTplCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage Schüler</button>
+                        <button type="button" class="btn" id="swBtnStudentsExportCsv" title="Aktuelle Schülerliste als CSV herunterladen"><i class="bi bi-download"></i>Export CSV</button>
+                        <button type="button" class="btn" id="swBtnStudentsExportXlsx" title="Aktuelle Schülerliste als Excel herunterladen"><i class="bi bi-file-earmark-excel"></i>Export XLSX</button>
                         <button type="button" class="btn" id="swBtnSchuldatenMasterTpl5" title="Eine Excel-Datei mit Blättern für Verwaltung, Lehrer, Schüler, Fächer, ARGE und Klassen"><i class="bi bi-files"></i>Excel alle Listen</button>
                         <button type="button" class="btn" id="swBtnImportStudentsFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
                     </div>
                     <div id="swStudentTenantImportPanel" class="sw-lic-import" hidden>
-                        <h3>Bestehende Schüler:innen aus dem Tenant</h3>
+                        <div class="sw-lic-import-head">
+                            <h3>Bestehende Schüler:innen aus dem Tenant</h3>
+                            <button type="button" class="btn sw-lic-import-close" id="swBtnStudentTenantClose" title="Einlesen schließen" aria-label="Einlesen schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                        </div>
                         <p>Es werden Benutzer mit zugewiesener Education‑Lizenz für Schüler:innen gelesen (A1, A3, A5). Die Klasse wird übernommen, wenn sie in Entra als Abteilung hinterlegt ist – sonst leer und vor der Übernahme ergänzbar. Bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
                         <div id="swStudentTenantImportSkuFilters" class="sw-lic-filters"></div>
                         <label class="sw-lic-chip"><input type="checkbox" id="swStudentTenantImportActiveOnly" checked> Nur aktive Konten</label>
@@ -680,6 +691,7 @@
                             <button type="button" class="btn" id="swBtnStudentTenantSelectAll">Alle auswählen</button>
                             <button type="button" class="btn" id="swBtnStudentTenantSelectNone">Alle abwählen</button>
                             <button type="button" class="btn btn-success" id="swBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                            <button type="button" class="btn" id="swBtnStudentTenantCloseFooter">Schließen</button>
                         </div>
                         <div class="teachers-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
                             <table class="teachers-table" aria-label="Schüler:innen aus Microsoft 365">
@@ -703,12 +715,14 @@
                         <small style="color:var(--muted);display:block;width:100%;margin-top:6px;line-height:1.45;">Nur <strong>.xlsx</strong>: erkannte Blätter (Verwaltung, Lehrer, Schueler, SGA, StudentCouncil, Faecher, ARGE, Klassen) werden <strong>sofort in die Stammdaten geschrieben</strong> und in den Schritten 3–10 angezeigt (Gruppen/Sammelgruppen wie bisher dort speichern).</small>
                     </div>
                     <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
-                        <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">
+                        <table class="teachers-table" id="swStudentsTable" aria-label="Schülerliste (editierbar per Doppelklick)">
                             <thead>
                                 <tr>
-                                    <th>Klasse</th>
-                                    <th>Name</th>
-                                    <th>E‑Mail</th>
+                                    <th class="is-sortable" data-sort-key="klasse" tabindex="0" title="Nach Klasse sortieren (Auf-/Absteigend; übernimmt die Reihenfolge ins Textfeld)">Klasse</th>
+                                    <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (Auf-/Absteigend; übernimmt die Reihenfolge ins Textfeld)">Name</th>
+                                    <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (Auf-/Absteigend; übernimmt die Reihenfolge ins Textfeld)">E‑Mail</th>
+                                    <th title="Erziehungsberechtigte:in 1 – E-Mail per Mouseover">Eltern 1</th>
+                                    <th title="Erziehungsberechtigte:in 2 – E-Mail per Mouseover">Eltern 2</th>
                                     <th>Microsoft 365</th>
                                     <th class="action-cell">Aktion</th>
                                 </tr>
@@ -719,7 +733,7 @@
                     <div class="settings-actions">
                         <button type="button" class="btn btn-success" id="swBtnStudentsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
                         <button type="button" class="btn btn-success" id="swBtnSaveStudents"><i class="bi bi-floppy"></i>Schülerliste speichern</button>
-                        <button type="button" class="btn" id="swBtnVerifyStudentsGraph" title="Für jede E‑Mail in Microsoft Entra suchen (mail oder UPN)"><i class="bi bi-microsoft"></i>E‑Mails mit Microsoft prüfen</button>
+                        <button type="button" class="btn" id="swBtnVerifyStudentsGraph" title="Alle Schüler-E-Mails mit Microsoft Entra abgleichen (bei großen Listen: einmaliges Laden des Verzeichnisses)"><i class="bi bi-microsoft"></i>E‑Mails mit Microsoft prüfen</button>
                         <button type="button" class="btn" id="swBtnCreateMissingStudents" title="Legt für Schüler:innen mit E‑Mail, die noch keinem Microsoft‑365‑Benutzer zugeordnet sind, ein Entra‑Konto an (E‑Mail als UPN). Bereits vorhandene Konten werden nur zugeordnet. Temporäre Kennwörter werden danach angezeigt."><i class="bi bi-person-plus"></i>Fehlende Benutzer anlegen</button>
                     </div>
                     <div id="swStatsStudents" class="sw-wiz-stats" aria-live="polite"></div>

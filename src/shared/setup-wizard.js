@@ -1167,6 +1167,8 @@ import {
                 })
                 .join('\n');
         }
+        swTeachersSortState.key = null;
+        swTeachersSortState.dir = 1;
         renderSwTeachersTableFromTextarea();
     }
 
@@ -1180,6 +1182,8 @@ import {
                 })
                 .join('\n');
         }
+        swStudentsSortState.key = null;
+        swStudentsSortState.dir = 1;
         renderSwStudentsTableFromTextarea();
     }
 
@@ -1831,41 +1835,68 @@ import {
         let missed = 0;
         let skipped = 0;
         const seen = new Set();
+        const unique = [];
         const iso = new Date().toISOString();
+        (rows || []).forEach(function (row) {
+            const em = normEmail(getEmail(row) || '');
+            if (!em || em.indexOf('@') === -1) {
+                skipped++;
+                return;
+            }
+            if (seen.has(em)) return;
+            seen.add(em);
+            unique.push(em);
+        });
         try {
             if (btn) {
                 btn.disabled = true;
                 btn.setAttribute('aria-busy', 'true');
             }
-            const token = await G().getGraphToken();
-            for (let i = 0; i < rows.length; i++) {
-                const em = normEmail(getEmail(rows[i]) || '');
-                if (!em || em.indexOf('@') === -1) {
-                    skipped++;
-                    continue;
-                }
-                if (seen.has(em)) continue;
-                seen.add(em);
-                try {
-                    const u = await G().resolveUserByEmail(token, em);
-                    if (u && u.id) {
-                        updates[em] = {
-                            graphUserId: u.id,
-                            displayName: String(u.displayName || '').trim(),
-                            userPrincipalName: String(u.userPrincipalName || '').trim(),
-                            notFound: false,
-                            checkedAt: iso
-                        };
-                        found++;
-                    } else {
-                        updates[em] = { notFound: true, checkedAt: iso };
-                        missed++;
+            if (!unique.length) {
+                toast(label + ': keine gültigen E‑Mails zum Abgleich.');
+                return;
+            }
+            toast(label + ': Microsoft‑365‑Abgleich läuft … (' + unique.length + ')');
+            const api = G();
+            const token = await api.getGraphToken();
+            let byEmail = null;
+            if (typeof api.resolveUsersByEmailsBulk === 'function') {
+                const bulk = await api.resolveUsersByEmailsBulk(token, unique, function (p) {
+                    if (!p) return;
+                    if (p.phase === 'directory') {
+                        toast(label + ': Verzeichnis … ' + (p.loaded || 0) + ' Benutzer');
+                    } else if (p.phase === 'lookup') {
+                        toast(label + ': Abgleich ' + ((p.done || 0) + 1) + '/' + (p.total || unique.length));
                     }
-                } catch {
+                });
+                byEmail = bulk && bulk.byEmail ? bulk.byEmail : new Map();
+            } else {
+                byEmail = new Map();
+                for (let i = 0; i < unique.length; i++) {
+                    try {
+                        const u = await api.resolveUserByEmail(token, unique[i]);
+                        byEmail.set(unique[i], u && u.id ? u : null);
+                    } catch {
+                        byEmail.set(unique[i], null);
+                    }
+                }
+            }
+            unique.forEach(function (em) {
+                const u = byEmail.get(em);
+                if (u && u.id) {
+                    updates[em] = {
+                        graphUserId: u.id,
+                        displayName: String(u.displayName || '').trim(),
+                        userPrincipalName: String(u.userPrincipalName || '').trim(),
+                        notFound: false,
+                        checkedAt: iso
+                    };
+                    found++;
+                } else {
                     updates[em] = { notFound: true, checkedAt: iso };
                     missed++;
                 }
-            }
+            });
             if (Object.keys(updates).length && window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
                 window.ms365AppDataV2.patchSetup({ directoryMatchByEmail: updates });
             }
@@ -2230,6 +2261,9 @@ import {
             .join('\n');
     }
 
+    /** @type {{ key: string|null, dir: number }} */
+    const swTeachersSortState = { key: null, dir: 1 };
+
     function getSwTeachersFromTextarea() {
         const ta = document.getElementById('swTeachersLines');
         if (!ta || typeof window.ms365TenantSettingsParseTeachersLines !== 'function') return [];
@@ -2242,11 +2276,53 @@ import {
         ta.value = swTeachersToLines(rows);
     }
 
+    function updateSwTeachersSortIndicators() {
+        const table = document.getElementById('swTeachersTable');
+        if (!table) return;
+        table.querySelectorAll('th.is-sortable').forEach(function (th) {
+            const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+            th.dataset.label = label;
+            th.textContent = label;
+            th.setAttribute('aria-sort', 'none');
+            if (swTeachersSortState.key && th.dataset.sortKey === swTeachersSortState.key) {
+                const ind = document.createElement('span');
+                ind.className = 'teachers-sort-ind';
+                ind.setAttribute('aria-hidden', 'true');
+                ind.textContent = swTeachersSortState.dir === -1 ? '▼' : '▲';
+                th.appendChild(ind);
+                th.setAttribute('aria-sort', swTeachersSortState.dir === -1 ? 'descending' : 'ascending');
+            }
+        });
+    }
+
+    function applySwTeachersSort(key) {
+        if (!key || (key !== 'code' && key !== 'name' && key !== 'email')) return;
+        if (swTeachersSortState.key === key) {
+            swTeachersSortState.dir = swTeachersSortState.dir === 1 ? -1 : 1;
+        } else {
+            swTeachersSortState.key = key;
+            swTeachersSortState.dir = 1;
+        }
+        const api = window.ms365TeacherListImport;
+        const all = getSwTeachersFromTextarea();
+        const sorted =
+            api && typeof api.sortRows === 'function'
+                ? api.sortRows(all, swTeachersSortState.key, swTeachersSortState.dir)
+                : all.slice().sort(function (a, b) {
+                      const av = String((a && a[key]) || '');
+                      const bv = String((b && b[key]) || '');
+                      return av.localeCompare(bv, 'de', { sensitivity: 'base' }) * swTeachersSortState.dir;
+                  });
+        setSwTeachersTextareaFromRows(sorted);
+        renderSwTeachersTableFromTextarea();
+    }
+
     function renderSwTeachersTableFromTextarea() {
         const tbody = document.getElementById('swTeachersTableBody');
         if (!tbody) return;
         const rows = getSwTeachersFromTextarea();
         tbody.replaceChildren();
+        updateSwTeachersSortIndicators();
 
         if (!rows.length) {
             const tr = document.createElement('tr');
@@ -2362,20 +2438,27 @@ import {
     function swStudentsToLines(rows) {
         return (rows || [])
             .map(function (x) {
-                return (
+                const base =
                     normStr(x.klasse || '') +
                     ';' +
                     normStr(x.name || '') +
                     ';' +
-                    normStr(x.email || '').toLowerCase()
-                );
-            })
-            .map(function (s) {
-                return s.trim();
+                    normStr(x.email || '').toLowerCase();
+                const pairs = Array.isArray(x.parentPairs) ? x.parentPairs : [];
+                if (!pairs.length) return base.trim();
+                const extra = pairs
+                    .map(function (p) {
+                        return normStr(p.name || '') + ';' + normStr(p.email || '').toLowerCase();
+                    })
+                    .join(';');
+                return (base + ';' + extra).trim();
             })
             .filter(Boolean)
             .join('\n');
     }
+
+    /** @type {{ key: string|null, dir: number }} */
+    const swStudentsSortState = { key: null, dir: 1 };
 
     function getSwStudentsFromTextarea() {
         const ta = document.getElementById('swStudentsLines');
@@ -2389,16 +2472,58 @@ import {
         ta.value = swStudentsToLines(rows);
     }
 
+    function updateSwStudentsSortIndicators() {
+        const table = document.getElementById('swStudentsTable');
+        if (!table) return;
+        table.querySelectorAll('th.is-sortable').forEach(function (th) {
+            const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+            th.dataset.label = label;
+            th.textContent = label;
+            th.setAttribute('aria-sort', 'none');
+            if (swStudentsSortState.key && th.dataset.sortKey === swStudentsSortState.key) {
+                const ind = document.createElement('span');
+                ind.className = 'teachers-sort-ind';
+                ind.setAttribute('aria-hidden', 'true');
+                ind.textContent = swStudentsSortState.dir === -1 ? '▼' : '▲';
+                th.appendChild(ind);
+                th.setAttribute('aria-sort', swStudentsSortState.dir === -1 ? 'descending' : 'ascending');
+            }
+        });
+    }
+
+    function applySwStudentsSort(key) {
+        if (!key || (key !== 'klasse' && key !== 'name' && key !== 'email')) return;
+        if (swStudentsSortState.key === key) {
+            swStudentsSortState.dir = swStudentsSortState.dir === 1 ? -1 : 1;
+        } else {
+            swStudentsSortState.key = key;
+            swStudentsSortState.dir = 1;
+        }
+        const api = window.ms365StudentListImport;
+        const all = getSwStudentsFromTextarea();
+        const sorted =
+            api && typeof api.sortRows === 'function'
+                ? api.sortRows(all, swStudentsSortState.key, swStudentsSortState.dir)
+                : all.slice().sort(function (a, b) {
+                      const av = String((a && a[key]) || '');
+                      const bv = String((b && b[key]) || '');
+                      return av.localeCompare(bv, 'de', { sensitivity: 'base' }) * swStudentsSortState.dir;
+                  });
+        setSwStudentsTextareaFromRows(sorted);
+        renderSwStudentsTableFromTextarea();
+    }
+
     function renderSwStudentsTableFromTextarea() {
         const tbody = document.getElementById('swStudentsTableBody');
         if (!tbody) return;
         const rows = getSwStudentsFromTextarea();
         tbody.replaceChildren();
+        updateSwStudentsSortIndicators();
 
         if (!rows.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 5;
+            td.colSpan = 7;
             td.style.color = 'var(--muted)';
             td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
             tr.appendChild(td);
@@ -2406,6 +2531,34 @@ import {
             refreshSwStatsStudents();
             refreshSwOwnerSummary('Schueler', 'schueler');
             return;
+        }
+
+        function buildParentCell(pair, extraCount) {
+            const td = document.createElement('td');
+            td.className = 'students-parent-cell';
+            const p = pair || {};
+            const pName = normStr(p.name || '');
+            const pMail = normStr(p.email || '').toLowerCase();
+            if (!pName && !pMail) {
+                td.textContent = '–';
+                td.style.color = 'var(--muted)';
+                td.title = 'Kein Erziehungsberechtigter';
+                return td;
+            }
+            td.textContent = pName || pMail;
+            if (extraCount > 0) {
+                const more = document.createElement('span');
+                more.className = 'students-parent-more';
+                more.textContent = ' +' + extraCount;
+                td.appendChild(more);
+            }
+            const tipParts = [];
+            if (pName && pMail) tipParts.push(pName);
+            if (pMail) tipParts.push(pMail);
+            else if (pName) tipParts.push(pName);
+            if (extraCount > 0) tipParts.push('(+ ' + extraCount + ' weitere)');
+            td.title = tipParts.join(' · ') || 'Erziehungsberechtigte:r';
+            return td;
         }
 
         rows.forEach(function (row, idx) {
@@ -2453,6 +2606,10 @@ import {
                 });
             });
 
+            const pairs = Array.isArray(row.parentPairs) ? row.parentPairs : [];
+            const tdParent1 = buildParentCell(pairs[0], 0);
+            const tdParent2 = buildParentCell(pairs[1], Math.max(0, pairs.length - 2));
+
             const tdMs = createSwDirectoryMatchTd(row.email);
 
             const tdAction = document.createElement('td');
@@ -2498,6 +2655,8 @@ import {
             tr.appendChild(tdClass);
             tr.appendChild(tdName);
             tr.appendChild(tdEmail);
+            tr.appendChild(tdParent1);
+            tr.appendChild(tdParent2);
             tr.appendChild(tdMs);
             tr.appendChild(tdAction);
             tbody.appendChild(tr);
@@ -4615,6 +4774,38 @@ import {
                     toast('CSV-Vorlage konnte nicht erzeugt werden.');
                 }
             });
+        document.getElementById('swBtnTeachersExportCsv') &&
+            document.getElementById('swBtnTeachersExportCsv').addEventListener('click', function () {
+                const api = window.ms365TeacherListImport;
+                const rows = getSwTeachersFromTextarea();
+                if (!rows.length) {
+                    toast('Lehrerliste ist leer – nichts zu exportieren.');
+                    return;
+                }
+                if (!api || typeof api.exportCsv !== 'function' || !api.exportCsv(rows)) {
+                    toast('CSV-Export fehlgeschlagen.');
+                    return;
+                }
+                toast('Lehrerliste als CSV exportiert (' + rows.length + ').');
+            });
+        document.getElementById('swBtnTeachersExportXlsx') &&
+            document.getElementById('swBtnTeachersExportXlsx').addEventListener('click', function () {
+                const api = window.ms365TeacherListImport;
+                const rows = getSwTeachersFromTextarea();
+                if (!rows.length) {
+                    toast('Lehrerliste ist leer – nichts zu exportieren.');
+                    return;
+                }
+                if (!api || (typeof api.isXlsxReady === 'function' && !api.isXlsxReady())) {
+                    toast('Excel-Bibliothek noch nicht geladen – Seite kurz warten und erneut versuchen.');
+                    return;
+                }
+                if (!api || typeof api.exportXlsx !== 'function' || !api.exportXlsx(rows)) {
+                    toast('XLSX-Export fehlgeschlagen.');
+                    return;
+                }
+                toast('Lehrerliste als XLSX exportiert (' + rows.length + ').');
+            });
         const swTeachersImportFile = document.getElementById('swTeachersImportFile');
         if (swTeachersImportFile) {
             swTeachersImportFile.addEventListener('change', function (e) {
@@ -4629,6 +4820,8 @@ import {
                             const cur = normStr(ta.value);
                             ta.value = cur ? cur + '\n' + lines : lines;
                         }
+                        swTeachersSortState.key = null;
+                        swTeachersSortState.dir = 1;
                         renderSwTeachersTableFromTextarea();
                         toast('Import in die Lehrerliste übernommen (noch nicht gespeichert).');
                     },
@@ -4642,7 +4835,24 @@ import {
         const swTaTeachers = document.getElementById('swTeachersLines');
         if (swTaTeachers) {
             swTaTeachers.addEventListener('input', function () {
+                swTeachersSortState.key = null;
+                swTeachersSortState.dir = 1;
                 renderSwTeachersTableFromTextarea();
+            });
+        }
+        const swTeachersTable = document.getElementById('swTeachersTable');
+        if (swTeachersTable && !swTeachersTable.dataset.teachersSortBound) {
+            swTeachersTable.dataset.teachersSortBound = '1';
+            swTeachersTable.querySelectorAll('th.is-sortable').forEach(function (th) {
+                th.addEventListener('click', function () {
+                    applySwTeachersSort(th.dataset.sortKey);
+                });
+                th.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applySwTeachersSort(th.dataset.sortKey);
+                    }
+                });
             });
         }
         document.getElementById('swBtnTeachersAddRow') &&
@@ -4678,6 +4888,38 @@ import {
                     toast('CSV-Vorlage konnte nicht erzeugt werden.');
                 }
             });
+        document.getElementById('swBtnStudentsExportCsv') &&
+            document.getElementById('swBtnStudentsExportCsv').addEventListener('click', function () {
+                const api = window.ms365StudentListImport;
+                const rows = getSwStudentsFromTextarea();
+                if (!rows.length) {
+                    toast('Schülerliste ist leer – nichts zu exportieren.');
+                    return;
+                }
+                if (!api || typeof api.exportCsv !== 'function' || !api.exportCsv(rows)) {
+                    toast('CSV-Export fehlgeschlagen.');
+                    return;
+                }
+                toast('Schülerliste als CSV exportiert (' + rows.length + ').');
+            });
+        document.getElementById('swBtnStudentsExportXlsx') &&
+            document.getElementById('swBtnStudentsExportXlsx').addEventListener('click', function () {
+                const api = window.ms365StudentListImport;
+                const rows = getSwStudentsFromTextarea();
+                if (!rows.length) {
+                    toast('Schülerliste ist leer – nichts zu exportieren.');
+                    return;
+                }
+                if (!api || (typeof api.isXlsxReady === 'function' && !api.isXlsxReady())) {
+                    toast('Excel-Bibliothek noch nicht geladen – Seite kurz warten und erneut versuchen.');
+                    return;
+                }
+                if (!api || typeof api.exportXlsx !== 'function' || !api.exportXlsx(rows)) {
+                    toast('XLSX-Export fehlgeschlagen.');
+                    return;
+                }
+                toast('Schülerliste als XLSX exportiert (' + rows.length + ').');
+            });
         wireSchuldatenMasterDownloadClick('swBtnSchuldatenMasterTpl4');
         wireSchuldatenMasterDownloadClick('swBtnSchuldatenMasterTpl5');
         const swStudentsImportFile = document.getElementById('swStudentsImportFile');
@@ -4694,6 +4936,8 @@ import {
                             const cur = normStr(ta.value);
                             ta.value = cur ? cur + '\n' + lines : lines;
                         }
+                        swStudentsSortState.key = null;
+                        swStudentsSortState.dir = 1;
                         renderSwStudentsTableFromTextarea();
                         toast('Import in die Schülerliste übernommen (noch nicht in „Schülerliste speichern“ geschrieben).');
                     },
@@ -4725,7 +4969,24 @@ import {
         const swTaStudents = document.getElementById('swStudentsLines');
         if (swTaStudents) {
             swTaStudents.addEventListener('input', function () {
+                swStudentsSortState.key = null;
+                swStudentsSortState.dir = 1;
                 renderSwStudentsTableFromTextarea();
+            });
+        }
+        const swStudentsTable = document.getElementById('swStudentsTable');
+        if (swStudentsTable && !swStudentsTable.dataset.studentsSortBound) {
+            swStudentsTable.dataset.studentsSortBound = '1';
+            swStudentsTable.querySelectorAll('th.is-sortable').forEach(function (th) {
+                th.addEventListener('click', function () {
+                    applySwStudentsSort(th.dataset.sortKey);
+                });
+                th.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applySwStudentsSort(th.dataset.sortKey);
+                    }
+                });
             });
         }
         const swTaSga = document.getElementById('swSgaLines');
