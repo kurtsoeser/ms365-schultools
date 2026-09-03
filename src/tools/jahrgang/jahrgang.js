@@ -10,8 +10,10 @@ let jgRows = [];
 /** Bearbeitbare Vorschau (Schritt 1); Jahr leer = Standard-Abschlussjahr */
 /** @type {{ klasse: string, jahr: string, displayName: string, suffix: string, mailNick: string }[]} */
 let jgPreviewRows = [];
+/** KV-Daten aus Stammdaten: code (großgeschrieben) → { headName, headEmail } */
+let _jgTenantHeadByCode = {};
 let jgSuppressTextareaSync = false;
-const JG_ALIAS_PATTERN_DEFAULT = '{prefix}{year}{klasse}';
+const JG_ALIAS_PATTERN_DEFAULT = '{prefix}{year}-{suffix}';
 
 const panelW = document.getElementById('panelWebuntis');
 const panelJ = document.getElementById('panelJahrgang');
@@ -135,6 +137,18 @@ function adoptJgClassesFromTenantSettingsIfEmpty() {
         .filter(Boolean);
     if (!lines.length) return;
     ta.value = lines.join('\n');
+    // KV-Daten (headName, headEmail) direkt in jgPreviewRows-Lookup vorab speichern
+    // damit buildMailNickname den {kv}-Token auflösen kann, bevor Schritt 2 (Besitzer) ausgefüllt ist
+    _jgTenantHeadByCode = {};
+    classes.forEach(c => {
+        const code = normStr(c?.code) || normStr(c?.name);
+        if (code) {
+            _jgTenantHeadByCode[code.toUpperCase()] = {
+                headName: normStr(c?.headName || ''),
+                headEmail: normStr(c?.headEmail || '')
+            };
+        }
+    });
     scheduleJgPreviewFromTextarea();
     showToast('Jahrgang: Klassen aus Stammdaten übernommen.');
 }
@@ -162,12 +176,15 @@ function scheduleTenantClassesSyncFromJgTextarea() {
                 const key = code.toLowerCase();
                 if (seen.has(key)) return;
                 seen.add(key);
+                // headName/headEmail aus jgPreviewRows oder bestehendem Stammdaten-Lookup übernehmen
+                const prevRow = jgPreviewRows.find(p => (p.klasse || '').toUpperCase() === key.toUpperCase());
+                const tenantHead = _jgTenantHeadByCode[key.toUpperCase()] || {};
                 classes.push({
                     code,
                     name: normStr(r.displayName || r.klasse),
                     year: normStr(r.jahr || ''),
-                    headName: '',
-                    headEmail: ''
+                    headName: normStr(prevRow?.headName || tenantHead.headName || ''),
+                    headEmail: normStr(prevRow?.headEmail || tenantHead.headEmail || '')
                 });
             });
 
@@ -307,7 +324,16 @@ function recomputeJgPreviewMailNicks() {
             .match(/^(\d+)([A-Za-z]+)$/);
         r.suffix = m ? m[2] : r.suffix || '';
         const year = jgEffectiveYear(r.jahr);
-        r.mailNick = buildMailNickname(prefix, year, r.suffix, r.klasse);
+        // KV-Daten aus Stammdaten-Lookup ergänzen wenn noch nicht gesetzt
+        if (!r.headEmail && !r.headName) {
+            const key = String(r.klasse || '').toUpperCase();
+            const tenant = _jgTenantHeadByCode[key];
+            if (tenant) {
+                r.headName = tenant.headName;
+                r.headEmail = tenant.headEmail;
+            }
+        }
+        r.mailNick = buildMailNickname(prefix, year, r.suffix, r.klasse, r);
     });
     resolveDuplicateNicks(jgPreviewRows);
 }
@@ -320,12 +346,13 @@ function updateJgPreviewMailCellsDom() {
         const tr = tbody.querySelector(`tr[data-jg-index="${i}"]`);
         if (!tr) return;
         const tds = tr.querySelectorAll('td');
-        if (tds.length < 6) return;
+        if (tds.length < 7) return;
         tds[3].textContent = jgM365DisplayName(r);
-        tds[4].textContent = r.mailNick;
-        tds[4].style.fontFamily = 'Consolas,monospace';
-        tds[4].style.fontSize = '0.9em';
-        tds[5].textContent = r.mailNick + '@' + domain;
+        // tds[4] = KV-Kürzel (wird vollständig via renderJgPreviewTableBody gesetzt)
+        tds[5].textContent = r.mailNick;
+        tds[5].style.fontFamily = 'Consolas,monospace';
+        tds[5].style.fontSize = '0.9em';
+        tds[6].textContent = r.mailNick + '@' + domain;
     });
 }
 
@@ -367,10 +394,10 @@ function renderJgPreviewTableBody() {
             });
             if (nonEmpty && hadError) {
                 tbody.innerHTML =
-                    '<tr><td colspan="6" style="color:#6c757d;">Keine gültigen Zeilen. Erwartet z. B. <code>1AK</code>, <code>1AK;2030</code> oder <code>1AK;2030;Klasse 1A-HAK</code> (Klasse = Ziffern + Buchstaben).</td></tr>';
+                    '<tr><td colspan="7" style="color:#6c757d;">Keine gültigen Zeilen. Erwartet z. B. <code>1AK</code>, <code>1AK;2030</code> oder <code>1AK;2030;Klasse 1A-HAK</code> (Klasse = Ziffern + Buchstaben).</td></tr>';
             } else {
                 tbody.innerHTML =
-                    '<tr><td colspan="6" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen oder „+ Zeile hinzufügen“.</td></tr>';
+                    '<tr><td colspan="7" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen oder „+ Zeile hinzufügen“.</td></tr>';
             }
             return;
         }
@@ -435,6 +462,15 @@ function renderJgPreviewTableBody() {
             tdDn.style.fontWeight = '600';
             tdDn.style.color = '#32325d';
 
+            const tdKv = document.createElement('td');
+            const kvStr = kvKuerzel(r);
+            tdKv.textContent = kvStr || '–';
+            tdKv.title = kvStr
+                ? `KV-Kürzel für {kv}-Platzhalter: "${kvStr}" (aus Stammdaten)`
+                : 'Kein KV-Kürzel in Stammdaten hinterlegt';
+            tdKv.style.fontSize = '0.85em';
+            tdKv.style.color = kvStr ? '' : '#aaa';
+
             const td3 = document.createElement('td');
             td3.textContent = r.mailNick;
             td3.style.fontFamily = 'Consolas,monospace';
@@ -443,13 +479,13 @@ function renderJgPreviewTableBody() {
             const td4 = document.createElement('td');
             td4.textContent = r.mailNick + '@' + domain;
 
-            tr.append(td1, td2, tdName, tdDn, td3, td4);
+            tr.append(td1, td2, tdName, tdDn, tdKv, td3, td4);
             tbody.appendChild(tr);
         });
     } catch (e) {
         console.error('Jahrgang-Vorschau:', e);
         tbody.innerHTML =
-            '<tr><td colspan="6" style="color:#dc3545;">Vorschau konnte nicht berechnet werden. Seite neu laden oder Konsole prüfen.</td></tr>';
+            '<tr><td colspan="7" style="color:#dc3545;">Vorschau konnte nicht berechnet werden. Seite neu laden oder Konsole prüfen.</td></tr>';
     }
 }
 
@@ -529,16 +565,40 @@ function suffixForNick(suffix) {
     return upper ? s.toUpperCase() : s.toLowerCase();
 }
 
-function buildMailNickname(prefix, year, suffix, klasse) {
+/**
+ * Extrahiert das Lehrerkürzel aus headName (letztes Wort in Klammern oder letztes Wort)
+ * oder aus der KV-E-Mail (Teil vor dem @).
+ */
+function kvKuerzel(row) {
+    if (!row) return '';
+    // Aus headName: letztes Wort in Klammern z.B. "Hanna Schweiger (SCW)" → "SCW"
+    const name = String(row.headName || '').trim();
+    const bracketMatch = name.match(/\(([^)]+)\)\s*$/);
+    if (bracketMatch) return bracketMatch[1].trim();
+    // Fallback: letztes Wort des Namens
+    const lastWord = name.split(/\s+/).pop();
+    if (lastWord && lastWord.length <= 6) return lastWord;
+    // Aus E-Mail: Teil vor @ (nur alpha, max 8 Zeichen)
+    const mail = String(row.headEmail || '').trim();
+    if (mail.indexOf('@') !== -1) {
+        const local = mail.split('@')[0].replace(/[^A-Za-z]/g, '');
+        if (local) return local.slice(0, 8);
+    }
+    return '';
+}
+
+function buildMailNickname(prefix, year, suffix, klasse, row) {
     const upper = document.getElementById('jgSuffixUpper').checked;
     const y = String(year || '').trim().replace(/[^0-9]/g, '').slice(0, 4);
     const klasseToken = sanitizeJgAliasToken(klasse, upper);
     const suffixToken = suffixForNick(suffix);
+    const kvToken = sanitizeJgAliasToken(kvKuerzel(row), upper);
     const raw = getJgAliasPattern()
         .replaceAll('{prefix}', String(prefix || ''))
         .replaceAll('{year}', y)
         .replaceAll('{klasse}', klasseToken)
-        .replaceAll('{suffix}', suffixToken);
+        .replaceAll('{suffix}', suffixToken)
+        .replaceAll('{kv}', kvToken);
     const sanitized = String(raw || '')
         .trim()
         .replace(/\s+/g, '-')
@@ -814,7 +874,9 @@ window.ms365ClearJahrgang = clearJahrgangState;
 function updatePrefixExample() {
     const dom = getDomain();
     const pre = getPrefix();
-    const ex = buildMailNickname(pre, '2030', 'AK', '1AK');
+    // Beispiel-Zeile mit KV-Kürzel zum Testen des Schemas
+    const exampleRow = { klasse: '1AK', headName: 'Hanna Schweiger (SCW)', headEmail: 'scw@schule.at' };
+    const ex = buildMailNickname(pre, '2031', 'AK', '1AK', exampleRow);
     const el = document.getElementById('jgPrefixExample');
     if (el) {
         const fallback =
@@ -824,7 +886,7 @@ function updatePrefixExample() {
         el.textContent = ex + '@' + (dom || fallback);
     }
     const aliasEl = document.getElementById('jgAliasPatternExample');
-    if (aliasEl) aliasEl.textContent = ex || 'jg20301AK';
+    if (aliasEl) aliasEl.textContent = ex || 'jg2031-AK';
 }
 
 ['schoolEmailDomain', 'jgPrefix', 'jgAliasPattern', 'jgSuffixUpper'].forEach(id => {
@@ -939,7 +1001,7 @@ document.getElementById('jgParseAndGo2').addEventListener('click', () => {
             jahr: year,
             displayName: dn,
             suffix: m[2],
-            mailNick: buildMailNickname(prefix, year, m[2], klasseTrim),
+            mailNick: buildMailNickname(prefix, year, m[2], klasseTrim, r),
             owner: ownerByKlasse.get(klasseTrim) || '',
             memberLines: memberLinesByKlasse.get(klasseTrim) || ''
         };

@@ -65,10 +65,14 @@
                                 <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Beispiel: <code id="jgPrefixExample">jg20301AK@ms365.schule</code></small>
                             </div>
                             <div class="filter-group" style="margin-top:10px;">
-                                <label for="jgAliasPattern">Alias-Schema <span style="color:#6c757d;">({prefix} {year} {klasse} {suffix})</span></label>
-                                <input type="text" id="jgAliasPattern" value="{prefix}{year}{klasse}" autocomplete="off" spellcheck="false" placeholder="{prefix}{year}{klasse}">
+                                <label for="jgAliasPattern">Alias-Schema <span style="color:#6c757d;">({prefix} {year} {klasse} {suffix} {kv})</span></label>
+                                <input type="text" id="jgAliasPattern" value="{prefix}{year}-{suffix}" autocomplete="off" spellcheck="false" placeholder="{prefix}{year}-{suffix}">
                                 <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">
-                                    Beispiel: <code id="jgAliasPatternExample">jg20301AK</code>. Alternativ gehen auch z. B. <code>{prefix}{year}-{suffix}</code> oder <code>{prefix}-{klasse}</code>.
+                                    Beispiel: <code id="jgAliasPatternExample">jg2031-AK</code>.<br>
+                                    <b>{suffix}</b> = Buchstaben-Teil der Klasse (z. B. <code>AK</code> aus <code>1AK</code>)<br>
+                                    <b>{klasse}</b> = gesamter Klassencode (z. B. <code>1AK</code>)<br>
+                                    <b>{kv}</b> = Klassenvorstand-Kürzel aus Stammdaten (z. B. <code>SCW</code>)<br>
+                                    Alternativen: <code>{prefix}{year}-{suffix}</code> · <code>{prefix}{year}-{kv}</code> · <code>{prefix}{klasse}</code>
                                 </small>
                             </div>
                             <div class="filter-group" style="margin-top:4px;">
@@ -99,12 +103,13 @@
                                     <th>Abschlussjahr</th>
                                     <th>Klassenname</th>
                                     <th>Anzeigename (Microsoft 365)</th>
+                                    <th title="Klassenvorstand-Kürzel aus Stammdaten (für {kv}-Platzhalter)">KV-Kürzel</th>
                                     <th>Mail-Nickname</th>
                                     <th>E-Mail (Vorschau)</th>
                                 </tr>
                             </thead>
                             <tbody id="jgPreviewBody">
-                                <tr><td colspan="6" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen.</td></tr>
+                                <tr><td colspan="7" style="color:#6c757d;">Noch keine Zeilen – oben Klassen einfügen.</td></tr>
                             </tbody>
                         </table>
                     </div>

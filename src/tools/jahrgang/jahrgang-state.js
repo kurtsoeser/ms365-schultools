@@ -44,7 +44,7 @@ export function buildJgStateSnapshot(ctx) {
  *   syncJgPreviewRowsFromTextarea: () => void,
  *   getPrefix: () => string,
  *   getJgDefaultAbschlussjahr: () => string,
- *   buildMailNickname: (prefix: string, year: string, suffix: string, klasse?: string) => string,
+ *   buildMailNickname: (prefix: string, year: string, suffix: string, klasse?: string, row?: object) => string,
  *   resolveDuplicateNicks: (rows: Array) => void,
  *   setJgRows: (rows: Array) => void,
  *   getJgPreviewRows: () => Array,
@@ -121,7 +121,7 @@ export function applyJgImportedState(obj, ctx) {
             klasse: klasseTrim,
             jahr: year,
             suffix,
-            mailNick: ctx.buildMailNickname(prefix, year, suffix, klasseTrim),
+            mailNick: ctx.buildMailNickname(prefix, year, suffix, klasseTrim, r),
             displayName: norm(r.displayName || nameByKlasse.get(klasseTrim) || ''),
             owner: ownerByKlasse.get(klasseTrim) || '',
             memberLines: memByKlasse.get(klasseTrim) || ''
