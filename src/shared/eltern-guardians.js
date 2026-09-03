@@ -390,8 +390,45 @@
         lines.push('} catch { $conn = $null }');
         lines.push('if (-not $conn) {');
         lines.push('  Write-Host "Anmeldung bei Exchange Online (Admin-Konto dieser Schule) ..." -ForegroundColor Yellow');
-        lines.push('  Write-Host "Hinweis: Anmelde-Fenster ggf. im Hintergrund – Taskleiste prüfen." -ForegroundColor Gray');
-        lines.push('  Connect-ExchangeOnline -ShowBanner:$false | Out-Null');
+        lines.push('  Write-Host "Hinweis: Bei Conditional Access (Fehler 53003) oft kein Geraetecode – Browser-Anmeldung noetig." -ForegroundColor Gray');
+        lines.push('  Write-Host "Anmeldefenster ggf. hinter anderen Fenstern / in der Taskleiste." -ForegroundColor Gray');
+        lines.push('  Write-Host ""');
+        lines.push('  $connectedOk = $false');
+        lines.push('  # 1) Browser/WAM (meist CA-kompatibel auf verwalteten PCs)');
+        lines.push('  try {');
+        lines.push('    Connect-ExchangeOnline -ShowBanner:$false | Out-Null');
+        lines.push('    $connectedOk = $true');
+        lines.push('  } catch {');
+        lines.push('    Write-Host ("Standard-Anmeldung fehlgeschlagen: {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
+        lines.push('  }');
+        lines.push('  # 2) Browser ohne WAM');
+        lines.push('  if (-not $connectedOk) {');
+        lines.push('    try {');
+        lines.push('      Write-Host "Fallback: Browser-Anmeldung ohne WAM (-DisableWAM) ..." -ForegroundColor Yellow');
+        lines.push('      Connect-ExchangeOnline -ShowBanner:$false -DisableWAM | Out-Null');
+        lines.push('      $connectedOk = $true');
+        lines.push('    } catch {');
+        lines.push('      Write-Host ("DisableWAM fehlgeschlagen: {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow');
+        lines.push('    }');
+        lines.push('  }');
+        lines.push('  # 3) Geraetecode nur als letzter Fallback (viele Schulen sperren das per CA)');
+        lines.push('  if (-not $connectedOk) {');
+        lines.push('    try {');
+        lines.push('      Write-Host "Fallback: Geraetecode (kann per Conditional Access blockiert sein, Fehler 53003) ..." -ForegroundColor Yellow');
+        lines.push('      Write-Host "URL: https://microsoft.com/devicelogin" -ForegroundColor White');
+        lines.push('      Connect-ExchangeOnline -Device -ShowBanner:$false | Out-Null');
+        lines.push('      $connectedOk = $true');
+        lines.push('    } catch {');
+        lines.push('      Write-Host ("FEHLER: Connect-ExchangeOnline fehlgeschlagen: {0}" -f $_.Exception.Message) -ForegroundColor Red');
+        lines.push('      Write-Host ""');
+        lines.push('      Write-Host "Typisch bei Fehler 53003 (Conditional Access):" -ForegroundColor Yellow');
+        lines.push('      Write-Host " - Geraetecode-Flow ist gesperrt, ODER" -ForegroundColor Yellow');
+        lines.push('      Write-Host " - PC ist nicht Entra-registriert/konform (Intune)." -ForegroundColor Yellow');
+        lines.push('      Write-Host "Loesung: auf einem schulisch verwalteten PC anmelden, oder Admin-CA anpassen." -ForegroundColor Yellow');
+        lines.push('      Write-Host "Manuell testen:  Connect-ExchangeOnline" -ForegroundColor Cyan');
+        lines.push('      exit 1');
+        lines.push('    }');
+        lines.push('  }');
         lines.push('  $script:Ms365ExoConnectedByScript = $true');
         lines.push('  try {');
         lines.push('    $conn = Get-ConnectionInformation -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Connected" } | Select-Object -First 1');
@@ -423,7 +460,7 @@
         lines.push('}');
         lines.push('if ($accepted -notcontains $ExpectedDomain.ToLowerInvariant()) {');
         lines.push(
-            '  Write-Host ("FEHLER: Erwartete Schul-Domain „{0}“ ist in DIESEM Mandanten keine akzeptierte Domain." -f $ExpectedDomain) -ForegroundColor Red'
+            "  Write-Host (\"FEHLER: Erwartete Schul-Domain '{0}' ist in DIESEM Mandanten keine akzeptierte Domain.\" -f $ExpectedDomain) -ForegroundColor Red"
         );
         lines.push('  Write-Host ("Vorhandene Domains: {0}" -f ($accepted -join ", ")) -ForegroundColor Yellow');
         lines.push(
@@ -468,10 +505,10 @@
         );
         lines.push('}');
         lines.push(
-            '$confirm = Read-Host "Wenn Konto und Schule stimmen, tippen Sie JA (Großbuchstaben) und Enter – sonst Abbruch"'
+            '$confirm = Read-Host "Wenn Konto und Schule stimmen, tippen Sie JA und Enter (sonst Abbruch)"'
         );
-        lines.push('if ($confirm -ne "JA") {');
-        lines.push('  Write-Host "Abgebrochen – es wurde nichts geändert." -ForegroundColor Yellow');
+        lines.push('if (($confirm | ForEach-Object { $_.Trim().ToUpperInvariant() }) -ne "JA") {');
+        lines.push('  Write-Host "Abgebrochen – es wurde nichts geändert (Bestätigung war nicht JA)." -ForegroundColor Yellow');
         lines.push('  exit 0');
         lines.push('}');
         lines.push('Write-Host "Bestätigt. Starte Ausführung ..." -ForegroundColor Green');

@@ -11,6 +11,7 @@ let jgRows = [];
 /** @type {{ klasse: string, jahr: string, displayName: string, suffix: string, mailNick: string }[]} */
 let jgPreviewRows = [];
 let jgSuppressTextareaSync = false;
+const JG_ALIAS_PATTERN_DEFAULT = '{prefix}{year}{klasse}';
 
 const panelW = document.getElementById('panelWebuntis');
 const panelJ = document.getElementById('panelJahrgang');
@@ -306,7 +307,7 @@ function recomputeJgPreviewMailNicks() {
             .match(/^(\d+)([A-Za-z]+)$/);
         r.suffix = m ? m[2] : r.suffix || '';
         const year = jgEffectiveYear(r.jahr);
-        r.mailNick = buildMailNickname(prefix, year, r.suffix);
+        r.mailNick = buildMailNickname(prefix, year, r.suffix, r.klasse);
     });
     resolveDuplicateNicks(jgPreviewRows);
 }
@@ -511,15 +512,41 @@ function getPrefix() {
     return (document.getElementById('jgPrefix').value || 'jg').trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jg';
 }
 
+function getJgAliasPattern() {
+    const raw = document.getElementById('jgAliasPattern')?.value;
+    const pattern = String(raw || '').trim();
+    return pattern || JG_ALIAS_PATTERN_DEFAULT;
+}
+
+function sanitizeJgAliasToken(value, upper) {
+    const cleaned = String(value || '').replace(/[^A-Za-z0-9]/g, '');
+    return upper ? cleaned.toUpperCase() : cleaned.toLowerCase();
+}
+
 function suffixForNick(suffix) {
     const upper = document.getElementById('jgSuffixUpper').checked;
     const s = suffix.replace(/[^A-Za-z0-9]/g, '');
     return upper ? s.toUpperCase() : s.toLowerCase();
 }
 
-function buildMailNickname(prefix, year, suffix) {
-    const suf = suffixForNick(suffix);
-    return (prefix + year + '-' + suf).replace(/[^a-zA-Z0-9-]/g, '');
+function buildMailNickname(prefix, year, suffix, klasse) {
+    const upper = document.getElementById('jgSuffixUpper').checked;
+    const y = String(year || '').trim().replace(/[^0-9]/g, '').slice(0, 4);
+    const klasseToken = sanitizeJgAliasToken(klasse, upper);
+    const suffixToken = suffixForNick(suffix);
+    const raw = getJgAliasPattern()
+        .replaceAll('{prefix}', String(prefix || ''))
+        .replaceAll('{year}', y)
+        .replaceAll('{klasse}', klasseToken)
+        .replaceAll('{suffix}', suffixToken);
+    const sanitized = String(raw || '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-zA-Z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    if (sanitized) return sanitized;
+    return (String(prefix || '') + y + (suffixToken ? '-' + suffixToken : '')).replace(/[^a-zA-Z0-9-]/g, '');
 }
 
 function resolveDuplicateNicks(rows) {
@@ -645,6 +672,7 @@ function saveJahrgangState() {
             jgCurrentStep,
             jgRows,
             jgPrefix: document.getElementById('jgPrefix').value,
+            jgAliasPattern: document.getElementById('jgAliasPattern')?.value ?? JG_ALIAS_PATTERN_DEFAULT,
             jgDefaultYear: document.getElementById('jgDefaultYear')
                 ? document.getElementById('jgDefaultYear').value
                 : '2030',
@@ -704,6 +732,13 @@ function loadJahrgangState() {
             window.ms365SetSchoolDomainNoAt(state.jgDomain);
         }
         document.getElementById('jgPrefix').value = state.jgPrefix !== undefined ? state.jgPrefix : 'jg';
+        const jgAliasPatternEl = document.getElementById('jgAliasPattern');
+        if (jgAliasPatternEl) {
+            jgAliasPatternEl.value =
+                state.jgAliasPattern !== undefined
+                    ? String(state.jgAliasPattern || JG_ALIAS_PATTERN_DEFAULT)
+                    : JG_ALIAS_PATTERN_DEFAULT;
+        }
         const jgDefY = document.getElementById('jgDefaultYear');
         if (jgDefY) {
             jgDefY.value = state.jgDefaultYear !== undefined ? state.jgDefaultYear : '2030';
@@ -748,6 +783,8 @@ function clearJahrgangState() {
         jgCurrentStep = 1;
         jgRows = [];
         document.getElementById('jgPrefix').value = 'jg';
+        const jgAliasPatternClear = document.getElementById('jgAliasPattern');
+        if (jgAliasPatternClear) jgAliasPatternClear.value = JG_ALIAS_PATTERN_DEFAULT;
         const jgDefYClear = document.getElementById('jgDefaultYear');
         if (jgDefYClear) jgDefYClear.value = '2030';
         document.getElementById('jgSuffixUpper').checked = true;
@@ -777,7 +814,7 @@ window.ms365ClearJahrgang = clearJahrgangState;
 function updatePrefixExample() {
     const dom = getDomain();
     const pre = getPrefix();
-    const ex = buildMailNickname(pre, '2030', 'AK');
+    const ex = buildMailNickname(pre, '2030', 'AK', '1AK');
     const el = document.getElementById('jgPrefixExample');
     if (el) {
         const fallback =
@@ -786,9 +823,11 @@ function updatePrefixExample() {
                 : 'ms365.schule';
         el.textContent = ex + '@' + (dom || fallback);
     }
+    const aliasEl = document.getElementById('jgAliasPatternExample');
+    if (aliasEl) aliasEl.textContent = ex || 'jg20301AK';
 }
 
-['schoolEmailDomain', 'jgPrefix', 'jgSuffixUpper'].forEach(id => {
+['schoolEmailDomain', 'jgPrefix', 'jgAliasPattern', 'jgSuffixUpper'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('input', updatePrefixExample);
@@ -900,7 +939,7 @@ document.getElementById('jgParseAndGo2').addEventListener('click', () => {
             jahr: year,
             displayName: dn,
             suffix: m[2],
-            mailNick: buildMailNickname(prefix, year, m[2]),
+            mailNick: buildMailNickname(prefix, year, m[2], klasseTrim),
             owner: ownerByKlasse.get(klasseTrim) || '',
             memberLines: memberLinesByKlasse.get(klasseTrim) || ''
         };
@@ -974,6 +1013,7 @@ function jgBuildStateSnapshot() {
     return buildJgStateSnapshotImpl({
         jgCurrentStep,
         jgPrefix: document.getElementById('jgPrefix')?.value ?? 'jg',
+        jgAliasPattern: document.getElementById('jgAliasPattern')?.value ?? JG_ALIAS_PATTERN_DEFAULT,
         jgDefaultYear: document.getElementById('jgDefaultYear')?.value ?? '2030',
         jgSuffixUpper: !!document.getElementById('jgSuffixUpper')?.checked,
         jgCreateTeams: getJgCreateTeams(),

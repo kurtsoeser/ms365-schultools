@@ -582,8 +582,16 @@
             const emailChanged = prevEm !== recEm && !!(prevEm || recEm);
             const parentsIn = parentEmailsOf(rec).slice().sort().join('|');
             const parentsPrev = parentEmailsOf(prev).slice().sort().join('|');
-            if (klasseChanged || nameChanged || emailChanged || (parentsIn && parentsIn !== parentsPrev)) {
-                updated.push({ previous: prev, incoming: rec, klasseChanged: klasseChanged, nameChanged: nameChanged });
+            const parentsChanged = parentsIn !== parentsPrev && !!(parentsIn || parentsPrev);
+            if (klasseChanged || nameChanged || emailChanged || parentsChanged) {
+                updated.push({
+                    previous: prev,
+                    incoming: rec,
+                    klasseChanged: klasseChanged,
+                    nameChanged: nameChanged,
+                    emailChanged: emailChanged,
+                    parentsChanged: parentsChanged
+                });
             } else {
                 unchanged.push(rec);
             }

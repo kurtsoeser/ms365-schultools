@@ -118,11 +118,11 @@
         });
     }
 
-    async function graphRequest(method, path, token, body) {
+    async function graphRequest(method, path, token, body, extraHeaders) {
         const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
         let attempt = 0;
         while (true) {
-            const headers = { Authorization: 'Bearer ' + token };
+            const headers = Object.assign({ Authorization: 'Bearer ' + token }, extraHeaders || {});
             if (body !== undefined) {
                 headers['Content-Type'] = 'application/json';
             }
@@ -141,8 +141,8 @@
         }
     }
 
-    async function graphJson(method, path, token, body) {
-        const res = await graphRequest(method, path, token, body);
+    async function graphJson(method, path, token, body, extraHeaders) {
+        const res = await graphRequest(method, path, token, body, extraHeaders);
         const text = await res.text();
         let data = null;
         if (text) {
@@ -390,6 +390,257 @@
         }
     }
 
+    // ---------------------------------------------------------------
+    // Sammel-Archivierung: alle Kursteams eines Schuljahres (Suchbegriff)
+    // ---------------------------------------------------------------
+
+    /** @type {Array<{ id: string, displayName: string, mailNickname: string, selected: boolean }>} */
+    let bulkResults = [];
+
+    function appendBulkLog(msg, kind) {
+        const el = document.getElementById('taBulkLog');
+        if (!el) return;
+        const line = document.createElement('div');
+        line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+        if (kind === 'err') line.style.color = '#b00020';
+        else if (kind === 'ok') line.style.color = '#0d8050';
+        else if (kind === 'warn') line.style.color = '#856404';
+        else line.style.color = '#212529';
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function clearBulkLog() {
+        const el = document.getElementById('taBulkLog');
+        if (el) el.replaceChildren();
+    }
+
+    async function listTeamGroupsFromGraphFallback(token) {
+        const collected = [];
+        let nextPath = '/groups?$select=id,displayName,mailNickname,resourceProvisioningOptions&$top=999';
+        while (nextPath) {
+            const data = await graphJson('GET', nextPath, token, undefined);
+            (data.value || []).forEach(function (g) {
+                if (g && g.id && g.mailNickname && groupHasTeamProvisioning(g)) collected.push(g);
+            });
+            nextPath = data['@odata.nextLink'] || null;
+        }
+        return collected;
+    }
+
+    /** Alle M365-Gruppen mit Teams-Ressource (mailNickname gesetzt) – über alle Seiten. */
+    async function listTeamGroupsFromGraph(token) {
+        const collected = [];
+        let nextPath =
+            "/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$select=" +
+            GROUP_SELECT +
+            '&$top=999';
+        try {
+            while (nextPath) {
+                const useEv = nextPath.indexOf('http') !== 0;
+                const data = await graphJson(
+                    'GET',
+                    nextPath,
+                    token,
+                    undefined,
+                    useEv ? { ConsistencyLevel: 'eventual' } : undefined
+                );
+                (data.value || []).forEach(function (g) {
+                    if (g && g.id && g.mailNickname) collected.push(g);
+                });
+                nextPath = data['@odata.nextLink'] || null;
+            }
+            return collected;
+        } catch {
+            return listTeamGroupsFromGraphFallback(token);
+        }
+    }
+
+    function renderBulkResults() {
+        const wrap = document.getElementById('taBulkResultsWrap');
+        const body = document.getElementById('taBulkResultsBody');
+        const summary = document.getElementById('taBulkResultsSummary');
+        if (!wrap || !body) return;
+
+        if (!bulkResults.length) {
+            wrap.style.display = 'none';
+            body.replaceChildren();
+            return;
+        }
+        wrap.style.display = '';
+        const nSel = bulkResults.filter(function (r) {
+            return r.selected;
+        }).length;
+        if (summary) {
+            summary.textContent = bulkResults.length + ' Kursteam(s) gefunden, ' + nSel + ' ausgewählt.';
+        }
+
+        body.replaceChildren();
+        bulkResults.forEach(function (r, idx) {
+            const tr = document.createElement('tr');
+
+            const tdSel = document.createElement('td');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !!r.selected;
+            cb.addEventListener('change', function () {
+                bulkResults[idx].selected = cb.checked;
+                renderBulkResults();
+            });
+            tdSel.appendChild(cb);
+
+            const tdName = document.createElement('td');
+            tdName.textContent = r.displayName || '(ohne Name)';
+
+            const tdMail = document.createElement('td');
+            tdMail.textContent = r.mailNickname || '';
+
+            tr.append(tdSel, tdName, tdMail);
+            body.appendChild(tr);
+        });
+    }
+
+    function setAllBulkSelected(value) {
+        bulkResults = bulkResults.map(function (r) {
+            return Object.assign({}, r, { selected: value });
+        });
+        renderBulkResults();
+    }
+
+    async function onBulkSearch() {
+        const inp = document.getElementById('taBulkPrefix');
+        const term = inp && inp.value ? inp.value.trim() : '';
+        if (!term) {
+            toast('Bitte zuerst einen Suchbegriff eintragen (z. B. das Schuljahr-Präfix wie SJ25).');
+            return;
+        }
+        const btn = document.getElementById('taBulkSearch');
+        if (btn) btn.disabled = true;
+        clearBulkLog();
+        bulkResults = [];
+        renderBulkResults();
+        try {
+            const token = await getGraphToken();
+            appendBulkLog('Lade Team-Gruppen aus Microsoft 365 (Graph) …');
+            const groups = await listTeamGroupsFromGraph(token);
+            const F = window.ms365TeamsArchivBulkLogic;
+            const matched = F && typeof F.filterAndSortGroupsByTerm === 'function'
+                ? F.filterAndSortGroupsByTerm(groups, term)
+                : [];
+            bulkResults = matched.map(function (g) {
+                return { id: g.id, displayName: g.displayName, mailNickname: g.mailNickname, selected: true };
+            });
+            renderBulkResults();
+            appendBulkLog(
+                'Gefunden: ' + bulkResults.length + ' von ' + groups.length + ' Team-Gruppe(n) im Tenant passen zu „' + term + '“.',
+                bulkResults.length ? 'ok' : 'warn'
+            );
+            toast(bulkResults.length + ' Kursteam(s) gefunden.');
+        } catch (e) {
+            appendBulkLog('Fehler: ' + (e && e.message ? e.message : e), 'err');
+            toast(String((e && e.message) || e));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function isAlreadyInTargetStateError(msg) {
+        return /already\s*archived/i.test(msg) || /not\s*.*archived/i.test(msg) || /isn't\s*archived/i.test(msg);
+    }
+
+    async function runBulkArchiveOrUnarchive(archive) {
+        const selected = bulkResults.filter(function (r) {
+            return r.selected;
+        });
+        if (!selected.length) {
+            toast('Bitte zuerst Kursteams suchen und mindestens eines auswählen.');
+            return;
+        }
+
+        const verb = archive ? 'archivieren' : 'ihre Archivierung aufheben';
+        const question =
+            selected.length +
+            ' Kursteam(s) wirklich ' +
+            verb +
+            '?\n\nDie zugrunde liegenden Microsoft-365-Gruppen, Dateien und Chatverläufe bleiben erhalten – nur der Team-Status ändert sich.';
+        const confirmed =
+            typeof window.ms365AppDialogConfirm === 'function'
+                ? await window.ms365AppDialogConfirm(question, {
+                      title: archive ? 'Kursteams archivieren' : 'Archivierung aufheben',
+                      okText: archive ? 'Archivieren' : 'Aufheben',
+                      danger: !!archive
+                  })
+                : window.confirm(question);
+        if (!confirmed) return;
+
+        const btnA = document.getElementById('taBulkArchive');
+        const btnU = document.getElementById('taBulkUnarchive');
+        const btnS = document.getElementById('taBulkSearch');
+        if (btnA) btnA.disabled = true;
+        if (btnU) btnU.disabled = true;
+        if (btnS) btnS.disabled = true;
+
+        clearBulkLog();
+        appendBulkLog(
+            (archive ? 'Archivierung' : 'Aufheben der Archivierung') + ' für ' + selected.length + ' Team(s) starten …'
+        );
+
+        let token;
+        try {
+            token = await getGraphToken();
+        } catch (e) {
+            appendBulkLog('Anmeldung/Token: ' + (e.message || e), 'err');
+            if (btnA) btnA.disabled = false;
+            if (btnU) btnU.disabled = false;
+            if (btnS) btnS.disabled = false;
+            return;
+        }
+
+        let okCount = 0;
+        let failCount = 0;
+        for (let i = 0; i < selected.length; i++) {
+            const item = selected[i];
+            const label = item.displayName || item.mailNickname || item.id;
+            appendBulkLog('[' + (i + 1) + '/' + selected.length + '] ' + label + ' …');
+            try {
+                const path = '/teams/' + encodeURIComponent(item.id) + (archive ? '/archive' : '/unarchive');
+                const res = await graphRequest('POST', path, token, undefined);
+                if (res.status !== 202 && res.status !== 200) {
+                    const t = await res.text();
+                    throw new Error('HTTP ' + res.status + ' ' + t);
+                }
+                appendBulkLog('  OK (Anfrage angenommen): ' + label, 'ok');
+                okCount++;
+            } catch (e) {
+                const msg = e && e.message ? e.message : String(e);
+                if (isAlreadyInTargetStateError(msg)) {
+                    appendBulkLog('  Übersprungen (bereits im Zielstatus): ' + label, 'warn');
+                    okCount++;
+                } else {
+                    appendBulkLog('  Fehler bei ' + label + ': ' + msg, 'err');
+                    failCount++;
+                }
+            }
+            await sleep(1200);
+            try {
+                token = await getGraphToken();
+            } catch (e) {
+                appendBulkLog('Token erneuern: ' + (e.message || e), 'err');
+                break;
+            }
+        }
+
+        appendBulkLog(
+            'Fertig: ' + okCount + ' OK, ' + failCount + ' Fehler. Bereitstellung läuft im Hintergrund weiter (siehe Teams-Admin-Center).',
+            failCount ? 'warn' : 'ok'
+        );
+        toast('Sammel-Archivierung: ' + okCount + ' OK' + (failCount ? ', ' + failCount + ' Fehler.' : '.'));
+
+        if (btnA) btnA.disabled = false;
+        if (btnU) btnU.disabled = false;
+        if (btnS) btnS.disabled = false;
+    }
+
     async function onSearch() {
         const searchInp = document.getElementById('taSearch');
         const idInp = document.getElementById('taTeamId');
@@ -444,6 +695,17 @@
         if (btnS) btnS.addEventListener('click', () => onSearch());
         if (btnA) btnA.addEventListener('click', () => runArchiveOrUnarchive(true));
         if (btnU) btnU.addEventListener('click', () => runArchiveOrUnarchive(false));
+
+        const btnBulkSearch = document.getElementById('taBulkSearch');
+        const btnBulkAll = document.getElementById('taBulkSelectAll');
+        const btnBulkNone = document.getElementById('taBulkSelectNone');
+        const btnBulkArchive = document.getElementById('taBulkArchive');
+        const btnBulkUnarchive = document.getElementById('taBulkUnarchive');
+        if (btnBulkSearch) btnBulkSearch.addEventListener('click', () => onBulkSearch());
+        if (btnBulkAll) btnBulkAll.addEventListener('click', () => setAllBulkSelected(true));
+        if (btnBulkNone) btnBulkNone.addEventListener('click', () => setAllBulkSelected(false));
+        if (btnBulkArchive) btnBulkArchive.addEventListener('click', () => runBulkArchiveOrUnarchive(true));
+        if (btnBulkUnarchive) btnBulkUnarchive.addEventListener('click', () => runBulkArchiveOrUnarchive(false));
     }
 
     if (document.readyState === 'loading') {

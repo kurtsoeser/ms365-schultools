@@ -2,6 +2,7 @@
  * @param {{
  *   jgCurrentStep: number,
  *   jgPrefix: string,
+ *   jgAliasPattern?: string,
  *   jgDefaultYear: string,
  *   jgSuffixUpper: boolean,
  *   jgCreateTeams: boolean,
@@ -18,6 +19,7 @@ export function buildJgStateSnapshot(ctx) {
         exportedAt: new Date().toISOString(),
         jgCurrentStep: ctx.jgCurrentStep,
         jgPrefix: ctx.jgPrefix,
+        jgAliasPattern: ctx.jgAliasPattern || '',
         jgDefaultYear: ctx.jgDefaultYear,
         jgSuffixUpper: ctx.jgSuffixUpper,
         jgCreateTeams: ctx.jgCreateTeams,
@@ -42,7 +44,7 @@ export function buildJgStateSnapshot(ctx) {
  *   syncJgPreviewRowsFromTextarea: () => void,
  *   getPrefix: () => string,
  *   getJgDefaultAbschlussjahr: () => string,
- *   buildMailNickname: (prefix: string, year: string, suffix: string) => string,
+ *   buildMailNickname: (prefix: string, year: string, suffix: string, klasse?: string) => string,
  *   resolveDuplicateNicks: (rows: Array) => void,
  *   setJgRows: (rows: Array) => void,
  *   getJgPreviewRows: () => Array,
@@ -62,9 +64,11 @@ export function applyJgImportedState(obj, ctx) {
     const norm = ctx.normStr;
 
     const prefixEl = document.getElementById('jgPrefix');
+    const aliasPatternEl = document.getElementById('jgAliasPattern');
     const defYearEl = document.getElementById('jgDefaultYear');
     const upperEl = document.getElementById('jgSuffixUpper');
     if (prefixEl && o.jgPrefix !== undefined) prefixEl.value = String(o.jgPrefix || 'jg');
+    if (aliasPatternEl && o.jgAliasPattern !== undefined) aliasPatternEl.value = String(o.jgAliasPattern || '');
     if (defYearEl && o.jgDefaultYear !== undefined) defYearEl.value = String(o.jgDefaultYear || '2030');
     if (upperEl && o.jgSuffixUpper !== undefined) upperEl.checked = !!o.jgSuffixUpper;
     const teamsEl = document.getElementById('jgCreateTeams');
@@ -117,7 +121,7 @@ export function applyJgImportedState(obj, ctx) {
             klasse: klasseTrim,
             jahr: year,
             suffix,
-            mailNick: ctx.buildMailNickname(prefix, year, suffix),
+            mailNick: ctx.buildMailNickname(prefix, year, suffix, klasseTrim),
             displayName: norm(r.displayName || nameByKlasse.get(klasseTrim) || ''),
             owner: ownerByKlasse.get(klasseTrim) || '',
             memberLines: memByKlasse.get(klasseTrim) || ''

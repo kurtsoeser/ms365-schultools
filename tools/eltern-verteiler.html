@@ -293,6 +293,10 @@
                         (siehe Untis „Import Elternstammdaten“).<br>
                         Oder die <strong>MS365-Vorlage</strong> mit Spalten Eltern1/Eltern1Mail ausfüllen.
                     </p>
+                    <p class="muted" style="margin-top:0;">
+                        Einfacher Jahreswechsel: 1. aktuelle Gesamtliste aus Schulverwaltung exportieren, 2. hier importieren und Vorschau prüfen,
+                        3. erst danach übernehmen und das Exchange-Skript neu erzeugen. Abgänger werden nur entfernt, wenn Sie sie unten bewusst anhaken.
+                    </p>
                     <div class="bulk-bar" style="align-items:flex-end;">
                         <div class="field" style="margin:0;min-width:220px;">
                             <label for="evImportSource">Quelle</label>
@@ -309,6 +313,39 @@
                         <button type="button" class="btn" id="evTplCsv"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
                     </div>
                     <p id="evImportStatus" class="muted" style="margin:10px 0 0;font-weight:700;"></p>
+                    <div id="evImportPreview" class="panel" hidden style="margin-top:14px;border-style:dashed;">
+                        <div class="panel-head">
+                            <h3 style="margin:0;font-size:1em;"><i class="bi bi-binoculars" style="margin-right:8px;"></i>Import-Vorschau</h3>
+                        </div>
+                        <div class="panel-body">
+                            <p id="evImportPreviewSummary" class="muted" style="margin-top:0;font-weight:700;"></p>
+                            <div class="detail-actions" id="evImportApplyBar" hidden style="margin-top:0;">
+                                <button type="button" class="btn" id="evImportRemovedAll"><i class="bi bi-check2-square"></i>Alle Abgänger anhaken</button>
+                                <button type="button" class="btn" id="evImportRemovedNone"><i class="bi bi-square"></i>Keine anhaken</button>
+                                <button type="button" class="btn btn-success" id="evImportApply"><i class="bi bi-save"></i>Import übernehmen</button>
+                                <span class="muted" style="font-size:0.88em;font-weight:700;">Abgänger ausgewählt: <span id="evImportRemovedCount">0</span></span>
+                            </div>
+                            <div class="ev-naming-grid" style="margin-top:12px;">
+                                <div class="ev-naming-block">
+                                    <h3>Neu</h3>
+                                    <ul id="evImportAdded" style="margin:8px 0 0;padding-left:1.2em;line-height:1.45;"></ul>
+                                </div>
+                                <div class="ev-naming-block">
+                                    <h3>Geändert</h3>
+                                    <ul id="evImportUpdated" style="margin:8px 0 0;padding-left:1.2em;line-height:1.45;"></ul>
+                                </div>
+                                <div class="ev-naming-block">
+                                    <h3>Nicht mehr in Datei</h3>
+                                    <p class="muted" style="margin:0 0 8px;font-size:0.9em;">Nur anhaken, wenn der Import die vollständige aktuelle Schülerliste enthält.</p>
+                                    <ul id="evImportRemoved" style="margin:8px 0 0;padding-left:1.2em;line-height:1.45;"></ul>
+                                </div>
+                                <div class="ev-naming-block">
+                                    <h3>Konflikte</h3>
+                                    <ul id="evImportConflicts" style="margin:8px 0 0;padding-left:1.2em;line-height:1.45;"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </details>
 
@@ -416,6 +453,10 @@
                     <p id="evDiagnoseSummary" class="muted" style="font-weight:700;"></p>
                     <ul id="evDiagnoseIssues" style="margin:8px 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
                     <p id="evDiagnoseHints" class="muted" style="line-height:1.45;"></p>
+                    <div class="detail-actions" style="margin-top:0;">
+                        <span id="evOrphanGuardians" class="muted" style="font-size:0.92em;font-weight:700;"></span>
+                        <button type="button" class="btn" id="evOrphanGuardiansClean"><i class="bi bi-broom"></i>Verwaiste Kontakte bereinigen</button>
+                    </div>
                     <div class="detail-actions">
                         <button type="button" class="btn" id="evDiagnoseRefresh"><i class="bi bi-arrow-clockwise"></i>Neu prüfen</button>
                         <button type="button" class="btn" id="evDiagnoseScript"><i class="bi bi-terminal"></i>Exchange-Diagnose-Skript</button>
@@ -439,7 +480,7 @@
                         <div class="tree-filter">
                             <div>
                                 <label for="evSearch">Suche</label>
-                                <input type="text" id="evSearch" placeholder="Klasse, Name, Alias …" autocomplete="off">
+                                <input type="text" id="evSearch" placeholder="Klasse, Alias, Schüler oder Eltern …" autocomplete="off">
                             </div>
                         </div>
                     </div>

@@ -232,6 +232,58 @@ describe('Eltern / Erziehungsberechtigte', () => {
         expect(soll[0].guardians[0].email).toBe('jane@mail.com');
     });
 
+    it('removeStudents entfernt Abgänger und nur verwaiste Elternkontakte', () => {
+        const ctx = loadModules(store);
+        ctx.ms365AppDataV2.setCoreFromTenantSettings({
+            domain: 'schule.at',
+            students: [
+                {
+                    klasse: '1B',
+                    name: 'Dave',
+                    email: 'dave@schule.at',
+                    parentPairs: [
+                        { name: 'Jane', email: 'jane@mail.com' },
+                        { name: 'Tom', email: 'tom@mail.com' }
+                    ]
+                },
+                {
+                    klasse: '1B',
+                    name: 'Ben',
+                    email: 'ben@schule.at',
+                    parentPairs: [{ name: 'Jane', email: 'jane@mail.com' }]
+                }
+            ],
+            classes: [{ code: '1B', year: '2030' }]
+        });
+        const before = ctx.ms365AppDataV2.getYearBucket().bucket;
+        const dave = before.students.find((s) => s.email === 'dave@schule.at');
+        const result = ctx.ms365AppDataV2.removeStudents([dave.id]);
+        const after = ctx.ms365AppDataV2.getYearBucket().bucket;
+        expect(result.removedStudents).toBe(1);
+        expect(result.removedGuardians).toBe(1);
+        expect(after.students.some((s) => s.email === 'dave@schule.at')).toBe(false);
+        expect(after.guardians.some((g) => g.email === 'tom@mail.com')).toBe(false);
+        expect(after.guardians.some((g) => g.email === 'jane@mail.com')).toBe(true);
+    });
+
+    it('pruneUnlinkedGuardians bereinigt bestehende Karteileichen', () => {
+        const ctx = loadModules(store);
+        ctx.ms365AppDataV2.saveYearBucket('2026/27', {
+            students: [{ id: 's1', klasse: '1A', name: 'Anna', email: 'anna@schule.at', guardianIds: ['g1'] }],
+            classes: [{ code: '1A', year: '2031' }],
+            guardians: [
+                { id: 'g1', name: 'Maria', email: 'maria@mail.com' },
+                { id: 'g2', name: 'Alt', email: 'alt@mail.com' }
+            ],
+            parentLists: []
+        });
+        const removed = ctx.ms365AppDataV2.pruneUnlinkedGuardians();
+        const after = ctx.ms365AppDataV2.getYearBucket().bucket;
+        expect(removed).toBe(1);
+        expect(after.guardians).toHaveLength(1);
+        expect(after.guardians[0].email).toBe('maria@mail.com');
+    });
+
     it('buildElternDiagnoseReport warnt ohne Elternmails und bei Alias-Kollision', () => {
         const ctx = loadModules(store);
         ctx.ms365AppDataV2.setCoreFromTenantSettings({

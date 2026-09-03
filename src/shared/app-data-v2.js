@@ -1361,6 +1361,45 @@
         return true;
     }
 
+    function pruneUnlinkedGuardians(yearLabel) {
+        const { year, bucket } = getYearBucket(yearLabel);
+        const linked = new Set();
+        bucket.students.forEach(function (s) {
+            (Array.isArray(s.guardianIds) ? s.guardianIds : []).forEach(function (id) {
+                const gid = String(id || '').trim();
+                if (gid) linked.add(gid);
+            });
+        });
+        const before = bucket.guardians.length;
+        bucket.guardians = bucket.guardians.filter(function (g) {
+            return linked.has(String((g && g.id) || '').trim());
+        });
+        const removed = before - bucket.guardians.length;
+        if (removed > 0) saveYearBucket(year, bucket);
+        return removed;
+    }
+
+    function removeStudents(studentIds, yearLabel) {
+        const ids = new Set(
+            (Array.isArray(studentIds) ? studentIds : [])
+                .map(function (id) {
+                    return String(id || '').trim();
+                })
+                .filter(Boolean)
+        );
+        if (!ids.size) return { removedStudents: 0, removedGuardians: 0 };
+        const { year, bucket } = getYearBucket(yearLabel);
+        const before = bucket.students.length;
+        bucket.students = bucket.students.filter(function (s) {
+            return !ids.has(String((s && s.id) || '').trim());
+        });
+        const removedStudents = before - bucket.students.length;
+        if (removedStudents <= 0) return { removedStudents: 0, removedGuardians: 0 };
+        saveYearBucket(year, bucket);
+        const removedGuardians = pruneUnlinkedGuardians(year);
+        return { removedStudents: removedStudents, removedGuardians: removedGuardians };
+    }
+
     function setStudentGuardianIds(studentId, guardianIds, yearLabel) {
         const sid = String(studentId || '').trim();
         if (!sid) throw new Error('Schüler-ID fehlt.');
@@ -1475,6 +1514,8 @@
         saveYearBucket,
         upsertGuardian,
         removeGuardian,
+        pruneUnlinkedGuardians,
+        removeStudents,
         setStudentGuardianIds,
         linkGuardianToStudent,
         unlinkGuardianFromStudent,

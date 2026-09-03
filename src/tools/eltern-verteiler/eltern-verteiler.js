@@ -28,6 +28,7 @@
         lastScriptLabel: '',
         classRows: [],
         yearRows: [],
+        importPreview: null,
         patterns: {
             classAlias: [],
             classDisplay: [],
@@ -224,7 +225,28 @@
         toast('Namensschema gespeichert', 'ok');
     }
 
-    function applySisRecords(records) {
+    function existingStudentRecords(bucket) {
+        const b = bucket && typeof bucket === 'object' ? bucket : currentBucket().bucket;
+        const gBy = new Map((b.guardians || []).map(function (g) { return [g.id, g]; }));
+        return (b.students || []).map(function (s) {
+            const pairs = (s.guardianIds || [])
+                .map(function (id) {
+                    const g = gBy.get(id);
+                    return g ? { name: g.name || '', email: g.email || '', phone: g.phone || '' } : null;
+                })
+                .filter(Boolean);
+            return {
+                id: s.id,
+                klasse: s.klasse,
+                name: s.name,
+                email: s.email,
+                externalId: s.externalId,
+                parentPairs: pairs
+            };
+        });
+    }
+
+    function applySisRecords(records, removedIds) {
         const a = api();
         if (!a || typeof a.mergeStudentsImport !== 'function' || typeof a.saveYearBucket !== 'function') {
             throw new Error('Stammdaten-API fehlt.');
@@ -308,28 +330,27 @@
         next.classes = bucket.classes || [];
         next.parentLists = bucket.parentLists || [];
         a.saveYearBucket(year, next);
+        let removedStudents = 0;
+        let removedGuardians = 0;
+        if (Array.isArray(removedIds) && removedIds.length && typeof a.removeStudents === 'function') {
+            const cleanup = a.removeStudents(removedIds, year);
+            removedStudents = cleanup && cleanup.removedStudents ? cleanup.removedStudents : 0;
+            removedGuardians = cleanup && cleanup.removedGuardians ? cleanup.removedGuardians : 0;
+        }
         const sis = window.ms365SchoolSisImport;
         if (sis && typeof sis.diffSisImport === 'function') {
-            const existing = (bucket.students || []).map(function (s) {
-                const gBy = new Map((bucket.guardians || []).map(function (g) { return [g.id, g]; }));
-                const pairs = (s.guardianIds || [])
-                    .map(function (id) {
-                        const g = gBy.get(id);
-                        return g ? { name: g.name || '', email: g.email || '' } : null;
-                    })
-                    .filter(Boolean);
-                return {
-                    klasse: s.klasse,
-                    name: s.name,
-                    email: s.email,
-                    parentPairs: pairs
-                };
-            });
+            const existing = existingStudentRecords(bucket);
             const diff = sis.diffSisImport(existing, records || []);
-            if (sis.summarizeSisDiff) return { next: next, diff: diff, summary: sis.summarizeSisDiff(diff) };
-            return { next: next, diff: diff };
+            const summary = sis.summarizeSisDiff ? sis.summarizeSisDiff(diff) : '';
+            return {
+                next: next,
+                diff: diff,
+                summary: summary,
+                removedStudents: removedStudents,
+                removedGuardians: removedGuardians
+            };
         }
-        return { next: next };
+        return { next: next, removedStudents: removedStudents, removedGuardians: removedGuardians };
     }
 
     function domainFromCore() {
@@ -347,9 +368,19 @@
         const summary = getEl('evDiagnoseSummary');
         const ul = getEl('evDiagnoseIssues');
         const hints = getEl('evDiagnoseHints');
+        const orphanEl = getEl('evOrphanGuardians');
         if (!eg || typeof eg.buildElternDiagnoseReport !== 'function') return;
         const { bucket } = currentBucket();
         const report = eg.buildElternDiagnoseReport(bucket, eg.getNaming(), domainFromCore());
+        const linked = new Set();
+        (bucket.students || []).forEach(function (s) {
+            (s.guardianIds || []).forEach(function (id) {
+                linked.add(String(id || '').trim());
+            });
+        });
+        const orphanCount = (bucket.guardians || []).filter(function (g) {
+            return !linked.has(String((g && g.id) || '').trim());
+        }).length;
         if (summary) {
             const c = report.counts || {};
             summary.textContent =
@@ -358,7 +389,15 @@
                 ' von ' +
                 (c.lists || 0) +
                 ' Listen mit Elternmails' +
+                ' · ' +
+                orphanCount +
+                ' verwaiste Elternkontakte' +
                 (c.exported ? ' · ' + c.exported + ' zuletzt exportiert' : '');
+        }
+        if (orphanEl) {
+            orphanEl.textContent = orphanCount
+                ? orphanCount + ' Elternkontakt(e) sind aktuell keinem Schüler mehr zugeordnet.'
+                : 'Keine verwaisten Elternkontakte gefunden.';
         }
         if (ul) {
             ul.innerHTML = '';
@@ -412,6 +451,120 @@
         if (step === '4' && listTitle && typeof listTitle.scrollIntoView === 'function') {
             listTitle.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+    }
+
+    function importDiffLine(entry) {
+        if (!entry) return '';
+        const prev = entry.previous || {};
+        const cur = entry.incoming || entry;
+        const bits = [];
+        if (entry.klasseChanged) bits.push('Klasse ' + (prev.klasse || '–') + ' -> ' + (cur.klasse || '–'));
+        if (entry.emailChanged) bits.push('E-Mail ' + ((prev.email || '–') + ' -> ' + (cur.email || '–')));
+        if (entry.parentsChanged) bits.push('Elternmails geändert');
+        if (entry.nameChanged) bits.push('Name geändert');
+        return (cur.name || prev.name || cur.email || 'Ohne Namen') + ' (' + (bits.join(' · ') || 'geändert') + ')';
+    }
+
+    function removedLabel(entry) {
+        return [entry && entry.name, entry && entry.klasse, entry && entry.email].filter(Boolean).join(' · ');
+    }
+
+    function searchBlobForRow(row) {
+        const bits = [row.code, row.displayName, row.mailNickname].concat(row.classCodes || []);
+        (row.guardians || []).forEach(function (g) {
+            bits.push(g && g.name);
+            bits.push(g && g.email);
+        });
+        if (row.scope === 'class') {
+            const bucket = currentBucket().bucket;
+            (bucket.students || []).forEach(function (s) {
+                if (String(s.klasse || '').trim().toUpperCase() !== String(row.code || '').trim().toUpperCase()) return;
+                bits.push(s.name);
+                bits.push(s.email);
+            });
+        }
+        return bits.filter(Boolean).join(' ').toLowerCase();
+    }
+
+    function renderImportPreview() {
+        const root = getEl('evImportPreview');
+        const summary = getEl('evImportPreviewSummary');
+        const added = getEl('evImportAdded');
+        const updated = getEl('evImportUpdated');
+        const removed = getEl('evImportRemoved');
+        const conflicts = getEl('evImportConflicts');
+        const actions = getEl('evImportApplyBar');
+        const count = getEl('evImportRemovedCount');
+        if (!root || !summary || !added || !updated || !removed || !conflicts || !actions) return;
+        const p = state.importPreview;
+        if (!p || !p.diff) {
+            root.hidden = true;
+            return;
+        }
+        root.hidden = false;
+        const diff = p.diff;
+        const c = diff.counts || {};
+        summary.textContent =
+            (p.meta && p.meta.studentCount ? p.meta.studentCount : 0) +
+            ' Schüler aus ' +
+            (p.source || 'Import') +
+            ' · ' +
+            (c.added || 0) +
+            ' neu · ' +
+            (c.updated || 0) +
+            ' geändert · ' +
+            (c.removed || 0) +
+            ' nicht mehr in der Datei';
+        count.textContent = String(p.removedSelected.size || 0);
+
+        function fillList(el, rows, mapLine, withChecks) {
+            el.replaceChildren();
+            if (!rows.length) {
+                const li = document.createElement('li');
+                li.className = 'muted';
+                li.textContent = 'Keine';
+                el.appendChild(li);
+                return;
+            }
+            rows.slice(0, 20).forEach(function (row) {
+                const li = document.createElement('li');
+                if (withChecks) {
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input');
+                    const id = String((row && row.id) || '');
+                    cb.type = 'checkbox';
+                    cb.checked = p.removedSelected.has(id);
+                    cb.style.marginRight = '8px';
+                    cb.addEventListener('change', function () {
+                        if (cb.checked) p.removedSelected.add(id);
+                        else p.removedSelected.delete(id);
+                        renderImportPreview();
+                    });
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(mapLine(row)));
+                    li.appendChild(label);
+                } else {
+                    li.textContent = mapLine(row);
+                }
+                el.appendChild(li);
+            });
+            if (rows.length > 20) {
+                const li = document.createElement('li');
+                li.className = 'muted';
+                li.textContent = '... und ' + (rows.length - 20) + ' weitere';
+                el.appendChild(li);
+            }
+        }
+
+        fillList(added, diff.added || [], function (row) {
+            return [row.name, row.klasse, row.email].filter(Boolean).join(' · ');
+        });
+        fillList(updated, diff.updated || [], importDiffLine);
+        fillList(removed, diff.removed || [], removedLabel, true);
+        fillList(conflicts, diff.conflicts || [], function (row) {
+            return row.summary || '';
+        });
+        actions.hidden = false;
     }
 
     function wireSisImport() {
@@ -480,21 +633,25 @@
                         objectRows: objectRows,
                         source: sourceHint
                     });
-                    const applied = applySisRecords(result.records);
-                    refresh();
-                    const extra = applied && applied.summary ? ' · ' + applied.summary : '';
+                    const diff = sis.diffSisImport(existingStudentRecords(currentBucket().bucket), result.records);
+                    state.importPreview = {
+                        source: result.source,
+                        records: result.records,
+                        meta: result.meta,
+                        diff: diff,
+                        removedSelected: new Set()
+                    };
+                    renderImportPreview();
                     setStatus(
-                        'Import OK: ' +
+                        'Vorschau bereit: ' +
                             result.meta.studentCount +
                             ' Schüler, ' +
                             result.meta.withParents +
                             ' mit Elternmails (Quelle: ' +
                             result.source +
-                            ')' +
-                            extra +
-                            '.'
+                            '). Änderungen unten prüfen und dann übernehmen.'
                     );
-                    toast('Import übernommen', 'ok');
+                    toast('Import-Vorschau erzeugt', 'ok');
                 } catch (err) {
                     setStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
                     toast('Import fehlgeschlagen', 'err');
@@ -688,8 +845,7 @@
             .toLowerCase();
         const rows = rowsForTab().filter(function (r) {
             if (!q) return true;
-            const hay = [r.code, r.displayName, r.mailNickname, ...(r.classCodes || [])].join(' ').toLowerCase();
-            return hay.indexOf(q) !== -1;
+            return searchBlobForRow(r).indexOf(q) !== -1;
         });
         ul.replaceChildren();
         if (title) {
@@ -1072,6 +1228,17 @@
             renderDiagnose();
             toast('Diagnose aktualisiert', 'ok');
         });
+        const btnCleanOrphans = getEl('evOrphanGuardiansClean');
+        if (btnCleanOrphans) {
+            btnCleanOrphans.addEventListener('click', function () {
+                const a = api();
+                if (!a || typeof a.pruneUnlinkedGuardians !== 'function') return toast('Bereinigen nicht verfügbar', 'err');
+                const removed = a.pruneUnlinkedGuardians();
+                refresh();
+                renderDiagnose();
+                toast(removed ? removed + ' verwaiste Elternkontakte entfernt' : 'Keine verwaisten Kontakte vorhanden', 'ok');
+            });
+        }
         const btnDiagPs = getEl('evDiagnoseScript');
         if (btnDiagPs) {
             btnDiagPs.addEventListener('click', function () {
@@ -1095,7 +1262,56 @@
             });
         });
         const search = getEl('evSearch');
-        if (search) search.addEventListener('input', renderList);
+        if (search) search.addEventListener('input', function () {
+            renderList();
+            renderDetail();
+        });
+        const btnRemovedAll = getEl('evImportRemovedAll');
+        if (btnRemovedAll) {
+            btnRemovedAll.addEventListener('click', function () {
+                const p = state.importPreview;
+                if (!p || !p.diff) return;
+                p.removedSelected = new Set((p.diff.removed || []).map(function (row) { return String(row.id || ''); }).filter(Boolean));
+                renderImportPreview();
+            });
+        }
+        const btnRemovedNone = getEl('evImportRemovedNone');
+        if (btnRemovedNone) {
+            btnRemovedNone.addEventListener('click', function () {
+                const p = state.importPreview;
+                if (!p) return;
+                p.removedSelected = new Set();
+                renderImportPreview();
+            });
+        }
+        const btnImportApply = getEl('evImportApply');
+        if (btnImportApply) {
+            btnImportApply.addEventListener('click', function () {
+                const p = state.importPreview;
+                if (!p) return toast('Keine Import-Vorschau vorhanden', 'err');
+                try {
+                    const applied = applySisRecords(p.records, Array.from(p.removedSelected));
+                    state.importPreview = null;
+                    refresh();
+                    renderImportPreview();
+                    renderDiagnose();
+                    const extra = [];
+                    if (applied && applied.summary) extra.push(applied.summary);
+                    if (applied && applied.removedStudents) {
+                        extra.push(
+                            applied.removedStudents +
+                                ' Abgänger entfernt' +
+                                (applied.removedGuardians ? ' · ' + applied.removedGuardians + ' Elternkontakte bereinigt' : '')
+                        );
+                    }
+                    setStatus('Import übernommen' + (extra.length ? ': ' + extra.join(' · ') : '.'));
+                    toast('Import übernommen', 'ok');
+                } catch (err) {
+                    setStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                    toast('Import fehlgeschlagen', 'err');
+                }
+            });
+        }
         const btnRefresh = getEl('evBtnRefresh');
         if (btnRefresh) btnRefresh.addEventListener('click', function () {
             refresh();
@@ -1166,6 +1382,7 @@
         renderAllPatternBuilders();
         refresh();
         renderDiagnose();
+        renderImportPreview();
         setSetupStep('1');
     }
 

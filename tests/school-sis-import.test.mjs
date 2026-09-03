@@ -123,4 +123,31 @@ describe('school-sis-import', () => {
         expect(replaced.some((r) => r.email === 'ben@schule.at')).toBe(false);
         expect(sis.summarizeSisDiff(diff)).toMatch(/neu/);
     });
+
+    it('diffSisImport markiert E-Mail- und Elternänderungen getrennt', () => {
+        const sis = ctx.ms365SchoolSisImport;
+        const existing = [
+            {
+                klasse: '1A',
+                name: 'Anna',
+                email: 'anna@schule.at',
+                externalId: '10001',
+                parentPairs: [{ name: 'Maria', email: 'alt@mail.com' }]
+            }
+        ];
+        const incoming = [
+            {
+                klasse: '1A',
+                name: 'Anna',
+                email: 'anna.neu@schule.at',
+                externalId: '10001',
+                parentPairs: [{ name: 'Maria', email: 'neu@mail.com' }]
+            }
+        ];
+        const diff = sis.diffSisImport(existing, incoming);
+        expect(diff.updated).toHaveLength(1);
+        expect(diff.updated[0].emailChanged).toBe(true);
+        expect(diff.updated[0].parentsChanged).toBe(true);
+        expect(diff.updated[0].klasseChanged).toBe(false);
+    });
 });

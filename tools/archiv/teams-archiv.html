@@ -85,6 +85,58 @@
 
             <h3 style="margin-top:22px;font-size:1rem;">Protokoll</h3>
             <div id="taLog" style="max-height:280px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+
+            <h2 style="margin-top:34px;font-size:1.15rem;border-top:2px solid #dee2e6;padding-top:22px;">
+                <i class="bi bi-archive-fill"></i>&nbsp;Sammel-Archivierung: alle Kursteams eines Schuljahres
+            </h2>
+            <div class="alert alert-info">
+                <strong>Ergänzung zum Schuljahreswechsel:</strong> Alte Unterrichtsteams müssen nicht einzeln gesucht werden.
+                Suchbegriff eintragen (z.&nbsp;B. das <strong>Schuljahr-Präfix</strong> wie <code>SJ25</code> – erscheint im
+                Team-Namen und/oder in der Gruppenmail der Kursteams), passende Teams werden im Tenant gesucht und können
+                gemeinsam archiviert werden. Die Gruppen selbst bleiben erhalten – nur der Team-Status ändert sich.
+            </div>
+
+            <div class="filter-section" style="margin-top:18px;">
+                <div class="filter-group">
+                    <label for="taBulkPrefix">Suchbegriff (Team-Name oder Gruppenmail enthält)</label>
+                    <input type="text" id="taBulkPrefix" autocomplete="off" spellcheck="false"
+                        placeholder="z. B. SJ25 oder 2025/26">
+                    <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">
+                        Oben zuerst „Bei Microsoft anmelden“. Es werden alle Team-Gruppen im Mandanten geladen und
+                        client-seitig gefiltert (case-insensitive, Teilstring).
+                    </small>
+                </div>
+                <p style="margin:10px 0 0;">
+                    <button type="button" class="btn" id="taBulkSearch"><i class="bi bi-search"></i>Kursteams suchen</button>
+                </p>
+
+                <div id="taBulkResultsWrap" style="display:none;margin-top:18px;">
+                    <p id="taBulkResultsSummary" style="font-weight:600;"></p>
+                    <p style="margin:0 0 10px;">
+                        <button type="button" class="btn btn-small" id="taBulkSelectAll">Alle auswählen</button>
+                        <button type="button" class="btn btn-small" id="taBulkSelectNone" style="margin-left:8px;">Keine auswählen</button>
+                    </p>
+                    <div class="table-container" style="max-height:340px;overflow:auto;border:1px solid #ced4da;border-radius:6px;">
+                        <table style="width:100%;margin:0;">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px;">Auswahl</th>
+                                    <th>Team-Name</th>
+                                    <th>Gruppenmail</th>
+                                </tr>
+                            </thead>
+                            <tbody id="taBulkResultsBody"></tbody>
+                        </table>
+                    </div>
+                    <p style="margin:16px 0 0;">
+                        <button type="button" class="btn btn-success" id="taBulkArchive"><i class="bi bi-archive-fill"></i>Ausgewählte archivieren</button>
+                        <button type="button" class="btn" id="taBulkUnarchive" style="margin-left:8px;"><i class="bi bi-arrow-counterclockwise"></i>Ausgewählte: Archivierung aufheben</button>
+                    </p>
+                </div>
+            </div>
+
+            <h3 style="margin-top:22px;font-size:1rem;">Protokoll (Sammel-Archivierung)</h3>
+            <div id="taBulkLog" style="max-height:280px;overflow:auto;padding:10px;background:#fff;border:1px solid #ced4da;border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
         </div>
     </div>
 
@@ -92,6 +144,7 @@
 
     <script src="../../ms365-config.js"></script>
     <script src="../../src/shared/app-dialog.js" defer></script>
+    <script src="../../src/tools/teams-archiv/teams-archiv-bulk-logic.js" defer></script>
     <script src="../../src/tools/teams-archiv/teams-archiv.js" defer></script>
     <script src="../../src/shared/theme-toggle.js" defer></script>
 </body>

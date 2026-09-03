@@ -62,7 +62,14 @@
                             <div class="filter-group">
                                 <label for="jgPrefix">Präfix für Mail-Nickname</label>
                                 <input type="text" id="jgPrefix" value="jg" maxlength="16" autocomplete="off">
-                                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Beispiel: <code id="jgPrefixExample">jg2030-AK@ms365.schule</code></small>
+                                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">Beispiel: <code id="jgPrefixExample">jg20301AK@ms365.schule</code></small>
+                            </div>
+                            <div class="filter-group" style="margin-top:10px;">
+                                <label for="jgAliasPattern">Alias-Schema <span style="color:#6c757d;">({prefix} {year} {klasse} {suffix})</span></label>
+                                <input type="text" id="jgAliasPattern" value="{prefix}{year}{klasse}" autocomplete="off" spellcheck="false" placeholder="{prefix}{year}{klasse}">
+                                <small style="color:#6c757d;display:block;margin-top:8px;line-height:1.45;">
+                                    Beispiel: <code id="jgAliasPatternExample">jg20301AK</code>. Alternativ gehen auch z. B. <code>{prefix}{year}-{suffix}</code> oder <code>{prefix}-{klasse}</code>.
+                                </small>
                             </div>
                             <div class="filter-group" style="margin-top:4px;">
                                 <label class="checkbox-label" for="jgSuffixUpper">

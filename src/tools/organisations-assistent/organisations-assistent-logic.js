@@ -58,7 +58,7 @@ export function playbookStepDefs() {
             id: 'kursteams',
             title: 'Unterrichtsteams neu anlegen',
             blurb:
-                'Unterrichtsteams hängen am Stundenplan und sind jahresgebunden – typisch neu importieren und per CSV/CMD anlegen. Alte Teams nicht löschen, sondern später archivieren. Nach der Anlage hier manuell abhaken.',
+                'Unterrichtsteams hängen am Stundenplan und sind jahresgebunden – typisch neu importieren und per CSV/CMD anlegen. Alte Teams nicht löschen, sondern später im Team-Archiv als Sammel-Aktion archivieren (Suchbegriff, z. B. Schuljahr-Präfix). Nach der Anlage hier manuell abhaken.',
             href: 'kursteams.html',
             hrefLabel: 'Unterrichtsteams'
         },
@@ -336,7 +336,7 @@ export function openItemsFromContainer(container, playbook) {
 
     items.push({
         id: 'archive-kursteams',
-        text: 'Alte Unterrichtsteams archivieren (nicht löschen)',
+        text: 'Alte Unterrichtsteams archivieren (nicht löschen) – auch als Sammel-Archivierung möglich',
         href: 'teams-archiv.html'
     });
 
@@ -463,7 +463,7 @@ export function buildSchoolYearRunPreview(container, playbook) {
         title: 'Alte Unterrichtsteams archivieren',
         kind: 'manual',
         status: 'later',
-        detail: 'Nach der Neuanlage: Archiv-Werkzeug, nicht löschen.'
+        detail: 'Nach der Neuanlage: Archiv-Werkzeug, nicht löschen. Dort per Suchbegriff (z. B. Schuljahr-Präfix) alle Kursteams des abgelaufenen Schuljahres auf einmal archivieren.'
     });
 
     actions.push({
