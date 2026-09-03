@@ -309,6 +309,8 @@ function syncJgPreviewRowsFromTextarea() {
             klasse: p.klasse,
             jahr: p.jahr,
             displayName: p.displayName || '',
+            headName: p.headName || '',
+            headEmail: p.headEmail || '',
             suffix: p.suffix,
             mailNick: ''
         });
@@ -364,8 +366,18 @@ function syncTextareaFromJgPreviewRows() {
         const k = (r.klasse || '').trim();
         const y = String(r.jahr || '').trim();
         const dn = String(r.displayName || '').trim();
-        if (/^\d{4}$/.test(y) && dn) return k + ';' + y + ';' + dn;
-        if (/^\d{4}$/.test(y)) return k + ';' + y;
+        const hn = String(r.headName || '').trim();
+        const he = String(r.headEmail || '').trim();
+        const hasYear = /^\d{4}$/.test(y);
+        // Immer vollständiges Format wenn KV-Daten vorhanden (5 Spalten)
+        if (he || hn) {
+            const parts = [k, hasYear ? y : '', dn, hn, he];
+            // Trailing leere Felder abschneiden
+            while (parts.length > 1 && parts[parts.length - 1] === '') parts.pop();
+            return parts.join(';');
+        }
+        if (hasYear && dn) return k + ';' + y + ';' + dn;
+        if (hasYear) return k + ';' + y;
         if (dn) return k + ';' + dn;
         return k;
     });
@@ -464,12 +476,16 @@ function renderJgPreviewTableBody() {
 
             const tdKv = document.createElement('td');
             const kvStr = kvKuerzel(r);
-            tdKv.textContent = kvStr || '–';
-            tdKv.title = kvStr
-                ? `KV-Kürzel für {kv}-Platzhalter: "${kvStr}" (aus Stammdaten)`
-                : 'Kein KV-Kürzel in Stammdaten hinterlegt';
+            const kvName = String(r.headName || '').trim();
+            const kvMail = String(r.headEmail || '').trim();
+            tdKv.textContent = kvName || kvStr || '–';
+            const kvTooltipParts = [];
+            if (kvName) kvTooltipParts.push('Name: ' + kvName);
+            if (kvMail) kvTooltipParts.push('MS365-ID/E-Mail: ' + kvMail);
+            if (kvStr) kvTooltipParts.push('Kürzel für {kv}: ' + kvStr);
+            tdKv.title = kvTooltipParts.length ? kvTooltipParts.join('\n') : 'Kein KV hinterlegt';
             tdKv.style.fontSize = '0.85em';
-            tdKv.style.color = kvStr ? '' : '#aaa';
+            tdKv.style.color = (kvName || kvMail) ? '' : '#aaa';
 
             const td3 = document.createElement('td');
             td3.textContent = r.mailNick;
@@ -508,7 +524,7 @@ function parseClassLine(line, defaultYearForSingleClass) {
         if (!m) {
             return { error: 'Klasse erwartet z.B. 1AK (Ziffern + Buchstaben): ' + trimmed };
         }
-        return { klasse, jahr: defYear, displayName: '', suffix: m[2] };
+        return { klasse, jahr: defYear, displayName: '', headName: '', headEmail: '', suffix: m[2] };
     }
 
     const klasse = parts[0];
@@ -518,23 +534,33 @@ function parseClassLine(line, defaultYearForSingleClass) {
     }
 
     // 2..N Teile: tolerant lesen
+    // Format: Klasse[;Jahr][;Klassenname][;KV-Name][;KV-MS365-ID/E-Mail]
     let jahr = defYear;
     let displayName = '';
+    let headName = '';
+    let headEmail = '';
+
     if (parts.length >= 2) {
         if (/^\d{4}$/.test(parts[1])) {
             jahr = parts[1];
-            displayName = parts.length >= 3 ? parts.slice(2).join(' ') : '';
+            if (parts.length >= 3) displayName = parts[2];
+            if (parts.length >= 4) headName = parts[3];
+            if (parts.length >= 5) headEmail = parts[4];
         } else {
-            displayName = parts.slice(1).join(' ');
+            displayName = parts[1];
+            if (parts.length >= 3 && /^\d{4}$/.test(parts[2])) {
+                // Sonderfall: klasse;name;year
+                jahr = parts[2];
+                if (parts.length >= 4) headName = parts[3];
+                if (parts.length >= 5) headEmail = parts[4];
+            } else {
+                if (parts.length >= 3) headName = parts[2];
+                if (parts.length >= 4) headEmail = parts[3];
+            }
         }
     }
-    // Sonderfall: klasse;name;year
-    if (parts.length >= 3 && !/^\d{4}$/.test(parts[1]) && /^\d{4}$/.test(parts[2])) {
-        displayName = parts[1];
-        jahr = parts[2];
-    }
     if (!/^\d{4}$/.test(jahr)) jahr = defYear;
-    return { klasse, jahr, displayName, suffix: m[2] };
+    return { klasse, jahr, displayName: displayName.trim(), headName: headName.trim(), headEmail: headEmail.trim(), suffix: m[2] };
 }
 
 function getDomain() {

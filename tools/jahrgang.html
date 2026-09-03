@@ -87,8 +87,12 @@
                             </div>
                         </div>
                         <div class="filter-group arge-step1-lines">
-                            <label for="jgClassLines">Klassen, Abschlussjahr und Klassenname (eine Zeile pro Klasse)</label>
-                            <textarea id="jgClassLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="1AK;2030;Klasse 1A-HAK&#10;1AS;2028;Klasse 1A-…&#10;2AK;2029;Klasse 2A-…"></textarea>
+                            <label for="jgClassLines">Klassen (eine Zeile pro Klasse)</label>
+                            <textarea id="jgClassLines" rows="8" style="width:100%;padding:12px;font-family:Consolas,monospace;border:1px solid #ced4da;border-radius:8px;" placeholder="1AK;2031;Klasse 1A-HAK;Hanna Schweiger;hanna.schweiger@schule.at&#10;1AS;2031;Klasse 1A-HAS;Max Muster;max.muster@schule.at&#10;2AK;2032;Klasse 2A-HAK"></textarea>
+                            <small style="color:#6c757d;display:block;margin-top:6px;line-height:1.5;">
+                                Format: <code>Klasse;Abschlussjahr;Klassenname;KV-Name;KV-MS365-ID/E-Mail</code><br>
+                                Felder ab Klassenname sind optional. Trennzeichen: Semikolon, Komma oder Tab.
+                            </small>
                         </div>
                     </div>
                     <h3 style="margin-top:16px;font-size:1rem;">Vorschau</h3>
@@ -103,7 +107,7 @@
                                     <th>Abschlussjahr</th>
                                     <th>Klassenname</th>
                                     <th>Anzeigename (Microsoft 365)</th>
-                                    <th title="Klassenvorstand-Kürzel aus Stammdaten (für {kv}-Platzhalter)">KV-Kürzel</th>
+                                    <th title="Klassenvorstand (Name / MS365-ID aus Spalten 4+5; Kürzel für {kv}-Platzhalter)">Klassenvorstand</th>
                                     <th>Mail-Nickname</th>
                                     <th>E-Mail (Vorschau)</th>
                                 </tr>
