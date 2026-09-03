@@ -268,8 +268,10 @@
     function sanitizeNick(raw) {
         return String(raw || '')
             .trim()
-            .replace(/[^a-zA-Z0-9]/g, '')
             .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
             .slice(0, 60);
     }
 
@@ -296,12 +298,14 @@
 
     function deriveNick(row) {
         if (!row) return '';
-        const fromRow = sanitizeNick(row.stableMailNickname);
-        if (fromRow) return fromRow;
         if (typeof window.ms365DeriveClassStableMailNickname === 'function') {
-            const d = sanitizeNick(window.ms365DeriveClassStableMailNickname(row.year || '', row.code || ''));
+            const d = sanitizeNick(
+                window.ms365DeriveClassStableMailNickname(row.year || '', row.code || '', row)
+            );
             if (d) return d;
         }
+        const fromRow = sanitizeNick(row.stableMailNickname);
+        if (fromRow) return fromRow;
         const y = normStr(row.year);
         const yy = /^\d{4}$/.test(y) ? y : '';
         const tail = String(normCode(row.code) || '')
@@ -336,13 +340,17 @@
 
     function persistNickForRow(row) {
         const existing = findClassTeam(row);
-        if (existing) {
+        // Nur bereits gematchte Gruppen behalten ihren echten Graph-Alias.
+        // Ungematchte Klassen nehmen immer das aktuelle Nomenklatur-Schema.
+        if (existing && existing.graphGroupId) {
             const pretty = graphMailNick(existing.mailNickname);
             if (pretty) return pretty;
             const stable = sanitizeNick(existing.stableMailNickname);
             if (stable) return stable;
         }
-        return deriveNick(row);
+        const derived = deriveNick(row);
+        if (derived) return graphMailNick(derived) || derived;
+        return sanitizeNick(row && row.stableMailNickname);
     }
 
     function getActiveGroupId() {
@@ -906,7 +914,14 @@
 
         let nick = editing ? classEditOriginalNick : '';
         if (!nick && typeof window.ms365DeriveClassStableMailNickname === 'function') {
-            nick = sanitizeNick(window.ms365DeriveClassStableMailNickname(year, code));
+            nick = sanitizeNick(
+                window.ms365DeriveClassStableMailNickname(year, code, {
+                    code: code,
+                    year: year,
+                    headName: headName,
+                    headEmail: headEmail
+                })
+            );
         }
         if (!nick) nick = sanitizeNick('jg' + year + code);
 
@@ -1892,7 +1907,9 @@
         if (!(await dlgConfirm(
             String(items.length) + ' ungematchte Klasse(n) als Microsoft‑365‑Gruppe anlegen und matchen?\n\n' +
             preview +
-            '\n\nAnzeigename und Alias werden aus den Stammdaten abgeleitet. Besitzer: ' +
+            '\n\nAlias nach aktuellem Schema, z. B. ' +
+            (persistNickForRow(items[0].row) || '–') +
+            '. Besitzer: ' +
             (getOwnerOptions().useKV ? 'Klassenvorstand' : '') +
             (getOwnerOptions().useKV && getOwnerOptions().useDirektion ? ' + ' : '') +
             (getOwnerOptions().useDirektion ? 'Direktion' : '') + '.',
@@ -2189,6 +2206,9 @@
                 });
             }
             updateNickPreview();
+            renderLeftList();
+            applyCreateDefaults();
+            refreshSmtpHint();
         }
         ['jgNickPrefix', 'jgNickPattern', 'jgNickUpper'].forEach(function (id) {
             const el = document.getElementById(id);

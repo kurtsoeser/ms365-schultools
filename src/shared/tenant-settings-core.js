@@ -520,7 +520,9 @@
             const headName = normStr(c?.headName || c?.klassenvorstandName || c?.kvName);
             const headEmail = normStr(c?.headEmail || c?.klassenvorstandEmail || c?.kvEmail).toLowerCase();
             let stableMailNickname = normStr(c?.stableMailNickname || '')
-                .replace(/[^a-zA-Z0-9]/g, '')
+                .replace(/[^a-zA-Z0-9-]/g, '')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '')
                 .toLowerCase()
                 .slice(0, 60);
             if (!stableMailNickname && year && code) {
