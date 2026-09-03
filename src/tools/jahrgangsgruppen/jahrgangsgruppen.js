@@ -265,6 +265,35 @@
             .replace(/"/g, '&quot;');
     }
 
+    const JG_CREATE_TEAM_KEY = 'ms365-class-create-team-v1';
+
+    function getJgCreateTeam() {
+        try {
+            const raw = localStorage.getItem(JG_CREATE_TEAM_KEY);
+            if (raw === '0' || raw === 'false') return false;
+            if (raw === '1' || raw === 'true') return true;
+        } catch {
+            /* ignore */
+        }
+        return true;
+    }
+
+    function saveJgCreateTeam(on) {
+        try {
+            localStorage.setItem(JG_CREATE_TEAM_KEY, on ? '1' : '0');
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function syncJgCreateTeamUi() {
+        const on = getJgCreateTeam();
+        const bulk = document.getElementById('jgBulkCreateTeam');
+        const single = document.getElementById('slgNewCreateTeam');
+        if (bulk) bulk.checked = on;
+        if (single) single.checked = on;
+    }
+
     function sanitizeNick(raw) {
         return String(raw || '')
             .trim()
@@ -1132,6 +1161,7 @@
         }
         const search = document.getElementById('slgGroupSearch');
         if (search) search.value = nick || name || code || '';
+        syncJgCreateTeamUi();
     }
 
     function refreshMatchUi() {
@@ -2006,10 +2036,12 @@
             '. Besitzer: ' +
             (getOwnerOptions().useKV ? 'Klassenvorstand' : '') +
             (getOwnerOptions().useKV && getOwnerOptions().useDirektion ? ' + ' : '') +
-            (getOwnerOptions().useDirektion ? 'Direktion' : '') + '.',
+            (getOwnerOptions().useDirektion ? 'Direktion' : '') +
+            (getJgCreateTeam() ? '. Pro Gruppe wird auch ein Microsoft Team bereitgestellt.' : '.'),
             { title: 'Gruppen anlegen & matchen', okText: 'Anlegen' }
         ))) return;
         const btn = document.getElementById('jgBtnBulkCreate');
+        const createTeam = getJgCreateTeam();
         if (btn) btn.disabled = true;
         let ok = 0;
         let fail = 0;
@@ -2038,10 +2070,22 @@
                     if (emails.length) {
                         await gug().syncEmailsToGroup(token, g.id, emails, 'Klasse', function () {});
                     }
+                    if (createTeam && typeof gug().provisionTeamForGroup === 'function') {
+                        try {
+                            await gug().provisionTeamForGroup(token, g.id);
+                        } catch (teamErr) {
+                            const msg = String((teamErr && teamErr.message) || teamErr || '');
+                            if (/\b409\b/.test(msg) || /Conflict|already exists|already provisioned/i.test(msg)) {
+                                /* Team bereits vorhanden */
+                            } else {
+                                lines.push('Team fehlgeschlagen  ' + it.name + ': ' + msg);
+                            }
+                        }
+                    }
                     persistMatchForRow(row, g, 'created');
                     selectedKeys.delete(it.key);
                     ok++;
-                    lines.push('OK  ' + it.name + '  →  ' + nick);
+                    lines.push('OK  ' + it.name + '  →  ' + nick + (createTeam ? ' (+ Team)' : ''));
                     if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
                         window.ms365ActionLog.append({
                             tool: 'jg', action: 'createAndMatch', target: nick, summary: displayName, result: 'ok'
@@ -2081,7 +2125,7 @@
             title: 'Jahrgangsgruppe',
             searchPlaceholder: 'z. B. 1AK oder jg2030ak',
             unmatchedCreateHint:
-                'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit dieser Klasse. Optional auch als Team bereitstellen.',
+                'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit dieser Klasse. Standardmäßig wird auch ein Microsoft Team bereitgestellt (unter Sammelaktionen abschaltbar).',
             membersUnmatchedHint:
                 'Wenn in den Stammdaten Schüler:innen mit E‑Mail für diese Klasse hinterlegt sind, können sie nach dem Match additiv synchronisiert werden. Sonst Mitglieder live in Graph pflegen.',
             membersUnmatchedTitle: 'Schüler:innen dieser Klasse',
@@ -2326,6 +2370,19 @@
         });
         updateNickPreview();
 
+        function onJgCreateTeamChange(ev) {
+            const el = ev && ev.target;
+            const on = el ? !!el.checked : getJgCreateTeam();
+            saveJgCreateTeam(on);
+            syncJgCreateTeamUi();
+        }
+        ['jgBulkCreateTeam', 'slgNewCreateTeam'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', onJgCreateTeamChange);
+        });
+        syncJgCreateTeamUi();
+
         ['jgOwnerUseKV', 'jgOwnerUseDirektion'].forEach(function (id) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -2370,6 +2427,7 @@
             if (upperEl) upperEl.checked = !!schema.upper;
         }
         wire();
+        syncJgCreateTeamUi();
         // Nomenklatur-Vorschau initialisieren
         const nickPreviewEl = document.getElementById('jgNickPreview');
         if (nickPreviewEl && typeof window.ms365GetClassNickSchema === 'function') {
