@@ -313,6 +313,23 @@
                                 <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
                             <p class="jg-bulk-hint muted">Klassen ankreuzen (auch ungematchte). <strong>Anlegen &amp; matchen</strong> erstellt M365‑Gruppen für ungematchte Klassen. Mitglieder/Besitzer/Löschen wirken nur auf bereits gematchte Klassen.</p>
+                            <div class="jg-bulk-group" role="group" aria-label="Nomenklatur" id="jgNomenklaturGroup">
+                                <div class="jg-bulk-group-label">Nomenklatur (Mail-Nickname beim Anlegen)</div>
+                                <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-bottom:6px;">
+                                    <label for="jgNickPrefix" style="font-size:0.88em;font-weight:600;white-space:nowrap;">Präfix</label>
+                                    <input type="text" id="jgNickPrefix" value="jg" maxlength="16" autocomplete="off" spellcheck="false" style="font-family:Consolas,monospace;font-size:0.88em;max-width:10em;">
+                                    <label for="jgNickPattern" style="font-size:0.88em;font-weight:600;white-space:nowrap;">Schema</label>
+                                    <input type="text" id="jgNickPattern" value="{prefix}{year}-{suffix}" autocomplete="off" spellcheck="false" style="font-family:Consolas,monospace;font-size:0.88em;">
+                                </div>
+                                <p class="muted" style="margin:0 0 4px;font-size:0.82em;">
+                                    Platzhalter: <code>{prefix}</code> <code>{year}</code> <code>{suffix}</code> (Buchstaben, z.&nbsp;B. AK) <code>{klasse}</code> (z.&nbsp;B. 1AK) <code>{kv}</code> (KV-Kürzel)<br>
+                                    Vorschau: <code id="jgNickPreview">jg2031-AK</code>
+                                </p>
+                                <label class="checkbox-label" style="margin:0 0 6px;font-size:0.88em;">
+                                    <input type="checkbox" id="jgNickUpper">
+                                    <span>Kürzel/Schema groß schreiben</span>
+                                </label>
+                            </div>
                             <div class="jg-bulk-group" role="group" aria-label="Besitzer beim Anlegen">
                                 <div class="jg-bulk-group-label">Besitzer beim Anlegen neuer Gruppen</div>
                                 <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">

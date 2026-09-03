@@ -2162,6 +2162,42 @@
                 }
             });
         }
+        // ── Nomenklatur (Alias-Schema) ───────────────────────────────────────
+        function updateNickPreview() {
+            const prefix = (document.getElementById('jgNickPrefix')?.value || 'jg').trim().toLowerCase().replace(/[^a-z0-9]/g,'') || 'jg';
+            const pattern = document.getElementById('jgNickPattern')?.value || '{prefix}{year}-{suffix}';
+            const upper = document.getElementById('jgNickUpper')?.checked;
+            const exSuffix = upper ? 'AK' : 'ak';
+            const exYear = '2031';
+            const exKlasse = upper ? '1AK' : '1ak';
+            const raw = pattern
+                .replaceAll('{prefix}', prefix)
+                .replaceAll('{year}', exYear)
+                .replaceAll('{suffix}', exSuffix)
+                .replaceAll('{klasse}', exKlasse)
+                .replaceAll('{kv}', upper ? 'SCW' : 'scw');
+            const sanitized = raw.trim().replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'').toLowerCase();
+            const el = document.getElementById('jgNickPreview');
+            if (el) el.textContent = sanitized || '(leer)';
+        }
+        function saveNickSchema() {
+            if (typeof window.ms365SaveClassNickSchema === 'function') {
+                window.ms365SaveClassNickSchema({
+                    prefix: document.getElementById('jgNickPrefix')?.value || 'jg',
+                    pattern: document.getElementById('jgNickPattern')?.value || '{prefix}{year}-{suffix}',
+                    upper: !!document.getElementById('jgNickUpper')?.checked
+                });
+            }
+            updateNickPreview();
+        }
+        ['jgNickPrefix', 'jgNickPattern', 'jgNickUpper'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', saveNickSchema);
+            el.addEventListener('change', saveNickSchema);
+        });
+        updateNickPreview();
+
         ['jgOwnerUseKV', 'jgOwnerUseDirektion'].forEach(function (id) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -2195,7 +2231,28 @@
         initMembershipReview();
         readLists();
         ensureActiveKey();
+        // Gespeichertes Alias-Schema in die UI laden
+        if (typeof window.ms365GetClassNickSchema === 'function') {
+            const schema = window.ms365GetClassNickSchema();
+            const prefixEl = document.getElementById('jgNickPrefix');
+            const patternEl = document.getElementById('jgNickPattern');
+            const upperEl = document.getElementById('jgNickUpper');
+            if (prefixEl) prefixEl.value = schema.prefix || 'jg';
+            if (patternEl) patternEl.value = schema.pattern || '{prefix}{year}-{suffix}';
+            if (upperEl) upperEl.checked = !!schema.upper;
+        }
         wire();
+        // Nomenklatur-Vorschau initialisieren
+        const nickPreviewEl = document.getElementById('jgNickPreview');
+        if (nickPreviewEl && typeof window.ms365GetClassNickSchema === 'function') {
+            const s = window.ms365GetClassNickSchema();
+            const prefix = (s.prefix || 'jg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jg';
+            const pattern = s.pattern || '{prefix}{year}-{suffix}';
+            const exSuffix = s.upper ? 'AK' : 'ak';
+            const raw = pattern.replaceAll('{prefix}',prefix).replaceAll('{year}','2031')
+                .replaceAll('{suffix}',exSuffix).replaceAll('{klasse}',s.upper?'1AK':'1ak').replaceAll('{kv}',s.upper?'SCW':'scw');
+            nickPreviewEl.textContent = raw.trim().replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'').toLowerCase() || 'jg2031-ak';
+        }
         renderLeftList();
         applyCreateDefaults();
         gd().setTab('general');

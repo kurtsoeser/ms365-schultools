@@ -307,16 +307,95 @@
     }
 
     /** Stabiler Mail-Nickname für Klassen-M365-Gruppe: jg{YYYY}{codeAlphaNum} (Kursteam/Umbenennen). */
-    function deriveClassStableMailNickname(yearRaw, codeRaw) {
+    /** localStorage-Key für das konfigurierbare Alias-Schema der Klassengruppen */
+    const CLASS_NICK_SCHEMA_KEY = 'ms365-class-nick-schema-v1';
+
+    /** Gibt das aktuell gespeicherte Alias-Schema zurück (oder den Default). */
+    function getClassNickSchema() {
+        try {
+            const raw = localStorage.getItem(CLASS_NICK_SCHEMA_KEY);
+            if (raw) {
+                const obj = JSON.parse(raw);
+                return {
+                    prefix: normStr(obj.prefix || 'jg'),
+                    pattern: normStr(obj.pattern || '{prefix}{year}-{suffix}'),
+                    upper: !!obj.upper
+                };
+            }
+        } catch { /* ignore */ }
+        return { prefix: 'jg', pattern: '{prefix}{year}-{suffix}', upper: false };
+    }
+
+    /** Speichert das Alias-Schema. */
+    function saveClassNickSchema(schema) {
+        try {
+            localStorage.setItem(CLASS_NICK_SCHEMA_KEY, JSON.stringify({
+                prefix: normStr(schema.prefix || 'jg') || 'jg',
+                pattern: normStr(schema.pattern || '{prefix}{year}-{suffix}') || '{prefix}{year}-{suffix}',
+                upper: !!schema.upper
+            }));
+        } catch { /* ignore */ }
+    }
+
+    /**
+     * Baut den Mail-Nickname für eine Klasse nach dem konfigurierten Schema.
+     * Platzhalter: {prefix}, {year}, {klasse}, {suffix}, {kv}
+     * @param {string} yearRaw   Abschlussjahr (4-stellig)
+     * @param {string} codeRaw   Klassencode (z. B. "1AK")
+     * @param {object} [rowExtra] Optional: { headName, headEmail } für {kv}
+     */
+    function deriveClassStableMailNickname(yearRaw, codeRaw, rowExtra) {
+        const schema = getClassNickSchema();
         const y = normStr(yearRaw);
         const yy = /^\d{4}$/.test(y) ? y : '';
         const code = normCode(codeRaw);
-        const tail = String(code || '')
-            .replace(/[^0-9A-Za-z]/g, '')
+        if (!code) return '';
+
+        // {suffix} = Buchstaben-Teil (z.B. AK aus 1AK)
+        const suffixMatch = code.match(/^[0-9]*([A-Za-z]+)$/);
+        const suffixRaw = suffixMatch ? suffixMatch[1] : code;
+        const suffix = schema.upper ? suffixRaw.toUpperCase() : suffixRaw.toLowerCase();
+        const klasseToken = schema.upper ? code.replace(/[^A-Za-z0-9]/g,'').toUpperCase() : code.replace(/[^A-Za-z0-9]/g,'').toLowerCase();
+        const prefixToken = (schema.prefix || 'jg').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+        // {kv} = Kürzel des Klassenvorstands
+        let kvToken = '';
+        if (rowExtra) {
+            const name = normStr(rowExtra.headName || '');
+            const bracketMatch = name.match(/\(([^)]+)\)\s*$/);
+            if (bracketMatch) {
+                kvToken = bracketMatch[1].trim();
+            } else {
+                const lastWord = name.split(/\s+/).pop();
+                if (lastWord && lastWord.length <= 6) kvToken = lastWord;
+            }
+            if (!kvToken) {
+                const mail = normStr(rowExtra.headEmail || '');
+                if (mail.indexOf('@') !== -1) kvToken = mail.split('@')[0].replace(/[^A-Za-z]/g,'').slice(0,8);
+            }
+        }
+        kvToken = schema.upper ? kvToken.toUpperCase() : kvToken.toLowerCase();
+
+        const raw = (schema.pattern || '{prefix}{year}-{suffix}')
+            .replaceAll('{prefix}', prefixToken)
+            .replaceAll('{year}', yy)
+            .replaceAll('{klasse}', klasseToken)
+            .replaceAll('{suffix}', suffix)
+            .replaceAll('{kv}', kvToken);
+
+        const sanitized = raw
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-zA-Z0-9-]/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
             .toLowerCase()
-            .slice(0, 24);
-        if (!yy || !tail) return '';
-        return ('jg' + yy + tail).toLowerCase().slice(0, 60);
+            .slice(0, 60);
+
+        if (sanitized) return sanitized;
+        // Fallback: klassischer Stil
+        const tail = code.replace(/[^0-9A-Za-z]/g,'').toLowerCase().slice(0,24);
+        return (prefixToken + (yy || '') + tail).slice(0,60);
     }
 
     function safeJsonParse(s) {
@@ -865,5 +944,7 @@
     window.ms365TenantSettingsParseClassesLines = parseLinesToClasses;
     window.ms365TenantSettingsParseSgaLines = parseLinesToSga;
     window.ms365DeriveClassStableMailNickname = deriveClassStableMailNickname;
+    window.ms365GetClassNickSchema = getClassNickSchema;
+    window.ms365SaveClassNickSchema = saveClassNickSchema;
 })();
 
