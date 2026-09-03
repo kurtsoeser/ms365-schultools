@@ -1105,7 +1105,12 @@
         if (idx >= 0) {
             const prev = teams[idx];
             const merged = Object.assign({}, prev, n);
-            if (!merged.mailNickname && prev.mailNickname) merged.mailNickname = prev.mailNickname;
+            if (!n.graphGroupId) {
+                merged.mailNickname = n.mailNickname || '';
+                merged.graphGroupId = '';
+            } else if (!merged.mailNickname && prev.mailNickname) {
+                merged.mailNickname = prev.mailNickname;
+            }
             teams[idx] = merged;
         } else teams.push(n);
         c.core.classTeams = normalizeCoreClassTeams(teams);

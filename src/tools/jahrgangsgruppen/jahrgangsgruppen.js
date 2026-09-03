@@ -1307,17 +1307,23 @@
         }
         if (!row) return;
         const existing = findClassTeam(row);
+        const gid = g && g.id ? String(g.id).trim() : '';
         const displayNick = graphMailNick(g && g.mailNickname);
-        const nick =
-            sanitizeNick(displayNick) || sanitizeNick(existing && existing.stableMailNickname) || deriveNick(row);
+        const schemaNick = deriveNick(row);
+        // Nach Löschen/Unmatchen: alten Graph-Alias nicht wiederverwenden.
+        const nick = gid
+            ? sanitizeNick(displayNick) || sanitizeNick(existing && existing.stableMailNickname) || schemaNick
+            : schemaNick || sanitizeNick(displayNick);
         if (!nick) {
             throw new Error('Kein gültiger Mail‑Nickname für diese Klasse (Kürzel und Abschlussjahr prüfen).');
         }
-        const pretty = displayNick || graphMailNick(existing && existing.mailNickname) || nick;
+        const pretty = gid
+            ? displayNick || graphMailNick(existing && existing.mailNickname) || nick
+            : schemaNick || displayNick || nick;
         api.upsertClassTeam({
             stableMailNickname: nick,
             mailNickname: pretty,
-            graphGroupId: g && g.id ? String(g.id) : '',
+            graphGroupId: gid,
             classCode: row && row.code ? row.code : '',
             displayName: (g && g.displayName) || (row && row.name) || '',
             abschlussJahr: row && row.year ? row.year : '',
@@ -1839,7 +1845,7 @@
                 String(items.length) +
                     ' Microsoft‑365‑Gruppe(n) wirklich löschen?\n\n' +
                     preview +
-                    '\n\nDie Gruppen verschwinden in Entra/Teams. Das lokale Match wird gelöst. Das lässt sich nicht rückgängig machen.',
+                    '\n\nDie Gruppen verschwinden in Entra/Teams. Das lokale Match wird gelöst.\n\nHinweis: Gelöschte Gruppen liegen oft noch 30 Tage im Entra-Papierkorb. Der alte Alias (z. B. jg20311bk) kann dann noch reserviert sein – in Entra ggf. endgültig löschen, bevor Sie neu anlegen.',
                 { title: 'Gruppen löschen', okText: 'Löschen', danger: true }
             ))
         ) {
@@ -1882,6 +1888,8 @@
                 if ((i + 1) % 4 === 0) await sleep(200);
             }
             renderLeftList();
+            applyCreateDefaults();
+            refreshMatchUi();
             if (deletedKeys.indexOf(normCode(activeKey) || normStr(activeKey).toUpperCase()) >= 0) {
                 live().loadGroup({ silent: true });
             }
