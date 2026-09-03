@@ -140,6 +140,9 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
         }
+        .jg-bulk-actions .jg-bulk-tile:first-child {
+            grid-column: 1 / -1;
+        }
         .jg-bulk-tile {
             display: flex;
             flex-direction: column;
@@ -308,10 +311,11 @@
                                 </div>
                                 <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
-                            <p class="jg-bulk-hint muted">Zuerst gematchte Klassen ankreuzen. Mitglieder gleicht die Schülerliste ab (fehlende dazu, klassenfremde Schüler weg; Lehrkräfte bleiben). Besitzer wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match.</p>
+                            <p class="jg-bulk-hint muted">Klassen ankreuzen (auch ungematchte). <strong>Anlegen &amp; matchen</strong> erstellt M365‑Gruppen für ungematchte Klassen. Mitglieder/Besitzer/Löschen wirken nur auf bereits gematchte Klassen.</p>
                             <div class="jg-bulk-group" role="group" aria-label="Auswahl">
                                 <div class="jg-bulk-group-label">Auswahl</div>
                                 <div class="jg-bulk-toolbar">
+                                    <button type="button" class="btn btn-ghost" id="jgBtnSelectUnmatched" title="Alle ungematchten Klassen (rote Badges) in der aktuellen Liste ankreuzen"><i class="bi bi-exclamation-circle"></i>Ungematchte ankreuzen</button>
                                     <button type="button" class="btn btn-ghost" id="jgBtnSelectMatched" title="Alle gematchten Klassen in der aktuellen Liste ankreuzen"><i class="bi bi-check2-all"></i>Gematchte ankreuzen</button>
                                     <button type="button" class="btn btn-ghost" id="jgBtnSelectNone" title="Alle Häkchen in der Klassenliste entfernen"><i class="bi bi-x-square"></i>Auswahl aufheben</button>
                                 </div>
@@ -319,6 +323,10 @@
                             <div class="jg-bulk-group" role="group" aria-label="Aktionen">
                                 <div class="jg-bulk-group-label">Aktionen</div>
                                 <div class="jg-bulk-actions">
+                                    <button type="button" class="btn btn-success jg-bulk-tile" id="jgBtnBulkCreate" title="Für angekreuzte ungematchte Klassen je eine Microsoft‑365‑Gruppe anlegen und direkt matchen">
+                                        <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
+                                        <span class="jg-bulk-tile-label">Anlegen &amp; matchen<small>ungematchte Klassen</small></span>
+                                    </button>
                                     <button type="button" class="btn btn-success jg-bulk-tile" id="jgBtnBulkSyncMembers" title="Schüler:innen der Stammliste in die angekreuzten Klassengruppen übernehmen">
                                         <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
                                         <span class="jg-bulk-tile-label">Mitglieder<small>Stammliste abgleichen</small></span>

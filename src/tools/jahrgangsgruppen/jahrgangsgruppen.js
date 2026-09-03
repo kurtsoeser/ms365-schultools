@@ -1202,12 +1202,12 @@
             btn.appendChild(main);
             const pick = document.createElement('label');
             pick.className = 'jg-pick';
-            pick.title = gid ? 'Für Sammelaktion auswählen' : 'Nur gematchte Gruppen können ausgewählt werden';
+            pick.title = 'Für Sammelaktion auswählen';
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.setAttribute('data-jg-pick', rowKey(row));
-            cb.checked = gid ? selectedKeys.has(rowKey(row)) : false;
-            cb.disabled = !gid;
+            cb.checked = selectedKeys.has(rowKey(row));
+            cb.disabled = false;
             cb.addEventListener('click', function (ev) {
                 ev.stopPropagation();
             });
@@ -1438,16 +1438,12 @@
     function pruneSelection() {
         const keep = new Set();
         selectedKeys.forEach(function (key) {
-            let row = null;
             for (let i = 0; i < classes.length; i++) {
                 if (rowKey(classes[i]) === key) {
-                    row = classes[i];
+                    keep.add(key);
                     break;
                 }
             }
-            if (!row) return;
-            const team = findClassTeam(row);
-            if (team && team.graphGroupId) keep.add(key);
         });
         selectedKeys = keep;
     }
@@ -1478,12 +1474,28 @@
         return out;
     }
 
+    function collectSelectedUnmatched() {
+        pruneSelection();
+        const out = [];
+        selectedKeys.forEach(function (key) {
+            let row = null;
+            for (let i = 0; i < classes.length; i++) {
+                if (rowKey(classes[i]) === key) { row = classes[i]; break; }
+            }
+            if (!row) return;
+            const team = findClassTeam(row);
+            if (team && team.graphGroupId) return; // already matched
+            out.push({ key: key, row: row, name: normStr(row.name) || normStr(row.code) });
+        });
+        return out;
+    }
+
     function updateBulkCount() {
         pruneSelection();
         const n = selectedKeys.size;
         const el = document.getElementById('jgBulkCount');
         if (el) {
-            const label = n === 1 ? '1 Gruppe ausgewählt' : String(n) + ' Gruppen ausgewählt';
+            const label = n === 1 ? '1 Klasse ausgewählt' : String(n) + ' Klassen ausgewählt';
             el.innerHTML = '<i class="bi bi-check2-square" aria-hidden="true"></i>' + label;
             el.classList.toggle('is-active', n > 0);
         }
@@ -1507,7 +1519,28 @@
         });
         renderLeftList();
         const n = collectSelectedMatched().length;
-        toast(n ? String(n) + ' gematchte Gruppe(n) angekreuzt.' : 'Keine gematchten Gruppen in der aktuellen Liste.');
+        toast(n ? String(n) + ' gematchte Klasse(n) angekreuzt.' : 'Keine gematchten Klassen in der aktuellen Liste.');
+    }
+
+    function visibleUnmatchedRows() {
+        const q = listFilter.toLowerCase();
+        return classes.filter(function (row) {
+            const team = findClassTeam(row);
+            if (team && team.graphGroupId) return false;
+            if (!q) return true;
+            const nick = persistNickForRow(row);
+            const hay = (row.code + ' ' + (row.name || '') + ' ' + (row.year || '') + ' ' + nick).toLowerCase();
+            return hay.indexOf(q) !== -1;
+        });
+    }
+
+    function selectVisibleUnmatched() {
+        visibleUnmatchedRows().forEach(function (row) {
+            selectedKeys.add(rowKey(row));
+        });
+        renderLeftList();
+        const n = collectSelectedUnmatched().length;
+        toast(n ? String(n) + ' ungematchte Klasse(n) angekreuzt.' : 'Keine ungematchten Klassen in der aktuellen Liste.');
     }
 
     function clearSelection() {
@@ -1814,6 +1847,77 @@
         }
     }
 
+    async function runBulkCreateAndMatch() {
+        const items = collectSelectedUnmatched();
+        if (!items.length) {
+            toast('Bitte zuerst ungematchte Klassen ankreuzen (rote Badges).');
+            return;
+        }
+        const preview = items.slice(0, 12).map(function (it) { return it.name; }).join('\n') +
+            (items.length > 12 ? '\n…' : '');
+        if (!(await dlgConfirm(
+            String(items.length) + ' ungematchte Klasse(n) als Microsoft‑365‑Gruppe anlegen und matchen?\n\n' +
+            preview +
+            '\n\nAnzeigename und Alias werden aus den Stammdaten abgeleitet. Besitzer: Direktion (falls hinterlegt).',
+            { title: 'Gruppen anlegen & matchen', okText: 'Anlegen' }
+        ))) return;
+        const btn = document.getElementById('jgBtnBulkCreate');
+        if (btn) btn.disabled = true;
+        let ok = 0;
+        let fail = 0;
+        const lines = [];
+        setBulkStatus('Gruppen werden angelegt …');
+        try {
+            const token = await gug().getGraphToken();
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                const row = it.row;
+                const nick = persistNickForRow(row);
+                if (!nick) {
+                    fail++;
+                    lines.push('Fehler  ' + it.name + ': kein Alias ableitbar (Abschlussjahr prüfen).');
+                    continue;
+                }
+                const displayName = normStr(row.name) || normStr(row.code) || nick;
+                const desc = 'Jahrgangsgruppe ' + displayName +
+                    (row.year ? ' / Abschluss ' + row.year : '') + ' (MS365-Schulverwaltung)';
+                try {
+                    const g = await gug().createUnifiedGroup(token, displayName, nick, desc);
+                    if (direktion.length) await gug().ensureOwners(token, g.id, direktion);
+                    const emails = emailsForClass(row);
+                    if (emails.length) {
+                        await gug().syncEmailsToGroup(token, g.id, emails, 'Klasse', function () {});
+                    }
+                    persistMatchForRow(row, g, 'created');
+                    selectedKeys.delete(it.key);
+                    ok++;
+                    lines.push('OK  ' + it.name + '  →  ' + nick);
+                    if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                        window.ms365ActionLog.append({
+                            tool: 'jg', action: 'createAndMatch', target: nick, summary: displayName, result: 'ok'
+                        });
+                    }
+                } catch (e) {
+                    fail++;
+                    lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
+                }
+                if ((i + 1) % 4 === 0) await sleep(200);
+            }
+            renderLeftList();
+            setBulkStatus(lines.join('\n'));
+            toast('Anlegen: ' + ok + ' OK, ' + fail + ' Fehler.');
+            if (ok > 0 && getActiveGroupId()) {
+                try { live().invalidateMembership(); } catch (_) { /* ignore */ }
+            }
+        } catch (e) {
+            renderLeftList();
+            setBulkStatus('Abbruch: ' + (e.message || e));
+            toast('Anlegen: ' + (e.message || e));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
     function onClick(id, fn) {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', fn);
@@ -1984,7 +2088,11 @@
             runSmtpScript(false);
         });
         onClick('jgBtnSelectMatched', selectVisibleMatched);
+        onClick('jgBtnSelectUnmatched', selectVisibleUnmatched);
         onClick('jgBtnSelectNone', clearSelection);
+        onClick('jgBtnBulkCreate', function () {
+            runBulkCreateAndMatch().catch(function () {});
+        });
         onClick('jgBtnBulkSyncMembers', function () {
             runBulkSyncMembers().catch(function () {});
         });
