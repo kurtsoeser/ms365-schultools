@@ -1509,16 +1509,12 @@
     }
 
     let bulkBusy = false;
-    let bulkManualOpen = false;
-    let bulkUserCollapsed = false;
-    let lastBulkSelectCount = -1;
+    let lastBulkSelectCount = 0;
 
     function setBulkExpanded(open) {
         const box = document.getElementById('jgBulk');
-        const toggle = document.getElementById('jgBulkToggle');
         if (!box) return;
-        box.classList.toggle('is-collapsed', !open);
-        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        box.open = !!open;
     }
 
     function syncBulkExpanded() {
@@ -1526,15 +1522,9 @@
             setBulkExpanded(true);
             return;
         }
-        if (bulkUserCollapsed) {
-            setBulkExpanded(false);
-            return;
-        }
-        if (bulkManualOpen) {
-            setBulkExpanded(true);
-            return;
-        }
-        setBulkExpanded(selectedKeys.size >= 2);
+        const n = selectedKeys.size;
+        if (n >= 2) setBulkExpanded(true);
+        else if (lastBulkSelectCount >= 2 && n < 2) setBulkExpanded(false);
     }
 
     function setBulkProgress(done, total, label) {
@@ -1652,12 +1642,8 @@
             el.innerHTML = '<i class="bi bi-check2-square" aria-hidden="true"></i>' + label;
             el.classList.toggle('is-active', n > 0);
         }
-        if (n !== lastBulkSelectCount) {
-            lastBulkSelectCount = n;
-            bulkUserCollapsed = false;
-            bulkManualOpen = false;
-        }
         syncBulkExpanded();
+        lastBulkSelectCount = n;
     }
 
     function visibleMatchedRows() {
@@ -2287,16 +2273,6 @@
         onClick('jgBtnSmtpAll', function () {
             runSmtpScript(false);
         });
-        const bulkToggle = document.getElementById('jgBulkToggle');
-        if (bulkToggle) {
-            bulkToggle.addEventListener('click', function () {
-                const box = document.getElementById('jgBulk');
-                const willOpen = !!(box && box.classList.contains('is-collapsed'));
-                bulkManualOpen = willOpen;
-                bulkUserCollapsed = !willOpen;
-                setBulkExpanded(willOpen);
-            });
-        }
         onClick('jgBtnSelectMatched', selectVisibleMatched);
         onClick('jgBtnSelectUnmatched', selectVisibleUnmatched);
         onClick('jgBtnSelectNone', clearSelection);

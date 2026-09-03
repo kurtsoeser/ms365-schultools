@@ -70,9 +70,7 @@
             border-radius: 16px;
             background: var(--soft);
         }
-        .jg-bulk.is-collapsed { padding-bottom: 12px; }
-        .jg-bulk.is-collapsed .jg-bulk-body { display: none; }
-        .jg-bulk-toggle {
+        .jg-bulk > summary.jg-bulk-toggle {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
@@ -80,14 +78,15 @@
             gap: 10px;
             width: 100%;
             margin: 0;
-            padding: 0;
-            border: 0;
-            background: transparent;
+            padding: 2px 0;
+            list-style: none;
+            cursor: pointer;
             color: inherit;
             text-align: left;
-            cursor: pointer;
         }
-        .jg-bulk-toggle:focus-visible {
+        .jg-bulk > summary.jg-bulk-toggle::-webkit-details-marker { display: none; }
+        .jg-bulk > summary.jg-bulk-toggle::marker { content: ''; }
+        .jg-bulk > summary.jg-bulk-toggle:focus-visible {
             outline: 2px solid color-mix(in srgb, var(--brand1) 55%, transparent);
             outline-offset: 3px;
             border-radius: 10px;
@@ -98,13 +97,9 @@
             color: var(--muted);
             transition: transform 0.15s ease;
         }
-        .jg-bulk:not(.is-collapsed) .jg-bulk-chevron { transform: rotate(180deg); }
+        .jg-bulk[open] .jg-bulk-chevron { transform: rotate(180deg); }
         .jg-bulk-head {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
+            display: block;
             margin-bottom: 6px;
         }
         .jg-bulk-progress {
@@ -359,17 +354,15 @@
                             </div>
                             <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
                         </div>
-                        <div class="jg-bulk is-collapsed" id="jgBulk" aria-label="Sammelaktionen">
-                            <div class="jg-bulk-head">
-                                <button type="button" class="jg-bulk-toggle" id="jgBulkToggle" aria-expanded="false" aria-controls="jgBulkBody">
-                                    <div class="jg-bulk-head-title">
-                                        <i class="bi bi-layers" aria-hidden="true"></i>
-                                        <div class="slg-section-title">Sammelaktionen</div>
-                                        <i class="bi bi-chevron-down jg-bulk-chevron" aria-hidden="true"></i>
-                                    </div>
-                                    <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Klassen ausgewählt</span>
-                                </button>
-                            </div>
+                        <details class="jg-bulk" id="jgBulk" aria-label="Sammelaktionen">
+                            <summary class="jg-bulk-toggle" id="jgBulkToggle">
+                                <div class="jg-bulk-head-title">
+                                    <i class="bi bi-layers" aria-hidden="true"></i>
+                                    <div class="slg-section-title">Sammelaktionen</div>
+                                    <i class="bi bi-chevron-down jg-bulk-chevron" aria-hidden="true"></i>
+                                </div>
+                                <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Klassen ausgewählt</span>
+                            </summary>
                             <div class="jg-bulk-progress" id="jgBulkProgress" hidden>
                                 <div class="jg-bulk-progress-track" aria-hidden="true">
                                     <div class="jg-bulk-progress-bar" id="jgBulkProgressBar"></div>
@@ -468,7 +461,7 @@
                             </div>
                             </div>
                             <p class="jg-bulk-status muted" id="jgBulkStatus" hidden></p>
-                        </div>
+                        </details>
                         <p class="muted" style="margin:12px 2px 0; font-size:0.92em;">
                             <a href="../tenant.html#classes" style="text-decoration:none; color:inherit;"><i class="bi bi-gear"></i> Stammdaten</a>
                             · <a href="schulstruktur-sync.html" style="text-decoration:none; color:inherit;"><i class="bi bi-box-arrow-up-right"></i> MS&nbsp;365 Gruppenverwaltung</a>
