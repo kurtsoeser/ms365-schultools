@@ -1478,16 +1478,84 @@
         });
     }
 
+    let bulkBusy = false;
+    let bulkManualOpen = false;
+    let bulkUserCollapsed = false;
+    let lastBulkSelectCount = -1;
+
+    function setBulkExpanded(open) {
+        const box = document.getElementById('jgBulk');
+        const toggle = document.getElementById('jgBulkToggle');
+        if (!box) return;
+        box.classList.toggle('is-collapsed', !open);
+        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function syncBulkExpanded() {
+        if (bulkBusy) {
+            setBulkExpanded(true);
+            return;
+        }
+        if (bulkUserCollapsed) {
+            setBulkExpanded(false);
+            return;
+        }
+        if (bulkManualOpen) {
+            setBulkExpanded(true);
+            return;
+        }
+        setBulkExpanded(selectedKeys.size >= 2);
+    }
+
+    function setBulkProgress(done, total, label) {
+        const wrap = document.getElementById('jgBulkProgress');
+        const bar = document.getElementById('jgBulkProgressBar');
+        const lab = document.getElementById('jgBulkProgressLabel');
+        if (!wrap || !bar) return;
+        const max = Math.max(0, Number(total) || 0);
+        const cur = Math.max(0, Math.min(max, Number(done) || 0));
+        const pct = max ? Math.round((cur / max) * 100) : 0;
+        wrap.hidden = false;
+        bar.style.width = pct + '%';
+        wrap.setAttribute('aria-valuemin', '0');
+        wrap.setAttribute('aria-valuemax', String(max || 100));
+        wrap.setAttribute('aria-valuenow', String(cur));
+        if (lab) {
+            lab.textContent = (label || 'Fortschritt') + '  ·  ' + cur + ' / ' + max + '  (' + pct + ' %)';
+        }
+    }
+
+    function clearBulkProgress() {
+        const wrap = document.getElementById('jgBulkProgress');
+        const bar = document.getElementById('jgBulkProgressBar');
+        if (bar) bar.style.width = '0';
+        if (wrap) wrap.hidden = true;
+    }
+
     function setBulkStatus(text, show) {
         const el = document.getElementById('jgBulkStatus');
         if (!el) return;
         if (show === false || !text) {
             el.hidden = true;
             el.textContent = '';
+            if (!bulkBusy) clearBulkProgress();
             return;
         }
         el.hidden = false;
         el.textContent = text;
+        setBulkExpanded(true);
+    }
+
+    function beginBulkJob(total, label) {
+        bulkBusy = true;
+        setBulkExpanded(true);
+        setBulkProgress(0, total, label);
+        setBulkStatus(label + ' …');
+    }
+
+    function finishBulkJob() {
+        bulkBusy = false;
+        syncBulkExpanded();
     }
 
     function pruneSelection() {
@@ -1554,6 +1622,12 @@
             el.innerHTML = '<i class="bi bi-check2-square" aria-hidden="true"></i>' + label;
             el.classList.toggle('is-active', n > 0);
         }
+        if (n !== lastBulkSelectCount) {
+            lastBulkSelectCount = n;
+            bulkUserCollapsed = false;
+            bulkManualOpen = false;
+        }
+        syncBulkExpanded();
     }
 
     function visibleMatchedRows() {
@@ -1685,11 +1759,12 @@
         let skip = 0;
         let fail = 0;
         const lines = [];
-        setBulkStatus('Besitzer wird gesetzt …');
+        beginBulkJob(items.length, 'Besitzer wird gesetzt');
         try {
             const token = await gug().getGraphToken();
             for (let i = 0; i < items.length; i++) {
                 const it = items[i];
+                setBulkProgress(i, items.length, 'Besitzer: ' + it.name);
                 try {
                     await gug().addOwnerWithMemberFallback(token, it.id, userId);
                     ok++;
@@ -1703,8 +1778,10 @@
                         lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
                     }
                 }
+                setBulkProgress(i + 1, items.length, 'Besitzer: ' + it.name);
                 if ((i + 1) % 6 === 0) await sleep(120);
             }
+            setBulkProgress(items.length, items.length, 'Besitzer fertig');
             setBulkStatus(lines.join('\n'));
             toast('Besitzer: neu ' + ok + ', bereits vorhanden ' + skip + ', Fehler ' + fail + '.');
             if (getActiveGroupId()) {
@@ -1720,6 +1797,7 @@
             toast('Besitzer setzen: ' + (e.message || e));
         } finally {
             if (applyBtn) applyBtn.disabled = false;
+            finishBulkJob();
         }
     }
 
@@ -1756,11 +1834,12 @@
         let joinTotal = 0;
         let leaveTotal = 0;
         const lines = [];
-        setBulkStatus('Mitglieder werden abgeglichen …');
+        beginBulkJob(items.length, 'Mitglieder werden abgeglichen');
         try {
             const token = await gug().getGraphToken();
             for (let i = 0; i < items.length; i++) {
                 const it = items[i];
+                setBulkProgress(i, items.length, 'Mitglieder: ' + it.name);
                 try {
                     const r = await syncMembersForGroup(token, it.row, it.id, function () {});
                     if (r.empty) {
@@ -1793,8 +1872,10 @@
                     fail++;
                     lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
                 }
+                setBulkProgress(i + 1, items.length, 'Mitglieder: ' + it.name);
                 if ((i + 1) % 4 === 0) await sleep(200);
             }
+            setBulkProgress(items.length, items.length, 'Mitglieder fertig');
             setBulkStatus(lines.join('\n'));
             toast(
                 'Mitglieder: ' +
@@ -1824,6 +1905,7 @@
             toast('Mitglieder: ' + (e.message || e));
         } finally {
             if (btn) btn.disabled = false;
+            finishBulkJob();
         }
     }
 
@@ -1857,11 +1939,12 @@
         let fail = 0;
         const lines = [];
         const deletedKeys = [];
-        setBulkStatus('Gruppen werden gelöscht …');
+        beginBulkJob(items.length, 'Gruppen werden gelöscht');
         try {
             const token = await gug().getGraphToken();
             for (let i = 0; i < items.length; i++) {
                 const it = items[i];
+                setBulkProgress(i, items.length, 'Löschen: ' + it.name);
                 try {
                     if (typeof gug().deleteUnifiedGroup !== 'function') {
                         throw new Error('deleteUnifiedGroup fehlt.');
@@ -1885,6 +1968,7 @@
                         lines.push('Fehler  ' + it.name + ': ' + msg);
                     }
                 }
+                setBulkProgress(i + 1, items.length, 'Löschen: ' + it.name);
                 if ((i + 1) % 4 === 0) await sleep(200);
             }
             renderLeftList();
@@ -1893,6 +1977,7 @@
             if (deletedKeys.indexOf(normCode(activeKey) || normStr(activeKey).toUpperCase()) >= 0) {
                 live().loadGroup({ silent: true });
             }
+            setBulkProgress(items.length, items.length, 'Löschen fertig');
             setBulkStatus(lines.join('\n'));
             toast('Löschen: ' + ok + ' erledigt, ' + fail + ' Fehler.');
         } catch (e) {
@@ -1901,6 +1986,7 @@
             toast('Löschen: ' + (e.message || e));
         } finally {
             if (delBtn) delBtn.disabled = false;
+            finishBulkJob();
         }
     }
 
@@ -1928,11 +2014,12 @@
         let ok = 0;
         let fail = 0;
         const lines = [];
-        setBulkStatus('Gruppen werden angelegt …');
+        beginBulkJob(items.length, 'Gruppen werden angelegt');
         try {
             const token = await gug().getGraphToken();
             for (let i = 0; i < items.length; i++) {
                 const it = items[i];
+                setBulkProgress(i, items.length, 'Anlegen: ' + it.name);
                 const row = it.row;
                 const nick = persistNickForRow(row);
                 if (!nick) {
@@ -1964,9 +2051,11 @@
                     fail++;
                     lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
                 }
+                setBulkProgress(i + 1, items.length, 'Anlegen: ' + it.name);
                 if ((i + 1) % 4 === 0) await sleep(200);
             }
             renderLeftList();
+            setBulkProgress(items.length, items.length, 'Anlegen fertig');
             setBulkStatus(lines.join('\n'));
             toast('Anlegen: ' + ok + ' OK, ' + fail + ' Fehler.');
             if (ok > 0 && getActiveGroupId()) {
@@ -1978,6 +2067,7 @@
             toast('Anlegen: ' + (e.message || e));
         } finally {
             if (btn) btn.disabled = false;
+            finishBulkJob();
         }
     }
 
@@ -2153,6 +2243,16 @@
         onClick('jgBtnSmtpAll', function () {
             runSmtpScript(false);
         });
+        const bulkToggle = document.getElementById('jgBulkToggle');
+        if (bulkToggle) {
+            bulkToggle.addEventListener('click', function () {
+                const box = document.getElementById('jgBulk');
+                const willOpen = !!(box && box.classList.contains('is-collapsed'));
+                bulkManualOpen = willOpen;
+                bulkUserCollapsed = !willOpen;
+                setBulkExpanded(willOpen);
+            });
+        }
         onClick('jgBtnSelectMatched', selectVisibleMatched);
         onClick('jgBtnSelectUnmatched', selectVisibleUnmatched);
         onClick('jgBtnSelectNone', clearSelection);

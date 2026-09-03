@@ -70,6 +70,35 @@
             border-radius: 16px;
             background: var(--soft);
         }
+        .jg-bulk.is-collapsed { padding-bottom: 12px; }
+        .jg-bulk.is-collapsed .jg-bulk-body { display: none; }
+        .jg-bulk-toggle {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .jg-bulk-toggle:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--brand1) 55%, transparent);
+            outline-offset: 3px;
+            border-radius: 10px;
+        }
+        .jg-bulk-chevron {
+            margin-left: 4px;
+            font-size: 1em;
+            color: var(--muted);
+            transition: transform 0.15s ease;
+        }
+        .jg-bulk:not(.is-collapsed) .jg-bulk-chevron { transform: rotate(180deg); }
         .jg-bulk-head {
             display: flex;
             flex-wrap: wrap;
@@ -77,6 +106,32 @@
             justify-content: space-between;
             gap: 10px;
             margin-bottom: 6px;
+        }
+        .jg-bulk-progress {
+            margin: 10px 0 0;
+            padding: 10px 12px;
+            border: 1px solid color-mix(in srgb, var(--brand1) 28%, var(--border));
+            border-radius: 12px;
+            background: var(--card);
+        }
+        .jg-bulk-progress-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--brand1) 14%, var(--soft));
+        }
+        .jg-bulk-progress-bar {
+            height: 100%;
+            width: 0;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--brand1), color-mix(in srgb, var(--brand1) 55%, #3cb371));
+            transition: width 0.2s ease;
+        }
+        .jg-bulk-progress-label {
+            margin-top: 8px;
+            font-size: 0.88em;
+            font-weight: 750;
+            line-height: 1.35;
         }
         .jg-bulk-head-title {
             display: inline-flex;
@@ -304,14 +359,24 @@
                             </div>
                             <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
                         </div>
-                        <div class="jg-bulk" aria-label="Sammelaktionen">
+                        <div class="jg-bulk is-collapsed" id="jgBulk" aria-label="Sammelaktionen">
                             <div class="jg-bulk-head">
-                                <div class="jg-bulk-head-title">
-                                    <i class="bi bi-layers" aria-hidden="true"></i>
-                                    <div class="slg-section-title">Sammelaktionen</div>
-                                </div>
-                                <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
+                                <button type="button" class="jg-bulk-toggle" id="jgBulkToggle" aria-expanded="false" aria-controls="jgBulkBody">
+                                    <div class="jg-bulk-head-title">
+                                        <i class="bi bi-layers" aria-hidden="true"></i>
+                                        <div class="slg-section-title">Sammelaktionen</div>
+                                        <i class="bi bi-chevron-down jg-bulk-chevron" aria-hidden="true"></i>
+                                    </div>
+                                    <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Klassen ausgewählt</span>
+                                </button>
                             </div>
+                            <div class="jg-bulk-progress" id="jgBulkProgress" hidden>
+                                <div class="jg-bulk-progress-track" aria-hidden="true">
+                                    <div class="jg-bulk-progress-bar" id="jgBulkProgressBar"></div>
+                                </div>
+                                <div class="jg-bulk-progress-label" id="jgBulkProgressLabel">0 / 0</div>
+                            </div>
+                            <div class="jg-bulk-body" id="jgBulkBody">
                             <p class="jg-bulk-hint muted">Klassen ankreuzen (auch ungematchte). <strong>Anlegen &amp; matchen</strong> erstellt M365‑Gruppen für ungematchte Klassen. Mitglieder/Besitzer/Löschen wirken nur auf bereits gematchte Klassen.</p>
                             <div class="jg-bulk-group" role="group" aria-label="Nomenklatur" id="jgNomenklaturGroup">
                                 <div class="jg-bulk-group-label">Nomenklatur (Mail-Nickname beim Anlegen)</div>
@@ -392,6 +457,7 @@
                                         <button type="button" class="btn btn-success" id="jgBulkOwnerApply"><i class="bi bi-person-plus"></i>Als Besitzer hinzufügen</button>
                                     </div>
                                 </div>
+                            </div>
                             </div>
                             <p class="jg-bulk-status muted" id="jgBulkStatus" hidden></p>
                         </div>
