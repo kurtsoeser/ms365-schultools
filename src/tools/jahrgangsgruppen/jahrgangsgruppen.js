@@ -1509,22 +1509,11 @@
     }
 
     let bulkBusy = false;
-    let lastBulkSelectCount = 0;
 
     function setBulkExpanded(open) {
         const box = document.getElementById('jgBulk');
         if (!box) return;
         box.open = !!open;
-    }
-
-    function syncBulkExpanded() {
-        if (bulkBusy) {
-            setBulkExpanded(true);
-            return;
-        }
-        const n = selectedKeys.size;
-        if (n >= 2) setBulkExpanded(true);
-        else if (lastBulkSelectCount >= 2 && n < 2) setBulkExpanded(false);
     }
 
     function setBulkProgress(done, total, label) {
@@ -1575,7 +1564,6 @@
 
     function finishBulkJob() {
         bulkBusy = false;
-        syncBulkExpanded();
     }
 
     function pruneSelection() {
@@ -1642,8 +1630,6 @@
             el.innerHTML = '<i class="bi bi-check2-square" aria-hidden="true"></i>' + label;
             el.classList.toggle('is-active', n > 0);
         }
-        syncBulkExpanded();
-        lastBulkSelectCount = n;
     }
 
     function visibleMatchedRows() {
