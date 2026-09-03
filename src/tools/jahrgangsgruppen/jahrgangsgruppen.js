@@ -1003,19 +1003,52 @@
         return out;
     }
 
+    function getOwnerOptions() {
+        const useKV = !document.getElementById('jgOwnerUseKV') || document.getElementById('jgOwnerUseKV').checked;
+        const useDirektion = document.getElementById('jgOwnerUseDirektion') && document.getElementById('jgOwnerUseDirektion').checked;
+        return { useKV, useDirektion };
+    }
+
+    /** Liefert die Besitzer-E-Mails für eine Klasse laut aktueller Einstellung. */
+    function ownersForRow(row) {
+        const opts = getOwnerOptions();
+        const seen = new Set();
+        const out = [];
+        function add(em) {
+            const e = normEmail(em);
+            if (!e || e.indexOf('@') === -1 || seen.has(e)) return;
+            seen.add(e);
+            out.push(e);
+        }
+        if (opts.useKV && row && row.headEmail) add(row.headEmail);
+        if (opts.useDirektion) direktion.forEach(add);
+        return out;
+    }
+
+    /** Globale Besitzer (ohne Klassenbezug), z. B. für bestehende gematchte Gruppen. */
+    function ownersGlobal() {
+        const opts = getOwnerOptions();
+        if (opts.useDirektion) return direktion.slice();
+        return [];
+    }
+
     function renderOwnerPreview() {
         const el = document.getElementById('slgOwnerPreview');
         if (!el) return;
         el.replaceChildren();
-        if (!direktion.length) {
+        const row = getActiveRow();
+        const owners = ownersForRow(row);
+        if (!owners.length) {
             const p = document.createElement('p');
             p.style.margin = '0';
             p.style.color = '#6c757d';
-            p.textContent = 'Keine Direktion‑Besitzer in den Stammdaten gefunden.';
+            p.textContent = row && row.headEmail
+                ? 'Keine Besitzer ausgewählt (Optionen unten in den Sammelaktionen prüfen).'
+                : 'Kein Klassenvorstand in den Stammdaten hinterlegt und keine Direktion ausgewählt.';
             el.appendChild(p);
             return;
         }
-        direktion.forEach(function (em) {
+        owners.forEach(function (em) {
             const d = document.createElement('div');
             d.textContent = em;
             d.style.padding = '4px 0';
@@ -1387,7 +1420,8 @@
             result.unchanged = true;
             log('Keine Änderungen gegenüber der Stammliste.', 'ok');
         }
-        if (direktion.length) await gug().ensureOwners(token, gid, direktion);
+        const dirOwners = ownersGlobal();
+        if (dirOwners.length) await gug().ensureOwners(token, gid, dirOwners);
         return result;
     }
 
@@ -1858,7 +1892,10 @@
         if (!(await dlgConfirm(
             String(items.length) + ' ungematchte Klasse(n) als Microsoft‑365‑Gruppe anlegen und matchen?\n\n' +
             preview +
-            '\n\nAnzeigename und Alias werden aus den Stammdaten abgeleitet. Besitzer: Direktion (falls hinterlegt).',
+            '\n\nAnzeigename und Alias werden aus den Stammdaten abgeleitet. Besitzer: ' +
+            (getOwnerOptions().useKV ? 'Klassenvorstand' : '') +
+            (getOwnerOptions().useKV && getOwnerOptions().useDirektion ? ' + ' : '') +
+            (getOwnerOptions().useDirektion ? 'Direktion' : '') + '.',
             { title: 'Gruppen anlegen & matchen', okText: 'Anlegen' }
         ))) return;
         const btn = document.getElementById('jgBtnBulkCreate');
@@ -1883,7 +1920,8 @@
                     (row.year ? ' / Abschluss ' + row.year : '') + ' (MS365-Schulverwaltung)';
                 try {
                     const g = await gug().createUnifiedGroup(token, displayName, nick, desc);
-                    if (direktion.length) await gug().ensureOwners(token, g.id, direktion);
+                    const rowOwners = ownersForRow(row);
+                    if (rowOwners.length) await gug().ensureOwners(token, g.id, rowOwners);
                     const emails = emailsForClass(row);
                     if (emails.length) {
                         await gug().syncEmailsToGroup(token, g.id, emails, 'Klasse', function () {});
@@ -1949,8 +1987,9 @@
                 dlgConfirm: dlgConfirm,
                 getGroupId: getActiveGroupId,
                 ensureDirektionOwners: function (token, gid) {
-                    if (!direktion.length) throw new Error('Keine Direktion‑Adressen in den Stammdaten.');
-                    return gug().ensureOwners(token, gid, direktion);
+                    const owners = ownersForRow(getActiveRow());
+                    if (!owners.length) throw new Error('Kein Klassenvorstand hinterlegt und keine Direktion ausgewählt.');
+                    return gug().ensureOwners(token, gid, owners);
                 },
                 onUnmatched: function () {
                     renderOwnerPreview();
@@ -2004,7 +2043,9 @@
                         : { ok: false, message: 'Bitte zuerst eine Klasse wählen.' };
                 },
                 ensureOwners: function (token, gid) {
-                    return gug().ensureOwners(token, gid, direktion || []);
+                    const owners = ownersForRow(getActiveRow());
+                    if (!owners.length) return Promise.resolve();
+                    return gug().ensureOwners(token, gid, owners);
                 },
                 afterCreate: async function (token, g) {
                     const emails = emailsForClass(getActiveRow());
@@ -2121,6 +2162,21 @@
                 }
             });
         }
+        ['jgOwnerUseKV', 'jgOwnerUseDirektion'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', function () {
+                // Mindestens eine Option muss aktiv bleiben
+                const kv = document.getElementById('jgOwnerUseKV');
+                const dir = document.getElementById('jgOwnerUseDirektion');
+                if (kv && dir && !kv.checked && !dir.checked) {
+                    el.checked = true; // zurücksetzen
+                    toast('Mindestens eine Besitzer-Option muss aktiv sein.');
+                    return;
+                }
+                renderOwnerPreview();
+            });
+        });
         const aliasInp = document.getElementById('slgLiveAlias');
         if (aliasInp && !aliasInp.readOnly) {
             aliasInp.addEventListener('input', function () {

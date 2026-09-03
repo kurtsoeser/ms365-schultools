@@ -313,6 +313,20 @@
                                 <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
                             <p class="jg-bulk-hint muted">Klassen ankreuzen (auch ungematchte). <strong>Anlegen &amp; matchen</strong> erstellt M365‑Gruppen für ungematchte Klassen. Mitglieder/Besitzer/Löschen wirken nur auf bereits gematchte Klassen.</p>
+                            <div class="jg-bulk-group" role="group" aria-label="Besitzer beim Anlegen">
+                                <div class="jg-bulk-group-label">Besitzer beim Anlegen neuer Gruppen</div>
+                                <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">
+                                    <label class="checkbox-label" style="margin:0;">
+                                        <input type="checkbox" id="jgOwnerUseKV" checked>
+                                        <span>Klassenvorstand (aus Stammdaten) als Besitzer</span>
+                                    </label>
+                                    <label class="checkbox-label" style="margin:0;">
+                                        <input type="checkbox" id="jgOwnerUseDirektion">
+                                        <span>Direktion als Besitzer</span>
+                                    </label>
+                                </div>
+                                <p class="muted" style="margin:6px 0 0; font-size:0.82em;">Klassenvorstände werden über die E‑Mail in den Stammdaten (<a href="../tenant.html#classes">Stammdaten → Klassen</a>) gesetzt. Mindestens eine Option muss aktiv sein.</p>
+                            </div>
                             <div class="jg-bulk-group" role="group" aria-label="Auswahl">
                                 <div class="jg-bulk-group-label">Auswahl</div>
                                 <div class="jg-bulk-toolbar">
