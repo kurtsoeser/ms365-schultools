@@ -17,6 +17,11 @@
         }, 3200);
     }
 
+    function setImportStatus(msg) {
+        const status = getEl('evImportStatus');
+        if (status) status.textContent = msg || '';
+    }
+
     function compareDe(a, b) {
         return String(a || '').localeCompare(String(b || ''), 'de', { numeric: true, sensitivity: 'base' });
     }
@@ -569,11 +574,7 @@
 
     function wireSisImport() {
         const fileInput = getEl('evImportFile');
-        const status = getEl('evImportStatus');
         const sourceEl = getEl('evImportSource');
-        function setStatus(msg) {
-            if (status) status.textContent = msg || '';
-        }
         if (getEl('evTplXlsx')) {
             getEl('evTplXlsx').addEventListener('click', function () {
                 const sis = window.ms365SchoolSisImport;
@@ -610,7 +611,7 @@
                 return;
             }
             const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
-            setStatus('Lese Datei …');
+            setImportStatus('Lese Datei …');
             const reader = new FileReader();
             reader.onload = function (e) {
                 try {
@@ -642,7 +643,7 @@
                         removedSelected: new Set()
                     };
                     renderImportPreview();
-                    setStatus(
+                    setImportStatus(
                         'Vorschau bereit: ' +
                             result.meta.studentCount +
                             ' Schüler, ' +
@@ -653,12 +654,12 @@
                     );
                     toast('Import-Vorschau erzeugt', 'ok');
                 } catch (err) {
-                    setStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                    setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
                     toast('Import fehlgeschlagen', 'err');
                 }
             };
             reader.onerror = function () {
-                setStatus('Datei konnte nicht gelesen werden.');
+                setImportStatus('Datei konnte nicht gelesen werden.');
             };
             const n = String(file.name || '').toLowerCase();
             if (n.endsWith('.csv') || n.endsWith('.txt')) reader.readAsText(file);
@@ -1304,10 +1305,10 @@
                                 (applied.removedGuardians ? ' · ' + applied.removedGuardians + ' Elternkontakte bereinigt' : '')
                         );
                     }
-                    setStatus('Import übernommen' + (extra.length ? ': ' + extra.join(' · ') : '.'));
+                    setImportStatus('Import übernommen' + (extra.length ? ': ' + extra.join(' · ') : '.'));
                     toast('Import übernommen', 'ok');
                 } catch (err) {
-                    setStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                    setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
                     toast('Import fehlgeschlagen', 'err');
                 }
             });
