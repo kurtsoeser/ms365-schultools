@@ -65,12 +65,17 @@
     list-style: none;
     border: 1px solid var(--border);
     border-radius: 14px;
-    overflow: hidden;
+    /* auto: kurze Listen ohne Scrollbalken; mit max-height (tree--scroll / Seiten-CSS) scrollbar */
+    overflow: auto;
     background: var(--card);
 }
+.tree.tree--scroll,
 .tree--scroll {
     overflow: auto;
+    overflow-y: auto;
     max-height: min(62vh, 640px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 .tree li { border-bottom: 1px solid var(--border); }
 .tree li:last-child { border-bottom: 0; }
