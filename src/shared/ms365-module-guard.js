@@ -1,11 +1,12 @@
 /**
  * Einheitliche Prüfung, ob abhängige Skripte geladen sind.
- * Als ESM importieren (z. B. erster Import in kursteam-teams.js), damit Vite-Bundles
+ * Als Side-Effect-Import in kursteam-teams.js laden (erster Import), damit Vite-Bundles
  * den Guard enthalten – klassische <script defer>-Reihenfolge reicht nach dem Build nicht.
+ * Kein `export`: Tests laden die Datei per vm als klassisches Script.
  * @param {Record<string, unknown>} spec Name → Referenz (truthy = ok)
  * @param {string} [label] z. B. Dateiname des Aufrufers
  */
-export function assertModules(spec, label) {
+function assertModules(spec, label) {
     const missing = [];
     Object.keys(spec).forEach(function (name) {
         if (!spec[name]) missing.push(name);
