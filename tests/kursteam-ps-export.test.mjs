@@ -27,7 +27,10 @@ describe('kursteam-ps-export', () => {
         expect(ps1).toContain('Kursteam-Anlage-checkpoint.json');
         expect(ps1).toContain('Invoke-KtTeamCreateWithRetry');
         expect(ps1).toContain('AadGroupCreationLimitExceeded');
-        expect(ps1).toContain('ETA ca.');
+        expect(ps1).toContain('ProgressPreference');
+        expect(ps1).toContain('Write-KtProgress');
+        expect(ps1).toContain('Format-KtEta');
+        expect(ps1).toContain('Clear-KtProgressLine');
     });
 
     it('buildKursteamCsvPreviewPs1 referenziert neueteams.csv', () => {

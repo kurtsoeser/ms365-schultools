@@ -53,12 +53,18 @@ function buildKursteamExchangeBlock(domainTrim) {
         '            for ($ei = 0; $ei -lt 6; $ei++) {',
         '                try {',
         '                    $ktTeam = Get-Team -MailNickName $Team.Gruppenmail -ErrorAction Stop',
-        '                    Set-UnifiedGroup -Identity $ktTeam.GroupId -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop',
-        '                    Write-Host ("  Exchange: PrimarySmtpAddress = {0}" -f $wantedSmtp) -ForegroundColor Green',
+        '                    $prevWarn = $WarningPreference',
+        '                    $WarningPreference = "SilentlyContinue"',
+        '                    try {',
+        '                        Set-UnifiedGroup -Identity $ktTeam.GroupId -PrimarySmtpAddress $wantedSmtp -ErrorAction Stop',
+        '                    } finally { $WarningPreference = $prevWarn }',
+        '                    Write-KtDetail ("Exchange OK: {0}" -f $wantedSmtp)',
         '                    break',
         '                } catch {',
         '                    if ($ei -lt 5) { Start-Sleep -Seconds 15 } else {',
-        '                        Write-Warning ("Exchange: PrimarySmtpAddress nicht gesetzt: {0}" -f $_.Exception.Message)',
+        '                        Write-KtDetail ("Exchange FEHLER: {0}" -f $_.Exception.Message)',
+        '                        if (Get-Command Clear-KtProgressLine -ErrorAction SilentlyContinue) { Clear-KtProgressLine }',
+        '                        Write-Host ("         Exchange: PrimarySmtpAddress nicht gesetzt") -ForegroundColor DarkYellow',
         '                    }',
         '                }',
         '            }',
@@ -90,6 +96,9 @@ function kursteamPsHeader(stamp, variantLabel) {
     lines.push('');
     lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
     lines.push('$ErrorActionPreference = "Continue"');
+    lines.push('# Unterdrueckt Write-Progress der MicrosoftTeams-Cmdlets (sonst "Fetching teams"-Spam).');
+    lines.push('$ProgressPreference = "SilentlyContinue"');
+    lines.push('function Write-KtDetail([string]$Message) { Write-Host ("  {0}" -f $Message) -ForegroundColor DarkGray }');
     lines.push('');
     lines.push('if (-not (Get-Module -ListAvailable -Name MicrosoftTeams)) {');
     lines.push('    Write-Host "Installiere Modul MicrosoftTeams (einmalig)..." -ForegroundColor Yellow');
@@ -196,11 +205,51 @@ export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForE
     lines.push('$CheckpointPath = Join-Path $ScriptDir "Kursteam-Anlage-checkpoint.json"');
     lines.push('$LogPath = Join-Path $ScriptDir "Kursteam-Anlage.log"');
     lines.push('');
-    lines.push('function Write-KtLog {');
-    lines.push('    param([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::White)');
+    lines.push('$script:KtProgressActive = $false');
+    lines.push('function Write-KtFile([string]$Message) {');
     lines.push('    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"');
     lines.push('    try { Add-Content -LiteralPath $LogPath -Value ("[{0}] {1}" -f $ts, $Message) -Encoding UTF8 } catch { }');
-    lines.push('    Write-Host $Message -ForegroundColor $Color');
+    lines.push('}');
+    lines.push('function Clear-KtProgressLine {');
+    lines.push('    if ($script:KtProgressActive) {');
+    lines.push('        $w = 100');
+    lines.push('        try { if ([Console]::WindowWidth -gt 2) { $w = [Console]::WindowWidth - 1 } } catch { }');
+    lines.push('        Write-Host ("`r" + (" " * $w) + "`r") -NoNewline');
+    lines.push('        $script:KtProgressActive = $false');
+    lines.push('    }');
+    lines.push('}');
+    lines.push('function Format-KtEta([int]$EtaSec) {');
+    lines.push('    if ($EtaSec -lt 0) { return "…" }');
+    lines.push('    $h = [int][Math]::Floor($EtaSec / 3600)');
+    lines.push('    $m = [int][Math]::Floor(($EtaSec % 3600) / 60)');
+    lines.push('    $s = [int]($EtaSec % 60)');
+    lines.push('    if ($h -gt 0) { return ("{0}h {1:D2}m" -f $h, $m) }');
+    lines.push('    return ("{0:D2}:{1:D2}" -f $m, $s)');
+    lines.push('}');
+    lines.push('function Write-KtProgress {');
+    lines.push('    param([int]$Index, [int]$Total, [int]$Ok, [int]$Skip, [int]$Fail, [int]$EtaSec, [int]$PauseSec)');
+    lines.push('    $pct = if ($Total -gt 0) { [int](100 * $Index / $Total) } else { 0 }');
+    lines.push('    $barLen = 20');
+    lines.push('    $filled = [Math]::Max(0, [Math]::Min($barLen, [int]($barLen * $Index / [Math]::Max(1, $Total))))');
+    lines.push('    $bar = ("#" * $filled) + ("-" * ($barLen - $filled))');
+    lines.push('    $msg = ("[{0}] {1,3}% | {2}/{3} | OK:{4} Skip:{5} Err:{6} | ETA {7} | Pause {8}s" -f $bar, $pct, $Index, $Total, $Ok, $Skip, $Fail, (Format-KtEta $EtaSec), $PauseSec)');
+    lines.push('    $w = 120');
+    lines.push('    try { if ([Console]::WindowWidth -gt 2) { $w = [Console]::WindowWidth - 1 } } catch { }');
+    lines.push('    if ($msg.Length -gt $w) { $msg = $msg.Substring(0, $w) }');
+    lines.push('    Write-Host ("`r" + $msg) -NoNewline -ForegroundColor Cyan');
+    lines.push('    $script:KtProgressActive = $true');
+    lines.push('}');
+    lines.push('function Write-KtEvent {');
+    lines.push('    param([string]$Kind, [string]$Message, [ConsoleColor]$Color = [ConsoleColor]::White)');
+    lines.push('    Clear-KtProgressLine');
+    lines.push('    $line = ("{0,-8} {1}" -f $Kind, $Message)');
+    lines.push('    Write-KtFile $line');
+    lines.push('    Write-Host $line -ForegroundColor $Color');
+    lines.push('}');
+    lines.push('function Write-KtDetail([string]$Message) { Write-KtFile $Message }');
+    lines.push('function Write-KtLog {');
+    lines.push('    param([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::White)');
+    lines.push('    Write-KtEvent "INFO" $Message $Color');
     lines.push('}');
     lines.push('');
     lines.push('function Get-KtCheckpoint {');
@@ -246,7 +295,7 @@ export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForE
     lines.push('            $isThrottle = $msg -match "throttl|429|Too Many Requests|rate limit|Request_ThrottledTemporarily|service is busy"');
     lines.push('            if ($isThrottle -and $attempt -lt $MaxAttempts) {');
     lines.push('                $wait = [Math]::Min(120, [int]($baseWait * [Math]::Pow(2, $attempt - 1)))');
-    lines.push('                Write-KtLog ("  Drosselung – warte {0}s (Versuch {1}/{2})..." -f $wait, $attempt, $MaxAttempts) Yellow');
+    lines.push('                Write-KtEvent "WARTE" ("Drosselung – {0}s (Versuch {1}/{2})" -f $wait, $attempt, $MaxAttempts) Yellow');
     lines.push('                Start-Sleep -Seconds $wait');
     lines.push('                continue');
     lines.push('            }');
@@ -266,77 +315,89 @@ export function buildStandaloneKursteamPs1V2(validTeams, escapeFn = psEscapeForE
     lines.push(rows.join(',\r\n'));
     lines.push(')');
     lines.push('');
-    lines.push('Write-KtLog ("=== Kursteam-Anlage | {0} Teams ===" -f $TeamsList.Count) Cyan');
+    lines.push('Write-Host ("=== Kursteam-Anlage | {0} Teams ===" -f $TeamsList.Count) -ForegroundColor Cyan');
     lines.push('$estMin = [Math]::Max(1, [Math]::Ceiling($TeamsList.Count * 2.5 / 60))');
-    lines.push('Write-KtLog ("Geschaetzte Skript-Laufzeit ca. {0} Min. (ohne Drosselung). Teams-Bereitstellung im Hintergrund kann laenger dauern." -f $estMin) DarkYellow');
-    lines.push('Write-KtLog ("Checkpoint: {0}" -f $CheckpointPath) DarkGray');
-    lines.push('Write-KtLog ("Log: {0}" -f $LogPath) DarkGray');
+    lines.push('Write-Host ("Geschaetzte Skript-Laufzeit ca. {0} Min. (ohne Drosselung)." -f $estMin) -ForegroundColor Yellow');
+    lines.push('Write-Host ("Checkpoint: {0}" -f $CheckpointPath) -ForegroundColor DarkGray');
+    lines.push('Write-Host ("Log: {0}  (Exchange-Details nur hier)" -f $LogPath) -ForegroundColor DarkGray');
+    lines.push('Write-Host "Konsole: eine Fortschrittszeile + dauerhafte OK / SKIP / FEHLER." -ForegroundColor DarkGray');
+    lines.push('Write-KtFile ("=== Start | {0} Teams ===" -f $TeamsList.Count)');
     lines.push('');
     lines.push('$cp = Get-KtCheckpoint');
     lines.push('$completedSet = @{}');
     lines.push('foreach ($m in @($cp.completed)) { if ($m) { $completedSet[$m] = $true } }');
     lines.push('if ($completedSet.Count -gt 0) {');
-    lines.push('    Write-KtLog ("Checkpoint gefunden: {0} Teams bereits erledigt." -f $completedSet.Count) Cyan');
+    lines.push('    Write-Host ("Checkpoint gefunden: {0} Teams bereits erledigt." -f $completedSet.Count) -ForegroundColor Cyan');
     lines.push('    $resume = Read-Host "Fortsetzen? [J/n] – n = Checkpoint loeschen und von vorn"');
     lines.push('    if ($resume -eq "n" -or $resume -eq "N") {');
     lines.push('        Remove-Item -LiteralPath $CheckpointPath -Force -ErrorAction SilentlyContinue');
     lines.push('        $completedSet = @{}');
-    lines.push('        Write-KtLog "Checkpoint geloescht – Neustart." Yellow');
+    lines.push('        Write-KtEvent "INFO" "Checkpoint geloescht – Neustart." Yellow');
     lines.push('    }');
     lines.push('}');
     lines.push('');
     lines.push('$i = 0; $created = 0; $skipped = 0; $failed = 0; $fromCheckpoint = 0');
+    lines.push('$workDone = 0');
     lines.push('$pauseSec = 2');
     lines.push('$startTime = Get-Date');
+    lines.push('$workStartTime = $null');
+    lines.push('function Update-KtEta {');
+    lines.push('    if ($workDone -le 0 -or $null -eq $workStartTime) { return -1 }');
+    lines.push('    $elapsed = ((Get-Date) - $workStartTime).TotalSeconds');
+    lines.push('    $remaining = $TeamsList.Count - $i');
+    lines.push('    if ($elapsed -le 0 -or $remaining -le 0) { if ($remaining -le 0) { return 0 } else { return -1 } }');
+    lines.push('    return [int](($elapsed / $workDone) * $remaining)');
+    lines.push('}');
     lines.push('foreach ($Team in $TeamsList) {');
     lines.push('    $i++');
     lines.push('    if ($completedSet.ContainsKey($Team.Gruppenmail)) {');
-    lines.push('        Write-Host ("CHECKPOINT [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) -ForegroundColor DarkGray');
+    lines.push('        Write-KtFile ("CHECKPOINT [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail)');
     lines.push('        $fromCheckpoint++');
+    lines.push('        Write-KtProgress -Index $i -Total $TeamsList.Count -Ok $created -Skip ($skipped + $fromCheckpoint) -Fail $failed -EtaSec (Update-KtEta) -PauseSec $pauseSec');
     lines.push('        continue');
     lines.push('    }');
+    lines.push('    if ($null -eq $workStartTime) { $workStartTime = Get-Date }');
     lines.push('    try {');
     lines.push('        $existing = Get-Team -MailNickName $Team.Gruppenmail -ErrorAction SilentlyContinue');
     lines.push('        if ($existing) {');
-    lines.push('            Write-KtLog ("UEBERSPRUNGEN [{0}/{1}] {2} (existiert)" -f $i, $TeamsList.Count, $Team.Gruppenmail) Yellow');
+    lines.push('            Write-KtEvent "SKIP" ("[{0}/{1}] {2} (existiert)" -f $i, $TeamsList.Count, $Team.TeamName) DarkYellow');
     lines.push('            $skipped++');
+    lines.push('            $workDone++');
     lines.push('            $completedSet[$Team.Gruppenmail] = $true');
     lines.push('            Save-KtCheckpoint -Completed @($completedSet.Keys) -Stats @{ created = $created; skipped = $skipped; failed = $failed }');
+    lines.push('            Write-KtProgress -Index $i -Total $TeamsList.Count -Ok $created -Skip ($skipped + $fromCheckpoint) -Fail $failed -EtaSec (Update-KtEta) -PauseSec $pauseSec');
     lines.push('            continue');
     lines.push('        }');
     lines.push('        $result = Invoke-KtTeamCreateWithRetry -DisplayName $Team.TeamName -MailNickName $Team.Gruppenmail -Owner $Team.Besitzer');
     lines.push('        if ($result.ok) {');
     exo.afterTeamOk.forEach((l) => lines.push(l));
-    lines.push('            Write-KtLog ("OK [{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.Gruppenmail) Green');
+    lines.push('            Write-KtEvent "OK" ("[{0}/{1}] {2}" -f $i, $TeamsList.Count, $Team.TeamName) Green');
     lines.push('            $created++');
+    lines.push('            $workDone++');
     lines.push('            $completedSet[$Team.Gruppenmail] = $true');
     lines.push('            if ($pauseSec -gt 2) { $pauseSec = [Math]::Max(2, $pauseSec - 1) }');
     lines.push('        } else {');
-    lines.push('            Write-KtLog ("FEHLER [{0}] {1}: {2}" -f $i, $Team.Gruppenmail, $result.message) Red');
+    lines.push('            Write-KtEvent "FEHLER" ("[{0}/{1}] {2}: {3}" -f $i, $TeamsList.Count, $Team.TeamName, $result.message) Red');
     lines.push('            $failed++');
+    lines.push('            $workDone++');
     lines.push('            $pauseSec = [Math]::Min(30, $pauseSec + 2)');
     lines.push('            if ($result.fatal) { break }');
     lines.push('        }');
     lines.push('    } catch {');
-    lines.push('        Write-KtLog ("FEHLER [{0}] {1}: {2}" -f $i, $Team.Gruppenmail, $_.Exception.Message) Red');
+    lines.push('        Write-KtEvent "FEHLER" ("[{0}/{1}] {2}: {3}" -f $i, $TeamsList.Count, $Team.TeamName, $_.Exception.Message) Red');
     lines.push('        $failed++');
+    lines.push('        $workDone++');
     lines.push('        $pauseSec = [Math]::Min(30, $pauseSec + 2)');
     lines.push('    }');
     lines.push('    Save-KtCheckpoint -Completed @($completedSet.Keys) -Stats @{ created = $created; skipped = $skipped; failed = $failed }');
-    lines.push('    $doneSoFar = $created + $skipped + $failed + $fromCheckpoint');
-    lines.push('    if ($doneSoFar -gt 0) {');
-    lines.push('        $elapsed = ((Get-Date) - $startTime).TotalSeconds');
-    lines.push('        $remaining = $TeamsList.Count - $i');
-    lines.push('        $etaSec = [int](($elapsed / $doneSoFar) * $remaining)');
-    lines.push('        Write-Host ("  -> Fortschritt {0}/{1} | ETA ca. {2:mm\\:ss} | Pause {3}s" -f $i, $TeamsList.Count, [TimeSpan]::FromSeconds($etaSec), $pauseSec) -ForegroundColor DarkGray');
-    lines.push('    }');
+    lines.push('    Write-KtProgress -Index $i -Total $TeamsList.Count -Ok $created -Skip ($skipped + $fromCheckpoint) -Fail $failed -EtaSec (Update-KtEta) -PauseSec $pauseSec');
     lines.push('    Start-Sleep -Seconds $pauseSec');
     lines.push('}');
     lines.push('');
+    lines.push('Clear-KtProgressLine');
     lines.push('Write-Host ""');
-    lines.push('Write-KtLog ("Zusammenfassung: {0} neu, {1} uebersprungen (existierten), {2} aus Checkpoint, {3} Fehler" -f $created, $skipped, $fromCheckpoint, $failed) Cyan');
-    lines.push('Write-Host ""');
-    lines.push('Write-Host "Fertig. Bei Abbruch erneut starten – Checkpoint setzt fort." -ForegroundColor Cyan');
+    lines.push('Write-KtEvent "FERTIG" ("{0} neu | {1} uebersprungen | {2} Checkpoint | {3} Fehler | Dauer {4}" -f $created, $skipped, $fromCheckpoint, $failed, ((Get-Date) - $startTime).ToString("hh\\:mm\\:ss")) Cyan');
+    lines.push('Write-Host "Bei Abbruch erneut starten – Checkpoint setzt fort." -ForegroundColor DarkGray');
     lines.push('Read-Host "Enter druecken zum Beenden"');
     return lines.join('\r\n');
 }
