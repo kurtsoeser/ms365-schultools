@@ -13,6 +13,8 @@ function defaultTeamNamePattern() {
     ];
 }
 
+const FIELD_TOKEN_TYPES = new Set(['yearPrefix', 'klasse', 'fach', 'gruppe', 'lehrer']);
+
 function normalizePattern(pattern) {
     const arr = Array.isArray(pattern) ? pattern : [];
     const out = [];
@@ -22,7 +24,7 @@ function normalizePattern(pattern) {
         if (!type) return;
         if (type === 'text') {
             out.push({ type: 'text', value: String(p.value ?? '') });
-        } else if (type === 'yearPrefix' || type === 'klasse' || type === 'fach' || type === 'gruppe') {
+        } else if (FIELD_TOKEN_TYPES.has(type)) {
             out.push({ type });
         }
     });
@@ -37,6 +39,7 @@ function buildTeamNameFromPattern(pattern, ctx) {
         else if (p.type === 'klasse') parts.push(String(ctx.klasse ?? ''));
         else if (p.type === 'fach') parts.push(String(ctx.fach ?? ''));
         else if (p.type === 'gruppe') parts.push(String(ctx.gruppe ?? ''));
+        else if (p.type === 'lehrer') parts.push(String(ctx.lehrer ?? ''));
     });
     return parts.join('');
 }
@@ -66,6 +69,7 @@ function buildGruppenmailFromPattern(pattern, ctx, helpers) {
         else if (p.type === 'klasse') v = formatKlasse(ctx.klasse);
         else if (p.type === 'fach') v = sanitizeGruppenmailPart(ctx.fach);
         else if (p.type === 'gruppe') v = sanitizeGruppe(ctx.gruppe);
+        else if (p.type === 'lehrer') v = sanitizeGruppenmailPart(ctx.lehrer);
         if (v) segments.push(v);
     });
     return segments.join('-');
@@ -76,6 +80,7 @@ function tokenLabel(t) {
     if (t.type === 'klasse') return 'Klasse';
     if (t.type === 'fach') return 'Fach';
     if (t.type === 'gruppe') return 'Gruppe';
+    if (t.type === 'lehrer') return 'Lehrer';
     if (t.type === 'text') return `Text`;
     return t.type;
 }

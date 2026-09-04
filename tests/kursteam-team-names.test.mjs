@@ -21,4 +21,35 @@ describe('kursteam-team-names', () => {
         const def = defaultTeamNamePattern();
         expect(Array.isArray(def)).toBe(true);
     });
+
+    it('Lehrer-Kürzel als Baustein in Name und Gruppenmail', () => {
+        const ctx = loadScript('src/tools/kursteams/kursteam-team-names.js');
+        const {
+            normalizePattern,
+            buildTeamNameFromPattern,
+            buildGruppenmailFromPattern,
+            tokenLabel
+        } = ctx.ms365KursteamTeamNames;
+
+        const pattern = normalizePattern([
+            { type: 'yearPrefix' },
+            { type: 'text', value: ' | ' },
+            { type: 'klasse' },
+            { type: 'text', value: ' | ' },
+            { type: 'fach' },
+            { type: 'text', value: ' | ' },
+            { type: 'lehrer' }
+        ]);
+        expect(tokenLabel({ type: 'lehrer' })).toBe('Lehrer');
+
+        const ctxVals = {
+            yearPrefix: 'SJ26',
+            klasse: '1AK',
+            fach: 'D',
+            gruppe: '',
+            lehrer: 'MEI'
+        };
+        expect(buildTeamNameFromPattern(pattern, ctxVals)).toBe('SJ26 | 1AK | D | MEI');
+        expect(buildGruppenmailFromPattern(pattern, ctxVals)).toBe('SJ26-1AK-D-MEI');
+    });
 });

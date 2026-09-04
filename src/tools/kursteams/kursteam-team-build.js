@@ -29,7 +29,8 @@ function buildTeamEntriesFromRows(rows, options) {
                   yearPrefix,
                   klasse: klasseForName,
                   fach: row.fach,
-                  gruppe: row.gruppe
+                  gruppe: row.gruppe,
+                  lehrer: row.lehrer
               })
             : `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
         let klasseForGruppenmail = klasseForName;
@@ -46,7 +47,8 @@ function buildTeamEntriesFromRows(rows, options) {
             yearPrefix,
             klasse: klasseForGruppenmail,
             fach: row.fach,
-            gruppe: row.gruppe
+            gruppe: row.gruppe,
+            lehrer: row.lehrer
         };
         const mailHelpers = {
             formatKlasse: formatKlasseSegmentForGruppenmail,

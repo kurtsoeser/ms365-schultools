@@ -22,7 +22,13 @@ function mount(ns) {
         const el = document.getElementById('teamNamePreview');
         if (!el) return;
         const yearPrefix = document.getElementById('yearPrefix')?.value || 'SJ26';
-        const preview = KT.buildTeamNameFromPattern(pattern, { yearPrefix, klasse: '1AK', fach: 'D', gruppe: 'G1' });
+        const preview = KT.buildTeamNameFromPattern(pattern, {
+            yearPrefix,
+            klasse: '1AK',
+            fach: 'D',
+            gruppe: 'G1',
+            lehrer: 'MEI'
+        });
         el.textContent = 'Vorschau: ' + preview;
     }
 
