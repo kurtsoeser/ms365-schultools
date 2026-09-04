@@ -184,9 +184,10 @@ Diese Tools wurden bereits auf ESM umgestellt und nutzen `shared/utils/*`:
   bleiben erhalten, bis die HTML-Seiten selbst migriert sind.
 - **HTML**: alle N `<script src="..." defer>` werden durch **einen**
   `<script type="module" src="entry.js">` ersetzt.
-  Bei `kursteams.html` bleibt zusätzlich `ms365-module-guard.js` als
-  `<script defer>` davor, weil es einen Pre-ESM-Check
-  (`window.ms365AssertModules`) bereitstellt.
+  Bei `kursteams.html` muss `ms365-module-guard.js` der **erste Import**
+  der Entry (`kursteam-teams.js`) sein und mitgebündelt werden – ein
+  separates `<script defer>` davor reicht nach dem Vite-Build nicht,
+  weil das Bundle oft vor klassischen Scripts ausgeführt wird.
 
 **Spezialfälle**:
 - `kursteam-graph.js` hatte eine eigenwillige

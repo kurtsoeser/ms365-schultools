@@ -1,3 +1,5 @@
+// Guard zuerst: setzt window.ms365AssertModules, bevor abhängige Module prüfen.
+import '../../shared/ms365-module-guard.js';
 import './kursteam-utils.js';
 import './kursteam-step-nav.js';
 import './kursteam-team-names.js';
@@ -21,12 +23,6 @@ import './kursteam-graph.js';
 import './kursteam-backend.js';
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
-
-if (typeof window.ms365AssertModules !== 'function') {
-    throw new Error(
-        'ms365-module-guard.js muss vor kursteam-teams.js geladen werden (tools/kursteams.html).'
-    );
-}
 
 const KUI = window.ms365KursteamTeamNameBuilderUI;
 const KSub = window.ms365KursteamSubjectFilterUI;

@@ -423,7 +423,8 @@
                                     <small style="color:var(--text-secondary);">Vorlage ausfüllen &amp; hochladen</small>
                                 </div>
                                 <div class="alert alert-info" style="margin-top:12px;margin-bottom:0;padding:10px 12px;font-size:0.86em;">
-                                Vollständige Fächerliste mit Spalten z. B. <code>U-Nr</code>, <code>Lehrer</code>, <code>Fach</code>, <code>Klasse(n)</code>, <code>Schülergruppe</code>.
+                                    Vollständige Fächerliste mit Spalten z. B. <code>U-Nr</code>, <code>Lehrer</code>, <code>Fach</code>, <code>Klasse(n)</code>, <code>Schülergruppe</code>.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1159,16 +1160,11 @@ Connect-MicrosoftTeams
 
     <script src="../src/shared/step-progress.js" defer></script>
     <!--
-      Kursteams-Skripte: Abhängigkeiten (Vorgänger muss vor Nachfolger stehen)
-      - ms365-module-guard: ms365AssertModules
-      - kursteam-utils: Namespace, Hilfsfunktionen
-      - team-names → filter-logic, subject-filter-logic → subject-filter-ui
-      - manual-view-logic → data-tables-ui
-      - teams-sort-logic → team-build (nutzt team-names), team-name-builder-ui (team-names)
-      - teams-table-ui → teams-actions (KF, KTB, KTU, KData)
-      - kursteam-ui … graph: UI/Import/Graph nach allen Kernmodulen
+      Kursteams: Entry ist kursteam-teams.js (ESM).
+      ms365-module-guard wird als erster Import gebündelt (wichtig für Vite/GitHub Pages:
+      das Bundle darf nicht vor einem separaten Guard-Script laufen).
+      Weitere Abhängigkeiten folgen der Import-Reihenfolge in kursteam-teams.js.
     -->
-    <script src="../src/shared/ms365-module-guard.js" defer></script>
     <script type="module" src="../src/tools/kursteams/kursteam-teams.js"></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
