@@ -215,6 +215,7 @@ function mount(ns) {
     };
 
     ns.displayTeamsData = function displayTeamsData() {
+        if (typeof KTU.wireTeamsFilterOnce === 'function') KTU.wireTeamsFilterOnce(ns);
         KTU.render(ns);
     };
 
@@ -324,6 +325,7 @@ function mount(ns) {
             isValid: false,
             error: 'Unvollständige Daten',
             originalClass: '',
+            fach: '',
             gruppe: '',
             mappingUsed: false,
             lehrerCode: '',

@@ -82,6 +82,7 @@ function buildTeamEntriesFromRows(rows, options) {
             isValid,
             error: hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : !isValid ? 'Unvollständige Daten' : null,
             originalClass: row.klasse,
+            fach: row.fach,
             gruppe: row.gruppe,
             mappingUsed,
             lehrerCode,

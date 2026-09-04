@@ -807,6 +807,52 @@
                         </div>
                         <button type="button" class="btn btn-brand kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()"><i class="bi bi-magic"></i>Team-Namen generieren</button>
                     </div>
+                    <div class="filter-section" id="teamsFilterBar" style="display:none;margin-top:18px;">
+                        <h3>Teams filtern</h3>
+                        <div class="import-paste-file-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 10px;">
+                            <div class="import-paste-file-col" style="min-width:0;">
+                                <div class="filter-group" style="margin:0;">
+                                    <label for="teamsFilterKlasse">Klasse</label>
+                                    <input type="text" id="teamsFilterKlasse" list="teamsFilterKlasseList" placeholder="z. B. 1AK" autocomplete="off">
+                                    <datalist id="teamsFilterKlasseList"></datalist>
+                                </div>
+                            </div>
+                            <div class="import-paste-file-col" style="min-width:0;">
+                                <div class="filter-group" style="margin:0;">
+                                    <label for="teamsFilterFach">Fach</label>
+                                    <input type="text" id="teamsFilterFach" list="teamsFilterFachList" placeholder="z. B. D, BW" autocomplete="off">
+                                    <datalist id="teamsFilterFachList"></datalist>
+                                </div>
+                            </div>
+                            <div class="import-paste-file-col" style="min-width:0;">
+                                <div class="filter-group" style="margin:0;">
+                                    <label for="teamsFilterLehrer">Lehrer-Kürzel</label>
+                                    <input type="text" id="teamsFilterLehrer" list="teamsFilterLehrerList" placeholder="z. B. FIS" autocomplete="off">
+                                    <datalist id="teamsFilterLehrerList"></datalist>
+                                </div>
+                            </div>
+                            <div class="import-paste-file-col" style="min-width:0;">
+                                <div class="filter-group" style="margin:0;">
+                                    <label for="teamsFilterStatus">Status</label>
+                                    <select id="teamsFilterStatus">
+                                        <option value="">Alle</option>
+                                        <option value="valid">Nur gültige</option>
+                                        <option value="invalid">Nur fehlerhafte</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="import-paste-file-col" style="min-width:0;">
+                                <div class="filter-group" style="margin:0;">
+                                    <label for="teamsFilterQ">Suche</label>
+                                    <input type="search" id="teamsFilterQ" placeholder="Name, Mail, Besitzer …" autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-small" id="teamsFilterReset">Filter zurücksetzen</button>
+                            <small id="teamsFilterSummary" style="color:var(--muted);"></small>
+                        </div>
+                    </div>
                     <div class="table-container" id="teamsTableContainer" style="display:none;">
                         <table>
                             <thead>

@@ -60,6 +60,8 @@ ns.invalidateTeams = function invalidateTeams() {
     if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
     document.getElementById('teamsTableContainer').style.display = 'none';
     document.getElementById('validationResults').style.display = 'none';
+    const filterBar = document.getElementById('teamsFilterBar');
+    if (filterBar) filterBar.style.display = 'none';
     const preview = document.getElementById('manualTeamsPreviewContainer');
     if (preview) preview.style.display = 'none';
     // Weiter zur Anlage nach Team-Generierung zurücksetzen.

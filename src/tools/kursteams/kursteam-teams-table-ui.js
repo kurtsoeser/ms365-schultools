@@ -1,6 +1,48 @@
 
 const KTS = window.ms365KursteamTeamsSortLogic;
-window.ms365AssertModules({ KTS }, 'kursteam-teams-table-ui.js');
+const KTF = window.ms365KursteamTeamsFilterLogic;
+window.ms365AssertModules({ KTS, KTF }, 'kursteam-teams-table-ui.js');
+
+function readTeamsFilterFromDom() {
+    return {
+        klasse: document.getElementById('teamsFilterKlasse')?.value || '',
+        fach: document.getElementById('teamsFilterFach')?.value || '',
+        lehrer: document.getElementById('teamsFilterLehrer')?.value || '',
+        status: document.getElementById('teamsFilterStatus')?.value || '',
+        q: document.getElementById('teamsFilterQ')?.value || ''
+    };
+}
+
+function fillDatalist(id, values) {
+    const list = document.getElementById(id);
+    if (!list) return;
+    list.replaceChildren();
+    (values || []).forEach((v) => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        list.appendChild(opt);
+    });
+}
+
+function refreshTeamsFilterDatalists(ns) {
+    fillDatalist('teamsFilterKlasseList', KTF.collectUniqueTeamFilterValues(ns.teamsData, 'klasse'));
+    fillDatalist('teamsFilterFachList', KTF.collectUniqueTeamFilterValues(ns.teamsData, 'fach'));
+    fillDatalist('teamsFilterLehrerList', KTF.collectUniqueTeamFilterValues(ns.teamsData, 'lehrer'));
+}
+
+function updateTeamsFilterSummary(shown, total) {
+    const el = document.getElementById('teamsFilterSummary');
+    if (!el) return;
+    if (!total) {
+        el.textContent = '';
+        return;
+    }
+    if (shown === total) {
+        el.textContent = total + ' Team(s)';
+    } else {
+        el.textContent = shown + ' von ' + total + ' Team(s) angezeigt';
+    }
+}
 
 /**
  * Rendert die Team-Tabelle (Schritt mit Validierung / manuelle Zeilen).
@@ -17,8 +59,22 @@ function render(ns) {
     document.getElementById('duplicateMailAdjustments').textContent = dupAdj;
 
     if (!ns.teamsSort) ns.teamsSort = { key: 'teamName', dir: 1 };
+    ns.teamsFilter = readTeamsFilterFromDom();
 
-    const view = KTS.sortTeamsWithIndices(ns.teamsData, ns.teamsSort);
+    refreshTeamsFilterDatalists(ns);
+
+    const filtered = KTF.filterTeamsWithIndices(ns.teamsData, ns.teamsFilter);
+    const sortedTeams = KTS.sortTeamsWithIndices(
+        filtered.map((x) => x.team),
+        ns.teamsSort
+    );
+    const indexByTeam = new Map(filtered.map((f) => [f.team, f.index]));
+    const viewFinal = sortedTeams.map(({ team }) => ({
+        team,
+        index: indexByTeam.has(team) ? indexByTeam.get(team) : -1
+    }));
+
+    updateTeamsFilterSummary(viewFinal.length, ns.teamsData.length);
 
     const table = document.getElementById('teamsTableContainer');
     const ths = table ? table.querySelectorAll('th[data-teams-sort-key]') : [];
@@ -43,7 +99,8 @@ function render(ns) {
         }
     });
 
-    view.forEach(({ team, index }) => {
+    viewFinal.forEach(({ team, index }) => {
+        if (index < 0) return;
         const tr = document.createElement('tr');
         if (!team.isValid) tr.classList.add('error-row');
 
@@ -190,12 +247,41 @@ function render(ns) {
 
     document.getElementById('teamsTableContainer').style.display = 'block';
     document.getElementById('validationResults').style.display = 'block';
+    const filterBar = document.getElementById('teamsFilterBar');
+    if (filterBar) filterBar.style.display = ns.teamsData.length ? 'block' : 'none';
     if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
 
     const manRow = document.getElementById('kursteamManualAddRow');
     if (manRow) manRow.style.display = ns.teamsGenerated ? '' : 'none';
 }
 
+let teamsFilterWired = false;
+function wireTeamsFilterOnce(ns) {
+    if (teamsFilterWired) return;
+    teamsFilterWired = true;
+    const ids = ['teamsFilterKlasse', 'teamsFilterFach', 'teamsFilterLehrer', 'teamsFilterStatus', 'teamsFilterQ'];
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(evt, () => {
+            if (typeof ns.displayTeamsData === 'function') ns.displayTeamsData();
+        });
+    });
+    const reset = document.getElementById('teamsFilterReset');
+    if (reset) {
+        reset.addEventListener('click', () => {
+            ids.forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.value = '';
+            });
+            if (typeof ns.displayTeamsData === 'function') ns.displayTeamsData();
+        });
+    }
+}
+
 window.ms365KursteamTeamsTableUI = {
-    render
+    render,
+    wireTeamsFilterOnce
 };

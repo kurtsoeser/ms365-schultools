@@ -9,6 +9,7 @@ import './kursteam-subject-filter-ui.js';
 import './kursteam-manual-view-logic.js';
 import './kursteam-data-tables-ui.js';
 import './kursteam-teams-sort-logic.js';
+import './kursteam-teams-filter-logic.js';
 import './kursteam-team-build.js';
 import './kursteam-team-name-builder-ui.js';
 import './kursteam-teams-table-ui.js';
@@ -32,7 +33,8 @@ window.ms365AssertModules(
         teamNames: window.ms365KursteamTeamNames,
         KUI,
         KSub,
-        KActions
+        KActions,
+        teamsFilter: window.ms365KursteamTeamsFilterLogic
     },
     'kursteam-teams.js'
 );
