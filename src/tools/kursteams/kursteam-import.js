@@ -169,7 +169,7 @@ ns.importWebuntisFromPaste = function importWebuntisFromPaste() {
  * Erkennt ob ein JSON-Datensatz aus einem Sokrates-Export stammt und mappt die Felder.
  * Sokrates-Exporte haben typischerweise Spalten wie:
  *   "Unterrichtsgegenstand", "Lehrperson" / "Lehrer/in", "Klasse" / "Klassen"
- * Gibt { lehrer, fach, klasse, gruppe } zurück oder null wenn kein Sokrates-Muster.
+ * Gibt { lehrer, fach, klasseRaw, gruppe } zurück oder null wenn kein Sokrates-Muster.
  */
 ns.trySocratesMapping = function trySocratesMapping(row) {
     const fach =
@@ -188,17 +188,85 @@ ns.trySocratesMapping = function trySocratesMapping(row) {
 };
 
 /**
+ * WebUntis „ExportLessons“ (xls/xlsx/csv): Spalten subject, teacher, klassen
+ * (optional periods, room, foreignKey). Gibt Mapping oder null.
+ */
+ns.tryWebuntisLessonsMapping = function tryWebuntisLessonsMapping(row) {
+    const hasExportShape =
+        Object.prototype.hasOwnProperty.call(row, 'subject') ||
+        Object.prototype.hasOwnProperty.call(row, 'teacher') ||
+        Object.prototype.hasOwnProperty.call(row, 'klassen');
+    if (!hasExportShape) return null;
+
+    const fach = (row.subject || row.Subject || '').toString().trim();
+    const lehrer = (row.teacher || row.Teacher || '').toString().trim();
+    const klasseRaw = (row.klassen || row.Klassen || row.class || row.Class || '').toString().trim();
+    const gruppe = (row.gruppe || row.group || row.Group || '').toString().trim();
+
+    if (!fach && !lehrer) return null;
+    return { lehrer, fach, klasseRaw, gruppe };
+};
+
+/**
+ * Einheitliche Spaltenauflösung für Importzeilen (WebUntis Lessons, Sokrates, Vorlage).
+ * @returns {{ lehrer: string, fach: string, klasseRaw: string, gruppe: string, profile: string } | null}
+ */
+ns.mapImportedLessonRow = function mapImportedLessonRow(rowRaw) {
+    const row = ns.normalizeImportedRowKeys(rowRaw || {});
+
+    const wu = ns.tryWebuntisLessonsMapping(row);
+    if (wu && (wu.lehrer || wu.fach)) {
+        return { ...wu, profile: 'webuntis-lessons' };
+    }
+
+    const soc = ns.trySocratesMapping(row);
+    if (soc && (soc.lehrer || soc.fach)) {
+        return { ...soc, profile: 'sokrates' };
+    }
+
+    const lehrer = (row.Lehrer || row.lehrer || row.Teacher || row.teacher || row.LehrerIn || '').toString().trim();
+    const fach = (row.Fach || row.fach || row.Subject || row.subject || row.Unterrichtsfach || '').toString().trim();
+    const klasseRaw = (
+        row['Klasse(n)'] ||
+        row.Klasse ||
+        row.klasse ||
+        row.Klassen ||
+        row.klassen ||
+        row.Class ||
+        row.class ||
+        ''
+    )
+        .toString()
+        .trim();
+    const gruppe = (
+        row['Schülergruppe'] ||
+        row.Schülergruppe ||
+        row.Gruppe ||
+        row.gruppe ||
+        row.Group ||
+        row.group ||
+        ''
+    )
+        .toString()
+        .trim();
+
+    if (!lehrer && !fach) return null;
+    return { lehrer, fach, klasseRaw, gruppe, profile: 'generic' };
+};
+
+/**
  * Zeigt eine Diagnose-Meldung wenn der Import 0 Zeilen liefert.
  * Gibt dem Nutzer Hinweis auf erkannte Spalten und empfohlene Spaltenbezeichnungen.
  */
 ns.showImportDiagnosis = function showImportDiagnosis(jsonData) {
     if (!jsonData || !jsonData.length) {
-        ns.showToast('Datei leer oder Format nicht erkannt – bitte XLSX-Vorlage verwenden.');
+        ns.showToast('Datei leer oder Format nicht erkannt – bitte XLSX-Vorlage oder WebUntis-ExportLessons verwenden.');
         return;
     }
     const firstRow = ns.normalizeImportedRowKeys(jsonData[0]);
     const erkannt = Object.keys(firstRow).join(', ') || '(keine)';
-    const erwartet = '"Lehrer", "Fach", "Klasse(n)" – oder Sokrates: "Lehrperson"/"Lehrer/in", "Unterrichtsgegenstand", "Klasse"';
+    const erwartet =
+        'WebUntis ExportLessons: "subject", "teacher", "klassen" – oder "Lehrer", "Fach", "Klasse(n)" – oder Sokrates: "Lehrperson"/"Lehrer/in", "Unterrichtsgegenstand", "Klasse"';
     ns.openModal(
         'Import: Keine Daten erkannt',
         '<p style="margin-bottom:10px;">Die Datei enthält <strong>0 verwertbare Zeilen</strong>.</p>' +
@@ -210,7 +278,7 @@ ns.showImportDiagnosis = function showImportDiagnosis(jsonData) {
         '<code style="display:block;padding:8px;background:var(--soft);border-radius:6px;font-size:0.88em;">' +
             ns.escapeHtml(erwartet) +
         '</code>' +
-        '<p style="margin-top:12px;color:var(--text-secondary);font-size:0.92em;">Tipp: <strong>XLSX-Vorlage</strong> herunterladen und mit Ihren Daten befüllen, oder Sokrates-Export direkt hochladen (Spalten werden automatisch erkannt).</p>',
+        '<p style="margin-top:12px;color:var(--text-secondary);font-size:0.92em;">Tipp: In WebUntis <strong>ExportLessons</strong> (xls) direkt hochladen – Spalten <code>subject</code>, <code>teacher</code>, <code>klassen</code> werden erkannt. Alternativ XLSX-Vorlage oder Sokrates-Export.</p>',
         null
     );
 };
@@ -219,27 +287,16 @@ ns.processImportedData = function processImportedData(data) {
     const rows = [];
     let id = 0;
     let socratesHits = 0;
+    let webuntisHits = 0;
     data.forEach(origRaw => {
-        const row = ns.normalizeImportedRowKeys(origRaw);
+        const mapped = ns.mapImportedLessonRow(origRaw);
+        if (!mapped) return;
 
-        // Sokrates-Profil zuerst probieren
-        const soc = ns.trySocratesMapping(row);
-        let lehrer, fach, klasseRaw, gruppe;
-
-        if (soc && (soc.lehrer || soc.fach)) {
-            lehrer = soc.lehrer;
-            fach = soc.fach;
-            klasseRaw = soc.klasseRaw;
-            gruppe = soc.gruppe;
-            socratesHits++;
-        } else {
-            lehrer = (row.Lehrer || row.lehrer || row.Teacher || row.LehrerIn || '').toString().trim();
-            fach = (row.Fach || row.fach || row.Subject || row.Unterrichtsfach || '').toString().trim();
-            klasseRaw = (row['Klasse(n)'] || row.Klasse || row.klasse || row.Class || '').toString().trim();
-            gruppe = (row['Schülergruppe'] || row.Schülergruppe || row.Gruppe || row.gruppe || row.Group || '').toString().trim();
-        }
-
+        const { lehrer, fach, klasseRaw, gruppe, profile } = mapped;
         if (!lehrer || !fach) return;
+
+        if (profile === 'sokrates') socratesHits++;
+        if (profile === 'webuntis-lessons') webuntisHits++;
 
         const klassenParts = ns.splitKlassenCell(klasseRaw);
         const targets = klassenParts.length ? klassenParts : [''];
@@ -251,7 +308,7 @@ ns.processImportedData = function processImportedData(data) {
                 fach,
                 lehrer,
                 gruppe,
-                original: row
+                original: ns.normalizeImportedRowKeys(origRaw)
             });
         });
     });
@@ -261,7 +318,9 @@ ns.processImportedData = function processImportedData(data) {
         return;
     }
 
-    if (socratesHits > 0 && socratesHits > rows.length / 2) {
+    if (webuntisHits > 0 && webuntisHits > rows.length / 2) {
+        ns.showToast('WebUntis-ExportLessons erkannt – ' + rows.length + ' Zeile(n) importiert.');
+    } else if (socratesHits > 0 && socratesHits > rows.length / 2) {
         ns.showToast('Sokrates-Export erkannt – ' + rows.length + ' Zeile(n) importiert.');
     }
 
