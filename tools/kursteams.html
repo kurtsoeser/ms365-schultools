@@ -1130,6 +1130,9 @@ Connect-MicrosoftTeams
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <button type="button" class="btn" id="btnSaveState" title="Aktuellen Stand im Browser speichern"><i class="bi bi-floppy"></i>Speichern</button>
                 <button type="button" class="btn" id="btnLoadState" title="Zuletzt gespeicherten Stand laden"><i class="bi bi-folder2-open"></i>Stand laden</button>
+                <button type="button" class="btn" id="btnExportKursteamJson" title="Aktuellen Stand als JSON-Datei herunterladen"><i class="bi bi-download"></i>JSON exportieren</button>
+                <button type="button" class="btn" id="btnImportKursteamJson" title="Gespeicherten Stand aus JSON-Datei wiederherstellen"><i class="bi bi-upload"></i>JSON importieren</button>
+                <input type="file" id="kursteamImportJsonFile" accept="application/json,.json" style="display:none;">
             </div>
             <div>
                 <button type="button" class="btn btn-danger btn-small" id="btnClearStorage" title="Gespeicherten Zwischenstand löschen"><i class="bi bi-trash"></i>Speicher löschen</button>
