@@ -1027,20 +1027,25 @@
                         <p class="help-open"><a href="tools/cleanup-playbook.html">→ Cleanup-Playbook öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="stammdaten übergabe sharepoint backup json document library">
+                    <article class="help-article" data-help-article data-search="stammdaten übergabe sharepoint backup json document library it rechte">
                         <h3 id="tool-stammdaten-uebergabe">Stammdaten-Übergabe <span class="pill">SharePoint</span></h3>
                         <p>
-                            Schreibt das Browser-Backup als JSON in die Dokumentbibliothek der Intranet-Site
-                            (Ordner <code>MS365-Schulverwaltung</code>, Datei <code>ms365-stammdaten-aktuell.json</code>).
-                            Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt –
-                            dafür bleiben Lehrerliste und Schultermine eigene Listen.
+                            Eigene IT-Dokumentbibliothek <code>MS365-IT-Stammdaten</code> auf der Intranet-Site:
+                            Vererbung wird gebrochen, Site-Besucher und -Mitglieder verlieren den Zugriff,
+                            die gewählte IT-/Verwaltungsgruppe erhält Mitwirken (Contribute).
+                            Darin liegt das Browser-Backup als JSON (<code>Backups/ms365-stammdaten-aktuell.json</code>).
+                            Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt.
                         </p>
                         <div class="mini-steps">
                             <ol>
-                                <li>Intranet-Site-URL eintragen (oder aus der Einrichtung übernehmen).</li>
-                                <li><strong>Jetzt hochladen</strong> – optional datierte Kopie.</li>
-                                <li>Auf einem anderen PC: <strong>Aktuell laden</strong> oder Datei aus der Liste wählen.</li>
+                                <li>Intranet-URL und IT-Gruppe (E-Mail oder GUID) eintragen – Vorschlag: Verwaltungsgruppe.</li>
+                                <li><strong>IT-Bibliothek einrichten</strong> (einmalig; braucht SharePoint FullControl).</li>
+                                <li><strong>Jetzt hochladen</strong> / auf anderem PC <strong>Aktuell laden</strong>.</li>
                             </ol>
+                        </div>
+                        <div class="warn">
+                            Wenn der Rechte-Schritt im Browser scheitert (CORS): Bibliothek ist trotzdem angelegt –
+                            Berechtigungen in SharePoint manuell setzen.
                         </div>
                         <p class="help-open"><a href="tools/stammdaten-uebergabe.html">→ Stammdaten-Übergabe öffnen</a></p>
                     </article>

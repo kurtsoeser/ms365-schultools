@@ -20,47 +20,75 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-cloud-arrow-up"></i>Stammdaten-Übergabe</span>
             </div>
-            <p>Lokale Stammdaten als JSON in die Intranet-Dokumentbibliothek legen – für PC-Wechsel und IT-Übergabe.</p>
+            <p>Stammdaten als JSON in eine <strong>eigene IT-Bibliothek</strong> mit engen Rechten – nicht in die öffentliche Dokumentbibliothek.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-stammdaten-uebergabe" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
                 <a class="btn" href="../tenant.html"><i class="bi bi-sliders2-vertical"></i>Stammdaten</a>
                 <a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Intranet</a>
+                <a class="btn" href="verwaltung.html"><i class="bi bi-building-gear"></i>Verwaltung</a>
             </div>
         </div>
 
         <div class="content">
             <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></div>
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></div>
                 <div>
-                    <p class="tm-hero__kicker">SharePoint · Document Library</p>
-                    <h2>Eine Datei, nicht eine Schülerliste</h2>
+                    <p class="tm-hero__kicker">IT-only · Document Library</p>
+                    <h2>Bibliothek mit gebrochenen Rechten</h2>
                     <p id="suDesignHint">…</p>
                 </div>
             </section>
 
             <section class="tm-panel">
                 <div class="tm-panel__head">
-                    <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                    <i class="bi bi-shield-check" aria-hidden="true"></i>
                     <div>
-                        <h3>Ziel auf der Intranet-Site</h3>
-                        <p>Standard: Ordner <code>MS365-Schulverwaltung</code>, Datei <code>ms365-stammdaten-aktuell.json</code>.</p>
+                        <h3>1. IT-Bibliothek einrichten</h3>
+                        <p>Einmalig: Bibliothek anlegen, Vererbung beenden, Besucher/Mitglieder entfernen, IT-Gruppe Mitwirken.</p>
                     </div>
                 </div>
                 <div class="tm-field">
-                    <label for="suSiteUrl">SharePoint-Website</label>
+                    <label for="suSiteUrl">SharePoint-Website (Intranet)</label>
                     <input type="url" id="suSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
                 </div>
                 <div class="tm-field">
-                    <label for="suFolder">Ordner in der Dokumentbibliothek</label>
-                    <input type="text" id="suFolder" value="MS365-Schulverwaltung" maxlength="120" spellcheck="false">
+                    <label for="suLibraryTitle">Name der IT-Bibliothek</label>
+                    <input type="text" id="suLibraryTitle" value="MS365-IT-Stammdaten" maxlength="120" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="suItGroup">IT-/Verwaltungsgruppe (E-Mail oder Objekt-ID)</label>
+                    <input type="text" id="suItGroup" placeholder="verwaltung@schule.at oder GUID" autocomplete="off" spellcheck="false">
+                    <small class="muted">Vorschlag: gematchte Schulverwaltungs-Gruppe aus den Stammdaten.</small>
+                </div>
+                <p id="suItStatus" class="muted" style="margin:8px 0;"></p>
+                <div class="tm-actions">
+                    <button type="button" class="btn btn-success" id="suBtnSetupIt"><i class="bi bi-shield-lock"></i>IT-Bibliothek einrichten</button>
+                </div>
+                <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
+                    Benötigt Graph <code>Sites.ReadWrite.All</code> und für Rechte SharePoint <code>Sites.FullControl.All</code>
+                    (wie Hub-Registrierung). Schlägt der Rechte-Schritt fehl (CORS), Bibliothek bleibt – Rechte dann in SharePoint manuell setzen.
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                    <div>
+                        <h3>2. Backup hochladen / laden</h3>
+                        <p>Datei <code>ms365-stammdaten-aktuell.json</code> im Ordner <code>Backups</code>.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="suFolder">Ordner in der IT-Bibliothek</label>
+                    <input type="text" id="suFolder" value="Backups" maxlength="120" spellcheck="false">
                 </div>
                 <label class="checkbox-label" style="display:flex;gap:8px;align-items:center;margin:8px 0 12px;">
                     <input type="checkbox" id="suKeepDated">
-                    <span>Zusätzlich datierte Kopie ablegen (Versionshistorie manuell)</span>
+                    <span>Zusätzlich datierte Kopie ablegen</span>
                 </label>
                 <p id="suLastMeta" class="muted" style="margin:0 0 10px;"></p>
-                <a id="suFileLink" class="btn btn-sm" hidden target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Letzte Datei öffnen</a>
+                <a id="suFileLink" class="btn btn-sm" hidden target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Bibliothek / Datei öffnen</a>
                 <div class="tm-actions" style="margin-top:12px;">
                     <button type="button" class="btn btn-success" id="suBtnUpload"><i class="bi bi-cloud-arrow-up"></i>Jetzt hochladen</button>
                     <button type="button" class="btn" id="suBtnList"><i class="bi bi-folder"></i>Ordner listen</button>
@@ -77,7 +105,7 @@
                     <i class="bi bi-files" aria-hidden="true"></i>
                     <div>
                         <h3>Dateien im Ordner</h3>
-                        <p>Nach „Ordner listen“ erscheinen Backups zum Laden.</p>
+                        <p>Nach „Ordner listen“.</p>
                     </div>
                 </div>
                 <div style="overflow:auto;">
@@ -102,14 +130,14 @@
                     <i class="bi bi-info-circle" aria-hidden="true"></i>
                     <div>
                         <h3>Was wohin?</h3>
-                        <p>Orientierung für spätere Nacharbeit.</p>
+                        <p>Orientierung.</p>
                     </div>
                 </div>
                 <ul style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li><strong>Document Library (diese Seite):</strong> gesamtes Browser-Backup (Stammdaten, Matches, Werkzeugstände).</li>
-                    <li><strong>Liste „Lehrerinnen“:</strong> öffentlicher Ausschnitt für Intranet – kein Ersatz für Stammdaten.</li>
-                    <li><strong>Liste „Schultermine“:</strong> Kalenderdaten / Sync – kein Schülerstammdaten.</li>
-                    <li><strong>Später möglich:</strong> getrennte Bibliotheken (IT-only), Aufbewahrungsrichtlinien, automatischer Diff.</li>
+                    <li><strong>MS365-IT-Stammdaten (diese Seite):</strong> gesamtes Browser-Backup, nur IT/Verwaltung.</li>
+                    <li><strong>Liste „Lehrerinnen“:</strong> öffentlicher Ausschnitt.</li>
+                    <li><strong>Liste „Schultermine“:</strong> Kalender / Sync.</li>
+                    <li><strong>Nicht:</strong> Schüler/Eltern als Listenzeilen.</li>
                 </ul>
             </section>
         </div>

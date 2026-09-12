@@ -131,7 +131,22 @@
     async function registerHubSiteViaSpoRest(siteWebUrl, spoToken) {
         const origin = String(siteWebUrl || '').replace(/\/+$/, '');
         if (!origin || !spoToken) throw new Error('Site-URL oder SharePoint-Token fehlt.');
+        const digest = await getSpoRequestDigest(origin, spoToken);
+        const hubRes = await spoRestFetch(origin, spoToken, digest, 'POST', '/_api/site/RegisterHubSite', '');
+        if (!hubRes.ok) {
+            throw new Error('RegisterHubSite: ' + hubRes.status + ' ' + (hubRes.text || ''));
+        }
+        return hubRes.data;
+    }
 
+    /**
+     * @param {string} siteWebUrl
+     * @param {string} spoToken
+     * @returns {Promise<string>} FormDigestValue
+     */
+    async function getSpoRequestDigest(siteWebUrl, spoToken) {
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        if (!origin || !spoToken) throw new Error('Site-URL oder SharePoint-Token fehlt.');
         const ctxRes = await fetch(origin + '/_api/contextinfo', {
             method: 'POST',
             headers: {
@@ -152,31 +167,147 @@
         }
         const digest =
             (ctxJson && ctxJson.FormDigestValue) ||
-            (ctxJson && ctxJson.d && ctxJson.d.GetContextWebInformation && ctxJson.d.GetContextWebInformation.FormDigestValue) ||
+            (ctxJson &&
+                ctxJson.d &&
+                ctxJson.d.GetContextWebInformation &&
+                ctxJson.d.GetContextWebInformation.FormDigestValue) ||
             '';
         if (!digest) throw new Error('Kein FormDigestValue erhalten.');
+        return digest;
+    }
 
-        const hubRes = await fetch(origin + '/_api/site/RegisterHubSite', {
+    /**
+     * @returns {Promise<{ ok: boolean, status: number, text: string, data: any }>}
+     */
+    async function spoRestFetch(siteWebUrl, spoToken, digest, method, apiPath, body) {
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const path = String(apiPath || '');
+        const url = path.indexOf('http') === 0 ? path : origin + (path.indexOf('/') === 0 ? path : '/' + path);
+        const headers = {
+            Accept: 'application/json;odata=nometadata',
+            Authorization: 'Bearer ' + spoToken
+        };
+        if (digest) headers['X-RequestDigest'] = digest;
+        let payload = body;
+        if (payload !== undefined && payload !== '' && typeof payload !== 'string') {
+            headers['Content-Type'] = 'application/json;odata=nometadata;charset=utf-8';
+            payload = JSON.stringify(payload);
+        } else if (payload !== undefined && payload !== '') {
+            headers['Content-Type'] = 'application/json;odata=nometadata;charset=utf-8';
+        }
+        const res = await fetch(url, {
+            method: method || 'GET',
+            headers: headers,
+            body: payload === undefined || payload === '' ? undefined : payload
+        });
+        const text = await res.text();
+        let data = null;
+        if (text) {
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = { raw: text };
+            }
+        }
+        return { ok: res.ok, status: res.status, text: text, data: data };
+    }
+
+    /**
+     * Vererbung an einer Liste/Bibliothek brechen.
+     * @param {boolean} [copyRoleAssignments=true]
+     */
+    async function spoBreakListInheritance(siteWebUrl, spoToken, digest, listTitle, copyRoleAssignments) {
+        const title = String(listTitle || '').trim();
+        if (!title) throw new Error('Listen-Titel fehlt.');
+        const copy = copyRoleAssignments !== false;
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            title.replace(/'/g, "''") +
+            "')/breakroleinheritance(copyRoleAssignments=" +
+            (copy ? 'true' : 'false') +
+            ',clearSubscopes=true)';
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'POST', api, '');
+        if (!res.ok && res.status !== 204) {
+            throw new Error('breakroleinheritance: ' + res.status + ' ' + (res.text || ''));
+        }
+        return res.data;
+    }
+
+    async function spoListRoleAssignments(siteWebUrl, spoToken, digest, listTitle) {
+        const title = String(listTitle || '').trim();
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            title.replace(/'/g, "''") +
+            "')/roleassignments?$expand=Member,RoleDefinitionBindings";
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'GET', api);
+        if (!res.ok) throw new Error('roleassignments: ' + res.status + ' ' + (res.text || ''));
+        const value = (res.data && (res.data.value || (res.data.d && res.data.d.results))) || [];
+        return Array.isArray(value) ? value : [];
+    }
+
+    async function spoRemoveRoleAssignment(siteWebUrl, spoToken, digest, listTitle, principalId) {
+        const title = String(listTitle || '').trim();
+        const pid = Number(principalId);
+        if (!pid) throw new Error('principalId fehlt.');
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            title.replace(/'/g, "''") +
+            "')/roleassignments/getbyprincipalid(" +
+            pid +
+            ')';
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const del = await fetch(origin + api, {
             method: 'POST',
             headers: {
                 Accept: 'application/json;odata=nometadata',
-                'Content-Type': 'application/json;odata=nometadata;charset=utf-8',
                 Authorization: 'Bearer ' + spoToken,
-                'X-RequestDigest': digest
-            },
-            body: ''
+                'X-RequestDigest': digest,
+                'X-HTTP-Method': 'DELETE',
+                'IF-MATCH': '*'
+            }
         });
-        const hubText = await hubRes.text();
-        if (!hubRes.ok) {
-            throw new Error('RegisterHubSite: ' + hubRes.status + ' ' + (hubText || ''));
+        const text = await del.text();
+        if (!del.ok && del.status !== 204) {
+            throw new Error('remove roleassignment: ' + del.status + ' ' + text);
         }
-        let hubJson = null;
-        try {
-            hubJson = JSON.parse(hubText);
-        } catch {
-            hubJson = { raw: hubText };
+        return true;
+    }
+
+    /**
+     * EnsureUser: Entra-Gruppe oder User → PrincipalId.
+     * @param {string} logonName z. B. c:0o.c|federateddirectoryclaimprovider|{guid}
+     */
+    async function spoEnsureUser(siteWebUrl, spoToken, digest, logonName) {
+        const login = String(logonName || '').trim();
+        if (!login) throw new Error('logonName fehlt.');
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'POST', '/_api/web/ensureuser', {
+            logonName: login
+        });
+        if (!res.ok) throw new Error('ensureuser: ' + res.status + ' ' + (res.text || ''));
+        const d = res.data || {};
+        const id = d.Id != null ? d.Id : d.d && d.d.Id;
+        if (!id) throw new Error('ensureuser: keine Id in der Antwort.');
+        return { id: Number(id), title: d.Title || (d.d && d.d.Title) || '', loginName: d.LoginName || login };
+    }
+
+    async function spoAddRoleAssignment(siteWebUrl, spoToken, digest, listTitle, principalId, roleDefId) {
+        const title = String(listTitle || '').trim();
+        const pid = Number(principalId);
+        const rid = Number(roleDefId);
+        if (!pid || !rid) throw new Error('principalId/roleDefId fehlen.');
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            title.replace(/'/g, "''") +
+            "')/roleassignments/addroleassignment(principalid=" +
+            pid +
+            ',roledefid=' +
+            rid +
+            ')';
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'POST', api, '');
+        if (!res.ok && res.status !== 204) {
+            throw new Error('addroleassignment: ' + res.status + ' ' + (res.text || ''));
         }
-        return hubJson;
+        return true;
     }
 
     /**
@@ -225,6 +356,13 @@
         getSharePointHostname: getSharePointHostname,
         pollRichLongRunningOperation: pollRichLongRunningOperation,
         registerHubSiteViaSpoRest: registerHubSiteViaSpoRest,
+        getSpoRequestDigest: getSpoRequestDigest,
+        spoRestFetch: spoRestFetch,
+        spoBreakListInheritance: spoBreakListInheritance,
+        spoListRoleAssignments: spoListRoleAssignments,
+        spoRemoveRoleAssignment: spoRemoveRoleAssignment,
+        spoEnsureUser: spoEnsureUser,
+        spoAddRoleAssignment: spoAddRoleAssignment,
         graphBase: graphBase,
         parseSharePointWebUrl: parseSharePointWebUrl,
         resolveSiteFromWebUrl: resolveSiteFromWebUrl,

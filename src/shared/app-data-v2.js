@@ -91,6 +91,7 @@
             actionLog: [],
             intranetSiteUrl: '',
             intranetHubAt: null,
+            stammdatenItLibrary: null,
             sisImportHistory: [],
             elternSetup: { completedSteps: [], lastDiagnoseAt: null }
         };
@@ -607,6 +608,19 @@
         d.catalogLinks = filled.catalogLinks;
         d.intranetSiteUrl = x.intranetSiteUrl ? String(x.intranetSiteUrl).trim() : '';
         d.intranetHubAt = x.intranetHubAt != null && x.intranetHubAt !== '' ? String(x.intranetHubAt) : null;
+        const itLib = x.stammdatenItLibrary && typeof x.stammdatenItLibrary === 'object' ? x.stammdatenItLibrary : null;
+        d.stammdatenItLibrary = itLib
+            ? {
+                  listTitle: itLib.listTitle ? String(itLib.listTitle).trim() : '',
+                  listId: itLib.listId ? String(itLib.listId).trim() : '',
+                  driveId: itLib.driveId ? String(itLib.driveId).trim() : '',
+                  webUrl: itLib.webUrl ? String(itLib.webUrl).trim() : '',
+                  itGroupId: itLib.itGroupId ? String(itLib.itGroupId).trim() : '',
+                  itGroupMail: itLib.itGroupMail ? String(itLib.itGroupMail).trim() : '',
+                  securedAt: itLib.securedAt ? String(itLib.securedAt) : null,
+                  siteUrl: itLib.siteUrl ? String(itLib.siteUrl).trim() : ''
+              }
+            : null;
         const es = x.elternSetup && typeof x.elternSetup === 'object' ? x.elternSetup : {};
         d.elternSetup = {
             completedSteps: Array.isArray(es.completedSteps) ? es.completedSteps.map(function (t) { return String(t); }) : [],

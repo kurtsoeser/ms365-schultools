@@ -72,7 +72,7 @@
         'cleanup-playbook':
             'Checkliste zum Aufräumen: Besitzlose, leere Gruppen, Archiv, Hygiene, Namenskonvention, Gäste, SharePoint-Übergabe.',
         'stammdaten-uebergabe':
-            'Browser-Backup als JSON in die Intranet-Dokumentbibliothek – nicht als Schüler-SharePoint-Liste. Für PC-Wechsel und IT-Übergabe.',
+            'Eigene IT-Bibliothek MS365-IT-Stammdaten: Vererbung gebrochen, nur Besitzer + IT-/Verwaltungsgruppe. Browser-Backup als JSON – keine Schülerliste.',
         'datei-migration':
             'Dateien aus einem alten/archivierten Team in ein neues Team kopieren – Chat und Aufgaben bleiben zurück.',
         'leere-gruppen-report':
