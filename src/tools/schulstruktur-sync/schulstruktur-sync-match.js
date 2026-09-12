@@ -9,7 +9,7 @@
  *  - {@link suggestTenantGroupForUnitFromList}: schlägt eine Gruppe für eine
  *    Strukturzeile vor (exakt → Alias → enthält).
  *  - {@link suggestTenantUserForPersonFromList}: scoring-basierter
- *    Vorschlag für Person-Zeilen anhand `displayName`/`UPN`/`mail`.
+ *    Vorschlag für Person-Zeilen anhand Name/UPN/mail/Alias/Local-Part.
  *  - {@link suggestTenantMatchSelectValue}: kombiniert beide Vorschläge zum
  *    `g:<id>` / `u:<id>` Dropdown-Wert.
  *  - {@link formatEntraUserPickLabel}: einheitliches Anzeige-Label.
@@ -66,14 +66,77 @@ export function suggestTenantGroupForUnitFromList(unit, list) {
 }
 
 /**
+ * Local-Part einer E-Mail/UPN (vor dem @), normalisiert.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function emailLocalPart(raw) {
+    const s = String(raw || '')
+        .trim()
+        .toLowerCase();
+    if (!s) return '';
+    const at = s.indexOf('@');
+    const local = at === -1 ? s : s.slice(0, at);
+    return normKey(local);
+}
+
+/**
+ * Alle Identitäts-Schlüssel eines Entra-Users für Matching
+ * (DisplayName, UPN, mail, Aliase/otherMails, mailNickname, Vor-/Nachname).
+ *
+ * @param {{ displayName?: string, userPrincipalName?: string, mail?: string, mailNickname?: string, givenName?: string, surname?: string, otherMails?: string[] } | null} u
+ * @returns {{ exact: string[], soft: string[] }}
+ */
+export function collectUserIdentityKeys(u) {
+    const exact = [];
+    const soft = [];
+    const pushExact = (x) => {
+        const k = normKey(x);
+        if (k && exact.indexOf(k) === -1) exact.push(k);
+    };
+    const pushSoft = (x) => {
+        const k = normKey(x);
+        if (k && soft.indexOf(k) === -1) soft.push(k);
+    };
+    if (!u || typeof u !== 'object') return { exact, soft };
+
+    pushExact(u.displayName);
+    pushExact(u.userPrincipalName);
+    pushExact(u.mail);
+    pushExact(u.mailNickname);
+    pushExact(emailLocalPart(u.userPrincipalName));
+    pushExact(emailLocalPart(u.mail));
+
+    const others = Array.isArray(u.otherMails) ? u.otherMails : [];
+    for (let i = 0; i < others.length; i++) {
+        pushExact(others[i]);
+        pushExact(emailLocalPart(others[i]));
+    }
+
+    const given = normKey(u.givenName);
+    const sur = normKey(u.surname);
+    if (given && sur) {
+        pushSoft(given + ' ' + sur);
+        pushSoft(sur + ' ' + given);
+        pushExact(given + '.' + sur);
+        pushExact(sur + '.' + given);
+    } else {
+        pushSoft(given);
+        pushSoft(sur);
+    }
+    return { exact, soft };
+}
+
+/**
  * Abgleich-Vorschlag: Entra-Benutzer für SOLL-Typ „Person" (Name/E-Mail/Rolle).
  * Punktet:
- *  - 100 bei exaktem Match auf `displayName`/`UPN`/`mail`
- *  - 50 bei „enthält"-Match `displayName`
- *  - 45 bei „enthält"-Match `UPN` oder `mail`
+ *  - 100 bei exaktem Match auf DisplayName/UPN/mail/Alias/mailNickname/Local-Part
+ *  - 80 bei Vorname+Nachname (auch vertauscht)
+ *  - 50 bei „enthält"-Match DisplayName / zusammengesetzter Name
+ *  - 45 bei „enthält"-Match UPN, mail oder Alias
  *
  * @param {{ typ?: string, personName?: string, personEmail?: string, bezeichnung?: string } | null} unit
- * @param {Array<{ id?: string|number, displayName?: string, userPrincipalName?: string, mail?: string }>} users
+ * @param {Array<{ id?: string|number, displayName?: string, userPrincipalName?: string, mail?: string, mailNickname?: string, givenName?: string, surname?: string, otherMails?: string[] }>} users
  * @returns {string} User-ID oder Leerstring.
  */
 export function suggestTenantUserForPersonFromList(unit, users) {
@@ -82,25 +145,36 @@ export function suggestTenantUserForPersonFromList(unit, users) {
     const keys = [];
     const pushK = (x) => {
         const k = normKey(x);
-        if (k) keys.push(k);
+        if (k && keys.indexOf(k) === -1) keys.push(k);
     };
     pushK(unit.personName);
     pushK(unit.personEmail);
     pushK(unit.bezeichnung);
+    pushK(emailLocalPart(unit.personEmail));
     if (!keys.length) return '';
 
     function scoreUser(u) {
-        const dn = normKey(u.displayName);
-        const upn = normKey(u.userPrincipalName);
-        const mail = normKey(u.mail);
+        const ids = collectUserIdentityKeys(u);
         let best = 0;
         for (let i = 0; i < keys.length; i++) {
             const k = keys[i];
             if (!k) continue;
-            if (k === dn || k === upn || k === mail) return 100;
-            if (dn && (dn.includes(k) || k.includes(dn))) best = Math.max(best, 50);
-            if (upn && (upn.includes(k) || k.includes(upn))) best = Math.max(best, 45);
-            if (mail && (mail.includes(k) || k.includes(mail))) best = Math.max(best, 45);
+            for (let e = 0; e < ids.exact.length; e++) {
+                if (k === ids.exact[e]) return 100;
+            }
+            for (let s = 0; s < ids.soft.length; s++) {
+                const soft = ids.soft[s];
+                if (k === soft) best = Math.max(best, 80);
+                else if (soft && (soft.includes(k) || k.includes(soft))) best = Math.max(best, 50);
+            }
+            for (let e = 0; e < ids.exact.length; e++) {
+                const ex = ids.exact[e];
+                if (!ex) continue;
+                // kurze Nummern-UPNs nicht per Substring gegen lange Namen matchen
+                if (ex.length >= 3 && k.length >= 3 && (ex.includes(k) || k.includes(ex))) {
+                    best = Math.max(best, 45);
+                }
+            }
         }
         return best;
     }
@@ -115,7 +189,8 @@ export function suggestTenantUserForPersonFromList(unit, users) {
             bestId = String(u.id || '');
         }
     }
-    return bestId;
+    // Unter 45 zu unsicher (reine Substring-Zufallstreffer vermeiden)
+    return bestScore >= 45 ? bestId : '';
 }
 
 /**
@@ -147,7 +222,19 @@ export function formatEntraUserPickLabel(u) {
     if (!u || typeof u !== 'object') return '';
     const dn = u.displayName ? String(u.displayName).trim() : '';
     const upn = String(u.userPrincipalName || u.mail || '').trim();
-    if (dn && upn && dn.toLowerCase() !== upn.toLowerCase()) return dn + ' · ' + upn + ' · Benutzer';
+    const alias =
+        Array.isArray(u.otherMails) && u.otherMails.length
+            ? String(u.otherMails[0] || '').trim()
+            : '';
+    if (dn && upn && dn.toLowerCase() !== upn.toLowerCase()) {
+        if (alias && alias.toLowerCase() !== upn.toLowerCase() && alias.toLowerCase() !== dn.toLowerCase()) {
+            return dn + ' · ' + upn + ' · Alias ' + alias + ' · Benutzer';
+        }
+        return dn + ' · ' + upn + ' · Benutzer';
+    }
+    if (alias && (!upn || alias.toLowerCase() !== upn.toLowerCase())) {
+        return (dn || upn || String(u.id || '')) + ' · Alias ' + alias + ' · Benutzer';
+    }
     return (dn || upn || String(u.id || '')) + ' · Benutzer';
 }
 
@@ -192,10 +279,15 @@ export function matchTenantHaystackForGroup(g) {
  * @returns {string}
  */
 export function matchTenantHaystackForUser(u) {
+    const others = Array.isArray(u && u.otherMails) ? u.otherMails.join(' ') : '';
     return [
         u && u.displayName,
         u && u.userPrincipalName,
         u && u.mail,
+        u && u.mailNickname,
+        u && u.givenName,
+        u && u.surname,
+        others,
         u && u.id,
         formatEntraUserPickLabel(u)
     ]

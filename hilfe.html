@@ -367,6 +367,7 @@
                                 <li><a href="#tool-intranet">Schul-Intranet</a></li>
                                 <li><a href="#tool-gruppenerstellung">Wer darf Teams anlegen</a></li>
                                 <li><a href="#tool-schulstruktur">Gruppenverwaltung</a></li>
+                                <li><a href="#tool-cleanup-playbook">Cleanup-Playbook</a></li>
                                 <li><a href="#tool-leere-gruppen">Leere Gruppen</a></li>
                             </ul>
                         </div>
@@ -408,6 +409,7 @@
                                     <li><a href="#tool-intranet">Schul-Intranet</a></li>
                                     <li><a href="#tool-gruppenerstellung">Wer darf Teams anlegen</a></li>
                                     <li><a href="#tool-schulstruktur">Gruppenverwaltung</a></li>
+                                    <li><a href="#tool-cleanup-playbook">Cleanup-Playbook</a></li>
                                     <li><a href="#tool-leere-gruppen">Leere Gruppen</a></li>
                                 </ul>
                             </div>
@@ -628,17 +630,35 @@
                         <p class="help-open"><a href="tools/jahrgangsgruppen.html">→ Klassengruppen öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="datenhygiene abgleich dashboard gruppen konsistent abweichung">
+                    <article class="help-article" data-help-article data-search="klassen zusammenlegen merge survivor alias jahrgang">
+                        <h3 id="tool-klassen-merge">Klassen zusammenlegen <span class="pill">Wizard</span></h3>
+                        <p>
+                            Mehrere Klassen (z. B. 4HMA + 4HMB) zu einer Survivor-Klasse führen.
+                            Die Microsoft-365-Gruppe der Survivor behält den Alias; Mitglieder werden zusammengeführt.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Survivor und Quellen wählen, neues Kürzel/Anzeigename setzen.</li>
+                                <li>Vorschau prüfen (Schüler, Warnungen).</li>
+                                <li>Zusammenführen – optional Quell-Teams archivieren oder löschen.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/klassen-merge.html">→ Klassen zusammenlegen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="datenhygiene abgleich dashboard gruppen konsistent abweichung klassenfeld entra">
                         <h3 id="tool-datenhygiene">Datenhygiene (Abgleich M365) <span class="pill">Querschnitt</span></h3>
                         <p>
                             Unter <a href="tools/datenhygiene.html">Datenhygiene</a> sehen Sie alle gematchten Sammel- und Klassengruppen auf einen Blick:
                             Mitgliederzahl in der lokalen Liste vs. Microsoft&nbsp;365.
+                            Zusätzlich: Klassenfeld in den Stammdaten vs. <code>department</code>/<code>officeLocation</code> in Entra.
                         </p>
                         <div class="mini-steps">
                             <ol>
                                 <li><strong>Jetzt prüfen</strong> – lädt die aktuellen Mitgliederzahlen aus Graph (Anmeldung erforderlich).</li>
                                 <li>Grün = konsistent, rot = Abweichung, grau = noch kein Match.</li>
-                                <li>Über <strong>Abgleich öffnen</strong> gelangen Sie ins jeweilige Werkzeug (Sammelgruppen, Verwaltung, Klassengruppen) für den Detail-Vergleich.</li>
+                                <li><strong>Attribute prüfen</strong> – Klassenfeld-Abgleich Stammdaten ↔ Entra.</li>
+                                <li>Über <strong>Abgleich öffnen</strong> gelangen Sie ins jeweilige Werkzeug für den Detail-Vergleich.</li>
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/datenhygiene.html">→ Datenhygiene öffnen</a></p>
@@ -664,8 +684,29 @@
                         <div class="hint">
                             Optional Schüler als Mitglieder (separater Schritt), Format z. B. <code>Klasse;UPN</code>
                             oder <code>Klasse;Gruppe;UPN</code>.
+                            Schilf ohne Live-Schüler: <a href="tools/spielwiesen.html">Spielwiesen-Teams</a>.
                         </div>
                         <p class="help-open"><a href="tools/kursteams.html">→ Unterrichtsteams öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="diplomarbeit dipl naming betreuung gruppe team">
+                        <h3 id="tool-diplomarbeiten">Diplomarbeiten <span class="pill">Standard</span></h3>
+                        <p>
+                            Einheitliches Naming: Anzeigename <code>Diplomarbeit {Jahr} – Thema</code>,
+                            Alias <code>dipl-{jahr}-{slug}</code>. Bestehende Diplom-Gruppen lassen sich im Tenant filtern.
+                            Freigaben und Mails sollen über die Gruppe laufen – nicht über persönliche Postfächer.
+                        </p>
+                        <p class="help-open"><a href="tools/diplomarbeiten.html">→ Diplomarbeiten öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="spielwiese demo schilf notebook klassennotizbuch">
+                        <h3 id="tool-spielwiesen">Spielwiesen-Teams <span class="pill">Schilf</span></h3>
+                        <p>
+                            Demo-Teams ohne Live-Schüler (<code>spiel-{jahr}-…</code>).
+                            Checkliste: Class Notebook erst nach Schilf, Aufgaben nicht an echte Klassen,
+                            Team danach archivieren oder als DEMO belassen.
+                        </p>
+                        <p class="help-open"><a href="tools/spielwiesen.html">→ Spielwiesen öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="arge fachgruppe fachschaft arbeitsgemeinschaft katalog">
@@ -711,6 +752,15 @@
                             für SKUs <code>Organization.Read.All</code>). <code>DELETE</code> ist dauerhaft.
                         </div>
                         <p class="help-open"><a href="tools/personen-verwaltung.html">→ Personen-Verwaltung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="namenskonvention displayname upn vorname nachname audit ad sync">
+                        <h3 id="tool-namenskonvention-audit">Namenskonvention prüfen <span class="pill">Audit</span></h3>
+                        <p>
+                            Prüft Anzeigenamen und UPNs gegen eine Schulregel.
+                            Cloud-only Benutzer können korrigiert werden; AD-synchronisierte erscheinen im CSV-Export für die IT.
+                        </p>
+                        <p class="help-open"><a href="tools/namenskonvention-audit.html">→ Namenskonvention öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="gast gäste b2b einladen einlader audit umbenennen löschen extern">
@@ -876,10 +926,11 @@
                 <section class="help-section" data-help-section aria-labelledby="website">
                     <p class="help-kicker" id="website">Schulwebsite</p>
 
-                    <article class="help-article" data-help-article data-search="intranet hub kommunikationssite sharepoint">
+                    <article class="help-article" data-help-article data-search="intranet hub kommunikationssite sharepoint formulare medien">
                         <h3 id="tool-intranet">Schul-Intranet <span class="pill">SharePoint</span></h3>
                         <p>
                             Kommunikationswebsite per Graph anlegen und als Hub registrieren.
+                            Danach: Starter-Checkliste für Lehrerliste, Termine, Bibliotheken Formulare/Medien und News-Zielgruppen.
                             Die Hub-Registrierung kann im Browser an CORS scheitern – dann das generierte PowerShell verwenden.
                         </p>
                         <p class="help-open"><a href="tools/sharepoint-intranet-hub.html">→ Intranet &amp; Hub öffnen</a></p>
@@ -891,10 +942,23 @@
                         <p class="help-open"><a href="tools/sharepoint-liste-lehrer.html">→ Lehrerliste öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="schultermine kalender sharepoint power automate">
+                    <article class="help-article" data-help-article data-search="schultermine kalender sharepoint power automate csv import ziel lehrer">
                         <h3 id="tool-schultermine">Schultermine-Liste <span class="pill">SharePoint</span></h3>
-                        <p>Leere Liste mit vorbereiteten Spalten für Schultermine – zum Befüllen oder für Power Automate / Outlook.</p>
+                        <p>
+                            Liste mit Spalten für Beginn, Ende, Kategorie und Sync-Status anlegen.
+                            CSV-Import mit Ziel <code>S</code>/<code>L</code>/<code>beide</code>; Sync-Health prüft OutlookEventIDs und Fehlerfelder.
+                            Flow-Bauplan: <a href="tools/power-automate-rezepte.html">Power-Automate-Rezepte</a>.
+                        </p>
                         <p class="help-open"><a href="tools/sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="power automate flow rezept forms genehmigung schilf">
+                        <h3 id="tool-power-automate">Power-Automate-Rezepte <span class="pill">Playbook</span></h3>
+                        <p>
+                            Baupläne zum Nachbauen: Schultermine→Outlook, Forms→Anträge, Seminare, Gast-Hygiene,
+                            Diplom-Ordnerstruktur, Schilf „Kalender abonnieren“.
+                        </p>
+                        <p class="help-open"><a href="tools/power-automate-rezepte.html">→ Rezepte öffnen</a></p>
                     </article>
                 </section>
 
@@ -953,10 +1017,47 @@
                         <p class="help-open"><a href="tools/schulstruktur-sync.html">→ Gruppenverwaltung öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="cleanup playbook aufräumen schuljahr leer besitzer archiv hygiene namenskonvention">
+                        <h3 id="tool-cleanup-playbook">Cleanup-Playbook <span class="pill">Checkliste</span></h3>
+                        <p>
+                            Geführte Reihenfolge vor dem Schulstart: Gruppen ohne Besitzer, leere Gruppen,
+                            Archiv alter Teams, Datenhygiene, Namenskonvention, Gäste/Lizenzen, Stammdaten auf SharePoint.
+                            Haken bleiben lokal im Browser.
+                        </p>
+                        <p class="help-open"><a href="tools/cleanup-playbook.html">→ Cleanup-Playbook öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="stammdaten übergabe sharepoint backup json document library">
+                        <h3 id="tool-stammdaten-uebergabe">Stammdaten-Übergabe <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Schreibt das Browser-Backup als JSON in die Dokumentbibliothek der Intranet-Site
+                            (Ordner <code>MS365-Schulverwaltung</code>, Datei <code>ms365-stammdaten-aktuell.json</code>).
+                            Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt –
+                            dafür bleiben Lehrerliste und Schultermine eigene Listen.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Intranet-Site-URL eintragen (oder aus der Einrichtung übernehmen).</li>
+                                <li><strong>Jetzt hochladen</strong> – optional datierte Kopie.</li>
+                                <li>Auf einem anderen PC: <strong>Aktuell laden</strong> oder Datei aus der Liste wählen.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/stammdaten-uebergabe.html">→ Stammdaten-Übergabe öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="leere gruppen report ohne mitglieder ohne besitzer aufräumen">
                         <h3 id="tool-leere-gruppen">Leere Gruppen finden <span class="pill">Report</span></h3>
                         <p>Gruppen ohne Besitzer oder ohne Mitglieder finden und gezielt aufräumen. Vor dem Löschen prüfen, ob Dateien oder Planner noch gebraucht werden.</p>
                         <p class="help-open"><a href="tools/leere-gruppen-report.html">→ Leere Gruppen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="datei migration archiv kopieren team drive">
+                        <h3 id="tool-datei-migration">Datei-Migration <span class="pill">Graph</span></h3>
+                        <p>
+                            Kopiert Dateien/Ordner der Dokumentbibliothek von einem Quell-Team (oft archiviert)
+                            in ein Ziel-Team. Chat, Planner und Aufgaben werden nicht übernommen.
+                        </p>
+                        <p class="help-open"><a href="tools/datei-migration.html">→ Datei-Migration öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="teams archivieren unarchive sharepoint kursteams schuljahreswechsel sammel-archivierung">

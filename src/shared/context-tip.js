@@ -14,7 +14,7 @@
         'task-schuljahr':
             'Wann? Einmal pro Jahr beim Wechsel (z. B. im Sommer). Die Checkliste führt durch Schuljahr, Anzeigenamen, Abschlussjahrgang und Teams.',
         'task-ordnung':
-            'Wann? Regelmäßig aufräumen: leere Gruppen, fehlende Besitzer und einen Überblick über alle Gruppen der Schule.',
+            'Wann? Regelmäßig aufräumen: Cleanup-Playbook, leere Gruppen, fehlende Besitzer und Überblick über alle Gruppen.',
 
         'prog-unterricht':
             '„Verknüpft“ heißt: Die App kennt die passende Microsoft-365-Gruppe für diese Klasse. Noch nicht verknüpft? Im Werkzeug Klassengruppen die bestehende Gruppe zuordnen oder neu anlegen.',
@@ -26,16 +26,24 @@
         stammdaten:
             'Listen, die alle Werkzeuge nutzen: Domain, Fächer, Lehrkräfte, Klassen und Schülerinnen. Die Daten bleiben in diesem Browser – nichts wird auf einen Schul-Server geschickt.',
         datenhygiene:
-            'Abgleich mit Microsoft 365: Vergleicht Ihre lokalen Stammlisten mit den Gruppen in Microsoft 365. So erkennen Sie veraltete oder falsche Mitgliedschaften.',
+            'Abgleich mit Microsoft 365: Vergleicht Stammlisten mit Gruppen und das Klassenfeld (department/office) mit Entra.',
 
         jahrgang:
             'Microsoft-365-Gruppe pro Klasse anlegen oder eine bestehende zuordnen. Brauchen Sie das? Fast immer – Basis für Klassen-E-Mail und Teams.',
+        'klassen-merge':
+            'Mehrere Klassen zu einer zusammenführen: Survivor behält Alias/Gruppe, Quellen werden lokal entfernt und optional archiviert.',
         kursteams:
             'Teams für Unterrichtsfächer aus dem Stundenplan (z. B. WebUntis-Export). Sinnvoll, wenn Lehrkräfte pro Fach/Kurs ein eigenes Team nutzen.',
         'arge-fachgruppen':
             'Eine Gruppe pro Fach oder Arbeitsgemeinschaft (ARGE). Voraussetzung: Fächer und ARGEs in den Stammdaten gepflegt.',
+        diplomarbeiten:
+            'Diplomarbeit-Gruppen mit festem Naming dipl-{jahr}-… anlegen und im Tenant finden – Freigaben über die Gruppe.',
+        spielwiesen:
+            'Schilf-/Demo-Teams ohne Live-Schüler; Notebook und Aufgaben erst nach Fortbildung freigeben.',
         'personen-verwaltung':
             'Personen der Schule im Microsoft-Tenant suchen, Lizenzen prüfen und sehen, in welchen Gruppen sie sind.',
+        'namenskonvention-audit':
+            'DisplayName und UPN gegen eine Schulregel prüfen – Cloud korrigieren, AD-sync als CSV an die IT geben.',
         'gaeste-verwalten':
             'Externe Personen einladen (Gast-Konten) und festlegen, wer einladen darf – z. B. für Eltern oder Kooperationspartner.',
         slg: 'Zwei zentrale Sammelgruppen: alle Schülerinnen und alle Lehrkräfte – für E-Mail-Verteiler und Berechtigungen.',
@@ -48,10 +56,12 @@
         'eltern-verteiler':
             'Erziehungsberechtigte den Schülerinnen zuordnen und Klassen-/Jahrgangs-Verteiler erzeugen.',
         'sharepoint-intranet-hub':
-            'Schulwebsite/Intranet auf SharePoint: Kommunikationssite, Hub und Startlisten anlegen.',
+            'Schulwebsite/Intranet: Site, Hub, Startlisten und Checkliste Formulare/Medien/News/Stammdaten-Übergabe.',
         'sharepoint-liste-lehrer': 'Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website veröffentlichen.',
         'sharepoint-liste-schultermine':
-            'Leere Termineliste auf der Website anlegen – Befüllung später möglich.',
+            'Terminliste anlegen, Sync-Health prüfen und Termine per CSV importieren (Ziel Schule/Lehrer/beide).',
+        'power-automate-rezepte':
+            'Fertige Flow-Baupläne für Schulen: Kalender-Sync, Forms, Seminare, Gast-Hygiene, Diplom-Ordner, Schilf.',
         gruppenerstellung:
             'Festlegen, wer an der Schule neue Teams in Microsoft 365 anlegen darf – verhindert Gruppen-Chaos.',
         'sharepoint-mandant-website': 'Regeln, ob und wie neue SharePoint-Websites an der Schule entstehen dürfen.',
@@ -59,6 +69,12 @@
             'Freigabe-Regeln: wie stark Dateien innerhalb und außerhalb der Schule geteilt werden dürfen.',
         'schulstruktur-sync':
             'Alle Gruppen und Teams der Schule im Überblick – pflegen, archivieren, Zusatz-Teams anlegen.',
+        'cleanup-playbook':
+            'Checkliste zum Aufräumen: Besitzlose, leere Gruppen, Archiv, Hygiene, Namenskonvention, Gäste, SharePoint-Übergabe.',
+        'stammdaten-uebergabe':
+            'Browser-Backup als JSON in die Intranet-Dokumentbibliothek – nicht als Schüler-SharePoint-Liste. Für PC-Wechsel und IT-Übergabe.',
+        'datei-migration':
+            'Dateien aus einem alten/archivierten Team in ein neues Team kopieren – Chat und Aufgaben bleiben zurück.',
         'leere-gruppen-report':
             'Gruppen ohne Besitzer oder ohne Mitglieder finden – zum Aufräumen und für die IT-Hygiene.'
     };

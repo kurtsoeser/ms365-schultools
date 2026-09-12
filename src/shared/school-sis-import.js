@@ -672,6 +672,62 @@
         return parts.join(' · ');
     }
 
+    /**
+     * Diff als Semikolon-CSV (für Sekretariat / Nacharbeit).
+     * @param {ReturnType<typeof diffSisImport>} diff
+     */
+    function sisDiffToCsv(diff) {
+        const rows = [['Status', 'Name', 'Klasse', 'E-Mail', 'Kennzahl', 'Elternmails', 'Hinweis']];
+        const esc = function (v) {
+            return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        };
+        const line = function (status, rec, hint) {
+            const r = rec || {};
+            rows.push([
+                status,
+                r.name || '',
+                r.klasse || '',
+                r.email || '',
+                r.externalId || '',
+                parentEmailsOf(r).join(', '),
+                hint || ''
+            ]);
+        };
+        (diff.added || []).forEach(function (r) {
+            line('neu', r, '');
+        });
+        (diff.updated || []).forEach(function (e) {
+            const cur = e.incoming || {};
+            const bits = [];
+            if (e.klasseChanged) bits.push('Klasse');
+            if (e.nameChanged) bits.push('Name');
+            if (e.emailChanged) bits.push('E-Mail');
+            if (e.parentsChanged) bits.push('Eltern');
+            line('geändert', cur, bits.join('+'));
+        });
+        (diff.removed || []).forEach(function (r) {
+            line('nur lokal', r, 'Abgänger?');
+        });
+        (diff.conflicts || []).forEach(function (c) {
+            rows.push(['Konflikt', '', '', c.email || '', '', '', c.summary || '']);
+        });
+        return rows.map(function (cols) {
+            return cols.map(esc).join(';');
+        }).join('\r\n');
+    }
+
+    function downloadSisDiffCsv(diff, fileName) {
+        const csv = '\uFEFF' + sisDiffToCsv(diff);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName || 'eltern-import-diff.csv';
+        a.click();
+        setTimeout(function () {
+            URL.revokeObjectURL(a.href);
+        }, 1500);
+    }
+
     window.ms365SchoolSisImport = {
         normHeaderKey,
         importStudentsAndGuardians,
@@ -682,9 +738,12 @@
         recordsToSemicolonLines,
         mergeStudentRecords,
         studentKey,
+        parentEmailsOf,
         diffSisImport,
         applySisImport,
         summarizeSisDiff,
+        sisDiffToCsv,
+        downloadSisDiffCsv,
         ms365TemplateAoa,
         anleitungAoa,
         sokratesBeispielAoa,

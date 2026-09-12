@@ -239,6 +239,7 @@ function getBool(id, fallback) {
 function getMembersForTeam(team) {
     const preferGroup = getBool('studentRosterPreferGroup', true);
     const skipCombined = getBool('studentRosterSkipCombinedClasses', true);
+    const excludeTeachers = getBool('studentRosterExcludeTeachers', true);
 
     const klasseRaw = team && (team.originalClass || team.klasseForMembers || '');
     const gruppeRaw = team && (team.gruppe || '');
@@ -252,16 +253,60 @@ function getMembersForTeam(team) {
     const klasse = normToken(klasseRaw);
     const gruppe = normToken(gruppeRaw);
 
+    let members = [];
+    let reason = 'no_match';
     if (preferGroup && gruppe) {
         const key = klasse + '|' + gruppe;
         const set = ns.studentRoster.byClassGroup[key];
-        if (set && set.size) return { members: Array.from(set), reason: 'class_group' };
+        if (set && set.size) {
+            members = Array.from(set);
+            reason = 'class_group';
+        }
     }
+    if (!members.length) {
+        const set2 = ns.studentRoster.byClass[klasse];
+        if (set2 && set2.size) {
+            members = Array.from(set2);
+            reason = 'class';
+        }
+    }
+    if (!members.length) return { members: [], reason: 'no_match' };
 
-    const set2 = ns.studentRoster.byClass[klasse];
-    if (set2 && set2.size) return { members: Array.from(set2), reason: 'class' };
+    if (excludeTeachers) {
+        const block = teacherEmailBlocklist();
+        if (block.size) {
+            members = members.filter(function (upn) {
+                return !block.has(normUpn(upn));
+            });
+        }
+    }
+    return { members: members, reason: reason };
+}
 
-    return { members: [], reason: 'no_match' };
+function teacherEmailBlocklist() {
+    const set = new Set();
+    try {
+        const settings =
+            typeof window.ms365TenantSettingsLoad === 'function' ? window.ms365TenantSettingsLoad() : null;
+        const teachers = Array.isArray(settings && settings.teachers) ? settings.teachers : [];
+        teachers.forEach(function (t) {
+            const em = normUpn(t && t.email);
+            if (em && em.indexOf('@') !== -1) set.add(em);
+        });
+        const classes = Array.isArray(settings && settings.classes) ? settings.classes : [];
+        classes.forEach(function (c) {
+            const em = normUpn(c && c.headEmail);
+            if (em && em.indexOf('@') !== -1) set.add(em);
+        });
+        const admin = Array.isArray(settings && settings.admin) ? settings.admin : [];
+        admin.forEach(function (a) {
+            const em = normUpn(a && a.email);
+            if (em && em.indexOf('@') !== -1) set.add(em);
+        });
+    } catch {
+        /* ignore */
+    }
+    return set;
 }
 
 // ---------------------------

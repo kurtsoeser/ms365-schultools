@@ -37,6 +37,8 @@
     let classes = [];
     /** @type {{ klasse: string, name: string, email: string }[]} */
     let students = [];
+    /** @type {{ code?: string, name?: string, email?: string }[]} */
+    let teachers = [];
     /** @type {string[]} */
     let direktion = [];
     let schoolYearLabel = '';
@@ -662,6 +664,7 @@
         const settings = typeof window.ms365TenantSettingsLoad === 'function' ? window.ms365TenantSettingsLoad() : null;
         classes = Array.isArray(settings && settings.classes) ? settings.classes.slice() : [];
         students = Array.isArray(settings && settings.students) ? settings.students.slice() : [];
+        teachers = Array.isArray(settings && settings.teachers) ? settings.teachers.slice() : [];
         schoolYearLabel = currentYearFromV2();
         const out = [];
         const seen = new Set();
@@ -1038,13 +1041,42 @@
     function emailsForClass(row) {
         const seen = new Set();
         const out = [];
+        const exclude = collectMemberExcludeEmails(row);
         studentsForClass(row).forEach(function (s) {
             const em = normEmail(s && s.email);
             if (!em || em.indexOf('@') === -1 || seen.has(em)) return;
+            if (exclude.has(em)) return;
             seen.add(em);
             out.push(em);
         });
         return out;
+    }
+
+    /** KV, Direktion und Lehrkräfte – sollen bei „nur Schüler“ nicht Mitglied werden. */
+    function collectMemberExcludeEmails(row) {
+        const exclude = new Set();
+        const studentsOnly =
+            !document.getElementById('jgMembersStudentsOnly') ||
+            document.getElementById('jgMembersStudentsOnly').checked;
+        if (!studentsOnly) return exclude;
+        function add(em) {
+            const e = normEmail(em);
+            if (e && e.indexOf('@') !== -1) exclude.add(e);
+        }
+        if (row && row.headEmail) add(row.headEmail);
+        ownersForRow(row).forEach(add);
+        ownersGlobal().forEach(add);
+        (Array.isArray(teachers) ? teachers : []).forEach(function (t) {
+            add(t && t.email);
+        });
+        return exclude;
+    }
+
+    function wantOwnersNotMembers() {
+        return !!(
+            document.getElementById('jgOwnersNotMembers') &&
+            document.getElementById('jgOwnersNotMembers').checked
+        );
     }
 
     function getOwnerOptions() {
@@ -1472,7 +1504,23 @@
             log('Keine Änderungen gegenüber der Stammliste.', 'ok');
         }
         const dirOwners = ownersGlobal();
-        if (dirOwners.length) await gug().ensureOwners(token, gid, dirOwners);
+        const classOwners = ownersForRow(row);
+        const allOwners = [];
+        const seenOwn = new Set();
+        classOwners.concat(dirOwners).forEach(function (em) {
+            const e = normEmail(em);
+            if (!e || seenOwn.has(e)) return;
+            seenOwn.add(e);
+            allOwners.push(e);
+        });
+        if (allOwners.length) await gug().ensureOwners(token, gid, allOwners);
+        if (wantOwnersNotMembers() && allOwners.length && typeof gug().removeEmailsFromGroup === 'function') {
+            log('Entferne Besitzer aus der Mitgliederliste (bleiben Besitzer) …', '');
+            const r = await gug().removeEmailsFromGroup(token, gid, allOwners, 'Besitzer≠Mitglied', log);
+            result.leave += r.ok || 0;
+            result.skip += r.skip || 0;
+            result.fail += r.fail || 0;
+        }
         return result;
     }
 

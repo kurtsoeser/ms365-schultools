@@ -98,6 +98,20 @@
                 href: 'index.html#start-demo',
                 label: '<i class="bi bi-play-circle"></i>Demo ausprobieren',
                 ghost: true
+            },
+            {
+                tag: 'button',
+                id: 'emptyStateImportBackup',
+                label: '<i class="bi bi-upload"></i>Backup importieren',
+                ghost: true,
+                onClick: function () {
+                    var input = document.getElementById('browserBackupImportFile');
+                    if (input) {
+                        input.click();
+                        return;
+                    }
+                    window.location.href = resolveHref('index.html#dashboard-local');
+                }
             }
         ];
     }
@@ -119,12 +133,13 @@
             var customMsg = target.getAttribute('data-ms365-empty-message');
             var message =
                 customMsg ||
-                'Noch keine Stammdaten. Dieses Werkzeug braucht Listen aus der Einrichtung oder den Stammdaten – oder starten Sie die Demo auf dem Dashboard.';
+                'Noch keine Stammdaten in <strong>diesem Browser</strong>. Gruppen in Microsoft&nbsp;365 sind davon unabhängig – hier fehlen nur die lokalen Listen. Einrichtung starten, Demo laden oder ein vorhandenes <strong>Browser-Backup</strong> importieren.';
 
             target.hidden = false;
             target.replaceChildren();
             target.appendChild(
                 createBanner(message, {
+                    html: /<[a-z][\s\S]*>/i.test(message),
                     actions: defaultActions()
                 })
             );
@@ -149,10 +164,22 @@
         mount.replaceChildren();
         mount.appendChild(
             createBanner(
-                'Noch keine Schuldaten erfasst. Starten Sie die geführte Einrichtung – oder pflegen Sie Domain und Listen direkt hier. Alternativ: Demo auf dem Dashboard.',
+                'Noch keine Schuldaten in diesem Browser. Die Microsoft-365-Gruppen existieren unabhängig davon – hier fehlen nur die lokalen Stammdaten. Einrichtung starten, Demo laden oder ein Browser-Backup (JSON) importieren.',
                 {
                     actions: [
                         { href: 'einrichtung.html', label: '<i class="bi bi-rocket-takeoff"></i>Einrichtung starten' },
+                        {
+                            tag: 'button',
+                            id: 'tenantBtnImportBackup',
+                            label: '<i class="bi bi-upload"></i>Backup importieren',
+                            ghost: true,
+                            onClick: function () {
+                                var input =
+                                    document.getElementById('browserBackupImportFile') ||
+                                    document.querySelector('[data-ms365-backup="import-file"]');
+                                if (input) input.click();
+                            }
+                        },
                         {
                             tag: 'button',
                             id: 'tenantBtnStartDemo',

@@ -402,6 +402,22 @@
                                 </div>
                                 <p class="muted" style="margin:6px 0 0; font-size:0.82em;">Klassenvorstände werden über die E‑Mail in den Stammdaten (<a href="../tenant.html#classes">Stammdaten → Klassen</a>) gesetzt. Mindestens eine Option muss aktiv sein.</p>
                             </div>
+                            <div class="jg-bulk-group" role="group" aria-label="Mitglieder-Abgleich">
+                                <div class="jg-bulk-group-label">Mitglieder-Abgleich</div>
+                                <div class="jg-bulk-toolbar" style="flex-direction:column; align-items:flex-start; gap:6px;">
+                                    <label class="checkbox-label" style="margin:0;">
+                                        <input type="checkbox" id="jgMembersStudentsOnly" checked>
+                                        <span>Nur Schüler:innen aufnehmen (Lehrkräfte/KV aus Stammliste ausfiltern)</span>
+                                    </label>
+                                    <label class="checkbox-label" style="margin:0;">
+                                        <input type="checkbox" id="jgOwnersNotMembers" checked>
+                                        <span>Klassenvorstand nur als Besitzer, nicht als Mitglied</span>
+                                    </label>
+                                </div>
+                                <p class="muted" style="margin:6px 0 0; font-size:0.82em;">
+                                    Verhindert, dass der Klassenvorstand beim „Gruppe zum Kursteam hinzufügen“ in Teams als Mitglied mitwandert.
+                                </p>
+                            </div>
                             <div class="jg-bulk-group" role="group" aria-label="Microsoft Teams">
                                 <div class="jg-bulk-group-label">Microsoft Teams</div>
                                 <label class="checkbox-label" style="margin:0;">
@@ -483,6 +499,7 @@
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
                         Mail‑Nickname typisch <code>jg</code> + Abschlussjahr + Klassenkürzel.
                         Die Sammelaktion <strong>Mitglieder</strong> gleicht angekreuzte Gruppen mit der Schülerliste in den Stammdaten ab.
+                        Optionen: nur Schüler:innen aufnehmen und Klassenvorstand nur als Besitzer (nicht als Mitglied) belassen.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.

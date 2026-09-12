@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schulverwaltung – Cleanup-Playbook</title>
+    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .cp-steps { display: grid; gap: 14px; margin-top: 8px; }
+        .cp-step {
+            display: grid;
+            grid-template-columns: 48px 1fr auto;
+            gap: 14px;
+            align-items: start;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--card);
+        }
+        .cp-step__n {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: grid; place-items: center;
+            font-weight: 800; background: color-mix(in srgb, var(--accent, #0d6efd) 14%, var(--card));
+            color: var(--heading);
+        }
+        .cp-step h3 { margin: 0 0 4px; font-size: 1.05rem; }
+        .cp-step p { margin: 0; color: var(--muted, #6c757d); font-size: 0.92em; line-height: 1.45; }
+        .cp-check { margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
+        @media (max-width: 720px) {
+            .cp-step { grid-template-columns: 40px 1fr; }
+            .cp-step .btn { grid-column: 1 / -1; justify-self: start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-list-check"></i>Cleanup-Playbook</span>
+            </div>
+            <p>Geführte Reihenfolge zum Aufräumen vor Schuljahresstart: leere Gruppen, fehlende Besitzer, Archiv, Hygiene.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-cleanup-playbook" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="datenhygiene.html"><i class="bi bi-shield-check"></i>Datenhygiene</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-broom"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Schuljahres-Hygiene</p>
+                    <h2>Aufräumen in sinnvoller Reihenfolge</h2>
+                    <p>Haken setzen, wenn ein Schritt erledigt ist – der Stand bleibt in diesem Browser.</p>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Schritte</h3>
+                        <p id="cpProgress" class="muted" style="margin:0;">0 / 5 erledigt</p>
+                    </div>
+                </div>
+                <div class="cp-steps" id="cpSteps">
+                    <article class="cp-step" data-step="owners">
+                        <div class="cp-step__n">1</div>
+                        <div>
+                            <h3>Gruppen ohne Besitzer</h3>
+                            <p>Zuerst Besitzlosigkeit beheben oder löschen – sonst bleiben verwaiste Teams liegen.</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="owners"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="leere-gruppen-report.html?problem=no-owners"><i class="bi bi-person-x"></i>Prüfen</a>
+                    </article>
+                    <article class="cp-step" data-step="empty">
+                        <div class="cp-step__n">2</div>
+                        <div>
+                            <h3>Leere Gruppen</h3>
+                            <p>Gruppen ohne Mitglieder finden und gezielt löschen (Bulk nur mit Bestätigung).</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="empty"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="leere-gruppen-report.html?problem=empty"><i class="bi bi-inbox"></i>Prüfen</a>
+                    </article>
+                    <article class="cp-step" data-step="archiv">
+                        <div class="cp-step__n">3</div>
+                        <div>
+                            <h3>Alte Fach-/Unterrichtsteams archivieren</h3>
+                            <p>Nicht mehr benötigte Teams archivieren (Schreibschutz optional). Alltagspflege auch über Alle Gruppen → Details.</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="archiv"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="archiv/teams-archiv.html"><i class="bi bi-archive"></i>Archiv</a>
+                    </article>
+                    <article class="cp-step" data-step="hygiene">
+                        <div class="cp-step__n">4</div>
+                        <div>
+                            <h3>Mitglieder- und Klassenfeld-Abgleich</h3>
+                            <p>Stimmen Stammlisten mit Microsoft&nbsp;365 überein? Zusätzlich: Klasse in Entra vs. Stammdaten.</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="hygiene"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="datenhygiene.html"><i class="bi bi-intersect"></i>Hygiene</a>
+                    </article>
+                    <article class="cp-step" data-step="naming">
+                        <div class="cp-step__n">5</div>
+                        <div>
+                            <h3>Namenskonvention prüfen</h3>
+                            <p>DisplayName/UPN-Chaos beheben (Cloud) oder als CSV für die AD-IT exportieren.</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="naming"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="namenskonvention-audit.html"><i class="bi bi-fonts"></i>Audit</a>
+                    </article>
+                    <article class="cp-step" data-step="gaeste">
+                        <div class="cp-step__n">6</div>
+                        <div>
+                            <h3>Gäste &amp; Lizenzen prüfen</h3>
+                            <p>Alte Gast-Konten und falsche Education-Lizenzen (A1/A3) in Personen-Verwaltung und Gäste-Tool.</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="gaeste"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="gaeste-verwalten.html"><i class="bi bi-people"></i>Gäste</a>
+                    </article>
+                    <article class="cp-step" data-step="uebergabe">
+                        <div class="cp-step__n">7</div>
+                        <div>
+                            <h3>Stammdaten auf SharePoint sichern</h3>
+                            <p>JSON in die Intranet-Dokumentbibliothek – nicht als Schülerliste.</p>
+                            <label class="cp-check"><input type="checkbox" data-cp-check="uebergabe"> Erledigt</label>
+                        </div>
+                        <a class="btn" href="stammdaten-uebergabe.html"><i class="bi bi-cloud-arrow-up"></i>Übergabe</a>
+                    </article>
+                </div>
+                <div class="tm-actions" style="margin-top:16px;">
+                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                    <a class="btn" href="schulstruktur-sync.html"><i class="bi bi-diagram-2"></i>Alle Gruppen</a>
+                    <a class="btn" href="klassen-merge.html"><i class="bi bi-intersect"></i>Klassen zusammenlegen</a>
+                    <a class="btn" href="personen-verwaltung.html"><i class="bi bi-person-badge"></i>Personen / Lizenzen</a>
+                    <a class="btn" href="datei-migration.html"><i class="bi bi-files"></i>Datei-Migration</a>
+                    <a class="btn" href="diplomarbeiten.html"><i class="bi bi-mortarboard"></i>Diplomarbeiten</a>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script>
+        (function () {
+            var KEY = 'ms365-cleanup-playbook-v1';
+            var ids = ['owners', 'empty', 'archiv', 'hygiene', 'naming', 'gaeste', 'uebergabe'];
+
+            function load() {
+                try {
+                    return JSON.parse(localStorage.getItem(KEY) || '{}') || {};
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            function save(state) {
+                try {
+                    localStorage.setItem(KEY, JSON.stringify(state));
+                } catch (e) { /* ignore */ }
+            }
+
+            function refresh() {
+                var state = load();
+                var done = 0;
+                ids.forEach(function (id) {
+                    var el = document.querySelector('[data-cp-check="' + id + '"]');
+                    if (!el) return;
+                    el.checked = !!state[id];
+                    if (el.checked) done++;
+                });
+                var p = document.getElementById('cpProgress');
+                if (p) p.textContent = done + ' / ' + ids.length + ' erledigt';
+            }
+
+            document.querySelectorAll('[data-cp-check]').forEach(function (el) {
+                el.addEventListener('change', function () {
+                    var state = load();
+                    state[el.getAttribute('data-cp-check')] = !!el.checked;
+                    save(state);
+                    refresh();
+                });
+            });
+
+            var reset = document.getElementById('cpReset');
+            if (reset) {
+                reset.addEventListener('click', function () {
+                    if (!confirm('Alle Haken zurücksetzen?')) return;
+                    save({});
+                    refresh();
+                });
+            }
+            refresh();
+        })();
+    </script>
+</body>
+</html>

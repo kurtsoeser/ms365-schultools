@@ -19,7 +19,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-calendar3"></i>Schultermine-Liste</span>
             </div>
-            <p>Leere Terminliste mit passenden Spalten – z. B. für Power Automate und Outlook.</p>
+            <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Ziel Schule / Lehrer / beide).</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schultermine" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -32,7 +32,7 @@
                 <div>
                     <p class="tm-hero__kicker">SharePoint-Liste</p>
                     <h2>Schulkalender vorbereiten</h2>
-                    <p>Eine Liste mit Beginn, Ende, Kategorie und Outlook-ID – bereit zum Befüllen.</p>
+                    <p>Liste mit Beginn, Ende, Kategorie – und CSV-Import für Sekretariat.</p>
                 </div>
                 <div class="tm-hero__actions">
                     <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
@@ -93,12 +93,63 @@
                 </div>
                 <div class="tm-actions">
                     <button type="button" class="btn" id="sptBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                    <button type="button" class="btn" id="sptBtnSyncHealth"><i class="bi bi-heart-pulse"></i>Sync-Status prüfen</button>
                     <button type="button" class="btn" id="sptBtnRun"><i class="bi bi-list-ul"></i>Liste anlegen</button>
                 </div>
+                <p id="sptSyncHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
                 <details class="tm-tech">
                     <summary>Protokoll</summary>
                     <div id="sptLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
                 </details>
+                <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
+                    <strong>Sync-Status prüfen</strong> liest die vorhandene Liste: Spalten (inkl. SyncStatus/SyncError/LastSync),
+                    Stichprobe der Termine und ob OutlookEventIDs bzw. Fehlerfelder gesetzt sind – ohne Power-Automate-Zugriff.
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-filetype-csv" aria-hidden="true"></i>
+                    <div>
+                        <h3>Termine aus CSV importieren</h3>
+                        <p>
+                            Spalten z. B. <code>Titel;Beginn;Ende;Ziel;Kategorie;Info</code>
+                            – Ziel: <code>S</code>/<code>L</code>/<code>beide</code> (Schul- bzw. Lehrerkalender).
+                        </p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="sptImportFile">CSV-Datei</label>
+                    <input type="file" id="sptImportFile" accept=".csv,text/csv,text/plain">
+                </div>
+                <div class="tm-field">
+                    <label for="sptImportTargetFilter">Nur Ziel</label>
+                    <select id="sptImportTargetFilter">
+                        <option value="all" selected>Alle gültigen Zeilen</option>
+                        <option value="school">Nur Schule (+ beide)</option>
+                        <option value="teachers">Nur Lehrer (+ beide)</option>
+                    </select>
+                </div>
+                <p id="sptImportMeta" class="muted" style="margin:0 0 10px;"></p>
+                <div class="tm-cal-preview" style="max-height:280px;overflow:auto;">
+                    <table class="dash-hygiene-table" aria-label="Import-Vorschau" style="width:100%;font-size:0.9em;">
+                        <thead>
+                            <tr>
+                                <th>Titel</th>
+                                <th>Beginn</th>
+                                <th>Ende</th>
+                                <th>Ziel</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sptImportBody">
+                            <tr><td colspan="5" class="muted">Noch keine Datei geladen.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tm-actions" style="margin-top:12px;">
+                    <button type="button" class="btn btn-success" id="sptBtnImport"><i class="bi bi-upload"></i>In Liste schreiben</button>
+                </div>
             </section>
         </div>
     </div>
@@ -106,7 +157,9 @@
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-liste-schultermine.js" defer></script>
+    <script type="module" src="../src/tools/termin-import/termin-import-ui.js"></script>
 </body>
 </html>

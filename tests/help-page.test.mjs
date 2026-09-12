@@ -86,9 +86,13 @@ describe('Hilfe-Seite', () => {
         expect(toolIds.length).toBeGreaterThan(10);
         const helpAnchors = {
             jahrgang: 'tool-jahrgang',
+            'klassen-merge': 'tool-klassen-merge',
             kursteams: 'tool-kursteams',
             'arge-fachgruppen': 'tool-arge',
+            diplomarbeiten: 'tool-diplomarbeiten',
+            spielwiesen: 'tool-spielwiesen',
             'personen-verwaltung': 'tool-personen-verwaltung',
+            'namenskonvention-audit': 'tool-namenskonvention-audit',
             'gaeste-verwalten': 'tool-gaeste-verwalten',
             slg: 'tool-slg',
             verwaltung: 'tool-verwaltung',
@@ -99,11 +103,15 @@ describe('Hilfe-Seite', () => {
             'sharepoint-intranet-hub': 'tool-intranet',
             'sharepoint-liste-lehrer': 'tool-lehrerliste',
             'sharepoint-liste-schultermine': 'tool-schultermine',
+            'power-automate-rezepte': 'tool-power-automate',
             gruppenerstellung: 'tool-gruppenerstellung',
             'sharepoint-mandant-website': 'tool-sharepoint-website',
             'sharepoint-mandant-teilen': 'tool-sharepoint-teilen',
             'schulstruktur-sync': 'tool-schulstruktur',
             datenhygiene: 'tool-datenhygiene',
+            'stammdaten-uebergabe': 'tool-stammdaten-uebergabe',
+            'cleanup-playbook': 'tool-cleanup-playbook',
+            'datei-migration': 'tool-datei-migration',
             'leere-gruppen-report': 'tool-leere-gruppen'
         };
         toolIds.forEach(function (id) {

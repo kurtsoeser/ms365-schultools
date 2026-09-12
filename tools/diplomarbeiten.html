@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Diplomarbeiten</title>
+    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-mortarboard"></i>Diplomarbeiten</span>
+            </div>
+            <p>Einheitlicher Standard: <code>Diplomarbeit {Jahr} – Thema</code>, Alias <code>dipl-{jahr}-{slug}</code>. Freigaben und Mails laufen über die Gruppe.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-diplomarbeiten" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="weitere-teams-gruppen.html"><i class="bi bi-plus-square"></i>Weitere Gruppen</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Neue Diplomarbeit-Gruppe</h3>
+                        <p>Private Microsoft-365-Gruppe, optional als Team.</p>
+                    </div>
+                </div>
+                <div class="tm-field"><label for="daYear">Jahr</label><input type="text" id="daYear" inputmode="numeric"></div>
+                <div class="tm-field"><label for="daTopic">Thema</label><input type="text" id="daTopic" placeholder="z. B. KI im Unterricht"></div>
+                <div class="tm-field"><label for="daStudent">Schüler:in (optional)</label><input type="text" id="daStudent"></div>
+                <div class="tm-field"><label for="daMentor">Betreuung (optional)</label><input type="text" id="daMentor"></div>
+                <label class="checkbox-label" style="display:flex;gap:8px;margin:8px 0;"><input type="checkbox" id="daGroupOnly"><span>Nur Gruppe (kein Team)</span></label>
+                <div id="daPreview" class="tm-log" style="min-height:60px;margin:10px 0;"></div>
+                <div class="tm-actions">
+                    <button type="button" class="btn btn-success" id="daBtnCreate"><i class="bi bi-plus-lg"></i>Anlegen</button>
+                </div>
+                <details class="tm-tech" style="margin-top:12px;"><summary>Protokoll</summary><pre id="daLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
+            </section>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <div>
+                        <h3>Bestehende Diplom-Gruppen</h3>
+                        <p>Filter nach Präfix <code>dipl-</code> bzw. Anzeigename „Diplomarbeit …“.</p>
+                    </div>
+                </div>
+                <div class="tm-field"><label for="daFilter">Suche</label><input type="search" id="daFilter" placeholder="Thema, Jahr …"></div>
+                <div class="tm-actions"><button type="button" class="btn" id="daBtnList"><i class="bi bi-arrow-clockwise"></i>Einlesen</button></div>
+                <p id="daListStatus" class="muted"></p>
+                <div style="overflow:auto;">
+                    <table class="dash-hygiene-table" style="width:100%;font-size:0.92em;">
+                        <thead><tr><th>Name</th><th>Alias</th><th>Mail</th></tr></thead>
+                        <tbody id="daBody"><tr><td colspan="3" class="muted">Noch nicht geladen.</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/tools/diplomarbeiten/diplomarbeiten.js"></script>
+</body>
+</html>

@@ -76,6 +76,24 @@
                 name: 'AllDay',
                 displayName: 'AllDay',
                 boolean: {}
+            },
+            {
+                name: 'SyncStatus',
+                displayName: 'SyncStatus',
+                choice: {
+                    allowTextEntry: false,
+                    choices: ['ok', 'pending', 'error', 'manual']
+                }
+            },
+            {
+                name: 'SyncError',
+                displayName: 'SyncError',
+                text: { allowMultipleLines: true, maxLength: 4000 }
+            },
+            {
+                name: 'LastSync',
+                displayName: 'LastSync',
+                dateTime: { displayAs: 'default', format: 'dateTime' }
             }
         ];
     }
@@ -118,9 +136,10 @@
         if (!listId) throw new Error('Listen-ID fehlt in der Antwort.');
         write('Liste angelegt, ID: ' + listId);
 
-        write('Füge Spalten hinzu (Beginn, Ende, Kategorie, OutlookEventID, Info, ZeitraumText, AllDay) …');
+        write('Füge Spalten hinzu (Beginn, Ende, Kategorie, OutlookEventID, Info, ZeitraumText, AllDay, SyncStatus, SyncError, LastSync) …');
         await addColumns(siteId, listId, token);
         write('Fertig – keine Zeilen angelegt (Sync z. B. per Power Automate).');
+        write('Tipp: Spalten SyncStatus / SyncError / LastSync für Flow-Überwachung nutzen.');
         const listWeb = created && created.webUrl ? String(created.webUrl) : '';
         if (listWeb) write('Liste: ' + listWeb);
         if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
@@ -134,6 +153,144 @@
         return { listId: listId, webUrl: listWeb };
     }
 
+    async function findListByTitle(token, siteId, listTitle) {
+        const title = String(listTitle || '').trim() || 'Schultermine';
+        const path =
+            G.graphPathSite(siteId) +
+            '/lists?$filter=' +
+            encodeURIComponent("displayName eq '" + title.replace(/'/g, "''") + "'") +
+            '&$select=id,displayName,webUrl';
+        const data = await G.graphJson('GET', path, token, undefined, 'v1.0');
+        const list = (data && data.value) || [];
+        return list[0] || null;
+    }
+
+    async function probeSyncHealth(webUrl, listTitle, logFn) {
+        const write = typeof logFn === 'function' ? logFn : log;
+        const url = String(webUrl || '').trim();
+        const title = String(listTitle || '').trim() || 'Schultermine';
+        if (!url) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
+
+        const token = await ensureToken();
+        write('Löse Website auf …');
+        const site = await G.resolveSiteFromWebUrl(token, url);
+        const siteId = site && site.id ? String(site.id) : '';
+        if (!siteId) throw new Error('Site-ID fehlt.');
+        write('Site: ' + (site.displayName || siteId));
+
+        write('Suche Liste „' + title + '" …');
+        const list = await findListByTitle(token, siteId, title);
+        if (!list || !list.id) {
+            write('Liste nicht gefunden. Bitte zuerst „Liste anlegen“ ausführen.');
+            return { ok: false, reason: 'missing_list' };
+        }
+        write('Liste gefunden: ' + (list.displayName || title) + (list.webUrl ? ' · ' + list.webUrl : ''));
+
+        const colsPath = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(list.id) + '/columns?$top=200';
+        const colsData = await G.graphJson('GET', colsPath, token, undefined, 'v1.0');
+        const colNames = ((colsData && colsData.value) || [])
+            .map(function (c) {
+                return String((c && (c.name || c.displayName)) || '').trim();
+            })
+            .filter(Boolean);
+        const required = [
+            'Beginn',
+            'Ende',
+            'Kategorie',
+            'OutlookEventID',
+            'Info',
+            'ZeitraumText',
+            'AllDay',
+            'SyncStatus',
+            'SyncError',
+            'LastSync'
+        ];
+        const missing = required.filter(function (n) {
+            return colNames.indexOf(n) === -1;
+        });
+        if (missing.length) {
+            write('Fehlende Spalten: ' + missing.join(', '));
+            write('Hinweis: Bei älteren Listen Spalten manuell ergänzen oder Liste neu anlegen.');
+        } else {
+            write('Spalten komplett (inkl. SyncStatus / SyncError / LastSync).');
+        }
+
+        const itemsPath =
+            G.graphPathSite(siteId) +
+            '/lists/' +
+            encodeURIComponent(list.id) +
+            '/items?$expand=fields&$top=50';
+        const itemsData = await G.graphJson('GET', itemsPath, token, undefined, 'v1.0');
+        const items = (itemsData && itemsData.value) || [];
+        let withEventId = 0;
+        let withError = 0;
+        let pending = 0;
+        let okStatus = 0;
+        items.forEach(function (it) {
+            const f = (it && it.fields) || {};
+            if (f.OutlookEventID) withEventId++;
+            if (f.SyncError) withError++;
+            const st = String(f.SyncStatus || '').toLowerCase();
+            if (st === 'pending') pending++;
+            if (st === 'ok') okStatus++;
+        });
+        write(
+            'Stichprobe: ' +
+                items.length +
+                ' Zeilen · mit OutlookEventID: ' +
+                withEventId +
+                ' · SyncStatus ok: ' +
+                okStatus +
+                ' · pending: ' +
+                pending +
+                ' · mit SyncError: ' +
+                withError
+        );
+        if (!items.length) {
+            write('Noch keine Termine in der Liste – Power Automate / Import kann befüllen.');
+        } else if (withError) {
+            write('Achtung: Es gibt Zeilen mit SyncError – Flow oder Kalenderrechte prüfen.');
+        } else if (items.length && withEventId === items.length) {
+            write('Alle Stichproben-Zeilen haben eine OutlookEventID – Sync wirkt gesund.');
+        } else if (items.length && withEventId < items.length) {
+            write(
+                'Einige Zeilen ohne OutlookEventID (' +
+                    (items.length - withEventId) +
+                    ') – ggf. manuell angelegt oder Flow noch nicht gelaufen.'
+            );
+        }
+
+        const summary = {
+            ok: missing.length === 0 && withError === 0,
+            listId: list.id,
+            webUrl: list.webUrl || '',
+            missingColumns: missing,
+            itemSample: items.length,
+            withEventId: withEventId,
+            withError: withError,
+            pending: pending,
+            okStatus: okStatus
+        };
+        const panel = $('sptSyncHealth');
+        if (panel) {
+            panel.hidden = false;
+            panel.textContent =
+                (summary.ok ? 'Status: OK' : 'Status: prüfen') +
+                ' · Liste „' +
+                title +
+                '" · Stichprobe ' +
+                items.length +
+                ' · EventIDs ' +
+                withEventId +
+                ' · Fehler ' +
+                withError +
+                (missing.length ? ' · fehlende Spalten: ' + missing.join(', ') : '');
+            panel.classList.toggle('ok', !!summary.ok);
+            panel.classList.toggle('warn', !summary.ok);
+        }
+        return summary;
+    }
+
     async function runCreate() {
         const logEl = $('sptLog');
         if (logEl) logEl.textContent = '';
@@ -144,7 +301,59 @@
         return created;
     }
 
-    window.ms365SpoSchultermine = { createList: createSchultermineList };
+    /**
+     * Bereits normalisierte Felder (Title, Beginn, …) als List Items anlegen.
+     * @param {string} webUrl
+     * @param {string} listTitle
+     * @param {Record<string, unknown>[]} fieldsList
+     * @param {(msg: string) => void} [logFn]
+     */
+    async function importTermine(webUrl, listTitle, fieldsList, logFn) {
+        const write = typeof logFn === 'function' ? logFn : log;
+        const url = String(webUrl || '').trim();
+        const title = String(listTitle || '').trim() || 'Schultermine';
+        const rows = Array.isArray(fieldsList) ? fieldsList : [];
+        if (!url) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
+        if (!rows.length) throw new Error('Keine Termine zum Import.');
+
+        const token = await ensureToken();
+        write('Löse Website auf …');
+        const site = await G.resolveSiteFromWebUrl(token, url);
+        const siteId = site && site.id ? String(site.id) : '';
+        if (!siteId) throw new Error('Site-ID fehlt.');
+
+        write('Suche Liste „' + title + '" …');
+        const list = await findListByTitle(token, siteId, title);
+        if (!list || !list.id) {
+            throw new Error('Liste „' + title + '“ nicht gefunden. Bitte zuerst anlegen.');
+        }
+
+        const itemsPath = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(list.id) + '/items';
+        let ok = 0;
+        for (let i = 0; i < rows.length; i++) {
+            const fields = rows[i] || {};
+            await G.graphJson('POST', itemsPath, token, { fields: fields }, 'v1.0');
+            ok++;
+            if (ok % 10 === 0) write('… ' + ok + ' Termine geschrieben');
+            await G.sleep(80);
+        }
+        write('Import fertig: ' + ok + ' Zeilen.');
+        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+            window.ms365ActionLog.append({
+                tool: 'sharepoint',
+                action: 'import-termine',
+                target: url,
+                summary: ok + ' Termine → „' + title + '“'
+            });
+        }
+        return { ok: ok, listId: list.id, webUrl: list.webUrl || '' };
+    }
+
+    window.ms365SpoSchultermine = {
+        createList: createSchultermineList,
+        probeSyncHealth: probeSyncHealth,
+        importTermine: importTermine
+    };
 
     const runBtn = $('sptBtnRun');
     if (runBtn) {
@@ -174,6 +383,23 @@
                     log('Site gefunden: ' + (site.displayName || '') + '\nid: ' + (site.id || ''));
                     if (site.webUrl) log('webUrl: ' + site.webUrl);
                     toast('Website erkannt.');
+                })
+                .catch(function (e) {
+                    log('FEHLER: ' + (e && e.message ? e.message : String(e)));
+                    toast('Fehler: ' + (e && e.message ? e.message : e));
+                });
+        });
+    }
+
+    const healthBtn = $('sptBtnSyncHealth');
+    if (healthBtn) {
+        healthBtn.addEventListener('click', function () {
+            if ($('sptLog')) $('sptLog').textContent = '';
+            const webUrl = String($('sptSiteUrl') && $('sptSiteUrl').value || '').trim();
+            const listTitle = String($('sptListName') && $('sptListName').value || '').trim() || 'Schultermine';
+            probeSyncHealth(webUrl, listTitle)
+                .then(function (summary) {
+                    toast(summary && summary.ok ? 'Sync-Check OK' : 'Sync-Check: bitte Protokoll prüfen');
                 })
                 .catch(function (e) {
                     log('FEHLER: ' + (e && e.message ? e.message : String(e)));

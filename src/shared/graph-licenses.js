@@ -420,7 +420,33 @@ export function teacherEmailOfUser(user) {
     if (mail && mail.indexOf('@') !== -1) return mail;
     const upn = normEmail(user && user.userPrincipalName);
     if (upn && upn.indexOf('@') !== -1) return upn;
+    const others = Array.isArray(user && user.otherMails) ? user.otherMails : [];
+    for (let i = 0; i < others.length; i++) {
+        const o = normEmail(others[i]);
+        if (o && o.indexOf('@') !== -1) return o;
+    }
     return '';
+}
+
+/**
+ * Alle E-Mail-/UPN-Schlüssel eines Users (mail, UPN, otherMails).
+ * @param {object} user
+ * @returns {string[]}
+ */
+export function userEmailKeys(user) {
+    const out = [];
+    const seen = new Set();
+    function add(raw) {
+        const em = normEmail(raw);
+        if (!em || em.indexOf('@') === -1 || seen.has(em)) return;
+        seen.add(em);
+        out.push(em);
+    }
+    add(user && user.mail);
+    add(user && user.userPrincipalName);
+    const others = Array.isArray(user && user.otherMails) ? user.otherMails : [];
+    for (let i = 0; i < others.length; i++) add(others[i]);
+    return out;
 }
 
 /**
@@ -454,7 +480,14 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
         if (!hitFamily) return;
         seenUser.add(u.id);
         const email = teacherEmailOfUser(u);
-        const existingRow = email ? emailToExisting.get(email) : null;
+        const keys = userEmailKeys(u);
+        let existingRow = null;
+        for (let i = 0; i < keys.length; i++) {
+            if (emailToExisting.has(keys[i])) {
+                existingRow = emailToExisting.get(keys[i]);
+                break;
+            }
+        }
         let code;
         if (existingRow && existingRow.code) {
             code = existingRow.code;
@@ -620,7 +653,14 @@ export function buildStudentImportPreview(users, existingStudents, skuLookup, op
         if (!hitFamily) return;
         seenUser.add(u.id);
         const email = teacherEmailOfUser(u);
-        const existingRow = email ? emailToExisting.get(email) : null;
+        const keys = userEmailKeys(u);
+        let existingRow = null;
+        for (let i = 0; i < keys.length; i++) {
+            if (emailToExisting.has(keys[i])) {
+                existingRow = emailToExisting.get(keys[i]);
+                break;
+            }
+        }
         const guessed = suggestKlasseFromUser(u);
         const klasse = existingRow && existingRow.klasse ? existingRow.klasse : guessed;
         rows.push({
@@ -800,6 +840,7 @@ const api = {
     suggestTeacherCode,
     suggestKlasseFromUser,
     teacherEmailOfUser,
+    userEmailKeys,
     buildTeacherImportPreview,
     applyTeacherImportSelection,
     buildStudentImportPreview,

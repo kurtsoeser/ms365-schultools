@@ -10,9 +10,9 @@
         'https://graph.microsoft.com/TeamSettings.ReadWrite.All'
     ];
 
-    const PERSON_SELECT = 'id,displayName,mail,userPrincipalName';
+    const PERSON_SELECT = 'id,displayName,mail,userPrincipalName,otherMails,mailNickname';
     const USER_LICENSE_SELECT =
-        'id,displayName,givenName,surname,mail,userPrincipalName,accountEnabled,userType,jobTitle,department,assignedLicenses';
+        'id,displayName,givenName,surname,mail,userPrincipalName,accountEnabled,userType,jobTitle,department,assignedLicenses,otherMails,mailNickname';
 
     let msalMod = null;
     let pca = null;
@@ -850,7 +850,14 @@
         const em = normEmail(email);
         if (!em || em.indexOf('@') === -1) return null;
         const esc = odataEscape(em);
-        const filter = "(mail eq '" + esc + "' or userPrincipalName eq '" + esc + "')";
+        const filter =
+            "(mail eq '" +
+            esc +
+            "' or userPrincipalName eq '" +
+            esc +
+            "' or otherMails/any(x:x eq '" +
+            esc +
+            "'))";
         const path =
             '/users?$filter=' +
             encodeURIComponent(filter) +
@@ -866,7 +873,14 @@
         const em = normEmail(email);
         if (!em || em.indexOf('@') === -1) return null;
         const esc = odataEscape(em);
-        const filter = "(mail eq '" + esc + "' or userPrincipalName eq '" + esc + "')";
+        const filter =
+            "(mail eq '" +
+            esc +
+            "' or userPrincipalName eq '" +
+            esc +
+            "' or otherMails/any(x:x eq '" +
+            esc +
+            "'))";
         const path =
             '/users?$filter=' +
             encodeURIComponent(filter) +

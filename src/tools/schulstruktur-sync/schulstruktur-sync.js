@@ -1485,7 +1485,9 @@ import '../../shared/group-detail/group-detail.js';
 
     async function loadTenantUsersLive(onProgress) {
         const token = await getGraphToken(GRAPH_SCOPES_TENANT_INVENTORY);
-        const select = encodeURIComponent('id,displayName,userPrincipalName,mail,accountEnabled');
+        const select = encodeURIComponent(
+            'id,displayName,givenName,surname,userPrincipalName,mail,mailNickname,otherMails,accountEnabled'
+        );
         const initial = '/users?$select=' + select + '&$top=999';
         const raw = [];
         let next = initial;
@@ -1504,8 +1506,14 @@ import '../../shared/group-detail/group-detail.js';
             .map((u) => ({
                 id: String(u.id || ''),
                 displayName: String(u.displayName || '').trim(),
+                givenName: String(u.givenName || '').trim(),
+                surname: String(u.surname || '').trim(),
                 userPrincipalName: String(u.userPrincipalName || '').trim().toLowerCase(),
                 mail: String(u.mail || '').trim().toLowerCase(),
+                mailNickname: String(u.mailNickname || '').trim().toLowerCase(),
+                otherMails: Array.isArray(u.otherMails)
+                    ? u.otherMails.map((m) => String(m || '').trim().toLowerCase()).filter(Boolean)
+                    : [],
                 accountEnabled: u.accountEnabled !== false
             }))
             .filter((x) => x.id);

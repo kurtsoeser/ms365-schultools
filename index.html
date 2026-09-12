@@ -1366,9 +1366,10 @@
                         </div>
                     </div>
                     <div class="dashboard-empty-state" id="dashEmptyState" hidden>
-                        <p><strong>Noch keine Schuldaten.</strong> Starten Sie die Einrichtung für Ihre Schule – oder schalten Sie oben rechts <strong>Demo-Daten</strong> ein, um die Musterschule auszuprobieren.</p>
+                        <p><strong>Noch keine Schuldaten in diesem Browser.</strong> Einrichtung starten, oben rechts <strong>Demo-Daten</strong> einschalten – oder unten ein vorhandenes <strong>Browser-Backup</strong> importieren (Microsoft&nbsp;365-Gruppen bleiben davon unberührt).</p>
                         <div class="dashboard-empty-state__actions">
                             <a class="btn" href="einrichtung.html"><i class="bi bi-rocket-takeoff"></i>Einrichtung starten</a>
+                            <button type="button" class="btn btn-ghost" id="dashEmptyImportBackup"><i class="bi bi-upload"></i>Backup importieren</button>
                         </div>
                     </div>
                     <div class="dashboard-setup-hint" id="dashSetupHint" hidden>
@@ -1490,9 +1491,13 @@
                             <span class="dash-task-index">05</span>
                         </div>
                         <h3>Aufräumen und prüfen</h3>
-                        <p>Hygiene: leere Gruppen und fehlende Besitzer. Danach alle Gruppen im Überblick.</p>
+                        <p>Hygiene: Cleanup-Playbook, leere Gruppen und fehlende Besitzer. Danach alle Gruppen im Überblick.</p>
                         <div class="dash-task-links dash-task-links--stack">
-                            <a class="dash-task-row dash-task-row--primary" href="tools/leere-gruppen-report.html?problem=no-owners">
+                            <a class="dash-task-row dash-task-row--primary" href="tools/cleanup-playbook.html">
+                                <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Cleanup-Playbook</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/leere-gruppen-report.html?problem=no-owners">
                                 <span class="dash-task-row__label"><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i>Leere Gruppen prüfen</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
@@ -1587,6 +1592,11 @@
                                 <p>Alltag: Klassen matchen und Besitzer/Mitglieder pflegen. Einmalige Massenanlage nur über den Wizard in der Fußzeile des Werkzeugs.</p>
                                 <a class="btn" href="tools/jahrgangsgruppen.html"><i class="bi bi-diagram-3"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Klassen zusammenlegen" data-tool-id="klassen-merge" data-cluster="unterricht" data-search="klassen zusammenlegen merge 4hma 4hmb jahrgang survivor alias" draggable="true">
+                                <h2><i class="bi bi-intersect"></i>Klassen zusammenlegen</h2>
+                                <p>Zwei oder mehr Klassen zu einer führen (Alias behalten, Mitglieder mergen, Quellen archivieren).</p>
+                                <a class="btn" href="tools/klassen-merge.html"><i class="bi bi-intersect"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Unterrichtsteams" data-tool-id="kursteams" data-cluster="unterricht" data-search="kursteam unterricht stundenplan webuntis fach kurs team anlegen" draggable="true">
                                 <h2><i class="bi bi-mortarboard"></i>Unterrichtsteams</h2>
                                 <p>Unterrichtsteams aus dem Stundenplan vorbereiten und per CSV/CMD (<code>Kursteam-Anlage.cmd</code>) anlegen.</p>
@@ -1596,6 +1606,16 @@
                                 <h2><i class="bi bi-collection"></i>Fächer und ARGEs</h2>
                                 <p>Eine Gruppe pro Fach oder Arbeitsgemeinschaft – aus den Listen in den Stammdaten.</p>
                                 <a class="btn" href="tools/arge-fachgruppen.html"><i class="bi bi-collection-fill"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Diplomarbeiten" data-tool-id="diplomarbeiten" data-cluster="unterricht" data-search="diplomarbeit diplom dipl abschlussarbeit betreuung naming" draggable="true">
+                                <h2><i class="bi bi-mortarboard-fill"></i>Diplomarbeiten</h2>
+                                <p>Standard-Naming <code>dipl-{jahr}-…</code>, Gruppe/Team anlegen und bestehende Diplom-Gruppen finden.</p>
+                                <a class="btn" href="tools/diplomarbeiten.html"><i class="bi bi-mortarboard"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Spielwiesen-Teams" data-tool-id="spielwiesen" data-cluster="unterricht" data-search="spielwiese demo schilf notebook klassennotizbuch fortbildung" draggable="true">
+                                <h2><i class="bi bi-joystick"></i>Spielwiesen-Teams</h2>
+                                <p>Demo-Teams für Schilf ohne Live-Schüler – inkl. Notebook-/Aufgaben-Checkliste.</p>
+                                <a class="btn" href="tools/spielwiesen.html"><i class="bi bi-joystick"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1612,6 +1632,11 @@
                                 <h2><i class="bi bi-person-lines-fill"></i>Personen suchen</h2>
                                 <p>Personen der Schule suchen, nach Lizenz filtern und sehen, in welchen Gruppen sie sind.</p>
                                 <a class="btn" href="tools/personen-verwaltung.html"><i class="bi bi-search"></i>Suchen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Namenskonvention prüfen" data-tool-id="namenskonvention-audit" data-cluster="personen" data-search="namenskonvention displayname upn vorname nachname audit ad sync cloud" draggable="true">
+                                <h2><i class="bi bi-fonts"></i>Namenskonvention prüfen</h2>
+                                <p>DisplayName und UPN prüfen: Cloud-User korrigieren, AD-synchronisierte als CSV exportieren.</p>
+                                <a class="btn" href="tools/namenskonvention-audit.html"><i class="bi bi-fonts"></i>Prüfen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Gäste" data-tool-id="gaeste-verwalten" data-cluster="personen" data-search="gast gäste extern einladen einladung b2b eltern" draggable="true">
                                 <h2><i class="bi bi-people"></i>Gäste</h2>
@@ -1681,9 +1706,9 @@
                             <p>Zentrale Schul-Website und Listen für Lehrkräfte und Termine.</p>
                         </header>
                         <div class="grid" data-cluster-grid="website" role="list" aria-label="Schulwebsite und Listen">
-                            <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="website" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="website" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint formulare medien" draggable="true">
                                 <h2><i class="bi bi-house-door"></i>Schul-Intranet</h2>
-                                <p>Schulwebsite anlegen: Kommunikationssite, Hub und Startlisten (Lehrer, Termine).</p>
+                                <p>Schulwebsite anlegen: Kommunikationssite, Hub, Startlisten und Starter-Checkliste (Formulare/Medien/News).</p>
                                 <a class="btn" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Lehrerliste" data-tool-id="sharepoint-liste-lehrer" data-cluster="website" data-search="lehrerliste sharepoint liste lehrkräfte website" draggable="true">
@@ -1691,10 +1716,15 @@
                                 <p>Die Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website anlegen.</p>
                                 <a class="btn" href="tools/sharepoint-liste-lehrer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schultermine-Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="website" data-search="schultermine termin kalender liste sharepoint website" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schultermine-Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="website" data-search="schultermine termin kalender liste sharepoint website csv import" draggable="true">
                                 <h2><i class="bi bi-calendar3"></i>Schultermine-Liste</h2>
-                                <p>Eine leere Termineliste anlegen (Beginn, Ende, Kategorie). Befüllen können Sie später.</p>
+                                <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Schule / Lehrer / beide).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Power-Automate-Rezepte" data-tool-id="power-automate-rezepte" data-cluster="website" data-search="power automate flow rezept schultermine forms genehmigung schilf" draggable="true">
+                                <h2><i class="bi bi-lightning-charge"></i>Power-Automate-Rezepte</h2>
+                                <p>Baupläne: Termine→Kalender, Forms→Liste, Seminare, Gast-Hygiene, Diplom-Ordner, Schilf.</p>
+                                <a class="btn" href="tools/power-automate-rezepte.html"><i class="bi bi-lightning-charge"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1728,10 +1758,25 @@
                                 <a class="btn" href="tools/schulstruktur-sync.html"><i class="bi bi-kanban"></i>Öffnen</a>
                                 <a class="btn alt" href="tools/schulstruktur-sync.html?mode=struktur">Schulstruktur</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Datenhygiene" data-tool-id="datenhygiene" data-cluster="regeln" data-search="datenhygiene abgleich microsoft 365 gruppen konsistent mitglieder diff stammliste einstellungen" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Datenhygiene" data-tool-id="datenhygiene" data-cluster="regeln" data-search="datenhygiene abgleich microsoft 365 gruppen konsistent mitglieder diff stammliste einstellungen klassenfeld" draggable="true">
                                 <h2><i class="bi bi-shield-check"></i>Datenhygiene (Abgleich M365)</h2>
-                                <p>Abgleich mit Microsoft&nbsp;365: Stimmen Mitglieder in Sammel- und Klassengruppen noch mit Ihren Stammlisten überein?</p>
+                                <p>Abgleich mit Microsoft&nbsp;365: Mitglieder und Klassenfeld (Stammdaten ↔ Entra).</p>
                                 <a class="btn" href="tools/datenhygiene.html"><i class="bi bi-intersect"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Stammdaten-Übergabe" data-tool-id="stammdaten-uebergabe" data-cluster="regeln" data-search="stammdaten übergabe sharepoint backup json document library intranet" draggable="true">
+                                <h2><i class="bi bi-cloud-arrow-up"></i>Stammdaten-Übergabe</h2>
+                                <p>Browser-Backup als JSON in die Intranet-Dokumentbibliothek – für PC-Wechsel und IT-Übergabe.</p>
+                                <a class="btn" href="tools/stammdaten-uebergabe.html"><i class="bi bi-cloud-arrow-up"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Cleanup-Playbook" data-tool-id="cleanup-playbook" data-cluster="regeln" data-search="cleanup playbook aufräumen schuljahr leer besitzer archiv hygiene" draggable="true">
+                                <h2><i class="bi bi-list-check"></i>Cleanup-Playbook</h2>
+                                <p>Geführte Checkliste: leere Gruppen, Besitzlose, Archiv, Hygiene, Namenskonvention.</p>
+                                <a class="btn" href="tools/cleanup-playbook.html"><i class="bi bi-list-check"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Datei-Migration" data-tool-id="datei-migration" data-cluster="regeln" data-search="datei migration archiv kopieren team drive dokumentbibliothek" draggable="true">
+                                <h2><i class="bi bi-files"></i>Datei-Migration</h2>
+                                <p>Dateien/Ordner von einem (archivierten) Team in ein neues Team kopieren.</p>
+                                <a class="btn" href="tools/datei-migration.html"><i class="bi bi-files"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Leere Gruppen finden" data-tool-id="leere-gruppen-report" data-cluster="regeln" data-search="leer aufräumen ohne mitglieder ohne besitzer report" draggable="true">
                                 <h2><i class="bi bi-ui-checks-grid"></i>Leere Gruppen finden</h2>
@@ -1807,9 +1852,13 @@
 
             const DEFAULT_ORDER = [
                 'jahrgang',
+                'klassen-merge',
                 'kursteams',
                 'arge-fachgruppen',
+                'diplomarbeiten',
+                'spielwiesen',
                 'personen-verwaltung',
+                'namenskonvention-audit',
                 'gaeste-verwalten',
                 'slg',
                 'verwaltung',
@@ -1820,11 +1869,15 @@
                 'sharepoint-intranet-hub',
                 'sharepoint-liste-lehrer',
                 'sharepoint-liste-schultermine',
+                'power-automate-rezepte',
                 'gruppenerstellung',
                 'sharepoint-mandant-website',
                 'sharepoint-mandant-teilen',
                 'schulstruktur-sync',
                 'datenhygiene',
+                'stammdaten-uebergabe',
+                'cleanup-playbook',
+                'datei-migration',
                 'leere-gruppen-report'
             ];
             const KNOWN_IDS = new Set(DEFAULT_ORDER);
@@ -2584,6 +2637,14 @@
             window.addEventListener('ms365-demo-mode-changed', function () {
                 render();
             });
+
+            const dashEmptyImport = document.getElementById('dashEmptyImportBackup');
+            if (dashEmptyImport) {
+                dashEmptyImport.addEventListener('click', function () {
+                    const input = document.getElementById('browserBackupImportFile');
+                    if (input) input.click();
+                });
+            }
 
             if (location.hash === '#start-demo') {
                 const tryDemo = setInterval(function () {

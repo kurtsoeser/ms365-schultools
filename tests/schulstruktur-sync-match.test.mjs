@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
     normKey,
+    emailLocalPart,
+    collectUserIdentityKeys,
     suggestTenantGroupForUnitFromList,
     suggestTenantUserForPersonFromList,
     suggestTenantMatchSelectValue,
@@ -94,6 +96,40 @@ describe('suggestTenantUserForPersonFromList', () => {
         expect(suggestTenantUserForPersonFromList({ typ: 'Person', bezeichnung: 'Hans Schmid' }, users)).toBe('u3');
     });
 
+    it('matcht über otherMails / Alias', () => {
+        const withAlias = [
+            {
+                id: 'u9',
+                displayName: '4711',
+                userPrincipalName: '4711@schule.at',
+                mail: '',
+                otherMails: ['elisabeth.muster@schule.at']
+            }
+        ];
+        expect(
+            suggestTenantUserForPersonFromList(
+                { typ: 'Person', personEmail: 'elisabeth.muster@schule.at', personName: 'Elisabeth Muster' },
+                withAlias
+            )
+        ).toBe('u9');
+    });
+
+    it('matcht Vorname Nachname gegen givenName/surname bei Nummern-UPN', () => {
+        const numeric = [
+            {
+                id: 'u8',
+                displayName: '8801',
+                userPrincipalName: '8801@schule.at',
+                mail: '',
+                givenName: 'Reinhard',
+                surname: 'Gaul'
+            }
+        ];
+        expect(
+            suggestTenantUserForPersonFromList({ typ: 'Person', personName: 'Reinhard Gaul' }, numeric)
+        ).toBe('u8');
+    });
+
     it('Substring-Match scored niedriger als exakt', () => {
         const users2 = [
             { id: 'u1', displayName: 'Max Mustermann', userPrincipalName: 'mm@x.at' },
@@ -110,6 +146,29 @@ describe('suggestTenantUserForPersonFromList', () => {
 
     it('liefert Leerstring bei leeren keys', () => {
         expect(suggestTenantUserForPersonFromList({ typ: 'Person' }, users)).toBe('');
+    });
+});
+
+describe('emailLocalPart / collectUserIdentityKeys', () => {
+    it('extrahiert Local-Part', () => {
+        expect(emailLocalPart('Max.Muster@Schule.AT')).toBe('max.muster');
+        expect(emailLocalPart('')).toBe('');
+    });
+
+    it('sammelt Aliase und Namensvarianten', () => {
+        const keys = collectUserIdentityKeys({
+            displayName: '8801',
+            userPrincipalName: '8801@x.at',
+            mail: '',
+            otherMails: ['anna.beispiel@x.at'],
+            givenName: 'Anna',
+            surname: 'Beispiel'
+        });
+        expect(keys.exact).toContain('8801');
+        expect(keys.exact).toContain('anna.beispielx.at');
+        expect(keys.exact).toContain('anna.beispiel');
+        expect(keys.soft).toContain('anna beispiel');
+        expect(keys.soft).toContain('beispiel anna');
     });
 });
 

@@ -7,7 +7,7 @@
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schulverwaltung – Intranet &amp; Hub-Website</title>
-    10|    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../app.css?v=6">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -351,6 +351,43 @@
                     <pre id="fJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
                 </details>
             </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>3. Intranet-Starter (Checkliste)</h3>
+                        <p>Nach Site + Hub: Bibliotheken und Zielgruppen – Haken bleiben in diesem Browser.</p>
+                    </div>
+                </div>
+                <div class="cp-steps" id="ihStarterSteps" style="display:grid;gap:10px;">
+                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                        <input type="checkbox" data-ih-check="lehrer">
+                        <span><strong>Lehrerliste</strong> angelegt und geprüft<br><a href="sharepoint-liste-lehrer.html">→ Lehrerliste öffnen</a></span>
+                    </label>
+                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                        <input type="checkbox" data-ih-check="termine">
+                        <span><strong>Schultermine</strong> + Sync/CSV<br><a href="sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></span>
+                    </label>
+                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                        <input type="checkbox" data-ih-check="formulare">
+                        <span><strong>Bibliothek „Formulare“</strong> in SharePoint anlegen (manuell) und nur Lehrkräfte/Verwaltung freigeben</span>
+                    </label>
+                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                        <input type="checkbox" data-ih-check="medien">
+                        <span><strong>Bibliothek „Medien“</strong> für Fotos/Pressematerial – Schreibrechte eng halten</span>
+                    </label>
+                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                        <input type="checkbox" data-ih-check="news">
+                        <span><strong>News-Zielgruppe</strong>: Seite „Nur Kollegium“ vs. öffentliche Schul-News trennen</span>
+                    </label>
+                    <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                        <input type="checkbox" data-ih-check="stammdaten">
+                        <span><strong>Stammdaten-Übergabe</strong> JSON in Document Library<br><a href="stammdaten-uebergabe.html">→ Übergabe öffnen</a></span>
+                    </label>
+                </div>
+                <p id="ihStarterProgress" class="muted" style="margin:12px 0 0;">0 / 6 erledigt</p>
+            </section>
         </div>
     </div>
 
@@ -390,6 +427,36 @@
             }
             document.addEventListener('DOMContentLoaded', syncPreview);
             setTimeout(syncPreview, 200);
+
+            var IH_KEY = 'ms365-intranet-starter-v1';
+            var ihIds = ['lehrer', 'termine', 'formulare', 'medien', 'news', 'stammdaten'];
+            function ihLoad() {
+                try { return JSON.parse(localStorage.getItem(IH_KEY) || '{}') || {}; } catch (e) { return {}; }
+            }
+            function ihSave(state) {
+                try { localStorage.setItem(IH_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+            }
+            function ihRefresh() {
+                var state = ihLoad();
+                var done = 0;
+                ihIds.forEach(function (id) {
+                    var el = document.querySelector('[data-ih-check="' + id + '"]');
+                    if (!el) return;
+                    el.checked = !!state[id];
+                    if (el.checked) done++;
+                });
+                var p = document.getElementById('ihStarterProgress');
+                if (p) p.textContent = done + ' / ' + ihIds.length + ' erledigt';
+            }
+            document.querySelectorAll('[data-ih-check]').forEach(function (el) {
+                el.addEventListener('change', function () {
+                    var state = ihLoad();
+                    state[el.getAttribute('data-ih-check')] = !!el.checked;
+                    ihSave(state);
+                    ihRefresh();
+                });
+            });
+            ihRefresh();
         })();
     </script>
 </body>

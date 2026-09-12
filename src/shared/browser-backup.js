@@ -561,6 +561,7 @@
             }
             msg +=
                 'Alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser werden ersetzt. ' +
+                'Gruppen und Benutzer in Microsoft 365 bleiben unverändert. ' +
                 'Microsoft-Anmeldung und PIN-Freischaltung bleiben unberührt. Fortfahren?';
             return msg;
         }
@@ -715,6 +716,24 @@
     function onExportClick() {
         try {
             const payload = downloadBackup();
+            let meaningful = false;
+            try {
+                if (
+                    window.ms365EmptyStateUi &&
+                    typeof window.ms365EmptyStateUi.hasMeaningfulTenantData === 'function' &&
+                    typeof window.ms365TenantSettingsLoad === 'function'
+                ) {
+                    meaningful = window.ms365EmptyStateUi.hasMeaningfulTenantData(
+                        window.ms365TenantSettingsLoad()
+                    );
+                } else if (payload.schoolName || payload.domain) {
+                    meaningful = true;
+                } else if (payload.inventorySummary) {
+                    meaningful = /Stammdaten|Lehrer|Schüler|Klassen/i.test(String(payload.inventorySummary));
+                }
+            } catch {
+                meaningful = !!(payload.schoolName || payload.domain);
+            }
             const parts = [payload.keyCount + ' Einträge'];
             if (payload.localKeyCount != null) {
                 parts[0] = payload.localKeyCount + ' lokal';
@@ -722,9 +741,59 @@
             }
             let status = 'Backup gespeichert: ' + parts.join(', ') + '.';
             if (payload.inventorySummary) status += ' ' + payload.inventorySummary + '.';
-            setStatus(status, 'ok');
+            if (!meaningful) {
+                status +=
+                    ' Hinweis: Kaum Stammdaten enthalten – für die Übergabe an einen anderen Browser zuerst Einrichtung oder Import.';
+                setStatus(status, 'warn');
+            } else {
+                status += ' Tipp: Datei sicher ablegen (nicht nur Downloads).';
+                setStatus(status, 'ok');
+            }
+            try {
+                localStorage.setItem('ms365-last-backup-export-at', new Date().toISOString());
+            } catch {
+                /* ignore */
+            }
         } catch (e) {
             setStatus('Export fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
+        }
+    }
+
+    function refreshBackupReminder() {
+        const el = document.getElementById('browserBackupStatus');
+        if (!el || el.textContent) return;
+        let hasData = false;
+        try {
+            if (window.ms365EmptyStateUi && typeof window.ms365EmptyStateUi.hasMeaningfulTenantData === 'function') {
+                const load =
+                    typeof window.ms365TenantSettingsLoad === 'function'
+                        ? window.ms365TenantSettingsLoad()
+                        : null;
+                hasData = window.ms365EmptyStateUi.hasMeaningfulTenantData(load);
+            }
+        } catch {
+            /* ignore */
+        }
+        if (!hasData) return;
+        let last = '';
+        try {
+            last = localStorage.getItem('ms365-last-backup-export-at') || '';
+        } catch {
+            /* ignore */
+        }
+        if (!last) {
+            setStatus(
+                'Erinnerung: Stammdaten liegen nur in diesem Browser. Nach der Einrichtung ein Browser-Backup exportieren und sicher ablegen.',
+                'warn'
+            );
+            return;
+        }
+        const ts = Date.parse(last);
+        if (!isNaN(ts) && Date.now() - ts > 14 * 24 * 60 * 60 * 1000) {
+            setStatus(
+                'Letztes Browser-Backup ist älter als 14 Tage. Vor größeren Änderungen erneut exportieren.',
+                'warn'
+            );
         }
     }
 
@@ -770,6 +839,7 @@
             btn.dataset.ms365BackupBound = '1';
             btn.addEventListener('click', onDemoLoadClick);
         });
+        refreshBackupReminder();
     }
 
     window.ms365BrowserBackup = {

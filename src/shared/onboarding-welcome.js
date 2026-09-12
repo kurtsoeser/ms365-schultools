@@ -7,7 +7,11 @@
         {
             title: 'Daten bleiben in diesem Browser',
             body: 'Die App speichert Schul-Stammdaten lokal in Ihrem Browser – es gibt keinen Schul-Server dahinter. Nutzen Sie möglichst immer denselben Browser (nicht privat/inkognito).',
-            list: ['Nach größeren Änderungen: Browser-Backup exportieren (unten auf dem Dashboard).']
+            list: [
+                'Nach größeren Änderungen: Browser-Backup exportieren (unten auf dem Dashboard).',
+                'Cache leeren oder anderer PC = leere Stammdaten – dann Backup-JSON wieder importieren.',
+                'Microsoft-Anmeldung ist nicht im Backup enthalten und muss neu erfolgen.'
+            ]
         },
         {
             title: 'Microsoft-Anmeldung',

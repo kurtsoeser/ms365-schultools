@@ -21,8 +21,8 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-shield-check"></i>Datenhygiene (Abgleich M365)</span>
             </div>
             <p>
-                Querschnitts-Abgleich mit Microsoft&nbsp;365: Vergleicht lokale Stammlisten mit den verknüpften Gruppen
-                (alle Schülerinnen, alle Lehrkräfte, Verwaltung, Klassengruppen). Bei Abweichungen springen Sie ins jeweilige Werkzeug.
+                Querschnitts-Abgleich mit Microsoft&nbsp;365: Stammlisten vs. Gruppenmitglieder
+                und Klassenfeld in den Stammdaten vs. Entra-Attribute. Bei Abweichungen springen Sie ins jeweilige Werkzeug.
             </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-datenhygiene" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
@@ -66,6 +66,40 @@
                     <p class="dash-hygiene-empty" id="dashHygieneEmpty" hidden>Keine Klassen oder Sammelgruppen in den Stammdaten.</p>
                 </div>
             </section>
+
+            <section class="dash-hygiene" id="stammdatenHealth" aria-label="Stammdaten vs. Entra-Attribute" style="margin-top:28px;">
+                <div class="dash-hygiene__head">
+                    <div class="dash-hygiene__head-main">
+                        <h2><i class="bi bi-person-vcard" aria-hidden="true"></i>Klassenfeld-Abgleich (Stammdaten ↔ Entra)</h2>
+                        <p class="dash-hygiene__lead">
+                            Vergleicht die Klasse in den lokalen Stammdaten mit <code>department</code>/<code>officeLocation</code> im Tenant
+                            (oft aus dem AD synchronisiert). Weicht das Feld ab, sind Gruppen-Abgleiche wertlos.
+                        </p>
+                    </div>
+                    <div class="dash-hygiene__actions">
+                        <button type="button" class="btn btn-success" id="shScan">
+                            <i class="bi bi-search"></i>Attribute prüfen
+                        </button>
+                        <p class="dash-hygiene__status" id="shStatus" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
+                <div class="dash-hygiene__table-wrap">
+                    <table class="dash-hygiene-table" aria-label="Klassenfeld-Abgleich">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>E-Mail</th>
+                                <th>Stammdaten</th>
+                                <th>Entra (department/office)</th>
+                                <th>Hinweis</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shBody">
+                            <tr><td colspan="5" class="muted">Noch nicht geprüft.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -79,13 +113,16 @@
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/shared/membership-hygiene.js"></script>
     <script type="module" src="../src/shared/membership-hygiene-dashboard.js"></script>
+    <script type="module" src="../src/shared/stammdaten-health-ui.js"></script>
     <script type="module">
         import { mountMembershipHygieneDashboard } from '../src/shared/membership-hygiene-dashboard.js';
+        import { mountStammdatenHealth } from '../src/shared/stammdaten-health-ui.js';
 
         function boot() {
             if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
             if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return false;
             mountMembershipHygieneDashboard({ rootId: 'dashHygiene' });
+            mountStammdatenHealth();
             return true;
         }
 

@@ -458,15 +458,35 @@
         }
     }
 
+    function parentMailsLabel(rec) {
+        const sis = window.ms365SchoolSisImport;
+        let mails = [];
+        if (sis && typeof sis.parentEmailsOf === 'function') {
+            mails = sis.parentEmailsOf(rec) || [];
+        } else {
+            const raw = (rec && (rec.parentEmails || rec.parents || rec.guardians)) || [];
+            if (Array.isArray(raw)) {
+                mails = raw
+                    .map(function (p) {
+                        return typeof p === 'string' ? p : p && p.email;
+                    })
+                    .filter(Boolean);
+            }
+        }
+        return mails.length ? mails.join(', ') : '–';
+    }
+
     function importDiffLine(entry) {
         if (!entry) return '';
         const prev = entry.previous || {};
         const cur = entry.incoming || entry;
         const bits = [];
-        if (entry.klasseChanged) bits.push('Klasse ' + (prev.klasse || '–') + ' -> ' + (cur.klasse || '–'));
-        if (entry.emailChanged) bits.push('E-Mail ' + ((prev.email || '–') + ' -> ' + (cur.email || '–')));
-        if (entry.parentsChanged) bits.push('Elternmails geändert');
-        if (entry.nameChanged) bits.push('Name geändert');
+        if (entry.klasseChanged) bits.push('Klasse ' + (prev.klasse || '–') + ' → ' + (cur.klasse || '–'));
+        if (entry.emailChanged) bits.push('E-Mail ' + ((prev.email || '–') + ' → ' + (cur.email || '–')));
+        if (entry.parentsChanged) {
+            bits.push('Eltern ' + parentMailsLabel(prev) + ' → ' + parentMailsLabel(cur));
+        }
+        if (entry.nameChanged) bits.push('Name ' + (prev.name || '–') + ' → ' + (cur.name || '–'));
         return (cur.name || prev.name || cur.email || 'Ohne Namen') + ' (' + (bits.join(' · ') || 'geändert') + ')';
     }
 
@@ -1283,6 +1303,19 @@
                 if (!p) return;
                 p.removedSelected = new Set();
                 renderImportPreview();
+            });
+        }
+        const btnDiffCsv = getEl('evImportDiffCsv');
+        if (btnDiffCsv) {
+            btnDiffCsv.addEventListener('click', function () {
+                const p = state.importPreview;
+                const sis = window.ms365SchoolSisImport;
+                if (!p || !p.diff || !sis || typeof sis.downloadSisDiffCsv !== 'function') {
+                    toast('Keine Diff-Vorschau vorhanden', 'err');
+                    return;
+                }
+                sis.downloadSisDiffCsv(p.diff, 'eltern-import-diff.csv');
+                toast('Diff-CSV heruntergeladen', 'ok');
             });
         }
         const btnImportApply = getEl('evImportApply');
