@@ -23,6 +23,11 @@ import {
     validateDemoPool,
     MAX_DEMO_STUDENTS
 } from '../src/tools/spielwiesen/spielwiesen-logic.js';
+import {
+    sanitizeEducationClassCode,
+    parseTeamsOperationPath,
+    EDUCATION_OBJECT_TYPE_EXTENSION
+} from '../src/shared/education-class-team.js';
 
 describe('diplomarbeiten-logic', () => {
     it('baut Standard-Namen', () => {
@@ -75,6 +80,7 @@ describe('spielwiesen-logic', () => {
         const p = buildSpielwiesenPlan({ label: 'Teams Basics', year: '2026' });
         expect(p.ok).toBe(true);
         expect(p.mailNickname).toMatch(/^spiel-2026-/);
+        expect(p.educationClass).toBe(true);
         expect(p.notebookChecklist.length).toBeGreaterThan(3);
         expect(isSpielwiesenGroup({ mailNickname: p.mailNickname, displayName: p.displayName })).toBe(true);
     });
@@ -99,5 +105,15 @@ describe('spielwiesen-logic', () => {
         expect(isDemoStudentUser({ displayName: stu.displayName, department: 'DEMO' })).toBe(true);
         expect(validateDemoPool([{ id: '1' }]).ok).toBe(true);
         expect(validateDemoPool(new Array(MAX_DEMO_STUDENTS + 1).fill({ id: 'x' })).ok).toBe(false);
+    });
+});
+
+describe('education-class-team', () => {
+    it('sanitized classCode und Operation-Pfad', () => {
+        expect(sanitizeEducationClassCode('spiel-2026-mu!')).toBe('spiel2026mu');
+        expect(
+            parseTeamsOperationPath("https://graph.microsoft.com/v1.0/teams('tid')/operations('oid')")
+        ).toBe('/teams/tid/operations/oid');
+        expect(EDUCATION_OBJECT_TYPE_EXTENSION).toContain('Education_ObjectType');
     });
 });

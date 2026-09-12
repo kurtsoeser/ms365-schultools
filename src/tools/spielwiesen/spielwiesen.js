@@ -1,6 +1,7 @@
 /**
  * Spielwiesen-Wizard: Demo-Klasse, Lehrer-Bulk, Einzel-Team.
  */
+import { createEducationClassTeam } from '../../shared/education-class-team.js';
 import {
     MAX_DEMO_STUDENTS,
     DEMO_CLASS_CODE,
@@ -46,7 +47,9 @@ const SCOPES = [
     'https://graph.microsoft.com/User.Read.All',
     'https://graph.microsoft.com/User.ReadWrite.All',
     'https://graph.microsoft.com/Group.ReadWrite.All',
-    'https://graph.microsoft.com/Organization.Read.All'
+    'https://graph.microsoft.com/Organization.Read.All',
+    'https://graph.microsoft.com/Team.Create',
+    'https://graph.microsoft.com/EduRoster.ReadWrite'
 ];
 
 /** @type {'teacher'|'single'} */
@@ -686,26 +689,41 @@ async function createSpielTeam(token, plan, ownerUserId) {
         log('Übersprungen (existiert): ' + plan.mailNickname);
         return { group: group, created: false };
     }
-    log('Lege Team an: ' + plan.displayName + ' …');
-    group = await G().createUnifiedGroup(token, plan.displayName, plan.mailNickname, plan.description);
-    try {
-        await G().provisionTeamForGroup(token, group.id);
-    } catch (e) {
-        log('  Teams-Provision: ' + (e.message || e) + ' (Gruppe ist trotzdem da)');
+
+    let ownerId = ownerUserId;
+    if (!ownerId) {
+        const me = await graphJson('GET', '/me?$select=id,userPrincipalName', token);
+        ownerId = me && me.id ? me.id : '';
+        if (ownerId) log('Besitzer: angemeldeter Benutzer (' + (me.userPrincipalName || me.id) + ')');
     }
-    if (ownerUserId) {
-        try {
-            if (typeof G().addOwnerWithMemberFallback === 'function') {
-                await G().addOwnerWithMemberFallback(token, group.id, ownerUserId);
-            } else {
-                await G().addGroupOwner(token, group.id, ownerUserId);
-            }
-            log('  Besitzer gesetzt.');
-        } catch (e) {
-            log('  Besitzer: ' + (e.message || e));
-        }
-    }
-    return { group: group, created: true };
+    if (!ownerId) throw new Error('Kein Besitzer – Kursteam (EDU_Class) braucht mind. einen Owner.');
+
+    log('Lege Kursteam an (educationClass / EDU_Class): ' + plan.displayName + ' …');
+    const created = await createEducationClassTeam({
+        graphJson: function (method, path, tok, body) {
+            return G().graphJson(method, path, tok, body);
+        },
+        graphRequest: function (method, path, tok, body) {
+            return G().graphRequest(method, path, tok, body);
+        },
+        sleep: function (ms) {
+            return G().sleep(ms);
+        },
+        getToken: getToken,
+        token: token,
+        log: log,
+        displayName: plan.displayName,
+        mailNickname: plan.mailNickname,
+        description: plan.description,
+        classCode: plan.mailNickname || plan.displayName,
+        ownerId: ownerId
+    });
+    log('Methode: ' + created.method + ' → ' + created.groupId);
+    return {
+        group: { id: created.groupId, displayName: plan.displayName, mailNickname: plan.mailNickname },
+        created: true,
+        method: created.method
+    };
 }
 
 async function addDemoMembers(token, groupId) {
@@ -739,7 +757,7 @@ async function runCreate() {
             asDemo: asDemo()
         });
         if (!plan.ok) throw new Error(plan.issues.join(', '));
-        if (!window.confirm('Einzel-Team anlegen?\n\n' + plan.displayName)) return;
+        if (!window.confirm('Kursteam (EDU_Class) anlegen?\n\n' + plan.displayName)) return;
         const res = await createSpielTeam(token, plan, null);
         if (res.group && res.group.id) await addDemoMembers(token, res.group.id);
         toast(res.created ? 'Team angelegt.' : 'Team existierte bereits.');
@@ -761,7 +779,7 @@ async function runCreate() {
     if (
         !window.confirm(
             bulk.plans.length +
-                ' Lehrer-Spielwiesen anlegen?\nDemo-Schüler: ' +
+                ' Lehrer-Kursteams (EDU_Class) anlegen?\nDemo-Schüler: ' +
                 demos.length +
                 '\n\nBestehende Alias werden übersprungen.'
         )

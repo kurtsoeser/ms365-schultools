@@ -36,7 +36,7 @@ export function buildSpielwiesenPlan(input) {
     const displayName = (asDemo ? 'DEMO ' : 'Spielwiese ') + label + ' ' + year;
     const mailNickname = (SPIEL_PREFIX + '-' + year + '-' + slugify(label)).slice(0, 64);
     const description =
-        'Schilf-/Spielwiesen-Team. Class Notebook und Aufgaben bewusst freigeben. ' +
+        'Schilf-/Spielwiesen-Kursteam (EDU_Class). Class Notebook und Aufgaben bewusst freigeben. ' +
         'Angelegt mit MS365-Schulverwaltung. Demo-Klasse: ' +
         DEMO_CLASS_CODE +
         '.';
@@ -47,6 +47,7 @@ export function buildSpielwiesenPlan(input) {
         mailNickname,
         description,
         asTeam: true,
+        educationClass: true,
         mode: 'single',
         notebookChecklist: defaultNotebookChecklist()
     };
@@ -89,12 +90,13 @@ export function buildTeacherSpielPlan(input) {
         displayName,
         mailNickname,
         description:
-            'Lehrer-Spielwiese für ' +
+            'Lehrer-Spielwiesen-Kursteam (EDU_Class) für ' +
             (name || code) +
             '. Gemeinsame Demo-Schüler der Klasse ' +
             DEMO_CLASS_CODE +
             '. MS365-Schulverwaltung.',
         ownerEmail: email,
+        educationClass: true,
         mode: 'teacher'
     };
 }
