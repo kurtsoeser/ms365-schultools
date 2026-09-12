@@ -311,6 +311,56 @@
     }
 
     /**
+     * Dokumentbibliothek anlegen (BaseTemplate 101) – oft zuverlässiger als Graph POST /lists.
+     * @returns {Promise<{ Id?: string, Title?: string, id?: string }>}
+     */
+    async function spoCreateDocumentLibrary(siteWebUrl, spoToken, digest, title, description) {
+        const name = String(title || '').trim();
+        if (!name) throw new Error('Bibliotheksname fehlt.');
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'POST', '/_api/web/lists', {
+            Title: name,
+            Description: String(description || ''),
+            BaseTemplate: 101,
+            AllowContentTypes: true,
+            ContentTypesEnabled: false
+        });
+        if (!res.ok) {
+            const msg =
+                (res.data && (res.data.error_description || res.data['odata.error'] || res.data.error)) ||
+                res.text ||
+                String(res.status);
+            throw new Error('Bibliothek anlegen (SPO REST): ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+        }
+        const d = res.data || {};
+        return {
+            Id: d.Id || (d.d && d.d.Id) || '',
+            Title: d.Title || (d.d && d.d.Title) || name,
+            id: d.Id || (d.d && d.d.Id) || ''
+        };
+    }
+
+    async function spoGetListByTitle(siteWebUrl, spoToken, digest, title) {
+        const name = String(title || '').trim();
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            name.replace(/'/g, "''") +
+            "')?$select=Id,Title,BaseTemplate,RootFolder/ServerRelativeUrl&$expand=RootFolder";
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'GET', api);
+        if (!res.ok) {
+            if (res.status === 404) return null;
+            const text = String(res.text || '');
+            if (/not exist|nicht vorhanden|ListDoesNotExist/i.test(text)) return null;
+            throw new Error('getbytitle: ' + res.status + ' ' + text);
+        }
+        const d = res.data || {};
+        return {
+            Id: d.Id || (d.d && d.d.Id) || '',
+            Title: d.Title || (d.d && d.d.Title) || name,
+            id: d.Id || (d.d && d.d.Id) || ''
+        };
+    }
+
+    /**
      * @returns {{ host: string, serverRelativeUrl: string } | null}
      */
     function parseSharePointWebUrl(input) {
@@ -363,6 +413,8 @@
         spoRemoveRoleAssignment: spoRemoveRoleAssignment,
         spoEnsureUser: spoEnsureUser,
         spoAddRoleAssignment: spoAddRoleAssignment,
+        spoCreateDocumentLibrary: spoCreateDocumentLibrary,
+        spoGetListByTitle: spoGetListByTitle,
         graphBase: graphBase,
         parseSharePointWebUrl: parseSharePointWebUrl,
         resolveSiteFromWebUrl: resolveSiteFromWebUrl,

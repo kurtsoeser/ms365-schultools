@@ -9,9 +9,20 @@ import {
     validateMigrationSelection,
     buildCopyBody,
     normalizeDriveItem,
-    sortDriveItems
+    sortDriveItems,
+    pushBreadcrumb,
+    sliceBreadcrumb
 } from '../src/tools/datei-migration/datei-migration-logic.js';
-import { buildSpielwiesenPlan, isSpielwiesenGroup } from '../src/tools/spielwiesen/spielwiesen-logic.js';
+import {
+    buildSpielwiesenPlan,
+    isSpielwiesenGroup,
+    buildTeacherSpielPlan,
+    buildBulkTeacherPlans,
+    buildDemoStudentPlan,
+    isDemoStudentUser,
+    validateDemoPool,
+    MAX_DEMO_STUDENTS
+} from '../src/tools/spielwiesen/spielwiesen-logic.js';
 
 describe('diplomarbeiten-logic', () => {
     it('baut Standard-Namen', () => {
@@ -50,6 +61,13 @@ describe('datei-migration-logic', () => {
         ]);
         expect(rows[0].isFolder).toBe(true);
     });
+
+    it('navigiert Breadcrumbs', () => {
+        const root = [{ id: 'root', name: 'Stamm' }];
+        const deeper = pushBreadcrumb(root, { id: 'f1', name: 'Material' });
+        expect(deeper).toHaveLength(2);
+        expect(sliceBreadcrumb(deeper, 0)).toEqual([{ id: 'root', name: 'Stamm' }]);
+    });
 });
 
 describe('spielwiesen-logic', () => {
@@ -59,5 +77,27 @@ describe('spielwiesen-logic', () => {
         expect(p.mailNickname).toMatch(/^spiel-2026-/);
         expect(p.notebookChecklist.length).toBeGreaterThan(3);
         expect(isSpielwiesenGroup({ mailNickname: p.mailNickname, displayName: p.displayName })).toBe(true);
+    });
+
+    it('plant Lehrer-Bulk und Demo-Schüler', () => {
+        const bulk = buildBulkTeacherPlans({
+            year: '2026',
+            teachers: [
+                { code: 'MU', name: 'Müller', email: 'mu@schule.at' },
+                { code: 'XY', name: 'Ohne Mail', email: '' }
+            ],
+            selectedCodes: ['MU', 'XY']
+        });
+        expect(bulk.plans).toHaveLength(2);
+        expect(bulk.ok).toBe(false);
+        expect(buildTeacherSpielPlan({ code: 'MU', email: 'mu@schule.at', year: 2026 }).mailNickname).toBe(
+            'spiel-2026-mu'
+        );
+        const stu = buildDemoStudentPlan({ index: 3, domain: 'schule.at' });
+        expect(stu.ok).toBe(true);
+        expect(stu.userPrincipalName).toBe('demo.schueler03@schule.at');
+        expect(isDemoStudentUser({ displayName: stu.displayName, department: 'DEMO' })).toBe(true);
+        expect(validateDemoPool([{ id: '1' }]).ok).toBe(true);
+        expect(validateDemoPool(new Array(MAX_DEMO_STUDENTS + 1).fill({ id: 'x' })).ok).toBe(false);
     });
 });

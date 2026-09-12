@@ -78,9 +78,37 @@ export function validateMigrationSelection(input) {
     };
 }
 
+/**
+ * Breadcrumb um einen Ordner erweitern.
+ * @param {Array<{ id: string, name: string }>} crumbs
+ * @param {{ id: string, name: string }} folder
+ */
+export function pushBreadcrumb(crumbs, folder) {
+    const base = Array.isArray(crumbs) ? crumbs.slice() : [{ id: 'root', name: 'Stamm' }];
+    const id = norm(folder && folder.id);
+    const name = norm(folder && folder.name) || id || 'Ordner';
+    if (!id) return base;
+    if (base.length && base[base.length - 1].id === id) return base;
+    base.push({ id: id, name: name });
+    return base;
+}
+
+/**
+ * Breadcrumb bis Index (inkl.) kürzen.
+ * @param {Array<{ id: string, name: string }>} crumbs
+ * @param {number} index
+ */
+export function sliceBreadcrumb(crumbs, index) {
+    const base = Array.isArray(crumbs) && crumbs.length ? crumbs.slice() : [{ id: 'root', name: 'Stamm' }];
+    const i = Math.max(0, Math.min(Number(index) || 0, base.length - 1));
+    return base.slice(0, i + 1);
+}
+
 export default {
     normalizeDriveItem,
     sortDriveItems,
     buildCopyBody,
-    validateMigrationSelection
+    validateMigrationSelection,
+    pushBreadcrumb,
+    sliceBreadcrumb
 };

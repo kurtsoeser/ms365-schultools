@@ -11,6 +11,115 @@
     <link rel="stylesheet" href="../app.css?v=6">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .dm-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .dm-grid { grid-template-columns: 1fr; }
+        }
+        .dm-side {
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            padding: 14px;
+            background: var(--card);
+        }
+        .dm-side h3 {
+            margin: 0 0 10px;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dm-search-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .dm-search-row input { flex: 1; min-width: 140px; }
+        .dm-hits {
+            list-style: none;
+            margin: 0 0 10px;
+            padding: 0;
+            max-height: 160px;
+            overflow: auto;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+        }
+        .dm-hits:empty { display: none; }
+        .dm-hits li {
+            margin: 0;
+            border-bottom: 1px solid var(--input-border);
+        }
+        .dm-hits li:last-child { border-bottom: none; }
+        .dm-hits button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            padding: 8px 10px;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+        }
+        .dm-hits button:hover { background: color-mix(in srgb, var(--accent, #2563eb) 12%, transparent); }
+        .dm-picked {
+            font-size: 0.9em;
+            margin: 0 0 10px;
+            line-height: 1.4;
+            min-height: 1.4em;
+        }
+        .dm-crumb {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 6px;
+            align-items: center;
+            font-size: 0.88em;
+            margin: 0 0 8px;
+            min-height: 1.6em;
+        }
+        .dm-crumb button {
+            border: 0;
+            background: transparent;
+            color: var(--accent, #2563eb);
+            cursor: pointer;
+            padding: 0;
+            font: inherit;
+            text-decoration: underline;
+        }
+        .dm-crumb span.sep { opacity: 0.5; }
+        .dm-browser {
+            max-height: 340px;
+            overflow: auto;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+        }
+        .dm-browser table { margin: 0; }
+        .dm-browser .dm-open {
+            border: 0;
+            background: transparent;
+            color: var(--accent, #2563eb);
+            cursor: pointer;
+            padding: 0;
+            font: inherit;
+            text-decoration: underline;
+        }
+        .dm-selection {
+            margin-top: 10px;
+            font-size: 0.9em;
+            line-height: 1.45;
+        }
+        .dm-selection ul {
+            margin: 6px 0 0;
+            padding-left: 1.2em;
+            max-height: 120px;
+            overflow: auto;
+        }
+    </style>
 </head>
 <body>
     <div class="container page-card tm-page">
@@ -37,29 +146,56 @@
                     <p id="dmHint">…</p>
                 </div>
             </section>
+
             <section class="tm-panel">
-                <div class="tm-field">
-                    <label for="dmSourceId">Quell-Team / Gruppen-ID (GUID)</label>
-                    <input type="text" id="dmSourceId" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                <div class="dm-grid">
+                    <div class="dm-side" data-side="source">
+                        <h3><i class="bi bi-box-arrow-up-right"></i> Quelle</h3>
+                        <div class="dm-search-row">
+                            <input type="search" id="dmSourceQuery" placeholder="Team-/Gruppenname oder GUID …" autocomplete="off">
+                            <button type="button" class="btn" id="dmBtnSearchSource"><i class="bi bi-search"></i>Suchen</button>
+                        </div>
+                        <ul class="dm-hits" id="dmSourceHits" hidden></ul>
+                        <p class="dm-picked muted" id="dmSourcePicked">Noch kein Quell-Team gewählt.</p>
+                        <input type="hidden" id="dmSourceId" value="">
+                        <div class="dm-crumb" id="dmSourceCrumb"></div>
+                        <div class="dm-browser">
+                            <table class="dash-hygiene-table" style="width:100%;font-size:0.92em;">
+                                <thead><tr><th style="width:2.2em;"></th><th>Name</th><th>Art</th></tr></thead>
+                                <tbody id="dmSourceBody"><tr><td colspan="3" class="muted">Team wählen und Bibliothek laden.</td></tr></tbody>
+                            </table>
+                        </div>
+                        <div class="dm-selection">
+                            <strong>Zur Kopie ausgewählt:</strong>
+                            <span id="dmSelectionCount" class="muted">0</span>
+                            <ul id="dmSelectionList"></ul>
+                            <button type="button" class="btn btn-ghost" id="dmBtnClearSel" style="margin-top:6px;"><i class="bi bi-x-lg"></i>Auswahl leeren</button>
+                        </div>
+                    </div>
+
+                    <div class="dm-side" data-side="dest">
+                        <h3><i class="bi bi-box-arrow-in-down-left"></i> Ziel</h3>
+                        <div class="dm-search-row">
+                            <input type="search" id="dmDestQuery" placeholder="Team-/Gruppenname oder GUID …" autocomplete="off">
+                            <button type="button" class="btn" id="dmBtnSearchDest"><i class="bi bi-search"></i>Suchen</button>
+                        </div>
+                        <ul class="dm-hits" id="dmDestHits" hidden></ul>
+                        <p class="dm-picked muted" id="dmDestPicked">Noch kein Ziel-Team gewählt.</p>
+                        <input type="hidden" id="dmDestId" value="">
+                        <div class="dm-crumb" id="dmDestCrumb"></div>
+                        <p class="muted" style="margin:0 0 8px;font-size:0.88em;">Aktueller Ordner = Kopierziel. In Ordner klicken zum Navigieren.</p>
+                        <div class="dm-browser">
+                            <table class="dash-hygiene-table" style="width:100%;font-size:0.92em;">
+                                <thead><tr><th>Name</th><th>Art</th></tr></thead>
+                                <tbody id="dmDestBody"><tr><td colspan="2" class="muted">Ziel-Team wählen und Bibliothek laden.</td></tr></tbody>
+                            </table>
+                        </div>
+                        <p class="dm-selection" id="dmDestFolderLabel"><strong>Kopierziel:</strong> <span class="muted">—</span></p>
+                    </div>
                 </div>
-                <div class="tm-field">
-                    <label for="dmDestId">Ziel-Team / Gruppen-ID (GUID)</label>
-                    <input type="text" id="dmDestId" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-                </div>
-                <div class="tm-field">
-                    <label for="dmDestFolder">Ziel-Ordner-ID (leer = root)</label>
-                    <input type="text" id="dmDestFolder" value="root" spellcheck="false">
-                </div>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="dmBtnLoadSource"><i class="bi bi-folder2-open"></i>Quelle laden</button>
-                    <button type="button" class="btn" id="dmBtnResolveDest"><i class="bi bi-check2"></i>Ziel prüfen</button>
+
+                <div class="tm-actions" style="margin-top:16px;">
                     <button type="button" class="btn btn-success" id="dmBtnCopy"><i class="bi bi-copy"></i>Auswahl kopieren</button>
-                </div>
-                <div style="overflow:auto;margin-top:12px;">
-                    <table class="dash-hygiene-table" style="width:100%;font-size:0.92em;">
-                        <thead><tr><th>Name</th><th>Art</th><th>Geändert</th></tr></thead>
-                        <tbody id="dmSourceBody"><tr><td colspan="3" class="muted">Quelle noch nicht geladen.</td></tr></tbody>
-                    </table>
                 </div>
                 <details class="tm-tech" style="margin-top:12px;"><summary>Protokoll</summary><pre id="dmLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
             </section>

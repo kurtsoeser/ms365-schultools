@@ -211,6 +211,46 @@ async function createDocumentLibrary(token, siteId, title, description) {
     );
 }
 
+/**
+ * Graph POST /lists schlägt oft mit Access Denied fehl – dann SharePoint REST (Site-Besitzer).
+ */
+async function createDocumentLibraryViaSpo(siteWebUrl, title, description) {
+    const G = getG();
+    let host = '';
+    try {
+        host = new URL(siteWebUrl).hostname;
+    } catch {
+        throw new Error('Ungültige Site-URL.');
+    }
+    const spoScope = 'https://' + host + '/Sites.FullControl.All';
+    let spoToken;
+    try {
+        spoToken = await G.getGraphToken([spoScope]);
+    } catch (e) {
+        throw new Error(
+            'SharePoint-Token fehlt fürs Anlegen (Zustimmung Sites.FullControl.All / Office 365 SharePoint Online?). ' +
+                (e && e.message ? e.message : e)
+        );
+    }
+    const digest = await G.getSpoRequestDigest(siteWebUrl, spoToken);
+    const created = await G.spoCreateDocumentLibrary(siteWebUrl, spoToken, digest, title, description);
+    return { spoToken: spoToken, digest: digest, list: created };
+}
+
+function explainAccessDenied(err) {
+    const msg = String((err && err.message) || err || '');
+    if (!/access denied|AccessDenied|403/i.test(msg)) return msg;
+    return (
+        msg +
+        '\n\nTypische Ursachen:\n' +
+        '• Sie sind kein Besitzer der SharePoint-Website (nur Mitglied/Besucher).\n' +
+        '• App-Zustimmung fehlt: Sites.ReadWrite.All und Sites.FullControl.All (SharePoint).\n' +
+        '• Workaround: Bibliothek in SharePoint manuell anlegen (Dokumentbibliothek „' +
+        IT_LIBRARY_TITLE +
+        '“), dann hier erneut „einrichten“ – wir verbinden nur und setzen Rechte.'
+    );
+}
+
 async function getListDrive(token, siteId, listId) {
     const G = getG();
     return G.graphJson(
@@ -392,17 +432,83 @@ async function runSetupItLibrary() {
     const site = await resolveSite(token, webUrl);
     rememberSite(webUrl);
 
-    let list = await findListByTitle(token, site.id, listTitle);
+    let list = null;
+    try {
+        list = await findListByTitle(token, site.id, listTitle);
+    } catch (e) {
+        log('Hinweis Graph-Suche: ' + (e.message || e));
+    }
+
     if (!list) {
-        log('Lege Dokumentbibliothek an …');
-        list = await createDocumentLibrary(token, site.id, listTitle, plan.description);
-        await getG().sleep(1500);
+        log('Bibliothek nicht gefunden – lege über SharePoint REST an (zuverlässiger als Graph) …');
+        try {
+            const spoCreated = await createDocumentLibraryViaSpo(webUrl, listTitle, plan.description);
+            log('SPO: Bibliothek angelegt.');
+            await getG().sleep(2000);
+            list = await findListByTitle(token, site.id, listTitle);
+            if (!list && spoCreated.list && (spoCreated.list.Id || spoCreated.list.id)) {
+                list = {
+                    id: spoCreated.list.Id || spoCreated.list.id,
+                    displayName: listTitle,
+                    webUrl: ''
+                };
+            }
+        } catch (e1) {
+            const spoMsg = String((e1 && e1.message) || e1 || '');
+            log('SPO-Anlage: ' + spoMsg);
+            // Graph POST /lists liefert bei denselben Rechten oft denselben Access Denied – nur als letzte Chance.
+            if (!/access denied|AccessDenied|403|Zustimmung|FullControl/i.test(spoMsg)) {
+                log('Fallback: versuche Graph POST /lists …');
+                try {
+                    list = await createDocumentLibrary(token, site.id, listTitle, plan.description);
+                    await getG().sleep(1500);
+                } catch (e2) {
+                    throw new Error(explainAccessDenied(e1.message ? e1 : e2));
+                }
+            } else {
+                throw new Error(explainAccessDenied(e1));
+            }
+        }
+        if (!list) {
+            // Nochmals SPO getbytitle
+            try {
+                let host = new URL(webUrl).hostname;
+                const spoToken = await getG().getGraphToken(['https://' + host + '/Sites.FullControl.All']);
+                const digest = await getG().getSpoRequestDigest(webUrl, spoToken);
+                const spoList = await getG().spoGetListByTitle(webUrl, spoToken, digest, listTitle);
+                if (spoList && (spoList.Id || spoList.id)) {
+                    list = { id: spoList.Id || spoList.id, displayName: listTitle, webUrl: '' };
+                }
+            } catch {
+                /* ignore */
+            }
+        }
+        if (!list) {
+            throw new Error(
+                explainAccessDenied(
+                    new Error(
+                        'Bibliothek „' +
+                            listTitle +
+                            '“ konnte nicht angelegt/gefunden werden. Bitte manuell als Dokumentbibliothek anlegen und erneut versuchen.'
+                    )
+                )
+            );
+        }
     } else {
-        log('Bibliothek existiert bereits.');
+        log('Bibliothek existiert bereits (Graph).');
     }
     const listId = list.id || list.Id;
     if (!listId) throw new Error('Listen-ID fehlt.');
-    const drive = await getListDrive(token, site.id, listId);
+    let drive;
+    try {
+        drive = await getListDrive(token, site.id, listId);
+    } catch (e) {
+        throw new Error(
+            'Drive der Bibliothek nicht lesbar: ' +
+                (e.message || e) +
+                ' – Sites.ReadWrite.All und Zugriff auf die Site prüfen.'
+        );
+    }
     if (!drive || !drive.id) throw new Error('Drive der Bibliothek fehlt.');
 
     let groupId = plan.itGroupId;
@@ -417,7 +523,7 @@ async function runSetupItLibrary() {
     } catch (e) {
         log('FEHLER Rechte: ' + (e.message || e));
         log(
-            'Bibliothek ist angelegt, aber Rechte konnten nicht gesetzt werden (oft CORS oder fehlende SharePoint-Zustimmung). ' +
+            'Bibliothek ist vorhanden, aber Rechte konnten nicht gesetzt werden (oft CORS oder fehlende SharePoint-Zustimmung). ' +
                 'Bitte in SharePoint manuell: Bibliothek → Berechtigungen → Vererbung beenden → Besucher/Mitglieder entfernen → IT-Gruppe Mitwirken.'
         );
         toast('Bibliothek da – Rechte manuell prüfen');

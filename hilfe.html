@@ -699,12 +699,13 @@
                         <p class="help-open"><a href="tools/diplomarbeiten.html">→ Diplomarbeiten öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="spielwiese demo schilf notebook klassennotizbuch">
+                    <article class="help-article" data-help-article data-search="spielwiese demo schilf notebook klassennotizbuch lehrer demo-schueler wizard">
                         <h3 id="tool-spielwiesen">Spielwiesen-Teams <span class="pill">Schilf</span></h3>
                         <p>
-                            Demo-Teams ohne Live-Schüler (<code>spiel-{jahr}-…</code>).
-                            Checkliste: Class Notebook erst nach Schilf, Aufgaben nicht an echte Klassen,
-                            Team danach archivieren oder als DEMO belassen.
+                            Wizard: Demo-Klasse mit max. 10 gemeinsamen Demo-Schülern (A1),
+                            dann entweder <strong>ein Team pro Lehrkraft</strong> oder ein einzelnes Schilf-Team
+                            (<code>spiel-{jahr}-…</code>). Bestehende Demo-Konten wiederverwenden oder neu anlegen.
+                            Checkliste: Class Notebook/Aufgaben erst nach Freigabe.
                         </p>
                         <p class="help-open"><a href="tools/spielwiesen.html">→ Spielwiesen öffnen</a></p>
                     </article>
@@ -1044,8 +1045,9 @@
                             </ol>
                         </div>
                         <div class="warn">
-                            Wenn der Rechte-Schritt im Browser scheitert (CORS): Bibliothek ist trotzdem angelegt –
-                            Berechtigungen in SharePoint manuell setzen.
+                            Graph <code>POST /lists</code> liefert oft Access Denied – die App legt die Bibliothek deshalb per SharePoint REST an.
+                            Voraussetzung: Sie sind Website-Besitzer; App-Zustimmung Sites.ReadWrite.All + Sites.FullControl.All.
+                            Wenn der Rechte-Schritt scheitert (CORS): Bibliothek manuell berechtigen.
                         </div>
                         <p class="help-open"><a href="tools/stammdaten-uebergabe.html">→ Stammdaten-Übergabe öffnen</a></p>
                     </article>
@@ -1059,8 +1061,9 @@
                     <article class="help-article" data-help-article data-search="datei migration archiv kopieren team drive">
                         <h3 id="tool-datei-migration">Datei-Migration <span class="pill">Graph</span></h3>
                         <p>
-                            Kopiert Dateien/Ordner der Dokumentbibliothek von einem Quell-Team (oft archiviert)
-                            in ein Ziel-Team. Chat, Planner und Aufgaben werden nicht übernommen.
+                            Quell- und Ziel-Team per Namen/GUID suchen, in beiden Bibliotheken Ordner öffnen,
+                            Dateien/Ordner anhaken und in den gewählten Zielordner kopieren.
+                            Chat, Planner und Aufgaben werden nicht übernommen.
                         </p>
                         <p class="help-open"><a href="tools/datei-migration.html">→ Datei-Migration öffnen</a></p>
                     </article>

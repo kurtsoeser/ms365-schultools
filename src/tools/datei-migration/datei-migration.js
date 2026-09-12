@@ -1,11 +1,13 @@
 /**
- * Datei-Migration Archiv-Team → neues Team.
+ * Datei-Migration Archiv-Team → neues Team (Suche + Ordnerbrowser).
  */
 import {
     normalizeDriveItem,
     sortDriveItems,
     buildCopyBody,
-    validateMigrationSelection
+    validateMigrationSelection,
+    pushBreadcrumb,
+    sliceBreadcrumb
 } from './datei-migration-logic.js';
 
 function $(id) {
@@ -37,8 +39,29 @@ const SCOPES = [
     'https://graph.microsoft.com/Sites.ReadWrite.All'
 ];
 
-/** @type {{ sourceItems: ReturnType<typeof normalizeDriveItem>[], sourceDriveId: string, destDriveId: string }} */
-const state = { sourceItems: [], sourceDriveId: '', destDriveId: '' };
+/**
+ * @typedef {{ id: string, name: string }} Crumb
+ * @typedef {{ id: string, name: string, pathLabel: string }} SelectedItem
+ */
+
+const state = {
+    source: {
+        groupId: '',
+        label: '',
+        driveId: '',
+        items: /** @type {ReturnType<typeof normalizeDriveItem>[]} */ ([]),
+        crumbs: /** @type {Crumb[]} */ ([{ id: 'root', name: 'Stamm' }])
+    },
+    dest: {
+        groupId: '',
+        label: '',
+        driveId: '',
+        items: /** @type {ReturnType<typeof normalizeDriveItem>[]} */ ([]),
+        crumbs: /** @type {Crumb[]} */ ([{ id: 'root', name: 'Stamm' }])
+    },
+    /** @type {Map<string, SelectedItem>} */
+    selected: new Map()
+};
 
 async function getToken() {
     const G = window.ms365GraphUnifiedGroups;
@@ -49,6 +72,10 @@ async function getToken() {
 async function graphJson(method, path, token, body) {
     const G = window.ms365GraphUnifiedGroups;
     return G.graphJson(method, path, token, body, 'v1.0');
+}
+
+function guidLike(s) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '').trim());
 }
 
 async function resolveGroupDrive(token, groupId) {
@@ -68,92 +95,326 @@ async function listChildren(token, driveId, itemId) {
     return sortDriveItems(((data && data.value) || []).map(normalizeDriveItem));
 }
 
-function selectedIds() {
-    return Array.from(document.querySelectorAll('#dmSourceBody input[type=checkbox]:checked')).map(function (el) {
-        return el.value;
+/**
+ * @param {string} query
+ * @returns {Promise<Array<{ id: string, displayName: string, mail: string, mailNickname: string }>>}
+ */
+async function searchTeams(query) {
+    const q = String(query || '').trim();
+    if (!q) throw new Error('Suchbegriff fehlt.');
+    const token = await getToken();
+    const G = window.ms365GraphUnifiedGroups;
+
+    if (guidLike(q)) {
+        try {
+            const g = await G.fetchGroup(token, q);
+            if (!g || !g.id) throw new Error('Gruppe nicht gefunden.');
+            return [
+                {
+                    id: g.id,
+                    displayName: g.displayName || '',
+                    mail: g.mail || '',
+                    mailNickname: g.mailNickname || ''
+                }
+            ];
+        } catch (e) {
+            throw new Error('GUID nicht gefunden: ' + (e.message || e));
+        }
+    }
+
+    const list = await G.searchUnifiedGroups(token, q);
+    return (list || []).map(function (g) {
+        return {
+            id: g.id,
+            displayName: g.displayName || '',
+            mail: g.mail || '',
+            mailNickname: g.mailNickname || ''
+        };
     });
 }
 
-function renderSource(items) {
-    const body = $('dmSourceBody');
+function currentFolderId(side) {
+    const crumbs = state[side].crumbs;
+    return crumbs.length ? crumbs[crumbs.length - 1].id : 'root';
+}
+
+function pathLabelFor(side, itemName) {
+    const names = state[side].crumbs.map(function (c) {
+        return c.name;
+    });
+    names.push(itemName);
+    return names.join(' / ');
+}
+
+function renderHits(side, hits) {
+    const ul = $(side === 'source' ? 'dmSourceHits' : 'dmDestHits');
+    if (!ul) return;
+    ul.replaceChildren();
+    if (!hits.length) {
+        ul.hidden = true;
+        return;
+    }
+    ul.hidden = false;
+    hits.forEach(function (g) {
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML =
+            '<strong>' +
+            escapeHtml(g.displayName || g.mailNickname || g.id) +
+            '</strong><br><span class="muted" style="font-size:0.85em;">' +
+            escapeHtml(g.mailNickname || g.mail || g.id) +
+            '</span>';
+        btn.addEventListener('click', function () {
+            pickTeam(side, g).catch(function (e) {
+                log('FEHLER: ' + (e.message || e));
+                toast(e.message || String(e));
+            });
+        });
+        li.appendChild(btn);
+        ul.appendChild(li);
+    });
+}
+
+function renderPicked(side) {
+    const el = $(side === 'source' ? 'dmSourcePicked' : 'dmDestPicked');
+    const idEl = $(side === 'source' ? 'dmSourceId' : 'dmDestId');
+    const s = state[side];
+    if (idEl) idEl.value = s.groupId || '';
+    if (!el) return;
+    if (!s.groupId) {
+        el.className = 'dm-picked muted';
+        el.textContent = side === 'source' ? 'Noch kein Quell-Team gewählt.' : 'Noch kein Ziel-Team gewählt.';
+        return;
+    }
+    el.className = 'dm-picked';
+    el.innerHTML =
+        '<strong>' +
+        escapeHtml(s.label) +
+        '</strong><br><span class="muted" style="font-size:0.85em;">' +
+        escapeHtml(s.groupId) +
+        '</span>';
+}
+
+function renderCrumb(side) {
+    const el = $(side === 'source' ? 'dmSourceCrumb' : 'dmDestCrumb');
+    if (!el) return;
+    el.replaceChildren();
+    state[side].crumbs.forEach(function (c, idx) {
+        if (idx > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'sep';
+            sep.textContent = '/';
+            el.appendChild(sep);
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = c.name;
+        btn.addEventListener('click', function () {
+            navigateToCrumb(side, idx).catch(function (e) {
+                toast(e.message || String(e));
+            });
+        });
+        el.appendChild(btn);
+    });
+    if (side === 'dest') updateDestFolderLabel();
+}
+
+function updateDestFolderLabel() {
+    const el = $('dmDestFolderLabel');
+    if (!el) return;
+    const path = state.dest.crumbs
+        .map(function (c) {
+            return c.name;
+        })
+        .join(' / ');
+    el.innerHTML = '<strong>Kopierziel:</strong> ' + escapeHtml(path || 'Stamm');
+}
+
+function renderSelection() {
+    const count = $('dmSelectionCount');
+    const list = $('dmSelectionList');
+    if (count) count.textContent = String(state.selected.size);
+    if (!list) return;
+    list.replaceChildren();
+    state.selected.forEach(function (it) {
+        const li = document.createElement('li');
+        li.textContent = it.pathLabel;
+        list.appendChild(li);
+    });
+}
+
+function renderBrowser(side) {
+    const body = $(side === 'source' ? 'dmSourceBody' : 'dmDestBody');
     if (!body) return;
     body.replaceChildren();
+    const items = state[side].items;
+    const colSpan = side === 'source' ? 3 : 2;
+    if (!state[side].driveId) {
+        body.innerHTML =
+            '<tr><td colspan="' +
+            colSpan +
+            '" class="muted">Team wählen und Bibliothek laden.</td></tr>';
+        return;
+    }
     if (!items.length) {
-        body.innerHTML = '<tr><td colspan="3" class="muted">Keine Einträge (oder Bibliothek leer).</td></tr>';
+        body.innerHTML = '<tr><td colspan="' + colSpan + '" class="muted">Ordner ist leer.</td></tr>';
         return;
     }
     items.forEach(function (it) {
         const tr = document.createElement('tr');
-        tr.innerHTML =
-            '<td><label><input type="checkbox" value="' +
-            escapeHtml(it.id) +
-            '"> ' +
-            (it.isFolder ? '📁 ' : '') +
-            escapeHtml(it.name) +
-            '</label></td><td>' +
-            (it.isFolder ? 'Ordner' : Math.round(it.size / 1024) + ' KB') +
-            '</td><td class="muted">' +
-            escapeHtml((it.lastModified || '').slice(0, 19)) +
-            '</td>';
+        if (side === 'source') {
+            const tdCheck = document.createElement('td');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = it.id;
+            cb.checked = state.selected.has(it.id);
+            cb.addEventListener('change', function () {
+                if (cb.checked) {
+                    state.selected.set(it.id, {
+                        id: it.id,
+                        name: it.name,
+                        pathLabel: pathLabelFor('source', it.name)
+                    });
+                } else {
+                    state.selected.delete(it.id);
+                }
+                renderSelection();
+            });
+            tdCheck.appendChild(cb);
+            tr.appendChild(tdCheck);
+        }
+        const tdName = document.createElement('td');
+        if (it.isFolder) {
+            const open = document.createElement('button');
+            open.type = 'button';
+            open.className = 'dm-open';
+            open.textContent = '📁 ' + it.name;
+            open.addEventListener('click', function () {
+                openFolder(side, it).catch(function (e) {
+                    toast(e.message || String(e));
+                });
+            });
+            tdName.appendChild(open);
+        } else {
+            tdName.textContent = it.name;
+        }
+        tr.appendChild(tdName);
+        const tdArt = document.createElement('td');
+        tdArt.textContent = it.isFolder
+            ? 'Ordner' + (it.childCount != null ? ' (' + it.childCount + ')' : '')
+            : Math.round(it.size / 1024) + ' KB';
+        tr.appendChild(tdArt);
         body.appendChild(tr);
     });
 }
 
-async function loadSource() {
-    const gid = String(($('dmSourceId') && $('dmSourceId').value) || '').trim();
-    if (!gid) throw new Error('Quell-Gruppen-ID fehlt.');
-    log('Lade Quell-Drive …');
+async function pickTeam(side, group) {
     const token = await getToken();
-    const drive = await resolveGroupDrive(token, gid);
-    state.sourceDriveId = drive.id;
-    state.sourceItems = await listChildren(token, drive.id, 'root');
-    renderSource(state.sourceItems);
-    log(state.sourceItems.length + ' Einträge in der Wurzel.');
-    toast('Quelle geladen.');
+    log((side === 'source' ? 'Quelle' : 'Ziel') + ': ' + (group.displayName || group.id));
+    const drive = await resolveGroupDrive(token, group.id);
+    state[side].groupId = group.id;
+    state[side].label = group.displayName || group.mailNickname || group.id;
+    state[side].driveId = drive.id;
+    state[side].crumbs = [{ id: 'root', name: 'Stamm' }];
+    state[side].items = await listChildren(token, drive.id, 'root');
+    if (side === 'source') {
+        state.selected.clear();
+        renderSelection();
+    }
+    const hits = $(side === 'source' ? 'dmSourceHits' : 'dmDestHits');
+    if (hits) {
+        hits.replaceChildren();
+        hits.hidden = true;
+    }
+    renderPicked(side);
+    renderCrumb(side);
+    renderBrowser(side);
+    toast((side === 'source' ? 'Quelle' : 'Ziel') + ' geladen.');
 }
 
-async function resolveDest() {
-    const gid = String(($('dmDestId') && $('dmDestId').value) || '').trim();
-    if (!gid) throw new Error('Ziel-Gruppen-ID fehlt.');
+async function openFolder(side, item) {
+    if (!item || !item.isFolder) return;
     const token = await getToken();
-    const drive = await resolveGroupDrive(token, gid);
-    state.destDriveId = drive.id;
-    log('Ziel-Drive: ' + drive.id);
-    toast('Ziel erkannt.');
+    state[side].crumbs = pushBreadcrumb(state[side].crumbs, { id: item.id, name: item.name });
+    state[side].items = await listChildren(token, state[side].driveId, item.id);
+    renderCrumb(side);
+    renderBrowser(side);
+}
+
+async function navigateToCrumb(side, index) {
+    const token = await getToken();
+    state[side].crumbs = sliceBreadcrumb(state[side].crumbs, index);
+    const folderId = currentFolderId(side);
+    state[side].items = await listChildren(token, state[side].driveId, folderId);
+    renderCrumb(side);
+    renderBrowser(side);
+}
+
+async function runSearch(side) {
+    const qEl = $(side === 'source' ? 'dmSourceQuery' : 'dmDestQuery');
+    const q = String((qEl && qEl.value) || '').trim();
+    log('Suche ' + (side === 'source' ? 'Quelle' : 'Ziel') + ': ' + q);
+    const hits = await searchTeams(q);
+    if (!hits.length) {
+        renderHits(side, []);
+        toast('Keine Treffer.');
+        return;
+    }
+    renderHits(side, hits);
+    if (hits.length === 1) {
+        await pickTeam(side, hits[0]);
+    } else {
+        toast(hits.length + ' Treffer – bitte wählen.');
+    }
 }
 
 async function runCopy() {
-    const sourceGroupId = String(($('dmSourceId') && $('dmSourceId').value) || '').trim();
-    const destGroupId = String(($('dmDestId') && $('dmDestId').value) || '').trim();
-    const itemIds = selectedIds();
-    const v = validateMigrationSelection({ sourceGroupId, destGroupId, itemIds });
+    const itemIds = Array.from(state.selected.keys());
+    const v = validateMigrationSelection({
+        sourceGroupId: state.source.groupId,
+        destGroupId: state.dest.groupId,
+        itemIds: itemIds
+    });
     if (!v.ok) throw new Error(v.issues.join(', '));
-    if (!state.sourceDriveId) await loadSource();
-    if (!state.destDriveId) await resolveDest();
+    if (!state.source.driveId) throw new Error('Quell-Bibliothek fehlt.');
+    if (!state.dest.driveId) throw new Error('Ziel-Bibliothek fehlt.');
 
-    if (!window.confirm(itemIds.length + ' Element(e) kopieren?\n\n' + v.note)) return;
+    const destFolder = currentFolderId('dest');
+    const destPath = state.dest.crumbs
+        .map(function (c) {
+            return c.name;
+        })
+        .join(' / ');
+    if (
+        !window.confirm(
+            itemIds.length +
+                ' Element(e) nach „' +
+                destPath +
+                '“ kopieren?\n\n' +
+                v.note
+        )
+    ) {
+        return;
+    }
 
     const token = await getToken();
-    const destFolder = String(($('dmDestFolder') && $('dmDestFolder').value) || 'root').trim() || 'root';
     let ok = 0;
     let fail = 0;
     for (let i = 0; i < itemIds.length; i++) {
         const id = itemIds[i];
-        const item = state.sourceItems.find(function (x) {
-            return x.id === id;
-        });
-        const label = item ? item.name : id;
+        const sel = state.selected.get(id);
+        const label = sel ? sel.name : id;
         try {
-            log('Kopiere „' + label + '“ …');
+            log('Kopiere „' + label + '“ → ' + destPath + ' …');
             const body = buildCopyBody({
-                destDriveId: state.destDriveId,
+                destDriveId: state.dest.driveId,
                 destFolderId: destFolder,
-                newName: item && item.name ? item.name : undefined
+                newName: sel && sel.name ? sel.name : undefined
             });
-            // Graph copy returns 202 Accepted – graphJson may throw on empty body; use fetch
             const url =
                 'https://graph.microsoft.com/v1.0/drives/' +
-                encodeURIComponent(state.sourceDriveId) +
+                encodeURIComponent(state.source.driveId) +
                 '/items/' +
                 encodeURIComponent(id) +
                 '/copy';
@@ -185,41 +446,63 @@ async function runCopy() {
     log(v.note);
 }
 
+function bindSearchEnter(inputId, side) {
+    const el = $(inputId);
+    if (!el || el.dataset.boundEnter === '1') return;
+    el.dataset.boundEnter = '1';
+    el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            runSearch(side).catch(function (e) {
+                toast(e.message || String(e));
+            });
+        }
+    });
+}
+
 function boot() {
     const hint = $('dmHint');
     if (hint) {
         hint.textContent =
-            'Kopiert Dateien/Ordner der Team-Dokumentbibliothek (Graph copy). Chat, Planner und Aufgaben bleiben unberührt.';
+            'Teams suchen, Ordner öffnen, Quelle anhaken und Zielordner wählen – dann kopieren. Chat/Aufgaben bleiben unberührt.';
     }
-    const b1 = $('dmBtnLoadSource');
-    if (b1 && b1.dataset.bound !== '1') {
-        b1.dataset.bound = '1';
-        b1.addEventListener('click', function () {
-            loadSource().catch(function (e) {
+    renderPicked('source');
+    renderPicked('dest');
+    renderCrumb('source');
+    renderCrumb('dest');
+    renderSelection();
+
+    const map = [
+        ['dmBtnSearchSource', function () {
+            return runSearch('source');
+        }],
+        ['dmBtnSearchDest', function () {
+            return runSearch('dest');
+        }],
+        ['dmBtnCopy', runCopy],
+        [
+            'dmBtnClearSel',
+            function () {
+                state.selected.clear();
+                renderSelection();
+                renderBrowser('source');
+                return Promise.resolve();
+            }
+        ]
+    ];
+    map.forEach(function (pair) {
+        const btn = $(pair[0]);
+        if (!btn || btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function () {
+            Promise.resolve(pair[1]()).catch(function (e) {
                 log('FEHLER: ' + (e.message || e));
                 toast(e.message || String(e));
             });
         });
-    }
-    const b2 = $('dmBtnResolveDest');
-    if (b2 && b2.dataset.bound !== '1') {
-        b2.dataset.bound = '1';
-        b2.addEventListener('click', function () {
-            resolveDest().catch(function (e) {
-                toast(e.message || String(e));
-            });
-        });
-    }
-    const b3 = $('dmBtnCopy');
-    if (b3 && b3.dataset.bound !== '1') {
-        b3.dataset.bound = '1';
-        b3.addEventListener('click', function () {
-            runCopy().catch(function (e) {
-                log('FEHLER: ' + (e.message || e));
-                toast(e.message || String(e));
-            });
-        });
-    }
+    });
+    bindSearchEnter('dmSourceQuery', 'source');
+    bindSearchEnter('dmDestQuery', 'dest');
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

@@ -66,8 +66,10 @@
                     <button type="button" class="btn btn-success" id="suBtnSetupIt"><i class="bi bi-shield-lock"></i>IT-Bibliothek einrichten</button>
                 </div>
                 <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
-                    Benötigt Graph <code>Sites.ReadWrite.All</code> und für Rechte SharePoint <code>Sites.FullControl.All</code>
-                    (wie Hub-Registrierung). Schlägt der Rechte-Schritt fehl (CORS), Bibliothek bleibt – Rechte dann in SharePoint manuell setzen.
+                    Anlage läuft über <strong>SharePoint REST</strong> (nicht Graph <code>POST /lists</code>), weil Graph dort oft
+                    „Access denied“ liefert. Sie müssen <strong>Website-Besitzer</strong> sein.
+                    Zusätzlich: App-Zustimmung <code>Sites.ReadWrite.All</code> und SharePoint
+                    <code>Sites.FullControl.All</code>. Alternative: Bibliothek manuell anlegen, dann hier erneut einrichten.
                 </p>
             </section>
 
