@@ -111,6 +111,17 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
         state.teacherEmailMapping && typeof state.teacherEmailMapping === 'object'
             ? state.teacherEmailMapping
             : {};
+    // Stammdaten-Mails nachziehen (State kann älter/leerer sein als aktuelle Lehrerliste)
+    if (typeof ns.syncTeacherEmailsFromTenant === 'function') {
+        const required = Array.from(
+            new Set(
+                (ns.filteredData || [])
+                    .map((r) => String((r && r.lehrer) || '').toUpperCase().trim())
+                    .filter(Boolean)
+            )
+        );
+        ns.syncTeacherEmailsFromTenant(required.length ? required : null, { quiet: true });
+    }
     ns.teamsGenerated = !!state.teamsGenerated;
     ns.kursteamEntryMode =
         state.kursteamEntryMode === 'manual' || state.kursteamEntryMode === 'webuntis'

@@ -19,6 +19,12 @@ ns.updateTeacherStats = function updateTeacherStats() {
     // Lehrer die in den importierten Unterrichtsdaten vorkommen
     const uniqueTeachers = new Set((ns.filteredData || []).map(row => (row.lehrer || '').toUpperCase().trim()).filter(Boolean));
     const teachersArray = Array.from(uniqueTeachers);
+
+    // Stammdaten → Mapping nachziehen (auch nach State-Restore / Clear)
+    if (typeof ns.syncTeacherEmailsFromTenant === 'function') {
+        ns.syncTeacherEmailsFromTenant(teachersArray, { quiet: ns.currentStep !== 4 });
+    }
+
     const mappedCount = teachersArray.filter(t => ns.teacherEmailMapping[t]).length;
     const unmappedCount = teachersArray.length - mappedCount;
 
@@ -39,7 +45,7 @@ ns.updateTeacherStats = function updateTeacherStats() {
 
 /**
  * Zeigt fehlende Lehrer (kommen in Unterrichtsdaten vor, haben aber keine E-Mail-Zuordnung).
- * Schlägt E-Mail aus Stammdaten vor falls dort ein namensgleicher Eintrag ohne E-Mail existiert.
+ * Schlägt E-Mail aus Stammdaten vor (exakter Code, Umlaut-Normalisierung, Nachname-Präfix).
  */
 ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
     const unmappedTeachers = allTeachers.filter(t => !ns.teacherEmailMapping[t]);
@@ -52,26 +58,26 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
             ? window.ms365GetTeacherEmailDomainSuffix()
             : '@';
 
-    // Stammdaten: Lehrer ohne E-Mail aber mit Name als Vorschlag-Quelle
-    const tenantTeachers = typeof window.ms365TenantSettingsLoad === 'function'
-        ? (window.ms365TenantSettingsLoad().teachers || [])
-        : [];
-    const tenantByCode = new Map(tenantTeachers.map(t => [String(t.code || '').toUpperCase(), t]));
-
     const tbody = document.getElementById('missingTeachersBody');
     tbody.replaceChildren();
+
+    let suggestableCount = 0;
+
     unmappedTeachers.forEach(kuerzel => {
-        const tenantEntry = tenantByCode.get(kuerzel);
-        // Vorschlag: aus Stammdaten (Name→E-Mail ableiten) oder Domain-Fallback
-        const suggestedEmail = (tenantEntry && tenantEntry.email)
-            ? tenantEntry.email
-            : kuerzel.toLowerCase() + emailDomain;
-        const tenantName = tenantEntry && tenantEntry.name ? tenantEntry.name : '';
-        const inTenant = !!tenantEntry;
+        const match =
+            typeof ns.resolveTeacherMatchFromTenant === 'function'
+                ? ns.resolveTeacherMatchFromTenant(kuerzel)
+                : null;
+        const tenantEntry = match;
+        const hasTenantEmail = !!(match && match.email && match.email.includes('@') && match.method !== 'exactNoEmail');
+        const domainFallback = kuerzel.toLowerCase() + emailDomain;
+        const suggestedEmail = hasTenantEmail ? match.email : domainFallback;
+        const tenantName = match && match.name ? match.name : '';
+        const inTenant = !!match;
+        if (hasTenantEmail) suggestableCount += 1;
 
         const tr = document.createElement('tr');
 
-        // Kürzel + Stammdaten-Badge
         const td1 = document.createElement('td');
         td1.style.whiteSpace = 'nowrap';
         const strong = document.createElement('strong');
@@ -85,23 +91,43 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
         }
         if (inTenant) {
             const badge = document.createElement('span');
-            badge.style.cssText = 'font-size:0.72em;background:var(--brand1);color:#fff;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block;';
-            badge.title = 'In Stammdaten vorhanden';
-            badge.textContent = 'Schule ✓';
+            if (hasTenantEmail) {
+                badge.style.cssText =
+                    'font-size:0.72em;background:var(--ok1);color:#fff;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block;';
+                badge.title =
+                    match.method === 'namePrefix'
+                        ? 'Über Nachnamen in Stammdaten gefunden'
+                        : match.method === 'codePrefix'
+                          ? 'Über ähnliches Kürzel in Stammdaten gefunden'
+                          : 'Kürzel + E-Mail in Stammdaten';
+                badge.textContent =
+                    match.method === 'namePrefix' || match.method === 'codePrefix'
+                        ? 'Match ✓'
+                        : 'Stammdaten · E-Mail';
+            } else {
+                badge.style.cssText =
+                    'font-size:0.72em;background:var(--brand1);color:#fff;border-radius:4px;padding:1px 5px;margin-top:2px;display:inline-block;';
+                badge.title = 'In Stammdaten vorhanden, aber ohne E-Mail';
+                badge.textContent = 'Stammdaten · ohne E-Mail';
+            }
             td1.appendChild(badge);
         }
 
-        // E-Mail Eingabefeld (sofort editierbar)
         const td2 = document.createElement('td');
         const input = document.createElement('input');
         input.type = 'email';
         input.className = 'kt-team-draft-input';
-        input.placeholder = suggestedEmail;
-        input.value = suggestedEmail;
+        input.setAttribute('data-missing-teacher', kuerzel);
         input.style.minWidth = '220px';
+        if (hasTenantEmail) {
+            input.value = suggestedEmail;
+            input.placeholder = suggestedEmail;
+        } else {
+            input.value = '';
+            input.placeholder = domainFallback;
+        }
         td2.appendChild(input);
 
-        // Aktion
         const td3 = document.createElement('td');
         td3.style.whiteSpace = 'nowrap';
         const btn = document.createElement('button');
@@ -122,7 +148,48 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
         tr.append(td1, td2, td3);
         tbody.appendChild(tr);
     });
+
+    const bulkBtn = document.getElementById('btnAcceptAllTeacherSuggestions');
+    if (bulkBtn) {
+        bulkBtn.style.display = suggestableCount > 0 ? '' : 'none';
+        bulkBtn.textContent = '';
+        bulkBtn.innerHTML =
+            '<i class="bi bi-check2-all"></i> Alle Stammdaten-Vorschläge übernehmen (' + suggestableCount + ')';
+    }
+
     document.getElementById('missingTeachersSection').style.display = 'block';
+};
+
+ns.acceptAllTeacherSuggestions = function acceptAllTeacherSuggestions() {
+    const inputs = document.querySelectorAll('#missingTeachersBody input[data-missing-teacher]');
+    let n = 0;
+    const batch = {};
+    inputs.forEach((input) => {
+        const kuerzel = input.getAttribute('data-missing-teacher');
+        const email = String(input.value || '')
+            .trim()
+            .toLowerCase();
+        if (!kuerzel || !email || !email.includes('@')) return;
+        if (!String(input.value || '').trim()) return;
+        const match =
+            typeof ns.resolveTeacherMatchFromTenant === 'function'
+                ? ns.resolveTeacherMatchFromTenant(kuerzel)
+                : null;
+        if (!match || !match.email || match.method === 'exactNoEmail') return;
+        batch[kuerzel] = email;
+        ns.teacherEmailMapping[kuerzel] = email;
+        n += 1;
+    });
+    if (n > 0) {
+        if (typeof ns.upsertTenantTeachersFromMapping === 'function') {
+            ns.upsertTenantTeachersFromMapping(batch);
+        }
+        if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
+        ns.showToast(n + ' Vorschlag/Vorschläge übernommen.');
+        ns.updateTeacherStats();
+    } else {
+        ns.showToast('Keine Stammdaten-Vorschläge zum Übernehmen.');
+    }
 };
 
 /**
@@ -519,6 +586,7 @@ document.querySelectorAll('#panelWebuntis .steps > .step').forEach(step => {
 window.goToStep = function goToStepExport(step) {
     return ns.goToStep(step);
 };
+window.acceptAllTeacherSuggestions = ns.acceptAllTeacherSuggestions;
 window.downloadCSV = ns.downloadCSV;
 window.copyPowerShell = ns.copyPowerShell;
 window.resetApp = ns.resetApp;

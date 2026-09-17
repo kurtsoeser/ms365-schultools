@@ -1,5 +1,6 @@
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
+const KM = window.ms365KursteamTeacherMatchLogic;
 
 /**
  * Schreibt neue/geänderte Kürzel→E-Mail-Zuordnungen zurück in die Schul-Einstellungen.
@@ -38,6 +39,8 @@ function upsertTenantTeachersFromMapping(mapping) {
     return changed;
 }
 
+ns.upsertTenantTeachersFromMapping = upsertTenantTeachersFromMapping;
+
 /**
  * Lädt ALLE Lehrer aus den Schul-Einstellungen (auch solche ohne E-Mail).
  * Gibt Array von { code, name, email } zurück.
@@ -54,25 +57,61 @@ function loadAllTenantTeachers() {
  * Gibt die Anzahl neu übernommener Einträge zurück.
  */
 function loadTenantTeacherEmailsIfEmpty() {
-    if (typeof window.ms365TenantSettingsGetTeacherEmailMap !== 'function') return 0;
-    const map = window.ms365TenantSettingsGetTeacherEmailMap();
-    if (!map || !Object.keys(map).length) return 0;
+    return ns.syncTeacherEmailsFromTenant(null, { quiet: true });
+}
+
+/**
+ * Synchronisiert fehlende Kürzel→E-Mail aus Stammdaten (exakt, Umlaut, Name-Präfix).
+ * @param {string[]|null} requiredCodes wenn gesetzt, nur diese Kürzel; sonst alle Stammdaten-Mails
+ * @param {{ quiet?: boolean }} [opts]
+ * @returns {number} Anzahl neu übernommener Einträge
+ */
+ns.syncTeacherEmailsFromTenant = function syncTeacherEmailsFromTenant(requiredCodes, opts) {
+    opts = opts || {};
     ns.teacherEmailMapping = ns.teacherEmailMapping || {};
+
+    const teachers = loadAllTenantTeachers();
     let added = 0;
-    Object.entries(map).forEach(([k, v]) => {
-        const kk = String(k || '').trim().toUpperCase();
-        if (!kk || !v) return;
-        if (!ns.teacherEmailMapping[kk]) {
-            ns.teacherEmailMapping[kk] = v;
-            added++;
+
+    if (Array.isArray(requiredCodes) && requiredCodes.length && KM && typeof KM.syncTeacherMappingFromTenant === 'function') {
+        const r = KM.syncTeacherMappingFromTenant(ns.teacherEmailMapping, requiredCodes, teachers);
+        ns.teacherEmailMapping = r.mapping;
+        added = r.added;
+    } else {
+        // Ohne Pflicht-Liste: alle Stammdaten-Mails mit Code übernehmen
+        if (typeof window.ms365TenantSettingsGetTeacherEmailMap === 'function') {
+            const map = window.ms365TenantSettingsGetTeacherEmailMap() || {};
+            Object.entries(map).forEach(([k, v]) => {
+                const kk = String(k || '')
+                    .trim()
+                    .toUpperCase();
+                const email = String(v || '')
+                    .trim()
+                    .toLowerCase();
+                if (!kk || !email || !email.includes('@')) return;
+                if (!ns.teacherEmailMapping[kk]) {
+                    ns.teacherEmailMapping[kk] = email;
+                    added++;
+                }
+            });
         }
-    });
+    }
+
     const el = document.getElementById('teacherCount');
     if (el) el.textContent = Object.keys(ns.teacherEmailMapping).length;
     const info = document.getElementById('teacherMappingInfo');
     if (info && Object.keys(ns.teacherEmailMapping).length) info.style.display = 'block';
+    if (added > 0 && typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
+    if (added > 0 && !opts.quiet && typeof ns.showToast === 'function') {
+        ns.showToast(added + ' Lehrer-E-Mail(s) aus Stammdaten zugeordnet.');
+    }
     return added;
-}
+};
+
+ns.resolveTeacherMatchFromTenant = function resolveTeacherMatchFromTenant(kuerzel) {
+    if (!KM || typeof KM.resolveTeacherMatch !== 'function') return null;
+    return KM.resolveTeacherMatch(kuerzel, loadAllTenantTeachers());
+};
 
 /**
  * Gibt alle Lehrer aus den Schul-Einstellungen zurück die in den importierten

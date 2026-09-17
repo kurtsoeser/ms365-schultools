@@ -661,7 +661,9 @@
         const s = load();
         const map = {};
         s.teachers.forEach((t) => {
-            if (t.code && t.email) map[t.code] = t.email;
+            const code = normCode(t && t.code);
+            const email = normStr(t && t.email).toLowerCase();
+            if (code && email && email.includes('@')) map[code] = email;
         });
         return map;
     }

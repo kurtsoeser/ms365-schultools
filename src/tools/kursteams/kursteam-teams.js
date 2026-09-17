@@ -17,6 +17,7 @@ import './kursteam-teams-actions.js';
 import './kursteam-ui.js';
 import './kursteam-storage.js';
 import './kursteam-import.js';
+import './kursteam-teacher-match-logic.js';
 import './kursteam-teacher-mapping.js';
 import './kursteam-members.js';
 import './kursteam-steps-export.js';
