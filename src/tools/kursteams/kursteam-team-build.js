@@ -7,6 +7,24 @@ window.ms365AssertModules({ KT }, 'kursteam-team-build.js');
  * @param {Array} rows ns.filteredData
  * @param {object} options
  */
+function resolveFachAndGruppeForTeam(row, options) {
+    let fach = row.fach;
+    let gruppe = row.gruppe || '';
+    const strip = !!options.stripSubjectTrailingDigits;
+    const normalizeFn =
+        typeof options.normalizeNumberedSubjectFields === 'function'
+            ? options.normalizeNumberedSubjectFields
+            : null;
+    if (strip && normalizeFn) {
+        const n = normalizeFn(fach, gruppe);
+        if (n && n.changed) {
+            fach = n.fach;
+            gruppe = n.gruppe;
+        }
+    }
+    return { fach, gruppe };
+}
+
 function buildTeamEntriesFromRows(rows, options) {
     const yearPrefix = options.yearPrefix;
     const emailDomain = options.emailDomain;
@@ -24,15 +42,19 @@ function buildTeamEntriesFromRows(rows, options) {
         let klasseForName = row.klasse;
         if (row.klasse && row.klasse.includes(',')) klasseForName = combineClassNames(row.klasse);
 
+        const resolved = resolveFachAndGruppeForTeam(row, options);
+        const fachForName = resolved.fach;
+        const gruppeForName = resolved.gruppe;
+
         const teamName = pattern
             ? KT.buildTeamNameFromPattern(pattern, {
                   yearPrefix,
                   klasse: klasseForName,
-                  fach: row.fach,
-                  gruppe: row.gruppe,
+                  fach: fachForName,
+                  gruppe: gruppeForName,
                   lehrer: row.lehrer
               })
-            : `${yearPrefix}${separator}${klasseForName}${separator}${row.fach}`;
+            : `${yearPrefix}${separator}${klasseForName}${separator}${fachForName}`;
         let klasseForGruppenmail = klasseForName;
         try {
             const adv = window.ms365AppDataV2;
@@ -46,8 +68,8 @@ function buildTeamEntriesFromRows(rows, options) {
         const mailCtx = {
             yearPrefix,
             klasse: klasseForGruppenmail,
-            fach: row.fach,
-            gruppe: row.gruppe,
+            fach: fachForName,
+            gruppe: gruppeForName,
             lehrer: row.lehrer
         };
         const mailHelpers = {
@@ -56,7 +78,7 @@ function buildTeamEntriesFromRows(rows, options) {
         };
         const gruppenmailRaw = pattern && typeof KT.buildGruppenmailFromPattern === 'function'
             ? KT.buildGruppenmailFromPattern(pattern, mailCtx, mailHelpers)
-            : buildGruppenmailBase(yearPrefix, klasseForGruppenmail, row.fach, row.gruppe);
+            : buildGruppenmailBase(yearPrefix, klasseForGruppenmail, fachForName, gruppeForName);
 
         const originalGruppenmail = gruppenmailRaw;
         let gruppenmail = gruppenmailRaw.replace(INVALID_CHARS_REPLACE, '');
@@ -82,8 +104,9 @@ function buildTeamEntriesFromRows(rows, options) {
             isValid,
             error: hasInvalidChars ? 'Ungültige Zeichen in Gruppenmail' : !isValid ? 'Unvollständige Daten' : null,
             originalClass: row.klasse,
-            fach: row.fach,
-            gruppe: row.gruppe,
+            fach: fachForName,
+            fachOriginal: row.fach,
+            gruppe: gruppeForName,
             mappingUsed,
             lehrerCode,
             mailNicknameAdjusted: false
@@ -92,5 +115,6 @@ function buildTeamEntriesFromRows(rows, options) {
 }
 
 window.ms365KursteamTeamBuild = {
-    buildTeamEntriesFromRows
+    buildTeamEntriesFromRows,
+    resolveFachAndGruppeForTeam
 };

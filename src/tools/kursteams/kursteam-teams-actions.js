@@ -3,8 +3,9 @@ const KF = window.ms365KursteamFilterLogic;
 const KTB = window.ms365KursteamTeamBuild;
 const KTU = window.ms365KursteamTeamsTableUI;
 const KData = window.ms365KursteamDataTablesUI;
+const KS = window.ms365KursteamSubjectFilterLogic;
 window.ms365AssertModules(
-    { KF, KTB, KTU, KData },
+    { KF, KTB, KTU, KData, KS },
     'kursteam-teams-actions.js'
 );
 
@@ -30,6 +31,8 @@ function mount(ns) {
     ns.applyFilters = function applyFilters() {
         const excludeSubjects = ns.parseExcludeSubjectsFromInput();
         const removeDuplicates = document.getElementById('removeDuplicates').checked;
+        const normalizeEl = document.getElementById('normalizeNumberedSubjects');
+        const normalizeNumberedSubjects = normalizeEl ? !!normalizeEl.checked : false;
 
         try {
             const btn = document.getElementById('btnApplyFilters');
@@ -38,12 +41,21 @@ function mount(ns) {
             /* ignore */
         }
 
-        const r = KF.applyRowFilters(ns.rawData, excludeSubjects, removeDuplicates);
+        const r = KF.applyRowFilters(ns.rawData, excludeSubjects, removeDuplicates, {
+            normalizeNumberedSubjects,
+            normalizeNumberedSubjectFields: KS.normalizeNumberedSubjectFields
+        });
         ns.filteredData = r.filtered;
         ns.invalidateTeams();
         document.getElementById('filteredRecords').textContent = r.filtered.length;
         document.getElementById('removedDuplicates').textContent = r.removedByFilter + r.removedByDuplicate;
         document.getElementById('filterStats').style.display = 'block';
+        const normStat = document.getElementById('normalizedSubjectsStat');
+        if (normStat) {
+            normStat.textContent = String(r.normalizedCount || 0);
+            const wrap = document.getElementById('normalizedSubjectsStatCard');
+            if (wrap) wrap.style.display = r.normalizedCount > 0 ? '' : 'none';
+        }
         ns.displayFilteredData();
         if (typeof ns.setContinueButton === 'function') {
             ns.setContinueButton('continueBtn2', r.filtered.length > 0, r.filtered.length > 0 ? '' : undefined);
@@ -166,6 +178,8 @@ function mount(ns) {
         ns.filteredData = [...ns.rawData];
         ns.setExcludeSubjectsInput(['ORD', 'DIR', 'KV']);
         document.getElementById('removeDuplicates').checked = true;
+        const norm = document.getElementById('normalizeNumberedSubjects');
+        if (norm) norm.checked = false;
         if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
         try {
             const btn = document.getElementById('btnApplyFilters');
@@ -191,6 +205,8 @@ function mount(ns) {
                 : '@';
         const separator = document.getElementById('teamSeparator') ? document.getElementById('teamSeparator').value : ' | ';
         const pattern = document.getElementById('teamNameBuilder') ? ns.getPatternFromBuilder() : null;
+        const stripEl = document.getElementById('stripSubjectTrailingDigits');
+        const stripSubjectTrailingDigits = stripEl ? !!stripEl.checked : false;
 
         ns.teamsData = KTB.buildTeamEntriesFromRows(ns.filteredData, {
             yearPrefix,
@@ -203,7 +219,9 @@ function mount(ns) {
             sanitizeGruppeForMail: ns.sanitizeGruppeForMail,
             INVALID_CHARS_REPLACE: ns.INVALID_CHARS_REPLACE,
             INVALID_CHARS_TEST: ns.INVALID_CHARS_TEST,
-            teacherEmailMapping: ns.teacherEmailMapping
+            teacherEmailMapping: ns.teacherEmailMapping,
+            stripSubjectTrailingDigits,
+            normalizeNumberedSubjectFields: KS.normalizeNumberedSubjectFields
         });
 
         const dupCount = ns.resolveDuplicateGruppenmails(ns.teamsData);

@@ -218,6 +218,33 @@
             margin: 10px 0 6px;
             max-height: none !important;
             overflow: visible !important;
+            align-items: flex-start;
+        }
+        .subject-filter-family {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--soft);
+            min-width: min(100%, 220px);
+        }
+        .subject-filter-family-head {
+            font-weight: 600;
+        }
+        .subject-filter-family-meta {
+            font-size: 0.82em;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .subject-filter-family-variants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .subject-filter-item--variant {
+            opacity: 0.95;
         }
 
         /* ── Duplikat-Toggle ── */
@@ -478,6 +505,7 @@
                         <h3><i class="bi bi-tags-fill"></i> F&auml;cher ausschlie&szlig;en</h3>
                         <p style="margin:0 0 12px;font-size:0.89em;color:var(--text-secondary);">
                             Klicken Sie ein Fach an, um es auszuschlie&szlig;en (Haken = ausgeschlossen).
+                            Nummerierte Varianten (z.&nbsp;B. <code>OMAI1</code>/<code>OMAI2</code>) erscheinen als Familie.
                             Standard: <strong>ORD, DIR, KV</strong> sind bereits markiert.
                         </p>
                         <div class="subject-filter-toolbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;">
@@ -486,6 +514,7 @@
                                 <input type="text" id="subjectFilterSearch" placeholder="Fach suchen&hellip;" autocomplete="off" style="width:100%;">
                             </div>
                             <button type="button" class="btn btn-small" id="subjectFilterResetDefault"><i class="bi bi-sliders"></i> Standard (ORD, DIR, KV)</button>
+                            <button type="button" class="btn btn-small" id="subjectFilterExcludeNumbered" title="Schlie&szlig;t nur Varianten mit Endziffer aus (OMAI1, ENWS2, &hellip;), Basis-F&auml;cher bleiben"><i class="bi bi-123"></i> Nummerierte ausschlie&szlig;en</button>
                             <button type="button" class="btn btn-small" id="subjectFilterExcludeNone">Alle einschlie&szlig;en</button>
                             <button type="button" class="btn btn-small" id="subjectFilterExcludeAll">Alle ausschlie&szlig;en</button>
                         </div>
@@ -500,6 +529,13 @@
                             <input type="checkbox" id="removeDuplicates" checked>
                             <label for="removeDuplicates">Doppelte Eintr&auml;ge automatisch entfernen</label>
                         </div>
+                        <div class="kt-toggle-row">
+                            <input type="checkbox" id="normalizeNumberedSubjects">
+                            <label for="normalizeNumberedSubjects">Fach-Endziffern normalisieren (<code>OMAI1</code>&nbsp;&rarr; Fach <code>OMAI</code>, Gruppe <code>1</code>)</label>
+                        </div>
+                        <p style="margin:0 0 12px;font-size:0.85em;color:var(--text-secondary);">
+                            WebUntis speichert Parallelgruppen oft im Fachk&uuml;rzel. Die Normalisierung &uuml;bernimmt die Ziffer in die Gruppe (nur wenn diese noch leer ist).
+                        </p>
                         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
                             <button class="btn btn-brand" id="btnApplyFilters" onclick="applyFilters()"><i class="bi bi-check2-circle"></i> Filter anwenden</button>
                             <button class="btn" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Zur&uuml;cksetzen</button>
@@ -515,6 +551,10 @@
                             <div class="stat-card" style="background:linear-gradient(135deg,#ffc107 0%,#ff9800 100%);">
                                 <div class="stat-label">Entfernte Duplikate</div>
                                 <div class="stat-value" id="removedDuplicates">0</div>
+                            </div>
+                            <div class="stat-card" id="normalizedSubjectsStatCard" style="display:none;background:linear-gradient(135deg,#11cdef 0%,#1171ef 100%);">
+                                <div class="stat-label">Normalisierte Fächer</div>
+                                <div class="stat-value" id="normalizedSubjectsStat">0</div>
                             </div>
                         </div>
                     </div>
@@ -780,6 +820,13 @@
                         <div class="filter-group">
                             <p style="color: var(--muted);margin:0 0 8px 0;">Für automatisch erzeugte Lehrer-E-Mails wird <code>Kürzel@&lt;Domain&gt;</code> verwendet – die Domain steht <strong>oben</strong>.</p>
                         </div>
+                        <div class="kt-toggle-row" style="margin-bottom:16px;">
+                            <input type="checkbox" id="stripSubjectTrailingDigits">
+                            <label for="stripSubjectTrailingDigits">Fach-Endziffern im Teamnamen weglassen (<code>OMAI1</code>&nbsp;&rarr; <code>OMAI</code>; Ziffer wird als Gruppe genutzt, falls leer)</label>
+                        </div>
+                        <p style="margin:-8px 0 14px;font-size:0.85em;color:var(--text-secondary);">
+                            Bei Parallelgruppen denselben Basisnamen: Baustein <strong>Gruppe</strong> oder <strong>Lehrer</strong> im Namensschema ergänzen, sonst kollidieren Namen/Mails.
+                        </p>
                         <div class="filter-group">
                             <label>Team‑Name zusammenbauen (Drag &amp; Drop):</label>
                             <div class="name-builder">

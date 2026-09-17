@@ -64,7 +64,8 @@ ns.normalizeImportedRowKeys = function normalizeImportedRowKeys(row) {
 ns.splitKlassenCell = function splitKlassenCell(raw) {
     const s = String(raw || '').trim();
     if (!s) return [];
-    return s.split(/[,;]+/).map(c => c.trim()).filter(Boolean);
+    // WebUntis kombiniert Klassen oft mit ~ (z. B. 1DK~1EK), zusätzlich Komma/Semikolon
+    return s.split(/[,;~]+/).map(c => c.trim()).filter(Boolean);
 };
 
 ns.applyWebuntisRows = function applyWebuntisRows(rows) {
@@ -201,7 +202,17 @@ ns.tryWebuntisLessonsMapping = function tryWebuntisLessonsMapping(row) {
     const fach = (row.subject || row.Subject || '').toString().trim();
     const lehrer = (row.teacher || row.Teacher || '').toString().trim();
     const klasseRaw = (row.klassen || row.Klassen || row.class || row.Class || '').toString().trim();
-    const gruppe = (row.gruppe || row.group || row.Group || '').toString().trim();
+    const gruppe = (
+        row.studentgroup ||
+        row.studentGroup ||
+        row.Studentgroup ||
+        row.gruppe ||
+        row.group ||
+        row.Group ||
+        ''
+    )
+        .toString()
+        .trim();
 
     if (!fach && !lehrer) return null;
     return { lehrer, fach, klasseRaw, gruppe };
@@ -241,6 +252,8 @@ ns.mapImportedLessonRow = function mapImportedLessonRow(rowRaw) {
     const gruppe = (
         row['Schülergruppe'] ||
         row.Schülergruppe ||
+        row.studentgroup ||
+        row.studentGroup ||
         row.Gruppe ||
         row.gruppe ||
         row.Group ||

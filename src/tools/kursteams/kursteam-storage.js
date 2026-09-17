@@ -70,6 +70,8 @@ ns.buildKursteamStateSnapshot = function buildKursteamStateSnapshot() {
         teamNamePattern: ns.teamNamePattern || null,
         excludeSubjects: safeInputValue('excludeSubjects', 'ORD,DIR,KV'),
         removeDuplicates: safeCheckbox('removeDuplicates', true),
+        normalizeNumberedSubjects: safeCheckbox('normalizeNumberedSubjects', false),
+        stripSubjectTrailingDigits: safeCheckbox('stripSubjectTrailingDigits', false),
         kursteamEntryMode: ns.kursteamEntryMode,
         studentRosterRaw: ns.studentRosterRaw || '',
         studentRosterPreferGroup: safeCheckbox('studentRosterPreferGroup', true),
@@ -144,6 +146,10 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
     if (ex) ex.value = state.excludeSubjects !== undefined ? state.excludeSubjects : 'ORD,DIR,KV';
     const rd = safeEl('removeDuplicates');
     if (rd) rd.checked = state.removeDuplicates !== false;
+    const normSubj = safeEl('normalizeNumberedSubjects');
+    if (normSubj) normSubj.checked = !!state.normalizeNumberedSubjects;
+    const stripDigits = safeEl('stripSubjectTrailingDigits');
+    if (stripDigits) stripDigits.checked = !!state.stripSubjectTrailingDigits;
     if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 
     const paste = safeEl('webuntisPasteInput');

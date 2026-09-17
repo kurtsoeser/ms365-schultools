@@ -22,11 +22,12 @@ function mount(ns) {
         const el = document.getElementById('teamNamePreview');
         if (!el) return;
         const yearPrefix = document.getElementById('yearPrefix')?.value || 'SJ26';
+        const strip = document.getElementById('stripSubjectTrailingDigits')?.checked;
         const preview = KT.buildTeamNameFromPattern(pattern, {
             yearPrefix,
             klasse: '1AK',
-            fach: 'D',
-            gruppe: 'G1',
+            fach: strip ? 'OMAI' : 'OMAI1',
+            gruppe: strip ? '1' : 'G1',
             lehrer: 'MEI'
         });
         el.textContent = 'Vorschau: ' + preview;
@@ -139,6 +140,14 @@ function mount(ns) {
 
         const yp = document.getElementById('yearPrefix');
         if (yp) yp.addEventListener('input', () => setPreviewFromPattern(getPatternFromBuilder()));
+
+        const strip = document.getElementById('stripSubjectTrailingDigits');
+        if (strip) {
+            strip.addEventListener('change', () => {
+                setPreviewFromPattern(getPatternFromBuilder());
+                if (typeof ns.invalidateTeams === 'function') ns.invalidateTeams();
+            });
+        }
     }
 
     ns.getPatternFromBuilder = getPatternFromBuilder;
