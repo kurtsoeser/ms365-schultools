@@ -257,6 +257,20 @@
         return v || fallback || 'vorname.nachname';
     }
 
+    /** @returns {'first'|'all'} */
+    function emailFirstNameModeFromSelect(id, fallback) {
+        const el = document.getElementById(id);
+        const raw = el ? normStr(el.value).toLowerCase() : '';
+        const api = window.ms365PersonEmailFromName;
+        if (api && typeof api.resolveFirstNameMode === 'function') {
+            return api.resolveFirstNameMode(raw || fallback || 'first');
+        }
+        if (raw === 'all' || raw === 'alle') return 'all';
+        if (raw === 'first' || raw === 'erster') return 'first';
+        const fb = String(fallback || 'first').toLowerCase();
+        return fb === 'all' ? 'all' : 'first';
+    }
+
     /**
      * Liest eine oder mehrere Spreadsheet-Dateien → [{ name, aoa }].
      * @param {File|FileList|File[]} files
@@ -306,11 +320,12 @@
      * WebUntis- oder SIS-Import aus einer/mehreren Dateien.
      * @returns {Promise<object>} SIS-ähnliches Result { source, records, lines, meta, ... }
      */
-    function importStudentSheetsResult(sheets, sourceHint, existingStudents, patternId) {
+    function importStudentSheetsResult(sheets, sourceHint, existingStudents, patternId, firstNameMode) {
         const wu = window.ms365WebuntisExportImport;
         const sis = window.ms365SchoolSisImport;
         const domain = schoolDomainForEmail();
         const pattern = patternId || 'vorname.nachname';
+        const givenMode = firstNameMode || 'first';
         const hint = String(sourceHint || 'auto').toLowerCase();
 
         let classified = null;
@@ -329,6 +344,7 @@
                     guardianAoa: classified.guardianAoa || [],
                     domain: domain,
                     pattern: pattern,
+                    firstNameMode: givenMode,
                     applyEmails: !!domain
                 });
                 if (sis && typeof sis.preferExistingStudentEmails === 'function') {
@@ -370,7 +386,11 @@
                 return !normStr(r.email);
             });
             if (needMail) {
-                const em = wu.applyPersonEmails(result.records, { domain: domain, pattern: pattern });
+                const em = wu.applyPersonEmails(result.records, {
+                    domain: domain,
+                    pattern: pattern,
+                    firstNameMode: givenMode
+                });
                 result.records = em.records;
                 result.lines = sis.recordsToSemicolonLines(result.records);
                 result.emailMeta = { generated: em.generated, conflicts: em.conflicts };
@@ -423,10 +443,15 @@
                     if (kind === 'teacher' && wu.importTeachersFromWebuntis) {
                         const domain = schoolDomainForEmail();
                         const pattern = emailPatternFromSelect('tenantTeachersEmailPattern', emailPatternFromSelect('swTeachersEmailPattern'));
+                        const firstNameMode = emailFirstNameModeFromSelect(
+                            'tenantTeachersEmailGivenNames',
+                            emailFirstNameModeFromSelect('swTeachersEmailGivenNames')
+                        );
                         const result = wu.importTeachersFromWebuntis({
                             teacherAoa: aoa,
                             domain: domain,
                             pattern: pattern,
+                            firstNameMode: firstNameMode,
                             applyEmails: !!domain
                         });
                         if (onLines) onLines(result.lines, result);
@@ -692,9 +717,22 @@
                 'tenantStudentsEmailPattern',
                 emailPatternFromSelect('swStudentsEmailPattern', emailPatternFromSelect('evImportEmailPattern'))
             );
+            const firstNameMode = emailFirstNameModeFromSelect(
+                'tenantStudentsEmailGivenNames',
+                emailFirstNameModeFromSelect(
+                    'swStudentsEmailGivenNames',
+                    emailFirstNameModeFromSelect('evImportEmailGivenNames')
+                )
+            );
             readFilesToAoaSheets(files)
                 .then(function (sheets) {
-                    const result = importStudentSheetsResult(sheets, sourceHint || 'auto', existingStudents || [], pattern);
+                    const result = importStudentSheetsResult(
+                        sheets,
+                        sourceHint || 'auto',
+                        existingStudents || [],
+                        pattern,
+                        firstNameMode
+                    );
                     if (onLines) onLines(result.lines, result);
                 })
                 .catch(function (err) {
@@ -863,6 +901,9 @@
         const taStudents = document.getElementById('tenantStudentsLines');
         const studentsTbody = document.getElementById('tenantStudentsTableBody');
         const studentsTable = studentsTbody ? studentsTbody.closest('table') : null;
+        const studentsClassFilter = document.getElementById('tenantStudentsClassFilter');
+        const studentsTextFilter = document.getElementById('tenantStudentsTextFilter');
+        const studentsFilterMeta = document.getElementById('tenantStudentsFilterMeta');
         const btnAddStudentRow = document.getElementById('tenantStudentsAddRow');
         const btnVerifyStudentsGraph = document.getElementById('tenantBtnVerifyStudentsGraph');
         const btnStudentsExportCsv = document.getElementById('tenantStudentsExportCsv');
@@ -3488,11 +3529,16 @@
             all[idx][field] = value;
             setStudentsTextareaFromRows(all);
 
-            if (field === 'klasse') {
-                td.innerHTML = '<code>' + escapeHtml(value || '') + '</code>';
-            } else {
-                td.textContent = value || '';
+            const filterActive =
+                (studentsClassFilter && studentsClassFilter.value) ||
+                (studentsTextFilter && String(studentsTextFilter.value || '').trim());
+            if (field === 'klasse' || filterActive) {
+                renderStudentsTableFromTextarea();
+                scheduleAutoSave();
+                return;
             }
+
+            td.textContent = value || '';
             td.title = 'Doppelklick zum Bearbeiten';
 
             if (field === 'email') {
@@ -3530,6 +3576,91 @@
             });
         }
 
+        function syncStudentsClassFilterOptions(rows) {
+            if (!studentsClassFilter) return;
+            const prev = String(studentsClassFilter.value || '');
+            const codes = new Set();
+            let hasEmpty = false;
+            (rows || []).forEach((row) => {
+                const k = normStr(row && row.klasse);
+                if (!k) hasEmpty = true;
+                else codes.add(k);
+            });
+            const sorted = Array.from(codes).sort((a, b) => a.localeCompare(b, 'de', { sensitivity: 'base' }));
+            const signature = (hasEmpty ? '1' : '0') + '|' + sorted.join('\n');
+            if (studentsClassFilter.dataset.sig !== signature) {
+                studentsClassFilter.dataset.sig = signature;
+                studentsClassFilter.replaceChildren();
+                const optAll = document.createElement('option');
+                optAll.value = '';
+                optAll.textContent = 'Alle Klassen';
+                studentsClassFilter.appendChild(optAll);
+                if (hasEmpty) {
+                    const optEmpty = document.createElement('option');
+                    optEmpty.value = '__empty__';
+                    optEmpty.textContent = 'Ohne Klasse';
+                    studentsClassFilter.appendChild(optEmpty);
+                }
+                sorted.forEach((code) => {
+                    const opt = document.createElement('option');
+                    opt.value = code;
+                    opt.textContent = code;
+                    studentsClassFilter.appendChild(opt);
+                });
+            }
+            let next = '';
+            if (prev === '__empty__' && hasEmpty) {
+                next = '__empty__';
+            } else if (prev) {
+                const match = sorted.find((c) => c.toUpperCase() === prev.toUpperCase());
+                if (match) next = match;
+            }
+            if (studentsClassFilter.value !== next) {
+                studentsClassFilter.value = next;
+            }
+        }
+
+        function studentRowMatchesFilters(row, classFilter, textQuery) {
+            const klasse = normStr(row && row.klasse);
+            if (classFilter === '__empty__') {
+                if (klasse) return false;
+            } else if (classFilter) {
+                if (klasse.toUpperCase() !== classFilter.toUpperCase()) return false;
+            }
+            const tokens = String(textQuery || '')
+                .trim()
+                .toLowerCase()
+                .split(/\s+/)
+                .filter(Boolean);
+            if (!tokens.length) return true;
+            const parts = [klasse, row && row.name, row && row.email];
+            const pairs = Array.isArray(row && row.parentPairs) ? row.parentPairs : [];
+            pairs.forEach((p) => {
+                if (!p) return;
+                parts.push(p.name, p.email);
+            });
+            const hay = parts
+                .map((v) => String(v || '').toLowerCase())
+                .join('\n');
+            return tokens.every((t) => hay.includes(t));
+        }
+
+        function updateStudentsFilterMeta(total, visible) {
+            if (!studentsFilterMeta) return;
+            const classActive = studentsClassFilter && studentsClassFilter.value;
+            const textActive = studentsTextFilter && String(studentsTextFilter.value || '').trim();
+            if (!total || (!classActive && !textActive)) {
+                studentsFilterMeta.hidden = true;
+                studentsFilterMeta.textContent = '';
+                return;
+            }
+            studentsFilterMeta.hidden = false;
+            studentsFilterMeta.textContent =
+                visible === total
+                    ? total + ' Einträge angezeigt'
+                    : visible + ' von ' + total + ' Einträgen angezeigt';
+        }
+
         function applyStudentsSort(key) {
             if (!key || (key !== 'klasse' && key !== 'name' && key !== 'email')) return;
             if (studentsSortState.key === key) {
@@ -3557,6 +3688,16 @@
             if (!studentsTbody) return;
             const rows = getStudentsFromTextarea();
             updateStudentsSortIndicators();
+            syncStudentsClassFilterOptions(rows);
+            const classFilter = studentsClassFilter ? String(studentsClassFilter.value || '') : '';
+            const textQuery = studentsTextFilter ? String(studentsTextFilter.value || '') : '';
+            const visible = [];
+            rows.forEach((row, idx) => {
+                if (studentRowMatchesFilters(row, classFilter, textQuery)) {
+                    visible.push({ row, idx });
+                }
+            });
+            updateStudentsFilterMeta(rows.length, visible.length);
 
             if (!rows.length) {
                 studentsTbody.replaceChildren();
@@ -3565,6 +3706,18 @@
                 td.colSpan = 7;
                 td.style.color = 'var(--muted)';
                 td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 einlesen oder „+ Zeile“.';
+                tr.appendChild(td);
+                studentsTbody.appendChild(tr);
+                return;
+            }
+
+            if (!visible.length) {
+                studentsTbody.replaceChildren();
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 7;
+                td.style.color = 'var(--muted)';
+                td.textContent = 'Keine Treffer für Klasse/Suche – Filter anpassen.';
                 tr.appendChild(td);
                 studentsTbody.appendChild(tr);
                 return;
@@ -3601,7 +3754,7 @@
             }
 
             const frag = document.createDocumentFragment();
-            rows.forEach((row, idx) => {
+            visible.forEach(({ row, idx }) => {
                 const tr = document.createElement('tr');
                 tr.dataset.studentIdx = String(idx);
 
@@ -4940,6 +5093,23 @@
                 }, 250);
             });
             taStudents.addEventListener('input', () => scheduleAutoSave());
+        }
+        if (studentsClassFilter && !studentsClassFilter.dataset.studentsFilterBound) {
+            studentsClassFilter.dataset.studentsFilterBound = '1';
+            studentsClassFilter.addEventListener('change', () => {
+                renderStudentsTableFromTextarea();
+            });
+        }
+        if (studentsTextFilter && !studentsTextFilter.dataset.studentsFilterBound) {
+            studentsTextFilter.dataset.studentsFilterBound = '1';
+            let studentsTextFilterTimer = null;
+            studentsTextFilter.addEventListener('input', () => {
+                if (studentsTextFilterTimer) clearTimeout(studentsTextFilterTimer);
+                studentsTextFilterTimer = setTimeout(() => {
+                    studentsTextFilterTimer = null;
+                    renderStudentsTableFromTextarea();
+                }, 150);
+            });
         }
         if (studentsTable && !studentsTable.dataset.studentsSortBound) {
             studentsTable.dataset.studentsSortBound = '1';

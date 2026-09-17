@@ -453,21 +453,41 @@ export function userEmailKeys(user) {
  * @param {object[]} users Graph-User
  * @param {Array<{code?: string, name?: string, email?: string}>} existingTeachers
  * @param {Map<string, {skuPartNumber?: string}>|null} [skuLookup]
- * @param {{ activeOnly?: boolean, guests?: boolean, families?: string[] }} [opts]
+ * @param {{ activeOnly?: boolean, guests?: boolean, families?: string[], matchByName?: boolean, updateName?: boolean, updateEmail?: boolean, selectDiffs?: boolean, updateCode?: string }} [opts]
  */
 export function buildTeacherImportPreview(users, existingTeachers, skuLookup, opts) {
     const opt = opts || {};
+    const mergeOpts = normalizeImportMergeOpts(opt);
     const families = Array.isArray(opt.families) ? opt.families : ['a1', 'a3', 'a5'];
     const familySet = new Set(families);
     const existing = Array.isArray(existingTeachers) ? existingTeachers : [];
     const emailToExisting = new Map();
+    const byName = new Map();
+    const byToken = new Map();
+    const nameMulti = new Set();
+    const tokenMulti = new Set();
     const usedCodes = new Set();
+
+    function addUnique(map, multi, key, row) {
+        if (!key) return;
+        if (map.has(key)) {
+            multi.add(key);
+            map.delete(key);
+            return;
+        }
+        if (multi.has(key)) return;
+        map.set(key, row);
+    }
+
     existing.forEach((t) => {
         const em = normEmail(t && t.email);
         if (em) emailToExisting.set(em, t);
         if (t && t.code) usedCodes.add(String(t.code).toLowerCase());
+        addUnique(byName, nameMulti, personMatchKey(t && t.name), t);
+        addUnique(byToken, tokenMulti, personTokenKey(t && t.name), t);
     });
 
+    const claimed = new Set();
     const rows = [];
     const seenUser = new Set();
     (Array.isArray(users) ? users : []).forEach((u) => {
@@ -482,10 +502,32 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
         const email = teacherEmailOfUser(u);
         const keys = userEmailKeys(u);
         let existingRow = null;
+        let matchKind = '';
         for (let i = 0; i < keys.length; i++) {
             if (emailToExisting.has(keys[i])) {
-                existingRow = emailToExisting.get(keys[i]);
-                break;
+                const cand = emailToExisting.get(keys[i]);
+                const claimKey = 'e:' + keys[i];
+                if (!claimed.has(claimKey)) {
+                    existingRow = cand;
+                    matchKind = 'email';
+                    claimed.add(claimKey);
+                    break;
+                }
+            }
+        }
+        const graphName = normStr(u.displayName);
+        if (!existingRow && mergeOpts.matchByName) {
+            const nk = personMatchKey(graphName);
+            const tk = personTokenKey(graphName);
+            let cand = nk && byName.has(nk) ? byName.get(nk) : null;
+            if (!cand && tk && byToken.has(tk)) cand = byToken.get(tk);
+            if (cand) {
+                const claimKey = 'n:' + (nk || tk);
+                if (!claimed.has(claimKey)) {
+                    existingRow = cand;
+                    matchKind = 'name';
+                    claimed.add(claimKey);
+                }
             }
         }
         let code;
@@ -495,9 +537,19 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
             code = suggestTeacherCode(u.displayName, u.givenName, u.surname, usedCodes);
             usedCodes.add(String(code).toLowerCase());
         }
+        const localName = normStr(existingRow && existingRow.name);
+        const localEmail = normEmail(existingRow && existingRow.email);
+        const nameDiffers = !!existingRow && !!localName && personMatchKey(localName) !== personMatchKey(graphName);
+        const emailDiffers = !!existingRow && !!localEmail && !!email && localEmail !== email;
+        const hasDiffs = nameDiffers || emailDiffers;
+        let selected = false;
+        if (!existingRow) selected = !!email;
+        else if (matchKind === 'name') selected = !!mergeOpts.selectDiffs || (emailDiffers && mergeOpts.updateEmail);
+        else if (mergeOpts.selectDiffs && hasDiffs) selected = true;
+
         rows.push({
             graphUserId: String(u.id),
-            displayName: normStr(u.displayName),
+            displayName: graphName,
             givenName: normStr(u.givenName),
             surname: normStr(u.surname),
             userPrincipalName: normStr(u.userPrincipalName),
@@ -505,11 +557,18 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
             userType: String(u.userType || 'Member'),
             email,
             code,
-            name: normStr(u.displayName),
+            name: graphName,
             licenseLabel: sum.primaryLabel,
             facultyFamilies: sum.facultyFamilies.slice(),
             alreadyInList: !!existingRow,
-            selected: !existingRow && !!email
+            matchKind: matchKind || '',
+            localName: localName,
+            localEmail: localEmail,
+            localCode: normStr(existingRow && existingRow.code),
+            nameDiffers: nameDiffers,
+            emailDiffers: emailDiffers,
+            hasDiffs: hasDiffs,
+            selected: selected
         });
     });
     rows.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' }));
@@ -518,18 +577,23 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
 
 /**
  * @param {Array<{code?: string, name?: string, email?: string}>} existingTeachers
- * @param {Array<{selected?: boolean, code?: string, name?: string, email?: string, graphUserId?: string, displayName?: string, userPrincipalName?: string}>} previewRows
+ * @param {Array<object>} previewRows
+ * @param {object} [opts]
  */
-export function applyTeacherImportSelection(existingTeachers, previewRows) {
+export function applyTeacherImportSelection(existingTeachers, previewRows, opts) {
+    const mergeOpts = normalizeImportMergeOpts(opts);
     const out = (Array.isArray(existingTeachers) ? existingTeachers : []).map((t) => ({
         code: normCode(t.code),
         name: normStr(t.name),
         email: normEmail(t.email)
     }));
     const emailIndex = new Map();
+    const nameIndex = new Map();
     const usedCodes = new Set();
     out.forEach((t, i) => {
         if (t.email) emailIndex.set(t.email, i);
+        const nk = personMatchKey(t.name);
+        if (nk && !nameIndex.has(nk)) nameIndex.set(nk, i);
         if (t.code) usedCodes.add(String(t.code).toLowerCase());
     });
     const added = [];
@@ -559,10 +623,29 @@ export function applyTeacherImportSelection(existingTeachers, previewRows) {
                 directoryMatches[upn] = directoryMatches[email];
             }
         }
-        if (emailIndex.has(email)) {
-            const i = emailIndex.get(email);
-            if (name && name !== out[i].name) {
-                out[i] = { code: out[i].code, name, email };
+
+        let i = -1;
+        if (emailIndex.has(email)) i = emailIndex.get(email);
+        else if (row.localEmail && emailIndex.has(normEmail(row.localEmail))) i = emailIndex.get(normEmail(row.localEmail));
+        else if (row.matchKind === 'name') {
+            const nk = personMatchKey(row.localName || name);
+            if (nk && nameIndex.has(nk)) i = nameIndex.get(nk);
+        }
+
+        if (i >= 0) {
+            const prev = out[i];
+            const nextName = mergeOpts.updateName && name ? name : prev.name || name;
+            let nextEmail = prev.email;
+            if (mergeOpts.updateEmail && email && (row.matchKind === 'name' || row.emailDiffers || !prev.email)) {
+                nextEmail = email;
+            } else if (!nextEmail) nextEmail = email;
+            let nextCode = prev.code;
+            if (mergeOpts.updateCode === 'fill' && !nextCode && row.code) nextCode = normCode(row.code);
+            const changed = nextName !== prev.name || nextEmail !== prev.email || nextCode !== prev.code;
+            if (changed) {
+                if (prev.email && prev.email !== nextEmail) emailIndex.delete(prev.email);
+                out[i] = { code: nextCode, name: nextName, email: nextEmail };
+                emailIndex.set(nextEmail, i);
                 updated.push(out[i]);
             } else {
                 skipped.push(row);
@@ -624,76 +707,304 @@ function directoryMatchPayload(row, iso) {
     return out;
 }
 
+/** Name für Abgleich: Umlaute falten, alles Kleinbuchstaben, nur alphanumerisch. */
+export function personMatchKey(name) {
+    return String(name || '')
+        .replace(/ä/gi, 'ae')
+        .replace(/ö/gi, 'oe')
+        .replace(/ü/gi, 'ue')
+        .replace(/ß/g, 'ss')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+/** Token-sortierter Name (Reihenfolge egal: „Anna Bindlehner“ ≈ „Bindlehner Anna“). */
+export function personTokenKey(name) {
+    return String(name || '')
+        .replace(/ä/gi, 'ae')
+        .replace(/ö/gi, 'oe')
+        .replace(/ü/gi, 'ue')
+        .replace(/ß/g, 'ss')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .sort()
+        .join('|');
+}
+
+export function klasseMatchKey(klasse) {
+    return String(klasse || '')
+        .replace(/ä/gi, 'ae')
+        .replace(/ö/gi, 'oe')
+        .replace(/ü/gi, 'ue')
+        .replace(/ß/g, 'ss')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '');
+}
+
+/**
+ * @param {object} [opts]
+ * @returns {{ matchByNameClass: boolean, matchByName: boolean, updateName: boolean, updateKlasse: 'fill'|'overwrite'|'keep', updateEmail: boolean, selectDiffs: boolean, updateCode: 'keep'|'fill' }}
+ */
+export function normalizeImportMergeOpts(opts) {
+    const o = opts && typeof opts === 'object' ? opts : {};
+    let updateKlasse = 'fill';
+    if (o.updateKlasse === 'overwrite' || o.overwriteKlasse === true) updateKlasse = 'overwrite';
+    else if (o.updateKlasse === 'keep' || o.updateKlasse === false) updateKlasse = 'keep';
+    else if (o.updateKlasse === 'fill') updateKlasse = 'fill';
+    let updateCode = 'keep';
+    if (o.updateCode === 'fill' || o.fillCode === true) updateCode = 'fill';
+    return {
+        matchByNameClass: o.matchByNameClass !== false,
+        matchByName: o.matchByName !== false,
+        updateName: o.updateName !== false,
+        updateKlasse: updateKlasse,
+        updateEmail: o.updateEmail !== false,
+        selectDiffs: !!o.selectDiffs,
+        updateCode: updateCode
+    };
+}
+
+function cloneStudentRow(t) {
+    const pairs = Array.isArray(t && t.parentPairs)
+        ? t.parentPairs.map(function (p) {
+              return {
+                  name: normStr(p && p.name),
+                  email: normEmail(p && p.email),
+                  phone: normStr(p && p.phone)
+              };
+          })
+        : [];
+    return {
+        klasse: normStr(t && t.klasse),
+        name: normStr(t && t.name),
+        email: normEmail(t && t.email),
+        externalId: normStr(t && t.externalId),
+        parentPairs: pairs,
+        untisInternalId: normStr(t && t.untisInternalId),
+        foreName: normStr(t && t.foreName),
+        longName: normStr(t && t.longName),
+        givenName: normStr(t && t.givenName),
+        surname: normStr(t && t.surname)
+    };
+}
+
+function buildLocalStudentIndexes(existing) {
+    const byEmail = new Map();
+    const byNameClass = new Map();
+    const byName = new Map();
+    const byToken = new Map();
+    const nameClassMulti = new Set();
+    const nameMulti = new Set();
+    const tokenMulti = new Set();
+
+    function addMap(map, multi, key, idx) {
+        if (!key) return;
+        if (map.has(key)) {
+            multi.add(key);
+            map.delete(key);
+            return;
+        }
+        if (multi.has(key)) return;
+        map.set(key, idx);
+    }
+
+    (Array.isArray(existing) ? existing : []).forEach(function (t, idx) {
+        const em = normEmail(t && t.email);
+        if (em) byEmail.set(em, idx);
+        const nk = personMatchKey(t && t.name);
+        const kk = klasseMatchKey(t && t.klasse);
+        const tk = personTokenKey(t && t.name);
+        if (nk && kk) addMap(byNameClass, nameClassMulti, nk + '|' + kk, idx);
+        if (nk) addMap(byName, nameMulti, nk, idx);
+        if (tk) addMap(byToken, tokenMulti, tk, idx);
+    });
+
+    return { byEmail: byEmail, byNameClass: byNameClass, byName: byName, byToken: byToken };
+}
+
+function resolveLocalStudentMatch(u, email, guessedKlasse, indexes, claimed, mergeOpts) {
+    const keys = userEmailKeys(u);
+    for (let i = 0; i < keys.length; i++) {
+        if (indexes.byEmail.has(keys[i])) {
+            const idx = indexes.byEmail.get(keys[i]);
+            if (!claimed.has(idx)) {
+                return { idx: idx, matchKind: 'email' };
+            }
+        }
+    }
+    const display = normStr(u && u.displayName);
+    const nk = personMatchKey(display);
+    const kk = klasseMatchKey(guessedKlasse);
+    if (mergeOpts.matchByNameClass && nk && kk) {
+        const key = nk + '|' + kk;
+        if (indexes.byNameClass.has(key)) {
+            const idx = indexes.byNameClass.get(key);
+            if (!claimed.has(idx)) {
+                return { idx: idx, matchKind: 'nameClass' };
+            }
+        }
+    }
+    if (mergeOpts.matchByName && nk) {
+        if (indexes.byName.has(nk)) {
+            const idx = indexes.byName.get(nk);
+            if (!claimed.has(idx)) {
+                return { idx: idx, matchKind: 'name' };
+            }
+        }
+        const tk = personTokenKey(display);
+        if (tk && indexes.byToken.has(tk)) {
+            const idx = indexes.byToken.get(tk);
+            if (!claimed.has(idx)) {
+                return { idx: idx, matchKind: 'name' };
+            }
+        }
+    }
+    return { idx: -1, matchKind: '' };
+}
+
+function studentDiffFlags(local, graphName, graphEmail, graphKlasse) {
+    const localName = normStr(local && local.name);
+    const localEmail = normEmail(local && local.email);
+    const localKlasse = normStr(local && local.klasse);
+    const nameDiffers =
+        !!localName &&
+        !!graphName &&
+        personMatchKey(localName) !== personMatchKey(graphName);
+    const emailDiffers = !!localEmail && !!graphEmail && localEmail !== graphEmail;
+    const klasseDiffers =
+        !!localKlasse &&
+        !!graphKlasse &&
+        klasseMatchKey(localKlasse) !== klasseMatchKey(graphKlasse);
+    return {
+        localName: localName,
+        localEmail: localEmail,
+        localKlasse: localKlasse,
+        nameDiffers: nameDiffers,
+        emailDiffers: emailDiffers,
+        klasseDiffers: klasseDiffers,
+        hasDiffs: nameDiffers || emailDiffers || klasseDiffers || (!localKlasse && !!graphKlasse)
+    };
+}
+
 /**
  * @param {object[]} users Graph-User
  * @param {Array<{klasse?: string, name?: string, email?: string}>} existingStudents
  * @param {Map<string, {skuPartNumber?: string}>|null} [skuLookup]
- * @param {{ activeOnly?: boolean, guests?: boolean, families?: string[] }} [opts]
+ * @param {{ activeOnly?: boolean, guests?: boolean, families?: string[], matchByNameClass?: boolean, matchByName?: boolean, updateName?: boolean, updateKlasse?: string, updateEmail?: boolean, selectDiffs?: boolean, overwriteKlasse?: boolean }} [opts]
  */
 export function buildStudentImportPreview(users, existingStudents, skuLookup, opts) {
     const opt = opts || {};
+    const mergeOpts = normalizeImportMergeOpts(opt);
     const families = Array.isArray(opt.families) ? opt.families : ['a1', 'a3', 'a5'];
     const familySet = new Set(families);
     const existing = Array.isArray(existingStudents) ? existingStudents : [];
-    const emailToExisting = new Map();
-    existing.forEach((t) => {
-        const em = normEmail(t && t.email);
-        if (em) emailToExisting.set(em, t);
-    });
+    const indexes = buildLocalStudentIndexes(existing);
+    const claimed = new Set();
 
     const rows = [];
     const seenUser = new Set();
-    (Array.isArray(users) ? users : []).forEach((u) => {
+    (Array.isArray(users) ? users : []).forEach(function (u) {
         if (!u || !u.id || seenUser.has(u.id)) return;
         if (opt.activeOnly && u.accountEnabled === false) return;
         if (opt.guests === false && String(u.userType || '').toLowerCase() === 'guest') return;
         const sum = summarizeUserLicenses(u, skuLookup);
         if (!sum.hasStudentUserPlan) return;
-        const hitFamily = (sum.studentFamilies || []).some((f) => familySet.has(f));
+        const hitFamily = (sum.studentFamilies || []).some(function (f) {
+            return familySet.has(f);
+        });
         if (!hitFamily) return;
         seenUser.add(u.id);
         const email = teacherEmailOfUser(u);
-        const keys = userEmailKeys(u);
-        let existingRow = null;
-        for (let i = 0; i < keys.length; i++) {
-            if (emailToExisting.has(keys[i])) {
-                existingRow = emailToExisting.get(keys[i]);
-                break;
-            }
-        }
         const guessed = suggestKlasseFromUser(u);
-        const klasse = existingRow && existingRow.klasse ? existingRow.klasse : guessed;
+        const match = resolveLocalStudentMatch(u, email, guessed, indexes, claimed, mergeOpts);
+        let existingRow = null;
+        let matchKind = '';
+        if (match.idx >= 0) {
+            claimed.add(match.idx);
+            existingRow = existing[match.idx];
+            matchKind = match.matchKind;
+        }
+        const graphName = normStr(u.displayName);
+        const diffs = existingRow
+            ? studentDiffFlags(existingRow, graphName, email, guessed)
+            : {
+                  localName: '',
+                  localEmail: '',
+                  localKlasse: '',
+                  nameDiffers: false,
+                  emailDiffers: false,
+                  klasseDiffers: false,
+                  hasDiffs: false
+              };
+        const klasse =
+            existingRow && existingRow.klasse && mergeOpts.updateKlasse !== 'overwrite'
+                ? existingRow.klasse
+                : guessed || (existingRow && existingRow.klasse) || '';
+        let selected = false;
+        if (!existingRow) {
+            selected = !!email;
+        } else if (matchKind === 'name') {
+            selected = !!mergeOpts.selectDiffs;
+        } else if (mergeOpts.selectDiffs && diffs.hasDiffs) {
+            selected = true;
+        } else if (matchKind === 'nameClass' && diffs.emailDiffers && mergeOpts.updateEmail) {
+            selected = true;
+        } else if (diffs.nameDiffers && mergeOpts.updateName) {
+            selected = !!mergeOpts.selectDiffs;
+        } else if (mergeOpts.updateKlasse === 'fill' && !normStr(diffs.localKlasse) && !!guessed) {
+            selected = true;
+        } else if (mergeOpts.updateKlasse === 'overwrite' && diffs.klasseDiffers) {
+            selected = !!mergeOpts.selectDiffs;
+        }
+
         rows.push({
             graphUserId: String(u.id),
-            displayName: normStr(u.displayName),
+            displayName: graphName,
             userPrincipalName: normStr(u.userPrincipalName),
             accountEnabled: u.accountEnabled !== false,
             userType: String(u.userType || 'Member'),
-            email,
-            klasse,
-            name: normStr(u.displayName),
+            email: email,
+            klasse: klasse,
+            name: graphName,
             licenseLabel: sum.primaryLabel,
             studentFamilies: (sum.studentFamilies || []).slice(),
             alreadyInList: !!existingRow,
-            selected: !existingRow && !!email
+            matchKind: matchKind || '',
+            matchedLocalIndex: match.idx,
+            localName: diffs.localName,
+            localEmail: diffs.localEmail,
+            localKlasse: diffs.localKlasse,
+            nameDiffers: diffs.nameDiffers,
+            emailDiffers: diffs.emailDiffers,
+            klasseDiffers: diffs.klasseDiffers,
+            hasDiffs: diffs.hasDiffs,
+            guessedKlasse: guessed,
+            selected: selected
         });
     });
-    rows.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' }));
+    rows.sort(function (a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' });
+    });
     return rows;
 }
 
 /**
- * @param {Array<{klasse?: string, name?: string, email?: string}>} existingStudents
- * @param {Array<{selected?: boolean, klasse?: string, name?: string, email?: string, graphUserId?: string, displayName?: string, userPrincipalName?: string}>} previewRows
+ * @param {Array<object>} existingStudents
+ * @param {Array<object>} previewRows
+ * @param {object} [opts] Merge-Optionen (wie normalizeImportMergeOpts)
  */
-export function applyStudentImportSelection(existingStudents, previewRows) {
-    const out = (Array.isArray(existingStudents) ? existingStudents : []).map((t) => ({
-        klasse: normStr(t.klasse),
-        name: normStr(t.name),
-        email: normEmail(t.email)
-    }));
+export function applyStudentImportSelection(existingStudents, previewRows, opts) {
+    const mergeOpts = normalizeImportMergeOpts(opts);
+    const out = (Array.isArray(existingStudents) ? existingStudents : []).map(cloneStudentRow);
     const emailIndex = new Map();
-    out.forEach((t, i) => {
+    out.forEach(function (t, i) {
         if (t.email) emailIndex.set(t.email, i);
     });
     const added = [];
@@ -702,7 +1013,7 @@ export function applyStudentImportSelection(existingStudents, previewRows) {
     const directoryMatches = {};
     const iso = new Date().toISOString();
 
-    (Array.isArray(previewRows) ? previewRows : []).forEach((row) => {
+    (Array.isArray(previewRows) ? previewRows : []).forEach(function (row) {
         if (!row || !row.selected) return;
         const email = normEmail(row.email);
         const name = normStr(row.name || row.displayName);
@@ -712,26 +1023,59 @@ export function applyStudentImportSelection(existingStudents, previewRows) {
             return;
         }
         Object.assign(directoryMatches, directoryMatchPayload(row, iso));
-        if (emailIndex.has(email)) {
-            const i = emailIndex.get(email);
+        if (row.localEmail) {
+            const localEm = normEmail(row.localEmail);
+            if (localEm && localEm !== email && directoryMatches[email]) {
+                directoryMatches[localEm] = directoryMatches[email];
+            }
+        }
+
+        let i = -1;
+        if (typeof row.matchedLocalIndex === 'number' && row.matchedLocalIndex >= 0 && out[row.matchedLocalIndex]) {
+            i = row.matchedLocalIndex;
+        } else if (emailIndex.has(email)) {
+            i = emailIndex.get(email);
+        } else if (row.localEmail && emailIndex.has(normEmail(row.localEmail))) {
+            i = emailIndex.get(normEmail(row.localEmail));
+        }
+
+        if (i >= 0) {
             const prev = out[i];
-            const nextKlasse = klasse && !prev.klasse ? klasse : prev.klasse;
-            const nextName = name && name !== prev.name ? name : prev.name;
-            if (nextKlasse !== prev.klasse || nextName !== prev.name) {
-                out[i] = { klasse: nextKlasse, name: nextName, email };
+            const prevEmail = prev.email;
+            let nextKlasse = prev.klasse;
+            if (mergeOpts.updateKlasse === 'overwrite' && klasse) nextKlasse = klasse;
+            else if (mergeOpts.updateKlasse === 'fill' && klasse && !prev.klasse) nextKlasse = klasse;
+            const nextName = mergeOpts.updateName && name ? name : prev.name || name;
+            let nextEmail = prev.email;
+            if (mergeOpts.updateEmail && email && (row.matchKind === 'nameClass' || row.matchKind === 'name' || row.emailDiffers)) {
+                nextEmail = email;
+            } else if (!nextEmail) {
+                nextEmail = email;
+            }
+            const changed =
+                nextKlasse !== prev.klasse || nextName !== prev.name || nextEmail !== prev.email;
+            if (changed) {
+                if (prevEmail && prevEmail !== nextEmail) emailIndex.delete(prevEmail);
+                out[i] = Object.assign({}, prev, {
+                    klasse: nextKlasse,
+                    name: nextName,
+                    email: nextEmail
+                });
+                emailIndex.set(nextEmail, i);
                 updated.push(out[i]);
             } else {
                 skipped.push(row);
             }
             return;
         }
-        const next = { klasse, name, email };
+
+        const next = cloneStudentRow({ klasse: klasse, name: name, email: email });
         emailIndex.set(email, out.length);
         out.push(next);
         added.push(next);
     });
 
-    return { students: out, added, updated, skipped, directoryMatches };
+    return { students: out, added: added, updated: updated, skipped: skipped, directoryMatches: directoryMatches };
 }
 
 export function countFacultyFamilies(previewRows) {
@@ -841,6 +1185,10 @@ const api = {
     suggestKlasseFromUser,
     teacherEmailOfUser,
     userEmailKeys,
+    personMatchKey,
+    personTokenKey,
+    klasseMatchKey,
+    normalizeImportMergeOpts,
     buildTeacherImportPreview,
     applyTeacherImportSelection,
     buildStudentImportPreview,

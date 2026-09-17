@@ -9,6 +9,7 @@ import {
     buildStudentImportPreview,
     buildTeacherImportPreview,
     facultyUserPlanSkuIds,
+    normalizeImportMergeOpts,
     studentUserPlanSkuIds
 } from './graph-licenses.js';
 import { escapeHtml, normStr } from './utils/strings.js';
@@ -21,7 +22,16 @@ export function rowMatchesTextFilter(row, query, colKey) {
         .split(/\s+/)
         .filter(Boolean);
     if (!tokens.length) return true;
-    const hay = [row && row.name, row && row.email, row && colKey ? row[colKey] : '', row && row.licenseLabel]
+    const hay = [
+        row && row.name,
+        row && row.email,
+        row && colKey ? row[colKey] : '',
+        row && row.licenseLabel,
+        row && row.localName,
+        row && row.localEmail,
+        row && row.localKlasse,
+        row && row.matchKind
+    ]
         .map(function (v) {
             return String(v || '').toLowerCase();
         })
@@ -45,6 +55,46 @@ function graphApi() {
     const x = window.ms365GraphUnifiedGroups;
     if (!x) throw new Error('graph-unified-groups.js fehlt.');
     return x;
+}
+
+function checked(id, fallback) {
+    const box = id ? el(id) : null;
+    if (!box) return fallback !== false;
+    return !!box.checked;
+}
+
+function matchStatusHtml(row, isStudent) {
+    if (!row.alreadyInList) {
+        return '<span class="sw-lic-status sw-lic-status--new">neu</span>';
+    }
+    const kind = String(row.matchKind || 'email');
+    let label = 'in der Liste';
+    let cls = 'sw-lic-status--exists';
+    if (kind === 'nameClass') {
+        label = 'Name+Klasse';
+        cls = 'sw-lic-status--match';
+    } else if (kind === 'name') {
+        label = 'Name? prüfen';
+        cls = 'sw-lic-status--review';
+    } else if (kind === 'email') {
+        label = 'E-Mail-Treffer';
+        cls = 'sw-lic-status--exists';
+    }
+    const tips = [];
+    if (row.nameDiffers) tips.push('Name ≠');
+    if (row.emailDiffers) tips.push('E-Mail ≠');
+    if (isStudent && row.klasseDiffers) tips.push('Klasse ≠');
+    if (isStudent && !row.localKlasse && row.guessedKlasse) tips.push('Klasse leer');
+    if (row.localEmail && row.emailDiffers) tips.push('lokal: ' + row.localEmail);
+    else if (row.localName && row.nameDiffers) tips.push('lokal: ' + row.localName);
+    const tipHtml = tips.length
+        ? '<span class="sw-lic-diff-hints" title="' +
+          escapeHtml(tips.join(' · ')) +
+          '">' +
+          escapeHtml(tips.slice(0, 3).join(' · ')) +
+          '</span>'
+        : '';
+    return '<span class="sw-lic-status ' + cls + '">' + escapeHtml(label) + '</span>' + tipHtml;
 }
 
 /**
@@ -75,7 +125,8 @@ function kindSpec(kind) {
             noneMsg: 'Keine Konten mit A1/A3/A5 für Schüler:innen gefunden.',
             colKey: 'klasse',
             colLabel: 'Klasse',
-            emptyHint: 'Keine Treffer für die gewählten Lizenzen (oder alle Konten sind inaktiv).'
+            emptyHint: 'Keine Treffer für die gewählten Lizenzen (oder alle Konten sind inaktiv).',
+            isStudent: true
         };
     }
     return {
@@ -90,7 +141,8 @@ function kindSpec(kind) {
         noneMsg: 'Keine Konten mit A1/A3/A5 für Lehrpersonal gefunden.',
         colKey: 'code',
         colLabel: 'Kürzel',
-        emptyHint: 'Keine Treffer für die gewählten Lizenzen (oder alle Konten sind inaktiv).'
+        emptyHint: 'Keine Treffer für die gewählten Lizenzen (oder alle Konten sind inaktiv).',
+        isStudent: false
     };
 }
 
@@ -101,7 +153,8 @@ function bindLicenseTenantImport(cfg) {
         users: [],
         skuLookup: null,
         preview: [],
-        families: { a1: true, a3: true, a5: true }
+        families: { a1: true, a3: true, a5: true },
+        viewFilter: 'all'
     };
 
     function selectedFamilies() {
@@ -122,18 +175,41 @@ function bindLicenseTenantImport(cfg) {
         return inp ? inp.value : '';
     }
 
+    function mergeOptsFromUi() {
+        const overwrite = checked(cfg.overwriteKlasseId, false);
+        return normalizeImportMergeOpts({
+            matchByNameClass: checked(cfg.matchNameClassId, true),
+            matchByName: checked(cfg.matchNameId, true),
+            updateName: checked(cfg.updateNameId, true),
+            updateKlasse: overwrite ? 'overwrite' : checked(cfg.updateKlasseId, true) ? 'fill' : 'keep',
+            updateEmail: checked(cfg.updateEmailId, true),
+            selectDiffs: checked(cfg.selectDiffsId, false),
+            updateCode: 'keep'
+        });
+    }
+
+    function rowMatchesViewFilter(row) {
+        const f = state.viewFilter || 'all';
+        if (f === 'new') return !row.alreadyInList;
+        if (f === 'matched') return !!row.alreadyInList;
+        if (f === 'review') return row.matchKind === 'name' || (!!row.alreadyInList && !!row.hasDiffs);
+        if (f === 'diffs') return !!row.hasDiffs || row.matchKind === 'nameClass' || row.matchKind === 'name';
+        return true;
+    }
+
     function visibleRows() {
         return state.preview.filter(function (row) {
-            return rowMatchesTextFilter(row, filterQuery(), spec.colKey);
+            return rowMatchesViewFilter(row) && rowMatchesTextFilter(row, filterQuery(), spec.colKey);
         });
     }
 
     function rebuildPreview() {
-        state.preview = spec.buildPreview(state.users, spec.getExisting(cfg) || [], state.skuLookup, {
+        const merge = mergeOptsFromUi();
+        state.preview = spec.buildPreview(state.users, spec.getExisting(cfg) || [], state.skuLookup, Object.assign({
             activeOnly: activeOnly(),
             guests: false,
             families: selectedFamilies()
-        });
+        }, merge));
         renderPanel();
     }
 
@@ -199,6 +275,9 @@ function bindLicenseTenantImport(cfg) {
             return !r.alreadyInList;
         }).length;
         const vorh = rows.length - neu;
+        const review = rows.filter(function (r) {
+            return r.matchKind === 'name' || (r.alreadyInList && r.hasDiffs);
+        }).length;
         const selected = rows.filter(function (r) {
             return r.selected;
         }).length;
@@ -214,10 +293,12 @@ function bindLicenseTenantImport(cfg) {
                     neu +
                     ' neu · ' +
                     vorh +
-                    ' bereits in der Liste · ' +
+                    ' zugeordnet · ' +
+                    review +
+                    ' prüfen · ' +
                     selected +
                     ' ausgewählt';
-                if (String(q).trim()) {
+                if (String(q).trim() || state.viewFilter !== 'all') {
                     text += ' · ' + visible.length + ' angezeigt';
                 }
                 status.textContent = text;
@@ -232,7 +313,7 @@ function bindLicenseTenantImport(cfg) {
             td.style.color = '#6c757d';
             if (!state.users.length) td.textContent = 'Noch nicht eingelesen.';
             else if (!rows.length) td.textContent = spec.emptyHint;
-            else td.textContent = 'Keine Treffer für den Textfilter.';
+            else td.textContent = 'Keine Treffer für Filter/Suche.';
             tr.appendChild(td);
             tbody.appendChild(tr);
             if (applyBtn) applyBtn.disabled = selected === 0;
@@ -242,12 +323,15 @@ function bindLicenseTenantImport(cfg) {
         visible.forEach(function (row) {
             const tr = document.createElement('tr');
             if (row.alreadyInList) tr.classList.add('sw-lic-row-exists');
+            if (row.matchKind === 'name' || row.hasDiffs) tr.classList.add('sw-lic-row-review');
 
             const tdChk = document.createElement('td');
             const chk = document.createElement('input');
             chk.type = 'checkbox';
             chk.checked = !!row.selected;
-            chk.title = row.alreadyInList ? 'Bereits in der Liste – Name kann aktualisiert werden' : 'Übernehmen';
+            chk.title = row.alreadyInList
+                ? 'Abweichungen zusammenführen / Stammdaten aktualisieren'
+                : 'Neu in die Liste übernehmen';
             chk.addEventListener('change', function () {
                 row.selected = chk.checked;
                 renderPanel();
@@ -269,17 +353,23 @@ function bindLicenseTenantImport(cfg) {
 
             const tdName = document.createElement('td');
             tdName.textContent = row.name || '';
+            if (row.nameDiffers && row.localName) {
+                tdName.title = 'Lokal: ' + row.localName;
+                tdName.classList.add('sw-lic-cell-diff');
+            }
 
             const tdEmail = document.createElement('td');
             tdEmail.textContent = row.email || '–';
+            if (row.emailDiffers && row.localEmail) {
+                tdEmail.title = 'Lokal: ' + row.localEmail;
+                tdEmail.classList.add('sw-lic-cell-diff');
+            }
 
             const tdLic = document.createElement('td');
             tdLic.innerHTML = '<span class="sw-lic-pill">' + escapeHtml(row.licenseLabel || '') + '</span>';
 
             const tdSt = document.createElement('td');
-            tdSt.innerHTML = row.alreadyInList
-                ? '<span class="sw-lic-status sw-lic-status--exists">in der Liste</span>'
-                : '<span class="sw-lic-status sw-lic-status--new">neu</span>';
+            tdSt.innerHTML = matchStatusHtml(row, spec.isStudent);
 
             tr.appendChild(tdChk);
             tr.appendChild(tdEdit);
@@ -361,15 +451,16 @@ function bindLicenseTenantImport(cfg) {
             toast('Bitte mindestens eine Person auswählen.');
             return;
         }
-        const result = spec.apply(spec.getExisting(cfg) || [], state.preview);
+        const merge = mergeOptsFromUi();
+        const result = spec.apply(spec.getExisting(cfg) || [], state.preview, merge);
         if (typeof cfg.onApply === 'function') cfg.onApply(result);
         const bits = [];
         if (result.added.length) bits.push(result.added.length + ' neu');
-        if (result.updated.length) bits.push(result.updated.length + ' Name(n) aktualisiert');
+        if (result.updated.length) bits.push(result.updated.length + ' zusammengeführt/aktualisiert');
         toast(
             bits.length
                 ? 'Übernommen: ' + bits.join(', ') + (cfg.saveHint ? ' ' + cfg.saveHint : '')
-                : 'Keine Änderungen (Auswahl war bereits in der Liste).'
+                : 'Keine Änderungen (Auswahl war bereits aktuell).'
         );
         rebuildPreview();
         closePanel();
@@ -395,6 +486,14 @@ function bindLicenseTenantImport(cfg) {
         selNew.addEventListener('click', function () {
             setVisibleSelected(function (r) {
                 return !r.alreadyInList && !!r.email;
+            });
+        });
+    }
+    const selDiffs = cfg.selectDiffsBtnId ? el(cfg.selectDiffsBtnId) : null;
+    if (selDiffs) {
+        selDiffs.addEventListener('click', function () {
+            setVisibleSelected(function (r) {
+                return !!r.email && (!!r.hasDiffs || r.matchKind === 'name' || r.matchKind === 'nameClass');
             });
         });
     }
@@ -435,6 +534,29 @@ function bindLicenseTenantImport(cfg) {
             if (state.users.length) rebuildPreview();
         });
     }
+    const mergeOptIds = [
+        cfg.matchNameClassId,
+        cfg.matchNameId,
+        cfg.updateNameId,
+        cfg.updateKlasseId,
+        cfg.overwriteKlasseId,
+        cfg.updateEmailId,
+        cfg.selectDiffsId
+    ];
+    mergeOptIds.forEach(function (id) {
+        const box = id ? el(id) : null;
+        if (!box) return;
+        box.addEventListener('change', function () {
+            if (state.users.length) rebuildPreview();
+        });
+    });
+    const viewFilter = cfg.viewFilterId ? el(cfg.viewFilterId) : null;
+    if (viewFilter) {
+        viewFilter.addEventListener('change', function () {
+            state.viewFilter = String(viewFilter.value || 'all');
+            if (state.users.length) renderPanel();
+        });
+    }
     renderSkuFilters();
     syncHeaderCheckbox([]);
 }
@@ -457,13 +579,20 @@ function teachersToLines(rows) {
 function studentsToLines(rows) {
     return (rows || [])
         .map(function (x) {
-            return (
+            const base =
                 normStr(x.klasse || '') +
                 ';' +
                 normStr(x.name || '') +
                 ';' +
-                String(x.email || '').trim().toLowerCase()
-            );
+                String(x.email || '').trim().toLowerCase();
+            const pairs = Array.isArray(x.parentPairs) ? x.parentPairs : [];
+            if (!pairs.length) return base.trim();
+            const extra = pairs
+                .map(function (p) {
+                    return normStr(p && p.name) + ';' + String((p && p.email) || '').trim().toLowerCase();
+                })
+                .join(';');
+            return (base + ';' + extra).trim();
         })
         .filter(function (s) {
             return normStr(s.replace(/;/g, ''));
@@ -503,11 +632,17 @@ function autoBind() {
             closeBtnId: 'swBtnTeacherTenantClose',
             closeFooterBtnId: 'swBtnTeacherTenantCloseFooter',
             selectNewBtnId: 'swBtnTeacherTenantSelectNew',
+            selectDiffsBtnId: 'swBtnTeacherTenantSelectDiffs',
             selectAllBtnId: 'swBtnTeacherTenantSelectAll',
             selectNoneBtnId: 'swBtnTeacherTenantSelectNone',
             selectAllRowsId: 'swTeacherTenantSelectAllRows',
             textFilterId: 'swTeacherTenantImportTextFilter',
             activeOnlyId: 'swTeacherTenantImportActiveOnly',
+            matchNameId: 'swTeacherTenantMatchName',
+            updateNameId: 'swTeacherTenantUpdateName',
+            updateEmailId: 'swTeacherTenantUpdateEmail',
+            selectDiffsId: 'swTeacherTenantSelectDiffsOpt',
+            viewFilterId: 'swTeacherTenantViewFilter',
             getExistingTeachers: function () {
                 const ta = el('swTeachersLines');
                 if (!ta || typeof window.ms365TenantSettingsParseTeachersLines !== 'function') return [];
@@ -530,11 +665,17 @@ function autoBind() {
             closeBtnId: 'tenantBtnTeacherTenantClose',
             closeFooterBtnId: 'tenantBtnTeacherTenantCloseFooter',
             selectNewBtnId: 'tenantBtnTeacherTenantSelectNew',
+            selectDiffsBtnId: 'tenantBtnTeacherTenantSelectDiffs',
             selectAllBtnId: 'tenantBtnTeacherTenantSelectAll',
             selectNoneBtnId: 'tenantBtnTeacherTenantSelectNone',
             selectAllRowsId: 'tenantTeacherTenantSelectAllRows',
             textFilterId: 'tenantTeacherTenantImportTextFilter',
             activeOnlyId: 'tenantTeacherTenantImportActiveOnly',
+            matchNameId: 'tenantTeacherTenantMatchName',
+            updateNameId: 'tenantTeacherTenantUpdateName',
+            updateEmailId: 'tenantTeacherTenantUpdateEmail',
+            selectDiffsId: 'tenantTeacherTenantSelectDiffsOpt',
+            viewFilterId: 'tenantTeacherTenantViewFilter',
             getExistingTeachers: function () {
                 const ta = el('tenantTeachersLines');
                 if (!ta || typeof window.ms365TenantSettingsParseTeachersLines !== 'function') return [];
@@ -556,11 +697,20 @@ function autoBind() {
             closeBtnId: 'swBtnStudentTenantClose',
             closeFooterBtnId: 'swBtnStudentTenantCloseFooter',
             selectNewBtnId: 'swBtnStudentTenantSelectNew',
+            selectDiffsBtnId: 'swBtnStudentTenantSelectDiffs',
             selectAllBtnId: 'swBtnStudentTenantSelectAll',
             selectNoneBtnId: 'swBtnStudentTenantSelectNone',
             selectAllRowsId: 'swStudentTenantSelectAllRows',
             textFilterId: 'swStudentTenantImportTextFilter',
             activeOnlyId: 'swStudentTenantImportActiveOnly',
+            matchNameClassId: 'swStudentTenantMatchNameClass',
+            matchNameId: 'swStudentTenantMatchName',
+            updateNameId: 'swStudentTenantUpdateName',
+            updateKlasseId: 'swStudentTenantUpdateKlasse',
+            overwriteKlasseId: 'swStudentTenantOverwriteKlasse',
+            updateEmailId: 'swStudentTenantUpdateEmail',
+            selectDiffsId: 'swStudentTenantSelectDiffsOpt',
+            viewFilterId: 'swStudentTenantViewFilter',
             getExistingStudents: function () {
                 const ta = el('swStudentsLines');
                 if (!ta || typeof window.ms365TenantSettingsParseStudentsLines !== 'function') return [];
@@ -583,11 +733,20 @@ function autoBind() {
             closeBtnId: 'tenantBtnStudentTenantClose',
             closeFooterBtnId: 'tenantBtnStudentTenantCloseFooter',
             selectNewBtnId: 'tenantBtnStudentTenantSelectNew',
+            selectDiffsBtnId: 'tenantBtnStudentTenantSelectDiffs',
             selectAllBtnId: 'tenantBtnStudentTenantSelectAll',
             selectNoneBtnId: 'tenantBtnStudentTenantSelectNone',
             selectAllRowsId: 'tenantStudentTenantSelectAllRows',
             textFilterId: 'tenantStudentTenantImportTextFilter',
             activeOnlyId: 'tenantStudentTenantImportActiveOnly',
+            matchNameClassId: 'tenantStudentTenantMatchNameClass',
+            matchNameId: 'tenantStudentTenantMatchName',
+            updateNameId: 'tenantStudentTenantUpdateName',
+            updateKlasseId: 'tenantStudentTenantUpdateKlasse',
+            overwriteKlasseId: 'tenantStudentTenantOverwriteKlasse',
+            updateEmailId: 'tenantStudentTenantUpdateEmail',
+            selectDiffsId: 'tenantStudentTenantSelectDiffsOpt',
+            viewFilterId: 'tenantStudentTenantViewFilter',
             getExistingStudents: function () {
                 const ta = el('tenantStudentsLines');
                 if (!ta || typeof window.ms365TenantSettingsParseStudentsLines !== 'function') return [];

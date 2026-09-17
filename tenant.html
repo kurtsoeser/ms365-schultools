@@ -689,6 +689,11 @@
                                         <option value="v.nachname">v.nachname</option>
                                         <option value="vorname.n">vorname.n</option>
                                     </select>
+                                    <label for="tenantTeachersEmailGivenNames" style="font-weight:700;margin:0 8px 0 0;">Vornamen</label>
+                                    <select id="tenantTeachersEmailGivenNames" title="Bei mehreren Vornamen: nur den ersten oder alle für die E-Mail verwenden" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                        <option value="first" selected>Nur 1. Vorname</option>
+                                        <option value="all">Alle Vornamen</option>
+                                    </select>
                                     <button type="button" class="btn" id="tenantTeachersTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                     <button type="button" class="btn" id="tenantTeachersExportCsv" title="Aktuelle Lehrerliste als CSV herunterladen"><i class="bi bi-filetype-csv"></i>Export CSV</button>
                                     <button type="button" class="btn" id="tenantTeachersExportXlsx" title="Aktuelle Lehrerliste als Excel herunterladen"><i class="bi bi-file-earmark-excel"></i>Export XLSX</button>
@@ -699,19 +704,34 @@
                                         <h3>Bestehende Lehrkräfte aus dem Tenant</h3>
                                         <button type="button" class="btn sw-lic-import-close" id="tenantBtnTeacherTenantClose" title="Einlesen schließen" aria-label="Einlesen schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                     </div>
-                                    <p>Benutzer mit Education‑Lizenz für Lehrpersonal (A1, A3, A5). Kürzel sind Vorschläge; bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
+                                    <p>Abgleich mit der lokalen Lehrerliste: zuerst per E‑Mail, sonst per Name (zur Prüfung). Name und E‑Mail können zusammengeführt werden; Kürzel bleiben erhalten.</p>
                                     <div id="tenantTeacherTenantImportSkuFilters" class="sw-lic-filters"></div>
                                     <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantImportActiveOnly" checked> Nur aktive Konten</label>
-                                    <div class="sw-lic-text-filter">
+                                    <div class="sw-lic-merge-opts" aria-label="Abgleich-Optionen">
+                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantMatchName" checked> Treffer nur Name (prüfen)</label>
+                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantUpdateName" checked> Name aus M365</label>
+                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantUpdateEmail" checked> E‑Mail korrigieren</label>
+                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantSelectDiffsOpt"> Abweichungen vorauswählen</label>
+                                    </div>
+                                    <div class="sw-lic-text-filter sw-lic-text-filter--row">
                                         <label class="sr-only" for="tenantTeacherTenantImportTextFilter">Name, E-Mail oder Kürzel filtern</label>
                                         <input type="search" id="tenantTeacherTenantImportTextFilter" placeholder="Name, E-Mail oder Kürzel filtern …" autocomplete="off">
+                                        <label for="tenantTeacherTenantViewFilter" class="sr-only">Ansicht</label>
+                                        <select id="tenantTeacherTenantViewFilter" title="Ansicht filtern">
+                                            <option value="all" selected>Alle</option>
+                                            <option value="new">Nur neu</option>
+                                            <option value="matched">Nur zugeordnet</option>
+                                            <option value="diffs">Abweichungen / Namens-Treffer</option>
+                                            <option value="review">Zum Prüfen</option>
+                                        </select>
                                     </div>
                                     <p id="tenantTeacherTenantImportStatus" class="muted" style="margin-top:8px;"></p>
                                     <div class="settings-actions" style="margin-top:8px;">
-                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNew">Nur neue auswählen</button>
+                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNew">Nur neue</button>
+                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectDiffs">Abweichungen wählen</button>
                                         <button type="button" class="btn" id="tenantBtnTeacherTenantSelectAll">Alle auswählen</button>
                                         <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNone">Alle abwählen</button>
-                                        <button type="button" class="btn btn-success" id="tenantBtnTeacherTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                                        <button type="button" class="btn btn-success" id="tenantBtnTeacherTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte zusammenführen</button>
                                         <button type="button" class="btn" id="tenantBtnTeacherTenantCloseFooter">Schließen</button>
                                     </div>
                                     <div class="teachers-table-wrap" aria-label="Vorschau Lehrkräfte aus dem Tenant">
@@ -763,7 +783,8 @@
                                         Format: <code>Klasse;Name;E-Mail</code> — optional: <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>
                             (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
                             Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>
-                            (<code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code>, Mehrfachauswahl). Fehlende Schüler-Mails werden nach Muster aus Vor-/Nachname + Schuldomain vorgeschlagen.
+                            (<code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code>, Mehrfachauswahl). Fehlende Schüler-Mails werden nach Muster aus Vor-/Nachname + Schuldomain vorgeschlagen
+                            (Standard: nur der <strong>erste Vorname</strong>, z. B. Anna-Sophie → <code>anna.nachname@…</code>).
                             Aktualisierungen im Jahr: nach dem Import <strong>Zusammenführen</strong>. Vorlagen: XLSX/CSV. Eltern unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a>.
                                     </small>
                                     <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
@@ -781,6 +802,11 @@
                                             <option value="v.nachname">v.nachname</option>
                                             <option value="vorname.n">vorname.n</option>
                                             <option value="vorname_nachname">vorname_nachname</option>
+                                        </select>
+                                        <label for="tenantStudentsEmailGivenNames" style="font-weight:700;margin:0 8px 0 0;">Vornamen</label>
+                                        <select id="tenantStudentsEmailGivenNames" title="Bei mehreren Vornamen (z. B. Anna-Sophie): nur den ersten oder alle für die E-Mail verwenden" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                            <option value="first" selected>Nur 1. Vorname</option>
+                                            <option value="all">Alle Vornamen</option>
                                         </select>
                                         <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                         <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt" multiple>
@@ -805,19 +831,37 @@
                                             <h3>Bestehende Schüler:innen aus dem Tenant</h3>
                                             <button type="button" class="btn sw-lic-import-close" id="tenantBtnStudentTenantClose" title="Einlesen schließen" aria-label="Einlesen schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                         </div>
-                                        <p>Benutzer mit Education‑Lizenz für Schüler:innen (A1, A3, A5). Klasse aus der Entra‑Abteilung, falls hinterlegt; sonst vor der Übernahme eintragen. Bereits vorhandene E‑Mails werden nicht verdoppelt.</p>
+                                        <p>Abgleich mit der lokalen Schülerliste: zuerst per E‑Mail, sonst per Name+Klasse, optional nur per Name (zur Prüfung). Abweichungen bei Name, Klasse und E‑Mail können gezielt zusammengeführt werden.</p>
                                         <div id="tenantStudentTenantImportSkuFilters" class="sw-lic-filters"></div>
                                         <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantImportActiveOnly" checked> Nur aktive Konten</label>
-                                        <div class="sw-lic-text-filter">
+                                        <div class="sw-lic-merge-opts" aria-label="Abgleich-Optionen">
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantMatchNameClass" checked> Treffer Name+Klasse</label>
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantMatchName" checked> Treffer nur Name (prüfen)</label>
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantUpdateName" checked> Name aus M365</label>
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantUpdateKlasse" checked> Klasse nachfüllen</label>
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantOverwriteKlasse"> Klasse überschreiben</label>
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantUpdateEmail" checked> E‑Mail korrigieren</label>
+                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantSelectDiffsOpt"> Abweichungen vorauswählen</label>
+                                        </div>
+                                        <div class="sw-lic-text-filter sw-lic-text-filter--row">
                                             <label class="sr-only" for="tenantStudentTenantImportTextFilter">Name, E-Mail oder Klasse filtern</label>
                                             <input type="search" id="tenantStudentTenantImportTextFilter" placeholder="Name, E-Mail oder Klasse filtern …" autocomplete="off">
+                                            <label for="tenantStudentTenantViewFilter" class="sr-only">Ansicht</label>
+                                            <select id="tenantStudentTenantViewFilter" title="Ansicht filtern">
+                                                <option value="all" selected>Alle</option>
+                                                <option value="new">Nur neu</option>
+                                                <option value="matched">Nur zugeordnet</option>
+                                                <option value="diffs">Abweichungen / Namens-Treffer</option>
+                                                <option value="review">Zum Prüfen</option>
+                                            </select>
                                         </div>
                                         <p id="tenantStudentTenantImportStatus" class="muted" style="margin-top:8px;"></p>
                                         <div class="settings-actions" style="margin-top:8px;">
-                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectNew">Nur neue auswählen</button>
+                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectNew">Nur neue</button>
+                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectDiffs">Abweichungen wählen</button>
                                             <button type="button" class="btn" id="tenantBtnStudentTenantSelectAll">Alle auswählen</button>
                                             <button type="button" class="btn" id="tenantBtnStudentTenantSelectNone">Alle abwählen</button>
-                                            <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte übernehmen</button>
+                                            <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte zusammenführen</button>
                                             <button type="button" class="btn" id="tenantBtnStudentTenantCloseFooter">Schließen</button>
                                         </div>
                                         <div class="teachers-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
@@ -835,6 +879,19 @@
                                                 <tbody id="tenantStudentTenantImportBody"></tbody>
                                             </table>
                                         </div>
+                                    </div>
+                                    <div class="students-list-filters" id="tenantStudentsListFilters">
+                                        <div class="students-list-filters__class">
+                                            <label for="tenantStudentsClassFilter">Klasse</label>
+                                            <select id="tenantStudentsClassFilter" title="Nach Klasse filtern">
+                                                <option value="">Alle Klassen</option>
+                                            </select>
+                                        </div>
+                                        <div class="students-list-filters__search">
+                                            <label class="sr-only" for="tenantStudentsTextFilter">Schülerliste durchsuchen</label>
+                                            <input type="search" id="tenantStudentsTextFilter" placeholder="Name, E-Mail, Klasse oder Eltern …" autocomplete="off">
+                                        </div>
+                                        <p class="students-list-filters__meta muted" id="tenantStudentsFilterMeta" hidden></p>
                                     </div>
                                     <div class="teachers-table-wrap" aria-label="Schülerliste als Tabelle">
                                         <table class="teachers-table" aria-label="Schülerliste (editierbar per Doppelklick)">

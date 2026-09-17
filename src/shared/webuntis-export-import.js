@@ -411,7 +411,7 @@
 
     /**
      * Kombiniert Student- + LegalGuardian-AOAs zu SIS-Records.
-     * @param {{ studentAoa?: any[][], guardianAoa?: any[][], domain?: string, pattern?: string, includeExited?: boolean, applyEmails?: boolean }} input
+     * @param {{ studentAoa?: any[][], guardianAoa?: any[][], domain?: string, pattern?: string, firstNameMode?: string, includeExited?: boolean, applyEmails?: boolean }} input
      */
     function importStudentsFromWebuntis(input) {
         const inp = input && typeof input === 'object' ? input : {};
@@ -422,7 +422,11 @@
         let emailMeta = { generated: 0, conflicts: 0 };
 
         if (inp.applyEmails !== false && inp.domain) {
-            const em = applyPersonEmails(records, { domain: inp.domain, pattern: inp.pattern || 'vorname.nachname' });
+            const em = applyPersonEmails(records, {
+                domain: inp.domain,
+                pattern: inp.pattern || 'vorname.nachname',
+                firstNameMode: inp.firstNameMode || 'first'
+            });
             records = em.records;
             emailMeta = { generated: em.generated, conflicts: em.conflicts };
         }
@@ -457,14 +461,18 @@
     }
 
     /**
-     * @param {{ teacherAoa?: any[][], domain?: string, pattern?: string, applyEmails?: boolean, includeExited?: boolean }} input
+     * @param {{ teacherAoa?: any[][], domain?: string, pattern?: string, firstNameMode?: string, applyEmails?: boolean, includeExited?: boolean }} input
      */
     function importTeachersFromWebuntis(input) {
         const inp = input && typeof input === 'object' ? input : {};
         let teachers = parseTeachersAoa(inp.teacherAoa || [], { includeExited: inp.includeExited });
         let emailMeta = { generated: 0, conflicts: 0 };
         if (inp.applyEmails !== false && inp.domain) {
-            const em = applyPersonEmails(teachers, { domain: inp.domain, pattern: inp.pattern || 'vorname.nachname' });
+            const em = applyPersonEmails(teachers, {
+                domain: inp.domain,
+                pattern: inp.pattern || 'vorname.nachname',
+                firstNameMode: inp.firstNameMode || 'first'
+            });
             teachers = em.records;
             emailMeta = { generated: em.generated, conflicts: em.conflicts };
         }

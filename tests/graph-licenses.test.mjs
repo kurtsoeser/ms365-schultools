@@ -275,6 +275,56 @@ describe('graph-licenses Schüler-Import', () => {
         expect(result.students.length).toBe(2);
         expect(result.directoryMatches['lisa@schule.at'].graphUserId).toBe('s1');
     });
+
+    it('findet Schüler über Name+Klasse trotz falscher lokaler E-Mail', () => {
+        const preview = buildStudentImportPreview(
+            users,
+            [{ klasse: '1A', name: 'Lisa Beispiel', email: 'lisa.tippfehler@schule.at', parentPairs: [{ name: 'Mama', email: 'mama@mail.com' }] }],
+            null,
+            { activeOnly: true, families: ['a1', 'a3', 'a5'], matchByNameClass: true, updateEmail: true }
+        );
+        const lisa = preview.find((r) => r.email === 'lisa@schule.at');
+        expect(lisa).toBeTruthy();
+        expect(lisa.alreadyInList).toBe(true);
+        expect(lisa.matchKind).toBe('nameClass');
+        expect(lisa.emailDiffers).toBe(true);
+        expect(lisa.selected).toBe(true);
+        lisa.selected = true;
+        const result = applyStudentImportSelection(
+            [{ klasse: '1A', name: 'Lisa Beispiel', email: 'lisa.tippfehler@schule.at', parentPairs: [{ name: 'Mama', email: 'mama@mail.com' }] }],
+            [lisa],
+            { updateEmail: true, updateName: true, updateKlasse: 'fill' }
+        );
+        expect(result.added.length).toBe(0);
+        expect(result.updated.length).toBe(1);
+        expect(result.updated[0].email).toBe('lisa@schule.at');
+        expect(result.updated[0].parentPairs).toHaveLength(1);
+        expect(result.updated[0].parentPairs[0].email).toBe('mama@mail.com');
+        expect(result.students.length).toBe(1);
+    });
+
+    it('Name-only-Treffer ist prüfpflichtig und standardmäßig nicht ausgewählt', () => {
+        const preview = buildStudentImportPreview(
+            [
+                {
+                    id: 's3',
+                    displayName: 'Tom Alt',
+                    mail: 'tom.neu@schule.at',
+                    userPrincipalName: 'tom.neu@schule.at',
+                    department: '',
+                    accountEnabled: true,
+                    assignedLicenses: [{ skuId: A1_STU }]
+                }
+            ],
+            [{ klasse: '9Z', name: 'Tom Alt', email: 'tom.alt@schule.at' }],
+            null,
+            { activeOnly: true, families: ['a1'], matchByName: true }
+        );
+        expect(preview).toHaveLength(1);
+        expect(preview[0].matchKind).toBe('name');
+        expect(preview[0].selected).toBe(false);
+        expect(preview[0].emailDiffers).toBe(true);
+    });
 });
 
 describe('graph-licenses Zuweisung (freie Sitze)', () => {

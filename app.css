@@ -1551,6 +1551,48 @@ input[type="file"] { display: none; }
 }
 .sw-lic-status--new { color: #0d8050; }
 .sw-lic-status--exists { color: #6c757d; }
+.sw-lic-status--match { color: #0b5cab; font-weight: 600; }
+.sw-lic-status--review { color: #b36b00; font-weight: 600; }
+.sw-lic-diff-hints {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.82em;
+    color: var(--muted, #6c757d);
+    font-weight: 500;
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sw-lic-cell-diff {
+    background: color-mix(in srgb, #b36b00 10%, transparent);
+}
+.sw-lic-row-review td {
+    box-shadow: inset 3px 0 0 #b36b00;
+}
+.sw-lic-merge-opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin: 8px 0 4px;
+}
+.sw-lic-text-filter--row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.sw-lic-text-filter--row input[type="search"] {
+    flex: 1 1 14rem;
+    max-width: 28rem;
+}
+.sw-lic-text-filter--row select {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #ced4da;
+    font: inherit;
+    background: #fff;
+}
 .sw-lic-row-exists { background: #fafbfc; }
 .sw-lic-import .teachers-table input.cell-editor {
     min-width: 4.5em;
@@ -1569,6 +1611,57 @@ input[type="file"] { display: none; }
     border-radius: 10px;
     font: inherit;
     font-size: 0.95em;
+}
+.students-list-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 14px;
+    margin: 12px 0 8px;
+}
+.students-list-filters__class {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 9rem;
+}
+.students-list-filters__class label {
+    font-weight: 700;
+    font-size: 0.9em;
+}
+.students-list-filters__class select {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #ced4da;
+    font: inherit;
+    min-width: 9rem;
+    background: #fff;
+}
+.students-list-filters__search {
+    flex: 1 1 16rem;
+    min-width: 12rem;
+}
+.students-list-filters__search input[type="search"] {
+    width: 100%;
+    max-width: 32rem;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.95em;
+}
+.students-list-filters__meta {
+    margin: 0;
+    flex: 1 1 100%;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+html[data-theme="dark"] .students-list-filters__class select,
+html[data-theme="dark"] .students-list-filters__search input[type="search"] {
+    background: var(--card, #1e2430);
+    border-color: var(--border, #3a4252);
+    color: inherit;
 }
 .sw-lic-import .teachers-table thead th.sw-lic-check-col {
     width: 2.6em;

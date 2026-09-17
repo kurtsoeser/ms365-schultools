@@ -1,6 +1,10 @@
 /**
  * Erzeugt MS365-/Schul-E-Mail-Kandidaten aus Vor- und Nachnamen.
  * Berücksichtigt Umlaute, Leerzeichen/Bindestriche (Doppelnamen) und Kollisionen.
+ *
+ * firstNameMode:
+ * - 'first' (Standard): nur der erste Vorname → Anna-Sophie → anna.nachname@…
+ * - 'all': alle Vornamen → anna.sophie.nachname@…
  */
 (function () {
     'use strict';
@@ -14,8 +18,22 @@
         { id: 'nachname_vorname', label: 'nachname_vorname' }
     ];
 
+    var FIRST_NAME_MODES = [
+        { id: 'first', label: 'Nur 1. Vorname' },
+        { id: 'all', label: 'Alle Vornamen' }
+    ];
+
     function normStr(v) {
         return String(v == null ? '' : v).trim();
+    }
+
+    /** @returns {'first'|'all'} */
+    function resolveFirstNameMode(mode) {
+        const m = String(mode == null ? 'first' : mode)
+            .trim()
+            .toLowerCase();
+        if (m === 'all' || m === 'alle' || m === 'full' || m === 'complete') return 'all';
+        return 'first';
     }
 
     function stripDiacritics(s) {
@@ -50,6 +68,14 @@
         return (parts || []).filter(Boolean).join(sep || '');
     }
 
+    /** Vorname-Tokens für das Primärmuster (erster vs. alle). */
+    function givenPartsForPattern(vorname, firstNameMode) {
+        const parts = nameParts(vorname);
+        if (!parts.length) return [];
+        if (resolveFirstNameMode(firstNameMode) === 'all') return parts;
+        return [parts[0]];
+    }
+
     /**
      * Varianten für einen Namensblock (Vor- oder Nachname), z. B. „Devran Eren“ / „Al Akrad“.
      * @returns {string[]}
@@ -66,18 +92,26 @@
             seen.add(t);
             out.push(t);
         }
+        add(parts[0]);
         add(joinParts(parts, ''));
         add(joinParts(parts, '.'));
         add(parts[0] + joinParts(parts.slice(1), ''));
         add(parts[0].charAt(0) + joinParts(parts.slice(1), ''));
         add(parts[0].charAt(0) + '.' + joinParts(parts.slice(1), '.'));
-        add(joinParts(parts.map(function (p) { return p.charAt(0); }), ''));
+        add(
+            joinParts(
+                parts.map(function (p) {
+                    return p.charAt(0);
+                }),
+                ''
+            )
+        );
         return out;
     }
 
-    function patternLocal(patternId, vorname, nachname) {
+    function patternLocal(patternId, vorname, nachname, firstNameMode) {
         const id = String(patternId || 'vorname.nachname').toLowerCase();
-        const vParts = nameParts(vorname);
+        const vParts = givenPartsForPattern(vorname, firstNameMode);
         const nParts = nameParts(nachname);
         const v0 = vParts[0] || '';
         const n0 = nParts[0] || '';
@@ -98,9 +132,7 @@
     /**
      * Alle sinnvollen Local-Parts für eine Person (Primärmuster zuerst, dann Doppelname-Varianten).
      */
-    function localPartCandidates(vorname, nachname, patternId) {
-        const primary = sanitizeToken(patternLocal(patternId, vorname, nachname).replace(/_/g, '_'));
-        // patternLocal already returns mostly clean; keep underscore patterns
+    function localPartCandidates(vorname, nachname, patternId, firstNameMode) {
         function cleanLocal(s) {
             return stripDiacritics(normStr(s))
                 .toLowerCase()
@@ -116,7 +148,8 @@
             out.push(t);
         }
 
-        add(patternLocal(patternId, vorname, nachname));
+        const mode = resolveFirstNameMode(firstNameMode);
+        add(patternLocal(patternId, vorname, nachname, mode));
 
         const vVars = blockVariants(vorname);
         const nVars = blockVariants(nachname);
@@ -133,12 +166,12 @@
             });
         });
 
+        const primary = cleanLocal(patternLocal(patternId, vorname, nachname, mode));
         if (primary) {
-            // ensure primary is first
-            const idx = out.indexOf(cleanLocal(primary));
+            const idx = out.indexOf(primary);
             if (idx > 0) {
                 out.splice(idx, 1);
-                out.unshift(cleanLocal(primary));
+                out.unshift(primary);
             }
         }
         return out;
@@ -153,13 +186,14 @@
 
     /**
      * @param {{ givenName?: string, surname?: string, foreName?: string, longName?: string, name?: string, email?: string }} person
-     * @param {{ domain: string, pattern?: string, usedEmails?: Set<string>|string[], preferExisting?: boolean }} opts
-     * @returns {{ email: string, generated: boolean, candidates: string[], pattern: string, conflict: boolean }}
+     * @param {{ domain: string, pattern?: string, firstNameMode?: string, usedEmails?: Set<string>|string[], preferExisting?: boolean }} opts
+     * @returns {{ email: string, generated: boolean, candidates: string[], pattern: string, firstNameMode: string, conflict: boolean }}
      */
     function suggestEmail(person, opts) {
         const o = opts && typeof opts === 'object' ? opts : {};
         const domain = normStr(o.domain).replace(/^@+/, '');
         const pattern = String(o.pattern || 'vorname.nachname');
+        const firstNameMode = resolveFirstNameMode(o.firstNameMode);
         const preferExisting = o.preferExisting !== false;
         const used = o.usedEmails instanceof Set ? o.usedEmails : new Set(Array.isArray(o.usedEmails) ? o.usedEmails : []);
 
@@ -170,6 +204,7 @@
                 generated: false,
                 candidates: [existing],
                 pattern: pattern,
+                firstNameMode: firstNameMode,
                 conflict: false
             };
         }
@@ -182,10 +217,12 @@
             if (!sur && bits.length > 1) sur = bits.slice(1).join(' ');
         }
 
-        const locals = localPartCandidates(given, sur, pattern);
-        const candidates = locals.map(function (loc) {
-            return buildEmail(loc, domain);
-        }).filter(Boolean);
+        const locals = localPartCandidates(given, sur, pattern, firstNameMode);
+        const candidates = locals
+            .map(function (loc) {
+                return buildEmail(loc, domain);
+            })
+            .filter(Boolean);
 
         let chosen = '';
         let conflict = false;
@@ -206,6 +243,7 @@
             generated: !!chosen,
             candidates: candidates,
             pattern: pattern,
+            firstNameMode: firstNameMode,
             conflict: conflict
         };
     }
@@ -213,7 +251,7 @@
     /**
      * Weist einer Liste Mails zu; bestehende Mails bleiben, neue werden vergeben und in usedEmails eingetragen.
      * @param {array} people
-     * @param {{ domain: string, pattern?: string, getNameParts?: function }} opts
+     * @param {{ domain: string, pattern?: string, firstNameMode?: string, getNameParts?: function }} opts
      */
     function assignEmails(people, opts) {
         const o = opts && typeof opts === 'object' ? opts : {};
@@ -226,6 +264,7 @@
             const sug = suggestEmail(p, {
                 domain: o.domain,
                 pattern: o.pattern,
+                firstNameMode: o.firstNameMode,
                 usedEmails: used,
                 preferExisting: true
             });
@@ -236,6 +275,7 @@
                     generated: sug.generated && !normStr(p && p.email),
                     candidates: sug.candidates,
                     pattern: sug.pattern,
+                    firstNameMode: sug.firstNameMode,
                     conflict: sug.conflict
                 }
             });
@@ -245,11 +285,16 @@
     window.ms365PersonEmailFromName = {
         PATTERNS: PATTERNS,
         patterns: PATTERNS,
+        FIRST_NAME_MODES: FIRST_NAME_MODES,
+        firstNameModes: FIRST_NAME_MODES,
+        resolveFirstNameMode: resolveFirstNameMode,
         stripDiacritics: stripDiacritics,
         sanitizeToken: sanitizeToken,
         nameParts: nameParts,
+        givenPartsForPattern: givenPartsForPattern,
         blockVariants: blockVariants,
         localPartCandidates: localPartCandidates,
+        patternLocal: patternLocal,
         buildEmail: buildEmail,
         suggestEmail: suggestEmail,
         assignEmails: assignEmails

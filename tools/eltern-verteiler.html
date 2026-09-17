@@ -315,6 +315,13 @@
                                 <option value="vorname.n">vorname.n</option>
                             </select>
                         </div>
+                        <div class="field" style="margin:0;min-width:180px;">
+                            <label for="evImportEmailGivenNames">Vornamen</label>
+                            <select id="evImportEmailGivenNames" title="Bei mehreren Vornamen: nur den ersten oder alle für die E-Mail verwenden">
+                                <option value="first" selected>Nur 1. Vorname</option>
+                                <option value="all">Alle Vornamen</option>
+                            </select>
+                        </div>
                         <label class="btn" for="evImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Datei(en) wählen</label>
                         <input type="file" id="evImportFile" accept=".csv,.xlsx,.xls,.txt" multiple style="display:none;">
                         <button type="button" class="btn" id="evTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>

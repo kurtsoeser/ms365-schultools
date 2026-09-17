@@ -633,6 +633,8 @@
             const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
             const patternEl = getEl('evImportEmailPattern');
             const pattern = patternEl ? String(patternEl.value || 'vorname.nachname') : 'vorname.nachname';
+            const givenEl = getEl('evImportEmailGivenNames');
+            const firstNameMode = givenEl ? String(givenEl.value || 'first') : 'first';
             setImportStatus('Lese Datei(en) …');
 
             function finishWithResult(result) {
@@ -729,6 +731,7 @@
                                 guardianAoa: classified.guardianAoa || [],
                                 domain: domain,
                                 pattern: pattern,
+                                firstNameMode: firstNameMode,
                                 applyEmails: !!domain
                             })
                         );

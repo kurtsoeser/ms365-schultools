@@ -43,8 +43,27 @@ describe('person-email-from-name', () => {
         expect(r.generated).toBe(true);
     });
 
+    it('nutzt standardmäßig nur den ersten Vornamen', () => {
+        const r = api.suggestEmail(
+            { foreName: 'Anna-Sophie', longName: 'Bindlehner' },
+            { domain: 'hak-steyr.at', pattern: 'vorname.nachname' }
+        );
+        expect(r.email).toBe('anna.bindlehner@hak-steyr.at');
+        expect(r.firstNameMode).toBe('first');
+    });
+
+    it('kann alle Vornamen für die Mail verwenden', () => {
+        const r = api.suggestEmail(
+            { foreName: 'Anna-Sophie', longName: 'Bindlehner' },
+            { domain: 'hak-steyr.at', pattern: 'vorname.nachname', firstNameMode: 'all' }
+        );
+        expect(r.email).toBe('anna.sophie.bindlehner@hak-steyr.at');
+        expect(r.firstNameMode).toBe('all');
+    });
+
     it('liefert Doppelname-Varianten', () => {
-        const locals = api.localPartCandidates('Devran Eren', 'Acikdilli', 'vorname.nachname');
+        const locals = api.localPartCandidates('Devran Eren', 'Acikdilli', 'vorname.nachname', 'first');
+        expect(locals[0]).toBe('devran.acikdilli');
         expect(locals.some((x) => x.includes('devran'))).toBe(true);
         expect(locals.some((x) => x.includes('acikdilli'))).toBe(true);
         expect(locals.length).toBeGreaterThan(2);
