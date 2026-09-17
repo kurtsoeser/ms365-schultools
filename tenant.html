@@ -432,7 +432,9 @@
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
                         <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
                         <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
-                        <a class="btn" href="tools/stammdaten-uebergabe.html" title="Backup in die Intranet-Dokumentbibliothek"><i class="bi bi-cloud-arrow-up"></i>Nach SharePoint</a>
+                        <button type="button" class="btn btn-success" data-ms365-spo-sync="upload" title="Stammdaten in die SharePoint-IT-Bibliothek sichern (sonst Ersteinrichtung)"><i class="bi bi-cloud-arrow-up"></i>In SharePoint sichern</button>
+                        <button type="button" class="btn" data-ms365-spo-sync="load" title="Aktuelles Backup aus der SharePoint-IT-Bibliothek einlesen (sonst Ersteinrichtung)"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint einlesen</button>
+                        <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten oder Details"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
                     </div>
                 </div>
             </div>
@@ -446,7 +448,7 @@
                     <div class="ts-settings-head">
                         <div class="ts-settings-intro">
                             <p>Diese <strong>Zentrale</strong> speichert Daten <strong>lokal im Browser</strong>. <strong>Stammdaten</strong> (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) gelten <strong>schulweit</strong> und ändern sich in der Regel selten. <strong>Schüler:innen, Klassen</strong> und <strong>Klassen‑Gruppen (Microsoft 365)</strong> orientieren sich am gewählten <strong>Schuljahr</strong>.</p>
-                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Mit <strong>Browser-Backup</strong> übertragen Sie alle lokalen Daten in einen anderen Browser (Microsoft-Anmeldung nicht enthalten).</p>
+                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Mit <strong>Browser-Backup</strong> übertragen Sie alle lokalen Daten in einen anderen Browser; mit <strong>In SharePoint sichern / einlesen</strong> in die IT-Dokumentbibliothek (Microsoft-Anmeldung nicht im Backup enthalten).</p>
                         </div>
                     </div>
 
@@ -680,6 +682,13 @@
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <label class="btn" for="tenantTeachersImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantTeachersImportFile" accept=".csv,.xlsx,.xls">
+                                    <label for="tenantTeachersEmailPattern" style="font-weight:700;margin:0 8px;">Mail-Muster</label>
+                                    <select id="tenantTeachersEmailPattern" title="Für WebUntis TeacherSalary ohne E-Mail" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                        <option value="vorname.nachname" selected>vorname.nachname</option>
+                                        <option value="nachname.vorname">nachname.vorname</option>
+                                        <option value="v.nachname">v.nachname</option>
+                                        <option value="vorname.n">vorname.n</option>
+                                    </select>
                                     <button type="button" class="btn" id="tenantTeachersTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                     <button type="button" class="btn" id="tenantTeachersExportCsv" title="Aktuelle Lehrerliste als CSV herunterladen"><i class="bi bi-filetype-csv"></i>Export CSV</button>
                                     <button type="button" class="btn" id="tenantTeachersExportXlsx" title="Aktuelle Lehrerliste als Excel herunterladen"><i class="bi bi-file-earmark-excel"></i>Export XLSX</button>
@@ -753,8 +762,9 @@
                                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
                                         Format: <code>Klasse;Name;E-Mail</code> — optional: <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>
                             (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
-                            Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>.
-                            Vorlagen: XLSX (inkl. Anleitung) oder CSV. Elternkontakte lokal speichern und unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a> pflegen.
+                            Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>
+                            (<code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code>, Mehrfachauswahl). Fehlende Schüler-Mails werden nach Muster aus Vor-/Nachname + Schuldomain vorgeschlagen.
+                            Aktualisierungen im Jahr: nach dem Import <strong>Zusammenführen</strong>. Vorlagen: XLSX/CSV. Eltern unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a>.
                                     </small>
                                     <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
                                         <label for="tenantStudentsImportSource" style="font-weight:700;margin:0 8px 0 0;">Quelle</label>
@@ -762,10 +772,18 @@
                                             <option value="auto" selected>Automatisch erkennen</option>
                                             <option value="ms365">MS365-Vorlage</option>
                                             <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
-                                            <option value="webuntis">WebUntis</option>
+                                            <option value="webuntis">WebUntis Exporte</option>
+                                        </select>
+                                        <label for="tenantStudentsEmailPattern" style="font-weight:700;margin:0 8px 0 0;">Mail-Muster</label>
+                                        <select id="tenantStudentsEmailPattern" title="Für fehlende Schüler-Mails aus dem WebUntis-Export" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                            <option value="vorname.nachname" selected>vorname.nachname</option>
+                                            <option value="nachname.vorname">nachname.vorname</option>
+                                            <option value="v.nachname">v.nachname</option>
+                                            <option value="vorname.n">vorname.n</option>
+                                            <option value="vorname_nachname">vorname_nachname</option>
                                         </select>
                                         <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                        <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt">
+                                        <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt" multiple>
                                         <button type="button" class="btn" id="tenantStudentsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                         <button type="button" class="btn" id="tenantStudentsTemplateCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
                                         <button type="button" class="btn" id="tenantStudentsExportCsv" title="Aktuelle Schülerliste als CSV herunterladen"><i class="bi bi-download"></i>Export CSV</button>
@@ -905,13 +923,17 @@
                                 <textarea id="tenantClassesLines" placeholder="1AK;2030;1A-Klasse;Max Mustermann;max.mustermann@schule.de&#10;2BK;2029;2B-Klasse;Anna Beispiel;anna.beispiel@schule.de"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
                                     Format: <code>Abkürzung;Abschlussjahr;Klasse;Klassenvorstand Name;Klassenvorstand E-Mail</code>. Abschlussjahr ist optional.
+                                    <strong>WebUntis:</strong> Klassen-PDF (PD-Bericht „Klassen“, z. B. <code>Class_*.pdf</code>) – Klassenvorstände werden über das Lehrkraft-Kürzel aus der Lehrerliste ergänzt; Abschlussjahr aus Schulstufe + Zweig (.hak≈5 / .has≈3 Jahre) geschätzt.
                                 </small>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
                                     Den <strong>Schuljahreswechsel der Klassen‑Gruppen</strong> erledigen Sie im eigenen Werkzeug <a href="tools/klassen-umbenennen.html">Schuljahreswechsel</a>.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                    <input type="file" id="tenantClassesImportFile" accept=".csv,.xlsx,.xls">
+                                    <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX/PDF)</label>
+                                    <input type="file" id="tenantClassesImportFile" accept=".csv,.xlsx,.xls,.pdf">
+                                    <label class="btn" style="cursor:pointer;font-weight:600;">
+                                        <input type="checkbox" id="tenantClassesSkipNoKv" checked style="margin-right:6px;">Nur mit Klassenvorstand
+                                    </label>
                                     <button type="button" class="btn" id="tenantClassesTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Klassenliste als Tabelle">
@@ -981,10 +1003,14 @@
                         <button type="button" class="btn" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
                         <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
                         <input type="file" id="browserBackupImportFile" accept="application/json,.json">
+                        <button type="button" class="btn btn-success" data-ms365-spo-sync="upload" title="Stammdaten in die SharePoint-IT-Bibliothek sichern"><i class="bi bi-cloud-arrow-up"></i>In SharePoint sichern</button>
+                        <button type="button" class="btn" data-ms365-spo-sync="load" title="Aktuelles Backup aus SharePoint einlesen"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint einlesen</button>
+                        <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
                         <button type="button" class="btn btn-danger" id="tenantSettingsClear"><i class="bi bi-trash"></i>Löschen</button>
                     </div>
 
-                    <p class="tile-subtitle" style="margin-top:10px;">Browser-Backup enthält Stammdaten, Einrichtung und Werkzeug-Zwischenstände aus diesem Browser. Alte Schuldaten-JSON-Dateien werden weiterhin erkannt. Die Microsoft-Anmeldung muss im anderen Browser neu erfolgen.</p>
+                    <p class="tile-subtitle" style="margin-top:10px;">Browser-Backup enthält Stammdaten, Einrichtung und Werkzeug-Zwischenstände aus diesem Browser. Alte Schuldaten-JSON-Dateien werden weiterhin erkannt. Die Microsoft-Anmeldung muss im anderen Browser neu erfolgen. <strong>In SharePoint sichern / einlesen</strong> nutzt die IT-Dokumentbibliothek (wenn eingerichtet, sonst Ersteinrichtung).</p>
+                    <div id="stammdatenSpoSyncStatus" class="summary" role="status" aria-live="polite"></div>
                     <div id="browserBackupStatus" class="summary" role="status" aria-live="polite"></div>
 
                     <div id="tenantSettingsSummary" class="summary" role="status" aria-live="polite"></div>
@@ -998,6 +1024,9 @@
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="src/shared/eltern-guardians.js" defer></script>
+    <script src="src/shared/person-email-from-name.js" defer></script>
+    <script src="src/shared/pdf-text.js" defer></script>
+    <script src="src/shared/webuntis-export-import.js" defer></script>
     <script src="src/shared/school-sis-import.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
     <script src="src/shared/demo-mode.js" defer></script>
@@ -1013,6 +1042,8 @@
     <script src="src/shared/empty-state-ui.js" defer></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
+    <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
+    <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script>
         (function () {
             'use strict';

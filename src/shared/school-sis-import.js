@@ -150,6 +150,8 @@
         return mergeStudentRecords(records)
             .map(function (r) {
                 const parts = [r.klasse || '', r.name || '', r.email || ''];
+                const ext = normStr(r.externalId);
+                if (ext) parts.push('#id:' + ext);
                 (r.parentPairs || []).forEach(function (p) {
                     parts.push(p.name || '');
                     parts.push(p.email || '');
@@ -318,6 +320,16 @@
         if (has('schuelerkennzahl', 'schülerkennzahl') || (has('mailadresse') && (famCount >= 1 || has('klasse')))) {
             return 'sokrates';
         }
+        if (
+            has('longname') &&
+            has('forename') &&
+            (has('klasse.name') || has('klassename') || has('externkey'))
+        ) {
+            return 'webuntis';
+        }
+        if (has('studentinternalid', 'studentexternalid') || (has('studentlastname') && has('studentfirstname'))) {
+            return 'webuntis';
+        }
         if (has('schluessel', 'schlüssel', 'schluesselextern') || has('guardianemail', 'elternmail')) {
             return 'webuntis';
         }
@@ -347,6 +359,40 @@
         }
 
         let records = [];
+        const wu = typeof window !== 'undefined' ? window.ms365WebuntisExportImport : null;
+        if (source === 'webuntis' && wu && aoa && aoa.length) {
+            const kind = typeof wu.detectExportKindFromAoa === 'function' ? wu.detectExportKindFromAoa(aoa) : '';
+            if (kind === 'student') {
+                const r = wu.importStudentsFromWebuntis({
+                    studentAoa: aoa,
+                    guardianAoa: [],
+                    applyEmails: false
+                });
+                return {
+                    source: 'webuntis',
+                    records: r.records,
+                    lines: recordsToSemicolonLines(r.records),
+                    meta: r.meta,
+                    unmatchedGuardians: r.unmatchedGuardians,
+                    matchCounts: r.matchCounts,
+                    emailMeta: r.emailMeta
+                };
+            }
+            if (kind === 'guardian') {
+                // Nur Eltern ohne Schüler: Fallback auf Sokrates-ähnliche Aggregation ungeeignet
+                return {
+                    source: 'webuntis',
+                    records: [],
+                    lines: '',
+                    meta: {
+                        studentCount: 0,
+                        withParents: 0,
+                        parentMails: 0,
+                        error: 'LegalGuardian-Export allein reicht nicht – bitte zusätzlich den Student-Export wählen.'
+                    }
+                };
+            }
+        }
         if (source === 'sokrates' || source === 'webuntis') {
             if (aoa && aoa.length) records = mapSokratesOrUntisAoa(aoa);
             else if (objectRows) records = mapMs365ObjectRows(objectRows);
@@ -423,7 +469,7 @@
             ],
             [
                 'WebUntis',
-                'Elternstammdaten-CSV: Schüler-ID (Schlüssel extern) + Eltern Vor-/Familienname + E-Mail. Schüler sollten in der App bereits Klasse/Name/Mail haben oder in derselben Datei stehen.'
+                'Schüler: Student_*.xls + optional LegalGuardian_*.xls. Lehrer: TeacherSalary_*.xls. Klassen: Class_*.pdf (PD-Bericht) – KV-Kürzel wird mit der Lehrerliste verknüpft. Aktualisierungen im Jahr: „Zusammenführen“.'
             ],
             ['Datenschutz', 'Elternmails bleiben lokal; Exchange nur als GAL-versteckte Mail Contacts + DL mit versteckter Mitgliedschaft (Eltern-Verteiler).'],
             ['Trenner CSV', 'Semikolon (;) bevorzugt; Komma wird ebenfalls erkannt. BOM/UTF-8 empfohlen.']
@@ -490,7 +536,7 @@
             { id: 'auto', label: 'Automatisch erkennen' },
             { id: 'ms365', label: 'MS365-Vorlage (Klasse;Name;E-Mail;Eltern…)' },
             { id: 'sokrates', label: 'Sokrates (Suche 111 / Elternabfrage)' },
-            { id: 'webuntis', label: 'WebUntis Eltern-/Schüler-CSV' }
+            { id: 'webuntis', label: 'WebUntis Exporte (Student / Eltern)' }
         ];
     }
 
@@ -649,16 +695,70 @@
                 parentPairs: Array.isArray(s.parentPairs) ? s.parentPairs : []
             };
         });
+        const existing = Array.isArray(existingStudents) ? existingStudents : [];
+        const byEmail = new Map();
+        const byExt = new Map();
+        const byName = new Map();
+        existing.forEach(function (s) {
+            const em = normEmail(s && s.email);
+            const ext = normStr(s && s.externalId).toLowerCase();
+            if (em) byEmail.set(em, s);
+            if (ext) byExt.set(ext, s);
+            byName.set(studentKey(s), s);
+        });
         const incomingNorm = incoming.map(function (r) {
+            let email = normEmail(r.email);
+            const ext = normStr(r.externalId).toLowerCase();
+            let prev = null;
+            if (email && byEmail.has(email)) prev = byEmail.get(email);
+            else if (ext && byExt.has(ext)) prev = byExt.get(ext);
+            else prev = byName.get(studentKey(r)) || null;
+            // Leere Import-Mail: lokale Mail behalten (WebUntis ohne address.email)
+            if (!email && prev && normEmail(prev.email)) email = normEmail(prev.email);
             return {
-                klasse: normStr(r.klasse),
-                name: normStr(r.name),
-                email: normEmail(r.email),
-                externalId: normStr(r.externalId),
-                parentPairs: Array.isArray(r.parentPairs) ? r.parentPairs : []
+                klasse: normStr(r.klasse) || (prev ? normStr(prev.klasse) : ''),
+                name: normStr(r.name) || (prev ? normStr(prev.name) : ''),
+                email: email,
+                externalId: normStr(r.externalId) || (prev ? normStr(prev.externalId) : ''),
+                parentPairs: Array.isArray(r.parentPairs) && r.parentPairs.length
+                    ? r.parentPairs
+                    : prev && Array.isArray(prev.parentPairs)
+                      ? prev.parentPairs
+                      : []
             };
         });
         return keep.concat(incomingNorm);
+    }
+
+    /**
+     * Übernimmt vorhandene Schüler-Mails in Incoming-Records (Match: Mail → externalId → Klasse+Name).
+     */
+    function preferExistingStudentEmails(incomingRecords, existingStudents) {
+        const existing = Array.isArray(existingStudents) ? existingStudents : [];
+        const byEmail = new Map();
+        const byExt = new Map();
+        const byName = new Map();
+        existing.forEach(function (s) {
+            const em = normEmail(s && s.email);
+            const ext = normStr(s && s.externalId).toLowerCase();
+            if (em) byEmail.set(em, s);
+            if (ext) byExt.set(ext, s);
+            byName.set(studentKey(s), s);
+        });
+        return (Array.isArray(incomingRecords) ? incomingRecords : []).map(function (r) {
+            const rec = Object.assign({}, r);
+            let prev = null;
+            const em = normEmail(rec.email);
+            const ext = normStr(rec.externalId).toLowerCase();
+            if (em && byEmail.has(em)) prev = byEmail.get(em);
+            else if (ext && byExt.has(ext)) prev = byExt.get(ext);
+            else prev = byName.get(studentKey(rec)) || null;
+            if (prev && normEmail(prev.email) && !em) {
+                rec.email = normEmail(prev.email);
+                rec.emailFromExisting = true;
+            }
+            return rec;
+        });
     }
 
     function summarizeSisDiff(diff) {
@@ -741,6 +841,7 @@
         parentEmailsOf,
         diffSisImport,
         applySisImport,
+        preferExistingStudentEmails,
         summarizeSisDiff,
         sisDiffToCsv,
         downloadSisDiffCsv,

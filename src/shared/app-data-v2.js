@@ -37,6 +37,7 @@
                 schuelerGroupId: null,
                 lehrerGroupId: null,
                 verwaltungGroupId: null,
+                kvGroupId: null,
                 sgaGroupId: null,
                 studentCouncilGroupId: null
             },
@@ -61,6 +62,13 @@
                 /** Besitzer Verwaltungs-Sammelgruppe: admin | direktion | manual */
                 vwOwnerSource: 'admin',
                 vwOwnerManualEmails: ''
+            },
+            kvDraft: {
+                kvNewDisplayName: 'Klassenvorstände',
+                kvNewMailNick: 'klassenvorstaende',
+                kvNewDescription: '',
+                /** team | mail – Ziel beim Anlegen */
+                kvNewCreateTarget: 'mail'
             },
             /** Kleinbuchstaben/Ziffern; Vorschau/Anlage Fachgruppen (Einrichtungsassistent) */
             subjectGroupMailPrefix: 'fach',
@@ -244,7 +252,7 @@
             seenG.add(g);
             guardianIds.push(g);
         });
-        return { id: id, klasse: klasse, name: name, email: email, guardianIds: guardianIds };
+        return { id: id, klasse: klasse, name: name, email: email, guardianIds: guardianIds, externalId: String(r.externalId || '').trim() };
     }
 
     function normalizeStudentCouncilRow(row) {
@@ -322,9 +330,14 @@
     function mergeStudentsImport(prevBucket, incomingStudents) {
         const prev = normalizeYearBucket(prevBucket);
         const oldByEmail = new Map();
+        const oldByExt = new Map();
         const oldByKey = new Map();
         prev.students.forEach(function (s) {
             if (s.email) oldByEmail.set(s.email, s);
+            const ext = String(s.externalId || '')
+                .trim()
+                .toLowerCase();
+            if (ext) oldByExt.set(ext, s);
             oldByKey.set([String(s.klasse || '').toLowerCase(), String(s.name || '').toLowerCase()].join('|'), s);
         });
 
@@ -341,11 +354,14 @@
                 const g = byEmail.get(email);
                 const nm = String((pair && pair.name) || '').trim();
                 if (nm && !g.name) g.name = nm;
+                const ph = String((pair && pair.phone) || '').trim();
+                if (ph && !g.phone) g.phone = ph;
                 return g.id;
             }
             const g = normalizeGuardian({
                 name: String((pair && pair.name) || '').trim(),
-                email: email
+                email: email,
+                phone: String((pair && pair.phone) || '').trim()
             });
             if (!g) return '';
             guardians.push(g);
@@ -359,17 +375,24 @@
             const klasse = String(raw?.klasse || raw?.class || '').trim();
             const name = String(raw?.name || '').trim();
             const email = normEmailKey(raw?.email);
-            if (!klasse && !name && !email) return;
+            const externalId = String(raw?.externalId || '').trim();
+            if (!klasse && !name && !email && !externalId) return;
             let prevS = email && oldByEmail.has(email) ? oldByEmail.get(email) : null;
+            if (!prevS && externalId) {
+                prevS = oldByExt.get(externalId.toLowerCase()) || null;
+            }
             if (!prevS) {
                 prevS = oldByKey.get([klasse.toLowerCase(), name.toLowerCase()].join('|')) || null;
             }
+            // Mail: vorhandene lokale Mail behalten, wenn Incoming leer
+            const mergedEmail = email || (prevS && prevS.email) || '';
             const row = normalizeStudentRow(
                 {
                     id: prevS ? prevS.id : raw?.id,
-                    klasse: klasse,
-                    name: name,
-                    email: email,
+                    klasse: klasse || (prevS && prevS.klasse) || '',
+                    name: name || (prevS && prevS.name) || '',
+                    email: mergedEmail,
+                    externalId: externalId || (prevS && prevS.externalId) || '',
                     guardianIds: prevS ? prevS.guardianIds : raw?.guardianIds
                 },
                 usedIds
@@ -399,7 +422,8 @@
             students: students,
             classes: prev.classes,
             guardians: guardians,
-            parentLists: prev.parentLists
+            parentLists: prev.parentLists,
+            studentCouncil: prev.studentCouncil
         });
     }
 
@@ -407,7 +431,8 @@
         const c = String(v ?? '')
             .trim()
             .toLowerCase();
-        if (c === 'schueler' || c === 'lehrer' || c === 'verwaltung') return c;
+        if (c === 'schueler' || c === 'lehrer' || c === 'verwaltung' || c === 'klassenvorstaende') return c;
+        if (c === 'kv' || c === 'klassenvorstand') return 'klassenvorstaende';
         return '';
     }
 
@@ -415,6 +440,7 @@
         if (code === 'schueler') return 'schuelerGroupId';
         if (code === 'lehrer') return 'lehrerGroupId';
         if (code === 'verwaltung') return 'verwaltungGroupId';
+        if (code === 'klassenvorstaende') return 'kvGroupId';
         return '';
     }
 
@@ -453,7 +479,7 @@
     function fillSammelgruppeGaps(matched, catalogLinks) {
         const m = matched && typeof matched === 'object' ? Object.assign({}, matched) : {};
         let links = Array.isArray(catalogLinks) ? catalogLinks.slice() : [];
-        ['schueler', 'lehrer', 'verwaltung'].forEach(function (code) {
+        ['schueler', 'lehrer', 'verwaltung', 'klassenvorstaende'].forEach(function (code) {
             const field = sammelgruppeFieldForCode(code);
             const link = links.find(function (x) {
                 return x && x.kind === 'sammelgruppe' && x.code === code;
@@ -544,6 +570,7 @@
             schuelerGroupId: m.schuelerGroupId ? String(m.schuelerGroupId).trim() : null,
             lehrerGroupId: m.lehrerGroupId ? String(m.lehrerGroupId).trim() : null,
             verwaltungGroupId: m.verwaltungGroupId ? String(m.verwaltungGroupId).trim() : null,
+            kvGroupId: m.kvGroupId ? String(m.kvGroupId).trim() : null,
             sgaGroupId: m.sgaGroupId ? String(m.sgaGroupId).trim() : null,
             studentCouncilGroupId: m.studentCouncilGroupId ? String(m.studentCouncilGroupId).trim() : null
         };
@@ -574,6 +601,14 @@
             vwNewCreateTeam: !!vd.vwNewCreateTeam,
             vwOwnerSource: vwSrc === 'direktion' || vwSrc === 'manual' ? vwSrc : 'admin',
             vwOwnerManualEmails: String(vd.vwOwnerManualEmails != null ? vd.vwOwnerManualEmails : '')
+        };
+        const kd = x.kvDraft && typeof x.kvDraft === 'object' ? x.kvDraft : {};
+        const kvTarget = String(kd.kvNewCreateTarget || '').trim().toLowerCase();
+        d.kvDraft = {
+            kvNewDisplayName: String(kd.kvNewDisplayName != null ? kd.kvNewDisplayName : 'Klassenvorstände'),
+            kvNewMailNick: mailNicknamePrefixSanitize(kd.kvNewMailNick || 'klassenvorstaende', 60) || 'klassenvorstaende',
+            kvNewDescription: String(kd.kvNewDescription != null ? kd.kvNewDescription : ''),
+            kvNewCreateTarget: kvTarget === 'team' ? 'team' : 'mail'
         };
         d.subjectGroupMailPrefix = mailNicknamePrefixSanitize(x.subjectGroupMailPrefix, 24) || 'fach';
         d.argeGroupMailPrefix = mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24) || 'ag';
@@ -842,6 +877,9 @@
         }
     }
 
+    /** In-memory cache: avoid re-parse/re-normalize/re-write of large student lists on every getSetup/getContainer. */
+    let containerCache = null;
+
     function saveV2(container) {
         const normalized = normalizeContainer(container);
         try {
@@ -849,13 +887,25 @@
         } catch {
             // ignore
         }
+        containerCache = normalized;
         return normalized;
     }
 
     function migrateFromV1IfNeeded() {
         const existing = loadV2Raw();
         if (existing && typeof existing === 'object') {
-            return saveV2(normalizeContainer(existing));
+            const normalized = normalizeContainer(existing);
+            const needsWrite =
+                existing.version !== VERSION ||
+                !(existing.setup && existing.setup._einrichtungWizardLayout === 11);
+            if (needsWrite) {
+                try {
+                    localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(normalized));
+                } catch {
+                    // ignore
+                }
+            }
+            return normalized;
         }
 
         // Migrate from legacy keys (best-effort, non-destructive)
@@ -951,8 +1001,10 @@
     }
 
     function getContainer() {
-        const c = migrateFromV1IfNeeded();
-        return maybeMergeSlgLocalIntoSetup(c);
+        if (containerCache) return containerCache;
+        const c = maybeMergeSlgLocalIntoSetup(migrateFromV1IfNeeded());
+        containerCache = c;
+        return c;
     }
 
     function setContainer(next) {
@@ -1015,7 +1067,8 @@
 
     function getSetup() {
         const c = getContainer();
-        return normalizeSetup(c.setup);
+        if (!c.setup || typeof c.setup !== 'object') c.setup = normalizeSetup(null);
+        return c.setup;
     }
 
     function patchSetup(partial) {
@@ -1050,6 +1103,11 @@
                     cur.verwaltungDraft,
                     p.verwaltungDraft && typeof p.verwaltungDraft === 'object' ? p.verwaltungDraft : {}
                 ),
+                kvDraft: Object.assign(
+                    {},
+                    cur.kvDraft,
+                    p.kvDraft && typeof p.kvDraft === 'object' ? p.kvDraft : {}
+                ),
                 catalogLinks: Array.isArray(p.catalogLinks) ? p.catalogLinks : cur.catalogLinks,
                 directoryMatchByEmail: mergedDir,
                 classGroupMatchByKey: mergedCgm
@@ -1058,17 +1116,23 @@
         const matchedPatched = p.matched && typeof p.matched === 'object';
         const catalogPatched = Array.isArray(p.catalogLinks);
         if (matchedPatched) {
-            ['schuelerGroupId', 'lehrerGroupId', 'verwaltungGroupId'].forEach(function (field) {
+            ['schuelerGroupId', 'lehrerGroupId', 'verwaltungGroupId', 'kvGroupId'].forEach(function (field) {
                 if (!Object.prototype.hasOwnProperty.call(p.matched, field)) return;
                 const id = p.matched[field] ? String(p.matched[field]).trim() : '';
                 next.matched[field] = id || null;
                 const code =
-                    field === 'schuelerGroupId' ? 'schueler' : field === 'lehrerGroupId' ? 'lehrer' : 'verwaltung';
+                    field === 'schuelerGroupId'
+                        ? 'schueler'
+                        : field === 'lehrerGroupId'
+                          ? 'lehrer'
+                          : field === 'verwaltungGroupId'
+                            ? 'verwaltung'
+                            : 'klassenvorstaende';
                 next.catalogLinks = writeSammelgruppeCatalogLink(next.catalogLinks, code, id);
             });
         }
         if (catalogPatched) {
-            ['schueler', 'lehrer', 'verwaltung'].forEach(function (code) {
+            ['schueler', 'lehrer', 'verwaltung', 'klassenvorstaende'].forEach(function (code) {
                 const link = next.catalogLinks.find(function (x) {
                     return x && x.kind === 'sammelgruppe' && x.code === code;
                 });

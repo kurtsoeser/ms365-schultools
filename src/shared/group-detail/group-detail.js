@@ -52,7 +52,9 @@
             deleteGroup: !!f.deleteGroup,
             teamArchive: !!f.teamArchive,
             ensureDirektion: f.ensureDirektion !== false,
-            visibilityUnsupported: !!f.visibilityUnsupported
+            visibilityUnsupported: !!f.visibilityUnsupported,
+            /** Radios: Team vs. nur E-Mailverteiler statt Team-Checkbox */
+            createTargetChoice: !!f.createTargetChoice
         };
     }
 
@@ -197,10 +199,22 @@
                 '<input type="text" id="slgNewDescription" maxlength="512" autocomplete="off">' +
                 '</div>' +
                 '</div>' +
-                '<label class="checkbox-label" for="slgNewCreateTeam" style="margin-top:12px; display:inline-flex;">' +
-                '<input type="checkbox" id="slgNewCreateTeam">' +
-                '<span>Auch als <strong>Team</strong> anlegen (optional)</span>' +
-                '</label>' +
+                (f.createTargetChoice
+                    ? '<fieldset class="gd-create-target" style="margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;">' +
+                      '<legend style="padding:0 6px;font-size:0.85em;font-weight:700;">Ziel beim Anlegen</legend>' +
+                      '<label class="checkbox-label" for="slgNewCreateTargetMail" style="display:flex;align-items:flex-start;gap:8px;margin:0 0 8px;">' +
+                      '<input type="radio" name="slgNewCreateTarget" id="slgNewCreateTargetMail" value="mail" checked>' +
+                      '<span><strong>Nur E-Mail-Verteiler</strong> – Microsoft 365‑Gruppe ohne Team (mailfähig)</span>' +
+                      '</label>' +
+                      '<label class="checkbox-label" for="slgNewCreateTargetTeam" style="display:flex;align-items:flex-start;gap:8px;margin:0;">' +
+                      '<input type="radio" name="slgNewCreateTarget" id="slgNewCreateTargetTeam" value="team">' +
+                      '<span><strong>Microsoft 365‑Gruppe inkl. Team</strong> – mit Teams‑Arbeitsbereich</span>' +
+                      '</label>' +
+                      '</fieldset>'
+                    : '<label class="checkbox-label" for="slgNewCreateTeam" style="margin-top:12px; display:inline-flex;">' +
+                      '<input type="checkbox" id="slgNewCreateTeam">' +
+                      '<span>Auch als <strong>Team</strong> anlegen (optional)</span>' +
+                      '</label>') +
                 '<div class="detail-actions">' +
                 '<button type="button" class="btn" id="slgBtnCreate"><i class="bi bi-plus-circle"></i>Anlegen &amp; matchen</button>' +
                 '</div>' +
@@ -627,9 +641,11 @@
         const nn = document.getElementById('slgNewMailNick');
         const dd = document.getElementById('slgNewDescription');
         const ct = document.getElementById('slgNewCreateTeam');
+        const targetTeam = document.getElementById('slgNewCreateTargetTeam');
         const displayName = dn ? dn.value : '';
         const mailNick = nn ? nn.value : '';
         const desc = dd ? dd.value : '';
+        const wantTeam = !!(targetTeam && targetTeam.checked) || !!(ct && ct.checked);
         if (!normStr(displayName) || !normStr(mailNick)) {
             toast('Bitte Anzeigename und Alias/Mail‑Nickname ausfüllen.');
             return;
@@ -639,7 +655,7 @@
             const g = await gug().createUnifiedGroup(token, displayName, mailNick, desc);
             if (m && typeof m.ensureOwners === 'function') await m.ensureOwners(token, g.id);
             if (m && typeof m.afterCreate === 'function') await m.afterCreate(token, g);
-            if (ct && ct.checked) {
+            if (wantTeam) {
                 toast('Gruppe angelegt – Team wird bereitgestellt …');
                 await gug().provisionTeamForGroup(token, g.id);
             }

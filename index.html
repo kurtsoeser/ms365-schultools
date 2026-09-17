@@ -1419,7 +1419,7 @@
                             <span class="dash-task-index">02</span>
                         </div>
                         <h3>Sammelgruppen pflegen</h3>
-                        <p>Die großen Gruppen für alle Schülerinnen, alle Lehrkräfte, Verwaltung und Fächer.</p>
+                        <p>Die großen Gruppen für alle Schülerinnen, alle Lehrkräfte, Verwaltung, Klassenvorstände und Fächer.</p>
                         <div class="dash-task-progress-row" id="dashProgGruppenRow" data-context-tip="prog-gruppen" hidden>
                             <p class="dash-task-progress" id="dashProgGruppen"></p>
                         </div>
@@ -1430,6 +1430,10 @@
                             </a>
                             <a class="dash-task-row" href="tools/verwaltung.html">
                                 <span class="dash-task-row__label"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/klassenvorstaende.html">
+                                <span class="dash-task-row__label"><i class="bi bi-person-vcard" aria-hidden="true"></i>Klassenvorstände</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <a class="dash-task-row" href="tools/arge-fachgruppen.html">
@@ -1653,6 +1657,11 @@
                                 <p>Gruppe für Sekretariat, Direktion und weitere Verwaltungsrollen anlegen und Mitglieder pflegen.</p>
                                 <a class="btn" href="tools/verwaltung.html"><i class="bi bi-building-gear"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Klassenvorstände" data-tool-id="klassenvorstaende" data-cluster="personen" data-search="klassenvorstand kv klassenlehrer verteiler sammelgruppe team" draggable="true">
+                                <h2><i class="bi bi-person-vcard"></i>Klassenvorstände</h2>
+                                <p>Sammelgruppe oder E-Mail-Verteiler aller Klassenvorstände aus der Klassenliste matchen und abgleichen.</p>
+                                <a class="btn" href="tools/klassenvorstaende.html"><i class="bi bi-person-vcard"></i>Öffnen</a>
+                            </section>
                         </div>
                     </section>
                 </div>
@@ -1862,6 +1871,7 @@
                 'gaeste-verwalten',
                 'slg',
                 'verwaltung',
+                'klassenvorstaende',
                 'organisations-assistent',
                 'postfaecher',
                 'verteilerlisten',
@@ -2502,6 +2512,7 @@
                 if (matched.schuelerGroupId) sammel += 1;
                 if (matched.lehrerGroupId) sammel += 1;
                 if (matched.verwaltungGroupId) sammel += 1;
+                if (matched.kvGroupId) sammel += 1;
                 const subjectN = ((s && s.subjects) || []).length + ((s && s.arges) || []).length;
                 let subjectLinked = 0;
                 links.forEach(function (l) {
@@ -2509,7 +2520,7 @@
                 });
                 if (sammel || subjectN) {
                     const parts = [];
-                    if (sammel) parts.push(sammel + '/3 Sammelgruppen');
+                    if (sammel) parts.push(sammel + '/4 Sammelgruppen');
                     if (subjectN) parts.push(subjectLinked + '/' + subjectN + ' Fächer/ARGEs');
                     const tone = sammel >= 2 && (!subjectN || subjectLinked >= subjectN) ? 'ok' : 'warn';
                     setProgress(elProgGruppen, parts.join(' · '), tone);

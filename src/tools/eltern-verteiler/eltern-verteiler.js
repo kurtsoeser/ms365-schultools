@@ -618,9 +618,9 @@
         }
         if (!fileInput) return;
         fileInput.addEventListener('change', function () {
-            const file = fileInput.files && fileInput.files[0];
+            const files = fileInput.files;
             fileInput.value = '';
-            if (!file) return;
+            if (!files || !files.length) return;
             if (typeof XLSX === 'undefined') {
                 toast('Excel-Bibliothek nicht geladen', 'err');
                 return;
@@ -631,59 +631,134 @@
                 return;
             }
             const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
-            setImportStatus('Lese Datei …');
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                try {
+            const patternEl = getEl('evImportEmailPattern');
+            const pattern = patternEl ? String(patternEl.value || 'vorname.nachname') : 'vorname.nachname';
+            setImportStatus('Lese Datei(en) …');
+
+            function finishWithResult(result) {
+                if (!result || !result.meta) {
+                    setImportStatus('Keine Daten erkannt');
+                    toast('Import fehlgeschlagen', 'err');
+                    return;
+                }
+                if (result.meta.error) {
+                    setImportStatus(result.meta.error);
+                    toast(result.meta.error, 'err');
+                    return;
+                }
+                let records = result.records || [];
+                if (sis.preferExistingStudentEmails) {
+                    records = sis.preferExistingStudentEmails(records, existingStudentRecords(currentBucket().bucket));
+                    result.records = records;
+                    if (sis.recordsToSemicolonLines) result.lines = sis.recordsToSemicolonLines(records);
+                }
+                const diff = sis.diffSisImport(existingStudentRecords(currentBucket().bucket), records);
+                state.importPreview = {
+                    source: result.source,
+                    records: records,
+                    meta: result.meta,
+                    diff: diff,
+                    removedSelected: new Set()
+                };
+                renderImportPreview();
+                const extra = [];
+                if (result.meta && result.meta.emailsGenerated) extra.push(result.meta.emailsGenerated + ' Mails vorgeschlagen');
+                if (result.meta && result.meta.unmatchedGuardians) {
+                    extra.push(result.meta.unmatchedGuardians + ' Eltern ohne Zuordnung');
+                }
+                setImportStatus(
+                    'Vorschau bereit: ' +
+                        result.meta.studentCount +
+                        ' Schüler, ' +
+                        result.meta.withParents +
+                        ' mit Elternmails (Quelle: ' +
+                        result.source +
+                        ')' +
+                        (extra.length ? ' · ' + extra.join(' · ') : '') +
+                        '. Änderungen unten prüfen und dann übernehmen.'
+                );
+                toast('Import-Vorschau erzeugt', 'ok');
+            }
+
+            function readOneFile(file) {
+                return new Promise(function (resolve, reject) {
                     const name = String(file.name || '').toLowerCase();
-                    let wb;
-                    if (name.endsWith('.csv') || name.endsWith('.txt')) {
-                        let s = String(e.target.result || '');
-                        if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-                        wb = XLSX.read(s, { type: 'string', FS: ';' });
-                        let aoaProbe = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
-                        if (!aoaProbe || aoaProbe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
-                    } else {
-                        wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                    }
-                    const sheet = wb.Sheets[wb.SheetNames[0]];
-                    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                    const objectRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-                    const result = sis.importStudentsAndGuardians({
-                        aoa: aoa,
-                        objectRows: objectRows,
-                        source: sourceHint
-                    });
-                    const diff = sis.diffSisImport(existingStudentRecords(currentBucket().bucket), result.records);
-                    state.importPreview = {
-                        source: result.source,
-                        records: result.records,
-                        meta: result.meta,
-                        diff: diff,
-                        removedSelected: new Set()
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        try {
+                            let wb;
+                            if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                                let s = String(e.target.result || '');
+                                if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+                                wb = XLSX.read(s, { type: 'string', FS: ';' });
+                                let aoaProbe = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
+                                    header: 1,
+                                    defval: ''
+                                });
+                                if (!aoaProbe || aoaProbe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                            } else {
+                                wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                            }
+                            const sheet = wb.Sheets[wb.SheetNames[0]];
+                            const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                            resolve({ name: file.name || '', aoa: aoa });
+                        } catch (err) {
+                            reject(err);
+                        }
                     };
-                    renderImportPreview();
-                    setImportStatus(
-                        'Vorschau bereit: ' +
-                            result.meta.studentCount +
-                            ' Schüler, ' +
-                            result.meta.withParents +
-                            ' mit Elternmails (Quelle: ' +
-                            result.source +
-                            '). Änderungen unten prüfen und dann übernehmen.'
+                    reader.onerror = function () {
+                        reject(new Error('Datei konnte nicht gelesen werden'));
+                    };
+                    if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
+                    else reader.readAsArrayBuffer(file);
+                });
+            }
+
+            Promise.all(Array.from(files).map(readOneFile))
+                .then(function (sheets) {
+                    const wu = window.ms365WebuntisExportImport;
+                    const domain =
+                        typeof window.ms365GetSchoolDomainNoAt === 'function'
+                            ? String(window.ms365GetSchoolDomainNoAt() || '').replace(/^@+/, '')
+                            : '';
+                    const classified = wu && wu.classifySheets ? wu.classifySheets(sheets) : null;
+                    if (classified && classified.studentAoa && wu.importStudentsFromWebuntis) {
+                        finishWithResult(
+                            wu.importStudentsFromWebuntis({
+                                studentAoa: classified.studentAoa,
+                                guardianAoa: classified.guardianAoa || [],
+                                domain: domain,
+                                pattern: pattern,
+                                applyEmails: !!domain
+                            })
+                        );
+                        return;
+                    }
+                    const first = sheets[0];
+                    const objectRows = [];
+                    const headers = (first && first.aoa && first.aoa[0]) || [];
+                    for (let i = 1; first && i < first.aoa.length; i++) {
+                        const row = first.aoa[i] || [];
+                        const o = {};
+                        headers.forEach(function (h, idx) {
+                            const key = String(h || '').trim();
+                            if (!key) return;
+                            if (o[key] == null || o[key] === '') o[key] = row[idx];
+                        });
+                        objectRows.push(o);
+                    }
+                    finishWithResult(
+                        sis.importStudentsAndGuardians({
+                            aoa: first ? first.aoa : [],
+                            objectRows: objectRows,
+                            source: sourceHint
+                        })
                     );
-                    toast('Import-Vorschau erzeugt', 'ok');
-                } catch (err) {
+                })
+                .catch(function (err) {
                     setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
                     toast('Import fehlgeschlagen', 'err');
-                }
-            };
-            reader.onerror = function () {
-                setImportStatus('Datei konnte nicht gelesen werden.');
-            };
-            const n = String(file.name || '').toLowerCase();
-            if (n.endsWith('.csv') || n.endsWith('.txt')) reader.readAsText(file);
-            else reader.readAsArrayBuffer(file);
+                });
         });
     }
 

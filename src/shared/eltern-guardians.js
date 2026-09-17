@@ -862,19 +862,32 @@
     function extractParentPairsFromParts(parts) {
         const out = [];
         if (!Array.isArray(parts) || parts.length <= 3) return out;
-        for (let i = 3; i < parts.length; i += 2) {
-            const name = normStr(parts[i] || '');
+        for (let i = 3; i < parts.length; ) {
+            const token = normStr(parts[i] || '');
+            if (/^#id:/i.test(token)) {
+                i += 1;
+                continue;
+            }
+            const name = token;
             const email = normEmail(parts[i + 1] || '');
-            if (!name && !email) continue;
+            if (!name && !email) {
+                i += 2;
+                continue;
+            }
             if (email && email.indexOf('@') === -1) {
                 // Toleranz: nur Mail ohne Namen
                 if (name.indexOf('@') !== -1) {
                     out.push({ name: '', email: normEmail(name) });
                 }
+                i += 2;
                 continue;
             }
-            if (!email) continue;
+            if (!email) {
+                i += 2;
+                continue;
+            }
             out.push({ name: name, email: email });
+            i += 2;
         }
         return out;
     }

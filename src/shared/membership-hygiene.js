@@ -180,6 +180,28 @@ export function buildHygieneTargets(container, settings) {
         reviewHint: 'Sammelgruppe → Mitglieder vergleichen'
     });
 
+    const kvGid = matched.kvGroupId ? String(matched.kvGroupId).trim() : '';
+    const kvEmails = [];
+    const kvSeen = new Set();
+    classes.forEach(function (cls) {
+        if (!cls) return;
+        const em = String(cls.headEmail || '')
+            .trim()
+            .toLowerCase();
+        if (!em || em.indexOf('@') === -1 || kvSeen.has(em)) return;
+        kvSeen.add(em);
+        kvEmails.push(em);
+    });
+    pushTarget({
+        id: 'klassenvorstaende',
+        category: 'sammelgruppe',
+        label: 'Klassenvorstände (Sammelgruppe)',
+        groupId: kvGid || null,
+        listCount: kvEmails.length,
+        toolHref: 'klassenvorstaende.html',
+        reviewHint: 'Mitglieder vergleichen / synchronisieren'
+    });
+
     classes.forEach(function (cls) {
         if (!cls) return;
         const code = normCode(cls.code);

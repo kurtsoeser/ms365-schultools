@@ -489,12 +489,14 @@
             if (!klasse && !name && !email) return;
             const row = { klasse, name, email };
             if (s?.id) row.id = normStr(s.id);
+            if (s?.externalId) row.externalId = normStr(s.externalId);
             if (Array.isArray(s?.guardianIds)) row.guardianIds = s.guardianIds.slice();
             if (Array.isArray(s?.parentPairs) && s.parentPairs.length) {
                 row.parentPairs = s.parentPairs
                     .map((p) => ({
                         name: normStr(p?.name),
-                        email: normStr(p?.email).toLowerCase()
+                        email: normStr(p?.email).toLowerCase(),
+                        phone: normStr(p?.phone || '')
                     }))
                     .filter((p) => p.email && p.email.includes('@'));
             }
@@ -721,6 +723,15 @@
                 const email = (parts[2] || '').toLowerCase();
                 if (!klasse && !name && !email) return;
                 const row = { klasse, name, email };
+                let externalId = '';
+                for (let i = 3; i < parts.length; i++) {
+                    const p = parts[i] || '';
+                    if (/^#id:/i.test(p)) {
+                        externalId = normStr(p.slice(4));
+                        break;
+                    }
+                }
+                if (externalId) row.externalId = externalId;
                 const pairs = extractPairs ? extractPairs(parts) : [];
                 if (pairs.length) row.parentPairs = pairs;
                 out.push(row);

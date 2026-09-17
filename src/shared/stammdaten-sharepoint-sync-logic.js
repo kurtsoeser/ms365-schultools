@@ -131,6 +131,14 @@ export function buildItLibraryPlan(input) {
     };
 }
 
+/**
+ * Ob die IT-Bibliothek lokal als eingerichtet gilt (Drive-ID vorhanden).
+ * @param {{ driveId?: string }|null|undefined} meta
+ */
+export function isItLibraryConfigured(meta) {
+    return !!(meta && String(meta.driveId || '').trim());
+}
+
 export default {
     DEFAULT_FOLDER,
     CURRENT_FILE,
@@ -143,5 +151,6 @@ export default {
     describeRemoteBackup,
     isBroadSiteAudience,
     entraGroupLogonName,
-    buildItLibraryPlan
+    buildItLibraryPlan,
+    isItLibraryConfigured
 };

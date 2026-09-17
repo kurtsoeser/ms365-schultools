@@ -9,6 +9,7 @@ import {
     isBroadSiteAudience,
     entraGroupLogonName,
     buildItLibraryPlan,
+    isItLibraryConfigured,
     SPO_ROLE
 } from '../src/shared/stammdaten-sharepoint-sync-logic.js';
 
@@ -51,5 +52,11 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         const ok = buildItLibraryPlan({ itGroupId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' });
         expect(ok.ok).toBe(true);
         expect(ok.roleDefId).toBe(SPO_ROLE.contribute);
+    });
+
+    it('erkennt eingerichtete IT-Bibliothek', () => {
+        expect(isItLibraryConfigured(null)).toBe(false);
+        expect(isItLibraryConfigured({})).toBe(false);
+        expect(isItLibraryConfigured({ driveId: 'abc' })).toBe(true);
     });
 });

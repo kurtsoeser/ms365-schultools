@@ -360,6 +360,7 @@
                                 <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
                                 <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
                                 <li><a href="#tool-verwaltung">Verwaltung</a></li>
+                                <li><a href="#tool-klassenvorstaende">Klassenvorstände</a></li>
                                 <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
                                 <li><a href="#tool-postfaecher">Postfächer</a></li>
                                 <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
@@ -402,6 +403,7 @@
                                     <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
                                     <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
                                     <li><a href="#tool-verwaltung">Verwaltung</a></li>
+                                    <li><a href="#tool-klassenvorstaende">Klassenvorstände</a></li>
                                     <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
                                     <li><a href="#tool-postfaecher">Postfächer</a></li>
                                     <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
@@ -470,7 +472,7 @@
                             <dd>Die Listen Ihrer Schule in dieser App: Domain, Fächer, Lehrkräfte, Klassen, Schülerinnen. Sie liegen im Browser – nicht auf einem Schul-Server.</dd>
 
                             <dt>Sammelgruppen</dt>
-                            <dd>Große Microsoft-365-Gruppen für viele Personen auf einmal – z. B. „Alle Schülerinnen“ oder „Alle Lehrkräfte“. Nützlich für E-Mail und Berechtigungen.</dd>
+                            <dd>Große Microsoft-365-Gruppen für viele Personen auf einmal – z. B. „Alle Schülerinnen“, „Alle Lehrkräfte“, Verwaltung oder Klassenvorstände. Nützlich für E-Mail und Berechtigungen.</dd>
 
                             <dt>Klassengruppen · Verknüpfen</dt>
                             <dd>Eine Microsoft-365-Gruppe pro Klasse. <em>Verknüpfen</em> heißt: Eine bestehende Gruppe in Microsoft 365 der Klasse in den Stammdaten zuordnen – statt eine neue anzulegen.</dd>
@@ -821,6 +823,25 @@
                         <div class="hint">Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind.</div>
                         <p class="help-open"><a href="tools/verwaltung.html">→ Verwaltung öffnen</a></p>
                     </article>
+
+                    <article class="help-article" data-help-article data-search="klassenvorstand kv klassenlehrer verteiler sammelgruppe team">
+                        <h3 id="tool-klassenvorstaende">Klassenvorstände <span class="pill">Sammelgruppe</span></h3>
+                        <p>
+                            Eine Sammelgruppe für alle Klassenvorstände aus der Klassenliste der Stammdaten.
+                            Beim Anlegen wählen Sie: <strong>nur E‑Mail‑Verteiler</strong> (Microsoft&nbsp;365‑Gruppe ohne Team)
+                            oder <strong>Gruppe inkl.&nbsp;Team</strong>. Danach dieselben Live-Details und der Mitglieder-Abgleich
+                            wie bei den anderen Sammelgruppen.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>In den Stammdaten je Klasse Klassenvorstand und KV‑E‑Mail pflegen.</li>
+                                <li>Bestehende Gruppe suchen und matchen – oder neu anlegen (Verteiler oder inkl. Team).</li>
+                                <li><strong>Mitglieder synchronisieren</strong> gleicht die Gruppe mit den eindeutigen KV‑Adressen ab.</li>
+                                <li>Bei Abweichungen: <strong>Abgleich öffnen</strong> / <strong>Mitglieder vergleichen</strong>.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/klassenvorstaende.html">→ Klassenvorstände öffnen</a></p>
+                    </article>
                 </section>
 
                 <section class="help-section" data-help-section aria-labelledby="tool-schuljahr">
@@ -1111,7 +1132,7 @@
                     <details class="help-faq" data-help-faq data-search="listen-sync entfernt niemanden mitglieder zu viel abweichungen">
                         <summary>Der Listen-Sync hat alte Schüler:innen nicht entfernt. Ist das ein Fehler?</summary>
                         <div class="faq-body">
-                            <p>Das hängt vom Werkzeug ab. Bei <strong>Lehrerinnen &amp; Schülerinnen</strong> und <strong>Jahrgangsgruppen</strong> gleicht „Mitglieder synchronisieren“ die Gruppe mit der Stammliste ab – dabei können auch Personen entfernt werden, die nur online in der Gruppe stehen. Bei der <strong>Verwaltungs-Sammelgruppe</strong> ist der Sync dagegen bewusst <strong>additiv</strong> (nur hinzufügen).</p>
+                            <p>Das hängt vom Werkzeug ab. Bei <strong>Lehrerinnen &amp; Schülerinnen</strong>, <strong>Jahrgangsgruppen</strong> und <strong>Klassenvorstände</strong> gleicht „Mitglieder synchronisieren“ die Gruppe mit der Stammliste ab – dabei können auch Personen entfernt werden, die nur online in der Gruppe stehen. Bei der <strong>Verwaltungs-Sammelgruppe</strong> ist der Sync dagegen bewusst <strong>additiv</strong> (nur hinzufügen).</p>
                             <p>Wenn die Zahlen links rot sind, nutzen Sie bei Schüler/Lehrer <strong>Abweichungen anzeigen</strong>, um zu sehen, wer nur lokal oder nur in Microsoft&nbsp;365 steht, bevor Sie synchronisieren.</p>
                         </div>
                     </details>

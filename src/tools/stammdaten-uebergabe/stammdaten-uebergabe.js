@@ -5,15 +5,22 @@ import {
     DEFAULT_FOLDER,
     CURRENT_FILE,
     IT_LIBRARY_TITLE,
-    buildDriveRelativePath,
-    encodeDriveRootPath,
     designHintDe,
-    describeRemoteBackup,
     isBroadSiteAudience,
     entraGroupLogonName,
     buildItLibraryPlan,
     SPO_ROLE
 } from '../../shared/stammdaten-sharepoint-sync-logic.js';
+import {
+    loadItMeta,
+    saveItMeta,
+    loadLocalSyncMeta,
+    listDriveFolder,
+    downloadDriveItem,
+    uploadCurrentBackup,
+    downloadCurrentBackup,
+    requireItLibrary
+} from '../../shared/stammdaten-sharepoint-sync-api.js';
 
 const SCOPES_GRAPH = [
     'https://graph.microsoft.com/User.Read',
@@ -72,38 +79,6 @@ function getLibraryTitle() {
     return String((el && el.value) || IT_LIBRARY_TITLE).trim() || IT_LIBRARY_TITLE;
 }
 
-function loadItMeta() {
-    try {
-        const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
-        if (setup && setup.stammdatenItLibrary && typeof setup.stammdatenItLibrary === 'object') {
-            return setup.stammdatenItLibrary;
-        }
-    } catch {
-        /* ignore */
-    }
-    try {
-        return JSON.parse(localStorage.getItem('ms365-stammdaten-it-library-v1') || '{}') || {};
-    } catch {
-        return {};
-    }
-}
-
-function saveItMeta(meta) {
-    const m = meta || {};
-    try {
-        localStorage.setItem('ms365-stammdaten-it-library-v1', JSON.stringify(m));
-    } catch {
-        /* ignore */
-    }
-    try {
-        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
-            window.ms365AppDataV2.patchSetup({ stammdatenItLibrary: m });
-        }
-    } catch {
-        /* ignore */
-    }
-}
-
 function rememberSite(url) {
     if (!url || !window.ms365AppDataV2 || typeof window.ms365AppDataV2.patchSetup !== 'function') return;
     try {
@@ -115,26 +90,10 @@ function rememberSite(url) {
     }
 }
 
-function saveLocalMeta(meta) {
-    try {
-        localStorage.setItem('ms365-stammdaten-spo-sync-v1', JSON.stringify(meta || {}));
-    } catch {
-        /* ignore */
-    }
-}
-
-function loadLocalMeta() {
-    try {
-        return JSON.parse(localStorage.getItem('ms365-stammdaten-spo-sync-v1') || '{}') || {};
-    } catch {
-        return {};
-    }
-}
-
 function refreshMetaUi() {
     const el = $('suLastMeta');
     const it = loadItMeta();
-    const m = loadLocalMeta();
+    const m = loadLocalSyncMeta();
     if (el) {
         const bits = [];
         if (it && it.driveId) {
@@ -282,67 +241,8 @@ async function resolveGroupId(token, mailOrId) {
     return g && g.id ? String(g.id) : '';
 }
 
-async function putJsonOnDrive(driveId, relativePath, jsonText, token) {
-    const G = getG();
-    const enc = encodeDriveRootPath(relativePath);
-    const url = G.graphBase('v1.0') + '/drives/' + encodeURIComponent(driveId) + '/' + enc + '/content';
-    const res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            Authorization: 'Bearer ' + token,
-            'Content-Type': 'application/json; charset=utf-8'
-        },
-        body: jsonText
-    });
-    const text = await res.text();
-    let data = null;
-    try {
-        data = text ? JSON.parse(text) : {};
-    } catch {
-        data = { raw: text };
-    }
-    if (!res.ok) {
-        const msg =
-            data && data.error && data.error.message ? data.error.message : text || String(res.status);
-        throw new Error('Upload fehlgeschlagen: ' + msg);
-    }
-    return data;
-}
-
-async function listDriveFolder(driveId, folder, token) {
-    const G = getG();
-    const rel = buildDriveRelativePath(folder, '');
-    const enc = encodeDriveRootPath(rel.replace(/\/$/, '') || DEFAULT_FOLDER);
-    const path =
-        '/drives/' +
-        encodeURIComponent(driveId) +
-        '/' +
-        enc +
-        '/children?$select=id,name,size,lastModifiedDateTime,webUrl,file&$orderby=lastModifiedDateTime desc&$top=50';
-    try {
-        return await G.graphJson('GET', path, token, undefined, 'v1.0');
-    } catch (e) {
-        const msg = e && e.message ? String(e.message) : String(e);
-        if (/itemNotFound|404|not found/i.test(msg)) return { value: [] };
-        throw e;
-    }
-}
-
-async function downloadDriveItem(driveId, itemId, token) {
-    const G = getG();
-    const url = G.graphBase('v1.0') + '/drives/' + encodeURIComponent(driveId) + '/items/' + encodeURIComponent(itemId) + '/content';
-    const res = await fetch(url, { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
-    const text = await res.text();
-    if (!res.ok) throw new Error('Download fehlgeschlagen: HTTP ' + res.status);
-    return JSON.parse(text);
-}
-
 function requireDriveId() {
-    const it = loadItMeta();
-    if (!it || !it.driveId) {
-        throw new Error('Bitte zuerst „IT-Bibliothek einrichten“ ausführen.');
-    }
-    return it;
+    return requireItLibrary();
 }
 
 async function secureLibraryWithSpo(siteWebUrl, listTitle, groupObjectId) {
@@ -456,7 +356,6 @@ async function runSetupItLibrary() {
         } catch (e1) {
             const spoMsg = String((e1 && e1.message) || e1 || '');
             log('SPO-Anlage: ' + spoMsg);
-            // Graph POST /lists liefert bei denselben Rechten oft denselben Access Denied – nur als letzte Chance.
             if (!/access denied|AccessDenied|403|Zustimmung|FullControl/i.test(spoMsg)) {
                 log('Fallback: versuche Graph POST /lists …');
                 try {
@@ -470,10 +369,10 @@ async function runSetupItLibrary() {
             }
         }
         if (!list) {
-            // Nochmals SPO getbytitle
             try {
-                let host = new URL(webUrl).hostname;
-                const spoToken = await getG().getGraphToken(['https://' + host + '/Sites.FullControl.All']);
+                const spoToken = await getG().getGraphToken([
+                    'https://' + new URL(webUrl).hostname + '/Sites.FullControl.All'
+                ]);
                 const digest = await getG().getSpoRequestDigest(webUrl, spoToken);
                 const spoList = await getG().spoGetListByTitle(webUrl, spoToken, digest, listTitle);
                 if (spoList && (spoList.Id || spoList.id)) {
@@ -547,44 +446,14 @@ async function runSetupItLibrary() {
     return meta;
 }
 
-function buildPayloadJson() {
-    const bb = window.ms365BrowserBackup;
-    if (!bb || typeof bb.buildBackup !== 'function') throw new Error('Browser-Backup-Modul fehlt.');
-    const payload = bb.buildBackup();
-    return { payload: payload, text: JSON.stringify(payload, null, 2) };
-}
-
 async function runUpload() {
     clearLog();
-    const it = requireDriveId();
-    const webUrl = getSiteUrl() || it.siteUrl;
+    requireDriveId();
+    const webUrl = getSiteUrl();
     const folder = getFolder();
     const keepDated = !!($('suKeepDated') && $('suKeepDated').checked);
-    log('Baue Browser-Backup …');
-    const built = buildPayloadJson();
-    const token = await ensureGraphToken();
-    const currentPath = buildDriveRelativePath(folder, CURRENT_FILE);
-    log('Upload → ' + it.listTitle + ' / ' + currentPath);
-    const item = await putJsonOnDrive(it.driveId, currentPath, built.text, token);
-    if (keepDated && window.ms365BrowserBackup && typeof window.ms365BrowserBackup.backupFilename === 'function') {
-        const datedName = window.ms365BrowserBackup.backupFilename(new Date());
-        log('Zusätzlich datiert → ' + datedName);
-        await putJsonOnDrive(it.driveId, buildDriveRelativePath(folder, datedName), built.text, token);
-    }
-    saveLocalMeta({
-        at: new Date().toISOString(),
-        fileName: CURRENT_FILE,
-        folder: folder,
-        webUrl: (item && item.webUrl) || it.webUrl || '',
-        siteUrl: webUrl,
-        driveId: it.driveId,
-        summary: describeRemoteBackup(built.payload)
-    });
-    try {
-        localStorage.setItem('ms365-last-backup-export-at', new Date().toISOString());
-    } catch {
-        /* ignore */
-    }
+    log('Baue Browser-Backup und lade hoch …');
+    await uploadCurrentBackup({ folder: folder, keepDated: keepDated, siteUrl: webUrl });
     refreshMetaUi();
     log('Fertig.');
     toast('Stammdaten in IT-Bibliothek geschrieben.');
@@ -695,6 +564,14 @@ function fillDefaults() {
 
 function boot() {
     fillDefaults();
+    if (location.hash === '#setup') {
+        const setupEl = document.getElementById('setup');
+        if (setupEl && typeof setupEl.scrollIntoView === 'function') {
+            setTimeout(function () {
+                setupEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        }
+    }
     const setupBtn = $('suBtnSetupIt');
     if (setupBtn && setupBtn.dataset.bound !== '1') {
         setupBtn.dataset.bound = '1';
@@ -730,16 +607,23 @@ function boot() {
         loadCur.dataset.bound = '1';
         loadCur.addEventListener('click', function () {
             (async function () {
-                const it = requireDriveId();
-                const folder = getFolder();
-                const token = await ensureGraphToken();
-                const data = await listDriveFolder(it.driveId, folder, token);
-                const items = (data && data.value) || [];
-                const cur = items.find(function (i) {
-                    return i && i.file && String(i.name || '') === CURRENT_FILE;
-                });
-                if (!cur) throw new Error('Datei „' + CURRENT_FILE + '“ nicht gefunden.');
-                await runDownload(cur.id, cur.name);
+                clearLog();
+                log('Lade aktuelle Datei …');
+                const preview = await downloadCurrentBackup({ folder: getFolder(), apply: false });
+                const obj = preview.payload || {};
+                const summary =
+                    (obj.schoolName || obj.domain || preview.item.name || 'Backup') +
+                    (obj.exportedAt ? ' · ' + String(obj.exportedAt).replace('T', ' ').slice(0, 19) : '');
+                if (
+                    !window.confirm(
+                        'Backup aus IT-Bibliothek übernehmen und lokale Daten ersetzen?\n\n' + summary
+                    )
+                ) {
+                    return;
+                }
+                window.ms365BrowserBackup.importPayload(obj);
+                toast('Backup übernommen.');
+                if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
             })().catch(function (e) {
                 log('FEHLER: ' + (e.message || e));
                 toast(e.message || String(e));

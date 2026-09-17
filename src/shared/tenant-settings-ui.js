@@ -160,8 +160,13 @@
     function teacherJsonRowsToSemicolonLines(jsonRows) {
         const out = [];
         (jsonRows || []).forEach((r) => {
-            const code = getField(r, ['kürzel', 'kuerzel', 'code', 'lehrer', 'abbrev', 'abbreviation']);
+            const code = getField(r, ['kürzel', 'kuerzel', 'code', 'lehrer', 'lehrkraft', 'abbrev', 'abbreviation']);
             let name = getField(r, ['name', 'lehrername', 'anzeigename', 'displayname']);
+            if (!name) {
+                const vor = getField(r, ['vorname', 'forename', 'firstname']);
+                const nach = getField(r, ['familienname', 'nachname', 'lastname', 'longname']);
+                if (vor || nach) name = [vor, nach].filter(Boolean).join(' ');
+            }
             let email = getField(r, ['e-mail', 'email', 'mail', 'upn']);
             const c = normCode(code);
             if (!c) return;
@@ -239,6 +244,149 @@
         });
     }
 
+    function schoolDomainForEmail() {
+        if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
+            return normStr(window.ms365GetSchoolDomainNoAt()).replace(/^@+/, '');
+        }
+        return '';
+    }
+
+    function emailPatternFromSelect(id, fallback) {
+        const el = document.getElementById(id);
+        const v = el ? normStr(el.value) : '';
+        return v || fallback || 'vorname.nachname';
+    }
+
+    /**
+     * Liest eine oder mehrere Spreadsheet-Dateien → [{ name, aoa }].
+     * @param {File|FileList|File[]} files
+     * @returns {Promise<{ name: string, aoa: any[][] }[]>}
+     */
+    function readFilesToAoaSheets(files) {
+        const list = files && files.length != null ? Array.from(files) : files ? [files] : [];
+        if (!ensureXlsxReady()) return Promise.reject(new Error('Excel-Bibliothek nicht geladen'));
+        return Promise.all(
+            list.map(function (file) {
+                return new Promise(function (resolve, reject) {
+                    const name = String(file.name || '').toLowerCase();
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        try {
+                            let wb;
+                            if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                                let s = String(e.target.result || '');
+                                if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+                                wb = XLSX.read(s, { type: 'string', FS: ';' });
+                                const probe = wb.SheetNames[0]
+                                    ? XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' })
+                                    : [];
+                                if (!probe || probe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                            } else {
+                                wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                            }
+                            const sheetName = wb.SheetNames && wb.SheetNames[0];
+                            const sheet = sheetName ? wb.Sheets[sheetName] : null;
+                            const aoa = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) : [];
+                            resolve({ name: file.name || sheetName || 'sheet', aoa: aoa });
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    reader.onerror = function () {
+                        reject(new Error('Datei konnte nicht gelesen werden: ' + (file.name || '')));
+                    };
+                    if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
+                    else reader.readAsArrayBuffer(file);
+                });
+            })
+        );
+    }
+
+    /**
+     * WebUntis- oder SIS-Import aus einer/mehreren Dateien.
+     * @returns {Promise<object>} SIS-ähnliches Result { source, records, lines, meta, ... }
+     */
+    function importStudentSheetsResult(sheets, sourceHint, existingStudents, patternId) {
+        const wu = window.ms365WebuntisExportImport;
+        const sis = window.ms365SchoolSisImport;
+        const domain = schoolDomainForEmail();
+        const pattern = patternId || 'vorname.nachname';
+        const hint = String(sourceHint || 'auto').toLowerCase();
+
+        let classified = null;
+        if (wu && typeof wu.classifySheets === 'function') {
+            classified = wu.classifySheets(sheets);
+        }
+
+        if (
+            classified &&
+            (classified.studentAoa || classified.guardianAoa) &&
+            (hint === 'webuntis' || hint === 'auto' || classified.studentAoa)
+        ) {
+            if (classified.studentAoa && wu.importStudentsFromWebuntis) {
+                let result = wu.importStudentsFromWebuntis({
+                    studentAoa: classified.studentAoa,
+                    guardianAoa: classified.guardianAoa || [],
+                    domain: domain,
+                    pattern: pattern,
+                    applyEmails: !!domain
+                });
+                if (sis && typeof sis.preferExistingStudentEmails === 'function') {
+                    result.records = sis.preferExistingStudentEmails(result.records, existingStudents || []);
+                    result.lines = sis.recordsToSemicolonLines(result.records);
+                }
+                if (!domain) {
+                    result.meta = result.meta || {};
+                    result.meta.emailHint = 'Schuldomain in den Stammdaten setzen, um fehlende Schüler-Mails vorzuschlagen.';
+                }
+                return result;
+            }
+        }
+
+        // Einzeldatei / klassischer SIS-Pfad
+        const first = sheets && sheets[0];
+        if (!first || !sis) {
+            return { source: hint, records: [], lines: '', meta: { studentCount: 0, withParents: 0, parentMails: 0 } };
+        }
+        const objectRows = [];
+        const headers = first.aoa[0] || [];
+        for (let i = 1; i < first.aoa.length; i++) {
+            const row = first.aoa[i] || [];
+            const o = {};
+            headers.forEach(function (h, idx) {
+                const key = normStr(h);
+                if (!key) return;
+                if (o[key] == null || o[key] === '') o[key] = row[idx];
+            });
+            objectRows.push(o);
+        }
+        let result = sis.importStudentsAndGuardians({
+            aoa: first.aoa,
+            objectRows: objectRows,
+            source: hint
+        });
+        if (domain && wu && typeof wu.applyPersonEmails === 'function') {
+            const needMail = (result.records || []).some(function (r) {
+                return !normStr(r.email);
+            });
+            if (needMail) {
+                const em = wu.applyPersonEmails(result.records, { domain: domain, pattern: pattern });
+                result.records = em.records;
+                result.lines = sis.recordsToSemicolonLines(result.records);
+                result.emailMeta = { generated: em.generated, conflicts: em.conflicts };
+                result.meta = Object.assign({}, result.meta, {
+                    emailsGenerated: em.generated,
+                    emailConflicts: em.conflicts
+                });
+            }
+        }
+        if (sis && typeof sis.preferExistingStudentEmails === 'function') {
+            result.records = sis.preferExistingStudentEmails(result.records, existingStudents || []);
+            result.lines = sis.recordsToSemicolonLines(result.records);
+        }
+        return result;
+    }
+
     window.ms365TeacherListImport = {
         isXlsxReady: ensureXlsxReady,
         sortRows: sortTeacherRows,
@@ -265,13 +413,37 @@
             return downloadXlsxTemplate(filename || 'Lehrerliste.xlsx', teachersRowsToAoa(rows), 'Lehrer');
         },
         importFile(file, onLines, onError) {
-            importSpreadsheetFileToJsonRows(
-                file,
-                (rows) => {
+            if (!file) return;
+            readFilesToAoaSheets([file])
+                .then(function (sheets) {
+                    const wu = window.ms365WebuntisExportImport;
+                    const aoa = sheets[0] && sheets[0].aoa;
+                    const kind =
+                        wu && aoa && typeof wu.detectExportKindFromAoa === 'function' ? wu.detectExportKindFromAoa(aoa) : '';
+                    if (kind === 'teacher' && wu.importTeachersFromWebuntis) {
+                        const domain = schoolDomainForEmail();
+                        const pattern = emailPatternFromSelect('tenantTeachersEmailPattern', emailPatternFromSelect('swTeachersEmailPattern'));
+                        const result = wu.importTeachersFromWebuntis({
+                            teacherAoa: aoa,
+                            domain: domain,
+                            pattern: pattern,
+                            applyEmails: !!domain
+                        });
+                        if (onLines) onLines(result.lines, result);
+                        return;
+                    }
+                    const rows = sheets[0]
+                        ? XLSX.utils.sheet_to_json(
+                              XLSX.utils.aoa_to_sheet(sheets[0].aoa),
+                              { defval: '' }
+                          )
+                        : [];
+                    // TeacherSalary-ähnliche Header ohne Erkennung: Fallback JSON
                     if (onLines) onLines(teacherJsonRowsToSemicolonLines(rows));
-                },
-                onError
-            );
+                })
+                .catch(function (err) {
+                    if (onError) onError('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                });
         }
     };
 
@@ -509,50 +681,28 @@
         exportXlsx(rows, filename) {
             return downloadXlsxTemplate(filename || 'Schuelerliste.xlsx', studentsRowsToAoa(rows), 'Schueler');
         },
-        importFile(file, onLines, onError, sourceHint) {
-            if (!file) return;
+        importFile(file, onLines, onError, sourceHint, existingStudents) {
+            const files = file && file.length != null ? file : file ? [file] : [];
+            if (!files.length) return;
             if (!ensureXlsxReady()) {
                 if (onError) onError('Import: Excel-Bibliothek nicht geladen – Seite neu laden.');
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const name = String(file.name || '').toLowerCase();
-                    let wb;
-                    if (name.endsWith('.csv') || name.endsWith('.txt')) {
-                        let s = String(e.target.result || '');
-                        if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-                        wb = XLSX.read(s, { type: 'string', FS: ';' });
-                        if (!sheetToJsonRows(wb).length) wb = XLSX.read(s, { type: 'string', FS: ',' });
-                    } else {
-                        wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                    }
-                    const sheetName = wb.SheetNames && wb.SheetNames[0];
-                    const sheet = sheetName ? wb.Sheets[sheetName] : null;
-                    const aoa = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) : [];
-                    const objectRows = sheetToJsonRows(wb);
-                    const sis = window.ms365SchoolSisImport;
-                    if (sis && typeof sis.importStudentsAndGuardians === 'function') {
-                        const result = sis.importStudentsAndGuardians({
-                            aoa: aoa,
-                            objectRows: objectRows,
-                            source: sourceHint || 'auto'
-                        });
-                        if (onLines) onLines(result.lines, result);
-                        return;
-                    }
-                    if (onLines) onLines(studentJsonRowsToSemicolonLines(objectRows));
-                } catch (err) {
-                    if (onError) onError('Import fehlgeschlagen: ' + (err?.message || String(err)));
-                }
-            };
-            reader.onerror = () => {
-                if (onError) onError('Datei konnte nicht gelesen werden.');
-            };
-            const name = String(file.name || '').toLowerCase();
-            if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
-            else reader.readAsArrayBuffer(file);
+            const pattern = emailPatternFromSelect(
+                'tenantStudentsEmailPattern',
+                emailPatternFromSelect('swStudentsEmailPattern', emailPatternFromSelect('evImportEmailPattern'))
+            );
+            readFilesToAoaSheets(files)
+                .then(function (sheets) {
+                    const result = importStudentSheetsResult(sheets, sourceHint || 'auto', existingStudents || [], pattern);
+                    if (onLines) onLines(result.lines, result);
+                })
+                .catch(function (err) {
+                    if (onError) onError('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                });
+        },
+        importFiles(files, onLines, onError, sourceHint, existingStudents) {
+            return this.importFile(files, onLines, onError, sourceHint, existingStudents);
         }
     };
 
@@ -1209,12 +1359,19 @@
         );
     }
 
-    function buildDirectoryMatchCell(tr, emailRaw) {
+    function buildDirectoryMatchCell(tr, emailRaw, dirMatchMapOpt) {
         const tdMs = document.createElement('td');
         tdMs.style.fontSize = '0.88em';
         tdMs.style.lineHeight = '1.35';
         const em = normStr(emailRaw).toLowerCase();
-        const m = em && em.indexOf('@') !== -1 ? getDirectoryMatchByEmail(em) : null;
+        let m = null;
+        if (em && em.indexOf('@') !== -1) {
+            if (dirMatchMapOpt && typeof dirMatchMapOpt === 'object') {
+                m = dirMatchMapOpt[em] || null;
+            } else {
+                m = getDirectoryMatchByEmail(em);
+            }
+        }
         if (!em || em.indexOf('@') === -1) {
             tdMs.style.color = 'var(--muted)';
             tdMs.textContent = '–';
@@ -3156,10 +3313,18 @@
                 diff: diff
             };
             if (meta) {
+                const extra = [];
+                if (result && result.meta && result.meta.emailsGenerated) {
+                    extra.push(result.meta.emailsGenerated + ' Mails aus Namen vorgeschlagen');
+                }
+                if (result && result.meta && result.meta.unmatchedGuardians) {
+                    extra.push(result.meta.unmatchedGuardians + ' Eltern ohne Schüler-Zuordnung');
+                }
                 meta.textContent =
                     (sis.summarizeSisDiff ? sis.summarizeSisDiff(diff) : '') +
                     (result && result.source ? ' · Quelle ' + result.source : '') +
-                    '. Zusammenführen behält lokale Zeilen, die in der Datei fehlen.';
+                    (extra.length ? ' · ' + extra.join(' · ') : '') +
+                    '. Zusammenführen behält lokale Zeilen, die in der Datei fehlen (geeignet für Aktualisierungen im Jahr).';
             }
             if (ul) {
                 ul.innerHTML = '';
@@ -3297,6 +3462,56 @@
             taStudents.value = studentsToLines(rows);
         }
 
+        function getStudentsDirectoryMatchMap() {
+            try {
+                const api = window.ms365AppDataV2;
+                const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+                return setup && setup.directoryMatchByEmail ? setup.directoryMatchByEmail : {};
+            } catch {
+                return {};
+            }
+        }
+
+        /** Update one student field without rebuilding all ~N table rows. */
+        function commitStudentCellEdit(idx, field, next, meta, td) {
+            const all = getStudentsFromTextarea();
+            if (!all[idx]) {
+                renderStudentsTableFromTextarea();
+                return;
+            }
+            const prev = all[idx][field];
+            let value = prev;
+            if (!(meta && meta.cancelled)) {
+                if (field === 'email') value = normStr(next).toLowerCase();
+                else value = normStr(next);
+            }
+            all[idx][field] = value;
+            setStudentsTextareaFromRows(all);
+
+            if (field === 'klasse') {
+                td.innerHTML = '<code>' + escapeHtml(value || '') + '</code>';
+            } else {
+                td.textContent = value || '';
+            }
+            td.title = 'Doppelklick zum Bearbeiten';
+
+            if (field === 'email') {
+                const tr = td.parentElement;
+                if (tr) {
+                    const oldMs = tr.children[5];
+                    const newMs = buildDirectoryMatchCell(tr, value, getStudentsDirectoryMatchMap());
+                    if (oldMs) tr.replaceChild(newMs, oldMs);
+                    else tr.appendChild(newMs);
+                    tr.style.background = '';
+                    const match = value ? getDirectoryMatchByEmail(value) : null;
+                    if (match && match.graphUserId) {
+                        tr.style.background = 'color-mix(in srgb, #0d8050 8%, transparent)';
+                    }
+                }
+            }
+            scheduleAutoSave();
+        }
+
         function updateStudentsSortIndicators() {
             if (!studentsTable) return;
             studentsTable.querySelectorAll('th.is-sortable').forEach((th) => {
@@ -3341,10 +3556,10 @@
         function renderStudentsTableFromTextarea() {
             if (!studentsTbody) return;
             const rows = getStudentsFromTextarea();
-            studentsTbody.replaceChildren();
             updateStudentsSortIndicators();
 
             if (!rows.length) {
+                studentsTbody.replaceChildren();
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
                 td.colSpan = 7;
@@ -3354,6 +3569,8 @@
                 studentsTbody.appendChild(tr);
                 return;
             }
+
+            const dirMatchMap = getStudentsDirectoryMatchMap();
 
             function buildParentCell(pair, extraCount) {
                 const td = document.createElement('td');
@@ -3383,20 +3600,17 @@
                 return td;
             }
 
+            const frag = document.createDocumentFragment();
             rows.forEach((row, idx) => {
                 const tr = document.createElement('tr');
+                tr.dataset.studentIdx = String(idx);
 
                 const tdClass = document.createElement('td');
-                tdClass.innerHTML = `<code>${row.klasse || ''}</code>`;
+                tdClass.innerHTML = '<code>' + escapeHtml(row.klasse || '') + '</code>';
                 tdClass.title = 'Doppelklick zum Bearbeiten';
                 tdClass.addEventListener('dblclick', () => {
-                    startCellEdit(tdClass, row.klasse, (next, meta) => {
-                        const all = getStudentsFromTextarea();
-                        if (!all[idx]) return renderStudentsTableFromTextarea();
-                        const prev = all[idx].klasse;
-                        all[idx].klasse = meta && meta.cancelled ? prev : normStr(next);
-                        setStudentsTextareaFromRows(all);
-                        renderStudentsTableFromTextarea();
+                    startCellEdit(tdClass, tdClass.textContent, (next, meta) => {
+                        commitStudentCellEdit(idx, 'klasse', next, meta, tdClass);
                     });
                 });
 
@@ -3404,13 +3618,8 @@
                 tdName.textContent = row.name || '';
                 tdName.title = 'Doppelklick zum Bearbeiten';
                 tdName.addEventListener('dblclick', () => {
-                    startCellEdit(tdName, row.name, (next, meta) => {
-                        const all = getStudentsFromTextarea();
-                        if (!all[idx]) return renderStudentsTableFromTextarea();
-                        const prev = all[idx].name;
-                        all[idx].name = meta && meta.cancelled ? prev : normStr(next);
-                        setStudentsTextareaFromRows(all);
-                        renderStudentsTableFromTextarea();
+                    startCellEdit(tdName, tdName.textContent, (next, meta) => {
+                        commitStudentCellEdit(idx, 'name', next, meta, tdName);
                     });
                 });
 
@@ -3418,13 +3627,8 @@
                 tdEmail.textContent = row.email || '';
                 tdEmail.title = 'Doppelklick zum Bearbeiten';
                 tdEmail.addEventListener('dblclick', () => {
-                    startCellEdit(tdEmail, row.email, (next, meta) => {
-                        const all = getStudentsFromTextarea();
-                        if (!all[idx]) return renderStudentsTableFromTextarea();
-                        const prev = all[idx].email;
-                        all[idx].email = meta && meta.cancelled ? prev : normStr(next).toLowerCase();
-                        setStudentsTextareaFromRows(all);
-                        renderStudentsTableFromTextarea();
+                    startCellEdit(tdEmail, tdEmail.textContent, (next, meta) => {
+                        commitStudentCellEdit(idx, 'email', next, meta, tdEmail);
                     });
                 });
 
@@ -3432,7 +3636,7 @@
                 const tdParent1 = buildParentCell(pairs[0], 0);
                 const tdParent2 = buildParentCell(pairs[1], Math.max(0, pairs.length - 2));
 
-                const tdMs = buildDirectoryMatchCell(tr, row.email);
+                const tdMs = buildDirectoryMatchCell(tr, row.email, dirMatchMap);
 
                 const tdAction = document.createElement('td');
                 tdAction.className = 'action-cell';
@@ -3440,7 +3644,8 @@
                 tdAction.style.display = 'flex';
                 tdAction.style.gap = '6px';
                 tdAction.style.alignItems = 'center';
-                const dir = getDirectoryMatchByEmail(row.email);
+                const emKey = normStr(row.email || '').toLowerCase();
+                const dir = emKey ? dirMatchMap[emKey] || null : null;
                 if (row.email && row.name) {
                     const btnCheck = document.createElement('button');
                     btnCheck.type = 'button';
@@ -3492,12 +3697,14 @@
                     all.splice(idx, 1);
                     setStudentsTextareaFromRows(all);
                     renderStudentsTableFromTextarea();
+                    scheduleAutoSave();
                 });
                 tdAction.appendChild(btnDel);
 
                 tr.append(tdClass, tdName, tdEmail, tdParent1, tdParent2, tdMs, tdAction);
-                studentsTbody.appendChild(tr);
+                frag.appendChild(tr);
             });
+            studentsTbody.replaceChildren(frag);
         }
 
         function classesToLines(rows) {
@@ -3884,15 +4091,62 @@
             renderStudentLifecyclePanel(prev, out);
         }
 
+        function importClassesFromWebuntisPdfFile(file) {
+            const wu = window.ms365WebuntisExportImport;
+            const pdfApi = window.ms365PdfText;
+            if (!wu || typeof wu.importClassesFromWebuntisPdf !== 'function') {
+                setSummary('WebUntis-Klassenimport: Modul fehlt – Seite neu laden.', 'warn');
+                return;
+            }
+            if (!pdfApi || typeof pdfApi.extractPdfFile !== 'function') {
+                setSummary('PDF-Modul fehlt – Seite neu laden.', 'warn');
+                return;
+            }
+            const skipEl = document.getElementById('tenantClassesSkipNoKv') || document.getElementById('swClassesSkipNoKv');
+            const skipWithoutTeacher = skipEl ? !!skipEl.checked : true;
+            const teachers = getTeachersFromTextarea();
+            setSummary('Klassen-PDF wird gelesen …', 'ok');
+            pdfApi
+                .extractPdfFile(file)
+                .then(function (content) {
+                    const result = wu.importClassesFromWebuntisPdf({
+                        text: content.text,
+                        words: content.words,
+                        teachers: teachers,
+                        skipWithoutTeacher: skipWithoutTeacher,
+                        inferYear: true
+                    });
+                    if (!result.classes.length) {
+                        setSummary('Keine Klassen im PDF erkannt (Kurzname / Klassenlehrkraft prüfen).', 'warn');
+                        return;
+                    }
+                    if (taClasses) taClasses.value = result.lines;
+                    renderClassesTableFromTextarea();
+                    const bits = [
+                        result.meta.classCount + ' Klassen',
+                        result.meta.withTeacher + ' mit KV-Kürzel',
+                        result.meta.matched + ' KV aus Lehrerliste'
+                    ];
+                    if (result.meta.missingTeacher) bits.push(result.meta.missingTeacher + ' Kürzel ohne Lehrerliste');
+                    if (result.schoolYear && result.schoolYear.label) bits.push('Schuljahr ' + result.schoolYear.label);
+                    setSummary('WebUntis-Klassen importiert: ' + bits.join(' · '), 'ok');
+                    scheduleAutoSave();
+                })
+                .catch(function (err) {
+                    setSummary('Klassen-PDF: ' + (err && err.message ? err.message : String(err)), 'warn');
+                });
+        }
+
         function importClassesRows(jsonRows) {
             const out = [];
             (jsonRows || []).forEach((r) => {
-                let code = getField(r, ['abkürzung', 'abkuerzung', 'abk', 'kuerzel', 'kürzel', 'code', 'klasseabk', 'classcode']);
+                let code = getField(r, ['abkürzung', 'abkuerzung', 'abk', 'kuerzel', 'kürzel', 'code', 'klasseabk', 'classcode', 'kurzname']);
                 let year = getField(r, ['abschlussjahr', 'abschluss', 'year', 'graduationyear']);
-                let name = getField(r, ['klasse', 'class', 'name', 'bezeichnung', 'classname']);
+                let name = getField(r, ['klasse', 'class', 'name', 'bezeichnung', 'classname', 'langname']);
                 let headName = getField(r, ['klassenvorstand', 'klassenvorstandname', 'kv', 'kvname', 'vorstand', 'head', 'headname']);
                 let headEmail = getField(r, ['klassenvorstandemail', 'kvemail', 'e-mail', 'email', 'mail', 'upn', 'heademail']);
-                if (!code && !year && !name && !headName && !headEmail) return;
+                const headCode = getField(r, ['klassenlehrkraft', 'lehrkraft', 'kvkuerzel', 'headcode']);
+                if (!code && !year && !name && !headName && !headEmail && !headCode) return;
 
                 // Heuristik: falls "Klassenvorstand" eigentlich E-Mail ist
                 const hn = normStr(headName);
@@ -3902,12 +4156,25 @@
                     headName = '';
                 }
 
+                let resolvedName = normStr(headName);
+                let resolvedEmail = normStr(headEmail).toLowerCase();
+                if (headCode && (!resolvedName || !resolvedEmail)) {
+                    const teachers = getTeachersFromTextarea();
+                    const hit = teachers.find((t) => normCode(t.code) === normCode(headCode));
+                    if (hit) {
+                        if (!resolvedName) resolvedName = normStr(hit.name);
+                        if (!resolvedEmail) resolvedEmail = normStr(hit.email).toLowerCase();
+                    } else if (!resolvedName) {
+                        resolvedName = normCode(headCode);
+                    }
+                }
+
                 out.push({
                     code: normCode(code),
                     year: /^\d{4}$/.test(normStr(year)) ? normStr(year) : '',
                     name: normStr(name),
-                    headName: normStr(headName),
-                    headEmail: normStr(headEmail).toLowerCase()
+                    headName: resolvedName,
+                    headEmail: resolvedEmail
                 });
             });
             if (taClasses) taClasses.value = classesToLines(out);
@@ -4074,20 +4341,28 @@
         }
         if (fileStudents) {
             fileStudents.addEventListener('change', (e) => {
-                const f = e.target.files && e.target.files[0];
+                const files = e.target.files;
                 const sourceEl = document.getElementById('tenantStudentsImportSource');
                 const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
                 if (window.ms365StudentListImport && typeof window.ms365StudentListImport.importFile === 'function') {
                     window.ms365StudentListImport.importFile(
-                        f,
+                        files,
                         (lines, result) => {
                             const prev = getStudentsFromTextarea();
                             showSisDiffPreview(prev, result || { lines: lines, records: [], source: sourceHint });
+                            const meta = result && result.meta ? result.meta : {};
+                            const bits = [];
+                            if (meta.emailsGenerated) bits.push(meta.emailsGenerated + ' Mails vorgeschlagen');
+                            if (meta.unmatchedGuardians) bits.push(meta.unmatchedGuardians + ' Eltern ohne Zuordnung');
+                            if (meta.emailHint) bits.push(meta.emailHint);
+                            if (bits.length) setSummary('WebUntis/SIS: ' + bits.join(' · '), 'ok');
                         },
                         (msg) => setSummary(msg, 'warn'),
-                        sourceHint
+                        sourceHint,
+                        getStudentsFromTextarea()
                     );
                 } else {
+                    const f = files && files[0];
                     importFileToRows(f, (rows) => importStudentsRows(rows));
                 }
                 fileStudents.value = '';
@@ -4157,8 +4432,14 @@
         if (fileClasses) {
             fileClasses.addEventListener('change', (e) => {
                 const f = e.target.files && e.target.files[0];
-                importFileToRows(f, (rows) => importClassesRows(rows));
                 fileClasses.value = '';
+                if (!f) return;
+                const name = String(f.name || '').toLowerCase();
+                if (name.endsWith('.pdf')) {
+                    importClassesFromWebuntisPdfFile(f);
+                    return;
+                }
+                importFileToRows(f, (rows) => importClassesRows(rows));
             });
         }
 
@@ -4648,10 +4929,15 @@
         }
 
         if (taStudents) {
+            let studentsTableRenderTimer = null;
             taStudents.addEventListener('input', () => {
                 studentsSortState.key = null;
                 studentsSortState.dir = 1;
-                renderStudentsTableFromTextarea();
+                if (studentsTableRenderTimer) clearTimeout(studentsTableRenderTimer);
+                studentsTableRenderTimer = setTimeout(() => {
+                    studentsTableRenderTimer = null;
+                    renderStudentsTableFromTextarea();
+                }, 250);
             });
             taStudents.addEventListener('input', () => scheduleAutoSave());
         }

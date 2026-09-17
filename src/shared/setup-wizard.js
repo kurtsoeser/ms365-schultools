@@ -1592,10 +1592,13 @@ import {
         refreshSwStatsStudentCouncil();
     }
 
-    function getDirectoryMatchForEmail(emailRaw) {
+    function getDirectoryMatchForEmail(emailRaw, dirMatchMapOpt) {
         const em = normEmail(emailRaw);
         if (!em || em.indexOf('@') === -1) return null;
         try {
+            if (dirMatchMapOpt && typeof dirMatchMapOpt === 'object') {
+                return dirMatchMapOpt[em] || null;
+            }
             if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getSetup !== 'function') return null;
             const map = window.ms365AppDataV2.getSetup().directoryMatchByEmail || {};
             return map[em] || null;
@@ -1604,7 +1607,16 @@ import {
         }
     }
 
-    function createSwDirectoryMatchTd(emailRaw) {
+    function getSwDirectoryMatchMap() {
+        try {
+            if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getSetup !== 'function') return {};
+            return window.ms365AppDataV2.getSetup().directoryMatchByEmail || {};
+        } catch {
+            return {};
+        }
+    }
+
+    function createSwDirectoryMatchTd(emailRaw, dirMatchMapOpt) {
         const td = document.createElement('td');
         td.className = 'sw-dir-match';
         td.style.fontSize = '0.88em';
@@ -1616,7 +1628,7 @@ import {
             td.title = 'E‑Mail nötig für Abgleich mit Microsoft Entra';
             return td;
         }
-        const m = getDirectoryMatchForEmail(em);
+        const m = getDirectoryMatchForEmail(em, dirMatchMapOpt);
         if (m && m.graphUserId) {
             const gid = String(m.graphUserId);
             const short = gid.length > 14 ? gid.slice(0, 12) + '…' : gid;
@@ -2472,6 +2484,39 @@ import {
         ta.value = swStudentsToLines(rows);
     }
 
+    function commitSwStudentCellEdit(idx, field, next, meta, td) {
+        const all = getSwStudentsFromTextarea();
+        if (!all[idx]) {
+            renderSwStudentsTableFromTextarea();
+            return;
+        }
+        const prev = all[idx][field];
+        let value = prev;
+        if (!(meta && meta.cancelled)) {
+            if (field === 'email') value = normStr(next).toLowerCase();
+            else value = normStr(next);
+        }
+        all[idx][field] = value;
+        setSwStudentsTextareaFromRows(all);
+
+        if (field === 'klasse') {
+            td.innerHTML = '<code>' + escapeHtml(value || '') + '</code>';
+        } else {
+            td.textContent = value || '';
+        }
+        td.title = 'Doppelklick zum Bearbeiten';
+
+        if (field === 'email') {
+            const tr = td.parentElement;
+            if (tr) {
+                const oldMs = tr.children[5];
+                const newMs = createSwDirectoryMatchTd(value, getSwDirectoryMatchMap());
+                if (oldMs) tr.replaceChild(newMs, oldMs);
+                else tr.appendChild(newMs);
+            }
+        }
+    }
+
     function updateSwStudentsSortIndicators() {
         const table = document.getElementById('swStudentsTable');
         if (!table) return;
@@ -2517,10 +2562,10 @@ import {
         const tbody = document.getElementById('swStudentsTableBody');
         if (!tbody) return;
         const rows = getSwStudentsFromTextarea();
-        tbody.replaceChildren();
         updateSwStudentsSortIndicators();
 
         if (!rows.length) {
+            tbody.replaceChildren();
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 7;
@@ -2532,6 +2577,8 @@ import {
             refreshSwOwnerSummary('Schueler', 'schueler');
             return;
         }
+
+        const dirMatchMap = getSwDirectoryMatchMap();
 
         function buildParentCell(pair, extraCount) {
             const td = document.createElement('td');
@@ -2561,6 +2608,7 @@ import {
             return td;
         }
 
+        const frag = document.createDocumentFragment();
         rows.forEach(function (row, idx) {
             const tr = document.createElement('tr');
 
@@ -2568,13 +2616,8 @@ import {
             tdClass.innerHTML = '<code>' + escapeHtml(row.klasse || '') + '</code>';
             tdClass.title = 'Doppelklick zum Bearbeiten';
             tdClass.addEventListener('dblclick', function () {
-                wizardStartCellEdit(tdClass, row.klasse, function (next, meta) {
-                    const all = getSwStudentsFromTextarea();
-                    if (!all[idx]) return renderSwStudentsTableFromTextarea();
-                    const prev = all[idx].klasse;
-                    all[idx].klasse = meta && meta.cancelled ? prev : normStr(next);
-                    setSwStudentsTextareaFromRows(all);
-                    renderSwStudentsTableFromTextarea();
+                wizardStartCellEdit(tdClass, tdClass.textContent, function (next, meta) {
+                    commitSwStudentCellEdit(idx, 'klasse', next, meta, tdClass);
                 });
             });
 
@@ -2582,13 +2625,8 @@ import {
             tdName.textContent = row.name || '';
             tdName.title = 'Doppelklick zum Bearbeiten';
             tdName.addEventListener('dblclick', function () {
-                wizardStartCellEdit(tdName, row.name, function (next, meta) {
-                    const all = getSwStudentsFromTextarea();
-                    if (!all[idx]) return renderSwStudentsTableFromTextarea();
-                    const prev = all[idx].name;
-                    all[idx].name = meta && meta.cancelled ? prev : normStr(next);
-                    setSwStudentsTextareaFromRows(all);
-                    renderSwStudentsTableFromTextarea();
+                wizardStartCellEdit(tdName, tdName.textContent, function (next, meta) {
+                    commitSwStudentCellEdit(idx, 'name', next, meta, tdName);
                 });
             });
 
@@ -2596,13 +2634,8 @@ import {
             tdEmail.textContent = row.email || '';
             tdEmail.title = 'Doppelklick zum Bearbeiten';
             tdEmail.addEventListener('dblclick', function () {
-                wizardStartCellEdit(tdEmail, row.email, function (next, meta) {
-                    const all = getSwStudentsFromTextarea();
-                    if (!all[idx]) return renderSwStudentsTableFromTextarea();
-                    const prev = all[idx].email;
-                    all[idx].email = meta && meta.cancelled ? prev : normStr(next).toLowerCase();
-                    setSwStudentsTextareaFromRows(all);
-                    renderSwStudentsTableFromTextarea();
+                wizardStartCellEdit(tdEmail, tdEmail.textContent, function (next, meta) {
+                    commitSwStudentCellEdit(idx, 'email', next, meta, tdEmail);
                 });
             });
 
@@ -2610,7 +2643,7 @@ import {
             const tdParent1 = buildParentCell(pairs[0], 0);
             const tdParent2 = buildParentCell(pairs[1], Math.max(0, pairs.length - 2));
 
-            const tdMs = createSwDirectoryMatchTd(row.email);
+            const tdMs = createSwDirectoryMatchTd(row.email, dirMatchMap);
 
             const tdAction = document.createElement('td');
             tdAction.className = 'action-cell';
@@ -2659,8 +2692,9 @@ import {
             tr.appendChild(tdParent2);
             tr.appendChild(tdMs);
             tr.appendChild(tdAction);
-            tbody.appendChild(tr);
+            frag.appendChild(tr);
         });
+        tbody.replaceChildren(frag);
         refreshSwStatsStudents();
         refreshSwOwnerSummary('Schueler', 'schueler');
     }
@@ -4814,7 +4848,7 @@ import {
                 if (!f || !api || typeof api.importFile !== 'function') return;
                 api.importFile(
                     f,
-                    function (lines) {
+                    function (lines, result) {
                         const ta = document.getElementById('swTeachersLines');
                         if (ta) {
                             const cur = normStr(ta.value);
@@ -4823,7 +4857,12 @@ import {
                         swTeachersSortState.key = null;
                         swTeachersSortState.dir = 1;
                         renderSwTeachersTableFromTextarea();
-                        toast('Import in die Lehrerliste übernommen (noch nicht gespeichert).');
+                        const gen = result && result.meta && result.meta.emailsGenerated;
+                        toast(
+                            'Import in die Lehrerliste übernommen (noch nicht gespeichert)' +
+                                (gen ? ' · ' + gen + ' Mails vorgeschlagen' : '') +
+                                '.'
+                        );
                     },
                     function (err) {
                         toast(err || 'Import fehlgeschlagen.');
@@ -4926,11 +4965,17 @@ import {
         if (swStudentsImportFile) {
             swStudentsImportFile.addEventListener('change', function (e) {
                 const api = window.ms365StudentListImport;
-                const f = e.target.files && e.target.files[0];
-                if (!f || !api || typeof api.importFile !== 'function') return;
+                const files = e.target.files;
+                if (!files || !files.length || !api || typeof api.importFile !== 'function') return;
+                const existing =
+                    typeof window.ms365TenantSettingsParseStudentsLines === 'function'
+                        ? window.ms365TenantSettingsParseStudentsLines(
+                              (document.getElementById('swStudentsLines') || {}).value || ''
+                          )
+                        : [];
                 api.importFile(
-                    f,
-                    function (lines) {
+                    files,
+                    function (lines, result) {
                         const ta = document.getElementById('swStudentsLines');
                         if (ta) {
                             const cur = normStr(ta.value);
@@ -4939,11 +4984,17 @@ import {
                         swStudentsSortState.key = null;
                         swStudentsSortState.dir = 1;
                         renderSwStudentsTableFromTextarea();
-                        toast('Import in die Schülerliste übernommen (noch nicht in „Schülerliste speichern“ geschrieben).');
+                        const meta = result && result.meta ? result.meta : {};
+                        const bits = ['Import in die Schülerliste übernommen (noch speichern)'];
+                        if (meta.emailsGenerated) bits.push(meta.emailsGenerated + ' Mails vorgeschlagen');
+                        if (meta.withParents) bits.push(meta.withParents + ' mit Eltern');
+                        toast(bits.join(' · ') + '.');
                     },
                     function (err) {
                         toast(err || 'Import fehlgeschlagen.');
-                    }
+                    },
+                    'auto',
+                    existing
                 );
                 swStudentsImportFile.value = '';
             });
@@ -4968,10 +5019,15 @@ import {
         }
         const swTaStudents = document.getElementById('swStudentsLines');
         if (swTaStudents) {
+            let swStudentsTableRenderTimer = null;
             swTaStudents.addEventListener('input', function () {
                 swStudentsSortState.key = null;
                 swStudentsSortState.dir = 1;
-                renderSwStudentsTableFromTextarea();
+                if (swStudentsTableRenderTimer) clearTimeout(swStudentsTableRenderTimer);
+                swStudentsTableRenderTimer = setTimeout(function () {
+                    swStudentsTableRenderTimer = null;
+                    renderSwStudentsTableFromTextarea();
+                }, 250);
             });
         }
         const swStudentsTable = document.getElementById('swStudentsTable');
@@ -5206,6 +5262,100 @@ import {
             });
         document.getElementById('swBtnSaveClassesBulk') &&
             document.getElementById('swBtnSaveClassesBulk').addEventListener('click', saveClassesBulk);
+        const swClassesImportFile = document.getElementById('swClassesImportFile');
+        if (swClassesImportFile) {
+            swClassesImportFile.addEventListener('change', function (e) {
+                const f = e.target.files && e.target.files[0];
+                swClassesImportFile.value = '';
+                if (!f) return;
+                const name = String(f.name || '').toLowerCase();
+                if (name.endsWith('.pdf')) {
+                    const wu = window.ms365WebuntisExportImport;
+                    const pdfApi = window.ms365PdfText;
+                    if (!wu || !pdfApi) {
+                        toast('WebUntis-/PDF-Modul fehlt – Seite neu laden.');
+                        return;
+                    }
+                    const skipEl = document.getElementById('swClassesSkipNoKv');
+                    const teachers = getSwTeachersFromTextarea();
+                    toast('Klassen-PDF wird gelesen …');
+                    pdfApi
+                        .extractPdfFile(f)
+                        .then(function (content) {
+                            const result = wu.importClassesFromWebuntisPdf({
+                                text: content.text,
+                                words: content.words,
+                                teachers: teachers,
+                                skipWithoutTeacher: skipEl ? !!skipEl.checked : true,
+                                inferYear: true
+                            });
+                            const ta = document.getElementById('swClassesBulk');
+                            if (ta) ta.value = result.lines;
+                            renderClassesTable();
+                            toast(
+                                'Klassen importiert: ' +
+                                    result.meta.classCount +
+                                    ' · ' +
+                                    (result.meta.matched || 0) +
+                                    ' KV aus Lehrerliste (bitte speichern).'
+                            );
+                        })
+                        .catch(function (err) {
+                            toast('Klassen-PDF: ' + (err && err.message ? err.message : String(err)));
+                        });
+                    return;
+                }
+                const api = window.ms365SchuldatenMasterImport;
+                // CSV/XLSX über generischen Pfad der Tenant-UI, falls vorhanden
+                if (typeof XLSX === 'undefined') {
+                    toast('Excel-Bibliothek fehlt.');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    try {
+                        let wb;
+                        if (name.endsWith('.csv')) {
+                            let s = String(ev.target.result || '');
+                            if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+                            wb = XLSX.read(s, { type: 'string', FS: ';' });
+                        } else {
+                            wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+                        }
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        const teachers = getSwTeachersFromTextarea();
+                        const byCode = new Map(
+                            teachers.map(function (t) {
+                                return [String(t.code || '').toUpperCase(), t];
+                            })
+                        );
+                        const out = [];
+                        rows.forEach(function (r) {
+                            const code = String(r.Kurzname || r.Abkürzung || r.Code || r.code || r.Klasse || '').trim();
+                            if (!code) return;
+                            const headCode = String(r.Klassenlehrkraft || r.KV || r.headCode || '').trim().toUpperCase();
+                            const t = headCode ? byCode.get(headCode) : null;
+                            out.push({
+                                code: code.toUpperCase(),
+                                year: String(r.Abschlussjahr || r.year || '').trim(),
+                                name: String(r.Langname || r.Name || r.name || code).trim(),
+                                headName: t ? t.name : headCode,
+                                headEmail: t ? String(t.email || '').toLowerCase() : ''
+                            });
+                        });
+                        setSwClassesTextareaFromRows(out);
+                        renderClassesTable();
+                        toast('Klassen importiert: ' + out.length + ' (bitte speichern).');
+                    } catch (err) {
+                        toast('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                    }
+                };
+                if (name.endsWith('.csv')) reader.readAsText(f);
+                else reader.readAsArrayBuffer(f);
+                void api;
+            });
+        }
         const swTaClasses = document.getElementById('swClassesBulk');
         if (swTaClasses) {
             swTaClasses.addEventListener('input', function () {

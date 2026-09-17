@@ -521,9 +521,15 @@
                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
                         Format: <code>Kürzel;Name;E‑Mail</code>. E‑Mail ist optional, aber empfohlen (für Kursteams‑Besitzer und Entra‑Abgleich). <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Lehrkräfte nach Lizenz (A1/A3/A5). Import (CSV/XLSX), Vorlagen und Tabellenbearbeitung per Doppelklick – wie in den <a href="tenant.html">Stammdaten</a>.
                     </small>
-                    <div class="settings-actions">
-                        <label class="btn" for="swTeachersImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
+                    <div class="settings-actions" style="margin-top:10px;">
+                        <label class="btn" for="swTeachersImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import (CSV/XLSX / WebUntis)</label>
                         <input type="file" id="swTeachersImportFile" accept=".xlsx,.xls,.csv">
+                        <label for="swTeachersEmailPattern" style="font-weight:700;margin:0 8px;">Mail-Muster</label>
+                        <select id="swTeachersEmailPattern" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                            <option value="vorname.nachname" selected>vorname.nachname</option>
+                            <option value="nachname.vorname">nachname.vorname</option>
+                            <option value="v.nachname">v.nachname</option>
+                        </select>
                         <button type="button" class="btn" id="swBtnTeachersTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                         <button type="button" class="btn" id="swBtnTeachersTplCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
                         <button type="button" class="btn" id="swBtnTeachersExportCsv" title="Aktuelle Lehrerliste als CSV herunterladen"><i class="bi bi-download"></i>Export CSV</button>
@@ -661,11 +667,20 @@
                     <label for="swStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
                     <textarea id="swStudentsLines" spellcheck="false" placeholder="1A;Lisa Beispiel;lisa@schule.at"></textarea>
                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                        Format: <code>Klasse;Name;E‑Mail</code> (wie in den <a href="tenant.html">Stammdaten</a>). <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Schüler:innen nach Lizenz (A1/A3/A5). Tabelle: Doppelklick zum Bearbeiten; E‑Mail für Entra‑Abgleich.
+                        Format: <code>Klasse;Name;E‑Mail</code> (wie in den <a href="tenant.html">Stammdaten</a>).
+                        <strong>WebUntis:</strong> <code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code> (Mehrfachauswahl). Fehlende Mails nach Muster.
+                        <strong>Aus Microsoft 365 einlesen</strong> übernimmt bestehende Schüler:innen nach Lizenz.
                     </small>
                     <div class="settings-actions" style="margin-top:10px;">
+                        <label for="swStudentsEmailPattern" style="font-weight:700;margin:0 8px 0 0;">Mail-Muster</label>
+                        <select id="swStudentsEmailPattern" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                            <option value="vorname.nachname" selected>vorname.nachname</option>
+                            <option value="nachname.vorname">nachname.vorname</option>
+                            <option value="v.nachname">v.nachname</option>
+                            <option value="vorname.n">vorname.n</option>
+                        </select>
                         <label class="btn" for="swStudentsImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import Schüler (CSV/XLSX)</label>
-                        <input type="file" id="swStudentsImportFile" accept=".xlsx,.xls,.csv">
+                        <input type="file" id="swStudentsImportFile" accept=".xlsx,.xls,.csv" multiple>
                         <button type="button" class="btn" id="swBtnStudentsTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage Schüler</button>
                         <button type="button" class="btn" id="swBtnStudentsTplCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage Schüler</button>
                         <button type="button" class="btn" id="swBtnStudentsExportCsv" title="Aktuelle Schülerliste als CSV herunterladen"><i class="bi bi-download"></i>Export CSV</button>
@@ -985,7 +1000,14 @@
                 <div class="sw-field">
                     <label for="swClassesBulk">Klassen (Rohliste)</label>
                     <textarea id="swClassesBulk" spellcheck="false" placeholder="HMA;2031;1HMA"></textarea>
-                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die Klassenliste in die Stammdaten. Der stabile Alias ergibt sich aus Abschlussjahr und Kürzel (Vorschau‑Spalte).</small>
+                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">Textfeld und Tabelle sind gekoppelt. <strong>Speichern</strong> übernimmt die Klassenliste in die Stammdaten. Der stabile Alias ergibt sich aus Abschlussjahr und Kürzel (Vorschau‑Spalte). <strong>WebUntis:</strong> Klassen-PDF (<code>Class_*.pdf</code>) importieren – KV aus der Lehrerliste (Kürzel).</small>
+                    <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
+                        <label class="btn" for="swClassesImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Import Klassen (CSV/XLSX/PDF)</label>
+                        <input type="file" id="swClassesImportFile" accept=".csv,.xlsx,.xls,.pdf">
+                        <label style="font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="swClassesSkipNoKv" checked> Nur mit Klassenvorstand
+                        </label>
+                    </div>
                     <div class="teachers-table-wrap" aria-label="Klassen und Microsoft-365-Abgleich" style="margin-top:12px;">
                         <table class="teachers-table" aria-label="Klassen: Liste und M365-Abgleich" style="min-width:780px;">
                             <thead>
@@ -1040,6 +1062,11 @@
                     <a class="sw-next-card" href="tools/verwaltung.html">
                         <span class="sw-next-card__title"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</span>
                         <p class="sw-next-card__desc">Sammelgruppe der Schulverwaltung matchen oder anlegen, Besitzer und Mitglieder live pflegen.</p>
+                        <span class="sw-next-card__go">Öffnen →</span>
+                    </a>
+                    <a class="sw-next-card" href="tools/klassenvorstaende.html">
+                        <span class="sw-next-card__title"><i class="bi bi-person-vcard" aria-hidden="true"></i>Klassenvorstände</span>
+                        <p class="sw-next-card__desc">Sammelgruppe oder E‑Mail‑Verteiler aller Klassenvorstände aus der Klassenliste.</p>
                         <span class="sw-next-card__go">Öffnen →</span>
                     </a>
                     <a class="sw-next-card" href="tools/gruppenerstellung.html">
@@ -1099,6 +1126,10 @@
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="src/shared/tenant-settings-core.js" defer></script>
+    <script src="src/shared/person-email-from-name.js" defer></script>
+    <script src="src/shared/pdf-text.js" defer></script>
+    <script src="src/shared/webuntis-export-import.js" defer></script>
+    <script src="src/shared/school-sis-import.js" defer></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script type="module" src="src/shared/graph-unified-groups.js"></script>

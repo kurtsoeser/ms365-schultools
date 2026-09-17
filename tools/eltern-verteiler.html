@@ -289,13 +289,12 @@
                     <p class="muted" style="margin-top:0;">
                         <strong>Sokrates:</strong> Dynamische Suche → Standard → <em>111 Aktive Schüler (ErzBer)</em> bzw. Elternabfrage, Export CSV/XLSX
                         (Spalten u. a. Klasse, Schülerkennzahl, Familienname, Vorname, Mailadresse).<br>
-                        <strong>WebUntis:</strong> Elternstammdaten-CSV mit Schüler-Schlüssel und Eltern-E-Mail
-                        (siehe Untis „Import Elternstammdaten“).<br>
+                        <strong>WebUntis:</strong> <code>Student_*.xls</code> und optional <code>LegalGuardian_*.xls</code> (Mehrfachauswahl). Eltern werden über Untis-IDs zugeordnet; fehlende Schüler-Mails nach Muster.<br>
                         Oder die <strong>MS365-Vorlage</strong> mit Spalten Eltern1/Eltern1Mail ausfüllen.
                     </p>
                     <p class="muted" style="margin-top:0;">
-                        Einfacher Jahreswechsel: 1. aktuelle Gesamtliste aus Schulverwaltung exportieren, 2. hier importieren und Vorschau prüfen,
-                        3. erst danach übernehmen und das Exchange-Skript neu erzeugen. Abgänger werden nur entfernt, wenn Sie sie unten bewusst anhaken.
+                        Einfacher Jahreswechsel bzw. Aktualisierung im Jahr: 1. aktuelle Exporte aus der Schulverwaltung, 2. hier importieren und Vorschau prüfen,
+                        3. übernehmen (Zusammenführen). Abgänger werden nur entfernt, wenn Sie sie unten bewusst anhaken.
                     </p>
                     <div class="bulk-bar" style="align-items:flex-end;">
                         <div class="field" style="margin:0;min-width:220px;">
@@ -304,11 +303,20 @@
                                 <option value="auto" selected>Automatisch erkennen</option>
                                 <option value="ms365">MS365-Vorlage</option>
                                 <option value="sokrates">Sokrates</option>
-                                <option value="webuntis">WebUntis</option>
+                                <option value="webuntis">WebUntis Exporte</option>
                             </select>
                         </div>
-                        <label class="btn" for="evImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Datei wählen</label>
-                        <input type="file" id="evImportFile" accept=".csv,.xlsx,.xls,.txt" style="display:none;">
+                        <div class="field" style="margin:0;min-width:200px;">
+                            <label for="evImportEmailPattern">Mail-Muster (Schüler)</label>
+                            <select id="evImportEmailPattern">
+                                <option value="vorname.nachname" selected>vorname.nachname</option>
+                                <option value="nachname.vorname">nachname.vorname</option>
+                                <option value="v.nachname">v.nachname</option>
+                                <option value="vorname.n">vorname.n</option>
+                            </select>
+                        </div>
+                        <label class="btn" for="evImportFile" style="cursor:pointer;margin:0;"><i class="bi bi-upload"></i>Datei(en) wählen</label>
+                        <input type="file" id="evImportFile" accept=".csv,.xlsx,.xls,.txt" multiple style="display:none;">
                         <button type="button" class="btn" id="evTplXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>
                         <button type="button" class="btn" id="evTplCsv"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
                     </div>
@@ -537,6 +545,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/eltern-guardians.js" defer></script>
+    <script src="../src/shared/person-email-from-name.js" defer></script>
+    <script src="../src/shared/webuntis-export-import.js" defer></script>
     <script src="../src/shared/school-sis-import.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/action-log.js" defer></script>

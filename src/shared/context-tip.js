@@ -8,7 +8,7 @@
         'task-unterricht':
             'Wann? Zu Schuljahresbeginn oder bei neuen Klassen/Kursen. Klassengruppen = eine Microsoft-365-Gruppe pro Klasse. Unterrichtsteams = Teams pro Fach/Kurs aus dem Stundenplan.',
         'task-gruppen':
-            'Wann? Wenn alle Schülerinnen, Lehrkräfte oder Verwaltung in großen Gruppen sein sollen (E-Mail, Berechtigungen). Das sind Sammelgruppen in Microsoft 365.',
+            'Wann? Wenn alle Schülerinnen, Lehrkräfte, Verwaltung oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Das sind Sammelgruppen in Microsoft 365.',
         'task-personen':
             'Wann? Einzelne Konten suchen, ein neues Konto anlegen oder externe Personen (Gäste) einladen – z. B. Eltern oder Projektpartner.',
         'task-schuljahr':
@@ -19,7 +19,7 @@
         'prog-unterricht':
             '„Verknüpft“ heißt: Die App kennt die passende Microsoft-365-Gruppe für diese Klasse. Noch nicht verknüpft? Im Werkzeug Klassengruppen die bestehende Gruppe zuordnen oder neu anlegen.',
         'prog-gruppen':
-            'Zeigt, wie viele der großen Sammelgruppen (Schüler, Lehrkräfte, Verwaltung) und Fach-/ARGE-Gruppen mit Microsoft 365 verbunden sind.',
+            'Zeigt, wie viele der großen Sammelgruppen (Schüler, Lehrkräfte, Verwaltung, Klassenvorstände) und Fach-/ARGE-Gruppen mit Microsoft 365 verbunden sind.',
         'prog-schuljahr':
             'Fortschritt der Checkliste „Schuljahr wechseln“. Erscheint erst nach abgeschlossener Ersteinrichtung.',
 
@@ -48,6 +48,8 @@
             'Externe Personen einladen (Gast-Konten) und festlegen, wer einladen darf – z. B. für Eltern oder Kooperationspartner.',
         slg: 'Zwei zentrale Sammelgruppen: alle Schülerinnen und alle Lehrkräfte – für E-Mail-Verteiler und Berechtigungen.',
         verwaltung: 'Gruppe für Sekretariat, Direktion und weitere Verwaltungsrollen – oft als Besitzerin anderer Gruppen.',
+        klassenvorstaende:
+            'Eine Sammelgruppe aller Klassenvorstände aus der Klassenliste – als E-Mail-Verteiler oder inkl. Team, mit Mitglieder-Abgleich.',
         'organisations-assistent':
             'Geführte Checkliste beim Schuljahreswechsel: Schuljahr, Namen, Abschlussjahrgang, Schülerliste, Unterrichtsteams.',
         postfaecher:

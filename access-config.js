@@ -3,6 +3,6 @@
  */
 window.MS365_ACCESS_CONFIG = {
     enabled: true,
-    pins: ['MS365-Schule', 'IT-Team', '#kurtrocks','#KurtRocks!','HLAEbensee'],
+    pins: ['MS365-Schule', 'IT-Team', '#kurtrocks','#KurtRocks!','HLAEbensee', 'HAK-Steyr'],
     adminPin: '#kurtrocksMS365'
 };
