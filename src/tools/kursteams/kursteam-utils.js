@@ -88,19 +88,42 @@ ns.resolveDuplicateGruppenmails = function resolveDuplicateGruppenmails(teams) {
     return adjusted;
 };
 
-ns.combineClassNames = function combineClassNames(classString) {
-    const classes = classString.split(',').map(c => c.trim());
-    if (classes.length === 0) return classString;
-    const firstClass = classes[0];
-    const jahrgang = firstClass.match(/^\d+/);
-    if (!jahrgang) return classString;
-    const buchstaben = classes
-        .map(c => {
-            const match = c.match(/\d+([A-Z]+)/i);
-            return match ? match[1].toUpperCase() : '';
-        })
-        .filter(b => b.length > 0);
-    const uniqueBuchstaben = [...new Set(buchstaben.join('').split(''))].join('');
-    return jahrgang[0] + uniqueBuchstaben;
+/**
+ * Mehrere Klassen zu einem Anzeige-/Mail-Segment zusammenführen.
+ * Früher: 1AK,1BK → 1AKB (Buchstaben unique) → oft fälschlich „hakb“ im Alias.
+ * Jetzt: vollständige Kürzel aneinander (1AK1BK), optional Modus „letters“ → AKBK.
+ * @param {string} classString Klassen getrennt durch Komma/;/~ 
+ * @param {{ mode?: 'concat'|'letters' }} [opts]
+ */
+ns.combineClassNames = function combineClassNames(classString, opts) {
+    const mode = opts && opts.mode === 'letters' ? 'letters' : 'concat';
+    const classes = String(classString || '')
+        .split(/[,;~]+/)
+        .map((c) => c.trim())
+        .filter(Boolean);
+    if (classes.length === 0) return String(classString || '');
+    if (classes.length === 1) return classes[0];
+
+    if (mode === 'letters') {
+        const parts = classes
+            .map((c) => {
+                const m = c.match(/^\d+([A-Za-z]+)$/);
+                return m ? m[1].toUpperCase() : c.replace(/[^A-Za-z]/g, '').toUpperCase();
+            })
+            .filter(Boolean);
+        return parts.join('');
+    }
+
+    // concat: 1AK + 1BK → 1AK1BK (eindeutig, kein „AKB“/„hakb“)
+    return classes.map((c) => c.replace(/\s+/g, '')).join('');
+};
+
+/** True wenn die Klassen-Zelle mehrere Klassen enthält (geteilt / Schwerpunkte). */
+ns.isCombinedClassCell = function isCombinedClassCell(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return false;
+    if (/[,;~]/.test(s)) return true;
+    // bereits zusammengezogen: 1AK1BK, 3AS3BS, …
+    return /(?:\d+[A-Za-z]+){2,}/.test(s);
 };
 

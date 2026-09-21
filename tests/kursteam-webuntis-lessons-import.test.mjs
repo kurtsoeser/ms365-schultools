@@ -61,7 +61,7 @@ describe('kursteam WebUntis ExportLessons mapping', () => {
         expect(mapped.klasseRaw).toBe('5AK~5BK');
     });
 
-    it('processImportedData baut Zeilen aus ExportLessons', () => {
+    it('processImportedData hält geteilte Unterrichte als eine Zeile (Default)', () => {
         const ns = loadImportMappingSandbox();
         const applied = [];
         ns.applyWebuntisRows = (rows) => {
@@ -76,13 +76,30 @@ describe('kursteam WebUntis ExportLessons mapping', () => {
         ]);
 
         expect(applied).toHaveLength(1);
-        expect(applied[0]).toHaveLength(5);
+        expect(applied[0]).toHaveLength(3);
         expect(applied[0].map((r) => `${r.lehrer}|${r.fach}|${r.klasse}|${r.gruppe}`)).toEqual([
             'MEI|D|1A|',
-            'MEI|M|1A|',
-            'MEI|M|1B|',
-            'HAG|ETH|2AK|ETH_2AK2CK_HAG',
-            'HAG|ETH|2CK|ETH_2AK2CK_HAG'
+            'MEI|M|1A,1B|',
+            'HAG|ETH|2AK,2CK|ETH_2AK2CK_HAG'
         ]);
+        expect(applied[0][2].sharedLesson).toBe(true);
+        expect(applied[0][2].klassenParts).toEqual(['2AK', '2CK']);
+    });
+
+    it('processImportedData splittet Mehrklassen wenn keepShared aus', () => {
+        const ns = loadImportMappingSandbox();
+        ns.shouldKeepSharedLessons = () => false;
+        const applied = [];
+        ns.applyWebuntisRows = (rows) => {
+            applied.push(rows);
+        };
+        ns.showToast = () => {};
+
+        ns.processImportedData([
+            { subject: 'ETH', teacher: 'HAG', klassen: '2AK~2CK', studentgroup: 'ETH_2AK2CK_HAG', periods: 2 }
+        ]);
+
+        expect(applied[0]).toHaveLength(2);
+        expect(applied[0].map((r) => r.klasse)).toEqual(['2AK', '2CK']);
     });
 });

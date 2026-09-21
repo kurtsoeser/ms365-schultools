@@ -70,12 +70,13 @@ ns.buildKursteamStateSnapshot = function buildKursteamStateSnapshot() {
         teamNamePattern: ns.teamNamePattern || null,
         excludeSubjects: safeInputValue('excludeSubjects', 'ORD,DIR,KV'),
         removeDuplicates: safeCheckbox('removeDuplicates', true),
+        mergeSharedLessons: safeCheckbox('mergeSharedLessons', true),
         normalizeNumberedSubjects: safeCheckbox('normalizeNumberedSubjects', false),
         stripSubjectTrailingDigits: safeCheckbox('stripSubjectTrailingDigits', false),
         kursteamEntryMode: ns.kursteamEntryMode,
         studentRosterRaw: ns.studentRosterRaw || '',
         studentRosterPreferGroup: safeCheckbox('studentRosterPreferGroup', true),
-        studentRosterSkipCombinedClasses: safeCheckbox('studentRosterSkipCombinedClasses', true),
+        studentRosterSkipCombinedClasses: safeCheckbox('studentRosterSkipCombinedClasses', false),
         studentRosterHideNoMatch: safeCheckbox('studentRosterHideNoMatch', true),
         studentRosterTeamSelection: ns.studentRosterTeamSelection || {},
         webuntisPaste: safeInputValue('webuntisPasteInput', '')
@@ -124,7 +125,9 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
     }
     ns.teamsGenerated = !!state.teamsGenerated;
     ns.kursteamEntryMode =
-        state.kursteamEntryMode === 'manual' || state.kursteamEntryMode === 'webuntis'
+        state.kursteamEntryMode === 'manual' ||
+        state.kursteamEntryMode === 'webuntis' ||
+        state.kursteamEntryMode === 'single'
             ? state.kursteamEntryMode
             : ns.rawData.length
               ? 'webuntis'
@@ -157,6 +160,8 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
     if (ex) ex.value = state.excludeSubjects !== undefined ? state.excludeSubjects : 'ORD,DIR,KV';
     const rd = safeEl('removeDuplicates');
     if (rd) rd.checked = state.removeDuplicates !== false;
+    const mergeShared = safeEl('mergeSharedLessons');
+    if (mergeShared) mergeShared.checked = state.mergeSharedLessons !== false;
     const normSubj = safeEl('normalizeNumberedSubjects');
     if (normSubj) normSubj.checked = !!state.normalizeNumberedSubjects;
     const stripDigits = safeEl('stripSubjectTrailingDigits');
@@ -171,7 +176,7 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
     const skip = safeEl('studentRosterSkipCombinedClasses');
     const hide = safeEl('studentRosterHideNoMatch');
     if (pref) pref.checked = state.studentRosterPreferGroup !== false;
-    if (skip) skip.checked = state.studentRosterSkipCombinedClasses !== false;
+    if (skip) skip.checked = !!state.studentRosterSkipCombinedClasses;
     if (hide) hide.checked = state.studentRosterHideNoMatch !== false;
     if (ns.studentRosterRaw && typeof ns.parseStudentRosterFromText === 'function') {
         ns.parseStudentRosterFromText(ns.studentRosterRaw);

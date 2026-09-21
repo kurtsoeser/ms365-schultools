@@ -441,6 +441,10 @@ ns.goToStep = function goToStep(rawStep) {
     if (typeof ns.focusStepHeading === 'function') {
         requestAnimationFrame(() => ns.focusStepHeading(step));
     }
+
+    if (ns.kursteamEntryMode === 'single' && typeof ns.applySingleTeamChrome === 'function') {
+        ns.applySingleTeamChrome(true);
+    }
 };
 
 ns.prepareCSVExport = function prepareCSVExport() {

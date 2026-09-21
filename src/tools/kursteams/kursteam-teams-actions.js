@@ -31,6 +31,8 @@ function mount(ns) {
     ns.applyFilters = function applyFilters() {
         const excludeSubjects = ns.parseExcludeSubjectsFromInput();
         const removeDuplicates = document.getElementById('removeDuplicates').checked;
+        const mergeSharedEl = document.getElementById('mergeSharedLessons');
+        const mergeSharedLessons = mergeSharedEl ? !!mergeSharedEl.checked : true;
         const normalizeEl = document.getElementById('normalizeNumberedSubjects');
         const normalizeNumberedSubjects = normalizeEl ? !!normalizeEl.checked : false;
 
@@ -43,7 +45,8 @@ function mount(ns) {
 
         const r = KF.applyRowFilters(ns.rawData, excludeSubjects, removeDuplicates, {
             normalizeNumberedSubjects,
-            normalizeNumberedSubjectFields: KS.normalizeNumberedSubjectFields
+            normalizeNumberedSubjectFields: KS.normalizeNumberedSubjectFields,
+            mergeSharedLessons
         });
         ns.filteredData = r.filtered;
         ns.invalidateTeams();
@@ -55,6 +58,12 @@ function mount(ns) {
             normStat.textContent = String(r.normalizedCount || 0);
             const wrap = document.getElementById('normalizedSubjectsStatCard');
             if (wrap) wrap.style.display = r.normalizedCount > 0 ? '' : 'none';
+        }
+        const mergedStat = document.getElementById('mergedSharedStat');
+        if (mergedStat) {
+            mergedStat.textContent = String(r.mergedSharedCount || 0);
+            const wrapM = document.getElementById('mergedSharedStatCard');
+            if (wrapM) wrapM.style.display = r.mergedSharedCount > 0 ? '' : 'none';
         }
         ns.displayFilteredData();
         if (typeof ns.setContinueButton === 'function') {
@@ -111,11 +120,15 @@ function mount(ns) {
 
     ns.startKursteamFromWebuntis = function startKursteamFromWebuntis() {
         ns.kursteamEntryMode = 'webuntis';
+        if (typeof ns.showSingleTeamForm === 'function') ns.showSingleTeamForm(false);
+        if (typeof ns.applySingleTeamChrome === 'function') ns.applySingleTeamChrome(false);
         ns.goToStep(1);
     };
 
     ns.startKursteamManual = function startKursteamManual() {
         ns.kursteamEntryMode = 'manual';
+        if (typeof ns.showSingleTeamForm === 'function') ns.showSingleTeamForm(false);
+        if (typeof ns.applySingleTeamChrome === 'function') ns.applySingleTeamChrome(false);
         ns.rawData = [];
         ns.filteredData = [];
         document.getElementById('totalRecords').textContent = '0';
@@ -178,6 +191,8 @@ function mount(ns) {
         ns.filteredData = [...ns.rawData];
         ns.setExcludeSubjectsInput(['ORD', 'DIR', 'KV']);
         document.getElementById('removeDuplicates').checked = true;
+        const mergeShared = document.getElementById('mergeSharedLessons');
+        if (mergeShared) mergeShared.checked = true;
         const norm = document.getElementById('normalizeNumberedSubjects');
         if (norm) norm.checked = false;
         if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
@@ -214,6 +229,7 @@ function mount(ns) {
             separator,
             pattern,
             combineClassNames: ns.combineClassNames,
+            isCombinedClassCell: ns.isCombinedClassCell,
             buildGruppenmailBase: ns.buildGruppenmailBase,
             formatKlasseSegmentForGruppenmail: ns.formatKlasseSegmentForGruppenmail,
             sanitizeGruppeForMail: ns.sanitizeGruppeForMail,

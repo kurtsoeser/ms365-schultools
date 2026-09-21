@@ -238,7 +238,7 @@ function getBool(id, fallback) {
 
 function getMembersForTeam(team) {
     const preferGroup = getBool('studentRosterPreferGroup', true);
-    const skipCombined = getBool('studentRosterSkipCombinedClasses', true);
+    const skipCombined = getBool('studentRosterSkipCombinedClasses', false);
     const excludeTeachers = getBool('studentRosterExcludeTeachers', true);
 
     const klasseRaw = team && (team.originalClass || team.klasseForMembers || '');
@@ -246,30 +246,43 @@ function getMembersForTeam(team) {
 
     if (!klasseRaw) return { members: [], reason: 'no_class' };
 
-    if (skipCombined && String(klasseRaw).includes(',')) {
+    const classParts = String(klasseRaw)
+        .split(/[,;~]+/)
+        .map((c) => c.trim())
+        .filter(Boolean);
+
+    if (skipCombined && classParts.length > 1) {
         return { members: [], reason: 'combined_class' };
     }
 
-    const klasse = normToken(klasseRaw);
     const gruppe = normToken(gruppeRaw);
-
-    let members = [];
+    const memberSet = new Set();
     let reason = 'no_match';
-    if (preferGroup && gruppe) {
-        const key = klasse + '|' + gruppe;
-        const set = ns.studentRoster.byClassGroup[key];
-        if (set && set.size) {
-            members = Array.from(set);
-            reason = 'class_group';
+
+    classParts.forEach(function (part) {
+        const klasse = normToken(part);
+        if (!klasse) return;
+        if (preferGroup && gruppe) {
+            const key = klasse + '|' + gruppe;
+            const set = ns.studentRoster.byClassGroup[key];
+            if (set && set.size) {
+                set.forEach(function (u) {
+                    memberSet.add(u);
+                });
+                reason = 'class_group';
+                return;
+            }
         }
-    }
-    if (!members.length) {
         const set2 = ns.studentRoster.byClass[klasse];
         if (set2 && set2.size) {
-            members = Array.from(set2);
-            reason = 'class';
+            set2.forEach(function (u) {
+                memberSet.add(u);
+            });
+            if (reason === 'no_match') reason = 'class';
         }
-    }
+    });
+
+    let members = Array.from(memberSet);
     if (!members.length) return { members: [], reason: 'no_match' };
 
     if (excludeTeachers) {
@@ -279,6 +292,9 @@ function getMembersForTeam(team) {
                 return !block.has(normUpn(upn));
             });
         }
+    }
+    if (classParts.length > 1 && reason !== 'no_match') {
+        reason = reason === 'class_group' ? 'combined_class_group' : 'combined_class';
     }
     return { members: members, reason: reason };
 }

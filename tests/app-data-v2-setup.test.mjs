@@ -229,6 +229,9 @@ describe('app-data-v2 setup', () => {
         const ctx = loadAppDataV2(store);
         expect(ctx.ms365AppDataV2.getClassTeamGruppenmailForKlasse('1HMA')).toBe('jg2031hma');
         expect(ctx.ms365AppDataV2.getClassTeamGruppenmailForKlasse('HMA')).toBe('jg2031hma');
+        // Mehrklassen / Teilstring: kein falscher Nick (früher → -hakb-)
+        expect(ctx.ms365AppDataV2.getClassTeamGruppenmailForKlasse('1AK1BK')).toBe('');
+        expect(ctx.ms365AppDataV2.getClassTeamGruppenmailForKlasse('1HMA1B')).toBe('');
     });
 
     it('patchSetup merges verwaltungGroupId without wiping SLG matches', () => {

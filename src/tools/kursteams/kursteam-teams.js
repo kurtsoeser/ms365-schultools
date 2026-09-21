@@ -19,6 +19,7 @@ import './kursteam-storage.js';
 import './kursteam-import.js';
 import './kursteam-teacher-match-logic.js';
 import './kursteam-teacher-mapping.js';
+import './kursteam-single.js';
 import './kursteam-members.js';
 import './kursteam-steps-export.js';
 import './kursteam-graph.js';
@@ -52,6 +53,14 @@ window.applyFilters = ns.applyFilters;
 window.resetFilters = ns.resetFilters;
 window.generateTeamNames = ns.generateTeamNames;
 window.addManualKursteamTeam = ns.addManualKursteamTeam;
+window.startKursteamSingleTeam = ns.startKursteamSingleTeam;
+window.cancelKursteamSingleTeam = ns.cancelKursteamSingleTeam;
+window.commitSingleTeamAndGoCreate = ns.commitSingleTeamAndGoCreate;
 
 if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 if (typeof ns.renderTeamNameBuilder === 'function') ns.renderTeamNameBuilder();
+
+// Nach Storage/Step-Init: Deep-Link vom Dashboard (?mode=single)
+if (typeof ns.bootSingleTeamModeFromQuery === 'function') {
+    queueMicrotask(() => ns.bootSingleTeamModeFromQuery());
+}

@@ -30,6 +30,22 @@ describe('kursteam-gruppenmail', () => {
         expect(buildGruppenmailBase('SJ26', '1AK', 'D', '')).toBe('SJ26-1AK-D');
     });
 
+    it('combineClassNames: 1AK,1BK → 1AK1BK (nicht 1AKB/hakb)', () => {
+        const ctx = loadScript('src/tools/kursteams/kursteam-utils.js');
+        const { combineClassNames, isCombinedClassCell, buildGruppenmailBase } = ctx.ms365Kursteam;
+
+        expect(combineClassNames('1AK,1BK')).toBe('1AK1BK');
+        expect(combineClassNames('1AK~1BK~1CK')).toBe('1AK1BK1CK');
+        expect(combineClassNames('1AK,1BK', { mode: 'letters' })).toBe('AKBK');
+        expect(isCombinedClassCell('1AK,1BK')).toBe(true);
+        expect(isCombinedClassCell('1AK1BK')).toBe(true);
+        expect(isCombinedClassCell('1AK')).toBe(false);
+        expect(buildGruppenmailBase('SJ26', combineClassNames('1AK,1BK'), 'BESPM', '')).toBe(
+            'SJ26-1AK1BK-BESPM'
+        );
+        expect(buildGruppenmailBase('SJ26', '1AK1BK', 'BESPM', '')).not.toMatch(/hakb/i);
+    });
+
     it('buildGruppenmailFromPattern: Trenner im Namen → Bindestrich in Gruppenmail', () => {
         const ctx = loadScriptsInSandbox([
             'src/tools/kursteams/kursteam-team-names.js',
@@ -90,6 +106,7 @@ describe('kursteam-gruppenmail', () => {
                 separator: ' | ',
                 pattern: KT.defaultTeamNamePattern(),
                 combineClassNames: ns.combineClassNames,
+                isCombinedClassCell: ns.isCombinedClassCell,
                 buildGruppenmailBase: ns.buildGruppenmailBase,
                 formatKlasseSegmentForGruppenmail: ns.formatKlasseSegmentForGruppenmail,
                 sanitizeGruppeForMail: ns.sanitizeGruppeForMail,
@@ -101,5 +118,45 @@ describe('kursteam-gruppenmail', () => {
 
         expect(teams[0].teamName).toBe('SJ26 | 1HMA | E');
         expect(teams[0].gruppenmail).toBe('SJ26-1HMA-E');
+    });
+
+    it('buildTeamEntriesFromRows: Mehrklassen → 1AK1BK in Name/Mail, kein Einzelklassen-Nick', () => {
+        const ctx = loadScriptsInSandbox([
+            'src/shared/ms365-module-guard.js',
+            'src/tools/kursteams/kursteam-team-names.js',
+            'src/tools/kursteams/kursteam-utils.js',
+            'src/tools/kursteams/kursteam-team-build.js'
+        ]);
+        const KTB = ctx.ms365KursteamTeamBuild;
+        const KT = ctx.ms365KursteamTeamNames;
+        const ns = ctx.ms365Kursteam;
+
+        ctx.ms365AppDataV2 = {
+            getClassTeamGruppenmailForKlasse: () => 'jg2030hak'
+        };
+
+        const teams = KTB.buildTeamEntriesFromRows(
+            [{ klasse: '1AK,1BK', fach: 'BESPM', lehrer: 'ABC', gruppe: 'BESPM1AK1BK' }],
+            {
+                yearPrefix: 'SJ26',
+                emailDomain: '@schule.at',
+                separator: ' | ',
+                pattern: KT.defaultTeamNamePattern(),
+                combineClassNames: ns.combineClassNames,
+                isCombinedClassCell: ns.isCombinedClassCell,
+                buildGruppenmailBase: ns.buildGruppenmailBase,
+                formatKlasseSegmentForGruppenmail: ns.formatKlasseSegmentForGruppenmail,
+                sanitizeGruppeForMail: ns.sanitizeGruppeForMail,
+                INVALID_CHARS_REPLACE: ns.INVALID_CHARS_REPLACE,
+                INVALID_CHARS_TEST: ns.INVALID_CHARS_TEST,
+                teacherEmailMapping: { ABC: 'lehrer@schule.at' }
+            }
+        );
+
+        expect(teams[0].teamName).toContain('1AK1BK');
+        expect(teams[0].gruppenmail).toMatch(/1AK1BK/i);
+        expect(teams[0].gruppenmail).not.toMatch(/hakb/i);
+        expect(teams[0].gruppenmail).not.toMatch(/jg2030hak/i);
+        expect(teams[0].originalClass).toBe('1AK,1BK');
     });
 });

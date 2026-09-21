@@ -191,6 +191,15 @@ describe('webuntis-export-import', () => {
         expect(parsed.classes.some((c) => c.code === '1A')).toBe(false);
     });
 
+    it('inferGraduationYear: 5. HAK-Klassen → Schuljahres-Endjahr', () => {
+        expect(wu.inferGraduationYear('5AK', '.hak', 2027)).toBe('2027');
+        expect(wu.inferGraduationYear('5AK', '', 2027)).toBe('2027');
+        expect(wu.inferGraduationYear('5AK', '.has', 2027)).toBe('2027'); // K schlägt fälschliches HAS
+        expect(wu.inferGraduationYear('5AS', '.has', 2027)).toBe(''); // HAS nur 3 Jahre
+        expect(wu.inferGraduationYear('1AK', '.hak', 2027)).toBe('2031');
+        expect(wu.inferGraduationYear('3AS', '', 2027)).toBe('2027');
+    });
+
     it('reichert Klassen mit Lehrerliste an', () => {
         const text = readFileSync(join(fixtures, 'class-pdf-text.txt'), 'utf8');
         const result = wu.importClassesFromWebuntisPdf({

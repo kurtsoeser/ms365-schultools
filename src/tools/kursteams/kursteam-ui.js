@@ -5,7 +5,7 @@ const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 ns.rawData = [];
 ns.filteredData = [];
 ns.teamsData = [];
-/** @type {'unset'|'webuntis'|'manual'} */
+/** @type {'unset'|'webuntis'|'manual'|'single'} */
 ns.kursteamEntryMode = 'unset';
 ns.currentStep = 0;
 ns.teacherEmailMapping = {};

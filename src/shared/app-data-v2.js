@@ -752,12 +752,14 @@
     function classTeamMatchesKlasse(ct, klasseRaw) {
         const k = String(klasseRaw ?? '').trim();
         if (!k) return false;
+        // Mehrklassen / zusammengezogen (1AK1BK): kein Match auf Einzel-Klassenteam
+        if (/[,;~]/.test(k) || /(?:\d+[A-Za-z]+){2,}/.test(k)) return false;
         const cc = normCode(ct.classCode || '');
         const dn = String(ct.displayName || '').trim();
         if (dn && k === dn) return true;
         const nk = normCode(k);
         if (cc && nk === cc) return true;
-        if (cc && cc.length >= 2 && k.toUpperCase().indexOf(cc) !== -1) return true;
+        // Nur exakter Code-Match (kein Teilstring: 1AK in 1AK1BK / falsches -hakb-)
         return false;
     }
 

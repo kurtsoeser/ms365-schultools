@@ -1398,7 +1398,7 @@
                             <span class="dash-task-index">01</span>
                         </div>
                         <h3>Klassen und Kurse anlegen</h3>
-                        <p>Alltag: Klassengruppen matchen. Unterrichtsteams aus dem Stundenplan per CSV/CMD anlegen.</p>
+                        <p>Alltag: Klassengruppen matchen. Unterrichtsteams aus dem Stundenplan – oder ein fehlendes Team nachziehen.</p>
                         <div class="dash-task-progress-row" id="dashProgUnterrichtRow" data-context-tip="prog-unterricht" hidden>
                             <p class="dash-task-progress" id="dashProgUnterricht"></p>
                         </div>
@@ -1409,6 +1409,10 @@
                             </a>
                             <a class="dash-task-row" href="tools/kursteams.html">
                                 <span class="dash-task-row__label"><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Unterrichtsteams</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/kursteams.html?mode=single">
+                                <span class="dash-task-row__label"><i class="bi bi-plus-square" aria-hidden="true"></i>Ein Team nachziehen</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                         </div>
@@ -1605,6 +1609,11 @@
                                 <h2><i class="bi bi-mortarboard"></i>Unterrichtsteams</h2>
                                 <p>Unterrichtsteams aus dem Stundenplan vorbereiten und per CSV/CMD (<code>Kursteam-Anlage.cmd</code>) anlegen.</p>
                                 <a class="btn" href="tools/kursteams.html"><i class="bi bi-rocket-takeoff"></i>Anlegen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Ein Unterrichtsteam nachziehen" data-tool-id="kursteam-einzeln" data-cluster="unterricht" data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen" draggable="true">
+                                <h2><i class="bi bi-plus-square"></i>Ein Team nachziehen</h2>
+                                <p>Genau ein fehlendes Unterrichtsteam (Klasse + Fach + Lehrkraft) vorbereiten und online oder per CMD anlegen.</p>
+                                <a class="btn" href="tools/kursteams.html?mode=single"><i class="bi bi-plus-lg"></i>Nachziehen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Fächer und ARGEs" data-tool-id="arge-fachgruppen" data-cluster="unterricht" data-search="arge fach fachgruppe fachschaft arbeitsgemeinschaft" draggable="true">
                                 <h2><i class="bi bi-collection"></i>Fächer und ARGEs</h2>
@@ -1863,6 +1872,7 @@
                 'jahrgang',
                 'klassen-merge',
                 'kursteams',
+                'kursteam-einzeln',
                 'arge-fachgruppen',
                 'diplomarbeiten',
                 'spielwiesen',

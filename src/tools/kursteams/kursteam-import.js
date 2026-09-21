@@ -68,6 +68,17 @@ ns.splitKlassenCell = function splitKlassenCell(raw) {
     return s.split(/[,;~]+/).map(c => c.trim()).filter(Boolean);
 };
 
+/** Einstellung: geteilte Unterrichte als ein Team (Checkbox Filter-Schritt, Default an). */
+ns.shouldKeepSharedLessons = function shouldKeepSharedLessons() {
+    try {
+        const el = document.getElementById('mergeSharedLessons');
+        if (el) return !!el.checked;
+    } catch {
+        /* ignore */
+    }
+    return true;
+};
+
 ns.applyWebuntisRows = function applyWebuntisRows(rows) {
     ns.kursteamEntryMode = 'webuntis';
     ns.rawData = rows;
@@ -301,6 +312,9 @@ ns.processImportedData = function processImportedData(data) {
     let id = 0;
     let socratesHits = 0;
     let webuntisHits = 0;
+    let sharedKept = 0;
+    const keepShared = typeof ns.shouldKeepSharedLessons === 'function' ? ns.shouldKeepSharedLessons() : true;
+
     data.forEach(origRaw => {
         const mapped = ns.mapImportedLessonRow(origRaw);
         if (!mapped) return;
@@ -312,16 +326,37 @@ ns.processImportedData = function processImportedData(data) {
         if (profile === 'webuntis-lessons') webuntisHits++;
 
         const klassenParts = ns.splitKlassenCell(klasseRaw);
-        const targets = klassenParts.length ? klassenParts : [''];
+        const orig = ns.normalizeImportedRowKeys(origRaw);
 
+        // Geteilter Unterricht (1AK~1BK / studentgroup): optional eine Zeile statt Split
+        if (keepShared && klassenParts.length > 1) {
+            sharedKept++;
+            rows.push({
+                id: id++,
+                klasse: klassenParts.join(','),
+                klassenParts: klassenParts.slice(),
+                klassenRaw: klasseRaw,
+                fach,
+                lehrer,
+                gruppe,
+                sharedLesson: true,
+                original: orig
+            });
+            return;
+        }
+
+        const targets = klassenParts.length ? klassenParts : [''];
         targets.forEach(klasse => {
             rows.push({
                 id: id++,
                 klasse,
+                klassenParts: klasse ? [klasse] : [],
+                klassenRaw: klasseRaw,
                 fach,
                 lehrer,
                 gruppe,
-                original: ns.normalizeImportedRowKeys(origRaw)
+                sharedLesson: false,
+                original: orig
             });
         });
     });
@@ -331,11 +366,19 @@ ns.processImportedData = function processImportedData(data) {
         return;
     }
 
+    let toastMsg = '';
     if (webuntisHits > 0 && webuntisHits > rows.length / 2) {
-        ns.showToast('WebUntis-ExportLessons erkannt – ' + rows.length + ' Zeile(n) importiert.');
+        toastMsg = 'WebUntis-ExportLessons erkannt – ' + rows.length + ' Zeile(n) importiert.';
     } else if (socratesHits > 0 && socratesHits > rows.length / 2) {
-        ns.showToast('Sokrates-Export erkannt – ' + rows.length + ' Zeile(n) importiert.');
+        toastMsg = 'Sokrates-Export erkannt – ' + rows.length + ' Zeile(n) importiert.';
     }
+    if (sharedKept > 0) {
+        toastMsg +=
+            (toastMsg ? ' ' : '') +
+            sharedKept +
+            ' geteilte Unterrichte als je 1 Zeile (mehrere Klassen).';
+    }
+    if (toastMsg) ns.showToast(toastMsg);
 
     ns.applyWebuntisRows(rows);
 };

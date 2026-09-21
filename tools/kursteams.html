@@ -352,7 +352,7 @@
         </div>
 
         <div id="panelWebuntis">
-            <div class="steps steps--one-line" role="navigation" aria-label="Kursteams-Assistent">
+            <div class="steps steps--one-line" id="kursteamWizardSteps" role="navigation" aria-label="Kursteams-Assistent">
                 <div class="step active" data-step="0">Start</div>
                 <div class="step" data-step="1">1. Daten importieren</div>
                 <div class="step" data-step="2">2. Daten bereinigen</div>
@@ -367,7 +367,7 @@
                 <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten für Kursteams. Importieren Sie später Stundenplan-Daten – zuerst Einrichtung oder Demo auf dem Dashboard."></div>
                 <!-- Schritt 0 -->
                 <div class="step-content active" data-step="0">
-                    <div class="kt-step-header">
+                    <div class="kt-step-header" id="kursteamBulkStep0Header">
                         <div class="kt-step-badge"><i class="bi bi-mortarboard-fill"></i></div>
                         <div class="kt-step-header-text">
                             <h2>Unterrichtsteams anlegen</h2>
@@ -375,11 +375,19 @@
                         </div>
                     </div>
 
-                    <div class="alert alert-info" style="margin-bottom:18px;">
+                    <div class="kt-step-header" id="kursteamSingleStep0Header" style="display:none;">
+                        <div class="kt-step-badge" style="background:linear-gradient(135deg,#5e72e4 0%,#825ee4 100%);"><i class="bi bi-plus-square-fill"></i></div>
+                        <div class="kt-step-header-text">
+                            <h2>Ein Unterrichtsteam nachziehen</h2>
+                            <p>Klasse, Fach und Lehrkraft – dann direkt anlegen. Ohne Bulk-Assistent.</p>
+                        </div>
+                    </div>
+
+                    <div id="kursteamBulkIntro" class="alert alert-info" style="margin-bottom:18px;">
                         <strong>So funktioniert es:</strong> Daten importieren oder manuell eingeben, Lehrer-E-Mails prüfen, Team-Namen generieren → <strong>Kursteam-Anlage.cmd</strong> herunterladen und per Doppelklick starten.
                     </div>
 
-                    <div style="background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
+                    <div id="kursteamBulkChecklist" style="background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:20px;">
                         <p style="font-weight:700;margin:0 0 10px;color:var(--heading);font-size:0.95em;text-transform:uppercase;letter-spacing:.04em;">Kurzanleitung</p>
                         <ul class="kt-checklist">
                             <li><span class="kt-cl-num">1</span><span>Unterrichtsdaten <strong>importieren</strong> (WebUntis, Sokrates, Excel) oder manuell eingeben</span></li>
@@ -389,6 +397,51 @@
                             <li><span class="kt-cl-num">5</span><span><strong>Kursteam-Anlage.cmd herunterladen</strong> und per Doppelklick starten (MFA-fähig)</span></li>
                             <li><span class="kt-cl-num">+</span><span><em>Optional:</em> Schüler als Mitglieder per PowerShell-Script hinzufügen</span></li>
                         </ul>
+                    </div>
+
+                    <div id="kursteamSingleBanner" class="alert alert-info" style="display:none;margin-bottom:18px;">
+                        <strong>Kurz:</strong> Felder ausfüllen → Vorschau prüfen → anlegen (online oder CMD).
+                        <button type="button" class="btn btn-small" style="margin-left:8px;" onclick="cancelKursteamSingleTeam()"><i class="bi bi-arrow-left"></i>Zum Start</button>
+                    </div>
+
+                    <div id="kursteamSingleForm" class="filter-section" style="display:none;margin-bottom:20px;">
+                        <h3><i class="bi bi-plus-square" style="color:#5e72e4;"></i> Einzelnes Unterrichtsteam</h3>
+                        <p style="margin:0 0 14px;font-size:0.9em;color:var(--text-secondary);">
+                            Beispiel: Fach <code>WINF</code>, Klasse <code>4AK</code>, Lehrkraft-Kürzel – Besitzer-E-Mail kommt aus den Stammdaten.
+                        </p>
+                        <div class="import-paste-file-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+                            <div class="filter-group" style="margin:0;">
+                                <label for="singleTeamKlasse">Klasse</label>
+                                <input type="text" id="singleTeamKlasse" list="singleTeamKlasseList" placeholder="z. B. 4AK" autocomplete="off">
+                                <datalist id="singleTeamKlasseList"></datalist>
+                            </div>
+                            <div class="filter-group" style="margin:0;">
+                                <label for="singleTeamFach">Fach</label>
+                                <input type="text" id="singleTeamFach" list="singleTeamFachList" placeholder="z. B. WINF" autocomplete="off">
+                                <datalist id="singleTeamFachList"></datalist>
+                            </div>
+                            <div class="filter-group" style="margin:0;">
+                                <label for="singleTeamLehrer">Lehrkraft (Kürzel)</label>
+                                <input type="text" id="singleTeamLehrer" list="singleTeamLehrerList" placeholder="z. B. MEI" autocomplete="off">
+                                <datalist id="singleTeamLehrerList"></datalist>
+                            </div>
+                            <div class="filter-group" style="margin:0;">
+                                <label for="singleTeamGruppe">Gruppe <span class="muted">(optional)</span></label>
+                                <input type="text" id="singleTeamGruppe" placeholder="leer oder z. B. G1" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="filter-group" style="margin-top:12px;">
+                            <label for="singleTeamOwner">Besitzer-E-Mail</label>
+                            <input type="email" id="singleTeamOwner" placeholder="wird aus Stammdaten vorgeschlagen" autocomplete="off">
+                            <p id="singleTeamOwnerHint" class="muted" style="margin:6px 0 0;font-size:0.85em;">Lehrkraft-Kürzel eingeben – E-Mail kommt aus den Stammdaten.</p>
+                        </div>
+                        <div id="singleTeamPreview" style="margin-top:14px;padding:12px 14px;background:var(--soft);border:1px solid var(--border);border-radius:10px;">
+                            <p class="muted" style="margin:0;">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>
+                        </div>
+                        <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;">
+                            <button type="button" class="btn btn-brand" onclick="commitSingleTeamAndGoCreate()"><i class="bi bi-rocket-takeoff"></i>Zur Anlage vorbereiten</button>
+                            <button type="button" class="btn" onclick="cancelKursteamSingleTeam()"><i class="bi bi-x-lg"></i>Abbrechen</button>
+                        </div>
                     </div>
 
                     <div id="kursteamStep0Cards" class="kursteam-start-grid">
@@ -406,6 +459,14 @@
                             <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln eingeben – für wenige Teams oder zum Ergänzen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
                                 <button type="button" class="btn btn-success" onclick="startKursteamManual()"><i class="bi bi-pencil-square"></i>Weiter: Manuelle Eingabe</button>
+                            </div>
+                        </div>
+                        <div class="kursteam-start-card">
+                            <div class="ks-card-icon"><i class="bi bi-plus-square"></i></div>
+                            <h3>Nur ein Team</h3>
+                            <p>Fehlt ein einzelnes Unterrichtsteam im Bulk? Klasse, Fach und Lehrkraft eintragen und direkt anlegen.</p>
+                            <div class="step-nav-row step-nav-row--forward-only">
+                                <button type="button" class="btn btn-success" onclick="startKursteamSingleTeam()"><i class="bi bi-plus-lg"></i>Ein Team nachziehen</button>
                             </div>
                         </div>
                     </div>
@@ -530,6 +591,15 @@
                             <label for="removeDuplicates">Doppelte Eintr&auml;ge automatisch entfernen</label>
                         </div>
                         <div class="kt-toggle-row">
+                            <input type="checkbox" id="mergeSharedLessons" checked>
+                            <label for="mergeSharedLessons">Geteilte Unterrichte als <strong>ein</strong> Team (mehrere Klassen / WebUntis-Gruppe)</label>
+                        </div>
+                        <p style="margin:0 0 12px;font-size:0.85em;color:var(--text-secondary);">
+                            Empfohlen f&uuml;r Schwerpunkte und geteilte F&auml;cher (z.&nbsp;B. <code>BESPM1AK1BK</code>, <code>ETH</code>, <code>OMAI</code>, <code>ENWS</code>):
+                            aus <code>1AK~1BK</code> bzw. gleicher Sch&uuml;lergruppe wird <strong>ein</strong> Kursteam statt eines Teams pro Klasse.
+                            Abschalten, wenn wirklich je Klasse ein eigenes Team gew&uuml;nscht ist.
+                        </p>
+                        <div class="kt-toggle-row">
                             <input type="checkbox" id="normalizeNumberedSubjects">
                             <label for="normalizeNumberedSubjects">Fach-Endziffern normalisieren (<code>OMAI1</code>&nbsp;&rarr; Fach <code>OMAI</code>, Gruppe <code>1</code>)</label>
                         </div>
@@ -555,6 +625,10 @@
                             <div class="stat-card" id="normalizedSubjectsStatCard" style="display:none;background:linear-gradient(135deg,#11cdef 0%,#1171ef 100%);">
                                 <div class="stat-label">Normalisierte Fächer</div>
                                 <div class="stat-value" id="normalizedSubjectsStat">0</div>
+                            </div>
+                            <div class="stat-card" id="mergedSharedStatCard" style="display:none;background:linear-gradient(135deg,#5e72e4 0%,#825ee4 100%);">
+                                <div class="stat-label">Zusammengeführte geteilte Unterrichte</div>
+                                <div class="stat-value" id="mergedSharedStat">0</div>
                             </div>
                         </div>
                     </div>
@@ -1068,8 +1142,8 @@
                         </div>
                         <div class="filter-group" style="margin-top:6px;">
                             <label class="checkbox-label" for="studentRosterSkipCombinedClasses">
-                                <input type="checkbox" id="studentRosterSkipCombinedClasses" checked>
-                                <span>Teams mit mehreren Klassen (z. B. „1A,1B“) überspringen</span>
+                                <input type="checkbox" id="studentRosterSkipCombinedClasses">
+                                <span>Teams mit mehreren Klassen &uuml;berspringen (sonst: Sch&uuml;ler aller beteiligten Klassen)</span>
                             </label>
                         </div>
                         <div class="filter-group" style="margin-top:6px;">
@@ -1129,9 +1203,12 @@
                     <div class="kt-step-header">
                         <div class="kt-step-badge" style="background:linear-gradient(135deg,#2dce89 0%,#11998e 100%);"><i class="bi bi-rocket-fill"></i></div>
                         <div class="kt-step-header-text">
-                            <h2>Schritt 6 – Kursteams anlegen</h2>
-                            <p>Kursteams online über das Azure-Backend anlegen oder alternativ die CMD-Datei per Doppelklick starten.</p>
+                            <h2 id="kursteamCreateStepTitle">Schritt 6 – Kursteams anlegen</h2>
+                            <p id="kursteamCreateStepSub">Kursteams online über das Azure-Backend anlegen oder alternativ die CMD-Datei per Doppelklick starten.</p>
                         </div>
+                    </div>
+                    <div id="kursteamSingleCreateNav" style="display:none;margin-bottom:14px;">
+                        <button type="button" class="btn btn-ghost" onclick="startKursteamSingleTeam()"><i class="bi bi-arrow-left"></i>Zurück zum Formular</button>
                     </div>
                     <div class="kt-download-box" id="kursteamBackendBox" style="border-color:#667eea;background:linear-gradient(135deg,#eef0ff 0%,#f5f0ff 100%);">
                         <div class="kt-dl-icon" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:12px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-cloud-upload-fill"></i></div>

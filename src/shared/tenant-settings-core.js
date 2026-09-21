@@ -351,9 +351,10 @@
         const code = normCode(codeRaw);
         if (!code) return '';
 
-        // {suffix} = Buchstaben-Teil (z.B. AK aus 1AK)
-        const suffixMatch = code.match(/^[0-9]*([A-Za-z]+)$/);
-        const suffixRaw = suffixMatch ? suffixMatch[1] : code;
+        // {suffix} = Buchstaben-Teil (z.B. AK aus 1AK); bei Mehrklassen (1AK1BK) volles Kürzel
+        const multiClass = /(?:\d+[A-Za-z]+){2,}/.test(code);
+        const suffixMatch = multiClass ? null : code.match(/^[0-9]*([A-Za-z]+)$/);
+        const suffixRaw = suffixMatch ? suffixMatch[1] : code.replace(/[^0-9A-Za-z]/g, '');
         const suffix = schema.upper ? suffixRaw.toUpperCase() : suffixRaw.toLowerCase();
         const klasseToken = schema.upper ? code.replace(/[^A-Za-z0-9]/g,'').toUpperCase() : code.replace(/[^A-Za-z0-9]/g,'').toLowerCase();
         const prefixToken = (schema.prefix || 'jg').toLowerCase().replace(/[^a-z0-9]/g,'');

@@ -38,9 +38,17 @@ function buildTeamEntriesFromRows(rows, options) {
     const INVALID_CHARS_TEST = options.INVALID_CHARS_TEST;
     const teacherEmailMapping = options.teacherEmailMapping || {};
 
+    const isCombinedFn =
+        typeof options.isCombinedClassCell === 'function'
+            ? options.isCombinedClassCell
+            : function (raw) {
+                  return /[,;~]/.test(String(raw || '')) || /(?:\d+[A-Za-z]+){2,}/.test(String(raw || ''));
+              };
+
     return (rows || []).map((row) => {
+        const combined = isCombinedFn(row.klasse);
         let klasseForName = row.klasse;
-        if (row.klasse && row.klasse.includes(',')) klasseForName = combineClassNames(row.klasse);
+        if (combined) klasseForName = combineClassNames(row.klasse);
 
         const resolved = resolveFachAndGruppeForTeam(row, options);
         const fachForName = resolved.fach;
@@ -55,15 +63,19 @@ function buildTeamEntriesFromRows(rows, options) {
                   lehrer: row.lehrer
               })
             : `${yearPrefix}${separator}${klasseForName}${separator}${fachForName}`;
+
+        // Bei Mehrklassen keinen Klassen-Nick einer Einzelklasse übernehmen (verhindert -hakb- u. ä.)
         let klasseForGruppenmail = klasseForName;
-        try {
-            const adv = window.ms365AppDataV2;
-            if (adv && typeof adv.getClassTeamGruppenmailForKlasse === 'function') {
-                const stable = adv.getClassTeamGruppenmailForKlasse(row.klasse);
-                if (stable) klasseForGruppenmail = stable;
+        if (!combined) {
+            try {
+                const adv = window.ms365AppDataV2;
+                if (adv && typeof adv.getClassTeamGruppenmailForKlasse === 'function') {
+                    const stable = adv.getClassTeamGruppenmailForKlasse(row.klasse);
+                    if (stable) klasseForGruppenmail = stable;
+                }
+            } catch {
+                // ignore
             }
-        } catch {
-            // ignore
         }
         const mailCtx = {
             yearPrefix,

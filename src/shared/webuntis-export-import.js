@@ -591,24 +591,37 @@
     /**
      * Abschlussjahr aus Schulstufe + Zweig (.hak≈5 Jahre, .has≈3 Jahre).
      * Formel: Endjahr des aktuellen Schuljahrs + (Dauer − Stufe).
+     * 5. Klassen (HAK/K): Abschluss = Schuljahres-Endjahr (nicht Startjahr).
      */
     function inferGraduationYear(code, deptText, schoolYearEnd) {
         const end = Number(schoolYearEnd) || 0;
         if (!end) return '';
+        // Bei kombinierten Codes (5AK5BK) erste Stufe verwenden
         const m = String(code || '').match(/^(\d+)/);
         if (!m) return '';
         const grade = Number(m[1]);
         if (!grade || grade > 8) return '';
         const dept = normStr(deptText).toLowerCase();
+        const codeUpper = String(code || '').toUpperCase();
+        // Buchstabenanteil der ersten Klasse (5AK… → AK, 5AS → AS)
+        const restMatch = codeUpper.match(/^\d+([A-Z]+)/);
+        const rest = restMatch ? restMatch[1] : codeUpper.replace(/^\d+/, '');
+
         let duration = 5;
         if (dept === '.has' || dept === 'has') duration = 3;
         else if (dept === '.hak' || dept === 'hak') duration = 5;
-        else {
-            // ohne Text: S am Ende oft HAS/3, K oft HAK/5
-            const rest = String(code || '').replace(/^\d+/, '').toUpperCase();
-            if (/S$/.test(rest) && !/K/.test(rest)) duration = 3;
+        else if (/K/.test(rest)) {
+            // K im Kürzel → HAK (5 Jahre), auch wenn PDF-Zweig fehlt
+            duration = 5;
+        } else if (/S$/.test(rest) && !/K/.test(rest)) {
+            duration = 3;
         }
+
+        // Abwehr: fälschlich HAS bei 5. HAK-Klasse (K im Code)
+        if (grade >= 5 && /K/.test(rest)) duration = 5;
+
         if (grade > duration) return '';
+        // Abschlussjahrgang: Endjahr + (Dauer − Stufe); 5. HAK → Endjahr
         return String(end + (duration - grade));
     }
 
