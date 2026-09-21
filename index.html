@@ -701,7 +701,59 @@
         .dashboard-setup-hint p {
             margin: 0 0 10px;
         }
+        .dashboard-setup-hint__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 10px;
+            align-items: center;
+        }
         .dashboard-setup-hint .btn {
+            margin: 0;
+        }
+        .dashboard-setup-hint .btn-ghost,
+        .dash-task--hero .btn-ghost {
+            background: transparent;
+            border: 1px solid rgba(94, 114, 228, 0.28);
+            color: #3d4db8;
+        }
+        .dashboard-setup-hint .btn-ghost:hover {
+            background: rgba(94, 114, 228, 0.1);
+        }
+        .dash-task--hero .btn-ghost {
+            border-color: rgba(255, 255, 255, 0.35);
+            color: rgba(255, 255, 255, 0.95);
+        }
+        .dash-task--hero .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+        .dashboard-setup-resume {
+            margin: 0 0 16px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px dashed rgba(94, 114, 228, 0.28);
+            background: rgba(255, 255, 255, 0.45);
+            color: var(--task-muted, #5c6578);
+            font-size: 0.92em;
+            line-height: 1.45;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .dashboard-setup-resume p {
+            margin: 0;
+            flex: 1;
+            min-width: min(100%, 220px);
+        }
+        .dashboard-setup-resume__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .dashboard-setup-resume .btn {
             margin: 0;
         }
 
@@ -748,6 +800,46 @@
             align-items: center;
             gap: 10px 14px;
             flex-shrink: 0;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .dashboard-head-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: 650;
+            text-decoration: none;
+            color: #fff;
+            background: linear-gradient(135deg, #5e72e4 0%, #6f5bd8 100%);
+            border: 1px solid rgba(94, 114, 228, 0.35);
+            box-shadow: 0 6px 16px rgba(94, 114, 228, 0.22);
+            white-space: nowrap;
+            transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+        }
+        .dashboard-head-link:hover {
+            color: #fff;
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(94, 114, 228, 0.3);
+        }
+        .dashboard-head-link .bi {
+            font-size: 1.05em;
+        }
+        .dashboard-head-link--ghost {
+            color: #3d4db8;
+            background: rgba(255, 255, 255, 0.72);
+            border-color: rgba(94, 114, 228, 0.22);
+            box-shadow: none;
+        }
+        .dashboard-head-link--ghost:hover {
+            color: #2f3fa8;
+            background: #fff;
+            filter: none;
+            box-shadow: 0 4px 12px rgba(94, 114, 228, 0.12);
         }
         .dash-demo-switch {
             display: inline-flex;
@@ -864,11 +956,16 @@
             }
             .dashboard-tasks-head-tools {
                 align-self: stretch;
-                justify-content: space-between;
+                justify-content: flex-start;
                 width: 100%;
             }
             .dashboard-tasks-kicker {
                 margin: 0;
+                margin-left: auto;
+            }
+            .dashboard-head-link {
+                padding: 7px 12px;
+                font-size: 0.86em;
             }
         }
         .dash-task {
@@ -1240,6 +1337,10 @@
         .dash-task--hero .dash-task-links {
             margin: 0;
             padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 10px;
+            align-items: center;
             justify-content: flex-end;
         }
         .dash-task--hero .dash-task-link--primary {
@@ -1357,6 +1458,9 @@
                     <div class="dashboard-tasks-head-row">
                         <h2>Was möchten Sie tun?</h2>
                         <div class="dashboard-tasks-head-tools">
+                            <a class="dashboard-head-link" href="tenant.html" title="Schul-Stammdaten öffnen">
+                                <i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Stammdaten
+                            </a>
                             <label class="dash-demo-switch" id="dashDemoSwitchWrap" title="Beispieldaten der MS365 Musterschule laden – zum Ausprobieren aller Werkzeuge">
                                 <span class="dash-demo-switch__label">Demo-Daten</span>
                                 <input type="checkbox" id="dashDemoSwitch" role="switch" aria-checked="false" aria-label="Demo-Modus mit Beispieldaten der MS365 Musterschule">
@@ -1373,8 +1477,18 @@
                         </div>
                     </div>
                     <div class="dashboard-setup-hint" id="dashSetupHint" hidden>
-                        <p><strong>Einrichtung noch nicht abgeschlossen.</strong> Arbeiten Sie die geführte Einrichtung durch, bevor Sie Gruppen in Microsoft&nbsp;365 anlegen.</p>
-                        <a class="btn" href="einrichtung.html"><i class="bi bi-rocket-takeoff"></i>Zur Einrichtung</a>
+                        <p><strong>Einrichtung noch nicht abgeschlossen.</strong> Die geführte Einrichtung hilft beim Start – Sie müssen nicht alle Schritte nutzen. Bei Bedarf können Sie den Hinweis ausblenden.</p>
+                        <div class="dashboard-setup-hint__actions">
+                            <a class="btn" href="einrichtung.html"><i class="bi bi-rocket-takeoff"></i>Zur Einrichtung</a>
+                            <button type="button" class="btn btn-ghost" id="dashSetupDismissHint" title="Hinweis ausblenden">Ausblenden</button>
+                        </div>
+                    </div>
+                    <div class="dashboard-setup-resume" id="dashSetupResume" hidden>
+                        <p>Einrichtungs-Hinweis ausgeblendet. Bei Bedarf jederzeit weiterführen.</p>
+                        <div class="dashboard-setup-resume__actions">
+                            <a class="btn btn-sm" href="einrichtung.html"><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Einrichtung öffnen</a>
+                            <button type="button" class="btn btn-sm btn-ghost" id="dashSetupShowAgain">Hinweis wieder anzeigen</button>
+                        </div>
                     </div>
                 </div>
                 <div class="dash-task-grid">
@@ -1386,10 +1500,11 @@
                         <div class="dash-task--hero-body">
                             <p class="dash-task--hero-badge"><i class="bi bi-1-circle-fill" aria-hidden="true"></i> Hier beginnen</p>
                             <h3>Schule einrichten</h3>
-                            <p>Noch nicht fertig eingerichtet? Starten Sie hier: bei Microsoft anmelden, Domain setzen und die wichtigsten Listen anlegen – danach greifen alle anderen Werkzeuge.</p>
+                            <p>Noch nicht fertig eingerichtet? Starten Sie hier: bei Microsoft anmelden, Domain setzen und die wichtigsten Listen anlegen – danach greifen alle anderen Werkzeuge. Nicht jede Schule braucht jeden Schritt.</p>
                         </div>
                         <div class="dash-task-links">
                             <a class="dash-task-link dash-task-link--primary" href="einrichtung.html">Einrichtung starten <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                            <button type="button" class="btn btn-ghost" id="dashSetupDismissHero" title="Diesen Hinweis ausblenden">Später / ausblenden</button>
                         </div>
                     </section>
                     <section class="dash-task" data-accent="unterricht" id="dashTaskUnterricht" data-context-tip="task-unterricht">
@@ -2363,6 +2478,7 @@
             const elDomain = document.getElementById('tenantStatDomain');
             const elSetupHint = document.getElementById('dashSetupHint');
             const elTaskSetup = document.getElementById('dashTaskSetup');
+            const elSetupResume = document.getElementById('dashSetupResume');
             const elEmptyState = document.getElementById('dashEmptyState');
             const elDemoBanner = document.getElementById('dashDemoBanner');
             const elDemoSwitch = document.getElementById('dashDemoSwitch');
@@ -2374,6 +2490,7 @@
             const elProgUnterricht = document.getElementById('dashProgUnterricht');
             const elProgGruppen = document.getElementById('dashProgGruppen');
             const elProgSchuljahr = document.getElementById('dashProgSchuljahr');
+            const SETUP_PROMPT_KEY = 'ms365-dashboard-setup-dismissed-v1';
             if (!elSubjects || !elTeachers || !elStudents || !elClasses) return;
 
             function currentSchoolYear() {
@@ -2398,6 +2515,54 @@
                     /* ignore */
                 }
                 return false;
+            }
+
+            function getSetupPromptPref() {
+                try {
+                    return String(localStorage.getItem(SETUP_PROMPT_KEY) || '').trim();
+                } catch {
+                    return '';
+                }
+            }
+
+            function setSetupPromptPref(value) {
+                try {
+                    if (value) localStorage.setItem(SETUP_PROMPT_KEY, String(value));
+                    else localStorage.removeItem(SETUP_PROMPT_KEY);
+                } catch {
+                    /* ignore */
+                }
+            }
+
+            /** Schule hat schon brauchbare Listen – Banner muss nicht dauerhaft bleiben. */
+            function hasSubstantialSchoolData(s) {
+                if (!s) return false;
+                const domain = String((s && s.domain) || '').trim();
+                const schoolName = String((s && s.schoolName) || '').trim();
+                const teachers = ((s && s.teachers) || []).length;
+                const students = ((s && s.students) || []).length;
+                const classes = ((s && s.classes) || []).length;
+                const subjects = ((s && s.subjects) || []).length;
+                const listBuckets =
+                    (teachers > 0 ? 1 : 0) +
+                    (students > 0 ? 1 : 0) +
+                    (classes > 0 ? 1 : 0) +
+                    (subjects > 0 ? 1 : 0);
+                const listRows = teachers + students + classes + subjects;
+                return !!((domain || schoolName) && (listBuckets >= 2 || listRows >= 8));
+            }
+
+            function shouldShowSetupPrompt(s, demo) {
+                if (demo || setupFinished()) return false;
+                const pref = getSetupPromptPref();
+                if (pref === 'force') return true;
+                if (pref === '1') return false;
+                if (hasSubstantialSchoolData(s)) return false;
+                return true;
+            }
+
+            function isSetupPromptDismissedManually() {
+                return getSetupPromptPref() === '1';
             }
 
             function readAppContainer() {
@@ -2623,8 +2788,9 @@
 
                 const demo = isDemoMode();
                 const hasData = hasMeaningfulTenantData(s);
-                const showSetup = !setupFinished() && !demo;
+                const showSetup = shouldShowSetupPrompt(s, demo);
                 const showEmpty = !hasData && !demo;
+                const showResume = !demo && !showEmpty && !setupFinished() && !showSetup;
 
                 if (elDemoBanner) elDemoBanner.hidden = !demo;
                 if (elDemoSwitch) {
@@ -2635,6 +2801,17 @@
                 if (elEmptyState) elEmptyState.hidden = !showEmpty;
                 if (elSetupHint) elSetupHint.hidden = !showSetup || showEmpty;
                 if (elTaskSetup) elTaskSetup.hidden = !showSetup || showEmpty;
+                if (elSetupResume) {
+                    elSetupResume.hidden = !showResume;
+                    if (showResume) {
+                        const resumeText = elSetupResume.querySelector('p');
+                        if (resumeText) {
+                            resumeText.textContent = isSetupPromptDismissedManually()
+                                ? 'Einrichtungs-Hinweis ausgeblendet. Bei Bedarf jederzeit weiterführen.'
+                                : 'Einrichtung läuft im Hintergrund – die großen Hinweise sind ausgeblendet, weil schon Schuldaten vorhanden sind.';
+                        }
+                    }
+                }
                 if (elStandEmptyNote) elStandEmptyNote.hidden = !showEmpty;
                 if (elStandHygieneWrap) elStandHygieneWrap.hidden = !shouldShowHygieneTeaser();
                 if (elStandHygieneBtn) elStandHygieneBtn.hidden = !shouldShowHygieneTeaser();
@@ -2714,6 +2891,23 @@
                 dashEmptyImport.addEventListener('click', function () {
                     const input = document.getElementById('browserBackupImportFile');
                     if (input) input.click();
+                });
+            }
+
+            function dismissSetupPrompt() {
+                setSetupPromptPref('1');
+                render();
+            }
+
+            const btnDismissHint = document.getElementById('dashSetupDismissHint');
+            if (btnDismissHint) btnDismissHint.addEventListener('click', dismissSetupPrompt);
+            const btnDismissHero = document.getElementById('dashSetupDismissHero');
+            if (btnDismissHero) btnDismissHero.addEventListener('click', dismissSetupPrompt);
+            const btnShowAgain = document.getElementById('dashSetupShowAgain');
+            if (btnShowAgain) {
+                btnShowAgain.addEventListener('click', function () {
+                    setSetupPromptPref('force');
+                    render();
                 });
             }
 

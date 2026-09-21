@@ -18,7 +18,7 @@
     /** Bekannte Schlüssel – dient der Inventar-Anzeige (Export umfasst alle ms365-* / webuntis-*). */
     const STORAGE_CATALOG = [
         { label: 'Zentrale Schuldaten', keys: ['ms365-schooltool-data-v2', 'ms365-tenant-settings-v1', 'ms365-school-email-domain-v1'] },
-        { label: 'Einrichtung & Demo', keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1'] },
+        { label: 'Einrichtung & Demo', keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1', 'ms365-dashboard-setup-dismissed-v1'] },
         { label: 'Dashboard', keys: ['ms365-dashboard-favorites-v1', 'ms365-dashboard-order-catalog-v1', 'ms365-dashboard-category-tab-v1'] },
         { label: 'Schulstruktur (Legacy-Spiegel)', keys: ['ms365-schulstruktur-sync-v1', 'ms365-schulstruktur-match-v1', 'ms365-schulstruktur-tenant-cache-v1'] },
         { label: 'Kursteams / WebUntis', keys: ['webuntis-teams-creator-state-v1'] },

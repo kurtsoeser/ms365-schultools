@@ -273,6 +273,23 @@ html[data-theme="dark"] .dashboard-setup-hint {
     border-color: var(--border-strong) !important;
 }
 
+html[data-theme="dark"] .dashboard-setup-hint .btn-ghost {
+    color: #c4b5fd !important;
+    border-color: var(--border-strong) !important;
+}
+
+html[data-theme="dark"] .dashboard-setup-resume {
+    color: var(--muted) !important;
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card)) !important;
+    border-color: var(--border-strong) !important;
+}
+
+html[data-theme="dark"] .dashboard-head-link--ghost {
+    color: #c4b5fd !important;
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card)) !important;
+    border-color: var(--border-strong) !important;
+}
+
 html[data-theme="dark"] .dashboard-empty-state {
     background: var(--surface-muted) !important;
     border-color: var(--border-strong) !important;
