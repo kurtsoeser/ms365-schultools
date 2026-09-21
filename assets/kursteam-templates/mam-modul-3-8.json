@@ -1,0 +1,255 @@
+{
+  "kind": "ms365-kursteam-templates",
+  "version": 3,
+  "exportedAt": "2026-09-21T15:18:10.965Z",
+  "templates": [
+    {
+      "id": "tpl-mam-hakb-stufe-10-ws",
+      "name": "HAKB MAM – Modul 3 (Schulstufe 10 WS)",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "10",
+      "semester": "WS",
+      "description": "Modul 3 · Schulstufe 10 WS – Grundlagen bis quadratische Gleichungen",
+      "channels": [
+        {
+          "id": "ch-9f3b05cd1b9e",
+          "displayName": "01 - Grundlagen der Mathematik"
+        },
+        {
+          "id": "ch-9a215e64b0e1",
+          "displayName": "02 - die 4 Grundrechnungsarten"
+        },
+        {
+          "id": "ch-98cfc46e03d5",
+          "displayName": "03 - Rechnen mit Prozenten"
+        },
+        {
+          "id": "ch-233d50a64b95",
+          "displayName": "04 - Maßeinheiten"
+        },
+        {
+          "id": "ch-fef647cf5b6a",
+          "displayName": "05 - Potenzen"
+        },
+        {
+          "id": "ch-b9b129567419",
+          "displayName": "06 - Gleitkommadarstellung"
+        },
+        {
+          "id": "ch-7006f69d3301",
+          "displayName": "07 - Terme"
+        },
+        {
+          "id": "ch-f1a2dea11888",
+          "displayName": "08 - Formeln"
+        },
+        {
+          "id": "ch-c9612224487e",
+          "displayName": "09 - Lineare Gleichungen"
+        },
+        {
+          "id": "ch-344820deb18d",
+          "displayName": "10 - Quadratische Gleichungen"
+        }
+      ],
+      "updatedAt": "2026-09-21T15:18:10.965Z"
+    },
+    {
+      "id": "tpl-mam-hakb-stufe-10-ss",
+      "name": "HAKB MAM – Modul 4 (Schulstufe 10 SS)",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "10",
+      "semester": "SS",
+      "description": "Modul 4 · Schulstufe 10 SS – Funktionen, Matrizen, Trigonometrie",
+      "channels": [
+        {
+          "id": "ch-99ea91761f35",
+          "displayName": "01-Funktionen - Grundlagen"
+        },
+        {
+          "id": "ch-fc2fff6e065b",
+          "displayName": "02-Lineare Funktionen"
+        },
+        {
+          "id": "ch-b9899578373b",
+          "displayName": "03-Lineare Gleichungssysteme"
+        },
+        {
+          "id": "ch-74f5821b9c83",
+          "displayName": "04-Anwendungsaufgaben linearer Gleichungen"
+        },
+        {
+          "id": "ch-a8a2e1ed2fc3",
+          "displayName": "05-Quadratische Funktionen"
+        },
+        {
+          "id": "ch-e117245fd387",
+          "displayName": "06-Quadratische Gleichungen"
+        },
+        {
+          "id": "ch-1c35f177ba5f",
+          "displayName": "07-Matrizen"
+        },
+        {
+          "id": "ch-e116ce741f06",
+          "displayName": "08-Trigonometrie"
+        }
+      ],
+      "updatedAt": "2026-09-21T15:18:10.965Z"
+    },
+    {
+      "id": "tpl-mam-hakb-stufe-11-ws",
+      "name": "HAKB MAM – Modul 5 (Schulstufe 11 WS)",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "11",
+      "semester": "WS",
+      "description": "Modul 5 · Schulstufe 11 WS – Finanzmathematik und Wachstum",
+      "channels": [
+        {
+          "id": "ch-8667cd4c4731",
+          "displayName": "00-🗓️-Organisatorisches"
+        },
+        {
+          "id": "ch-0654e2d769a4",
+          "displayName": "01-💵-Zins- und Zinseszinsrechnung"
+        },
+        {
+          "id": "ch-0ec0f75387da",
+          "displayName": "02-💸-Rentenrechnung"
+        },
+        {
+          "id": "ch-3b34c6edaa3e",
+          "displayName": "03-🪙-Tilgungspläne"
+        },
+        {
+          "id": "ch-1ceb922054bf",
+          "displayName": "04-📈-Exponential- und Logarithmusfunktion"
+        },
+        {
+          "id": "ch-443526b77621",
+          "displayName": "05-↗️-lineare Wachstum- und Abnahmeprozesse"
+        },
+        {
+          "id": "ch-34d65a417eec",
+          "displayName": "06-🦠-exponentielle Wachstum- und Abnahmeprozesse"
+        },
+        {
+          "id": "ch-414ec4388f1f",
+          "displayName": "07-⛔-beschränkte Wachstum- und Abnahmeprozesse"
+        },
+        {
+          "id": "ch-d8b97d7c19d1",
+          "displayName": "08-🔀-Logistisches Wachstum"
+        }
+      ],
+      "updatedAt": "2026-09-21T15:18:10.965Z"
+    },
+    {
+      "id": "tpl-mam-hakb-stufe-11-ss",
+      "name": "HAKB MAM – Modul 6 (Schulstufe 11 SS)",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "11",
+      "semester": "SS",
+      "description": "Modul 6 · Schulstufe 11 SS – Differenzial- und Integralrechnung",
+      "channels": [
+        {
+          "id": "ch-056ef0902434",
+          "displayName": "01-Grundlagen Differenzialrechnung"
+        },
+        {
+          "id": "ch-f2e799b8f363",
+          "displayName": "02-Differenzialrechnung - Funktionsbetrachtungen"
+        },
+        {
+          "id": "ch-2b6e4dad2b03",
+          "displayName": "03-Kosten- und Preistheorie"
+        },
+        {
+          "id": "ch-4b1eb82093ba",
+          "displayName": "04-Optimierungsprozesse"
+        },
+        {
+          "id": "ch-8cf2d744980b",
+          "displayName": "05-Integralrechnung"
+        }
+      ],
+      "updatedAt": "2026-09-21T15:18:10.965Z"
+    },
+    {
+      "id": "tpl-mam-hakb-stufe-12-ws",
+      "name": "HAKB MAM – Modul 7 (Schulstufe 12 WS)",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "12",
+      "semester": "WS",
+      "description": "Modul 7 · Schulstufe 12 WS – Investition, Statistik, Wahrscheinlichkeit",
+      "channels": [
+        {
+          "id": "ch-f819bb1a8dbe",
+          "displayName": "00-🗓️-Organisatorisches"
+        },
+        {
+          "id": "ch-9825a063535e",
+          "displayName": "01-📈-Dynamische Investitionsrechnung"
+        },
+        {
+          "id": "ch-78555314227d",
+          "displayName": "02-📉-Kurs- und Rentabilitätsrechnung"
+        },
+        {
+          "id": "ch-300f4bf0ab3a",
+          "displayName": "03-📊-Grundlagen der Statistik"
+        },
+        {
+          "id": "ch-ddfcbcfa3057",
+          "displayName": "04-📊-Beschreibende Statistik"
+        },
+        {
+          "id": "ch-c07f22dc81e8",
+          "displayName": "05-🎲-Grundlagen Wahrscheinlichkeitsrechnung"
+        }
+      ],
+      "updatedAt": "2026-09-21T15:18:10.965Z"
+    },
+    {
+      "id": "tpl-mam-hakb-stufe-12-ss",
+      "name": "HAKB MAM – Modul 8 (Schulstufe 12 SS)",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "12",
+      "semester": "SS",
+      "description": "Modul 8 · Schulstufe 12 SS – Verteilungen, sRDP, Wiederholung",
+      "channels": [
+        {
+          "id": "ch-199be1442260",
+          "displayName": "01- 📊 Wahrscheinlichkeitsverteilungen"
+        },
+        {
+          "id": "ch-ffa2cc3e7140",
+          "displayName": "02- 🎲 Binomialverteilung"
+        },
+        {
+          "id": "ch-4642b2ed88bc",
+          "displayName": "03- ＝ Normalverteilung"
+        },
+        {
+          "id": "ch-c45bdfefa26c",
+          "displayName": "04- 〰️ Approximation der BV durch NV"
+        },
+        {
+          "id": "ch-921024651c49",
+          "displayName": "sRDP - Vorbereitung"
+        },
+        {
+          "id": "ch-7bc2db4b8377",
+          "displayName": "WH-Wiederholung"
+        }
+      ],
+      "updatedAt": "2026-09-21T15:18:10.965Z"
+    }
+  ]
+}

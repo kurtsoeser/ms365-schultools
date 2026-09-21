@@ -6,7 +6,7 @@
         'task-setup':
             'Einmaliger Assistent: Domain, Listen und Übersicht anlegen. Danach nutzen alle Werkzeuge dieselben Stammdaten in diesem Browser.',
         'task-unterricht':
-            'Wann? Zu Schuljahresbeginn oder bei neuen Klassen/Kursen. Klassengruppen = eine Microsoft-365-Gruppe pro Klasse. Unterrichtsteams = Teams pro Fach/Kurs aus dem Stundenplan. Fehlt nur eines? „Ein Team nachziehen“.',
+            'Wann? Zu Schuljahresbeginn oder bei neuen Klassen/Kursen. Klassengruppen = eine Microsoft-365-Gruppe pro Klasse. Unterrichtsteams = Teams pro Fach/Kurs aus dem Stundenplan. Fehlt etwas? „Einzelne Unterrichtsteams hinzufügen“.',
         'task-gruppen':
             'Wann? Wenn alle Schülerinnen, Lehrkräfte, Verwaltung oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Das sind Sammelgruppen in Microsoft 365.',
         'task-personen':

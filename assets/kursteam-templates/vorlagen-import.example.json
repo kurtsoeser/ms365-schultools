@@ -1,0 +1,47 @@
+{
+  "kind": "ms365-kursteam-templates",
+  "version": 3,
+  "exportedAt": "2026-09-21T00:00:00.000Z",
+  "meta": {
+    "note": "Eine Vorlage = eine Kanalstruktur für ein Kursteam. schulstufe = absolute österr. Schulstufe (nicht Klassennummer).",
+    "schoolFormExamples": ["AHS", "Mittelschule", "HAK", "HAKB", "HAS", "HTL", "HLW", "BAfEP", "PTS", "Berufsschule"],
+    "schulstufeHint": "AHS/MS: 1. Klasse=5 … 8.=12; BHS: 1. Klasse=9 … 5.=13. Alternativ Feld \"klasse\" statt schulstufe setzen.",
+    "semesterValues": ["SJ", "WS", "SS"],
+    "rules": [
+      "Kanal 'Allgemein' / 'General' / '00-Allgemein' NICHT eintragen",
+      "Nur Standard-Kanäle (keine privaten)",
+      "Kanalnamen max. ca. 50 Zeichen",
+      "Nummerierung empfohlen: 01-, 02- … für Sortierung in Teams",
+      "schulstufe: absolute Stufe als String, z. B. \"9\", \"11\"",
+      "semester: SJ = Schuljahr (WS+SS), optional WS oder SS"
+    ]
+  },
+  "templates": [
+    {
+      "name": "HAKB MAM Modul 3 – Schulstufe 10 WS",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "10",
+      "semester": "WS",
+      "description": "Lehrplan-Modul 3 (Halbjahr) – Beispiel, bitte durch echte Lehrplan-Inhalte ersetzen",
+      "channels": [
+        "01 - Grundlagen der Mathematik",
+        "02 - die 4 Grundrechnungsarten",
+        "03 - Rechnen mit Prozenten"
+      ]
+    },
+    {
+      "name": "HAKB MAM Modul 4 – Schulstufe 10 SS",
+      "schoolForm": "HAKB",
+      "subjectCode": "MAM",
+      "schulstufe": "10",
+      "semester": "SS",
+      "description": "Lehrplan-Modul 4 (Halbjahr) – zweites Beispiel derselben Schulstufe",
+      "channels": [
+        "01 - Funktionen Grundlagen",
+        "02 - Lineare Funktionen",
+        "03 - Quadratische Funktionen"
+      ]
+    }
+  ]
+}

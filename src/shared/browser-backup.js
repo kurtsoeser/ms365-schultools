@@ -123,7 +123,11 @@
         },
         {
             label: 'Playbooks & Spielwiesen',
-            keys: ['ms365-cleanup-playbook-v1', 'ms365-spielwiesen-notebook-v1']
+            keys: [
+                'ms365-cleanup-playbook-v1',
+                'ms365-spielwiesen-notebook-v1',
+                'ms365-kursteam-templates-v1'
+            ]
         },
         {
             label: 'UI & Hinweise',

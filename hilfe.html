@@ -355,7 +355,7 @@
                                 <li><a href="#tool-tenant">Stammdaten</a></li>
                                 <li><a href="#tool-jahrgang">Klassengruppen</a></li>
                                 <li><a href="#tool-kursteams">Unterrichtsteams</a></li>
-                                <li><a href="#tool-kursteam-einzeln">Ein Team nachziehen</a></li>
+                                <li><a href="#tool-kursteam-einzeln">Einzelne Unterrichtsteams</a></li>
                                 <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
                                 <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
                                 <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
@@ -400,7 +400,7 @@
                                     <li><a href="#tool-tenant">Stammdaten</a></li>
                                     <li><a href="#tool-jahrgang">Klassengruppen</a></li>
                                     <li><a href="#tool-kursteams">Unterrichtsteams</a></li>
-                                    <li><a href="#tool-kursteam-einzeln">Ein Team nachziehen</a></li>
+                                    <li><a href="#tool-kursteam-einzeln">Einzelne Unterrichtsteams</a></li>
                                     <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
                                     <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
                                     <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
@@ -682,7 +682,7 @@
                             <ol>
                                 <li>Stundenplan importieren (Copy &amp; Paste oder CSV/XLSX aus WebUntis).</li>
                                 <li>Bereinigen: unnötige Fächer ausschließen, Duplikate entfernen. Geteilte Unterrichte (mehrere Klassen / WebUntis-Schülergruppe) als ein Team belassen – Einstellung im Filter-Schritt.</li>
-                                <li>Fehlt nur ein Team? Dashboard → <strong>Ein Team nachziehen</strong> (oder Assistent: „Nur ein Team“).</li>
+                                <li>Fehlen einzelne Teams? Dashboard → <strong>Einzelne Unterrichtsteams hinzufügen</strong>.</li>
                                 <li>Lehrer zuordnen: Kürzel → E-Mail aus der Schul-Liste; fehlende als <code>Kürzel@Domain</code>.</li>
                                 <li>Team-Namen im Baukasten erzeugen und prüfen.</li>
                                 <li>Anlegen über Schritt „CSV/PowerShell“ (z. B. <code>Kursteam-Anlage.cmd</code>).</li>
@@ -696,22 +696,44 @@
                         <p class="help-open"><a href="tools/kursteams.html">→ Unterrichtsteams öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen">
-                        <h3 id="tool-kursteam-einzeln">Ein Team nachziehen <span class="pill">Kurz</span></h3>
+                    <article class="help-article" data-help-article data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen unterrichtsteams hinzufügen">
+                        <h3 id="tool-kursteam-einzeln">Einzelne Unterrichtsteams hinzufügen <span class="pill">Kurz</span></h3>
                         <p>
-                            Wenn im Bulk ein einzelnes Unterrichtsteam fehlt (z.&nbsp;B. WINF der 4AK): Klasse, Fach und
-                            Lehrkraft eintragen, Vorschau prüfen und direkt online oder per CMD anlegen – ohne den
-                            kompletten Stundenplan-Assistenten.
+                            Wenn im Bulk Teams fehlen: eine oder mehrere Zeilen mit Klasse, Fach und Lehrkraft
+                            eintragen (Besitzer-E-Mail in derselben Zeile) und direkt online oder per CMD anlegen –
+                            ohne den kompletten Stundenplan-Assistenten.
                         </p>
                         <div class="mini-steps">
                             <strong>Ablauf</strong>
                             <ol>
-                                <li>Dashboard → <strong>Ein Team nachziehen</strong> (oder Assistent-Startkarte „Nur ein Team“).</li>
-                                <li>Klasse, Fach, Lehrkraft-Kürzel; Besitzer-E-Mail kommt aus den Stammdaten.</li>
+                                <li>Dashboard → <strong>Einzelne Unterrichtsteams hinzufügen</strong>.</li>
+                                <li>Zeilen ausfüllen; mit <strong>+</strong> weitere Teams. Besitzer-E-Mail aus Stammdaten.</li>
                                 <li>Zur Anlage vorbereiten → online oder <code>Kursteam-Anlage.cmd</code>.</li>
                             </ol>
                         </div>
-                        <p class="help-open"><a href="tools/kursteams.html?mode=single">→ Ein Team nachziehen</a></p>
+                        <p class="help-open"><a href="tools/kursteams.html?mode=single">→ Einzelne Unterrichtsteams hinzufügen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="kursteam vorlage template kanal kanäle mathematik fach schulstufe semester schulform struktur anwenden">
+                        <h3 id="tool-kursteam-templates">Kursteam-Vorlagen <span class="pill">Kanäle</span></h3>
+                        <p>
+                            Wiederkehrende Kanalstrukturen als Vorlage speichern und auf bestehende Unterrichtsteams anwenden.
+                            Meta-Daten: <strong>Schulform</strong> (AHS, HAK, Mittelschule, …), <strong>Fach</strong>,
+                            <strong>Schulstufe</strong> (absolute österr. Stufe 1–13) und optional <strong>Semester</strong>
+                            (SJ = ganzes Schuljahr / WS / SS). Filter und Gruppierung danach.
+                            Hinweis: AHS/MS 1.&nbsp;Klasse = Stufe&nbsp;5; BHS 1.&nbsp;Klasse = Stufe&nbsp;9.
+                            Phase&nbsp;1 legt nur Standard-Kanäle an; „Allgemein“ bleibt unberührt.
+                            Für Massenanlage: JSON-Vorlage + KI-Prompt unter dem Werkzeug (Lehrplan → JSON → Import).
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Ablauf</strong>
+                            <ol>
+                                <li>Vorlage anlegen oder JSON importieren; Kanäle benennen und sortieren.</li>
+                                <li>Tab „Vorlage anwenden“: Team suchen, Vorlage wählen, vergleichen.</li>
+                                <li>Fehlende Kanäle anlegen (optional Umbenennen bei gleicher Nummer).</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/kursteam-templates.html">→ Kursteam-Vorlagen öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="diplomarbeit dipl naming betreuung gruppe team">

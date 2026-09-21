@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – Kursteam-Vorlagen</title>
+    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        /* ── Menüleiste ── */
+        .ktpl-menubar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 0 0 4px;
+        }
+        .ktpl-tabs {
+            display: inline-flex;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 12px;
+            background: var(--soft);
+            border: 1px solid var(--border);
+        }
+        .ktpl-tabs button {
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.92rem;
+            padding: 10px 16px;
+            border-radius: 9px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ktpl-tabs button:hover { color: var(--heading); }
+        .ktpl-tabs button.is-active {
+            background: var(--card);
+            color: var(--heading);
+            box-shadow: 0 1px 3px color-mix(in srgb, #000 12%, transparent);
+        }
+        .ktpl-menubar__io {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+        .ktpl-menubar__io .btn,
+        .ktpl-menubar__io label.btn {
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 0.84rem;
+            border-radius: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        /* ── Layout ── */
+        .ktpl-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .ktpl-grid { grid-template-columns: 1fr; }
+        }
+
+        .ktpl-side,
+        .ktpl-main {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--card);
+            overflow: hidden;
+        }
+        .ktpl-side__head,
+        .ktpl-main__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            background: color-mix(in srgb, var(--soft) 70%, transparent);
+        }
+        .ktpl-side__head h3,
+        .ktpl-main__head h3 {
+            margin: 0;
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: var(--heading);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ktpl-side__head h3 i,
+        .ktpl-main__head h3 i { color: var(--brand1); }
+        .ktpl-count {
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--brand1) 14%, transparent);
+            color: var(--brand1);
+        }
+        .ktpl-side__body,
+        .ktpl-main__body { padding: 14px 16px 16px; }
+
+        /* ── Sidebar controls ── */
+        .ktpl-groupby {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 10px;
+            background: var(--soft);
+            border: 1px solid var(--border);
+        }
+        .ktpl-groupby--3 { grid-template-columns: 1fr 1fr 1fr; }
+        .ktpl-groupby--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .ktpl-filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 700px) {
+            .ktpl-filter-grid { grid-template-columns: 1fr; }
+            .ktpl-groupby--4 { grid-template-columns: 1fr 1fr; }
+        }
+        .ktpl-groupby button {
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.82rem;
+            padding: 8px 6px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .ktpl-groupby button.is-active {
+            background: var(--card);
+            color: var(--heading);
+            box-shadow: 0 1px 2px color-mix(in srgb, #000 10%, transparent);
+        }
+        .ktpl-leaf-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .ktpl-leaf-top .ktpl-pill {
+            flex-shrink: 0;
+        }
+        .ktpl-combo {
+            display: flex;
+            align-items: stretch;
+            gap: 6px;
+            min-width: 0;
+        }
+        .ktpl-combo select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: auto;
+            box-sizing: border-box;
+            border: 1px solid var(--input-border, var(--border));
+            border-radius: 10px;
+            padding: 8px 10px;
+            height: 38px;
+            background: var(--card);
+            color: inherit;
+            font: inherit;
+            line-height: 1.2;
+        }
+        .ktpl-combo select:focus {
+            outline: 2px solid color-mix(in srgb, var(--brand1) 45%, transparent);
+            outline-offset: 1px;
+            border-color: var(--brand1);
+        }
+        .ktpl-combo__btns {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex: 0 0 auto;
+        }
+        .ktpl-combo__btns .ktpl-mini-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            margin: 0;
+            border: 1px solid var(--input-border, var(--border));
+            border-radius: 8px;
+            background: var(--soft);
+            color: var(--text-secondary);
+            display: inline-grid;
+            place-items: center;
+            cursor: pointer;
+            font-size: 0.85rem;
+            line-height: 1;
+            flex: 0 0 auto;
+        }
+        .ktpl-combo__btns .ktpl-mini-btn:hover {
+            color: var(--heading);
+            border-color: color-mix(in srgb, var(--brand1) 40%, var(--border));
+            background: color-mix(in srgb, var(--brand1) 8%, var(--card));
+        }
+        .ktpl-filter label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .ktpl-filter select,
+        .ktpl-meta input,
+        .ktpl-meta select,
+        .ktpl-meta textarea,
+        .ktpl-add-row input,
+        .ktpl-apply-card select,
+        .ktpl-apply-card input[type="search"],
+        .ktpl-ch-name {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid var(--input-border, var(--border));
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: var(--card);
+            color: inherit;
+            font: inherit;
+        }
+        .ktpl-meta input:not([type="checkbox"]),
+        .ktpl-meta select {
+            height: 38px;
+        }
+        .ktpl-filter select:focus,
+        .ktpl-meta input:focus,
+        .ktpl-meta select:focus,
+        .ktpl-meta textarea:focus,
+        .ktpl-add-row input:focus,
+        .ktpl-apply-card select:focus,
+        .ktpl-apply-card input:focus,
+        .ktpl-ch-name:focus {
+            outline: 2px solid color-mix(in srgb, var(--brand1) 45%, transparent);
+            outline-offset: 1px;
+            border-color: var(--brand1);
+        }
+
+        .ktpl-iconbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .ktpl-iconbar .btn {
+            flex: 1 1 auto;
+            min-width: 0;
+            justify-content: center;
+            padding: 8px 10px;
+            font-size: 0.86rem;
+            border-radius: 10px;
+        }
+        .ktpl-iconbar .btn-icon-only {
+            flex: 0 0 auto;
+            width: 38px;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        /* ── Template tree ── */
+        .ktpl-list {
+            list-style: none;
+            margin: 12px 0 0;
+            padding: 0;
+            max-height: min(58vh, 520px);
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .ktpl-tree-node { list-style: none; margin: 0; padding: 0; }
+        .ktpl-tree-children {
+            list-style: none;
+            margin: 4px 0 4px 0;
+            padding: 0 0 0 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-left: 2px solid color-mix(in srgb, var(--brand1) 22%, var(--border));
+            margin-left: 10px;
+        }
+        .ktpl-tree-toggle {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 16px 1fr auto;
+            gap: 8px;
+            align-items: center;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            padding: 7px 8px;
+            border-radius: 9px;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+            font-weight: 700;
+            font-size: 0.88rem;
+        }
+        .ktpl-tree-toggle:hover { background: color-mix(in srgb, var(--brand1) 8%, transparent); }
+        .ktpl-tree-toggle i { font-size: 0.7rem; color: var(--text-secondary); }
+        .ktpl-tree-label { color: var(--heading); }
+        .ktpl-tree-node--module .ktpl-tree-toggle {
+            font-weight: 600;
+            font-size: 0.84rem;
+            color: var(--text-secondary);
+        }
+        .ktpl-tree-node--module .ktpl-tree-label { color: var(--text-secondary); }
+        .ktpl-tree-count {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--brand1) 12%, transparent);
+            color: var(--brand1);
+        }
+        .ktpl-list-btn {
+            width: 100%;
+            text-align: left;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--soft);
+            padding: 10px 12px;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+        .ktpl-list-btn--leaf {
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: var(--card);
+        }
+        .ktpl-list-btn:hover {
+            border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+        }
+        .ktpl-list-btn.is-active {
+            border-color: var(--brand1);
+            background: color-mix(in srgb, var(--brand1) 10%, var(--card));
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand1) 16%, transparent);
+        }
+        .ktpl-list-btn strong {
+            font-size: 0.9rem;
+            color: var(--heading);
+        }
+        .ktpl-list-btn .ktpl-list-meta {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+        .ktpl-pill {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--brand1) 16%, transparent);
+            color: var(--brand1);
+        }
+        .ktpl-empty {
+            margin: 0;
+            padding: 18px 12px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.45;
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            background: var(--soft);
+            list-style: none;
+        }
+
+        /* ── Editor ── */
+        .ktpl-editor-empty {
+            display: grid;
+            place-items: center;
+            min-height: 280px;
+            padding: 28px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .ktpl-editor-empty[hidden] {
+            display: none !important;
+        }
+        .ktpl-editor-empty i {
+            font-size: 2rem;
+            color: var(--brand1);
+            opacity: 0.7;
+            margin-bottom: 10px;
+        }
+        .ktpl-editor-empty p { margin: 0; max-width: 36ch; line-height: 1.45; }
+
+        .ktpl-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 14px;
+            margin-bottom: 18px;
+        }
+        @media (min-width: 900px) {
+            .ktpl-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (max-width: 600px) {
+            .ktpl-meta { grid-template-columns: 1fr; }
+        }
+        .ktpl-meta .ktpl-field--full { grid-column: 1 / -1; }
+        .ktpl-meta textarea { resize: vertical; min-height: 64px; width: 100%; box-sizing: border-box; }
+        .ktpl-field label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .ktpl-section {
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+        .ktpl-section__title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .ktpl-section__title h4 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--heading);
+        }
+        .ktpl-section__hint {
+            margin: 0 0 12px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+            .ktpl-add-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 640px) {
+            .ktpl-add-row { grid-template-columns: 1fr; }
+        }
+        .ktpl-add-row .btn { border-radius: 10px; white-space: nowrap; }
+
+        .ktpl-channels {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: min(48vh, 440px);
+            overflow: auto;
+        }
+        .ktpl-ch-row {
+            display: grid;
+            grid-template-columns: 36px 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 6px 6px 4px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--soft);
+        }
+        .ktpl-ch-ord {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            display: grid;
+            place-items: center;
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: var(--brand1);
+            background: color-mix(in srgb, var(--brand1) 12%, transparent);
+            margin-left: 2px;
+        }
+        .ktpl-ch-name {
+            border-color: transparent;
+            background: var(--card);
+            padding: 8px 10px;
+        }
+        .ktpl-ch-actions {
+            display: inline-flex;
+            gap: 2px;
+            padding-right: 2px;
+        }
+        .ktpl-ch-actions .btn {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+        }
+        .ktpl-footer-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── Apply ── */
+        .ktpl-apply-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 900px) {
+            .ktpl-apply-steps { grid-template-columns: 1fr; }
+        }
+        .ktpl-apply-card {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            background: var(--soft);
+        }
+        .ktpl-apply-card__n {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(135deg, var(--brand1), var(--brand2));
+            margin-right: 8px;
+        }
+        .ktpl-apply-card h4 {
+            margin: 0 0 12px;
+            font-size: 0.92rem;
+            color: var(--heading);
+            display: flex;
+            align-items: center;
+        }
+        .ktpl-apply-card .ktpl-field { margin-bottom: 10px; }
+        .ktpl-apply-card .ktpl-field:last-child { margin-bottom: 0; }
+        .ktpl-picked {
+            margin: 10px 0 0;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--card);
+            border: 1px dashed var(--border);
+            font-size: 0.9rem;
+            line-height: 1.35;
+            min-height: 2.6em;
+        }
+        .ktpl-picked strong { color: var(--heading); }
+        .ktpl-hits {
+            list-style: none;
+            margin: 8px 0 0;
+            padding: 0;
+            max-height: 160px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+        }
+        .ktpl-hits button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-bottom: 1px solid var(--border);
+            background: transparent;
+            padding: 9px 11px;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .ktpl-hits li:last-child button { border-bottom: 0; }
+        .ktpl-hits button:hover { background: color-mix(in srgb, var(--brand1) 10%, transparent); }
+        .ktpl-hits button strong { font-size: 0.9rem; }
+        .ktpl-hits button span { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .ktpl-apply-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--card);
+        }
+        .ktpl-apply-actions label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            margin-left: auto;
+            color: var(--text-secondary);
+        }
+
+        .ktpl-diff-wrap {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .ktpl-diff-wrap .ktpl-diff-summary {
+            margin: 0;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            background: var(--soft);
+            border-bottom: 1px solid var(--border);
+        }
+        .ktpl-diff-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .ktpl-diff-table th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--text-secondary);
+            background: color-mix(in srgb, var(--soft) 80%, transparent);
+            border-bottom: 1px solid var(--border);
+        }
+        .ktpl-diff-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .ktpl-diff-table tr:last-child td { border-bottom: 0; }
+
+        .ktpl-status {
+            display: inline-block;
+            font-size: 0.74rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+        }
+        .ktpl-status--create { background: #d1fae5; color: #065f46; }
+        .ktpl-status--ok { background: #e5e7eb; color: #374151; }
+        .ktpl-status--rename { background: #fef3c7; color: #92400e; }
+        .ktpl-status--skip_general { background: #e0e7ff; color: #3730a3; }
+        .ktpl-status--extra { background: #f3f4f6; color: #6b7280; }
+        [data-theme="dark"] .ktpl-status--create { background: #064e3b; color: #a7f3d0; }
+        [data-theme="dark"] .ktpl-status--ok { background: #374151; color: #e5e7eb; }
+        [data-theme="dark"] .ktpl-status--rename { background: #78350f; color: #fde68a; }
+        [data-theme="dark"] .ktpl-status--skip_general { background: #312e81; color: #c7d2fe; }
+        [data-theme="dark"] .ktpl-status--extra { background: #1f2937; color: #9ca3af; }
+
+        .ktpl-hint {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin: 0 0 14px;
+            line-height: 1.45;
+        }
+        .btn-sm { padding: 4px 8px; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-layout-text-sidebar-reverse"></i>Kursteam-Vorlagen</span>
+            </div>
+            <p>Kanal-Vorlagen für Unterrichtsteams pflegen und auf ein bestehendes Team anwenden (Phase&nbsp;1).</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-kursteam-templates" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="kursteams.html"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero">
+                <div class="tm-hero__icon"><i class="bi bi-layout-text-sidebar-reverse"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Phase 1 · Kanäle</p>
+                    <h2>Vorlagen für Kursteam-Kanäle</h2>
+                    <p>Vorlagen je Schulform, Fach, Schulstufe und Semester pflegen, als JSON teilen und auf bestehende Teams anwenden. „Allgemein“ bleibt unberührt.</p>
+                </div>
+            </section>
+
+            <div class="ktpl-menubar">
+                <div class="ktpl-tabs" role="tablist" aria-label="Kursteam-Vorlagen">
+                    <button type="button" class="is-active" role="tab" aria-selected="true" data-ktpl-tab="manage"><i class="bi bi-journal-text"></i>Vorlagen</button>
+                    <button type="button" role="tab" aria-selected="false" data-ktpl-tab="apply"><i class="bi bi-magic"></i>Anwenden</button>
+                </div>
+                <div class="ktpl-menubar__io" aria-label="Vorlagen Import und Export">
+                    <a class="btn btn-ghost" href="../assets/kursteam-templates/vorlagen-import.example.json" download title="Leere/Beispiel-JSON zum Befüllen mit KI"><i class="bi bi-file-earmark-code"></i>JSON-Vorlage</a>
+                    <a class="btn btn-ghost" href="../assets/kursteam-templates/PROMPT-lehrplan-zu-kursteam-vorlagen.md" download title="Prompt für externe KI (Lehrplan → JSON)"><i class="bi bi-robot"></i>KI-Prompt</a>
+                    <button type="button" class="btn btn-ghost" id="ktplBtnExport" title="Alle Vorlagen als JSON speichern"><i class="bi bi-download"></i>Alle exportieren</button>
+                    <button type="button" class="btn btn-ghost" id="ktplBtnExportOne" title="Nur die ausgewählte Vorlage exportieren"><i class="bi bi-file-earmark-arrow-down"></i>Aktuelle</button>
+                    <label class="btn" for="ktplImportFile" title="Vorlagen aus JSON-Datei laden"><i class="bi bi-upload"></i>Import<input type="file" id="ktplImportFile" accept="application/json,.json" hidden></label>
+                    <button type="button" class="btn btn-ghost" id="ktplBtnReset" title="Alle Vorlagen löschen und Standard neu laden"><i class="bi bi-arrow-counterclockwise"></i>Zurücksetzen</button>
+                </div>
+            </div>
+
+            <section class="tm-panel" data-ktpl-panel="manage" style="padding:0;overflow:hidden;border:0;box-shadow:none;background:transparent;">
+                <div class="ktpl-grid">
+                    <aside class="ktpl-side">
+                        <div class="ktpl-side__head">
+                            <h3><i class="bi bi-collection"></i>Bibliothek</h3>
+                            <span class="ktpl-count" id="ktplListCount">0</span>
+                        </div>
+                        <div class="ktpl-side__body">
+                            <div class="ktpl-filter">
+                                <label>Gruppieren</label>
+                                <div class="ktpl-groupby ktpl-groupby--4" role="group" aria-label="Vorlagen gruppieren">
+                                    <button type="button" class="is-active" data-ktpl-groupby="schoolForm" aria-pressed="true">Schulform</button>
+                                    <button type="button" data-ktpl-groupby="subject" aria-pressed="false">Fach</button>
+                                    <button type="button" data-ktpl-groupby="schulstufe" aria-pressed="false">Schulstufe</button>
+                                    <button type="button" data-ktpl-groupby="semester" aria-pressed="false">Semester</button>
+                                </div>
+                            </div>
+                            <div class="ktpl-filter-grid">
+                                <div class="ktpl-filter">
+                                    <label for="ktplFilterSchoolForm">Schulform</label>
+                                    <select id="ktplFilterSchoolForm"></select>
+                                </div>
+                                <div class="ktpl-filter">
+                                    <label for="ktplFilterSubject">Fach</label>
+                                    <select id="ktplFilterSubject"></select>
+                                </div>
+                                <div class="ktpl-filter">
+                                    <label for="ktplFilterSchulstufe">Schulstufe</label>
+                                    <select id="ktplFilterSchulstufe"></select>
+                                </div>
+                                <div class="ktpl-filter">
+                                    <label for="ktplFilterSemester">Semester</label>
+                                    <select id="ktplFilterSemester"></select>
+                                </div>
+                            </div>
+                            <div class="ktpl-iconbar">
+                                <button type="button" class="btn btn-success" id="ktplBtnNew" title="Neue Vorlage"><i class="bi bi-plus-lg"></i>Neu</button>
+                                <button type="button" class="btn" id="ktplBtnClone" title="Ausgewählte Vorlage kopieren"><i class="bi bi-copy"></i>Kopie</button>
+                                <button type="button" class="btn btn-ghost btn-icon-only" id="ktplBtnDelete" title="Vorlage löschen" aria-label="Vorlage löschen"><i class="bi bi-trash"></i></button>
+                            </div>
+                            <ul class="ktpl-list" id="ktplTemplateList"></ul>
+                        </div>
+                    </aside>
+
+                    <div class="ktpl-main">
+                        <div class="ktpl-main__head">
+                            <h3><i class="bi bi-pencil-square"></i>Editor</h3>
+                            <span class="ktpl-count" id="ktplChannelCount" hidden>0 Kanäle</span>
+                        </div>
+                        <div class="ktpl-main__body">
+                            <div id="ktplEditorEmpty" class="ktpl-editor-empty">
+                                <div>
+                                    <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+                                    <p>Links eine Vorlage wählen oder mit <strong>Neu</strong> anlegen.</p>
+                                </div>
+                            </div>
+                            <div id="ktplEditorForm" hidden>
+                                <div class="ktpl-meta">
+                                    <div class="ktpl-field ktpl-field--full">
+                                        <label for="ktplEditName">Name</label>
+                                        <input type="text" id="ktplEditName" autocomplete="off" placeholder="z. B. HAK MAM Schulstufe 11">
+                                    </div>
+                                    <div class="ktpl-field">
+                                        <label for="ktplEditSchoolForm">Schulform</label>
+                                        <div class="ktpl-combo">
+                                            <select id="ktplEditSchoolForm" aria-label="Schulform wählen"></select>
+                                            <span class="ktpl-combo__btns">
+                                                <button type="button" class="ktpl-mini-btn" id="ktplBtnSchoolFormAdd" title="Neue Schulform hinzufügen" aria-label="Neue Schulform"><i class="bi bi-plus-lg"></i></button>
+                                                <button type="button" class="ktpl-mini-btn" id="ktplBtnSchoolFormRename" title="Schulform umbenennen (alle Vorlagen)" aria-label="Schulform umbenennen"><i class="bi bi-pencil"></i></button>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="ktpl-field">
+                                        <label for="ktplEditSubject">Fach</label>
+                                        <select id="ktplEditSubject"></select>
+                                    </div>
+                                    <div class="ktpl-field">
+                                        <label for="ktplEditSchulstufe">Schulstufe</label>
+                                        <input type="text" id="ktplEditSchulstufe" inputmode="numeric" autocomplete="off" placeholder="z. B. 9 (= 1. Klasse BHS)">
+                                    </div>
+                                    <div class="ktpl-field">
+                                        <label for="ktplEditSemester">Semester</label>
+                                        <select id="ktplEditSemester">
+                                            <option value="">— optional —</option>
+                                            <option value="SJ">Schuljahr (WS+SS)</option>
+                                            <option value="WS">Wintersemester</option>
+                                            <option value="SS">Sommersemester</option>
+                                        </select>
+                                    </div>
+                                    <div class="ktpl-field ktpl-field--full">
+                                        <label for="ktplEditDesc">Beschreibung</label>
+                                        <textarea id="ktplEditDesc" rows="2" placeholder="Kurz, wofür die Vorlage gedacht ist …"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="ktpl-section">
+                                    <div class="ktpl-section__title">
+                                        <h4>Kanäle</h4>
+                                    </div>
+                                    <p class="ktpl-section__hint">Namen bearbeiten und sortieren. „Allgemein“ gehört nicht in die Liste.</p>
+                                    <div class="ktpl-add-row">
+                                        <input type="text" id="ktplNewChannelName" placeholder="Neuer Kanalname …" autocomplete="off">
+                                        <button type="button" class="btn" id="ktplBtnAddChannel"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
+                                    </div>
+                                    <ul class="ktpl-channels" id="ktplChannelBody"></ul>
+                                    <div class="ktpl-footer-actions">
+                                        <button type="button" class="btn btn-success" id="ktplBtnSave"><i class="bi bi-check-lg"></i>Änderungen speichern</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tm-panel" data-ktpl-panel="apply" hidden>
+                <p class="ktpl-hint">Team wählen → Vorlage wählen → vergleichen → anwenden. Vorhandene Kanäle bleiben erhalten.</p>
+                <div class="ktpl-apply-steps">
+                    <div class="ktpl-apply-card">
+                        <h4><span class="ktpl-apply-card__n">1</span>Vorlage</h4>
+                        <div class="ktpl-field">
+                            <label for="ktplApplySchoolForm">Schulform</label>
+                            <select id="ktplApplySchoolForm"></select>
+                        </div>
+                        <div class="ktpl-field">
+                            <label for="ktplApplySubjectFilter">Fach</label>
+                            <select id="ktplApplySubjectFilter"></select>
+                        </div>
+                        <div class="ktpl-field">
+                            <label for="ktplApplySchulstufeFilter">Schulstufe</label>
+                            <select id="ktplApplySchulstufeFilter"></select>
+                        </div>
+                        <div class="ktpl-field">
+                            <label for="ktplApplySemesterFilter">Semester</label>
+                            <select id="ktplApplySemesterFilter"></select>
+                        </div>
+                        <div class="ktpl-field">
+                            <label for="ktplApplyTemplate">Vorlage</label>
+                            <select id="ktplApplyTemplate">
+                                <option value="">— Vorlage wählen —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="ktpl-apply-card">
+                        <h4><span class="ktpl-apply-card__n">2</span>Kursteam</h4>
+                        <div class="ktpl-field">
+                            <label for="ktplTeamQuery">Suche</label>
+                            <div style="display:flex;gap:8px;">
+                                <input type="search" id="ktplTeamQuery" placeholder="Name oder GUID …" autocomplete="off" style="flex:1;">
+                                <button type="button" class="btn" id="ktplBtnSearchTeam"><i class="bi bi-search"></i></button>
+                            </div>
+                            <ul class="ktpl-hits" id="ktplTeamHits" hidden></ul>
+                            <p class="ktpl-picked muted" id="ktplTeamPicked">Noch kein Team gewählt.</p>
+                        </div>
+                    </div>
+                    <div class="ktpl-apply-card">
+                        <h4><span class="ktpl-apply-card__n">3</span>Ausführen</h4>
+                        <p class="ktpl-section__hint" style="margin-bottom:12px;">Zuerst vergleichen, dann fehlende Kanäle anlegen.</p>
+                        <div class="ktpl-field">
+                            <label style="display:inline-flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-weight:500;font-size:0.9rem;">
+                                <input type="checkbox" id="ktplSkipRename"> Umbenennen überspringen
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="ktpl-apply-actions">
+                    <button type="button" class="btn" id="ktplBtnDiff"><i class="bi bi-arrow-left-right"></i>Vergleichen</button>
+                    <button type="button" class="btn btn-success" id="ktplBtnApply"><i class="bi bi-check2-all"></i>Anwenden</button>
+                </div>
+                <div class="ktpl-diff-wrap">
+                    <p class="ktpl-diff-summary" id="ktplDiffSummary">Noch kein Vergleich.</p>
+                    <div style="overflow:auto;">
+                        <table class="ktpl-diff-table">
+                            <thead><tr><th>Status</th><th>Vorlage</th><th>Team</th></tr></thead>
+                            <tbody id="ktplDiffBody"><tr><td colspan="3" class="muted">Team und Vorlage wählen, dann vergleichen.</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+                <details class="tm-tech" style="margin-top:12px;"><summary>Protokoll</summary><pre id="ktplLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/tools/kursteam-templates/kursteam-templates.js"></script>
+</body>
+</html>

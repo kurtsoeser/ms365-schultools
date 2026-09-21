@@ -1451,7 +1451,7 @@
                             <span class="dash-task-index">01</span>
                         </div>
                         <h3>Klassen und Kurse anlegen</h3>
-                        <p>Alltag: Klassengruppen matchen. Unterrichtsteams aus dem Stundenplan – oder ein fehlendes Team nachziehen.</p>
+                        <p>Alltag: Klassengruppen matchen. Unterrichtsteams aus dem Stundenplan – oder einzelne Teams ergänzen.</p>
                         <div class="dash-task-progress-row" id="dashProgUnterrichtRow" data-context-tip="prog-unterricht" hidden>
                             <p class="dash-task-progress" id="dashProgUnterricht"></p>
                         </div>
@@ -1465,7 +1465,11 @@
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <a class="dash-task-row" href="tools/kursteams.html?mode=single">
-                                <span class="dash-task-row__label"><i class="bi bi-plus-square" aria-hidden="true"></i>Ein Team nachziehen</span>
+                                <span class="dash-task-row__label"><i class="bi bi-plus-square" aria-hidden="true"></i>Einzelne Unterrichtsteams hinzufügen</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row" href="tools/kursteam-templates.html">
+                                <span class="dash-task-row__label"><i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i>Kursteam-Vorlagen (Kanäle)</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                         </div>
@@ -1663,10 +1667,15 @@
                                 <p>Unterrichtsteams aus dem Stundenplan vorbereiten und per CSV/CMD (<code>Kursteam-Anlage.cmd</code>) anlegen.</p>
                                 <a class="btn" href="tools/kursteams.html"><i class="bi bi-rocket-takeoff"></i>Anlegen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Ein Unterrichtsteam nachziehen" data-tool-id="kursteam-einzeln" data-cluster="unterricht" data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen" draggable="true">
-                                <h2><i class="bi bi-plus-square"></i>Ein Team nachziehen</h2>
-                                <p>Genau ein fehlendes Unterrichtsteam (Klasse + Fach + Lehrkraft) vorbereiten und online oder per CMD anlegen.</p>
-                                <a class="btn" href="tools/kursteams.html?mode=single"><i class="bi bi-plus-lg"></i>Nachziehen</a>
+                            <section class="choice" role="listitem" aria-label="Einzelne Unterrichtsteams hinzufügen" data-tool-id="kursteam-einzeln" data-cluster="unterricht" data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen unterrichtsteams hinzufügen" draggable="true">
+                                <h2><i class="bi bi-plus-square"></i>Einzelne Unterrichtsteams hinzufügen</h2>
+                                <p>Ein oder mehrere fehlende Unterrichtsteams (Klasse + Fach + Lehrkraft) vorbereiten und online oder per CMD anlegen.</p>
+                                <a class="btn" href="tools/kursteams.html?mode=single"><i class="bi bi-plus-lg"></i>Hinzufügen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Kursteam-Vorlagen" data-tool-id="kursteam-templates" data-cluster="unterricht" data-search="kursteam vorlage template kanal kanäle mathematik fach schulstufe semester schulform struktur anwenden" draggable="true">
+                                <h2><i class="bi bi-layout-text-sidebar-reverse"></i>Kursteam-Vorlagen</h2>
+                                <p>Kanal-Vorlagen je Schulform, Fach und Schulstufe pflegen und auf bestehende Unterrichtsteams anwenden.</p>
+                                <a class="btn" href="tools/kursteam-templates.html"><i class="bi bi-layout-text-sidebar-reverse"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Fächer und ARGEs" data-tool-id="arge-fachgruppen" data-cluster="unterricht" data-search="arge fach fachgruppe fachschaft arbeitsgemeinschaft" draggable="true">
                                 <h2><i class="bi bi-collection"></i>Fächer und ARGEs</h2>

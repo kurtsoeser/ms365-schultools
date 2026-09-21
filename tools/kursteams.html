@@ -93,6 +93,47 @@
             color: var(--heading);
             font-weight: 700;
         }
+        .single-team-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .single-team-row {
+            display: grid;
+            grid-template-columns: minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(80px, 0.7fr) minmax(160px, 1.4fr) auto;
+            gap: 8px;
+            align-items: end;
+            padding: 10px 12px;
+            background: var(--soft);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .single-team-row .filter-group {
+            margin: 0;
+            min-width: 0;
+        }
+        .single-team-row .filter-group label {
+            font-size: 0.78em;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .single-team-row .filter-group input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .single-team-row__remove {
+            margin-bottom: 2px;
+            flex-shrink: 0;
+        }
+        @media (max-width: 900px) {
+            .single-team-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .single-team-row__remove {
+                grid-column: 1 / -1;
+                justify-self: start;
+            }
+        }
         .kursteam-start-card p {
             margin: 0;
             color: var(--text-secondary);
@@ -378,8 +419,8 @@
                     <div class="kt-step-header" id="kursteamSingleStep0Header" style="display:none;">
                         <div class="kt-step-badge" style="background:linear-gradient(135deg,#5e72e4 0%,#825ee4 100%);"><i class="bi bi-plus-square-fill"></i></div>
                         <div class="kt-step-header-text">
-                            <h2>Ein Unterrichtsteam nachziehen</h2>
-                            <p>Klasse, Fach und Lehrkraft – dann direkt anlegen. Ohne Bulk-Assistent.</p>
+                            <h2>Einzelne Unterrichtsteams hinzufügen</h2>
+                            <p>Eine oder mehrere Zeilen – dann direkt anlegen. Ohne Bulk-Assistent.</p>
                         </div>
                     </div>
 
@@ -400,40 +441,21 @@
                     </div>
 
                     <div id="kursteamSingleBanner" class="alert alert-info" style="display:none;margin-bottom:18px;">
-                        <strong>Kurz:</strong> Felder ausfüllen → Vorschau prüfen → anlegen (online oder CMD).
+                        <strong>Kurz:</strong> Zeilen ausfüllen → Vorschau prüfen → anlegen (online oder CMD). Mit <strong>+</strong> weitere Teams.
                         <button type="button" class="btn btn-small" style="margin-left:8px;" onclick="cancelKursteamSingleTeam()"><i class="bi bi-arrow-left"></i>Zum Start</button>
                     </div>
 
                     <div id="kursteamSingleForm" class="filter-section" style="display:none;margin-bottom:20px;">
-                        <h3><i class="bi bi-plus-square" style="color:#5e72e4;"></i> Einzelnes Unterrichtsteam</h3>
+                        <h3><i class="bi bi-plus-square" style="color:#5e72e4;"></i> Einzelne Unterrichtsteams hinzufügen</h3>
                         <p style="margin:0 0 14px;font-size:0.9em;color:var(--text-secondary);">
-                            Beispiel: Fach <code>WINF</code>, Klasse <code>4AK</code>, Lehrkraft-Kürzel – Besitzer-E-Mail kommt aus den Stammdaten.
+                            Pro Zeile ein Team (z.&nbsp;B. <code>4AK</code> · <code>WINF</code> · Lehrkraft). Besitzer-E-Mail kommt aus den Stammdaten und steht in derselben Zeile.
                         </p>
-                        <div class="import-paste-file-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
-                            <div class="filter-group" style="margin:0;">
-                                <label for="singleTeamKlasse">Klasse</label>
-                                <input type="text" id="singleTeamKlasse" list="singleTeamKlasseList" placeholder="z. B. 4AK" autocomplete="off">
-                                <datalist id="singleTeamKlasseList"></datalist>
-                            </div>
-                            <div class="filter-group" style="margin:0;">
-                                <label for="singleTeamFach">Fach</label>
-                                <input type="text" id="singleTeamFach" list="singleTeamFachList" placeholder="z. B. WINF" autocomplete="off">
-                                <datalist id="singleTeamFachList"></datalist>
-                            </div>
-                            <div class="filter-group" style="margin:0;">
-                                <label for="singleTeamLehrer">Lehrkraft (Kürzel)</label>
-                                <input type="text" id="singleTeamLehrer" list="singleTeamLehrerList" placeholder="z. B. MEI" autocomplete="off">
-                                <datalist id="singleTeamLehrerList"></datalist>
-                            </div>
-                            <div class="filter-group" style="margin:0;">
-                                <label for="singleTeamGruppe">Gruppe <span class="muted">(optional)</span></label>
-                                <input type="text" id="singleTeamGruppe" placeholder="leer oder z. B. G1" autocomplete="off">
-                            </div>
-                        </div>
-                        <div class="filter-group" style="margin-top:12px;">
-                            <label for="singleTeamOwner">Besitzer-E-Mail</label>
-                            <input type="email" id="singleTeamOwner" placeholder="wird aus Stammdaten vorgeschlagen" autocomplete="off">
-                            <p id="singleTeamOwnerHint" class="muted" style="margin:6px 0 0;font-size:0.85em;">Lehrkraft-Kürzel eingeben – E-Mail kommt aus den Stammdaten.</p>
+                        <datalist id="singleTeamKlasseList"></datalist>
+                        <datalist id="singleTeamFachList"></datalist>
+                        <datalist id="singleTeamLehrerList"></datalist>
+                        <div id="singleTeamRows" class="single-team-rows" aria-label="Unterrichtsteams"></div>
+                        <div style="margin-top:10px;">
+                            <button type="button" class="btn btn-small" id="singleTeamAddRowBtn" onclick="addSingleTeamRow()"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
                         </div>
                         <div id="singleTeamPreview" style="margin-top:14px;padding:12px 14px;background:var(--soft);border:1px solid var(--border);border-radius:10px;">
                             <p class="muted" style="margin:0;">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>
@@ -463,10 +485,10 @@
                         </div>
                         <div class="kursteam-start-card">
                             <div class="ks-card-icon"><i class="bi bi-plus-square"></i></div>
-                            <h3>Nur ein Team</h3>
-                            <p>Fehlt ein einzelnes Unterrichtsteam im Bulk? Klasse, Fach und Lehrkraft eintragen und direkt anlegen.</p>
+                            <h3>Einzelne Teams</h3>
+                            <p>Ein oder mehrere fehlende Unterrichtsteams ohne Stundenplan-Import – Zeile für Zeile eintragen und anlegen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" onclick="startKursteamSingleTeam()"><i class="bi bi-plus-lg"></i>Ein Team nachziehen</button>
+                                <button type="button" class="btn btn-success" onclick="startKursteamSingleTeam()"><i class="bi bi-plus-lg"></i>Einzelne Unterrichtsteams hinzufügen</button>
                             </div>
                         </div>
                     </div>

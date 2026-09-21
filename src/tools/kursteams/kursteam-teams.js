@@ -56,6 +56,7 @@ window.addManualKursteamTeam = ns.addManualKursteamTeam;
 window.startKursteamSingleTeam = ns.startKursteamSingleTeam;
 window.cancelKursteamSingleTeam = ns.cancelKursteamSingleTeam;
 window.commitSingleTeamAndGoCreate = ns.commitSingleTeamAndGoCreate;
+window.addSingleTeamRow = ns.addSingleTeamRow;
 
 if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 if (typeof ns.renderTeamNameBuilder === 'function') ns.renderTeamNameBuilder();

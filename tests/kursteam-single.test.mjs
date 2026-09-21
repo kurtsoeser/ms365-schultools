@@ -15,29 +15,84 @@ function el(value) {
         focus() {},
         replaceChildren() {},
         appendChild() {},
-        addEventListener() {}
+        addEventListener() {},
+        querySelector() {
+            return null;
+        },
+        querySelectorAll() {
+            return [];
+        },
+        getAttribute() {
+            return null;
+        }
+    };
+}
+
+function makeRow(fields) {
+    const inputs = {};
+    Object.keys(fields).forEach((k) => {
+        inputs[k] = el(fields[k]);
+    });
+    return {
+        querySelector(sel) {
+            const m = String(sel).match(/data-st-field="([^"]+)"/);
+            if (m) return inputs[m[1]] || null;
+            return null;
+        },
+        querySelectorAll(sel) {
+            if (String(sel).includes('data-st-field')) {
+                return Object.keys(inputs).map((k) => {
+                    const inp = inputs[k];
+                    inp.getAttribute = (name) => (name === 'data-st-field' ? k : null);
+                    inp.addEventListener = () => {};
+                    return inp;
+                });
+            }
+            return [];
+        }
     };
 }
 
 describe('kursteam-single', () => {
-    it('baut Vorschau für ein Team (Klasse/Fach/Lehrer)', () => {
-        const inputs = {
-            singleTeamKlasse: el('4AK'),
-            singleTeamFach: el('WINF'),
-            singleTeamLehrer: el('MEI'),
-            singleTeamGruppe: el(''),
-            singleTeamOwner: el('mei@schule.at'),
-            yearPrefix: el('SJ26'),
-            teamSeparator: el(' | '),
-            stripSubjectTrailingDigits: { checked: false, ...el('') }
-        };
+    it('baut Vorschau für mehrere Zeilen', () => {
+        const row1 = makeRow({
+            klasse: '4AK',
+            fach: 'WINF',
+            lehrer: 'MEI',
+            gruppe: '',
+            owner: 'mei@schule.at'
+        });
+        const row2 = makeRow({
+            klasse: '3AK',
+            fach: 'D',
+            lehrer: 'ABC',
+            gruppe: '',
+            owner: 'abc@schule.at'
+        });
 
         const sandbox = {
             console,
             document: {
                 readyState: 'complete',
-                getElementById: (id) => inputs[id] || el(''),
-                addEventListener: () => {}
+                getElementById: (id) => {
+                    if (id === 'singleTeamRows') {
+                        return {
+                            querySelectorAll: (sel) =>
+                                String(sel).includes('single-team-row') ? [row1, row2] : [],
+                            querySelector: () => row1,
+                            replaceChildren() {},
+                            appendChild() {}
+                        };
+                    }
+                    if (id === 'yearPrefix') return el('SJ26');
+                    if (id === 'teamSeparator') return el(' | ');
+                    if (id === 'stripSubjectTrailingDigits') return { checked: false };
+                    if (id === 'singleTeamPreview') return el('');
+                    return el('');
+                },
+                addEventListener: () => {},
+                querySelector: () => null,
+                createElement: () => el('')
             },
             window: null,
             location: { search: '' }
@@ -58,17 +113,17 @@ describe('kursteam-single', () => {
         });
 
         const ns = sandbox.ms365Kursteam;
-        ns.teacherEmailMapping = { MEI: 'mei@schule.at' };
+        ns.teacherEmailMapping = { MEI: 'mei@schule.at', ABC: 'abc@schule.at' };
         ns.getPatternFromBuilder = null;
 
-        const team = ns.buildSingleTeamPreviewEntry();
-        expect(team).toBeTruthy();
-        expect(team.teamName).toContain('4AK');
-        expect(team.teamName).toContain('WINF');
-        expect(team.gruppenmail.toLowerCase()).toContain('4ak');
-        expect(team.gruppenmail.toLowerCase()).toContain('winf');
-        expect(team.besitzer).toBe('mei@schule.at');
-        expect(team.isValid).toBe(true);
+        const all = ns.buildAllSingleTeamEntries();
+        expect(all).toHaveLength(2);
+        expect(all[0].team.teamName).toContain('4AK');
+        expect(all[0].team.teamName).toContain('WINF');
+        expect(all[0].team.besitzer).toBe('mei@schule.at');
+        expect(all[0].team.isValid).toBe(true);
+        expect(all[1].team.teamName).toContain('3AK');
+        expect(all[1].team.isValid).toBe(true);
     });
 
     it('bootSingleTeamModeFromQuery erkennt mode=single', () => {
@@ -78,7 +133,9 @@ describe('kursteam-single', () => {
             document: {
                 readyState: 'complete',
                 getElementById: () => el(''),
-                addEventListener: () => {}
+                addEventListener: () => {},
+                querySelector: () => null,
+                createElement: () => el('')
             },
             window: null,
             location: { search: '?mode=single' }
