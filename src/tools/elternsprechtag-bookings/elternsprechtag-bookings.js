@@ -696,25 +696,105 @@ async function patchBusinessHours(token, businessId, form) {
     });
 }
 
-async function syncStaff(token, businessId, selected, timeZone) {
-    const existing = await listAllPages(
-        token,
-        bizPath(businessId) + '/staffMembers'
-    ).catch(async function (e) {
+function isConflictError(err) {
+    const msg = String((err && err.message) || err || '');
+    return /Conflict/i.test(msg) || /already exists/i.test(msg);
+}
+
+function isUnknownBookingsError(err) {
+    const msg = String((err && err.message) || err || '');
+    return /UnknownError/i.test(msg);
+}
+
+function normEmail(v) {
+    return String(v || '')
+        .trim()
+        .toLowerCase();
+}
+
+function normName(v) {
+    return String(v || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+function indexStaffMembers(list) {
+    const byEmail = new Map();
+    const byName = new Map();
+    (list || []).forEach(function (s) {
+        if (!s || !s.id) return;
+        const em = normEmail(s.emailAddress);
+        if (em) byEmail.set(em, s);
+        const nm = normName(s.displayName);
+        if (nm && !byName.has(nm)) byName.set(nm, s);
+    });
+    return { byEmail: byEmail, byName: byName, list: list || [] };
+}
+
+async function loadStaffMembers(token, businessId) {
+    let raw;
+    try {
+        raw = await listAllPages(token, bizPath(businessId) + '/staffMembers');
+    } catch (e) {
         if (isMailboxNotFoundError(e)) {
             const ready = await waitForBookingMailbox(token, businessId);
             if (!ready) throw e;
-            return listAllPages(token, bizPath(businessId) + '/staffMembers');
+            raw = await listAllPages(token, bizPath(businessId) + '/staffMembers');
+        } else {
+            throw e;
         }
-        throw e;
-    });
-    const byEmail = new Map();
-    existing.forEach(function (s) {
-        const em = String((s && s.emailAddress) || '')
-            .trim()
-            .toLowerCase();
-        if (em) byEmail.set(em, s);
-    });
+    }
+    // Manche Tenant-Antworten liefern in der Liste keine E-Mail → Einzelabruf.
+    const full = [];
+    for (let i = 0; i < raw.length; i++) {
+        const s = raw[i];
+        if (s && s.emailAddress) {
+            full.push(s);
+            continue;
+        }
+        if (s && s.id) {
+            try {
+                const one = await graphJson(
+                    'GET',
+                    bizPath(businessId) + '/staffMembers/' + encodeURIComponent(s.id),
+                    token
+                );
+                full.push(one && one.id ? one : s);
+            } catch {
+                full.push(s);
+            }
+            await sleep(80);
+        }
+    }
+    return indexStaffMembers(full);
+}
+
+function findStaffInIndex(index, teacher) {
+    if (!index) return null;
+    const em = normEmail(teacher && teacher.email);
+    if (em && index.byEmail.has(em)) return index.byEmail.get(em);
+    const nm = normName(teacher && teacher.name);
+    if (nm && index.byName.has(nm)) return index.byName.get(nm);
+    return null;
+}
+
+async function createStaffMember(token, businessId, teacher, timeZone, role) {
+    const body = {
+        displayName: teacher.name,
+        emailAddress: teacher.email,
+        role: role || 'guest',
+        timeZone: timeZone,
+        useBusinessHours: true,
+        availabilityIsAffectedByPersonalCalendar: true,
+        isEmailNotificationEnabled: true
+    };
+    return graphJson('POST', bizPath(businessId) + '/staffMembers', token, body);
+}
+
+async function syncStaff(token, businessId, selected, timeZone) {
+    let index = await loadStaffMembers(token, businessId);
+    log('Vorhandene Mitarbeiter in Bookings: ' + index.list.length);
 
     const staffIds = [];
     let created = 0;
@@ -723,7 +803,7 @@ async function syncStaff(token, businessId, selected, timeZone) {
     for (let i = 0; i < selected.length; i++) {
         const t = selected[i];
         const em = t.email;
-        const found = byEmail.get(em);
+        let found = findStaffInIndex(index, t);
         if (found && found.id) {
             staffIds.push(String(found.id));
             reused++;
@@ -731,30 +811,74 @@ async function syncStaff(token, businessId, selected, timeZone) {
         }
         log('  + Mitarbeiter: ' + t.name + ' <' + em + '>');
         try {
-            const body = {
-                displayName: t.name,
-                emailAddress: em,
-                role: 'guest',
-                timeZone: timeZone,
-                useBusinessHours: true,
-                availabilityIsAffectedByPersonalCalendar: true,
-                isEmailNotificationEnabled: true
-            };
-            const createdStaff = await graphJson(
-                'POST',
-                bizPath(businessId) + '/staffMembers',
-                token,
-                body
-            );
+            let createdStaff = null;
+            try {
+                createdStaff = await createStaffMember(token, businessId, t, timeZone, 'guest');
+            } catch (e1) {
+                if (isConflictError(e1)) {
+                    log('  → existiert bereits – lade Mitarbeiterliste neu …');
+                    index = await loadStaffMembers(token, businessId);
+                    found = findStaffInIndex(index, t);
+                    if (found && found.id) {
+                        staffIds.push(String(found.id));
+                        reused++;
+                        await sleep(120);
+                        continue;
+                    }
+                    throw e1;
+                }
+                if (isUnknownBookingsError(e1)) {
+                    log('  → UnknownError, zweiter Versuch als externalGuest …');
+                    try {
+                        createdStaff = await createStaffMember(
+                            token,
+                            businessId,
+                            t,
+                            timeZone,
+                            'externalGuest'
+                        );
+                    } catch (e2) {
+                        if (isConflictError(e2)) {
+                            index = await loadStaffMembers(token, businessId);
+                            found = findStaffInIndex(index, t);
+                            if (found && found.id) {
+                                staffIds.push(String(found.id));
+                                reused++;
+                                await sleep(120);
+                                continue;
+                            }
+                        }
+                        throw e2;
+                    }
+                } else {
+                    throw e1;
+                }
+            }
             const sid = String((createdStaff && createdStaff.id) || '');
             if (!sid) throw new Error('Keine Staff-ID');
             staffIds.push(sid);
-            byEmail.set(em, createdStaff);
+            index.byEmail.set(normEmail(em), createdStaff);
+            if (normName(t.name)) index.byName.set(normName(t.name), createdStaff);
             created++;
         } catch (e) {
             log('  ! Fehler bei ' + em + ': ' + ((e && e.message) || e));
         }
         await sleep(180);
+    }
+
+    // Letzter Fallback: Liste nochmals laden und alle ausgewählten zuordnen
+    if (staffIds.length < selected.length) {
+        index = await loadStaffMembers(token, businessId);
+        selected.forEach(function (t) {
+            const f = findStaffInIndex(index, t);
+            if (!f || !f.id) return;
+            const id = String(f.id);
+            if (staffIds.indexOf(id) === -1) {
+                staffIds.push(id);
+                reused++;
+                log('  → nachgeladen: ' + t.name + ' <' + t.email + '>');
+            }
+        });
     }
 
     log('Mitarbeiter: ' + created + ' neu, ' + reused + ' bereits vorhanden, ' + staffIds.length + ' gesamt.');
