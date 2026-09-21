@@ -355,6 +355,7 @@
                                 <li><a href="#tool-tenant">Stammdaten</a></li>
                                 <li><a href="#tool-jahrgang">Klassengruppen</a></li>
                                 <li><a href="#tool-kursteams">Unterrichtsteams</a></li>
+                                <li><a href="#tool-kursteam-einzeln">Ein Team nachziehen</a></li>
                                 <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
                                 <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
                                 <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
@@ -398,6 +399,7 @@
                                     <li><a href="#tool-tenant">Stammdaten</a></li>
                                     <li><a href="#tool-jahrgang">Klassengruppen</a></li>
                                     <li><a href="#tool-kursteams">Unterrichtsteams</a></li>
+                                    <li><a href="#tool-kursteam-einzeln">Ein Team nachziehen</a></li>
                                     <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
                                     <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
                                     <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
@@ -692,6 +694,24 @@
                         <p class="help-open"><a href="tools/kursteams.html">→ Unterrichtsteams öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen">
+                        <h3 id="tool-kursteam-einzeln">Ein Team nachziehen <span class="pill">Kurz</span></h3>
+                        <p>
+                            Wenn im Bulk ein einzelnes Unterrichtsteam fehlt (z.&nbsp;B. WINF der 4AK): Klasse, Fach und
+                            Lehrkraft eintragen, Vorschau prüfen und direkt online oder per CMD anlegen – ohne den
+                            kompletten Stundenplan-Assistenten.
+                        </p>
+                        <div class="mini-steps">
+                            <strong>Ablauf</strong>
+                            <ol>
+                                <li>Dashboard → <strong>Ein Team nachziehen</strong> (oder Assistent-Startkarte „Nur ein Team“).</li>
+                                <li>Klasse, Fach, Lehrkraft-Kürzel; Besitzer-E-Mail kommt aus den Stammdaten.</li>
+                                <li>Zur Anlage vorbereiten → online oder <code>Kursteam-Anlage.cmd</code>.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/kursteams.html?mode=single">→ Ein Team nachziehen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="diplomarbeit dipl naming betreuung gruppe team">
                         <h3 id="tool-diplomarbeiten">Diplomarbeiten <span class="pill">Standard</span></h3>
                         <p>
@@ -973,6 +993,16 @@
                             Flow-Bauplan: <a href="tools/power-automate-rezepte.html">Power-Automate-Rezepte</a>.
                         </p>
                         <p class="help-open"><a href="tools/sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="freistellung genehmigung kv direktion power automate sharepoint liste paket">
+                        <h3 id="tool-freistellung">Freistellungen Setup <span class="pill">SharePoint + Flow</span></h3>
+                        <p>
+                            Freistellungsliste per Graph anlegen und ein parametrierbares Power-Automate-Paket
+                            (KV + Direktion, Sondergenehmigung, freigegebenes Postfach) für den Ziel-Tenant erzeugen.
+                            Der Flow selbst wird nicht über Graph erstellt, sondern als ZIP in Power Automate importiert.
+                        </p>
+                        <p class="help-open"><a href="tools/freistellung-setup.html">→ Freistellungen Setup öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="power automate flow rezept forms genehmigung schilf">
