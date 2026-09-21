@@ -8,26 +8,133 @@
     'use strict';
 
     const KIND = 'ms365-browser-backup-v1';
-    const VERSION = 3;
+    const VERSION = 4;
     const SESSION_SKIP_KEYS = {
         'ms365-access-granted-v1': true,
         'ms365-admin-access-granted-v1': true,
         'ms365-post-login-url': true
     };
 
-    /** Bekannte Schlüssel – dient der Inventar-Anzeige (Export umfasst alle ms365-* / webuntis-*). */
+    /** Keys, die den Inhalts-Fingerprint nicht beeinflussen (Sync-Meta selbst). */
+    const FINGERPRINT_SKIP_KEYS = {
+        'ms365-stammdaten-spo-sync-v1': true,
+        'ms365-last-backup-export-at': true
+    };
+
+    /**
+     * Bekannte Schlüssel – Inventar-Anzeige.
+     * Export/Sync umfassen weiterhin alle ms365-* / webuntis-* Keys (auch unbekannte).
+     */
     const STORAGE_CATALOG = [
-        { label: 'Zentrale Schuldaten', keys: ['ms365-schooltool-data-v2', 'ms365-tenant-settings-v1', 'ms365-school-email-domain-v1'] },
-        { label: 'Einrichtung & Demo', keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1', 'ms365-dashboard-setup-dismissed-v1'] },
-        { label: 'Dashboard', keys: ['ms365-dashboard-favorites-v1', 'ms365-dashboard-order-catalog-v1', 'ms365-dashboard-category-tab-v1'] },
-        { label: 'Schulstruktur (Legacy-Spiegel)', keys: ['ms365-schulstruktur-sync-v1', 'ms365-schulstruktur-match-v1', 'ms365-schulstruktur-tenant-cache-v1'] },
+        {
+            label: 'Zentrale Schuldaten',
+            keys: [
+                'ms365-schooltool-data-v2',
+                'ms365-tenant-settings-v1',
+                'ms365-school-email-domain-v1',
+                'ms365-class-nick-schema-v1'
+            ]
+        },
+        {
+            label: 'Einrichtung & Demo',
+            keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1', 'ms365-dashboard-setup-dismissed-v1']
+        },
+        {
+            label: 'Dashboard',
+            keys: [
+                'ms365-dashboard-favorites-v1',
+                'ms365-dashboard-order-catalog-v1',
+                'ms365-dashboard-category-tab-v1',
+                'ms365-dashboard-expert-open-v1'
+            ]
+        },
+        {
+            label: 'Schulstruktur (Legacy-Spiegel)',
+            keys: [
+                'ms365-schulstruktur-sync-v1',
+                'ms365-schulstruktur-match-v1',
+                'ms365-schulstruktur-tenant-cache-v1',
+                'ms365-schulstruktur-sync-ui-mode-v1'
+            ]
+        },
         { label: 'Kursteams / WebUntis', keys: ['webuntis-teams-creator-state-v1'] },
-        { label: 'Klassen & Jahrgang', keys: ['ms365-jahrgang-state-v1'] },
-        { label: 'Gruppen & SLG', keys: ['ms365-schueler-lehrer-gruppen-v1', 'ms365-schueler-lehrer-gruppen-v2', 'ms365-verwaltung-gruppe-v1'] },
-        { label: 'Fächer / ARGE / Weitere Teams', keys: ['ms365-arge-state-v1', 'ms365-arge-state-v2', 'ms365-wtg-state-v1'] },
-        { label: 'Personen, Gäste, Hygiene', keys: ['ms365-hygiene-scan-v2', 'ms365-gast-einlader-policy-v1', 'ms365-gast-zugaenge-snapshot-v1', 'ms365-gruppenerstellung-policy-v1'] },
-        { label: 'Verteiler & UI', keys: ['ms365-verteilerlisten-cache-v1', 'ms365-theme-v1', 'ms365-ss-graph-collapsed-v1'] },
-        { label: 'Admin & Hinweise', keys: ['ms365-schooltool-access-override-v1', 'ms365-schooltool-release-notes-v1', 'ms365-schooltool-release-notes-last-seen-at-v1'] }
+        {
+            label: 'Klassen & Jahrgang',
+            keys: ['ms365-jahrgang-state-v1', 'ms365-class-create-team-v1', 'ms365-klassenvorstaende-v1']
+        },
+        {
+            label: 'Gruppen & SLG',
+            keys: [
+                'ms365-schueler-lehrer-gruppen-v1',
+                'ms365-schueler-lehrer-gruppen-v2',
+                'ms365-verwaltung-gruppe-v1'
+            ]
+        },
+        {
+            label: 'Fächer / ARGE / Weitere Teams',
+            keys: [
+                'ms365-arge-state-v1',
+                'ms365-arge-state-v2',
+                'ms365-wtg-state-v1',
+                'ms365-arge-mail-prefix-ag-upgraded-v1'
+            ]
+        },
+        {
+            label: 'Power Automate & Automationen',
+            keys: [
+                'ms365-pa-onboarding-v1',
+                'ms365-freistellung-setup-v1',
+                'ms365-power-automate-recipes-v1',
+                'ms365-pa-termine-sync-v1',
+                'ms365-pa-antraege-v1',
+                'ms365-pa-seminar-v1',
+                'ms365-pa-gast-v1',
+                'ms365-pa-diplom-v1',
+                'ms365-pa-schilf-v1',
+                'ms365-pa-done-freistellung',
+                'ms365-pa-done-termine-sync',
+                'ms365-pa-done-antraege',
+                'ms365-pa-done-seminar',
+                'ms365-pa-done-gast-erinnerung',
+                'ms365-pa-done-diplom-ordner',
+                'ms365-pa-done-schilf'
+            ]
+        },
+        {
+            label: 'SharePoint / Intranet',
+            keys: [
+                'ms365-intranet-starter-v1',
+                'ms365-stammdaten-it-library-v1',
+                'ms365-stammdaten-spo-sync-v1'
+            ]
+        },
+        {
+            label: 'Personen, Gäste, Hygiene',
+            keys: [
+                'ms365-hygiene-scan-v2',
+                'ms365-gast-einlader-policy-v1',
+                'ms365-gast-zugaenge-snapshot-v1',
+                'ms365-gruppenerstellung-policy-v1'
+            ]
+        },
+        {
+            label: 'Verteiler, Postfächer & Caches',
+            keys: ['ms365-verteilerlisten-cache-v1', 'ms365-postfaecher-cache-v1']
+        },
+        {
+            label: 'Playbooks & Spielwiesen',
+            keys: ['ms365-cleanup-playbook-v1', 'ms365-spielwiesen-notebook-v1']
+        },
+        {
+            label: 'UI & Hinweise',
+            keys: [
+                'ms365-theme-v1',
+                'ms365-ss-graph-collapsed-v1',
+                'ms365-schooltool-access-override-v1',
+                'ms365-schooltool-release-notes-v1',
+                'ms365-schooltool-release-notes-last-seen-at-v1'
+            ]
+        }
     ];
 
     function getStore(storage) {
@@ -315,6 +422,45 @@
         return 'ms365-browser-backup-' + localDateStamp(d) + suffix + '.json';
     }
 
+    /**
+     * Kurzer Fingerprint aller App-localStorage-Werte (ohne Sync-Meta).
+     * Dient dem Auto-Sync: Push nur wenn sich Schul-/Werkzeugdaten geändert haben.
+     */
+    function contentFingerprint(storage) {
+        const local = collectLocalStorage(storage);
+        const parts = [];
+        Object.keys(local)
+            .sort()
+            .forEach(function (k) {
+                if (FINGERPRINT_SKIP_KEYS[k]) return;
+                parts.push(k + '\0' + decodeValue(local[k]));
+            });
+        const s = parts.join('\n');
+        let h = 5381;
+        for (let i = 0; i < s.length; i++) {
+            h = (Math.imul(h, 33) ^ s.charCodeAt(i)) | 0;
+        }
+        return (h >>> 0).toString(16) + ':' + parts.length;
+    }
+
+    /**
+     * Signalisiert, dass sich lokale App-Daten geändert haben (z. B. Power-Automate-Felder).
+     * Auto-Sync und UI können darauf reagieren.
+     * @param {string} [source]
+     * @param {object} [detail]
+     */
+    function notifyLocalDataChanged(source, detail) {
+        try {
+            const payload = Object.assign({}, detail || {}, {
+                source: String(source || 'local-data'),
+                at: new Date().toISOString()
+            });
+            window.dispatchEvent(new CustomEvent('ms365-local-data-changed', { detail: payload }));
+        } catch {
+            /* ignore */
+        }
+    }
+
     function buildBackup(storage, now, sessionStorageArg) {
         syncStorageBeforeBackup();
         const local = collectLocalStorage(storage);
@@ -333,7 +479,10 @@
             localKeyCount: Object.keys(local).length,
             sessionKeyCount: Object.keys(session).length,
             inventory: inventory,
+            contentFingerprint: contentFingerprint(storage),
             includesPrefixes: ['ms365-', 'webuntis-'],
+            includesNote:
+                'Vollständiges App-Backup: Stammdaten, Einrichtung, Werkzeugstände, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
             excludesNote:
                 'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung und kurzlebige Login-Weiterleitungen.',
             localStorage: local,
@@ -845,6 +994,7 @@
     window.ms365BrowserBackup = {
         KIND: KIND,
         VERSION: VERSION,
+        STORAGE_CATALOG: STORAGE_CATALOG,
         isAuthKey: isAuthKey,
         isAppStorageKey: isAppStorageKey,
         isBackupPayload: isBackupPayload,
@@ -852,6 +1002,8 @@
         listAppKeys: listAppKeys,
         collectLocalStorage: collectLocalStorage,
         collectSessionStorage: collectSessionStorage,
+        contentFingerprint: contentFingerprint,
+        notifyLocalDataChanged: notifyLocalDataChanged,
         buildBackup: buildBackup,
         syncStorageBeforeBackup: syncStorageBeforeBackup,
         buildInventory: buildInventory,

@@ -202,6 +202,7 @@ export async function runSessionPull(opts) {
                 remoteETag: item.eTag || item.cTag || remote.eTag || '',
                 remoteLastModified: item.lastModifiedDateTime || remote.lastModifiedDateTime || '',
                 remoteExportedAt: payload.exportedAt || '',
+                contentFingerprint: payload.contentFingerprint || '',
                 dirty: false,
                 pendingError: null
             };
@@ -230,8 +231,8 @@ export async function runSessionPull(opts) {
             saveLocalSyncMeta(syncMetaFromRemote);
 
             live.lastPullAt = syncMetaFromRemote.at;
-            setLive({ phase: 'idle', error: '', message: 'Stammdaten von SharePoint aktualisiert' });
-            toast('Stammdaten von SharePoint aktualisiert.');
+            setLive({ phase: 'idle', error: '', message: 'Schul-/App-Daten von SharePoint aktualisiert' });
+            toast('Schul-/App-Daten von SharePoint aktualisiert.');
 
             const reload = options.reloadOnApply !== false;
             if (reload) {
@@ -332,7 +333,9 @@ export function flushPush() {
         pushTimer = null;
     }
     if (!canRunNetworkSync()) return Promise.resolve({ skipped: true });
-    if (!isLocalDirty() && live.phase !== 'pushing') return Promise.resolve({ skipped: true });
+    if (!isLocalDirty() && !fingerprintChanged() && live.phase !== 'pushing') {
+        return Promise.resolve({ skipped: true });
+    }
     return runPush({ reason: 'flush' });
 }
 
@@ -342,6 +345,32 @@ function onTenantSettingsChanged(ev) {
     if (isAutoSyncIgnoredChangeSource(src)) return;
     if (!canRunNetworkSync()) return;
     schedulePush(PUSH_DEBOUNCE_MS);
+}
+
+function onLocalDataChanged(ev) {
+    const detail = (ev && ev.detail) || {};
+    const src = detail.source || '';
+    if (isAutoSyncIgnoredChangeSource(src)) return;
+    if (!canRunNetworkSync()) return;
+    schedulePush(PUSH_DEBOUNCE_MS);
+}
+
+function localFingerprint() {
+    try {
+        const bb = window.ms365BrowserBackup;
+        if (bb && typeof bb.contentFingerprint === 'function') return bb.contentFingerprint();
+    } catch {
+        /* ignore */
+    }
+    return '';
+}
+
+function fingerprintChanged() {
+    const meta = loadLocalSyncMeta();
+    const fp = localFingerprint();
+    if (!fp) return isLocalDirty();
+    if (!meta || !meta.contentFingerprint) return true;
+    return String(meta.contentFingerprint) !== String(fp);
 }
 
 function onAuthReady() {
@@ -369,6 +398,7 @@ export function start() {
     started = true;
 
     window.addEventListener('ms365-tenant-settings-changed', onTenantSettingsChanged);
+    window.addEventListener('ms365-local-data-changed', onLocalDataChanged);
     window.addEventListener('ms365-auth-widget-ready', onAuthReady);
     window.addEventListener('ms365-auth-state-changed', onAuthReady);
     document.addEventListener('visibilitychange', onVisibilityFlush);

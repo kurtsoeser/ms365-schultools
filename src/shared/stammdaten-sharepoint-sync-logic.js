@@ -12,7 +12,7 @@ export const DEFAULT_FOLDER = 'Backups';
 export const CURRENT_FILE = 'ms365-stammdaten-aktuell.json';
 export const IT_LIBRARY_TITLE = 'MS365-IT-Stammdaten';
 export const IT_LIBRARY_DESC =
-    'Nur IT/Verwaltung: Browser-Backup der MS365-Schulverwaltung (Stammdaten). Nicht öffentlich.';
+    'Nur IT/Verwaltung: vollständiges Browser-Backup der MS365-Schulverwaltung (Stammdaten, Automationen, Werkzeugstände). Nicht öffentlich.';
 
 /** SharePoint Standard-Rollen (RoleDefinitionId). */
 export const SPO_ROLE = {
@@ -62,9 +62,10 @@ export function encodeDriveRootPath(relativePath) {
  */
 export function designHintDe() {
     return (
-        'Stammdaten liegen als JSON in der eigenen IT-Bibliothek „' +
+        'Schul- und App-Daten liegen als vollständiges JSON-Backup in der eigenen IT-Bibliothek „' +
         IT_LIBRARY_TITLE +
         '“ (nicht in „Dokumente“ für alle). ' +
+        'Enthalten: Stammdaten, Power-Automate-/Freistellungs-Konfiguration und weitere Werkzeugstände. ' +
         'Rechte: Vererbung gebrochen, nur Site-Besitzer + gewählte IT-/Verwaltungsgruppe. ' +
         'Schüler-/Elternlisten bleiben bewusst keine SharePoint-Listenzeilen.'
     );

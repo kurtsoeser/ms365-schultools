@@ -107,6 +107,9 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (e) {}
+        if (global.ms365BrowserBackup && typeof global.ms365BrowserBackup.notifyLocalDataChanged === 'function') {
+            global.ms365BrowserBackup.notifyLocalDataChanged('pa-onboarding');
+        }
     }
 
     function escapeHtml(s) {

@@ -111,16 +111,35 @@ describe('browser-backup', () => {
         const payload = apiWithSchool.buildBackup(storeWithSchool, now);
         expect(apiWithSchool.isBackupPayload(payload)).toBe(true);
         expect(payload.kind).toBe('ms365-browser-backup-v1');
-        expect(payload.version).toBe(3);
+        expect(payload.version).toBe(4);
         expect(payload.exportedAt).toBe(now.toISOString());
         expect(payload.schoolName).toBe('BRG Muster');
         expect(payload.domain).toBe('brg-muster.at');
         expect(payload.keyCount).toBe(6);
+        expect(payload.contentFingerprint).toMatch(/^[0-9a-f]+:\d+$/);
+        expect(payload.includesNote).toMatch(/Power-Automate/);
         expect(Object.keys(payload.sessionStorage || {}).sort()).toEqual([
             'ms365-gaeste-verwalten-active-tab-v1',
             'ms365-gast-zugaenge-snapshot-v1'
         ]);
         expect(apiWithSchool.backupFilename(now, storeWithSchool)).toBe('ms365-browser-backup-2026-08-17-BRG_Muster.json');
+    });
+
+    it('nimmt Power-Automate-Konfiguration in den Export auf', () => {
+        const paStore = createMemoryStorage({
+            'ms365-schooltool-data-v2': JSON.stringify({ version: 4, core: { schoolName: 'Test', domain: 't.at' } }),
+            'ms365-freistellung-setup-v1': JSON.stringify({ siteUrl: 'https://schule.sharepoint.com/sites/Intranet', emailMailbox: 'automate@t.at' }),
+            'ms365-pa-termine-sync-v1': JSON.stringify({ mailboxSchool: 'kalender@t.at' }),
+            'ms365-pa-done-freistellung': '1'
+        });
+        const paApi = loadBackup(paStore, sessionStore).ms365BrowserBackup;
+        const payload = paApi.buildBackup(paStore);
+        expect(payload.localStorage['ms365-freistellung-setup-v1'].emailMailbox).toBe('automate@t.at');
+        expect(payload.localStorage['ms365-pa-termine-sync-v1'].mailboxSchool).toBe('kalender@t.at');
+        expect(payload.localStorage['ms365-pa-done-freistellung']).toBe('1');
+        const inv = (payload.inventory && payload.inventory.categories) || [];
+        expect(inv.some((c) => /Power Automate/i.test(c.label))).toBe(true);
+        expect(typeof paApi.notifyLocalDataChanged).toBe('function');
     });
 
     it('stellt ein Backup 1:1 wieder her und räumt Ziel-Reste weg', () => {

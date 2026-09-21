@@ -221,6 +221,7 @@ export async function uploadCurrentBackup(opts) {
         remoteETag: (item && (item.eTag || item.cTag)) || '',
         remoteLastModified: (item && item.lastModifiedDateTime) || '',
         remoteExportedAt: (built.payload && built.payload.exportedAt) || '',
+        contentFingerprint: (built.payload && built.payload.contentFingerprint) || '',
         dirty: false,
         pendingError: null
     };
@@ -308,6 +309,7 @@ export async function downloadCurrentBackup(opts) {
         remoteETag: (cur && (cur.eTag || cur.cTag)) || '',
         remoteLastModified: (cur && cur.lastModifiedDateTime) || '',
         remoteExportedAt: (obj && obj.exportedAt) || '',
+        contentFingerprint: (obj && obj.contentFingerprint) || '',
         dirty: false,
         pendingError: null
     };

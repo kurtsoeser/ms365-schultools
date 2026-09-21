@@ -689,72 +689,21 @@
         @media (max-width: 720px) {
             .dashboard-tools { padding: 22px 14px 16px; }
         }
-        .dashboard-setup-hint {
-            margin: 0 0 16px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(94, 114, 228, 0.28);
-            background: rgba(94, 114, 228, 0.07);
-            color: #32325d;
-            line-height: 1.45;
-        }
-        .dashboard-setup-hint p {
-            margin: 0 0 10px;
-        }
-        .dashboard-setup-hint__actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 10px;
-            align-items: center;
-        }
-        .dashboard-setup-hint .btn {
-            margin: 0;
-        }
-        .dashboard-setup-hint .btn-ghost,
         .dash-task--hero .btn-ghost {
             background: transparent;
-            border: 1px solid rgba(94, 114, 228, 0.28);
-            color: #3d4db8;
-        }
-        .dashboard-setup-hint .btn-ghost:hover {
-            background: rgba(94, 114, 228, 0.1);
-        }
-        .dash-task--hero .btn-ghost {
-            border-color: rgba(255, 255, 255, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.35);
             color: rgba(255, 255, 255, 0.95);
         }
         .dash-task--hero .btn-ghost:hover {
             background: rgba(255, 255, 255, 0.12);
             color: #fff;
         }
-        .dashboard-setup-resume {
-            margin: 0 0 16px;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 1px dashed rgba(94, 114, 228, 0.28);
-            background: rgba(255, 255, 255, 0.45);
-            color: var(--task-muted, #5c6578);
-            font-size: 0.92em;
-            line-height: 1.45;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 14px;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .dashboard-setup-resume p {
-            margin: 0;
-            flex: 1;
-            min-width: min(100%, 220px);
-        }
-        .dashboard-setup-resume__actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-        }
-        .dashboard-setup-resume .btn {
-            margin: 0;
+        /* display:* auf Karten/Buttons überschreibt sonst das HTML-hidden-Attribut */
+        .dashboard-empty-state[hidden],
+        .dash-task--hero[hidden],
+        .dash-demo-banner[hidden],
+        .dashboard-head-link[hidden] {
+            display: none !important;
         }
 
         .dashboard-tasks {
@@ -1461,6 +1410,9 @@
                             <a class="dashboard-head-link" href="tenant.html" title="Schul-Stammdaten öffnen">
                                 <i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Stammdaten
                             </a>
+                            <a class="dashboard-head-link dashboard-head-link--ghost" id="dashHeadSetupLink" href="einrichtung.html" hidden title="Geführte Einrichtung öffnen">
+                                <i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Einrichtung
+                            </a>
                             <label class="dash-demo-switch" id="dashDemoSwitchWrap" title="Beispieldaten der MS365 Musterschule laden – zum Ausprobieren aller Werkzeuge">
                                 <span class="dash-demo-switch__label">Demo-Daten</span>
                                 <input type="checkbox" id="dashDemoSwitch" role="switch" aria-checked="false" aria-label="Demo-Modus mit Beispieldaten der MS365 Musterschule">
@@ -1476,20 +1428,6 @@
                             <button type="button" class="btn btn-ghost" id="dashEmptyImportBackup"><i class="bi bi-upload"></i>Backup importieren</button>
                         </div>
                     </div>
-                    <div class="dashboard-setup-hint" id="dashSetupHint" hidden>
-                        <p><strong>Einrichtung noch nicht abgeschlossen.</strong> Die geführte Einrichtung hilft beim Start – Sie müssen nicht alle Schritte nutzen. Bei Bedarf können Sie den Hinweis ausblenden.</p>
-                        <div class="dashboard-setup-hint__actions">
-                            <a class="btn" href="einrichtung.html"><i class="bi bi-rocket-takeoff"></i>Zur Einrichtung</a>
-                            <button type="button" class="btn btn-ghost" id="dashSetupDismissHint" title="Hinweis ausblenden">Ausblenden</button>
-                        </div>
-                    </div>
-                    <div class="dashboard-setup-resume" id="dashSetupResume" hidden>
-                        <p>Einrichtungs-Hinweis ausgeblendet. Bei Bedarf jederzeit weiterführen.</p>
-                        <div class="dashboard-setup-resume__actions">
-                            <a class="btn btn-sm" href="einrichtung.html"><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Einrichtung öffnen</a>
-                            <button type="button" class="btn btn-sm btn-ghost" id="dashSetupShowAgain">Hinweis wieder anzeigen</button>
-                        </div>
-                    </div>
                 </div>
                 <div class="dash-task-grid">
                     <section class="dash-task dash-task--hero" id="dashTaskSetup" data-accent="setup" data-context-tip="task-setup" hidden>
@@ -1498,13 +1436,13 @@
                             <span class="dash-task-index">Start</span>
                         </div>
                         <div class="dash-task--hero-body">
-                            <p class="dash-task--hero-badge"><i class="bi bi-1-circle-fill" aria-hidden="true"></i> Hier beginnen</p>
+                            <p class="dash-task--hero-badge"><i class="bi bi-stars" aria-hidden="true"></i> Empfohlen zum Start</p>
                             <h3>Schule einrichten</h3>
-                            <p>Noch nicht fertig eingerichtet? Starten Sie hier: bei Microsoft anmelden, Domain setzen und die wichtigsten Listen anlegen – danach greifen alle anderen Werkzeuge. Nicht jede Schule braucht jeden Schritt.</p>
+                            <p>Domain setzen und die wichtigsten Listen anlegen – danach arbeiten Sie mit den Kacheln darunter weiter. Nicht jeder Schritt ist nötig; Sie können den Hinweis jederzeit ausblenden.</p>
                         </div>
                         <div class="dash-task-links">
-                            <a class="dash-task-link dash-task-link--primary" href="einrichtung.html">Einrichtung starten <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-                            <button type="button" class="btn btn-ghost" id="dashSetupDismissHero" title="Diesen Hinweis ausblenden">Später / ausblenden</button>
+                            <a class="dash-task-link dash-task-link--primary" href="einrichtung.html">Jetzt starten <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                            <button type="button" class="btn btn-ghost" id="dashSetupDismissHero" title="Hinweis ausblenden">Ausblenden</button>
                         </div>
                     </section>
                     <section class="dash-task" data-accent="unterricht" id="dashTaskUnterricht" data-context-tip="task-unterricht">
@@ -1828,6 +1766,11 @@
                                 <p>Erziehungsberechtigte Schülern zuordnen und Klassen-/Jahrgangs-Verteilerlisten erzeugen (GAL ohne sichtbare Elternmails).</p>
                                 <a class="btn" href="tools/eltern-verteiler.html"><i class="bi bi-people-fill"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Elternsprechtag Bookings" data-tool-id="elternsprechtag-bookings" data-cluster="kommunikation" data-search="elternsprechtag bookings microsoft buchung lehrer dienst mitarbeiter 10 minuten sprechtag" draggable="true">
+                                <h2><i class="bi bi-calendar2-heart"></i>Elternsprechtag (Bookings)</h2>
+                                <p>Bookings-Grundanlage: eine Umgebung, ein 10‑Min-Dienst, alle Lehrkräfte als Mitarbeiter – Feinschliff im Bookings-Portal.</p>
+                                <a class="btn" href="tools/elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Öffnen</a>
+                            </section>
                         </div>
                     </section>
                 </div>
@@ -2043,6 +1986,7 @@
                 'postfaecher',
                 'verteilerlisten',
                 'eltern-verteiler',
+                'elternsprechtag-bookings',
                 'sharepoint-intranet-hub',
                 'sharepoint-liste-lehrer',
                 'sharepoint-liste-schultermine',
@@ -2476,9 +2420,8 @@
             const elClasses = document.getElementById('tenantStatClasses');
             const elYear = document.getElementById('tenantStatYear');
             const elDomain = document.getElementById('tenantStatDomain');
-            const elSetupHint = document.getElementById('dashSetupHint');
             const elTaskSetup = document.getElementById('dashTaskSetup');
-            const elSetupResume = document.getElementById('dashSetupResume');
+            const elHeadSetupLink = document.getElementById('dashHeadSetupLink');
             const elEmptyState = document.getElementById('dashEmptyState');
             const elDemoBanner = document.getElementById('dashDemoBanner');
             const elDemoSwitch = document.getElementById('dashDemoSwitch');
@@ -2517,21 +2460,21 @@
                 return false;
             }
 
-            function getSetupPromptPref() {
+            function isSetupPromptDismissed() {
                 try {
-                    return String(localStorage.getItem(SETUP_PROMPT_KEY) || '').trim();
+                    return localStorage.getItem(SETUP_PROMPT_KEY) === '1';
                 } catch {
-                    return '';
+                    return false;
                 }
             }
 
-            function setSetupPromptPref(value) {
+            function dismissSetupPrompt() {
                 try {
-                    if (value) localStorage.setItem(SETUP_PROMPT_KEY, String(value));
-                    else localStorage.removeItem(SETUP_PROMPT_KEY);
+                    localStorage.setItem(SETUP_PROMPT_KEY, '1');
                 } catch {
                     /* ignore */
                 }
+                render();
             }
 
             /** Schule hat schon brauchbare Listen – Banner muss nicht dauerhaft bleiben. */
@@ -2552,17 +2495,12 @@
                 return !!((domain || schoolName) && (listBuckets >= 2 || listRows >= 8));
             }
 
+            /** Großes Start-Banner nur einmal am Anfang – nicht parallel zu Statuszeilen. */
             function shouldShowSetupPrompt(s, demo) {
                 if (demo || setupFinished()) return false;
-                const pref = getSetupPromptPref();
-                if (pref === 'force') return true;
-                if (pref === '1') return false;
+                if (isSetupPromptDismissed()) return false;
                 if (hasSubstantialSchoolData(s)) return false;
                 return true;
-            }
-
-            function isSetupPromptDismissedManually() {
-                return getSetupPromptPref() === '1';
             }
 
             function readAppContainer() {
@@ -2790,7 +2728,7 @@
                 const hasData = hasMeaningfulTenantData(s);
                 const showSetup = shouldShowSetupPrompt(s, demo);
                 const showEmpty = !hasData && !demo;
-                const showResume = !demo && !showEmpty && !setupFinished() && !showSetup;
+                const showHeadSetup = !demo && !showEmpty && !setupFinished();
 
                 if (elDemoBanner) elDemoBanner.hidden = !demo;
                 if (elDemoSwitch) {
@@ -2799,19 +2737,8 @@
                 }
                 if (elDemoSwitchWrap) elDemoSwitchWrap.classList.toggle('is-active', demo);
                 if (elEmptyState) elEmptyState.hidden = !showEmpty;
-                if (elSetupHint) elSetupHint.hidden = !showSetup || showEmpty;
                 if (elTaskSetup) elTaskSetup.hidden = !showSetup || showEmpty;
-                if (elSetupResume) {
-                    elSetupResume.hidden = !showResume;
-                    if (showResume) {
-                        const resumeText = elSetupResume.querySelector('p');
-                        if (resumeText) {
-                            resumeText.textContent = isSetupPromptDismissedManually()
-                                ? 'Einrichtungs-Hinweis ausgeblendet. Bei Bedarf jederzeit weiterführen.'
-                                : 'Einrichtung läuft im Hintergrund – die großen Hinweise sind ausgeblendet, weil schon Schuldaten vorhanden sind.';
-                        }
-                    }
-                }
+                if (elHeadSetupLink) elHeadSetupLink.hidden = !showHeadSetup;
                 if (elStandEmptyNote) elStandEmptyNote.hidden = !showEmpty;
                 if (elStandHygieneWrap) elStandHygieneWrap.hidden = !shouldShowHygieneTeaser();
                 if (elStandHygieneBtn) elStandHygieneBtn.hidden = !shouldShowHygieneTeaser();
@@ -2894,22 +2821,8 @@
                 });
             }
 
-            function dismissSetupPrompt() {
-                setSetupPromptPref('1');
-                render();
-            }
-
-            const btnDismissHint = document.getElementById('dashSetupDismissHint');
-            if (btnDismissHint) btnDismissHint.addEventListener('click', dismissSetupPrompt);
             const btnDismissHero = document.getElementById('dashSetupDismissHero');
             if (btnDismissHero) btnDismissHero.addEventListener('click', dismissSetupPrompt);
-            const btnShowAgain = document.getElementById('dashSetupShowAgain');
-            if (btnShowAgain) {
-                btnShowAgain.addEventListener('click', function () {
-                    setSetupPromptPref('force');
-                    render();
-                });
-            }
 
             if (location.hash === '#start-demo') {
                 const tryDemo = setInterval(function () {

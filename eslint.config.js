@@ -25,7 +25,9 @@ export default [
                 ...globals.browser,
                 ...globals.node,
                 /** SheetJS aus CDN (xlsx.full.min.js), mehrere Tools */
-                XLSX: 'readonly'
+                XLSX: 'readonly',
+                /** JSZip aus CDN (jszip.min.js), z. B. Freistellung-Setup */
+                JSZip: 'readonly'
             }
         },
         rules: {

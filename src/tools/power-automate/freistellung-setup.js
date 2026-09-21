@@ -53,6 +53,9 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
         } catch (e) {}
+        if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.notifyLocalDataChanged === 'function') {
+            window.ms365BrowserBackup.notifyLocalDataChanged('freistellung-setup');
+        }
     }
 
     function readForm() {
@@ -445,6 +448,9 @@
                     if (doneBox.checked) localStorage.setItem('ms365-pa-done-freistellung', '1');
                     else localStorage.removeItem('ms365-pa-done-freistellung');
                 } catch (e2) {}
+                if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.notifyLocalDataChanged === 'function') {
+                    window.ms365BrowserBackup.notifyLocalDataChanged('freistellung-done');
+                }
             });
         }
         ['frSiteUrl', 'frListName', 'frListId', 'frEmailDirektion', 'frEmailSonder', 'frEmailMailbox', 'frFlowName'].forEach(

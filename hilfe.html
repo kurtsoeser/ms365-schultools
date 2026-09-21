@@ -366,6 +366,7 @@
                                 <li><a href="#tool-postfaecher">Postfächer</a></li>
                                 <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
                                 <li><a href="#tool-eltern-verteiler">Eltern-Verteiler</a></li>
+                                <li><a href="#tool-elternsprechtag-bookings">Elternsprechtag (Bookings)</a></li>
                                 <li><a href="#tool-intranet">Schul-Intranet</a></li>
                                 <li><a href="#tool-gruppenerstellung">Wer darf Teams anlegen</a></li>
                                 <li><a href="#tool-schulstruktur">Gruppenverwaltung</a></li>
@@ -410,6 +411,7 @@
                                     <li><a href="#tool-postfaecher">Postfächer</a></li>
                                     <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
                                     <li><a href="#tool-eltern-verteiler">Eltern-Verteiler</a></li>
+                                    <li><a href="#tool-elternsprechtag-bookings">Elternsprechtag (Bookings)</a></li>
                                     <li><a href="#tool-intranet">Schul-Intranet</a></li>
                                     <li><a href="#tool-gruppenerstellung">Wer darf Teams anlegen</a></li>
                                     <li><a href="#tool-schulstruktur">Gruppenverwaltung</a></li>
@@ -964,6 +966,29 @@
                         </div>
                         <p class="help-open"><a href="tools/eltern-verteiler.html">→ Eltern-Verteiler öffnen</a></p>
                     </article>
+
+                    <article class="help-article" data-help-article data-search="elternsprechtag bookings microsoft buchung lehrer dienst mitarbeiter sprechtag">
+                        <h3 id="tool-elternsprechtag-bookings">Elternsprechtag (Bookings) <span class="pill">Graph</span></h3>
+                        <p>
+                            Legt per Microsoft Graph eine Bookings-Umgebung an (oder nutzt eine bestehende):
+                            <strong>ein Dienst</strong> (z. B. 10 Minuten) und alle ausgewählten Lehrkräfte als Mitarbeiter.
+                            Eltern wählen die Lehrkraft auf der Buchungsseite. Feinschliff (Fragen, Branding, einzelne Zeiten)
+                            danach unter <a href="https://bookings.cloud.microsoft/bookings/homepage" target="_blank" rel="noopener">bookings.cloud.microsoft</a>.
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Entra: delegierte Berechtigung <code>Bookings.ReadWrite.All</code> + Administratorzustimmung.</li>
+                                <li>Sprechtag (ein Tag), Freischalt-Datum und Zeitfenster setzen; Lehrkräfte auswählen.</li>
+                                <li>Grundanlage starten – danach erscheint der öffentliche Buchungslink zum Kopieren.</li>
+                            </ol>
+                        </div>
+                        <div class="rec">
+                            Der Dienst ist nur am gewählten Kalendertag buchbar (<code>customAvailabilities</code>).
+                            Vor dem Freischalt-Datum sind noch keine Termine sichtbar; der Link darf trotzdem schon verteilt werden.
+                            Bookings muss im Tenant lizenziert/freigeschaltet sein.
+                        </div>
+                        <p class="help-open"><a href="tools/elternsprechtag-bookings.html">→ Elternsprechtag (Bookings) öffnen</a></p>
+                    </article>
                 </section>
 
                 <section class="help-section" data-help-section aria-labelledby="website">
@@ -1131,9 +1156,11 @@
                             Eigene IT-Dokumentbibliothek <code>MS365-IT-Stammdaten</code> auf der Intranet-Site:
                             Vererbung wird gebrochen, Site-Besucher und -Mitglieder verlieren den Zugriff,
                             die gewählte IT-/Verwaltungsgruppe erhält Mitwirken (Contribute).
-                            Darin liegt das Browser-Backup als JSON (<code>Backups/ms365-stammdaten-aktuell.json</code>).
+                            Darin liegt das vollständige Browser-Backup als JSON (<code>Backups/ms365-stammdaten-aktuell.json</code>):
+                            Stammdaten, Power-Automate-/Freistellungs-Konfiguration und weitere Werkzeugstände
+                            (alle lokalen Schlüssel mit Präfix <code>ms365-</code> / <code>webuntis-</code>).
                             Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt.
-                            Nach der Einrichtung laden Dashboard und Stammdaten-Seite die Datei nach der Anmeldung automatisch
+                            Nach der Einrichtung laden Dashboard und relevante Tool-Seiten die Datei nach der Anmeldung automatisch
                             und sichern lokale Änderungen wieder nach SharePoint (manuelle Buttons bleiben verfügbar).
                         </p>
                         <div class="mini-steps">

@@ -73,7 +73,7 @@ async function runUpload(btns) {
         return;
     }
     const ok = await confirmAsync(
-        'Aktuelle Stammdaten (Browser-Backup) jetzt in die SharePoint-IT-Bibliothek „' +
+        'Aktuelle Schul- und App-Daten (vollständiges Browser-Backup inkl. Stammdaten, Power Automate und Werkzeugstände) jetzt in die SharePoint-IT-Bibliothek „' +
             (loadItMeta().listTitle || IT_LIBRARY_TITLE) +
             '“ schreiben?',
         { title: 'Nach SharePoint sichern', confirmLabel: 'Sichern', cancelLabel: 'Abbrechen' }
@@ -83,7 +83,7 @@ async function runUpload(btns) {
     try {
         await uploadCurrentBackup({ folder: DEFAULT_FOLDER, keepDated: false });
         refreshStatus();
-        toast('Stammdaten in SharePoint gesichert.');
+        toast('Schul-/App-Daten in SharePoint gesichert.');
     } catch (e) {
         if (e && e.code === 'IT_LIBRARY_MISSING') {
             goToSetup(e.message);

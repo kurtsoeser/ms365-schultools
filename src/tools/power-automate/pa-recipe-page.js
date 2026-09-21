@@ -36,6 +36,9 @@
         try {
             localStorage.setItem(key, JSON.stringify(cfg));
         } catch (e) {}
+        if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.notifyLocalDataChanged === 'function') {
+            window.ms365BrowserBackup.notifyLocalDataChanged('power-automate', { key: key });
+        }
     }
 
     function doneKey(recipe) {
@@ -73,6 +76,9 @@
                 localStorage.setItem(KEY, JSON.stringify(s));
             }
         } catch (e2) {}
+        if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.notifyLocalDataChanged === 'function') {
+            window.ms365BrowserBackup.notifyLocalDataChanged('power-automate-done', { recipeId: recipe && recipe.id });
+        }
     }
 
     function log(msg) {
