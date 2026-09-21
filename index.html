@@ -1720,8 +1720,8 @@
                 <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-website" aria-labelledby="dash-tab-website" hidden>
                     <section class="dashboard-cluster" aria-labelledby="dash-cluster-website">
                         <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-website"><i class="bi bi-house-door" aria-hidden="true"></i>Schulwebsite &amp; Listen</h3>
-                            <p>Zentrale Schul-Website und Listen für Lehrkräfte und Termine.</p>
+                            <h3 id="dash-cluster-website"><i class="bi bi-house-door" aria-hidden="true"></i>Schulwebsite, Listen &amp; Automationen</h3>
+                            <p>Intranet, Listen und Power-Automate-Tools – jedes Rezept ist einzeln ausführbar.</p>
                         </header>
                         <div class="grid" data-cluster-grid="website" role="list" aria-label="Schulwebsite und Listen">
                             <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="website" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint formulare medien" draggable="true">
@@ -1739,10 +1739,50 @@
                                 <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Schule / Lehrer / beide).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Power-Automate-Rezepte" data-tool-id="power-automate-rezepte" data-cluster="website" data-search="power automate flow rezept schultermine forms genehmigung schilf" draggable="true">
-                                <h2><i class="bi bi-lightning-charge"></i>Power-Automate-Rezepte</h2>
-                                <p>Baupläne: Termine→Kalender, Forms→Liste, Seminare, Gast-Hygiene, Diplom-Ordner, Schilf.</p>
-                                <a class="btn" href="tools/power-automate-rezepte.html"><i class="bi bi-lightning-charge"></i>Öffnen</a>
+                            <section class="choice" role="listitem" aria-label="Power Platform Erst-Setup" data-tool-id="pa-erst-setup" data-cluster="website" data-search="power platform erst setup dataverse environment maker einrichtung schule anfänger" draggable="true">
+                                <h2><i class="bi bi-signpost-2"></i>Power Platform Erst-Setup</h2>
+                                <p>Für Schulen ohne Erfahrung: Environment, Maker-Rechte, Hinweis Postfach pro Workflow – Schritt für Schritt.</p>
+                                <a class="btn" href="tools/pa-erst-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Freistellungen Setup" data-tool-id="freistellung-setup" data-cluster="website" data-search="freistellung genehmigung power automate sharepoint kv direktion flow paket" draggable="true">
+                                <h2><i class="bi bi-person-check"></i>Freistellungen</h2>
+                                <p>Liste anlegen und Flow-Paket (KV + Direktion) für den Ziel-Tenant parametrieren.</p>
+                                <a class="btn" href="tools/freistellung-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schultermine Kalender-Sync" data-tool-id="pa-termine-sync" data-cluster="website" data-search="power automate schultermine kalender outlook sync flow" draggable="true">
+                                <h2><i class="bi bi-calendar-event"></i>Termine → Kalender</h2>
+                                <p>Flow: SharePoint-Schultermine nach Outlook (Schul-/Lehrerkalender) synchronisieren.</p>
+                                <a class="btn" href="tools/pa-termine-sync.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Forms Anträge" data-tool-id="pa-antraege" data-cluster="website" data-search="power automate forms anträge genehmigung sharepoint liste" draggable="true">
+                                <h2><i class="bi bi-ui-checks"></i>Forms → Anträge</h2>
+                                <p>Antragsliste anlegen und Flow Forms → Genehmigung einrichten.</p>
+                                <a class="btn" href="tools/pa-antraege.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Seminar Fortbildung" data-tool-id="pa-seminar" data-cluster="website" data-search="power automate seminar fortbildung warteliste anmeldung" draggable="true">
+                                <h2><i class="bi bi-mortarboard"></i>Seminar / Fortbildung</h2>
+                                <p>Anmeldeliste mit Plätzen, Warteliste und Bestätigungsmail.</p>
+                                <a class="btn" href="tools/pa-seminar.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Gast-Erinnerung Flow" data-tool-id="pa-gast-erinnerung" data-cluster="website" data-search="power automate gast gäste erinnerung hygiene flow" draggable="true">
+                                <h2><i class="bi bi-person-exclamation"></i>Gast-Erinnerung</h2>
+                                <p>Periodischen Flow für inaktive Gäste vorbereiten (ergänzt Gäste-Tool).</p>
+                                <a class="btn" href="tools/pa-gast-erinnerung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Diplom-Ordner Flow" data-tool-id="pa-diplom-ordner" data-cluster="website" data-search="power automate diplom ordner dipl team flow" draggable="true">
+                                <h2><i class="bi bi-folder-plus"></i>Diplom-Ordner</h2>
+                                <p>Flow: bei dipl-*-Teams Vorlagenordner und Willkommensnachricht.</p>
+                                <a class="btn" href="tools/pa-diplom-ordner.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schilf Checkliste" data-tool-id="pa-schilf" data-cluster="website" data-search="schilf kalender favoriten checkliste fortbildung" draggable="true">
+                                <h2><i class="bi bi-bookmark-star"></i>Schilf-Checkliste</h2>
+                                <p>Kalender abonnieren, Favoriten, Zielgruppen – für die Schilf.</p>
+                                <a class="btn" href="tools/pa-schilf.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Power-Automate Übersicht" data-tool-id="power-automate-rezepte" data-cluster="website" data-search="power automate flow rezept übersicht alle automationen" draggable="true">
+                                <h2><i class="bi bi-collection"></i>Automationen-Übersicht</h2>
+                                <p>Alle Power-Automate-Tools auf einen Blick (Status &amp; Links).</p>
+                                <a class="btn" href="tools/power-automate-rezepte.html"><i class="bi bi-collection"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1839,6 +1879,8 @@
     <script src="src/shared/tenant-settings-core.js" defer></script>
     <script src="src/shared/tenant-settings-ui.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
+    <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
+    <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script type="module" src="src/shared/membership-hygiene.js"></script>
     <script type="module" src="src/shared/membership-hygiene-dashboard.js"></script>
     <script type="module">
@@ -1889,6 +1931,14 @@
                 'sharepoint-intranet-hub',
                 'sharepoint-liste-lehrer',
                 'sharepoint-liste-schultermine',
+                'pa-erst-setup',
+                'freistellung-setup',
+                'pa-termine-sync',
+                'pa-antraege',
+                'pa-seminar',
+                'pa-gast-erinnerung',
+                'pa-diplom-ordner',
+                'pa-schilf',
                 'power-automate-rezepte',
                 'gruppenerstellung',
                 'sharepoint-mandant-website',

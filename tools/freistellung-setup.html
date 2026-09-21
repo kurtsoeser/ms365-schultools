@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schulverwaltung – Freistellungen Setup</title>
+    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-person-check"></i>Freistellungen Setup</span>
+            </div>
+            <p>Für Schulen gedacht: erst vorbereiten, dann Liste, dann Flow importieren – ohne Solutions-Vorkenntnisse.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-freistellung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a>
+                <a class="btn" href="power-automate-rezepte.html"><i class="bi bi-collection"></i>Übersicht</a>
+                <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-person-check"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">3 Phasen</p>
+                    <h2>Freistellung KV + Direktion</h2>
+                    <p id="frPhaseHint">Phase 1 vorbereiten → Phase 2 Liste → Phase 3 Flow importieren.</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites.ReadWrite.All</span>
+                </div>
+            </section>
+
+            <section class="tm-panel" id="frPhase1">
+                <div class="tm-panel__head">
+                    <i class="bi bi-1-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Phase 1 – Schule vorbereiten</h3>
+                        <p>Phase 1: Environment &amp; Rechte (Postfächer erst im jeweiligen Tool). <a href="pa-erst-setup.html">Große Ansicht</a></p>
+                    </div>
+                </div>
+                <div id="paOnboardingHost"></div>
+            </section>
+
+            <section class="tm-panel" id="frPhase2">
+                <div class="tm-panel__head">
+                    <i class="bi bi-2-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Phase 2 – Einstellungen &amp; Liste</h3>
+                        <p>Werte dieser Schule eintragen und SharePoint-Liste anlegen (wir machen das für Sie).</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="frSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="frSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Administration" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="frListName">Listenname</label>
+                    <input type="text" id="frListName" value="Freistellungen" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="frListId">Listen-ID <span class="muted">(optional – leer = anlegen/suchen)</span></label>
+                    <input type="text" id="frListId" placeholder="wird nach „Liste anlegen“ befüllt" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="frEmailDirektion">Direktion (2. Genehmiger + Sonderfall „KV = Direktion“)</label>
+                    <input type="email" id="frEmailDirektion" placeholder="direktion@schule.at" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="frEmailSonder">Sondergenehmigung, wenn KV = Direktion</label>
+                    <input type="email" id="frEmailSonder" placeholder="vertretung@schule.at" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="frEmailMailbox">Freigegebenes Postfach <em>nur für Freistellungs-Mails</em></label>
+                    <input type="email" id="frEmailMailbox" placeholder="z. B. freistellung@schule.at oder automate@schule.at" autocomplete="off" spellcheck="false">
+                    <p class="muted" style="margin:6px 0 0;font-size:0.88em;">Andere Flows (Kalender, Anträge, …) haben eigene Postfach-Felder in ihrem Tool – nicht dasselbe wie hier.</p>
+                </div>
+                <div class="tm-field">
+                    <label for="frFlowName">Flow-Anzeigename</label>
+                    <input type="text" id="frFlowName" value="Freistellungen - Genehmigungsprozess" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="frBtnSave"><i class="bi bi-save"></i>Speichern</button>
+                    <button type="button" class="btn btn-success" id="frBtnList"><i class="bi bi-list-ul"></i>Liste anlegen / prüfen</button>
+                </div>
+                <details class="tm-tech" style="margin-top:14px;">
+                    <summary>Protokoll</summary>
+                    <div id="frLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+            </section>
+
+            <section class="tm-panel" id="frPhase3">
+                <div class="tm-panel__head">
+                    <i class="bi bi-3-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Phase 3 – Flow-Paket &amp; Import</h3>
+                        <p>ZIP herunterladen, dann die Klicks unten – ohne Fachchinesisch.</p>
+                    </div>
+                </div>
+                <div class="tm-actions" style="margin-bottom:14px;">
+                    <button type="button" class="btn btn-success" id="frBtnPackage"><i class="bi bi-download"></i>Flow-Paket herunterladen</button>
+                    <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate öffnen</a>
+                </div>
+                <ol class="pa-import-steps" style="margin:0;padding-left:1.2em;line-height:1.6;">
+                    <li>In Power Automate links <strong>Meine Flows</strong> öffnen.</li>
+                    <li>Oben <strong>Importieren</strong> → <strong>Import Package (Legacy)</strong> wählen.</li>
+                    <li>Das eben heruntergeladene ZIP hochladen.</li>
+                    <li>Bei jeder Connection (SharePoint, Approvals, Outlook): <strong>Auswählen</strong> → Konto der Schule verbinden (oder vorhandene Connection).</li>
+                    <li>Import abschließen, den Flow öffnen und <strong>Einschalten</strong> (Toggle).</li>
+                    <li>Test: in der Freistellungsliste ein Testelement anlegen und die Genehmigung prüfen.</li>
+                </ol>
+                <p class="muted" style="margin:12px 0 0;font-size:0.9em;line-height:1.45;">
+                    Später (wenn ihr Solutions nutzt): derselbe Ablauf, nur über <em>Solutions → Importieren</em> und dann Environment Variables setzen.
+                    Für den Start reicht das Legacy-Paket aus diesem Tool.
+                </p>
+                <label class="checkbox-label" style="display:block;margin-top:14px;">
+                    <input type="checkbox" id="frDone"> Flow in unserer Schule aktiv / importiert
+                </label>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    <div>
+                        <h3>Was der Flow macht</h3>
+                        <p>Kurz zur Kontrolle – Details ändern sich nur über die E-Mails oben.</p>
+                    </div>
+                </div>
+                <ul style="margin:0;padding-left:1.2em;line-height:1.55;">
+                    <li>Trigger: neues Element in der Freistellungsliste.</li>
+                    <li>Wenn Klassenvorstand = Direktion → nur Sondergenehmigung (eine Person).</li>
+                    <li>Sonst sequentiell: Klassenvorstand, dann Direktion.</li>
+                    <li>Status in SharePoint + Mail aus dem freigegebenen Postfach.</li>
+                </ul>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="../src/tools/power-automate/pa-school-onboarding.js"></script>
+    <script src="../src/tools/power-automate/freistellung-setup.js" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ms365PaOnboarding) return;
+            function hint(p) {
+                var el = document.getElementById('frPhaseHint');
+                if (!el || !p) return;
+                if (p.done >= p.total) {
+                    el.textContent = 'Vorbereitung fertig – weiter mit Liste und Flow-Import.';
+                } else {
+                    el.textContent =
+                        'Noch ' + (p.total - p.done) + ' Vorbereitungsschritt(e) – oder direkt Phase 2, wenn die IT schon eingerichtet hat.';
+                }
+            }
+            window.ms365PaOnboarding.mount('#paOnboardingHost', { compact: true, onChange: hint });
+            hint(window.ms365PaOnboarding.progress());
+        });
+    </script>
+</body>
+</html>

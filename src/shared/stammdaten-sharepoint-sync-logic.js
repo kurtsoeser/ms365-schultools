@@ -139,6 +139,98 @@ export function isItLibraryConfigured(meta) {
     return !!(meta && String(meta.driveId || '').trim());
 }
 
+/**
+ * Quellen von ms365-tenant-settings-changed, die keinen Auto-Push auslösen sollen.
+ * @param {string|undefined|null} sourceOrReason
+ */
+export function isAutoSyncIgnoredChangeSource(sourceOrReason) {
+    const s = String(sourceOrReason || '')
+        .trim()
+        .toLowerCase();
+    if (!s) return false;
+    return (
+        s === 'browser-backup-import' ||
+        s === 'spo-auto-pull' ||
+        s === 'spo-auto-push' ||
+        s === 'render' ||
+        s.indexOf('spo-auto-') === 0
+    );
+}
+
+/**
+ * Ob das SharePoint-Backup den lokalen Stand ersetzen soll (Session-Pull).
+ * Bei localDirty gewinnt lokal (zuerst pushen, nicht überschreiben).
+ *
+ * @param {{
+ *   remoteExists?: boolean,
+ *   remoteLastModified?: string,
+ *   remoteExportedAt?: string,
+ *   localDirty?: boolean,
+ *   localRemoteLastModified?: string,
+ *   localRemoteExportedAt?: string
+ * }} input
+ */
+export function shouldApplyRemoteBackup(input) {
+    const i = input || {};
+    if (!i.remoteExists) return { apply: false, reason: 'missing' };
+    if (i.localDirty) return { apply: false, reason: 'local-dirty' };
+    const remoteLm = String(i.remoteLastModified || '').trim();
+    const localLm = String(i.localRemoteLastModified || '').trim();
+    if (remoteLm && localLm && remoteLm === localLm) {
+        return { apply: false, reason: 'same-modified' };
+    }
+    const remoteEx = String(i.remoteExportedAt || '').trim();
+    const localEx = String(i.localRemoteExportedAt || '').trim();
+    if (remoteEx && localEx && remoteEx === localEx && remoteLm && localLm) {
+        return { apply: false, reason: 'same-export' };
+    }
+    if (!localLm && !localEx) return { apply: true, reason: 'never-synced' };
+    if (remoteLm && localLm && remoteLm > localLm) return { apply: true, reason: 'newer-modified' };
+    if (remoteEx && localEx && remoteEx > localEx) return { apply: true, reason: 'newer-export' };
+    if (remoteLm && !localLm) return { apply: true, reason: 'has-remote' };
+    return { apply: false, reason: 'local-current' };
+}
+
+/**
+ * Kurzer Sync-Status für die UI.
+ * @param {{
+ *   ready?: boolean,
+ *   phase?: string,
+ *   dirty?: boolean,
+ *   lastAt?: string,
+ *   lastDirection?: string,
+ *   error?: string,
+ *   libraryTitle?: string
+ * }} state
+ */
+export function formatSyncStatusDe(state) {
+    const s = state || {};
+    if (!s.ready) {
+        return (
+            'SharePoint-IT-Bibliothek noch nicht eingerichtet – Sichern/Einlesen öffnet die Ersteinrichtung.'
+        );
+    }
+    const bits = ['Bereit: „' + (s.libraryTitle || IT_LIBRARY_TITLE) + '“'];
+    const phase = String(s.phase || 'idle');
+    if (phase === 'pulling') bits.push('Lade von SharePoint …');
+    else if (phase === 'pushing') bits.push('Sichere nach SharePoint …');
+    else if (phase === 'error' && s.error) bits.push('Sync-Fehler: ' + s.error);
+    else if (s.dirty) bits.push('Änderungen ausstehend (Auto-Sync)');
+    else if (s.lastAt) {
+        const when = String(s.lastAt).replace('T', ' ').replace(/\.\d+Z$/, '');
+        const dir =
+            s.lastDirection === 'pull'
+                ? 'Zuletzt von SharePoint geladen'
+                : s.lastDirection === 'push'
+                  ? 'Zuletzt nach SharePoint gesichert'
+                  : 'Zuletzt synchronisiert';
+        bits.push(dir + ': ' + when);
+    } else {
+        bits.push('Noch kein Auto-Sync in dieser Sitzung');
+    }
+    return bits.join(' · ');
+}
+
 export default {
     DEFAULT_FOLDER,
     CURRENT_FILE,
@@ -152,5 +244,8 @@ export default {
     isBroadSiteAudience,
     entraGroupLogonName,
     buildItLibraryPlan,
-    isItLibraryConfigured
+    isItLibraryConfigured,
+    isAutoSyncIgnoredChangeSource,
+    shouldApplyRemoteBackup,
+    formatSyncStatusDe
 };

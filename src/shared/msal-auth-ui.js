@@ -588,6 +588,15 @@
                 };
             }
         }
+        try {
+            window.dispatchEvent(
+                new CustomEvent('ms365-auth-state-changed', {
+                    detail: { loggedIn: !!a, accountLabel: a ? accountLabel(a) : '' }
+                })
+            );
+        } catch {
+            /* ignore */
+        }
     }
 
     async function init() {

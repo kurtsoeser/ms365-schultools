@@ -62,8 +62,19 @@
         'sharepoint-liste-lehrer': 'Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website veröffentlichen.',
         'sharepoint-liste-schultermine':
             'Terminliste anlegen, Sync-Health prüfen und Termine per CSV importieren (Ziel Schule/Lehrer/beide).',
+        'pa-erst-setup':
+            'Hinweis: Postfächer sind pro Workflow (nicht eins für die ganze Schule). Environment, Maker-Rechte, dann jeweiliges Automations-Tool.',
+        'freistellung-setup':
+            'Freistellungsliste anlegen und Power-Automate-Paket (KV + Direktion) für den Ziel-Tenant parametrieren.',
+        'pa-termine-sync':
+            'Flow-Setup: SharePoint-Schultermine nach Outlook (Schul-/Lehrerkalender) synchronisieren.',
+        'pa-antraege': 'Antragsliste anlegen und Flow Forms → Genehmigung einrichten.',
+        'pa-seminar': 'Seminar-Anmeldeliste mit Plätzen/Warteliste und Flow-Bauplan.',
+        'pa-gast-erinnerung': 'Periodischen Flow für inaktive Gäste vorbereiten (ergänzt Gäste-Tool).',
+        'pa-diplom-ordner': 'Flow-Parameter: Vorlagenordner und Willkommenstext für dipl-*-Teams.',
+        'pa-schilf': 'Schilf-Checkliste: Schulkalender, Favoriten, Zielgruppen.',
         'power-automate-rezepte':
-            'Fertige Flow-Baupläne für Schulen: Kalender-Sync, Forms, Seminare, Gast-Hygiene, Diplom-Ordner, Schilf.',
+            'Übersicht aller Automations-Tools mit Status – jedes Rezept ist ein eigenes Tool.',
         gruppenerstellung:
             'Festlegen, wer an der Schule neue Teams in Microsoft 365 anlegen darf – verhindert Gruppen-Chaos.',
         'sharepoint-mandant-website': 'Regeln, ob und wie neue SharePoint-Websites an der Schule entstehen dürfen.',

@@ -2,6 +2,23 @@
     'use strict';
 
     async function getGraphToken(scopes) {
+        // Popup zuerst: Formulare bleiben erhalten (kein Seiten-Redirect).
+        if (typeof global.ms365AuthAcquireTokenPopup === 'function') {
+            try {
+                return await global.ms365AuthAcquireTokenPopup(scopes);
+            } catch (e) {
+                const msg = String((e && e.message) || e || '');
+                const code = String((e && (e.errorCode || e.code)) || '');
+                // Nutzer hat Popup geschlossen → nicht still auf Redirect umschalten.
+                if (
+                    /abgebrochen|cancelled|canceled|user_cancelled/i.test(msg) ||
+                    /user_cancelled/i.test(code)
+                ) {
+                    throw e;
+                }
+                // Popup blockiert o. Ä. → Redirect-Fallback (Formular wird von der Aufrufer-Seite gesichert).
+            }
+        }
         if (typeof global.ms365AuthAcquireToken === 'function') {
             return await global.ms365AuthAcquireToken(scopes);
         }

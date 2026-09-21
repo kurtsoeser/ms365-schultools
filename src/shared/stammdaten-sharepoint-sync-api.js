@@ -77,6 +77,25 @@ export function saveLocalSyncMeta(meta) {
     }
 }
 
+/**
+ * Lokale Änderungen als „noch nicht auf SharePoint“ markieren.
+ * @param {boolean} [dirty=true]
+ */
+export function setLocalDirty(dirty) {
+    const cur = loadLocalSyncMeta();
+    const next = Object.assign({}, cur, {
+        dirty: dirty !== false,
+        pendingError: dirty === false ? null : cur.pendingError || null
+    });
+    saveLocalSyncMeta(next);
+    return next;
+}
+
+export function isLocalDirty() {
+    const m = loadLocalSyncMeta();
+    return !!(m && m.dirty);
+}
+
 export function isReady() {
     return isItLibraryConfigured(loadItMeta());
 }
@@ -141,7 +160,7 @@ export async function listDriveFolder(driveId, folder, token) {
         encodeURIComponent(driveId) +
         '/' +
         enc +
-        '/children?$select=id,name,size,lastModifiedDateTime,webUrl,file&$orderby=lastModifiedDateTime desc&$top=50';
+        '/children?$select=id,name,size,lastModifiedDateTime,eTag,cTag,webUrl,file&$orderby=lastModifiedDateTime desc&$top=50';
     try {
         return await G.graphJson('GET', path, token, undefined, 'v1.0');
     } catch (e) {
@@ -192,12 +211,18 @@ export async function uploadCurrentBackup(opts) {
     const webUrl = (item && item.webUrl) || it.webUrl || '';
     const meta = {
         at: new Date().toISOString(),
+        direction: 'push',
         fileName: CURRENT_FILE,
         folder: folder,
         webUrl: webUrl,
         siteUrl: options.siteUrl || it.siteUrl || '',
         driveId: it.driveId,
-        summary: describeRemoteBackup(built.payload)
+        summary: describeRemoteBackup(built.payload),
+        remoteETag: (item && (item.eTag || item.cTag)) || '',
+        remoteLastModified: (item && item.lastModifiedDateTime) || '',
+        remoteExportedAt: (built.payload && built.payload.exportedAt) || '',
+        dirty: false,
+        pendingError: null
     };
     saveLocalSyncMeta(meta);
     try {
@@ -206,6 +231,33 @@ export async function uploadCurrentBackup(opts) {
         /* ignore */
     }
     return { item: item, meta: meta, payload: built.payload };
+}
+
+/**
+ * Metadaten der aktuellen Backup-Datei (ohne Inhalt).
+ * @param {{ folder?: string }} [opts]
+ * @returns {Promise<{ exists: boolean, id?: string, name?: string, lastModifiedDateTime?: string, eTag?: string, size?: number, webUrl?: string }>}
+ */
+export async function getCurrentBackupRemoteInfo(opts) {
+    const options = opts || {};
+    try {
+        const cur = await findCurrentBackupItem(options);
+        return {
+            exists: true,
+            id: cur.id,
+            name: cur.name,
+            lastModifiedDateTime: cur.lastModifiedDateTime || '',
+            eTag: cur.eTag || cur.cTag || '',
+            size: cur.size,
+            webUrl: cur.webUrl || ''
+        };
+    } catch (e) {
+        const msg = e && e.message ? String(e.message) : String(e);
+        if (/nicht gefunden|itemNotFound|404|not found/i.test(msg)) {
+            return { exists: false };
+        }
+        throw e;
+    }
 }
 
 /**
@@ -244,7 +296,25 @@ export async function downloadCurrentBackup(opts) {
     if (options.apply !== false) {
         bb.importPayload(obj);
     }
-    return { payload: obj, item: cur };
+    const meta = {
+        at: new Date().toISOString(),
+        direction: 'pull',
+        fileName: CURRENT_FILE,
+        folder: String(options.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER,
+        webUrl: (cur && cur.webUrl) || it.webUrl || '',
+        siteUrl: it.siteUrl || '',
+        driveId: it.driveId,
+        summary: describeRemoteBackup(obj),
+        remoteETag: (cur && (cur.eTag || cur.cTag)) || '',
+        remoteLastModified: (cur && cur.lastModifiedDateTime) || '',
+        remoteExportedAt: (obj && obj.exportedAt) || '',
+        dirty: false,
+        pendingError: null
+    };
+    if (options.apply !== false || options.recordMeta) {
+        saveLocalSyncMeta(meta);
+    }
+    return { payload: obj, item: cur, meta: meta };
 }
 
 export default {
@@ -253,6 +323,8 @@ export default {
     saveItMeta,
     loadLocalSyncMeta,
     saveLocalSyncMeta,
+    setLocalDirty,
+    isLocalDirty,
     isReady,
     setupPageHref,
     requireItLibrary,
@@ -260,6 +332,7 @@ export default {
     listDriveFolder,
     downloadDriveItem,
     uploadCurrentBackup,
+    getCurrentBackupRemoteInfo,
     findCurrentBackupItem,
     downloadCurrentBackup
 };

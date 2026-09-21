@@ -6,7 +6,7 @@
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schulverwaltung – Power-Automate-Rezepte</title>
+    <title>MS365-Schulverwaltung – Automationen-Übersicht</title>
     <link rel="stylesheet" href="../app.css?v=6">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -19,9 +19,13 @@
             display: grid;
             gap: 8px;
         }
-        .pa-card h3 { margin: 0; font-size: 1.05rem; }
-        .pa-card ol { margin: 0; padding-left: 1.2em; line-height: 1.5; }
+        .pa-card h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
         .pa-grid { display: grid; gap: 14px; }
+        @media (min-width: 720px) {
+            .pa-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .pa-status { font-size: 0.88em; }
+        .pa-status.is-done { color: var(--success, #0a7a3e); }
     </style>
 </head>
 <body>
@@ -30,137 +34,126 @@
             <h1>MS365-Schulverwaltung</h1>
             <div class="header-tool-indicator">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-lightning-charge"></i>Power-Automate-Rezepte</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>Automationen-Übersicht</span>
             </div>
-            <p>Bewährte Flow-Baupläne für Schulen – zum Nachbauen in Power Automate (kein automatischer Deploy).</p>
+            <p>Jedes Rezept ist ein eigenes Tool – hier der Überblick und Status.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-power-automate" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="sharepoint-liste-schultermine.html"><i class="bi bi-calendar3"></i>Schultermine</a>
+                <a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a>
                 <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate</a>
             </div>
         </div>
         <div class="content">
             <section class="tm-hero">
-                <div class="tm-hero__icon"><i class="bi bi-recipe"></i></div>
+                <div class="tm-hero__icon"><i class="bi bi-lightning-charge"></i></div>
                 <div>
-                    <p class="tm-hero__kicker">Schilf &amp; Betrieb</p>
-                    <h2>Rezeptbibliothek</h2>
-                    <p id="paProgress" class="muted" style="margin:0;">0 Rezepte markiert</p>
+                    <p class="tm-hero__kicker">Power Automate</p>
+                    <h2>Automationen</h2>
+                    <p id="paProgress" class="muted" style="margin:0;">…</p>
                 </div>
             </section>
             <section class="tm-panel">
-                <div class="pa-grid" id="paRecipes">
-                    <article class="pa-card" data-pa="termine">
-                        <h3>1. Schultermine → Outlook-Kalender</h3>
-                        <p class="muted">Liste „Schultermine“ → Event im Schul- und/oder Lehrerkalender; SyncStatus setzen.</p>
-                        <ol>
-                            <li>Trigger: Wenn ein Element erstellt/geändert wird (SharePoint).</li>
-                            <li>Bedingung: SyncStatus = pending oder leer.</li>
-                            <li>Aktion: Ereignis erstellen (Outlook) – ganztägig aus AllDay, sonst Beginn/Ende.</li>
-                            <li>OutlookEventID + SyncStatus=ok + LastSync speichern; bei Fehler SyncError füllen.</li>
-                            <li>Optional zweite Verzweigung für Ziel „Lehrer“ (eigene Mailbox/Gruppe).</li>
-                        </ol>
-                        <label class="checkbox-label"><input type="checkbox" data-pa-check="termine"> In unserer Schule umgesetzt</label>
-                        <a class="btn btn-sm" href="sharepoint-liste-schultermine.html">Schultermine-Tool</a>
-                    </article>
-                    <article class="pa-card" data-pa="formulare">
-                        <h3>2. Forms → SharePoint-Liste (Anträge)</h3>
-                        <p class="muted">Raumanträge, Exkursionen, Geräte – statt E-Mail-Chaos.</p>
-                        <ol>
-                            <li>Microsoft Forms für den Antrag anlegen.</li>
-                            <li>Flow: Bei neuer Antwort → Element in Liste „Anträge“ anlegen.</li>
-                            <li>Genehmigung (Approve/Reject) an Direktion/Verwaltung.</li>
-                            <li>Bei Genehmigung: optional Kalendereintrag oder Team-Nachricht.</li>
-                        </ol>
-                        <label class="checkbox-label"><input type="checkbox" data-pa-check="formulare"> In unserer Schule umgesetzt</label>
-                    </article>
-                    <article class="pa-card" data-pa="seminar">
-                        <h3>3. Seminar-/Fortbildungsliste</h3>
-                        <p class="muted">Anmeldung → Warteliste → Bestätigung an Lehrkraft.</p>
-                        <ol>
-                            <li>Liste oder Forms als Anmeldeque.</li>
-                            <li>Flow zählt Plätze; bei Überbuchung Status „Warteliste“.</li>
-                            <li>E-Mail an Teilnehmer:in + optional Adaptive Card in Teams.</li>
-                        </ol>
-                        <label class="checkbox-label"><input type="checkbox" data-pa-check="seminar"> In unserer Schule umgesetzt</label>
-                    </article>
-                    <article class="pa-card" data-pa="gast">
-                        <h3>4. Gast-Erinnerung (Hygiene)</h3>
-                        <p class="muted">Periodisch Gäste ohne Aktivität melden – ergänzt das Gäste-Tool.</p>
-                        <ol>
-                            <li>Geplanter Flow (z. B. monatlich).</li>
-                            <li>Graph/Office 365: Gäste auflisten (oder CSV aus dem Tool importieren).</li>
-                            <li>E-Mail an IT mit Liste „prüfen/löschen“.</li>
-                        </ol>
-                        <label class="checkbox-label"><input type="checkbox" data-pa-check="gast"> In unserer Schule umgesetzt</label>
-                        <a class="btn btn-sm" href="gaeste-verwalten.html">Gäste-Tool</a>
-                    </article>
-                    <article class="pa-card" data-pa="dipl">
-                        <h3>5. Diplomarbeit: Ordnerstruktur nach Anlage</h3>
-                        <p class="muted">Wenn ein Team mit Alias dipl-* entsteht – Vorlagenordner anlegen.</p>
-                        <ol>
-                            <li>Trigger: Team erstellt (oder manuell mit Gruppen-ID).</li>
-                            <li>Bedingung: mailNickname beginnt mit dipl-.</li>
-                            <li>Ordner anlegen: Exposé, Rohdaten, Abgabe, Feedback.</li>
-                            <li>Willkommensnachricht im General-Kanal.</li>
-                        </ol>
-                        <label class="checkbox-label"><input type="checkbox" data-pa-check="dipl"> In unserer Schule umgesetzt</label>
-                        <a class="btn btn-sm" href="diplomarbeiten.html">Diplomarbeiten-Tool</a>
-                    </article>
-                    <article class="pa-card" data-pa="schilf">
-                        <h3>6. Schilf: Kalender abonnieren (Checkliste)</h3>
-                        <p class="muted">Kein Flow – Prozess für Lehrkräfte nach Fortbildung.</p>
-                        <ol>
-                            <li>Outlook / Teams: Kalender hinzufügen → aus Verzeichnis (Schulkalender).</li>
-                            <li>Favoriten: Intranet, Formulare, Lehrerliste pinnen.</li>
-                            <li>Zielgruppen: öffentliche News vs. Kollegiums-Kanal trennen.</li>
-                        </ol>
-                        <label class="checkbox-label"><input type="checkbox" data-pa-check="schilf"> In Schilf kommuniziert</label>
-                    </article>
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Neu an der Schule?</h3>
+                        <p>Zuerst den Einrichtungs-Assistenten – dann die einzelnen Automationen.</p>
+                    </div>
                 </div>
+                <div class="tm-actions">
+                    <a class="btn btn-success" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Power Platform Erst-Setup</a>
+                </div>
+            </section>
+            <section class="tm-panel">
+                <div class="pa-grid" id="paHub"></div>
                 <div class="tm-actions" style="margin-top:16px;">
-                    <button type="button" class="btn" id="paReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                    <button type="button" class="btn" id="paReset"><i class="bi bi-arrow-counterclockwise"></i>Status zurücksetzen</button>
                 </div>
             </section>
         </div>
     </div>
     <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/tools/power-automate/pa-recipes-catalog.js"></script>
     <script>
         (function () {
-            var KEY = 'ms365-power-automate-recipes-v1';
-            function load() {
-                try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { return {}; }
+            var cat = window.ms365PaRecipes;
+            if (!cat) return;
+
+            function isDone(id) {
+                try { return localStorage.getItem('ms365-pa-done-' + id) === '1'; } catch (e) { return false; }
             }
-            function save(s) {
-                try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+            function clearDone(id) {
+                try { localStorage.removeItem('ms365-pa-done-' + id); } catch (e) {}
             }
-            function refresh() {
-                var s = load();
-                var n = 0;
-                document.querySelectorAll('[data-pa-check]').forEach(function (el) {
-                    var id = el.getAttribute('data-pa-check');
-                    el.checked = !!s[id];
-                    if (el.checked) n++;
+
+            function escapeHtml(s) {
+                return String(s || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function hrefFor(r) {
+                return 'pa-' + r.id + '.html';
+            }
+
+            function render() {
+                var host = document.getElementById('paHub');
+                if (!host) return;
+                var cards = [];
+                var done = 0;
+                var total = 0;
+
+                // Freistellung (eigenes Tool)
+                var extra = cat.hubExtra;
+                if (extra) {
+                    total++;
+                    var frDone = false;
+                    try { frDone = localStorage.getItem('ms365-pa-done-freistellung') === '1'; } catch (e) {}
+                    // also check freistellung setup storage as soft signal – only explicit done
+                    if (frDone) done++;
+                    cards.push(
+                        '<article class="pa-card">' +
+                        '<h3><i class="bi ' + escapeHtml(extra.icon) + '"></i>' + escapeHtml(extra.title) + '</h3>' +
+                        '<p class="muted" style="margin:0;">' + escapeHtml(extra.summary) + '</p>' +
+                        '<p class="pa-status' + (frDone ? ' is-done' : '') + '">' + (frDone ? '✓ markiert' : 'offen') + '</p>' +
+                        '<a class="btn btn-sm" href="' + escapeHtml(extra.href) + '">Öffnen</a>' +
+                        '</article>'
+                    );
+                }
+
+                cat.list.forEach(function (r) {
+                    total++;
+                    var on = isDone(r.id);
+                    if (on) done++;
+                    cards.push(
+                        '<article class="pa-card">' +
+                        '<h3><i class="bi ' + escapeHtml(r.icon) + '"></i>' + escapeHtml(r.title) + '</h3>' +
+                        '<p class="muted" style="margin:0;">' + escapeHtml(r.summary) + '</p>' +
+                        '<p class="pa-status' + (on ? ' is-done' : '') + '">' + (on ? '✓ ' + escapeHtml(r.doneLabel || 'umgesetzt') : 'offen') + '</p>' +
+                        '<a class="btn btn-sm" href="' + escapeHtml(hrefFor(r)) + '">Öffnen &amp; ausführen</a>' +
+                        '</article>'
+                    );
                 });
+
+                host.innerHTML = cards.join('');
                 var p = document.getElementById('paProgress');
-                if (p) p.textContent = n + ' Rezepte markiert';
+                if (p) p.textContent = done + ' von ' + total + ' markiert';
             }
-            document.querySelectorAll('[data-pa-check]').forEach(function (el) {
-                el.addEventListener('change', function () {
-                    var s = load();
-                    s[el.getAttribute('data-pa-check')] = !!el.checked;
-                    save(s);
-                    refresh();
-                });
-            });
+
             var reset = document.getElementById('paReset');
-            if (reset) reset.addEventListener('click', function () {
-                if (!confirm('Alle Haken zurücksetzen?')) return;
-                save({});
-                refresh();
-            });
-            refresh();
+            if (reset) {
+                reset.addEventListener('click', function () {
+                    if (!confirm('Alle Automations-Status zurücksetzen?')) return;
+                    cat.list.forEach(function (r) { clearDone(r.id); });
+                    try { localStorage.removeItem('ms365-pa-done-freistellung'); } catch (e) {}
+                    try { localStorage.setItem('ms365-power-automate-recipes-v1', '{}'); } catch (e2) {}
+                    render();
+                });
+            }
+            render();
         })();
     </script>
 </body>

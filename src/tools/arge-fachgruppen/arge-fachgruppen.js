@@ -31,6 +31,8 @@
     let catalogModalMode = 'create';
     /** Original-Kürzel beim Bearbeiten (für Umbenennung / Match-Migration). */
     let catalogEditOriginalCode = '';
+    /** Nutzer hat Unique ID beim Anlegen manuell geändert – Standard nicht überschreiben. */
+    let createNickDirty = false;
     /** @type {{ code: string, name: string, subjects?: string[] }[]} */
     let catalog = { subject: [], arge: [] };
     /** @type {string[]} */
@@ -675,16 +677,27 @@
         el.appendChild(p);
     }
 
-    function applyCreateDefaults() {
+    function applyCreateDefaults(forceNick) {
         const row = getActiveRow();
         const code = row ? row.code : activeCode;
         const name = row && row.name ? row.name : code;
         const dn = document.getElementById('slgNewDisplayName');
         const nn = document.getElementById('slgNewMailNick');
         const desc = document.getElementById('slgNewDescription');
+        const hint = document.getElementById('slgNewMailNickHint');
         const label = activeKind === 'arge' ? 'Arbeitsgruppe ' : 'Fach ';
+        const suggested = deriveNick(activeKind, code);
         if (dn) dn.value = label + (name || code || '');
-        if (nn) nn.value = deriveNick(activeKind, code);
+        if (nn && (forceNick || !createNickDirty)) {
+            nn.value = suggested;
+            createNickDirty = false;
+        }
+        if (hint) {
+            hint.textContent =
+                'Frei editierbar. Standard aus Präfix + Kürzel: ' +
+                (suggested || '–') +
+                '. Leer oder „Standard“ setzt diesen Vorschlag beim Anlegen.';
+        }
         if (desc) {
             desc.value =
                 label +
@@ -835,6 +848,7 @@
 
     function setActiveKind(kind) {
         activeKind = kind === 'arge' ? 'arge' : 'subject';
+        createNickDirty = false;
         document.querySelectorAll('[data-afg-kind]').forEach(function (b) {
             b.setAttribute('aria-pressed', b.getAttribute('data-afg-kind') === activeKind ? 'true' : 'false');
         });
@@ -845,7 +859,7 @@
         if (search) search.value = '';
         gd().clearSearchResults();
         renderLeftList();
-        applyCreateDefaults();
+        applyCreateDefaults(true);
         syncMailPrefixUi();
         gd().setTab('general');
         refreshMatchUi();
@@ -853,11 +867,12 @@
 
     function setActiveCode(code) {
         activeCode = normCode(code);
+        createNickDirty = false;
         const search = document.getElementById('slgGroupSearch');
         if (search) search.value = '';
         gd().clearSearchResults();
         renderLeftList();
-        applyCreateDefaults();
+        applyCreateDefaults(true);
         syncMailPrefixUi();
         gd().setTab('general');
         refreshMatchUi();
@@ -1215,7 +1230,7 @@
             title: 'Fachgruppe',
             searchPlaceholder: 'z. B. ARGE Sprachen oder fach-d',
             unmatchedCreateHint:
-                'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Optional auch als Team bereitstellen.',
+                'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Unique ID / Alias können Sie frei setzen – sonst gilt der Standard aus Präfix + Kürzel. Optional auch als Team bereitstellen.',
             membersUnmatchedHint:
                 'In den Stammdaten gibt es keine Mitgliederliste für Fach/ARGE. Nach dem Match können Sie Mitglieder live in Graph pflegen.',
             membersUnmatchedTitle: 'Hinweis aus den Stammdaten',
@@ -1248,6 +1263,11 @@
             match: {
                 persistMatch: persistMatch,
                 persistUnmatch: persistUnmatch,
+                suggestMailNickname: function () {
+                    const row = getActiveRow();
+                    const code = row ? row.code : activeCode;
+                    return deriveNick(activeKind, code);
+                },
                 canSearch: function () {
                     return activeCode
                         ? { ok: true }
@@ -1354,6 +1374,18 @@
                     .sanitizeUnifiedGroupMailNickname(String((pre || '') + tail).toLowerCase())
                     .slice(0, 60);
                 if (preview) preview.textContent = nick || '–';
+            });
+        }
+        const nickInp = document.getElementById('slgNewMailNick');
+        if (nickInp) {
+            nickInp.addEventListener('input', function () {
+                createNickDirty = true;
+            });
+        }
+        const nickStdBtn = document.getElementById('slgBtnMailNickStandard');
+        if (nickStdBtn) {
+            nickStdBtn.addEventListener('click', function () {
+                createNickDirty = false;
             });
         }
         document.addEventListener('keydown', function (ev) {

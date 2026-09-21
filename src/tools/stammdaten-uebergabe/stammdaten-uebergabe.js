@@ -28,8 +28,119 @@ const SCOPES_GRAPH = [
     'https://graph.microsoft.com/Group.Read.All'
 ];
 
+/** Formularwerte über MSAL-Redirect hinweg (Popup-Fallback / Header-Login). */
+const FORM_DRAFT_KEY = 'ms365-su-form-draft-v1';
+const PENDING_ACTION_KEY = 'ms365-su-pending-action-v1';
+const PENDING_MAX_AGE_MS = 30 * 60 * 1000;
+
 function $(id) {
     return document.getElementById(id);
+}
+
+function collectFormState() {
+    return {
+        siteUrl: String(($('suSiteUrl') && $('suSiteUrl').value) || '').trim(),
+        libraryTitle: String(($('suLibraryTitle') && $('suLibraryTitle').value) || '').trim(),
+        itGroup: String(($('suItGroup') && $('suItGroup').value) || '').trim(),
+        folder: String(($('suFolder') && $('suFolder').value) || '').trim(),
+        keepDated: !!($('suKeepDated') && $('suKeepDated').checked)
+    };
+}
+
+function applyFormState(state) {
+    if (!state || typeof state !== 'object') return;
+    if ($('suSiteUrl') && state.siteUrl) $('suSiteUrl').value = String(state.siteUrl);
+    if ($('suLibraryTitle') && state.libraryTitle) $('suLibraryTitle').value = String(state.libraryTitle);
+    if ($('suItGroup') && state.itGroup) $('suItGroup').value = String(state.itGroup);
+    if ($('suFolder') && state.folder) $('suFolder').value = String(state.folder);
+    if ($('suKeepDated') && typeof state.keepDated === 'boolean') {
+        $('suKeepDated').checked = state.keepDated;
+    }
+}
+
+function persistFormDraft() {
+    try {
+        sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(collectFormState()));
+    } catch {
+        /* ignore */
+    }
+}
+
+function restoreFormDraft() {
+    try {
+        const raw = sessionStorage.getItem(FORM_DRAFT_KEY);
+        if (!raw) return false;
+        applyFormState(JSON.parse(raw));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function setPendingAction(action) {
+    try {
+        sessionStorage.setItem(
+            PENDING_ACTION_KEY,
+            JSON.stringify({
+                action: String(action || ''),
+                at: Date.now(),
+                form: collectFormState()
+            })
+        );
+    } catch {
+        /* ignore */
+    }
+}
+
+function takePendingAction() {
+    try {
+        const raw = sessionStorage.getItem(PENDING_ACTION_KEY);
+        if (!raw) return null;
+        sessionStorage.removeItem(PENDING_ACTION_KEY);
+        const pending = JSON.parse(raw);
+        if (!pending || !pending.action || !pending.at) return null;
+        if (Date.now() - Number(pending.at) > PENDING_MAX_AGE_MS) return null;
+        return pending;
+    } catch {
+        try {
+            sessionStorage.removeItem(PENDING_ACTION_KEY);
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+}
+
+function clearPendingAction() {
+    try {
+        sessionStorage.removeItem(PENDING_ACTION_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
+function bindFormDraftPersistence() {
+    ['suSiteUrl', 'suLibraryTitle', 'suItGroup', 'suFolder', 'suKeepDated'].forEach(function (id) {
+        const el = $(id);
+        if (!el || el.dataset.draftBound === '1') return;
+        el.dataset.draftBound = '1';
+        const ev = el.type === 'checkbox' ? 'change' : 'input';
+        el.addEventListener(ev, persistFormDraft);
+        el.addEventListener('change', persistFormDraft);
+    });
+    const siteEl = $('suSiteUrl');
+    if (siteEl && siteEl.dataset.rememberBound !== '1') {
+        siteEl.dataset.rememberBound = '1';
+        siteEl.addEventListener('change', function () {
+            const url = String(siteEl.value || '').trim();
+            if (url) rememberSite(url);
+        });
+    }
+    if (!bindFormDraftPersistence._unloadBound) {
+        bindFormDraftPersistence._unloadBound = true;
+        window.addEventListener('pagehide', persistFormDraft);
+        window.addEventListener('beforeunload', persistFormDraft);
+    }
 }
 
 function toast(m) {
@@ -291,8 +402,9 @@ async function secureLibraryWithSpo(siteWebUrl, listTitle, groupObjectId) {
     return { removed: removed, principalId: principal.id };
 }
 
-async function runSetupItLibrary() {
+async function runSetupItLibrary(opts) {
     clearLog();
+    const skipConfirm = !!(opts && opts.skipConfirm);
     const webUrl = getSiteUrl();
     if (!webUrl) throw new Error('SharePoint-Website fehlt.');
     const listTitle = getLibraryTitle();
@@ -314,6 +426,7 @@ async function runSetupItLibrary() {
     if (!plan.ok) throw new Error(plan.issues.join(', '));
 
     if (
+        !skipConfirm &&
         !window.confirm(
             'IT-Bibliothek „' +
                 listTitle +
@@ -326,6 +439,10 @@ async function runSetupItLibrary() {
     ) {
         return;
     }
+
+    persistFormDraft();
+    rememberSite(webUrl);
+    setPendingAction('setup');
 
     const token = await ensureGraphToken();
     log('Löse Site auf …');
@@ -440,6 +557,8 @@ async function runSetupItLibrary() {
     };
     saveItMeta(meta);
     if ($('suItGroup') && groupId && !$('suItGroup').value) $('suItGroup').value = groupId;
+    clearPendingAction();
+    persistFormDraft();
     refreshMetaUi();
     log('Fertig. ' + designHintDe());
     toast('IT-Bibliothek eingerichtet.');
@@ -448,12 +567,15 @@ async function runSetupItLibrary() {
 
 async function runUpload() {
     clearLog();
+    persistFormDraft();
+    setPendingAction('upload');
     requireDriveId();
     const webUrl = getSiteUrl();
     const folder = getFolder();
     const keepDated = !!($('suKeepDated') && $('suKeepDated').checked);
     log('Baue Browser-Backup und lade hoch …');
     await uploadCurrentBackup({ folder: folder, keepDated: keepDated, siteUrl: webUrl });
+    clearPendingAction();
     refreshMetaUi();
     log('Fertig.');
     toast('Stammdaten in IT-Bibliothek geschrieben.');
@@ -461,11 +583,14 @@ async function runUpload() {
 
 async function runList() {
     clearLog();
+    persistFormDraft();
+    setPendingAction('list');
     const it = requireDriveId();
     const folder = getFolder();
     const token = await ensureGraphToken();
     log('Liste „' + it.listTitle + '“ / ' + folder + ' …');
     const data = await listDriveFolder(it.driveId, folder, token);
+    clearPendingAction();
     const items = (data && data.value) || [];
     const body = $('suRemoteBody');
     if (body) {
@@ -542,6 +667,7 @@ function escapeHtml(s) {
 function fillDefaults() {
     const hint = $('suDesignHint');
     if (hint) hint.textContent = designHintDe();
+    restoreFormDraft();
     try {
         const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
         const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
@@ -562,8 +688,54 @@ function fillDefaults() {
     refreshMetaUi();
 }
 
+function handleActionError(e) {
+    const msg = String((e && e.message) || e || '');
+    if (/Weiterleitung zur Anmeldung/i.test(msg)) {
+        persistFormDraft();
+        log('Anmeldung nötig – Eingaben bleiben erhalten. Nach der Rückkehr wird fortgesetzt …');
+        toast('Zur Anmeldung – Formular bleibt erhalten.');
+        return;
+    }
+    clearPendingAction();
+    log('FEHLER: ' + msg);
+    toast(msg);
+}
+
+function resumePendingIfAny() {
+    let hasPending = false;
+    try {
+        hasPending = !!sessionStorage.getItem(PENDING_ACTION_KEY);
+    } catch {
+        return;
+    }
+    if (!hasPending) return;
+
+    (async function () {
+        // Warten, bis MSAL den Redirect-Callback verarbeitet hat.
+        for (let i = 0; i < 24; i++) {
+            if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) break;
+            await new Promise(function (r) {
+                setTimeout(r, 250);
+            });
+        }
+        const pending = takePendingAction();
+        if (!pending || !pending.action) return;
+        if (pending.form) applyFormState(pending.form);
+        persistFormDraft();
+        log('Anmeldung abgeschlossen – setze fort: ' + pending.action + ' …');
+        try {
+            if (pending.action === 'setup') await runSetupItLibrary({ skipConfirm: true });
+            else if (pending.action === 'upload') await runUpload();
+            else if (pending.action === 'list') await runList();
+        } catch (e) {
+            handleActionError(e);
+        }
+    })();
+}
+
 function boot() {
     fillDefaults();
+    bindFormDraftPersistence();
     if (location.hash === '#setup') {
         const setupEl = document.getElementById('setup');
         if (setupEl && typeof setupEl.scrollIntoView === 'function') {
@@ -576,30 +748,21 @@ function boot() {
     if (setupBtn && setupBtn.dataset.bound !== '1') {
         setupBtn.dataset.bound = '1';
         setupBtn.addEventListener('click', function () {
-            runSetupItLibrary().catch(function (e) {
-                log('FEHLER: ' + (e.message || e));
-                toast(e.message || String(e));
-            });
+            runSetupItLibrary().catch(handleActionError);
         });
     }
     const up = $('suBtnUpload');
     if (up && up.dataset.bound !== '1') {
         up.dataset.bound = '1';
         up.addEventListener('click', function () {
-            runUpload().catch(function (e) {
-                log('FEHLER: ' + (e.message || e));
-                toast(e.message || String(e));
-            });
+            runUpload().catch(handleActionError);
         });
     }
     const list = $('suBtnList');
     if (list && list.dataset.bound !== '1') {
         list.dataset.bound = '1';
         list.addEventListener('click', function () {
-            runList().catch(function (e) {
-                log('FEHLER: ' + (e.message || e));
-                toast(e.message || String(e));
-            });
+            runList().catch(handleActionError);
         });
     }
     const loadCur = $('suBtnLoadCurrent');
@@ -608,6 +771,7 @@ function boot() {
         loadCur.addEventListener('click', function () {
             (async function () {
                 clearLog();
+                persistFormDraft();
                 log('Lade aktuelle Datei …');
                 const preview = await downloadCurrentBackup({ folder: getFolder(), apply: false });
                 const obj = preview.payload || {};
@@ -624,12 +788,11 @@ function boot() {
                 window.ms365BrowserBackup.importPayload(obj);
                 toast('Backup übernommen.');
                 if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
-            })().catch(function (e) {
-                log('FEHLER: ' + (e.message || e));
-                toast(e.message || String(e));
-            });
+            })().catch(handleActionError);
         });
     }
+    // Nach MSAL-Redirect: Formular wiederherstellen und Aktion fortsetzen
+    setTimeout(resumePendingIfAny, 400);
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

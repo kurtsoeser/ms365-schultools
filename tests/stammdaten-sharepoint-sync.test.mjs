@@ -10,6 +10,9 @@ import {
     entraGroupLogonName,
     buildItLibraryPlan,
     isItLibraryConfigured,
+    isAutoSyncIgnoredChangeSource,
+    shouldApplyRemoteBackup,
+    formatSyncStatusDe,
     SPO_ROLE
 } from '../src/shared/stammdaten-sharepoint-sync-logic.js';
 
@@ -58,5 +61,55 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(isItLibraryConfigured(null)).toBe(false);
         expect(isItLibraryConfigured({})).toBe(false);
         expect(isItLibraryConfigured({ driveId: 'abc' })).toBe(true);
+    });
+
+    it('entscheidet Session-Pull anhand von Versionen', () => {
+        expect(shouldApplyRemoteBackup({ remoteExists: false }).apply).toBe(false);
+        expect(shouldApplyRemoteBackup({ remoteExists: true, localDirty: true }).reason).toBe('local-dirty');
+        expect(
+            shouldApplyRemoteBackup({
+                remoteExists: true,
+                remoteLastModified: '2026-09-21T10:00:00Z',
+                localRemoteLastModified: '2026-09-21T10:00:00Z'
+            }).apply
+        ).toBe(false);
+        expect(
+            shouldApplyRemoteBackup({
+                remoteExists: true,
+                remoteLastModified: '2026-09-21T12:00:00Z',
+                localRemoteLastModified: '2026-09-21T10:00:00Z'
+            }).apply
+        ).toBe(true);
+        expect(
+            shouldApplyRemoteBackup({
+                remoteExists: true,
+                remoteLastModified: '2026-09-21T12:00:00Z'
+            }).reason
+        ).toBe('never-synced');
+    });
+
+    it('ignoriert Auto-Push-Quellen vom Sync selbst', () => {
+        expect(isAutoSyncIgnoredChangeSource('browser-backup-import')).toBe(true);
+        expect(isAutoSyncIgnoredChangeSource('spo-auto-pull')).toBe(true);
+        expect(isAutoSyncIgnoredChangeSource('render')).toBe(true);
+        expect(isAutoSyncIgnoredChangeSource('autosave')).toBe(false);
+    });
+
+    it('formatiert Sync-Status', () => {
+        expect(formatSyncStatusDe({ ready: false })).toMatch(/nicht eingerichtet/);
+        expect(
+            formatSyncStatusDe({
+                ready: true,
+                dirty: true,
+                libraryTitle: 'MS365-IT-Stammdaten'
+            })
+        ).toMatch(/ausstehend/);
+        expect(
+            formatSyncStatusDe({
+                ready: true,
+                lastAt: '2026-09-21T10:00:00.000Z',
+                lastDirection: 'push'
+            })
+        ).toMatch(/gesichert/);
     });
 });

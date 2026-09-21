@@ -2,8 +2,9 @@
  * Buttons: Stammdaten ↔ SharePoint IT-Bibliothek (Upload / Laden).
  * data-ms365-spo-sync="upload" | "load" | "setup"
  * Optional: #stammdatenSpoSyncStatus für Kurzstatus.
+ * Startet außerdem den Auto-Sync (Pull nach Login, Push nach Änderungen).
  */
-import { DEFAULT_FOLDER, IT_LIBRARY_TITLE } from './stammdaten-sharepoint-sync-logic.js';
+import { DEFAULT_FOLDER, IT_LIBRARY_TITLE, formatSyncStatusDe } from './stammdaten-sharepoint-sync-logic.js';
 import {
     isReady,
     setupPageHref,
@@ -12,6 +13,7 @@ import {
     uploadCurrentBackup,
     downloadCurrentBackup
 } from './stammdaten-sharepoint-sync-api.js';
+import * as autoSync from './stammdaten-sharepoint-auto-sync.js';
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -43,20 +45,26 @@ function setBusy(btns, busy) {
 function refreshStatus() {
     const el = document.getElementById('stammdatenSpoSyncStatus');
     if (!el) return;
+    try {
+        if (autoSync && typeof autoSync.getStatus === 'function') {
+            const st = autoSync.getStatus();
+            el.textContent = st.message || formatSyncStatusDe(st);
+            return;
+        }
+    } catch {
+        /* fallback below */
+    }
     const it = loadItMeta();
     const m = loadLocalSyncMeta();
-    if (!isReady()) {
-        el.textContent =
-            'SharePoint-IT-Bibliothek noch nicht eingerichtet – Sichern/Einlesen öffnet die Ersteinrichtung.';
-        return;
-    }
-    const bits = ['Bereit: „' + (it.listTitle || IT_LIBRARY_TITLE) + '“'];
-    if (m && m.at) {
-        bits.push(
-            'Zuletzt gesichert: ' + String(m.at).replace('T', ' ').replace(/\.\d+Z$/, '')
-        );
-    }
-    el.textContent = bits.join(' · ');
+    el.textContent = formatSyncStatusDe({
+        ready: isReady(),
+        phase: 'idle',
+        dirty: !!(m && m.dirty),
+        lastAt: m && m.at,
+        lastDirection: m && m.direction,
+        error: m && m.pendingError,
+        libraryTitle: (it && it.listTitle) || IT_LIBRARY_TITLE
+    });
 }
 
 async function runUpload(btns) {
@@ -107,6 +115,20 @@ async function runLoad(btns) {
         const bb = window.ms365BrowserBackup;
         if (!bb || typeof bb.importPayload !== 'function') throw new Error('Backup-Modul fehlt.');
         bb.importPayload(obj);
+        if (preview.meta) {
+            try {
+                const { saveLocalSyncMeta } = await import('./stammdaten-sharepoint-sync-api.js');
+                saveLocalSyncMeta(
+                    Object.assign({}, preview.meta, {
+                        at: new Date().toISOString(),
+                        direction: 'pull',
+                        dirty: false
+                    })
+                );
+            } catch {
+                /* ignore */
+            }
+        }
         toast('Backup übernommen.');
         const reload = await confirmAsync('Seite jetzt neu laden?', {
             title: 'Neu laden',
@@ -166,6 +188,13 @@ function bind() {
     refreshStatus();
     try {
         window.addEventListener('ms365-tenant-settings-changed', refreshStatus);
+        window.addEventListener('ms365-spo-sync-status', refreshStatus);
+    } catch {
+        /* ignore */
+    }
+
+    try {
+        autoSync.start();
     } catch {
         /* ignore */
     }

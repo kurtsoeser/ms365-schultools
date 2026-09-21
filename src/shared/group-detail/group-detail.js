@@ -190,11 +190,21 @@
                 '<label for="slgNewDisplayName">Anzeigename</label>' +
                 '<input type="text" id="slgNewDisplayName" maxlength="200" autocomplete="off">' +
                 '</div>' +
-                '<div class="field">' +
-                '<label for="slgNewMailNick">Alias / Mail‑Nickname</label>' +
-                '<input type="text" id="slgNewMailNick" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin">' +
+                '<div class="field" style="grid-column:1 / -1;">' +
+                '<label for="slgNewMailNick">Unique ID / Alias</label>' +
+                '<div class="gd-mailnick-row">' +
+                '<input type="text" id="slgNewMailNick" maxlength="60" autocomplete="off" spellcheck="false" inputmode="latin" placeholder="z. B. arge-fvv">' +
+                (opts && opts.match && typeof opts.match.suggestMailNickname === 'function'
+                    ? '<button type="button" class="btn btn-ghost" id="slgBtnMailNickStandard" title="Vorschlag aus Präfix + Kürzel einsetzen">Standard</button>'
+                    : '') +
                 '</div>' +
-                '<div class="field">' +
+                '<small class="muted" id="slgNewMailNickHint" style="display:block;margin-top:6px;line-height:1.4;">' +
+                (opts && opts.match && typeof opts.match.suggestMailNickname === 'function'
+                    ? 'Frei editierbar. Leer lassen oder „Standard“: Vorschlag aus Präfix + Kürzel.'
+                    : 'Alias der Microsoft‑365‑Gruppe (mailNickname).') +
+                '</small>' +
+                '</div>' +
+                '<div class="field" style="grid-column:1 / -1;">' +
                 '<label for="slgNewDescription">Beschreibung</label>' +
                 '<input type="text" id="slgNewDescription" maxlength="512" autocomplete="off">' +
                 '</div>' +
@@ -643,11 +653,15 @@
         const ct = document.getElementById('slgNewCreateTeam');
         const targetTeam = document.getElementById('slgNewCreateTargetTeam');
         const displayName = dn ? dn.value : '';
-        const mailNick = nn ? nn.value : '';
+        let mailNick = nn ? nn.value : '';
+        if (!normStr(mailNick) && m && typeof m.suggestMailNickname === 'function') {
+            mailNick = String(m.suggestMailNickname() || '').trim();
+            if (nn && mailNick) nn.value = mailNick;
+        }
         const desc = dd ? dd.value : '';
         const wantTeam = !!(targetTeam && targetTeam.checked) || !!(ct && ct.checked);
         if (!normStr(displayName) || !normStr(mailNick)) {
-            toast('Bitte Anzeigename und Alias/Mail‑Nickname ausfüllen.');
+            toast('Bitte Anzeigename und Unique ID / Alias ausfüllen.');
             return;
         }
         try {
@@ -663,6 +677,20 @@
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
         }
+    }
+
+    function applySuggestedMailNickname() {
+        const m = session && session.match;
+        const nn = document.getElementById('slgNewMailNick');
+        if (!nn) return;
+        if (!m || typeof m.suggestMailNickname !== 'function') {
+            toast('Kein Standard-Alias hinterlegt.');
+            return;
+        }
+        const v = String(m.suggestMailNickname() || '').trim();
+        nn.value = v;
+        nn.dispatchEvent(new Event('input', { bubbles: true }));
+        if (v) toast('Standard-Alias eingesetzt: ' + v);
     }
 
     function runUnmatch() {
@@ -698,6 +726,9 @@
         });
         onClick('slgBtnCreate', function () {
             runCreateAndMatch();
+        });
+        onClick('slgBtnMailNickStandard', function () {
+            applySuggestedMailNickname();
         });
         onClick('slgBtnUnmatch', runUnmatch);
         onClick('slgBtnOpenEntra', openEntraForMatched);

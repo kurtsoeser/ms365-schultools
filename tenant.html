@@ -448,7 +448,7 @@
                     <div class="ts-settings-head">
                         <div class="ts-settings-intro">
                             <p>Diese <strong>Zentrale</strong> speichert Daten <strong>lokal im Browser</strong>. <strong>Stammdaten</strong> (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) gelten <strong>schulweit</strong> und ändern sich in der Regel selten. <strong>Schüler:innen, Klassen</strong> und <strong>Klassen‑Gruppen (Microsoft 365)</strong> orientieren sich am gewählten <strong>Schuljahr</strong>.</p>
-                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Mit <strong>Browser-Backup</strong> übertragen Sie alle lokalen Daten in einen anderen Browser; mit <strong>In SharePoint sichern / einlesen</strong> in die IT-Dokumentbibliothek (Microsoft-Anmeldung nicht im Backup enthalten).</p>
+                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Ist die IT-Bibliothek eingerichtet, werden Stammdaten nach der Anmeldung automatisch von SharePoint geladen und nach Änderungen wieder gesichert (zusätzlich manuell über die Buttons). Mit <strong>Browser-Backup</strong> übertragen Sie alle lokalen Daten in einen anderen Browser.</p>
                         </div>
                     </div>
 
@@ -1066,7 +1066,7 @@
                         <button type="button" class="btn btn-danger" id="tenantSettingsClear"><i class="bi bi-trash"></i>Löschen</button>
                     </div>
 
-                    <p class="tile-subtitle" style="margin-top:10px;">Browser-Backup enthält Stammdaten, Einrichtung und Werkzeug-Zwischenstände aus diesem Browser. Alte Schuldaten-JSON-Dateien werden weiterhin erkannt. Die Microsoft-Anmeldung muss im anderen Browser neu erfolgen. <strong>In SharePoint sichern / einlesen</strong> nutzt die IT-Dokumentbibliothek (wenn eingerichtet, sonst Ersteinrichtung).</p>
+                    <p class="tile-subtitle" style="margin-top:10px;">Browser-Backup enthält Stammdaten, Einrichtung und Werkzeug-Zwischenstände aus diesem Browser. Alte Schuldaten-JSON-Dateien werden weiterhin erkannt. Die Microsoft-Anmeldung muss im anderen Browser neu erfolgen. <strong>Auto-Sync</strong> lädt nach der Anmeldung von SharePoint und sichert Änderungen automatisch; die Buttons dienen zum manuellen Abgleich und zur Ersteinrichtung der IT-Bibliothek.</p>
                     <div id="stammdatenSpoSyncStatus" class="summary" role="status" aria-live="polite"></div>
                     <div id="browserBackupStatus" class="summary" role="status" aria-live="polite"></div>
 
