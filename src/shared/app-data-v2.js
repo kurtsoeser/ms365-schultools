@@ -72,8 +72,11 @@
             },
             /** Kleinbuchstaben/Ziffern; Vorschau/Anlage Fachgruppen (Einrichtungsassistent) */
             subjectGroupMailPrefix: 'fach',
-            /** Kleinbuchstaben/Ziffern; Vorschau/Anlage ARGE-Gruppen */
-            argeGroupMailPrefix: 'ag',
+            /**
+             * Präfix für group.mailNickname neuer ARGE-Gruppen (vor dem Kürzel).
+             * Bindestrich am Ende empfohlen, z. B. arge- → arge-fvv.
+             */
+            argeGroupMailPrefix: 'arge-',
             /** Eltern-Verteiler: Baustein-Muster (wie Kursteam-Namen) */
             elternClassAliasPattern: [
                 { type: 'text', value: 'eltern' },
@@ -611,7 +614,7 @@
             kvNewCreateTarget: kvTarget === 'team' ? 'team' : 'mail'
         };
         d.subjectGroupMailPrefix = mailNicknamePrefixSanitize(x.subjectGroupMailPrefix, 24) || 'fach';
-        d.argeGroupMailPrefix = mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24) || 'ag';
+        d.argeGroupMailPrefix = mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24) || 'arge-';
         const def = defaultSetup();
         d.elternClassAliasPattern = normalizeElternNamePattern(x.elternClassAliasPattern, def.elternClassAliasPattern);
         d.elternClassDisplayPattern = normalizeElternNamePattern(x.elternClassDisplayPattern, def.elternClassDisplayPattern);

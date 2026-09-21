@@ -20,6 +20,29 @@
             border-color: rgba(94, 114, 228, 0.45);
             font-weight: 900;
         }
+        .afg-mail-prefix-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .afg-mail-prefix-row input {
+            flex: 1;
+            min-width: 120px;
+            box-sizing: border-box;
+        }
+        .afg-mail-prefix-preview {
+            font-size: 0.86em;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--soft);
+            color: var(--muted);
+            white-space: nowrap;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         #afgCatalogModal .modal-box { max-width: 520px; }
         #afgCatalogModal .field { margin: 0 0 12px; }
         #afgCatalogModal .field label { display: block; margin-bottom: 4px; font-weight: 600; }
@@ -256,6 +279,14 @@
                             <button type="button" class="btn" id="afgKindSubject" data-afg-kind="subject" aria-pressed="true"><i class="bi bi-journal-text"></i>Fachgruppen</button>
                             <button type="button" class="btn" id="afgKindArge" data-afg-kind="arge" aria-pressed="false"><i class="bi bi-people"></i>ARGE</button>
                         </div>
+                        <div class="field afg-mail-prefix" style="margin:0 0 12px;">
+                            <label for="afgMailPrefix">Mail‑Alias‑Präfix (Unique ID)</label>
+                            <div class="afg-mail-prefix-row">
+                                <input type="text" id="afgMailPrefix" maxlength="24" autocomplete="off" spellcheck="false" placeholder="arge-" title="Wird vor das Kürzel gesetzt. a–z, 0–9, . - _ erlaubt. Beispiel: arge- + FVV → arge-fvv">
+                                <code class="afg-mail-prefix-preview" id="afgMailPrefixPreview" title="Vorschau für den Alias beim Anlegen einer M365-Gruppe">arge-…</code>
+                            </div>
+                            <small class="muted" style="display:block;margin-top:6px;line-height:1.4;">Vor dem Kürzel, z. B. <code>arge-</code> → <code>arge-fvv</code>. Gilt für neue Gruppen; in der Einrichtung ebenfalls einstellbar.</small>
+                        </div>
                         <div class="field" style="margin:0 0 10px;">
                             <label for="afgListFilter">Liste filtern</label>
                             <input type="search" id="afgListFilter" placeholder="Kürzel oder Name …" autocomplete="off" style="width:100%; box-sizing:border-box;">
@@ -332,6 +363,7 @@
                     <p>
                         <strong>Quelle:</strong> <a href="../tenant.html">Stammdaten</a> (Fächer / ARGE).
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
+                        Der <strong>Mail‑Alias‑Präfix</strong> steuert die Unique ID neuer M365‑Gruppen (Standard ARGE: <code>arge-</code>).
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
                         Die Sammelaktionen gelten für angekreuzte, bereits gematchte Gruppen (Besitzer setzen oder Gruppen löschen).
                     </p>
@@ -351,6 +383,7 @@
             <div class="field">
                 <label for="afgNewCode">Kürzel <span class="muted">(Pflicht)</span></label>
                 <input type="text" id="afgNewCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. M oder AGSPR">
+                <small class="muted" id="afgNewNickHint" style="display:block;margin-top:6px;line-height:1.4;"></small>
             </div>
             <div class="field">
                 <label for="afgNewName">Name <span class="muted">(Pflicht)</span></label>

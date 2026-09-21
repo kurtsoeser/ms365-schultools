@@ -3349,7 +3349,7 @@ import {
     }
 
     function getWizardMailPrefixFromDomOrSetup(sliceKind) {
-        const fb = sliceKind === 'arge' ? 'ag' : 'fach';
+        const fb = sliceKind === 'arge' ? 'arge-' : 'fach';
         const id = sliceKind === 'arge' ? 'swArgeGroupPrefix' : 'swSubjectGroupPrefix';
         const inp = document.getElementById(id);
         if (inp) {
@@ -3419,7 +3419,7 @@ import {
             const ins = document.getElementById('swSubjectGroupPrefix');
             const ina = document.getElementById('swArgeGroupPrefix');
             if (ins) ins.value = su.subjectGroupMailPrefix || 'fach';
-            if (ina) ina.value = su.argeGroupMailPrefix || 'ag';
+            if (ina) ina.value = su.argeGroupMailPrefix || 'arge-';
         } catch {
             // ignore
         }
@@ -3437,7 +3437,7 @@ import {
         if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.patchSetup !== 'function') return;
         const ina = document.getElementById('swArgeGroupPrefix');
         if (!ina) return;
-        const v = sanitizeWizardMailPrefix(ina.value, 24) || 'ag';
+        const v = sanitizeWizardMailPrefix(ina.value, 24) || 'arge-';
         window.ms365AppDataV2.patchSetup({ argeGroupMailPrefix: v });
     }
 

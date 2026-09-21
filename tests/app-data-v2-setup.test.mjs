@@ -57,7 +57,7 @@ describe('app-data-v2 setup', () => {
         const ctx = loadAppDataV2(store);
         const n = ctx.ms365AppDataV2.normalizeSetup({});
         expect(n.subjectGroupMailPrefix).toBe('fach');
-        expect(n.argeGroupMailPrefix).toBe('ag');
+        expect(n.argeGroupMailPrefix).toBe('arge-');
         const m = ctx.ms365AppDataV2.normalizeSetup({
             subjectGroupMailPrefix: 'fg',
             argeGroupMailPrefix: 'arbeits'

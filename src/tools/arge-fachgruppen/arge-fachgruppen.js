@@ -110,17 +110,96 @@
     function mailPrefix(kind) {
         const api = dataV2();
         const su = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
-        const raw = kind === 'arge' ? (su && su.argeGroupMailPrefix) || 'ag' : (su && su.subjectGroupMailPrefix) || 'fach';
+        const raw = kind === 'arge' ? (su && su.argeGroupMailPrefix) || 'arge-' : (su && su.subjectGroupMailPrefix) || 'fach';
         if (api && typeof api.mailNicknamePrefixSanitize === 'function') {
-            return api.mailNicknamePrefixSanitize(raw, 24) || (kind === 'arge' ? 'ag' : 'fach');
+            return api.mailNicknamePrefixSanitize(raw, 24) || (kind === 'arge' ? 'arge-' : 'fach');
         }
-        return kind === 'arge' ? 'ag' : 'fach';
+        return kind === 'arge' ? 'arge-' : 'fach';
     }
 
     function deriveNick(kind, code) {
         const pre = mailPrefix(kind);
         const tail = gug().sanitizeMailNickname(String(code || 'x')).slice(0, 40);
         return gug().sanitizeUnifiedGroupMailNickname(String(pre + tail).toLowerCase()).slice(0, 60);
+    }
+
+    /** Einmalig alten Default „ag“ (→ agfvv) auf „arge-“ umstellen. */
+    function maybeUpgradeLegacyAgPrefix() {
+        try {
+            const api = dataV2();
+            if (!api || typeof api.getSetup !== 'function' || typeof api.patchSetup !== 'function') return;
+            const su = api.getSetup();
+            const cur =
+                typeof api.mailNicknamePrefixSanitize === 'function'
+                    ? api.mailNicknamePrefixSanitize(su && su.argeGroupMailPrefix, 24)
+                    : String((su && su.argeGroupMailPrefix) || '')
+                          .trim()
+                          .toLowerCase();
+            if (cur !== 'ag') return;
+            const key = 'ms365-arge-mail-prefix-ag-upgraded-v1';
+            if (localStorage.getItem(key) === '1') return;
+            api.patchSetup({ argeGroupMailPrefix: 'arge-' });
+            localStorage.setItem(key, '1');
+            toast('Mail‑Alias‑Präfix für ARGE von „ag“ auf „arge-“ umgestellt (einstellbar unter dem Katalog).');
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    function syncMailPrefixUi() {
+        const inp = document.getElementById('afgMailPrefix');
+        const preview = document.getElementById('afgMailPrefixPreview');
+        if (inp && document.activeElement !== inp) {
+            inp.value = mailPrefix(activeKind);
+            inp.placeholder = activeKind === 'arge' ? 'arge-' : 'fach';
+        }
+        const sampleCode = activeCode || (activeKind === 'arge' ? 'FVV' : 'M');
+        const nick = deriveNick(activeKind, sampleCode);
+        if (preview) preview.textContent = nick || '–';
+        updateCatalogNickHint();
+    }
+
+    function persistMailPrefixFromDom() {
+        const inp = document.getElementById('afgMailPrefix');
+        if (!inp) return;
+        const api = dataV2();
+        if (!api || typeof api.patchSetup !== 'function') return;
+        const fallback = activeKind === 'arge' ? 'arge-' : 'fach';
+        let v = String(inp.value || '').trim();
+        if (typeof api.mailNicknamePrefixSanitize === 'function') {
+            v = api.mailNicknamePrefixSanitize(v, 24) || fallback;
+        } else {
+            v = v.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 24) || fallback;
+        }
+        inp.value = v;
+        if (activeKind === 'arge') {
+            api.patchSetup({ argeGroupMailPrefix: v });
+        } else {
+            api.patchSetup({ subjectGroupMailPrefix: v });
+        }
+        applyCreateDefaults();
+        syncMailPrefixUi();
+    }
+
+    function updateCatalogNickHint() {
+        const hint = document.getElementById('afgNewNickHint');
+        if (!hint) return;
+        const modal = document.getElementById('afgCatalogModal');
+        const open = modal && modal.classList.contains('open');
+        if (!open) {
+            hint.textContent = '';
+            return;
+        }
+        const codeEl = document.getElementById('afgNewCode');
+        const code = normCode(codeEl && codeEl.value);
+        if (!code) {
+            hint.textContent =
+                activeKind === 'arge'
+                    ? 'Beim Anlegen der M365‑Gruppe: Präfix „' + mailPrefix('arge') + '“ + Kürzel.'
+                    : 'Beim Anlegen der M365‑Gruppe: Präfix „' + mailPrefix('subject') + '“ + Kürzel.';
+            return;
+        }
+        hint.textContent = 'Vorschau Unique ID / Alias: ' + deriveNick(activeKind, code);
     }
 
     function isDirektionRole(roleRaw) {
@@ -271,6 +350,7 @@
         setCatalogModalError('');
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
+        updateCatalogNickHint();
         if (codeEl) {
             setTimeout(function () {
                 codeEl.focus();
@@ -291,6 +371,7 @@
         catalogModalMode = 'create';
         catalogEditOriginalCode = '';
         setCatalogModalError('');
+        updateCatalogNickHint();
     }
 
     function codeExistsInKind(kind, code, exceptCode) {
@@ -765,6 +846,7 @@
         gd().clearSearchResults();
         renderLeftList();
         applyCreateDefaults();
+        syncMailPrefixUi();
         gd().setTab('general');
         refreshMatchUi();
     }
@@ -776,6 +858,7 @@
         gd().clearSearchResults();
         renderLeftList();
         applyCreateDefaults();
+        syncMailPrefixUi();
         gd().setTab('general');
         refreshMatchUi();
         if (getActiveGroupId()) live().loadGroup({ silent: true });
@@ -1249,6 +1332,30 @@
         }
         if (codeEl) codeEl.addEventListener('keydown', onModalKeydown);
         if (nameEl) nameEl.addEventListener('keydown', onModalKeydown);
+        if (codeEl) {
+            codeEl.addEventListener('input', updateCatalogNickHint);
+        }
+        const prefixInp = document.getElementById('afgMailPrefix');
+        if (prefixInp) {
+            prefixInp.addEventListener('change', persistMailPrefixFromDom);
+            prefixInp.addEventListener('blur', persistMailPrefixFromDom);
+            prefixInp.addEventListener('input', function () {
+                const preview = document.getElementById('afgMailPrefixPreview');
+                const api = dataV2();
+                let pre = String(prefixInp.value || '').trim();
+                if (api && typeof api.mailNicknamePrefixSanitize === 'function') {
+                    pre = api.mailNicknamePrefixSanitize(pre, 24);
+                } else {
+                    pre = pre.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 24);
+                }
+                const sampleCode = activeCode || (activeKind === 'arge' ? 'FVV' : 'M');
+                const tail = gug().sanitizeMailNickname(String(sampleCode || 'x')).slice(0, 40);
+                const nick = gug()
+                    .sanitizeUnifiedGroupMailNickname(String((pre || '') + tail).toLowerCase())
+                    .slice(0, 60);
+                if (preview) preview.textContent = nick || '–';
+            });
+        }
         document.addEventListener('keydown', function (ev) {
             if (ev.key !== 'Escape') return;
             if (modal && modal.classList.contains('open')) closeCatalogModal();
@@ -1283,11 +1390,13 @@
     }
 
     function init() {
+        maybeUpgradeLegacyAgPrefix();
         mountDetail();
         readLists();
         ensureActiveCode();
         wire();
         setActiveKind('subject');
+        syncMailPrefixUi();
     }
 
     if (document.readyState === 'loading') {

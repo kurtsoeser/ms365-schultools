@@ -243,7 +243,7 @@
                 code: a.code,
                 graphGroupId: demoGuid(seq),
                 displayName: 'ARGE ' + (a.name || a.code),
-                mailNickname: 'ag-' + String(a.code).toLowerCase(),
+                mailNickname: 'arge-' + String(a.code).toLowerCase(),
                 mode: 'matched',
                 syncStatus: 'demo'
             });
