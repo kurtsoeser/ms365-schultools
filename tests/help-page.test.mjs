@@ -104,6 +104,7 @@ describe('Hilfe-Seite', () => {
             postfaecher: 'tool-postfaecher',
             verteilerlisten: 'tool-verteilerlisten',
             'eltern-verteiler': 'tool-eltern-verteiler',
+            'elternsprechtag-bookings': 'tool-elternsprechtag-bookings',
             'sharepoint-intranet-hub': 'tool-intranet',
             'sharepoint-liste-lehrer': 'tool-lehrerliste',
             'sharepoint-liste-schultermine': 'tool-schultermine',

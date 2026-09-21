@@ -11,12 +11,15 @@ import {
     buildSingleDayServiceSchedulingPolicy,
     calendarDaysBetween,
     maximumAdvanceForOpenDate,
-    normalizeTeacherRows
+    normalizeTeacherRows,
+    defaultServiceNameForDate
 } from './elternsprechtag-bookings-logic.js';
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',
-    'https://graph.microsoft.com/Bookings.ReadWrite.All'
+    'https://graph.microsoft.com/Bookings.Read.All',
+    'https://graph.microsoft.com/Bookings.ReadWrite.All',
+    'https://graph.microsoft.com/Bookings.Manage.All'
 ];
 
 const STORAGE_KEY = 'ms365-elternsprechtag-bookings-v1';
@@ -180,7 +183,7 @@ function readForm() {
     const minutes = Number(($('esDuration') && $('esDuration').value) || 10);
     const bizName = String(($('esBizName') && $('esBizName').value) || '').trim();
     const serviceName = String(($('esServiceName') && $('esServiceName').value) || '').trim();
-    const existingId = String(($('esBizExisting') && $('esBizExisting').value) || '').trim();
+    const existingId = resolveExistingBusinessId();
     const publish = !!($('esPublish') && $('esPublish').checked);
     const timeZone = String(($('esTimeZone') && $('esTimeZone').value) || 'Europe/Vienna').trim();
 
@@ -192,7 +195,7 @@ function readForm() {
         end: end,
         minutes: minutes,
         bizName: bizName,
-        serviceName: serviceName || 'Elternsprechtag (' + minutes + ' Min)',
+        serviceName: serviceName || defaultServiceNameForDate(date),
         existingId: existingId,
         publish: publish,
         timeZone: timeZone || 'Europe/Vienna'
@@ -242,7 +245,11 @@ function refreshSummary() {
         }
     }
     parts.push(
-        '<p>Ein Dienst: <strong>' +
+        '<p>' +
+            (f.mode === 'existing'
+                ? 'Neuer Dienst auf bestehender Buchungsseite: '
+                : 'Dienst: ') +
+            '<strong>' +
             escapeHtml(f.serviceName) +
             '</strong>, Dauer ' +
             escapeHtml(String(f.minutes)) +
@@ -323,11 +330,89 @@ function bizPath(id) {
     return '/solutions/bookingBusinesses/' + encodeURIComponent(id);
 }
 
+function populateBusinessSelect(prevId) {
+    const sel = $('esBizExisting');
+    if (!sel) return;
+    const keep = String(prevId || sel.value || '').trim();
+    sel.replaceChildren();
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = businesses.length ? '— bitte wählen —' : '— keine Treffer —';
+    sel.appendChild(opt0);
+    businesses.forEach(function (b) {
+        const o = document.createElement('option');
+        o.value = b.id;
+        o.textContent = b.displayName + ' (' + b.id + ')';
+        if (b.id === keep) o.selected = true;
+        sel.appendChild(o);
+    });
+}
+
+function resolveExistingBusinessId() {
+    const manual = String(($('esBizIdManual') && $('esBizIdManual').value) || '').trim();
+    if (manual) return manual;
+    return String(($('esBizExisting') && $('esBizExisting').value) || '').trim();
+}
+
+function explainBookingsListError(err) {
+    const msg = String((err && err.message) || err || '');
+    const lower = msg.toLowerCase();
+    if (
+        lower.indexOf('unknownerror') !== -1 ||
+        lower.indexOf('errorexceededfindcountlimit') !== -1 ||
+        lower.indexOf('too many results') !== -1
+    ) {
+        return (
+            'Graph konnte die Bookings-Liste nicht liefern (häufig bei vielen Kalendern oder ohne Admin-Rolle). ' +
+            'Tipp: Suchbegriff eingeben oder die Business-ID / Bookings-Mail manuell eintragen und „Prüfen“.'
+        );
+    }
+    if (lower.indexOf('consent') !== -1 || lower.indexOf('forbidden') !== -1 || lower.indexOf('401') !== -1 || lower.indexOf('403') !== -1) {
+        return (
+            'Berechtigung fehlt oder Consent ausstehend. In Entra brauchen Sie ' +
+            'Bookings.Read.All / Bookings.ReadWrite.All (Admin-Zustimmung) und ggf. Bookings.Manage.All.'
+        );
+    }
+    return msg;
+}
+
 async function loadBusinesses() {
     clearLog();
-    log('Melde an und lade Bookings-Umgebungen …');
+    const query = String(($('esBizQuery') && $('esBizQuery').value) || '').trim();
+    log(
+        query
+            ? 'Suche Bookings-Umgebungen mit query=\"' + query + '\" …'
+            : 'Lade Bookings-Umgebungen (ohne Filter – kann bei Graph scheitern) …'
+    );
     const token = await getToken();
-    const list = await listAllPages(token, '/solutions/bookingBusinesses');
+    const path = query
+        ? '/solutions/bookingBusinesses?query=' + encodeURIComponent(query)
+        : '/solutions/bookingBusinesses';
+    let list;
+    try {
+        list = await listAllPages(token, path);
+    } catch (e) {
+        const hint = explainBookingsListError(e);
+        log('FEHLER beim Listen: ' + ((e && e.message) || e));
+        log(hint);
+        // Fallback: manuelle ID oder gespeicherte ID direkt abrufen
+        const tryId = resolveExistingBusinessId() || String(loadPrefs().businessId || '').trim();
+        if (tryId) {
+            log('Versuche Einzelabruf: ' + tryId);
+            try {
+                const one = await graphJson('GET', bizPath(tryId), token);
+                list = one && one.id ? [one] : [];
+                log('Einzelabruf ok.');
+            } catch (e2) {
+                log('Einzelabruf fehlgeschlagen: ' + ((e2 && e2.message) || e2));
+                toast(hint);
+                throw e;
+            }
+        } else {
+            toast(hint);
+            throw e;
+        }
+    }
     businesses = list
         .map(function (b) {
             return {
@@ -341,32 +426,65 @@ async function loadBusinesses() {
         .sort(function (a, b) {
             return a.displayName.localeCompare(b.displayName, 'de');
         });
-    const sel = $('esBizExisting');
-    if (sel) {
-        const prefs = loadPrefs();
-        const prev = prefs.businessId || '';
-        sel.replaceChildren();
-        const opt0 = document.createElement('option');
-        opt0.value = '';
-        opt0.textContent = businesses.length ? '— bitte wählen —' : 'Keine Umgebung gefunden';
-        sel.appendChild(opt0);
-        businesses.forEach(function (b) {
-            const o = document.createElement('option');
-            o.value = b.id;
-            o.textContent = b.displayName + ' (' + b.id + ')';
-            if (b.id === prev) o.selected = true;
-            sel.appendChild(o);
-        });
+    const prefs = loadPrefs();
+    populateBusinessSelect(prefs.businessId || '');
+    if (businesses.length === 1 && $('esBizExisting')) {
+        $('esBizExisting').value = businesses[0].id;
+        if ($('esBizIdManual') && !$('esBizIdManual').value) {
+            $('esBizIdManual').value = businesses[0].id;
+        }
     }
-    log(businesses.length + ' Bookings-Umgebung(en) gefunden.');
-    toast(businesses.length + ' Bookings-Umgebung(en) geladen.');
+    log(businesses.length + ' Treffer.');
+    toast(businesses.length ? businesses.length + ' Umgebung(en) gefunden.' : 'Keine Treffer – ID manuell eintragen.');
+}
+
+async function verifyBusinessById() {
+    clearLog();
+    const id = resolveExistingBusinessId();
+    if (!id) {
+        toast('Bitte Business-ID / Bookings-Mail eintragen oder einen Treffer wählen.');
+        return;
+    }
+    log('Prüfe Umgebung: ' + id);
+    try {
+        const token = await getToken();
+        const one = await graphJson('GET', bizPath(id), token);
+        const bid = String((one && one.id) || id);
+        const name = String((one && one.displayName) || bid);
+        businesses = [{ id: bid, displayName: name }];
+        populateBusinessSelect(bid);
+        if ($('esBizExisting')) $('esBizExisting').value = bid;
+        if ($('esBizIdManual')) $('esBizIdManual').value = bid;
+        savePrefs({ businessId: bid, mode: 'existing' });
+        log('OK: ' + name + ' (' + bid + ')');
+        if (one && one.isPublished != null) log('Veröffentlicht: ' + (one.isPublished ? 'ja' : 'nein'));
+        if (one && one.publicUrl) {
+            log('publicUrl: ' + one.publicUrl);
+            showBookingResult(one.publicUrl, {});
+        }
+        toast('Umgebung gefunden: ' + name);
+    } catch (e) {
+        log('FEHLER: ' + ((e && e.message) || e));
+        toast(
+            'Umgebung nicht gefunden. ID prüfen (oft die Bookings-Mail wie name@tenant.onmicrosoft.com). ' +
+                ((e && e.message) || '')
+        );
+    }
 }
 
 async function ensureBusiness(token, form) {
     if (form.mode === 'existing') {
-        if (!form.existingId) throw new Error('Bitte eine bestehende Bookings-Umgebung wählen.');
-        log('Nutze bestehende Umgebung: ' + form.existingId);
-        return form.existingId;
+        const existingId = resolveExistingBusinessId() || form.existingId;
+        if (!existingId) {
+            throw new Error(
+                'Bitte eine bestehende Umgebung wählen oder die Business-ID / Bookings-Mail eintragen.'
+            );
+        }
+        log('Prüfe bestehende Umgebung: ' + existingId);
+        const one = await graphJson('GET', bizPath(existingId), token);
+        const id = String((one && one.id) || existingId);
+        log('Nutze: ' + String((one && one.displayName) || id) + ' (' + id + ')');
+        return id;
     }
     if (!form.bizName) throw new Error('Bitte einen Namen für die neue Bookings-Umgebung angeben.');
     // Bestehende Umgebungen nachladen (Duplikate vermeiden)
@@ -509,7 +627,6 @@ async function syncStaff(token, businessId, selected, timeZone) {
 }
 
 async function ensureService(token, businessId, form, staffIds) {
-    const services = await listAllPages(token, bizPath(businessId) + '/services');
     const duration = durationIsoFromMinutes(form.minutes);
     if (!duration) throw new Error('Slotdauer ungültig (5–120 Min).');
 
@@ -522,6 +639,36 @@ async function ensureService(token, businessId, form, staffIds) {
     });
     if (!schedulingPolicy) {
         throw new Error('Scheduling-Policy konnte nicht gebaut werden (Datum/Zeiten prüfen).');
+    }
+
+    // Bestehende Buchungsseite: immer neuer Dienst (Schulpraxis: ein Dienst pro Sprechtag).
+    // Neue Umgebung: ebenfalls anlegen; Namenskollision nur bei „new“ und gleichem Namen aktualisieren,
+    // wenn explizit kein Force-New – hier: bei existing immer neu, bei new nur neu wenn Name frei.
+    const forceNew = form.mode === 'existing';
+
+    let existing = null;
+    if (!forceNew) {
+        const services = await listAllPages(token, bizPath(businessId) + '/services');
+        existing = services.find(function (s) {
+            return String((s && s.displayName) || '').toLowerCase() === form.serviceName.toLowerCase();
+        });
+    } else {
+        log('Bestehende Buchungsseite → lege neuen Dienst an (kein Update bestehender Dienste).');
+        try {
+            const services = await listAllPages(token, bizPath(businessId) + '/services');
+            const sameName = services.filter(function (s) {
+                return String((s && s.displayName) || '').toLowerCase() === form.serviceName.toLowerCase();
+            });
+            if (sameName.length) {
+                log(
+                    'Hinweis: Es gibt bereits ' +
+                        sameName.length +
+                        ' Dienst(e) mit diesem Namen – es wird trotzdem ein neuer angelegt.'
+                );
+            }
+        } catch (e) {
+            log('Hinweis: bestehende Dienste konnten nicht gelesen werden: ' + ((e && e.message) || e));
+        }
     }
 
     log(
@@ -546,11 +693,7 @@ async function ensureService(token, businessId, form, staffIds) {
         schedulingPolicy: schedulingPolicy
     };
 
-    const existing = services.find(function (s) {
-        return String((s && s.displayName) || '').toLowerCase() === form.serviceName.toLowerCase();
-    });
-
-    if (existing && existing.id) {
+    if (!forceNew && existing && existing.id) {
         log('Aktualisiere bestehenden Dienst: ' + form.serviceName);
         const prevIds = Array.isArray(existing.staffMemberIds) ? existing.staffMemberIds.map(String) : [];
         const merged = Array.from(new Set(prevIds.concat(staffIds.map(String))));
@@ -563,15 +706,17 @@ async function ensureService(token, businessId, form, staffIds) {
         );
         return {
             id: String(existing.id),
-            webUrl: (updated && updated.webUrl) || existing.webUrl || ''
+            webUrl: (updated && updated.webUrl) || existing.webUrl || '',
+            created: false
         };
     }
 
-    log('Lege Dienst an: ' + form.serviceName);
+    log('Lege neuen Dienst an: ' + form.serviceName);
     const created = await graphJson('POST', bizPath(businessId) + '/services', token, payload);
     return {
         id: String((created && created.id) || ''),
-        webUrl: (created && created.webUrl) || ''
+        webUrl: (created && created.webUrl) || '',
+        created: true
     };
 }
 
@@ -638,7 +783,11 @@ async function runSetup() {
             eventDate: form.date
         });
 
-        await patchBusinessHours(token, businessId, form);
+        if (form.mode === 'existing') {
+            log('Bestehende Buchungsseite: Geschäfts-Öffnungszeiten bleiben unverändert (nur neuer Dienst).');
+        } else {
+            await patchBusinessHours(token, businessId, form);
+        }
         const staffIds = await syncStaff(token, businessId, selected, form.timeZone);
         if (!staffIds.length) {
             throw new Error('Kein Mitarbeiter konnte angelegt/gefunden werden.');
@@ -670,7 +819,16 @@ async function runSetup() {
 
         log('');
         log('Fertig. Business-ID: ' + businessId);
-        if (service.id) log('Service-ID: ' + service.id);
+        if (service.id) {
+            log(
+                (service.created ? 'Neuer Dienst angelegt' : 'Dienst aktualisiert') +
+                    ': ' +
+                    form.serviceName +
+                    ' (' +
+                    service.id +
+                    ')'
+            );
+        }
 
         showBookingResult(publicUrl, {
             bookingOpen: form.bookingOpen,
@@ -700,7 +858,8 @@ function applyDefaultsFromPrefs() {
         $('esBizName').value = 'Elternsprechtag ' + y;
     }
     if ($('esServiceName') && !$('esServiceName').value) {
-        $('esServiceName').value = 'Elternsprechtag (10 Min)';
+        const dateVal = ($('esDate') && $('esDate').value) || '';
+        $('esServiceName').value = defaultServiceNameForDate(dateVal);
     }
     if ($('esDate') && !$('esDate').value) {
         const d = new Date();
@@ -737,6 +896,9 @@ function applyDefaultsFromPrefs() {
     }
     if ($('esStart') && !$('esStart').value) $('esStart').value = '15:00';
     if ($('esEnd') && !$('esEnd').value) $('esEnd').value = '19:00';
+    if (p.businessId && $('esBizIdManual') && !$('esBizIdManual').value) {
+        $('esBizIdManual').value = p.businessId;
+    }
     if (p.publicUrl) {
         showBookingResult(p.publicUrl, {
             bookingOpen: p.bookingOpen || '',
@@ -751,7 +913,12 @@ function wire() {
     loadTeachersFromStammdaten();
 
     const mode = $('esBizMode');
-    if (mode) mode.addEventListener('change', syncBizModeUi);
+    if (mode) {
+        mode.addEventListener('change', function () {
+            syncBizModeUi();
+            refreshSummary();
+        });
+    }
 
     ['esDate', 'esBookingOpen', 'esStart', 'esEnd', 'esDuration', 'esServiceName', 'esBizName'].forEach(
         function (id) {
@@ -765,20 +932,31 @@ function wire() {
     if (dateEl) {
         dateEl.addEventListener('change', function () {
             const openEl = $('esBookingOpen');
-            if (!openEl || openEl.value) return;
-            const m = dateEl.value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (!m) return;
-            const ev = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0);
-            ev.setDate(ev.getDate() - 14);
-            const today = new Date();
-            const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
-            const open = ev.getTime() < startToday.getTime() ? startToday : ev;
-            openEl.value =
-                open.getFullYear() +
-                '-' +
-                String(open.getMonth() + 1).padStart(2, '0') +
-                '-' +
-                String(open.getDate()).padStart(2, '0');
+            if (openEl && !openEl.value) {
+                const m = dateEl.value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (m) {
+                    const ev = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0);
+                    ev.setDate(ev.getDate() - 14);
+                    const today = new Date();
+                    const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+                    const open = ev.getTime() < startToday.getTime() ? startToday : ev;
+                    openEl.value =
+                        open.getFullYear() +
+                        '-' +
+                        String(open.getMonth() + 1).padStart(2, '0') +
+                        '-' +
+                        String(open.getDate()).padStart(2, '0');
+                }
+            }
+            // Dienstname im Schulstil vorschlagen, wenn noch leer oder alter Jahres-Vorschlag
+            const nameEl = $('esServiceName');
+            if (nameEl && dateEl.value) {
+                const suggested = defaultServiceNameForDate(dateEl.value);
+                const cur = String(nameEl.value || '').trim();
+                if (!cur || /^Termin Elternsprechtag \d{4}$/i.test(cur)) {
+                    nameEl.value = suggested;
+                }
+            }
             refreshSummary();
         });
     }
@@ -811,9 +989,31 @@ function wire() {
     if (btnBiz) {
         btnBiz.addEventListener('click', function () {
             loadBusinesses().catch(function (e) {
-                log('FEHLER: ' + ((e && e.message) || e));
-                toast((e && e.message) || String(e));
+                log('FEHLER: ' + explainBookingsListError(e));
+                toast(explainBookingsListError(e));
             });
+        });
+    }
+
+    const btnVerify = $('esBtnVerifyBiz');
+    if (btnVerify) btnVerify.addEventListener('click', verifyBusinessById);
+
+    const selBiz = $('esBizExisting');
+    if (selBiz) {
+        selBiz.addEventListener('change', function () {
+            if (selBiz.value && $('esBizIdManual')) $('esBizIdManual').value = selBiz.value;
+        });
+    }
+
+    const qEl = $('esBizQuery');
+    if (qEl) {
+        qEl.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                loadBusinesses().catch(function (e) {
+                    toast(explainBookingsListError(e));
+                });
+            }
         });
     }
 

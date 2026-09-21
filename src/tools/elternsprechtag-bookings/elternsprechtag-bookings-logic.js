@@ -193,15 +193,11 @@ export function emailsEqual(a, b) {
 }
 
 /**
- * Tage von heute bis inkl. Ereignistag (mindestens 1).
+ * Vorschlag für Dienstnamen im Schulstil: „Termin Elternsprechtag 2026“.
  * @param {string} isoDate
  */
-export function daysUntilInclusive(isoDate) {
-    const m = String(isoDate || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!m) return 30;
-    const target = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 0);
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const diff = Math.ceil((target.getTime() - start.getTime()) / 86400000);
-    return Math.max(1, Math.min(365, diff));
+export function defaultServiceNameForDate(isoDate) {
+    const m = String(isoDate || '').trim().match(/^(\d{4})-/);
+    const year = m ? m[1] : String(new Date().getFullYear());
+    return 'Termin Elternsprechtag ' + year;
 }

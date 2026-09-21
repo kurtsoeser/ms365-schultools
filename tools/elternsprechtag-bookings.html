@@ -102,13 +102,21 @@
                         <input type="text" id="esBizName" maxlength="200" spellcheck="false" placeholder="Elternsprechtag 2026">
                     </div>
                     <div class="tm-field" id="esBizExistRow" hidden>
-                        <label for="esBizExisting">Vorhandene Umgebung</label>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                            <select id="esBizExisting" style="flex:1;min-width:200px;">
-                                <option value="">— zuerst laden —</option>
-                            </select>
-                            <button type="button" class="btn" id="esBtnLoadBiz"><i class="bi bi-cloud-download"></i>Laden</button>
+                        <label for="esBizQuery">Suche / Name (optional)</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+                            <input type="text" id="esBizQuery" placeholder="z. B. Elternsprechtag" style="flex:1;min-width:180px;" spellcheck="false">
+                            <button type="button" class="btn" id="esBtnLoadBiz"><i class="bi bi-search"></i>Suchen</button>
                         </div>
+                        <label for="esBizExisting">Treffer</label>
+                        <select id="esBizExisting" style="width:100%;margin-bottom:10px;">
+                            <option value="">— suchen oder ID unten eintragen —</option>
+                        </select>
+                        <label for="esBizIdManual">Oder Business-ID / Bookings-Mail direkt</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <input type="text" id="esBizIdManual" placeholder="z. B. Elternsprechtag@schule.onmicrosoft.com" style="flex:1;min-width:220px;" spellcheck="false" autocomplete="off">
+                            <button type="button" class="btn btn-ghost" id="esBtnVerifyBiz"><i class="bi bi-check2-circle"></i>Prüfen</button>
+                        </div>
+                        <p class="es-hint">Die komplette Liste liefert Graph oft mit <code>UnknownError</code>. Besser: Suchbegriff oder die Bookings-Adresse aus dem Portal (Geschäftsinformationen / Kalender-Mail).</p>
                     </div>
                 </div>
             </section>
@@ -143,15 +151,15 @@
                         <input type="number" id="esDuration" min="5" max="120" step="5" value="10">
                     </div>
                     <div class="tm-field">
-                        <label for="esServiceName">Name des Dienstes</label>
-                        <input type="text" id="esServiceName" value="Elternsprechtag (10 Min)" maxlength="200" spellcheck="false">
+                        <label for="esServiceName">Name des neuen Dienstes</label>
+                        <input type="text" id="esServiceName" value="" maxlength="200" spellcheck="false" placeholder="Termin Elternsprechtag 2026">
                     </div>
                     <div class="tm-field">
                         <label for="esTimeZone">Zeitzone</label>
                         <input type="text" id="esTimeZone" value="Europe/Vienna" spellcheck="false">
                     </div>
                 </div>
-                <p class="es-hint">Der Dienst ist nur an diesem <strong>einen Kalendertag</strong> buchbar (Graph: <code>customAvailabilities</code>). Vor dem Freischalt-Datum erscheinen keine Termine – der Link kann trotzdem schon verteilt werden.</p>
+                <p class="es-hint">Der Dienst ist nur an diesem <strong>einen Kalendertag</strong> buchbar. Bei einer <strong>bestehenden Buchungsseite</strong> wird immer ein <strong>neuer Dienst</strong> angelegt (wie „Termin Elternsprechtag 2025“) – ältere Dienste bleiben erhalten.</p>
                 <label class="checkbox-label" style="display:flex;gap:8px;margin:12px 0 0;align-items:flex-start;">
                     <input type="checkbox" id="esPublish" checked>
                     <span>Buchungsseite veröffentlichen (nötig für den öffentlichen Link)</span>
