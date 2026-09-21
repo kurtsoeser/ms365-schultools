@@ -472,6 +472,100 @@ async function verifyBusinessById() {
     }
 }
 
+function isMailboxNotFoundError(err) {
+    const msg = String((err && err.message) || err || '');
+    return (
+        /Bookings mailbox was not found/i.test(msg) ||
+        /Mailbox does not exist/i.test(msg) ||
+        /"code"\s*:\s*"NotFound"/i.test(msg) ||
+        /NotFound/i.test(msg) && /mailbox/i.test(msg)
+    );
+}
+
+/**
+ * Nach Create braucht Exchange oft einige Sekunden, bis die Bookings-Mailbox steht.
+ */
+async function waitForBookingMailbox(token, businessId) {
+    const maxAttempts = 15;
+    for (let i = 0; i < maxAttempts; i++) {
+        try {
+            await graphJson('GET', bizPath(businessId), token);
+            await graphJson('GET', bizPath(businessId) + '/staffMembers?$top=1', token);
+            if (i > 0) log('Bookings-Mailbox ist bereit.');
+            return true;
+        } catch (e) {
+            if (!isMailboxNotFoundError(e) && i >= 2) {
+                throw e;
+            }
+            log('Warte auf Bookings-Mailbox-Provisionierung … (' + (i + 1) + '/' + maxAttempts + ')');
+            await sleep(4000);
+        }
+    }
+    return false;
+}
+
+async function graphJsonWithMailboxRetry(method, path, token, body, extraHeaders) {
+    const maxAttempts = 8;
+    let lastErr = null;
+    for (let i = 0; i < maxAttempts; i++) {
+        try {
+            return await graphJson(method, path, token, body, extraHeaders);
+        } catch (e) {
+            lastErr = e;
+            if (!isMailboxNotFoundError(e)) throw e;
+            log(
+                'Mailbox noch nicht bereit für ' +
+                    method +
+                    ' – warte und versuche erneut (' +
+                    (i + 1) +
+                    '/' +
+                    maxAttempts +
+                    ') …'
+            );
+            await sleep(4000);
+        }
+    }
+    throw lastErr;
+}
+
+function buildCreateBusinessBody(form) {
+    const body = {
+        displayName: form.bizName,
+        defaultCurrencyIso: 'EUR'
+    };
+    const weekday = weekdayFromIsoDate(form.date);
+    const startTime = toBookingsTime(form.start);
+    const endTime = toBookingsTime(form.end);
+    const policy = buildSingleDayServiceSchedulingPolicy({
+        eventDate: form.date,
+        startHhmm: form.start,
+        endHhmm: form.end,
+        durationMin: form.minutes,
+        bookingOpenDate: form.bookingOpen
+    });
+    if (weekday && startTime && endTime) {
+        const hours = buildBusinessHoursForDay({
+            weekday: weekday,
+            startTime: startTime,
+            endTime: endTime
+        });
+        if (hours) body.businessHours = hours;
+    }
+    if (policy) {
+        body.schedulingPolicy = {
+            timeSlotInterval: policy.timeSlotInterval,
+            minimumLeadTime: policy.minimumLeadTime,
+            maximumAdvance: policy.maximumAdvance,
+            sendConfirmationsToOwner: true,
+            allowStaffSelection: true
+        };
+    }
+    return body;
+}
+
+/**
+ * @returns {Promise<{ id: string, reused: boolean, freshlyCreated: boolean }>}
+ */
 async function ensureBusiness(token, form) {
     if (form.mode === 'existing') {
         const existingId = resolveExistingBusinessId() || form.existingId;
@@ -481,16 +575,26 @@ async function ensureBusiness(token, form) {
             );
         }
         log('Prüfe bestehende Umgebung: ' + existingId);
-        const one = await graphJson('GET', bizPath(existingId), token);
-        const id = String((one && one.id) || existingId);
-        log('Nutze: ' + String((one && one.displayName) || id) + ' (' + id + ')');
-        return id;
+        try {
+            const one = await graphJsonWithMailboxRetry('GET', bizPath(existingId), token);
+            const id = String((one && one.id) || existingId);
+            log('Nutze: ' + String((one && one.displayName) || id) + ' (' + id + ')');
+            return { id: id, reused: true, freshlyCreated: false };
+        } catch (e) {
+            if (isMailboxNotFoundError(e)) {
+                throw new Error(
+                    'Bookings-Mailbox nicht gefunden für „' +
+                        existingId +
+                        '“. ID im Bookings-Portal prüfen (Geschäftsinformationen) oder die Seite dort neu anlegen.'
+                );
+            }
+            throw e;
+        }
     }
     if (!form.bizName) throw new Error('Bitte einen Namen für die neue Bookings-Umgebung angeben.');
-    // Bestehende Umgebungen nachladen (Duplikate vermeiden)
     if (!businesses.length) {
         try {
-            const list = await listAllPages(token, '/solutions/bookingBusinesses');
+            const list = await listAllPages(token, '/solutions/bookingBusinesses?query=' + encodeURIComponent(form.bizName));
             businesses = list
                 .map(function (b) {
                     return {
@@ -502,26 +606,47 @@ async function ensureBusiness(token, form) {
                     return b.id;
                 });
         } catch (e) {
-            log('Hinweis: bestehende Umgebungen konnten nicht geladen werden – lege neu an. ' + ((e && e.message) || e));
+            log('Hinweis: Suche nach bestehender Umgebung übersprungen. ' + ((e && e.message) || e));
         }
     }
     const hit = businesses.find(function (b) {
         return String(b.displayName).toLowerCase() === form.bizName.toLowerCase();
     });
     if (hit) {
-        log('Umgebung mit diesem Namen existiert bereits – verwende sie: ' + hit.id);
-        return hit.id;
+        log('Name bereits vorhanden – prüfe Mailbox: ' + hit.id);
+        try {
+            await graphJsonWithMailboxRetry('GET', bizPath(hit.id), token);
+            log('Vorhandene Umgebung wird wiederverwendet (neuer Dienst, Öffnungszeiten der Seite bleiben).');
+            return { id: hit.id, reused: true, freshlyCreated: false };
+        } catch (e) {
+            if (isMailboxNotFoundError(e)) {
+                throw new Error(
+                    'Es gibt einen Bookings-Eintrag „' +
+                        form.bizName +
+                        '“ (' +
+                        hit.id +
+                        '), aber keine Mailbox. Bitte in Bookings prüfen/löschen oder einen anderen Umgebungsnamen wählen.'
+                );
+            }
+            throw e;
+        }
     }
     log('Lege Bookings-Umgebung an: ' + form.bizName);
-    const created = await graphJson('POST', '/solutions/bookingBusinesses', token, {
-        displayName: form.bizName,
-        defaultCurrencyIso: 'EUR'
-    });
+    const created = await graphJson('POST', '/solutions/bookingBusinesses', token, buildCreateBusinessBody(form));
     const id = String((created && created.id) || '');
     if (!id) throw new Error('Bookings-Umgebung angelegt, aber keine ID zurückgegeben.');
     businesses.push({ id: id, displayName: form.bizName });
     log('  → ID: ' + id);
-    return id;
+    log('Warte, bis die Bookings-Mailbox provisioniert ist …');
+    const ready = await waitForBookingMailbox(token, id);
+    if (!ready) {
+        throw new Error(
+            'Umgebung angelegt (' +
+                id +
+                '), Mailbox aber noch nicht bereit. Bitte 1–2 Minuten warten, dann Modus „Bestehende Umgebung“ mit dieser ID erneut ausführen.'
+        );
+    }
+    return { id: id, reused: false, freshlyCreated: true };
 }
 
 async function patchBusinessHours(token, businessId, form) {
@@ -557,7 +682,7 @@ async function patchBusinessHours(token, businessId, form) {
             form.end +
             ') …'
     );
-    await graphJson('PATCH', bizPath(businessId), token, {
+    await graphJsonWithMailboxRetry('PATCH', bizPath(businessId), token, {
         businessHours: hours,
         schedulingPolicy: policy
             ? {
@@ -572,7 +697,17 @@ async function patchBusinessHours(token, businessId, form) {
 }
 
 async function syncStaff(token, businessId, selected, timeZone) {
-    const existing = await listAllPages(token, bizPath(businessId) + '/staffMembers');
+    const existing = await listAllPages(
+        token,
+        bizPath(businessId) + '/staffMembers'
+    ).catch(async function (e) {
+        if (isMailboxNotFoundError(e)) {
+            const ready = await waitForBookingMailbox(token, businessId);
+            if (!ready) throw e;
+            return listAllPages(token, bizPath(businessId) + '/staffMembers');
+        }
+        throw e;
+    });
     const byEmail = new Map();
     existing.forEach(function (s) {
         const em = String((s && s.emailAddress) || '')
@@ -641,10 +776,8 @@ async function ensureService(token, businessId, form, staffIds) {
         throw new Error('Scheduling-Policy konnte nicht gebaut werden (Datum/Zeiten prüfen).');
     }
 
-    // Bestehende Buchungsseite: immer neuer Dienst (Schulpraxis: ein Dienst pro Sprechtag).
-    // Neue Umgebung: ebenfalls anlegen; Namenskollision nur bei „new“ und gleichem Namen aktualisieren,
-    // wenn explizit kein Force-New – hier: bei existing immer neu, bei new nur neu wenn Name frei.
-    const forceNew = form.mode === 'existing';
+    // Bestehende / wiederverwendete Buchungsseite: immer neuer Dienst.
+    const forceNew = form.mode === 'existing' || !!form.forceNewService;
 
     let existing = null;
     if (!forceNew) {
@@ -773,18 +906,35 @@ async function runSetup() {
     if (btn) btn.disabled = true;
     try {
         const token = await getToken();
-        const businessId = await ensureBusiness(token, form);
+        const biz = await ensureBusiness(token, form);
+        const businessId = biz.id;
+        form.forceNewService = !!biz.reused;
         savePrefs({
             businessId: businessId,
             bizName: form.bizName,
             serviceName: form.serviceName,
-            mode: form.mode,
+            mode: biz.reused ? 'existing' : form.mode,
             bookingOpen: form.bookingOpen,
             eventDate: form.date
         });
 
-        if (form.mode === 'existing') {
-            log('Bestehende Buchungsseite: Geschäfts-Öffnungszeiten bleiben unverändert (nur neuer Dienst).');
+        if (biz.reused) {
+            log('Bestehende Buchungsseite: Geschäfts-Öffnungszeiten bleiben unverändert (nur neuer Dienst + Mitarbeiter).');
+        } else if (biz.freshlyCreated) {
+            log('Neue Umgebung: Zeiten wurden beim Anlegen gesetzt; ggf. Nachziehen …');
+            try {
+                await patchBusinessHours(token, businessId, form);
+            } catch (e) {
+                if (isMailboxNotFoundError(e)) {
+                    log(
+                        'Hinweis: Business-Zeiten konnten noch nicht gesetzt werden (Mailbox). ' +
+                            'Der Dienst mit Tages-Verfügbarkeit wird trotzdem angelegt. ' +
+                            ((e && e.message) || e)
+                    );
+                } else {
+                    throw e;
+                }
+            }
         } else {
             await patchBusinessHours(token, businessId, form);
         }
