@@ -7,6 +7,17 @@ export const DEMO_CLASS_CODE = 'DEMO';
 export const MAX_DEMO_STUDENTS = 10;
 export const DEMO_STUDENT_UPN_PREFIX = 'demo.schueler';
 
+/** Feld-Bausteine für Anzeigename / Alias (plus type:text). */
+export const SPIEL_FIELD_TOKEN_TYPES = new Set([
+    'kind',
+    'year',
+    'lehrer',
+    'lehrerName',
+    'label'
+]);
+
+const PATTERN_STORAGE_KEY = 'ms365-spielwiesen-name-pattern-v1';
+
 function norm(s) {
     return String(s == null ? '' : s).trim();
 }
@@ -25,16 +36,168 @@ export function slugify(raw) {
 }
 
 /**
- * @param {{ label?: string, year?: string|number, asDemo?: boolean }} input
+ * Standard: DEMO/Spielwiese · Thema · Lehrer-Kürzel · Jahr
+ * (leere Felder werden beim Zusammenbauen übersprungen)
+ */
+export function defaultSpielNamePattern() {
+    return [
+        { type: 'kind' },
+        { type: 'text', value: ' ' },
+        { type: 'label' },
+        { type: 'text', value: ' ' },
+        { type: 'lehrer' },
+        { type: 'text', value: ' ' },
+        { type: 'year' }
+    ];
+}
+
+export function normalizeSpielNamePattern(pattern) {
+    const arr = Array.isArray(pattern) ? pattern : [];
+    const out = [];
+    arr.forEach(function (p) {
+        if (!p || typeof p !== 'object') return;
+        const type = String(p.type || '').trim();
+        if (!type) return;
+        if (type === 'text') {
+            out.push({ type: 'text', value: String(p.value ?? '') });
+        } else if (SPIEL_FIELD_TOKEN_TYPES.has(type)) {
+            out.push({ type: type });
+        }
+    });
+    return out.length ? out : defaultSpielNamePattern();
+}
+
+export function spielTokenLabel(t) {
+    const type = t && t.type;
+    if (type === 'kind') return 'DEMO / Spielwiese';
+    if (type === 'year') return 'Jahr';
+    if (type === 'lehrer') return 'Lehrer-Kürzel';
+    if (type === 'lehrerName') return 'Lehrer-Name';
+    if (type === 'label') return 'Thema';
+    if (type === 'text') return 'Text';
+    return type || '?';
+}
+
+/**
+ * @param {{ asDemo?: boolean, year?: string, lehrer?: string, lehrerName?: string, label?: string }} ctx
+ */
+export function resolveSpielNameCtx(ctx) {
+    const c = ctx || {};
+    const asDemo = c.asDemo !== false;
+    return {
+        kind: asDemo ? 'DEMO' : 'Spielwiese',
+        year: norm(c.year) || String(new Date().getFullYear()),
+        lehrer: norm(c.lehrer).toUpperCase(),
+        lehrerName: norm(c.lehrerName),
+        label: norm(c.label)
+    };
+}
+
+function fieldValue(type, ctx) {
+    if (type === 'kind') return ctx.kind || '';
+    if (type === 'year') return ctx.year || '';
+    if (type === 'lehrer') return ctx.lehrer || '';
+    if (type === 'lehrerName') return ctx.lehrerName || '';
+    if (type === 'label') return ctx.label || '';
+    return '';
+}
+
+/**
+ * Bausteine → Anzeigename. Leere Feld-Bausteine inkl. angrenzender Trenner entfallen.
+ */
+export function buildSpielDisplayName(pattern, ctx) {
+    const resolved = resolveSpielNameCtx(ctx);
+    const tokens = normalizeSpielNamePattern(pattern);
+    const parts = [];
+    let pendingText = '';
+
+    tokens.forEach(function (p) {
+        if (p.type === 'text') {
+            pendingText += String(p.value ?? '');
+            return;
+        }
+        const v = fieldValue(p.type, resolved);
+        if (!v) {
+            pendingText = '';
+            return;
+        }
+        if (parts.length) parts.push(pendingText);
+        else if (pendingText && !/^\s*$/.test(pendingText)) parts.push(pendingText);
+        parts.push(v);
+        pendingText = '';
+    });
+
+    let name = parts.join('');
+    name = name.replace(/\s{2,}/g, ' ').trim();
+    if (!name) {
+        name = (resolved.kind || 'DEMO') + ' ' + (resolved.year || '');
+        name = name.trim();
+    }
+    return name;
+}
+
+/**
+ * Alias: spiel-{slug-segmente} – Feld-Bausteine in Reihenfolge, Text-Trenner → „-“.
+ */
+export function buildSpielMailNickname(pattern, ctx) {
+    const resolved = resolveSpielNameCtx(ctx);
+    const segments = [];
+    normalizeSpielNamePattern(pattern).forEach(function (p) {
+        if (p.type === 'text') return;
+        let v = fieldValue(p.type, resolved);
+        if (!v) return;
+        if (p.type === 'kind') {
+            v = resolved.kind === 'Spielwiese' ? 'spielwiese' : 'demo';
+        }
+        const slug = slugify(v);
+        if (slug) segments.push(slug);
+    });
+    if (!segments.length) {
+        segments.push(slugify(resolved.kind === 'Spielwiese' ? 'spielwiese' : 'demo'));
+        if (resolved.year) segments.push(slugify(resolved.year));
+    }
+    const nick = (SPIEL_PREFIX + '-' + segments.join('-')).replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return nick.slice(0, 64);
+}
+
+export function loadSpielNamePattern() {
+    try {
+        const raw = localStorage.getItem(PATTERN_STORAGE_KEY);
+        if (!raw) return defaultSpielNamePattern();
+        return normalizeSpielNamePattern(JSON.parse(raw));
+    } catch {
+        return defaultSpielNamePattern();
+    }
+}
+
+export function saveSpielNamePattern(pattern) {
+    try {
+        localStorage.setItem(PATTERN_STORAGE_KEY, JSON.stringify(normalizeSpielNamePattern(pattern)));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * @param {{ label?: string, year?: string|number, asDemo?: boolean, pattern?: array, lehrer?: string, lehrerName?: string }} input
  */
 export function buildSpielwiesenPlan(input) {
     const label = norm(input && input.label) || 'Schilf';
     const year = norm(input && input.year) || String(new Date().getFullYear());
     const asDemo = !!(input && input.asDemo);
+    const pattern = normalizeSpielNamePattern(input && input.pattern);
     const issues = [];
-    if (!label) issues.push('Bezeichnung fehlt');
-    const displayName = (asDemo ? 'DEMO ' : 'Spielwiese ') + label + ' ' + year;
-    const mailNickname = (SPIEL_PREFIX + '-' + year + '-' + slugify(label)).slice(0, 64);
+    if (!label && !norm(input && input.lehrer)) issues.push('Bezeichnung fehlt');
+    const ctx = {
+        asDemo: asDemo,
+        year: year,
+        label: label,
+        lehrer: input && input.lehrer,
+        lehrerName: input && input.lehrerName
+    };
+    const displayName = buildSpielDisplayName(pattern, ctx);
+    const mailNickname = buildSpielMailNickname(pattern, ctx);
     const description =
         'Schilf-/Spielwiesen-Kursteam (EDU_Class). Class Notebook und Aufgaben bewusst freigeben. ' +
         'Angelegt mit MS365-Schulverwaltung. Demo-Klasse: ' +
@@ -49,6 +212,7 @@ export function buildSpielwiesenPlan(input) {
         asTeam: true,
         educationClass: true,
         mode: 'single',
+        pattern,
         notebookChecklist: defaultNotebookChecklist()
     };
 }
@@ -66,7 +230,7 @@ function defaultNotebookChecklist() {
 
 /**
  * Ein Lehrer-Spielwiesen-Team (1:1).
- * @param {{ code?: string, name?: string, email?: string, year?: string|number, asDemo?: boolean }} input
+ * @param {{ code?: string, name?: string, email?: string, year?: string|number, asDemo?: boolean, label?: string, pattern?: array }} input
  */
 export function buildTeacherSpielPlan(input) {
     const code = norm(input && input.code).toUpperCase();
@@ -74,12 +238,20 @@ export function buildTeacherSpielPlan(input) {
     const email = norm(input && input.email).toLowerCase();
     const year = norm(input && input.year) || String(new Date().getFullYear());
     const asDemo = input && input.asDemo !== false;
+    const label = norm(input && input.label);
+    const pattern = normalizeSpielNamePattern(input && input.pattern);
     const issues = [];
     if (!code) issues.push('Lehrerkürzel fehlt');
     if (!email) issues.push('Lehrer-E-Mail fehlt');
-    const label = code + (name ? ' ' + name : '');
-    const displayName = (asDemo ? 'DEMO ' : 'Spielwiese ') + code + ' ' + year;
-    const mailNickname = (SPIEL_PREFIX + '-' + year + '-' + slugify(code)).slice(0, 64);
+    const ctx = {
+        asDemo: asDemo,
+        year: year,
+        lehrer: code,
+        lehrerName: name,
+        label: label
+    };
+    const displayName = buildSpielDisplayName(pattern, ctx);
+    const mailNickname = buildSpielMailNickname(pattern, ctx);
     return {
         ok: issues.length === 0,
         issues,
@@ -87,6 +259,7 @@ export function buildTeacherSpielPlan(input) {
         name,
         email,
         year,
+        label,
         displayName,
         mailNickname,
         description:
@@ -97,16 +270,19 @@ export function buildTeacherSpielPlan(input) {
             '. MS365-Schulverwaltung.',
         ownerEmail: email,
         educationClass: true,
-        mode: 'teacher'
+        mode: 'teacher',
+        pattern
     };
 }
 
 /**
- * @param {{ teachers?: Array<{ code?: string, name?: string, email?: string }>, year?: string|number, asDemo?: boolean, selectedCodes?: string[] }} input
+ * @param {{ teachers?: Array<{ code?: string, name?: string, email?: string }>, year?: string|number, asDemo?: boolean, selectedCodes?: string[], label?: string, pattern?: array }} input
  */
 export function buildBulkTeacherPlans(input) {
     const year = norm(input && input.year) || String(new Date().getFullYear());
     const asDemo = input && input.asDemo !== false;
+    const label = norm(input && input.label);
+    const pattern = normalizeSpielNamePattern(input && input.pattern);
     const teachers = Array.isArray(input && input.teachers) ? input.teachers : [];
     const selected = Array.isArray(input && input.selectedCodes)
         ? input.selectedCodes.map(function (c) {
@@ -125,7 +301,9 @@ export function buildBulkTeacherPlans(input) {
             name: t && t.name,
             email: t && t.email,
             year: year,
-            asDemo: asDemo
+            asDemo: asDemo,
+            label: label,
+            pattern: pattern
         });
         plans.push(p);
         if (!p.ok) issues.push(code + ': ' + p.issues.join(', '));
@@ -231,7 +409,16 @@ export default {
     DEMO_CLASS_CODE,
     MAX_DEMO_STUDENTS,
     DEMO_STUDENT_UPN_PREFIX,
+    SPIEL_FIELD_TOKEN_TYPES,
     slugify,
+    defaultSpielNamePattern,
+    normalizeSpielNamePattern,
+    spielTokenLabel,
+    resolveSpielNameCtx,
+    buildSpielDisplayName,
+    buildSpielMailNickname,
+    loadSpielNamePattern,
+    saveSpielNamePattern,
     buildSpielwiesenPlan,
     buildTeacherSpielPlan,
     buildBulkTeacherPlans,

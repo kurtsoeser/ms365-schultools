@@ -11,7 +11,14 @@ import {
     isDemoStudentUser,
     filterDemoStudents,
     validateDemoPool,
-    generateDemoPassword
+    generateDemoPassword,
+    defaultSpielNamePattern,
+    normalizeSpielNamePattern,
+    spielTokenLabel,
+    buildSpielDisplayName,
+    buildSpielMailNickname,
+    loadSpielNamePattern,
+    saveSpielNamePattern
 } from './spielwiesen-logic.js';
 import {
     licensesFromAssigned,
@@ -22,6 +29,9 @@ import {
 function $(id) {
     return document.getElementById(id);
 }
+
+/** @type {ReturnType<typeof defaultSpielNamePattern>} */
+let namePattern = defaultSpielNamePattern();
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -132,6 +142,204 @@ function asDemo() {
     return !!($('spAsDemo') && $('spAsDemo').checked);
 }
 
+function getLabel() {
+    return String(($('spLabel') && $('spLabel').value) || '').trim();
+}
+
+function namingCtx(extra) {
+    const base = {
+        asDemo: asDemo(),
+        year: getYear(),
+        label: getLabel(),
+        lehrer: '',
+        lehrerName: ''
+    };
+    if (extra && typeof extra === 'object') {
+        Object.keys(extra).forEach(function (k) {
+            base[k] = extra[k];
+        });
+    }
+    return base;
+}
+
+function planOpts(extra) {
+    const o = {
+        year: getYear(),
+        asDemo: asDemo(),
+        label: getLabel(),
+        pattern: namePattern
+    };
+    if (extra && typeof extra === 'object') {
+        Object.keys(extra).forEach(function (k) {
+            o[k] = extra[k];
+        });
+    }
+    return o;
+}
+
+function getPatternFromBuilder() {
+    const zone = $('spNameBuilder');
+    if (!zone) return normalizeSpielNamePattern(namePattern);
+    const tokens = [];
+    zone.querySelectorAll('[data-token-type]').forEach(function (el) {
+        const type = String(el.getAttribute('data-token-type') || '');
+        if (type === 'text') {
+            tokens.push({ type: 'text', value: String(el.getAttribute('data-token-value') || '') });
+        } else if (type) {
+            tokens.push({ type: type });
+        }
+    });
+    return normalizeSpielNamePattern(tokens);
+}
+
+function refreshNamePreview() {
+    const el = $('spNamePreview');
+    if (!el) return;
+    const sampleTeacher = namingCtx({ lehrer: 'MU', lehrerName: 'Muster' });
+    const sampleSingle = namingCtx({ lehrer: '', lehrerName: '' });
+    const tName = buildSpielDisplayName(namePattern, sampleTeacher);
+    const tNick = buildSpielMailNickname(namePattern, sampleTeacher);
+    const sName = buildSpielDisplayName(namePattern, sampleSingle);
+    const sNick = buildSpielMailNickname(namePattern, sampleSingle);
+    el.innerHTML =
+        '<p><strong>Lehrer-Bulk (Beispiel MU):</strong> ' +
+        escapeHtml(tName) +
+        ' · <code>' +
+        escapeHtml(tNick) +
+        '</code></p><p><strong>Einzel-Team:</strong> ' +
+        escapeHtml(sName) +
+        ' · <code>' +
+        escapeHtml(sNick) +
+        '</code></p>';
+}
+
+function addNameChip(zone, token) {
+    const chip = document.createElement('span');
+    chip.className = 'name-chip';
+    chip.draggable = true;
+    chip.setAttribute('data-token-type', token.type);
+    if (token.type === 'text') chip.setAttribute('data-token-value', String(token.value ?? ''));
+
+    const txt = document.createElement('span');
+    if (token.type === 'text') {
+        const v = String(token.value ?? '');
+        txt.textContent = v === '' ? '(leer)' : v;
+    } else {
+        txt.textContent = spielTokenLabel(token);
+    }
+
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'chip-x';
+    x.textContent = '✕';
+    x.title = 'Baustein entfernen';
+    x.addEventListener('click', function () {
+        chip.remove();
+        namePattern = getPatternFromBuilder();
+        onNamingChanged();
+    });
+
+    chip.append(txt, x);
+    zone.appendChild(chip);
+}
+
+function renderNameBuilder() {
+    const zone = $('spNameBuilder');
+    if (!zone) return;
+    zone.replaceChildren();
+    normalizeSpielNamePattern(namePattern).forEach(function (t) {
+        addNameChip(zone, t);
+    });
+    refreshNamePreview();
+}
+
+function wireNameBuilder() {
+    const zone = $('spNameBuilder');
+    if (!zone || zone.dataset.wired === '1') return;
+    zone.dataset.wired = '1';
+
+    let dragEl = null;
+    zone.addEventListener('dragstart', function (e) {
+        const target = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
+        if (!target) return;
+        dragEl = target;
+        target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    zone.addEventListener('dragend', function () {
+        if (dragEl) dragEl.classList.remove('dragging');
+        dragEl = null;
+        namePattern = getPatternFromBuilder();
+        onNamingChanged();
+    });
+    zone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        const over = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
+        if (!dragEl || !over || over === dragEl) return;
+        const rect = over.getBoundingClientRect();
+        const after = e.clientX > rect.left + rect.width / 2;
+        if (after) over.after(dragEl);
+        else over.before(dragEl);
+    });
+    zone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        namePattern = getPatternFromBuilder();
+        onNamingChanged();
+    });
+
+    document.querySelectorAll('[data-sp-token]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const type = String(btn.getAttribute('data-sp-token') || '').trim();
+            if (!type) return;
+            addNameChip(zone, { type: type });
+            namePattern = getPatternFromBuilder();
+            onNamingChanged();
+        });
+    });
+
+    const btnSep = $('spNameAddSep');
+    if (btnSep) {
+        btnSep.addEventListener('click', function () {
+            const v = ($('spNameSepValue') && $('spNameSepValue').value) || ' | ';
+            addNameChip(zone, { type: 'text', value: String(v) });
+            namePattern = getPatternFromBuilder();
+            onNamingChanged();
+        });
+    }
+    const btnText = $('spNameAddText');
+    if (btnText) {
+        btnText.addEventListener('click', function () {
+            const v = ($('spNameTextValue') && $('spNameTextValue').value) || '';
+            addNameChip(zone, { type: 'text', value: String(v) });
+            namePattern = getPatternFromBuilder();
+            onNamingChanged();
+        });
+    }
+    const btnReset = $('spNameResetDefault');
+    if (btnReset) {
+        btnReset.addEventListener('click', function () {
+            namePattern = defaultSpielNamePattern();
+            renderNameBuilder();
+            onNamingChanged();
+        });
+    }
+    const btnSave = $('spNameSave');
+    if (btnSave) {
+        btnSave.addEventListener('click', function () {
+            namePattern = getPatternFromBuilder();
+            saveSpielNamePattern(namePattern);
+            toast('Namensschema gespeichert.');
+        });
+    }
+}
+
+function onNamingChanged() {
+    refreshNamePreview();
+    refreshSinglePreview();
+    renderTeachers();
+    refreshRunSummary();
+}
+
 function setStep(n) {
     step = Math.max(1, Math.min(4, Number(n) || 1));
     document.querySelectorAll('[data-sp-step]').forEach(function (el) {
@@ -160,19 +368,15 @@ function refreshRecvUi() {
     if (t) t.hidden = mode !== 'teacher';
     if (s) s.hidden = mode !== 'single';
     if (hint) {
-        hint.textContent =
+                hint.textContent =
             mode === 'teacher'
-                ? 'Lehrkräfte aus den Stammdaten – ein Team pro Auswahl, gemeinsame Demo-Schüler.'
-                : 'Einzelnes Schilf-/Fach-Team benennen (Alias spiel-{jahr}-{slug}).';
+                ? 'Lehrkräfte aus den Stammdaten – ein Team pro Auswahl; Namen aus den Bausteinen in Schritt 1.'
+                : 'Einzelnes Schilf-/Fach-Team – Name aus Bausteinen (Thema in Schritt 1).';
     }
 }
 
 function refreshSinglePreview() {
-    const plan = buildSpielwiesenPlan({
-        label: ($('spLabel') && $('spLabel').value) || '',
-        year: getYear(),
-        asDemo: asDemo()
-    });
+    const plan = buildSpielwiesenPlan(planOpts());
     const prev = $('spPreview');
     if (prev) {
         prev.innerHTML =
@@ -185,6 +389,7 @@ function refreshSinglePreview() {
             '</p>';
     }
     renderNotebook(plan.notebookChecklist);
+    refreshNamePreview();
 }
 
 function renderNotebook(steps) {
@@ -579,15 +784,14 @@ function renderTeachers() {
             '<tr><td colspan="5" class="muted">Keine Lehrkräfte in den Stammdaten – unter Einrichtung/Schul-Einstellungen pflegen.</td></tr>';
         return;
     }
-    const year = getYear();
-    const bulk = buildBulkTeacherPlans({
-        teachers: teachers,
-        year: year,
-        asDemo: asDemo(),
-        selectedCodes: teachers.map(function (t) {
-            return t.code;
+    const bulk = buildBulkTeacherPlans(
+        planOpts({
+            teachers: teachers,
+            selectedCodes: teachers.map(function (t) {
+                return t.code;
+            })
         })
-    });
+    );
     const planByCode = new Map(
         bulk.plans.map(function (p) {
             return [p.code, p];
@@ -619,7 +823,11 @@ function renderTeachers() {
         const tdP = document.createElement('td');
         const p = planByCode.get(t.code);
         tdP.innerHTML = p
-            ? '<code style="font-size:0.8em;">' + escapeHtml(p.mailNickname) + '</code>'
+            ? '<span style="font-size:0.85em;">' +
+              escapeHtml(p.displayName) +
+              '</span><br><code style="font-size:0.75em;">' +
+              escapeHtml(p.mailNickname) +
+              '</code>'
             : '';
         tr.appendChild(tdP);
         body.appendChild(tr);
@@ -631,11 +839,7 @@ function refreshRunSummary() {
     if (!el) return;
     const demos = selectedDemo();
     if (mode === 'single') {
-        const plan = buildSpielwiesenPlan({
-            label: ($('spLabel') && $('spLabel').value) || '',
-            year: getYear(),
-            asDemo: asDemo()
-        });
+        const plan = buildSpielwiesenPlan(planOpts());
         el.innerHTML =
             '<p><strong>Einzel-Team:</strong> ' +
             escapeHtml(plan.displayName) +
@@ -649,20 +853,30 @@ function refreshRunSummary() {
     const selected = teachers.filter(function (t) {
         return t.selected && t.email;
     });
-    const bulk = buildBulkTeacherPlans({
-        teachers: selected,
-        year: getYear(),
-        asDemo: asDemo(),
-        selectedCodes: selected.map(function (t) {
-            return t.code;
+    const bulk = buildBulkTeacherPlans(
+        planOpts({
+            teachers: selected,
+            selectedCodes: selected.map(function (t) {
+                return t.code;
+            })
         })
-    });
+    );
+    const sample = bulk.plans[0];
     el.innerHTML =
         '<p><strong>Lehrer-Spielwiesen:</strong> ' +
         bulk.plans.length +
         ' Team(s), Jahr ' +
         escapeHtml(getYear()) +
-        '</p><p>Demo-Schüler im Pool: ' +
+        (getLabel() ? ', Thema „' + escapeHtml(getLabel()) + '“' : '') +
+        '</p>' +
+        (sample
+            ? '<p>Beispiel: <strong>' +
+              escapeHtml(sample.displayName) +
+              '</strong> · <code>' +
+              escapeHtml(sample.mailNickname) +
+              '</code></p>'
+            : '') +
+        '<p>Demo-Schüler im Pool: ' +
         demos.length +
         ' (Klasse ' +
         DEMO_CLASS_CODE +
@@ -751,11 +965,7 @@ async function runCreate() {
     }
 
     if (mode === 'single') {
-        const plan = buildSpielwiesenPlan({
-            label: ($('spLabel') && $('spLabel').value) || '',
-            year: getYear(),
-            asDemo: asDemo()
-        });
+        const plan = buildSpielwiesenPlan(planOpts());
         if (!plan.ok) throw new Error(plan.issues.join(', '));
         if (!window.confirm('Kursteam (EDU_Class) anlegen?\n\n' + plan.displayName)) return;
         const res = await createSpielTeam(token, plan, null);
@@ -767,19 +977,22 @@ async function runCreate() {
     const selected = teachers.filter(function (t) {
         return t.selected && t.email;
     });
-    const bulk = buildBulkTeacherPlans({
-        teachers: selected,
-        year: getYear(),
-        asDemo: asDemo(),
-        selectedCodes: selected.map(function (t) {
-            return t.code;
+    const bulk = buildBulkTeacherPlans(
+        planOpts({
+            teachers: selected,
+            selectedCodes: selected.map(function (t) {
+                return t.code;
+            })
         })
-    });
+    );
     if (!bulk.ok) throw new Error(bulk.issues.join('; '));
+    const example = bulk.plans[0] ? bulk.plans[0].displayName : '';
     if (
         !window.confirm(
             bulk.plans.length +
-                ' Lehrer-Kursteams (EDU_Class) anlegen?\nDemo-Schüler: ' +
+                ' Lehrer-Kursteams (EDU_Class) anlegen?\nBeispiel: ' +
+                example +
+                '\nDemo-Schüler: ' +
                 demos.length +
                 '\n\nBestehende Alias werden übersprungen.'
         )
@@ -831,6 +1044,9 @@ function fillDefaults() {
 
 function boot() {
     fillDefaults();
+    namePattern = loadSpielNamePattern();
+    wireNameBuilder();
+    renderNameBuilder();
     setMode('teacher');
     setStep(1);
     refreshSinglePreview();
@@ -860,16 +1076,8 @@ function boot() {
     ['spLabel', 'spYear', 'spAsDemo'].forEach(function (id) {
         const el = $(id);
         if (!el) return;
-        el.addEventListener('input', function () {
-            refreshSinglePreview();
-            renderTeachers();
-            refreshRunSummary();
-        });
-        el.addEventListener('change', function () {
-            refreshSinglePreview();
-            renderTeachers();
-            refreshRunSummary();
-        });
+        el.addEventListener('input', onNamingChanged);
+        el.addEventListener('change', onNamingChanged);
     });
 
     const bind = [

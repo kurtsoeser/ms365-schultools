@@ -105,10 +105,46 @@
                     <label for="spYear">Schuljahr / Jahr</label>
                     <input type="text" id="spYear" inputmode="numeric" placeholder="2026">
                 </div>
+                <div class="tm-field">
+                    <label for="spLabel">Thema / Bezeichnung (Baustein „Thema“)</label>
+                    <input type="text" id="spLabel" placeholder="z. B. Workshop, Teams Basics, Schilf" value="Workshop">
+                </div>
                 <label class="checkbox-label" style="display:flex;gap:8px;margin:8px 0;">
                     <input type="checkbox" id="spAsDemo" checked>
-                    <span>Als DEMO … benennen (statt „Spielwiese …“)</span>
+                    <span>Baustein „DEMO / Spielwiese“ als <strong>DEMO</strong> (sonst „Spielwiese“)</span>
                 </label>
+
+                <div class="filter-group" style="margin-top:16px;">
+                    <label>Team-Name zusammenbauen (Drag &amp; Drop) – wie bei Kursteams</label>
+                    <div class="name-builder">
+                        <div id="spNameBuilder" class="name-builder-dropzone" aria-label="Demo-Team-Name Bausteine"></div>
+                        <div class="name-builder-actions">
+                            <button type="button" class="btn btn-small" id="spNameResetDefault">Standard</button>
+                            <button type="button" class="btn btn-small" id="spNameSave"><i class="bi bi-save"></i>Speichern</button>
+                        </div>
+                    </div>
+                    <div class="name-builder-palette" aria-label="Bausteine">
+                        <button type="button" class="btn btn-small" data-sp-token="kind">+ DEMO / Spielwiese</button>
+                        <button type="button" class="btn btn-small" data-sp-token="label">+ Thema</button>
+                        <button type="button" class="btn btn-small" data-sp-token="lehrer">+ Lehrer-Kürzel</button>
+                        <button type="button" class="btn btn-small" data-sp-token="lehrerName">+ Lehrer-Name</button>
+                        <button type="button" class="btn btn-small" data-sp-token="year">+ Jahr</button>
+                    </div>
+                    <div class="name-builder-inputs" aria-label="Eigene Texte">
+                        <div class="filter-group">
+                            <label for="spNameSepValue">Trenner</label>
+                            <input type="text" id="spNameSepValue" value=" | " placeholder="z. B.  |  oder -">
+                        </div>
+                        <button type="button" class="btn btn-small" id="spNameAddSep">Trenner hinzufügen</button>
+                        <div class="filter-group">
+                            <label for="spNameTextValue">Eigener Text</label>
+                            <input type="text" id="spNameTextValue" value="" placeholder="z. B. Schilf, SJ26">
+                        </div>
+                        <button type="button" class="btn btn-small" id="spNameAddText">Text hinzufügen</button>
+                    </div>
+                    <div id="spNamePreview" class="name-preview"></div>
+                </div>
+
                 <div class="sp-nav">
                     <button type="button" class="btn btn-success" data-sp-next="2"><i class="bi bi-arrow-right"></i>Weiter: Demo-Schüler</button>
                 </div>
@@ -180,7 +216,7 @@
                 </div>
 
                 <div id="spRecvSingle" hidden>
-                    <div class="tm-field"><label for="spLabel">Bezeichnung</label><input type="text" id="spLabel" placeholder="z. B. Teams Basics" value="Schilf"></div>
+                    <p class="muted" style="margin:0 0 8px;">Name kommt aus den Bausteinen in Schritt 1 (Thema dort anpassen). Lehrer-Kürzel bleibt beim Einzel-Team leer.</p>
                     <div id="spPreview" class="tm-log" style="min-height:50px;margin:10px 0;"></div>
                 </div>
 

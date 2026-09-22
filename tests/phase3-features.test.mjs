@@ -21,7 +21,9 @@ import {
     buildDemoStudentPlan,
     isDemoStudentUser,
     validateDemoPool,
-    MAX_DEMO_STUDENTS
+    MAX_DEMO_STUDENTS,
+    buildSpielDisplayName,
+    buildSpielMailNickname
 } from '../src/tools/spielwiesen/spielwiesen-logic.js';
 import {
     sanitizeEducationClassCode,
@@ -77,17 +79,61 @@ describe('datei-migration-logic', () => {
 
 describe('spielwiesen-logic', () => {
     it('baut Spielwiesen-Plan mit Notebook-Checkliste', () => {
-        const p = buildSpielwiesenPlan({ label: 'Teams Basics', year: '2026' });
+        const p = buildSpielwiesenPlan({ label: 'Teams Basics', year: '2026', asDemo: true });
         expect(p.ok).toBe(true);
-        expect(p.mailNickname).toMatch(/^spiel-2026-/);
+        expect(p.displayName).toBe('DEMO Teams Basics 2026');
+        expect(p.mailNickname).toMatch(/^spiel-demo-teams-basics-2026$/);
         expect(p.educationClass).toBe(true);
         expect(p.notebookChecklist.length).toBeGreaterThan(3);
         expect(isSpielwiesenGroup({ mailNickname: p.mailNickname, displayName: p.displayName })).toBe(true);
     });
 
+    it('Bausteine: Trenner und Lehrer-Name', () => {
+        const pattern = [
+            { type: 'kind' },
+            { type: 'text', value: ' | ' },
+            { type: 'label' },
+            { type: 'text', value: ' | ' },
+            { type: 'lehrer' },
+            { type: 'text', value: ' · ' },
+            { type: 'lehrerName' },
+            { type: 'text', value: ' | ' },
+            { type: 'year' }
+        ];
+        expect(
+            buildSpielDisplayName(pattern, {
+                asDemo: true,
+                year: '2026',
+                label: 'Workshop',
+                lehrer: 'MU',
+                lehrerName: 'Müller'
+            })
+        ).toBe('DEMO | Workshop | MU · Müller | 2026');
+        expect(
+            buildSpielMailNickname(pattern, {
+                asDemo: true,
+                year: '2026',
+                label: 'Workshop',
+                lehrer: 'MU',
+                lehrerName: 'Müller'
+            })
+        ).toBe('spiel-demo-workshop-mu-mueller-2026');
+        // Leeres Thema entfällt inkl. Trenner
+        expect(
+            buildSpielDisplayName(pattern, {
+                asDemo: true,
+                year: '2026',
+                label: '',
+                lehrer: 'MU',
+                lehrerName: ''
+            })
+        ).toBe('DEMO | MU | 2026');
+    });
+
     it('plant Lehrer-Bulk und Demo-Schüler', () => {
         const bulk = buildBulkTeacherPlans({
             year: '2026',
+            label: 'Workshop',
             teachers: [
                 { code: 'MU', name: 'Müller', email: 'mu@schule.at' },
                 { code: 'XY', name: 'Ohne Mail', email: '' }
@@ -96,9 +142,15 @@ describe('spielwiesen-logic', () => {
         });
         expect(bulk.plans).toHaveLength(2);
         expect(bulk.ok).toBe(false);
-        expect(buildTeacherSpielPlan({ code: 'MU', email: 'mu@schule.at', year: 2026 }).mailNickname).toBe(
-            'spiel-2026-mu'
-        );
+        expect(bulk.plans[0].displayName).toBe('DEMO Workshop MU 2026');
+        expect(
+            buildTeacherSpielPlan({
+                code: 'MU',
+                email: 'mu@schule.at',
+                year: 2026,
+                label: 'Workshop'
+            }).mailNickname
+        ).toBe('spiel-demo-workshop-mu-2026');
         const stu = buildDemoStudentPlan({ index: 3, domain: 'schule.at' });
         expect(stu.ok).toBe(true);
         expect(stu.userPrincipalName).toBe('demo.schueler03@schule.at');
