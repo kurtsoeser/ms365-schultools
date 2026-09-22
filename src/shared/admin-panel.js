@@ -35,6 +35,8 @@ function renderPins(pins) {
 let draftImages = [];
 /** @type {Array<object>} */
 let notesCache = [];
+/** @type {() => void | Promise<void>} */
+let refreshNotes = function () {};
 
 function selectedKind() {
     const el = document.querySelector('input[name="adminRnKind"]:checked');
@@ -140,7 +142,7 @@ function renderNotesList(notes) {
                     onDelete: (note) => {
                         if (!confirm('Diesen Eintrag lokal löschen?')) return;
                         deleteReleaseNote(note.id, localStorage);
-                        refresh();
+                        refreshNotes();
                     }
                 })
             );
@@ -513,6 +515,7 @@ function init() {
         renderNotesList(notesCache);
         refreshPins();
     }
+    refreshNotes = refresh;
 
     const btnExportAccess = $('adminExportAccessBtn');
     if (btnExportAccess) {
