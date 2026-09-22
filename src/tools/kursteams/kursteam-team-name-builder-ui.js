@@ -23,9 +23,16 @@ function mount(ns) {
         if (!el) return;
         const yearPrefix = document.getElementById('yearPrefix')?.value || 'SJ26';
         const strip = document.getElementById('stripSubjectTrailingDigits')?.checked;
+        const combineMode = document.getElementById('classCombineMode')?.value;
+        const klassePreview =
+            combineMode === 'smart'
+                ? typeof ns.combineClassNames === 'function'
+                    ? ns.combineClassNames('1HMA,1HMB', { mode: 'smart' })
+                    : '1HMAB'
+                : '1HMA1HMB';
         const preview = KT.buildTeamNameFromPattern(pattern, {
             yearPrefix,
-            klasse: '1AK',
+            klasse: klassePreview,
             fach: strip ? 'OMAI' : 'OMAI1',
             gruppe: strip ? '1' : 'G1',
             lehrer: 'MEI'
@@ -147,6 +154,14 @@ function mount(ns) {
         const strip = document.getElementById('stripSubjectTrailingDigits');
         if (strip) {
             strip.addEventListener('change', () => {
+                setPreviewFromPattern(getPatternFromBuilder());
+                if (typeof ns.invalidateTeams === 'function') ns.invalidateTeams();
+            });
+        }
+
+        const combineMode = document.getElementById('classCombineMode');
+        if (combineMode) {
+            combineMode.addEventListener('change', () => {
                 setPreviewFromPattern(getPatternFromBuilder());
                 if (typeof ns.invalidateTeams === 'function') ns.invalidateTeams();
             });

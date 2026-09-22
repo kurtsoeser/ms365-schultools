@@ -88,15 +88,70 @@ ns.resolveDuplicateGruppenmails = function resolveDuplicateGruppenmails(teams) {
     return adjusted;
 };
 
+function longestCommonPrefix(strings) {
+    if (!strings.length) return '';
+    let prefix = String(strings[0] || '');
+    for (let i = 1; i < strings.length; i++) {
+        const s = String(strings[i] || '');
+        while (prefix && !s.startsWith(prefix)) {
+            prefix = prefix.slice(0, -1);
+        }
+        if (!prefix) return '';
+    }
+    return prefix;
+}
+
+/**
+ * Intelligente Zusammenführung: gemeinsames Jahrgang-/Buchstaben-Präfix + abweichende Endungen.
+ * 1HMA,1HMB → 1HMAB; 1HMA,1HMB,2HMA,2HMB → 12HMAB; 1AK,1BK → 1AKBK.
+ * Wenn kein kürzeres Ergebnis möglich ist → null (Caller fällt auf concat zurück).
+ */
+function combineClassNamesSmart(classes) {
+    const normalized = classes.map((c) => c.replace(/\s+/g, ''));
+    const parsed = normalized.map((c) => {
+        const m = c.match(/^(\d+)([A-Za-z]+)$/);
+        return m ? { year: m[1], letters: m[2].toUpperCase() } : null;
+    });
+    if (!parsed.every(Boolean)) return null;
+
+    const years = [];
+    const yearSeen = new Set();
+    parsed.forEach((p) => {
+        if (!yearSeen.has(p.year)) {
+            yearSeen.add(p.year);
+            years.push(p.year);
+        }
+    });
+
+    const letterParts = parsed.map((p) => p.letters);
+    const letterLcp = longestCommonPrefix(letterParts);
+    const suffixes = [];
+    const suffixSeen = new Set();
+    letterParts.forEach((part) => {
+        const suf = part.slice(letterLcp.length);
+        if (suf && !suffixSeen.has(suf)) {
+            suffixSeen.add(suf);
+            suffixes.push(suf);
+        }
+    });
+
+    const result = years.join('') + letterLcp + suffixes.join('');
+    const concat = normalized.join('');
+    if (!result || result.length >= concat.length) return null;
+    return result;
+}
+
 /**
  * Mehrere Klassen zu einem Anzeige-/Mail-Segment zusammenführen.
  * Früher: 1AK,1BK → 1AKB (Buchstaben unique) → oft fälschlich „hakb“ im Alias.
- * Jetzt: vollständige Kürzel aneinander (1AK1BK), optional Modus „letters“ → AKBK.
- * @param {string} classString Klassen getrennt durch Komma/;/~ 
- * @param {{ mode?: 'concat'|'letters' }} [opts]
+ * Default: vollständige Kürzel aneinander (1AK1BK).
+ * Optional: „smart“ → 1HMA,1HMB → 1HMAB; „letters“ → AKBK.
+ * @param {string} classString Klassen getrennt durch Komma/;/~
+ * @param {{ mode?: 'concat'|'smart'|'letters' }} [opts]
  */
 ns.combineClassNames = function combineClassNames(classString, opts) {
-    const mode = opts && opts.mode === 'letters' ? 'letters' : 'concat';
+    const rawMode = opts && opts.mode ? String(opts.mode) : 'concat';
+    const mode = rawMode === 'letters' || rawMode === 'smart' ? rawMode : 'concat';
     const classes = String(classString || '')
         .split(/[,;~]+/)
         .map((c) => c.trim())
@@ -112,6 +167,11 @@ ns.combineClassNames = function combineClassNames(classString, opts) {
             })
             .filter(Boolean);
         return parts.join('');
+    }
+
+    if (mode === 'smart') {
+        const smart = combineClassNamesSmart(classes);
+        if (smart) return smart;
     }
 
     // concat: 1AK + 1BK → 1AK1BK (eindeutig, kein „AKB“/„hakb“)

@@ -936,8 +936,16 @@
                             <input type="checkbox" id="stripSubjectTrailingDigits">
                             <label for="stripSubjectTrailingDigits">Fach-Endziffern im Teamnamen weglassen (<code>OMAI1</code>&nbsp;&rarr; <code>OMAI</code>; Ziffer wird als Gruppe genutzt, falls leer)</label>
                         </div>
+                        <div class="filter-group">
+                            <label for="classCombineMode">Mehrklassen im Teamnamen:</label>
+                            <select id="classCombineMode" title="Wie mehrere Klassen (z. B. 1HMA,1HMB) im Teamnamen zusammengeführt werden">
+                                <option value="concat">Vollständig anhängen (1HMA1HMB)</option>
+                                <option value="smart">Intelligentes Präfix (1HMAB)</option>
+                            </select>
+                        </div>
                         <p style="margin:-8px 0 14px;font-size:0.85em;color:var(--text-secondary);">
                             Bei Parallelgruppen denselben Basisnamen: Baustein <strong>Gruppe</strong> oder <strong>Lehrer</strong> im Namensschema ergänzen, sonst kollidieren Namen/Mails.
+                            „Intelligentes Präfix“ kürzt z.&nbsp;B. <code>1HMA,1HMB</code> zu <code>1HMAB</code> bzw. <code>1HMA,1HMB,2HMA,2HMB</code> zu <code>12HMAB</code>.
                         </p>
                         <div class="filter-group">
                             <label>Team‑Name zusammenbauen (Drag &amp; Drop):</label>

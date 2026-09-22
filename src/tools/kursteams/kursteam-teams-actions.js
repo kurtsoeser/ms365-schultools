@@ -222,6 +222,11 @@ function mount(ns) {
         const pattern = document.getElementById('teamNameBuilder') ? ns.getPatternFromBuilder() : null;
         const stripEl = document.getElementById('stripSubjectTrailingDigits');
         const stripSubjectTrailingDigits = stripEl ? !!stripEl.checked : false;
+        const combineModeEl = document.getElementById('classCombineMode');
+        const classCombineMode =
+            combineModeEl && (combineModeEl.value === 'smart' || combineModeEl.value === 'letters')
+                ? combineModeEl.value
+                : 'concat';
 
         ns.teamsData = KTB.buildTeamEntriesFromRows(ns.filteredData, {
             yearPrefix,
@@ -237,6 +242,7 @@ function mount(ns) {
             INVALID_CHARS_TEST: ns.INVALID_CHARS_TEST,
             teacherEmailMapping: ns.teacherEmailMapping,
             stripSubjectTrailingDigits,
+            classCombineMode,
             normalizeNumberedSubjectFields: KS.normalizeNumberedSubjectFields
         });
 

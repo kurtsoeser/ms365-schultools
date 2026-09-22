@@ -46,6 +46,18 @@ describe('kursteam-gruppenmail', () => {
         expect(buildGruppenmailBase('SJ26', '1AK1BK', 'BESPM', '')).not.toMatch(/hakb/i);
     });
 
+    it('combineClassNames smart: 1HMA,1HMB → 1HMAB', () => {
+        const ctx = loadScript('src/tools/kursteams/kursteam-utils.js');
+        const { combineClassNames } = ctx.ms365Kursteam;
+
+        expect(combineClassNames('1HMA,1HMB', { mode: 'smart' })).toBe('1HMAB');
+        expect(combineClassNames('1HMA~1HMB~1HMC', { mode: 'smart' })).toBe('1HMABC');
+        expect(combineClassNames('1HMA,1HMB,2HMA,2HMB', { mode: 'smart' })).toBe('12HMAB');
+        expect(combineClassNames('1AK,1BK', { mode: 'smart' })).toBe('1AKBK');
+        // Kein sinnvolles Kürzen → Fallback auf concat
+        expect(combineClassNames('1HMA,2AK', { mode: 'smart' })).toBe('1HMA2AK');
+    });
+
     it('buildGruppenmailFromPattern: Trenner im Namen → Bindestrich in Gruppenmail', () => {
         const ctx = loadScriptsInSandbox([
             'src/tools/kursteams/kursteam-team-names.js',
@@ -158,5 +170,47 @@ describe('kursteam-gruppenmail', () => {
         expect(teams[0].gruppenmail).not.toMatch(/hakb/i);
         expect(teams[0].gruppenmail).not.toMatch(/jg2030hak/i);
         expect(teams[0].originalClass).toBe('1AK,1BK');
+    });
+
+    it('buildTeamEntriesFromRows: classCombineMode smart → 1HMAB', () => {
+        const ctx = loadScriptsInSandbox([
+            'src/shared/ms365-module-guard.js',
+            'src/tools/kursteams/kursteam-team-names.js',
+            'src/tools/kursteams/kursteam-utils.js',
+            'src/tools/kursteams/kursteam-team-build.js'
+        ]);
+        const KTB = ctx.ms365KursteamTeamBuild;
+        const ns = ctx.ms365Kursteam;
+
+        const teams = KTB.buildTeamEntriesFromRows(
+            [{ klasse: '1HMA,1HMB', fach: 'PH', lehrer: 'LOIE', gruppe: '' }],
+            {
+                yearPrefix: 'SJ26-27',
+                emailDomain: '@schule.at',
+                separator: ' | ',
+                pattern: [
+                    { type: 'yearPrefix' },
+                    { type: 'text', value: ' | ' },
+                    { type: 'klasse' },
+                    { type: 'text', value: ' | ' },
+                    { type: 'fach' },
+                    { type: 'text', value: ' | ' },
+                    { type: 'lehrer' }
+                ],
+                combineClassNames: ns.combineClassNames,
+                isCombinedClassCell: ns.isCombinedClassCell,
+                buildGruppenmailBase: ns.buildGruppenmailBase,
+                formatKlasseSegmentForGruppenmail: ns.formatKlasseSegmentForGruppenmail,
+                sanitizeGruppeForMail: ns.sanitizeGruppeForMail,
+                INVALID_CHARS_REPLACE: ns.INVALID_CHARS_REPLACE,
+                INVALID_CHARS_TEST: ns.INVALID_CHARS_TEST,
+                teacherEmailMapping: { LOIE: 'lehrer@schule.at' },
+                classCombineMode: 'smart'
+            }
+        );
+
+        expect(teams[0].teamName).toBe('SJ26-27 | 1HMAB | PH | LOIE');
+        expect(teams[0].gruppenmail).toMatch(/1HMAB/i);
+        expect(teams[0].originalClass).toBe('1HMA,1HMB');
     });
 });

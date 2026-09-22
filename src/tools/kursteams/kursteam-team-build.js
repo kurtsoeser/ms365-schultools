@@ -45,10 +45,15 @@ function buildTeamEntriesFromRows(rows, options) {
                   return /[,;~]/.test(String(raw || '')) || /(?:\d+[A-Za-z]+){2,}/.test(String(raw || ''));
               };
 
+    const classCombineMode =
+        options.classCombineMode === 'smart' || options.classCombineMode === 'letters'
+            ? options.classCombineMode
+            : 'concat';
+
     return (rows || []).map((row) => {
         const combined = isCombinedFn(row.klasse);
         let klasseForName = row.klasse;
-        if (combined) klasseForName = combineClassNames(row.klasse);
+        if (combined) klasseForName = combineClassNames(row.klasse, { mode: classCombineMode });
 
         const resolved = resolveFachAndGruppeForTeam(row, options);
         const fachForName = resolved.fach;

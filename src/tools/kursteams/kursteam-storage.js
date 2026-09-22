@@ -73,6 +73,11 @@ ns.buildKursteamStateSnapshot = function buildKursteamStateSnapshot() {
         mergeSharedLessons: safeCheckbox('mergeSharedLessons', true),
         normalizeNumberedSubjects: safeCheckbox('normalizeNumberedSubjects', false),
         stripSubjectTrailingDigits: safeCheckbox('stripSubjectTrailingDigits', false),
+        classCombineMode: (() => {
+            const el = safeEl('classCombineMode');
+            const v = el && el.value ? String(el.value) : 'concat';
+            return v === 'smart' || v === 'letters' ? v : 'concat';
+        })(),
         kursteamEntryMode: ns.kursteamEntryMode,
         studentRosterRaw: ns.studentRosterRaw || '',
         studentRosterPreferGroup: safeCheckbox('studentRosterPreferGroup', true),
@@ -166,6 +171,13 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
     if (normSubj) normSubj.checked = !!state.normalizeNumberedSubjects;
     const stripDigits = safeEl('stripSubjectTrailingDigits');
     if (stripDigits) stripDigits.checked = !!state.stripSubjectTrailingDigits;
+    const combineMode = safeEl('classCombineMode');
+    if (combineMode) {
+        const v = state.classCombineMode === 'smart' || state.classCombineMode === 'letters'
+            ? state.classCombineMode
+            : 'concat';
+        combineMode.value = v;
+    }
     if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 
     const paste = safeEl('webuntisPasteInput');

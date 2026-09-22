@@ -109,6 +109,11 @@
         const pattern =
             typeof ns.getPatternFromBuilder === 'function' ? ns.getPatternFromBuilder() : null;
         const stripEl = document.getElementById('stripSubjectTrailingDigits');
+        const combineModeEl = document.getElementById('classCombineMode');
+        const classCombineMode =
+            combineModeEl && (combineModeEl.value === 'smart' || combineModeEl.value === 'letters')
+                ? combineModeEl.value
+                : 'concat';
 
         return {
             yearPrefix,
@@ -126,6 +131,7 @@
             INVALID_CHARS_TEST: ns.INVALID_CHARS_TEST,
             teacherEmailMapping: mapping || {},
             stripSubjectTrailingDigits: stripEl ? !!stripEl.checked : false,
+            classCombineMode,
             normalizeNumberedSubjectFields:
                 KS && typeof KS.normalizeNumberedSubjectFields === 'function'
                     ? KS.normalizeNumberedSubjectFields
