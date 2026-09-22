@@ -110,27 +110,39 @@
     }
 
     async function ensurePca() {
+        if (pca) return pca;
         if (initPromise) return initPromise;
         initPromise = (async () => {
-            const m = await loadMsal();
-            const PublicClientApplication = m.PublicClientApplication || (m.default && m.default.PublicClientApplication);
-            if (!PublicClientApplication) throw new Error('MSAL: PublicClientApplication nicht gefunden.');
-            const cfg = resolveMsalConfig();
-            pca = new PublicClientApplication({
-                auth: { clientId: cfg.clientId, authority: cfg.authority, redirectUri: cfg.redirectUri },
-                // localStorage statt sessionStorage: ermöglicht Single-Sign-On zwischen Browser-Tabs
-                // (Microsoft 365 Anmeldung wird übernommen, wenn der Benutzer bereits in einem
-                // anderen Tab/Modul angemeldet ist).
-                cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
-            });
-            await pca.initialize();
-            await pca.handleRedirectPromise();
+            try {
+                const m = await loadMsal();
+                const PublicClientApplication =
+                    m.PublicClientApplication || (m.default && m.default.PublicClientApplication);
+                if (!PublicClientApplication) throw new Error('MSAL: PublicClientApplication nicht gefunden.');
+                const cfg = resolveMsalConfig();
+                const instance = new PublicClientApplication({
+                    auth: { clientId: cfg.clientId, authority: cfg.authority, redirectUri: cfg.redirectUri },
+                    // localStorage statt sessionStorage: ermöglicht Single-Sign-On zwischen Browser-Tabs
+                    // (Microsoft 365 Anmeldung wird übernommen, wenn der Benutzer bereits in einem
+                    // anderen Tab/Modul angemeldet ist).
+                    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
+                });
+                await withTimeout(instance.initialize(), 8000);
+                try {
+                    await withTimeout(instance.handleRedirectPromise(), 8000);
+                } catch {
+                    // Redirect-Handling darf Login nicht dauerhaft blockieren
+                }
 
-            const accounts = pca.getAllAccounts();
-            if (accounts && accounts[0] && typeof pca.setActiveAccount === 'function') {
-                pca.setActiveAccount(accounts[0]);
+                const accounts = instance.getAllAccounts();
+                if (accounts && accounts[0] && typeof instance.setActiveAccount === 'function') {
+                    instance.setActiveAccount(accounts[0]);
+                }
+                pca = instance;
+                return pca;
+            } catch (e) {
+                initPromise = null;
+                throw e;
             }
-            return pca;
         })();
         return initPromise;
     }
@@ -142,13 +154,40 @@
      * und Third-Party-Cookies für Microsoft erlaubt sind.
      * Wirft NICHT bei Fehlschlag (z. B. wenn kein Account vorhanden / Cookies blockiert).
      */
+    function withTimeout(promise, ms) {
+        return new Promise(function (resolve, reject) {
+            var settled = false;
+            var t = setTimeout(function () {
+                if (settled) return;
+                settled = true;
+                reject(new Error('timeout'));
+            }, ms);
+            Promise.resolve(promise).then(
+                function (v) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(t);
+                    resolve(v);
+                },
+                function (e) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(t);
+                    reject(e);
+                }
+            );
+        });
+    }
+
     async function trySsoSilent(scopes) {
         if (!pca) return null;
         try {
             const req = {
                 scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES
             };
-            const result = await pca.ssoSilent(req);
+            // ssoSilent kann bei blockierten 3rd-Party-Cookies lange hängen –
+            // dann wäre der Anmelden-Button ohne Handler „tot“.
+            const result = await withTimeout(pca.ssoSilent(req), 4000);
             if (result && result.account && typeof pca.setActiveAccount === 'function') {
                 pca.setActiveAccount(result.account);
             }
@@ -216,10 +255,8 @@
     }
 
     /**
-     * Anmeldung per Redirect.
-     * - Ohne opts.prompt: Microsoft entscheidet selbst (nutzt bestehende Browser-Session,
-     *   zeigt Account-Auswahl nur falls nötig). So funktioniert SSO mit anderen MS-365-Tabs.
-     * - Mit opts.prompt === 'select_account': erzwingt Account-Auswahl (z. B. zum Konto wechseln).
+     * Anmeldung. Lokal bevorzugt Popup (zuverlässiger mit Vite-Ports),
+     * sonst Redirect. Fehler werden sichtbar gemeldet.
      */
     async function login(scopes, opts) {
         const instance = await ensurePca();
@@ -229,12 +266,24 @@
             // ignore
         }
         const req = {
-            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES,
-            redirectStartPage: window.location.href
+            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES
         };
         if (opts && typeof opts.prompt === 'string' && opts.prompt) {
             req.prompt = opts.prompt;
         }
+        const host = String((window.location && window.location.hostname) || '').toLowerCase();
+        const isLocal =
+            host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost');
+        const forcePopup = !!(opts && opts.popup) || isLocal;
+        if (forcePopup && typeof instance.loginPopup === 'function') {
+            const result = await instance.loginPopup(req);
+            if (result && result.account && typeof instance.setActiveAccount === 'function') {
+                instance.setActiveAccount(result.account);
+            }
+            setWidgetState();
+            return result;
+        }
+        req.redirectStartPage = window.location.href;
         await instance.loginRedirect(req);
         // redirect -> no further code
     }
@@ -381,7 +430,7 @@
         const req = { scopes: scopeList, account: a };
         try {
             const result = await instance.acquireTokenSilent(req);
-            setWidgetState();
+            setWidgetState({ silent: true });
             return result.accessToken;
         } catch (e) {
             if (looksLikeBrokenCache(e)) {
@@ -393,7 +442,7 @@
             }
             if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
                 const result = await instance.acquireTokenPopup(req);
-                setWidgetState();
+                setWidgetState({ silent: true });
                 return result.accessToken;
             }
             throw e;
@@ -466,7 +515,7 @@
         const req = { scopes: scopeList, account: a };
         try {
             const result = await instance.acquireTokenSilent(req);
-            setWidgetState();
+            setWidgetState({ silent: true });
             return result.idToken || result.accessToken;
         } catch (e) {
             if (looksLikeBrokenCache(e)) {
@@ -478,7 +527,7 @@
             }
             if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
                 const result = await instance.acquireTokenPopup(req);
-                setWidgetState();
+                setWidgetState({ silent: true });
                 return result.idToken || result.accessToken;
             }
             throw e;
@@ -633,27 +682,40 @@
     }
 
     function placeAuthWidgetInMenuHeader() {
-        const header = $('.header') || $('header');
+        const adminSlot = document.getElementById('adminAppTopActions');
+        const header = adminSlot || $('.header') || $('header');
         if (!header) return false;
         let wrap = $('#ms365AuthWidget');
         if (!wrap || !wrap.querySelector('#ms365AuthMenu')) {
             if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
             wrap = createAuthWidget();
         }
-        try {
-            header.style.position = header.style.position || 'relative';
-        } catch {
-            /* ignore */
+        if (adminSlot) {
+            adminSlot.hidden = false;
+            wrap.style.position = '';
+            wrap.style.top = '';
+            wrap.style.right = '';
+            wrap.style.zIndex = '';
+            wrap.style.marginLeft = '0';
+            wrap.style.flexWrap = 'nowrap';
+            if (wrap.parentElement !== adminSlot) adminSlot.appendChild(wrap);
+        } else {
+            try {
+                header.style.position = header.style.position || 'relative';
+            } catch {
+                /* ignore */
+            }
+            wrap.style.position = 'absolute';
+            wrap.style.top = '16px';
+            wrap.style.right = '16px';
+            wrap.style.zIndex = '6';
+            wrap.style.marginLeft = '0';
+            wrap.style.flexWrap = 'nowrap';
+            if (wrap.parentElement !== header) header.appendChild(wrap);
         }
-        wrap.style.position = 'absolute';
-        wrap.style.top = '16px';
-        wrap.style.right = '16px';
-        wrap.style.zIndex = '6';
-        wrap.style.marginLeft = '0';
-        wrap.style.flexWrap = 'nowrap';
-        if (wrap.parentElement !== header) header.appendChild(wrap);
         ensureAuthMenuBindings();
-        if (pca) setWidgetState();
+        // UI sofort, ohne Auth-Event-Sturm beim Platzieren
+        setWidgetState({ silent: true });
         try {
             if (typeof window.ms365RefreshContextBar === 'function') window.ms365RefreshContextBar();
         } catch {
@@ -663,7 +725,7 @@
     }
 
     function ensureHeaderWidget() {
-        const header = $('.header') || $('header');
+        const header = document.getElementById('adminAppTopActions') || $('.header') || $('header');
         if (!header) return;
         placeAuthWidgetInMenuHeader();
         try {
@@ -687,7 +749,18 @@
         }
     }
 
-    function setWidgetState() {
+    function setWidgetState(opts) {
+        if (setWidgetState._busy) return;
+        setWidgetState._busy = true;
+        try {
+            setWidgetStateImpl(opts || {});
+        } finally {
+            setWidgetState._busy = false;
+        }
+    }
+
+    function setWidgetStateImpl(opts) {
+        const silent = !!(opts && opts.silent);
         const badgeText = document.getElementById('ms365AuthBadgeText');
         const btn = document.getElementById('ms365AuthBtn');
         const menu = document.getElementById('ms365AuthMenu');
@@ -700,6 +773,10 @@
         const a = getAccount();
         const name = accountDisplayName(a);
         const mail = a && a.username ? String(a.username) : '';
+        const loggedIn = !!a;
+        const prevLoggedIn = setWidgetState._lastLoggedIn;
+        const prevLabel = setWidgetState._lastLabel || '';
+        const label = a ? accountLabel(a) : '';
         closeAuthMenu();
         ensureAuthMenuBindings();
         if (badgeText) badgeText.textContent = a ? name : 'Konto';
@@ -747,7 +824,7 @@
             trigger.setAttribute('aria-label', a ? 'Konto: ' + accountLabel(a) : 'Konto');
             trigger.title = a ? accountLabel(a) : 'Konto';
         }
-        if (menu) menu.hidden = false;
+        if (menu) menu.hidden = !a;
         if (btn) {
             if (a) {
                 btn.hidden = true;
@@ -758,14 +835,36 @@
                 btn.title = 'Anmelden';
                 btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i>Anmelden';
                 btn.onclick = function () {
-                    login(DEFAULT_SCOPES).catch(function () {});
+                    btn.disabled = true;
+                    const prev = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>Anmelden …';
+                    login(DEFAULT_SCOPES)
+                        .catch(function (e) {
+                            const msg = (e && e.message) || String(e || 'Anmeldung fehlgeschlagen');
+                            if (typeof window.ms365ToastOrAlert === 'function') {
+                                window.ms365ToastOrAlert(msg);
+                            } else {
+                                window.alert(msg);
+                            }
+                        })
+                        .finally(function () {
+                            btn.disabled = false;
+                            if (!getAccount()) {
+                                btn.innerHTML = prev || '<i class="bi bi-box-arrow-in-right"></i>Anmelden';
+                            }
+                        });
                 };
             }
         }
+        setWidgetState._lastLoggedIn = loggedIn;
+        setWidgetState._lastLabel = label;
+        // Kein Event-Sturm: nur bei echtem Login-/Logout-Wechsel benachrichtigen
+        if (silent) return;
+        if (prevLoggedIn === loggedIn && prevLabel === label && prevLoggedIn !== undefined) return;
         try {
             window.dispatchEvent(
                 new CustomEvent('ms365-auth-state-changed', {
-                    detail: { loggedIn: !!a, accountLabel: a ? accountLabel(a) : '' }
+                    detail: { loggedIn: loggedIn, accountLabel: label }
                 })
             );
         } catch {
@@ -777,28 +876,29 @@
         if (typeof document === 'undefined') return;
         ensureHeaderWidget();
         try {
-            // In case widget existed already, still notify listeners.
             window.dispatchEvent(new CustomEvent('ms365-auth-widget-ready'));
         } catch {
             // ignore
         }
         try {
-            await ensurePca();
+            await withTimeout(ensurePca(), 8000);
         } catch {
-            // ignore (widget still renders)
-        }
-        // Wenn lokal noch kein Account im Cache ist, einmalig SSO Silent versuchen.
-        // Damit wird die Microsoft-365-Anmeldung übernommen, wenn der Benutzer
-        // in einem anderen Tab/Fenster (z. B. Outlook, Teams Web, anderes Modul) bereits
-        // angemeldet ist – ohne sichtbaren Redirect.
-        try {
-            if (pca && !getAccount()) {
-                await trySsoSilent(DEFAULT_SCOPES);
-            }
-        } catch {
-            // ignore
+            // ignore (widget still renders; Anmelden bleibt nutzbar)
         }
         setWidgetState();
+        // Admin: kein SSO-Silent (vermeidet Hänger/Freezes auf localhost)
+        const path = String((window.location && window.location.pathname) || '');
+        const isAdmin = /\/admin\.html(?:\?|#|$)/i.test(path);
+        if (!isAdmin) {
+            try {
+                if (pca && !getAccount()) {
+                    await trySsoSilent(DEFAULT_SCOPES);
+                }
+            } catch {
+                // ignore
+            }
+            setWidgetState();
+        }
     }
 
     // Public API for tools
@@ -871,6 +971,10 @@
     else init();
     try {
         window.addEventListener('ms365-menu-header-ready', function () {
+            // Nur platzieren, nicht erneut voll initialisieren (vermeidet Event-Schleifen)
+            const header = document.getElementById('adminAppTopActions') || document.querySelector('.header') || document.querySelector('header');
+            if (!header) return;
+            if (document.getElementById('ms365AuthWidget')) return;
             placeAuthWidgetInMenuHeader();
         });
     } catch {

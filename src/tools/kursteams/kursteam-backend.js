@@ -149,14 +149,16 @@ function updateDurationHint(teamCount) {
     }
 }
 
+const DEFAULT_KURSTEAMS_SCOPE =
+    'api://c7e6f467-e6f3-4221-a9ee-574b35120029/Kursteams.Create';
+
 function getApiConfig() {
     const cfg = window.MS365_KURSTEAMS_API || {};
     return {
         baseUrl: String(cfg.baseUrl || '')
             .trim()
             .replace(/\/$/, ''),
-        functionKey: String(cfg.functionKey || '').trim(),
-        tenantId: String(cfg.tenantId || '').trim()
+        scope: String(cfg.scope || DEFAULT_KURSTEAMS_SCOPE).trim()
     };
 }
 
@@ -202,14 +204,18 @@ async function apiRequest(path, options) {
     const cfg = getApiConfig();
     const method = (options && options.method) || 'GET';
     const body = options && options.body;
-    const needsKey = !(options && options.anonymous);
-    const sep = path.indexOf('?') >= 0 ? '&' : '?';
-    const url =
-        cfg.baseUrl +
-        path +
-        (needsKey ? sep + 'code=' + encodeURIComponent(cfg.functionKey) : '');
+    const anonymous = !!(options && options.anonymous);
+    const url = cfg.baseUrl + path;
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (!anonymous) {
+        if (typeof window.ms365AuthAcquireToken !== 'function') {
+            throw new Error('Bitte bei Microsoft anmelden.');
+        }
+        const token = await window.ms365AuthAcquireToken([cfg.scope]);
+        if (!token) throw new Error('Kein Anmelde-Token für Kursteams.');
+        headers.Authorization = 'Bearer ' + token;
+    }
     const res = await fetch(url, {
         method,
         headers,
@@ -371,8 +377,8 @@ function validateConfig() {
     if (!cfg.baseUrl) {
         return 'MS365_KURSTEAMS_API.baseUrl fehlt in ms365-config.js';
     }
-    if (!cfg.functionKey) {
-        return 'MS365_KURSTEAMS_API.functionKey fehlt – in ms365-config.local.js eintragen (Vorlage: ms365-config.local.example.js; Azure → Function App → App-Schlüssel)';
+    if (!cfg.scope) {
+        return 'MS365_KURSTEAMS_API.scope fehlt in ms365-config.js';
     }
     return '';
 }
@@ -532,7 +538,6 @@ async function runKursteamBackend() {
         const created = await apiRequest('/jobs', {
             method: 'POST',
             body: {
-                tenantId,
                 mailDomain: resolveMailDomain(pack),
                 teams: pack.teams
             }

@@ -15,6 +15,9 @@ import {
     buildExportPayload,
     parseImportPayload,
     mergeTemplates,
+    mergeCatalogView,
+    localTemplatesForCatalogMerge,
+    templateContentKey,
     subjectOptionsFromCore,
     normalizeModule,
     normalizeSchulstufe,
@@ -236,5 +239,86 @@ describe('kursteam-templates-logic', () => {
         expect(seeds[0].channels).toHaveLength(10);
         expect(seeds[5].channels.some((c) => c.displayName === 'sRDP - Vorbereitung')).toBe(true);
         expect(seeds.every((t) => t.channels.every((c) => !isGeneralChannelName(c.displayName)))).toBe(true);
+    });
+
+    it('führt zentrale und lokale Vorlagen ohne Dubletten zusammen', () => {
+        const central = [
+            {
+                id: 'tpl-1',
+                name: 'MAM',
+                schoolForm: 'HAKB',
+                subjectCode: 'MAM',
+                schulstufe: '10',
+                semester: 'WS',
+                description: '',
+                channels: [{ id: 'c1', displayName: '01 - Terme' }]
+            },
+            {
+                id: 'tpl-2',
+                name: 'D',
+                schoolForm: 'AHS',
+                subjectCode: 'D',
+                schulstufe: '9',
+                semester: 'SJ',
+                description: '',
+                channels: [{ id: 'c2', displayName: '01 - Lesen' }]
+            }
+        ];
+        const localSame = {
+            ...central[0],
+            channels: [{ id: 'andere-id', displayName: '01 - Terme' }]
+        };
+        const localChanged = {
+            ...central[1],
+            channels: [{ id: 'c2', displayName: '01 - Schreiben' }]
+        };
+        const localOnly = {
+            id: 'tpl-3',
+            name: 'Eigene',
+            schoolForm: 'HTL',
+            subjectCode: 'AM',
+            schulstufe: '10',
+            semester: 'WS',
+            description: '',
+            channels: [{ id: 'c3', displayName: '01 - Strom' }]
+        };
+        expect(templateContentKey(localSame)).toBe(templateContentKey(central[0]));
+        const view = mergeCatalogView(central, [localSame, localChanged, localOnly]);
+        expect(view.map((t) => [t.id, t.origin])).toEqual([
+            ['tpl-1', 'central'],
+            ['tpl-2', 'override'],
+            ['tpl-3', 'local']
+        ]);
+        expect(view[1].channels[0].displayName).toBe('01 - Schreiben');
+    });
+
+    it('lässt unberührte Seeds hinter der zentralen Vorlage zurücktreten', () => {
+        const seed = {
+            id: 'tpl-mam',
+            name: 'MAM',
+            schoolForm: 'HAKB',
+            subjectCode: 'MAM',
+            schulstufe: '10',
+            semester: 'WS',
+            description: '',
+            channels: [{ id: 'c1', displayName: '01 - Alt' }]
+        };
+        const central = {
+            ...seed,
+            channels: [{ id: 'c9', displayName: '01 - Neu' }]
+        };
+        const edited = {
+            ...seed,
+            channels: [{ id: 'c1', displayName: '01 - Eigene' }]
+        };
+        expect(localTemplatesForCatalogMerge([seed], [central], [seed])).toEqual([]);
+        const shown = mergeCatalogView(
+            [central],
+            localTemplatesForCatalogMerge([seed, edited], [central], [seed])
+        );
+        expect(shown.map((t) => t.origin)).toEqual(['override']);
+        expect(shown[0].channels[0].displayName).toBe('01 - Eigene');
+        const withoutCentral = localTemplatesForCatalogMerge([seed], [], [seed]);
+        expect(withoutCentral).toHaveLength(1);
     });
 });

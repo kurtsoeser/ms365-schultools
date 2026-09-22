@@ -8,6 +8,8 @@
     "AZURE_CLIENT_SECRET": "HIER-SECRET-NICHT-INS-REPO",
     "LICENSE_SITE_WEB_URL": "https://kurtrocks.sharepoint.com/sites/MS365-Schultools",
     "LICENSE_LIST_NAME": "MS365-Schultools-Lizenzen",
+    "CATALOG_LIBRARY_NAME": "MS365-Katalog",
+    "CATALOG_KURSTEAM_PATH": "vorlagen/kursteam-kanaele.json",
     "LICENSE_ALLOWED_STATUSES": "trial,active",
     "LICENSE_SPA_CLIENT_ID": "e1d877c3-004c-4040-8c3b-81a59e0c7050",
     "LICENSE_TOKEN_AUDIENCES": "00000003-0000-0000-c000-000000000000,https://graph.microsoft.com",

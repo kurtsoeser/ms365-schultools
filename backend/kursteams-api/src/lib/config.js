@@ -8,12 +8,36 @@ function env(name, fallback) {
     return String(v).trim();
 }
 
+function parseCsv(raw) {
+    return String(raw || '')
+        .split(/[,;\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
 function parseTenantAllowlist() {
     const raw = env('KURSTEAMS_ALLOWED_TENANT_IDS', env('AZURE_TENANT_ID', ''));
-    return raw
-        .split(/[,;\s]+/)
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
+    return parseCsv(raw).map((s) => s.toLowerCase());
+}
+
+/** Globaler Administrator, Teams-Administrator. */
+const DEFAULT_OPERATOR_ROLE_TEMPLATE_IDS = [
+    '62e90394-69f5-4237-9190-012177145e10',
+    '69091246-20e8-4a56-aa4d-066075b2a7a8'
+];
+
+function tokenAudiences(clientId) {
+    const fromEnv = parseCsv(env('KURSTEAMS_TOKEN_AUDIENCES', ''));
+    if (fromEnv.length) return fromEnv;
+    const id = String(clientId || '').trim();
+    if (!id) return [];
+    return [id, 'api://' + id];
+}
+
+function operatorRoleTemplateIds() {
+    const fromEnv = parseCsv(env('KURSTEAMS_OPERATOR_ROLE_TEMPLATE_IDS', ''));
+    const list = fromEnv.length ? fromEnv : DEFAULT_OPERATOR_ROLE_TEMPLATE_IDS;
+    return list.map((s) => s.toLowerCase());
 }
 
 function getConfig() {
@@ -30,6 +54,8 @@ function getConfig() {
         clientId,
         clientSecret,
         allowedTenantIds: parseTenantAllowlist(),
+        tokenAudiences: tokenAudiences(clientId),
+        operatorRoleTemplateIds: operatorRoleTemplateIds(),
         storageConnectionString: env('AzureWebJobsStorage'),
         queueName: env('KURSTEAMS_JOB_QUEUE', 'kursteam-jobs'),
         blobContainer: env('KURSTEAMS_JOB_CONTAINER', 'kursteam-jobs')
@@ -43,4 +69,11 @@ function isTenantAllowed(tenantId) {
     return cfg.allowedTenantIds.includes(tid);
 }
 
-module.exports = { getConfig, isTenantAllowed, env };
+module.exports = {
+    getConfig,
+    isTenantAllowed,
+    env,
+    tokenAudiences,
+    operatorRoleTemplateIds,
+    DEFAULT_OPERATOR_ROLE_TEMPLATE_IDS
+};

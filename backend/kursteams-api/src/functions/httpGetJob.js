@@ -2,7 +2,13 @@
 
 const { app } = require('@azure/functions');
 const { getJob } = require('../lib/job-store');
-const { jsonResponse, corsPreflightResponse } = require('../lib/http-utils');
+const {
+    jsonResponse,
+    corsPreflightResponse,
+    bearerTokenFromRequest,
+    errorResponse
+} = require('../lib/http-utils');
+const { requireKursteamCaller, jobVisibleToCaller } = require('../lib/require-kursteam-caller');
 
 app.http('httpGetJobOptions', {
     methods: ['OPTIONS'],
@@ -13,7 +19,7 @@ app.http('httpGetJobOptions', {
 
 app.http('httpGetJob', {
     methods: ['GET'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'kursteams/jobs/{jobId}',
     handler: async (request, context) => {
         const jobId = request.params.jobId;
@@ -22,14 +28,14 @@ app.http('httpGetJob', {
         }
 
         try {
+            const caller = await requireKursteamCaller(bearerTokenFromRequest(request));
             const job = await getJob(jobId);
-            if (!job) {
+            if (!jobVisibleToCaller(job, caller)) {
                 return jsonResponse(404, { error: 'Job nicht gefunden.' });
             }
             return jsonResponse(200, job);
         } catch (e) {
-            context.error('getJob fehlgeschlagen:', e);
-            return jsonResponse(500, { error: e.message || String(e) });
+            return errorResponse(context, 'getJob fehlgeschlagen:', e);
         }
     }
 });

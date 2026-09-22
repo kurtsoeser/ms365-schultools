@@ -13,7 +13,8 @@
  *   semester: string,
  *   description: string,
  *   channels: TemplateChannel[],
- *   updatedAt: string
+ *   updatedAt: string,
+ *   origin?: 'central'|'local'|'override'
  * }} ChannelTemplate
  */
 /** @typedef {{ id: string, displayName: string, membershipType?: string }} TeamChannel */
@@ -313,7 +314,7 @@ export function normalizeTemplate(raw) {
     } else {
         schulstufe = normalizeSchulstufe('', name);
     }
-    return {
+    const out = {
         id: normStr(o.id) || newId('tpl'),
         name,
         schoolForm,
@@ -324,6 +325,11 @@ export function normalizeTemplate(raw) {
         channels,
         updatedAt: normStr(o.updatedAt) || new Date().toISOString()
     };
+    const origin = o.origin;
+    if (origin === 'central' || origin === 'local' || origin === 'override') {
+        out.origin = origin;
+    }
+    return out;
 }
 
 /**
@@ -787,12 +793,88 @@ export function summarizeDiff(rows) {
  * @param {ChannelTemplate[]} templates
  * @returns {object}
  */
+export function stripTemplateOrigin(template) {
+    const t = normalizeTemplate(template);
+    if (!t.origin) return t;
+    const copy = { ...t };
+    delete copy.origin;
+    return copy;
+}
+
+/**
+ * Inhalt vergleichen, ohne Kanal-IDs und ohne Herkunft.
+ * @param {Partial<ChannelTemplate>} template
+ */
+export function templateContentKey(template) {
+    const t = normalizeTemplate(template);
+    return [
+        t.name,
+        t.schoolForm,
+        t.subjectCode,
+        t.schulstufe,
+        t.semester,
+        t.description,
+        t.channels.map((c) => c.displayName).join('\n')
+    ].join('\u0001');
+}
+
+/**
+ * Zentrale und lokale Bibliothek zusammenführen.
+ * Gleiche ID und gleicher Inhalt: einmal als zentral.
+ * Gleiche ID, anderer Inhalt: lokale Anpassung.
+ * Nur lokal: eigene Vorlage.
+ * @param {unknown} central
+ * @param {unknown} local
+ * @returns {ChannelTemplate[]}
+ */
+/**
+ * Unberührte mitgelieferte Seeds nicht als lokale Anpassung über die Zentrale legen.
+ * Geändert oder nur lokal vorhanden bleiben sie sichtbar.
+ * @param {unknown} local
+ * @param {unknown} central
+ * @param {unknown} seedTemplates
+ * @returns {ChannelTemplate[]}
+ */
+export function localTemplatesForCatalogMerge(local, central, seedTemplates) {
+    const centralIds = new Set(normalizeTemplateList(central).map((t) => t.id));
+    const seedById = new Map(normalizeTemplateList(seedTemplates).map((t) => [t.id, t]));
+    return normalizeTemplateList(local).filter((t) => {
+        const seed = seedById.get(t.id);
+        if (!seed || !centralIds.has(t.id)) return true;
+        return templateContentKey(t) !== templateContentKey(seed);
+    });
+}
+
+export function mergeCatalogView(central, local) {
+    const centralList = normalizeTemplateList(central);
+    const localList = normalizeTemplateList(local);
+    const localById = new Map(localList.map((t) => [t.id, t]));
+    /** @type {ChannelTemplate[]} */
+    const out = [];
+    const usedLocal = new Set();
+    for (const item of centralList) {
+        const loc = localById.get(item.id);
+        if (loc && templateContentKey(loc) !== templateContentKey(item)) {
+            out.push(normalizeTemplate({ ...loc, origin: 'override' }));
+            usedLocal.add(item.id);
+        } else {
+            out.push(normalizeTemplate({ ...item, origin: 'central' }));
+            if (loc) usedLocal.add(item.id);
+        }
+    }
+    for (const loc of localList) {
+        if (usedLocal.has(loc.id)) continue;
+        out.push(normalizeTemplate({ ...loc, origin: 'local' }));
+    }
+    return out;
+}
+
 export function buildExportPayload(templates) {
     return {
         kind: EXPORT_KIND,
         version: EXPORT_VERSION,
         exportedAt: new Date().toISOString(),
-        templates: normalizeTemplateList(templates)
+        templates: normalizeTemplateList(templates).map(stripTemplateOrigin)
     };
 }
 

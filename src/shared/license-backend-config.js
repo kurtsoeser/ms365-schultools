@@ -1,6 +1,8 @@
 /**
  * Betreiber-Backend für Schul-Lizenzen (Phase 1+).
  * Daten liegen in SharePoint auf dem Betreiber-Tenant – nicht im Schul-Tenant.
+ * Zentraler Vorlagen-Katalog: Dokumentbibliothek MS365-Katalog
+ * (Datei vorlagen/kursteam-kanaele.json), gelesen über die License-API.
  */
 (function (global) {
     'use strict';

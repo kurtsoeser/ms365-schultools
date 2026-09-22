@@ -7,7 +7,8 @@ import {
     normalizeTemplateList,
     normalizeTemplate,
     normalizeSchoolForm,
-    rememberSchoolForm
+    rememberSchoolForm,
+    stripTemplateOrigin
 } from './kursteam-templates-logic.js';
 import { getSeedTemplates } from './kursteam-templates-seed.js';
 
@@ -52,7 +53,7 @@ function normalizeSchoolFormCatalog(catalog, templates) {
  * @param {string[]} [schoolForms]
  */
 export function saveState(templates, schoolForms) {
-    const tpls = normalizeTemplateList(templates);
+    const tpls = normalizeTemplateList(templates).map(stripTemplateOrigin);
     const forms = normalizeSchoolFormCatalog(schoolForms, tpls);
     const payload = {
         kind: STORAGE_KIND,

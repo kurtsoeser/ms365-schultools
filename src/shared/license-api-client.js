@@ -94,11 +94,68 @@
         return parseResponse(res);
     }
 
+    async function adminListColumns(accessToken) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/columns', {
+            method: 'GET',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
+    async function adminCreateColumn(accessToken, body) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/columns', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(body || {})
+        });
+        return parseResponse(res);
+    }
+
+    async function fetchKursteamCatalog(accessToken) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/catalog/kursteam-templates', {
+            method: 'GET',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
+    async function publishKursteamCatalog(accessToken, body) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/catalog/kursteam-templates', {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(body || {})
+        });
+        return parseResponse(res);
+    }
+
+    async function adminDeleteColumn(accessToken, name) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/columns/' + encodeURIComponent(name), {
+            method: 'DELETE',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
     global.ms365LicenseApi = {
         fetchLicenseMe: fetchLicenseMe,
         adminListSchools: adminListSchools,
         adminCreateSchool: adminCreateSchool,
         adminUpdateSchool: adminUpdateSchool,
-        adminDeleteSchool: adminDeleteSchool
+        adminDeleteSchool: adminDeleteSchool,
+        adminListColumns: adminListColumns,
+        adminCreateColumn: adminCreateColumn,
+        adminDeleteColumn: adminDeleteColumn,
+        fetchKursteamCatalog: fetchKursteamCatalog,
+        publishKursteamCatalog: publishKursteamCatalog
     };
 })(typeof window !== 'undefined' ? window : globalThis);

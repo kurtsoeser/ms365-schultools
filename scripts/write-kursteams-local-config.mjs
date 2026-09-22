@@ -1,22 +1,23 @@
 /**
  * Schreibt dist/ms365-config.local.js aus GitHub Secrets / Env.
- * - KURSTEAMS_FUNCTION_KEY
  * - LICENSE_API_BASE_URL (z. B. https://func-….azurewebsites.net/api/license)
  * - LICENSE_FUNCTION_KEY (optional)
+ *
+ * KURSTEAMS_FUNCTION_KEY wird absichtlich ignoriert. Das Kursteams-Backend
+ * verlangt ein Benutzer-Token und darf keinen Function Key in die Seite schreiben.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
-const kursteamsKey = String(process.env.KURSTEAMS_FUNCTION_KEY || '').trim();
 const licenseBaseUrl = String(process.env.LICENSE_API_BASE_URL || '').trim();
 const licenseKey = String(process.env.LICENSE_FUNCTION_KEY || '').trim();
 
 const distRoot = path.resolve(process.cwd(), 'dist');
 const outPath = path.join(distRoot, 'ms365-config.local.js');
 
-if (!kursteamsKey && !licenseBaseUrl && !licenseKey) {
+if (!licenseBaseUrl && !licenseKey) {
     console.log(
-        'write-kursteams-local-config: keine Secrets gesetzt – dist/ms365-config.local.js wird nicht erzeugt.'
+        'write-kursteams-local-config: keine Lizenz-Secrets gesetzt – dist/ms365-config.local.js wird nicht erzeugt.'
     );
     process.exit(0);
 }
@@ -28,14 +29,6 @@ if (!fs.existsSync(distRoot)) {
 
 /** @type {string[]} */
 const blocks = [];
-
-if (kursteamsKey) {
-    blocks.push(
-        '    MS365_KURSTEAMS_API: {\n' +
-            `        functionKey: ${JSON.stringify(kursteamsKey)}\n` +
-            '    }'
-    );
-}
 
 if (licenseBaseUrl || licenseKey) {
     blocks.push(

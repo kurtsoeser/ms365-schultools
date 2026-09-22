@@ -48,12 +48,11 @@ window.MS365_MSAL_CONFIG = {
 
 /**
  * Kursteams Azure-Backend (Schritt 6 – Online-Anlage).
- * functionKey: nicht hier eintragen – nur in ms365-config.local.js (Vorlage: ms365-config.local.example.js).
- * Azure Portal → func-ms365-kursteams-dev → App-Schlüssel → default
+ * scope: delegierte Berechtigung der Backend-App (Entra → Eine API verfügbar machen).
  */
 window.MS365_KURSTEAMS_API = {
     baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
-    functionKey: ''
+    scope: 'api://c7e6f467-e6f3-4221-a9ee-574b35120029/Kursteams.Create'
 };
 
 /**

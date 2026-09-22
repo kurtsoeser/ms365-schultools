@@ -2925,6 +2925,23 @@ body.admin-app-page > .admin-app {
     border-bottom: 1px solid var(--border);
 }
 
+.admin-app__top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-height: 40px;
+}
+
+.admin-app__top-actions[hidden] {
+    display: none !important;
+}
+
+.admin-app__top-actions .ms365-auth-widget {
+    position: static;
+}
+
 .admin-app__eyebrow {
     margin: 0 0 4px;
     font-size: 0.72rem;
@@ -2963,6 +2980,117 @@ body.admin-app-page > .admin-app {
 
 .admin-app__panel.active {
     display: block;
+}
+
+.admin-catalog__lib {
+    font-size: 0.85rem;
+    font-weight: 650;
+}
+.admin-catalog__banner {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, #b45309 12%, var(--card));
+    color: var(--heading);
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+.admin-catalog {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+.admin-catalog__side,
+.admin-catalog__main {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+}
+.admin-catalog__search input,
+.admin-catalog__meta input,
+.admin-catalog__meta select,
+.admin-catalog__meta textarea,
+.admin-catalog__add input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--soft);
+    color: inherit;
+    font: inherit;
+}
+.admin-catalog__search { display: block; margin-bottom: 10px; }
+.admin-catalog__list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    max-height: 60vh;
+    overflow: auto;
+}
+.admin-catalog__list button {
+    width: 100%;
+    text-align: left;
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    border-radius: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font: inherit;
+}
+.admin-catalog__list button.is-active {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card));
+}
+.admin-catalog__list small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+.admin-catalog__meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.admin-catalog__meta label,
+.admin-catalog__hint {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.admin-catalog__meta-wide { grid-column: 1 / -1; }
+.admin-catalog__channels-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+.admin-catalog__channels-head h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+.admin-catalog__channel-actions { display: flex; gap: 6px; }
+.admin-catalog__hint { font-weight: 500; margin: 6px 0 10px; }
+.admin-catalog__add { display: flex; gap: 8px; margin-bottom: 10px; }
+.admin-catalog__channels { list-style: none; margin: 0; padding: 0; }
+.admin-catalog__ch {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.admin-catalog__ch span { color: var(--text-secondary); font-size: 0.8rem; }
+.admin-catalog__empty { color: var(--text-secondary); line-height: 1.45; }
+@media (max-width: 900px) {
+    .admin-catalog { grid-template-columns: 1fr; }
 }
 
 @keyframes adminPanelIn {
@@ -3779,6 +3907,7 @@ html[data-theme='dark'] .admin-setup-check--warn .admin-setup-check__icon {
     padding: 24px;
     background: rgba(16, 18, 35, 0.55);
     backdrop-filter: blur(6px);
+    pointer-events: auto;
 }
 
 .ms365-admin-op-block__card {
@@ -3823,7 +3952,6 @@ html[data-theme='dark'] .admin-setup-check--warn .admin-setup-check__icon {
 }
 
 html[data-ms365-admin-boot='1'] body.admin-app-page > .admin-app {
-    filter: blur(2px);
-    pointer-events: none;
-    user-select: none;
+    /* Kein pointer-events:none – sonst sind Anmelden/Buttons tot, wenn der Overlay fehlt. */
+    filter: none;
 }

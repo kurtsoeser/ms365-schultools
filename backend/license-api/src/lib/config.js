@@ -46,6 +46,9 @@ function getConfig() {
             'https://kurtrocks.sharepoint.com/sites/MS365-Schultools'
         ),
         listDisplayName: env('LICENSE_LIST_NAME', 'MS365schule-Lizenzen'),
+        catalogLibraryName: env('CATALOG_LIBRARY_NAME', 'MS365-Katalog'),
+        catalogKursteamPath: env('CATALOG_KURSTEAM_PATH', 'vorlagen/kursteam-kanaele.json'),
+        catalogMaterialsRoot: env('CATALOG_MATERIALS_ROOT', 'materialien'),
         allowedStatuses: parseCsv(env('LICENSE_ALLOWED_STATUSES', 'trial,active')).map((s) =>
             s.toLowerCase()
         ),

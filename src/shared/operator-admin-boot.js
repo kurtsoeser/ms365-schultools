@@ -1,5 +1,5 @@
 /**
- * Admin-Seiten: nur Betreiber-MS365 (operatorUpns). Kein Master-PIN-Fallback.
+ * Admin-Seiten: nur Betreiber-MS365 (operatorUpns). Sofort sichtbarer Login-Dialog.
  */
 (function () {
     'use strict';
@@ -21,6 +21,23 @@
         if (block) block.remove();
     }
 
+    function welcomeHref() {
+        var href = 'welcome.html';
+        try {
+            var scripts = document.getElementsByTagName('script');
+            for (var i = scripts.length - 1; i >= 0; i--) {
+                var src = scripts[i].src || '';
+                if (/operator-admin-boot\.js(\?|$)/i.test(src)) {
+                    href = new URL('../../welcome.html', src).href;
+                    break;
+                }
+            }
+        } catch (e) {
+            /* keep */
+        }
+        return href;
+    }
+
     function ensureBlock(message, showLogin) {
         var el = document.getElementById(BLOCK_ID);
         if (!el) {
@@ -36,7 +53,7 @@
                 '  <p class="ms365-admin-op-block__text" id="ms365AdminOpBlockText"></p>' +
                 '  <div class="ms365-admin-op-block__actions" id="ms365AdminOpBlockActions"></div>' +
                 '</div>';
-            document.body.appendChild(el);
+            (document.body || document.documentElement).appendChild(el);
         }
         var text = document.getElementById('ms365AdminOpBlockText');
         if (text) text.textContent = message || '';
@@ -49,35 +66,25 @@
                 btn.className = 'btn';
                 btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> Mit MS365 anmelden';
                 btn.addEventListener('click', function () {
-                    if (typeof window.ms365AuthLogin === 'function') {
-                        Promise.resolve(window.ms365AuthLogin()).catch(function () {
-                            /* ignore */
-                        });
-                    } else if (typeof window.ms365AuthLoginPopup === 'function') {
-                        Promise.resolve(window.ms365AuthLoginPopup()).catch(function () {
+                    var loginFn =
+                        typeof window.ms365AuthLogin === 'function'
+                            ? window.ms365AuthLogin
+                            : typeof window.ms365AuthSwitchAccount === 'function'
+                              ? window.ms365AuthSwitchAccount
+                              : null;
+                    if (loginFn) {
+                        Promise.resolve(loginFn()).catch(function () {
                             /* ignore */
                         });
                     } else {
-                        window.alert('Bitte über das Konto-Menü oben rechts anmelden.');
+                        window.alert('Anmeldung noch nicht bereit – bitte 1–2 Sekunden warten und erneut klicken.');
                     }
                 });
                 actions.appendChild(btn);
             }
             var back = document.createElement('a');
             back.className = 'btn alt';
-            back.href = 'welcome.html';
-            try {
-                var scripts = document.getElementsByTagName('script');
-                for (var i = scripts.length - 1; i >= 0; i--) {
-                    var src = scripts[i].src || '';
-                    if (/operator-admin-boot\.js(\?|$)/i.test(src)) {
-                        back.href = new URL('../../welcome.html', src).href;
-                        break;
-                    }
-                }
-            } catch (e) {
-                /* keep */
-            }
+            back.href = welcomeHref();
             back.innerHTML = '<i class="bi bi-arrow-left"></i> Zur App';
             actions.appendChild(back);
         }
@@ -95,6 +102,32 @@
         return false;
     }
 
+    function showNeedLogin() {
+        ensureBlock('Bitte mit dem Betreiber-Konto (kurt@kurtsoeser.at) anmelden.', true);
+    }
+
+    function showNotOperator() {
+        ensureBlock(
+            'Angemeldet, aber kein Betreiber-Konto. Admin ist nur für hinterlegte UPNs (z. B. kurt@kurtsoeser.at).',
+            false
+        );
+    }
+
+    function evaluate() {
+        if (tryOperator()) {
+            finishOk();
+            return 'ok';
+        }
+        var loggedIn =
+            typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+        if (loggedIn && window.ms365OperatorAccess) {
+            showNotOperator();
+            return 'denied';
+        }
+        showNeedLogin();
+        return 'login';
+    }
+
     function boot() {
         if (hasAdminSession()) {
             finishOk();
@@ -102,52 +135,25 @@
         }
 
         document.documentElement.setAttribute('data-ms365-admin-boot', '1');
-
-        var tries = 0;
-        var max = 50;
-
-        function tick() {
-            tries++;
-            if (tryOperator()) {
-                finishOk();
-                return;
-            }
-            var loggedIn =
-                typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
-            if (loggedIn && window.ms365OperatorAccess) {
-                ensureBlock(
-                    'Angemeldet, aber kein Betreiber-Konto. Admin ist nur für hinterlegte UPNs (z. B. kurt@kurtsoeser.at).',
-                    false
-                );
-                return;
-            }
-            if (tries >= max) {
-                ensureBlock(
-                    'Bitte mit dem Betreiber-Konto (kurt@kurtsoeser.at) anmelden.',
-                    true
-                );
-                return;
-            }
-            setTimeout(tick, 150);
-        }
+        // Sofort Dialog – sonst wirkt die Seite „weiß und tot“ (blur + pointer-events:none).
+        showNeedLogin();
 
         window.addEventListener('ms365-auth-state-changed', function () {
-            if (tryOperator()) {
-                finishOk();
-                return;
-            }
-            if (
-                typeof window.ms365AuthIsLoggedIn === 'function' &&
-                window.ms365AuthIsLoggedIn() &&
-                window.ms365OperatorAccess &&
-                !window.ms365OperatorAccess.isCurrentUserOperator()
-            ) {
-                ensureBlock(
-                    'Angemeldet, aber kein Betreiber-Konto. Admin ist nur für hinterlegte UPNs (z. B. kurt@kurtsoeser.at).',
-                    false
-                );
-            }
+            evaluate();
         });
+        window.addEventListener('ms365-auth-widget-ready', function () {
+            evaluate();
+        });
+
+        var tries = 0;
+        var max = 40;
+        function tick() {
+            tries++;
+            var state = evaluate();
+            if (state === 'ok') return;
+            if (tries >= max) return;
+            setTimeout(tick, 250);
+        }
 
         if (typeof window.ms365AuthEnsureInitialized === 'function') {
             Promise.resolve(window.ms365AuthEnsureInitialized())
@@ -157,6 +163,8 @@
                 .catch(function () {
                     tick();
                 });
+            // Parallel: UI bleibt bedienbar, auch wenn MSAL hängt
+            setTimeout(tick, 400);
         } else {
             tick();
         }

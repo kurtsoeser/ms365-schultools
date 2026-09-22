@@ -294,6 +294,11 @@ const ADMIN_TAB_META = {
         title: 'Setup & Diagnose',
         subtitle: 'Was noch fehlt: SharePoint-Spalten und API – Freischaltungen laufen über Lizenzen.'
     },
+    templates: {
+        eyebrow: 'Katalog',
+        title: 'Kursteam-Vorlagen',
+        subtitle: 'Zentrale Kanal-Vorlagen für alle Schulen. Schulen lesen sie, du pflegst sie hier.'
+    },
     notes: {
         eyebrow: 'Kommunikation',
         title: 'Neuigkeiten',

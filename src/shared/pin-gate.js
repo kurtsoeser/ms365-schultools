@@ -80,16 +80,14 @@
         /\/admin\.html(?:\?|#|$)/i.test(location.pathname) ||
         /\/tools\/license-backend-setup\.html(?:\?|#|$)/i.test(location.pathname);
     if (isAdminPage) {
-        /* Admin immer nur per Betreiber-MS365 (operatorUpns) – unabhängig von der PIN-Sperre */
-        if (!isHelpPage && sessionStorage.getItem(ADMIN_SESSION_KEY) !== '1') {
-            injectScript('operator-access.js', 'data-ms365-operator-access', false);
-            injectScript('operator-admin-boot.js', 'data-ms365-operator-admin-boot', false);
-            injectContextBar();
-            injectPublishedStamp();
-            injectScript('app-paths.js', 'data-ms365-app-paths', true);
-            injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
-            return;
-        }
+        /* Admin-UI immer laden – Zugangsprüfung läuft über MSAL + operatorUpns (API).
+           Kein Soft-Gate mit pointer-events:none (wirkt sonst „tot“). */
+        injectScript('operator-access.js', 'data-ms365-operator-access', false);
+        injectContextBar();
+        injectPublishedStamp();
+        injectScript('app-paths.js', 'data-ms365-app-paths', true);
+        injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
+        /* weiter: kein Early-Return, damit unten nichts „hängt“ */
     }
 
     var userAccess = effectiveUserAccessConfig(config);

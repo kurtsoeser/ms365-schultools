@@ -23,8 +23,12 @@ import {
     collectSchoolForms,
     rememberSchoolForm,
     renameSchoolFormInTemplates,
-    normalizeSchoolForm
+    normalizeSchoolForm,
+    mergeCatalogView,
+    templateContentKey,
+    localTemplatesForCatalogMerge
 } from './kursteam-templates-logic.js';
+import { getSeedTemplates } from './kursteam-templates-seed.js';
 import {
     loadState,
     saveTemplates,
@@ -34,6 +38,7 @@ import {
     resetToSeedTemplates
 } from './kursteam-templates-storage.js';
 import { searchTeams, listChannels, applyDiff } from './kursteam-templates-graph.js';
+import { fetchCentralCatalog } from './kursteam-templates-catalog.js';
 
 function $(id) {
     return document.getElementById(id);
@@ -62,8 +67,28 @@ function log(msg) {
 const ui = {
     /** @type {import('./kursteam-templates-logic.js').ChannelTemplate[]} */
     templates: [],
+    /** @type {import('./kursteam-templates-logic.js').ChannelTemplate[]} */
+    localTemplates: [],
+    /** @type {import('./kursteam-templates-logic.js').ChannelTemplate[]} */
+    centralTemplates: [],
     /** @type {string[]} */
     schoolForms: [],
+    /** @type {string[]} */
+    localSchoolForms: [],
+    /** @type {string[]} */
+    centralSchoolForms: [],
+    /** @type {''|'central'|'local'} */
+    sourceFilter: '',
+    catalog: {
+        ok: false,
+        missing: true,
+        message: 'Zentrale wird geladen …',
+        updatedAt: null,
+        updatedBy: '',
+        webUrl: '',
+        library: '',
+        path: ''
+    },
     selectedId: '',
     schoolFormFilter: '',
     subjectFilter: '',
@@ -177,8 +202,66 @@ function fillMetaSelects() {
 
 function refreshFromStorage() {
     const state = loadState();
-    ui.templates = state.templates;
-    ui.schoolForms = state.schoolForms || [];
+    ui.localTemplates = state.templates;
+    ui.localSchoolForms = state.schoolForms || [];
+    let forms = ui.localSchoolForms.slice();
+    for (const f of ui.centralSchoolForms) forms = rememberSchoolForm(forms, f);
+    for (const t of ui.centralTemplates) forms = rememberSchoolForm(forms, t.schoolForm);
+    ui.schoolForms = forms;
+    const localForMerge = localTemplatesForCatalogMerge(
+        ui.localTemplates,
+        ui.centralTemplates,
+        getSeedTemplates()
+    );
+    ui.templates = mergeCatalogView(ui.centralTemplates, localForMerge);
+}
+
+function templatesForLibrary() {
+    if (ui.sourceFilter === 'central') {
+        return ui.templates.filter((t) => t.origin === 'central');
+    }
+    if (ui.sourceFilter === 'local') {
+        return ui.templates.filter((t) => t.origin === 'local' || t.origin === 'override');
+    }
+    return ui.templates;
+}
+
+function originLabel(origin) {
+    if (origin === 'central') return 'Zentral';
+    if (origin === 'override') return 'Angepasst';
+    if (origin === 'local') return 'Lokal';
+    return '';
+}
+
+function formatCatalogStamp(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function renderCatalogStatus() {
+    const el = $('ktplCatalogStatus');
+    if (!el) return;
+    const centralN = ui.templates.filter((t) => t.origin === 'central').length;
+    const overrideN = ui.templates.filter((t) => t.origin === 'override').length;
+    const localN = ui.templates.filter((t) => t.origin === 'local').length;
+    const parts = ['Zentral ' + centralN];
+    if (overrideN) parts.push(overrideN + ' angepasst');
+    if (localN) parts.push(localN + ' nur lokal');
+    const stamp = formatCatalogStamp(ui.catalog.updatedAt);
+    let text = parts.join(' · ');
+    if (ui.catalog.message && !ui.catalog.ok) text = ui.catalog.message;
+    else if (ui.catalog.missing && ui.catalog.ok) {
+        text = 'Zentrale noch leer. ' + text;
+    }
+    if (stamp && ui.catalog.ok && !ui.catalog.missing) text += ' · Stand ' + stamp;
+    el.textContent = text;
+    const link = $('ktplCatalogLink');
+    if (link) {
+        link.hidden = false;
+        link.href = ui.catalog.webUrl || 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools';
+    }
 }
 
 function selectedTemplate() {
@@ -201,7 +284,7 @@ function ensureExpandedForSelection() {
 
 function bootstrapTreeExpanded() {
     if (ui.treeBootstrapped) return;
-    const tree = buildTemplateTree(ui.templates, ui.groupBy, currentFilters());
+    const tree = buildTemplateTree(templatesForLibrary(), ui.groupBy, currentFilters());
     for (const g of tree) ui.expanded.add(g.key);
     ui.treeBootstrapped = true;
 }
@@ -212,15 +295,17 @@ function renderTemplateList() {
     if (!ul) return;
     bootstrapTreeExpanded();
     ensureExpandedForSelection();
-    const filtered = filterTemplates(ui.templates, currentFilters());
+    const visible = templatesForLibrary();
+    const filtered = filterTemplates(visible, currentFilters());
     if (countEl) countEl.textContent = String(filtered.length);
     if (!filtered.length) {
         ul.innerHTML =
-            '<li class="ktpl-empty">Keine Vorlagen für diese Filter.<br>Mit „Neu“ anlegen oder JSON importieren.</li>';
+            '<li class="ktpl-empty">Keine Vorlagen für diese Filter.<br>Mit „Neu“ anlegen, JSON importieren oder die Zentrale laden.</li>';
+        renderCatalogStatus();
         return;
     }
 
-    const tree = buildTemplateTree(ui.templates, ui.groupBy, currentFilters());
+    const tree = buildTemplateTree(visible, ui.groupBy, currentFilters());
     let html = '';
     for (const group of tree) {
         const open = ui.expanded.has(group.key);
@@ -240,9 +325,13 @@ function renderTemplateList() {
                 const badge = leaf.badge
                     ? `<span class="ktpl-pill">${escapeHtml(leaf.badge)}</span>`
                     : '';
+                const origin = originLabel(t.origin);
+                const originPill = origin
+                    ? `<span class="ktpl-origin ktpl-origin--${escapeHtml(t.origin || 'local')}">${escapeHtml(origin)}</span>`
+                    : '';
                 html +=
                     `<li><button type="button" class="ktpl-list-btn ktpl-list-btn--leaf${active}" data-id="${escapeHtml(t.id)}">` +
-                    `<span class="ktpl-leaf-top"><strong>${escapeHtml(t.name)}</strong>${badge}</span>` +
+                    `<span class="ktpl-leaf-top"><strong>${escapeHtml(t.name)}</strong><span class="ktpl-leaf-pills">${originPill}${badge}</span></span>` +
                     `<span class="ktpl-list-meta">${t.channels.length} Kanal${t.channels.length === 1 ? '' : 'e'}</span>` +
                     `</button></li>`;
             }
@@ -251,6 +340,7 @@ function renderTemplateList() {
         html += `</li>`;
     }
     ul.innerHTML = html;
+    renderCatalogStatus();
 }
 
 function renderEditor() {
@@ -300,6 +390,25 @@ function renderEditor() {
     if (semEl) semEl.value = tpl.semester || '';
     if (descEl) descEl.value = tpl.description || '';
 
+    const note = $('ktplOriginNote');
+    if (note) {
+        if (tpl.origin === 'central') {
+            note.hidden = false;
+            note.textContent =
+                'Zentrale Vorlage für alle Schulen. Speichern legt nur eine lokale Anpassung in diesem Browser an. Den Katalog für alle Schulen pflegst du im Admin.';
+        } else if (tpl.origin === 'override') {
+            note.hidden = false;
+            note.textContent =
+                'Lokale Anpassung einer zentralen Vorlage. Andere Schulen sehen weiter die Zentrale, bis der Betreiber neu veröffentlicht.';
+        } else if (tpl.origin === 'local') {
+            note.hidden = false;
+            note.textContent = 'Nur in diesem Browser. Andere Schulen sehen diese Vorlage nicht.';
+        } else {
+            note.hidden = true;
+            note.textContent = '';
+        }
+    }
+
     const list = $('ktplChannelBody');
     if (!list) return;
     if (!tpl.channels.length) {
@@ -344,6 +453,9 @@ function persistEditorMeta() {
         description: descEl ? descEl.value : tpl.description,
         updatedAt: new Date().toISOString()
     });
+    if (tpl.origin === 'central' && templateContentKey(next) === templateContentKey(tpl)) {
+        return tpl;
+    }
     upsertTemplate(next);
     refreshFromStorage();
     ui.selectedId = next.id;
@@ -370,6 +482,9 @@ function persistChannelNamesFromDom() {
             /* skip invalid */
         }
     });
+    if (tpl.origin === 'central' && templateContentKey(next) === templateContentKey(tpl)) {
+        return tpl;
+    }
     upsertTemplate(next);
     refreshFromStorage();
     ui.selectedId = next.id;
@@ -385,7 +500,9 @@ function renderApplyTemplateSelect() {
     for (const t of filtered) {
         const opt = document.createElement('option');
         opt.value = t.id;
+        const tag = originLabel(t.origin);
         opt.textContent = [
+            tag,
             t.schoolForm,
             t.subjectCode,
             t.schulstufe ? schulstufeLabel(t.schulstufe) : '',
@@ -523,8 +640,9 @@ function bindManage() {
         if (ask == null) return;
         const name = normalizeSchoolForm(ask);
         if (!name) return toast('Bitte eine Schulform eintragen.');
-        ui.schoolForms = rememberSchoolForm(ui.schoolForms, name);
-        saveState(ui.templates, ui.schoolForms);
+        ui.localSchoolForms = rememberSchoolForm(ui.localSchoolForms, name);
+        saveState(ui.localTemplates, ui.localSchoolForms);
+        refreshFromStorage();
         fillMetaSelects();
         const sel = $('ktplEditSchoolForm');
         if (sel) sel.value = name;
@@ -543,8 +661,23 @@ function bindManage() {
         const to = normalizeSchoolForm(ask);
         if (!to) return toast('Neuer Name fehlt.');
         if (to === from) return;
-        const nextTemplates = renameSchoolFormInTemplates(ui.templates, from, to);
-        let catalog = ui.schoolForms.slice();
+        let nextTemplates = renameSchoolFormInTemplates(ui.localTemplates, from, to);
+        const selected = selectedTemplate();
+        if (
+            selected &&
+            selected.origin === 'central' &&
+            normalizeSchoolForm(selected.schoolForm) === from
+        ) {
+            const forked = normalizeTemplate({
+                ...selected,
+                schoolForm: to,
+                updatedAt: new Date().toISOString()
+            });
+            const idx = nextTemplates.findIndex((t) => t.id === forked.id);
+            if (idx >= 0) nextTemplates[idx] = forked;
+            else nextTemplates.push(forked);
+        }
+        let catalog = ui.localSchoolForms.slice();
         catalog = catalog.filter((s) => normalizeSchoolForm(s) !== from);
         catalog = rememberSchoolForm(catalog, to);
         saveState(nextTemplates, catalog);
@@ -556,7 +689,7 @@ function bindManage() {
         renderTemplateList();
         renderEditor();
         renderApplyTemplateSelect();
-        toast('Schulform „' + from + '“ → „' + to + '“ (in allen Vorlagen).');
+        toast('Schulform „' + from + '“ → „' + to + '“ in der lokalen Bibliothek.');
     });
 
     $('ktplTemplateList')?.addEventListener('click', (e) => {
@@ -615,10 +748,16 @@ function bindManage() {
     $('ktplBtnDelete')?.addEventListener('click', async () => {
         const tpl = selectedTemplate();
         if (!tpl) return;
+        if (tpl.origin === 'central') {
+            toast('Zentrale Vorlagen bleiben für alle Schulen. Im Admin pflegen, oder hier eine Kopie anlegen.');
+            return;
+        }
+        const msg =
+            tpl.origin === 'override'
+                ? 'Lokale Anpassung von „' + tpl.name + '“ entfernen? Die zentrale Vorlage bleibt sichtbar.'
+                : 'Vorlage „' + tpl.name + '“ wirklich löschen?';
         const ok =
-            typeof window.ms365Confirm === 'function'
-                ? await window.ms365Confirm('Vorlage „' + tpl.name + '“ wirklich löschen?')
-                : window.confirm('Vorlage „' + tpl.name + '“ wirklich löschen?');
+            typeof window.ms365Confirm === 'function' ? await window.ms365Confirm(msg) : window.confirm(msg);
         if (!ok) return;
         deleteTemplate(tpl.id);
         refreshFromStorage();
@@ -626,15 +765,21 @@ function bindManage() {
         renderTemplateList();
         renderEditor();
         renderApplyTemplateSelect();
+        renderCatalogStatus();
     });
 
     function doSave() {
+        const before = selectedTemplate();
+        const wasCentral = before && before.origin === 'central';
         persistEditorMeta();
         persistChannelNamesFromDom();
+        const after = selectedTemplate();
         renderTemplateList();
         renderEditor();
         renderApplyTemplateSelect();
-        toast('Gespeichert.');
+        if (wasCentral && after && after.origin === 'override') toast('Als lokale Anpassung gespeichert.');
+        else if (wasCentral && after && after.origin === 'central') toast('Keine Änderung gegenüber der Zentrale.');
+        else toast('Gespeichert.');
     }
 
     $('ktplBtnSave')?.addEventListener('click', doSave);
@@ -738,13 +883,13 @@ function bindManage() {
     });
 
     $('ktplBtnReset')?.addEventListener('click', async () => {
-        const n = ui.templates.length;
+        const n = ui.localTemplates.length;
         const msg =
             n > 0
                 ? 'Alle ' +
                   n +
-                  ' Vorlagen unwiderruflich löschen und die mitgelieferten Standard-Vorlagen (HAKB MAM) neu laden?'
-                : 'Mitgelieferte Standard-Vorlagen (HAKB MAM) neu laden?';
+                  ' lokalen Vorlagen löschen und die mitgelieferten Standard-Vorlagen (HAKB MAM) neu laden? Der zentrale Katalog bleibt unverändert.'
+                : 'Mitgelieferte Standard-Vorlagen (HAKB MAM) lokal neu laden? Der zentrale Katalog bleibt unverändert.';
         const ok =
             typeof window.ms365Confirm === 'function'
                 ? await window.ms365Confirm(msg)
@@ -763,6 +908,76 @@ function bindManage() {
         renderApplyTemplateSelect();
         renderDiff([]);
         toast('Zurückgesetzt – ' + ui.templates.length + ' Standard-Vorlage(n) geladen.');
+    });
+}
+
+function applyCatalogData(data) {
+    ui.centralTemplates = Array.isArray(data.templates) ? data.templates : [];
+    ui.centralSchoolForms = Array.isArray(data.schoolForms) ? data.schoolForms : [];
+    ui.catalog = {
+        ok: data.ok !== false,
+        missing: !!data.missing,
+        message: data.message || '',
+        updatedAt: data.updatedAt || null,
+        updatedBy: data.updatedBy || '',
+        webUrl: data.webUrl || data.siteWebUrl || '',
+        library: data.library || '',
+        path: data.path || ''
+    };
+    const editing = document.activeElement && document.activeElement.closest('#ktplEditorForm');
+    refreshFromStorage();
+    fillMetaSelects();
+    renderTemplateList();
+    renderApplyTemplateSelect();
+    renderCatalogStatus();
+    if (!editing) renderEditor();
+}
+
+let catalogBusy = false;
+
+async function reloadCentral() {
+    if (catalogBusy) return;
+    catalogBusy = true;
+    try {
+        const data = await fetchCentralCatalog();
+        if (!data.ok) {
+            ui.catalog.ok = false;
+            ui.catalog.missing = true;
+            ui.catalog.message = data.message || 'Zentrale nicht geladen.';
+            renderCatalogStatus();
+            return;
+        }
+        applyCatalogData(data);
+    } catch (err) {
+        const msg = (err && err.message) || String(err);
+        ui.catalog.ok = false;
+        ui.catalog.missing = true;
+        ui.catalog.message = /404|not found|nicht gefunden/i.test(msg)
+            ? 'Der zentrale Katalog ist auf dieser License-API noch nicht vorhanden. Bis zum Deploy gilt die lokale Bibliothek.'
+            : msg;
+        renderCatalogStatus();
+    } finally {
+        catalogBusy = false;
+    }
+}
+
+function bindCatalog() {
+    document.querySelectorAll('[data-ktpl-source]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const raw = btn.getAttribute('data-ktpl-source') || '';
+            ui.sourceFilter = raw === 'central' || raw === 'local' ? raw : '';
+            ui.treeBootstrapped = false;
+            document.querySelectorAll('[data-ktpl-source]').forEach((b) => {
+                const on = (b.getAttribute('data-ktpl-source') || '') === ui.sourceFilter;
+                b.classList.toggle('is-active', on);
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            renderTemplateList();
+        });
+    });
+
+    $('ktplBtnCatalogRefresh')?.addEventListener('click', () => {
+        reloadCentral();
     });
 }
 
@@ -910,11 +1125,23 @@ function init() {
     });
     bindTabs();
     bindManage();
+    bindCatalog();
     bindApply();
     renderTemplateList();
     renderEditor();
     renderApplyTemplateSelect();
+    renderCatalogStatus();
     renderDiff([]);
+    let wasLoggedIn =
+        typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+    window.addEventListener('ms365-auth-state-changed', (ev) => {
+        renderCatalogStatus();
+        const loggedIn = !!(ev.detail && ev.detail.loggedIn);
+        if (loggedIn && !wasLoggedIn) reloadCentral();
+        wasLoggedIn = loggedIn;
+    });
+    window.addEventListener('ms365-auth-widget-ready', () => renderCatalogStatus());
+    reloadCentral();
 }
 
 if (document.readyState === 'loading') {

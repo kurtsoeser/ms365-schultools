@@ -1,9 +1,18 @@
 'use strict';
 
 const { app } = require('@azure/functions');
-const { isTenantAllowed } = require('../lib/config');
 const { createJob } = require('../lib/job-store');
-const { jsonResponse, validateTeamsPayload, corsPreflightResponse } = require('../lib/http-utils');
+const {
+    jsonResponse,
+    validateTeamsPayload,
+    corsPreflightResponse,
+    bearerTokenFromRequest,
+    errorResponse
+} = require('../lib/http-utils');
+const {
+    requireKursteamCaller,
+    assertCallerMayCreateTeams
+} = require('../lib/require-kursteam-caller');
 
 app.http('httpCreateJobOptions', {
     methods: ['OPTIONS'],
@@ -14,30 +23,28 @@ app.http('httpCreateJobOptions', {
 
 app.http('httpCreateJob', {
     methods: ['POST'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'kursteams/jobs',
     handler: async (request, context) => {
-        let body;
         try {
-            body = await request.json();
-        } catch {
-            return jsonResponse(400, { error: 'Ungültiges JSON.' });
-        }
+            const caller = await requireKursteamCaller(bearerTokenFromRequest(request));
+            let body;
+            try {
+                body = await request.json();
+            } catch {
+                return jsonResponse(400, { error: 'Ungültiges JSON.' });
+            }
 
-        const validated = validateTeamsPayload(body);
-        if (validated.error) {
-            return jsonResponse(400, { error: validated.error });
-        }
+            const validated = validateTeamsPayload(body);
+            if (validated.error) {
+                return jsonResponse(400, { error: validated.error });
+            }
 
-        if (!isTenantAllowed(validated.tenantId)) {
-            return jsonResponse(403, {
-                error: 'tenantId ist für dieses Backend nicht freigeschaltet (KURSTEAMS_ALLOWED_TENANT_IDS).'
-            });
-        }
+            await assertCallerMayCreateTeams(caller);
 
-        try {
             const job = await createJob({
-                tenantId: validated.tenantId,
+                tenantId: caller.tid,
+                createdByOid: caller.oid,
                 teams: validated.teams,
                 mailDomain: validated.mailDomain
             });
@@ -49,8 +56,7 @@ app.http('httpCreateJob', {
                 pollUrl: '/api/kursteams/jobs/' + job.id
             });
         } catch (e) {
-            context.error('createJob fehlgeschlagen:', e);
-            return jsonResponse(500, { error: e.message || String(e) });
+            return errorResponse(context, 'createJob fehlgeschlagen:', e);
         }
     }
 });

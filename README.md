@@ -66,16 +66,14 @@ Die Datei **`tools/kursteams.html`** lädt die Schritte über Module unter **`sr
 Wenn Sie die Client-ID nicht öffentlich im Repo haben möchten, löschen Sie `ms365-config.js` aus dem Repo und legen Sie sie
 in Ihrem Deployment (Pages/Hosting) separat ab – dann muss die Datei weiterhin im Root erreichbar sein.
 
-**Azure Function Key (Kursteams-Backend):** Niemals in `ms365-config.js` committen – GitHub blockiert den Push.
+**Kursteams-Backend:** Die Seite sendet das Anmelde-Token (`Kursteams.Create`). Einen Function Key nicht in `ms365-config.js`, `ms365-config.local.js` oder GitHub Pages legen.
 
-| Umgebung | Wo der Key hingehört |
-|----------|----------------------|
+| Umgebung | Lizenz-API |
+|----------|------------|
 | **Lokal (Entwicklung)** | `ms365-config.local.js` (Kopie von `ms365-config.local.example.js`, steht in `.gitignore`) |
-| **GitHub Pages (Live)** | Repository → **Settings → Secrets and variables → Actions** → Secret `KURSTEAMS_FUNCTION_KEY`. Beim Deploy schreibt der Workflow die Datei `dist/ms365-config.local.js` – im Git-Repo taucht der Key nicht auf. |
+| **GitHub Pages (Live)** | Repository → **Settings → Secrets and variables → Actions** → `LICENSE_API_BASE_URL` und optional `LICENSE_FUNCTION_KEY`. Der Workflow schreibt `dist/ms365-config.local.js`. |
 
 Vor dem Push lokal: `npm run check:secrets`.
-
-**Hinweis:** Der Key liegt im Browser trotzdem in einer JS-Datei (wie bisher in `ms365-config.js`) – wer die Live-Seite nutzt, kann ihn technisch auslesen. Push Protection verhindert nur das **Einchecken in Git**. Langfristig sicherer wäre Backend-Auth per Anmelde-Token statt Function Key in der Client-App.
 
 ### Head-Minimum für neue HTML-Seiten (statische MPA)
 

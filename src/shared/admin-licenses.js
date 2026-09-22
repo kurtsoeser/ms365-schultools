@@ -1,15 +1,30 @@
 /**
- * Phase 5 – Schulen/Lizenzen: Inline-Tabelle mit +-Zeile.
+ * Schulen/Lizenzen: Inline-Tabelle inkl. Extra-Spalten (SharePoint).
  */
 (function () {
     'use strict';
 
     /** @type {Array<object>} */
     var schoolsCache = [];
+    /** @type {Array<object>} */
+    var columnsCache = [];
     /** @type {string|null} null = keine, '' = neu, id = bearbeiten */
     var editingId = null;
     /** @type {{ key: string, dir: 'asc'|'desc' }} */
     var sortState = { key: 'schoolName', dir: 'asc' };
+    /** @type {boolean} */
+    var reloadInFlight = false;
+    /** @type {boolean|null} */
+    var lastKnownLoggedIn = null;
+
+    var CORE_HEADS = [
+        { key: 'schoolName', label: 'Schule / Kontakt' },
+        { key: 'tenantId', label: 'Tenant-ID' },
+        { key: 'status', label: 'Status' },
+        { key: 'validUntil', label: 'Gültig bis' },
+        { key: 'domains', label: 'Domains' },
+        { key: 'notes', label: 'Notizen' }
+    ];
 
     function $(id) {
         return document.getElementById(id);
@@ -21,16 +36,24 @@
     }
 
     async function getToken() {
+        var acquire = null;
         if (typeof window.ms365AuthAcquireIdToken === 'function') {
-            return window.ms365AuthAcquireIdToken(['https://graph.microsoft.com/User.Read']);
+            acquire = window.ms365AuthAcquireIdToken(['https://graph.microsoft.com/User.Read']);
+        } else if (typeof window.ms365AuthAcquireIdTokenPopup === 'function') {
+            acquire = window.ms365AuthAcquireIdTokenPopup(['https://graph.microsoft.com/User.Read']);
+        } else if (typeof window.ms365AuthAcquireToken === 'function') {
+            acquire = window.ms365AuthAcquireToken(['https://graph.microsoft.com/User.Read']);
+        } else {
+            throw new Error('Bitte mit kurt@kurtsoeser.at anmelden (MSAL).');
         }
-        if (typeof window.ms365AuthAcquireIdTokenPopup === 'function') {
-            return window.ms365AuthAcquireIdTokenPopup(['https://graph.microsoft.com/User.Read']);
-        }
-        if (typeof window.ms365AuthAcquireToken === 'function') {
-            return window.ms365AuthAcquireToken(['https://graph.microsoft.com/User.Read']);
-        }
-        throw new Error('Bitte mit kurt@kurtsoeser.at anmelden (MSAL).');
+        return Promise.race([
+            acquire,
+            new Promise(function (_, reject) {
+                setTimeout(function () {
+                    reject(new Error('Anmeldung/Token dauert zu lange – bitte erneut anmelden.'));
+                }, 20000);
+            })
+        ]);
     }
 
     function setStatus(msg) {
@@ -39,11 +62,15 @@
     }
 
     function escapeHtml(s) {
-        return String(s)
+        return String(s == null ? '' : s)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function colCount() {
+        return CORE_HEADS.length + columnsCache.length + 1;
     }
 
     function statusBadge(status) {
@@ -99,8 +126,103 @@
         };
     }
 
+    function extraOf(school) {
+        return (school && school.extra && typeof school.extra === 'object' && school.extra) || {};
+    }
+
+    function formatExtraView(col, value) {
+        if (value == null || value === '') return '<span class="admin-lic-muted">–</span>';
+        if (col.type === 'boolean') return value ? 'Ja' : 'Nein';
+        return escapeHtml(String(value));
+    }
+
+    function extraInputHtml(col, value) {
+        var name = escapeHtml(col.name);
+        var v = value == null ? '' : value;
+        if (col.type === 'multiline') {
+            return (
+                '<textarea class="admin-lic-input admin-lic-input--area" data-extra="' +
+                name +
+                '" rows="2">' +
+                escapeHtml(v) +
+                '</textarea>'
+            );
+        }
+        if (col.type === 'number') {
+            return (
+                '<input class="admin-lic-input" data-extra="' +
+                name +
+                '" type="number" step="any" value="' +
+                escapeHtml(v) +
+                '">'
+            );
+        }
+        if (col.type === 'date') {
+            return (
+                '<input class="admin-lic-input" data-extra="' +
+                name +
+                '" type="date" value="' +
+                escapeHtml(v) +
+                '">'
+            );
+        }
+        if (col.type === 'boolean') {
+            return (
+                '<label class="admin-lic-check"><input type="checkbox" data-extra="' +
+                name +
+                '"' +
+                (v ? ' checked' : '') +
+                '> Ja</label>'
+            );
+        }
+        if (col.type === 'choice') {
+            var opts = Array.isArray(col.choices) ? col.choices : [];
+            return (
+                '<select class="admin-lic-input" data-extra="' +
+                name +
+                '">' +
+                '<option value="">–</option>' +
+                opts
+                    .map(function (o) {
+                        var s = String(o);
+                        return (
+                            '<option value="' +
+                            escapeHtml(s) +
+                            '"' +
+                            (String(v) === s ? ' selected' : '') +
+                            '>' +
+                            escapeHtml(s) +
+                            '</option>'
+                        );
+                    })
+                    .join('') +
+                '</select>'
+            );
+        }
+        return (
+            '<input class="admin-lic-input" data-extra="' +
+            name +
+            '" type="text" maxlength="255" value="' +
+            escapeHtml(v) +
+            '">'
+        );
+    }
+
     function bodyFromEditRow(tr) {
         var domains = parseDomainsInput(tr.querySelector('[data-f="domains"]').value);
+        var extra = {};
+        tr.querySelectorAll('[data-extra]').forEach(function (el) {
+            var key = el.getAttribute('data-extra');
+            if (!key) return;
+            if (el.type === 'checkbox') {
+                extra[key] = !!el.checked;
+            } else if (el.type === 'number') {
+                var raw = String(el.value || '').trim();
+                extra[key] = raw === '' ? null : Number(raw);
+            } else {
+                extra[key] = String(el.value || '').trim();
+            }
+        });
         return {
             schoolName: tr.querySelector('[data-f="schoolName"]').value.trim(),
             tenantId: tr.querySelector('[data-f="tenantId"]').value.trim(),
@@ -109,7 +231,8 @@
             validUntil: tr.querySelector('[data-f="validUntil"]').value || null,
             primaryDomain: domains.primaryDomain,
             additionalDomains: domains.additionalDomains,
-            notes: tr.querySelector('[data-f="notes"]').value.trim()
+            notes: tr.querySelector('[data-f="notes"]').value.trim(),
+            extra: extra
         };
     }
 
@@ -133,6 +256,18 @@
                 .join('') +
             '</select>'
         );
+    }
+
+    function extraCellsHtml(school, editing) {
+        var ex = extraOf(school);
+        return columnsCache
+            .map(function (col) {
+                if (editing) {
+                    return '<td>' + extraInputHtml(col, ex[col.name]) + '</td>';
+                }
+                return '<td>' + formatExtraView(col, ex[col.name]) + '</td>';
+            })
+            .join('');
     }
 
     function buildEditRow(school) {
@@ -164,6 +299,7 @@
             '<td><textarea class="admin-lic-input admin-lic-input--area" data-f="notes" rows="2" placeholder="Notizen">' +
             escapeHtml((school && school.notes) || '') +
             '</textarea></td>' +
+            extraCellsHtml(school || {}, true) +
             '<td class="admin-lic-actions"></td>';
 
         var actions = tr.querySelector('.admin-lic-actions');
@@ -216,6 +352,7 @@
             '<td><div class="admin-lic-notes">' +
             (s.notes ? escapeHtml(s.notes) : '<span class="admin-lic-muted">–</span>') +
             '</div></td>' +
+            extraCellsHtml(s, false) +
             '<td class="admin-lic-actions"></td>';
 
         tr.addEventListener('dblclick', function (e) {
@@ -251,6 +388,13 @@
 
     function sortValue(school, key) {
         if (!school) return '';
+        if (key.indexOf('extra:') === 0) {
+            var name = key.slice(6);
+            var v = extraOf(school)[name];
+            if (v == null) return '';
+            if (typeof v === 'boolean') return v ? '1' : '0';
+            return String(v).toLowerCase();
+        }
         if (key === 'domains') {
             if (Array.isArray(school.domains) && school.domains.length) {
                 return school.domains.join(' ').toLowerCase();
@@ -280,12 +424,46 @@
         return rows;
     }
 
+    function renderHead() {
+        var tr = $('adminLicTableHead');
+        if (!tr) return;
+        tr.replaceChildren();
+        CORE_HEADS.forEach(function (h) {
+            var th = document.createElement('th');
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'admin-lic-sort';
+            btn.setAttribute('data-sort', h.key);
+            btn.textContent = h.label;
+            th.appendChild(btn);
+            tr.appendChild(th);
+        });
+        columnsCache.forEach(function (col) {
+            var th = document.createElement('th');
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'admin-lic-sort';
+            btn.setAttribute('data-sort', 'extra:' + col.name);
+            btn.textContent = col.displayName || col.name;
+            th.appendChild(btn);
+            tr.appendChild(th);
+        });
+        var thAct = document.createElement('th');
+        thAct.className = 'admin-lic-table__actions-col';
+        tr.appendChild(thAct);
+        wireSortButtons();
+        updateSortHeaders();
+    }
+
     function updateSortHeaders() {
         document.querySelectorAll('.admin-lic-sort').forEach(function (btn) {
             var key = btn.getAttribute('data-sort') || '';
             var active = key === sortState.key;
             btn.classList.toggle('is-active', active);
-            btn.setAttribute('aria-sort', active ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+            btn.setAttribute(
+                'aria-sort',
+                active ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+            );
             var icon = btn.querySelector('.admin-lic-sort__icon');
             if (!icon) {
                 icon = document.createElement('i');
@@ -306,8 +484,8 @@
     function renderTable(schools) {
         var tbody = $('adminLicTableBody');
         if (!tbody) return;
+        renderHead();
         tbody.replaceChildren();
-        updateSortHeaders();
         var list = sortedSchools(schools || []);
 
         if (editingId === '') {
@@ -317,7 +495,9 @@
         if (!list.length && editingId !== '') {
             var empty = document.createElement('tr');
             empty.innerHTML =
-                '<td colspan="7"><div class="admin-lic-empty">Noch keine Schulen – mit „+ Neue Schule“ anlegen.</div></td>';
+                '<td colspan="' +
+                colCount() +
+                '"><div class="admin-lic-empty">Noch keine Schulen – mit „+ Neue Schule“ anlegen.</div></td>';
             tbody.appendChild(empty);
             return;
         }
@@ -329,6 +509,63 @@
                 tbody.appendChild(buildViewRow(s));
             }
         });
+    }
+
+    function typeLabel(type) {
+        var map = {
+            text: 'Text',
+            multiline: 'Mehrzeilig',
+            number: 'Zahl',
+            date: 'Datum',
+            boolean: 'Ja/Nein',
+            choice: 'Auswahl'
+        };
+        return map[type] || type || 'Text';
+    }
+
+    function renderColumnsPanel() {
+        var list = $('adminLicColumnsList');
+        if (!list) return;
+        list.replaceChildren();
+        if (!columnsCache.length) {
+            var empty = document.createElement('li');
+            empty.className = 'admin-lic-cols__empty';
+            empty.textContent = 'Noch keine Extra-Spalten – oben anlegen.';
+            list.appendChild(empty);
+            return;
+        }
+        columnsCache.forEach(function (col) {
+            var li = document.createElement('li');
+            li.className = 'admin-lic-cols__item';
+            li.innerHTML =
+                '<div class="admin-lic-cols__meta">' +
+                '<strong>' +
+                escapeHtml(col.displayName || col.name) +
+                '</strong>' +
+                '<span class="admin-lic-muted">' +
+                escapeHtml(typeLabel(col.type)) +
+                ' · ' +
+                escapeHtml(col.name) +
+                '</span>' +
+                '</div>';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-danger admin-lic-icon-btn';
+            btn.title = 'Spalte in SharePoint löschen';
+            btn.innerHTML = '<i class="bi bi-trash"></i>';
+            btn.addEventListener('click', function () {
+                removeColumn(col);
+            });
+            li.appendChild(btn);
+            list.appendChild(li);
+        });
+    }
+
+    function setColumnsPanelOpen(open) {
+        var panel = $('adminLicColumnsPanel');
+        if (!panel) return;
+        panel.hidden = !open;
+        if (open) renderColumnsPanel();
     }
 
     async function saveEditRow(tr) {
@@ -357,16 +594,48 @@
     }
 
     async function reload() {
+        if (reloadInFlight) return;
+        reloadInFlight = true;
         setStatus('Lade Schulen …');
         try {
             var token = await getToken();
             var data = await window.ms365LicenseApi.adminListSchools(token);
             schoolsCache = data.schools || [];
+            columnsCache = data.columns || [];
             renderTable(schoolsCache);
-            setStatus(schoolsCache.length + ' Schule(n)');
+            if ($('adminLicColumnsPanel') && !$('adminLicColumnsPanel').hidden) {
+                renderColumnsPanel();
+            }
+            setStatus(
+                schoolsCache.length +
+                    ' Schule(n)' +
+                    (columnsCache.length ? ' · ' + columnsCache.length + ' Extra-Spalte(n)' : '')
+            );
         } catch (e) {
             setStatus('Fehler: ' + ((e && e.message) || e));
             toast('Laden fehlgeschlagen: ' + ((e && e.message) || e));
+        } finally {
+            reloadInFlight = false;
+        }
+    }
+
+    function onAuthChanged() {
+        var loggedIn =
+            typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+        if (loggedIn === lastKnownLoggedIn) return;
+        lastKnownLoggedIn = loggedIn;
+        if (loggedIn) {
+            if (
+                window.ms365OperatorAccess &&
+                typeof window.ms365OperatorAccess.grantAdminSessionIfOperator === 'function'
+            ) {
+                window.ms365OperatorAccess.grantAdminSessionIfOperator();
+            }
+            reload();
+        } else {
+            schoolsCache = [];
+            renderTable(schoolsCache);
+            setStatus('Bitte oben rechts mit dem Betreiber-Konto anmelden.');
         }
     }
 
@@ -392,6 +661,72 @@
         }
     }
 
+    async function removeColumn(col) {
+        if (!col || !col.name) return;
+        if (
+            !window.confirm(
+                'Spalte „' +
+                    (col.displayName || col.name) +
+                    '“ in SharePoint wirklich löschen? Vorhandene Werte gehen verloren.'
+            )
+        ) {
+            return;
+        }
+        setStatus('Lösche Spalte …');
+        try {
+            var token = await getToken();
+            await window.ms365LicenseApi.adminDeleteColumn(token, col.name);
+            toast('Spalte gelöscht.');
+            await reload();
+        } catch (e) {
+            setStatus('Fehler: ' + ((e && e.message) || e));
+            toast('Spalte löschen fehlgeschlagen: ' + ((e && e.message) || e));
+        }
+    }
+
+    async function createColumnFromForm(ev) {
+        if (ev) ev.preventDefault();
+        var displayName = ($('adminLicColDisplayName') && $('adminLicColDisplayName').value.trim()) || '';
+        var type = ($('adminLicColType') && $('adminLicColType').value) || 'text';
+        var choicesRaw = ($('adminLicColChoices') && $('adminLicColChoices').value) || '';
+        if (!displayName) {
+            toast('Bitte einen Spaltennamen angeben.');
+            return;
+        }
+        var body = { displayName: displayName, type: type };
+        if (type === 'choice') {
+            body.choices = choicesRaw
+                .split(/[\n,;]+/)
+                .map(function (s) {
+                    return s.trim();
+                })
+                .filter(Boolean);
+            if (!body.choices.length) {
+                toast('Choice braucht mindestens eine Option.');
+                return;
+            }
+        }
+        setStatus('Lege Spalte an …');
+        try {
+            var token = await getToken();
+            await window.ms365LicenseApi.adminCreateColumn(token, body);
+            toast('Spalte „' + displayName + '“ angelegt.');
+            if ($('adminLicColDisplayName')) $('adminLicColDisplayName').value = '';
+            if ($('adminLicColChoices')) $('adminLicColChoices').value = '';
+            await reload();
+            setColumnsPanelOpen(true);
+        } catch (e) {
+            setStatus('Fehler: ' + ((e && e.message) || e));
+            toast('Spalte anlegen fehlgeschlagen: ' + ((e && e.message) || e));
+        }
+    }
+
+    function syncChoiceFieldVisibility() {
+        var type = ($('adminLicColType') && $('adminLicColType').value) || 'text';
+        var wrap = $('adminLicColChoicesWrap');
+        if (wrap) wrap.hidden = type !== 'choice';
+    }
+
     function startAdd() {
         editingId = '';
         renderTable(schoolsCache);
@@ -399,13 +734,10 @@
         if (first) first.focus();
     }
 
-    function wire() {
-        if (!$('adminLicTableBody')) return;
-        var btnReload = $('adminLicReloadBtn');
-        if (btnReload) btnReload.addEventListener('click', reload);
-        var btnAdd = $('adminLicAddBtn');
-        if (btnAdd) btnAdd.addEventListener('click', startAdd);
-        document.querySelectorAll('.admin-lic-sort').forEach(function (btn) {
+    function wireSortButtons() {
+        document.querySelectorAll('#adminLicTableHead .admin-lic-sort').forEach(function (btn) {
+            if (btn.dataset.sortWired === '1') return;
+            btn.dataset.sortWired = '1';
             btn.addEventListener('click', function () {
                 var key = btn.getAttribute('data-sort') || 'schoolName';
                 if (sortState.key === key) {
@@ -417,18 +749,49 @@
                 renderTable(schoolsCache);
             });
         });
-        window.addEventListener('ms365-auth-state-changed', function () {
-            if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
-                reload();
-            }
-        });
+    }
+
+    function wire() {
+        if (!$('adminLicTableBody')) return;
+        // Eventuell hängendes Soft-Gate aus älterer Session entsperren
+        try {
+            document.documentElement.removeAttribute('data-ms365-admin-boot');
+            var stale = document.getElementById('ms365AdminOperatorBlock');
+            if (stale) stale.remove();
+        } catch (e) {
+            /* ignore */
+        }
+        var btnReload = $('adminLicReloadBtn');
+        if (btnReload) btnReload.addEventListener('click', reload);
+        var btnAdd = $('adminLicAddBtn');
+        if (btnAdd) btnAdd.addEventListener('click', startAdd);
+        var btnCols = $('adminLicColumnsBtn');
+        if (btnCols) {
+            btnCols.addEventListener('click', function () {
+                var panel = $('adminLicColumnsPanel');
+                setColumnsPanelOpen(!(panel && !panel.hidden));
+            });
+        }
+        var btnColsClose = $('adminLicColumnsCloseBtn');
+        if (btnColsClose) {
+            btnColsClose.addEventListener('click', function () {
+                setColumnsPanelOpen(false);
+            });
+        }
+        var form = $('adminLicColumnForm');
+        if (form) form.addEventListener('submit', createColumnFromForm);
+        var typeSel = $('adminLicColType');
+        if (typeSel) typeSel.addEventListener('change', syncChoiceFieldVisibility);
+        syncChoiceFieldVisibility();
+        renderHead();
+        renderTable(schoolsCache);
+        setStatus('Bitte oben rechts mit dem Betreiber-Konto anmelden.');
+
+        window.addEventListener('ms365-auth-state-changed', onAuthChanged);
         setTimeout(function () {
-            if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
-                reload();
-            } else {
-                setStatus('Bitte oben rechts mit dem Betreiber-Konto anmelden.');
-            }
-        }, 400);
+            lastKnownLoggedIn = null;
+            onAuthChanged();
+        }, 500);
     }
 
     if (document.readyState === 'loading') {

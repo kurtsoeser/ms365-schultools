@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;d.removeAttribute('data-ms365-admin-boot');}catch(e){}})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin – MS365-Schulverwaltung</title>
@@ -36,6 +36,10 @@
                 <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabSetup" aria-selected="false" aria-controls="adminPanelSetup" data-admin-tab="setup">
                     <i class="bi bi-gear" aria-hidden="true"></i>
                     <span>Setup</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabTemplates" aria-selected="false" aria-controls="adminPanelTemplates" data-admin-tab="templates">
+                    <i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i>
+                    <span>Vorlagen</span>
                 </button>
                 <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabNotes" aria-selected="false" aria-controls="adminPanelNotes" data-admin-tab="notes">
                     <i class="bi bi-megaphone" aria-hidden="true"></i>
@@ -309,6 +313,67 @@
                 </section>
 
                 <!-- Release Notes -->
+                <section class="admin-app__panel" id="adminPanelTemplates" role="tabpanel" aria-labelledby="adminTabTemplates" data-admin-panel="templates" hidden>
+                    <div class="admin-app__toolbar">
+                        <div class="admin-app__toolbar-meta">
+                            <span class="admin-app__pill" id="adminCatStatus">Zentrale wird geladen …</span>
+                            <a class="admin-catalog__lib" id="adminCatLink" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener">Bibliothek öffnen</a>
+                        </div>
+                        <div class="admin-app__toolbar-actions">
+                            <button type="button" class="btn alt" id="adminCatReload"><i class="bi bi-arrow-clockwise"></i>Zentrale laden</button>
+                            <button type="button" class="btn alt" id="adminCatTakeLocal" title="Vorlagen aus dem Werkzeug in diesem Browser in den Entwurf holen"><i class="bi bi-laptop"></i>Aus Browser übernehmen</button>
+                            <label class="btn alt" for="adminCatImport"><i class="bi bi-upload"></i>JSON<input type="file" id="adminCatImport" accept="application/json,.json" hidden></label>
+                            <button type="button" class="btn btn-success" id="adminCatPublish"><i class="bi bi-cloud-arrow-up"></i>In Zentrale schreiben</button>
+                        </div>
+                    </div>
+                    <p class="admin-catalog__banner" id="adminCatBanner" hidden></p>
+                    <div class="admin-catalog">
+                        <aside class="admin-catalog__side">
+                            <label class="admin-catalog__search">
+                                <span class="visually-hidden">Vorlagen suchen</span>
+                                <input type="search" id="adminCatSearch" placeholder="Suchen …" autocomplete="off">
+                            </label>
+                            <button type="button" class="btn btn-sm btn-success" id="adminCatNew"><i class="bi bi-plus-lg"></i>Neue Vorlage</button>
+                            <ul class="admin-catalog__list" id="adminCatList"></ul>
+                        </aside>
+                        <div class="admin-catalog__main">
+                            <div class="admin-catalog__empty" id="adminCatEmpty">
+                                <p>Links eine Vorlage wählen oder neu anlegen. <strong>In Zentrale schreiben</strong> speichert den Stand für alle Schulen.</p>
+                            </div>
+                            <div id="adminCatForm" hidden>
+                                <div class="admin-catalog__meta">
+                                    <label>Name<input type="text" id="adminCatName" autocomplete="off"></label>
+                                    <label>Schulform<select id="adminCatSchool"></select></label>
+                                    <label>Fachkürzel<input type="text" id="adminCatSubject" autocomplete="off" placeholder="z. B. MAM"></label>
+                                    <label>Schulstufe<input type="text" id="adminCatStufe" inputmode="numeric" autocomplete="off" placeholder="z. B. 10"></label>
+                                    <label>Semester
+                                        <select id="adminCatSemester">
+                                            <option value="">— optional —</option>
+                                            <option value="SJ">Schuljahr</option>
+                                            <option value="WS">Wintersemester</option>
+                                            <option value="SS">Sommersemester</option>
+                                        </select>
+                                    </label>
+                                    <label class="admin-catalog__meta-wide">Beschreibung<textarea id="adminCatDesc" rows="2"></textarea></label>
+                                </div>
+                                <div class="admin-catalog__channels-head">
+                                    <h2>Kanäle</h2>
+                                    <div class="admin-catalog__channel-actions">
+                                        <button type="button" class="btn btn-sm alt" id="adminCatClone"><i class="bi bi-copy"></i>Kopie</button>
+                                        <button type="button" class="btn btn-sm alt" id="adminCatDelete"><i class="bi bi-trash"></i>Löschen</button>
+                                    </div>
+                                </div>
+                                <p class="admin-catalog__hint">„Allgemein“ gehört nicht in die Liste. Die Reihenfolge ist die Reihenfolge im Team.</p>
+                                <div class="admin-catalog__add">
+                                    <input type="text" id="adminCatChannelName" placeholder="Neuer Kanalname …" autocomplete="off">
+                                    <button type="button" class="btn btn-sm" id="adminCatChannelAdd"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
+                                </div>
+                                <ul class="admin-catalog__channels" id="adminCatChannels"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="admin-app__panel" id="adminPanelNotes" role="tabpanel" aria-labelledby="adminTabNotes" data-admin-panel="notes" hidden>
                     <div class="admin-app__grid admin-app__grid--notes">
                         <article class="admin-app__card admin-rn-editor-card">
@@ -405,6 +470,7 @@
     <script src="src/shared/admin-licenses.js" defer></script>
     <script src="src/shared/admin-setup.js" defer></script>
     <script type="module" src="src/shared/admin-panel.js"></script>
+    <script type="module" src="src/shared/admin-catalog.js"></script>
     <script src="src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

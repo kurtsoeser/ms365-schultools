@@ -39,14 +39,24 @@ function blobName(jobId) {
 }
 
 /**
- * @param {{ tenantId: string, teams: Array<{ teamName: string, gruppenmail: string, besitzer: string }>, mailDomain?: string }} input
+ * @param {{ tenantId: string, createdByOid: string, teams: Array<{ teamName: string, gruppenmail: string, besitzer: string }>, mailDomain?: string }} input
  */
 async function createJob(input) {
+    const createdByOid = String(input.createdByOid || '')
+        .trim()
+        .toLowerCase();
+    const tenantId = String(input.tenantId || '')
+        .trim()
+        .toLowerCase();
+    if (!createdByOid || !tenantId) {
+        throw new Error('createdByOid und tenantId sind erforderlich.');
+    }
     const id = randomUUID();
     const now = new Date().toISOString();
     const job = {
         id,
-        tenantId: input.tenantId,
+        tenantId,
+        createdByOid,
         mailDomain: String(input.mailDomain || '').trim(),
         status: 'queued',
         createdAt: now,

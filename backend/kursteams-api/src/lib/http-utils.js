@@ -27,13 +27,18 @@ function corsPreflightResponse() {
     };
 }
 
+function bearerTokenFromRequest(request) {
+    const h =
+        (request.headers &&
+            (request.headers.get('authorization') || request.headers.get('Authorization'))) ||
+        '';
+    const m = String(h).match(/^Bearer\s+(.+)$/i);
+    return m ? m[1].trim() : '';
+}
+
 function validateTeamsPayload(body) {
     if (!body || typeof body !== 'object') {
         return { error: 'JSON-Body erforderlich.' };
-    }
-    const tenantId = String(body.tenantId || '').trim();
-    if (!tenantId) {
-        return { error: 'tenantId ist erforderlich.' };
     }
     if (!Array.isArray(body.teams) || !body.teams.length) {
         return { error: 'teams (Array, mindestens 1 Eintrag) ist erforderlich.' };
@@ -57,7 +62,30 @@ function validateTeamsPayload(body) {
     const mailDomain = String(body.mailDomain || '')
         .trim()
         .replace(/^@+/, '');
-    return { tenantId, teams, mailDomain };
+    return { teams, mailDomain };
 }
 
-module.exports = { jsonResponse, corsPreflightResponse, validateTeamsPayload, CORS_HEADERS };
+/**
+ * @param {import('@azure/functions').InvocationContext} context
+ * @param {string} label
+ * @param {Error & { status?: number, cause?: unknown }} e
+ */
+function errorResponse(context, label, e) {
+    const status = e && e.status && Number.isFinite(e.status) ? e.status : 500;
+    if (status >= 500) context.error(label, e);
+    else context.error(label, status, e && e.cause ? e.cause : '');
+    const safe =
+        status >= 500
+            ? 'Kursteams-Backend ist fehlgeschlagen.'
+            : (e && e.message) || 'Anfrage abgelehnt.';
+    return jsonResponse(status >= 400 && status < 600 ? status : 500, { error: safe });
+}
+
+module.exports = {
+    jsonResponse,
+    corsPreflightResponse,
+    validateTeamsPayload,
+    bearerTokenFromRequest,
+    errorResponse,
+    CORS_HEADERS
+};

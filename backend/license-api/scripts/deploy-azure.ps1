@@ -68,8 +68,28 @@ if (-not (Get-Command func -ErrorAction SilentlyContinue)) {
 
 func azure functionapp publish $FunctionAppName --javascript
 
+# CORS: lokale Vite-Ports + GitHub Pages (Preflight sonst ohne ACAO-Header)
+$corsOrigins = @(
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:4173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+    "https://kurtrocks.github.io",
+    "https://kurtsoeser.github.io"
+)
+Write-Host "CORS-Origins sicherstellen …"
+az functionapp cors add `
+    --name $FunctionAppName `
+    --resource-group $ResourceGroup `
+    --allowed-origins $corsOrigins 2>$null | Out-Null
+
 Write-Host ""
 Write-Host "Fertig. Health-Check:"
 Write-Host "  https://$FunctionAppName.azurewebsites.net/api/license/health"
 Write-Host "baseUrl für Frontend / GitHub Secret LICENSE_API_BASE_URL:"
 Write-Host "  https://$FunctionAppName.azurewebsites.net/api/license"
+Write-Host "Hinweis: Extra-Spalten und der Katalog (Bibliothek MS365-Katalog) brauchen Graph Application Permission Sites.ReadWrite.All."
+Write-Host "Optional: CATALOG_LIBRARY_NAME, CATALOG_KURSTEAM_PATH"

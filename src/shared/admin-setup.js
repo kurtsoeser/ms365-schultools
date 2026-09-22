@@ -235,11 +235,15 @@
 
         // Schema erst prüfen, wenn User ggf. schon angemeldet ist
         setTimeout(function () {
-            refreshSchemaStatus();
+            if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
+                refreshSchemaStatus();
+            }
         }, 600);
         window.addEventListener('ms365-auth-state-changed', function () {
-            refreshSchemaStatus();
             refreshApiConfigUi();
+            if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
+                refreshSchemaStatus();
+            }
         });
     }
 

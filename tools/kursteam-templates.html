@@ -65,6 +65,11 @@
             cursor: pointer;
             white-space: nowrap;
         }
+        .ktpl-menubar__io .btn[hidden],
+        #ktplCatalogLink[hidden],
+        #ktplOriginNote[hidden] {
+            display: none !important;
+        }
 
         /* ── Layout ── */
         .ktpl-grid {
@@ -161,8 +166,58 @@
             justify-content: space-between;
             gap: 8px;
         }
-        .ktpl-leaf-top .ktpl-pill {
+        .ktpl-leaf-top .ktpl-pill,
+        .ktpl-leaf-top .ktpl-origin {
             flex-shrink: 0;
+        }
+        .ktpl-leaf-pills {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .ktpl-origin {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: var(--soft);
+            color: var(--text-secondary);
+        }
+        .ktpl-origin--central {
+            background: color-mix(in srgb, #0f766e 16%, transparent);
+            color: #0f766e;
+        }
+        .ktpl-origin--local {
+            background: color-mix(in srgb, var(--brand1) 16%, transparent);
+            color: var(--brand1);
+        }
+        .ktpl-origin--override {
+            background: color-mix(in srgb, #b45309 18%, transparent);
+            color: #b45309;
+        }
+        [data-theme="dark"] .ktpl-origin--central { color: #5eead4; }
+        [data-theme="dark"] .ktpl-origin--override { color: #fcd34d; }
+        .ktpl-catalog {
+            margin: 0 16px 0;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        .ktpl-catalog a {
+            margin-left: 6px;
+        }
+        .ktpl-origin-note {
+            margin: 0 0 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--brand1) 8%, var(--soft));
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            line-height: 1.45;
         }
         .ktpl-combo {
             display: flex;
@@ -714,7 +769,7 @@
                 <div>
                     <p class="tm-hero__kicker">Phase 1 · Kanäle</p>
                     <h2>Vorlagen für Kursteam-Kanäle</h2>
-                    <p>Vorlagen je Schulform, Fach, Schulstufe und Semester pflegen, als JSON teilen und auf bestehende Teams anwenden. „Allgemein“ bleibt unberührt.</p>
+                    <p>Zentrale Vorlagen gelten für jede Schule. Du kannst sie hier anwenden und lokal anpassen. Anlegen und Veröffentlichen für alle Schulen macht der Betreiber im Admin. „Allgemein“ bleibt unberührt.</p>
                 </div>
             </section>
 
@@ -728,6 +783,7 @@
                     <a class="btn btn-ghost" href="../assets/kursteam-templates/PROMPT-lehrplan-zu-kursteam-vorlagen.md" download title="Prompt für externe KI (Lehrplan → JSON)"><i class="bi bi-robot"></i>KI-Prompt</a>
                     <button type="button" class="btn btn-ghost" id="ktplBtnExport" title="Alle Vorlagen als JSON speichern"><i class="bi bi-download"></i>Alle exportieren</button>
                     <button type="button" class="btn btn-ghost" id="ktplBtnExportOne" title="Nur die ausgewählte Vorlage exportieren"><i class="bi bi-file-earmark-arrow-down"></i>Aktuelle</button>
+                    <button type="button" class="btn btn-ghost" id="ktplBtnCatalogRefresh" title="Zentrale Bibliothek neu laden"><i class="bi bi-cloud-arrow-down"></i>Zentrale</button>
                     <label class="btn" for="ktplImportFile" title="Vorlagen aus JSON-Datei laden"><i class="bi bi-upload"></i>Import<input type="file" id="ktplImportFile" accept="application/json,.json" hidden></label>
                     <button type="button" class="btn btn-ghost" id="ktplBtnReset" title="Alle Vorlagen löschen und Standard neu laden"><i class="bi bi-arrow-counterclockwise"></i>Zurücksetzen</button>
                 </div>
@@ -740,6 +796,7 @@
                             <h3><i class="bi bi-collection"></i>Bibliothek</h3>
                             <span class="ktpl-count" id="ktplListCount">0</span>
                         </div>
+                        <p class="ktpl-catalog"><span id="ktplCatalogStatus">Zentrale wird geladen …</span> <a id="ktplCatalogLink" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener" hidden>Bibliothek</a></p>
                         <div class="ktpl-side__body">
                             <div class="ktpl-filter">
                                 <label>Gruppieren</label>
@@ -748,6 +805,14 @@
                                     <button type="button" data-ktpl-groupby="subject" aria-pressed="false">Fach</button>
                                     <button type="button" data-ktpl-groupby="schulstufe" aria-pressed="false">Schulstufe</button>
                                     <button type="button" data-ktpl-groupby="semester" aria-pressed="false">Semester</button>
+                                </div>
+                            </div>
+                            <div class="ktpl-filter">
+                                <label>Herkunft</label>
+                                <div class="ktpl-groupby ktpl-groupby--3" role="group" aria-label="Herkunft filtern">
+                                    <button type="button" class="is-active" data-ktpl-source="" aria-pressed="true">Alle</button>
+                                    <button type="button" data-ktpl-source="central" aria-pressed="false">Zentral</button>
+                                    <button type="button" data-ktpl-source="local" aria-pressed="false">Lokal</button>
                                 </div>
                             </div>
                             <div class="ktpl-filter-grid">
@@ -790,6 +855,7 @@
                                 </div>
                             </div>
                             <div id="ktplEditorForm" hidden>
+                                <p class="ktpl-origin-note" id="ktplOriginNote" hidden></p>
                                 <div class="ktpl-meta">
                                     <div class="ktpl-field ktpl-field--full">
                                         <label for="ktplEditName">Name</label>

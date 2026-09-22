@@ -49,12 +49,12 @@ window.MS365_MSAL_CONFIG = {
 };
 
 /**
- * Kursteams Azure-Backend – Basis-URL (öffentlich committbar).
- * functionKey: nur lokal in ms365-config.local.js (siehe ms365-config.local.example.js).
+ * Kursteams Azure-Backend – Basis-URL und API-Scope (öffentlich).
+ * Anmeldung über das Benutzer-Token, kein Function Key im Browser.
  */
 window.MS365_KURSTEAMS_API = {
     baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
-    functionKey: ''
+    scope: 'api://c7e6f467-e6f3-4221-a9ee-574b35120029/Kursteams.Create'
 };
 
 /**
@@ -90,11 +90,11 @@ window.MS365_LICENSE_API = {
         if (!local) return;
         if (window.MS365_KURSTEAMS_API) {
             const k = local.MS365_KURSTEAMS_API;
-            if (k && k.functionKey) {
-                window.MS365_KURSTEAMS_API.functionKey = String(k.functionKey).trim();
-            }
             if (k && k.baseUrl) {
                 window.MS365_KURSTEAMS_API.baseUrl = String(k.baseUrl).trim();
+            }
+            if (k && k.scope) {
+                window.MS365_KURSTEAMS_API.scope = String(k.scope).trim();
             }
         }
         if (!window.MS365_LICENSE_API) {
