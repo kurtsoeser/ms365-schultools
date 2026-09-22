@@ -8,6 +8,13 @@ Die Nutzerdokumentation liegt in **`hilfe.html`**: durchsuchbare Anleitungen zu 
 
 Es werden **keine Stammdaten an einen App-Server** gesendet. Verarbeitung erfolgt **lokal im Browser** (`localStorage`). Über **Browser-Backup** (Dashboard / Stammdaten) lassen sich alle lokalen App-Daten als JSON zwischen Browsern übertragen; die Microsoft-Anmeldung ist darin nicht enthalten. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz).
 
+## Planung: Stammdaten über Bildungsportal (EdTech)
+
+Intern dokumentiert (Einreichung BMB, nicht Sokrates-Direkt):
+
+- [`docs/edtech-bildungsportal-stammdatenanbindung.md`](docs/edtech-bildungsportal-stammdatenanbindung.md) – Architektur, API-Katalog (`readorgdata`, `readuserdata_v3`, …), Anhang-B-Formulierungen  
+- [`docs/edtech-bmb-einreichung-todo.md`](docs/edtech-bmb-einreichung-todo.md) – ToDo-Phasen bis Einreichung und Umsetzung  
+
 ## Nutzung
 
 1. Repository klonen oder die Dateien herunterladen.

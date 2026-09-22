@@ -57,6 +57,15 @@ window.MS365_KURSTEAMS_API = {
     functionKey: ''
 };
 
+/**
+ * Lizenz-API – baseUrl nach Deploy setzen (oder in ms365-config.local.js).
+ * Endpunkt: GET {baseUrl}/me  mit Authorization: Bearer <MSAL-Token>
+ */
+window.MS365_LICENSE_API = {
+    baseUrl: '',
+    functionKey: ''
+};
+
 (function loadMs365LocalConfig() {
     if (typeof XMLHttpRequest === 'undefined' || typeof document === 'undefined') return;
     try {
@@ -78,13 +87,25 @@ window.MS365_KURSTEAMS_API = {
         // eslint-disable-next-line no-new-func
         new Function(xhr.responseText)();
         const local = window.MS365_CONFIG_LOCAL;
-        if (!local || !window.MS365_KURSTEAMS_API) return;
-        const k = local.MS365_KURSTEAMS_API;
-        if (k && k.functionKey) {
-            window.MS365_KURSTEAMS_API.functionKey = String(k.functionKey).trim();
+        if (!local) return;
+        if (window.MS365_KURSTEAMS_API) {
+            const k = local.MS365_KURSTEAMS_API;
+            if (k && k.functionKey) {
+                window.MS365_KURSTEAMS_API.functionKey = String(k.functionKey).trim();
+            }
+            if (k && k.baseUrl) {
+                window.MS365_KURSTEAMS_API.baseUrl = String(k.baseUrl).trim();
+            }
         }
-        if (k && k.baseUrl) {
-            window.MS365_KURSTEAMS_API.baseUrl = String(k.baseUrl).trim();
+        if (!window.MS365_LICENSE_API) {
+            window.MS365_LICENSE_API = { baseUrl: '', functionKey: '' };
+        }
+        const lic = local.MS365_LICENSE_API;
+        if (lic && lic.functionKey) {
+            window.MS365_LICENSE_API.functionKey = String(lic.functionKey).trim();
+        }
+        if (lic && lic.baseUrl) {
+            window.MS365_LICENSE_API.baseUrl = String(lic.baseUrl).trim();
         }
     } catch {
         /* lokale Overrides optional */

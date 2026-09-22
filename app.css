@@ -367,6 +367,32 @@ body > .welcome-wrap {
     word-break: break-all;
     min-width: 0;
 }
+.ms365-auth-menu__tenant {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
+    max-width: 100%;
+}
+.ms365-auth-menu__tenant code {
+    font-size: 0.78em;
+    font-weight: 600;
+    word-break: break-all;
+}
+.ms365-auth-menu__copy {
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.ms365-auth-menu__copy:hover {
+    color: #32325d;
+    background: rgba(0, 0, 0, 0.05);
+}
 .ms365-auth-menu__item {
     display: flex;
     width: 100%;
@@ -1285,6 +1311,328 @@ input[type="file"] { display: none; }
 }
 .modal-box h3 { margin-bottom: 16px; color: #32325d; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+
+/* Phase 3: Lizenz-Gate */
+.ms365-license-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(5px);
+}
+.ms365-license-gate[hidden] {
+    display: none !important;
+}
+.ms365-license-gate__card {
+    width: min(520px, 100%);
+    background: var(--card-bg, #fff);
+    color: var(--text, #32325d);
+    border-radius: 14px;
+    padding: 28px 24px 22px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+    text-align: center;
+}
+.ms365-license-gate__icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+    font-size: 1.4rem;
+}
+.ms365-license-gate__title {
+    margin: 0 0 10px;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+.ms365-license-gate__text {
+    margin: 0 0 14px;
+    line-height: 1.5;
+    color: var(--muted, #6b7280);
+}
+.ms365-license-gate__meta {
+    text-align: left;
+    background: rgba(148, 163, 184, 0.12);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 0 0 16px;
+    font-size: 0.95em;
+    line-height: 1.45;
+}
+.ms365-license-gate__meta code {
+    font-size: 0.85em;
+    word-break: break-all;
+}
+.ms365-license-gate__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+.admin-lic-table th,
+.admin-lic-table td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 8px;
+    vertical-align: top;
+    font-size: 0.95em;
+}
+.admin-lic-actions {
+    display: flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.admin-lic {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.admin-lic__intro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px 18px;
+}
+.admin-lic__intro h2 {
+    margin: 0 0 6px;
+}
+.admin-lic__intro p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+    max-width: 52ch;
+}
+.admin-lic__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.admin-lic__status {
+    color: var(--muted);
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
+.admin-lic__table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--card, #fff);
+    box-shadow: var(--shadow, 0 8px 24px rgba(15, 23, 42, 0.06));
+}
+.admin-lic-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+.admin-lic-table thead th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted, #6b7280);
+    background: color-mix(in srgb, var(--brand1, #635bff) 8%, transparent);
+    border-bottom: 1px solid var(--border);
+}
+.admin-lic-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    padding: 4px 2px;
+    margin: 0;
+    font: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+.admin-lic-sort:hover,
+.admin-lic-sort.is-active {
+    color: var(--heading, #32325d);
+}
+.admin-lic-sort__icon {
+    font-size: 0.85em;
+    opacity: 0.55;
+}
+.admin-lic-sort.is-active .admin-lic-sort__icon {
+    opacity: 1;
+    color: var(--brand1, #635bff);
+}
+.admin-lic-table tbody td {
+    padding: 12px 14px;
+    vertical-align: top;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    font-size: 0.95em;
+}
+.admin-lic-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.admin-lic-table tbody tr:hover td {
+    background: color-mix(in srgb, var(--brand1, #635bff) 4%, transparent);
+}
+.admin-lic-row:not(.admin-lic-row--edit) {
+    cursor: pointer;
+}
+.admin-lic-row:not(.admin-lic-row--edit) td {
+    user-select: none;
+}
+.admin-lic-row--edit td {
+    background: color-mix(in srgb, var(--brand1, #635bff) 7%, transparent) !important;
+    vertical-align: top;
+}
+.admin-lic-table__actions-col {
+    width: 1%;
+}
+.admin-lic-school {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.admin-lic-school__name {
+    font-weight: 800;
+    color: var(--heading, #32325d);
+}
+.admin-lic-school__mail {
+    font-size: 0.85em;
+    color: var(--muted);
+}
+.admin-lic-tid {
+    font-size: 0.78em;
+    font-weight: 600;
+    word-break: break-all;
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    padding: 3px 7px;
+    border-radius: 6px;
+}
+.admin-lic-notes {
+    max-width: 220px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9em;
+    line-height: 1.4;
+    color: var(--text-secondary, #495057);
+}
+.admin-lic-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+}
+.admin-lic-badge--active {
+    background: color-mix(in srgb, #12b886 16%, transparent);
+    color: #0b7a56;
+}
+.admin-lic-badge--trial {
+    background: color-mix(in srgb, #4c6ef5 16%, transparent);
+    color: #364fc7;
+}
+.admin-lic-badge--expired {
+    background: color-mix(in srgb, #fab005 20%, transparent);
+    color: #9c6b00;
+}
+.admin-lic-badge--blocked,
+.admin-lic-badge--unknown {
+    background: color-mix(in srgb, #fa5252 16%, transparent);
+    color: #c92a2a;
+}
+.admin-lic-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 220px;
+}
+.admin-lic-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border) 55%, transparent);
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--text-secondary, #495057);
+}
+.admin-lic-muted {
+    color: var(--muted);
+}
+.admin-lic-empty {
+    text-align: center;
+    padding: 28px 12px;
+    color: var(--muted);
+}
+.admin-lic-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.admin-lic-icon-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-lic-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font: inherit;
+    background: var(--card, #fff);
+    color: var(--text, #212529);
+}
+.admin-lic-input--sub {
+    margin-top: 6px;
+    font-size: 0.9em;
+}
+.admin-lic-input--mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82em;
+}
+.admin-lic-input--area {
+    resize: vertical;
+    min-height: 52px;
+    line-height: 1.35;
+}
+.admin-lic-input:focus {
+    outline: 2px solid color-mix(in srgb, var(--brand1, #635bff) 45%, transparent);
+    border-color: var(--brand1, #635bff);
+}
+
+html[data-theme='dark'] .admin-lic-badge--active {
+    color: #69db7c;
+}
+html[data-theme='dark'] .admin-lic-badge--trial {
+    color: #91a7ff;
+}
+html[data-theme='dark'] .admin-lic-badge--expired {
+    color: #ffe066;
+}
+html[data-theme='dark'] .admin-lic-badge--blocked,
+html[data-theme='dark'] .admin-lic-badge--unknown {
+    color: #ffa8a8;
+}
 
 /* Zentrierte App-Dialoge (ms365AppDialog*) */
 #ms365AppDialog.modal-overlay,

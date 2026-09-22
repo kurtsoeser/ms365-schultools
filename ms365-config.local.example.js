@@ -15,5 +15,9 @@
 window.MS365_CONFIG_LOCAL = {
     MS365_KURSTEAMS_API: {
         functionKey: ''
+    },
+    MS365_LICENSE_API: {
+        baseUrl: '',
+        functionKey: ''
     }
 };

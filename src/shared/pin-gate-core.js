@@ -29,6 +29,8 @@ export function isAdminAccessGranted(storage = sessionStorage) {
 /** @param {Storage} [storage] */
 export function grantAdminAccess(storage = sessionStorage) {
     storage.setItem(ADMIN_SESSION_KEY, '1');
+    /* Admin darf auch Tool-Seiten ohne separate User-PIN öffnen. */
+    storage.setItem(SESSION_KEY, '1');
 }
 
 /** @param {Storage} [storage] */

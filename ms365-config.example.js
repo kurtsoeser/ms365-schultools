@@ -55,3 +55,13 @@ window.MS365_KURSTEAMS_API = {
     baseUrl: 'https://func-ms365-kursteams-dev-cmatbeawgqf8daaq.westeurope-01.azurewebsites.net/api/kursteams',
     functionKey: ''
 };
+
+/**
+ * Lizenz-API (Phase 2) – Tenant-Freischaltung gegen SharePoint-Liste.
+ * functionKey nur in ms365-config.local.js.
+ * Nach Deploy: baseUrl z. B. https://YOUR-FUNC.azurewebsites.net/api/license
+ */
+window.MS365_LICENSE_API = {
+    baseUrl: '',
+    functionKey: ''
+};

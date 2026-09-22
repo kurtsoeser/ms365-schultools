@@ -17,5 +17,10 @@ window.MS365_ACCESS_CONFIG = {
      * Optionaler Master-PIN für die Admin-Oberfläche (admin.html).
      * Nur für den Betreiber gedacht.
      */
-    adminPin: 'DEIN_ADMIN_MASTER_PIN'
+    adminPin: 'DEIN_ADMIN_MASTER_PIN',
+    /**
+     * Betreiber-Konten (UPN / E-Mail, Groß-/Kleinschreibung egal).
+     * Diese User sehen im Konto-Menü „Admin“ und dürfen admin.html ohne Master-PIN öffnen.
+     */
+    operatorUpns: ['kurt@kurtsoeser.at']
 };

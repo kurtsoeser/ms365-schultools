@@ -251,6 +251,15 @@
         } catch {
             // ignore
         }
+        try {
+            if (window.ms365LicenseGateCore && typeof window.ms365LicenseGateCore.clearCache === 'function') {
+                window.ms365LicenseGateCore.clearCache();
+            } else {
+                sessionStorage.removeItem('ms365-license-me-v1');
+            }
+        } catch {
+            // ignore
+        }
         await instance.logoutRedirect({ account: a || undefined, postLogoutRedirectUri: window.location.href.split('#')[0] });
     }
 
@@ -371,9 +380,9 @@
         }
         const req = { scopes: scopeList, account: a };
         try {
-            const token = (await instance.acquireTokenSilent(req)).accessToken;
+            const result = await instance.acquireTokenSilent(req);
             setWidgetState();
-            return token;
+            return result.accessToken;
         } catch (e) {
             if (looksLikeBrokenCache(e)) {
                 try {
@@ -383,9 +392,94 @@
                 }
             }
             if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
-                const token = (await instance.acquireTokenPopup(req)).accessToken;
+                const result = await instance.acquireTokenPopup(req);
                 setWidgetState();
-                return token;
+                return result.accessToken;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * ID-Token still (für License-API). Fallback: Access Token.
+     * @param {string[]} [scopes]
+     */
+    async function acquireIdToken(scopes) {
+        const instance = await ensurePca();
+        let accounts = instance.getAllAccounts();
+        if (!accounts.length) {
+            await login(scopes);
+            throw new Error('Weiterleitung zur Anmeldung …');
+        }
+        const a = getAccount() || accounts[0];
+        const req = {
+            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES,
+            account: a
+        };
+        try {
+            const result = await instance.acquireTokenSilent(req);
+            return result.idToken || result.accessToken;
+        } catch (e) {
+            if (looksLikeBrokenCache(e)) {
+                try {
+                    await clearMsalCache(instance);
+                } catch {
+                    // ignore
+                }
+            }
+            if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
+                try {
+                    sessionStorage.setItem(POST_LOGIN_KEY, window.location.href);
+                } catch {
+                    // ignore
+                }
+                const redirectReq = { ...req, redirectStartPage: window.location.href };
+                if (looksLikeBrokenCache(e)) {
+                    redirectReq.prompt = 'select_account';
+                }
+                await instance.acquireTokenRedirect(redirectReq);
+                throw new Error('Weiterleitung zur Anmeldung …');
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * ID-Token für eigene Backends (z. B. License-API). Fallback: Access Token.
+     * @param {string[]} [scopes]
+     */
+    async function acquireIdTokenPopup(scopes) {
+        const instance = await ensurePca();
+        const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
+        let accounts = instance.getAllAccounts();
+        if (!accounts.length) {
+            await instance.loginPopup({ scopes: scopeList, prompt: 'select_account' });
+            accounts = instance.getAllAccounts();
+        }
+        if (!accounts.length) {
+            throw new Error('Anmeldung abgebrochen.');
+        }
+        const a = getAccount() || accounts[0];
+        if (a && typeof instance.setActiveAccount === 'function') {
+            instance.setActiveAccount(a);
+        }
+        const req = { scopes: scopeList, account: a };
+        try {
+            const result = await instance.acquireTokenSilent(req);
+            setWidgetState();
+            return result.idToken || result.accessToken;
+        } catch (e) {
+            if (looksLikeBrokenCache(e)) {
+                try {
+                    await clearMsalCache(instance);
+                } catch {
+                    // ignore
+                }
+            }
+            if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
+                const result = await instance.acquireTokenPopup(req);
+                setWidgetState();
+                return result.idToken || result.accessToken;
             }
             throw e;
         }
@@ -439,7 +533,16 @@
             '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxYear">–</span></div>' +
             '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Domain</span>' +
             '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxDomain">–</span></div>' +
+            '<div class="ms365-auth-menu__ctx-row ms365-auth-menu__ctx-row--tenant">' +
+            '<span class="ms365-auth-menu__ctx-k">Tenant-ID</span>' +
+            '<span class="ms365-auth-menu__ctx-v ms365-auth-menu__tenant">' +
+            '<code id="ms365AuthCtxTenant">–</code> ' +
+            '<button type="button" class="ms365-auth-menu__copy" id="ms365AuthCopyTenant" title="Tenant-ID kopieren" hidden>' +
+            '<i class="bi bi-clipboard" aria-hidden="true"></i></button>' +
+            '</span></div>' +
             '</div>' +
+            '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
+            '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin</a>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthActionLogLink" href="action-log.html">' +
             '<i class="bi bi-journal-text" aria-hidden="true"></i>Aktionsprotokoll</a>' +
             '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthSwitchBtn" title="Konto wechseln / Anmeldung zurücksetzen">' +
@@ -458,6 +561,7 @@
     function ensureAuthMenuBindings() {
         const trigger = document.getElementById('ms365AuthBadge');
         const actionLogLink = document.getElementById('ms365AuthActionLogLink');
+        const adminLink = document.getElementById('ms365AuthAdminLink');
         const switchBtn = document.getElementById('ms365AuthSwitchBtn');
         const logoutBtn = document.getElementById('ms365AuthLogoutBtn');
         if (trigger && !trigger.dataset.bound) {
@@ -465,6 +569,18 @@
             trigger.addEventListener('click', function (e) {
                 e.stopPropagation();
                 toggleAuthMenu();
+            });
+        }
+        if (adminLink && !adminLink.dataset.bound) {
+            adminLink.dataset.bound = '1';
+            adminLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                closeAuthMenu();
+                if (window.ms365OperatorAccess && typeof window.ms365OperatorAccess.openAdminArea === 'function') {
+                    window.ms365OperatorAccess.openAdminArea();
+                } else {
+                    location.href = 'admin.html';
+                }
             });
         }
         if (switchBtn && !switchBtn.dataset.bound) {
@@ -485,6 +601,32 @@
             logoutBtn.addEventListener('click', function () {
                 closeAuthMenu();
                 logout().catch(function () {});
+            });
+        }
+        const copyTenantBtn = document.getElementById('ms365AuthCopyTenant');
+        if (copyTenantBtn && !copyTenantBtn.dataset.bound) {
+            copyTenantBtn.dataset.bound = '1';
+            copyTenantBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const el = document.getElementById('ms365AuthCtxTenant');
+                const tid = el ? String(el.textContent || '').trim() : '';
+                if (!tid || tid === '–') return;
+                const done = function () {
+                    copyTenantBtn.title = 'Kopiert';
+                    copyTenantBtn.innerHTML = '<i class="bi bi-check2" aria-hidden="true"></i>';
+                    setTimeout(function () {
+                        copyTenantBtn.title = 'Tenant-ID kopieren';
+                        copyTenantBtn.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
+                    }, 1600);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(tid).then(done).catch(function () {
+                        window.prompt('Tenant-ID kopieren:', tid);
+                    });
+                } else {
+                    window.prompt('Tenant-ID kopieren:', tid);
+                }
             });
         }
         bindAuthMenuDismiss();
@@ -569,6 +711,30 @@
         if (menuMeta) menuMeta.hidden = !a;
         if (switchBtn) switchBtn.hidden = !a;
         if (logoutBtn) logoutBtn.hidden = !a;
+        const adminLink = document.getElementById('ms365AuthAdminLink');
+        const isOperator =
+            !!(
+                a &&
+                window.ms365OperatorAccess &&
+                typeof window.ms365OperatorAccess.isCurrentUserOperator === 'function' &&
+                window.ms365OperatorAccess.isCurrentUserOperator()
+            );
+        if (adminLink) {
+            adminLink.hidden = !isOperator;
+            if (isOperator && window.ms365OperatorAccess && window.ms365OperatorAccess.resolveAppRootHref) {
+                adminLink.href = window.ms365OperatorAccess.resolveAppRootHref('admin.html');
+            }
+            if (isOperator && window.ms365OperatorAccess.grantAdminSessionIfOperator) {
+                window.ms365OperatorAccess.grantAdminSessionIfOperator();
+            }
+        }
+        const tenantEl = document.getElementById('ms365AuthCtxTenant');
+        const copyTenantBtn = document.getElementById('ms365AuthCopyTenant');
+        const tid = a
+            ? String(a.tenantId || (a.idTokenClaims && a.idTokenClaims.tid) || '').trim()
+            : '';
+        if (tenantEl) tenantEl.textContent = tid || '–';
+        if (copyTenantBtn) copyTenantBtn.hidden = !tid;
         if (trigger) {
             trigger.setAttribute('aria-label', a ? 'Konto: ' + accountLabel(a) : 'Konto');
             trigger.title = a ? accountLabel(a) : 'Konto';
@@ -655,6 +821,24 @@
     window.ms365AuthLogout = logout;
     window.ms365AuthAcquireToken = acquireToken;
     window.ms365AuthAcquireTokenPopup = acquireTokenPopup;
+    window.ms365AuthAcquireIdToken = acquireIdToken;
+    window.ms365AuthAcquireIdTokenPopup = acquireIdTokenPopup;
+    window.ms365AuthGetAccountInfo = function () {
+        try {
+            const a = getAccount();
+            if (!a) return null;
+            const claims = a.idTokenClaims || {};
+            return {
+                username: a.username ? String(a.username) : '',
+                name: a.name ? String(a.name) : '',
+                tenantId: String(a.tenantId || claims.tid || '').trim(),
+                oid: String(claims.oid || '').trim(),
+                upn: String(claims.preferred_username || claims.upn || a.username || '').trim()
+            };
+        } catch {
+            return null;
+        }
+    };
     window.ms365AuthRefreshWidget = setWidgetState;
     window.ms365AuthGetTenantId = async function ms365AuthGetTenantId() {
         try {

@@ -69,29 +69,27 @@
 
     var config = typeof window !== 'undefined' ? window.MS365_ACCESS_CONFIG : null;
 
-    var isAdminPage = /\/admin\.html(?:\?|#|$)/i.test(location.pathname);
+    var isAdminPage =
+        /\/admin\.html(?:\?|#|$)/i.test(location.pathname) ||
+        /\/tools\/license-backend-setup\.html(?:\?|#|$)/i.test(location.pathname);
     if (isAdminPage) {
-        var adminPins = adminPinsFromConfig(config);
         var needsAdminGate = !!(config && config.enabled !== false);
         if (!isHelpPage && needsAdminGate && sessionStorage.getItem(ADMIN_SESSION_KEY) !== '1') {
-            var welcomeAdmin = 'welcome.html';
-            if (script && script.src) {
-                try {
-                    welcomeAdmin = new URL('../../welcome.html', script.src).href;
-                } catch (e) {
-                    /* keep relative fallback */
-                }
-            }
-            var retAdmin = location.pathname + location.search + location.hash;
-            var sepA = welcomeAdmin.indexOf('?') >= 0 ? '&' : '?';
-            location.replace(welcomeAdmin + sepA + 'return=' + encodeURIComponent(retAdmin) + '&mode=admin');
+            /* Soft-Gate: MS365-Betreiber (operatorUpns) oder Welcome mit Master-PIN */
+            injectScript('operator-access.js', 'data-ms365-operator-access', false);
+            injectScript('operator-admin-boot.js', 'data-ms365-operator-admin-boot', false);
+            injectContextBar();
+            injectPublishedStamp();
+            injectScript('app-paths.js', 'data-ms365-app-paths', true);
+            injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
             return;
         }
     }
 
     var userAccess = effectiveUserAccessConfig(config);
     var needsPin = !!(userAccess && userAccess.enabled !== false && Array.isArray(userAccess.pins) && userAccess.pins.length);
-    if (!isAdminPage && !isHelpPage && needsPin && sessionStorage.getItem(SESSION_KEY) !== '1') {
+    var hasAdminSession = sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
+    if (!isAdminPage && !isHelpPage && needsPin && sessionStorage.getItem(SESSION_KEY) !== '1' && !hasAdminSession) {
         var welcome = 'welcome.html';
         if (script && script.src) {
             try {
@@ -110,4 +108,11 @@
     injectPublishedStamp();
     injectScript('app-paths.js', 'data-ms365-app-paths', true);
     injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
+    injectScript('operator-access.js', 'data-ms365-operator-access', false);
+    /* Phase 3: Lizenz-Gate – nicht auf Admin/Setup (dort greift isExemptPath zusätzlich) */
+    if (!isAdminPage && !isHelpPage) {
+        injectScript('license-api-client.js', 'data-ms365-license-api', false);
+        injectScript('license-gate-core.js', 'data-ms365-license-gate-core', false);
+        injectScript('license-gate.js', 'data-ms365-license-gate', false);
+    }
 })();

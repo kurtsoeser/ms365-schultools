@@ -1,0 +1,16 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_TENANT_ID": "1fd37d8a-2972-44d2-afcb-81ae47a5bc98",
+    "AZURE_CLIENT_ID": "HIER-LICENSE-APP-CLIENT-ID",
+    "AZURE_CLIENT_SECRET": "HIER-SECRET-NICHT-INS-REPO",
+    "LICENSE_SITE_WEB_URL": "https://kurtrocks.sharepoint.com/sites/MS365-Schultools",
+    "LICENSE_LIST_NAME": "MS365-Schultools-Lizenzen",
+    "LICENSE_ALLOWED_STATUSES": "trial,active",
+    "LICENSE_SPA_CLIENT_ID": "e1d877c3-004c-4040-8c3b-81a59e0c7050",
+    "LICENSE_TOKEN_AUDIENCES": "00000003-0000-0000-c000-000000000000,https://graph.microsoft.com",
+    "LICENSE_OPERATOR_UPNS": "kurt@kurtsoeser.at"
+  }
+}

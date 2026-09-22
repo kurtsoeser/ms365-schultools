@@ -37,10 +37,10 @@ import { loadReleaseNotes, getNewReleaseNotes, getLastSeenAt, setLastSeenAt } fr
 
     if (requestedMode === 'admin') {
         if (isAdminAccessGranted()) {
-            location.replace('admin.html');
+            location.replace(returnTarget || 'admin.html');
             return;
         }
-    } else if (isAccessGranted()) {
+    } else if (isAccessGranted() || isAdminAccessGranted()) {
         location.replace(returnTarget);
         return;
     }
@@ -103,13 +103,15 @@ import { loadReleaseNotes, getNewReleaseNotes, getLastSeenAt, setLastSeenAt } fr
             }
             if (submitBtn) submitBtn.disabled = true;
             grantAdminAccess();
-            location.replace('admin.html');
+            location.replace(returnTarget || 'admin.html');
             return;
         }
 
-        // User-Modus, aber Ziel ist die Admin-Seite:
-        if (isAdminTarget) {
-            showError('Für die Admin-Seite ist der Admin-Master-PIN erforderlich.');
+        // User-Modus, aber Ziel braucht Admin-PIN:
+        const needsAdminReturn =
+            isAdminTarget || /\/tools\/license-backend-setup\.html(?:\?|#|$)/i.test(returnTarget || '');
+        if (needsAdminReturn) {
+            showError('Für diese Seite ist der Admin-Master-PIN erforderlich (Modus „Admin“).');
             input.focus();
             return;
         }

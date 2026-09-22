@@ -66,6 +66,58 @@
                 </div>
             </section>
 
+            <section class="settings admin-lic" aria-label="Schullizenzen" style="margin-top: 18px;">
+                <div class="admin-lic__intro">
+                    <div>
+                        <h2>Schulen &amp; Lizenzen</h2>
+                        <p>
+                            Freischaltungen direkt in der Tabelle. Betreiber: <code>kurt@kurtsoeser.at</code>
+                        </p>
+                    </div>
+                    <div class="admin-lic__toolbar">
+                        <button type="button" class="btn btn-success" id="adminLicAddBtn" title="Neue Schule">
+                            <i class="bi bi-plus-lg"></i>Neue Schule
+                        </button>
+                        <button type="button" class="btn alt" id="adminLicReloadBtn">
+                            <i class="bi bi-arrow-clockwise"></i>Aktualisieren
+                        </button>
+                        <span class="admin-lic__status" id="adminLicStatus"></span>
+                    </div>
+                </div>
+
+                <div class="admin-lic__table-wrap">
+                    <table class="admin-lic-table">
+                        <thead>
+                            <tr>
+                                <th><button type="button" class="admin-lic-sort" data-sort="schoolName">Schule / Kontakt</button></th>
+                                <th><button type="button" class="admin-lic-sort" data-sort="tenantId">Tenant-ID</button></th>
+                                <th><button type="button" class="admin-lic-sort" data-sort="status">Status</button></th>
+                                <th><button type="button" class="admin-lic-sort" data-sort="validUntil">Gültig bis</button></th>
+                                <th><button type="button" class="admin-lic-sort" data-sort="domains">Domains</button></th>
+                                <th><button type="button" class="admin-lic-sort" data-sort="notes">Notizen</button></th>
+                                <th class="admin-lic-table__actions-col"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminLicTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="settings" aria-label="Lizenz-Backend" style="margin-top: 18px;">
+                <h2>Lizenz – Setup &amp; Links</h2>
+                <p style="color: var(--muted); line-height: 1.5; margin: 0 0 12px;">
+                    Liste/Spalten anlegen und API testen. Freischaltung bevorzugt über die Tabelle oben.
+                </p>
+                <div class="settings-actions">
+                    <a class="btn" href="tools/license-backend-setup.html" style="text-decoration:none;display:inline-block;">
+                        <i class="bi bi-key"></i>Lizenz-Liste Setup
+                    </a>
+                    <a class="btn" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;">
+                        <i class="bi bi-box-arrow-up-right"></i>SharePoint-Site öffnen
+                    </a>
+                </div>
+            </section>
+
             <section class="settings" aria-label="Release Notes" style="margin-top: 18px;">
                 <h2>Release Notes</h2>
 
@@ -105,6 +157,10 @@
         </div>
     </div>
 
+    <script src="ms365-config.js"></script>
+    <script type="module" src="src/shared/msal-auth-ui.js"></script>
+    <script src="src/shared/license-api-client.js"></script>
+    <script src="src/shared/admin-licenses.js" defer></script>
     <script type="module" src="src/shared/admin-panel.js"></script>
     <script src="src/shared/theme-toggle.js" defer></script>
 </body>
