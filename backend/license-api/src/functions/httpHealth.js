@@ -29,14 +29,14 @@ app.http('httpLicenseHealth', {
             return {
                 status: 200,
                 headers: CORS_HEADERS,
-                jsonBody: { ok: true, graphToken: 'acquired' }
+                jsonBody: { ok: true }
             };
         } catch (e) {
             context.error('License health fehlgeschlagen:', e);
             return {
                 status: 503,
                 headers: CORS_HEADERS,
-                jsonBody: { ok: false, error: e.message || String(e) }
+                jsonBody: { ok: false }
             };
         }
     }

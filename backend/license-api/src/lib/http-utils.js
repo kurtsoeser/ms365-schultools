@@ -52,10 +52,44 @@ async function readJsonBody(request) {
     }
 }
 
+/**
+ * @param {Error & { status?: number }} e
+ * @param {string} [fallback4xx]
+ */
+function publicErrorMessage(e, fallback4xx) {
+    const status = e && e.status && Number.isFinite(e.status) ? e.status : 500;
+    const raw = String((e && e.message) || '').trim();
+    if (status >= 500) return 'Interner Fehler.';
+    if (!raw) return fallback4xx || 'Anfrage abgelehnt.';
+    if (/AADSTS|graph\.microsoft|client.?secret|Bearer\s|stack|at\s+\S+\s+\(/i.test(raw)) {
+        return fallback4xx || 'Anfrage abgelehnt.';
+    }
+    return raw;
+}
+
+/**
+ * @param {import('@azure/functions').InvocationContext} context
+ * @param {string} label
+ * @param {Error & { status?: number }} e
+ * @param {Record<string, unknown>} [extra]
+ */
+function errorJsonResponse(context, label, e, extra) {
+    const status = e && e.status && Number.isFinite(e.status) ? e.status : 500;
+    if (status >= 500) context.error(label, e);
+    else context.error(label, status);
+    const body = Object.assign(
+        { error: publicErrorMessage(e) },
+        extra && typeof extra === 'object' ? extra : {}
+    );
+    return jsonResponse(status >= 400 && status < 600 ? status : 500, body);
+}
+
 module.exports = {
     jsonResponse,
     corsPreflightResponse,
     bearerTokenFromRequest,
     readJsonBody,
+    publicErrorMessage,
+    errorJsonResponse,
     CORS_HEADERS
 };

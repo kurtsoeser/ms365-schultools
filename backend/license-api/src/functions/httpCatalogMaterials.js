@@ -5,7 +5,8 @@ const {
     jsonResponse,
     corsPreflightResponse,
     bearerTokenFromRequest,
-    readJsonBody
+    readJsonBody,
+    errorJsonResponse
 } = require('../lib/http-utils');
 const { requireCatalogReader, requireOperatorCaller } = require('../lib/require-operator');
 const {
@@ -51,10 +52,7 @@ app.http('httpCatalogMaterialsList', {
             const result = await listMaterials(path);
             return jsonResponse(200, result);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/materials GET:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e),
+            return errorJsonResponse(context, 'catalog/materials GET:', e, {
                 path: '',
                 missing: true,
                 items: []
@@ -75,11 +73,7 @@ app.http('httpCatalogMaterialsDelete', {
             const result = await deleteMaterialItem(path);
             return jsonResponse(200, result);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/materials DELETE:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'catalog/materials DELETE:', e);
         }
     }
 });
@@ -109,12 +103,7 @@ app.http('httpCatalogMaterialsFolder', {
             const listed = await createMaterialFolder(parent, name);
             return jsonResponse(200, listed);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/materials/folder POST:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e),
-                items: []
-            });
+            return errorJsonResponse(context, 'catalog/materials/folder POST:', e, { items: [] });
         }
     }
 });
@@ -151,11 +140,7 @@ app.http('httpCatalogMaterialsFile', {
                 body: file.bytes
             };
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/materials/file GET:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'catalog/materials/file GET:', e);
         }
     }
 });
@@ -177,11 +162,7 @@ app.http('httpCatalogMaterialsUpload', {
             const saved = await writeMaterialFile(path, buf, ct);
             return jsonResponse(200, saved);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/materials/file PUT:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'catalog/materials/file PUT:', e);
         }
     }
 });

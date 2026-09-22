@@ -5,7 +5,9 @@ const {
     jsonResponse,
     corsPreflightResponse,
     bearerTokenFromRequest,
-    readJsonBody
+    readJsonBody,
+    errorJsonResponse,
+    publicErrorMessage
 } = require('../lib/http-utils');
 const { requireOperatorCaller, requireCatalogReader } = require('../lib/require-operator');
 const { readKursteamCatalog, writeKursteamCatalog } = require('../lib/sharepoint-catalog');
@@ -27,10 +29,7 @@ app.http('httpCatalogKursteamGet', {
             const catalog = await readKursteamCatalog();
             return jsonResponse(200, catalog);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/kursteam-templates GET:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e),
+            return errorJsonResponse(context, 'catalog/kursteam-templates GET:', e, {
                 templates: [],
                 schoolForms: [],
                 missing: true
@@ -51,14 +50,14 @@ app.http('httpCatalogKursteamPut', {
             return jsonResponse(200, catalog);
         } catch (e) {
             const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('catalog/kursteam-templates PUT:', e);
-            const message = e.message || String(e);
+            const msg = publicErrorMessage(e);
             const hint =
-                status === 403 || /access denied|accessdenied|forbidden/i.test(message)
-                    ? ' Die App braucht Schreibrecht auf der Website (Sites.ReadWrite.All oder Sites.Selected mit Schreiben).'
+                status === 403
+                    ? ' Die App braucht Schreibrecht auf der Website (Sites.ReadWrite.All oder Sites.Selected).'
                     : '';
+            if (status >= 500) context.error('catalog/kursteam-templates PUT:', e);
             return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: message + hint
+                error: msg + hint
             });
         }
     }

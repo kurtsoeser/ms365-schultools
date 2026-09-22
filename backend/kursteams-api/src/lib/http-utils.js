@@ -74,10 +74,14 @@ function errorResponse(context, label, e) {
     const status = e && e.status && Number.isFinite(e.status) ? e.status : 500;
     if (status >= 500) context.error(label, e);
     else context.error(label, status, e && e.cause ? e.cause : '');
+    const raw = String((e && e.message) || '').trim();
+    const leak = /AADSTS|graph\.microsoft|client.?secret|Bearer\s|stack/i.test(raw);
     const safe =
         status >= 500
             ? 'Kursteams-Backend ist fehlgeschlagen.'
-            : (e && e.message) || 'Anfrage abgelehnt.';
+            : raw && !leak
+              ? raw
+              : 'Anfrage abgelehnt.';
     return jsonResponse(status >= 400 && status < 600 ? status : 500, { error: safe });
 }
 

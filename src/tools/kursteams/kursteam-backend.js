@@ -420,10 +420,10 @@ async function checkBackendHealth() {
     try {
         const health = await apiRequest('/health', { anonymous: true });
         if (health && health.ok) {
-            appendBackendLog('Backend erreichbar, Graph-Token OK.', 'ok');
+            appendBackendLog('Backend erreichbar.', 'ok');
             toast('Kursteams-Backend ist bereit.');
         } else {
-            appendBackendLog('Health-Check negativ: ' + JSON.stringify(health), 'warn');
+            appendBackendLog('Health-Check negativ.', 'warn');
         }
     } catch (e) {
         const origin =

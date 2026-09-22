@@ -349,7 +349,7 @@
                                         <span class="visually-hidden">Vorlagen suchen</span>
                                         <input type="search" id="adminCatSearch" placeholder="Suchen …" autocomplete="off">
                                     </label>
-                                    <button type="button" class="btn btn-sm btn-success" id="adminCatNew" title="Neue Vorlage"><i class="bi bi-plus-lg"></i>Neu</button>
+                                    <button type="button" class="btn btn-sm alt" id="adminCatNew" title="Neue Vorlage"><i class="bi bi-plus-lg"></i>Neu</button>
                                 </div>
                                 <ul class="admin-catalog__list" id="adminCatList"></ul>
                             </aside>
@@ -409,11 +409,19 @@
                         <p class="admin-catalog__lead">Dateien in <code>MS365-Katalog/materialien</code> – Schulen können sie in Kursteams kopieren.</p>
                         <div class="admin-mat">
                             <div class="admin-mat__bar">
-                                <button type="button" class="btn btn-sm alt" id="adminMatUp" hidden><i class="bi bi-arrow-up"></i>Hoch</button>
                                 <code class="admin-mat__path" id="adminMatPath">materialien</code>
                             </div>
                             <p class="admin-catalog__banner" id="adminMatBanner" hidden></p>
-                            <ul class="admin-mat__list" id="adminMatList"></ul>
+                            <div class="admin-mat__explorer">
+                                <nav class="admin-mat__tree" id="adminMatTree" aria-label="Ordnerbaum"></nav>
+                                <div class="admin-mat__pane">
+                                    <div class="admin-mat__pane-head">
+                                        <span class="admin-mat__pane-title" id="adminMatPaneTitle">Dateien</span>
+                                        <span class="admin-mat__pane-meta" id="adminMatPaneMeta"></span>
+                                    </div>
+                                    <ul class="admin-mat__list" id="adminMatList"></ul>
+                                </div>
+                            </div>
                             <div class="admin-mat__progress" id="adminMatProgress" hidden>
                                 <div class="ktpl-apply-progress__track" aria-hidden="true">
                                     <div class="ktpl-apply-progress__fill" id="adminMatProgressFill"></div>

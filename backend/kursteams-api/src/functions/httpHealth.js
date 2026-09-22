@@ -13,7 +13,7 @@ app.http('httpHealthOptions', {
         headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Max-Age': '86400'
         }
     })
@@ -29,14 +29,14 @@ app.http('httpHealth', {
             return {
                 status: 200,
                 headers: CORS_HEADERS,
-                jsonBody: { ok: true, graphToken: 'acquired' }
+                jsonBody: { ok: true }
             };
         } catch (e) {
             context.error('Health check fehlgeschlagen:', e);
             return {
                 status: 503,
                 headers: CORS_HEADERS,
-                jsonBody: { ok: false, error: e.message || String(e) }
+                jsonBody: { ok: false }
             };
         }
     }

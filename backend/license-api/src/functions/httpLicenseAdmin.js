@@ -5,7 +5,8 @@ const {
     jsonResponse,
     corsPreflightResponse,
     bearerTokenFromRequest,
-    readJsonBody
+    readJsonBody,
+    errorJsonResponse
 } = require('../lib/http-utils');
 const { requireOperatorCaller } = require('../lib/require-operator');
 const {
@@ -42,11 +43,8 @@ app.http('httpLicenseAdminMe', {
                 }
             });
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/me GET:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
+            return errorJsonResponse(context, 'license/admin/me GET:', e, {
                 operator: false,
-                error: status >= 500 ? 'Anfrage fehlgeschlagen.' : e.message || String(e),
                 user: null
             });
         }
@@ -94,10 +92,7 @@ app.http('httpLicenseAdminSchoolsList', {
                 columns: result.columns || []
             });
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/schools GET:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e),
+            return errorJsonResponse(context, 'license/admin/schools GET:', e, {
                 schools: [],
                 columns: []
             });
@@ -116,11 +111,7 @@ app.http('httpLicenseAdminSchoolsCreate', {
             const school = await createLicense(body);
             return jsonResponse(201, { school });
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/schools POST:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'license/admin/schools POST:', e);
         }
     }
 });
@@ -137,11 +128,7 @@ app.http('httpLicenseAdminSchoolsUpdate', {
             const school = await updateLicense(id, body);
             return jsonResponse(200, { school });
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/schools PATCH:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'license/admin/schools PATCH:', e);
         }
     }
 });
@@ -157,11 +144,7 @@ app.http('httpLicenseAdminSchoolsDelete', {
             const result = await deleteLicense(id);
             return jsonResponse(200, result);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/schools DELETE:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'license/admin/schools DELETE:', e);
         }
     }
 });
@@ -176,12 +159,7 @@ app.http('httpLicenseAdminColumnsList', {
             const columns = await listExtraColumns({ force: true });
             return jsonResponse(200, { columns });
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/columns GET:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e),
-                columns: []
-            });
+            return errorJsonResponse(context, 'license/admin/columns GET:', e, { columns: [] });
         }
     }
 });
@@ -197,11 +175,7 @@ app.http('httpLicenseAdminColumnsCreate', {
             const column = await createExtraColumn(body);
             return jsonResponse(201, { column });
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/columns POST:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'license/admin/columns POST:', e);
         }
     }
 });
@@ -217,11 +191,7 @@ app.http('httpLicenseAdminColumnsDelete', {
             const result = await deleteExtraColumn(name);
             return jsonResponse(200, result);
         } catch (e) {
-            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
-            if (status >= 500) context.error('license/admin/columns DELETE:', e);
-            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
-                error: e.message || String(e)
-            });
+            return errorJsonResponse(context, 'license/admin/columns DELETE:', e);
         }
     }
 });

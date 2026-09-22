@@ -5,7 +5,8 @@ const { getConfig } = require('../lib/config');
 const {
     jsonResponse,
     corsPreflightResponse,
-    bearerTokenFromRequest
+    bearerTokenFromRequest,
+    publicErrorMessage
 } = require('../lib/http-utils');
 const { validateCallerToken } = require('../lib/validate-token');
 const { lookupLicenseFields } = require('../lib/sharepoint-license');
@@ -61,7 +62,7 @@ app.http('httpLicenseMe', {
             return jsonResponse(status >= 400 && status < 600 ? status : 500, {
                 allowed: false,
                 reason: status === 401 ? 'unauthorized' : 'error',
-                message: e.message || String(e),
+                message: publicErrorMessage(e, status === 401 ? 'Anmeldung fehlt.' : 'Lizenzprüfung fehlgeschlagen.'),
                 tenantId: null,
                 user: null,
                 license: null
