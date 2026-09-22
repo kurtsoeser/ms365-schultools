@@ -550,71 +550,90 @@ function isOnenoteResourceUrl(url) {
 }
 
 /**
- * OneNote-HTML liefert oft /siteCollections/… und unkodierte „!“ → Graph 400.
- * Niemals die Original-URL fetchen – nur umgeschriebene Kandidaten.
+ * Resource-ID aus OneNote-HTML-URL (inkl. „!“).
  * @param {string} url
+ */
+function extractOnenoteResourceId(url) {
+    const m = String(url || '').match(/\/onenote\/resources\/([^/?#]+)/i);
+    if (!m) return '';
+    try {
+        return decodeURIComponent(m[1]);
+    } catch {
+        return m[1];
+    }
+}
+
+/**
+ * Site-ID aus Graph-URL (siteCollections oder sites).
+ * @param {string} url
+ */
+function extractOnenoteSiteIdFromResourceUrl(url) {
+    const raw = String(url || '');
+    const m = raw.match(/\/(?:siteCollections|sites)\/([^/?#]+)/i);
+    if (!m) return '';
+    try {
+        return decodeURIComponent(m[1]);
+    } catch {
+        return m[1];
+    }
+}
+
+/**
+ * Site-Notizbuch-Bilder liegen NICHT unter /me – nur unter /sites/{id}/…
+ * @param {string} url
+ * @param {string} [preferredSiteId]
  * @returns {string[]}
  */
-function onenoteResourceUrlCandidates(url) {
-    const raw = String(url || '').trim();
-    if (!raw) return [];
+function onenoteResourceUrlCandidates(url, preferredSiteId) {
+    const resourceId = extractOnenoteResourceId(url);
+    if (!resourceId) return [];
+
+    const siteIds = [];
+    const addSite = (id) => {
+        const s = String(id || '').trim();
+        if (s && !siteIds.includes(s)) siteIds.push(s);
+    };
+    addSite(preferredSiteId);
+    addSite(extractOnenoteSiteIdFromResourceUrl(url));
+    if (cachedCentralSite && cachedCentralSite.id) addSite(cachedCentralSite.id);
+
+    // ID-Varianten: roh (!), nur ! kodiert, voll enkodiert
+    const idVariants = [
+        resourceId,
+        resourceId.replace(/!/g, '%21'),
+        encodeURIComponent(resourceId)
+    ].filter((v, i, a) => v && a.indexOf(v) === i);
+
     const out = [];
     const push = (u) => {
-        if (!u || out.includes(u)) return;
-        // kaputte siteCollections-URLs nie anfassen
-        if (/\/siteCollections\//i.test(u)) return;
-        out.push(u);
+        if (u && !out.includes(u)) out.push(u);
     };
 
-    let resourceId = '';
-    let siteIdFromUrl = '';
-    try {
-        const u = new URL(raw);
-        const path = u.pathname.replace(/\/siteCollections\//gi, '/sites/');
-        const rm = path.match(/\/onenote\/resources\/([^/]+)/i);
-        if (rm) {
-            try {
-                resourceId = decodeURIComponent(rm[1]);
-            } catch {
-                resourceId = rm[1];
-            }
-        }
-        const sm = path.match(/\/sites\/([^/]+)\//i);
-        if (sm) {
-            try {
-                siteIdFromUrl = decodeURIComponent(sm[1]);
-            } catch {
-                siteIdFromUrl = sm[1];
-            }
-        }
-    } catch {
-        const rm = raw.match(/\/onenote\/resources\/([^/?#]+)/i);
-        if (rm) {
-            try {
-                resourceId = decodeURIComponent(rm[1]);
-            } catch {
-                resourceId = rm[1];
-            }
+    for (const sid of siteIds) {
+        const encSite = encodeURIComponent(sid);
+        for (const rid of idVariants) {
+            push(
+                'https://graph.microsoft.com/v1.0/sites/' +
+                    encSite +
+                    '/onenote/resources/' +
+                    rid +
+                    '/$value'
+            );
+            push(
+                'https://graph.microsoft.com/v1.0/sites/' +
+                    encSite +
+                    '/onenote/resources/' +
+                    rid +
+                    '/content'
+            );
         }
     }
 
-    if (!resourceId) return out;
-
-    const encRes = encodeURIComponent(resourceId);
-    // Delegiert oft am zuverlässigsten
-    push('https://graph.microsoft.com/v1.0/me/onenote/resources/' + encRes + '/$value');
-
-    const siteIds = [];
-    if (siteIdFromUrl) siteIds.push(siteIdFromUrl);
-    if (cachedCentralSite && cachedCentralSite.id) siteIds.push(String(cachedCentralSite.id));
-    for (const sid of siteIds) {
-        push(
-            'https://graph.microsoft.com/v1.0/sites/' +
-                encodeURIComponent(sid) +
-                '/onenote/resources/' +
-                encRes +
-                '/$value'
-        );
+    // Nur wenn wirklich kein Site-Kontext: /me als letzter Notnagel
+    if (!siteIds.length) {
+        for (const rid of idVariants) {
+            push('https://graph.microsoft.com/v1.0/me/onenote/resources/' + rid + '/$value');
+        }
     }
     return out;
 }
@@ -642,14 +661,15 @@ const resourceFetchCache = new Map();
  * @param {string} url
  * @param {string} token
  * @param {number} maxBytes
+ * @param {string} [siteId]
  * @returns {Promise<{ bytes: Uint8Array, contentType: string }|null>}
  */
-async function fetchOnenoteResource(url, token, maxBytes) {
+async function fetchOnenoteResource(url, token, maxBytes, siteId) {
     if (!isOnenoteResourceUrl(url)) return null;
-    const cacheKey = String(url || '').trim();
+    const cacheKey = String(url || '').trim() + '|' + String(siteId || '');
     if (resourceFetchCache.has(cacheKey)) return resourceFetchCache.get(cacheKey);
 
-    const candidates = onenoteResourceUrlCandidates(url);
+    const candidates = onenoteResourceUrlCandidates(url, siteId);
     let packed = null;
     for (const candidate of candidates) {
         try {
@@ -673,13 +693,10 @@ async function fetchOnenoteResource(url, token, maxBytes) {
             packed = { bytes: buf, contentType };
             break;
         } catch {
-            /* next candidate */
+            /* next */
         }
     }
     resourceFetchCache.set(cacheKey, packed);
-    for (const c of candidates) {
-        if (!resourceFetchCache.has(c)) resourceFetchCache.set(c, packed);
-    }
     return packed;
 }
 
@@ -688,9 +705,10 @@ async function fetchOnenoteResource(url, token, maxBytes) {
  * Forms/Learning Activities → sichtbarer Platzhalter.
  * @param {string} html
  * @param {string} token
+ * @param {string} [siteId] Site-ID für /sites/{id}/onenote/resources/…
  * @returns {Promise<{ html: string, stats: { imagesInlined: number, imagesSkipped: number, filesInlined: number, embedsReplaced: number } }>}
  */
-async function prepareSnapshotPageHtml(html, token) {
+async function prepareSnapshotPageHtml(html, token, siteId) {
     const stats = {
         imagesInlined: 0,
         imagesSkipped: 0,
@@ -742,7 +760,7 @@ async function prepareSnapshotPageHtml(html, token) {
         let packed = cache.get(candidate);
         if (packed === undefined) {
             try {
-                packed = await fetchOnenoteResource(candidate, token, SNAP_MAX_IMAGE_BYTES);
+                packed = await fetchOnenoteResource(candidate, token, SNAP_MAX_IMAGE_BYTES, siteId);
             } catch {
                 packed = null;
             }
@@ -778,7 +796,7 @@ async function prepareSnapshotPageHtml(html, token) {
         let packed = cache.get(dataUrl);
         if (packed === undefined) {
             try {
-                packed = await fetchOnenoteResource(dataUrl, token, SNAP_MAX_FILE_BYTES);
+                packed = await fetchOnenoteResource(dataUrl, token, SNAP_MAX_FILE_BYTES, siteId);
             } catch {
                 packed = null;
             }
@@ -1351,7 +1369,11 @@ export async function publishCentralNotebookSnapshot(notebooks, scope, onProgres
                         const content = await getPageContent(p.id, sc);
                         html = (content && content.html) || '';
                         if (html) {
-                            const prepared = await prepareSnapshotPageHtml(html, graphToken);
+                            const prepared = await prepareSnapshotPageHtml(
+                                html,
+                                graphToken,
+                                sc.kind === 'site' ? sc.id : ''
+                            );
                             html = prepared.html;
                             mediaStats = prepared.stats;
                         }
