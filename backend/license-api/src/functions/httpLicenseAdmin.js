@@ -18,6 +18,41 @@ const {
     deleteExtraColumn
 } = require('../lib/sharepoint-license');
 
+app.http('httpLicenseAdminMeOptions', {
+    methods: ['OPTIONS'],
+    authLevel: 'anonymous',
+    route: 'license/admin/me',
+    handler: async () => corsPreflightResponse()
+});
+
+app.http('httpLicenseAdminMe', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'license/admin/me',
+    handler: async (request, context) => {
+        try {
+            const caller = await requireOperatorCaller(bearerTokenFromRequest(request));
+            return jsonResponse(200, {
+                operator: true,
+                user: {
+                    oid: caller.oid || null,
+                    upn: caller.upn || null,
+                    name: caller.name || null,
+                    tid: caller.tid || null
+                }
+            });
+        } catch (e) {
+            const status = e.status && Number.isFinite(e.status) ? e.status : 500;
+            if (status >= 500) context.error('license/admin/me GET:', e);
+            return jsonResponse(status >= 400 && status < 600 ? status : 500, {
+                operator: false,
+                error: status >= 500 ? 'Anfrage fehlgeschlagen.' : e.message || String(e),
+                user: null
+            });
+        }
+    }
+});
+
 app.http('httpLicenseAdminSchoolsOptions', {
     methods: ['OPTIONS'],
     authLevel: 'anonymous',

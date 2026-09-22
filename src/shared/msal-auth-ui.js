@@ -789,21 +789,36 @@
         if (switchBtn) switchBtn.hidden = !a;
         if (logoutBtn) logoutBtn.hidden = !a;
         const adminLink = document.getElementById('ms365AuthAdminLink');
-        const isOperator =
+        const applyAdminLink = function (isOperator) {
+            if (!adminLink) return;
+            adminLink.hidden = !isOperator;
+            if (
+                isOperator &&
+                window.ms365OperatorAccess &&
+                window.ms365OperatorAccess.resolveAppRootHref
+            ) {
+                adminLink.href = window.ms365OperatorAccess.resolveAppRootHref('admin.html');
+            }
+        };
+        applyAdminLink(
             !!(
                 a &&
                 window.ms365OperatorAccess &&
                 typeof window.ms365OperatorAccess.isCurrentUserOperator === 'function' &&
                 window.ms365OperatorAccess.isCurrentUserOperator()
-            );
-        if (adminLink) {
-            adminLink.hidden = !isOperator;
-            if (isOperator && window.ms365OperatorAccess && window.ms365OperatorAccess.resolveAppRootHref) {
-                adminLink.href = window.ms365OperatorAccess.resolveAppRootHref('admin.html');
-            }
-            if (isOperator && window.ms365OperatorAccess.grantAdminSessionIfOperator) {
-                window.ms365OperatorAccess.grantAdminSessionIfOperator();
-            }
+            )
+        );
+        if (
+            a &&
+            window.ms365OperatorAccess &&
+            typeof window.ms365OperatorAccess.refreshOperatorStatus === 'function'
+        ) {
+            window.ms365OperatorAccess.refreshOperatorStatus().then(function (ok) {
+                applyAdminLink(!!ok);
+            });
+        } else if (!a && window.ms365OperatorAccess && window.ms365OperatorAccess.clearOperatorCache) {
+            window.ms365OperatorAccess.clearOperatorCache();
+            applyAdminLink(false);
         }
         const actionLogLink = document.getElementById('ms365AuthActionLogLink');
         if (

@@ -75,7 +75,7 @@
                     <div class="admin-app__toolbar">
                         <div class="admin-app__toolbar-meta">
                             <span class="admin-app__pill" id="adminLicStatus">–</span>
-                            <span class="admin-app__hint">Betreiber: <code>kurt@kurtsoeser.at</code></span>
+                            <span class="admin-app__hint">Betreiber-Zugang über License-API</span>
                         </div>
                         <div class="admin-app__toolbar-actions">
                             <button type="button" class="btn alt" id="adminLicColumnsBtn" title="Extra-Spalten in SharePoint">
@@ -314,49 +314,53 @@
 
                 <!-- Release Notes -->
                 <section class="admin-app__panel" id="adminPanelTemplates" role="tabpanel" aria-labelledby="adminTabTemplates" data-admin-panel="templates" hidden>
-                    <div class="admin-app__toolbar">
-                        <div class="admin-app__toolbar-meta">
+                    <div class="admin-catalog-head">
+                        <div class="admin-catalog-head__status">
                             <span class="admin-app__pill" id="adminCatStatus">Zentrale wird geladen …</span>
                             <a class="admin-catalog__lib" id="adminCatLink" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener">Bibliothek öffnen</a>
                         </div>
-                        <div class="admin-app__toolbar-actions" id="adminCatToolbarChannels">
-                            <button type="button" class="btn alt" id="adminCatReload"><i class="bi bi-arrow-clockwise"></i>Zentrale laden</button>
-                            <button type="button" class="btn alt" id="adminCatTakeLocal" title="Vorlagen aus dem Werkzeug in diesem Browser in den Entwurf holen"><i class="bi bi-laptop"></i>Aus Browser übernehmen</button>
-                            <label class="btn alt" for="adminCatImport"><i class="bi bi-upload"></i>JSON<input type="file" id="adminCatImport" accept="application/json,.json" hidden></label>
-                            <button type="button" class="btn btn-success" id="adminCatPublish"><i class="bi bi-cloud-arrow-up"></i>In Zentrale schreiben</button>
-                        </div>
-                        <div class="admin-app__toolbar-actions" id="adminCatToolbarMaterials" hidden>
-                            <button type="button" class="btn alt" id="adminMatReload"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
-                            <button type="button" class="btn alt" id="adminMatNewFolder"><i class="bi bi-folder-plus"></i>Neuer Ordner</button>
-                            <label class="btn btn-success" for="adminMatUpload"><i class="bi bi-upload"></i>Datei hochladen<input type="file" id="adminMatUpload" hidden></label>
+                        <div class="admin-catalog__subtabs" role="tablist" aria-label="Vorlagen-Bereiche">
+                            <button type="button" class="is-active" role="tab" aria-selected="true" data-admin-cat-tab="channels">
+                                <i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i>
+                                <span>Kanal-Vorlagen</span>
+                            </button>
+                            <button type="button" role="tab" aria-selected="false" data-admin-cat-tab="materials">
+                                <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                                <span>Materialien</span>
+                            </button>
                         </div>
                     </div>
                     <p class="admin-catalog__banner" id="adminCatBanner" hidden></p>
-                    <div class="admin-catalog__subtabs" role="tablist" aria-label="Vorlagen-Bereiche">
-                        <button type="button" class="is-active" role="tab" aria-selected="true" data-admin-cat-tab="channels"><i class="bi bi-layout-text-sidebar-reverse"></i>Kanal-Vorlagen</button>
-                        <button type="button" role="tab" aria-selected="false" data-admin-cat-tab="materials"><i class="bi bi-folder2-open"></i>Materialien</button>
-                    </div>
 
                     <div data-admin-cat-panel="channels">
-                        <p class="admin-app__hint" style="margin:0 0 12px;">
-                            Zentrale Kanal-Vorlagen für alle Schulen. Mit <strong>In Zentrale schreiben</strong> speicherst du den Entwurf auf SharePoint.
-                        </p>
+                        <div class="admin-catalog-toolbar" id="adminCatToolbarChannels">
+                            <div class="admin-catalog-toolbar__left">
+                                <button type="button" class="btn alt btn-sm" id="adminCatReload"><i class="bi bi-arrow-clockwise"></i>Laden</button>
+                                <button type="button" class="btn alt btn-sm" id="adminCatTakeLocal" title="Vorlagen aus dem Werkzeug in diesem Browser übernehmen"><i class="bi bi-laptop"></i>Aus Browser</button>
+                                <label class="btn alt btn-sm" for="adminCatImport"><i class="bi bi-upload"></i>JSON<input type="file" id="adminCatImport" accept="application/json,.json" hidden></label>
+                            </div>
+                            <button type="button" class="btn btn-success btn-sm" id="adminCatPublish"><i class="bi bi-cloud-arrow-up"></i>In Zentrale schreiben</button>
+                        </div>
+                        <p class="admin-catalog__lead">Zentrale Kanal-Vorlagen für alle Schulen. Speichern mit <strong>In Zentrale schreiben</strong>.</p>
                         <div class="admin-catalog">
                             <aside class="admin-catalog__side">
-                                <label class="admin-catalog__search">
-                                    <span class="visually-hidden">Vorlagen suchen</span>
-                                    <input type="search" id="adminCatSearch" placeholder="Suchen …" autocomplete="off">
-                                </label>
-                                <button type="button" class="btn btn-sm btn-success" id="adminCatNew"><i class="bi bi-plus-lg"></i>Neue Vorlage</button>
+                                <div class="admin-catalog__side-head">
+                                    <label class="admin-catalog__search">
+                                        <span class="visually-hidden">Vorlagen suchen</span>
+                                        <input type="search" id="adminCatSearch" placeholder="Suchen …" autocomplete="off">
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-success" id="adminCatNew" title="Neue Vorlage"><i class="bi bi-plus-lg"></i>Neu</button>
+                                </div>
                                 <ul class="admin-catalog__list" id="adminCatList"></ul>
                             </aside>
                             <div class="admin-catalog__main">
                                 <div class="admin-catalog__empty" id="adminCatEmpty">
-                                    <p>Links eine Vorlage wählen oder neu anlegen. <strong>In Zentrale schreiben</strong> speichert den Stand für alle Schulen.</p>
+                                    <i class="bi bi-journal-plus" aria-hidden="true"></i>
+                                    <p>Links eine Vorlage wählen oder mit <strong>Neu</strong> anlegen.</p>
                                 </div>
                                 <div id="adminCatForm" hidden>
                                     <div class="admin-catalog__meta">
-                                        <label>Name<input type="text" id="adminCatName" autocomplete="off"></label>
+                                        <label class="admin-catalog__meta-wide">Name<input type="text" id="adminCatName" autocomplete="off"></label>
                                         <label>Schulform<select id="adminCatSchool"></select></label>
                                         <label>Fachkürzel<input type="text" id="adminCatSubject" autocomplete="off" placeholder="z. B. MAM"></label>
                                         <label>Schulstufe<input type="text" id="adminCatStufe" inputmode="numeric" autocomplete="off" placeholder="z. B. 10"></label>
@@ -383,7 +387,7 @@
                                             <button type="button" class="btn btn-sm alt" id="adminCatDelete"><i class="bi bi-trash"></i>Löschen</button>
                                         </div>
                                     </div>
-                                    <p class="admin-catalog__hint">„Allgemein“ gehört nicht in die Liste. Die Reihenfolge ist die Reihenfolge im Team.</p>
+                                    <p class="admin-catalog__hint">„Allgemein“ gehört nicht in die Liste.</p>
                                     <div class="admin-catalog__add">
                                         <input type="text" id="adminCatChannelName" placeholder="Neuer Kanalname …" autocomplete="off">
                                         <button type="button" class="btn btn-sm" id="adminCatChannelAdd"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
@@ -395,9 +399,14 @@
                     </div>
 
                     <div data-admin-cat-panel="materials" hidden>
-                        <p class="admin-app__hint" style="margin:0 0 12px;">
-                            Dateien und Ordner in <code>MS365-Katalog/materialien</code>. Schulen können sie später in Kursteams kopieren.
-                        </p>
+                        <div class="admin-catalog-toolbar" id="adminCatToolbarMaterials">
+                            <div class="admin-catalog-toolbar__left">
+                                <button type="button" class="btn alt btn-sm" id="adminMatReload"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                                <button type="button" class="btn alt btn-sm" id="adminMatNewFolder"><i class="bi bi-folder-plus"></i>Neuer Ordner</button>
+                            </div>
+                            <label class="btn btn-success btn-sm" for="adminMatUpload"><i class="bi bi-upload"></i>Datei hochladen<input type="file" id="adminMatUpload" hidden></label>
+                        </div>
+                        <p class="admin-catalog__lead">Dateien in <code>MS365-Katalog/materialien</code> – Schulen können sie in Kursteams kopieren.</p>
                         <div class="admin-mat">
                             <div class="admin-mat__bar">
                                 <button type="button" class="btn btn-sm alt" id="adminMatUp" hidden><i class="bi bi-arrow-up"></i>Hoch</button>
@@ -405,7 +414,7 @@
                             </div>
                             <p class="admin-catalog__banner" id="adminMatBanner" hidden></p>
                             <ul class="admin-mat__list" id="adminMatList"></ul>
-                            <div class="ktpl-apply-progress admin-mat__progress" id="adminMatProgress" hidden>
+                            <div class="admin-mat__progress" id="adminMatProgress" hidden>
                                 <div class="ktpl-apply-progress__track" aria-hidden="true">
                                     <div class="ktpl-apply-progress__fill" id="adminMatProgressFill"></div>
                                 </div>

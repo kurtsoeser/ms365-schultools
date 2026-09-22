@@ -1,11 +1,16 @@
 /**
- * Betreiber-Zugang (Admin) über MS365-UPN – ergänzt den Master-PIN.
+ * Betreiber-Zugang: serverseitig über License-API (/admin/me).
+ * Keine Betreiber-UPNs und keine Admin-PINs in der öffentlichen Config.
  */
 (function (global) {
     'use strict';
 
-    var ADMIN_SESSION_KEY = 'ms365-admin-access-granted-v1';
+    var CACHE_KEY = 'ms365-admin-operator-cache-v1';
     var USER_SESSION_KEY = 'ms365-access-granted-v1';
+    var TTL_MS = 30 * 60 * 1000;
+
+    /** @type {{ oid: string, upn: string, checkedAt: number } | null} */
+    var memoryCache = null;
 
     function normalizeUpn(v) {
         return String(v == null ? '' : v)
@@ -13,70 +18,135 @@
             .toLowerCase();
     }
 
-    function operatorUpnsFromConfig() {
-        var cfg = global.MS365_ACCESS_CONFIG || {};
-        var list = [];
-        if (Array.isArray(cfg.operatorUpns)) {
-            cfg.operatorUpns.forEach(function (u) {
-                var n = normalizeUpn(u);
-                if (n) list.push(n);
-            });
-        }
-        if (typeof cfg.operatorUpn === 'string' && cfg.operatorUpn.trim()) {
-            list.push(normalizeUpn(cfg.operatorUpn));
-        }
-        return list;
-    }
-
-    function isOperatorUpn(upn) {
-        var needle = normalizeUpn(upn);
-        if (!needle) return false;
-        return operatorUpnsFromConfig().indexOf(needle) !== -1;
-    }
-
-    function currentAccountUpn() {
+    function currentAccountInfo() {
         try {
             if (typeof global.ms365AuthGetAccountInfo === 'function') {
                 var info = global.ms365AuthGetAccountInfo();
-                if (info && info.upn) return normalizeUpn(info.upn);
-                if (info && info.username) return normalizeUpn(info.username);
+                if (info) {
+                    return {
+                        oid: String(info.oid || '')
+                            .trim()
+                            .toLowerCase(),
+                        upn: normalizeUpn(info.upn || info.username || '')
+                    };
+                }
             }
         } catch (e) {
             /* ignore */
         }
+        return { oid: '', upn: normalizeUpn(currentAccountUpn()) };
+    }
+
+    function currentAccountUpn() {
         try {
             if (typeof global.ms365AuthGetUserPrincipalName === 'function') {
                 return normalizeUpn(global.ms365AuthGetUserPrincipalName());
             }
-        } catch (e2) {
+        } catch (e) {
             /* ignore */
         }
         return '';
     }
 
-    function isCurrentUserOperator() {
-        return isOperatorUpn(currentAccountUpn());
+    function readCache() {
+        if (memoryCache) return memoryCache;
+        try {
+            var raw = sessionStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            var data = JSON.parse(raw);
+            if (!data || typeof data !== 'object') return null;
+            memoryCache = data;
+            return data;
+        } catch (e) {
+            return null;
+        }
     }
 
-    function grantAdminSession() {
+    function writeCache(entry) {
+        memoryCache = entry;
         try {
-            sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
-            sessionStorage.setItem(USER_SESSION_KEY, '1');
+            if (entry) sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+            else sessionStorage.removeItem(CACHE_KEY);
         } catch (e) {
             /* ignore */
         }
     }
 
-    function grantAdminSessionIfOperator() {
-        if (!isCurrentUserOperator()) return false;
-        grantAdminSession();
+    function clearOperatorCache() {
+        writeCache(null);
+        try {
+            sessionStorage.removeItem('ms365-admin-access-granted-v1');
+            sessionStorage.removeItem(USER_SESSION_KEY);
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    function cacheValidForAccount(account) {
+        var cache = readCache();
+        if (!cache || !cache.checkedAt) return false;
+        if (Date.now() - Number(cache.checkedAt) > TTL_MS) return false;
+        var oid = account && account.oid ? account.oid : '';
+        if (!oid || String(cache.oid || '').toLowerCase() !== oid) return false;
         return true;
     }
 
     /**
-     * admin.html / license-setup aus beliebigem Pfad.
-     * @param {string} file
+     * Sync-Hinweis für Menü: nur wenn Cache zum aktuellen Konto passt.
      */
+    function isCurrentUserOperator() {
+        return cacheValidForAccount(currentAccountInfo());
+    }
+
+    /**
+     * Betreiber über License-API prüfen (LICENSE_OPERATOR_* in Azure).
+     * @param {{ force?: boolean }} [opts]
+     * @returns {Promise<boolean>}
+     */
+    async function refreshOperatorStatus(opts) {
+        var force = !!(opts && opts.force);
+        var account = currentAccountInfo();
+        if (!account.oid && !account.upn) {
+            clearOperatorCache();
+            return false;
+        }
+        if (!force && cacheValidForAccount(account)) return true;
+
+        var api = global.ms365LicenseApi;
+        if (!api || typeof api.acquireLicenseToken !== 'function' || typeof api.fetchAdminMe !== 'function') {
+            clearOperatorCache();
+            return false;
+        }
+        var cfg = global.MS365_LICENSE_API || {};
+        if (!String(cfg.baseUrl || '').trim()) {
+            clearOperatorCache();
+            return false;
+        }
+
+        try {
+            var token = await api.acquireLicenseToken();
+            var me = await api.fetchAdminMe(token);
+            if (!me || me.operator !== true) {
+                clearOperatorCache();
+                return false;
+            }
+            var oid = String((me.user && me.user.oid) || account.oid || '')
+                .trim()
+                .toLowerCase();
+            var upn = normalizeUpn((me.user && me.user.upn) || account.upn);
+            writeCache({ oid: oid, upn: upn, checkedAt: Date.now() });
+            try {
+                sessionStorage.setItem(USER_SESSION_KEY, '1');
+            } catch (e) {
+                /* ignore */
+            }
+            return true;
+        } catch (e) {
+            clearOperatorCache();
+            return false;
+        }
+    }
+
     function resolveAppRootHref(file) {
         var name = String(file || 'admin.html').replace(/^[./]+/, '');
         try {
@@ -95,20 +165,25 @@
     }
 
     function openAdminArea() {
-        if (!grantAdminSessionIfOperator()) {
-            global.alert('Admin nur für hinterlegte Betreiber-Konten.');
-            return;
-        }
         global.location.href = resolveAppRootHref('admin.html');
     }
 
     global.ms365OperatorAccess = {
-        isOperatorUpn: isOperatorUpn,
         isCurrentUserOperator: isCurrentUserOperator,
-        grantAdminSessionIfOperator: grantAdminSessionIfOperator,
-        grantAdminSession: grantAdminSession,
+        refreshOperatorStatus: refreshOperatorStatus,
+        clearOperatorCache: clearOperatorCache,
         resolveAppRootHref: resolveAppRootHref,
         openAdminArea: openAdminArea,
-        currentAccountUpn: currentAccountUpn
+        currentAccountUpn: currentAccountUpn,
+        /** @deprecated nur noch Alias – Admin-Session ist der API-Cache */
+        grantAdminSessionIfOperator: function () {
+            return isCurrentUserOperator();
+        },
+        grantAdminSession: function () {
+            /* no-op: Session entsteht nur nach refreshOperatorStatus */
+        },
+        isOperatorUpn: function () {
+            return isCurrentUserOperator();
+        }
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -3,7 +3,6 @@
 
     var script = document.currentScript;
     var SESSION_KEY = 'ms365-access-granted-v1';
-    var ADMIN_SESSION_KEY = 'ms365-admin-access-granted-v1';
     var ACCESS_OVERRIDE_KEY = 'ms365-schooltool-access-override-v1';
 
     function safeLoadJson(key) {
@@ -35,13 +34,6 @@
                   : [];
 
         return { enabled: enabled, pins: pins };
-    }
-
-    function adminPinsFromConfig(config) {
-        if (!config) return [];
-        if (Array.isArray(config.adminPins) && config.adminPins.length) return config.adminPins;
-        if (typeof config.adminPin === 'string' && config.adminPin) return [config.adminPin];
-        return [];
     }
 
     function injectScript(fileName, marker, asModule) {
@@ -80,19 +72,28 @@
         /\/admin\.html(?:\?|#|$)/i.test(location.pathname) ||
         /\/tools\/license-backend-setup\.html(?:\?|#|$)/i.test(location.pathname);
     if (isAdminPage) {
-        /* Admin-UI immer laden – Zugangsprüfung läuft über MSAL + operatorUpns (API).
-           Kein Soft-Gate mit pointer-events:none (wirkt sonst „tot“). */
+        /* Admin: MSAL + License-API /admin/me (Betreiber in Azure), kein Session-Flag allein. */
         injectScript('operator-access.js', 'data-ms365-operator-access', false);
+        injectScript('license-api-client.js', 'data-ms365-license-api', false);
+        injectScript('operator-admin-boot.js', 'data-ms365-operator-admin-boot', false);
         injectContextBar();
         injectPublishedStamp();
         injectScript('app-paths.js', 'data-ms365-app-paths', true);
         injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
-        /* weiter: kein Early-Return, damit unten nichts „hängt“ */
+        return;
     }
 
     var userAccess = effectiveUserAccessConfig(config);
     var needsPin = !!(userAccess && userAccess.enabled !== false && Array.isArray(userAccess.pins) && userAccess.pins.length);
-    var hasAdminSession = sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
+    var hasAdminSession = false;
+    try {
+        hasAdminSession =
+            window.ms365OperatorAccess &&
+            typeof window.ms365OperatorAccess.isCurrentUserOperator === 'function' &&
+            window.ms365OperatorAccess.isCurrentUserOperator();
+    } catch (e) {
+        hasAdminSession = false;
+    }
     if (!isAdminPage && !isHelpPage && needsPin && sessionStorage.getItem(SESSION_KEY) !== '1' && !hasAdminSession) {
         var welcome = 'welcome.html';
         if (script && script.src) {

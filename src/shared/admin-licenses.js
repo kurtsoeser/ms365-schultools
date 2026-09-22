@@ -622,14 +622,21 @@
         if (loggedIn === lastKnownLoggedIn) return;
         lastKnownLoggedIn = loggedIn;
         if (loggedIn) {
+            var start = function () {
+                reload();
+            };
             if (
                 window.ms365OperatorAccess &&
-                typeof window.ms365OperatorAccess.grantAdminSessionIfOperator === 'function'
+                typeof window.ms365OperatorAccess.refreshOperatorStatus === 'function'
             ) {
-                window.ms365OperatorAccess.grantAdminSessionIfOperator();
+                window.ms365OperatorAccess.refreshOperatorStatus().then(start).catch(start);
+            } else {
+                start();
             }
-            reload();
         } else {
+            if (window.ms365OperatorAccess && window.ms365OperatorAccess.clearOperatorCache) {
+                window.ms365OperatorAccess.clearOperatorCache();
+            }
             schoolsCache = [];
             renderTable(schoolsCache);
             setStatus('Bitte oben rechts mit dem Betreiber-Konto anmelden.');

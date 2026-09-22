@@ -1,19 +1,10 @@
 /**
- * Admin-Seiten: nur Betreiber-MS365 (operatorUpns). Sofort sichtbarer Login-Dialog.
+ * Admin-Seiten: Zugang nur nach License-API /admin/me (Betreiber in Azure).
  */
 (function () {
     'use strict';
 
-    var ADMIN_SESSION_KEY = 'ms365-admin-access-granted-v1';
     var BLOCK_ID = 'ms365AdminOperatorBlock';
-
-    function hasAdminSession() {
-        try {
-            return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
-        } catch (e) {
-            return false;
-        }
-    }
 
     function finishOk() {
         document.documentElement.removeAttribute('data-ms365-admin-boot');
@@ -91,83 +82,86 @@
         return el;
     }
 
-    function tryOperator() {
-        if (hasAdminSession()) return true;
-        if (
-            window.ms365OperatorAccess &&
-            typeof window.ms365OperatorAccess.grantAdminSessionIfOperator === 'function'
-        ) {
-            return !!window.ms365OperatorAccess.grantAdminSessionIfOperator();
-        }
-        return false;
-    }
-
     function showNeedLogin() {
-        ensureBlock('Bitte mit dem Betreiber-Konto (kurt@kurtsoeser.at) anmelden.', true);
+        ensureBlock('Bitte mit dem Betreiber-Microsoft-365-Konto anmelden.', true);
     }
 
     function showNotOperator() {
         ensureBlock(
-            'Angemeldet, aber kein Betreiber-Konto. Admin ist nur für hinterlegte UPNs (z. B. kurt@kurtsoeser.at).',
+            'Angemeldet, aber kein Betreiber-Konto. Die Freigabe liegt nur auf dem Server (Azure App Settings).',
             false
         );
     }
 
-    function evaluate() {
-        if (tryOperator()) {
+    function showChecking() {
+        ensureBlock('Betreiber-Zugang wird geprüft …', false);
+    }
+
+    function showApiMissing() {
+        ensureBlock(
+            'License-API ist nicht konfiguriert (MS365_LICENSE_API.baseUrl). Admin kann nicht geprüft werden.',
+            false
+        );
+    }
+
+    /** @returns {Promise<'ok'|'login'|'denied'|'wait'|'config'>} */
+    async function evaluate() {
+        var loggedIn =
+            typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+        if (!loggedIn) {
+            showNeedLogin();
+            return 'login';
+        }
+
+        var cfg = window.MS365_LICENSE_API || {};
+        if (!String(cfg.baseUrl || '').trim()) {
+            showApiMissing();
+            return 'config';
+        }
+
+        if (!window.ms365OperatorAccess || typeof window.ms365OperatorAccess.refreshOperatorStatus !== 'function') {
+            showChecking();
+            return 'wait';
+        }
+
+        showChecking();
+        var ok = await window.ms365OperatorAccess.refreshOperatorStatus({ force: true });
+        if (ok) {
             finishOk();
             return 'ok';
         }
-        var loggedIn =
-            typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
-        if (loggedIn && window.ms365OperatorAccess) {
-            showNotOperator();
-            return 'denied';
-        }
-        showNeedLogin();
-        return 'login';
+        showNotOperator();
+        return 'denied';
     }
 
     function boot() {
-        if (hasAdminSession()) {
-            finishOk();
-            return;
-        }
-
         document.documentElement.setAttribute('data-ms365-admin-boot', '1');
-        // Sofort Dialog – sonst wirkt die Seite „weiß und tot“ (blur + pointer-events:none).
         showNeedLogin();
 
-        window.addEventListener('ms365-auth-state-changed', function () {
-            evaluate();
-        });
-        window.addEventListener('ms365-auth-widget-ready', function () {
-            evaluate();
-        });
-
-        var tries = 0;
-        var max = 40;
-        function tick() {
-            tries++;
-            var state = evaluate();
-            if (state === 'ok') return;
-            if (tries >= max) return;
-            setTimeout(tick, 250);
+        var running = false;
+        function run() {
+            if (running) return;
+            running = true;
+            Promise.resolve(evaluate())
+                .catch(function () {
+                    showNotOperator();
+                })
+                .finally(function () {
+                    running = false;
+                });
         }
+
+        window.addEventListener('ms365-auth-state-changed', run);
+        window.addEventListener('ms365-auth-widget-ready', run);
 
         if (typeof window.ms365AuthEnsureInitialized === 'function') {
             Promise.resolve(window.ms365AuthEnsureInitialized())
-                .then(function () {
-                    tick();
-                })
-                .catch(function () {
-                    tick();
-                });
-            // Parallel: UI bleibt bedienbar, auch wenn MSAL hängt
-            setTimeout(tick, 400);
+                .then(run)
+                .catch(run);
         } else {
-            tick();
+            setTimeout(run, 400);
         }
+        setTimeout(run, 800);
     }
 
     if (document.readyState === 'loading') {

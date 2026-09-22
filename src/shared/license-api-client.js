@@ -69,6 +69,16 @@
         return parseResponse(res);
     }
 
+    async function fetchAdminMe(accessToken) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/me', {
+            method: 'GET',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
     async function adminListSchools(accessToken) {
         const base = baseUrl();
         if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
@@ -267,6 +277,7 @@
     global.ms365LicenseApi = {
         acquireLicenseToken: acquireLicenseToken,
         fetchLicenseMe: fetchLicenseMe,
+        fetchAdminMe: fetchAdminMe,
         adminListSchools: adminListSchools,
         adminCreateSchool: adminCreateSchool,
         adminUpdateSchool: adminUpdateSchool,

@@ -1,14 +1,14 @@
 /**
- * Zugangskonfiguration.
- * User-Tools: Tenant-Lizenz (License-API) nach MS365-Login – PIN optional.
- * Admin: nur Betreiber-UPNs (MS365), kein Master-PIN nötig.
+ * Zugangskonfiguration (öffentlich ausgeliefert).
+ * User-Tools: Tenant-Lizenz nach MS365-Login (License-API).
+ * PIN-Sperre aus – keine PINs in dieser Datei.
+ * Admin: Betreiber nur serverseitig (LICENSE_OPERATOR_UPNS / OIDS in Azure).
  */
 window.MS365_ACCESS_CONFIG = {
-    /** false = keine PIN-Abfrage (Freischaltung über Tenant-Lizenz) */
+    /** false = keine PIN-Abfrage */
     enabled: false,
-    pins: ['MS365-Schule', 'IT-Team', '#kurtrocks', '#KurtRocks!', 'HLAEbensee', 'HAK-Steyr'],
-    /** Legacy: nur wenn PIN-Sperre wieder aktiviert wird */
-    adminPin: '#kurtrocksMS365',
-    /** Betreiber: Admin ohne PIN, nur mit diesem MS365-Konto */
-    operatorUpns: ['kurt@kurtsoeser.at']
+    /** Leer lassen – PINs gehören nicht ins Repo / auf den Host */
+    pins: [],
+    /** Legacy: ungenutzt, solange enabled: false */
+    adminPins: []
 };
