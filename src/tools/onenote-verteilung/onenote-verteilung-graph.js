@@ -550,6 +550,74 @@ function isOnenoteResourceUrl(url) {
 }
 
 /**
+ * OneNote-HTML liefert oft /siteCollections/… und unkodierte „!“ in Resource-IDs → Graph 400.
+ * @param {string} url
+ * @returns {string[]}
+ */
+function onenoteResourceUrlCandidates(url) {
+    const raw = String(url || '').trim();
+    if (!raw) return [];
+    const out = [];
+    const push = (u) => {
+        if (u && !out.includes(u)) out.push(u);
+    };
+    push(raw);
+    try {
+        const u = new URL(raw);
+        // siteCollections → sites (Graph v1)
+        let path = u.pathname.replace(/\/siteCollections\//gi, '/sites/');
+        // Resource-ID-Segment korrekt enkodieren (! → %21)
+        path = path.replace(/\/onenote\/resources\/([^/]+)(\/|$)/i, (_, id, tail) => {
+            let decoded = id;
+            try {
+                decoded = decodeURIComponent(id);
+            } catch {
+                /* keep */
+            }
+            return '/onenote/resources/' + encodeURIComponent(decoded) + (tail || '');
+        });
+        u.pathname = path;
+        push(u.toString());
+
+        const m = path.match(/\/onenote\/resources\/([^/]+)/i);
+        const resourceId = m ? m[1] : '';
+        if (resourceId) {
+            push(
+                'https://graph.microsoft.com/v1.0/me/onenote/resources/' + resourceId + '/$value'
+            );
+            const siteMatch = path.match(/\/sites\/([^/]+)\//i);
+            if (siteMatch) {
+                let siteId = siteMatch[1];
+                try {
+                    siteId = decodeURIComponent(siteId);
+                } catch {
+                    /* keep */
+                }
+                push(
+                    'https://graph.microsoft.com/v1.0/sites/' +
+                        encodeURIComponent(siteId) +
+                        '/onenote/resources/' +
+                        resourceId +
+                        '/$value'
+                );
+            }
+            if (cachedCentralSite && cachedCentralSite.id) {
+                push(
+                    'https://graph.microsoft.com/v1.0/sites/' +
+                        encodeURIComponent(cachedCentralSite.id) +
+                        '/onenote/resources/' +
+                        resourceId +
+                        '/$value'
+                );
+            }
+        }
+    } catch {
+        /* ignore */
+    }
+    return out;
+}
+
+/**
  * @param {string} src
  * @param {string} [tagLower]
  */
@@ -565,6 +633,9 @@ function isNonCopyableEmbed(src, tagLower) {
     );
 }
 
+/** @type {Map<string, { bytes: Uint8Array, contentType: string }|null>} */
+const resourceFetchCache = new Map();
+
 /**
  * @param {string} url
  * @param {string} token
@@ -573,21 +644,39 @@ function isNonCopyableEmbed(src, tagLower) {
  */
 async function fetchOnenoteResource(url, token, maxBytes) {
     if (!isOnenoteResourceUrl(url)) return null;
-    const res = await fetch(url, {
-        method: 'GET',
-        headers: { Authorization: 'Bearer ' + token }
-    });
-    if (!res.ok) return null;
-    const buf = new Uint8Array(await res.arrayBuffer());
-    if (!buf.length || buf.length > maxBytes) return null;
-    let contentType = String(res.headers.get('Content-Type') || '')
-        .split(';')[0]
-        .trim()
-        .toLowerCase();
-    if (!contentType || contentType === 'application/octet-stream') {
-        contentType = 'image/jpeg';
+    const cacheKey = String(url || '').trim();
+    if (resourceFetchCache.has(cacheKey)) return resourceFetchCache.get(cacheKey);
+
+    const candidates = onenoteResourceUrlCandidates(url);
+    let packed = null;
+    for (const candidate of candidates) {
+        try {
+            const res = await fetch(candidate, {
+                method: 'GET',
+                headers: { Authorization: 'Bearer ' + token }
+            });
+            if (!res.ok) continue;
+            const buf = new Uint8Array(await res.arrayBuffer());
+            if (!buf.length || buf.length > maxBytes) continue;
+            let contentType = String(res.headers.get('Content-Type') || '')
+                .split(';')[0]
+                .trim()
+                .toLowerCase();
+            if (!contentType || contentType === 'application/octet-stream') {
+                contentType = 'image/jpeg';
+            }
+            packed = { bytes: buf, contentType };
+            break;
+        } catch {
+            /* next candidate */
+        }
     }
-    return { bytes: buf, contentType };
+    resourceFetchCache.set(cacheKey, packed);
+    // gleiche Resource-ID unter anderen URLs ebenfalls merken
+    for (const c of candidates) {
+        if (!resourceFetchCache.has(c)) resourceFetchCache.set(c, packed);
+    }
+    return packed;
 }
 
 /**
@@ -1201,6 +1290,13 @@ export async function publishCentralNotebookSnapshot(notebooks, scope, onProgres
     const api = catalogClient();
     if (typeof api.publishCatalogOnenoteSnapshot !== 'function') {
         throw new Error('Snapshot-Publish-Client fehlt.');
+    }
+
+    resourceFetchCache.clear();
+    try {
+        await getCentralCatalogSite();
+    } catch {
+        /* optional für Resource-URL-Fallback */
     }
 
     const trees = {};
