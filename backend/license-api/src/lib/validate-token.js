@@ -1,6 +1,6 @@
 'use strict';
 
-const { createRemoteJWKSet, jwtVerify } = require('jose');
+const { createRemoteJWKSet, jwtVerify, decodeJwt } = require('jose');
 
 /** @type {Map<string, ReturnType<typeof createRemoteJWKSet>>} */
 const jwksCache = new Map();
@@ -49,6 +49,28 @@ function tokenHasLicenseScope(payload) {
 }
 
 /**
+ * Sichere Diagnose-Claims (kein Token-Inhalt außer Metadaten).
+ * @param {string} raw
+ */
+function peekTokenMeta(raw) {
+    try {
+        const p = decodeJwt(raw);
+        const aud = Array.isArray(p.aud) ? p.aud.join(',') : String(p.aud || '');
+        const scp = String(p.scp || p.scope || '');
+        return {
+            aud: aud.slice(0, 120),
+            scp: scp.slice(0, 120),
+            tid: String(p.tid || '').slice(0, 40),
+            iss: String(p.iss || '').slice(0, 80),
+            idtyp: String(p.idtyp || ''),
+            hasLicenseScope: tokenHasLicenseScope(p)
+        };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * @param {Record<string, unknown>} payload
  */
 function claimsFromPayload(payload) {
@@ -71,6 +93,7 @@ async function verifyWithJwks(raw, audiences) {
     if (!Array.isArray(audiences) || !audiences.length) {
         const err = new Error('Token-Audience ist nicht konfiguriert.');
         err.status = 500;
+        err.code = 'audience_config';
         throw err;
     }
     let lastErr = null;
@@ -85,8 +108,28 @@ async function verifyWithJwks(raw, audiences) {
             lastErr = e;
         }
     }
-    const err = new Error('Token ungültig oder abgelaufen.');
+
+    const meta = peekTokenMeta(raw);
+    let message = 'Token ungültig oder abgelaufen.';
+    let code = 'invalid_token';
+    const joseCode = lastErr && (lastErr.code || lastErr.claim);
+    if (String(joseCode || '').toLowerCase().includes('aud') || /\"aud\"/i.test(String(lastErr && lastErr.message))) {
+        message =
+            'Falsches Token (Audience). Es wurde vermutlich ein Graph-Token statt License.Access gesendet. Bitte abmelden, Cache leeren, neu anmelden und Consent für License.Access erlauben.';
+        code = 'wrong_audience';
+    } else if (String(joseCode || '') === 'ERR_JWT_EXPIRED' || /exp/i.test(String(joseCode || ''))) {
+        message = 'Token abgelaufen. Bitte neu anmelden.';
+        code = 'token_expired';
+    } else if (meta && meta.aud && /graph\.microsoft|00000003-0000-0000-c000-000000000000/i.test(meta.aud)) {
+        message =
+            'Falsches Token: Graph-Token statt License.Access. Beim Laden der Vorlagen muss der Scope License.Access bestätigt werden.';
+        code = 'graph_token';
+    }
+
+    const err = new Error(message);
     err.status = 401;
+    err.code = code;
+    err.meta = meta;
     err.cause = lastErr;
     throw err;
 }
@@ -103,30 +146,38 @@ async function validateCallerToken(token, audiences) {
     if (!raw) {
         const err = new Error('Anmeldung fehlt.');
         err.status = 401;
+        err.code = 'missing_token';
         throw err;
     }
 
     const payload = await verifyWithJwks(raw, audiences);
     if (String(payload.idtyp || '').toLowerCase() === 'app') {
-        const err = new Error('Token ungültig oder abgelaufen.');
+        const err = new Error('App-Only-Token ist hier nicht erlaubt. Bitte mit Benutzerkonto anmelden.');
         err.status = 401;
+        err.code = 'app_token';
         throw err;
     }
     if (!tokenHasLicenseScope(payload)) {
-        const err = new Error('Token ungültig oder abgelaufen.');
+        const err = new Error(
+            'Token ohne Scope License.Access. Abmelden, neu anmelden und die Berechtigung „Lizenz-API und Katalog lesen“ zulassen.'
+        );
         err.status = 401;
+        err.code = 'missing_license_scope';
+        err.meta = peekTokenMeta(raw);
         throw err;
     }
 
     const claims = claimsFromPayload(payload);
     if (!GUID_RE.test(claims.tid) || !GUID_RE.test(claims.oid)) {
-        const err = new Error('Token ungültig oder abgelaufen.');
+        const err = new Error('Token ungültig (fehlende Mandanten-/Benutzer-Claims).');
         err.status = 401;
+        err.code = 'invalid_claims';
         throw err;
     }
     if (!issuerMatchesTenant(payload.iss, claims.tid)) {
-        const err = new Error('Token ungültig oder abgelaufen.');
+        const err = new Error('Token ungültig (Issuer passt nicht zum Mandanten).');
         err.status = 401;
+        err.code = 'invalid_issuer';
         throw err;
     }
     return claims;
@@ -137,5 +188,6 @@ module.exports = {
     issuerMatchesTenant,
     tokenHasLicenseScope,
     claimsFromPayload,
+    peekTokenMeta,
     GUID_RE
 };

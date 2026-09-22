@@ -11,6 +11,7 @@
     "CATALOG_LIBRARY_NAME": "MS365-Katalog",
     "CATALOG_KURSTEAM_PATH": "vorlagen/kursteam-kanaele.json",
     "CATALOG_MATERIALS_ROOT": "materialien",
+    "CATALOG_ONENOTE_NOTEBOOK": "MS365-Vorlagen-Notizbuch",
     "LICENSE_ALLOWED_STATUSES": "trial,active",
     "LICENSE_SPA_CLIENT_ID": "e1d877c3-004c-4040-8c3b-81a59e0c7050",
     "LICENSE_TOKEN_AUDIENCES": "12e0cfe2-8337-4b35-93e8-542faf658eb3,api://12e0cfe2-8337-4b35-93e8-542faf658eb3",

@@ -164,7 +164,16 @@
             });
             if (res.status === 429 && attempt < 8) {
                 const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-                await sleep((isNaN(ra) ? 5 : ra) * 1000);
+                // OneNote throttled oft hart – nicht minutenlang blockieren
+                const isOnenote = /\/onenote\//i.test(url);
+                const waitSec = isOnenote
+                    ? Math.min(isNaN(ra) ? 3 : ra, 8)
+                    : isNaN(ra)
+                      ? 5
+                      : ra;
+                const maxAttempts = isOnenote ? 3 : 8;
+                if (attempt >= maxAttempts) return res;
+                await sleep(waitSec * 1000);
                 attempt++;
                 continue;
             }
@@ -206,7 +215,16 @@
             });
             if (res.status === 429 && attempt < 8) {
                 const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-                await sleep((isNaN(ra) ? 5 : ra) * 1000);
+                // OneNote throttled oft hart – nicht minutenlang blockieren
+                const isOnenote = /\/onenote\//i.test(url);
+                const waitSec = isOnenote
+                    ? Math.min(isNaN(ra) ? 3 : ra, 8)
+                    : isNaN(ra)
+                      ? 5
+                      : ra;
+                const maxAttempts = isOnenote ? 3 : 8;
+                if (attempt >= maxAttempts) return res;
+                await sleep(waitSec * 1000);
                 attempt++;
                 continue;
             }

@@ -63,7 +63,7 @@ window.MS365_KURSTEAMS_API = {
  * Endpunkt: GET {baseUrl}/me  mit Authorization: Bearer <Access-Token>
  */
 window.MS365_LICENSE_API = {
-    baseUrl: '',
+    baseUrl: 'https://func-ms365-license-dev.azurewebsites.net/api/license',
     scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
     functionKey: ''
 };

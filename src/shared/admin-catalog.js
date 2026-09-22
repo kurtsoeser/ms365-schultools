@@ -162,17 +162,17 @@ function renderList() {
             const active = t.id === ui.selectedId ? ' is-active' : '';
             const meta = [t.schoolForm, t.subjectCode, t.schulstufe, t.semester].filter(Boolean).join(' · ');
             return (
-                '<li><button type="button" class="' +
-                active.trim() +
+                '<li><button type="button" class="admin-catalog__item' +
+                active +
                 '" data-id="' +
                 escapeHtml(t.id) +
                 '"><strong>' +
                 escapeHtml(t.name) +
-                '</strong><small>' +
+                '</strong><span class="admin-catalog__meta-line">' +
                 escapeHtml(meta || 'ohne Zuordnung') +
                 ' · ' +
                 t.channels.length +
-                ' Kanäle</small></button></li>'
+                ' Kanäle</span></button></li>'
             );
         })
         .join('');

@@ -38,6 +38,10 @@
             'Eine Gruppe pro Fach oder Arbeitsgemeinschaft (ARGE). Voraussetzung: Fächer und ARGEs in den Stammdaten gepflegt.',
         diplomarbeiten:
             'Diplomarbeit-Gruppen mit festem Naming dipl-{jahr}-… anlegen und im Tenant finden – Freigaben über die Gruppe.',
+        'kursteam-templates':
+            'Kanal-Vorlagen für Unterrichtsteams pflegen und anwenden – getrennt von OneNote-Inhalten.',
+        'onenote-verteilung':
+            'Zentrale OneNote-Vorlagen (MS365-Katalog/notebooks) oder eigenes OneDrive in Kursnotizbücher mehrerer Teams kopieren.',
         spielwiesen:
             'Schilf-/Demo-Teams ohne Live-Schüler; Notebook und Aufgaben erst nach Fortbildung freigeben.',
         'personen-verwaltung':

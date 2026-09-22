@@ -28,8 +28,18 @@
         return headers;
     }
 
-    async function acquireLicenseToken() {
+    /**
+     * @param {{ popup?: boolean }} [opts] popup:true = Silent, bei Bedarf Popup (nur bei User-Klick)
+     */
+    async function acquireLicenseToken(opts) {
         var scopes = [licenseScope()];
+        var wantPopup = !!(opts && opts.popup);
+
+        // Immer zuerst Silent – wenn Token schon da (License-Gate), sofort weiter
+        if (typeof global.ms365AuthAcquireTokenPopup === 'function' && wantPopup) {
+            // acquireTokenPopup macht intern Silent → bei Bedarf Popup (kein Redirect)
+            return global.ms365AuthAcquireTokenPopup(scopes);
+        }
         if (typeof global.ms365AuthAcquireToken === 'function') {
             return global.ms365AuthAcquireToken(scopes);
         }
@@ -54,6 +64,7 @@
             const err = new Error(String(msg));
             err.status = res.status;
             err.payload = data;
+            err.code = data && data.code ? String(data.code) : '';
             throw err;
         }
         return data || {};
@@ -264,6 +275,82 @@
         return parseResponse(res);
     }
 
+    async function fetchCatalogOnenoteNotebooks(accessToken) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/catalog/onenote/notebooks', {
+            method: 'GET',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
+    async function fetchCatalogOnenoteTree(accessToken, notebookId) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        if (!notebookId) throw new Error('notebookId fehlt.');
+        const res = await fetch(
+            base + '/catalog/onenote/notebooks/' + encodeURIComponent(notebookId) + '/tree',
+            { method: 'GET', headers: authHeaders(accessToken) }
+        );
+        return parseResponse(res);
+    }
+
+    async function fetchCatalogOnenoteSectionPages(accessToken, sectionId) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        if (!sectionId) throw new Error('sectionId fehlt.');
+        const res = await fetch(
+            base + '/catalog/onenote/sections/' + encodeURIComponent(sectionId) + '/pages',
+            { method: 'GET', headers: authHeaders(accessToken) }
+        );
+        return parseResponse(res);
+    }
+
+    async function fetchCatalogOnenotePagePreview(accessToken, pageId) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        if (!pageId) throw new Error('pageId fehlt.');
+        const res = await fetch(
+            base + '/catalog/onenote/pages/' + encodeURIComponent(pageId) + '/preview',
+            { method: 'GET', headers: authHeaders(accessToken) }
+        );
+        return parseResponse(res);
+    }
+
+    async function fetchCatalogOnenotePageContent(accessToken, pageId) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        if (!pageId) throw new Error('pageId fehlt.');
+        const res = await fetch(
+            base + '/catalog/onenote/pages/' + encodeURIComponent(pageId) + '/content',
+            { method: 'GET', headers: authHeaders(accessToken) }
+        );
+        return parseResponse(res);
+    }
+
+    async function fetchCatalogOnenoteSectionExport(accessToken, sectionId) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        if (!sectionId) throw new Error('sectionId fehlt.');
+        const res = await fetch(
+            base + '/catalog/onenote/sections/' + encodeURIComponent(sectionId) + '/export',
+            { method: 'GET', headers: authHeaders(accessToken) }
+        );
+        return parseResponse(res);
+    }
+
+    async function publishCatalogOnenoteSnapshot(accessToken, payload) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/catalog/onenote/snapshot', {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(payload || {})
+        });
+        return parseResponse(res);
+    }
+
     async function adminDeleteColumn(accessToken, name) {
         const base = baseUrl();
         if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
@@ -291,6 +378,13 @@
         fetchCatalogMaterialFile: fetchCatalogMaterialFile,
         createCatalogMaterialFolder: createCatalogMaterialFolder,
         uploadCatalogMaterialFile: uploadCatalogMaterialFile,
-        deleteCatalogMaterial: deleteCatalogMaterial
+        deleteCatalogMaterial: deleteCatalogMaterial,
+        fetchCatalogOnenoteNotebooks: fetchCatalogOnenoteNotebooks,
+        fetchCatalogOnenoteTree: fetchCatalogOnenoteTree,
+        fetchCatalogOnenoteSectionPages: fetchCatalogOnenoteSectionPages,
+        fetchCatalogOnenotePagePreview: fetchCatalogOnenotePagePreview,
+        fetchCatalogOnenotePageContent: fetchCatalogOnenotePageContent,
+        fetchCatalogOnenoteSectionExport: fetchCatalogOnenoteSectionExport,
+        publishCatalogOnenoteSnapshot: publishCatalogOnenoteSnapshot
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schulverwaltung – OneNote-Inhalte verteilen</title>
+    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --onv-purple: #8764b8;
+            --onv-purple-deep: #5c2d91;
+            --onv-nav-bg: #fff;
+            --onv-nav-fg: #252423;
+            --onv-nav-muted: #605e5c;
+            --onv-nav-border: #edebe9;
+            --onv-nav-hover: #f3f2f1;
+            --onv-nav-active: #edebe9;
+        }
+        [data-theme="dark"] {
+            --onv-nav-bg: #1b1a19;
+            --onv-nav-fg: #f3f2f1;
+            --onv-nav-muted: #a19f9d;
+            --onv-nav-border: #3b3a39;
+            --onv-nav-hover: #2d2c2b;
+            --onv-nav-active: #3b3a39;
+        }
+
+        .onv-wizard {
+            margin-top: 8px;
+        }
+
+        /* Step indicators */
+        .onv-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 0 0 20px;
+            padding: 6px;
+            border-radius: 14px;
+            background: var(--soft);
+            border: 1px solid var(--border);
+        }
+        .onv-step-btn {
+            flex: 1 1 0;
+            min-width: 7.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-secondary);
+            font: inherit;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .onv-step-btn:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--onv-purple) 10%, transparent);
+            color: var(--heading);
+        }
+        .onv-step-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .onv-step-btn.is-active {
+            background: color-mix(in srgb, var(--onv-purple) 16%, var(--card));
+            color: var(--heading);
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--onv-purple) 40%, transparent);
+        }
+        .onv-step-btn.is-done {
+            color: var(--heading);
+        }
+        .onv-step-num {
+            flex: 0 0 auto;
+            width: 1.55rem;
+            height: 1.55rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 800;
+            background: color-mix(in srgb, var(--onv-purple) 18%, transparent);
+            color: var(--onv-purple-deep);
+        }
+        [data-theme="dark"] .onv-step-num { color: #cbb5e8; }
+        .onv-step-btn.is-active .onv-step-num {
+            background: linear-gradient(160deg, var(--onv-purple) 0%, var(--onv-purple-deep) 100%);
+            color: #fff;
+        }
+
+        .onv-panel {
+            display: none;
+            padding: 18px 18px 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--soft);
+        }
+        .onv-panel.is-visible { display: block; }
+        .onv-panel__title {
+            margin: 0 0 6px;
+            font-size: 1.15rem;
+            color: var(--heading);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .onv-panel__title .onv-logo {
+            width: 26px;
+            height: 26px;
+            border-radius: 5px;
+            background: linear-gradient(160deg, var(--onv-purple) 0%, var(--onv-purple-deep) 100%);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 800;
+        }
+        .onv-panel__lead {
+            margin: 0 0 16px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .onv-docs {
+            margin: -8px 0 14px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .onv-docs a { font-weight: 650; }
+
+        .onv-field { margin-bottom: 12px; }
+        .onv-field label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .onv-field select,
+        .onv-field input[type="search"],
+        .onv-field input[type="text"],
+        .onv-panel .onv-field input[type="search"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 14px;
+            border: 1px solid var(--input-border, var(--border)) !important;
+            border-radius: 12px !important;
+            background: var(--input-bg, var(--card)) !important;
+            color: var(--heading) !important;
+            font: inherit;
+            font-size: 0.92rem;
+            line-height: 1.35;
+            min-height: 42px;
+            height: 42px;
+            outline: none;
+            box-shadow: none !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .onv-field input[type="search"]::-webkit-search-decoration,
+        .onv-field input[type="search"]::-webkit-search-cancel-button {
+            -webkit-appearance: none;
+        }
+        .onv-field input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.85;
+        }
+        .onv-field input:hover {
+            border-color: color-mix(in srgb, var(--onv-purple) 40%, var(--input-border, var(--border))) !important;
+        }
+        .onv-field input:focus {
+            border-color: color-mix(in srgb, var(--onv-purple) 70%, var(--input-border, var(--border))) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--onv-purple) 18%, transparent) !important;
+        }
+        .onv-search-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .onv-search-row input {
+            flex: 1;
+            min-width: 0;
+        }
+        .onv-search-row .onv-search-btn {
+            flex: 0 0 auto;
+            width: 42px;
+            min-width: 42px;
+            height: 42px;
+            min-height: 42px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            border: 0;
+            background: linear-gradient(160deg, var(--onv-purple) 0%, var(--onv-purple-deep) 100%);
+            color: #fff;
+            font-size: 1.05rem;
+            cursor: pointer;
+            box-shadow: 0 1px 2px color-mix(in srgb, #000 12%, transparent);
+            transition: filter 0.15s ease, transform 0.12s ease;
+        }
+        .onv-search-row .onv-search-btn:hover {
+            filter: brightness(1.06);
+        }
+        .onv-search-row .onv-search-btn:active {
+            transform: scale(0.97);
+        }
+        .onv-search-row .onv-search-btn:focus-visible {
+            outline: 2px solid var(--onv-purple);
+            outline-offset: 2px;
+        }
+
+        .onv-seg {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 4px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+        }
+        .onv-seg--3 { grid-template-columns: 1fr 1fr 1fr; }
+        .onv-seg button {
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            font: inherit;
+            font-weight: 700;
+            font-size: 0.82rem;
+            padding: 9px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .onv-seg button.is-active {
+            background: color-mix(in srgb, var(--onv-purple) 16%, var(--card));
+            color: var(--heading);
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--onv-purple) 35%, transparent);
+        }
+
+        .onv-kind {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .onv-kind label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            font-size: 0.88rem;
+            font-weight: 650;
+            cursor: pointer;
+            color: var(--heading);
+        }
+        .onv-kind input {
+            accent-color: var(--onv-purple);
+            margin: 0;
+        }
+        .onv-kind label:has(input:checked) {
+            border-color: color-mix(in srgb, var(--onv-purple) 55%, var(--border));
+            background: color-mix(in srgb, var(--onv-purple) 12%, var(--card));
+            box-shadow: inset 3px 0 0 var(--onv-purple);
+        }
+
+        /* Source + pages + preview – OneNote-style 1/6 | 1/6 | 4/6 */
+        .onv-workspace {
+            display: grid;
+            grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(0, 4fr);
+            gap: 0;
+            align-items: stretch;
+            margin-top: 4px;
+            min-height: 700px;
+            height: min(78vh, 900px);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--card);
+            box-shadow: 0 1px 3px color-mix(in srgb, #000 6%, transparent);
+        }
+        @media (max-width: 1000px) {
+            .onv-workspace {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: 0;
+            }
+            .onv-workspace > * {
+                min-height: 280px;
+                border-right: 0 !important;
+                border-bottom: 1px solid var(--border);
+            }
+            .onv-workspace > *:last-child { border-bottom: 0; }
+            .onv-seg--3 { grid-template-columns: 1fr; }
+            .onv-step-btn { flex: 1 1 calc(50% - 6px); }
+        }
+
+        .onenote-nav,
+        .onenote-pages,
+        .onv-preview {
+            border: 0;
+            border-radius: 0;
+            min-height: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: none;
+        }
+        .onenote-nav {
+            background: var(--onv-nav-bg);
+            color: var(--onv-nav-fg);
+            border-right: 1px solid var(--onv-nav-border);
+        }
+        .onenote-pages {
+            background: color-mix(in srgb, var(--onv-purple) 4%, var(--onv-nav-bg));
+            color: var(--onv-nav-fg);
+            border-right: 1px solid var(--onv-nav-border);
+        }
+        .onv-preview {
+            background: var(--card);
+        }
+        .onenote-nav__head,
+        .onenote-pages__head,
+        .onv-preview__head {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px 10px;
+            border-bottom: 1px solid var(--onv-nav-border);
+            flex: 0 0 auto;
+        }
+        .onv-preview__head {
+            border-bottom-color: var(--border);
+        }
+        .onenote-nav__logo {
+            flex: 0 0 auto;
+            width: 22px;
+            height: 22px;
+            margin-top: 1px;
+            border-radius: 4px;
+            background: linear-gradient(160deg, var(--onv-purple) 0%, var(--onv-purple-deep) 100%);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+        .onenote-nav__title,
+        .onenote-pages__title,
+        .onv-preview__head h4 {
+            margin: 0;
+            font-size: 0.92rem;
+            font-weight: 700;
+            line-height: 1.25;
+            word-break: break-word;
+            color: inherit;
+        }
+        .onv-preview__head h4 { color: var(--heading); }
+        .onenote-nav__meta,
+        .onenote-pages__meta,
+        .onv-preview__head p {
+            margin: 2px 0 0;
+            font-size: 0.74rem;
+            color: var(--onv-nav-muted);
+        }
+        .onv-preview__head p { color: var(--text-secondary); }
+        .onenote-nav__body,
+        .onenote-pages__body,
+        .onv-preview__body {
+            flex: 1 1 auto;
+            overflow: auto;
+            max-height: none;
+            min-height: 0;
+            padding: 4px 0 8px;
+        }
+        .onv-preview__body {
+            padding: 14px;
+            background: #faf9f8;
+            display: flex;
+            flex-direction: column;
+        }
+        [data-theme="dark"] .onv-preview__body { background: #252423; }
+        .onenote-nav__empty {
+            padding: 28px 16px;
+            text-align: center;
+            color: var(--onv-nav-muted);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+        .onenote-nav__footer {
+            padding: 8px 12px 10px;
+            border-top: 1px solid var(--onv-nav-border);
+            font-size: 0.78rem;
+            color: var(--onv-nav-muted);
+            line-height: 1.35;
+            flex: 0 0 auto;
+        }
+
+        .onenote-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            min-height: 34px;
+            padding: 4px 10px 4px calc(8px + var(--on-depth, 0) * 16px);
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-size: 0.9rem;
+            text-align: left;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .onenote-row:hover { background: var(--onv-nav-hover); }
+        .onenote-row.is-checked,
+        .onenote-row.is-preview { background: var(--onv-nav-active); }
+        .onenote-row.is-preview {
+            box-shadow: inset 3px 0 0 var(--onv-purple);
+        }
+        .onenote-row--group { font-weight: 650; cursor: default; }
+        .onenote-row__check {
+            flex: 0 0 auto;
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--onv-purple);
+            cursor: pointer;
+        }
+        .onenote-row__toggle {
+            flex: 0 0 18px;
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            background: transparent;
+            color: var(--onv-nav-muted);
+            padding: 0;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 0.7rem;
+        }
+        .onenote-row__toggle:hover {
+            color: var(--onv-nav-fg);
+            background: var(--onv-nav-hover);
+        }
+        .onenote-row__spacer { flex: 0 0 18px; width: 18px; }
+        .onenote-tab {
+            flex: 0 0 auto;
+            width: 10px;
+            height: 18px;
+            border-radius: 2px 5px 5px 2px;
+            background: var(--on-tab, var(--onv-purple));
+            box-shadow: inset -1px 0 0 color-mix(in srgb, #000 18%, transparent);
+        }
+        .onenote-row__label {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .onenote-row__preview {
+            flex: 0 0 auto;
+            border: 0;
+            background: color-mix(in srgb, var(--onv-purple) 14%, transparent);
+            color: var(--onv-purple-deep);
+            font: inherit;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 7px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        [data-theme="dark"] .onenote-row__preview { color: #cbb5e8; }
+        .onenote-row__preview:hover {
+            background: color-mix(in srgb, var(--onv-purple) 28%, transparent);
+        }
+
+        /* Pages column + preview content */
+        .onenote-pages__body {
+            padding: 0;
+        }
+        .onv-preview__pages {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: auto;
+        }
+        .onv-preview__pages:empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+        }
+        .onv-preview__pages:empty::before {
+            content: 'Abschnitt wählen – dann erscheinen hier die Seiten.';
+            display: block;
+            padding: 24px 14px;
+            text-align: center;
+            color: var(--onv-nav-muted);
+            font-size: 0.84rem;
+            line-height: 1.4;
+        }
+        .onv-preview__pages button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-bottom: 1px solid var(--onv-nav-border);
+            background: transparent;
+            padding: 10px 12px;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+            font-size: 0.86rem;
+            line-height: 1.35;
+        }
+        .onv-preview__pages li:last-child button { border-bottom: 0; }
+        .onv-preview__pages button:hover,
+        .onv-preview__pages button.is-active {
+            background: color-mix(in srgb, var(--onv-purple) 14%, transparent);
+        }
+        .onv-preview__pages button.is-active {
+            box-shadow: inset 3px 0 0 var(--onv-purple);
+            font-weight: 650;
+        }
+        .onv-seg--sources {
+            grid-template-columns: 1fr 1fr;
+        }
+        @media (min-width: 860px) {
+            .onv-seg--sources { grid-template-columns: repeat(5, 1fr); }
+        }
+        .onv-src-pick {
+            margin: 0 0 12px;
+            padding: 14px 14px 12px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--onv-purple) 16%, var(--border));
+            background:
+                linear-gradient(180deg, color-mix(in srgb, var(--onv-purple) 6%, var(--card)) 0%, var(--card) 48%);
+        }
+        .onv-src-pick .onv-field {
+            margin-bottom: 10px;
+        }
+        .onv-src-pick .onv-hits {
+            margin-top: 10px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .onv-src-pick__sel {
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--onv-purple) 7%, transparent);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        .onv-src-pick__sel strong {
+            color: var(--heading);
+            font-weight: 700;
+        }
+
+        .onv-load-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin: 0 0 12px;
+        }
+        .onv-load-row .btn {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        .onv-load-row .btn.secondary {
+            background: transparent;
+            color: var(--heading);
+            border: 1px solid var(--border);
+        }
+        .onv-load-row .btn.secondary:hover {
+            border-color: color-mix(in srgb, var(--onv-purple) 45%, var(--border));
+            background: color-mix(in srgb, var(--onv-purple) 8%, transparent);
+        }
+        .onv-nb-pick {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 0 2px 2px;
+            font-size: 0.72rem;
+            font-weight: 650;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+        .onv-nb-pick input {
+            width: 15px;
+            height: 15px;
+            margin: 0;
+            accent-color: var(--onv-purple);
+            cursor: pointer;
+        }
+        .onv-nb-cover.is-published .onv-nb-cover__hint,
+        .onv-nb-item.is-published .onv-nb-cover__hint {
+            opacity: 1;
+        }
+        .onv-nb-meta__pub {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #0b6a0b;
+        }
+        [data-theme="dark"] .onv-nb-meta__pub { color: #6fcf97; }
+        .onv-nb-meta__pub--missing {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-style: italic;
+        }
+
+        /* Notebook shelf – OneNote-style covers */
+        .onv-nb-shelf {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px 22px;
+            padding: 8px 4px 10px;
+            min-height: 200px;
+            align-items: flex-start;
+        }
+        .onv-nb-shelf__empty {
+            margin: 0;
+            padding: 18px 8px;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            line-height: 1.4;
+            width: 100%;
+        }
+        .onv-nb-item {
+            width: 148px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .onv-nb-cover {
+            --nb-spine: #5c2d91;
+            --nb-face: #8764b8;
+            position: relative;
+            width: 148px;
+            height: 188px;
+            border: 0;
+            padding: 0;
+            cursor: pointer;
+            background: transparent;
+            text-align: left;
+            font: inherit;
+            border-radius: 0 10px 10px 0;
+            filter: drop-shadow(0 4px 8px color-mix(in srgb, #000 18%, transparent));
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+        .onv-nb-cover:hover {
+            transform: translateY(-4px);
+            filter: drop-shadow(0 8px 16px color-mix(in srgb, #000 22%, transparent));
+        }
+        .onv-nb-cover:focus-visible {
+            outline: 2px solid var(--onv-purple);
+            outline-offset: 3px;
+        }
+        .onv-nb-item.is-selected .onv-nb-cover,
+        .onv-nb-cover.is-selected {
+            transform: translateY(-5px);
+            filter: drop-shadow(0 0 0 2px color-mix(in srgb, var(--onv-purple) 70%, transparent))
+                drop-shadow(0 10px 16px color-mix(in srgb, #000 24%, transparent));
+        }
+        .onv-nb-cover__spine {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 16px;
+            border-radius: 4px 0 0 4px;
+            background:
+                linear-gradient(90deg, color-mix(in srgb, #000 22%, transparent), transparent 55%),
+                linear-gradient(180deg, color-mix(in srgb, #fff 18%, transparent), transparent 40%),
+                var(--nb-spine);
+            box-shadow: inset -1px 0 0 color-mix(in srgb, #000 25%, transparent);
+        }
+        .onv-nb-cover__face {
+            position: absolute;
+            left: 14px;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            border-radius: 0 10px 10px 0;
+            background:
+                linear-gradient(145deg, color-mix(in srgb, #fff 22%, transparent), transparent 42%),
+                linear-gradient(180deg, var(--nb-face) 0%, color-mix(in srgb, var(--nb-spine) 55%, var(--nb-face)) 100%);
+            border: 1px solid color-mix(in srgb, #000 12%, transparent);
+            border-left: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 14px 12px 12px 14px;
+            color: #fff;
+        }
+        .onv-nb-cover__badge {
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            background: color-mix(in srgb, #fff 22%, transparent);
+            border: 1px solid color-mix(in srgb, #fff 35%, transparent);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 10px;
+        }
+        .onv-nb-cover__title {
+            flex: 1 1 auto;
+            font-size: 0.86rem;
+            font-weight: 700;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+            text-shadow: 0 1px 1px color-mix(in srgb, #000 35%, transparent);
+        }
+        .onv-nb-cover__hint {
+            margin-top: auto;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            opacity: 0.88;
+        }
+        .onv-nb-cover.is-preferred .onv-nb-cover__hint {
+            opacity: 1;
+        }
+        .onv-nb-meta {
+            padding: 0 2px 0 4px;
+            min-height: 2.6em;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            color: var(--text-secondary);
+        }
+        .onv-nb-meta__when {
+            display: block;
+            color: var(--heading);
+            font-weight: 600;
+            font-size: 0.74rem;
+        }
+        .onv-nb-meta__who {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .onv-nb-meta__empty {
+            font-style: italic;
+            opacity: 0.75;
+        }
+        .visually-hidden {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+        }
+
+        .onv-preview__frame-wrap {
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--onv-purple) 22%, transparent),
+                0 2px 8px color-mix(in srgb, #000 6%, transparent);
+            flex: 1 1 auto;
+            min-height: 360px;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .onv-preview__frame {
+            display: block;
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: 480px;
+            height: 100%;
+            border: 0;
+            background: #fff;
+        }
+        .onv-preview__fallback {
+            padding: 14px 16px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #252423;
+            white-space: pre-wrap;
+        }
+        .onv-preview__thumb {
+            display: block;
+            max-width: 100%;
+            max-height: 160px;
+            margin: 0 auto 10px;
+            border-radius: 6px;
+            object-fit: contain;
+        }
+        .onv-preview__note {
+            margin: 8px 0 0;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.35;
+        }
+        .onv-preview__card {
+            background: #fff;
+            color: #252423;
+            border-radius: 8px;
+            padding: 16px 18px;
+            min-height: 120px;
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--onv-purple) 22%, transparent),
+                0 2px 8px color-mix(in srgb, #000 6%, transparent);
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        [data-theme="dark"] .onv-preview__card {
+            background: #fff;
+            color: #252423;
+        }
+        .onv-preview__empty {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            text-align: center;
+            padding: 36px 12px;
+            line-height: 1.45;
+        }
+
+        .onv-hits {
+            list-style: none;
+            margin: 8px 0 0;
+            padding: 0;
+            max-height: 200px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+        }
+        .onv-hits button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-bottom: 1px solid var(--border);
+            background: transparent;
+            padding: 9px 11px;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .onv-hits li:last-child button { border-bottom: 0; }
+        .onv-hits button:hover { background: color-mix(in srgb, var(--onv-purple) 10%, transparent); }
+        .onv-hits button strong { font-size: 0.9rem; }
+        .onv-hits button span { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .onv-chips {
+            list-style: none;
+            margin: 14px 0 0;
+            padding: 0;
+            display: grid;
+            gap: 10px;
+        }
+        .onv-chips:empty::before {
+            content: attr(data-empty);
+            display: block;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            padding: 8px 0;
+        }
+        .onv-chip {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 6px 12px;
+            align-items: center;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+        }
+        .onv-chip strong {
+            display: block;
+            font-size: 0.95rem;
+            color: var(--heading);
+        }
+        .onv-chip span {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .onv-chip.is-warn {
+            border-color: color-mix(in srgb, #ca5010 40%, var(--border));
+            background: color-mix(in srgb, #ca5010 8%, var(--card));
+        }
+        .onv-chip__warn {
+            grid-column: 1 / -1;
+            font-size: 0.8rem;
+            color: #ca5010;
+        }
+        .onv-chip__status {
+            grid-column: 1 / -1;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .onv-chip__status.is-ok { color: #0f766e; }
+        .onv-chip__status.is-err { color: #b91c1c; }
+        .onv-chip__status.is-run { color: var(--onv-purple); }
+
+        .onv-summary {
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid color-mix(in srgb, var(--onv-purple) 30%, var(--border));
+            background: color-mix(in srgb, var(--onv-purple) 8%, var(--card));
+            margin-bottom: 14px;
+        }
+        .onv-summary h4 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+            color: var(--heading);
+        }
+        .onv-summary ul {
+            margin: 0;
+            padding-left: 1.2em;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+        .onv-summary li { margin-bottom: 4px; }
+
+        .onv-nav-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+        }
+        .onv-nav-bar__right {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .onv-progress {
+            margin: 14px 0 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--soft);
+        }
+        .onv-progress[data-state="ok"] {
+            border-color: color-mix(in srgb, #0f766e 35%, var(--border));
+            background: color-mix(in srgb, #0f766e 10%, var(--card));
+        }
+        .onv-progress[data-state="error"] {
+            border-color: color-mix(in srgb, #b91c1c 35%, var(--border));
+            background: color-mix(in srgb, #b91c1c 10%, var(--card));
+        }
+        .onv-progress__track {
+            height: 8px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--border) 70%, transparent);
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .onv-progress__fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--onv-purple), var(--onv-purple-deep));
+            transition: width 0.2s ease;
+        }
+        .onv-progress[data-state="ok"] .onv-progress__fill {
+            background: #0f766e;
+            width: 100% !important;
+        }
+        .onv-progress[data-state="error"] .onv-progress__fill {
+            background: #b91c1c;
+        }
+        .onv-progress__text {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--heading);
+        }
+
+        .btn-sm { padding: 4px 8px; font-size: 0.85em; }
+        .onv-btn-primary {
+            background: linear-gradient(160deg, var(--onv-purple) 0%, var(--onv-purple-deep) 100%) !important;
+            border-color: transparent !important;
+            color: #fff !important;
+            font-weight: 700;
+            padding: 12px 20px;
+            font-size: 1rem;
+        }
+        .onv-btn-primary:disabled {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-journal-richtext"></i>OneNote-Inhalte verteilen</span>
+            </div>
+            <p>Schritt-Assistent: Abschnitte aus zentralen Vorlagen oder OneDrive in Kursteam-Notizbücher kopieren.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-onenote-verteilung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="kursteam-templates.html"><i class="bi bi-layout-text-sidebar-reverse"></i>Kursteam-Vorlagen</a>
+                <a class="btn" href="kursteams.html"><i class="bi bi-mortarboard"></i>Unterrichtsteams</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-panel onv-wizard" aria-label="OneNote-Verteilung">
+                <nav class="onv-steps" aria-label="Assistentenschritte">
+                    <button type="button" class="onv-step-btn is-active" data-onv-goto="1" id="onvStepInd1">
+                        <span class="onv-step-num">1</span> Material
+                    </button>
+                    <button type="button" class="onv-step-btn" data-onv-goto="2" id="onvStepInd2" disabled>
+                        <span class="onv-step-num">2</span> Teams
+                    </button>
+                    <button type="button" class="onv-step-btn" data-onv-goto="3" id="onvStepInd3" disabled>
+                        <span class="onv-step-num">3</span> Wohin
+                    </button>
+                    <button type="button" class="onv-step-btn" data-onv-goto="4" id="onvStepInd4" disabled>
+                        <span class="onv-step-num">4</span> Kopieren
+                    </button>
+                </nav>
+
+                <!-- Step 1: Material -->
+                <div class="onv-panel is-visible" id="onvStep1" data-onv-step="1" role="tabpanel">
+                    <h3 class="onv-panel__title"><span class="onv-logo" aria-hidden="true">N</span> Material wählen</h3>
+                    <p class="onv-panel__lead">Abschnitte aus zentralen Vorlagen, OneDrive, Team oder Site wählen. Rechts erscheint eine Seitenvorschau.</p>
+                    <p class="onv-docs">
+                        Zentrale Site:
+                        <a href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools/MS365Katalog/Forms/AllItems.aspx?id=%2Fsites%2FMS365-Schultools%2FMS365Katalog%2Fnotebooks" target="_blank" rel="noopener">MS365-Katalog / notebooks</a>
+                    </p>
+
+                    <div class="onv-seg onv-seg--sources" role="group" aria-label="Quellenart">
+                        <button type="button" class="is-active" data-onv-src-mode="central" aria-pressed="true">Zentrale Vorlagen</button>
+                        <button type="button" data-onv-src-mode="me" aria-pressed="false">Mein OneDrive</button>
+                        <button type="button" data-onv-src-mode="team" aria-pressed="false">Team / Kursnotizbuch</button>
+                        <button type="button" data-onv-src-mode="site" aria-pressed="false">SharePoint-Site</button>
+                    </div>
+                    <p class="muted" id="onvSrcModeLabel" style="margin:0 0 10px;font-size:0.82rem;">Zentrale Vorlagen (MS365-Katalog / notebooks)</p>
+
+                    <div class="onv-src-pick" id="onvSrcPickTeam" hidden>
+                        <div class="onv-field" style="margin-bottom:8px;">
+                            <label for="onvSrcTeamQuery">Team suchen</label>
+                            <div class="onv-search-row">
+                                <input type="search" id="onvSrcTeamQuery" placeholder="Kursname oder GUID …" autocomplete="off">
+                                <button type="button" class="onv-search-btn" id="onvBtnSrcSearchTeam" title="Suchen" aria-label="Team suchen"><i class="bi bi-search" aria-hidden="true"></i></button>
+                            </div>
+                            <ul class="onv-hits" id="onvSrcTeamHits" hidden></ul>
+                        </div>
+                        <p class="onv-src-pick__sel" id="onvSrcTeamSelected">Noch kein Team gewählt.</p>
+                    </div>
+
+                    <div class="onv-src-pick" id="onvSrcPickSite" hidden>
+                        <div class="onv-field" style="margin-bottom:8px;">
+                            <label for="onvSrcSiteQuery">Site suchen oder URL einfügen</label>
+                            <div class="onv-search-row">
+                                <input type="search" id="onvSrcSiteQuery" placeholder="z. B. Fachschaft Deutsch oder https://….sharepoint.com/sites/…" autocomplete="off">
+                                <button type="button" class="onv-search-btn" id="onvBtnSrcSearchSite" title="Suchen" aria-label="Site suchen"><i class="bi bi-search" aria-hidden="true"></i></button>
+                            </div>
+                            <ul class="onv-hits" id="onvSrcSiteHits" hidden></ul>
+                        </div>
+                        <p class="onv-src-pick__sel" id="onvSrcSiteSelected">Noch keine Site gewählt.</p>
+                    </div>
+
+                    <div class="onv-load-row">
+                        <button type="button" class="btn" id="onvBtnLoadSrc"><i class="bi bi-cloud-arrow-down"></i>Vorlagen laden</button>
+                        <button type="button" class="btn secondary" id="onvBtnPublishSnapshot" hidden title="Ausgewählte Notizbücher in den Schul-Snapshot schreiben">
+                            <i class="bi bi-cloud-upload"></i>Veröffentlichen
+                        </button>
+                        <p class="onv-publish-hint muted" id="onvPublishHint" hidden></p>
+                    </div>
+                    <div class="onv-field" style="margin-bottom:14px;">
+                        <label id="onvNotebookLabel">Notizbücher</label>
+                        <div class="onv-nb-shelf" id="onvNotebookShelf" role="listbox" aria-labelledby="onvNotebookLabel">
+                            <p class="onv-nb-shelf__empty" id="onvNotebookEmpty">Noch keine Notizbücher – „Vorlagen laden“ tippen.</p>
+                        </div>
+                        <select id="onvSrcNotebook" class="visually-hidden" tabindex="-1" aria-hidden="true">
+                            <option value="">— laden —</option>
+                        </select>
+                    </div>
+
+                    <div class="onv-workspace">
+                        <div class="onenote-nav" aria-label="Abschnitte">
+                            <div class="onenote-nav__head">
+                                <span class="onenote-nav__logo" aria-hidden="true">N</span>
+                                <div>
+                                    <p class="onenote-nav__title" id="onvSrcTitle">Quell-Notizbuch</p>
+                                    <p class="onenote-nav__meta">Abschnitte anhaken · anklicken für Seiten</p>
+                                </div>
+                            </div>
+                            <div class="onenote-nav__body" id="onvSrcTree">
+                                <div class="onenote-nav__empty">„Vorlagen laden“ – dann Abschnitte wählen.</div>
+                            </div>
+                            <div class="onenote-nav__footer" id="onvSrcFooter">Noch nichts geladen.</div>
+                        </div>
+
+                        <div class="onenote-pages" aria-label="Seiten">
+                            <div class="onenote-pages__head">
+                                <span class="onenote-nav__logo" aria-hidden="true">≡</span>
+                                <div>
+                                    <p class="onenote-pages__title" id="onvPagesTitle">Seiten</p>
+                                    <p class="onenote-pages__meta" id="onvPagesMeta">Abschnitt wählen</p>
+                                </div>
+                            </div>
+                            <div class="onenote-pages__body">
+                                <ul class="onv-preview__pages" id="onvPreviewPages"></ul>
+                            </div>
+                        </div>
+
+                        <div class="onv-preview" aria-label="Seitenvorschau">
+                            <div class="onv-preview__head">
+                                <span class="onenote-nav__logo" aria-hidden="true">N</span>
+                                <div>
+                                    <h4 id="onvPreviewTitle">Vorschau</h4>
+                                    <p id="onvPreviewMeta">Seite aus der Mitte wählen</p>
+                                </div>
+                            </div>
+                            <div class="onv-preview__body" id="onvPreviewBody">
+                                <p class="onv-preview__empty">Noch keine Vorschau – Abschnitt und Seite wählen.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="onv-nav-bar">
+                        <span></span>
+                        <div class="onv-nav-bar__right">
+                            <button type="button" class="btn btn-success" id="onvBtnNext1" disabled>Weiter <i class="bi bi-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Teams -->
+                <div class="onv-panel" id="onvStep2" data-onv-step="2" role="tabpanel" hidden>
+                    <h3 class="onv-panel__title"><span class="onv-logo" aria-hidden="true">N</span> Kursteams</h3>
+                    <p class="onv-panel__lead">Teams suchen und hinzufügen. Das Kursnotizbuch wird automatisch ermittelt.</p>
+
+                    <div class="onv-field">
+                        <label for="onvTeamQuery">Teamsuche</label>
+                        <div class="onv-search-row">
+                            <input type="search" id="onvTeamQuery" placeholder="Name oder GUID …" autocomplete="off">
+                            <button type="button" class="onv-search-btn" id="onvBtnSearchTeam" title="Suchen" aria-label="Team suchen"><i class="bi bi-search" aria-hidden="true"></i></button>
+                        </div>
+                        <ul class="onv-hits" id="onvTeamHits" hidden></ul>
+                    </div>
+
+                    <h4 style="margin:16px 0 0;font-size:0.78rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-secondary);">Ausgewählte Teams</h4>
+                    <ul class="onv-chips" id="onvTeamList" data-empty="Noch kein Team – Suche nutzen und Treffer anklicken."></ul>
+
+                    <div class="onv-nav-bar">
+                        <button type="button" class="btn alt" id="onvBtnBack2"><i class="bi bi-arrow-left"></i> Zurück</button>
+                        <div class="onv-nav-bar__right">
+                            <button type="button" class="btn btn-success" id="onvBtnNext2" disabled>Weiter <i class="bi bi-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Wohin -->
+                <div class="onv-panel" id="onvStep3" data-onv-step="3" role="tabpanel" hidden>
+                    <h3 class="onv-panel__title"><span class="onv-logo" aria-hidden="true">N</span> Wohin kopieren?</h3>
+                    <p class="onv-panel__lead">Ziel-Abschnittsgruppe in allen gewählten Kursteam-Notizbüchern festlegen.</p>
+
+                    <div class="onv-kind" role="radiogroup" aria-label="Ziel-Abschnittsgruppe">
+                        <label><input type="radio" name="onvDestKind" value="contentLibrary" checked> Inhaltsbibliothek</label>
+                        <label><input type="radio" name="onvDestKind" value="teacherOnly"> Nur für Lehrer</label>
+                        <label><input type="radio" name="onvDestKind" value="collaboration"> Zusammenarbeit</label>
+                    </div>
+
+                    <button type="button" class="btn" id="onvBtnBuildTargets"><i class="bi bi-list-check"></i> Verteilerliste bauen</button>
+
+                    <h4 style="margin:16px 0 0;font-size:0.78rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-secondary);">Verteilerliste</h4>
+                    <ul class="onv-chips" id="onvTargetList" data-empty="Noch keine Ziele – „Verteilerliste bauen“ oder Art wechseln."></ul>
+
+                    <div class="onv-nav-bar">
+                        <button type="button" class="btn alt" id="onvBtnBack3"><i class="bi bi-arrow-left"></i> Zurück</button>
+                        <div class="onv-nav-bar__right">
+                            <button type="button" class="btn btn-success" id="onvBtnNext3" disabled>Weiter <i class="bi bi-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Kopieren -->
+                <div class="onv-panel" id="onvStep4" data-onv-step="4" role="tabpanel" hidden>
+                    <h3 class="onv-panel__title"><span class="onv-logo" aria-hidden="true">N</span> Verteilen</h3>
+                    <p class="onv-panel__lead">Prüfe die Zusammenfassung und starte die Verteilung.</p>
+
+                    <div class="onv-summary" id="onvSummary">
+                        <h4 id="onvSummaryTitle">—</h4>
+                        <div id="onvSummaryBody"></div>
+                    </div>
+
+                    <button type="button" class="btn onv-btn-primary" id="onvBtnCopy" disabled>
+                        <i class="bi bi-journal-arrow-down"></i> Jetzt verteilen
+                    </button>
+
+                    <div class="onv-progress" id="onvProgress" hidden>
+                        <div class="onv-progress__track" aria-hidden="true">
+                            <div class="onv-progress__fill" id="onvProgressFill"></div>
+                        </div>
+                        <p class="onv-progress__text" id="onvProgressText" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <details class="tm-tech" style="margin-top:14px;"><summary>Protokoll</summary><pre id="onvLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
+
+                    <div class="onv-nav-bar">
+                        <button type="button" class="btn alt" id="onvBtnBack4"><i class="bi bi-arrow-left"></i> Zurück</button>
+                        <div class="onv-nav-bar__right"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/license-api-client.js"></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/tools/onenote-verteilung/onenote-verteilung.js"></script>
+</body>
+</html>

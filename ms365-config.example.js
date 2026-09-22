@@ -30,6 +30,7 @@
  *    - Sites.ReadWrite.All (SharePoint-Listen „Lehrerliste“ / „Schultermine“: Site auflösen, Liste anlegen, Zeilen schreiben)
  *    - Sites.Manage.All (Lizenz-Setup / Spalten anlegen per Graph POST …/columns)
  *    - Files.ReadWrite.All (Kursteam-Vorlagen: Material-Test – Dateien aus dem zentralen Katalog in Team-Kanäle kopieren)
+ *    - Notes.ReadWrite.All, Sites.Read.All (OneNote-Inhalte verteilen: zentrale Vorlagen, OneDrive, Team-/Kursnotizbücher, SharePoint-Sites als Quelle; Kopieren in Team-Kursnotizbücher)
  *    - Office 365 SharePoint Online → Sites.FullControl.All (delegiert, optional): Hub-Registrierung per SharePoint-REST aus dem Browser; sonst PowerShell-Fallback im Tool
  *    → „Administratorzustimmung für [Organisation] erteilen“ (Global Admin o. ä.)
  * 6) Unter „Authentifizierung“ prüfen: implizite Genehmigung ist NICHT nötig; SPA + Redirect-URI reicht.
@@ -63,7 +64,7 @@ window.MS365_KURSTEAMS_API = {
  * Nach Deploy: baseUrl z. B. https://YOUR-FUNC.azurewebsites.net/api/license
  */
 window.MS365_LICENSE_API = {
-    baseUrl: '',
+    baseUrl: 'https://func-ms365-license-dev.azurewebsites.net/api/license',
     scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
     functionKey: ''
 };

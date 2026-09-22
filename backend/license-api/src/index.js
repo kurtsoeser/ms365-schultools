@@ -5,3 +5,4 @@ require('./functions/httpLicenseMe');
 require('./functions/httpLicenseAdmin');
 require('./functions/httpCatalogKursteam');
 require('./functions/httpCatalogMaterials');
+require('./functions/httpCatalogOnenote');
