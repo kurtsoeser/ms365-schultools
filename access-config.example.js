@@ -1,26 +1,24 @@
 /**
- * PIN-Zugang zur App (Session im Browser, Tab-Sitzung).
- * Kopie als access-config.js anlegen und PINs anpassen.
+ * Zugangskonfiguration (Vorlage → als access-config.js kopieren).
  *
- * Hinweis: Bei statischem Hosting ist das nur ein Zugangshindernis im Browser
- * (kein Server-Schutz). Für echte Absicherung Hosting mit Server-Auth nutzen.
+ * User-Tools: Freischaltung über Tenant-Lizenz (License-API) nach MS365-Login.
+ * PIN-Sperre ist optional (enabled: false = aus).
+ * Admin: nur operatorUpns (MS365-Konto), kein Master-PIN nötig.
  */
 window.MS365_ACCESS_CONFIG = {
-    /** false = Schutz aus (z. B. lokale Entwicklung) */
-    enabled: true,
+    /** false = keine PIN-Abfrage */
+    enabled: false,
     /**
-     * Gültige PINs (mehrere möglich). Vergleich ohne Berücksichtigung von
-     * Groß-/Kleinschreibung; Leerzeichen am Anfang/Ende werden ignoriert.
+     * Optional: Gültige PINs, falls enabled: true.
+     * Vergleich ohne Groß-/Kleinschreibung; Trim am Rand.
      */
     pins: ['MS365-Schule', 'IT-Team'],
     /**
-     * Optionaler Master-PIN für die Admin-Oberfläche (admin.html).
-     * Nur für den Betreiber gedacht.
+     * Legacy-Master-PIN nur relevant, wenn PIN-Sperre aktiv ist.
      */
     adminPin: 'DEIN_ADMIN_MASTER_PIN',
     /**
-     * Betreiber-Konten (UPN / E-Mail, Groß-/Kleinschreibung egal).
-     * Diese User sehen im Konto-Menü „Admin“ und dürfen admin.html ohne Master-PIN öffnen.
+     * Betreiber-Konten (UPN). Sehen „Admin“ im Menü und dürfen admin.html öffnen.
      */
     operatorUpns: ['kurt@kurtsoeser.at']
 };

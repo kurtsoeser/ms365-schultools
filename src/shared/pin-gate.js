@@ -18,14 +18,21 @@
 
     function effectiveUserAccessConfig(config) {
         var override = safeLoadJson(ACCESS_OVERRIDE_KEY);
+        /* Repo-Config enabled:false schlägt lokales Override (PIN bewusst abgeschaltet). */
         var enabled =
-            override && typeof override.enabled === 'boolean'
-                ? override.enabled
-                : !!(config && config.enabled !== false);
+            config && config.enabled === false
+                ? false
+                : override && typeof override.enabled === 'boolean'
+                  ? override.enabled
+                  : !!(config && config.enabled !== false);
 
         var pinsFromOverride = override && Array.isArray(override.pins) ? override.pins : null;
         var pins =
-            pinsFromOverride && pinsFromOverride.length ? pinsFromOverride : config && Array.isArray(config.pins) ? config.pins : [];
+            pinsFromOverride && pinsFromOverride.length
+                ? pinsFromOverride
+                : config && Array.isArray(config.pins)
+                  ? config.pins
+                  : [];
 
         return { enabled: enabled, pins: pins };
     }
@@ -73,9 +80,8 @@
         /\/admin\.html(?:\?|#|$)/i.test(location.pathname) ||
         /\/tools\/license-backend-setup\.html(?:\?|#|$)/i.test(location.pathname);
     if (isAdminPage) {
-        var needsAdminGate = !!(config && config.enabled !== false);
-        if (!isHelpPage && needsAdminGate && sessionStorage.getItem(ADMIN_SESSION_KEY) !== '1') {
-            /* Soft-Gate: MS365-Betreiber (operatorUpns) oder Welcome mit Master-PIN */
+        /* Admin immer nur per Betreiber-MS365 (operatorUpns) – unabhängig von der PIN-Sperre */
+        if (!isHelpPage && sessionStorage.getItem(ADMIN_SESSION_KEY) !== '1') {
             injectScript('operator-access.js', 'data-ms365-operator-access', false);
             injectScript('operator-admin-boot.js', 'data-ms365-operator-admin-boot', false);
             injectContextBar();

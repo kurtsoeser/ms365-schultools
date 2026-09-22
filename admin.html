@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin – MS365-Schulverwaltung</title>
-    <link rel="stylesheet" href="app.css?v=9">
+    <link rel="stylesheet" href="app.css?v=10">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <script src="access-config.js"></script>
@@ -74,6 +74,9 @@
                             <span class="admin-app__hint">Betreiber: <code>kurt@kurtsoeser.at</code></span>
                         </div>
                         <div class="admin-app__toolbar-actions">
+                            <button type="button" class="btn alt" id="adminLicColumnsBtn" title="Extra-Spalten in SharePoint">
+                                <i class="bi bi-layout-three-columns"></i>Spalten
+                            </button>
                             <button type="button" class="btn alt" id="adminLicReloadBtn">
                                 <i class="bi bi-arrow-clockwise"></i>Aktualisieren
                             </button>
@@ -83,18 +86,47 @@
                         </div>
                     </div>
 
+                    <div class="admin-lic-cols admin-app__surface" id="adminLicColumnsPanel" hidden>
+                        <div class="admin-lic-cols__head">
+                            <div>
+                                <h2 class="admin-lic-cols__title">Extra-Spalten</h2>
+                                <p class="admin-lic-cols__hint">Wird als Spalte in der SharePoint-Lizenzliste angelegt und in der Tabelle bearbeitbar.</p>
+                            </div>
+                            <button type="button" class="btn btn-sm alt" id="adminLicColumnsCloseBtn" title="Schließen">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <form class="admin-lic-cols__form" id="adminLicColumnForm">
+                            <label class="admin-lic-cols__field">
+                                <span>Name</span>
+                                <input class="admin-lic-input" id="adminLicColDisplayName" type="text" maxlength="64" placeholder="z. B. Schulnummer" required>
+                            </label>
+                            <label class="admin-lic-cols__field">
+                                <span>Typ</span>
+                                <select class="admin-lic-input" id="adminLicColType">
+                                    <option value="text">Text</option>
+                                    <option value="multiline">Mehrzeilig</option>
+                                    <option value="number">Zahl</option>
+                                    <option value="date">Datum</option>
+                                    <option value="boolean">Ja/Nein</option>
+                                    <option value="choice">Auswahl</option>
+                                </select>
+                            </label>
+                            <label class="admin-lic-cols__field admin-lic-cols__field--grow" id="adminLicColChoicesWrap" hidden>
+                                <span>Optionen (eine pro Zeile)</span>
+                                <textarea class="admin-lic-input admin-lic-input--area" id="adminLicColChoices" rows="2" placeholder="Option A&#10;Option B"></textarea>
+                            </label>
+                            <button type="submit" class="btn btn-sm btn-success" id="adminLicColAddBtn">
+                                <i class="bi bi-plus-lg"></i>Spalte anlegen
+                            </button>
+                        </form>
+                        <ul class="admin-lic-cols__list" id="adminLicColumnsList"></ul>
+                    </div>
+
                     <div class="admin-lic__table-wrap admin-app__surface">
                         <table class="admin-lic-table">
                             <thead>
-                                <tr>
-                                    <th><button type="button" class="admin-lic-sort" data-sort="schoolName">Schule / Kontakt</button></th>
-                                    <th><button type="button" class="admin-lic-sort" data-sort="tenantId">Tenant-ID</button></th>
-                                    <th><button type="button" class="admin-lic-sort" data-sort="status">Status</button></th>
-                                    <th><button type="button" class="admin-lic-sort" data-sort="validUntil">Gültig bis</button></th>
-                                    <th><button type="button" class="admin-lic-sort" data-sort="domains">Domains</button></th>
-                                    <th><button type="button" class="admin-lic-sort" data-sort="notes">Notizen</button></th>
-                                    <th class="admin-lic-table__actions-col"></th>
-                                </tr>
+                                <tr id="adminLicTableHead"></tr>
                             </thead>
                             <tbody id="adminLicTableBody"></tbody>
                         </table>
@@ -108,16 +140,16 @@
                             <div class="admin-app__card-head">
                                 <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></div>
                                 <div>
-                                    <h2>PIN-Sperre</h2>
-                                    <p>Steuert, ob User-PINs beim Start abgefragt werden.</p>
+                                    <h2>PIN-Sperre (optional)</h2>
+                                    <p>Standard aus: Freischaltung läuft über die Tenant-Lizenz nach MS365-Login. Admin nur für <code>kurt@kurtsoeser.at</code>.</p>
                                 </div>
                             </div>
                             <label class="admin-app__switch" for="adminAccessEnabled">
-                                <input type="checkbox" id="adminAccessEnabled" checked>
+                                <input type="checkbox" id="adminAccessEnabled">
                                 <span class="admin-app__switch-ui" aria-hidden="true"></span>
                                 <span class="admin-app__switch-label">
                                     <strong>PIN-Sperre aktiv</strong>
-                                    <small>Ohne PIN kein Zugang zu den Tools</small>
+                                    <small>Zusätzlicher Schul-PIN vor den Tools (lokal in diesem Browser)</small>
                                 </span>
                             </label>
                         </article>
@@ -163,7 +195,8 @@
                             </button>
                         </div>
                         <p class="admin-app__footnote">
-                            Serverlos: Änderungen liegen in <code>localStorage</code> und gelten nur in diesem Browserprofil.
+                            Serverlos: PIN-Overrides liegen in <code>localStorage</code>. Global gilt <code>access-config.js</code>
+                            (<code>enabled: false</code> – die Repo-Einstellung schlägt ein altes lokales „PIN an“ außer Kraft.
                         </p>
                     </article>
                 </section>

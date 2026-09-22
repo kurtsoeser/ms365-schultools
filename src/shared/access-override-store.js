@@ -62,7 +62,11 @@ export function getActiveUserAccessConfig(staticConfig, storage = localStorage) 
     const override = loadAccessOverride(storage);
 
     const enabled =
-        override && typeof override.enabled === 'boolean' ? override.enabled : cfg.enabled !== false;
+        cfg.enabled === false
+            ? false
+            : override && typeof override.enabled === 'boolean'
+              ? override.enabled
+              : cfg.enabled !== false;
 
     const staticPins = Array.isArray(cfg.pins) ? normalizePins(cfg.pins) : [];
     const effectivePins = override && override.pins && override.pins.length ? override.pins : staticPins;

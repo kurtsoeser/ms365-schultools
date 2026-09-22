@@ -9,7 +9,7 @@ import {
     sanitizeReleaseHtml,
     toPublishedJson
 } from './release-notes-store.js';
-import { loadAccessOverride, saveAccessOverride } from './access-override-store.js';
+import { loadAccessOverride, saveAccessOverride, getActiveUserAccessConfig } from './access-override-store.js';
 
 // Note: Die Imports oben wirken unhandlich; sie werden hier absichtlich getrennt gehalten,
 // damit Vite/ESM sicher die Modulfunktionalität beibehält.
@@ -287,7 +287,7 @@ const ADMIN_TAB_META = {
     access: {
         eyebrow: 'Zugang',
         title: 'User-Zugänge',
-        subtitle: 'PIN-Sperre, User-PINs sowie Import und Export für neue Schulen.'
+        subtitle: 'PIN optional – Freischaltung über Tenant-Lizenz; Admin nur per Betreiber-Konto.'
     },
     setup: {
         eyebrow: 'Technik',
@@ -408,7 +408,8 @@ function init() {
 
     const enabledBox = $('adminAccessEnabled');
     if (enabledBox) {
-        enabledBox.checked = !!(override && typeof override.enabled === 'boolean' ? override.enabled : config && config.enabled !== false);
+        const active = getActiveUserAccessConfig(config);
+        enabledBox.checked = !!active.enabled;
     }
 
     const initialPins = override && Array.isArray(override.pins) ? override.pins : Array.isArray(config && config.pins) ? config.pins : [];

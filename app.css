@@ -1634,6 +1634,97 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
     color: #ffa8a8;
 }
 
+.admin-lic-cols {
+    margin: 0 0 1rem;
+    padding: 1rem 1.1rem;
+}
+
+.admin-lic-cols__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.admin-lic-cols__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 650;
+}
+
+.admin-lic-cols__hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.9rem;
+    color: var(--muted, #667);
+}
+
+.admin-lic-cols__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 0.75rem;
+    align-items: flex-end;
+    margin-bottom: 0.85rem;
+}
+
+.admin-lic-cols__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 9rem;
+    font-size: 0.85rem;
+}
+
+.admin-lic-cols__field--grow {
+    flex: 1 1 14rem;
+    min-width: 12rem;
+}
+
+.admin-lic-cols__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.admin-lic-cols__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--surface-2, #f3f4f6) 80%, transparent);
+}
+
+.admin-lic-cols__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.admin-lic-cols__meta strong {
+    font-weight: 600;
+}
+
+.admin-lic-cols__empty {
+    color: var(--muted, #667);
+    font-size: 0.9rem;
+    padding: 0.35rem 0;
+}
+
+.admin-lic-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    margin: 0;
+    white-space: nowrap;
+}
+
 /* Zentrierte App-Dialoge (ms365AppDialog*) */
 #ms365AppDialog.modal-overlay,
 .ms365-app-dialog-overlay {
@@ -3675,4 +3766,64 @@ html[data-theme='dark'] .admin-setup-check--warn .admin-setup-check__icon {
 
 .welcome-release-notes .rn-card {
     background: var(--card);
+}
+
+/* Admin: nur Betreiber-MS365 */
+.ms365-admin-op-block {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(16, 18, 35, 0.55);
+    backdrop-filter: blur(6px);
+}
+
+.ms365-admin-op-block__card {
+    width: min(440px, 100%);
+    padding: 28px 24px 22px;
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+}
+
+.ms365-admin-op-block__icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--brand1) 14%, transparent);
+    color: var(--brand1);
+    font-size: 1.35rem;
+}
+
+.ms365-admin-op-block__title {
+    margin: 0 0 8px;
+    font-size: 1.2rem;
+    color: var(--heading);
+}
+
+.ms365-admin-op-block__text {
+    margin: 0 0 16px;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.ms365-admin-op-block__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+html[data-ms365-admin-boot='1'] body.admin-app-page > .admin-app {
+    filter: blur(2px);
+    pointer-events: none;
+    user-select: none;
 }
