@@ -30,6 +30,7 @@
      */
     global.MS365_LICENSE_API = global.MS365_LICENSE_API || {
         baseUrl: '',
+        scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
         functionKey: ''
     };
 })(typeof window !== 'undefined' ? window : globalThis);

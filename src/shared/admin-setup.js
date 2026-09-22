@@ -115,18 +115,8 @@
     }
 
     function acquireToken() {
-        var scopes = ['https://graph.microsoft.com/User.Read'];
-        if (typeof window.ms365AuthAcquireIdTokenPopup === 'function') {
-            return window.ms365AuthAcquireIdTokenPopup(scopes);
-        }
-        if (typeof window.ms365AuthAcquireIdToken === 'function') {
-            return window.ms365AuthAcquireIdToken(scopes);
-        }
-        if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
-            return window.ms365AuthAcquireTokenPopup(scopes);
-        }
-        if (typeof window.ms365AuthAcquireToken === 'function') {
-            return window.ms365AuthAcquireToken(scopes);
+        if (window.ms365LicenseApi && typeof window.ms365LicenseApi.acquireLicenseToken === 'function') {
+            return window.ms365LicenseApi.acquireLicenseToken();
         }
         return Promise.reject(new Error('Bitte zuerst mit MS365 anmelden.'));
     }

@@ -7,9 +7,10 @@
     const G = window.ms365SpoGraph;
     if (!G) return;
 
+    // Spalten anlegen: Sites.Manage.All (Sites.ReadWrite.All reicht laut Graph-Doku nicht).
     const SCOPES = [
         'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/Sites.ReadWrite.All'
+        'https://graph.microsoft.com/Sites.Manage.All'
     ];
 
     function cfg() {

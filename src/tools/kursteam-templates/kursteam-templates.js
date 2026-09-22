@@ -37,16 +37,85 @@ import {
     deleteTemplate,
     resetToSeedTemplates
 } from './kursteam-templates-storage.js';
-import { searchTeams, listChannels, applyDiff } from './kursteam-templates-graph.js';
-import { fetchCentralCatalog } from './kursteam-templates-catalog.js';
+import { searchTeams, listChannels, applyDiff, uploadFileToChannel } from './kursteam-templates-graph.js';
+import { fetchCentralCatalog, fetchMaterials, downloadMaterialFile } from './kursteam-templates-catalog.js';
 
 function $(id) {
     return document.getElementById(id);
 }
 
 function toast(m) {
+    const el = $('toast');
+    if (el) {
+        el.textContent = String(m || '');
+        el.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => el.classList.remove('show'), 4200);
+        return;
+    }
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
+    else if (typeof window.ms365ShowToast === 'function') window.ms365ShowToast(m);
     else window.alert(m);
+}
+
+function setProgressBar(ids, opts) {
+    const box = $(ids.box);
+    const fill = $(ids.fill);
+    const text = $(ids.text);
+    if (!box || !text) return;
+    const state = (opts && opts.state) || '';
+    const message = (opts && opts.message) || '';
+    const pct = opts && Number.isFinite(opts.pct) ? Math.max(0, Math.min(100, opts.pct)) : null;
+    if (opts && opts.hidden) {
+        box.hidden = true;
+        box.removeAttribute('data-state');
+        if (fill) fill.style.width = '0%';
+        text.textContent = '';
+        return;
+    }
+    box.hidden = false;
+    if (state) box.setAttribute('data-state', state);
+    else box.removeAttribute('data-state');
+    if (fill && pct != null) fill.style.width = pct + '%';
+    text.textContent = message;
+}
+
+function setApplyProgress(opts) {
+    setProgressBar(
+        { box: 'ktplApplyProgress', fill: 'ktplApplyProgressFill', text: 'ktplApplyProgressText' },
+        opts
+    );
+}
+
+function setMatProgress(opts) {
+    setProgressBar(
+        { box: 'ktplMatProgress', fill: 'ktplMatProgressFill', text: 'ktplMatProgressText' },
+        opts
+    );
+}
+
+function setApplyBusy(busy) {
+    const diffBtn = $('ktplBtnDiff');
+    const applyBtn = $('ktplBtnApply');
+    if (diffBtn) diffBtn.disabled = !!busy;
+    if (applyBtn) {
+        applyBtn.disabled = !!busy;
+        applyBtn.innerHTML = busy
+            ? '<i class="bi bi-hourglass-split"></i>Wird angewendet …'
+            : '<i class="bi bi-check2-all"></i>Anwenden';
+    }
+}
+
+function setMatCopyBusy(busy) {
+    const btn = $('ktplBtnMatCopy');
+    const loadBtn = $('ktplBtnMatLoad');
+    if (loadBtn) loadBtn.disabled = !!busy;
+    if (btn) {
+        btn.disabled = !!busy || !(ui.matPicked && ui.pickedTeam && $('ktplMatChannel')?.value);
+        btn.innerHTML = busy
+            ? '<i class="bi bi-hourglass-split"></i>Wird kopiert …'
+            : '<i class="bi bi-box-arrow-in-right"></i>In Kanal kopieren';
+    }
 }
 
 function escapeHtml(s) {
@@ -107,7 +176,15 @@ const ui = {
     pickedTeam: null,
     /** @type {import('./kursteam-templates-logic.js').DiffRow[]|null} */
     lastDiff: null,
-    applyTemplateId: ''
+    applyTemplateId: '',
+    /** @type {string} */
+    matPath: 'materialien',
+    /** @type {Array<{ name: string, path: string, isFolder: boolean, size: number }>} */
+    matItems: [],
+    /** @type {{ name: string, path: string, size: number }|null} */
+    matPicked: null,
+    /** @type {Array<{ id: string, displayName: string }>} */
+    matChannels: []
 };
 
 function currentFilters() {
@@ -981,6 +1058,196 @@ function bindCatalog() {
     });
 }
 
+function formatBytes(n) {
+    const v = Number(n) || 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+    return (v / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function renderMatList() {
+    const ul = $('ktplMatList');
+    const pathEl = $('ktplMatPath');
+    const up = $('ktplBtnMatUp');
+    if (pathEl) pathEl.textContent = ui.matPath || 'materialien';
+    if (up) up.hidden = !ui.matPath || ui.matPath === 'materialien';
+    if (!ul) return;
+    if (!ui.matItems.length) {
+        ul.innerHTML = '<li class="muted" style="padding:10px 12px;">Keine Einträge. Ordner materialien in MS365-Katalog anlegen und Dateien ablegen.</li>';
+        return;
+    }
+    ul.innerHTML = ui.matItems
+        .map((item) => {
+            const active = ui.matPicked && ui.matPicked.path === item.path ? ' is-active' : '';
+            const meta = item.isFolder ? 'Ordner' : formatBytes(item.size);
+            const icon = item.isFolder ? 'bi-folder' : 'bi-file-earmark';
+            return (
+                '<li><button type="button" class="' +
+                active.trim() +
+                '" data-mat-path="' +
+                escapeHtml(item.path) +
+                '" data-mat-folder="' +
+                (item.isFolder ? '1' : '0') +
+                '" data-mat-name="' +
+                escapeHtml(item.name) +
+                '" data-mat-size="' +
+                String(item.size || 0) +
+                '"><span><i class="bi ' +
+                icon +
+                '"></i> ' +
+                escapeHtml(item.name) +
+                '</span><span class="muted">' +
+                escapeHtml(meta) +
+                '</span></button></li>'
+            );
+        })
+        .join('');
+}
+
+function renderMatPicked() {
+    const wrap = $('ktplMatCopy');
+    const picked = $('ktplMatPicked');
+    const btn = $('ktplBtnMatCopy');
+    if (wrap) wrap.hidden = false;
+    if (picked) {
+        picked.textContent = ui.matPicked
+            ? 'Datei: ' + ui.matPicked.name + ' (' + formatBytes(ui.matPicked.size) + ')'
+            : 'Keine Datei gewählt.';
+    }
+    if (btn) {
+        btn.disabled = !(ui.matPicked && ui.pickedTeam && $('ktplMatChannel')?.value);
+    }
+}
+
+async function refreshMatChannels() {
+    const sel = $('ktplMatChannel');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Kanal wählen —</option>';
+    ui.matChannels = [];
+    if (!ui.pickedTeam) {
+        renderMatPicked();
+        return;
+    }
+    try {
+        const channels = await listChannels(ui.pickedTeam.id);
+        ui.matChannels = channels;
+        for (const c of channels) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.displayName || c.id;
+            sel.appendChild(opt);
+        }
+    } catch (err) {
+        log('Kanäle für Material-Test: ' + ((err && err.message) || err));
+    }
+    renderMatPicked();
+}
+
+async function loadMatFolder(path) {
+    const data = await fetchMaterials(path || 'materialien');
+    ui.matPath = data.path || path || 'materialien';
+    ui.matItems = Array.isArray(data.items) ? data.items : [];
+    ui.matPicked = null;
+    if (data.missing) {
+        toast(data.message || 'Ordner materialien fehlt noch.');
+        log(data.message || 'Materialien fehlen.');
+    }
+    renderMatList();
+    renderMatPicked();
+}
+
+function bindMaterials() {
+    $('ktplBtnMatLoad')?.addEventListener('click', async () => {
+        try {
+            await loadMatFolder('materialien');
+            toast('Materialien geladen.');
+        } catch (err) {
+            toast((err && err.message) || String(err));
+            log('Materialien: ' + ((err && err.message) || err));
+        }
+    });
+    $('ktplBtnMatUp')?.addEventListener('click', async () => {
+        const parts = String(ui.matPath || 'materialien').split('/').filter(Boolean);
+        if (parts.length <= 1) return;
+        parts.pop();
+        try {
+            await loadMatFolder(parts.join('/'));
+        } catch (err) {
+            toast((err && err.message) || String(err));
+        }
+    });
+    $('ktplMatList')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-mat-path]');
+        if (!btn) return;
+        const path = btn.getAttribute('data-mat-path') || '';
+        const isFolder = btn.getAttribute('data-mat-folder') === '1';
+        if (isFolder) {
+            try {
+                await loadMatFolder(path);
+            } catch (err) {
+                toast((err && err.message) || String(err));
+            }
+            return;
+        }
+        ui.matPicked = {
+            name: btn.getAttribute('data-mat-name') || '',
+            path,
+            size: Number(btn.getAttribute('data-mat-size') || 0)
+        };
+        renderMatList();
+        renderMatPicked();
+    });
+    $('ktplMatChannel')?.addEventListener('change', () => renderMatPicked());
+    $('ktplBtnMatCopy')?.addEventListener('click', async () => {
+        if (!ui.pickedTeam) return toast('Zuerst ein Team wählen.');
+        if (!ui.matPicked) return toast('Zuerst eine Datei wählen.');
+        const channelId = $('ktplMatChannel')?.value || '';
+        if (!channelId) return toast('Ziel-Kanal wählen.');
+        const channelName =
+            ($('ktplMatChannel')?.selectedOptions &&
+                $('ktplMatChannel').selectedOptions[0] &&
+                $('ktplMatChannel').selectedOptions[0].textContent) ||
+            'Kanal';
+        setMatCopyBusy(true);
+        setMatProgress({
+            pct: 8,
+            message: 'Lade „' + ui.matPicked.name + '“ aus der Zentrale …'
+        });
+        try {
+            log('Lade zentral: ' + ui.matPicked.path);
+            const file = await downloadMaterialFile(ui.matPicked.path);
+            setMatProgress({
+                pct: 45,
+                message: 'Kopiere nach „' + channelName + '“ …'
+            });
+            log('Kopiere nach Kanal …');
+            const uploaded = await uploadFileToChannel(ui.pickedTeam.id, channelId, {
+                name: file.name,
+                bytes: file.bytes,
+                contentType: file.contentType
+            });
+            log('Fertig: ' + uploaded.name + (uploaded.webUrl ? ' → ' + uploaded.webUrl : ''));
+            setMatProgress({
+                state: 'ok',
+                pct: 100,
+                message: 'Erfolgreich: „' + uploaded.name + '“ liegt jetzt in „' + channelName + '“.'
+            });
+            toast('Datei erfolgreich kopiert: ' + uploaded.name);
+        } catch (err) {
+            setMatProgress({
+                state: 'error',
+                pct: 100,
+                message: 'Kopieren fehlgeschlagen: ' + ((err && err.message) || String(err))
+            });
+            toast((err && err.message) || String(err));
+            log('Material-Kopieren: ' + ((err && err.message) || err));
+        } finally {
+            setMatCopyBusy(false);
+            renderMatPicked();
+        }
+    });
+}
+
 function bindApply() {
     $('ktplApplySchoolForm')?.addEventListener('change', (e) => {
         ui.applySchoolFormFilter = e.target.value || '';
@@ -1051,6 +1318,7 @@ function bindApply() {
         if (ul) ul.hidden = true;
         ui.lastDiff = null;
         renderDiff([]);
+        refreshMatChannels();
     });
 
     $('ktplBtnDiff')?.addEventListener('click', async () => {
@@ -1087,19 +1355,71 @@ function bindApply() {
                           ui.pickedTeam.displayName +
                           '“ anwenden?'
                   )
-                : window.confirm(need + ' Änderung(en) anwenden?');
+                : typeof window.ms365AppDialogConfirm === 'function'
+                  ? await window.ms365AppDialogConfirm(
+                        need +
+                            ' Änderung(en) auf „' +
+                            ui.pickedTeam.displayName +
+                            '“ anwenden?',
+                        { title: 'Vorlage anwenden' }
+                    )
+                  : window.confirm(need + ' Änderung(en) anwenden?');
         if (!ok) return;
+        setApplyBusy(true);
+        setApplyProgress({
+            pct: 2,
+            message: 'Starte … ' + need + ' Änderung(en) an „' + ui.pickedTeam.displayName + '“.'
+        });
         try {
             log('Apply starten…');
             const results = await applyDiff(ui.lastDiff, ui.pickedTeam.id, {
                 doRename,
-                onProgress: (m) => log(m)
+                onProgress: (info) => {
+                    const msg =
+                        typeof info === 'string'
+                            ? info
+                            : info && info.message
+                              ? info.message
+                              : '';
+                    const step = info && info.step ? info.step : 0;
+                    const total = info && info.total ? info.total : need;
+                    const pct = total ? Math.round((step / total) * 100) : 0;
+                    setApplyProgress({
+                        pct: Math.max(5, pct),
+                        message: (total ? step + '/' + total + ' · ' : '') + msg
+                    });
+                    log(msg);
+                }
             });
             const fail = results.filter((r) => !r.ok);
             const okN = results.filter((r) => r.ok).length;
             log('Fertig: ' + okN + ' ok, ' + fail.length + ' Fehler.');
             fail.forEach((f) => log('  ! ' + f.name + ': ' + (f.error || '')));
-            toast(fail.length ? 'Mit Fehlern beendet – siehe Protokoll.' : 'Vorlage angewendet.');
+            if (fail.length) {
+                setApplyProgress({
+                    state: 'error',
+                    pct: 100,
+                    message:
+                        'Fertig mit Fehlern: ' +
+                        okN +
+                        ' ok, ' +
+                        fail.length +
+                        ' fehlgeschlagen. Details im Protokoll.'
+                });
+                toast('Mit Fehlern beendet – siehe Fortschritt und Protokoll.');
+            } else {
+                setApplyProgress({
+                    state: 'ok',
+                    pct: 100,
+                    message:
+                        'Erfolgreich: ' +
+                        okN +
+                        ' Änderung(en) in „' +
+                        ui.pickedTeam.displayName +
+                        '“ übernommen.'
+                });
+                toast('Vorlage erfolgreich angewendet (' + okN + ').');
+            }
             // Diff neu laden
             const tplId = $('ktplApplyTemplate')?.value || '';
             const tpl = ui.templates.find((t) => t.id === tplId);
@@ -1108,8 +1428,15 @@ function bindApply() {
                 renderDiff(diffChannels(tpl, channels));
             }
         } catch (err) {
+            setApplyProgress({
+                state: 'error',
+                pct: 100,
+                message: 'Abgebrochen: ' + ((err && err.message) || String(err))
+            });
             toast((err && err.message) || String(err));
             log('Fehler: ' + ((err && err.message) || err));
+        } finally {
+            setApplyBusy(false);
         }
     });
 }
@@ -1126,6 +1453,7 @@ function init() {
     bindTabs();
     bindManage();
     bindCatalog();
+    bindMaterials();
     bindApply();
     renderTemplateList();
     renderEditor();

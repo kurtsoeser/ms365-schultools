@@ -6,16 +6,29 @@ const { lookupLicenseFields } = require('./sharepoint-license');
 const { evaluateLicense } = require('./evaluate-license');
 
 /**
+ * @param {{ upn?: string, oid?: string }} caller
+ * @param {{ operatorUpns: string[], operatorOids: string[] }} cfg
+ */
+function isOperatorCaller(caller, cfg) {
+    const oid = String(caller && caller.oid ? caller.oid : '')
+        .trim()
+        .toLowerCase();
+    const upn = String(caller && caller.upn ? caller.upn : '')
+        .trim()
+        .toLowerCase();
+    if (oid && cfg.operatorOids.includes(oid)) return true;
+    if (upn && cfg.operatorUpns.includes(upn)) return true;
+    return false;
+}
+
+/**
  * @param {string} token
  * @returns {Promise<{ tid: string, oid: string, upn: string, name: string }>}
  */
 async function requireOperatorCaller(token) {
     const cfg = getConfig();
     const caller = await validateCallerToken(token, cfg.tokenAudiences);
-    const upn = String(caller.upn || '')
-        .trim()
-        .toLowerCase();
-    if (!upn || !cfg.operatorUpns.includes(upn)) {
+    if (!isOperatorCaller(caller, cfg)) {
         const err = new Error('Nur Betreiber-Konten dürfen Lizenzen verwalten.');
         err.status = 403;
         throw err;
@@ -31,10 +44,7 @@ async function requireOperatorCaller(token) {
 async function requireCatalogReader(token) {
     const cfg = getConfig();
     const caller = await validateCallerToken(token, cfg.tokenAudiences);
-    const upn = String(caller.upn || '')
-        .trim()
-        .toLowerCase();
-    if (upn && cfg.operatorUpns.includes(upn)) {
+    if (isOperatorCaller(caller, cfg)) {
         return { caller, isOperator: true };
     }
     const fields = await lookupLicenseFields(caller.tid);
@@ -51,4 +61,4 @@ async function requireCatalogReader(token) {
     return { caller, isOperator: false };
 }
 
-module.exports = { requireOperatorCaller, requireCatalogReader };
+module.exports = { requireOperatorCaller, requireCatalogReader, isOperatorCaller };

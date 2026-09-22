@@ -58,11 +58,13 @@ window.MS365_KURSTEAMS_API = {
 };
 
 /**
- * Lizenz-API – baseUrl nach Deploy setzen (oder in ms365-config.local.js).
- * Endpunkt: GET {baseUrl}/me  mit Authorization: Bearer <MSAL-Token>
+ * License-API – baseUrl nach Deploy setzen (oder in ms365-config.local.js).
+ * scope: delegierte Berechtigung der License-Backend-App (License.Access).
+ * Endpunkt: GET {baseUrl}/me  mit Authorization: Bearer <Access-Token>
  */
 window.MS365_LICENSE_API = {
     baseUrl: '',
+    scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
     functionKey: ''
 };
 
@@ -98,7 +100,11 @@ window.MS365_LICENSE_API = {
             }
         }
         if (!window.MS365_LICENSE_API) {
-            window.MS365_LICENSE_API = { baseUrl: '', functionKey: '' };
+            window.MS365_LICENSE_API = {
+                baseUrl: '',
+                scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
+                functionKey: ''
+            };
         }
         const lic = local.MS365_LICENSE_API;
         if (lic && lic.functionKey) {
@@ -106,6 +112,9 @@ window.MS365_LICENSE_API = {
         }
         if (lic && lic.baseUrl) {
             window.MS365_LICENSE_API.baseUrl = String(lic.baseUrl).trim();
+        }
+        if (lic && lic.scope) {
+            window.MS365_LICENSE_API.scope = String(lic.scope).trim();
         }
     } catch {
         /* lokale Overrides optional */

@@ -212,16 +212,10 @@
     }
 
     function acquireTokenForLicense() {
-        if (typeof window.ms365AuthAcquireIdToken === 'function') {
-            return window.ms365AuthAcquireIdToken(['https://graph.microsoft.com/User.Read']);
+        if (window.ms365LicenseApi && typeof window.ms365LicenseApi.acquireLicenseToken === 'function') {
+            return window.ms365LicenseApi.acquireLicenseToken();
         }
-        if (typeof window.ms365AuthAcquireIdTokenPopup === 'function') {
-            return window.ms365AuthAcquireIdTokenPopup(['https://graph.microsoft.com/User.Read']);
-        }
-        if (typeof window.ms365AuthAcquireToken === 'function') {
-            return window.ms365AuthAcquireToken(['https://graph.microsoft.com/User.Read']);
-        }
-        return Promise.reject(new Error('MSAL nicht verfügbar.'));
+        return Promise.reject(new Error('MSAL / License-API-Client nicht verfügbar.'));
     }
 
     function applyAllowed(result) {

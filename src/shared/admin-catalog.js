@@ -2,7 +2,7 @@
  * Admin: zentrale Kursteam-Vorlagen pflegen und nach SharePoint schreiben.
  * Schulen lesen denselben Katalog im Werkzeug, ohne ihn zu veröffentlichen.
  */
-import {
+    import {
     createEmptyTemplate,
     cloneTemplate,
     addTemplateChannel,
@@ -17,7 +17,9 @@ import {
     parseImportPayload,
     mergeTemplates,
     isGeneralChannelName,
-    templateContentKey
+    templateContentKey,
+    defaultMaterialsPath,
+    normalizeMaterialsPath
 } from '../tools/kursteam-templates/kursteam-templates-logic.js';
 import { STORAGE_KEY } from '../tools/kursteam-templates/kursteam-templates-storage.js';
 import { fetchCentralCatalog, publishCentralCatalog } from '../tools/kursteam-templates/kursteam-templates-catalog.js';
@@ -217,12 +219,16 @@ function renderEditor() {
     const stufe = $('adminCatStufe');
     const sem = $('adminCatSemester');
     const desc = $('adminCatDesc');
+    const matPath = $('adminCatMaterialsPath');
     if (name) name.value = tpl.name;
     fillSchoolSelect(tpl.schoolForm || '');
     if (subj) subj.value = tpl.subjectCode || '';
     if (stufe) stufe.value = tpl.schulstufe || '';
     if (sem) sem.value = tpl.semester || '';
     if (desc) desc.value = tpl.description || '';
+    if (matPath) {
+        matPath.value = tpl.materialsPath || defaultMaterialsPath(tpl.id);
+    }
     renderChannels(tpl);
 }
 
@@ -260,6 +266,10 @@ function readEditorInto(tpl) {
         schulstufe: $('adminCatStufe') ? $('adminCatStufe').value : tpl.schulstufe,
         semester: $('adminCatSemester') ? $('adminCatSemester').value : tpl.semester,
         description: $('adminCatDesc') ? $('adminCatDesc').value : tpl.description,
+        materialsPath: $('adminCatMaterialsPath')
+            ? normalizeMaterialsPath($('adminCatMaterialsPath').value) ||
+              defaultMaterialsPath(tpl.id)
+            : tpl.materialsPath,
         updatedAt: tpl.updatedAt
     });
 }
@@ -408,7 +418,9 @@ function bind() {
             renderList();
         });
     }
-    ['adminCatName', 'adminCatSubject', 'adminCatStufe', 'adminCatDesc'].forEach(bindField);
+    ['adminCatName', 'adminCatSubject', 'adminCatStufe', 'adminCatDesc', 'adminCatMaterialsPath'].forEach(
+        bindField
+    );
     $('adminCatSchool')?.addEventListener('change', () => {
         const tpl = selected();
         if (!tpl) return;
@@ -427,6 +439,38 @@ function bind() {
         if (idx >= 0) ui.templates[idx] = next;
         markDirty();
         renderList();
+    });
+
+    $('adminCatOpenMaterials')?.addEventListener('click', async () => {
+        const tpl = commitEditor();
+        if (!tpl) return setBanner('Zuerst eine Vorlage wählen.');
+        const path =
+            normalizeMaterialsPath($('adminCatMaterialsPath')?.value) ||
+            defaultMaterialsPath(tpl.id);
+        const matInput = $('adminCatMaterialsPath');
+        if (matInput) matInput.value = path;
+        const idx = ui.templates.findIndex((t) => t.id === tpl.id);
+        if (idx >= 0) {
+            ui.templates[idx] = normalizeTemplate({ ...tpl, materialsPath: path });
+            markDirty();
+        }
+        try {
+            if (
+                window.ms365AdminCatalogMaterials &&
+                typeof window.ms365AdminCatalogMaterials.openForTemplate === 'function'
+            ) {
+                const opened = await window.ms365AdminCatalogMaterials.openForTemplate(tpl.id, path);
+                setBanner(
+                    'Material-Ordner geöffnet: ' +
+                        opened +
+                        '. Nicht vergessen: Kanal-Vorlage mit „In Zentrale schreiben“ speichern.'
+                );
+            } else {
+                setBanner('Material-Modul noch nicht geladen.');
+            }
+        } catch (err) {
+            setBanner((err && err.message) || String(err));
+        }
     });
 
     $('adminCatChannelAdd')?.addEventListener('click', () => {

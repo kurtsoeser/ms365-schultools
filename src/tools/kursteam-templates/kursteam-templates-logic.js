@@ -13,6 +13,7 @@
  *   semester: string,
  *   description: string,
  *   channels: TemplateChannel[],
+ *   materialsPath?: string,
  *   updatedAt: string,
  *   origin?: 'central'|'local'|'override'
  * }} ChannelTemplate
@@ -323,6 +324,7 @@ export function normalizeTemplate(raw) {
         semester,
         description: normStr(o.description),
         channels,
+        materialsPath: normalizeMaterialsPath(o.materialsPath),
         updatedAt: normStr(o.updatedAt) || new Date().toISOString()
     };
     const origin = o.origin;
@@ -330,6 +332,31 @@ export function normalizeTemplate(raw) {
         out.origin = origin;
     }
     return out;
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normalizeMaterialsPath(raw) {
+    const s = normStr(raw).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (!s) return '';
+    if (s.includes('..')) return '';
+    const parts = s.split('/').filter(Boolean);
+    if (!parts.length || parts[0].toLowerCase() !== 'materialien') return '';
+    return parts.join('/');
+}
+
+/**
+ * @param {string} templateId
+ * @returns {string}
+ */
+export function defaultMaterialsPath(templateId) {
+    const id = normStr(templateId)
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, '-')
+        .slice(0, 80);
+    return 'materialien/' + (id || 'vorlage');
 }
 
 /**
@@ -814,6 +841,7 @@ export function templateContentKey(template) {
         t.schulstufe,
         t.semester,
         t.description,
+        t.materialsPath || '',
         t.channels.map((c) => c.displayName).join('\n')
     ].join('\u0001');
 }

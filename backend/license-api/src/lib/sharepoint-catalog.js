@@ -6,6 +6,7 @@ const { graphJson, resolveSiteId, resolveListId } = require('./sharepoint-licens
 const { buildStoredCatalog, emptyCatalog } = require('./catalog-payload');
 
 const GRAPH = 'https://graph.microsoft.com/v1.0';
+const MAX_MATERIAL_BYTES = 8 * 1024 * 1024;
 
 /** @type {{ siteId: string, listId: string, driveId: string, webUrl: string, library: string, at: number } | null} */
 let driveCache = null;
@@ -146,6 +147,11 @@ function itemMetaUrl(driveId, relPath) {
     );
 }
 
+function isMissingError(e) {
+    const msg = String(e && e.message ? e.message : e);
+    return e && (e.status === 404 || /itemNotFound|nicht gefunden/i.test(msg));
+}
+
 /**
  * Relativpfad nur unter der Materialien-Wurzel.
  * @param {unknown} raw
@@ -186,152 +192,6 @@ function normalizeMaterialsRelPath(raw, root) {
     }
     return parts.join('/');
 }
-
-/**
- * @param {string} [relPath]
- */
-async function listMaterials(relPath) {
-    const cfg = getConfig();
-    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
-    const token = await getOperatorGraphToken();
-    let drive;
-    try {
-        drive = await resolveCatalogDrive(token, { create: false });
-    } catch (e) {
-        if (isMissingError(e)) {
-            return {
-                path,
-                missing: true,
-                message: 'Bibliothek „' + cfg.catalogLibraryName + '“ fehlt.',
-                items: [],
-                webUrl: ''
-            };
-        }
-        throw e;
-    }
-    try {
-        const page = await graphJson(
-            'GET',
-            childrenUrl(drive.driveId, path) +
-                '?$select=id,name,size,file,folder,webUrl&$orderby=name&$top=200',
-            token
-        );
-        const rows = page.value || [];
-        const items = rows.map((row) => {
-            const name = String(row.name || '').trim();
-            const childPath = path + '/' + name;
-            const isFolder = !!(row.folder && typeof row.folder === 'object');
-            return {
-                id: String(row.id || ''),
-                name,
-                path: childPath,
-                isFolder,
-                size: Number(row.size) || 0,
-                mimeType:
-                    row.file && row.file.mimeType ? String(row.file.mimeType) : isFolder ? '' : 'application/octet-stream',
-                webUrl: row.webUrl || ''
-            };
-        });
-        return {
-            path,
-            missing: false,
-            message: '',
-            items,
-            webUrl: drive.webUrl || '',
-            library: cfg.catalogLibraryName
-        };
-    } catch (e) {
-        if (isMissingError(e)) {
-            return {
-                path,
-                missing: true,
-                message:
-                    'Ordner „' +
-                    path +
-                    '“ fehlt. In der Bibliothek „' +
-                    cfg.catalogLibraryName +
-                    '“ anlegen und Test-Dateien ablegen.',
-                items: [],
-                webUrl: drive.webUrl || '',
-                library: cfg.catalogLibraryName
-            };
-        }
-        throw e;
-    }
-}
-
-const MAX_MATERIAL_BYTES = 8 * 1024 * 1024;
-
-/**
- * @param {string} relPath
- * @returns {Promise<{ name: string, path: string, contentType: string, bytes: Buffer }>}
- */
-async function readMaterialFile(relPath) {
-    const cfg = getConfig();
-    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
-    if (path.toLowerCase() === String(cfg.catalogMaterialsRoot).toLowerCase()) {
-        const err = new Error('Bitte eine Datei angeben, nicht den Wurzelordner.');
-        err.status = 400;
-        throw err;
-    }
-    const token = await getOperatorGraphToken();
-    const drive = await resolveCatalogDrive(token, { create: false });
-    const meta = await graphJson('GET', itemMetaUrl(drive.driveId, path), token);
-    if (meta.folder) {
-        const err = new Error('„' + path + '“ ist ein Ordner, keine Datei.');
-        err.status = 400;
-        throw err;
-    }
-    const size = Number(meta.size) || 0;
-    if (size > MAX_MATERIAL_BYTES) {
-        const err = new Error('Datei ist größer als 8 MB (Test-Limit).');
-        err.status = 413;
-        throw err;
-    }
-    const headers = {
-        Authorization: 'Bearer ' + token
-    };
-    const res = await fetch(contentUrl(drive.driveId, path), { method: 'GET', headers });
-    if (!res.ok) {
-        const text = await res.text();
-        let msg = text || 'HTTP ' + res.status;
-        try {
-            const data = JSON.parse(text);
-            if (data && data.error && data.error.message) msg = data.error.message;
-        } catch {
-            /* Rohtext */
-        }
-        const err = new Error(msg);
-        err.status = res.status;
-        throw err;
-    }
-    const bytes = Buffer.from(await res.arrayBuffer());
-    const contentType =
-        (meta.file && meta.file.mimeType) ||
-        res.headers.get('content-type') ||
-        'application/octet-stream';
-    return {
-        name: String(meta.name || path.split('/').pop() || 'datei'),
-        path,
-        contentType: String(contentType).split(';')[0].trim() || 'application/octet-stream',
-        bytes
-    };
-}
-
-function clearCatalogCache() {
-    driveCache = null;
-}
-
-module.exports = {
-    readKursteamCatalog,
-    writeKursteamCatalog,
-    listMaterials,
-    readMaterialFile,
-    clearCatalogCache,
-    encodeDrivePath,
-    normalizeMaterialsRelPath,
-    MAX_MATERIAL_BYTES
-};
 
 /**
  * Zentrale Kursteam-Vorlagen lesen. Fehlende Bibliothek/Datei ist kein Fehler.
@@ -422,6 +282,279 @@ async function writeKursteamCatalog(body, updatedBy) {
     });
 }
 
+/**
+ * @param {string} [relPath]
+ */
+async function listMaterials(relPath) {
+    const cfg = getConfig();
+    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
+    const token = await getOperatorGraphToken();
+    let drive;
+    try {
+        drive = await resolveCatalogDrive(token, { create: false });
+    } catch (e) {
+        if (isMissingError(e)) {
+            return {
+                path,
+                missing: true,
+                message: 'Bibliothek „' + cfg.catalogLibraryName + '“ fehlt.',
+                items: [],
+                webUrl: '',
+                library: cfg.catalogLibraryName
+            };
+        }
+        throw e;
+    }
+    try {
+        const page = await graphJson(
+            'GET',
+            childrenUrl(drive.driveId, path) +
+                '?$select=id,name,size,file,folder,webUrl&$orderby=name&$top=200',
+            token
+        );
+        const rows = page.value || [];
+        const items = rows.map((row) => {
+            const name = String(row.name || '').trim();
+            const childPath = path + '/' + name;
+            const isFolder = !!(row.folder && typeof row.folder === 'object');
+            return {
+                id: String(row.id || ''),
+                name,
+                path: childPath,
+                isFolder,
+                size: Number(row.size) || 0,
+                mimeType:
+                    row.file && row.file.mimeType
+                        ? String(row.file.mimeType)
+                        : isFolder
+                          ? ''
+                          : 'application/octet-stream',
+                webUrl: row.webUrl || ''
+            };
+        });
+        return {
+            path,
+            missing: false,
+            message: '',
+            items,
+            webUrl: drive.webUrl || '',
+            library: cfg.catalogLibraryName
+        };
+    } catch (e) {
+        if (isMissingError(e)) {
+            return {
+                path,
+                missing: true,
+                message:
+                    'Ordner „' +
+                    path +
+                    '“ fehlt. In der Bibliothek „' +
+                    cfg.catalogLibraryName +
+                    '“ anlegen und Test-Dateien ablegen.',
+                items: [],
+                webUrl: drive.webUrl || '',
+                library: cfg.catalogLibraryName
+            };
+        }
+        throw e;
+    }
+}
+
+/**
+ * @param {string} relPath
+ * @returns {Promise<{ name: string, path: string, contentType: string, bytes: Buffer }>}
+ */
+async function readMaterialFile(relPath) {
+    const cfg = getConfig();
+    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
+    if (path.toLowerCase() === String(cfg.catalogMaterialsRoot).toLowerCase()) {
+        const err = new Error('Bitte eine Datei angeben, nicht den Wurzelordner.');
+        err.status = 400;
+        throw err;
+    }
+    const token = await getOperatorGraphToken();
+    const drive = await resolveCatalogDrive(token, { create: false });
+    const meta = await graphJson('GET', itemMetaUrl(drive.driveId, path), token);
+    if (meta.folder) {
+        const err = new Error('„' + path + '“ ist ein Ordner, keine Datei.');
+        err.status = 400;
+        throw err;
+    }
+    const size = Number(meta.size) || 0;
+    if (size > MAX_MATERIAL_BYTES) {
+        const err = new Error('Datei ist größer als 8 MB (Test-Limit).');
+        err.status = 413;
+        throw err;
+    }
+    const res = await fetch(contentUrl(drive.driveId, path), {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        let msg = text || 'HTTP ' + res.status;
+        try {
+            const data = JSON.parse(text);
+            if (data && data.error && data.error.message) msg = data.error.message;
+        } catch {
+            /* Rohtext */
+        }
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+    }
+    const bytes = Buffer.from(await res.arrayBuffer());
+    const contentType =
+        (meta.file && meta.file.mimeType) ||
+        res.headers.get('content-type') ||
+        'application/octet-stream';
+    return {
+        name: String(meta.name || path.split('/').pop() || 'datei'),
+        path,
+        contentType: String(contentType).split(';')[0].trim() || 'application/octet-stream',
+        bytes
+    };
+}
+
+/**
+ * @param {string} name
+ */
+function sanitizeFolderSegment(name) {
+    const cleaned = String(name || '')
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, ' ')
+        .replace(/^\.+|\.+$/g, '')
+        .slice(0, 80);
+    if (!cleaned || cleaned === '.' || cleaned === '..') {
+        const err = new Error('Ungültiger Ordnername.');
+        err.status = 400;
+        throw err;
+    }
+    return cleaned;
+}
+
+/**
+ * Legt fehlende Ordner unter materialien an (inkl. Wurzel).
+ * @param {string} relPath
+ */
+async function ensureMaterialFolder(relPath) {
+    const cfg = getConfig();
+    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
+    const token = await getOperatorGraphToken();
+    const drive = await resolveCatalogDrive(token, { create: true });
+    const parts = path.split('/').filter(Boolean);
+    let current = '';
+    for (const part of parts) {
+        const seg = sanitizeFolderSegment(part);
+        current = current ? current + '/' + seg : seg;
+        try {
+            await graphJson('GET', itemMetaUrl(drive.driveId, current), token);
+        } catch (e) {
+            if (!isMissingError(e)) throw e;
+            const parent = current.includes('/') ? current.slice(0, current.lastIndexOf('/')) : '';
+            const url = parent
+                ? childrenUrl(drive.driveId, parent)
+                : GRAPH + '/drives/' + encodeURIComponent(drive.driveId) + '/root/children';
+            try {
+                await graphJson('POST', url, token, {
+                    name: seg,
+                    folder: {},
+                    '@microsoft.graph.conflictBehavior': 'fail'
+                });
+            } catch (createErr) {
+                const msg = String(createErr && createErr.message ? createErr.message : createErr);
+                if (!/nameAlreadyExists|already exists|conflict/i.test(msg)) throw createErr;
+            }
+        }
+    }
+    return { path, webUrl: drive.webUrl || '', library: cfg.catalogLibraryName };
+}
+
+/**
+ * @param {string} parentPath
+ * @param {string} folderName
+ */
+async function createMaterialFolder(parentPath, folderName) {
+    const cfg = getConfig();
+    const parent = normalizeMaterialsRelPath(parentPath || cfg.catalogMaterialsRoot, cfg.catalogMaterialsRoot);
+    const name = sanitizeFolderSegment(folderName);
+    await ensureMaterialFolder(parent);
+    const next = parent + '/' + name;
+    await ensureMaterialFolder(next);
+    return listMaterials(parent);
+}
+
+/**
+ * @param {string} relPath full file path under materialien/
+ * @param {Buffer} bytes
+ * @param {string} [contentType]
+ */
+async function writeMaterialFile(relPath, bytes, contentType) {
+    const cfg = getConfig();
+    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
+    if (path.toLowerCase() === String(cfg.catalogMaterialsRoot).toLowerCase()) {
+        const err = new Error('Bitte Dateiname und Ordner angeben.');
+        err.status = 400;
+        throw err;
+    }
+    if (!Buffer.isBuffer(bytes)) bytes = Buffer.from(bytes || []);
+    if (!bytes.length) {
+        const err = new Error('Datei ist leer.');
+        err.status = 400;
+        throw err;
+    }
+    if (bytes.length > MAX_MATERIAL_BYTES) {
+        const err = new Error('Datei ist größer als 8 MB.');
+        err.status = 413;
+        throw err;
+    }
+    const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : cfg.catalogMaterialsRoot;
+    await ensureMaterialFolder(parent);
+    const token = await getOperatorGraphToken();
+    const drive = await resolveCatalogDrive(token, { create: true });
+    const ct = String(contentType || 'application/octet-stream').split(';')[0].trim();
+    await graphText('PUT', contentUrl(drive.driveId, path), token, bytes, ct);
+    return {
+        name: path.split('/').pop(),
+        path,
+        size: bytes.length,
+        contentType: ct,
+        webUrl: drive.webUrl || '',
+        library: cfg.catalogLibraryName
+    };
+}
+
+/**
+ * @param {string} relPath
+ */
+async function deleteMaterialItem(relPath) {
+    const cfg = getConfig();
+    const path = normalizeMaterialsRelPath(relPath, cfg.catalogMaterialsRoot);
+    if (path.toLowerCase() === String(cfg.catalogMaterialsRoot).toLowerCase()) {
+        const err = new Error('Den Wurzelordner materialien nicht löschen.');
+        err.status = 400;
+        throw err;
+    }
+    const token = await getOperatorGraphToken();
+    const drive = await resolveCatalogDrive(token, { create: false });
+    const url =
+        GRAPH + '/drives/' + encodeURIComponent(drive.driveId) + '/root:/' + encodeDrivePath(path);
+    await graphJson('DELETE', url, token);
+    const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : cfg.catalogMaterialsRoot;
+    return { deleted: true, path, parent };
+}
+
+/**
+ * Standard-Ordner einer Vorlage.
+ * @param {string} templateId
+ */
+function defaultMaterialsPathForTemplate(templateId) {
+    const cfg = getConfig();
+    const id = sanitizeFolderSegment(String(templateId || 'vorlage').replace(/^tpl-?/i, 'tpl-') || 'vorlage');
+    return cfg.catalogMaterialsRoot + '/' + id;
+}
+
 function clearCatalogCache() {
     driveCache = null;
 }
@@ -429,6 +562,15 @@ function clearCatalogCache() {
 module.exports = {
     readKursteamCatalog,
     writeKursteamCatalog,
+    listMaterials,
+    readMaterialFile,
+    ensureMaterialFolder,
+    createMaterialFolder,
+    writeMaterialFile,
+    deleteMaterialItem,
+    defaultMaterialsPathForTemplate,
     clearCatalogCache,
-    encodeDrivePath
+    encodeDrivePath,
+    normalizeMaterialsRelPath,
+    MAX_MATERIAL_BYTES
 };

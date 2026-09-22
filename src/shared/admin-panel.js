@@ -297,7 +297,7 @@ const ADMIN_TAB_META = {
     templates: {
         eyebrow: 'Katalog',
         title: 'Kursteam-Vorlagen',
-        subtitle: 'Zentrale Kanal-Vorlagen für alle Schulen. Schulen lesen sie, du pflegst sie hier.'
+        subtitle: 'Zentrale Kanal-Vorlagen und Materialien für alle Schulen.'
     },
     notes: {
         eyebrow: 'Kommunikation',

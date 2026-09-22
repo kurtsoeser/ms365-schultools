@@ -3089,6 +3089,133 @@ body.admin-app-page > .admin-app {
 }
 .admin-catalog__ch span { color: var(--text-secondary); font-size: 0.8rem; }
 .admin-catalog__empty { color: var(--text-secondary); line-height: 1.45; }
+.admin-catalog__subtabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    margin: 0 0 14px;
+    border-radius: 12px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+}
+.admin-catalog__subtabs button {
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: 650;
+    font-size: 0.88rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.admin-catalog__subtabs button.is-active {
+    background: var(--card);
+    color: var(--heading);
+    box-shadow: 0 1px 2px color-mix(in srgb, #000 10%, transparent);
+}
+.admin-catalog__path-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+.admin-catalog__path-row input { flex: 1 1 auto; min-width: 0; }
+.admin-mat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+}
+.admin-mat__bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.admin-mat__path {
+    font-size: 0.85rem;
+    word-break: break-all;
+}
+.admin-mat__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-height: 55vh;
+    overflow: auto;
+}
+.admin-mat__list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    padding: 4px 6px;
+}
+.admin-mat__list li:last-child { border-bottom: 0; }
+.admin-mat__list button.admin-mat__open {
+    flex: 1 1 auto;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+.admin-mat__list button.admin-mat__open:hover {
+    background: color-mix(in srgb, var(--brand1) 8%, transparent);
+}
+.admin-mat__list .muted { font-size: 0.8rem; color: var(--text-secondary); }
+.admin-mat__progress { margin-top: 12px; }
+.admin-mat .ktpl-apply-progress,
+.admin-mat__progress {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--soft);
+}
+.admin-mat__progress[data-state="ok"] {
+    border-color: color-mix(in srgb, #0f766e 35%, var(--border));
+    background: color-mix(in srgb, #0f766e 10%, var(--card));
+}
+.admin-mat__progress[data-state="error"] {
+    border-color: color-mix(in srgb, #b91c1c 35%, var(--border));
+    background: color-mix(in srgb, #b91c1c 10%, var(--card));
+}
+.admin-mat__progress .ktpl-apply-progress__track {
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border) 70%, transparent);
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+.admin-mat__progress .ktpl-apply-progress__fill {
+    height: 100%;
+    width: 0%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--brand1), var(--brand2));
+    transition: width 0.2s ease;
+}
+.admin-mat__progress[data-state="ok"] .ktpl-apply-progress__fill {
+    background: #0f766e;
+    width: 100% !important;
+}
+.admin-mat__progress[data-state="error"] .ktpl-apply-progress__fill { background: #b91c1c; }
+.admin-mat__progress .ktpl-apply-progress__text {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--heading);
+}
 @media (max-width: 900px) {
     .admin-catalog { grid-template-columns: 1fr; }
 }

@@ -63,6 +63,7 @@ function sanitizeTemplate(raw, index, strict) {
         semester: clip(raw.semester, 8),
         description: clip(raw.description, 2000),
         channels,
+        materialsPath: clip(raw.materialsPath, 260),
         updatedAt: clip(raw.updatedAt, 40)
     };
 }

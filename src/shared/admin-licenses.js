@@ -36,15 +36,12 @@
     }
 
     async function getToken() {
-        var acquire = null;
-        if (typeof window.ms365AuthAcquireIdToken === 'function') {
-            acquire = window.ms365AuthAcquireIdToken(['https://graph.microsoft.com/User.Read']);
-        } else if (typeof window.ms365AuthAcquireIdTokenPopup === 'function') {
-            acquire = window.ms365AuthAcquireIdTokenPopup(['https://graph.microsoft.com/User.Read']);
-        } else if (typeof window.ms365AuthAcquireToken === 'function') {
-            acquire = window.ms365AuthAcquireToken(['https://graph.microsoft.com/User.Read']);
-        } else {
-            throw new Error('Bitte mit kurt@kurtsoeser.at anmelden (MSAL).');
+        var acquire =
+            window.ms365LicenseApi && typeof window.ms365LicenseApi.acquireLicenseToken === 'function'
+                ? window.ms365LicenseApi.acquireLicenseToken()
+                : null;
+        if (!acquire) {
+            throw new Error('Bitte zuerst mit MS365 anmelden.');
         }
         return Promise.race([
             acquire,

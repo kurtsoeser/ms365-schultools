@@ -745,6 +745,104 @@
             margin: 0 0 14px;
             line-height: 1.45;
         }
+        .ktpl-materials {
+            margin-top: 22px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--soft);
+        }
+        .ktpl-materials h4 {
+            margin: 0 0 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+        }
+        .ktpl-materials__row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .ktpl-materials__path {
+            margin: 0 0 8px;
+            font-size: 0.82rem;
+            word-break: break-all;
+        }
+        .ktpl-materials__list {
+            list-style: none;
+            margin: 0 0 12px;
+            padding: 0;
+            max-height: 220px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+        }
+        .ktpl-materials__list li { border-bottom: 1px solid var(--border); }
+        .ktpl-materials__list li:last-child { border-bottom: 0; }
+        .ktpl-materials__list button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            padding: 10px 12px;
+            cursor: pointer;
+            font: inherit;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .ktpl-materials__list button.is-active {
+            background: color-mix(in srgb, var(--brand1) 12%, transparent);
+        }
+        .ktpl-materials__list .muted { font-size: 0.8rem; }
+        .ktpl-materials__copy { display: grid; gap: 10px; }
+        .ktpl-materials__picked { margin: 0; font-size: 0.9rem; }
+        .ktpl-apply-progress {
+            margin: 12px 0 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--soft);
+        }
+        .ktpl-apply-progress[data-state="ok"] {
+            border-color: color-mix(in srgb, #0f766e 35%, var(--border));
+            background: color-mix(in srgb, #0f766e 10%, var(--card));
+        }
+        .ktpl-apply-progress[data-state="error"] {
+            border-color: color-mix(in srgb, #b91c1c 35%, var(--border));
+            background: color-mix(in srgb, #b91c1c 10%, var(--card));
+        }
+        .ktpl-apply-progress__track {
+            height: 8px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--border) 70%, transparent);
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .ktpl-apply-progress__fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--brand1), var(--brand2));
+            transition: width 0.2s ease;
+        }
+        .ktpl-apply-progress[data-state="ok"] .ktpl-apply-progress__fill {
+            background: #0f766e;
+            width: 100% !important;
+        }
+        .ktpl-apply-progress[data-state="error"] .ktpl-apply-progress__fill {
+            background: #b91c1c;
+        }
+        .ktpl-apply-progress__text {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--heading);
+        }
         .btn-sm { padding: 4px 8px; font-size: 0.85em; }
     </style>
 </head>
@@ -968,6 +1066,12 @@
                     <button type="button" class="btn" id="ktplBtnDiff"><i class="bi bi-arrow-left-right"></i>Vergleichen</button>
                     <button type="button" class="btn btn-success" id="ktplBtnApply"><i class="bi bi-check2-all"></i>Anwenden</button>
                 </div>
+                <div class="ktpl-apply-progress" id="ktplApplyProgress" hidden>
+                    <div class="ktpl-apply-progress__track" aria-hidden="true">
+                        <div class="ktpl-apply-progress__fill" id="ktplApplyProgressFill"></div>
+                    </div>
+                    <p class="ktpl-apply-progress__text" id="ktplApplyProgressText" role="status" aria-live="polite"></p>
+                </div>
                 <div class="ktpl-diff-wrap">
                     <p class="ktpl-diff-summary" id="ktplDiffSummary">Noch kein Vergleich.</p>
                     <div style="overflow:auto;">
@@ -977,12 +1081,40 @@
                         </table>
                     </div>
                 </div>
+
+                <div class="ktpl-materials" id="ktplMaterialsBox">
+                    <h4><i class="bi bi-folder2-open"></i> Material-Test</h4>
+                    <p class="ktpl-hint">Eine Datei aus der zentralen Bibliothek <code>MS365-Katalog/materialien</code> in einen Kanal des gewählten Teams kopieren. Zuerst Team wählen.</p>
+                    <div class="ktpl-materials__row">
+                        <button type="button" class="btn" id="ktplBtnMatLoad"><i class="bi bi-cloud-arrow-down"></i>Materialien laden</button>
+                        <button type="button" class="btn btn-ghost" id="ktplBtnMatUp" hidden><i class="bi bi-arrow-up"></i>Hoch</button>
+                    </div>
+                    <p class="ktpl-materials__path muted" id="ktplMatPath">–</p>
+                    <ul class="ktpl-materials__list" id="ktplMatList"></ul>
+                    <div class="ktpl-materials__copy" id="ktplMatCopy" hidden>
+                        <div class="ktpl-field">
+                            <label for="ktplMatChannel">Ziel-Kanal</label>
+                            <select id="ktplMatChannel"><option value="">— Kanal wählen —</option></select>
+                        </div>
+                        <p class="ktpl-materials__picked" id="ktplMatPicked">Keine Datei gewählt.</p>
+                        <button type="button" class="btn btn-success" id="ktplBtnMatCopy" disabled><i class="bi bi-box-arrow-in-right"></i>In Kanal kopieren</button>
+                        <div class="ktpl-apply-progress" id="ktplMatProgress" hidden>
+                            <div class="ktpl-apply-progress__track" aria-hidden="true">
+                                <div class="ktpl-apply-progress__fill" id="ktplMatProgressFill"></div>
+                            </div>
+                            <p class="ktpl-apply-progress__text" id="ktplMatProgressText" role="status" aria-live="polite"></p>
+                        </div>
+                    </div>
+                </div>
+
                 <details class="tm-tech" style="margin-top:12px;"><summary>Protokoll</summary><pre id="ktplLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
             </section>
         </div>
     </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildStoredCatalog, emptyCatalog } from '../src/lib/catalog-payload.js';
-import { encodeDrivePath } from '../src/lib/sharepoint-catalog.js';
+import { encodeDrivePath, normalizeMaterialsRelPath } from '../src/lib/sharepoint-catalog.js';
 
 describe('catalog-payload', () => {
     it('speichert nur erlaubte Felder und lehnt doppelte IDs ab', () => {
@@ -67,5 +67,17 @@ describe('catalog-payload', () => {
     it('kodiert den Dateipfad je Segment', () => {
         expect(encodeDrivePath('vorlagen/kursteam-kanaele.json')).toBe('vorlagen/kursteam-kanaele.json');
         expect(encodeDrivePath('/vorlagen/mein blatt.json')).toBe('vorlagen/mein%20blatt.json');
+    });
+});
+
+describe('normalizeMaterialsRelPath', () => {
+    it('erzwingt die Materialien-Wurzel und blockiert ..', () => {
+        expect(normalizeMaterialsRelPath('', 'materialien')).toBe('materialien');
+        expect(normalizeMaterialsRelPath('materialien/Test/a.pdf', 'materialien')).toBe(
+            'materialien/Test/a.pdf'
+        );
+        expect(() => normalizeMaterialsRelPath('../geheim', 'materialien')).toThrow(/Ungültig/);
+        expect(() => normalizeMaterialsRelPath('materialien/../x', 'materialien')).toThrow(/Ungültig/);
+        expect(() => normalizeMaterialsRelPath('andere/datei.pdf', 'materialien')).toThrow(/unter/);
     });
 });
