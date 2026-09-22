@@ -968,7 +968,7 @@
                         <p class="help-open"><a href="tools/verteilerlisten.html">→ Verteilerlisten öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="eltern verteiler erziehungsberechtigte gal mail contact hidden klasse jahrgang">
+                    <article class="help-article" data-help-article data-search="eltern verteiler erziehungsberechtigte gal mail contact hidden klasse jahrgang cmd powershell">
                         <h3 id="tool-eltern-verteiler">Eltern-Verteiler <span class="pill">Exchange</span></h3>
                         <p>
                             Erziehungsberechtigte lokal den Schüler:innen zuordnen und daraus klassen- bzw. jahrgangsweise
@@ -979,12 +979,13 @@
                         <div class="mini-steps">
                             <ol>
                                 <li>Vorlage laden oder Sokrates/WebUntis-Export wählen; optional Elternspalten schon im Schülerimport.</li>
-                                <li>Klasse oder Jahrgang wählen → PowerShell erzeugen → in Exchange Online ausführen.</li>
+                                <li>Klasse oder Jahrgang wählen → <code>.cmd</code> erzeugen → Doppelklick, mit Schul-Admin anmelden, mit <code>JA</code> bestätigen.</li>
                                 <li>Lehrkräfte schreiben an die Gruppenadresse, ohne die Privatmails zu sehen.</li>
                             </ol>
                         </div>
                         <div class="rec">
-                            Alias und Anzeigename per Baustein-Schema (wie bei Kursteams), z. B. <code>eltern-1a</code>.
+                            Alias und Anzeigename per Baustein-Schema (wie bei Kursteams), z. B. <code>eltern-1a</code>
+                            oder Jahrgang <code>Eltern 1. JG</code> / <code>Eltern 1. Klassen</code> (Schulstufe aus dem Klassenkürzel).
                             Schema festlegen, bevor die erste Liste in Exchange liegt – spätere Alias-Änderungen sind aufwendig.
                         </div>
                         <p class="help-open"><a href="tools/eltern-verteiler.html">→ Eltern-Verteiler öffnen</a></p>

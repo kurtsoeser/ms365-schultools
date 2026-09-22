@@ -269,8 +269,8 @@
                 <strong>Datenschutz:</strong> Erziehungsberechtigte werden <em>nicht</em> als Benutzer oder Gäste angelegt.
                 Das Sync-Skript legt nur <strong>GAL-versteckte Mail Contacts</strong> und
                 <strong>Verteilerlisten mit versteckter Mitgliedschaft</strong> an (Gruppe selbst in der GAL sichtbar).
-                Beim Start prüft das PowerShell-Skript Modul, Exchange-Anmeldung, Schul-Domain im Mandanten und Rechte;
-                Sie müssen mit <code>JA</code> bestätigen, dass Konto und Schule stimmen (Exchange-Admin nötig).
+                Beim Start (Doppelklick auf die <code>.cmd</code>) prüft das Skript Modul, Exchange-Anmeldung, Schul-Domain im Mandanten und Rechte;
+                Sie melden sich mit dem Admin-Konto der Schule an und bestätigen mit <code>JA</code> (Exchange-Admin nötig).
             </div>
 
             <nav class="ev-tabs" id="evSetupSteps" aria-label="Einrichtungsschritte" style="margin-bottom:14px;">
@@ -373,7 +373,9 @@
                 <div class="panel-body">
                     <p class="muted" style="margin-top:0;">
                         Alias = Exchange-Mail-Nickname (nur ASCII, ohne Leerzeichen). Trenner z. B. <code>-</code> oder <code>_</code> oder leer.
-                        Beispiel: Text <code>eltern</code> + Trenner <code>-</code> + Klasse → <code>eltern-1a</code>.
+                        Beispiel: Text <code>eltern</code> + Trenner <code>-</code> + Klasse → <code>eltern-1a</code>.<br>
+                        Für Jahrgangslisten: <strong>Schulstufe</strong> kommt aus dem Klassenkürzel (1A → 1).
+                        Bausteine <code>n. JG</code> / <code>n. Klassen</code> ergeben z. B. <code>Eltern 1. JG</code> oder <code>Eltern 1. Klassen</code>.
                     </p>
                     <div class="ev-naming-grid">
                         <div class="ev-naming-block" data-ev-pattern="classAlias">
@@ -384,6 +386,9 @@
                             <div class="name-builder-palette">
                                 <button type="button" class="btn btn-small" data-ev-add-token="klasse" data-ev-for="classAlias">+ Klasse</button>
                                 <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="classAlias">+ Abschlussjahr</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="classAlias">+ Schulstufe</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="classAlias">+ n. JG</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="classAlias">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
@@ -403,6 +408,9 @@
                             <div class="name-builder-palette">
                                 <button type="button" class="btn btn-small" data-ev-add-token="klasse" data-ev-for="classDisplay">+ Klasse</button>
                                 <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="classDisplay">+ Abschlussjahr</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="classDisplay">+ Schulstufe</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="classDisplay">+ n. JG</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="classDisplay">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
@@ -421,6 +429,9 @@
                             </div>
                             <div class="name-builder-palette">
                                 <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="yearAlias">+ Abschlussjahr</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="yearAlias">+ Schulstufe</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="yearAlias">+ n. JG</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="yearAlias">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
@@ -439,6 +450,9 @@
                             </div>
                             <div class="name-builder-palette">
                                 <button type="button" class="btn btn-small" data-ev-add-token="year" data-ev-for="yearDisplay">+ Abschlussjahr</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="stufe" data-ev-for="yearDisplay">+ Schulstufe</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="jgDot" data-ev-for="yearDisplay">+ n. JG</button>
+                                <button type="button" class="btn btn-small" data-ev-add-token="klassenDot" data-ev-for="yearDisplay">+ n. Klassen</button>
                             </div>
                             <div class="name-builder-inputs">
                                 <div class="field" style="margin:0;">
@@ -504,8 +518,8 @@
                         <div class="bulk-bar">
                             <button type="button" class="btn" id="evBtnSelectAll" title="Alle Listen mit Elternmails auswählen"><i class="bi bi-check2-square"></i>Alle auswählen</button>
                             <button type="button" class="btn" id="evBtnSelectNone" title="Auswahl leeren"><i class="bi bi-square"></i>Auswahl leeren</button>
-                            <button type="button" class="btn btn-success" id="evBtnScriptSelected"><i class="bi bi-terminal"></i>Skript (Auswahl)</button>
-                            <button type="button" class="btn" id="evBtnScriptAll"><i class="bi bi-collection"></i>Skript (alle mit Eltern)</button>
+                            <button type="button" class="btn btn-success" id="evBtnScriptSelected"><i class="bi bi-terminal"></i>.cmd (Auswahl)</button>
+                            <button type="button" class="btn" id="evBtnScriptAll"><i class="bi bi-collection"></i>.cmd (alle mit Eltern)</button>
                             <span class="muted" id="evListMeta" style="font-size:0.88em;font-weight:700;"></span>
                         </div>
                         <ul class="tree tree--scroll" id="evList" aria-label="Elternlisten"></ul>
@@ -521,23 +535,24 @@
                         <div id="evDetail" hidden>
                             <p id="evDetailSummary" class="muted" style="margin-top:0;"></p>
                             <div class="detail-actions" style="margin-top:0;margin-bottom:12px;">
-                                <button type="button" class="btn btn-success" id="evBtnScriptOne"><i class="bi bi-terminal"></i>PowerShell für diese Liste</button>
+                                <button type="button" class="btn btn-success" id="evBtnScriptOne"><i class="bi bi-terminal"></i>.cmd für diese Liste</button>
                                 <label class="btn" style="cursor:pointer;margin:0;" title="Entspricht der Checkbox in der linken Liste">
                                     <input type="checkbox" id="evSelectList" style="margin-right:6px;">In Auswahl für Sammel-Skript
                                 </label>
                             </div>
                             <div id="evStudentsWrap"></div>
                             <div class="field" style="margin-top:16px;">
-                                <label for="evPsScript">Generiertes PowerShell-Skript</label>
+                                <label for="evPsScript">Generiertes Exchange-Skript</label>
                                 <p class="muted" style="margin:6px 0 8px;font-size:0.88em;">
-                                    In PowerShell 5.1+ ausführen. Vor dem Sync: Anmeldung, Domain-Check und Bestätigung mit <strong>JA</strong>.
+                                    Die <code>.cmd</code> wird automatisch heruntergeladen – Doppelklick starten, mit dem
+                                    <strong>Admin-Konto der Schule</strong> anmelden, Domain-Check und Bestätigung mit <strong>JA</strong>.
                                     Schul-Domain muss in den <a href="../tenant.html">Stammdaten</a> hinterlegt sein.
                                 </p>
                                 <textarea id="evPsScript" readonly placeholder="Skript erscheint hier …"></textarea>
                             </div>
                             <div class="detail-actions">
-                                <button type="button" class="btn btn-success" id="evPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
-                                <button type="button" class="btn" id="evPsDownload"><i class="bi bi-download"></i>.ps1 herunterladen</button>
+                                <button type="button" class="btn" id="evPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
+                                <button type="button" class="btn btn-success" id="evPsDownload"><i class="bi bi-download"></i>.cmd erneut herunterladen</button>
                             </div>
                         </div>
                     </div>
@@ -559,6 +574,7 @@
     <script src="../src/shared/action-log.js" defer></script>
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/polyglot-cmd.js" defer></script>
     <script src="../src/tools/eltern-verteiler/eltern-verteiler.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>

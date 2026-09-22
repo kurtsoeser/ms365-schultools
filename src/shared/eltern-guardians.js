@@ -40,7 +40,15 @@
         return out.length > lim ? out.slice(0, lim) : out;
     }
 
-    /** Bausteine wie Kursteams: text | klasse | year */
+    /** Bausteine: text | klasse | year | stufe | jgDot | klassenDot */
+    const FIELD_NAME_TOKENS = {
+        klasse: true,
+        year: true,
+        stufe: true,
+        jgDot: true,
+        klassenDot: true
+    };
+
     function defaultClassAliasPattern() {
         return [
             { type: 'text', value: 'eltern' },
@@ -69,6 +77,45 @@
         ];
     }
 
+    /** Führende Ziffern aus Klassenkürzel (1A → 1, 10BK → 10). */
+    function extractStufeFromKlasse(klasse) {
+        const m = String(klasse ?? '')
+            .trim()
+            .match(/^(\d{1,2})/);
+        return m ? m[1] : '';
+    }
+
+    /** Gemeinsame Schulstufe aus mehreren Klassenkürzeln; sonst erste erkannte. */
+    function extractStufeFromClassCodes(codes) {
+        const list = Array.isArray(codes) ? codes : [];
+        const found = [];
+        list.forEach(function (c) {
+            const s = extractStufeFromKlasse(c);
+            if (s && found.indexOf(s) === -1) found.push(s);
+        });
+        if (!found.length) return '';
+        if (found.length === 1) return found[0];
+        return found[0];
+    }
+
+    function resolveStufe(ctx) {
+        const c = ctx && typeof ctx === 'object' ? ctx : {};
+        const explicit = normStr(c.stufe);
+        if (explicit) return explicit.replace(/[^\d]/g, '').slice(0, 2);
+        if (normStr(c.klasse)) return extractStufeFromKlasse(c.klasse);
+        if (Array.isArray(c.classCodes) && c.classCodes.length) return extractStufeFromClassCodes(c.classCodes);
+        return '';
+    }
+
+    function formatStufeToken(type, stufe, forAlias) {
+        const n = normStr(stufe);
+        if (!n) return '';
+        if (type === 'stufe') return n;
+        if (type === 'jgDot') return forAlias ? n + 'jg' : n + '. JG';
+        if (type === 'klassenDot') return forAlias ? n + 'klassen' : n + '. Klassen';
+        return '';
+    }
+
     function normalizeNamePattern(pattern, fallback) {
         const arr = Array.isArray(pattern) ? pattern : [];
         const out = [];
@@ -76,7 +123,7 @@
             if (!p || typeof p !== 'object') return;
             const type = String(p.type || '').trim();
             if (type === 'text') out.push({ type: 'text', value: String(p.value ?? '') });
-            else if (type === 'klasse' || type === 'year') out.push({ type: type });
+            else if (FIELD_NAME_TOKENS[type]) out.push({ type: type });
         });
         if (out.length) return out;
         return Array.isArray(fallback) ? fallback.slice() : [];
@@ -86,19 +133,23 @@
         if (!t) return '';
         if (t.type === 'klasse') return 'Klasse';
         if (t.type === 'year') return 'Abschlussjahr';
+        if (t.type === 'stufe') return 'Schulstufe';
+        if (t.type === 'jgDot') return 'n. JG';
+        if (t.type === 'klassenDot') return 'n. Klassen';
         if (t.type === 'text') return 'Text';
         return String(t.type || '');
     }
 
     /**
      * @param {array} pattern
-     * @param {{ klasse?: string, year?: string, forAlias?: boolean }} ctx
+     * @param {{ klasse?: string, year?: string, stufe?: string, classCodes?: string[], forAlias?: boolean }} ctx
      */
     function buildNameFromPattern(pattern, ctx) {
         const c = ctx && typeof ctx === 'object' ? ctx : {};
         const forAlias = !!c.forAlias;
         const klasseRaw = normStr(c.klasse);
         const yearRaw = normStr(c.year);
+        const stufe = resolveStufe(c);
         const parts = [];
         normalizeNamePattern(pattern, []).forEach(function (p) {
             if (p.type === 'text') {
@@ -107,6 +158,8 @@
                 parts.push(forAlias ? String(klasseRaw).toLowerCase() : klasseRaw ? normCode(klasseRaw) : '');
             } else if (p.type === 'year') {
                 parts.push(yearRaw);
+            } else if (p.type === 'stufe' || p.type === 'jgDot' || p.type === 'klassenDot') {
+                parts.push(formatStufeToken(p.type, stufe, forAlias));
             }
         });
         const joined = parts.join('');
@@ -144,6 +197,7 @@
         return buildNameFromPattern(n.classDisplayPattern, {
             klasse: classCode,
             year: year,
+            stufe: extractStufeFromKlasse(classCode),
             forAlias: false
         });
     }
@@ -153,18 +207,31 @@
         return buildNameFromPattern(n.classAliasPattern, {
             klasse: classCode,
             year: year,
+            stufe: extractStufeFromKlasse(classCode),
             forAlias: true
         });
     }
 
-    function deriveYearParentDisplayName(year, naming) {
+    function deriveYearParentDisplayName(year, naming, classCodes) {
         const n = naming || getNaming();
-        return buildNameFromPattern(n.yearDisplayPattern, { year: year, forAlias: false });
+        const codes = Array.isArray(classCodes) ? classCodes : [];
+        return buildNameFromPattern(n.yearDisplayPattern, {
+            year: year,
+            classCodes: codes,
+            stufe: extractStufeFromClassCodes(codes),
+            forAlias: false
+        });
     }
 
-    function deriveYearParentNick(year, naming) {
+    function deriveYearParentNick(year, naming, classCodes) {
         const n = naming || getNaming();
-        return buildNameFromPattern(n.yearAliasPattern, { year: year, forAlias: true });
+        const codes = Array.isArray(classCodes) ? classCodes : [];
+        return buildNameFromPattern(n.yearAliasPattern, {
+            year: year,
+            classCodes: codes,
+            stufe: extractStufeFromClassCodes(codes),
+            forAlias: true
+        });
     }
 
     function contactAliasFromEmail(email) {
@@ -262,7 +329,8 @@
                     studentCount: row.studentCount,
                     guardianCount: emails.length,
                     guardians: emails,
-                    abschlussJahr: row.abschlussJahr
+                    abschlussJahr: row.abschlussJahr,
+                    stufe: extractStufeFromKlasse(row.code)
                 };
             })
             .sort(function (a, b) {
@@ -312,16 +380,18 @@
                 const emails = Array.from(row.guardianEmails.values()).sort(function (a, b) {
                     return a.email.localeCompare(b.email, 'de');
                 });
+                const classCodes = row.classCodes.slice().sort(function (a, b) {
+                    return String(a).localeCompare(String(b), 'de', { numeric: true });
+                });
                 return {
                     scope: 'year',
                     code: row.code,
-                    displayName: deriveYearParentDisplayName(row.code, naming),
-                    mailNickname: deriveYearParentNick(row.code, naming),
+                    displayName: deriveYearParentDisplayName(row.code, naming, classCodes),
+                    mailNickname: deriveYearParentNick(row.code, naming, classCodes),
                     graphGroupId: link && link.graphGroupId ? String(link.graphGroupId) : '',
                     lastExportAt: link && link.lastExportAt ? String(link.lastExportAt) : '',
-                    classCodes: row.classCodes.slice().sort(function (a, b) {
-                        return String(a).localeCompare(String(b), 'de', { numeric: true });
-                    }),
+                    classCodes: classCodes,
+                    stufe: extractStufeFromClassCodes(classCodes),
                     guardianCount: emails.length,
                     guardians: emails
                 };
@@ -351,7 +421,7 @@
         lines.push('# Erzeugt in der Browser-App am ' + stamp);
         lines.push('# Erwartete Schule: ' + school);
         lines.push('# Erwartete Domain: ' + (domain || '(fehlt – bitte in Stammdaten setzen)'));
-        lines.push('# Ausführen z. B.: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\eltern-verteiler-sync.ps1');
+        lines.push('# Ausführen: Doppelklick auf eltern-verteiler-….cmd (oder: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\….ps1)');
         if (readOnly) lines.push('# Modus: nur Diagnose (Get-*), keine Änderungen');
         lines.push('');
         lines.push('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
@@ -901,6 +971,8 @@
         normalizeNamePattern,
         buildNameFromPattern,
         tokenLabel,
+        extractStufeFromKlasse,
+        extractStufeFromClassCodes,
         namingFromSetup,
         getNaming,
         deriveClassParentDisplayName,

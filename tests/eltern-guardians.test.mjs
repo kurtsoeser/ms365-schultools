@@ -149,6 +149,69 @@ describe('Eltern / Erziehungsberechtigte', () => {
         expect(years[0].mailNickname).toBe('eltern_2031');
     });
 
+    it('Schulstufe-Bausteine: n. JG und n. Klassen', () => {
+        const ctx = loadModules(store);
+        const eg = ctx.ms365ElternGuardians;
+        expect(eg.extractStufeFromKlasse('1A')).toBe('1');
+        expect(eg.extractStufeFromKlasse('10BK')).toBe('10');
+        expect(eg.extractStufeFromClassCodes(['2A', '2B'])).toBe('2');
+
+        expect(
+            eg.buildNameFromPattern(
+                [
+                    { type: 'text', value: 'Eltern ' },
+                    { type: 'jgDot' }
+                ],
+                { klasse: '1A', forAlias: false }
+            )
+        ).toBe('Eltern 1. JG');
+        expect(
+            eg.buildNameFromPattern(
+                [
+                    { type: 'text', value: 'Eltern ' },
+                    { type: 'klassenDot' }
+                ],
+                { klasse: '2B', forAlias: false }
+            )
+        ).toBe('Eltern 2. Klassen');
+        expect(
+            eg.buildNameFromPattern(
+                [
+                    { type: 'text', value: 'eltern' },
+                    { type: 'jgDot' }
+                ],
+                { klasse: '1A', forAlias: true }
+            )
+        ).toBe('eltern1jg');
+
+        const naming = {
+            yearAliasPattern: [
+                { type: 'text', value: 'eltern' },
+                { type: 'jgDot' }
+            ],
+            yearDisplayPattern: [
+                { type: 'text', value: 'Eltern ' },
+                { type: 'klassenDot' }
+            ],
+            classAliasPattern: eg.defaultClassAliasPattern(),
+            classDisplayPattern: eg.defaultClassDisplayPattern()
+        };
+        const bucket = {
+            students: [{ id: 's1', klasse: '1A', name: 'A', email: 'a@s.at', guardianIds: ['g1'] }],
+            classes: [
+                { code: '1A', year: '2030' },
+                { code: '1B', year: '2030' }
+            ],
+            guardians: [{ id: 'g1', name: 'P', email: 'p@mail.com' }],
+            parentLists: []
+        };
+        const years = eg.buildYearParentSoll(bucket, { naming });
+        expect(years).toHaveLength(1);
+        expect(years[0].stufe).toBe('1');
+        expect(years[0].mailNickname).toBe('eltern1jg');
+        expect(years[0].displayName).toBe('Eltern 1. Klassen');
+    });
+
     it('patchSetup speichert Eltern-Namensschema', () => {
         const ctx = loadModules(store);
         ctx.ms365AppDataV2.patchSetup({

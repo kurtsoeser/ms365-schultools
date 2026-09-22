@@ -120,8 +120,13 @@
         const forAlias = key.indexOf('Alias') !== -1;
         const sample =
             key.indexOf('year') === 0
-                ? g.buildNameFromPattern(pattern, { year: '2030', forAlias: forAlias })
-                : g.buildNameFromPattern(pattern, { klasse: '1A', year: '2030', forAlias: forAlias });
+                ? g.buildNameFromPattern(pattern, {
+                      year: '2030',
+                      stufe: '1',
+                      classCodes: ['1A', '1B'],
+                      forAlias: forAlias
+                  })
+                : g.buildNameFromPattern(pattern, { klasse: '1A', year: '2030', stufe: '1', forAlias: forAlias });
         el.textContent = 'Vorschau: ' + sample;
     }
 
@@ -931,7 +936,7 @@
             lists.length > 1
                 ? 'sammel-' + lists.length
                 : lists[0].mailNickname || lists[0].code || 'sync';
-        toast(toastMsg || 'Skript erzeugt', 'ok');
+        downloadCmd(script, state.lastScriptLabel, toastMsg || undefined);
     }
 
     function renderList() {
@@ -1077,7 +1082,7 @@
             const p = document.createElement('p');
             p.className = 'muted';
             p.textContent =
-                'Jahrgangslisten aggregieren die Elternmails aller Klassen mit diesem Abschlussjahr. Zuordnung der Eltern erfolgt pro Schüler in der Klassenansicht.';
+                'Jahrgangslisten aggregieren die Elternmails aller Klassen mit diesem Abschlussjahr. Schulstufe-Bausteine (n. JG / n. Klassen) leiten die Nummer aus den Klassenkürzeln ab (1A → 1). Zuordnung der Eltern erfolgt pro Schüler in der Klassenansicht.';
             wrap.appendChild(p);
             const ul = document.createElement('ul');
             (row.guardians || []).forEach(function (g) {
@@ -1301,17 +1306,38 @@
         return Promise.resolve();
     }
 
-    function downloadPs(text, base) {
+    function downloadBlob(filename, text) {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'eltern-verteiler-' + (base || 'sync') + '.ps1';
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         setTimeout(function () {
             URL.revokeObjectURL(a.href);
             a.remove();
         }, 500);
+    }
+
+    /** Doppelklickbare .cmd (Polyglot): Anmeldung + Sync ohne separate .ps1 */
+    function downloadCmd(psText, base, okToast) {
+        if (typeof window.ms365BuildPolyglotCmd !== 'function') {
+            toast('polyglot-cmd.js fehlt – Seite neu laden.', 'err');
+            return;
+        }
+        const body = String(psText || '').trim();
+        if (!body) {
+            toast('Kein Skript vorhanden – zuerst erzeugen.', 'err');
+            return;
+        }
+        const label = 'eltern-verteiler-' + (base || 'sync');
+        const cmd = window.ms365BuildPolyglotCmd({
+            title: 'Eltern-Mailverteiler',
+            echoLine: 'Starte Eltern-Mailverteiler (Exchange Online) …',
+            psBody: body
+        });
+        downloadBlob(label + '.cmd', cmd);
+        toast(okToast || label + '.cmd heruntergeladen – Doppelklick zum Start.', 'ok');
     }
 
     function bind() {
@@ -1435,7 +1461,7 @@
                 const row = findRow(state.selectedKey);
                 if (!row) return toast('Keine Liste gewählt', 'err');
                 if (!row.guardianCount) return toast('Keine Elternmails für diese Liste', 'err');
-                showScriptForLists([row], 'Skript erzeugt');
+                showScriptForLists([row], '.cmd erzeugt – Doppelklick zum Start');
             });
         }
         const btnSelAll = getEl('evBtnSelectAll');
@@ -1451,7 +1477,7 @@
                         return r && r.guardianCount > 0;
                     });
                 if (!lists.length) return toast('Keine Listen ausgewählt (Checkboxen links oder „Alle auswählen“)', 'err');
-                showScriptForLists(lists, 'Sammel-Skript erzeugt (' + lists.length + ')');
+                showScriptForLists(lists, 'Sammel-.cmd erzeugt (' + lists.length + ') – Doppelklick zum Start');
             });
         }
         const btnAll = getEl('evBtnScriptAll');
@@ -1461,7 +1487,7 @@
                     return r.guardianCount > 0;
                 });
                 if (!lists.length) return toast('Keine Listen mit Elternmails', 'err');
-                showScriptForLists(lists, 'Skript für ' + lists.length + ' Listen');
+                showScriptForLists(lists, '.cmd für ' + lists.length + ' Listen – Doppelklick zum Start');
             });
         }
         const copy = getEl('evPsCopy');
@@ -1479,7 +1505,7 @@
                 const base =
                     state.lastScriptLabel ||
                     (row ? row.mailNickname || row.code : 'sync');
-                downloadPs(ta ? ta.value : '', base);
+                downloadCmd(ta ? ta.value : '', base);
             });
         }
     }
