@@ -158,6 +158,7 @@
         const openEl = $('licOpenLink');
         if (openEl) {
             openEl.href = webUrl;
+            openEl.hidden = false;
             openEl.style.display = '';
         }
         return { siteId: siteId, listId: String(list.id), webUrl: webUrl };
@@ -208,8 +209,15 @@
                 const logEl = $('licSetupLog');
                 if (logEl) logEl.textContent = '';
                 runSetup()
-                    .then(function () {
+                    .then(function (result) {
                         toast('Lizenz-Liste ist bereit.');
+                        try {
+                            document.dispatchEvent(
+                                new CustomEvent('ms365-license-list-setup-done', { detail: result || {} })
+                            );
+                        } catch {
+                            /* ignore */
+                        }
                     })
                     .catch(function (e) {
                         log('Fehler: ' + ((e && e.message) || e));
@@ -225,5 +233,74 @@
         wire();
     }
 
-    window.ms365LicenseListSetup = { runSetup: runSetup, probeSite: probeSite };
+    /**
+     * Prüft, welche Schema-Spalten fehlen (ohne etwas anzulegen).
+     * @returns {Promise<{ siteId: string, listId: string|null, present: string[], missing: string[], listExists: boolean }>}
+     */
+    async function checkSchemaStatus() {
+        const siteUrl = String(($('licSiteUrl') && $('licSiteUrl').value) || cfg().siteWebUrl || '').trim();
+        const listTitle = String(($('licListName') && $('licListName').value) || cfg().listDisplayName || '').trim();
+        if (!siteUrl) throw new Error('Site-URL fehlt.');
+        if (!listTitle) throw new Error('Listenname fehlt.');
+
+        const token = await ensureToken();
+        const site = await G.resolveSiteFromWebUrl(token, siteUrl);
+        const siteId = site && site.id ? String(site.id) : '';
+        if (!siteId) throw new Error('Site-ID fehlt in der Graph-Antwort.');
+
+        const required = [
+            'TenantId',
+            'PrimaryDomain',
+            'AdditionalDomains',
+            'Status',
+            'ValidUntil',
+            'ContactEmail',
+            'Notes'
+        ];
+        const list = await findListByDisplayName(siteId, listTitle, token);
+        if (!list || !list.id) {
+            return {
+                siteId: siteId,
+                listId: null,
+                listExists: false,
+                present: [],
+                missing: required.slice()
+            };
+        }
+
+        const base = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(list.id) + '/columns';
+        const existing = await G.graphJson(
+            'GET',
+            base + '?$select=name,displayName&$top=200',
+            token,
+            undefined,
+            'v1.0'
+        );
+        const have = {};
+        ((existing && existing.value) || []).forEach(function (c) {
+            if (c && c.name) have[String(c.name).toLowerCase()] = true;
+        });
+
+        const present = [];
+        const missing = [];
+        required.forEach(function (name) {
+            if (have[String(name).toLowerCase()]) present.push(name);
+            else missing.push(name);
+        });
+
+        return {
+            siteId: siteId,
+            listId: String(list.id),
+            listExists: true,
+            present: present,
+            missing: missing,
+            webUrl: list.webUrl || ''
+        };
+    }
+
+    window.ms365LicenseListSetup = {
+        runSetup: runSetup,
+        probeSite: probeSite,
+        checkSchemaStatus: checkSchemaStatus
+    };
 })();

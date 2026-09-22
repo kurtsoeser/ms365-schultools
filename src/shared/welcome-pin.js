@@ -9,7 +9,13 @@ import {
     resolveReturnUrl
 } from './pin-gate-core.js';
 import { getActiveUserAccessConfig } from './access-override-store.js';
-import { loadReleaseNotes, getNewReleaseNotes, getLastSeenAt, setLastSeenAt } from './release-notes-store.js';
+import {
+    loadReleaseNotes,
+    getNewReleaseNotes,
+    getLastSeenAt,
+    setLastSeenAt,
+    loadMergedReleaseNotes
+} from './release-notes-store.js';
 
 (function () {
     'use strict';
@@ -77,7 +83,7 @@ import { loadReleaseNotes, getNewReleaseNotes, getLastSeenAt, setLastSeenAt } fr
         if (wrap) wrap.style.display = 'none';
     }
 
-    form.addEventListener('submit', function (event) {
+    form.addEventListener('submit', async function (event) {
         event.preventDefault();
         hideReleaseNotes();
         showError('');
@@ -126,7 +132,9 @@ import { loadReleaseNotes, getNewReleaseNotes, getLastSeenAt, setLastSeenAt } fr
         if (submitBtn) submitBtn.disabled = true;
         grantAccess();
 
-        const notes = loadReleaseNotes(localStorage);
+        const notes = await loadMergedReleaseNotes(localStorage).catch(function () {
+            return loadReleaseNotes(localStorage);
+        });
         const lastSeenAt = getLastSeenAt(localStorage);
         const newNotes = getNewReleaseNotes({ notes: notes, lastSeenAtIso: lastSeenAt });
 
@@ -139,32 +147,26 @@ import { loadReleaseNotes, getNewReleaseNotes, getLastSeenAt, setLastSeenAt } fr
             return;
         }
 
-        const fmt = new Intl.DateTimeFormat('de-AT', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
         list.replaceChildren();
+        const ui = window.ms365ReleaseNotesUi;
         newNotes.forEach((n) => {
+            if (ui && typeof ui.renderNoteCard === 'function') {
+                list.appendChild(ui.renderNoteCard(n));
+                return;
+            }
             const note = document.createElement('div');
             note.className = 'note';
-
             const h = document.createElement('h4');
             h.textContent = n.title || '(ohne Titel)';
-
-            const meta = document.createElement('div');
-            meta.className = 'meta';
-            meta.textContent = n.at && !Number.isNaN(new Date(n.at).getTime()) ? `Stand: ${fmt.format(new Date(n.at))}` : '';
-
-            const pre = document.createElement('pre');
-            pre.textContent = n.body || '';
-
+            const body = document.createElement('div');
+            if (n.bodyHtml) body.innerHTML = n.bodyHtml;
+            else {
+                const pre = document.createElement('pre');
+                pre.textContent = n.body || '';
+                body.appendChild(pre);
+            }
             note.appendChild(h);
-            note.appendChild(meta);
-            note.appendChild(pre);
+            note.appendChild(body);
             list.appendChild(note);
         });
 

@@ -2,7 +2,12 @@ import {
     loadReleaseNotes,
     appendReleaseNote,
     saveReleaseNotes,
-    setLastSeenAt
+    updateReleaseNote,
+    deleteReleaseNote,
+    setLastSeenAt,
+    loadMergedReleaseNotes,
+    sanitizeReleaseHtml,
+    toPublishedJson
 } from './release-notes-store.js';
 import { loadAccessOverride, saveAccessOverride } from './access-override-store.js';
 
@@ -26,6 +31,92 @@ function renderPins(pins) {
     el.value = Array.isArray(pins) ? pins.join('\n') : '';
 }
 
+/** @type {Array<{ src: string, alt: string }>} */
+let draftImages = [];
+/** @type {Array<object>} */
+let notesCache = [];
+
+function selectedKind() {
+    const el = document.querySelector('input[name="adminRnKind"]:checked');
+    return el ? String(el.value) : 'feature';
+}
+
+function setSelectedKind(kind) {
+    const want = String(kind || 'feature');
+    document.querySelectorAll('input[name="adminRnKind"]').forEach((input) => {
+        input.checked = input.value === want;
+    });
+}
+
+function editorEl() {
+    return $('adminReleaseBodyEditor');
+}
+
+function getEditorHtml() {
+    const el = editorEl();
+    return sanitizeReleaseHtml(el ? el.innerHTML : '');
+}
+
+function setEditorHtml(html) {
+    const el = editorEl();
+    if (el) el.innerHTML = sanitizeReleaseHtml(html || '');
+}
+
+function renderImagePreviews() {
+    const wrap = $('adminRnImagePreview');
+    if (!wrap) return;
+    wrap.replaceChildren();
+    draftImages.forEach((img, idx) => {
+        const fig = document.createElement('figure');
+        fig.className = 'admin-rn-thumb';
+        const image = document.createElement('img');
+        image.src = img.src;
+        image.alt = img.alt || 'Screenshot';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'admin-rn-thumb__remove';
+        btn.setAttribute('aria-label', 'Screenshot entfernen');
+        btn.innerHTML = '&times;';
+        btn.addEventListener('click', () => {
+            draftImages.splice(idx, 1);
+            renderImagePreviews();
+        });
+        fig.appendChild(image);
+        fig.appendChild(btn);
+        wrap.appendChild(fig);
+    });
+}
+
+function resetEditor() {
+    if ($('adminReleaseTitleInput')) $('adminReleaseTitleInput').value = '';
+    setEditorHtml('');
+    draftImages = [];
+    renderImagePreviews();
+    setSelectedKind('feature');
+    if ($('adminRnEditingId')) $('adminRnEditingId').value = '';
+    const heading = $('adminRnEditorHeading');
+    if (heading) heading.textContent = 'Neuer Eintrag';
+    const saveLabel = $('adminRnSaveLabel');
+    if (saveLabel) saveLabel.textContent = 'Speichern';
+    const cancel = $('adminRnCancelEditBtn');
+    if (cancel) cancel.hidden = true;
+}
+
+function fillEditor(note) {
+    if ($('adminReleaseTitleInput')) $('adminReleaseTitleInput').value = note.title || '';
+    setEditorHtml(note.bodyHtml || '');
+    draftImages = Array.isArray(note.images) ? note.images.map((x) => ({ src: x.src, alt: x.alt || '' })) : [];
+    renderImagePreviews();
+    setSelectedKind(note.kind || 'feature');
+    if ($('adminRnEditingId')) $('adminRnEditingId').value = note.id || '';
+    const heading = $('adminRnEditorHeading');
+    if (heading) heading.textContent = 'Eintrag bearbeiten';
+    const saveLabel = $('adminRnSaveLabel');
+    if (saveLabel) saveLabel.textContent = 'Aktualisieren';
+    const cancel = $('adminRnCancelEditBtn');
+    if (cancel) cancel.hidden = false;
+}
+
 function renderNotesList(notes) {
     const wrap = $('adminReleaseNotesList');
     if (!wrap) return;
@@ -39,28 +130,150 @@ function renderNotesList(notes) {
         return;
     }
 
+    const ui = window.ms365ReleaseNotesUi;
     notes.forEach((n) => {
+        if (ui && typeof ui.renderNoteCard === 'function') {
+            wrap.appendChild(
+                ui.renderNoteCard(n, {
+                    editable: true,
+                    onEdit: fillEditor,
+                    onDelete: (note) => {
+                        if (!confirm('Diesen Eintrag lokal löschen?')) return;
+                        deleteReleaseNote(note.id, localStorage);
+                        refresh();
+                    }
+                })
+            );
+            return;
+        }
         const div = document.createElement('article');
         div.className = 'admin-app__note';
-
-        const h = document.createElement('h4');
-        h.className = 'admin-app__note-title';
-        h.textContent = n.title || '(ohne Titel)';
-
-        const meta = document.createElement('div');
-        meta.className = 'admin-app__note-meta';
-        const d = n.at ? new Date(n.at) : null;
-        meta.textContent = d && !Number.isNaN(d.getTime()) ? `Stand: ${d.toLocaleString('de-AT')}` : 'Stand: -';
-
-        const pre = document.createElement('pre');
-        pre.className = 'admin-app__note-body';
-        pre.textContent = n.body || '';
-
-        div.appendChild(h);
-        div.appendChild(meta);
-        div.appendChild(pre);
+        div.textContent = n.title || '(ohne Titel)';
         wrap.appendChild(div);
     });
+}
+
+async function addImagesFromFiles(fileList) {
+    const ui = window.ms365ReleaseNotesUi;
+    const files = Array.from(fileList || []).filter((f) => f && /^image\//i.test(f.type));
+    if (!files.length) return;
+    if (!ui || typeof ui.compressImageFile !== 'function') {
+        alert('Bild-Hilfe nicht geladen.');
+        return;
+    }
+    for (const file of files) {
+        if (draftImages.length >= 6) break;
+        try {
+            const compressed = await ui.compressImageFile(file, file.name);
+            if (compressed.bytes > 900000) {
+                alert('Screenshot nach Kompression noch zu groß – bitte kleineres Bild wählen.');
+                continue;
+            }
+            draftImages.push({ src: compressed.src, alt: compressed.alt });
+        } catch (e) {
+            alert('Bild fehlgeschlagen: ' + ((e && e.message) || e));
+        }
+    }
+    renderImagePreviews();
+}
+
+function wireReleaseEditor() {
+    document.querySelectorAll('.admin-rn-toolbar [data-rn-cmd]').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            const cmd = btn.getAttribute('data-rn-cmd');
+            const ed = editorEl();
+            if (!ed) return;
+            ed.focus();
+            if (cmd === 'createLink') {
+                const url = window.prompt('Link-URL (https://…)', 'https://');
+                if (!url) return;
+                document.execCommand('createLink', false, url);
+            } else {
+                document.execCommand(cmd, false, null);
+            }
+        });
+    });
+
+    const drop = $('adminRnDropzone');
+    const pick = $('adminRnPickImageBtn');
+    const fileInput = $('adminRnImageInput');
+    if (pick && fileInput) {
+        pick.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            addImagesFromFiles(fileInput.files);
+            fileInput.value = '';
+        });
+    }
+    if (drop) {
+        ['dragenter', 'dragover'].forEach((evt) => {
+            drop.addEventListener(evt, (e) => {
+                e.preventDefault();
+                drop.classList.add('is-dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach((evt) => {
+            drop.addEventListener(evt, (e) => {
+                e.preventDefault();
+                drop.classList.remove('is-dragover');
+            });
+        });
+        drop.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            if (dt && dt.files) addImagesFromFiles(dt.files);
+        });
+        drop.addEventListener('paste', (e) => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            const files = [];
+            for (const item of items) {
+                if (item.type && item.type.indexOf('image') === 0) {
+                    const f = item.getAsFile();
+                    if (f) files.push(f);
+                }
+            }
+            if (files.length) {
+                e.preventDefault();
+                addImagesFromFiles(files);
+            }
+        });
+    }
+
+    const ed = editorEl();
+    if (ed) {
+        ed.addEventListener('paste', (e) => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type && item.type.indexOf('image') === 0) {
+                    e.preventDefault();
+                    const f = item.getAsFile();
+                    if (f) addImagesFromFiles([f]);
+                    return;
+                }
+            }
+        });
+    }
+
+    const cancel = $('adminRnCancelEditBtn');
+    if (cancel) cancel.addEventListener('click', resetEditor);
+
+    const exportBtn = $('adminExportReleaseNotesBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const json = toPublishedJson(notesCache.length ? notesCache : loadReleaseNotes(localStorage));
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'release-notes.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 250);
+            alert('Datei speichern als public/release-notes.json und committen – dann sehen alle Schulen die Notes nach dem Deploy.');
+        });
+    }
 }
 
 const ADMIN_TAB_META = {
@@ -76,13 +289,13 @@ const ADMIN_TAB_META = {
     },
     setup: {
         eyebrow: 'Technik',
-        title: 'Setup & Links',
-        subtitle: 'Liste anlegen, API prüfen und SharePoint öffnen.'
+        title: 'Setup & Diagnose',
+        subtitle: 'Was noch fehlt: SharePoint-Spalten und API – Freischaltungen laufen über Lizenzen.'
     },
     notes: {
         eyebrow: 'Kommunikation',
         title: 'Neuigkeiten',
-        subtitle: 'Release-Notes, die Schulen beim nächsten Öffnen sehen.'
+        subtitle: 'Release-Notes mit Editor und Screenshots – auch automatisch aus GitHub-Commits.'
     }
 };
 
@@ -116,6 +329,29 @@ function setAdminTab(tabId) {
     } catch {
         // ignore
     }
+
+    try {
+        if (location.hash.replace(/^#/, '') !== id) {
+            history.replaceState(null, '', '#' + id);
+        }
+    } catch {
+        // ignore
+    }
+}
+
+function tabFromLocation() {
+    try {
+        const hash = String(location.hash || '')
+            .replace(/^#/, '')
+            .trim()
+            .toLowerCase();
+        if (hash && ADMIN_TAB_META[hash]) return hash;
+        const q = new URLSearchParams(location.search).get('tab');
+        if (q && ADMIN_TAB_META[q]) return q;
+    } catch {
+        // ignore
+    }
+    return null;
 }
 
 function initAdminTabs() {
@@ -144,15 +380,24 @@ function initAdminTabs() {
         setAdminTab(buttons[next].getAttribute('data-admin-tab'));
     });
 
-    let initial = 'licenses';
-    try {
-        const stored = localStorage.getItem(ADMIN_TAB_STORAGE_KEY);
-        if (stored && ADMIN_TAB_META[stored]) initial = stored;
-    } catch {
-        // ignore
+    window.addEventListener('hashchange', () => {
+        const fromHash = tabFromLocation();
+        if (fromHash) setAdminTab(fromHash);
+    });
+
+    let initial = tabFromLocation() || 'licenses';
+    if (!tabFromLocation()) {
+        try {
+            const stored = localStorage.getItem(ADMIN_TAB_STORAGE_KEY);
+            if (stored && ADMIN_TAB_META[stored]) initial = stored;
+        } catch {
+            // ignore
+        }
     }
     setAdminTab(initial);
 }
+
+window.ms365AdminSetTab = setAdminTab;
 
 function init() {
     initAdminTabs();
@@ -204,20 +449,34 @@ function init() {
         if ($('adminAccessEnabled') && ov && typeof ov.enabled === 'boolean') $('adminAccessEnabled').checked = ov.enabled;
     }
 
+    wireReleaseEditor();
+
     const btnAddNote = $('adminAddReleaseNoteBtn');
     if (btnAddNote) {
         btnAddNote.addEventListener('click', function () {
             const title = $('adminReleaseTitleInput') ? $('adminReleaseTitleInput').value : '';
-            const body = $('adminReleaseBodyInput') ? $('adminReleaseBodyInput').value : '';
             const t = String(title || '').trim();
-            const b = String(body || '').trim();
-            if (!t || !b) {
-                alert('Bitte Titel und Text für die Release-Note eingeben.');
+            const bodyHtml = getEditorHtml();
+            const plain = String(editorEl() ? editorEl().innerText : '').trim();
+            if (!t || (!bodyHtml && !plain && !draftImages.length)) {
+                alert('Bitte Titel und Text (oder Screenshot) eingeben.');
                 return;
             }
-            appendReleaseNote({ title: t, body: b, at: new Date().toISOString() }, localStorage);
-            if ($('adminReleaseTitleInput')) $('adminReleaseTitleInput').value = '';
-            if ($('adminReleaseBodyInput')) $('adminReleaseBodyInput').value = '';
+            const editingId = $('adminRnEditingId') ? String($('adminRnEditingId').value || '').trim() : '';
+            const payload = {
+                title: t,
+                bodyHtml: bodyHtml || '<p>' + plain.replace(/</g, '&lt;') + '</p>',
+                kind: selectedKind(),
+                source: 'local',
+                images: draftImages.slice(),
+                at: new Date().toISOString()
+            };
+            if (editingId) {
+                updateReleaseNote(editingId, payload, localStorage);
+            } else {
+                appendReleaseNote(payload, localStorage);
+            }
+            resetEditor();
             refresh();
         });
     }
@@ -225,9 +484,8 @@ function init() {
     const btnClearNotes = $('adminClearReleaseNotesBtn');
     if (btnClearNotes) {
         btnClearNotes.addEventListener('click', function () {
-            if (!confirm('Release-Notes wirklich löschen?')) return;
+            if (!confirm('Nur lokal gespeicherte Release-Notes löschen? (Die veröffentlichte JSON bleibt.)')) return;
             saveReleaseNotes([], localStorage);
-            // last-seen zurücksetzen, damit User beim nächsten Öffnen wieder etwas sehen.
             setLastSeenAt('', localStorage);
             refresh();
         });
@@ -246,9 +504,13 @@ function init() {
         });
     }
 
-    function refresh() {
-        const notes = loadReleaseNotes(localStorage);
-        renderNotesList(notes);
+    async function refresh() {
+        try {
+            notesCache = await loadMergedReleaseNotes(localStorage);
+        } catch {
+            notesCache = loadReleaseNotes(localStorage);
+        }
+        renderNotesList(notesCache);
         refreshPins();
     }
 
@@ -288,7 +550,6 @@ function init() {
                     }
                     if (data && data.releaseNotes) {
                         saveReleaseNotes(data.releaseNotes, localStorage);
-                        // Damit die neu hinzugefügten Hinweise für die neue Schule sichtbar sind:
                         setLastSeenAt('', localStorage);
                     }
                     alert('Import abgeschlossen.');

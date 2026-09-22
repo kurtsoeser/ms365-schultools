@@ -1,0 +1,11 @@
+[
+  {
+    "id": "rn_admin_shell_2026-09-22",
+    "at": "2026-09-22T18:00:00.000Z",
+    "title": "Admin mit Tabs und Lizenzverwaltung",
+    "kind": "feature",
+    "source": "manual",
+    "bodyHtml": "<p>Der Admin-Bereich ist neu als App-Shell aufgebaut: <strong>Lizenzen</strong>, Zugänge, Setup und Neuigkeiten.</p><ul><li>Schulen direkt in der Tabelle freischalten</li><li>Setup zeigt klar, was noch fehlt (z.&nbsp;B. SharePoint-Spalten)</li></ul>",
+    "images": []
+  }
+]
