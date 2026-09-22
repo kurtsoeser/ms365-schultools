@@ -56,6 +56,10 @@ function getConfig() {
         allowedTenantIds: parseTenantAllowlist(),
         tokenAudiences: tokenAudiences(clientId),
         operatorRoleTemplateIds: operatorRoleTemplateIds(),
+        licenseApiBaseUrl: env(
+            'LICENSE_API_BASE_URL',
+            'https://func-ms365-license-dev.azurewebsites.net/api/license'
+        ),
         storageConnectionString: env('AzureWebJobsStorage'),
         queueName: env('KURSTEAMS_JOB_QUEUE', 'kursteam-jobs'),
         blobContainer: env('KURSTEAMS_JOB_CONTAINER', 'kursteam-jobs')

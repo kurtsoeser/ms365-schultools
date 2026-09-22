@@ -205,6 +205,7 @@ async function apiRequest(path, options) {
     const method = (options && options.method) || 'GET';
     const body = options && options.body;
     const anonymous = !!(options && options.anonymous);
+    const withLicense = !!(options && options.withLicense);
     const url = cfg.baseUrl + path;
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -215,6 +216,17 @@ async function apiRequest(path, options) {
         const token = await window.ms365AuthAcquireToken([cfg.scope]);
         if (!token) throw new Error('Kein Anmelde-Token für Kursteams.');
         headers.Authorization = 'Bearer ' + token;
+    }
+    if (withLicense) {
+        if (
+            !window.ms365LicenseApi ||
+            typeof window.ms365LicenseApi.acquireLicenseToken !== 'function'
+        ) {
+            throw new Error('License-API-Client fehlt – Seite neu laden.');
+        }
+        const licToken = await window.ms365LicenseApi.acquireLicenseToken();
+        if (!licToken) throw new Error('Kein Lizenz-Token.');
+        headers['X-MS365-License-Authorization'] = 'Bearer ' + licToken;
     }
     const res = await fetch(url, {
         method,
@@ -537,6 +549,7 @@ async function runKursteamBackend() {
 
         const created = await apiRequest('/jobs', {
             method: 'POST',
+            withLicense: true,
             body: {
                 mailDomain: resolveMailDomain(pack),
                 teams: pack.teams

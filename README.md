@@ -66,7 +66,9 @@ Die Datei **`tools/kursteams.html`** lädt die Schritte über Module unter **`sr
 Wenn Sie die Client-ID nicht öffentlich im Repo haben möchten, löschen Sie `ms365-config.js` aus dem Repo und legen Sie sie
 in Ihrem Deployment (Pages/Hosting) separat ab – dann muss die Datei weiterhin im Root erreichbar sein.
 
-**Kursteams-Backend:** Die Seite sendet das Anmelde-Token (`Kursteams.Create`). Einen Function Key nicht in `ms365-config.js`, `ms365-config.local.js` oder GitHub Pages legen.
+**Kursteams-Backend:** Die Seite sendet das Anmelde-Token (`Kursteams.Create`) plus ein Lizenz-Token (`License.Access` im Header `X-MS365-License-Authorization`). Das Backend prüft die Tenant-Freischaltung über die License-API. Einen Function Key nicht in `ms365-config.js`, `ms365-config.local.js` oder GitHub Pages legen. Auf der Function App muss `LICENSE_API_BASE_URL` gesetzt sein.
+
+**Lizenz-Modell:** Das Overlay im Browser ist nur UX. Werkzeuge, die Microsoft Graph **im Namen des angemeldeten Kontos** nutzen, bleiben an Entra-Rechte gebunden – sie erzwingen keine bezahlte Tenant-Lizenz. App-Only-Aktionen (Kursteams-Jobs) werden serverseitig gegen die License-API geprüft.
 
 | Umgebung | Lizenz-API |
 |----------|------------|

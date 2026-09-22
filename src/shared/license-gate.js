@@ -1,6 +1,7 @@
 /**
- * Phase 3 – Lizenz-Gate nach MSAL-Login.
+ * Phase 3 – Lizenz-Gate nach MSAL-Login (nur UX-Overlay).
  * Ohne MS365_LICENSE_API.baseUrl: kein Gate (lokale Dev ohne Backend).
+ * App-Only-Aktionen (Kursteams-Backend) prüfen die Lizenz serverseitig.
  */
 (function () {
     'use strict';

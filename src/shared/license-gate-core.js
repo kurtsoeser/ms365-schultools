@@ -1,11 +1,15 @@
 /**
  * Phase 3 – Lizenz-Gate Kernlogik (ohne DOM).
+ *
+ * Das Overlay ist nur UX. Werkzeuge mit Graph im Namen des Users bleiben an Entra
+ * gebunden. App-Only-Aktionen (Kursteams-Backend) prüfen die Lizenz serverseitig.
  */
 (function (global) {
     'use strict';
 
     var CACHE_KEY = 'ms365-license-me-v1';
-    var TTL_MS = 30 * 60 * 1000;
+    /** Kurz halten – Cache ist nur Komfort, nicht Vertrauensgrenze. */
+    var TTL_MS = 10 * 60 * 1000;
 
     function isExemptPath(pathname) {
         var p = String(pathname || '');
@@ -31,8 +35,11 @@
             if (!raw) return null;
             var data = JSON.parse(raw);
             if (!data || typeof data !== 'object') return null;
+            if (typeof data.allowed !== 'boolean') return null;
             var at = Number(data.checkedAt || 0);
             if (!at || Date.now() - at > TTL_MS) return null;
+            if (!String(data.accountKey || '').trim()) return null;
+            if (!String(data.tenantId || '').trim()) return null;
             return data;
         } catch (e) {
             return null;
@@ -43,16 +50,19 @@
         var store = storage || (typeof sessionStorage !== 'undefined' ? sessionStorage : null);
         if (!store) return;
         try {
+            var tid = result && result.tenantId ? String(result.tenantId).trim() : '';
+            var key = String(accountKey || '').trim();
+            if (!tid || !key) return;
             store.setItem(
                 CACHE_KEY,
                 JSON.stringify({
                     allowed: !!(result && result.allowed),
                     reason: result && result.reason ? String(result.reason) : '',
                     message: result && result.message ? String(result.message) : '',
-                    tenantId: result && result.tenantId ? String(result.tenantId) : '',
+                    tenantId: tid,
                     license: (result && result.license) || null,
                     user: (result && result.user) || null,
-                    accountKey: String(accountKey || ''),
+                    accountKey: key,
                     checkedAt: Date.now()
                 })
             );
@@ -76,6 +86,9 @@
             if (typeof global.ms365AuthGetAccountInfo === 'function') {
                 var info = global.ms365AuthGetAccountInfo();
                 if (info) {
+                    var oid = String(info.oid || '').trim();
+                    var tid = String(info.tenantId || '').trim();
+                    if (oid && tid) return oid + '|' + tid;
                     return String(info.oid || info.upn || info.username || info.tenantId || '').trim();
                 }
             }

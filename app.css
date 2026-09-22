@@ -1327,6 +1327,14 @@ input[type="file"] { display: none; }
 .ms365-license-gate[hidden] {
     display: none !important;
 }
+/* Overlay ist UX – bei Sperr-/Login-Zustand Interaktion mit der Seite unterbinden */
+html[data-ms365-license="denied"] body > *:not(.ms365-license-gate),
+html[data-ms365-license="login"] body > *:not(.ms365-license-gate),
+html[data-ms365-license="error"] body > *:not(.ms365-license-gate),
+html[data-ms365-license="checking"] body > *:not(.ms365-license-gate) {
+    pointer-events: none;
+    user-select: none;
+}
 .ms365-license-gate__card {
     width: min(520px, 100%);
     background: var(--card-bg, #fff);

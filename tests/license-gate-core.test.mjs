@@ -46,14 +46,40 @@ describe('license-gate-core', () => {
         const { core, storage } = loadCore();
         core.writeCache(
             { allowed: true, reason: 'ok', message: 'ok', tenantId: 't1', license: { schoolName: 'A' } },
-            'user@school.at',
+            'oid1|t1',
             storage
         );
         const cached = core.readCache(storage);
         expect(cached.allowed).toBe(true);
-        expect(core.cacheMatchesAccount(cached, 'user@school.at')).toBe(true);
-        expect(core.cacheMatchesAccount(cached, 'other@school.at')).toBe(false);
+        expect(core.cacheMatchesAccount(cached, 'oid1|t1')).toBe(true);
+        expect(core.cacheMatchesAccount(cached, 'oid2|t1')).toBe(false);
         core.clearCache(storage);
         expect(core.readCache(storage)).toBe(null);
+    });
+
+    it('verwirft Cache ohne accountKey oder nach TTL', () => {
+        const { core, storage } = loadCore();
+        storage.setItem(
+            core.CACHE_KEY,
+            JSON.stringify({
+                allowed: true,
+                tenantId: 't1',
+                accountKey: '',
+                checkedAt: Date.now()
+            })
+        );
+        expect(core.readCache(storage)).toBe(null);
+
+        storage.setItem(
+            core.CACHE_KEY,
+            JSON.stringify({
+                allowed: true,
+                tenantId: 't1',
+                accountKey: 'oid|t1',
+                checkedAt: Date.now() - core.TTL_MS - 1000
+            })
+        );
+        expect(core.readCache(storage)).toBe(null);
+        expect(core.TTL_MS).toBeLessThanOrEqual(10 * 60 * 1000);
     });
 });

@@ -13,6 +13,10 @@ const {
     requireKursteamCaller,
     assertCallerMayCreateTeams
 } = require('../lib/require-kursteam-caller');
+const {
+    assertTenantLicenseAllowed,
+    licenseTokenFromRequest
+} = require('../lib/require-tenant-license');
 
 app.http('httpCreateJobOptions', {
     methods: ['OPTIONS'],
@@ -41,6 +45,7 @@ app.http('httpCreateJob', {
             }
 
             await assertCallerMayCreateTeams(caller);
+            await assertTenantLicenseAllowed(caller, licenseTokenFromRequest(request));
 
             const job = await createJob({
                 tenantId: caller.tid,
