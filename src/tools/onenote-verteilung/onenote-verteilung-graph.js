@@ -550,7 +550,8 @@ function isOnenoteResourceUrl(url) {
 }
 
 /**
- * OneNote-HTML liefert oft /siteCollections/… und unkodierte „!“ in Resource-IDs → Graph 400.
+ * OneNote-HTML liefert oft /siteCollections/… und unkodierte „!“ → Graph 400.
+ * Niemals die Original-URL fetchen – nur umgeschriebene Kandidaten.
  * @param {string} url
  * @returns {string[]}
  */
@@ -559,60 +560,61 @@ function onenoteResourceUrlCandidates(url) {
     if (!raw) return [];
     const out = [];
     const push = (u) => {
-        if (u && !out.includes(u)) out.push(u);
+        if (!u || out.includes(u)) return;
+        // kaputte siteCollections-URLs nie anfassen
+        if (/\/siteCollections\//i.test(u)) return;
+        out.push(u);
     };
-    push(raw);
+
+    let resourceId = '';
+    let siteIdFromUrl = '';
     try {
         const u = new URL(raw);
-        // siteCollections → sites (Graph v1)
-        let path = u.pathname.replace(/\/siteCollections\//gi, '/sites/');
-        // Resource-ID-Segment korrekt enkodieren (! → %21)
-        path = path.replace(/\/onenote\/resources\/([^/]+)(\/|$)/i, (_, id, tail) => {
-            let decoded = id;
+        const path = u.pathname.replace(/\/siteCollections\//gi, '/sites/');
+        const rm = path.match(/\/onenote\/resources\/([^/]+)/i);
+        if (rm) {
             try {
-                decoded = decodeURIComponent(id);
+                resourceId = decodeURIComponent(rm[1]);
             } catch {
-                /* keep */
+                resourceId = rm[1];
             }
-            return '/onenote/resources/' + encodeURIComponent(decoded) + (tail || '');
-        });
-        u.pathname = path;
-        push(u.toString());
-
-        const m = path.match(/\/onenote\/resources\/([^/]+)/i);
-        const resourceId = m ? m[1] : '';
-        if (resourceId) {
-            push(
-                'https://graph.microsoft.com/v1.0/me/onenote/resources/' + resourceId + '/$value'
-            );
-            const siteMatch = path.match(/\/sites\/([^/]+)\//i);
-            if (siteMatch) {
-                let siteId = siteMatch[1];
-                try {
-                    siteId = decodeURIComponent(siteId);
-                } catch {
-                    /* keep */
-                }
-                push(
-                    'https://graph.microsoft.com/v1.0/sites/' +
-                        encodeURIComponent(siteId) +
-                        '/onenote/resources/' +
-                        resourceId +
-                        '/$value'
-                );
-            }
-            if (cachedCentralSite && cachedCentralSite.id) {
-                push(
-                    'https://graph.microsoft.com/v1.0/sites/' +
-                        encodeURIComponent(cachedCentralSite.id) +
-                        '/onenote/resources/' +
-                        resourceId +
-                        '/$value'
-                );
+        }
+        const sm = path.match(/\/sites\/([^/]+)\//i);
+        if (sm) {
+            try {
+                siteIdFromUrl = decodeURIComponent(sm[1]);
+            } catch {
+                siteIdFromUrl = sm[1];
             }
         }
     } catch {
-        /* ignore */
+        const rm = raw.match(/\/onenote\/resources\/([^/?#]+)/i);
+        if (rm) {
+            try {
+                resourceId = decodeURIComponent(rm[1]);
+            } catch {
+                resourceId = rm[1];
+            }
+        }
+    }
+
+    if (!resourceId) return out;
+
+    const encRes = encodeURIComponent(resourceId);
+    // Delegiert oft am zuverlässigsten
+    push('https://graph.microsoft.com/v1.0/me/onenote/resources/' + encRes + '/$value');
+
+    const siteIds = [];
+    if (siteIdFromUrl) siteIds.push(siteIdFromUrl);
+    if (cachedCentralSite && cachedCentralSite.id) siteIds.push(String(cachedCentralSite.id));
+    for (const sid of siteIds) {
+        push(
+            'https://graph.microsoft.com/v1.0/sites/' +
+                encodeURIComponent(sid) +
+                '/onenote/resources/' +
+                encRes +
+                '/$value'
+        );
     }
     return out;
 }
@@ -653,7 +655,10 @@ async function fetchOnenoteResource(url, token, maxBytes) {
         try {
             const res = await fetch(candidate, {
                 method: 'GET',
-                headers: { Authorization: 'Bearer ' + token }
+                headers: {
+                    Authorization: 'Bearer ' + token,
+                    Accept: '*/*'
+                }
             });
             if (!res.ok) continue;
             const buf = new Uint8Array(await res.arrayBuffer());
@@ -672,7 +677,6 @@ async function fetchOnenoteResource(url, token, maxBytes) {
         }
     }
     resourceFetchCache.set(cacheKey, packed);
-    // gleiche Resource-ID unter anderen URLs ebenfalls merken
     for (const c of candidates) {
         if (!resourceFetchCache.has(c)) resourceFetchCache.set(c, packed);
     }
