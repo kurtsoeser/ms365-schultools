@@ -195,7 +195,9 @@ function fieldsFromBody(body, opts) {
         let add =
             src.additionalDomains != null ? src.additionalDomains : src.AdditionalDomains;
         if (Array.isArray(add)) add = add.join('\n');
-        set('AdditionalDomains', String(add == null ? '' : add).trim());
+        // Leere Werte weglassen: Spalte ist optional und oft noch nicht angelegt.
+        const addStr = String(add == null ? '' : add).trim();
+        if (addStr) set('AdditionalDomains', addStr);
     }
     if (!partial || src.status !== undefined || src.Status !== undefined) {
         set(
