@@ -60,6 +60,7 @@ window.addSingleTeamRow = ns.addSingleTeamRow;
 
 if (typeof ns.refreshSubjectFilterUI === 'function') ns.refreshSubjectFilterUI();
 if (typeof ns.renderTeamNameBuilder === 'function') ns.renderTeamNameBuilder();
+if (typeof ns.mountNameConfigForMode === 'function') ns.mountNameConfigForMode('bulk');
 
 // Nach Storage/Step-Init: Deep-Link vom Dashboard (?mode=single)
 if (typeof ns.bootSingleTeamModeFromQuery === 'function') {

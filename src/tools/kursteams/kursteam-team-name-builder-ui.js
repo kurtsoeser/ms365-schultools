@@ -31,6 +31,9 @@ function mount(ns) {
             lehrer: 'MEI'
         });
         el.textContent = 'Vorschau: ' + preview;
+        if (ns.kursteamEntryMode === 'single' && typeof ns.updateSingleTeamPreview === 'function') {
+            ns.updateSingleTeamPreview();
+        }
     }
 
     function wireBuilderDnD(zone) {

@@ -93,10 +93,18 @@
             color: var(--heading);
             font-weight: 700;
         }
-        .single-team-rows {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .kursteam-name-config-host:empty {
+            display: none;
+        }
+        .kursteam-name-config-block {
+            margin-bottom: 4px;
+        }
+        body.kursteam-mode-single .kursteam-name-config-block {
+            padding: 14px 16px;
+            background: var(--soft);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 16px;
         }
         .single-team-row {
             display: grid;
@@ -441,7 +449,7 @@
                     </div>
 
                     <div id="kursteamSingleBanner" class="alert alert-info" style="display:none;margin-bottom:18px;">
-                        <strong>Kurz:</strong> Zeilen ausfüllen → Vorschau prüfen → anlegen (online oder CMD). Mit <strong>+</strong> weitere Teams.
+                        <strong>Kurz:</strong> Namensschema einstellen → Zeilen ausfüllen → anlegen. Mit <strong>+</strong> weitere Teams.
                         <button type="button" class="btn btn-small" style="margin-left:8px;" onclick="cancelKursteamSingleTeam()"><i class="bi bi-arrow-left"></i>Zum Start</button>
                     </div>
 
@@ -450,6 +458,7 @@
                         <p style="margin:0 0 14px;font-size:0.9em;color:var(--text-secondary);">
                             Pro Zeile ein Team (z.&nbsp;B. <code>4AK</code> · <code>WINF</code> · Lehrkraft). Besitzer-E-Mail kommt aus den Stammdaten und steht in derselben Zeile.
                         </p>
+                        <div id="kursteamNameConfigHostSingle" class="kursteam-name-config-host" style="margin-bottom:16px;"></div>
                         <datalist id="singleTeamKlasseList"></datalist>
                         <datalist id="singleTeamFachList"></datalist>
                         <datalist id="singleTeamLehrerList"></datalist>
@@ -913,9 +922,11 @@
                     </ul>
 
                     <div class="filter-section">
-                        <h3>Stammdaten</h3>
+                        <div id="kursteamNameConfigHostStep5" class="kursteam-name-config-host"></div>
+                        <div id="kursteamNameConfigBlock" class="kursteam-name-config-block">
+                        <h3>Team-Namen</h3>
                         <div class="filter-group">
-                            <label>Schuljahr-Präfix:</label>
+                            <label for="yearPrefix">Schuljahr-Präfix:</label>
                             <input type="text" id="yearPrefix" value="" placeholder="z.B. SJ26, WS25, SS25" title="Wird automatisch aus dem aktuellen Datum berechnet">
                         </div>
                         <div class="filter-group">
@@ -957,6 +968,7 @@
                             </div>
                             <input type="hidden" id="teamSeparator" value=" | ">
                             <div id="teamNamePreview" class="name-preview"></div>
+                        </div>
                         </div>
                         <button type="button" class="btn btn-brand kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()"><i class="bi bi-magic"></i>Team-Namen generieren</button>
                     </div>

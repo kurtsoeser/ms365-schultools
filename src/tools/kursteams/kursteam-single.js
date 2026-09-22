@@ -344,6 +344,28 @@
         ns.addSingleTeamRow({}, { quiet: true });
     };
 
+    ns.mountNameConfigForMode = function mountNameConfigForMode(mode) {
+        const block = document.getElementById('kursteamNameConfigBlock');
+        const hostSingle = document.getElementById('kursteamNameConfigHostSingle');
+        const hostStep5 = document.getElementById('kursteamNameConfigHostStep5');
+        if (!block) return;
+        const target = mode === 'single' ? hostSingle : hostStep5;
+        if (target && block.parentElement !== target) {
+            target.appendChild(block);
+        }
+        const genBtn = document.getElementById('btnGenerateTeamNames');
+        if (genBtn) {
+            genBtn.style.display = mode === 'single' ? 'none' : '';
+        }
+        if (typeof ns.renderTeamNameBuilder === 'function') {
+            try {
+                ns.renderTeamNameBuilder();
+            } catch {
+                /* ignore */
+            }
+        }
+    };
+
     ns.applySingleTeamChrome = function applySingleTeamChrome(active) {
         const on = !!active;
         const setDisp = (id, show) => {
@@ -357,6 +379,8 @@
         setDisp('kursteamSingleStep0Header', on);
         setDisp('kursteamSingleBanner', on);
         setDisp('kursteamSingleCreateNav', on && ns.currentStep === 7);
+
+        ns.mountNameConfigForMode(on ? 'single' : 'bulk');
 
         const title = document.getElementById('kursteamCreateStepTitle');
         const sub = document.getElementById('kursteamCreateStepSub');
@@ -406,11 +430,16 @@
         ns.showSingleTeamForm(true);
         if (typeof ns.goToStep === 'function') ns.goToStep(0);
         ns.applySingleTeamChrome(true);
+        // yearPrefix ggf. noch leer → aus Datum
+        const yp = document.getElementById('yearPrefix');
+        if (yp && !String(yp.value || '').trim() && typeof ns.calcYearPrefix === 'function') {
+            yp.value = ns.calcYearPrefix();
+        }
         const first = document.querySelector('#singleTeamRows [data-st-field="klasse"]');
         if (first) first.focus();
         ns.updateSingleTeamPreview();
         if (typeof ns.showToast === 'function') {
-            ns.showToast('Unterrichtsteams eintragen – mit + weitere Zeilen, dann anlegen.');
+            ns.showToast('Namensschema oben einstellen, Zeilen ausfüllen – mit + weitere Teams.');
         }
     };
 
