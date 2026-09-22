@@ -728,6 +728,14 @@
                 window.ms365OperatorAccess.grantAdminSessionIfOperator();
             }
         }
+        const actionLogLink = document.getElementById('ms365AuthActionLogLink');
+        if (
+            actionLogLink &&
+            window.ms365OperatorAccess &&
+            typeof window.ms365OperatorAccess.resolveAppRootHref === 'function'
+        ) {
+            actionLogLink.href = window.ms365OperatorAccess.resolveAppRootHref('action-log.html');
+        }
         const tenantEl = document.getElementById('ms365AuthCtxTenant');
         const copyTenantBtn = document.getElementById('ms365AuthCopyTenant');
         const tid = a

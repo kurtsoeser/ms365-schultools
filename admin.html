@@ -4,156 +4,243 @@
     <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schulverwaltung – Admin</title>
-    <link rel="stylesheet" href="app.css?v=6">
+    <title>Admin – MS365-Schulverwaltung</title>
+    <link rel="stylesheet" href="app.css?v=7">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
 </head>
-<body data-ms365-skip-tenant-domain-prompt="true">
-    <div class="container page-card">
-        <div class="header">
-            <h1>MS365-Schulverwaltung – Admin</h1>
-            <p style="color: var(--muted); line-height: 1.5;">
-                Hinweis: Diese App ist serverlos. Admin-Änderungen (PINs / Release-Notes) werden in <code>localStorage</code> gespeichert und gelten nur in diesem Browserprofil.
-            </p>
-            <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;">
-                    <a class="btn" href="welcome.html" style="text-decoration:none;display:inline-block;">
-                        <i class="bi bi-arrow-left"></i>Zurück
-                    </a>
-                    <button type="button" class="btn btn-danger" id="adminLogoutBtn">
-                        <i class="bi bi-box-arrow-right"></i>Admin-Session beenden
-                    </button>
+<body class="admin-app-page" data-ms365-skip-tenant-domain-prompt="true">
+    <div class="admin-app" id="adminApp">
+        <aside class="admin-app__rail" aria-label="Admin-Navigation">
+            <div class="admin-app__brand">
+                <span class="admin-app__brand-mark" aria-hidden="true">
+                    <i class="bi bi-shield-lock"></i>
+                </span>
+                <div class="admin-app__brand-text">
+                    <strong>Admin</strong>
+                    <span>MS365-Schultools</span>
                 </div>
             </div>
-        </div>
 
-        <div class="content">
-            <section class="settings" aria-label="User-PIN Verwaltung">
-                <h2>User-Zugänge (PINs)</h2>
+            <nav class="admin-app__nav" role="tablist" aria-label="Admin-Bereiche" id="adminAppTabs">
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabLicenses" aria-selected="true" aria-controls="adminPanelLicenses" data-admin-tab="licenses">
+                    <i class="bi bi-building-check" aria-hidden="true"></i>
+                    <span>Lizenzen</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabAccess" aria-selected="false" aria-controls="adminPanelAccess" data-admin-tab="access">
+                    <i class="bi bi-key" aria-hidden="true"></i>
+                    <span>Zugänge</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabSetup" aria-selected="false" aria-controls="adminPanelSetup" data-admin-tab="setup">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <span>Setup</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabNotes" aria-selected="false" aria-controls="adminPanelNotes" data-admin-tab="notes">
+                    <i class="bi bi-megaphone" aria-hidden="true"></i>
+                    <span>Neuigkeiten</span>
+                </button>
+            </nav>
 
-                <div class="field">
-                    <label for="adminAccessEnabled">PIN-Sperre aktiv</label>
-                    <input type="checkbox" id="adminAccessEnabled" checked>
+            <div class="admin-app__rail-foot">
+                <a class="admin-app__rail-link" href="welcome.html">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    Zurück zur App
+                </a>
+                <button type="button" class="admin-app__rail-link admin-app__rail-link--danger" id="adminLogoutBtn">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    Session beenden
+                </button>
+            </div>
+        </aside>
+
+        <div class="admin-app__main">
+            <header class="admin-app__top">
+                <div class="admin-app__top-text">
+                    <p class="admin-app__eyebrow" id="adminAppEyebrow">Betreiber</p>
+                    <h1 class="admin-app__title" id="adminAppTitle">Schulen &amp; Lizenzen</h1>
+                    <p class="admin-app__subtitle" id="adminAppSubtitle">Freischaltungen direkt in der Tabelle verwalten.</p>
                 </div>
+                <div class="admin-app__top-actions" id="adminAppTopActions" hidden></div>
+            </header>
 
-                <div class="field">
-                    <label for="adminUserPinsText">Gültige User-PINs (eine pro Zeile)</label>
-                    <textarea id="adminUserPinsText" placeholder="z.B. Schul-PIN"></textarea>
-                </div>
+            <div class="admin-app__body">
+                <!-- Lizenzen -->
+                <section class="admin-app__panel active" id="adminPanelLicenses" role="tabpanel" aria-labelledby="adminTabLicenses" data-admin-panel="licenses">
+                    <div class="admin-app__toolbar">
+                        <div class="admin-app__toolbar-meta">
+                            <span class="admin-app__pill" id="adminLicStatus">–</span>
+                            <span class="admin-app__hint">Betreiber: <code>kurt@kurtsoeser.at</code></span>
+                        </div>
+                        <div class="admin-app__toolbar-actions">
+                            <button type="button" class="btn alt" id="adminLicReloadBtn">
+                                <i class="bi bi-arrow-clockwise"></i>Aktualisieren
+                            </button>
+                            <button type="button" class="btn btn-success" id="adminLicAddBtn" title="Neue Schule">
+                                <i class="bi bi-plus-lg"></i>Neue Schule
+                            </button>
+                        </div>
+                    </div>
 
-                <div class="settings-actions" style="margin-top: 12px;">
-                    <button type="button" class="btn" id="adminSavePinsBtn">
-                        <i class="bi bi-floppy"></i>PINs speichern
-                    </button>
-                </div>
+                    <div class="admin-lic__table-wrap admin-app__surface">
+                        <table class="admin-lic-table">
+                            <thead>
+                                <tr>
+                                    <th><button type="button" class="admin-lic-sort" data-sort="schoolName">Schule / Kontakt</button></th>
+                                    <th><button type="button" class="admin-lic-sort" data-sort="tenantId">Tenant-ID</button></th>
+                                    <th><button type="button" class="admin-lic-sort" data-sort="status">Status</button></th>
+                                    <th><button type="button" class="admin-lic-sort" data-sort="validUntil">Gültig bis</button></th>
+                                    <th><button type="button" class="admin-lic-sort" data-sort="domains">Domains</button></th>
+                                    <th><button type="button" class="admin-lic-sort" data-sort="notes">Notizen</button></th>
+                                    <th class="admin-lic-table__actions-col"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminLicTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
 
-                <div class="settings-actions" style="margin-top: 12px;">
-                    <button type="button" class="btn" id="adminExportAccessBtn" title="JSON-Export für neue Schulen (ohne Server)">
-                        <i class="bi bi-download"></i>Export (neue Schule)
-                    </button>
+                <!-- Zugänge / PINs -->
+                <section class="admin-app__panel" id="adminPanelAccess" role="tabpanel" aria-labelledby="adminTabAccess" data-admin-panel="access" hidden>
+                    <div class="admin-app__grid admin-app__grid--2">
+                        <article class="admin-app__card">
+                            <div class="admin-app__card-head">
+                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></div>
+                                <div>
+                                    <h2>PIN-Sperre</h2>
+                                    <p>Steuert, ob User-PINs beim Start abgefragt werden.</p>
+                                </div>
+                            </div>
+                            <label class="admin-app__switch" for="adminAccessEnabled">
+                                <input type="checkbox" id="adminAccessEnabled" checked>
+                                <span class="admin-app__switch-ui" aria-hidden="true"></span>
+                                <span class="admin-app__switch-label">
+                                    <strong>PIN-Sperre aktiv</strong>
+                                    <small>Ohne PIN kein Zugang zu den Tools</small>
+                                </span>
+                            </label>
+                        </article>
 
-                    <label class="btn" for="adminImportAccessFile" style="cursor:pointer;">
-                        <i class="bi bi-upload"></i>Import (JSON)
-                    </label>
-                    <input type="file" id="adminImportAccessFile" accept="application/json,.json" style="display:none;">
+                        <article class="admin-app__card">
+                            <div class="admin-app__card-head">
+                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></div>
+                                <div>
+                                    <h2>Import &amp; Export</h2>
+                                    <p>Für neue Schulen: PINs und Release-Notes als JSON.</p>
+                                </div>
+                            </div>
+                            <div class="admin-app__btn-row">
+                                <button type="button" class="btn" id="adminExportAccessBtn" title="JSON-Export für neue Schulen">
+                                    <i class="bi bi-download"></i>Export
+                                </button>
+                                <label class="btn alt" for="adminImportAccessFile" style="cursor:pointer;">
+                                    <i class="bi bi-upload"></i>Datei wählen
+                                </label>
+                                <input type="file" id="adminImportAccessFile" accept="application/json,.json" hidden>
+                                <button type="button" class="btn btn-success" id="adminImportAccessBtn">
+                                    <i class="bi bi-box-arrow-in-right"></i>Import
+                                </button>
+                            </div>
+                        </article>
+                    </div>
 
-                    <button type="button" class="btn btn-success" id="adminImportAccessBtn">
-                        <i class="bi bi-box-arrow-in-right"></i>Import ausführen
-                    </button>
-                </div>
-            </section>
-
-            <section class="settings admin-lic" aria-label="Schullizenzen" style="margin-top: 18px;">
-                <div class="admin-lic__intro">
-                    <div>
-                        <h2>Schulen &amp; Lizenzen</h2>
-                        <p>
-                            Freischaltungen direkt in der Tabelle. Betreiber: <code>kurt@kurtsoeser.at</code>
+                    <article class="admin-app__card admin-app__card--wide">
+                        <div class="admin-app__card-head">
+                            <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-upc-scan"></i></div>
+                            <div>
+                                <h2>Gültige User-PINs</h2>
+                                <p>Eine PIN pro Zeile. Speichern gilt nur in diesem Browserprofil.</p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="visually-hidden" for="adminUserPinsText">Gültige User-PINs</label>
+                            <textarea id="adminUserPinsText" class="admin-app__textarea" rows="10" placeholder="z.B. Schul-PIN"></textarea>
+                        </div>
+                        <div class="admin-app__btn-row">
+                            <button type="button" class="btn" id="adminSavePinsBtn">
+                                <i class="bi bi-floppy"></i>PINs speichern
+                            </button>
+                        </div>
+                        <p class="admin-app__footnote">
+                            Serverlos: Änderungen liegen in <code>localStorage</code> und gelten nur in diesem Browserprofil.
                         </p>
+                    </article>
+                </section>
+
+                <!-- Setup -->
+                <section class="admin-app__panel" id="adminPanelSetup" role="tabpanel" aria-labelledby="adminTabSetup" data-admin-panel="setup" hidden>
+                    <div class="admin-app__grid admin-app__grid--2">
+                        <a class="admin-app__link-card" href="tools/license-backend-setup.html">
+                            <span class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-key"></i></span>
+                            <span class="admin-app__link-card-body">
+                                <strong>Lizenz-Liste Setup</strong>
+                                <span>SharePoint-Liste und Spalten anlegen, API prüfen</span>
+                            </span>
+                            <i class="bi bi-chevron-right admin-app__link-card-chevron" aria-hidden="true"></i>
+                        </a>
+                        <a class="admin-app__link-card" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener">
+                            <span class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-box-arrow-up-right"></i></span>
+                            <span class="admin-app__link-card-body">
+                                <strong>SharePoint-Site</strong>
+                                <span>Betreiber-Site MS365-Schultools öffnen</span>
+                            </span>
+                            <i class="bi bi-chevron-right admin-app__link-card-chevron" aria-hidden="true"></i>
+                        </a>
                     </div>
-                    <div class="admin-lic__toolbar">
-                        <button type="button" class="btn btn-success" id="adminLicAddBtn" title="Neue Schule">
-                            <i class="bi bi-plus-lg"></i>Neue Schule
-                        </button>
-                        <button type="button" class="btn alt" id="adminLicReloadBtn">
-                            <i class="bi bi-arrow-clockwise"></i>Aktualisieren
-                        </button>
-                        <span class="admin-lic__status" id="adminLicStatus"></span>
+                    <article class="admin-app__card admin-app__card--wide">
+                        <div class="admin-app__card-head">
+                            <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-info-circle"></i></div>
+                            <div>
+                                <h2>Hinweis</h2>
+                                <p>Freischaltungen bitte über den Tab <strong>Lizenzen</strong> erledigen. Setup-Links sind für Erstinstallation und Diagnose.</p>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <!-- Release Notes -->
+                <section class="admin-app__panel" id="adminPanelNotes" role="tabpanel" aria-labelledby="adminTabNotes" data-admin-panel="notes" hidden>
+                    <div class="admin-app__grid admin-app__grid--notes">
+                        <article class="admin-app__card">
+                            <div class="admin-app__card-head">
+                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-plus-circle"></i></div>
+                                <div>
+                                    <h2>Neue Einträge</h2>
+                                    <p>Wer neue PINs hat, sieht die Neuerungen beim nächsten Öffnen.</p>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="adminReleaseTitleInput">Titel</label>
+                                <input type="text" id="adminReleaseTitleInput" placeholder="z.B. Update Kursteams">
+                            </div>
+                            <div class="field">
+                                <label for="adminReleaseBodyInput">Text</label>
+                                <textarea id="adminReleaseBodyInput" class="admin-app__textarea" rows="6" placeholder="Kurzbeschreibung (Markdown-frei)"></textarea>
+                            </div>
+                            <div class="admin-app__btn-row">
+                                <button type="button" class="btn" id="adminAddReleaseNoteBtn">
+                                    <i class="bi bi-plus-circle"></i>Hinzufügen
+                                </button>
+                                <button type="button" class="btn btn-danger" id="adminClearReleaseNotesBtn">
+                                    <i class="bi bi-trash"></i>Alle löschen
+                                </button>
+                            </div>
+                        </article>
+
+                        <article class="admin-app__card admin-app__card--list">
+                            <div class="admin-app__card-head">
+                                <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></div>
+                                <div>
+                                    <h2>Aktuelle Release Notes</h2>
+                                    <p>Lokal gespeicherte Hinweise für Schulen.</p>
+                                </div>
+                            </div>
+                            <div id="adminReleaseNotesList" class="admin-app__notes-list"></div>
+                        </article>
                     </div>
-                </div>
-
-                <div class="admin-lic__table-wrap">
-                    <table class="admin-lic-table">
-                        <thead>
-                            <tr>
-                                <th><button type="button" class="admin-lic-sort" data-sort="schoolName">Schule / Kontakt</button></th>
-                                <th><button type="button" class="admin-lic-sort" data-sort="tenantId">Tenant-ID</button></th>
-                                <th><button type="button" class="admin-lic-sort" data-sort="status">Status</button></th>
-                                <th><button type="button" class="admin-lic-sort" data-sort="validUntil">Gültig bis</button></th>
-                                <th><button type="button" class="admin-lic-sort" data-sort="domains">Domains</button></th>
-                                <th><button type="button" class="admin-lic-sort" data-sort="notes">Notizen</button></th>
-                                <th class="admin-lic-table__actions-col"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminLicTableBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="settings" aria-label="Lizenz-Backend" style="margin-top: 18px;">
-                <h2>Lizenz – Setup &amp; Links</h2>
-                <p style="color: var(--muted); line-height: 1.5; margin: 0 0 12px;">
-                    Liste/Spalten anlegen und API testen. Freischaltung bevorzugt über die Tabelle oben.
-                </p>
-                <div class="settings-actions">
-                    <a class="btn" href="tools/license-backend-setup.html" style="text-decoration:none;display:inline-block;">
-                        <i class="bi bi-key"></i>Lizenz-Liste Setup
-                    </a>
-                    <a class="btn" href="https://kurtrocks.sharepoint.com/sites/MS365-Schultools" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;">
-                        <i class="bi bi-box-arrow-up-right"></i>SharePoint-Site öffnen
-                    </a>
-                </div>
-            </section>
-
-            <section class="settings" aria-label="Release Notes" style="margin-top: 18px;">
-                <h2>Release Notes</h2>
-
-                <div class="tile">
-                    <div class="tile-head">
-                        <h3 class="tile-title">Neue Einträge</h3>
-                        <p class="tile-subtitle">Wer neue PINs hat, sieht die Neuerungen beim nächsten Öffnen.</p>
-                    </div>
-
-                    <div class="field">
-                        <label for="adminReleaseTitleInput">Titel</label>
-                        <input type="text" id="adminReleaseTitleInput" placeholder="z.B. Update Kursteams" />
-                    </div>
-
-                    <div class="field">
-                        <label for="adminReleaseBodyInput">Text</label>
-                        <textarea id="adminReleaseBodyInput" placeholder="Kurzbeschreibung (Markdown-frei, Text vorformatiert)"></textarea>
-                    </div>
-
-                    <div class="settings-actions">
-                        <button type="button" class="btn" id="adminAddReleaseNoteBtn">
-                            <i class="bi bi-plus-circle"></i>Release-Note hinzufügen
-                        </button>
-                        <button type="button" class="btn btn-danger" id="adminClearReleaseNotesBtn">
-                            <i class="bi bi-trash"></i>Release-Notes löschen
-                        </button>
-                    </div>
-                </div>
-
-                <div style="margin-top: 14px;">
-                    <h3 style="margin: 0 0 10px; font-size: 1.08em; color: #32325d; font-weight: 900;">
-                        Aktuelle Release Notes
-                    </h3>
-                    <div id="adminReleaseNotesList"></div>
-                </div>
-            </section>
+                </section>
+            </div>
         </div>
     </div>
 
@@ -165,4 +252,3 @@
     <script src="src/shared/theme-toggle.js" defer></script>
 </body>
 </html>
-

@@ -33,38 +33,27 @@ function renderNotesList(notes) {
 
     if (!notes.length) {
         const p = document.createElement('p');
-        p.style.color = '#6c757d';
+        p.className = 'admin-app__empty';
         p.textContent = 'Noch keine Release-Notes vorhanden.';
         wrap.appendChild(p);
         return;
     }
 
     notes.forEach((n) => {
-        const div = document.createElement('div');
-        div.style.border = '1px solid var(--border)';
-        div.style.borderRadius = '12px';
-        div.style.padding = '12px 12px';
-        div.style.background = '#fff';
+        const div = document.createElement('article');
+        div.className = 'admin-app__note';
 
         const h = document.createElement('h4');
-        h.style.margin = '0 0 6px';
-        h.style.fontSize = '0.98em';
-        h.style.color = '#32325d';
+        h.className = 'admin-app__note-title';
         h.textContent = n.title || '(ohne Titel)';
 
         const meta = document.createElement('div');
-        meta.style.color = 'var(--muted)';
-        meta.style.fontSize = '0.85em';
-        meta.style.marginBottom = '8px';
+        meta.className = 'admin-app__note-meta';
         const d = n.at ? new Date(n.at) : null;
         meta.textContent = d && !Number.isNaN(d.getTime()) ? `Stand: ${d.toLocaleString('de-AT')}` : 'Stand: -';
 
         const pre = document.createElement('pre');
-        pre.style.margin = '0';
-        pre.style.whiteSpace = 'pre-wrap';
-        pre.style.fontFamily = "Consolas, 'Segoe UI', monospace";
-        pre.style.fontSize = '0.9em';
-        pre.style.lineHeight = '1.4';
+        pre.className = 'admin-app__note-body';
         pre.textContent = n.body || '';
 
         div.appendChild(h);
@@ -74,7 +63,99 @@ function renderNotesList(notes) {
     });
 }
 
+const ADMIN_TAB_META = {
+    licenses: {
+        eyebrow: 'Betreiber',
+        title: 'Schulen & Lizenzen',
+        subtitle: 'Freischaltungen direkt in der Tabelle verwalten.'
+    },
+    access: {
+        eyebrow: 'Zugang',
+        title: 'User-Zugänge',
+        subtitle: 'PIN-Sperre, User-PINs sowie Import und Export für neue Schulen.'
+    },
+    setup: {
+        eyebrow: 'Technik',
+        title: 'Setup & Links',
+        subtitle: 'Liste anlegen, API prüfen und SharePoint öffnen.'
+    },
+    notes: {
+        eyebrow: 'Kommunikation',
+        title: 'Neuigkeiten',
+        subtitle: 'Release-Notes, die Schulen beim nächsten Öffnen sehen.'
+    }
+};
+
+const ADMIN_TAB_STORAGE_KEY = 'ms365-admin-active-tab-v1';
+
+function setAdminTab(tabId) {
+    const id = ADMIN_TAB_META[tabId] ? tabId : 'licenses';
+    const meta = ADMIN_TAB_META[id];
+
+    document.querySelectorAll('.admin-app__nav-btn[data-admin-tab]').forEach((btn) => {
+        const selected = btn.getAttribute('data-admin-tab') === id;
+        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('.admin-app__panel[data-admin-panel]').forEach((panel) => {
+        const active = panel.getAttribute('data-admin-panel') === id;
+        panel.classList.toggle('active', active);
+        if (active) panel.removeAttribute('hidden');
+        else panel.setAttribute('hidden', '');
+    });
+
+    const eyebrow = $('adminAppEyebrow');
+    const title = $('adminAppTitle');
+    const subtitle = $('adminAppSubtitle');
+    if (eyebrow) eyebrow.textContent = meta.eyebrow;
+    if (title) title.textContent = meta.title;
+    if (subtitle) subtitle.textContent = meta.subtitle;
+
+    try {
+        localStorage.setItem(ADMIN_TAB_STORAGE_KEY, id);
+    } catch {
+        // ignore
+    }
+}
+
+function initAdminTabs() {
+    const nav = $('adminAppTabs');
+    if (!nav) return;
+
+    nav.addEventListener('click', (ev) => {
+        const btn = ev.target && ev.target.closest ? ev.target.closest('.admin-app__nav-btn[data-admin-tab]') : null;
+        if (!btn || !nav.contains(btn)) return;
+        setAdminTab(btn.getAttribute('data-admin-tab'));
+    });
+
+    nav.addEventListener('keydown', (ev) => {
+        const buttons = Array.from(nav.querySelectorAll('.admin-app__nav-btn[data-admin-tab]'));
+        const current = document.activeElement;
+        const idx = buttons.indexOf(current);
+        if (idx < 0) return;
+        let next = -1;
+        if (ev.key === 'ArrowDown' || ev.key === 'ArrowRight') next = (idx + 1) % buttons.length;
+        if (ev.key === 'ArrowUp' || ev.key === 'ArrowLeft') next = (idx - 1 + buttons.length) % buttons.length;
+        if (ev.key === 'Home') next = 0;
+        if (ev.key === 'End') next = buttons.length - 1;
+        if (next < 0) return;
+        ev.preventDefault();
+        buttons[next].focus();
+        setAdminTab(buttons[next].getAttribute('data-admin-tab'));
+    });
+
+    let initial = 'licenses';
+    try {
+        const stored = localStorage.getItem(ADMIN_TAB_STORAGE_KEY);
+        if (stored && ADMIN_TAB_META[stored]) initial = stored;
+    } catch {
+        // ignore
+    }
+    setAdminTab(initial);
+}
+
 function init() {
+    initAdminTabs();
     const config = typeof window !== 'undefined' ? window.MS365_ACCESS_CONFIG : null;
     const override = loadAccessOverride(localStorage) || null;
 

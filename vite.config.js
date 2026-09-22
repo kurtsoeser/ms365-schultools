@@ -39,14 +39,8 @@ export default defineConfig(() => {
       emptyOutDir: true,
       rollupOptions: {
         input: {
-          welcome: resolve(__dirname, 'welcome.html'),
-          admin: resolve(__dirname, 'admin.html'),
-          index: resolve(__dirname, 'index.html'),
-          schooltool: resolve(__dirname, 'ms365-schooltool.html'),
-          tenant: resolve(__dirname, 'tenant.html'),
-          einrichtung: resolve(__dirname, 'einrichtung.html'),
-          ersteinrichtung: resolve(__dirname, 'ersteinrichtung.html'),
-          help: resolve(__dirname, 'hilfe.html'),
+          // Root-HTMLs automatisch (sonst 404 auf GitHub Pages, z. B. action-log.html)
+          ...htmlEntriesFrom('.'),
           ...htmlEntriesFrom('tools'),
           ...htmlEntriesFrom('tools/archiv')
         }
