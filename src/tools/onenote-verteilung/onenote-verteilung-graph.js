@@ -1286,8 +1286,8 @@ export async function listPublishedSnapshotNotebooks() {
             .map((n) => ({
                 id: String(n.id || ''),
                 displayName: String(n.displayName || ''),
-                lastModifiedDateTime: String(n.lastModifiedDateTime || data.updatedAt || '').trim(),
-                publishedAt: String(n.publishedAt || data.updatedAt || '').trim(),
+                lastModifiedDateTime: String(n.lastModifiedDateTime || '').trim(),
+                publishedAt: String(n.publishedAt || '').trim(),
                 publishedBy: String(n.publishedBy || data.publishedBy || '').trim()
             }))
             .filter((n) => n.id);

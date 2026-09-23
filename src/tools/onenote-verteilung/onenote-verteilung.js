@@ -371,39 +371,47 @@ function renderNotebookShelf(items, selectedId) {
             const when = formatNotebookWhen(nb.lastModifiedDateTime);
             const who = String(nb.lastModifiedByName || '').trim();
             const pubWhen = formatNotebookWhen(ui.publishedAtById.get(nb.id));
-            let metaHtml = '<span class="onv-nb-meta__empty">Keine Änderungsinfo</span>';
-            if (when || who) {
-                metaHtml =
-                    (when
-                        ? '<span class="onv-nb-meta__when">' + escapeHtml(when) + '</span>'
-                        : '') +
-                    (who
-                        ? '<span class="onv-nb-meta__who" title="' +
-                          escapeHtml(who) +
-                          '">' +
-                          escapeHtml(who) +
-                          '</span>'
-                        : when
-                          ? '<span class="onv-nb-meta__who">Bearbeiter unbekannt</span>'
-                          : '');
+            const metaParts = [];
+            if (when) {
+                metaParts.push(
+                    '<span class="onv-nb-meta__when" title="Zuletzt in OneNote bearbeitet">' +
+                        '<span class="onv-nb-meta__lbl">Bearbeitet</span> ' +
+                        escapeHtml(when) +
+                        '</span>'
+                );
+            }
+            if (who) {
+                metaParts.push(
+                    '<span class="onv-nb-meta__who" title="' +
+                        escapeHtml(who) +
+                        '">' +
+                        escapeHtml(who) +
+                        '</span>'
+                );
+            } else if (when) {
+                metaParts.push('<span class="onv-nb-meta__who">Bearbeiter unbekannt</span>');
             }
             if (published) {
-                metaHtml +=
-                    '<span class="onv-nb-meta__pub" title="Im Schul-Snapshot' +
-                    (pubWhen ? ' seit ' + pubWhen : '') +
-                    '">Veröffentlicht' +
-                    (pubWhen ? ' · ' + escapeHtml(pubWhen) : '') +
-                    '</span>';
+                metaParts.push(
+                    '<span class="onv-nb-meta__pub" title="Zuletzt als Schul-Snapshot veröffentlicht">' +
+                        '<span class="onv-nb-meta__lbl">Veröffentlicht</span>' +
+                        (pubWhen ? ' ' + escapeHtml(pubWhen) : '') +
+                        '</span>'
+                );
             } else if (showPublishUi) {
-                metaHtml +=
-                    '<span class="onv-nb-meta__pub onv-nb-meta__pub--missing">Nicht veröffentlicht</span>';
+                metaParts.push(
+                    '<span class="onv-nb-meta__pub onv-nb-meta__pub--missing">Nicht veröffentlicht</span>'
+                );
             }
+            const metaHtml = metaParts.length
+                ? metaParts.join('')
+                : '<span class="onv-nb-meta__empty">Keine Änderungsinfo</span>';
             const tipParts = [name];
-            if (when) tipParts.push('Zuletzt: ' + when);
+            if (when) tipParts.push('Bearbeitet: ' + when);
             if (who) tipParts.push('Von: ' + who);
             if (published) {
                 tipParts.push(
-                    pubWhen ? 'Für Schulen veröffentlicht · ' + pubWhen : 'Für Schulen veröffentlicht'
+                    pubWhen ? 'Veröffentlicht: ' + pubWhen : 'Veröffentlicht'
                 );
             }
             const pickHtml = showPublishUi
@@ -443,9 +451,7 @@ function renderNotebookShelf(items, selectedId) {
                 escapeHtml(name) +
                 '</span>' +
                 (published
-                    ? '<span class="onv-nb-cover__hint">' +
-                      (pubWhen ? 'Veröff. ' + escapeHtml(pubWhen) : 'Veröffentlicht') +
-                      '</span>'
+                    ? '<span class="onv-nb-cover__hint">Veröffentlicht</span>'
                     : isPref
                       ? '<span class="onv-nb-cover__hint">Vorlage</span>'
                       : '<span class="onv-nb-cover__hint">Notizbuch</span>') +
