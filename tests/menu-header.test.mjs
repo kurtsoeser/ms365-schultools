@@ -35,7 +35,7 @@ describe('Eine globale Menüleiste', () => {
         expect(auth).toContain('Schuljahr');
         expect(auth).toContain('Domain');
         expect(auth).toContain("badgeText.textContent = a ? name : 'Konto'");
-        expect(auth).toContain('if (menu) menu.hidden = false');
+        expect(auth).toContain('if (menu) menu.hidden = !a');
         expect(auth).toContain('Konto wechseln');
         expect(auth).toContain('Abmelden');
         expect(auth).toContain('aria-haspopup');

@@ -67,6 +67,7 @@ describe('Hilfe-Seite', () => {
             'tool-sharepoint-website',
             'tool-sharepoint-teilen',
             'tool-leere-gruppen',
+            'tool-onenote-verteilung',
             'tool-schulstruktur',
             'helpSearch',
             'helpRoot'
@@ -127,7 +128,8 @@ describe('Hilfe-Seite', () => {
             'stammdaten-uebergabe': 'tool-stammdaten-uebergabe',
             'cleanup-playbook': 'tool-cleanup-playbook',
             'datei-migration': 'tool-datei-migration',
-            'leere-gruppen-report': 'tool-leere-gruppen'
+            'leere-gruppen-report': 'tool-leere-gruppen',
+            'onenote-verteilung': 'tool-onenote-verteilung'
         };
         toolIds.forEach(function (id) {
             const anchor = helpAnchors[id];
