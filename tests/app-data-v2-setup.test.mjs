@@ -395,4 +395,70 @@ describe('app-data-v2 setup', () => {
         expect(ctx.ms365AppDataV2.getCatalogLink('eltern', '2026').graphGroupId).toBe('');
         expect(ctx.ms365AppDataV2.getCatalogLink('cohort', '2026').graphGroupId).toBe('g-co');
     });
+
+    it('unterrichtsbelegung persistiert im Year-Bucket und überlebt Schülerimport', () => {
+        const ctx = loadAppDataV2(store);
+        const saved = ctx.ms365AppDataV2.setUnterrichtsbelegung({
+            yearPrefix: 'SJ26',
+            source: 'kursteams',
+            rows: [
+                {
+                    klasse: '1A',
+                    lehrerCode: 'MUE',
+                    lehrerEmail: 'mueller@school.at',
+                    fach: 'D',
+                    gruppe: '',
+                    teamName: 'SJ26 | 1A | D',
+                    gruppenmail: 'sj26-1a-d@school.at'
+                }
+            ]
+        });
+        expect(saved).not.toBeNull();
+        expect(saved.rows).toHaveLength(1);
+        expect(saved.classCount).toBe(1);
+
+        const got = ctx.ms365AppDataV2.getUnterrichtsbelegung();
+        expect(got.rows[0].lehrerEmail).toBe('mueller@school.at');
+
+        ctx.ms365AppDataV2.setCoreFromTenantSettings({
+            schoolName: 'Test',
+            domain: 'school.at',
+            subjects: [],
+            arges: [],
+            teachers: [],
+            administration: [],
+            admin: [],
+            adminRoles: [],
+            sga: [],
+            classes: [{ code: '1A', name: '1A', year: '2029' }],
+            students: [{ klasse: '1A', name: 'Max', email: 'max@school.at' }],
+            studentCouncil: []
+        });
+        const after = ctx.ms365AppDataV2.getUnterrichtsbelegung();
+        expect(after).not.toBeNull();
+        expect(after.rows).toHaveLength(1);
+        expect(after.yearPrefix).toBe('SJ26');
+    });
+
+    it('classChats persistiert im Year-Bucket', () => {
+        const ctx = loadAppDataV2(store);
+        const saved = ctx.ms365AppDataV2.setClassChats({
+            yearPrefix: 'SJ26',
+            namePattern: [
+                { type: 'yearPrefix' },
+                { type: 'text', value: ' | ' },
+                { type: 'klasse' }
+            ],
+            items: [
+                {
+                    klasse: '1A',
+                    chatId: 'chat-abc',
+                    topic: 'SJ26 | 1A | Lehrer',
+                    memberEmails: ['a@school.at', 'b@school.at']
+                }
+            ]
+        });
+        expect(saved.items).toHaveLength(1);
+        expect(ctx.ms365AppDataV2.getClassChats().items[0].chatId).toBe('chat-abc');
+    });
 });

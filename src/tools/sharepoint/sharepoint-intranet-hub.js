@@ -168,7 +168,9 @@
     async function maybeCreateStartpaket(webUrl) {
         const wantLehrer = $('fPackLehrer') && $('fPackLehrer').checked;
         const wantTermine = $('fPackTermine') && $('fPackTermine').checked;
-        if (!wantLehrer && !wantTermine) return;
+        const wantSchularbeiten = $('fPackSchularbeiten') && $('fPackSchularbeiten').checked;
+        const wantProjektwochen = $('fPackProjektwochen') && $('fPackProjektwochen').checked;
+        if (!wantLehrer && !wantTermine && !wantSchularbeiten && !wantProjektwochen) return;
         if (wantLehrer && window.ms365SpoLehrerListe && typeof window.ms365SpoLehrerListe.createList === 'function') {
             packLog('Startpaket: Lehrerliste …');
             try {
@@ -185,6 +187,32 @@
                 packLog('Schultermine-Liste fertig.');
             } catch (e) {
                 packLog('Schultermine: ' + (e && e.message ? e.message : e));
+            }
+        }
+        if (
+            wantSchularbeiten &&
+            window.ms365SpoSchularbeiten &&
+            typeof window.ms365SpoSchularbeiten.createLists === 'function'
+        ) {
+            packLog('Startpaket: Schularbeiten …');
+            try {
+                await window.ms365SpoSchularbeiten.createLists(webUrl, packLog);
+                packLog('Schularbeiten-Paket fertig.');
+            } catch (e) {
+                packLog('Schularbeiten: ' + (e && e.message ? e.message : e));
+            }
+        }
+        if (
+            wantProjektwochen &&
+            window.ms365SpoProjektwochen &&
+            typeof window.ms365SpoProjektwochen.createLists === 'function'
+        ) {
+            packLog('Startpaket: Projektwochen …');
+            try {
+                await window.ms365SpoProjektwochen.createLists(webUrl, packLog);
+                packLog('Projektwochen-Paket fertig.');
+            } catch (e) {
+                packLog('Projektwochen: ' + (e && e.message ? e.message : e));
             }
         }
     }

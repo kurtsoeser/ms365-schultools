@@ -378,6 +378,191 @@
     }
 
     /**
+     * Listenansicht anlegen, falls Titel noch nicht existiert (Gruppierung + Sortierung).
+     * @param {{ title: string, groupBy?: string, orderBy?: string, fields?: string[], rowLimit?: number }} def
+     */
+    async function spoEnsureListView(siteWebUrl, spoToken, digest, listTitle, def) {
+        const listName = String(listTitle || '').trim();
+        const viewTitle = String((def && def.title) || '').trim();
+        if (!listName || !viewTitle) throw new Error('Listen- oder Ansichtstitel fehlt.');
+        const esc = listName.replace(/'/g, "''");
+        const existing = await spoRestFetch(
+            siteWebUrl,
+            spoToken,
+            digest,
+            'GET',
+            "/_api/web/lists/getbytitle('" + esc + "')/views?$select=Title,Id"
+        );
+        if (!existing.ok) {
+            throw new Error('views lesen: ' + existing.status + ' ' + (existing.text || ''));
+        }
+        const views =
+            (existing.data && (existing.data.value || (existing.data.d && existing.data.d.results))) || [];
+        const hit = (Array.isArray(views) ? views : []).find(function (v) {
+            return String((v && v.Title) || '').toLowerCase() === viewTitle.toLowerCase();
+        });
+        if (hit) return { created: false, id: hit.Id || hit.id || '', title: viewTitle };
+
+        const groupBy = String((def && def.groupBy) || '').trim();
+        const orderBy = String((def && def.orderBy) || 'Nachname').trim();
+        let viewQuery = '';
+        if (groupBy) {
+            viewQuery +=
+                '<GroupBy Collapse="TRUE" GroupLimit="100"><FieldRef Name="' +
+                groupBy +
+                '" /></GroupBy>';
+        }
+        if (orderBy) {
+            viewQuery +=
+                '<OrderBy><FieldRef Name="' + orderBy + '" Ascending="TRUE" /></OrderBy>';
+        }
+        const body = {
+            Title: viewTitle,
+            PersonalView: false,
+            ViewType: 'HTML',
+            RowLimit: Number((def && def.rowLimit) || 100) || 100,
+            ViewQuery: viewQuery
+        };
+
+        const res = await spoRestFetch(
+            siteWebUrl,
+            spoToken,
+            digest,
+            'POST',
+            "/_api/web/lists/getbytitle('" + esc + "')/views",
+            body
+        );
+        if (!res.ok) {
+            throw new Error(
+                'view anlegen „' + viewTitle + '": ' + res.status + ' ' + (res.text || '')
+            );
+        }
+        const d = res.data || {};
+        return {
+            created: true,
+            id: d.Id || (d.d && d.d.Id) || '',
+            title: viewTitle
+        };
+    }
+
+    /**
+     * Beliebiges Listenfeld per MERGE patchen (ConditionalShowFormula, CustomFormatter, Required, …).
+     * @param {Record<string, unknown>} body
+     */
+    async function spoPatchListField(siteWebUrl, spoToken, digest, listTitle, fieldInternalName, body) {
+        const listName = String(listTitle || '').trim();
+        const field = String(fieldInternalName || '').trim();
+        if (!listName || !field) throw new Error('Liste oder Feldname fehlt.');
+        const esc = listName.replace(/'/g, "''");
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            esc +
+            "')/fields/getbyinternalnameortitle('" +
+            field.replace(/'/g, "''") +
+            "')";
+        const payload = body && typeof body === 'object' ? body : {};
+        const res = await fetch(origin + api, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json;odata=nometadata',
+                Authorization: 'Bearer ' + spoToken,
+                'X-RequestDigest': digest,
+                'Content-Type': 'application/json;odata=nometadata;charset=utf-8',
+                'X-HTTP-Method': 'MERGE',
+                'IF-MATCH': '*'
+            },
+            body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        if (!res.ok && res.status !== 204) {
+            throw new Error('Feld „' + field + '": ' + res.status + ' ' + text);
+        }
+        return true;
+    }
+
+    /**
+     * ClientFormCustomFormatter am List-ContentType „Item“/„Element“.
+     * @param {string} formatterJsonString
+     */
+    async function spoSetListClientFormCustomFormatter(
+        siteWebUrl,
+        spoToken,
+        digest,
+        listTitle,
+        formatterJsonString
+    ) {
+        const listName = String(listTitle || '').trim();
+        if (!listName) throw new Error('Listen-Titel fehlt.');
+        const esc = listName.replace(/'/g, "''");
+        const ctRes = await spoRestFetch(
+            siteWebUrl,
+            spoToken,
+            digest,
+            'GET',
+            "/_api/web/lists/getbytitle('" + esc + "')/contenttypes?$select=StringId,Name"
+        );
+        if (!ctRes.ok) {
+            throw new Error('contenttypes: ' + ctRes.status + ' ' + (ctRes.text || ''));
+        }
+        const cts =
+            (ctRes.data && (ctRes.data.value || (ctRes.data.d && ctRes.data.d.results))) || [];
+        const list = Array.isArray(cts) ? cts : [];
+        let ct =
+            list.find(function (c) {
+                const n = String((c && c.Name) || '').toLowerCase();
+                return n === 'item' || n === 'element';
+            }) ||
+            list.find(function (c) {
+                const id = String((c && c.StringId) || '');
+                return /^0x01/i.test(id) && !/^0x0120/i.test(id);
+            });
+        if (!ct || !ct.StringId) throw new Error('Content Type Item/Element nicht gefunden.');
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const api =
+            "/_api/web/lists/getbytitle('" +
+            esc +
+            "')/contenttypes('" +
+            String(ct.StringId).replace(/'/g, "''") +
+            "')";
+        const res = await fetch(origin + api, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json;odata=verbose',
+                Authorization: 'Bearer ' + spoToken,
+                'X-RequestDigest': digest,
+                'Content-Type': 'application/json;odata=verbose;charset=utf-8',
+                'X-HTTP-Method': 'MERGE',
+                'IF-MATCH': '*'
+            },
+            body: JSON.stringify({
+                __metadata: { type: 'SP.ContentType' },
+                ClientFormCustomFormatter: String(formatterJsonString || '')
+            })
+        });
+        const text = await res.text();
+        if (!res.ok && res.status !== 204) {
+            throw new Error('ClientFormCustomFormatter: ' + res.status + ' ' + text);
+        }
+        return { stringId: ct.StringId, name: ct.Name || '' };
+    }
+
+    /**
+     * Title-Feld: Anzeigename + optional nicht mehr pflichtig (Listenformular nutzt Nachname/Vorname).
+     */
+    async function spoPatchTitleField(siteWebUrl, spoToken, digest, listTitle, opts) {
+        const o = opts || {};
+        return spoPatchListField(siteWebUrl, spoToken, digest, listTitle, 'Title', {
+            Title: String(o.displayName || 'Name (Nachname, Vorname)'),
+            Description: String(
+                o.description ||
+                    'Anzeige aus Nachname und Vorname (Formular blendet dieses Feld aus).'
+            ),
+            Required: o.required === true
+        });
+    }
+
+    /**
      * @returns {{ host: string, serverRelativeUrl: string } | null}
      */
     function parseSharePointWebUrl(input) {
@@ -432,6 +617,10 @@
         spoAddRoleAssignment: spoAddRoleAssignment,
         spoCreateDocumentLibrary: spoCreateDocumentLibrary,
         spoGetListByTitle: spoGetListByTitle,
+        spoEnsureListView: spoEnsureListView,
+        spoPatchTitleField: spoPatchTitleField,
+        spoPatchListField: spoPatchListField,
+        spoSetListClientFormCustomFormatter: spoSetListClientFormCustomFormatter,
         graphBase: graphBase,
         parseSharePointWebUrl: parseSharePointWebUrl,
         resolveSiteFromWebUrl: resolveSiteFromWebUrl,

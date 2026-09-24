@@ -1,0 +1,175 @@
+.kc-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+}
+.kc-steps button {
+    border: 1px solid var(--input-border);
+    background: var(--card);
+    color: inherit;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    cursor: pointer;
+}
+.kc-steps button.is-active {
+    border-color: var(--accent, #2563eb);
+    background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
+    font-weight: 600;
+}
+.kc-step { display: none; }
+.kc-step.is-active { display: block; }
+.kc-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.kc-status--ok { color: var(--success, #0a7a3e); font-weight: 600; }
+.kc-status--warn { color: #b45309; font-weight: 600; }
+.kc-mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 0 0 16px;
+}
+@media (max-width: 720px) {
+    .kc-mode-grid { grid-template-columns: 1fr; }
+}
+.kc-mode-card {
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+    background: var(--card);
+    text-align: left;
+    font: inherit;
+    color: inherit;
+}
+.kc-mode-card h4 { margin: 0 0 6px; font-size: 1em; }
+.kc-mode-card p { margin: 0; font-size: 0.92em; color: var(--muted); line-height: 1.45; }
+.kc-mode-card.is-selected {
+    border-color: var(--accent, #2563eb);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 25%, transparent);
+}
+.kc-source-panel { margin-bottom: 8px; }
+.kc-teacher-list {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+.kc-teacher-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 4px 2px;
+    font-size: 0.9em;
+    line-height: 1.35;
+}
+.kc-teacher-item[hidden] { display: none; }
+.kc-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: stretch;
+}
+.kc-search-row input[type="search"] {
+    flex: 1 1 180px;
+    min-width: 0;
+}
+.kc-user-checklist {
+    margin-top: 8px;
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    padding: 4px;
+    background: var(--card);
+}
+.kc-user-checklist__selectall,
+.kc-user-checklist__item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    line-height: 1.35;
+    cursor: pointer;
+}
+.kc-user-checklist__selectall:hover,
+.kc-user-checklist__item:hover {
+    background: color-mix(in srgb, var(--accent, #2563eb) 8%, transparent);
+}
+.kc-user-checklist__item.is-checked {
+    background: color-mix(in srgb, var(--accent, #2563eb) 12%, transparent);
+}
+.kc-user-checklist__item input[type="checkbox"],
+.kc-user-checklist__selectall input[type="checkbox"] {
+    margin-top: 2px;
+}
+.kc-picked-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.kc-picked-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--input-border);
+    background: var(--soft);
+    font-size: 0.85em;
+    max-width: 100%;
+}
+.kc-picked-chip button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0 2px;
+    font: inherit;
+    line-height: 1;
+}
+.kc-email-details summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.92em;
+}
+.kc-table-wrap {
+    max-height: 420px;
+    overflow: auto;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+.kc-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.kc-table th,
+.kc-table td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+.kc-table th {
+    position: sticky;
+    top: 0;
+    background: var(--soft);
+    font-size: 0.72em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.kc-row-skip { opacity: 0.65; }
+.kc-member-list { font-size: 0.82em; margin-top: 4px; line-height: 1.35; }
+.kc-log {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--soft);
+    border: 1px solid var(--input-border);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82em;
+    white-space: pre-wrap;
+    max-height: 280px;
+    overflow: auto;
+}

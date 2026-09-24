@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schulverwaltung</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=6">
+    <link rel="stylesheet" href="app.css?v=8">
     <style>
         body { padding-bottom: 0; }
         .help-layout {
@@ -363,6 +363,7 @@
                                 <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
                                 <li><a href="#tool-verwaltung">Verwaltung</a></li>
                                 <li><a href="#tool-klassenvorstaende">Klassenvorstände</a></li>
+                                <li><a href="#tool-klassenchats">KlassenChats</a></li>
                                 <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
                                 <li><a href="#tool-postfaecher">Postfächer</a></li>
                                 <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
@@ -409,6 +410,7 @@
                                     <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
                                     <li><a href="#tool-verwaltung">Verwaltung</a></li>
                                     <li><a href="#tool-klassenvorstaende">Klassenvorstände</a></li>
+                                    <li><a href="#tool-klassenchats">KlassenChats</a></li>
                                     <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
                                     <li><a href="#tool-postfaecher">Postfächer</a></li>
                                     <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
@@ -786,6 +788,25 @@
                         <p class="help-open"><a href="tools/spielwiesen.html">→ Spielwiesen öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="klassenchat gruppenchat teams lehrer klasse klassenvorstand unterrichtsbelegung schuljahr">
+                        <h3 id="tool-klassenchats">KlassenChats <span class="pill">Teams</span></h3>
+                        <p>
+                            Pro Klasse einen Teams-<strong>Gruppenchat</strong> für Lehrkräfte –
+                            <strong>automatisch</strong> aus der Unterrichtsbelegung oder <strong>manuell</strong>
+                            (Klasse + Mitglieder aus Stammdaten/E-Mails). Der Klassenvorstand wird ergänzt.
+                            Chat-Namen mit Schuljahr-Bausteinen, Anlage und Sync per Microsoft Graph
+                            (<code>Chat.Create</code>).
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Optional: Unterrichtsteams → Team-Namen generieren (Belegung speichern).</li>
+                                <li>Modus wählen: Belegung oder Manuell (Klasse, Lehrkräfte, optional Tenant-Suche mit Mehrfachauswahl).</li>
+                                <li>Chat-Namen mit SJ/Klasse bauen, Vorschau prüfen, dann anlegen/syncen.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/klassenchats.html">→ KlassenChats öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="arge fachgruppe fachschaft arbeitsgemeinschaft katalog">
                         <h3 id="tool-arge">Fächer &amp; ARGEs <span class="pill">Gruppenverwaltung</span></h3>
                         <p>
@@ -1046,7 +1067,7 @@
                 </section>
 
                 <section class="help-section" data-help-section aria-labelledby="website">
-                    <p class="help-kicker" id="website">Schulwebsite</p>
+                    <p class="help-kicker" id="website">Intranet, Listen &amp; Automationen</p>
 
                     <article class="help-article" data-help-article data-search="intranet hub kommunikationssite sharepoint formulare medien">
                         <h3 id="tool-intranet">Schul-Intranet <span class="pill">SharePoint</span></h3>
@@ -1072,6 +1093,85 @@
                             Flow-Bauplan: <a href="tools/power-automate-rezepte.html">Power-Automate-Rezepte</a>.
                         </p>
                         <p class="help-open"><a href="tools/sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="schularbeiten planer hak regelwerk terminfenster klausur lbvo schug sharepoint">
+                        <h3 id="tool-schularbeiten-listen">Schularbeiten-Listen <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Richtet auf der Intranet-Website drei Listen ein: <strong>Regelwerk</strong>, <strong>Terminfenster</strong>
+                            und <strong>Schularbeiten</strong> sowie optional <strong>SA-FachMeta</strong>. Klassen, Lehrer und Fächer bleiben in den Stammdaten
+                            (Referenz über Codes, keine Lookup-Listen). Optional auch im Intranet-Startpaket.
+                            <strong>Demo 2026/27:</strong> Button „Demo laden“ schreibt Beispieldaten auf die Site
+                            (JSON: <code>docs/demo-data/schularbeiten-2026-27.json</code>).
+                            Die Planer-Oberfläche: <a href="tools/schularbeiten-planer.html">Schularbeiten-Planer</a>.
+                        </p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-schularbeiten.html">→ Schularbeiten-Listen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste anmeldung">
+                        <h3 id="tool-projektwochen-listen">Projektwochen-Listen <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Richtet auf der Intranet-Website die Listen <strong>PW-Aktionen</strong> und <strong>PW-Angebote</strong> ein
+                            (Anträge für Workshops/Exkursionen, Status, Kapazität, Buchungsstart). Klassen und Lehrer bleiben in den Stammdaten.
+                            Optional auch im Intranet-Startpaket. Die Verwaltungs-Oberfläche und Bookings-Sync folgen in späteren Phasen.
+                            Planung: <code>docs/projektwochen.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-projektwochen.html">→ Projektwochen-Listen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="projektwochen angebote planer kalender freigabe workshop exkursion buchung">
+                        <h3 id="tool-projektwochen">Projektwochen <span class="pill">Planung</span></h3>
+                        <p>
+                            Anträge stellen, Wochenplan und Kalender, Liste mit Filtern, Admin-Freigabe/Ablehnung
+                            und Buchungsstart (<em>BuchungAb</em>) je Angebot. Daten in SharePoint.
+                            <strong>Bookings:</strong> Admin-Ansicht „Bookings“ legt das Business an und synct freigegebene
+                            Angebote als Dienste; „Teilnehmer“ lädt Buchungen aus Graph (CSV-Export).
+                            <strong>Export:</strong> Angebote-CSV, iCal, Druck Wochenplan/Teilnehmer.
+                            Listen zuerst mit <a href="tools/sharepoint-liste-projektwochen.html">Projektwochen-Listen</a> anlegen.
+                            Status-Mail: <a href="tools/pa-projektwochen-mail.html">PA-Rezept</a>.
+                            Planung: <code>docs/projektwochen.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/projektwochen.html">→ Projektwochen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang seminar wahlfach">
+                        <h3 id="tool-srdp-anmeldung">sRDP-Anmeldung <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Richtet pro Schulform und Terminjahr eine Liste ein (HAK, HTL, HLW, BAFEB, AHS),
+                            inkl. SharePoint-Listenformular (Header mit Prüfplan, Seminar nur bei Wahlfach Seminar),
+                            farbigen Spalten, Ansichten nach Klasse und Variante sowie Gruppenrechten.
+                            Klassen und Lehrer aus den Stammdaten; LFS, Wahlfach und Seminar im Setup-Wizard.
+                            Planung: <code>docs/srdp-anmeldung.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-srdp.html">→ sRDP-Anmeldung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="schularbeiten planer kalender antrag fixieren export ics admin lbvo">
+                        <h3 id="tool-schularbeiten-planer">Schularbeiten-Planer <span class="pill">Planung</span></h3>
+                        <p>
+                            Anträge erstellen, Kalender, „Meine Schularbeiten“, Admin-Freigabe (fixieren/ablehnen),
+                            Sperrzeiten, Regelwerk, SA-FachMeta, Export iCal/Druck. Optional: Sync nach Schultermine,
+                            Intranet-Link/Snippet, Status-Mail per Power Automate. Stammdaten aus den Schul-Grundeinstellungen.
+                        </p>
+                        <p class="help-open"><a href="tools/schularbeiten-planer.html">→ Planer öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="power automate schularbeiten status mail fixiert abgelehnt">
+                        <h3 id="tool-pa-schularbeiten-mail">Schularbeiten Status-Mail <span class="pill">Power Automate</span></h3>
+                        <p>
+                            Flow-Bauplan: Bei Status <em>fixiert</em> oder <em>abgelehnt</em> in der Liste Schularbeiten
+                            eine E-Mail an LehrerEmail / BeantragtVon senden. Liste zuerst mit dem Schularbeiten-Listen-Tool anlegen.
+                        </p>
+                        <p class="help-open"><a href="tools/pa-schularbeiten-mail.html">→ Status-Mail öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="power automate projektwochen status mail freigegeben abgelehnt angebot">
+                        <h3 id="tool-pa-projektwochen-mail">Projektwochen Status-Mail <span class="pill">Power Automate</span></h3>
+                        <p>
+                            Flow-Bauplan: Bei Status <em>freigegeben</em> oder <em>abgelehnt</em> in der Liste PW-Angebote
+                            eine E-Mail an LehrerEmail / BeantragtVon senden. Liste zuerst mit dem Projektwochen-Listen-Tool anlegen.
+                        </p>
+                        <p class="help-open"><a href="tools/pa-projektwochen-mail.html">→ PW Status-Mail öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="power platform erst setup dataverse environment maker einrichtung anfänger">
@@ -1482,5 +1582,6 @@
     <p class="site-credit-row"><a href="https://www.kurtrocks.com/" class="site-credit-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-info-circle" aria-hidden="true"></i>kurtrocks.com</a></p>
     <script src="src/shared/help-page.js" defer></script>
     <script src="src/shared/theme-toggle.js" defer></script>
+    <script src="src/shared/app-dialog.js" defer></script>
 </body>
 </html>

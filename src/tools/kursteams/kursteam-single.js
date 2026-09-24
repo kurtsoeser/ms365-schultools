@@ -495,6 +495,9 @@
         }
         if (typeof ns.displayTeamsData === 'function') ns.displayTeamsData();
         if (typeof ns.markAutoSaveDirty === 'function') ns.markAutoSaveDirty();
+        if (typeof ns.syncUnterrichtsbelegungToApp === 'function') {
+            ns.syncUnterrichtsbelegungToApp({ quiet: true });
+        }
 
         if (typeof ns.goToStep === 'function') ns.goToStep(7);
         if (typeof ns.applySingleTeamChrome === 'function') ns.applySingleTeamChrome(true);

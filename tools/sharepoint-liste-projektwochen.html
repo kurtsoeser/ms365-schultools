@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schulverwaltung – Projektwochen-Listen</title>
+    <link rel="stylesheet" href="../app.css?v=8">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</span>
+            </div>
+            <p>SharePoint-Paket für Projektwochen: PW-Aktionen und PW-Angebote (Anträge → später Bookings).</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-projektwochen-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-calendar2-heart"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">SharePoint · Intranet · Phase 1</p>
+                    <h2>Projektwochen-Paket einrichten</h2>
+                    <p>
+                        Zwei Listen auf der Schulwebsite. Klassen und Lehrer kommen aus den
+                        <strong>Stammdaten</strong>. Buchung läuft später über Microsoft Bookings (Phase 3).
+                    </p>
+                </div>
+                <div class="tm-hero__actions">
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Was wird angelegt?</h3>
+                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
+                    </div>
+                </div>
+                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
+                    <li><strong>PW-Aktionen</strong> – eine Projektwoche (Zeitraum, Standard-Buchungsstart, Bookings-Business)</li>
+                    <li><strong>PW-Angebote</strong> – Anträge mit Status, Kapazität, Preis, <em>BuchungAb</em>, Sync-Felder</li>
+                    <li>Optionaler Seed: Demo-Aktion <code>pw-demo</code>, wenn PW-Aktionen leer ist</li>
+                </ul>
+                <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
+                    Die Website-URL wird lokal gespeichert (auch in den Schul-Grundeinstellungen / Browser-Backup)
+                    und in der <a href="projektwochen.html">Projektwochen-App</a> wiederverwendet.
+                    Planung: <code>docs/projektwochen.md</code>.
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                    <div>
+                        <h3>Listen anlegen</h3>
+                        <p>Intranet-Website wählen und Paket ausführen.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="sppwSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="sppwSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="sppwBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                    <button type="button" class="btn" id="sppwBtnHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>
+                    <button type="button" class="btn" id="sppwBtnRun"><i class="bi bi-list-ul"></i>Paket anlegen</button>
+                </div>
+                <p id="sppwHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
+                <details class="tm-tech">
+                    <summary>Protokoll</summary>
+                    <div id="sppwLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/action-log.js" defer></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script type="module" src="../src/tools/sharepoint/sharepoint-liste-projektwochen.js"></script>
+</body>
+</html>

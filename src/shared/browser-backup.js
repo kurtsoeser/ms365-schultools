@@ -29,6 +29,7 @@
         {
             label: 'Zentrale Schuldaten',
             keys: [
+                // inkl. years.*.unterrichtsbelegung in schooltool-data-v2
                 'ms365-schooltool-data-v2',
                 'ms365-tenant-settings-v1',
                 'ms365-school-email-domain-v1',
@@ -97,7 +98,8 @@
                 'ms365-pa-done-seminar',
                 'ms365-pa-done-gast-erinnerung',
                 'ms365-pa-done-diplom-ordner',
-                'ms365-pa-done-schilf'
+                'ms365-pa-done-schilf',
+                'ms365-srdp-anmeldung-v1'
             ]
         },
         {
@@ -105,7 +107,14 @@
             keys: [
                 'ms365-intranet-starter-v1',
                 'ms365-stammdaten-it-library-v1',
-                'ms365-stammdaten-spo-sync-v1'
+                'ms365-stammdaten-spo-sync-v1',
+                'ms365-su-form-draft-v1',
+                'ms365-pw-site-url',
+                'ms365-pw-demo-role',
+                'ms365-sa-site-url',
+                'ms365-sa-demo-role',
+                'ms365-sa-settings-v1',
+                'ms365-sa-demo-klasse'
             ]
         },
         {

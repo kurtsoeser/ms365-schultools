@@ -84,7 +84,11 @@ ns.buildKursteamStateSnapshot = function buildKursteamStateSnapshot() {
         studentRosterSkipCombinedClasses: safeCheckbox('studentRosterSkipCombinedClasses', false),
         studentRosterHideNoMatch: safeCheckbox('studentRosterHideNoMatch', true),
         studentRosterTeamSelection: ns.studentRosterTeamSelection || {},
-        webuntisPaste: safeInputValue('webuntisPasteInput', '')
+        webuntisPaste: safeInputValue('webuntisPasteInput', ''),
+        unterrichtsbelegung:
+            typeof ns.getUnterrichtsbelegungForExport === 'function'
+                ? ns.getUnterrichtsbelegungForExport()
+                : null
     };
 };
 
@@ -235,6 +239,22 @@ ns.applyKursteamStateSnapshot = function applyKursteamStateSnapshot(state) {
         if (typeof ns.setContinueButton === 'function') {
             ns.setContinueButton('continueBtn4', true, '');
         }
+        if (typeof ns.syncUnterrichtsbelegungToApp === 'function') {
+            ns.syncUnterrichtsbelegungToApp({ quiet: true });
+        }
+    } else if (
+        state.unterrichtsbelegung &&
+        window.ms365AppDataV2 &&
+        typeof window.ms365AppDataV2.setUnterrichtsbelegung === 'function'
+    ) {
+        try {
+            window.ms365AppDataV2.setUnterrichtsbelegung(state.unterrichtsbelegung);
+        } catch {
+            /* ignore */
+        }
+    }
+    if (typeof ns.updateUnterrichtsbelegungHint === 'function') {
+        ns.updateUnterrichtsbelegungHint();
     }
 
     if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();

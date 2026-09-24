@@ -9,7 +9,7 @@
 
 /**
  * @param {string} msg
- * @param {object} [opts] - z. B. `{ title, okText }`
+ * @param {object} [opts] - z. B. `{ title, okText, kind }`
  * @returns {Promise<void>}
  */
 export function dlgAlert(msg, opts) {
@@ -22,7 +22,7 @@ export function dlgAlert(msg, opts) {
 
 /**
  * @param {string} msg
- * @param {object} [opts] - z. B. `{ title, okText, danger }`
+ * @param {object} [opts] - z. B. `{ title, okText, danger, kind }`
  * @returns {Promise<boolean>}
  */
 export function dlgConfirm(msg, opts) {
@@ -36,7 +36,7 @@ export function dlgConfirm(msg, opts) {
 /**
  * @param {string} msg
  * @param {string} [def]
- * @param {object} [opts] - z. B. `{ title, okText, inputLabel }`
+ * @param {object} [opts] - z. B. `{ title, okText, inputLabel, kind }`
  * @returns {Promise<string|null>}
  */
 export function dlgPrompt(msg, def, opts) {
@@ -45,4 +45,21 @@ export function dlgPrompt(msg, def, opts) {
     }
     if (typeof window !== 'undefined') return Promise.resolve(window.prompt(msg, def));
     return Promise.resolve(null);
+}
+
+/**
+ * Kurzinfo als Toast (zentral). Fallback: dlgAlert.
+ * @param {string} msg
+ * @param {object} [opts] - `{ kind, title, durationMs }`
+ */
+export function dlgToast(msg, opts) {
+    if (typeof window !== 'undefined' && typeof window.ms365ShowToast === 'function') {
+        window.ms365ShowToast(msg, opts);
+        return;
+    }
+    if (typeof window !== 'undefined' && typeof window.ms365ToastOrAlert === 'function') {
+        window.ms365ToastOrAlert(msg, opts);
+        return;
+    }
+    void dlgAlert(msg, opts);
 }

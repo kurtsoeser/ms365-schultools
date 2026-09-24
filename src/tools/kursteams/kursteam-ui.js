@@ -24,8 +24,16 @@ ns.dom = {
     modalOk: document.getElementById('modalOk')
 };
 
-ns.showToast = function showToast(msg) {
+ns.showToast = function showToast(msg, opts) {
+    if (typeof window.ms365ShowToast === 'function' && window.ms365ShowToast !== ns.showToast) {
+        window.ms365ShowToast(msg, opts);
+        return;
+    }
     const el = document.getElementById('toast');
+    if (!el) {
+        if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg, opts);
+        return;
+    }
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(ns.showToast._t);
@@ -151,5 +159,5 @@ ns.calcYearPrefix = function calcYearPrefix() {
 })();
 
 // Globale Helfer (für andere Module/HTML)
-window.ms365ShowToast = ns.showToast;
+window.ms365ShowToast = window.ms365ShowToast || ns.showToast;
 

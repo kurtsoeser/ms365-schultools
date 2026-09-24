@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schulverwaltung – sRDP-Anmeldung</title>
+    <link rel="stylesheet" href="../app.css?v=8">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schulverwaltung</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-mortarboard"></i>sRDP-Anmeldung</span>
+            </div>
+            <p>SharePoint-Liste mit Formular und Ansichten für sRDP/sRP-Anmeldung – HAK, HTL, HLW, BAFEB, AHS; jedes Jahr neu.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-srdp-anmeldung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">SharePoint · sRDP / sRP</p>
+                    <h2>Anmeldeliste einrichten</h2>
+                    <p>
+                        Eine Liste pro Schulform und Terminjahr, natives SharePoint-Formular, Ansichten nach Klasse und Variante.
+                        Klassen und Lehrer kommen aus den <strong>Stammdaten</strong>; Wahlfach und Seminar pflegen Sie hier.
+                    </p>
+                </div>
+                <div class="tm-hero__actions">
+                    <span class="tm-perm" id="srsTeacherHint"><i class="bi bi-person-badge"></i>Lehrer …</span>
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Website-Besitzer + Sites.FullControl.All</span>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-1-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Website &amp; Jahr</h3>
+                        <p>Listenname: <strong id="srsListPreview">sRDP-Anmeldungen YYYY</strong></p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="srsProfile">Schulform</label>
+                    <select id="srsProfile"></select>
+                </div>
+                <p id="srsProfileNote" class="muted" style="margin:0 0 10px;font-size:0.88em;line-height:1.45;"></p>
+                <div class="tm-field">
+                    <label for="srsSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="srsSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="srsJahr">Terminjahr (Haupttermin)</label>
+                    <input type="text" id="srsJahr" inputmode="numeric" maxlength="4" placeholder="2026" autocomplete="off">
+                </div>
+                <p class="muted" style="margin:0;font-size:0.88em;line-height:1.45;">
+                    Profile: <strong>HAK, HTL, HLW, BAFEB, AHS</strong> – Varianten und Formularfelder passen sich an.
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-2-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Abschlussklassen</h3>
+                        <p>Nur Klassen mit Abschlussjahr = Terminjahr (Stammdaten).</p>
+                    </div>
+                </div>
+                <div id="srsKlassenHost" style="margin-bottom:8px;"></div>
+                <button type="button" class="btn" id="srsBtnRefreshKlassen"><i class="bi bi-arrow-repeat"></i>Klassen neu laden</button>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-3-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>LFS, Wahlfach, Seminar</h3>
+                        <p>Eine Option pro Zeile. Seminar: Choice mit Freitexteingabe in SharePoint.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="srsLfs" id="srsLfsLabel">LFS-Optionen</label>
+                    <textarea id="srsLfs" rows="4" spellcheck="false" placeholder="ENWS&#10;FRWS"></textarea>
+                </div>
+                <div class="tm-field">
+                    <label for="srsWahlfach">Wahlfach mündlich</label>
+                    <textarea id="srsWahlfach" rows="6" spellcheck="false"></textarea>
+                </div>
+                <div class="tm-field">
+                    <label for="srsSeminar">Seminar-Optionen (optional vorbefüllt)</label>
+                    <textarea id="srsSeminar" rows="3" spellcheck="false" placeholder="DIGBIZ&#10;…"></textarea>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-4-circle" aria-hidden="true"></i>
+                    <div>
+                        <h3>Gruppen &amp; Rechte</h3>
+                        <p>Vererbung wird gebrochen; breite Site-Rollen entfernt. Anzeige- oder E-Mail-Name oder Objekt-ID.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="srsGroupAdmin">Admin / Direktion (Vollzugriff)</label>
+                    <input type="text" id="srsGroupAdmin" placeholder="z. B. Verwaltung oder Gruppen-ID" autocomplete="off">
+                </div>
+                <div class="tm-field">
+                    <label for="srsGroupLehrer">Lehrkräfte (Lesen)</label>
+                    <input type="text" id="srsGroupLehrer" placeholder="z. B. Alle Lehrkräfte" autocomplete="off">
+                </div>
+                <div class="tm-field">
+                    <label for="srsGroupKandidaten">Kandidat:innen / Abschlussjahrgang (Mitwirken)</label>
+                    <input type="text" id="srsGroupKandidaten" placeholder="z. B. Jahrgang 2026" autocomplete="off">
+                </div>
+                <label class="checkbox-label" style="display:block;margin-top:8px;">
+                    <input type="checkbox" id="srsSkipPerms"> Rechte diesmal überspringen (nur Liste/Ansichten)
+                </label>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                    <div>
+                        <h3>Anlegen</h3>
+                        <p>Idempotent für dasselbe Jahr: vorhandene Liste wird erkannt, Spalten und Ansichten ergänzt.</p>
+                    </div>
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="srsBtnSave"><i class="bi bi-save"></i>Einstellungen speichern</button>
+                    <button type="button" class="btn" id="srsBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                    <button type="button" class="btn" id="srsBtnHealth"><i class="bi bi-heart-pulse"></i>Liste prüfen</button>
+                    <button type="button" class="btn" id="srsBtnTitles"><i class="bi bi-type"></i>Titel nachziehen</button>
+                    <button type="button" class="btn" id="srsBtnRun"><i class="bi bi-list-ul"></i>Liste anlegen</button>
+                </div>
+                <p id="srsHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
+                <p style="margin:12px 0 0;">
+                    <a id="srsListLink" hidden href="#" target="_blank" rel="noopener"></a>
+                </p>
+                <details class="tm-tech">
+                    <summary>Protokoll</summary>
+                    <div id="srsLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+                <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
+                    Formular: Header zeigt Name und Prüfplan zur gewählten Variante; Seminar nur bei Wahlfach „Seminar…“.
+                    Title ist im Formular ausgeblendet – Ansichten zeigen Nachname, Vorname; optional
+                    <em>Titel nachziehen</em> für bestehende Einträge. Planung: <code>docs/srdp-anmeldung.md</code>.
+                </p>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js"></script>
+    <script src="../src/shared/action-log.js" defer></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script type="module" src="../src/tools/sharepoint/sharepoint-liste-srdp.js"></script>
+</body>
+</html>

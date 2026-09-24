@@ -34,8 +34,15 @@ const parseArgeLine = P.parseArgeLine;
 const displayNameFromSubjectLine = P.displayNameFromSubjectLine;
 
 function showToast(msg) {
+    if (typeof window.ms365ShowToast === 'function' && window.ms365ShowToast !== showToast) {
+        window.ms365ShowToast(msg);
+        return;
+    }
     const el = document.getElementById('toast');
-    if (!el) return;
+    if (!el) {
+        if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
+        return;
+    }
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(showToast._t);
@@ -757,7 +764,7 @@ function clearArgeState() {
 window.ms365SaveArge = saveArgeState;
 window.ms365LoadArge = loadArgeState;
 window.ms365ClearArge = clearArgeState;
-window.ms365ShowToast = showToast;
+window.ms365ShowToast = window.ms365ShowToast || showToast;
 
 /**
  * Snapshot für Online-Ausführung (Microsoft Graph im Browser), siehe arge-graph.js

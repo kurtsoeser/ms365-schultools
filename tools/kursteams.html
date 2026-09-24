@@ -9,7 +9,7 @@
     <!-- Fallback für MSAL, falls ms365-config.js nicht lädt -->
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schulverwaltung – Kursteams</title>
-    <link rel="stylesheet" href="../app.css?v=6">
+    <link rel="stylesheet" href="../app.css?v=8">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -979,6 +979,10 @@
                         </div>
                         </div>
                         <button type="button" class="btn btn-brand kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()"><i class="bi bi-magic"></i>Team-Namen generieren</button>
+                        <p id="unterrichtsbelegungHint" class="kt-continue-hint" style="margin-top:10px;" hidden></p>
+                        <p style="margin:8px 0 0;font-size:0.85em;color:var(--text-secondary);">
+                            Die generierte (bereinigte) Team-Liste wird als <strong>Unterrichtsbelegung</strong> in den App-Daten des aktuellen Schuljahres gespeichert und mit dem Browser-Backup mitexportiert – z.&nbsp;B. für spätere Module wie Klassen-Chats.
+                        </p>
                     </div>
                     <div class="filter-section" id="teamsFilterBar" style="display:none;margin-top:18px;">
                         <h3>Teams filtern</h3>

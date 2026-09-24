@@ -66,6 +66,8 @@
         'sharepoint-liste-lehrer': 'Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website veröffentlichen.',
         'sharepoint-liste-schultermine':
             'Terminliste anlegen, Sync-Health prüfen und Termine per CSV importieren (Ziel Schule/Lehrer/beide).',
+        'sharepoint-liste-srdp':
+            'sRDP-Anmeldeliste pro Jahr: Formular, HAK-Varianten, Ansichten, Gruppenrechte – Wahlfach/Seminar im Wizard.',
         'pa-erst-setup':
             'Hinweis: Postfächer sind pro Workflow (nicht eins für die ganze Schule). Environment, Maker-Rechte, dann jeweiliges Automations-Tool.',
         'freistellung-setup':

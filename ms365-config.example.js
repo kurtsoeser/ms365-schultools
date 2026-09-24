@@ -15,6 +15,7 @@
  *    - Group.ReadWrite.All
  *    - Directory.ReadWrite.All (Modus „Gruppenerstellung“: Verzeichniseinstellung Group.Unified setzen/entfernen)
  *    - Team.Create (Kursteams: POST /teams mit Template educationClass)
+ *    - Chat.Create / Chat.ReadWrite (KlassenChats: Teams-Gruppenchats pro Klasse anlegen und syncen)
  *    - EduRoster.ReadWrite (wird für POST /education/classes mitangefordert; laut Microsoft oft nur App-Only – dann scheitert Kursteam im Browser, siehe Kursteam-Anlage.cmd)
  *    - User.Read.All
  *    - Place.Read.All (optional, Werkzeug „Freigegebene Postfächer“: Räume aus Places erkennen und von Shared trennen)

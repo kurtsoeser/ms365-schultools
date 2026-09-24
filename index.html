@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schulverwaltung – Start</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=6">
+    <link rel="stylesheet" href="app.css?v=8">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
@@ -1493,6 +1493,10 @@
                                 <span class="dash-task-row__label"><i class="bi bi-person-vcard" aria-hidden="true"></i>Klassenvorstände</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
+                            <a class="dash-task-row" href="tools/klassenchats.html">
+                                <span class="dash-task-row__label"><i class="bi bi-chat-dots" aria-hidden="true"></i>KlassenChats</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
                             <a class="dash-task-row" href="tools/arge-fachgruppen.html">
                                 <span class="dash-task-row__label"><i class="bi bi-collection" aria-hidden="true"></i>Fächer und ARGEs</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -1637,7 +1641,8 @@
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-personen" aria-selected="false" aria-controls="dash-panel-personen" data-dashboard-tab="personen" tabindex="-1"><i class="bi bi-person-badge" aria-hidden="true"></i>Personen &amp; Zugänge</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-schuljahr" aria-selected="false" aria-controls="dash-panel-schuljahr" data-dashboard-tab="schuljahr" tabindex="-1"><i class="bi bi-calendar2-range" aria-hidden="true"></i>Schuljahr</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-kommunikation" aria-selected="false" aria-controls="dash-panel-kommunikation" data-dashboard-tab="kommunikation" tabindex="-1"><i class="bi bi-envelope" aria-hidden="true"></i>Kommunikation</button>
-                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-website" aria-selected="false" aria-controls="dash-panel-website" data-dashboard-tab="website" tabindex="-1"><i class="bi bi-house-door" aria-hidden="true"></i>Schulwebsite</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-intranet" aria-selected="false" aria-controls="dash-panel-intranet" data-dashboard-tab="intranet" tabindex="-1"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet &amp; Listen</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-automationen" aria-selected="false" aria-controls="dash-panel-automationen" data-dashboard-tab="automationen" tabindex="-1"><i class="bi bi-lightning-charge" aria-hidden="true"></i>Automationen</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-regeln" aria-selected="false" aria-controls="dash-panel-regeln" data-dashboard-tab="regeln" tabindex="-1"><i class="bi bi-sliders2" aria-hidden="true"></i>Einstellungen &amp; Übersicht</button>
                     </div>
 
@@ -1688,10 +1693,20 @@
                                 <p>Standard-Naming <code>dipl-{jahr}-…</code>, Gruppe/Team anlegen und bestehende Diplom-Gruppen finden.</p>
                                 <a class="btn" href="tools/diplomarbeiten.html"><i class="bi bi-mortarboard"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Diplom-Ordner Flow" data-tool-id="pa-diplom-ordner" data-cluster="unterricht" data-search="power automate diplom ordner dipl team flow" draggable="true">
+                                <h2><i class="bi bi-folder-plus"></i>Diplom-Ordner</h2>
+                                <p>Flow: bei dipl-*-Teams Vorlagenordner und Willkommensnachricht.</p>
+                                <a class="btn" href="tools/pa-diplom-ordner.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Spielwiesen-Teams" data-tool-id="spielwiesen" data-cluster="unterricht" data-search="spielwiese demo schilf notebook klassennotizbuch fortbildung" draggable="true">
                                 <h2><i class="bi bi-joystick"></i>Spielwiesen-Teams</h2>
                                 <p>Echte Kursteams (EDU_Class) zum Üben – Demo-Schüler-Pool und 1 Team pro Lehrkraft oder Schilf.</p>
                                 <a class="btn" href="tools/spielwiesen.html"><i class="bi bi-joystick"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="KlassenChats" data-tool-id="klassenchats" data-cluster="unterricht" data-search="klassenchat gruppenchat teams lehrer klasse klassenvorstand unterrichtsbelegung" draggable="true">
+                                <h2><i class="bi bi-chat-dots"></i>KlassenChats</h2>
+                                <p>Teams-Gruppenchats für alle Lehrkräfte einer Klasse (aus der Unterrichtsbelegung), inkl. KV – mit Schuljahr im Namen.</p>
+                                <a class="btn" href="tools/klassenchats.html"><i class="bi bi-chat-dots"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1718,6 +1733,11 @@
                                 <h2><i class="bi bi-people"></i>Gäste</h2>
                                 <p>Externe Personen einladen, Gäste in Teams prüfen und festlegen, wer einladen darf.</p>
                                 <a class="btn" href="tools/gaeste-verwalten.html"><i class="bi bi-shield-check"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Gast-Erinnerung Flow" data-tool-id="pa-gast-erinnerung" data-cluster="personen" data-search="power automate gast gäste erinnerung hygiene flow" draggable="true">
+                                <h2><i class="bi bi-person-exclamation"></i>Gast-Erinnerung</h2>
+                                <p>Periodischen Flow für inaktive Gäste vorbereiten (ergänzt Gäste-Tool).</p>
+                                <a class="btn" href="tools/pa-gast-erinnerung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Alle Schüler und alle Lehrkräfte" data-tool-id="slg" data-cluster="personen" data-search="sammelgruppe alle schüler alle lehrer lehrerinnen schülerinnen" draggable="true">
                                 <h2><i class="bi bi-people"></i>Alle Schüler und alle Lehrkräfte</h2>
@@ -1785,72 +1805,108 @@
                     </section>
                 </div>
 
-                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-website" aria-labelledby="dash-tab-website" hidden>
-                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-website">
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-intranet" aria-labelledby="dash-tab-intranet" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-intranet">
                         <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-website"><i class="bi bi-house-door" aria-hidden="true"></i>Schulwebsite, Listen &amp; Automationen</h3>
-                            <p>Intranet, Listen und Power-Automate-Tools – jedes Rezept ist einzeln ausführbar.</p>
+                            <h3 id="dash-cluster-intranet"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet &amp; Listen</h3>
+                            <p>Schulwebsite, SharePoint-Listen und Planer – Inhalt und Struktur der Intranet-Site.</p>
                         </header>
-                        <div class="grid" data-cluster-grid="website" role="list" aria-label="Schulwebsite und Listen">
-                            <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="website" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint formulare medien" draggable="true">
+                        <div class="grid" data-cluster-grid="intranet" role="list" aria-label="Intranet und Listen">
+                            <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="intranet" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint formulare medien" draggable="true">
                                 <h2><i class="bi bi-house-door"></i>Schul-Intranet</h2>
                                 <p>Schulwebsite anlegen: Kommunikationssite, Hub, Startlisten und Starter-Checkliste (Formulare/Medien/News).</p>
                                 <a class="btn" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Lehrerliste" data-tool-id="sharepoint-liste-lehrer" data-cluster="website" data-search="lehrerliste sharepoint liste lehrkräfte website" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Lehrerliste" data-tool-id="sharepoint-liste-lehrer" data-cluster="intranet" data-search="lehrerliste sharepoint liste lehrkräfte website" draggable="true">
                                 <h2><i class="bi bi-table"></i>Lehrerliste</h2>
                                 <p>Die Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website anlegen.</p>
                                 <a class="btn" href="tools/sharepoint-liste-lehrer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schultermine-Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="website" data-search="schultermine termin kalender liste sharepoint website csv import" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schultermine-Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="intranet" data-search="schultermine termin kalender liste sharepoint website csv import" draggable="true">
                                 <h2><i class="bi bi-calendar3"></i>Schultermine-Liste</h2>
                                 <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Schule / Lehrer / beide).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Power Platform Erst-Setup" data-tool-id="pa-erst-setup" data-cluster="website" data-search="power platform erst setup dataverse environment maker einrichtung schule anfänger" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schularbeiten-Listen" data-tool-id="sharepoint-liste-schularbeiten" data-cluster="intranet" data-search="schularbeiten planer hak klausur termin regelwerk terminfenster sharepoint liste intranet lbvo schug" draggable="true">
+                                <h2><i class="bi bi-list-ul"></i>Schularbeiten-Listen</h2>
+                                <p>SharePoint-Paket anlegen: Regelwerk, Terminfenster und Schularbeiten-Liste (Codes aus Stammdaten).</p>
+                                <a class="btn" href="tools/sharepoint-liste-schularbeiten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Projektwochen-Listen" data-tool-id="sharepoint-liste-projektwochen" data-cluster="intranet" data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste intranet anmeldung" draggable="true">
+                                <h2><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</h2>
+                                <p>SharePoint-Paket: PW-Aktionen und PW-Angebote (Anträge; Bookings-Sync folgt).</p>
+                                <a class="btn" href="tools/sharepoint-liste-projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="intranet" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
+                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
+                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
+                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="sRDP-Anmeldung" data-tool-id="sharepoint-liste-srdp" data-cluster="intranet" data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang" draggable="true">
+                                <h2><i class="bi bi-mortarboard"></i>sRDP-Anmeldung</h2>
+                                <p>Anmeldeliste pro Jahr &amp; Schulform (HAK/HTL/HLW/BAFEB/AHS): Formular, Varianten, Ansichten, Gruppenrechte.</p>
+                                <a class="btn" href="tools/sharepoint-liste-srdp.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schularbeiten-Planer" data-tool-id="schularbeiten-planer" data-cluster="intranet" data-search="schularbeiten planer kalender antrag fixieren admin export ics lbvo schug hak" draggable="true">
+                                <h2><i class="bi bi-journal-check"></i>Schularbeiten-Planer</h2>
+                                <p>Anträge stellen, Kalender, Freigabe und Export – mit Live-Regelprüfung nach SchUG/LBVO.</p>
+                                <a class="btn" href="tools/schularbeiten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-automationen" aria-labelledby="dash-tab-automationen" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-automationen">
+                        <header class="dashboard-cluster-head">
+                            <h3 id="dash-cluster-automationen"><i class="bi bi-lightning-charge" aria-hidden="true"></i>Automationen</h3>
+                            <p>Power Platform und Flows – Setup, Rezepte und Checklisten, jeweils einzeln ausführbar.</p>
+                        </header>
+                        <div class="grid" data-cluster-grid="automationen" role="list" aria-label="Automationen und Flows">
+                            <section class="choice" role="listitem" aria-label="Power Platform Erst-Setup" data-tool-id="pa-erst-setup" data-cluster="automationen" data-search="power platform erst setup dataverse environment maker einrichtung schule anfänger" draggable="true">
                                 <h2><i class="bi bi-signpost-2"></i>Power Platform Erst-Setup</h2>
                                 <p>Für Schulen ohne Erfahrung: Environment, Maker-Rechte, Hinweis Postfach pro Workflow – Schritt für Schritt.</p>
                                 <a class="btn" href="tools/pa-erst-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Freistellungen Setup" data-tool-id="freistellung-setup" data-cluster="website" data-search="freistellung genehmigung power automate sharepoint kv direktion flow paket" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Power-Automate Übersicht" data-tool-id="power-automate-rezepte" data-cluster="automationen" data-search="power automate flow rezept übersicht alle automationen" draggable="true">
+                                <h2><i class="bi bi-collection"></i>Automationen-Übersicht</h2>
+                                <p>Alle Power-Automate-Tools auf einen Blick (Status &amp; Links).</p>
+                                <a class="btn" href="tools/power-automate-rezepte.html"><i class="bi bi-collection"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Freistellungen Setup" data-tool-id="freistellung-setup" data-cluster="automationen" data-search="freistellung genehmigung power automate sharepoint kv direktion flow paket" draggable="true">
                                 <h2><i class="bi bi-person-check"></i>Freistellungen</h2>
                                 <p>Liste anlegen und Flow-Paket (KV + Direktion) für den Ziel-Tenant parametrieren.</p>
                                 <a class="btn" href="tools/freistellung-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schultermine Kalender-Sync" data-tool-id="pa-termine-sync" data-cluster="website" data-search="power automate schultermine kalender outlook sync flow" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schultermine Kalender-Sync" data-tool-id="pa-termine-sync" data-cluster="automationen" data-search="power automate schultermine kalender outlook sync flow" draggable="true">
                                 <h2><i class="bi bi-calendar-event"></i>Termine → Kalender</h2>
                                 <p>Flow: SharePoint-Schultermine nach Outlook (Schul-/Lehrerkalender) synchronisieren.</p>
                                 <a class="btn" href="tools/pa-termine-sync.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Forms Anträge" data-tool-id="pa-antraege" data-cluster="website" data-search="power automate forms anträge genehmigung sharepoint liste" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schularbeiten Status-Mail" data-tool-id="pa-schularbeiten-mail" data-cluster="automationen" data-search="power automate schularbeiten status mail e-mail fixiert abgelehnt benachrichtigung" draggable="true">
+                                <h2><i class="bi bi-envelope-check"></i>SA Status-Mail</h2>
+                                <p>Flow: Bei Fixierung/Ablehnung einer Schularbeit E-Mail an die Lehrkraft.</p>
+                                <a class="btn" href="tools/pa-schularbeiten-mail.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Projektwochen Status-Mail" data-tool-id="pa-projektwochen-mail" data-cluster="automationen" data-search="power automate projektwochen status mail e-mail freigegeben abgelehnt angebot benachrichtigung" draggable="true">
+                                <h2><i class="bi bi-envelope-heart"></i>PW Status-Mail</h2>
+                                <p>Flow: Bei Freigabe/Ablehnung eines Projektwochen-Angebots E-Mail an die Lehrkraft.</p>
+                                <a class="btn" href="tools/pa-projektwochen-mail.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Forms Anträge" data-tool-id="pa-antraege" data-cluster="automationen" data-search="power automate forms anträge genehmigung sharepoint liste" draggable="true">
                                 <h2><i class="bi bi-ui-checks"></i>Forms → Anträge</h2>
                                 <p>Antragsliste anlegen und Flow Forms → Genehmigung einrichten.</p>
                                 <a class="btn" href="tools/pa-antraege.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Seminar Fortbildung" data-tool-id="pa-seminar" data-cluster="website" data-search="power automate seminar fortbildung warteliste anmeldung" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Seminar Fortbildung" data-tool-id="pa-seminar" data-cluster="automationen" data-search="power automate seminar fortbildung warteliste anmeldung" draggable="true">
                                 <h2><i class="bi bi-mortarboard"></i>Seminar / Fortbildung</h2>
                                 <p>Anmeldeliste mit Plätzen, Warteliste und Bestätigungsmail.</p>
                                 <a class="btn" href="tools/pa-seminar.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Gast-Erinnerung Flow" data-tool-id="pa-gast-erinnerung" data-cluster="website" data-search="power automate gast gäste erinnerung hygiene flow" draggable="true">
-                                <h2><i class="bi bi-person-exclamation"></i>Gast-Erinnerung</h2>
-                                <p>Periodischen Flow für inaktive Gäste vorbereiten (ergänzt Gäste-Tool).</p>
-                                <a class="btn" href="tools/pa-gast-erinnerung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Diplom-Ordner Flow" data-tool-id="pa-diplom-ordner" data-cluster="website" data-search="power automate diplom ordner dipl team flow" draggable="true">
-                                <h2><i class="bi bi-folder-plus"></i>Diplom-Ordner</h2>
-                                <p>Flow: bei dipl-*-Teams Vorlagenordner und Willkommensnachricht.</p>
-                                <a class="btn" href="tools/pa-diplom-ordner.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Schilf Checkliste" data-tool-id="pa-schilf" data-cluster="website" data-search="schilf kalender favoriten checkliste fortbildung" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schilf Checkliste" data-tool-id="pa-schilf" data-cluster="automationen" data-search="schilf kalender favoriten checkliste fortbildung" draggable="true">
                                 <h2><i class="bi bi-bookmark-star"></i>Schilf-Checkliste</h2>
                                 <p>Kalender abonnieren, Favoriten, Zielgruppen – für die Schilf.</p>
                                 <a class="btn" href="tools/pa-schilf.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Power-Automate Übersicht" data-tool-id="power-automate-rezepte" data-cluster="website" data-search="power automate flow rezept übersicht alle automationen" draggable="true">
-                                <h2><i class="bi bi-collection"></i>Automationen-Übersicht</h2>
-                                <p>Alle Power-Automate-Tools auf einen Blick (Status &amp; Links).</p>
-                                <a class="btn" href="tools/power-automate-rezepte.html"><i class="bi bi-collection"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1921,13 +1977,17 @@
                     <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
                     <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
                     <input type="file" id="browserBackupImportFile" accept="application/json,.json">
+                    <button type="button" class="btn btn-success" data-ms365-spo-sync="upload" title="Alle lokalen App-Daten in die SharePoint-IT-Bibliothek schreiben"><i class="bi bi-cloud-arrow-up"></i>Nach SharePoint</button>
+                    <button type="button" class="btn" data-ms365-spo-sync="load" title="Aktuelles Backup aus der SharePoint-IT-Bibliothek einlesen"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint</button>
+                    <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
                 </div>
                 <div class="dashboard-backup-actions dashboard-local-footer__actions--danger">
                     <button type="button" class="btn btn-demo" id="browserBackupLoadDemo" data-ms365-backup="demo" title="Lokale Daten löschen und Muster-Schule laden"><i class="bi bi-play-circle"></i>Demo-Daten laden</button>
                     <button type="button" class="btn btn-danger-outline" id="browserBackupReset" data-ms365-backup="reset" title="Alle lokalen App-Daten in diesem Browser löschen"><i class="bi bi-arrow-counterclockwise"></i>Alles zurücksetzen</button>
                 </div>
-                <p class="dashboard-local-footer__note">Das Backup sichert <strong>alle</strong> lokalen App-Daten (<code>ms365-*</code>, <code>webuntis-*</code>): Stammdaten, Schuljahre, Einrichtung, Demo-Modus, Dashboard-Favoriten, Kursteams-Zwischenstand, Gruppen-Werkzeuge, Hygiene-Scans, Theme und weitere Werkzeug-Stände. Nicht enthalten: Microsoft-Anmeldung und PIN-Freischaltung. Zum Browser-Wechsel: exportieren und unten importieren.</p>
+                <p class="dashboard-local-footer__note">Browser-Backup und SharePoint sichern dieselben lokalen App-Daten (<code>ms365-*</code>, <code>webuntis-*</code>): Stammdaten, Schuljahre, Einrichtung, Demo-Modus, Dashboard-Favoriten, Kursteams, Gruppen-Werkzeuge, Projektwochen-/Schularbeiten-Einstellungen u. a. Nicht enthalten: Microsoft-Anmeldung und PIN. <strong>Nach SharePoint</strong> schreibt in die IT-Sicherungsbibliothek; <strong>Von SharePoint</strong> ersetzt die lokalen Daten durch das aktuelle Remote-Backup.</p>
                 <p class="dashboard-local-footer__status" id="browserBackupStatus" role="status" aria-live="polite"></p>
+                <p class="dashboard-local-footer__status" id="stammdatenSpoSyncStatus" role="status" aria-live="polite"></p>
             </section>
         </div>
     </div>
@@ -1976,19 +2036,24 @@
             const LEGACY_ORDER_KEY_SP = 'ms365-dashboard-order-sharepoint-v2';
             const LEGACY_ORDER_KEY = 'ms365-dashboard-order-v1';
             const TAB_KEY = 'ms365-dashboard-category-tab-v1';
-            const TAB_IDS = ['unterricht', 'personen', 'schuljahr', 'kommunikation', 'website', 'regeln'];
+            const TAB_IDS = ['unterricht', 'personen', 'schuljahr', 'kommunikation', 'intranet', 'automationen', 'regeln'];
 
             const DEFAULT_ORDER = [
                 'jahrgang',
                 'klassen-merge',
                 'kursteams',
                 'kursteam-einzeln',
+                'kursteam-templates',
+                'onenote-verteilung',
                 'arge-fachgruppen',
                 'diplomarbeiten',
+                'pa-diplom-ordner',
                 'spielwiesen',
+                'klassenchats',
                 'personen-verwaltung',
                 'namenskonvention-audit',
                 'gaeste-verwalten',
+                'pa-gast-erinnerung',
                 'slg',
                 'verwaltung',
                 'klassenvorstaende',
@@ -2000,15 +2065,20 @@
                 'sharepoint-intranet-hub',
                 'sharepoint-liste-lehrer',
                 'sharepoint-liste-schultermine',
+                'sharepoint-liste-schularbeiten',
+                'sharepoint-liste-projektwochen',
+                'projektwochen',
+                'sharepoint-liste-srdp',
+                'schularbeiten-planer',
                 'pa-erst-setup',
+                'power-automate-rezepte',
                 'freistellung-setup',
                 'pa-termine-sync',
+                'pa-schularbeiten-mail',
+                'pa-projektwochen-mail',
                 'pa-antraege',
                 'pa-seminar',
-                'pa-gast-erinnerung',
-                'pa-diplom-ordner',
                 'pa-schilf',
-                'power-automate-rezepte',
                 'gruppenerstellung',
                 'sharepoint-mandant-website',
                 'sharepoint-mandant-teilen',
@@ -2409,7 +2479,9 @@
 
             let initialTab = 'unterricht';
             try {
-                const s = localStorage.getItem(TAB_KEY);
+                let s = localStorage.getItem(TAB_KEY);
+                /* Alter Katalog-Tab „website“ → Intranet & Listen */
+                if (s === 'website') s = 'intranet';
                 if (isKnownTab(s)) initialTab = s;
             } catch {
                 /* ignore */

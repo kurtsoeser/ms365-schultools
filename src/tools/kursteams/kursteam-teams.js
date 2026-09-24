@@ -16,6 +16,7 @@ import './kursteam-teams-table-ui.js';
 import './kursteam-teams-actions.js';
 import './kursteam-ui.js';
 import './kursteam-storage.js';
+import './kursteam-unterrichtsbelegung.js';
 import './kursteam-import.js';
 import './kursteam-teacher-match-logic.js';
 import './kursteam-teacher-mapping.js';
@@ -44,6 +45,10 @@ window.ms365AssertModules(
 KUI.mount(ns);
 KSub.mount(ns);
 KActions.mount(ns);
+
+if (typeof ns.updateUnterrichtsbelegungHint === 'function') {
+    queueMicrotask(() => ns.updateUnterrichtsbelegungHint());
+}
 
 window.startKursteamFromWebuntis = ns.startKursteamFromWebuntis;
 window.startKursteamManual = ns.startKursteamManual;

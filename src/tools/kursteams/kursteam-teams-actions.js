@@ -250,6 +250,9 @@ function mount(ns) {
         document.getElementById('duplicateMailAdjustments').textContent = dupCount;
         ns.teamsGenerated = true;
         ns.displayTeamsData();
+        if (typeof ns.syncUnterrichtsbelegungToApp === 'function') {
+            ns.syncUnterrichtsbelegungToApp({ quiet: false });
+        }
         if (typeof ns.updateStep5Checklist === 'function') ns.updateStep5Checklist();
         if (typeof ns.scrollToContinue === 'function') ns.scrollToContinue('continueBtn4');
     };
@@ -291,6 +294,9 @@ function mount(ns) {
                 };
                 ns.closeModal();
                 ns.displayTeamsData();
+                if (typeof ns.syncUnterrichtsbelegungToApp === 'function') {
+                    ns.syncUnterrichtsbelegungToApp({ quiet: true });
+                }
             }
         );
     };
@@ -300,6 +306,9 @@ function mount(ns) {
             ns.teamsData.splice(index, 1);
             if (ns.teamsData.length === 0) ns.teamsGenerated = false;
             ns.displayTeamsData();
+            if (typeof ns.syncUnterrichtsbelegungToApp === 'function') {
+                ns.syncUnterrichtsbelegungToApp({ quiet: true });
+            }
         });
     };
 
@@ -354,6 +363,9 @@ function mount(ns) {
         delete team.ktManualDraft;
         ns.resolveDuplicateGruppenmails(ns.teamsData);
         ns.displayTeamsData();
+        if (typeof ns.syncUnterrichtsbelegungToApp === 'function') {
+            ns.syncUnterrichtsbelegungToApp({ quiet: true });
+        }
         ns.showToast('Team übernommen.');
     };
 

@@ -10,6 +10,6 @@
 
 export { normStr, normCode, normEmail, normHeaderKey, escapeHtml, attrEscape, compareDe } from './strings.js';
 export { safeJsonParse } from './json.js';
-export { dlgAlert, dlgConfirm, dlgPrompt } from './dialog.js';
+export { dlgAlert, dlgConfirm, dlgPrompt, dlgToast } from './dialog.js';
 export { loadJson, saveJson, removeKey } from './storage.js';
 export { getEl, showToast } from './dom.js';

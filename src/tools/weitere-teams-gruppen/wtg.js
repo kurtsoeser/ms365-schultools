@@ -10,9 +10,16 @@ let wtgRows = [];
 let wtgPreviewRows = [];
 let wtgSuppressTextareaSync = false;
 
-function showToast(msg) {
+function showToast(msg, opts) {
+    if (typeof window.ms365ShowToast === 'function' && window.ms365ShowToast !== showToast) {
+        window.ms365ShowToast(msg, opts);
+        return;
+    }
     const el = document.getElementById('toast');
-    if (!el) return;
+    if (!el) {
+        if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg, opts);
+        return;
+    }
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(showToast._t);

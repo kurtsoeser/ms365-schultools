@@ -28,10 +28,11 @@ const SCOPES_GRAPH = [
     'https://graph.microsoft.com/Group.Read.All'
 ];
 
-/** Formularwerte über MSAL-Redirect hinweg (Popup-Fallback / Header-Login). */
+/** Formularwerte dauerhaft (localStorage) + kurzfristig für MSAL-Redirect (sessionStorage). */
 const FORM_DRAFT_KEY = 'ms365-su-form-draft-v1';
 const PENDING_ACTION_KEY = 'ms365-su-pending-action-v1';
 const PENDING_MAX_AGE_MS = 30 * 60 * 1000;
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function $(id) {
     return document.getElementById(id);
@@ -58,19 +59,62 @@ function applyFormState(state) {
     }
 }
 
-function persistFormDraft() {
+function mergeItMetaPrefs(state) {
+    if (!state || typeof state !== 'object') return;
+    const cur = loadItMeta() || {};
+    const next = Object.assign({}, cur);
+    if (state.siteUrl) next.siteUrl = state.siteUrl;
+    if (state.libraryTitle) next.listTitle = state.libraryTitle;
+    if (state.itGroup) {
+        if (GUID_RE.test(state.itGroup)) {
+            next.itGroupId = state.itGroup;
+            if (!next.itGroupMail) next.itGroupMail = '';
+        } else {
+            next.itGroupMail = state.itGroup;
+        }
+    }
+    const changed =
+        String(cur.siteUrl || '') !== String(next.siteUrl || '') ||
+        String(cur.listTitle || '') !== String(next.listTitle || '') ||
+        String(cur.itGroupId || '') !== String(next.itGroupId || '') ||
+        String(cur.itGroupMail || '') !== String(next.itGroupMail || '');
+    if (changed) saveItMeta(next);
+}
+
+function persistFormDraft(opts) {
+    const state = collectFormState();
+    const raw = JSON.stringify(state);
     try {
-        sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(collectFormState()));
+        localStorage.setItem(FORM_DRAFT_KEY, raw);
     } catch {
         /* ignore */
+    }
+    try {
+        sessionStorage.setItem(FORM_DRAFT_KEY, raw);
+    } catch {
+        /* ignore */
+    }
+    // Stammdaten/Setup nur bei change/pagehide mergen – nicht bei jedem Tastendruck.
+    if (opts && opts.mergeSetup) {
+        if (state.siteUrl) rememberSite(state.siteUrl);
+        mergeItMetaPrefs(state);
     }
 }
 
 function restoreFormDraft() {
     try {
-        const raw = sessionStorage.getItem(FORM_DRAFT_KEY);
-        if (!raw) return false;
-        applyFormState(JSON.parse(raw));
+        const localRaw = localStorage.getItem(FORM_DRAFT_KEY);
+        if (localRaw) {
+            applyFormState(JSON.parse(localRaw));
+            return true;
+        }
+    } catch {
+        /* ignore */
+    }
+    try {
+        const sessionRaw = sessionStorage.getItem(FORM_DRAFT_KEY);
+        if (!sessionRaw) return false;
+        applyFormState(JSON.parse(sessionRaw));
         return true;
     } catch {
         return false;
@@ -125,8 +169,12 @@ function bindFormDraftPersistence() {
         if (!el || el.dataset.draftBound === '1') return;
         el.dataset.draftBound = '1';
         const ev = el.type === 'checkbox' ? 'change' : 'input';
-        el.addEventListener(ev, persistFormDraft);
-        el.addEventListener('change', persistFormDraft);
+        el.addEventListener(ev, function () {
+            persistFormDraft();
+        });
+        el.addEventListener('change', function () {
+            persistFormDraft({ mergeSetup: true });
+        });
     });
     const siteEl = $('suSiteUrl');
     if (siteEl && siteEl.dataset.rememberBound !== '1') {
@@ -138,8 +186,12 @@ function bindFormDraftPersistence() {
     }
     if (!bindFormDraftPersistence._unloadBound) {
         bindFormDraftPersistence._unloadBound = true;
-        window.addEventListener('pagehide', persistFormDraft);
-        window.addEventListener('beforeunload', persistFormDraft);
+        window.addEventListener('pagehide', function () {
+            persistFormDraft({ mergeSetup: true });
+        });
+        window.addEventListener('beforeunload', function () {
+            persistFormDraft({ mergeSetup: true });
+        });
     }
 }
 
@@ -420,8 +472,8 @@ async function runSetupItLibrary(opts) {
     }
     const plan = buildItLibraryPlan({
         listTitle: listTitle,
-        itGroupId: /^[0-9a-f-]{36}$/i.test(groupRaw) ? groupRaw : '',
-        itGroupMail: /^[0-9a-f-]{36}$/i.test(groupRaw) ? '' : groupRaw
+        itGroupId: GUID_RE.test(groupRaw) ? groupRaw : '',
+        itGroupMail: GUID_RE.test(groupRaw) ? '' : groupRaw
     });
     if (!plan.ok) throw new Error(plan.issues.join(', '));
 
@@ -440,7 +492,7 @@ async function runSetupItLibrary(opts) {
         return;
     }
 
-    persistFormDraft();
+    persistFormDraft({ mergeSetup: true });
     rememberSite(webUrl);
     setPendingAction('setup');
 
@@ -558,7 +610,7 @@ async function runSetupItLibrary(opts) {
     saveItMeta(meta);
     if ($('suItGroup') && groupId && !$('suItGroup').value) $('suItGroup').value = groupId;
     clearPendingAction();
-    persistFormDraft();
+    persistFormDraft({ mergeSetup: true });
     refreshMetaUi();
     log('Fertig. ' + designHintDe());
     toast('IT-Bibliothek eingerichtet.');
@@ -567,7 +619,7 @@ async function runSetupItLibrary(opts) {
 
 async function runUpload() {
     clearLog();
-    persistFormDraft();
+    persistFormDraft({ mergeSetup: true });
     setPendingAction('upload');
     requireDriveId();
     const webUrl = getSiteUrl();
@@ -583,7 +635,7 @@ async function runUpload() {
 
 async function runList() {
     clearLog();
-    persistFormDraft();
+    persistFormDraft({ mergeSetup: true });
     setPendingAction('list');
     const it = requireDriveId();
     const folder = getFolder();
@@ -670,11 +722,19 @@ function fillDefaults() {
     restoreFormDraft();
     try {
         const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
-        const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
-        if (saved && $('suSiteUrl') && !$('suSiteUrl').value) $('suSiteUrl').value = saved;
+        const it = loadItMeta() || (setup && setup.stammdatenItLibrary) || {};
+        const siteFromSetup = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+        const siteFromIt = it.siteUrl ? String(it.siteUrl).trim() : '';
+        if ($('suSiteUrl') && !$('suSiteUrl').value) {
+            $('suSiteUrl').value = siteFromIt || siteFromSetup;
+        }
+        if ($('suLibraryTitle')) {
+            const savedTitle = it.listTitle ? String(it.listTitle).trim() : '';
+            if (savedTitle) $('suLibraryTitle').value = savedTitle;
+            else if (!$('suLibraryTitle').value) $('suLibraryTitle').value = IT_LIBRARY_TITLE;
+        }
         if ($('suItGroup') && !$('suItGroup').value) {
-            const it = (setup && setup.stammdatenItLibrary) || loadItMeta();
-            if (it && (it.itGroupMail || it.itGroupId)) {
+            if (it.itGroupMail || it.itGroupId) {
                 $('suItGroup').value = it.itGroupMail || it.itGroupId;
             } else if (setup && setup.matched && setup.matched.verwaltungGroupId) {
                 $('suItGroup').value = String(setup.matched.verwaltungGroupId);
@@ -685,13 +745,14 @@ function fillDefaults() {
     }
     if ($('suFolder') && !$('suFolder').value) $('suFolder').value = DEFAULT_FOLDER;
     if ($('suLibraryTitle') && !$('suLibraryTitle').value) $('suLibraryTitle').value = IT_LIBRARY_TITLE;
+    persistFormDraft({ mergeSetup: true });
     refreshMetaUi();
 }
 
 function handleActionError(e) {
     const msg = String((e && e.message) || e || '');
     if (/Weiterleitung zur Anmeldung/i.test(msg)) {
-        persistFormDraft();
+        persistFormDraft({ mergeSetup: true });
         log('Anmeldung nötig – Eingaben bleiben erhalten. Nach der Rückkehr wird fortgesetzt …');
         toast('Zur Anmeldung – Formular bleibt erhalten.');
         return;
@@ -721,7 +782,7 @@ function resumePendingIfAny() {
         const pending = takePendingAction();
         if (!pending || !pending.action) return;
         if (pending.form) applyFormState(pending.form);
-        persistFormDraft();
+        persistFormDraft({ mergeSetup: true });
         log('Anmeldung abgeschlossen – setze fort: ' + pending.action + ' …');
         try {
             if (pending.action === 'setup') await runSetupItLibrary({ skipConfirm: true });
@@ -771,7 +832,7 @@ function boot() {
         loadCur.addEventListener('click', function () {
             (async function () {
                 clearLog();
-                persistFormDraft();
+                persistFormDraft({ mergeSetup: true });
                 log('Lade aktuelle Datei …');
                 const preview = await downloadCurrentBackup({ folder: getFolder(), apply: false });
                 const obj = preview.payload || {};

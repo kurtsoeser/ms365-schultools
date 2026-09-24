@@ -362,6 +362,114 @@
             ],
             steps: [],
             doneLabel: 'In Schilf kommuniziert'
+        },
+        {
+            id: 'schularbeiten-mail',
+            toolId: 'pa-schularbeiten-mail',
+            title: 'Schularbeiten Status-Mail',
+            icon: 'bi-envelope-check',
+            kicker: 'Power Automate',
+            summary:
+                'Bei Statusänderung in der Liste „Schularbeiten“ eine E-Mail an die antragstellende Lehrkraft senden (fixiert/abgelehnt).',
+            helpId: 'tool-pa-schularbeiten-mail',
+            storageKey: 'ms365-pa-schularbeiten-mail-v1',
+            related: [
+                { href: 'schularbeiten-planer.html', label: 'Schularbeiten-Planer', icon: 'bi-journal-check' },
+                { href: 'sharepoint-liste-schularbeiten.html', label: 'Schularbeiten-Listen', icon: 'bi-list-ul' },
+                {
+                    href: 'https://make.powerautomate.com/',
+                    label: 'Power Automate',
+                    icon: 'bi-box-arrow-up-right',
+                    external: true
+                }
+            ],
+            fields: [
+                {
+                    id: 'siteUrl',
+                    label: 'SharePoint-Website (mit Schularbeiten-Liste)',
+                    type: 'url',
+                    placeholder: 'https://schule.sharepoint.com/sites/Intranet'
+                },
+                {
+                    id: 'listName',
+                    label: 'Listenname',
+                    type: 'text',
+                    defaultValue: 'Schularbeiten'
+                },
+                {
+                    id: 'fromMailbox',
+                    label: 'Absender-Mailbox (optional, freigegeben)',
+                    type: 'email',
+                    placeholder: 'direktion@schule.at'
+                }
+            ],
+            list: null,
+            listHint:
+                'Liste zuerst mit dem Schularbeiten-Listen-Tool anlegen. Empfänger = Feld LehrerEmail oder BeantragtVon (UPN).',
+            listActionLabel: null,
+            steps: [
+                'Trigger: Wenn ein Element erstellt oder geändert wird (SharePoint → Liste „Schularbeiten“).',
+                'Bedingung: Status ist „fixiert“ oder „abgelehnt“ (und ggf. vorheriger Status ≠ neuer Status).',
+                'Aktion: E-Mail senden (Office 365 Outlook) an LehrerEmail; Fallback BeantragtVon.',
+                'Betreff z. B.: „Schularbeit [Status]: [Title] – [KlasseCode]“.',
+                'Text: Datum, FachCode, Thema, AblehnungsGrund (wenn abgelehnt), Link zum Planer.',
+                'Optional: nur bei geändertem Status (Get changes / Version vergleichen).'
+            ],
+            doneLabel: 'Status-Mail-Flow aktiv'
+        },
+        {
+            id: 'projektwochen-mail',
+            toolId: 'pa-projektwochen-mail',
+            title: 'Projektwochen Status-Mail',
+            icon: 'bi-envelope-heart',
+            kicker: 'Power Automate',
+            summary:
+                'Bei Freigabe oder Ablehnung in der Liste „PW-Angebote“ eine E-Mail an die antragstellende Lehrkraft senden.',
+            helpId: 'tool-pa-projektwochen-mail',
+            storageKey: 'ms365-pa-projektwochen-mail-v1',
+            related: [
+                { href: 'projektwochen.html', label: 'Projektwochen', icon: 'bi-calendar2-week' },
+                { href: 'sharepoint-liste-projektwochen.html', label: 'Projektwochen-Listen', icon: 'bi-list-ul' },
+                {
+                    href: 'https://make.powerautomate.com/',
+                    label: 'Power Automate',
+                    icon: 'bi-box-arrow-up-right',
+                    external: true
+                }
+            ],
+            fields: [
+                {
+                    id: 'siteUrl',
+                    label: 'SharePoint-Website (mit PW-Angebote)',
+                    type: 'url',
+                    placeholder: 'https://schule.sharepoint.com/sites/Intranet'
+                },
+                {
+                    id: 'listName',
+                    label: 'Listenname',
+                    type: 'text',
+                    defaultValue: 'PW-Angebote'
+                },
+                {
+                    id: 'fromMailbox',
+                    label: 'Absender-Mailbox (optional, freigegeben)',
+                    type: 'email',
+                    placeholder: 'direktion@schule.at'
+                }
+            ],
+            list: null,
+            listHint:
+                'Liste zuerst mit dem Projektwochen-Listen-Tool anlegen. Empfänger = LehrerEmail oder BeantragtVon.',
+            listActionLabel: null,
+            steps: [
+                'Trigger: Wenn ein Element erstellt oder geändert wird (SharePoint → Liste „PW-Angebote“).',
+                'Bedingung: Status ist „freigegeben“ oder „abgelehnt“.',
+                'Aktion: E-Mail senden (Office 365 Outlook) an LehrerEmail; Fallback BeantragtVon.',
+                'Betreff z. B.: „Projektwochen-Angebot [Status]: [Title] – [Datum]“.',
+                'Text: Slot, Ort, Kapazität, Preis, AblehnungsGrund (wenn abgelehnt), optional BookingsBookingUrl.',
+                'Optional: nur bei geändertem Status (Get changes / Version vergleichen).'
+            ],
+            doneLabel: 'Projektwochen Status-Mail-Flow aktiv'
         }
     ];
 

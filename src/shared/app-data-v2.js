@@ -2,7 +2,7 @@
     'use strict';
 
     const STORAGE_KEY_V2 = 'ms365-schooltool-data-v2';
-    /** Schema 4: years.*.guardians, students.id/guardianIds, parentLists */
+    /** Schema 4: years.*.guardians…; unterrichtsbelegung; classChats (Teams-Gruppenchats) */
     const VERSION = 4;
     const SLG_LEGACY_KEY = 'ms365-schueler-lehrer-gruppen-v2';
 
@@ -197,7 +197,137 @@
     }
 
     function emptyYearBucket() {
-        return { students: [], studentCouncil: [], classes: [], guardians: [], parentLists: [] };
+        return {
+            students: [],
+            studentCouncil: [],
+            classes: [],
+            guardians: [],
+            parentLists: [],
+            /** Kanonische Belegung aus Kursteams (Klasse × Lehrkraft × Fach). */
+            unterrichtsbelegung: null,
+            /** Teams-Gruppenchats pro Klasse (Klassenlehrer-Chat). */
+            classChats: null
+        };
+    }
+
+    function normalizeUnterrichtsbelegungRow(row) {
+        const r = row && typeof row === 'object' ? row : {};
+        const klasse = String(r.klasse || '').trim();
+        const lehrerCode = String(r.lehrerCode || r.lehrer || '')
+            .trim()
+            .toUpperCase();
+        const lehrerEmail = String(r.lehrerEmail || r.besitzer || '')
+            .trim()
+            .toLowerCase();
+        const fach = String(r.fach || '').trim();
+        const gruppe = String(r.gruppe || '').trim();
+        const teamName = String(r.teamName || '').trim();
+        const gruppenmail = String(r.gruppenmail || '')
+            .trim()
+            .toLowerCase();
+        if (!klasse && !fach && !lehrerEmail && !teamName) return null;
+        return {
+            klasse: klasse,
+            lehrerCode: lehrerCode,
+            lehrerEmail: lehrerEmail,
+            fach: fach,
+            gruppe: gruppe,
+            teamName: teamName,
+            gruppenmail: gruppenmail
+        };
+    }
+
+    function normalizeUnterrichtsbelegung(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const rows = [];
+        const seen = new Set();
+        (Array.isArray(raw.rows) ? raw.rows : []).forEach(function (row) {
+            const n = normalizeUnterrichtsbelegungRow(row);
+            if (!n) return;
+            const key = [n.klasse, n.lehrerCode, n.fach, n.gruppe, n.gruppenmail].join('|');
+            if (seen.has(key)) return;
+            seen.add(key);
+            rows.push(n);
+        });
+        if (!rows.length && !String(raw.updatedAt || '').trim() && !String(raw.yearPrefix || '').trim()) {
+            return null;
+        }
+        const classSet = new Set();
+        const teacherSet = new Set();
+        rows.forEach(function (r) {
+            if (r.klasse) classSet.add(r.klasse);
+            if (r.lehrerEmail) teacherSet.add(r.lehrerEmail);
+            else if (r.lehrerCode) teacherSet.add(r.lehrerCode);
+        });
+        return {
+            updatedAt: String(raw.updatedAt || '').trim() || new Date().toISOString(),
+            yearPrefix: String(raw.yearPrefix || '').trim(),
+            source: String(raw.source || '').trim() || 'kursteams',
+            teamsCount: Number.isFinite(Number(raw.teamsCount)) ? Number(raw.teamsCount) : rows.length,
+            classCount: classSet.size,
+            teacherCount: teacherSet.size,
+            rows: rows
+        };
+    }
+
+    function normalizeClassChatItem(row) {
+        const r = row && typeof row === 'object' ? row : {};
+        const klasse = String(r.klasse || '').trim();
+        const chatId = String(r.chatId || '').trim();
+        if (!klasse || !chatId) return null;
+        const memberEmails = [];
+        const seen = new Set();
+        (Array.isArray(r.memberEmails) ? r.memberEmails : []).forEach(function (em) {
+            const e = normEmailKey(em);
+            if (!e || seen.has(e)) return;
+            seen.add(e);
+            memberEmails.push(e);
+        });
+        return {
+            klasse: klasse,
+            topic: String(r.topic || '').trim(),
+            chatId: chatId,
+            memberEmails: memberEmails,
+            webUrl: String(r.webUrl || '').trim(),
+            createdAt: String(r.createdAt || '').trim(),
+            lastSyncAt: String(r.lastSyncAt || '').trim()
+        };
+    }
+
+    function normalizeClassChats(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const items = [];
+        const seen = new Set();
+        (Array.isArray(raw.items) ? raw.items : []).forEach(function (row) {
+            const n = normalizeClassChatItem(row);
+            if (!n) return;
+            const key = n.klasse.toUpperCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            items.push(n);
+        });
+        if (!items.length && !String(raw.updatedAt || '').trim() && !String(raw.yearPrefix || '').trim()) {
+            return null;
+        }
+        let namePattern = null;
+        if (Array.isArray(raw.namePattern)) {
+            namePattern = raw.namePattern
+                .map(function (p) {
+                    if (!p || typeof p !== 'object') return null;
+                    const type = String(p.type || '').trim();
+                    if (type === 'text') return { type: 'text', value: String(p.value ?? '') };
+                    if (type === 'yearPrefix' || type === 'klasse') return { type: type };
+                    return null;
+                })
+                .filter(Boolean);
+            if (!namePattern.length) namePattern = null;
+        }
+        return {
+            updatedAt: String(raw.updatedAt || '').trim() || new Date().toISOString(),
+            yearPrefix: String(raw.yearPrefix || '').trim(),
+            namePattern: namePattern,
+            items: items
+        };
     }
 
     function normalizeGuardian(row) {
@@ -324,6 +454,8 @@
         base.classes = Array.isArray(y.classes) ? deepClone(y.classes) : [];
         base.guardians = guardians;
         base.parentLists = parentLists;
+        base.unterrichtsbelegung = normalizeUnterrichtsbelegung(y.unterrichtsbelegung);
+        base.classChats = normalizeClassChats(y.classChats);
         return base;
     }
 
@@ -426,7 +558,9 @@
             classes: prev.classes,
             guardians: guardians,
             parentLists: prev.parentLists,
-            studentCouncil: prev.studentCouncil
+            studentCouncil: prev.studentCouncil,
+            unterrichtsbelegung: prev.unterrichtsbelegung,
+            classChats: prev.classChats
         });
     }
 
@@ -1062,6 +1196,9 @@
                 seed.parentLists = (seed.parentLists || []).map(function (p) {
                     return Object.assign({}, p, { graphGroupId: '', lastExportAt: '' });
                 });
+                // Belegung / Klassenchats sind schuljahr-/stundenplanbezogen – nicht mitkopieren.
+                seed.unterrichtsbelegung = null;
+                seed.classChats = null;
             }
             by[y] = seed;
         }
@@ -1408,6 +1545,38 @@
         return saveV2(c);
     }
 
+    /**
+     * Kanonische Unterrichtsbelegung (aus Kursteam-Endliste) für ein Schuljahr.
+     * @param {string} [yearLabel]
+     */
+    function getUnterrichtsbelegung(yearLabel) {
+        const { bucket } = getYearBucket(yearLabel);
+        return bucket.unterrichtsbelegung ? deepClone(bucket.unterrichtsbelegung) : null;
+    }
+
+    /**
+     * @param {object|null} snapshot
+     * @param {string} [yearLabel]
+     */
+    function setUnterrichtsbelegung(snapshot, yearLabel) {
+        const { year, bucket } = getYearBucket(yearLabel);
+        bucket.unterrichtsbelegung = normalizeUnterrichtsbelegung(snapshot);
+        saveYearBucket(year, bucket);
+        return bucket.unterrichtsbelegung ? deepClone(bucket.unterrichtsbelegung) : null;
+    }
+
+    function getClassChats(yearLabel) {
+        const { bucket } = getYearBucket(yearLabel);
+        return bucket.classChats ? deepClone(bucket.classChats) : null;
+    }
+
+    function setClassChats(snapshot, yearLabel) {
+        const { year, bucket } = getYearBucket(yearLabel);
+        bucket.classChats = normalizeClassChats(snapshot);
+        saveYearBucket(year, bucket);
+        return bucket.classChats ? deepClone(bucket.classChats) : null;
+    }
+
     function upsertGuardian(entry, yearLabel) {
         const { year, bucket } = getYearBucket(yearLabel);
         const n = normalizeGuardian(entry);
@@ -1600,6 +1769,12 @@
         mergeStudentsImport,
         getYearBucket,
         saveYearBucket,
+        getUnterrichtsbelegung,
+        setUnterrichtsbelegung,
+        normalizeUnterrichtsbelegung,
+        getClassChats,
+        setClassChats,
+        normalizeClassChats,
         upsertGuardian,
         removeGuardian,
         pruneUnlinkedGuardians,

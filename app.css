@@ -1258,21 +1258,142 @@ th {
 }
 .powershell-code pre { margin: 0; white-space: pre-wrap; }
 
+/* Legacy-Toast (#toast) – bleibt kompatibel, optisch an zentrales System angeglichen */
 .toast {
     position: fixed;
     bottom: 24px;
     left: 50%;
-    transform: translateX(-50%);
-    background: #32325d;
-    color: white;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--heading, #32325d);
+    color: #fff;
     padding: 12px 20px;
-    border-radius: 8px;
+    border-radius: var(--radius, 14px);
     z-index: 1001;
     display: none;
-    max-width: 90%;
+    max-width: min(420px, 92vw);
     text-align: center;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.toast.show { display: block; }
+.toast.show {
+    display: block;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Zentrale Toasts (ms365ShowToast) */
+.ms365-toast-host {
+    position: fixed;
+    inset: 0;
+    z-index: 10060;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+    pointer-events: none;
+}
+.ms365-toast {
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: 12px;
+    width: min(440px, calc(100vw - 32px));
+    padding: 14px 14px 14px 16px;
+    border-radius: var(--radius, 14px);
+    background: var(--card, #fff);
+    color: var(--text, #1e2440);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: scale(0.94);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    overflow: hidden;
+}
+.ms365-toast::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--brand1);
+}
+.ms365-toast {
+    position: relative;
+}
+.ms365-toast--show {
+    opacity: 1;
+    transform: scale(1);
+}
+.ms365-toast--hide {
+    opacity: 0;
+    transform: scale(0.94);
+}
+.ms365-toast-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+    background: var(--brand1);
+}
+.ms365-toast-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+.ms365-toast-body {
+    min-width: 0;
+    padding-top: 1px;
+}
+.ms365-toast-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+.ms365-toast-msg {
+    font-size: 0.98rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--heading, var(--text));
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ms365-toast-close {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.35rem;
+    line-height: 1;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: -4px -4px 0 0;
+}
+.ms365-toast-close:hover {
+    background: var(--soft);
+    color: var(--heading);
+}
+.ms365-toast--success::before { background: var(--ok1); }
+.ms365-toast--success .ms365-toast-icon { background: linear-gradient(135deg, var(--ok1), var(--ok2)); }
+.ms365-toast--error::before { background: var(--danger1); }
+.ms365-toast--error .ms365-toast-icon { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
+.ms365-toast--warning::before { background: #f5a623; }
+.ms365-toast--warning .ms365-toast-icon { background: linear-gradient(135deg, #f5a623, #f56036); }
+.ms365-toast--info::before { background: var(--brand1); }
+.ms365-toast--info .ms365-toast-icon { background: linear-gradient(135deg, var(--brand1), var(--brand2)); }
 
 /* Kursteams: Upload */
 .upload-area {
@@ -1737,10 +1858,16 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
 #ms365AppDialog.modal-overlay,
 .ms365-app-dialog-overlay {
     z-index: 10050;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
+    background: rgba(20, 24, 48, 0.48);
 }
 #ms365AppDialog .ms365-app-dialog-box {
     max-width: 520px;
+    background: var(--card, #fff);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 20px);
+    box-shadow: var(--shadow-lg);
+    padding: 22px 22px 18px;
     animation: ms365AppDialogIn 0.2s ease-out;
 }
 @keyframes ms365AppDialogIn {
@@ -1753,20 +1880,51 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
         transform: translateY(0) scale(1);
     }
 }
+#ms365AppDialog .app-dialog-head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    align-items: start;
+}
+#ms365AppDialog .app-dialog-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    flex-shrink: 0;
+}
+#ms365AppDialog .app-dialog-icon svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+#ms365AppDialog[data-kind="success"] .app-dialog-icon {
+    background: linear-gradient(135deg, var(--ok1), var(--ok2));
+}
+#ms365AppDialog[data-kind="error"] .app-dialog-icon {
+    background: linear-gradient(135deg, var(--danger1), var(--danger2));
+}
+#ms365AppDialog[data-kind="warning"] .app-dialog-icon {
+    background: linear-gradient(135deg, #f5a623, #f56036);
+}
 #ms365AppDialog .app-dialog-title {
-    margin: 0 0 10px;
+    margin: 0 0 6px;
     font-size: 1.18rem;
     font-weight: 900;
-    color: #32325d;
+    color: var(--heading, #32325d);
     letter-spacing: -0.02em;
     line-height: 1.25;
 }
 #ms365AppDialog .app-dialog-message {
     margin: 0;
     line-height: 1.55;
-    color: #495057;
+    color: var(--text-secondary, #495057);
     white-space: pre-wrap;
     word-break: break-word;
+    font-size: 0.98rem;
 }
 #ms365AppDialog .app-dialog-prompt {
     margin-top: 16px;
@@ -1776,23 +1934,26 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
     flex-direction: column;
     gap: 8px;
     font-weight: 700;
-    color: #32325d;
+    color: var(--heading, #32325d);
     font-size: 0.95rem;
 }
 #ms365AppDialog .app-dialog-input {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 1px solid var(--input-border, var(--border));
+    border-radius: 10px;
     font: inherit;
     color: var(--text);
-    background: #fff;
+    background: var(--input-bg, #fff);
     box-sizing: border-box;
 }
 #ms365AppDialog .app-dialog-input:focus {
     outline: 2px solid rgba(94, 114, 228, 0.45);
     outline-offset: 1px;
     border-color: var(--brand1);
+}
+#ms365AppDialog .modal-actions {
+    margin-top: 18px;
 }
 
 /* Schritt-Navigation: Zurück links, Weiter rechts (eine Zeile pro Block) */
