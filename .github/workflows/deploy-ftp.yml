@@ -39,13 +39,24 @@ jobs:
           LICENSE_FUNCTION_KEY: ${{ secrets.LICENSE_FUNCTION_KEY }}
         run: node scripts/write-kursteams-local-config.mjs
 
+      - name: FTP-Secrets prüfen (ohne Passwort)
+        run: |
+          echo "host_len=${#FTP_HOST} user_len=${#FTP_USER} pass_len=${#FTP_PASS} dir='${FTP_REMOTE_DIR}'"
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+
       - name: FTP Upload nach /app
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          protocol: ftp
+          # World4You: explizites FTPS (TLS) auf Port 21
+          protocol: ftps
           local-dir: ./dist/
           server-dir: ${{ secrets.FTP_REMOTE_DIR }}
           timeout: 60000
+          security: loose
