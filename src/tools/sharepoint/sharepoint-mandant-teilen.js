@@ -316,7 +316,7 @@
             : '$AdminUrl = "https://<IHRMANDANT>-admin.sharepoint.com"  # z. B. aus contoso.sharepoint.com → contoso-admin.sharepoint.com';
 
         ta.value = [
-            '# MS365-Schulverwaltung – Standard-Freigabelinks (SharePoint Online)',
+            '# MS365-Schul-Tools – Standard-Freigabelinks (SharePoint Online)',
             '# Entspricht im Admin Center: Datei- und Ordnerlinks (DefaultLinkPermission / DefaultSharingLinkType)',
             hostComment,
             '',

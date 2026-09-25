@@ -1,6 +1,6 @@
 # Prompt: Lehrplan → Kursteam-Kanal-Vorlagen (JSON)
 
-Kopiere den gesamten Block unter **PROMPT** in eine KI deiner Wahl. Lade zusätzlich den Lehrplan (PDF/Text) hoch. Die KI soll **nur gültiges JSON** zurückgeben, das du in MS365-Schulverwaltung unter **Kursteam-Vorlagen → Import** einspielen kannst.
+Kopiere den gesamten Block unter **PROMPT** in eine KI deiner Wahl. Lade zusätzlich den Lehrplan (PDF/Text) hoch. Die KI soll **nur gültiges JSON** zurückgeben, das du in MS365-Schul-Tools unter **Kursteam-Vorlagen → Import** einspielen kannst.
 
 Referenzdatei im Repo: `assets/kursteam-templates/vorlagen-import.example.json`
 

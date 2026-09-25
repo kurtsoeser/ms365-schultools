@@ -12,7 +12,7 @@ export const DEFAULT_FOLDER = 'Backups';
 export const CURRENT_FILE = 'ms365-stammdaten-aktuell.json';
 export const IT_LIBRARY_TITLE = 'MS365-IT-Stammdaten';
 export const IT_LIBRARY_DESC =
-    'Nur IT/Verwaltung: vollständiges Browser-Backup der MS365-Schulverwaltung (Stammdaten, Automationen, Werkzeugstände). Nicht öffentlich.';
+    'Nur IT/Verwaltung: vollständiges Browser-Backup von MS365-Schul-Tools (Stammdaten, Automationen, Werkzeugstände). Nicht öffentlich.';
 
 /** SharePoint Standard-Rollen (RoleDefinitionId). */
 export const SPO_ROLE = {

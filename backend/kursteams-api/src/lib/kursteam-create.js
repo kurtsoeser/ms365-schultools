@@ -22,7 +22,7 @@ async function createEducationClassGroup(token, t, log) {
         '@odata.type': '#microsoft.graph.educationClass',
         displayName: t.teamName,
         mailNickname: t.gruppenmail,
-        description: 'Kursteam (WebUntis / MS365-Schulverwaltung)',
+        description: 'Kursteam (WebUntis / MS365-Schul-Tools)',
         classCode: sanitizeEducationClassCode(t),
         externalSource: 'manual'
     };

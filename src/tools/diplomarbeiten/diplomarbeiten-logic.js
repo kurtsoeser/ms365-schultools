@@ -47,7 +47,7 @@ export function buildDiplomMailNickname(input) {
  * Beschreibung mit Betreuer / Hinweis.
  */
 export function buildDiplomDescription(input) {
-    const bits = ['Diplomarbeit (MS365-Schulverwaltung-Standard)'];
+    const bits = ['Diplomarbeit (MS365-Schul-Tools-Standard)'];
     if (input && input.mentor) bits.push('Betreuung: ' + norm(input.mentor));
     if (input && input.student) bits.push('Schüler:in: ' + norm(input.student));
     bits.push('Mail/Freigaben nur über diese Gruppe – nicht über persönliche Postfächer.');

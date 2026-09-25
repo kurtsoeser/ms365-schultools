@@ -9,7 +9,7 @@ const projectRoot = join(root, '..');
 describe('Verwaltungs-Modul Seite', () => {
     it('hängt SLG-Live-Details und das Verwaltungs-Skript ein', () => {
         const html = readFileSync(join(projectRoot, 'tools/verwaltung.html'), 'utf8');
-        expect(html).toContain('MS365-Schulverwaltung – Verwaltung');
+        expect(html).toContain('MS365-Schul-Tools – Verwaltung');
         expect(html).toContain('src/shared/group-detail/group-detail.js');
         expect(html).toContain('src/tools/schueler-lehrer-gruppen/slg-live-details.js');
         expect(html).toContain('src/tools/verwaltung/verwaltung-gruppenverwaltung.js');

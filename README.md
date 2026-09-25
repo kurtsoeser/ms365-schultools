@@ -1,4 +1,4 @@
-# MS365-Schulverwaltung
+# MS365-Schul-Tools
 
 Einfache **reine Browser-App** (ohne Server): **Dashboard** (`index.html`), **Schul-Grundeinstellungen** (`tenant.html`) und mehrere Werkzeuge unter `tools/` – u. a. **Kursteams** (`tools/kursteams.html`, Logik in `src/tools/kursteams/`), **Jahrgangsgruppen** und **ARGEs** (Archiv). Exportdaten (z. B. WebUntis CSV/Excel) werden aufbereitet; Anlage per **Microsoft Graph** im Browser oder per **PowerShell**-Skripten/CMD-Downloads.
 

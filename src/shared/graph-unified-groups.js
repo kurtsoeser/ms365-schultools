@@ -1048,7 +1048,7 @@
         const nick = sanitizeUnifiedGroupMailNickname(mailNickname);
         const body = {
             displayName: String(displayName).trim(),
-            description: description || 'MS365-Schulverwaltung – Microsoft 365-Gruppe',
+            description: description || 'MS365-Schul-Tools – Microsoft 365-Gruppe',
             mailNickname: nick,
             mailEnabled: true,
             securityEnabled: false,

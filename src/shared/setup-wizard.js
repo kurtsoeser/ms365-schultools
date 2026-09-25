@@ -3309,7 +3309,7 @@ import {
         if (existing && existing.found && existing.group && existing.group.id) return existing.group;
         setWizardGroupStatus(kind, { loading: true }, expectedNick);
         const token = await G().getGraphToken();
-        const desc = kind === 'sga' ? 'MS365-Schulverwaltung – SGA' : 'MS365-Schulverwaltung – Schülervertretung';
+        const desc = kind === 'sga' ? 'MS365-Schul-Tools – SGA' : 'MS365-Schul-Tools – Schülervertretung';
         const created = await G().createUnifiedGroup(token, expectedDn, expectedNick, desc);
         if (kind === 'sga') {
             const modeEl = document.getElementById('swSgaMode');
@@ -4374,7 +4374,7 @@ import {
                 token,
                 dn,
                 nick,
-                'Klassengruppe (stabiler Alias ' + nick + ') – MS365-Schulverwaltung'
+                'Klassengruppe (stabiler Alias ' + nick + ') – MS365-Schul-Tools'
             );
             await ensureOwnersDirektionOnly(token, g.id);
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.upsertClassTeam === 'function') {

@@ -355,7 +355,7 @@
         if (desc && !desc.value) {
             desc.value =
                 (draft && draft.kvNewDescription) ||
-                'Klassenvorstände aus den Stammdaten (MS365-Schulverwaltung)';
+                'Klassenvorstände aus den Stammdaten (MS365-Schul-Tools)';
         }
         const wantTeam = draft && draft.kvNewCreateTarget === 'team';
         if (team && mail) {

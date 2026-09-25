@@ -271,7 +271,7 @@ function applyCreateDefaults() {
     if (dn) dn.value = row && row.displayName ? row.displayName : cohortDisplayName(y);
     if (nn) nn.value = row && row.mailNickname ? row.mailNickname : cohortMailNickname(y);
     if (desc) {
-        desc.value = cohortDisplayName(y) + ' (MS365-Schulverwaltung)';
+        desc.value = cohortDisplayName(y) + ' (MS365-Schul-Tools)';
     }
     const search = document.getElementById('slgGroupSearch');
     if (search && !normStr(search.value)) {

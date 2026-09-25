@@ -200,7 +200,7 @@ export function buildSpielwiesenPlan(input) {
     const mailNickname = buildSpielMailNickname(pattern, ctx);
     const description =
         'Schilf-/Spielwiesen-Kursteam (EDU_Class). Class Notebook und Aufgaben bewusst freigeben. ' +
-        'Angelegt mit MS365-Schulverwaltung. Demo-Klasse: ' +
+        'Angelegt mit MS365-Schul-Tools. Demo-Klasse: ' +
         DEMO_CLASS_CODE +
         '.';
     return {
@@ -267,7 +267,7 @@ export function buildTeacherSpielPlan(input) {
             (name || code) +
             '. Gemeinsame Demo-Schüler der Klasse ' +
             DEMO_CLASS_CODE +
-            '. MS365-Schulverwaltung.',
+            '. MS365-Schul-Tools.',
         ownerEmail: email,
         educationClass: true,
         mode: 'teacher',

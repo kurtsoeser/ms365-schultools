@@ -702,7 +702,7 @@
             desc.value =
                 label +
                 (name || code || '') +
-                (activeKind === 'arge' ? ' (MS365-Schulverwaltung / ARGE)' : ' (MS365-Schulverwaltung / Fachgruppe)');
+                (activeKind === 'arge' ? ' (MS365-Schul-Tools / ARGE)' : ' (MS365-Schul-Tools / Fachgruppe)');
         }
         const search = document.getElementById('slgGroupSearch');
         if (search && !normStr(search.value)) search.value = name || code || '';

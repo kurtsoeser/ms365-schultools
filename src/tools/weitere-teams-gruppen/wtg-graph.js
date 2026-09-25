@@ -228,7 +228,7 @@ async function runWtgOnline() {
 
             const groupBody = {
                 displayName: r.displayName,
-                description: 'Erstellt mit MS365-Schulverwaltung',
+                description: 'Erstellt mit MS365-Schul-Tools',
                 mailNickname: r.mailNick,
                 mailEnabled: true,
                 securityEnabled: false,

@@ -9,7 +9,7 @@ const projectRoot = join(root, '..');
 describe('Jahrgangsgruppen-Modul Seite', () => {
     it('hängt die zentrale Gruppen-Detailansicht und das Listen-Skript ein', () => {
         const html = readFileSync(join(projectRoot, 'tools/jahrgangsgruppen.html'), 'utf8');
-        expect(html).toContain('MS365-Schulverwaltung – Klassengruppen');
+        expect(html).toContain('MS365-Schul-Tools – Klassengruppen');
         expect(html).toContain('src/shared/group-detail/group-detail.css');
         expect(html).toContain('src/shared/group-detail/group-detail.js');
         expect(html).toContain('src/tools/schueler-lehrer-gruppen/slg-live-details.js');

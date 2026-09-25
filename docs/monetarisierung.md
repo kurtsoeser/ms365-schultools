@@ -1,4 +1,4 @@
-# Monetarisierung – MS365-Schulverwaltung
+# Monetarisierung – MS365-Schul-Tools
 
 Stand: 2026-09-22  
 Status: **Vorüberlegungen** (noch keine finale Preis-/Produktentscheidung)

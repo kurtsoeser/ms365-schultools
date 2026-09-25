@@ -504,7 +504,7 @@
         const nick = sanitizeMailNickname(mailNickname);
         const body = {
             displayName: String(displayName).trim(),
-            description: description || 'MS365-Schulverwaltung – Schüler:innen/Lehrer:innen',
+            description: description || 'MS365-Schul-Tools – Schüler:innen/Lehrer:innen',
             mailNickname: nick,
             mailEnabled: true,
             securityEnabled: false,
@@ -868,7 +868,7 @@
                 token,
                 displayName,
                 mailNick,
-                'Alle Schüler:innen (MS365-Schulverwaltung / Schul‑Liste)'
+                'Alle Schüler:innen (MS365-Schul-Tools / Schul‑Liste)'
             );
             persistResolvedIds('schueler', g);
             setSummary('schueler', formatGroupSummary(g), true);
@@ -897,7 +897,7 @@
                 token,
                 displayName,
                 mailNick,
-                'Alle Lehrer:innen (MS365-Schulverwaltung / Schul‑Liste)'
+                'Alle Lehrer:innen (MS365-Schul-Tools / Schul‑Liste)'
             );
             persistResolvedIds('lehrer', g);
             setSummary('lehrer', formatGroupSummary(g), true);

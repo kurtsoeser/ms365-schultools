@@ -60,7 +60,7 @@
         var header = document.createElement('header');
         header.className = 'ms365-onboarding-header';
         header.innerHTML =
-            '<h2 id="ms365OnboardingTitle">Willkommen in der MS365-Schulverwaltung</h2>' +
+            '<h2 id="ms365OnboardingTitle">Willkommen bei MS365-Schul-Tools</h2>' +
             '<p>In drei kurzen Schritten – danach wissen Sie, wo Sie starten.</p>';
 
         var dots = document.createElement('div');

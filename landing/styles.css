@@ -1090,9 +1090,21 @@ a {
   letter-spacing: -0.02em;
 }
 
+.legal-block h3 {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin: 1.15rem 0 0.55rem;
+  color: var(--ink);
+}
+
 .legal-block p {
   margin: 0 0 0.85rem;
   color: var(--ink-soft);
+}
+
+.legal-block ul.legal-list {
+  margin-bottom: 0.85rem;
 }
 
 .legal-block p:last-child {

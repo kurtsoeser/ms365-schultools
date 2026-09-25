@@ -821,7 +821,7 @@
         const desc = document.getElementById('slgNewDescription');
         if (dn && !dn.value) dn.value = 'Schulverwaltung';
         if (nn && !nn.value) nn.value = 'verwaltung';
-        if (desc && !desc.value) desc.value = 'Kontakte der Schulverwaltung (MS365-Schulverwaltung)';
+        if (desc && !desc.value) desc.value = 'Kontakte der Schulverwaltung (MS365-Schul-Tools)';
     }
 
     function getActiveMatchedId() {

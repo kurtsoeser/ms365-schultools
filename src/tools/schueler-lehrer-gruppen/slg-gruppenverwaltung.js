@@ -615,11 +615,11 @@
         if (activeKind === 'schueler') {
             if (dn && !dn.value) dn.value = 'Schüler:innen';
             if (nn && !nn.value) nn.value = 'schueler';
-            if (desc && !desc.value) desc.value = 'Alle Schüler:innen (MS365-Schulverwaltung / Schul‑Liste)';
+            if (desc && !desc.value) desc.value = 'Alle Schüler:innen (MS365-Schul-Tools / Schul‑Liste)';
         } else {
             if (dn && !dn.value) dn.value = 'Lehrer:innen';
             if (nn && !nn.value) nn.value = 'lehrer';
-            if (desc && !desc.value) desc.value = 'Alle Lehrer:innen (MS365-Schulverwaltung / Schul‑Liste)';
+            if (desc && !desc.value) desc.value = 'Alle Lehrer:innen (MS365-Schul-Tools / Schul‑Liste)';
         }
     }
 

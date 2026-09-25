@@ -235,7 +235,7 @@ window.MS365_LICENSE_API = {
         }
         landing.href = landingPageHref();
         landing.title = 'Marketing-Website / Landing Page';
-        landing.setAttribute('aria-label', 'Website – Landing Page von MS365-Schulverwaltung');
+        landing.setAttribute('aria-label', 'Website – Landing Page – MS365-Schul-Tools');
 
         let impressum = p.querySelector('.site-impressum-link');
         if (!impressum) {
@@ -259,7 +259,23 @@ window.MS365_LICENSE_API = {
         impressum.title = 'Impressum';
         impressum.setAttribute('aria-label', 'Impressum');
 
-        let a = p.querySelector('.site-credit-link:not(.site-landing-link):not(.site-impressum-link)');
+        let privacy = p.querySelector('.site-privacy-link');
+        if (!privacy) {
+            privacy = document.createElement('a');
+            privacy.className = 'site-credit-link site-privacy-link';
+            const iconPriv = document.createElement('i');
+            iconPriv.className = 'bi bi-shield-lock';
+            iconPriv.setAttribute('aria-hidden', 'true');
+            privacy.appendChild(iconPriv);
+            privacy.appendChild(document.createTextNode('Datenschutz'));
+            if (impressum.nextSibling) p.insertBefore(privacy, impressum.nextSibling);
+            else impressum.after(privacy);
+        }
+        privacy.href = landingPageHref().replace(/\/?$/, '/') + 'datenschutz.html';
+        privacy.title = 'Datenschutzerklärung';
+        privacy.setAttribute('aria-label', 'Datenschutzerklärung');
+
+        let a = p.querySelector('.site-credit-link:not(.site-landing-link):not(.site-impressum-link):not(.site-privacy-link)');
         if (!a) {
             a = document.createElement('a');
             a.className = 'site-credit-link';

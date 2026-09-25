@@ -1,4 +1,4 @@
-# MS365-Schulverwaltung (ms365-schultools) – Projektanalyse und Ideen
+# MS365-Schul-Tools (ms365-schultools) – Projektanalyse und Ideen
 
 *Stand: interne Codebasis-Analyse (Repository MS365schule), ohne Live-Mandant.*
 

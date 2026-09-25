@@ -90,7 +90,7 @@ export async function createEducationClassTeam(opts) {
 
     const displayName = norm(o.displayName);
     const mailNickname = norm(o.mailNickname);
-    const description = norm(o.description) || 'Kursteam (MS365-Schulverwaltung)';
+    const description = norm(o.description) || 'Kursteam (MS365-Schul-Tools)';
     const classCode = sanitizeEducationClassCode(o.classCode || mailNickname || displayName);
     const ownerId = norm(o.ownerId);
 

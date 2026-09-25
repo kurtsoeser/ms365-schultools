@@ -1189,7 +1189,7 @@
                 'Jahrgangsgruppe ' +
                 (name || code || '') +
                 (row && row.year ? ' / Abschluss ' + row.year : '') +
-                ' (MS365-Schulverwaltung)';
+                ' (MS365-Schul-Tools)';
         }
         const search = document.getElementById('slgGroupSearch');
         if (search) search.value = nick || name || code || '';
@@ -2081,7 +2081,7 @@
                 }
                 const displayName = normStr(row.name) || normStr(row.code) || nick;
                 const desc = 'Jahrgangsgruppe ' + displayName +
-                    (row.year ? ' / Abschluss ' + row.year : '') + ' (MS365-Schulverwaltung)';
+                    (row.year ? ' / Abschluss ' + row.year : '') + ' (MS365-Schul-Tools)';
                 try {
                     const g = await gug().createUnifiedGroup(token, displayName, nick, desc);
                     const rowOwners = ownersForRow(row);

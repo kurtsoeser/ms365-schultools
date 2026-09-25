@@ -62,7 +62,7 @@ Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt
 
 ### C1 Partnerschaftsvertrag
 - [ ] Vertragspartnerdaten eintragen
-- [ ] Anwendungsbezug klar auf MS365-Schulverwaltung beziehen
+- [ ] Anwendungsbezug klar auf MS365-Schul-Tools beziehen
 
 ### C2 Anhang A – AVV
 - [ ] AVV vollständig ausfüllen
@@ -159,4 +159,4 @@ Alles Weitere (Swagger-Details, Feldmapping, Knopf-UI) kann parallel oder nach Q
 
 ## Merksatz für alle Gespräche mit dem Ministerium
 
-> Wir beantragen **keine Sokrates-Direktintegration**, sondern die Bildungsportal-Standardschnittstellen **`readorgdata`** (Schul-/Klassenstammdaten) und **`readuserdata_v3`** (Personen, Nutzertypen `std`/`tch`), optional `searchuserdata_v3` – damit Schulen die bereits im Datenverbund liegenden Daten in der MS365-Schulverwaltung abgleichen können. **`manageuserdata`** beantragen wir nicht.
+> Wir beantragen **keine Sokrates-Direktintegration**, sondern die Bildungsportal-Standardschnittstellen **`readorgdata`** (Schul-/Klassenstammdaten) und **`readuserdata_v3`** (Personen, Nutzertypen `std`/`tch`), optional `searchuserdata_v3` – damit Schulen die bereits im Datenverbund liegenden Daten in MS365-Schul-Tools abgleichen können. **`manageuserdata`** beantragen wir nicht.

@@ -217,7 +217,7 @@
         const doneBox = $('paDone');
         if (doneBox) doneBox.checked = isDone(recipe);
 
-        document.title = 'MS365-Schulverwaltung – ' + recipe.title;
+        document.title = 'MS365-Schul-Tools – ' + recipe.title;
     }
 
     function readFields(recipe) {

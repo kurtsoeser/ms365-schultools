@@ -3179,7 +3179,7 @@
 
             setSingleGroupMatchStatus(sgaGroupMatchCell, { loading: true }, expectedNick);
             const token = await graphApi().getGraphToken();
-            const created = await graphApi().createUnifiedGroup(token, expectedDn, expectedNick, 'MS365-Schulverwaltung – SGA');
+            const created = await graphApi().createUnifiedGroup(token, expectedDn, expectedNick, 'MS365-Schul-Tools – SGA');
             if (mode === 'group') {
                 try {
                     await graphApi().provisionTeamForGroup(token, created && created.id ? created.id : '');
@@ -3259,7 +3259,7 @@
                 token,
                 expectedDn,
                 expectedNick,
-                'MS365-Schulverwaltung – Schülervertretung'
+                'MS365-Schul-Tools – Schülervertretung'
             );
             // Schülervertretung: Team-Provision überspringen (kein explizites Team-Zielbild in den aktuellen Anforderungen)
             const match =

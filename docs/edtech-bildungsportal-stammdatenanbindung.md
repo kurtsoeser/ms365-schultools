@@ -1,6 +1,6 @@
 # Stammdatenanbindung über Bildungsportal / EdTech Hub
 
-**Zweck:** Entscheidungsgrundlage, API-Referenz und Einreichungsunterlage für die Anbindung der MS365-Schulverwaltung an die **Standardschnittstellen des Bildungsportals** (BMB) – **nicht** an Sokrates direkt.
+**Zweck:** Entscheidungsgrundlage, API-Referenz und Einreichungsunterlage für die Anbindung von MS365-Schul-Tools an die **Standardschnittstellen des Bildungsportals** (BMB) – **nicht** an Sokrates direkt.
 
 **Stand:** September 2026 (Swagger/OpenAPI ausgewertet)  
 **Zielbild:** Ein Knopf in der App, der Stammdaten (Schule/Klassen, Schüler:innen, Lehrkräfte) mit den führenden Schuldaten abgleicht bzw. importiert.
@@ -40,7 +40,7 @@ Bildungsportal (BIP)
   └─ (kein Unterrichts-Endpoint in der Partner-OpenAPI)
                 │
                 ▼
-         MS365-Schulverwaltung
+         MS365-Schul-Tools
          · Knopf Stammdaten (BIP)
          · Kursteams / Unterricht (WebUntis API oder CSV)
 ```
@@ -53,7 +53,7 @@ Bereits angebundene Systeme (BMB-Auskunft 2025 u. a.): Sokrates (Bund/Privat), U
 
 ## 3. Zweckbeschreibung für Anhang B (Arbeitsstand)
 
-**Anwendungsname:** MS365-Schulverwaltung / MS365-Schultools  
+**Anwendungsname:** MS365-Schul-Tools / MS365-Schultools  
 
 **Kurzbeschreibung (≤ 512 Zeichen, Entwurf):**  
 Browserbasierte Schul-IT-Werkzeuge zur Pflege von Microsoft-365-Strukturen (Gruppen, Teams, Jahrgänge, Kursteams, Konten-/Mitgliedschaftsabgleiche) auf Basis lokal gehaltener Stammdaten. Stammdaten werden nicht an einen App-Server der Anwendung gesendet; Verarbeitung erfolgt lokal im Browser bzw. über Microsoft Graph im Auftrag der Schule.
@@ -273,11 +273,11 @@ Konkrete Feldnamen der App (`app-data` / Tenant) werden bei der Umsetzung in Pha
 
 ## 12. Entwurf Support-Nachricht
 
-> Betreff: EdTech-Partnerschaft – Antrag Stammdatenabruf (readorgdata + readuserdata_v3) für MS365-Schulverwaltung  
+> Betreff: EdTech-Partnerschaft – Antrag Stammdatenabruf (readorgdata + readuserdata_v3) für MS365-Schul-Tools  
 >  
 > Sehr geehrte Damen und Herren,  
 >  
-> wir möchten die Anwendung **MS365-Schulverwaltung** als EdTech-Partneranwendung an das Bildungsportal anbinden. Beantragt werden die Standardschnittstellen  
+> wir möchten die Anwendung **MS365-Schul-Tools** als EdTech-Partneranwendung an das Bildungsportal anbinden. Beantragt werden die Standardschnittstellen  
 > **`local_eduportal_iface_readorgdata`** und **`local_eduportal_iface_readuserdata_v3`**  
 > (optional ergänzend **`local_eduportal_iface_searchuserdata_v3`**),  
 > Nutzertypen mindestens **`std`** und **`tch`**, schulbezogen über `orgids`.  
