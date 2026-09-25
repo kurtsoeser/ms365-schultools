@@ -78,7 +78,8 @@ $corsOrigins = @(
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
     "https://kurtrocks.github.io",
-    "https://kurtsoeser.github.io"
+    "https://kurtsoeser.github.io",
+    "https://app.ms365.schule"
 )
 Write-Host "CORS-Origins sicherstellen …"
 az functionapp cors add `

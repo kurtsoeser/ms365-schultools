@@ -1,0 +1,51 @@
+name: Deploy to app.ms365.schule (FTP)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ftp-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Subdomain-Root)
+        env:
+          VITE_BASE: "/"
+        run: npm run build
+
+      - name: License-URL (GitHub Secrets → dist/)
+        env:
+          LICENSE_API_BASE_URL: ${{ secrets.LICENSE_API_BASE_URL }}
+          LICENSE_FUNCTION_KEY: ${{ secrets.LICENSE_FUNCTION_KEY }}
+        run: node scripts/write-kursteams-local-config.mjs
+
+      - name: FTP Upload nach /app
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          protocol: ftp
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
+          timeout: 60000

@@ -4,6 +4,7 @@ dist/
 backend/kursteams-api/local.settings.json
 backend/license-api/local.settings.json
 ms365-config.local.js
+.ftp-credentials.local
 
 # OS / editor
 .DS_Store
