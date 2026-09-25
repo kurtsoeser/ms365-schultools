@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schulverwaltung</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=8">
+    <link rel="stylesheet" href="app.css?v=9">
     <style>
         body { padding-bottom: 0; }
         .help-layout {
@@ -55,9 +55,9 @@
             font-size: 0.95em;
         }
         .help-search-wrap input:focus {
-            outline: 2px solid rgba(94, 114, 228, 0.45);
+            outline: 2px solid color-mix(in srgb, var(--brand1) 45%, transparent);
             outline-offset: 2px;
-            border-color: rgba(94, 114, 228, 0.45);
+            border-color: color-mix(in srgb, var(--brand1) 45%, transparent);
         }
         .help-search-clear {
             position: absolute;
@@ -101,9 +101,9 @@
             border-radius: 8px;
             line-height: 1.3;
         }
-        .help-toc a:hover { background: rgba(94, 114, 228, 0.08); color: #32325d; }
+        .help-toc a:hover { background: color-mix(in srgb, var(--brand1) 8%, transparent); color: #32325d; }
         .help-toc a[aria-current="location"] {
-            background: rgba(94, 114, 228, 0.12);
+            background: color-mix(in srgb, var(--brand1) 12%, transparent);
             color: #32325d;
             font-weight: 800;
         }
@@ -144,7 +144,7 @@
             font-weight: 800;
             letter-spacing: 0.04em;
             text-transform: uppercase;
-            color: #5e72e4;
+            color: var(--brand1);
         }
         .help-lead {
             font-size: 1.05em;
@@ -171,8 +171,8 @@
             font-size: 0.88em;
         }
         .help-chips a:hover {
-            border-color: rgba(94, 114, 228, 0.4);
-            background: rgba(94, 114, 228, 0.08);
+            border-color: color-mix(in srgb, var(--brand1) 40%, transparent);
+            background: color-mix(in srgb, var(--brand1) 8%, transparent);
         }
         .help-glossary {
             display: grid;
@@ -214,7 +214,7 @@
             border-radius: 999px;
             background: #eef;
             color: #32325d;
-            border: 1px solid rgba(94, 114, 228, 0.25);
+            border: 1px solid color-mix(in srgb, var(--brand1) 25%, transparent);
             margin-left: 6px;
             vertical-align: middle;
         }
@@ -245,8 +245,8 @@
             color: #155724;
         }
         .rec {
-            border: 1px solid rgba(94, 114, 228, 0.28);
-            background: rgba(94, 114, 228, 0.07);
+            border: 1px solid color-mix(in srgb, var(--brand1) 28%, transparent);
+            background: color-mix(in srgb, var(--brand1) 7%, transparent);
             color: #32325d;
         }
         code {
@@ -282,14 +282,14 @@
             content: "▸";
             display: inline-block;
             margin-right: 8px;
-            color: #5e72e4;
+            color: var(--brand1);
         }
         .help-faq[open] summary::before { content: "▾"; }
         .help-faq .faq-body { padding: 0 14px 14px; }
         .help-open {
             margin-top: 8px;
         }
-        .help-open a { font-weight: 700; color: #5e72e4; text-decoration: none; }
+        .help-open a { font-weight: 700; color: var(--brand1); text-decoration: none; }
         .help-open a:hover { text-decoration: underline; }
         .help-toc-mobile { display: none; }
         @media (max-width: 900px) {
@@ -442,7 +442,7 @@
                     <p class="help-kicker">Einstieg</p>
                     <article class="help-article" data-help-article data-search="schnellstart start erstes mal dashboard aufgaben pin anmeldung">
                         <h2 id="schnellstart">Schnellstart</h2>
-                        <p class="help-lead">Die App läuft vollständig im Browser. Sie pflegt Schul-Stammdaten lokal und spricht Microsoft 365 über Graph oder über erzeugte PowerShell-Skripte an. Es gibt keinen Schul-Server hinter dieser Oberfläche.</p>
+                        <p class="help-lead">Die App läuft vollständig im Browser. Sie pflegt Schul-Stammdaten lokal und spricht Microsoft 365 über Graph oder über erzeugte PowerShell-Skripte an. Es gibt keinen App-Server hinter dieser Oberfläche – optional können Sie den lokalen Stand in eine IT-Bibliothek auf Ihrer schulischen SharePoint-Site sichern.</p>
                         <div class="help-chips" aria-label="Häufige Einstiege">
                             <a href="#einrichtung"><i class="bi bi-signpost-2"></i>Schule einrichten</a>
                             <a href="#begriffe"><i class="bi bi-book"></i>Begriffe</a>
@@ -456,7 +456,7 @@
                             gleichen Browser jeden Tag verwenden (nicht privat/inkognito) →
                             <a href="einrichtung.html">geführte Einrichtung</a> durcharbeiten →
                             Stammdaten prüfen → Klassengruppen matchen → Sammelgruppen Schüler/Lehrkräfte →
-                            Unterrichtsteams aus dem Stundenplan → Browser-Backup speichern.
+                            Unterrichtsteams aus dem Stundenplan → Browser-Backup speichern bzw. <strong>Nach SharePoint</strong> sichern.
                         </div>
                         <div class="mini-steps">
                             <strong>So starten Sie am ersten Tag</strong>
@@ -464,7 +464,7 @@
                                 <li>PIN eingeben (falls der Zugangsschutz aktiv ist). Die Sitzung gilt für diesen Browser-Tab.</li>
                                 <li>Oben rechts bei Microsoft 365 anmelden – mit einem Konto, das Gruppen und Benutzer verwalten darf.</li>
                                 <li>Auf dem Dashboard unter <strong>Was möchten Sie tun?</strong> die Aufgabe wählen. Darunter liegen alle Werkzeuge in Themen-Tabs; die Suche findet sie auch über Synonyme.</li>
-                                <li>Nach größeren Änderungen unten auf dem Dashboard <strong>Browser-Backup</strong> exportieren.</li>
+                                <li>Nach größeren Änderungen unten auf dem Dashboard <strong>Browser-Backup</strong> exportieren – und idealerweise <strong>Nach SharePoint</strong> in die IT-Sicherungsbibliothek schreiben (einmalig unter <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a> einrichten).</li>
                             </ol>
                         </div>
                     </article>
@@ -510,7 +510,7 @@
                 </section>
 
                 <section class="help-section" data-help-section aria-labelledby="grundprinzip">
-                    <article class="help-article" data-help-article data-search="grundprinzip lokal browser localstorage sessionstorage backup graph powershell cmd ohne server stammdaten">
+                    <article class="help-article" data-help-article data-search="grundprinzip lokal browser localstorage sessionstorage backup graph powershell cmd ohne server stammdaten sharepoint">
                         <h2 id="grundprinzip">Grundprinzip &amp; Datenhaltung</h2>
                         <p>
                             Die Werkzeuge erzeugen entweder <strong>Microsoft-365-Objekte</strong> (Gruppen, Teams, Benutzer) über
@@ -519,15 +519,20 @@
                             kommen aus den <a href="tenant.html">Stammdaten</a>.
                         </p>
                         <div class="hint" id="datenspeicher">
-                            <strong>Datenhaltung:</strong> Es gibt keinen App-Server. Zwischenstände und Stammdaten liegen in
+                            <strong>Datenhaltung:</strong> Es gibt keinen App-Server dieser Software. Zwischenstände und Stammdaten liegen in
                             diesem Browser (<code>localStorage</code> / <code>sessionStorage</code>). Über <strong>Browser-Backup</strong>
                             (Dashboard, Stammdaten oder Einrichtung) übertragen Sie <em>alle</em> lokalen App-Daten als JSON
-                            in einen anderen Browser. Die Microsoft-Anmeldung ist nicht enthalten und muss dort neu erfolgen.
+                            in einen anderen Browser. Zusätzlich können Sie denselben Stand in eine
+                            <strong>IT-Sicherungsbibliothek auf der schulischen SharePoint-Site</strong> schreiben
+                            (<strong>Nach SharePoint</strong> / optionaler Auto-Sync; siehe
+                            <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>). Die Datei liegt im Mandanten Ihrer Schule,
+                            nicht bei einem App-Betreiber. Die Microsoft-Anmeldung ist in beiden Backup-Wegen nicht enthalten und muss neu erfolgen.
                             Einzelne Werkzeuge haben zusätzlich eigenen Export/Import (JSON/CSV).
                         </div>
                         <div class="warn">
                             <strong>Wichtig:</strong> Ein privates Fenster, ein anderer Browser oder das Löschen der Websitedaten
-                            leert die Stammdaten. Vor einem Schuljahreswechsel oder einem PC-Wechsel immer ein Backup exportieren.
+                            leert die Stammdaten. Vor einem Schuljahreswechsel oder einem PC-Wechsel immer ein Backup exportieren
+                            – und wenn eingerichtet, den Stand aus SharePoint wieder einlesen (<strong>Von SharePoint</strong>).
                         </div>
                     </article>
                 </section>
@@ -600,7 +605,7 @@
                                 <li>Domain ohne <code>@</code> eintragen und speichern.</li>
                                 <li>Listen füllen: Copy &amp; Paste, CSV/XLSX-Vorlage oder Import aus Sokrates/WebUntis.</li>
                                 <li>Lehrkräfte und Schüler:innen optional <strong>aus Microsoft 365 einlesen</strong> (Lizenzfilter A1/A3/A5).</li>
-                                <li>Speichern. Mit <strong>Browser-Backup</strong> alle lokalen Daten sichern oder in einen anderen Browser übertragen.</li>
+                                <li>Speichern. Mit <strong>Browser-Backup</strong> alle lokalen Daten sichern oder in einen anderen Browser übertragen; optional <strong>Nach SharePoint</strong> in die IT-Sicherungsbibliothek.</li>
                             </ol>
                         </div>
                         <div class="hint">
@@ -1329,7 +1334,7 @@
                             Voraussetzung: Sie sind Website-Besitzer; App-Zustimmung Sites.ReadWrite.All + Sites.FullControl.All.
                             Wenn der Rechte-Schritt scheitert (CORS): Bibliothek manuell berechtigen.
                         </div>
-                        <p class="help-open"><a href="tools/stammdaten-uebergabe.html">→ Stammdaten-Übergabe öffnen</a></p>
+                        <p class="help-open"><a href="tools/stammdaten-uebergabe.html">→ Stammdaten-Übergabe öffnen</a> · <a href="#datenschutz">→ Datenschutz</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="leere gruppen report ohne mitglieder ohne besitzer aufräumen">
@@ -1412,17 +1417,19 @@
                         </div>
                     </details>
 
-                    <details class="help-faq" data-help-faq data-search="backup anderer pc browser chrome edge">
+                    <details class="help-faq" data-help-faq data-search="backup anderer pc browser chrome edge sharepoint">
                         <summary>Wie komme ich mit den Daten auf einen anderen PC?</summary>
                         <div class="faq-body">
-                            <p>Dashboard → <strong>Browser-Backup</strong> → JSON speichern. Am Ziel-PC dieselbe App öffnen → Backup importieren. Danach erneut bei Microsoft anmelden. Nicht enthalten: MSAL-Tokens. Enthalten: Stammdaten, Verknüpfungen, Dashboard-Favoriten und lokale Werkzeugstände mit Präfix <code>ms365-</code>.</p>
+                            <p><strong>Variante A – Datei:</strong> Dashboard → <strong>Browser-Backup</strong> → JSON speichern. Am Ziel-PC dieselbe App öffnen → Backup importieren. Danach erneut bei Microsoft anmelden.</p>
+                            <p><strong>Variante B – SharePoint:</strong> Wenn die IT-Sicherungsbibliothek eingerichtet ist: am Quell-PC <strong>Nach SharePoint</strong>, am Ziel-PC anmelden und <strong>Von SharePoint</strong> (oder Auto-Sync nach dem Login). Details: <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>.</p>
+                            <p>Nicht enthalten: MSAL-Tokens / PIN. Enthalten: Stammdaten, Verknüpfungen, Dashboard-Favoriten und lokale Werkzeugstände mit Präfix <code>ms365-</code> / <code>webuntis-</code>.</p>
                         </div>
                     </details>
 
-                    <details class="help-faq" data-help-faq data-search="daten weg privates fenster cache gelöscht">
+                    <details class="help-faq" data-help-faq data-search="daten weg privates fenster cache gelöscht sharepoint">
                         <summary>Die Stammdaten sind leer – wo sind die Listen?</summary>
                         <div class="faq-body">
-                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: letztes Browser-Backup importieren. Wenn keines existiert, Listen erneut aus Sokrates/WebUntis oder aus Microsoft 365 einlesen. Richten Sie nach der ersten Einrichtung einen Ablageort für das JSON-Backup ein (nicht in der Download-Ablage vergessen).</p>
+                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: letztes Browser-Backup importieren – oder, wenn eingerichtet, <strong>Von SharePoint</strong> das aktuelle Remote-Backup laden. Wenn keines existiert, Listen erneut aus Sokrates/WebUntis oder aus Microsoft 365 einlesen. Nach der ersten Einrichtung die IT-Sicherungsbibliothek unter <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a> einrichten und nicht nur auf die Download-Ablage verlassen.</p>
                         </div>
                     </details>
 
@@ -1486,13 +1493,13 @@
                         </div>
                         <div class="rec">
                             <strong>Betrieb:</strong> Edge oder Chrome, normales Fenster, dieselbe Schule immer im selben Profil.
-                            Vor Schuljahreswechsel und vor großen PowerShell-Läufen Browser-Backup plus (bei Exchange) JSON-Export ablegen.
+                            Vor Schuljahreswechsel und vor großen PowerShell-Läufen Browser-Backup bzw. SharePoint-Sicherung plus (bei Exchange) JSON-Export ablegen.
                         </div>
                     </article>
                 </section>
 
                 <section class="help-section" data-help-section aria-labelledby="datenschutz">
-                    <article class="help-article" data-help-article data-search="datenschutz dsgvo localstorage msal graph microsoft keine server auftragsverarbeitung export csv">
+                    <article class="help-article" data-help-article data-search="datenschutz dsgvo localstorage msal graph microsoft keine server auftragsverarbeitung export csv sharepoint sicherungsbibliothek backup it-bibliothek">
                         <h2 id="datenschutz">Datenschutz</h2>
                         <p>
                             Diese Erklärung beschreibt die <strong>Browser-App MS365-Schulverwaltung</strong>
@@ -1504,9 +1511,9 @@
                         <p>
                             Für personenbezogene Daten im Microsoft-365-Mandanten der Schule ist die <strong>Schule bzw. der Schulerhalter</strong>
                             Verantwortliche im Sinne der DSGVO. Microsoft ist (typischerweise) Auftragsverarbeiter für Microsoft 365.
-                            Diese App ist ein <strong>lokales Hilfsmittel</strong> ohne eigenen Backend-Server: sie speichert nichts
-                            „in der App in der Cloud“, sondern im Browser der bedienenden Person und – wenn Sie Aktionen ausführen –
-                            im Microsoft-Mandanten.
+                            Diese App ist ein <strong>lokales Hilfsmittel</strong> ohne eigenen Backend-Server für Ihre Stammdaten-Listen: sie speichert nichts
+                            „in der App in der Cloud beim Software-Betreiber“, sondern im Browser der bedienenden Person und – wenn Sie Aktionen ausführen
+                            oder die optionale SharePoint-Sicherung nutzen – im <strong>Microsoft-Mandanten Ihrer Schule</strong>.
                         </p>
 
                         <h3>Keine App-Server, keine App-Analytik</h3>
@@ -1526,15 +1533,35 @@
                             <li>optional Erziehungsberechtigte (Name/E-Mail) für den Eltern-Verteiler</li>
                         </ul>
                         <p>
-                            Die Microsoft-Anmeldung (MSAL) legt Tokens getrennt ab; sie sind <strong>nicht</strong> Teil des Browser-Backups.
+                            Die Microsoft-Anmeldung (MSAL) legt Tokens getrennt ab; sie sind <strong>nicht</strong> Teil des Browser-Backups
+                            und auch nicht Teil der SharePoint-Sicherungsdatei.
                             Der optionale PIN-Schutz speichert nur „Zugang gewährt“ in der Session, nicht die Stammdaten verschlüsselt.
+                        </p>
+
+                        <h3>Sicherung: Browser-Backup und schuleigene SharePoint-Bibliothek</h3>
+                        <p>
+                            <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard, Stammdaten, Einrichtung).
+                            Damit übertragen Sie den lokalen Stand zwischen Browsern oder PCs.
+                        </p>
+                        <p>
+                            <strong>SharePoint (optional):</strong> Nach Einrichtung der IT-Sicherungsbibliothek
+                            (<a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>) schreibt die App denselben vollständigen Stand
+                            als JSON in eine Dokumentbibliothek auf der <strong>Intranet-/SharePoint-Site Ihrer Schule</strong>
+                            (typisch <code>MS365-IT-Stammdaten</code>, Datei unter <code>Backups/…</code>).
+                            Rechte werden auf IT/Verwaltung beschränkt; Site-Besucher und -Mitglieder erhalten keinen Zugriff.
+                            Die Datei liegt im Mandanten der Schule – nicht bei einem App-Betreiber.
+                            Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt,
+                            sondern nur in dieser geschützten Backup-Datei (wie im lokalen Speicher).
+                            <strong>Nach SharePoint</strong> sichert, <strong>Von SharePoint</strong> ersetzt den lokalen Browser-Stand;
+                            nach der Anmeldung kann ein Auto-Sync den Stand aktuell halten.
                         </p>
 
                         <h3>Welche Daten zu Microsoft gehen</h3>
                         <p>
-                            Nur wenn Sie sich anmelden und eine Online-Aktion auslösen (einlesen, anlegen, ändern, archivieren),
+                            Nur wenn Sie sich anmelden und eine Online-Aktion auslösen (einlesen, anlegen, ändern, archivieren,
+                            nach SharePoint sichern bzw. von dort laden),
                             sendet der Browser Anfragen an Microsoft Graph bzw. Login. Inhalt sind die von Ihnen angestoßenen
-                            Vorgänge (z. B. Gruppennamen, Mitglieds-UPNs, Lizenz-SKUs). Ohne Klick auf solche Aktionen bleiben
+                            Vorgänge (z. B. Gruppennamen, Mitglieds-UPNs, Lizenz-SKUs, Backup-Datei in Ihrer Site). Ohne Klick auf solche Aktionen bleiben
                             die Listen im Browser.
                         </p>
                         <p>
@@ -1551,28 +1578,31 @@
                         <h3>Speicherdauer</h3>
                         <p>
                             Lokal: bis Sie Daten löschen, ein Backup überschreibt oder der Browser den Speicher leert.
-                            Im Mandanten: nach den Aufbewahrungs- und Löschkonzepten der Schule (Entra, Exchange, SharePoint, Teams).
+                            SharePoint-Backup: bis IT die Datei/Bibliothek löscht oder überschreibt – im Rahmen der Aufbewahrung Ihrer Schule.
+                            Im übrigen Mandanten: nach den Aufbewahrungs- und Löschkonzepten der Schule (Entra, Exchange, SharePoint, Teams).
                         </p>
 
                         <h3>Betroffenenrechte</h3>
                         <p>
                             Auskunft, Berichtigung und Löschung zu Konten und Gruppen richten sich an die Schule
                             (IT / Datenschutzbeauftragte) und werden in Microsoft 365 bzw. den Schulverwaltungsquellen umgesetzt.
-                            Das lokale Browser-Backup und Exports (CSV/JSON) sind Kopien: nach einer Korrektur im Mandanten
-                            veraltete Dateien löschen oder neu erzeugen.
+                            Das lokale Browser-Backup, die SharePoint-Sicherungsdatei und Exports (CSV/JSON) sind Kopien: nach einer Korrektur im Mandanten
+                            veraltete Dateien löschen, neu sichern oder erneut erzeugen.
                         </p>
 
                         <h3>Empfehlungen für den Schulbetrieb</h3>
                         <ul>
                             <li>App nur auf dienstlichen Geräten / dienstlichen Browserprofilen nutzen.</li>
-                            <li>Browser-Backups und Skript-Downloads wie andere Dateien mit Schüler- und Elterndaten behandeln (Zugriff beschränken, nicht in Tickets anhängen).</li>
+                            <li>Browser-Backups, SharePoint-Sicherungsdatei und Skript-Downloads wie andere Dateien mit Schüler- und Elterndaten behandeln (Zugriff beschränken, nicht in Tickets anhängen).</li>
+                            <li>IT-Sicherungsbibliothek nur für berechtigte IT-/Verwaltungsgruppen freigeben (wie von der Einrichtung vorgesehen).</li>
                             <li>Eltern nicht als Gäste anlegen, wenn ein Verteiler reicht.</li>
                             <li>Gast-Exporte und Personen-CSVs nur speichern, wenn Ihre Organisation das erlaubt.</li>
                             <li>Konto-Löschen in der Personen-Verwaltung nur mit UPN-Bestätigung und nach dem schulischen Offboarding.</li>
                         </ul>
                         <div class="ok">
-                            Kurz: Die App schickt Ihre Listen nicht an einen eigenen Server. Was in Microsoft 365 landet,
-                            landet dort, weil Sie eine Aktion ausgelöst haben – mit dem Konto, mit dem Sie angemeldet sind.
+                            Kurz: Die App schickt Ihre Listen nicht an einen eigenen Server des Software-Betreibers.
+                            Was in Microsoft 365 landet – inklusive optionaler Backup-Datei auf Ihrer SharePoint-Site –
+                            landet dort, weil Sie eine Aktion ausgelöst haben, mit dem Konto, mit dem Sie angemeldet sind.
                         </div>
                     </article>
                 </section>

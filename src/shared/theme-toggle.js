@@ -1,23 +1,23 @@
 /**
- * Light/Dark-Theme für die gesamte App.
- * Speichert die Wahl in localStorage (ms365-theme-v1).
- * Schalter: unten links, vor dem Link kurtrocks.com.
+ * Light/Dark + Brand-Theme (teal | classic) für die gesamte App.
+ * Standard: Hellmodus + Brand teal (Landing).
+ * Speichert: ms365-theme-v1, ms365-brand-v1.
+ * Hell/Dunkel-Schalter: Fußzeile. Brand: Konto-Menü oben rechts.
  */
 (function () {
     'use strict';
 
     const STORAGE_KEY = 'ms365-theme-v1';
+    const BRAND_KEY = 'ms365-brand-v1';
     const THEMES = { light: 'light', dark: 'dark' };
+    const BRANDS = { teal: 'teal', classic: 'classic' };
 
     function preferredTheme() {
-        try {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                return THEMES.dark;
-            }
-        } catch {
-            /* ignore */
-        }
         return THEMES.light;
+    }
+
+    function preferredBrand() {
+        return BRANDS.teal;
     }
 
     function readStored() {
@@ -30,10 +30,26 @@
         return null;
     }
 
+    function readStoredBrand() {
+        try {
+            const v = localStorage.getItem(BRAND_KEY);
+            if (v === BRANDS.classic || v === BRANDS.teal) return v;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
     function currentTheme() {
         const attr = document.documentElement.getAttribute('data-theme');
         if (attr === THEMES.dark || attr === THEMES.light) return attr;
         return preferredTheme();
+    }
+
+    function currentBrand() {
+        const attr = document.documentElement.getAttribute('data-brand');
+        if (attr === BRANDS.classic || attr === BRANDS.teal) return attr;
+        return preferredBrand();
     }
 
     function applyTheme(theme) {
@@ -50,8 +66,26 @@
             /* ignore */
         }
         syncButtons();
+        syncBrandButtons();
         try {
             window.dispatchEvent(new CustomEvent('ms365-theme-change', { detail: { theme: next } }));
+        } catch {
+            /* ignore */
+        }
+        return next;
+    }
+
+    function applyBrand(brand) {
+        const next = brand === BRANDS.classic ? BRANDS.classic : BRANDS.teal;
+        document.documentElement.setAttribute('data-brand', next);
+        try {
+            localStorage.setItem(BRAND_KEY, next);
+        } catch {
+            /* ignore */
+        }
+        syncBrandButtons();
+        try {
+            window.dispatchEvent(new CustomEvent('ms365-brand-change', { detail: { brand: next } }));
         } catch {
             /* ignore */
         }
@@ -78,6 +112,16 @@
             btn.setAttribute('aria-label', 'Darstellung umschalten: ' + labelFor(theme) + 'modus');
             btn.setAttribute('title', labelFor(theme) + 'modus');
             btn.innerHTML = iconFor(theme) + '<span>' + labelFor(theme) + '</span>';
+        });
+    }
+
+    function syncBrandButtons() {
+        const brand = currentBrand();
+        document.querySelectorAll('[data-ms365-brand]').forEach(function (btn) {
+            const b = btn.getAttribute('data-ms365-brand');
+            const on = b === brand;
+            btn.setAttribute('aria-checked', on ? 'true' : 'false');
+            btn.classList.toggle('is-active', on);
         });
     }
 
@@ -114,6 +158,7 @@
             else row.appendChild(btn);
         }
         syncButtons();
+        syncBrandButtons();
         return btn;
     }
 
@@ -128,6 +173,7 @@
     function init() {
         const stored = readStored();
         applyTheme(stored || preferredTheme());
+        applyBrand(readStoredBrand() || preferredBrand());
         mountWhenReady(40);
     }
 
@@ -135,7 +181,10 @@
         get: currentTheme,
         set: applyTheme,
         toggle: toggleTheme,
-        mount: mountToggle
+        mount: mountToggle,
+        getBrand: currentBrand,
+        setBrand: applyBrand,
+        brands: BRANDS
     };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

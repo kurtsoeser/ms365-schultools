@@ -71,6 +71,8 @@ async function main() {
   await copyFileToDist('ms365-config.local.js');
 
   await copyDirToDist('src');
+  // Marketing-Landing parallel zur App erreichbar (Fußzeilen-Link)
+  await copyDirToDist('landing');
   await writeAppBuildInfo(distRoot);
 }
 

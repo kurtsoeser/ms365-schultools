@@ -142,6 +142,7 @@
             label: 'UI & Hinweise',
             keys: [
                 'ms365-theme-v1',
+                'ms365-brand-v1',
                 'ms365-ss-graph-collapsed-v1',
                 'ms365-schooltool-access-override-v1',
                 'ms365-schooltool-release-notes-v1',

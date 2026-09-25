@@ -6,7 +6,7 @@ Einfache **reine Browser-App** (ohne Server): **Dashboard** (`index.html`), **Sc
 
 Die Nutzerdokumentation liegt in **`hilfe.html`**: durchsuchbare Anleitungen zu allen Werkzeugen, empfohlene Abläufe, FAQ, Windows-Hinweise (u. a. blockierte `.cmd`) und die Datenschutzerklärung. In der App führt der Link **Hilfe, Datenschutz & Windows-Hinweise** (unten rechts) dorthin.
 
-Es werden **keine Stammdaten an einen App-Server** gesendet. Verarbeitung erfolgt **lokal im Browser** (`localStorage`). Über **Browser-Backup** (Dashboard / Stammdaten) lassen sich alle lokalen App-Daten als JSON zwischen Browsern übertragen; die Microsoft-Anmeldung ist darin nicht enthalten. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz).
+Es werden **keine Stammdaten an einen App-Server** dieser Software gesendet. Verarbeitung erfolgt **lokal im Browser** (`localStorage`). Über **Browser-Backup** (Dashboard / Stammdaten) lassen sich alle lokalen App-Daten als JSON übertragen; optional sichern Sie denselben Stand in eine **IT-Sicherungsbibliothek auf der schulischen SharePoint-Site** („Nach SharePoint“ / Auto-Sync). Die Microsoft-Anmeldung ist in den Backups nicht enthalten. Online-Aktionen gehen – nur wenn Sie sie auslösen – an **Microsoft Graph**. Details: [hilfe.html#datenschutz](hilfe.html#datenschutz), SharePoint-Übergabe: [hilfe.html#tool-stammdaten-uebergabe](hilfe.html#tool-stammdaten-uebergabe).
 
 ## Planung: Stammdaten über Bildungsportal (EdTech)
 

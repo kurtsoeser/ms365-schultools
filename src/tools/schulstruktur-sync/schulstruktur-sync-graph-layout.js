@@ -354,7 +354,7 @@ export function renderGraphView(
             d = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
         }
         line.setAttribute('d', d);
-        line.setAttribute('stroke', 'rgba(94,114,228,0.35)');
+        line.setAttribute('stroke', 'color-mix(in srgb, var(--brand1) 35%, transparent)');
         line.setAttribute('stroke-width', '2');
         line.setAttribute('fill', 'none');
         edgesSvg.appendChild(line);
@@ -377,7 +377,7 @@ export function renderGraphView(
         div.style.width = '240px';
         div.style.padding = '10px 12px';
         div.style.borderRadius = '14px';
-        div.style.border = isSelected ? '2px solid rgba(45,206,137,0.7)' : '1px solid rgba(94,114,228,0.22)';
+        div.style.border = isSelected ? '2px solid rgba(45,206,137,0.7)' : '1px solid color-mix(in srgb, var(--brand1) 22%, transparent)';
         div.style.background = '#fff';
         div.style.boxShadow = isSelected ? '0 12px 26px rgba(45, 206, 137, 0.16)' : '0 10px 22px rgba(50, 50, 93, 0.10)';
         div.style.cursor = 'pointer';
@@ -390,12 +390,12 @@ export function renderGraphView(
         const hasKids = !!kids.length && !node.isRoot && !node.isVirtualFach;
         const isCollapsed = !!(collapsedSet && collapsedSet.has(String(id)));
         const toggleBtn = hasKids
-            ? `<button type="button" class="ss-graph-toggle" data-ss-toggle-for="${escapeHtml(String(id))}" title="${isCollapsed ? 'Aufklappen' : 'Einklappen'}" aria-label="${isCollapsed ? 'Aufklappen' : 'Einklappen'}" draggable="false" style="border:1px solid rgba(94,114,228,0.22); background:#fff; border-radius:12px; padding:6px 10px; font-weight:1000; cursor:pointer; line-height:1; min-width:42px;">${isCollapsed ? '▸' : '▾'}${kids.length ? `<span class="muted" style="margin-left:6px;font-weight:900;">${kids.length}</span>` : ''}</button>`
+            ? `<button type="button" class="ss-graph-toggle" data-ss-toggle-for="${escapeHtml(String(id))}" title="${isCollapsed ? 'Aufklappen' : 'Einklappen'}" aria-label="${isCollapsed ? 'Aufklappen' : 'Einklappen'}" draggable="false" style="border:1px solid color-mix(in srgb, var(--brand1) 22%, transparent); background:#fff; border-radius:12px; padding:6px 10px; font-weight:1000; cursor:pointer; line-height:1; min-width:42px;">${isCollapsed ? '▸' : '▾'}${kids.length ? `<span class="muted" style="margin-left:6px;font-weight:900;">${kids.length}</span>` : ''}</button>`
             : '';
         const canAddChildren =
             !node.isStructureFolder && !node.isVirtualFach && allowedStructureChildTypes(String(node.typ || '')).length > 0;
         const plusBtn = canAddChildren
-            ? `<button type="button" class="ss-graph-plus" data-ss-plus-for="${escapeHtml(String(id))}" title="Unterpunkt hinzufügen" aria-label="Unterpunkt hinzufügen" style="margin-left:auto; border:1px solid rgba(94,114,228,0.22); background:#fff; border-radius:12px; padding:6px 10px; font-weight:1000; cursor:pointer;">+</button>`
+            ? `<button type="button" class="ss-graph-plus" data-ss-plus-for="${escapeHtml(String(id))}" title="Unterpunkt hinzufügen" aria-label="Unterpunkt hinzufügen" style="margin-left:auto; border:1px solid color-mix(in srgb, var(--brand1) 22%, transparent); background:#fff; border-radius:12px; padding:6px 10px; font-weight:1000; cursor:pointer;">+</button>`
             : '';
         const right = `<div style="margin-left:auto;display:flex;gap:8px;align-items:center;">${toggleBtn}${plusBtn}</div>`;
         const subLabel = (() => {

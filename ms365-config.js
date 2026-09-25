@@ -192,6 +192,25 @@ window.MS365_LICENSE_API = {
         if (helpRow && helpRow.parentElement !== right) right.appendChild(helpRow);
     }
 
+    function landingPageHref() {
+        try {
+            const pathOnly = String(window.location.pathname || '/')
+                .split('?')[0]
+                .split('#')[0];
+            const parts = pathOnly.split('/').filter(Boolean);
+            if (parts.length && /\.html?$/i.test(parts[parts.length - 1])) {
+                parts.pop();
+            }
+            const lower = parts.map((p) => p.toLowerCase());
+            const toolsIdx = lower.indexOf('tools');
+            if (toolsIdx === -1) return 'landing/';
+            const ups = parts.length - toolsIdx;
+            return '../'.repeat(Math.max(1, ups)) + 'landing/';
+        } catch {
+            return 'landing/';
+        }
+    }
+
     function injectSiteCredit() {
         let p = document.getElementById('siteCreditKurtrocks') || document.querySelector('.site-credit-row');
         if (!p) {
@@ -201,7 +220,46 @@ window.MS365_LICENSE_API = {
         }
         p.id = 'siteCreditKurtrocks';
 
-        let a = p.querySelector('.site-credit-link');
+        let landing = p.querySelector('.site-landing-link');
+        if (!landing) {
+            landing = document.createElement('a');
+            landing.className = 'site-credit-link site-landing-link';
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-globe2';
+            icon.setAttribute('aria-hidden', 'true');
+            landing.appendChild(icon);
+            landing.appendChild(document.createTextNode('Website'));
+            const kur = p.querySelector('.site-credit-link:not(.site-landing-link)');
+            if (kur) p.insertBefore(landing, kur);
+            else p.appendChild(landing);
+        }
+        landing.href = landingPageHref();
+        landing.title = 'Marketing-Website / Landing Page';
+        landing.setAttribute('aria-label', 'Website – Landing Page von MS365-Schulverwaltung');
+
+        let impressum = p.querySelector('.site-impressum-link');
+        if (!impressum) {
+            impressum = document.createElement('a');
+            impressum.className = 'site-credit-link site-impressum-link';
+            const iconImp = document.createElement('i');
+            iconImp.className = 'bi bi-file-earmark-text';
+            iconImp.setAttribute('aria-hidden', 'true');
+            impressum.appendChild(iconImp);
+            impressum.appendChild(document.createTextNode('Impressum'));
+            const afterLanding = p.querySelector('.site-landing-link');
+            if (afterLanding && afterLanding.nextSibling) {
+                p.insertBefore(impressum, afterLanding.nextSibling);
+            } else if (afterLanding) {
+                afterLanding.after(impressum);
+            } else {
+                p.appendChild(impressum);
+            }
+        }
+        impressum.href = landingPageHref().replace(/\/?$/, '/') + 'impressum.html';
+        impressum.title = 'Impressum';
+        impressum.setAttribute('aria-label', 'Impressum');
+
+        let a = p.querySelector('.site-credit-link:not(.site-landing-link):not(.site-impressum-link)');
         if (!a) {
             a = document.createElement('a');
             a.className = 'site-credit-link';

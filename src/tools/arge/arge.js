@@ -58,7 +58,7 @@ function startCellEdit(td, initialValue, onCommit) {
     input.style.width = '100%';
     input.style.boxSizing = 'border-box';
     input.style.padding = '8px 10px';
-    input.style.border = '1px solid #5e72e4';
+    input.style.border = '1px solid var(--brand1)';
     input.style.borderRadius = '10px';
     input.style.font = 'inherit';
     td.replaceChildren(input);

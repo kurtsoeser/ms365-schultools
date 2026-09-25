@@ -15,20 +15,46 @@ function walkHtml(dir, out = []) {
     return out;
 }
 
-const fouc =
-    "<script>(function(){try{var k='ms365-theme-v1';var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.setAttribute('data-theme',t);d.style.colorScheme=t;}catch(e){}})();</script>";
+function foucScript(withAdminBootClear) {
+    const clear = withAdminBootClear ? "d.removeAttribute('data-ms365-admin-boot');" : '';
+    return (
+        "<script>(function(){try{var d=document.documentElement;" +
+        "var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}" +
+        "d.setAttribute('data-theme',t);d.style.colorScheme=t;" +
+        "var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}" +
+        "d.setAttribute('data-brand',b);" +
+        clear +
+        "}catch(e){}})();</script>"
+    );
+}
+
+const oldFoucRe =
+    /<script>\(function\(\)\{try\{[^<]*ms365-theme-v1[^<]*\}\)\(\);<\/script>/;
 
 const files = walkHtml(root);
 let updated = 0;
 
 for (const full of files) {
     const rel = relative(root, full).replace(/\\/g, '/');
+    if (rel.startsWith('landing/') || rel.startsWith('dist/')) continue;
     let html = readFileSync(full, 'utf8');
     let changed = false;
+    const isAdmin = rel === 'admin.html' || rel.endsWith('/admin.html');
 
-    if (!html.includes('ms365-theme-v1')) {
+    if (oldFoucRe.test(html)) {
+        html = html.replace(oldFoucRe, foucScript(isAdmin));
+        changed = true;
+    } else if (!html.includes('ms365-theme-v1')) {
         if (/<head(\s[^>]*)?>/i.test(html)) {
-            html = html.replace(/<head(\s[^>]*)?>/i, (m) => m + '\n    ' + fouc);
+            html = html.replace(/<head(\s[^>]*)?>/i, (m) => m + '\n    ' + foucScript(isAdmin));
+            changed = true;
+        }
+    } else if (!html.includes('ms365-brand-v1')) {
+        if (html.includes("d.setAttribute('data-theme',t);d.style.colorScheme=t;")) {
+            html = html.replace(
+                "d.setAttribute('data-theme',t);d.style.colorScheme=t;",
+                "d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);"
+            );
             changed = true;
         }
     }

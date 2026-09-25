@@ -590,6 +590,14 @@
             '<i class="bi bi-clipboard" aria-hidden="true"></i></button>' +
             '</span></div>' +
             '</div>' +
+            '<div class="ms365-auth-menu__section" role="group" aria-label="Design">' +
+            '<div class="ms365-auth-menu__section-label">Design</div>' +
+            '<div class="ms365-auth-menu__brand-row">' +
+            '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="teal" aria-checked="true">' +
+            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--teal" aria-hidden="true"></span>Blau-Grün</button>' +
+            '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="classic" aria-checked="false">' +
+            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--classic" aria-hidden="true"></span>Klassisch</button>' +
+            '</div></div>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
             '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin</a>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthActionLogLink" href="action-log.html">' +
@@ -652,6 +660,38 @@
                 logout().catch(function () {});
             });
         }
+        const brandBtns = document.querySelectorAll('#ms365AuthDropdown [data-ms365-brand]');
+        brandBtns.forEach(function (btn) {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const brand = btn.getAttribute('data-ms365-brand');
+                if (window.ms365Theme && typeof window.ms365Theme.setBrand === 'function') {
+                    window.ms365Theme.setBrand(brand);
+                } else {
+                    try {
+                        document.documentElement.setAttribute('data-brand', brand === 'classic' ? 'classic' : 'teal');
+                        localStorage.setItem('ms365-brand-v1', brand === 'classic' ? 'classic' : 'teal');
+                    } catch (_) { /* ignore */ }
+                    document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
+                        const on = el.getAttribute('data-ms365-brand') === (brand === 'classic' ? 'classic' : 'teal');
+                        el.setAttribute('aria-checked', on ? 'true' : 'false');
+                        el.classList.toggle('is-active', on);
+                    });
+                }
+            });
+        });
+        if (window.ms365Theme && typeof window.ms365Theme.getBrand === 'function') {
+            const cur = window.ms365Theme.getBrand();
+            document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
+                const on = el.getAttribute('data-ms365-brand') === cur;
+                el.setAttribute('aria-checked', on ? 'true' : 'false');
+                el.classList.toggle('is-active', on);
+            });
+        }
+
         const copyTenantBtn = document.getElementById('ms365AuthCopyTenant');
         if (copyTenantBtn && !copyTenantBtn.dataset.bound) {
             copyTenantBtn.dataset.bound = '1';

@@ -13,7 +13,7 @@
     appearance: none;
     border: 0;
     background: transparent;
-    color: #5e72e4;
+    color: var(--brand1, #0d9f8a);
     cursor: help;
     padding: 2px 6px;
     margin: 0;
@@ -27,7 +27,7 @@
 .featured-info__btn:hover,
 .featured-info__btn:focus-visible {
     color: #32325d;
-    background: rgba(94, 114, 228, 0.12);
+    background: color-mix(in srgb, var(--brand1) 12%, transparent);
     outline: none;
 }
 
@@ -100,11 +100,3 @@ html[data-theme="dark"] .featured-info__tip {
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .context-tip__bubble,
-    :root:not([data-theme]) .featured-info__tip {
-        background: #2a3050;
-        color: #e8eaf4;
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-    }
-}

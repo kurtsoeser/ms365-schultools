@@ -858,17 +858,17 @@
     user-select: none;
 }
 .slg-user-checklist__item:hover {
-    background: rgba(94, 114, 228, 0.08);
+    background: color-mix(in srgb, var(--brand1) 8%, transparent);
 }
 .slg-user-checklist__item input[type="checkbox"] {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
     cursor: pointer;
-    accent-color: #5e72e4;
+    accent-color: var(--brand1, #0d9f8a);
 }
 .slg-user-checklist__item.is-checked {
-    background: rgba(94, 114, 228, 0.12);
+    background: color-mix(in srgb, var(--brand1) 12%, transparent);
     font-weight: 600;
 }
 .slg-sync-log {

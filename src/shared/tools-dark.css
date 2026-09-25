@@ -287,37 +287,3 @@ html[data-theme="dark"] .welcome-choice h2 {
 html[data-theme="dark"] .welcome-choice p {
     color: var(--text-secondary) !important;
 }
-
-/* ── prefers-color-scheme (ohne explizite Wahl) ── */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .panel,
-    :root:not([data-theme]) .ss-modal {
-        background: var(--card) !important;
-    }
-    :root:not([data-theme]) .panel-head h2,
-    :root:not([data-theme]) .pv-tree-title {
-        color: var(--heading) !important;
-    }
-    :root:not([data-theme]) .live-banner {
-        color: var(--text) !important;
-    }
-    :root:not([data-theme]) .live-badge {
-        color: #6ee7b7 !important;
-    }
-    :root:not([data-theme]) .stat {
-        background: var(--surface-muted) !important;
-    }
-    :root:not([data-theme]) .stat .n {
-        color: var(--heading) !important;
-    }
-    :root:not([data-theme]) .mode-tabs .tab-btn:not([aria-selected="true"]) {
-        background: var(--surface-muted) !important;
-        color: var(--heading) !important;
-    }
-    :root:not([data-theme]) .pill.ok {
-        color: #6ee7b7 !important;
-    }
-    :root:not([data-theme]) .hint {
-        color: var(--text-secondary) !important;
-    }
-}

@@ -303,7 +303,7 @@ import {
         const btnMs = document.createElement('button');
         btnMs.type = 'button';
         btnMs.className = 'mini-btn';
-        btnMs.style.background = '#5e72e4';
+        btnMs.style.background = 'var(--brand1)';
         btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
         btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
         btnMs.addEventListener('click', function () {
@@ -1402,7 +1402,7 @@ import {
         const btnMs = document.createElement('button');
         btnMs.type = 'button';
         btnMs.className = 'mini-btn';
-        btnMs.style.background = '#5e72e4';
+        btnMs.style.background = 'var(--brand1)';
         btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
         btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
         btnMs.addEventListener('click', function () {
@@ -2405,7 +2405,7 @@ import {
             const btnMs = document.createElement('button');
             btnMs.type = 'button';
             btnMs.className = 'mini-btn';
-            btnMs.style.background = '#5e72e4';
+            btnMs.style.background = 'var(--brand1)';
             btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
             btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
             btnMs.addEventListener('click', function () {
@@ -2654,7 +2654,7 @@ import {
             const btnMs = document.createElement('button');
             btnMs.type = 'button';
             btnMs.className = 'mini-btn';
-            btnMs.style.background = '#5e72e4';
+            btnMs.style.background = 'var(--brand1)';
             btnMs.title = 'Diese E‑Mail in Microsoft Entra prüfen';
             btnMs.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
             btnMs.addEventListener('click', function () {
@@ -3571,7 +3571,7 @@ import {
             const btnS = document.createElement('button');
             btnS.type = 'button';
             btnS.className = 'mini-btn';
-            btnS.style.background = '#5e72e4';
+            btnS.style.background = 'var(--brand1)';
             btnS.title = 'Bestehende Microsoft‑365‑Gruppe suchen und verknüpfen';
             btnS.setAttribute('aria-label', 'Suchen');
             btnS.innerHTML = '<i class="bi bi-search" aria-hidden="true"></i>';
@@ -3689,7 +3689,7 @@ import {
             const btnS = document.createElement('button');
             btnS.type = 'button';
             btnS.className = 'mini-btn';
-            btnS.style.background = '#5e72e4';
+            btnS.style.background = 'var(--brand1)';
             btnS.title = 'Bestehende Microsoft‑365‑Gruppe suchen und verknüpfen';
             btnS.setAttribute('aria-label', 'Suchen');
             btnS.innerHTML = '<i class="bi bi-search" aria-hidden="true"></i>';
@@ -4244,7 +4244,7 @@ import {
             const btnS = document.createElement('button');
             btnS.type = 'button';
             btnS.className = 'mini-btn';
-            btnS.style.background = '#5e72e4';
+            btnS.style.background = 'var(--brand1)';
             btnS.title = 'Bestehende Microsoft‑365‑Gruppe suchen und verknüpfen';
             btnS.setAttribute('aria-label', 'Suchen');
             btnS.innerHTML = '<i class="bi bi-search" aria-hidden="true"></i>';

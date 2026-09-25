@@ -2172,7 +2172,7 @@
                     const btnCheck = document.createElement('button');
                     btnCheck.type = 'button';
                     btnCheck.className = 'mini-btn';
-                    btnCheck.style.background = '#5e72e4';
+                    btnCheck.style.background = 'var(--brand1)';
                     btnCheck.title = 'Diese E‑Mail in Microsoft Entra prüfen';
                     btnCheck.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
                     if (dir && dir.graphUserId) {
@@ -2382,7 +2382,7 @@
                     const btnCheck = document.createElement('button');
                     btnCheck.type = 'button';
                     btnCheck.className = 'mini-btn';
-                    btnCheck.style.background = '#5e72e4';
+                    btnCheck.style.background = 'var(--brand1)';
                     btnCheck.title = 'Diese E‑Mail in Microsoft Entra prüfen';
                     btnCheck.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
                     if (dir && dir.graphUserId) {
@@ -3803,7 +3803,7 @@
                     const btnCheck = document.createElement('button');
                     btnCheck.type = 'button';
                     btnCheck.className = 'mini-btn';
-                    btnCheck.style.background = '#5e72e4';
+                    btnCheck.style.background = 'var(--brand1)';
                     btnCheck.title = 'Diese E‑Mail in Microsoft Entra prüfen';
                     btnCheck.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
                     if (dir && dir.graphUserId) {
@@ -3981,7 +3981,7 @@
                 const btnCheck = document.createElement('button');
                 btnCheck.type = 'button';
                 btnCheck.className = 'mini-btn';
-                btnCheck.style.background = '#5e72e4';
+                btnCheck.style.background = 'var(--brand1)';
                 btnCheck.title = 'Klassengruppe in Microsoft 365 prüfen';
                 btnCheck.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
                 btnCheck.addEventListener('click', async () => {

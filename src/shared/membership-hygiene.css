@@ -1,9 +1,9 @@
 .dash-hygiene {
     margin: 18px 0 22px;
     padding: 20px 22px;
-    border: 1px solid rgba(94, 114, 228, 0.16);
+    border: 1px solid color-mix(in srgb, var(--brand1) 16%, transparent);
     border-radius: 18px;
-    background: linear-gradient(180deg, rgba(94, 114, 228, 0.06) 0%, rgba(255, 255, 255, 0.92) 100%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--brand1) 6%, transparent) 0%, rgba(255, 255, 255, 0.92) 100%);
 }
 .dash-hygiene__head {
     display: flex;

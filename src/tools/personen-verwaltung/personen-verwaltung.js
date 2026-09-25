@@ -1252,7 +1252,7 @@
         selAllCb.style.width = '16px';
         selAllCb.style.height = '16px';
         selAllCb.style.cursor = 'pointer';
-        selAllCb.style.accentColor = '#5e72e4';
+        selAllCb.style.accentColor = 'var(--brand1)';
         selAllCb.setAttribute('aria-label', 'Alle auswählen');
         selAllRow.appendChild(selAllCb);
         const selAllTxt = document.createElement('span');

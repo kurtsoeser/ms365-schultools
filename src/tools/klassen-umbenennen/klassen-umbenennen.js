@@ -745,7 +745,7 @@ function renderPreviewTable() {
         input.style.width = '100%';
         input.style.boxSizing = 'border-box';
         input.style.padding = '8px 10px';
-        input.style.border = '1px solid rgba(94, 114, 228, 0.6)';
+        input.style.border = '1px solid color-mix(in srgb, var(--brand1) 60%, transparent)';
         input.style.borderRadius = '10px';
         input.style.font = 'inherit';
         tdEl.replaceChildren(input);

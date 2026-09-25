@@ -10,17 +10,6 @@ html[data-theme="dark"] .dashboard-tools {
     --task-surface: rgba(36, 40, 62, 0.92);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .dashboard-tasks,
-    :root:not([data-theme]) .dashboard-tools {
-        --tools-ink: #e8eaf4;
-        --tools-muted: #aeb4c8;
-        --task-ink: #e8eaf4;
-        --task-muted: #aeb4c8;
-        --task-line: rgba(255, 255, 255, 0.1);
-        --task-surface: rgba(36, 40, 62, 0.92);
-    }
-}
 
 /* ── Tool-Kacheln (Legacy-Grid) ── */
 html[data-theme="dark"] .choice,
@@ -201,7 +190,7 @@ html[data-theme="dark"] .dash-task-progress[data-tone="warn"] {
 
 /* Hero-Karte (Einrichtung) bleibt farbig – nur Button anpassen */
 html[data-theme="dark"] .dash-task--hero .dash-task-link--primary {
-    color: #4c3f9a !important;
+    color: color-mix(in srgb, var(--brand1) 55%, #0c1222) !important;
     background: #fff !important;
 }
 
@@ -437,50 +426,4 @@ html[data-theme="dark"] .dash-hygiene-badge--unknown,
 html[data-theme="dark"] .dash-hygiene-badge--empty-list {
     color: #fcd34d !important;
     background: color-mix(in srgb, #fbbf24 12%, transparent) !important;
-}
-
-/* ── prefers-color-scheme (ohne explizite Theme-Wahl) ── */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .choice,
-    :root:not([data-theme]) .dashboard-catalog .choice[data-tool-id] {
-        background: var(--surface-muted) !important;
-        border-color: var(--border) !important;
-    }
-    :root:not([data-theme]) .choice h2,
-    :root:not([data-theme]) .dashboard-catalog .choice h2 {
-        color: var(--heading) !important;
-    }
-    :root:not([data-theme]) .choice p,
-    :root:not([data-theme]) .dashboard-catalog .choice p {
-        color: var(--text-secondary) !important;
-    }
-    :root:not([data-theme]) .dashboard-tasks {
-        background:
-            radial-gradient(900px 280px at 8% -20%, rgba(123, 140, 255, 0.14), transparent 55%),
-            linear-gradient(180deg, #1a1d30 0%, #15182a 100%) !important;
-        border-color: var(--border) !important;
-    }
-    :root:not([data-theme]) .dashboard-tools {
-        background:
-            radial-gradient(900px 260px at 92% -10%, rgba(123, 140, 255, 0.12), transparent 55%),
-            linear-gradient(180deg, #1a1d30 0%, #15182a 100%) !important;
-        border-color: var(--border) !important;
-    }
-    :root:not([data-theme]) .dashboard-tablist {
-        background: color-mix(in srgb, var(--card) 75%, transparent) !important;
-    }
-    :root:not([data-theme]) .dashboard-tab[aria-selected="true"] {
-        background: var(--card) !important;
-        color: var(--heading) !important;
-    }
-    :root:not([data-theme]) .dashboard-search-wrap input {
-        background: var(--input-bg) !important;
-        color: var(--text) !important;
-    }
-    :root:not([data-theme]) .dash-stand {
-        background: var(--card) !important;
-    }
-    :root:not([data-theme]) .dash-hygiene {
-        background: var(--card) !important;
-    }
 }

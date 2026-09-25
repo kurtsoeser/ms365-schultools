@@ -560,7 +560,7 @@ import '../../shared/group-detail/group-detail.js';
                 vIcon.style.fontSize = '1.1em';
                 vIcon.style.lineHeight = '1';
                 vIcon.style.opacity = '0.92';
-                vIcon.style.color = '#5e72e4';
+                vIcon.style.color = 'var(--brand1)';
 
                 const name = document.createElement('div');
                 name.style.minWidth = '0';
@@ -609,7 +609,7 @@ import '../../shared/group-detail/group-detail.js';
                     addB.setAttribute('aria-label', 'Unterpunkt hinzufügen');
                     addB.textContent = '+';
                     addB.style.cssText =
-                        'flex-shrink:0;align-self:center;width:38px;min-width:38px;height:38px;border:1px solid rgba(94,114,228,0.28);border-radius:10px;background:#fff;font-weight:1000;cursor:pointer;color:#32325d;line-height:1;padding:0;margin:0 4px 0 0;';
+                        'flex-shrink:0;align-self:center;width:38px;min-width:38px;height:38px;border:1px solid color-mix(in srgb, var(--brand1) 28%, transparent);border-radius:10px;background:#fff;font-weight:1000;cursor:pointer;color:#32325d;line-height:1;padding:0;margin:0 4px 0 0;';
                     addB.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -678,7 +678,7 @@ import '../../shared/group-detail/group-detail.js';
             rowIcon.style.fontSize = '1.08em';
             rowIcon.style.lineHeight = '1';
             rowIcon.style.opacity = '0.92';
-            rowIcon.style.color = '#5e72e4';
+            rowIcon.style.color = 'var(--brand1)';
 
             const name = document.createElement('div');
             name.style.minWidth = '0';
@@ -734,7 +734,7 @@ import '../../shared/group-detail/group-detail.js';
                 addB.setAttribute('aria-label', 'Unterpunkt hinzufügen');
                 addB.textContent = '+';
                 addB.style.cssText =
-                    'flex-shrink:0;align-self:center;width:38px;min-width:38px;height:38px;border:1px solid rgba(94,114,228,0.28);border-radius:10px;background:#fff;font-weight:1000;cursor:pointer;color:#32325d;line-height:1;padding:0;margin:0 4px 0 0;';
+                    'flex-shrink:0;align-self:center;width:38px;min-width:38px;height:38px;border:1px solid color-mix(in srgb, var(--brand1) 28%, transparent);border-radius:10px;background:#fff;font-weight:1000;cursor:pointer;color:#32325d;line-height:1;padding:0;margin:0 4px 0 0;';
                 addB.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -770,7 +770,7 @@ import '../../shared/group-detail/group-detail.js';
         menu.id = 'ssCtxMenu';
         menu.setAttribute('role', 'menu');
         menu.style.cssText =
-            'position:fixed;z-index:10000;min-width:220px;max-width:min(340px,92vw);background:#fff;border:1px solid rgba(94,114,228,0.22);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,0.18);padding:8px;display:none;';
+            'position:fixed;z-index:10000;min-width:220px;max-width:min(340px,92vw);background:#fff;border:1px solid color-mix(in srgb, var(--brand1) 22%, transparent);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,0.18);padding:8px;display:none;';
 
         const head = document.createElement('div');
         head.id = 'ssCtxMenuTitle';
@@ -2071,7 +2071,7 @@ import '../../shared/group-detail/group-detail.js';
                     'max-width:min(92vw,340px)',
                     'padding:12px 12px 8px',
                     'border-radius:12px',
-                    'border:1px solid rgba(94,114,228,0.35)',
+                    'border:1px solid color-mix(in srgb, var(--brand1) 35%, transparent)',
                     'background:#fff',
                     'box-shadow:0 18px 40px rgba(50,50,93,0.22)'
                 ].join(';');

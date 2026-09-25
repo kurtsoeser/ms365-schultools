@@ -711,7 +711,7 @@
 }
 
 .pw-form-step i {
-    color: var(--brand1, #5b4fcf);
+    color: var(--brand1, #0d9f8a);
     font-size: 0.9rem;
 }
 
@@ -798,7 +798,7 @@
     flex-shrink: 0;
     border-radius: 12px;
     background: color-mix(in srgb, var(--brand1) 14%, #fff);
-    color: var(--brand1, #5b4fcf);
+    color: var(--brand1, #0d9f8a);
     font-size: 1.1rem;
 }
 
@@ -884,7 +884,7 @@
 
 .pw-field label i {
     font-size: 0.9rem;
-    color: var(--brand1, #5b4fcf);
+    color: var(--brand1, #0d9f8a);
     opacity: 0.9;
 }
 
@@ -920,7 +920,7 @@
 .pw-field textarea:focus,
 .pw-field .pw-select__control:focus {
     outline: none;
-    border-color: var(--brand1, #5b4fcf);
+    border-color: var(--brand1, #0d9f8a);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand1) 20%, transparent);
 }
 
@@ -1089,7 +1089,7 @@
 }
 
 .pw-detail__card-label i {
-    color: var(--brand1, #5b4fcf);
+    color: var(--brand1, #0d9f8a);
     font-size: 0.85rem;
 }
 
