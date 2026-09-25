@@ -54,9 +54,10 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          # World4You: explizites FTPS (TLS) auf Port 21
-          protocol: ftps
+          # World4You: plain FTP (FTPS bricht oft mit ECONNRESET ab)
+          protocol: ftp
           local-dir: ./dist/
+          # Muss mit / enden (z. B. /app/)
           server-dir: ${{ secrets.FTP_REMOTE_DIR }}
-          timeout: 60000
-          security: loose
+          timeout: 120000
+          dangerous-clean-slate: false
