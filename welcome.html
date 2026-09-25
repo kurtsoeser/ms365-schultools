@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Willkommen</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=9">
+    <link rel="stylesheet" href="app.css?v=10">
     <style>
         body {
             display: flex;
@@ -30,13 +30,14 @@
             text-align: center;
             padding: 28px 24px 22px;
         }
-        .welcome-header img {
-            display: block;
+        .welcome-header .app-brand-logo {
             margin: 0 auto 14px;
-            max-width: min(280px, 88vw);
-            max-height: 72px;
-            height: auto;
-            width: auto;
+        }
+        .welcome-header .app-brand-logo__mark {
+            max-width: 80px;
+            max-height: 80px;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
         }
         .welcome-header h1 {
             margin: 0 0 8px;
@@ -203,7 +204,10 @@
     <div class="welcome-wrap">
         <div class="welcome-card">
             <header class="welcome-header">
-                <img src="assets/schooltool.png" width="280" height="72" alt="Logo MS365-Schul-Tools" decoding="async">
+                <div class="app-brand-logo">
+                    <img class="app-brand-logo__mark app-brand-logo__mark--teal" src="assets/schooltool-teal.png" width="80" height="80" alt="Logo MS365-Schul-Tools" decoding="async">
+                    <img class="app-brand-logo__mark app-brand-logo__mark--classic" src="assets/schooltool-classic.png" width="80" height="80" alt="" decoding="async" aria-hidden="true">
+                </div>
                 <h1>Willkommen</h1>
                 <p>Bitte geben Sie Ihre Zugangs-PIN ein, um die Schulverwaltung und Werkzeuge zu nutzen.</p>
             </header>

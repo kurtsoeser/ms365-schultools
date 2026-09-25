@@ -8,27 +8,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Start</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=9">
+    <link rel="stylesheet" href="app.css?v=10">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
     <style>
         /* Dashboard-spezifisch: nur Grid/Kacheln – Basislayout kommt aus app.css */
         .header h1 { margin: 0 auto 6px; font-size: 1.45em; }
-        .app-brand-logo {
-            margin: 2px auto 8px;
-            max-width: min(320px, 92vw);
-            display: flex;
-            justify-content: center;
-        }
-        .app-brand-logo img {
-            display: block;
-            width: auto;
-            max-width: 100%;
-            max-height: 72px;
-            height: auto;
-            vertical-align: top;
-        }
         .header .app-tagline {
             margin: 0;
             opacity: 0.95;
@@ -1390,7 +1376,8 @@
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
             <div class="app-brand-logo">
-                <img src="assets/schooltool.png" width="320" height="88" alt="Logo MS365-Schul-Tools" decoding="async" />
+                <img class="app-brand-logo__mark app-brand-logo__mark--teal" src="assets/schooltool-teal.png" width="88" height="88" alt="Logo MS365-Schul-Tools" decoding="async" />
+                <img class="app-brand-logo__mark app-brand-logo__mark--classic" src="assets/schooltool-classic.png" width="88" height="88" alt="" decoding="async" aria-hidden="true" />
             </div>
             <p class="app-tagline">Microsoft 365 als Schulplattform: alles, was die Schule braucht – strukturieren, vernetzen und über das Schuljahr hinweg im Griff behalten.</p>
         </div>

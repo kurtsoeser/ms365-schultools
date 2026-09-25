@@ -75,6 +75,25 @@
         return next;
     }
 
+    function syncBrandLogos() {
+        const brand = currentBrand();
+        const classic = brand === BRANDS.classic;
+        document.querySelectorAll('.app-brand-logo').forEach(function (wrap) {
+            const teal = wrap.querySelector('.app-brand-logo__mark--teal');
+            const classicImg = wrap.querySelector('.app-brand-logo__mark--classic');
+            if (teal) {
+                teal.setAttribute('aria-hidden', classic ? 'true' : 'false');
+                if (!classic) teal.setAttribute('alt', 'Logo MS365-Schul-Tools');
+                else teal.setAttribute('alt', '');
+            }
+            if (classicImg) {
+                classicImg.setAttribute('aria-hidden', classic ? 'false' : 'true');
+                if (classic) classicImg.setAttribute('alt', 'Logo MS365-Schul-Tools');
+                else classicImg.setAttribute('alt', '');
+            }
+        });
+    }
+
     function applyBrand(brand) {
         const next = brand === BRANDS.classic ? BRANDS.classic : BRANDS.teal;
         document.documentElement.setAttribute('data-brand', next);
@@ -84,6 +103,7 @@
             /* ignore */
         }
         syncBrandButtons();
+        syncBrandLogos();
         try {
             window.dispatchEvent(new CustomEvent('ms365-brand-change', { detail: { brand: next } }));
         } catch {
