@@ -29,11 +29,21 @@
     }
 
     /**
-     * @param {{ popup?: boolean }} [opts] popup:true = Silent, bei Bedarf Popup (nur bei User-Klick)
+     * @param {{ popup?: boolean, silentOnly?: boolean }} [opts]
+     *   popup:true = Silent, bei Bedarf Popup (nur bei User-Klick)
+     *   silentOnly:true = nur Cache/Silent, kein Redirect/Popup (Menü-Hintergrund)
      */
     async function acquireLicenseToken(opts) {
         var scopes = [licenseScope()];
         var wantPopup = !!(opts && opts.popup);
+        var silentOnly = !!(opts && opts.silentOnly);
+
+        if (silentOnly) {
+            if (typeof global.ms365AuthAcquireTokenSilent === 'function') {
+                return global.ms365AuthAcquireTokenSilent(scopes);
+            }
+            throw new Error('Silent-Token nicht verfügbar.');
+        }
 
         // Immer zuerst Silent – wenn Token schon da (License-Gate), sofort weiter
         if (typeof global.ms365AuthAcquireTokenPopup === 'function' && wantPopup) {
@@ -87,6 +97,20 @@
             method: 'GET',
             headers: authHeaders(accessToken)
         });
+        /* 403 mit operator:false ist erwartetes „kein Betreiber“ – kein Throw fürs Menü */
+        if (res.status === 403) {
+            const text = await res.text();
+            let data = { operator: false, user: null };
+            if (text) {
+                try {
+                    data = Object.assign(data, JSON.parse(text));
+                } catch {
+                    /* keep default */
+                }
+            }
+            data.operator = false;
+            return data;
+        }
         return parseResponse(res);
     }
 

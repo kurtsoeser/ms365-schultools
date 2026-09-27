@@ -411,6 +411,25 @@
         }
     }
 
+    /**
+     * Nur Silent – kein Redirect/Popup. Für Hintergrundprüfungen (z. B. Admin-Menü).
+     * @param {string[]} [scopes]
+     * @returns {Promise<string>}
+     */
+    async function acquireTokenSilentOnly(scopes) {
+        const instance = await ensurePca();
+        const accounts = instance.getAllAccounts();
+        if (!accounts.length) {
+            throw new Error('Nicht angemeldet.');
+        }
+        const a = getAccount() || accounts[0];
+        const req = {
+            scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES,
+            account: a
+        };
+        return (await instance.acquireTokenSilent(req)).accessToken;
+    }
+
     /** Popup-Anmeldung (ohne Seiten-Redirect) – für Einrichtung und Werkzeuge mit lokalen Formularen. */
     async function acquireTokenPopup(scopes) {
         const instance = await ensurePca();
@@ -599,7 +618,7 @@
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--classic" aria-hidden="true"></span>Klassisch</button>' +
             '</div></div>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
-            '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin</a>' +
+            '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin-Bereich</a>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthActionLogLink" href="action-log.html">' +
             '<i class="bi bi-journal-text" aria-hidden="true"></i>Aktionsprotokoll</a>' +
             '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthSwitchBtn" title="Konto wechseln / Anmeldung zurücksetzen">' +
@@ -840,6 +859,13 @@
                 adminLink.href = window.ms365OperatorAccess.resolveAppRootHref('admin.html');
             }
         };
+        const operatorReady =
+            !!(
+                window.ms365OperatorAccess &&
+                typeof window.ms365OperatorAccess.refreshOperatorStatus === 'function' &&
+                window.ms365LicenseApi &&
+                typeof window.ms365LicenseApi.fetchAdminMe === 'function'
+            );
         applyAdminLink(
             !!(
                 a &&
@@ -848,17 +874,23 @@
                 window.ms365OperatorAccess.isCurrentUserOperator()
             )
         );
-        if (
-            a &&
-            window.ms365OperatorAccess &&
-            typeof window.ms365OperatorAccess.refreshOperatorStatus === 'function'
-        ) {
+        if (a && operatorReady) {
             window.ms365OperatorAccess.refreshOperatorStatus().then(function (ok) {
                 applyAdminLink(!!ok);
             });
+        } else if (a && !operatorReady) {
+            /* pin-gate lädt operator-access/license-api deferred – kurz nachziehen */
+            if (!setWidgetState._operatorRetryTimers) setWidgetState._operatorRetryTimers = 0;
+            if (setWidgetState._operatorRetryTimers < 12) {
+                setWidgetState._operatorRetryTimers += 1;
+                setTimeout(function () {
+                    setWidgetState({ silent: true });
+                }, 250);
+            }
         } else if (!a && window.ms365OperatorAccess && window.ms365OperatorAccess.clearOperatorCache) {
             window.ms365OperatorAccess.clearOperatorCache();
             applyAdminLink(false);
+            setWidgetState._operatorRetryTimers = 0;
         }
         const actionLogLink = document.getElementById('ms365AuthActionLogLink');
         if (
@@ -983,6 +1015,7 @@
     window.ms365AuthSwitchAccount = switchAccount;
     window.ms365AuthLogout = logout;
     window.ms365AuthAcquireToken = acquireToken;
+    window.ms365AuthAcquireTokenSilent = acquireTokenSilentOnly;
     window.ms365AuthAcquireTokenPopup = acquireTokenPopup;
     window.ms365AuthAcquireIdToken = acquireIdToken;
     window.ms365AuthAcquireIdTokenPopup = acquireIdTokenPopup;

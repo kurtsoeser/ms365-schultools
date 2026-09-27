@@ -87,8 +87,10 @@
         if (!cache || !cache.checkedAt) return false;
         if (Date.now() - Number(cache.checkedAt) > TTL_MS) return false;
         var oid = account && account.oid ? account.oid : '';
-        if (!oid || String(cache.oid || '').toLowerCase() !== oid) return false;
-        return true;
+        var upn = account && account.upn ? account.upn : '';
+        if (oid && String(cache.oid || '').toLowerCase() === oid) return true;
+        if (upn && normalizeUpn(cache.upn) === upn) return true;
+        return false;
     }
 
     /**
@@ -124,7 +126,8 @@
         }
 
         try {
-            var token = await api.acquireLicenseToken();
+            /* Menü: silentOnly. Admin-Seite (force): Popup bei Bedarf. */
+            var token = await api.acquireLicenseToken(force ? { popup: true } : { silentOnly: true });
             var me = await api.fetchAdminMe(token);
             if (!me || me.operator !== true) {
                 clearOperatorCache();
@@ -142,6 +145,8 @@
             }
             return true;
         } catch (e) {
+            /* Menü ohne License.Access im Cache: bestehenden gültigen Cache behalten */
+            if (!force && cacheValidForAccount(account)) return true;
             clearOperatorCache();
             return false;
         }
@@ -186,4 +191,36 @@
             return isCurrentUserOperator();
         }
     };
+
+    /* Nach deferred inject: Auth-Menü neu bewerten (Admin-Link) */
+    function notifyAuthWidget() {
+        try {
+            if (typeof global.ms365AuthRefreshWidget === 'function') {
+                global.ms365AuthRefreshWidget({ silent: true });
+            }
+        } catch (e) {
+            /* ignore */
+        }
+    }
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () {
+                setTimeout(notifyAuthWidget, 0);
+            });
+        } else {
+            setTimeout(notifyAuthWidget, 0);
+        }
+        try {
+            /* License-Gate holt License.Access oft erst nach dem ersten Menü-Check */
+            global.addEventListener('ms365-license-changed', function (ev) {
+                var allowed = ev && ev.detail && ev.detail.allowed === true;
+                if (!allowed) return;
+                refreshOperatorStatus({ force: false }).then(function () {
+                    notifyAuthWidget();
+                });
+            });
+        } catch (e) {
+            /* ignore */
+        }
+    }
 })(typeof window !== 'undefined' ? window : globalThis);
