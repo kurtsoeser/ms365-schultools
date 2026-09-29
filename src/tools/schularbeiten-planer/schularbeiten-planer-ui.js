@@ -863,11 +863,27 @@ function renderAdmin(state) {
         <input type="checkbox" id="saSyncTermine"${state.settings && state.settings.syncSchultermine ? ' checked' : ''}>
         Bei Fixierung Eintrag in Schultermine schreiben (Kategorie Prüfung)
       </label>
+      <label class="sa-check" style="margin-top:8px;">
+        <input type="checkbox" id="saSyncClassCalendar"${state.settings && state.settings.syncClassCalendar ? ' checked' : ''}>
+        Bei Fixierung Termin in den Klassen-Teams-Kalender schreiben
+      </label>
       <div class="tm-field" style="margin-top:10px;max-width:320px;">
         <label for="saSyncList">Schultermine-Listenname</label>
         <input id="saSyncList" type="text" value="${esc((state.settings && state.settings.schultermineList) || 'Schultermine')}">
       </div>
-      <button type="button" class="btn" id="saBtnSaveSettings" style="margin-top:10px;"><i class="bi bi-save"></i>Einstellungen speichern</button>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+        <button type="button" class="btn" id="saBtnSaveSettings"><i class="bi bi-save"></i>Einstellungen speichern</button>
+        <button type="button" class="btn" id="saBtnSyncClassCal" title="Alle fixierten Schularbeiten in die jeweiligen Klassenkalender schreiben">
+          <i class="bi bi-calendar-plus"></i>Fixierte in Klassenkalender schreiben
+        </button>
+      </div>
+      <p class="muted" style="margin:10px 0 0;font-size:0.88em;">
+        Klassenkalender braucht verknüpfte Teams-Gruppen in den
+        <a href="../tenant.html">Stammdaten</a> (Klassen-Teams / Gruppenabgleich)
+        und Graph-Recht <code>Group.ReadWrite.All</code>. Spalte
+        <code>TeamsCalendarEventId</code> ggf. über
+        <a href="sharepoint-liste-schularbeiten.html">Listen einrichten</a> nachziehen.
+      </p>
       <p class="muted" style="margin:10px 0 0;font-size:0.88em;">
         Danach optional Flow <a href="pa-termine-sync.html">Termine → Kalender</a> und
         <a href="pa-schularbeiten-mail.html">Status-Mail</a>.

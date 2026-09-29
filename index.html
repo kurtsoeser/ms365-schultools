@@ -8,10 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Start</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=10">
+    <link rel="stylesheet" href="app.css?v=12">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
-    <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
+    <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=2">
     <style>
         /* Dashboard-spezifisch: nur Grid/Kacheln – Basislayout kommt aus app.css */
         .header h1 { margin: 0 auto 6px; font-size: 1.45em; }
@@ -26,7 +26,101 @@
             margin-right: auto;
         }
         .header p { margin: 0; opacity: 0.95; }
+        .header .app-brand-logo { margin: 4px auto 10px; }
+        .header .app-brand-logo__mark--classic { display: none !important; }
+        html[data-brand="classic"] .header .app-brand-logo__mark--teal { display: none !important; }
+        html[data-brand="classic"] .header .app-brand-logo__mark--classic { display: block !important; }
         .content { padding-top: 16px; }
+
+        /* Playbooks: Karten wie Schnellstart, keine Roh-Links */
+        .dash-playbooks-wrap {
+            margin: 22px 0 8px;
+        }
+        .dash-playbooks-wrap > .dash-playbooks-title {
+            margin: 0 0 12px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--heading, #32325d);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dash-playbooks-wrap > .dash-playbooks-title .bi {
+            color: var(--brand1, #0d6efd);
+        }
+        .dash-playbooks {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin: 0;
+            list-style: none;
+            padding: 0;
+        }
+        @media (max-width: 1100px) {
+            .dash-playbooks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+            .dash-playbooks { grid-template-columns: 1fr; }
+        }
+        a.dash-playbook-card,
+        .dash-playbook-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px 16px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--border, #dee2e6);
+            background: var(--card, #fff);
+            box-shadow: 0 6px 16px rgba(30, 36, 64, 0.05);
+            text-decoration: none !important;
+            color: inherit !important;
+            transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+            min-height: 118px;
+        }
+        a.dash-playbook-card:hover,
+        .dash-playbook-card:hover {
+            border-color: color-mix(in srgb, var(--brand1, #0d6efd) 40%, var(--border, #dee2e6));
+            box-shadow: 0 10px 24px color-mix(in srgb, var(--brand1, #0d6efd) 14%, transparent);
+            transform: translateY(-1px);
+            text-decoration: none !important;
+            color: inherit !important;
+        }
+        a.dash-playbook-card:visited,
+        a.dash-playbook-card:active,
+        a.dash-playbook-card:focus {
+            text-decoration: none !important;
+            color: inherit !important;
+        }
+        .dash-playbook-card h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--heading, #32325d);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            line-height: 1.25;
+        }
+        .dash-playbook-card h3 .bi {
+            color: var(--brand1, #0d6efd);
+            font-size: 1.05em;
+        }
+        .dash-playbook-card p {
+            margin: 0;
+            font-size: 0.88em;
+            color: var(--muted, #6c757d);
+            line-height: 1.4;
+            text-decoration: none !important;
+        }
+        .dash-playbook-card__cta {
+            margin-top: auto;
+            font-size: 0.82em;
+            font-weight: 700;
+            color: var(--brand1, #0d6efd);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
         .choice[data-tool-id] {
             position: relative;
             padding-top: 40px;
@@ -368,6 +462,60 @@
         }
         .dashboard-local-footer .btn-demo:hover {
             background: rgba(245, 159, 0, 0.2);
+        }
+        .dashboard-catalog-fold {
+            margin: 22px 0 0;
+            border: none;
+        }
+        .dashboard-catalog-fold > summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border, #dee2e6);
+            background: color-mix(in srgb, var(--card, #fff) 92%, var(--brand1, #0d6efd) 6%);
+            font-weight: 800;
+            color: var(--heading, #32325d);
+            user-select: none;
+        }
+        .dashboard-catalog-fold > summary::-webkit-details-marker { display: none; }
+        .dashboard-catalog-fold > summary:hover {
+            border-color: color-mix(in srgb, var(--brand1, #0d6efd) 35%, var(--border, #dee2e6));
+        }
+        .dashboard-catalog-fold__hint {
+            font-size: 0.85em;
+            font-weight: 700;
+            color: var(--brand1, #0d6efd);
+        }
+        .dashboard-catalog-fold[open] > summary {
+            margin-bottom: 12px;
+            border-radius: 14px 14px 10px 10px;
+        }
+        .dashboard-catalog-fold[open] .dashboard-catalog-fold__hint::after {
+            content: ' (schließen)';
+            font-weight: 600;
+            opacity: 0.75;
+        }
+        .dashboard-cluster-subhead {
+            margin: 18px 2px 8px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--heading, #32325d);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dashboard-cluster-subhead .bi { color: var(--brand1, #0d6efd); }
+        .dashboard-cluster-sublead {
+            margin: 0 2px 10px;
+            color: #6c757d;
+            font-size: 0.9em;
+            line-height: 1.4;
         }
         .dashboard-zone-divider {
             display: flex;
@@ -968,14 +1116,14 @@
             --accent-glow: color-mix(in srgb, var(--brand1) 22%, transparent);
         }
         .dash-task[data-accent="gruppen"] {
-            --accent: #0b8f9e;
-            --accent-soft: rgba(11, 143, 158, 0.14);
-            --accent-glow: rgba(11, 143, 158, 0.2);
+            --accent: color-mix(in srgb, var(--brand1) 78%, var(--brand2));
+            --accent-soft: color-mix(in srgb, var(--brand1) 14%, transparent);
+            --accent-glow: color-mix(in srgb, var(--brand1) 20%, transparent);
         }
         .dash-task[data-accent="personen"] {
-            --accent: #0a7c6f;
-            --accent-soft: rgba(10, 124, 111, 0.14);
-            --accent-glow: rgba(10, 124, 111, 0.2);
+            --accent: color-mix(in srgb, var(--brand1) 55%, var(--brand2));
+            --accent-soft: color-mix(in srgb, var(--brand1) 14%, transparent);
+            --accent-glow: color-mix(in srgb, var(--brand1) 20%, transparent);
         }
         .dash-task[data-accent="schuljahr"] {
             --accent: var(--brand2);
@@ -983,9 +1131,9 @@
             --accent-glow: color-mix(in srgb, var(--brand2) 22%, transparent);
         }
         .dash-task[data-accent="ordnung"] {
-            --accent: #3d6b7a;
-            --accent-soft: rgba(61, 107, 122, 0.13);
-            --accent-glow: rgba(61, 107, 122, 0.18);
+            --accent: color-mix(in srgb, var(--brand1) 42%, var(--heading, #32325d));
+            --accent-soft: color-mix(in srgb, var(--brand1) 12%, transparent);
+            --accent-glow: color-mix(in srgb, var(--brand1) 16%, transparent);
         }
         .dash-task:hover,
         .dash-task:focus-within {
@@ -1514,6 +1662,10 @@
                                 <span class="dash-task-row__label"><i class="bi bi-shield-check" aria-hidden="true"></i>Gäste</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
+                            <a class="dash-task-row" href="tools/schueler-lifecycle.html">
+                                <span class="dash-task-row__label"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Schüler-Lifecycle</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </section>
                     <section class="dash-task" data-accent="schuljahr" id="dashTaskSchuljahr" data-context-tip="task-schuljahr">
@@ -1521,20 +1673,27 @@
                             <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-calendar2-range"></i></div>
                             <span class="dash-task-index">04</span>
                         </div>
-                        <h3>Schuljahr wechseln</h3>
-                        <p>Neues Schuljahr aktivieren und die Checkliste durcharbeiten: Anzeigenamen, Abschlussjahrgang, Schülerliste, Unterrichtsteams.</p>
+                        <h3>Schuljahresstart</h3>
+                        <p>Neues Schuljahr vorbereiten: Checkliste, Assistent und Klassen-Anzeigenamen.</p>
                         <div class="dash-task-progress-row" id="dashProgSchuljahrRow" data-context-tip="prog-schuljahr" hidden>
                             <p class="dash-task-progress" id="dashProgSchuljahr"></p>
                         </div>
                         <div class="dash-task-links dash-task-links--stack">
-                            <a class="dash-task-row dash-task-row--primary" href="tools/organisations-assistent.html">
-                                <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Schuljahr wechseln</span>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/playbook-schuljahresstart.html">
+                                <span class="dash-task-row__label"><i class="bi bi-flag" aria-hidden="true"></i>Playbook Schuljahresstart</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
-                            <a class="dash-task-row" href="tenant.html#classes">
-                                <span class="dash-task-row__label"><i class="bi bi-pencil-square" aria-hidden="true"></i>Klassen-Anzeigenamen</span>
-                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                            </a>
+                            <details class="dash-task-expert">
+                                <summary><i class="bi bi-list-ul" aria-hidden="true"></i>Weitere Schritte</summary>
+                                <a class="dash-task-row" href="tools/organisations-assistent.html">
+                                    <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Schuljahr-Assistent</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                                <a class="dash-task-row" href="tenant.html#classes">
+                                    <span class="dash-task-row__label"><i class="bi bi-pencil-square" aria-hidden="true"></i>Klassen-Anzeigenamen</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                            </details>
                         </div>
                     </section>
                     <section class="dash-task" data-accent="ordnung" data-context-tip="task-ordnung">
@@ -1569,39 +1728,67 @@
                 </div>
             </div>
 
-            <section class="dash-stand" id="dashStand" aria-label="Ihr Stand">
-                <div class="dash-stand__top">
-                    <div class="dash-stand__main">
-                        <h2 class="dash-stand__title"><i class="bi bi-speedometer2" aria-hidden="true"></i> Ihr Stand</h2>
-                        <p class="dash-stand__meta">
-                            Schuljahr <strong id="tenantStatYear">–</strong>
-                            · Domain <strong id="tenantStatDomain">–</strong>
-                        </p>
-                        <ul class="dash-stand__pills" aria-label="Schul-Statistiken">
-                            <li class="dash-stand__pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
-                            <li class="dash-stand__pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
-                            <li class="dash-stand__pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
-                            <li class="dash-stand__pill"><strong id="tenantStatClasses">–</strong> Klassen</li>
-                        </ul>
-                        <p class="dash-stand__empty-note" id="dashStandEmptyNote" hidden>Noch keine Schuldaten – starten Sie oben mit der Einrichtung oder der Demo.</p>
-                    </div>
-                    <div class="dash-stand__actions">
-                        <a class="btn" href="tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
-                        <a class="btn btn-ghost" href="tools/datenhygiene.html" id="dashStandHygieneBtn"><i class="bi bi-shield-check"></i>Datenhygiene (Abgleich M365)</a>
-                    </div>
-                </div>
-                <div class="dash-stand__hygiene" id="dashStandHygieneWrap" hidden>
-                    <div class="dash-stand__hygiene-head">
-                        <h3><i class="bi bi-intersect" aria-hidden="true"></i>Datenhygiene (Abgleich mit Microsoft&nbsp;365)</h3>
-                        <a class="btn btn-sm" href="tools/datenhygiene.html">Öffnen</a>
-                    </div>
-                    <p class="muted" style="margin:0 0 8px;font-size:0.9em;">Stammlisten vs. Microsoft&nbsp;365</p>
-                    <div class="dash-hygiene__summary" id="dashHygieneTeaserSummary" aria-label="Letzter Stand"></div>
-                    <p class="dash-hygiene-teaser__meta muted" id="dashHygieneTeaserMeta"></p>
+            <section class="dash-playbooks-wrap" aria-labelledby="dash-playbooks-title">
+                <h2 id="dash-playbooks-title" class="dash-playbooks-title"><i class="bi bi-flag" aria-hidden="true"></i>Playbooks – wo anfangen?</h2>
+                <div class="dash-playbooks">
+                    <a class="dash-playbook-card" href="tools/playbook-schuljahresstart.html">
+                        <h3><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Schuljahresstart</h3>
+                        <p>Stammdaten, Klassen, SLG, Kursteams und Cleanup in einer Checkliste.</p>
+                        <span class="dash-playbook-card__cta">Öffnen <i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                    </a>
+                    <a class="dash-playbook-card" href="tools/playbook-intranet.html">
+                        <h3><i class="bi bi-house-door" aria-hidden="true"></i>Intranet aufsetzen</h3>
+                        <p>Hub, Listen und Planer – einmal einrichten, dann nutzen.</p>
+                        <span class="dash-playbook-card__cta">Öffnen <i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                    </a>
+                    <a class="dash-playbook-card" href="tools/playbook-eltern.html">
+                        <h3><i class="bi bi-chat-heart" aria-hidden="true"></i>Elternkommunikation</h3>
+                        <p>Verteiler, Sprechtag und Intranet-Hinweise als Kanal.</p>
+                        <span class="dash-playbook-card__cta">Öffnen <i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                    </a>
+                    <a class="dash-playbook-card" href="tools/cleanup-playbook.html">
+                        <h3><i class="bi bi-broom" aria-hidden="true"></i>Aufräumen</h3>
+                        <p>Leere Gruppen, Besitzlose, Archiv und Hygiene.</p>
+                        <span class="dash-playbook-card__cta">Öffnen <i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                    </a>
                 </div>
             </section>
 
-            <p class="dashboard-zone-divider" aria-hidden="true"><span><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Oder gezielt navigieren</span></p>
+            <div class="dash-status-row" id="dashStatusRow" aria-label="Schulstatus und Datenhygiene">
+                <section class="dash-stand" id="dashStand" aria-labelledby="dashStandTitle">
+                    <div class="dash-stand__head">
+                        <h2 class="dash-stand__title" id="dashStandTitle"><i class="bi bi-speedometer2" aria-hidden="true"></i> Ihr Stand</h2>
+                        <a class="btn btn-sm" href="tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+                    </div>
+                    <p class="dash-stand__meta">
+                        Schuljahr <strong id="tenantStatYear">–</strong>
+                        · Domain <strong id="tenantStatDomain">–</strong>
+                    </p>
+                    <ul class="dash-stand__pills" aria-label="Schul-Statistiken">
+                        <li class="dash-stand__pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
+                        <li class="dash-stand__pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
+                        <li class="dash-stand__pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
+                        <li class="dash-stand__pill"><strong id="tenantStatClasses">–</strong> Klassen</li>
+                    </ul>
+                    <p class="dash-stand__empty-note" id="dashStandEmptyNote" hidden>Noch keine Schuldaten – starten Sie oben mit der Einrichtung oder der Demo.</p>
+                </section>
+
+                <section class="dash-stand dash-stand--hygiene" id="dashStandHygieneWrap" aria-labelledby="dashHygieneTitle" hidden>
+                    <div class="dash-stand__head dash-stand__hygiene-head">
+                        <h2 class="dash-stand__title" id="dashHygieneTitle"><i class="bi bi-intersect" aria-hidden="true"></i> Datenhygiene</h2>
+                        <a class="btn btn-sm" href="tools/datenhygiene.html" id="dashStandHygieneBtn"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                    </div>
+                    <p class="dash-stand__meta">Stammlisten vs. Microsoft&nbsp;365</p>
+                    <div class="dash-hygiene__summary" id="dashHygieneTeaserSummary" aria-label="Letzter Stand"></div>
+                    <p class="dash-hygiene-teaser__meta muted" id="dashHygieneTeaserMeta"></p>
+                </section>
+            </div>
+
+            <details class="dashboard-catalog-fold" id="dashCatalogFold">
+                <summary class="dashboard-catalog-fold__summary">
+                    <span><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Oder gezielt navigieren</span>
+                    <span class="dashboard-catalog-fold__hint">Werkzeugkatalog öffnen</span>
+                </summary>
 
             <section class="dashboard-tools" id="dashboard-tools" aria-labelledby="dashboard-tools-title">
                 <div class="dashboard-tools-head">
@@ -1706,9 +1893,14 @@
                             <p>Wer zur Schule gehört, große Sammelgruppen und externe Gäste.</p>
                         </header>
                         <div class="grid" data-cluster-grid="personen" role="list" aria-label="Personen und Zugänge">
+                            <section class="choice" role="listitem" aria-label="Lizenzverwaltung" data-tool-id="lizenzverwaltung" data-cluster="personen" data-search="lizenz a1 a3 sicherheitsgruppe group based licensing zuweisen schüler lehrer verwaltung">
+                                <h2><i class="bi bi-key"></i>Lizenzverwaltung</h2>
+                                <p>Sicherheitsgruppen für A1/A3 anlegen oder zuordnen, Lizenzen der Gruppe zuweisen und Mitglieder aus Sammelgruppen übernehmen – unabhängig vom lokalen AD.</p>
+                                <a class="btn" href="tools/lizenzverwaltung.html"><i class="bi bi-key"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Personen suchen" data-tool-id="personen-verwaltung" data-cluster="personen" data-search="person benutzer suche mitgliedschaft verzeichnis lehrer schüler lizenz a1 a3" draggable="true">
                                 <h2><i class="bi bi-person-lines-fill"></i>Personen suchen</h2>
-                                <p>Personen der Schule suchen, nach Lizenz filtern und sehen, in welchen Gruppen sie sind.</p>
+                                <p>Personen der Schule suchen, nach Lizenz und AD‑Sync filtern, markieren und Berichte für den lokalen Admin erzeugen.</p>
                                 <a class="btn" href="tools/personen-verwaltung.html"><i class="bi bi-search"></i>Suchen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Namenskonvention prüfen" data-tool-id="namenskonvention-audit" data-cluster="personen" data-search="namenskonvention displayname upn vorname nachname audit ad sync cloud" draggable="true">
@@ -1720,6 +1912,11 @@
                                 <h2><i class="bi bi-people"></i>Gäste</h2>
                                 <p>Externe Personen einladen, Gäste in Teams prüfen und festlegen, wer einladen darf.</p>
                                 <a class="btn" href="tools/gaeste-verwalten.html"><i class="bi bi-shield-check"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schüler-Lifecycle" data-tool-id="schueler-lifecycle" data-cluster="personen" data-search="lifecycle schüler klassenwechsel abgang zugang diff preview" draggable="true">
+                                <h2><i class="bi bi-arrow-left-right"></i>Schüler-Lifecycle</h2>
+                                <p>Eintritt, Klassenwechsel und Austritt mit Diff-Vorschau – kein stilles Massen-Remove.</p>
+                                <a class="btn" href="tools/schueler-lifecycle.html"><i class="bi bi-arrow-left-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Gast-Erinnerung Flow" data-tool-id="pa-gast-erinnerung" data-cluster="personen" data-search="power automate gast gäste erinnerung hygiene flow" draggable="true">
                                 <h2><i class="bi bi-person-exclamation"></i>Gast-Erinnerung</h2>
@@ -1752,10 +1949,30 @@
                             <p>Einmal pro Jahr: neues Schuljahr aktivieren und Klassen sowie Teams nachziehen.</p>
                         </header>
                         <div class="grid" data-cluster-grid="schuljahr" role="list" aria-label="Schuljahr wechseln">
+                            <section class="choice" role="listitem" aria-label="Playbook Schuljahresstart" data-tool-id="playbook-schuljahresstart" data-cluster="schuljahr" data-search="playbook schuljahresstart checkliste start" draggable="true">
+                                <h2><i class="bi bi-flag"></i>Playbook Schuljahresstart</h2>
+                                <p>Geführte Checkliste: Stammdaten, Klassen, SLG, Kursteams, Lifecycle, Cleanup.</p>
+                                <a class="btn" href="tools/playbook-schuljahresstart.html"><i class="bi bi-list-check"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Schuljahr wechseln" data-tool-id="organisations-assistent" data-cluster="schuljahr" data-search="schuljahr schuljahreswechsel archiv kohorte matura abschlussjahrgang fortschreiben umbenennen" draggable="true">
                                 <h2><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</h2>
                                 <p>Checkliste: Schuljahr in den Stammdaten aktivieren, Klassen-Anzeigenamen anpassen, Abschlussjahrgang prüfen, Schülerliste und Unterrichtsteams nachziehen.</p>
                                 <a class="btn" href="tools/organisations-assistent.html"><i class="bi bi-calendar2-check"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Klassen umbenennen" data-tool-id="klassen-umbenennen" data-cluster="schuljahr" data-search="klassen umbenennen anzeigenamen schuljahr" draggable="true">
+                                <h2><i class="bi bi-pencil-square"></i>Klassen umbenennen</h2>
+                                <p>Anzeigenamen der Klassenteams zum Schuljahreswechsel anpassen.</p>
+                                <a class="btn" href="tools/archiv/klassen-umbenennen-wizard.html"><i class="bi bi-pencil-square"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="WebUntis-Sync-Monitor" data-tool-id="webuntis-sync-monitor" data-cluster="schuljahr" data-search="webuntis sync monitor kursteams fehlend" draggable="true">
+                                <h2><i class="bi bi-activity"></i>WebUntis-Sync-Monitor</h2>
+                                <p>Letzter Import: fehlende Besitzer, Lehrer ohne Match, Klassen ohne Team.</p>
+                                <a class="btn" href="tools/webuntis-sync-monitor.html"><i class="bi bi-activity"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Cleanup zum Schuljahr" data-tool-id="cleanup-playbook-schuljahr" data-cluster="schuljahr" data-search="cleanup playbook aufräumen schuljahr" draggable="true">
+                                <h2><i class="bi bi-broom"></i>Aufräumen (Cleanup)</h2>
+                                <p>Vor/nach dem Wechsel: leere Gruppen, Besitzlose, Archiv.</p>
+                                <a class="btn" href="tools/cleanup-playbook.html"><i class="bi bi-list-check"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1788,6 +2005,16 @@
                                 <p>Bookings-Grundanlage: eine Umgebung, ein 10‑Min-Dienst, alle Lehrkräfte als Mitarbeiter – Feinschliff im Bookings-Portal.</p>
                                 <a class="btn" href="tools/elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Playbook Elternkommunikation" data-tool-id="playbook-eltern" data-cluster="kommunikation" data-search="playbook eltern kommunikation verteiler bookings kanal" draggable="true">
+                                <h2><i class="bi bi-chat-heart"></i>Playbook Elternkommunikation</h2>
+                                <p>Verteiler → Sprechtag → Intranet – als geführte Checkliste.</p>
+                                <a class="btn" href="tools/playbook-eltern.html"><i class="bi bi-list-check"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Räume und Ressourcen" data-tool-id="raeume-ressourcen" data-cluster="kommunikation" data-search="räume room places ressourcen postfach bookings" draggable="true">
+                                <h2><i class="bi bi-door-open"></i>Räume &amp; Ressourcen</h2>
+                                <p>Raum-Postfächer / Places read-only – Schreiben über Postfächer.</p>
+                                <a class="btn" href="tools/raeume-ressourcen.html"><i class="bi bi-door-open"></i>Öffnen</a>
+                            </section>
                         </div>
                     </section>
                 </div>
@@ -1796,13 +2023,20 @@
                     <section class="dashboard-cluster" aria-labelledby="dash-cluster-intranet">
                         <header class="dashboard-cluster-head">
                             <h3 id="dash-cluster-intranet"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet &amp; Listen</h3>
-                            <p>Schulwebsite, SharePoint-Listen und Planer – Inhalt und Struktur der Intranet-Site.</p>
+                            <p>Einmal einrichten, danach im Alltag nutzen.</p>
                         </header>
-                        <div class="grid" data-cluster-grid="intranet" role="list" aria-label="Intranet und Listen">
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-wrench" aria-hidden="true"></i>Einrichten</h4>
+                        <p class="dashboard-cluster-sublead">Website und Listen – typischerweise einmalig.</p>
+                        <div class="grid" data-cluster-grid="intranet" role="list" aria-label="Intranet einrichten">
                             <section class="choice" role="listitem" aria-label="Schul-Intranet" data-tool-id="sharepoint-intranet-hub" data-cluster="intranet" data-search="intranet hub kommunikationssite schulwebsite startseite sharepoint formulare medien" draggable="true">
                                 <h2><i class="bi bi-house-door"></i>Schul-Intranet</h2>
                                 <p>Schulwebsite anlegen: Kommunikationssite, Hub, Startlisten und Starter-Checkliste (Formulare/Medien/News).</p>
                                 <a class="btn" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Playbook Intranet" data-tool-id="playbook-intranet" data-cluster="intranet" data-search="playbook intranet hub listen einrichten" draggable="true">
+                                <h2><i class="bi bi-list-check"></i>Playbook Intranet</h2>
+                                <p>Geführte Reihenfolge: Hub → Listen → Planer nutzen.</p>
+                                <a class="btn" href="tools/playbook-intranet.html"><i class="bi bi-list-check"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Lehrerliste" data-tool-id="sharepoint-liste-lehrer" data-cluster="intranet" data-search="lehrerliste sharepoint liste lehrkräfte website" draggable="true">
                                 <h2><i class="bi bi-table"></i>Lehrerliste</h2>
@@ -1819,25 +2053,49 @@
                                 <p>SharePoint-Paket anlegen: Regelwerk, Terminfenster und Schularbeiten-Liste (Codes aus Stammdaten).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schularbeiten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Schulaktivitäten-Listen" data-tool-id="sharepoint-liste-schulaktivitaeten" data-cluster="intranet" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion sharepoint liste kalender ics" draggable="true">
+                                <h2><i class="bi bi-list-check"></i>Schulaktivitäten-Listen</h2>
+                                <p>SharePoint-Paket: Anträge für Exkursionen/schulische Aktivitäten inkl. Regelwerk (Vorlauf, Überlappung).</p>
+                                <a class="btn" href="tools/sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Projektwochen-Listen" data-tool-id="sharepoint-liste-projektwochen" data-cluster="intranet" data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste intranet anmeldung" draggable="true">
                                 <h2><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</h2>
                                 <p>SharePoint-Paket: PW-Aktionen und PW-Angebote (Anträge; Bookings-Sync folgt).</p>
                                 <a class="btn" href="tools/sharepoint-liste-projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="intranet" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
-                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
-                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
-                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="sRDP-Anmeldung" data-tool-id="sharepoint-liste-srdp" data-cluster="intranet" data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang" draggable="true">
                                 <h2><i class="bi bi-mortarboard"></i>sRDP-Anmeldung</h2>
                                 <p>Anmeldeliste pro Jahr &amp; Schulform (HAK/HTL/HLW/BAFEB/AHS): Formular, Varianten, Ansichten, Gruppenrechte.</p>
                                 <a class="btn" href="tools/sharepoint-liste-srdp.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Vertretungsplan-Liste" data-tool-id="sharepoint-liste-vertretung" data-cluster="intranet" data-search="vertretung vertretungsplan sharepoint liste tagesbetrieb" draggable="true">
+                                <h2><i class="bi bi-arrow-repeat"></i>Vertretungsplan-Liste</h2>
+                                <p>SharePoint-Liste für den täglichen Vertretungsplan anlegen.</p>
+                                <a class="btn" href="tools/sharepoint-liste-vertretung.html"><i class="bi bi-arrow-repeat"></i>Öffnen</a>
+                            </section>
+                        </div>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-calendar2-heart" aria-hidden="true"></i>Nutzen</h4>
+                        <p class="dashboard-cluster-sublead">Planer und Alltagswerkzeuge auf den eingerichteten Listen.</p>
+                        <div class="grid" data-cluster-grid="intranet-nutzen" role="list" aria-label="Intranet nutzen">
+                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="intranet" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
+                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
+                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
+                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Schularbeiten-Planer" data-tool-id="schularbeiten-planer" data-cluster="intranet" data-search="schularbeiten planer kalender antrag fixieren admin export ics lbvo schug hak" draggable="true">
                                 <h2><i class="bi bi-journal-check"></i>Schularbeiten-Planer</h2>
                                 <p>Anträge stellen, Kalender, Freigabe und Export – mit Live-Regelprüfung nach SchUG/LBVO.</p>
                                 <a class="btn" href="tools/schularbeiten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schulaktivitäten" data-tool-id="schulaktivitaeten-planer" data-cluster="intranet" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion kalender liste ics export" draggable="true">
+                                <h2><i class="bi bi-bus-front"></i>Schulaktivitäten</h2>
+                                <p>Exkursionen und schulische Aktivitäten beantragen, freigeben, Liste/Kalender und ICS-Export.</p>
+                                <a class="btn" href="tools/schulaktivitaeten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Freistellungen" data-tool-id="freistellung-planer" data-cluster="intranet" data-search="freistellung antrag schüler kv direktion genehmigung approvals sharepoint csv bericht" draggable="true">
+                                <h2><i class="bi bi-calendar2-check"></i>Freistellungen</h2>
+                                <p>Schülerantrag, Übersicht für KV/Direktion, Filter und CSV – Genehmigung über Microsoft Approvals.</p>
+                                <a class="btn" href="tools/freistellung-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -1847,7 +2105,7 @@
                     <section class="dashboard-cluster" aria-labelledby="dash-cluster-automationen">
                         <header class="dashboard-cluster-head">
                             <h3 id="dash-cluster-automationen"><i class="bi bi-lightning-charge" aria-hidden="true"></i>Automationen</h3>
-                            <p>Power Platform und Flows – Setup, Rezepte und Checklisten, jeweils einzeln ausführbar.</p>
+                            <p>Wenige Einstiege zuerst – alle Einzelrezepte über die Übersicht.</p>
                         </header>
                         <div class="grid" data-cluster-grid="automationen" role="list" aria-label="Automationen und Flows">
                             <section class="choice" role="listitem" aria-label="Power Platform Erst-Setup" data-tool-id="pa-erst-setup" data-cluster="automationen" data-search="power platform erst setup dataverse environment maker einrichtung schule anfänger" draggable="true">
@@ -1860,41 +2118,24 @@
                                 <p>Alle Power-Automate-Tools auf einen Blick (Status &amp; Links).</p>
                                 <a class="btn" href="tools/power-automate-rezepte.html"><i class="bi bi-collection"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Freistellungen Setup" data-tool-id="freistellung-setup" data-cluster="automationen" data-search="freistellung genehmigung power automate sharepoint kv direktion flow paket" draggable="true">
-                                <h2><i class="bi bi-person-check"></i>Freistellungen</h2>
-                                <p>Liste anlegen und Flow-Paket (KV + Direktion) für den Ziel-Tenant parametrieren.</p>
+                            <section class="choice" role="listitem" aria-label="Freistellungen Setup" data-tool-id="freistellung-setup" data-cluster="automationen" data-search="freistellung genehmigung power automate sharepoint kv direktion flow paket setup liste" draggable="true">
+                                <h2><i class="bi bi-person-check"></i>Freistellungen Setup</h2>
+                                <p>Liste anlegen und Flow-Paket (KV + Direktion / Microsoft Approvals). App: Freistellungen-Planer.</p>
                                 <a class="btn" href="tools/freistellung-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Schultermine Kalender-Sync" data-tool-id="pa-termine-sync" data-cluster="automationen" data-search="power automate schultermine kalender outlook sync flow" draggable="true">
-                                <h2><i class="bi bi-calendar-event"></i>Termine → Kalender</h2>
-                                <p>Flow: SharePoint-Schultermine nach Outlook (Schul-/Lehrerkalender) synchronisieren.</p>
-                                <a class="btn" href="tools/pa-termine-sync.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Schularbeiten Status-Mail" data-tool-id="pa-schularbeiten-mail" data-cluster="automationen" data-search="power automate schularbeiten status mail e-mail fixiert abgelehnt benachrichtigung" draggable="true">
-                                <h2><i class="bi bi-envelope-check"></i>SA Status-Mail</h2>
-                                <p>Flow: Bei Fixierung/Ablehnung einer Schularbeit E-Mail an die Lehrkraft.</p>
-                                <a class="btn" href="tools/pa-schularbeiten-mail.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Projektwochen Status-Mail" data-tool-id="pa-projektwochen-mail" data-cluster="automationen" data-search="power automate projektwochen status mail e-mail freigegeben abgelehnt angebot benachrichtigung" draggable="true">
-                                <h2><i class="bi bi-envelope-heart"></i>PW Status-Mail</h2>
-                                <p>Flow: Bei Freigabe/Ablehnung eines Projektwochen-Angebots E-Mail an die Lehrkraft.</p>
-                                <a class="btn" href="tools/pa-projektwochen-mail.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Forms Anträge" data-tool-id="pa-antraege" data-cluster="automationen" data-search="power automate forms anträge genehmigung sharepoint liste" draggable="true">
-                                <h2><i class="bi bi-ui-checks"></i>Forms → Anträge</h2>
-                                <p>Antragsliste anlegen und Flow Forms → Genehmigung einrichten.</p>
-                                <a class="btn" href="tools/pa-antraege.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Seminar Fortbildung" data-tool-id="pa-seminar" data-cluster="automationen" data-search="power automate seminar fortbildung warteliste anmeldung" draggable="true">
-                                <h2><i class="bi bi-mortarboard"></i>Seminar / Fortbildung</h2>
-                                <p>Anmeldeliste mit Plätzen, Warteliste und Bestätigungsmail.</p>
-                                <a class="btn" href="tools/pa-seminar.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Schilf Checkliste" data-tool-id="pa-schilf" data-cluster="automationen" data-search="schilf kalender favoriten checkliste fortbildung" draggable="true">
                                 <h2><i class="bi bi-bookmark-star"></i>Schilf-Checkliste</h2>
                                 <p>Kalender abonnieren, Favoriten, Zielgruppen – für die Schilf.</p>
                                 <a class="btn" href="tools/pa-schilf.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
+                        </div>
+                        <p class="dash-automationen-more">Weitere Rezepte (Termine→Kalender, SA/PW-Mails, Forms, Seminar) finden Sie in der <a href="tools/power-automate-rezepte.html">Automationen-Übersicht</a>.</p>
+                        <div hidden aria-hidden="true">
+                            <section class="choice" data-tool-id="pa-termine-sync" data-cluster="automationen" data-search="power automate schultermine kalender outlook sync flow"><a href="tools/pa-termine-sync.html">Termine</a></section>
+                            <section class="choice" data-tool-id="pa-schularbeiten-mail" data-cluster="automationen" data-search="power automate schularbeiten status mail"><a href="tools/pa-schularbeiten-mail.html">SA Mail</a></section>
+                            <section class="choice" data-tool-id="pa-projektwochen-mail" data-cluster="automationen" data-search="power automate projektwochen status mail"><a href="tools/pa-projektwochen-mail.html">PW Mail</a></section>
+                            <section class="choice" data-tool-id="pa-antraege" data-cluster="automationen" data-search="power automate forms anträge"><a href="tools/pa-antraege.html">Anträge</a></section>
+                            <section class="choice" data-tool-id="pa-seminar" data-cluster="automationen" data-search="power automate seminar fortbildung"><a href="tools/pa-seminar.html">Seminar</a></section>
                         </div>
                     </section>
                 </div>
@@ -1923,7 +2164,7 @@
                             </section>
                             <section class="choice" role="listitem" aria-label="Alle Gruppen und Teams" data-tool-id="schulstruktur-sync" data-cluster="regeln" data-search="gruppenverwaltung alle gruppen teams übersicht abgleichen owner mitglieder archiv schulstruktur baum" draggable="true">
                                 <h2><i class="bi bi-diagram-2"></i>Alle Gruppen und Teams</h2>
-                                <p>Alle Gruppen der Schule anzeigen und pflegen. Zusätzliche Teams (Elternverein, Projekt) legen Sie hier über einen Assistenten an.</p>
+                                <p>Alle Gruppen der Schule anzeigen und pflegen. Neue M365‑, Sicherheits‑ oder Mail‑Sicherheitsgruppe per „+“, zusätzliche Teams auch über den Assistenten.</p>
                                 <a class="btn" href="tools/schulstruktur-sync.html"><i class="bi bi-kanban"></i>Öffnen</a>
                                 <a class="btn alt" href="tools/schulstruktur-sync.html?mode=struktur">Schulstruktur</a>
                             </section>
@@ -1942,6 +2183,11 @@
                                 <p>Geführte Checkliste: leere Gruppen, Besitzlose, Archiv, Hygiene, Namenskonvention.</p>
                                 <a class="btn" href="tools/cleanup-playbook.html"><i class="bi bi-list-check"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Schul-Baseline" data-tool-id="schul-baseline" data-cluster="regeln" data-search="baseline secure score sicherheit checkliste teams teilen gäste" draggable="true">
+                                <h2><i class="bi bi-shield-check"></i>Schul-Baseline</h2>
+                                <p>Ampel-Checkliste: Teams anlegen, Teilen, Gäste, Cleanup – Hinweise mit Deep-Links.</p>
+                                <a class="btn" href="tools/schul-baseline.html"><i class="bi bi-clipboard2-check"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Datei-Migration" data-tool-id="datei-migration" data-cluster="regeln" data-search="datei migration archiv kopieren team drive dokumentbibliothek" draggable="true">
                                 <h2><i class="bi bi-files"></i>Datei-Migration</h2>
                                 <p>Dateien/Ordner von einem (archivierten) Team in ein neues Team kopieren.</p>
@@ -1958,6 +2204,7 @@
                 </div>
                 <p class="dashboard-reorder-hint" id="dashboard-reorder-hint">Oben der Schnellstart für den Schulalltag – hier der vollständige Katalog. Mit dem <strong>Stern</strong> können Sie Favoriten pinnen.</p>
             </section>
+            </details>
             <section class="dashboard-local-footer" aria-label="Lokale Daten in diesem Browser">
                 <p class="dashboard-local-footer__hint">Listen in diesem Browser</p>
                 <div class="dashboard-backup-actions">
@@ -2038,25 +2285,38 @@
                 'spielwiesen',
                 'klassenchats',
                 'personen-verwaltung',
+                'lizenzverwaltung',
                 'namenskonvention-audit',
                 'gaeste-verwalten',
+                'schueler-lifecycle',
                 'pa-gast-erinnerung',
                 'slg',
                 'verwaltung',
                 'klassenvorstaende',
+                'playbook-schuljahresstart',
                 'organisations-assistent',
+                'klassen-umbenennen',
+                'webuntis-sync-monitor',
+                'cleanup-playbook-schuljahr',
                 'postfaecher',
                 'verteilerlisten',
                 'eltern-verteiler',
                 'elternsprechtag-bookings',
+                'playbook-eltern',
+                'raeume-ressourcen',
                 'sharepoint-intranet-hub',
+                'playbook-intranet',
                 'sharepoint-liste-lehrer',
                 'sharepoint-liste-schultermine',
                 'sharepoint-liste-schularbeiten',
+                'sharepoint-liste-schulaktivitaeten',
                 'sharepoint-liste-projektwochen',
                 'projektwochen',
                 'sharepoint-liste-srdp',
                 'schularbeiten-planer',
+                'schulaktivitaeten-planer',
+                'freistellung-planer',
+                'sharepoint-liste-vertretung',
                 'pa-erst-setup',
                 'power-automate-rezepte',
                 'freistellung-setup',
@@ -2073,6 +2333,7 @@
                 'datenhygiene',
                 'stammdaten-uebergabe',
                 'cleanup-playbook',
+                'schul-baseline',
                 'datei-migration',
                 'leere-gruppen-report'
             ];
@@ -2458,9 +2719,33 @@
             if (searchInput) {
                 searchInput.addEventListener('input', function () {
                     searchQuery = String(searchInput.value || '').trim().toLowerCase();
+                    const foldEl = document.getElementById('dashCatalogFold');
+                    if (foldEl && searchQuery) foldEl.open = true;
                     applySearchFilter();
                 });
             }
+
+            (function initCatalogFold() {
+                const foldEl = document.getElementById('dashCatalogFold');
+                if (!foldEl) return;
+                const FOLD_KEY = 'ms365-dash-catalog-fold-v1';
+                try {
+                    if (localStorage.getItem(FOLD_KEY) === '1') foldEl.open = true;
+                } catch {
+                    /* ignore */
+                }
+                foldEl.addEventListener('toggle', function () {
+                    try {
+                        localStorage.setItem(FOLD_KEY, foldEl.open ? '1' : '0');
+                    } catch {
+                        /* ignore */
+                    }
+                    const hint = foldEl.querySelector('.dashboard-catalog-fold__hint');
+                    if (hint) {
+                        hint.textContent = foldEl.open ? 'Werkzeugkatalog schließen' : 'Werkzeugkatalog öffnen';
+                    }
+                });
+            })();
 
             migrateLegacyOrderOnce();
 
@@ -2498,7 +2783,6 @@
             let demoSwitchBusy = false;
             const elStandEmptyNote = document.getElementById('dashStandEmptyNote');
             const elStandHygieneWrap = document.getElementById('dashStandHygieneWrap');
-            const elStandHygieneBtn = document.getElementById('dashStandHygieneBtn');
             const elProgUnterricht = document.getElementById('dashProgUnterricht');
             const elProgGruppen = document.getElementById('dashProgGruppen');
             const elProgSchuljahr = document.getElementById('dashProgSchuljahr');
@@ -2810,7 +3094,6 @@
                 if (elHeadSetupLink) elHeadSetupLink.hidden = !showHeadSetup;
                 if (elStandEmptyNote) elStandEmptyNote.hidden = !showEmpty;
                 if (elStandHygieneWrap) elStandHygieneWrap.hidden = !shouldShowHygieneTeaser();
-                if (elStandHygieneBtn) elStandHygieneBtn.hidden = !shouldShowHygieneTeaser();
                 renderTaskProgress(s);
                 return true;
             }

@@ -322,13 +322,23 @@
         return map;
     }
 
-    function currentSchoolYearLabel() {
-        var y = new Date().getFullYear();
+    /** Schuljahr Sep–Aug (kanonisch, siehe shared/utils/school-year.js). */
+    function currentSchoolYearLabel(now) {
+        try {
+            if (typeof window !== 'undefined' && window.ms365SchoolYear && typeof window.ms365SchoolYear.currentSchoolYearLabel === 'function') {
+                return window.ms365SchoolYear.currentSchoolYearLabel(now);
+            }
+        } catch (e) {
+            /* fallback */
+        }
+        var d = now instanceof Date && !isNaN(now.getTime()) ? now : new Date();
+        var y = d.getMonth() < 8 ? d.getFullYear() - 1 : d.getFullYear();
         return String(y) + '/' + String(y + 1).slice(2);
     }
 
-    function previousSchoolYearLabel() {
-        var y = new Date().getFullYear() - 1;
+    function previousSchoolYearLabel(now) {
+        var d = now instanceof Date && !isNaN(now.getTime()) ? now : new Date();
+        var y = (d.getMonth() < 8 ? d.getFullYear() - 1 : d.getFullYear()) - 1;
         return String(y) + '/' + String(y + 1).slice(2);
     }
 

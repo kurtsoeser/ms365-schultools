@@ -37,16 +37,31 @@ import {
 export function setModeHint(mode, tenantLoadedAt) {
     const el = getEl('ssModeHint');
     if (!el) return;
+    let stale = '';
+    if (tenantLoadedAt) {
+        const t = new Date(tenantLoadedAt).getTime();
+        if (isFinite(t)) {
+            const ageH = (Date.now() - t) / 3600000;
+            if (ageH >= 12) {
+                stale =
+                    ' Hinweis: Cache ist ' +
+                    Math.floor(ageH) +
+                    ' h alt – bitte Tenant neu einlesen, bevor Sie Match/Sync nutzen.';
+            }
+        }
+    }
     if (mode === 'tenant') {
         el.style.display = '';
         el.textContent =
-            'Tenant‑Inventar: Gruppen/Teams werden live per Graph eingelesen. Updates sind für Anzeigename/Beschreibung möglich.' +
-            (tenantLoadedAt ? ' Letztes Einlesen: ' + new Date(tenantLoadedAt).toLocaleString() : '');
+            'Tenant‑Inventar: Gruppen/Teams live per Graph. AD‑gesyncte Gruppen sind gekennzeichnet (nur lokal löschen/ändern). Markierungen helfen dem lokalen Admin.' +
+            (tenantLoadedAt ? ' Letztes Einlesen: ' + new Date(tenantLoadedAt).toLocaleString() : '') +
+            stale;
     } else if (mode === 'match') {
         el.style.display = '';
         el.textContent =
             'Abgleich: SOLL‑Einheiten werden mit bestehenden Tenant‑Gruppen/Teams verknüpft (Mapping lokal gespeichert). Über die Registerkarte „Organigramm" siehst du die SOLL‑Struktur vernetzt; im Baum und Organigramm kannst du per Drag&Drop umsortieren.' +
-            (tenantLoadedAt ? ' Tenant zuletzt eingelesen: ' + new Date(tenantLoadedAt).toLocaleString() : '');
+            (tenantLoadedAt ? ' Tenant zuletzt eingelesen: ' + new Date(tenantLoadedAt).toLocaleString() : '') +
+            stale;
     } else {
         el.textContent = '';
         el.style.display = 'none';
@@ -144,8 +159,25 @@ export function renderStats(rows, mode) {
         if (labAktiv) labAktiv.textContent = 'Teams';
         if (labAbw) labAbw.textContent = 'M365‑Gruppen';
         if (labErr) labErr.textContent = 'Sicherheitsgruppen';
+        const adSum = getEl('ssTenantAdSummary');
+        if (adSum) {
+            adSum.style.display = '';
+            adSum.innerHTML =
+                '<i class="bi bi-hdd-network" aria-hidden="true"></i> ' +
+                '<button type="button" class="ss-ad-filter-link" data-ss-source="adSync" title="Filter: mit lokalem AD synchronisiert">' +
+                '<strong>' +
+                String(ts.adSync) +
+                '</strong> mit lokalem AD synchronisiert</button>' +
+                ' · ' +
+                '<button type="button" class="ss-ad-filter-link" data-ss-source="flagged" title="Filter: markierte Gruppen">' +
+                '<strong>' +
+                String(ts.flagged) +
+                '</strong> markiert</button>';
+        }
         return;
     }
+    const adSumHide = getEl('ssTenantAdSummary');
+    if (adSumHide) adSumHide.style.display = 'none';
     if (elTotal) elTotal.textContent = String(s.total);
     if (elAktiv) elAktiv.textContent = String(s.aktiv);
     if (elAbw) elAbw.textContent = String(s.abw);

@@ -7,7 +7,7 @@
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – MS 365 Gruppenverwaltung</title>
-    <link rel="stylesheet" href="../app.css?v=9">
+    <link rel="stylesheet" href="../app.css?v=12">
     <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -47,11 +47,25 @@
         .tree-filter select, .tree-filter input {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid var(--input-border);
+            border: 1px solid var(--border);
             border-radius: 10px;
             font: inherit;
-            background: var(--input-bg);
-            color: var(--text);
+            background: #fff;
+        }
+        #ssTenantAdSummary .ss-ad-filter-link {
+            appearance: none;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        #ssTenantAdSummary .ss-ad-filter-link:hover {
+            color: var(--brand1);
         }
 
         .tree {
@@ -291,6 +305,16 @@
             line-height: 1.45;
             box-shadow: var(--shadow);
         }
+        .live-banner-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+        .live-banner-text {
+            margin-top: 10px;
+            line-height: 1.45;
+        }
         .live-banner strong { font-weight: 1000; color: var(--heading); }
         .live-badge {
             display: inline-flex;
@@ -302,7 +326,6 @@
             border: 1px solid color-mix(in srgb, #34d399 32%, transparent);
             color: #0d8050;
             font-weight: 1000;
-            margin-right: 10px;
             white-space: nowrap;
         }
 
@@ -353,7 +376,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-diagram-2"></i>MS 365 Gruppenverwaltung</span>
             </div>
-            <p>Gruppen und Teams in Microsoft&nbsp;365 einlesen und pflegen. Alltag: <strong>Verwalten</strong> (Live-Gruppen) und <strong>Abgleichen</strong>. Der Reiter <strong>Strukturplan (SOLL-Baum)</strong> zeigt den geplanten Baum – nicht der Weg für Klassengruppen im Schuljahreswechsel.</p>
+            <p>Gruppen und Teams in Microsoft&nbsp;365 einlesen und pflegen. Alltag: <strong>Verwalten</strong> (Live-Gruppen, inkl. einfaches „+ Gruppe anlegen“) und <strong>Abgleichen</strong>. Der Reiter <strong>Strukturplan (SOLL-Baum)</strong> zeigt den geplanten Baum – nicht der Weg für Klassengruppen im Schuljahreswechsel.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schulstruktur" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
@@ -372,22 +395,26 @@
         </div>
 
         <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen/Gruppen in den Stammdaten. Einrichtung starten oder Demo laden – danach können Sie hier matchen."></div>
+
             <div class="mode-tabs" aria-label="Ansicht wechseln">
                 <div class="tabs" role="tablist" aria-label="Gruppenverwaltung-Modus">
                     <button type="button" class="tab-btn" id="ssTabTenantTop" role="tab" aria-selected="true">Verwalten</button>
                     <button type="button" class="tab-btn" id="ssTabAbgleichenTop" role="tab" aria-selected="false">Abgleichen</button>
                     <button type="button" class="tab-btn" id="ssTabStrukturTop" role="tab" aria-selected="false">Strukturplan (SOLL-Baum)</button>
                 </div>
-                <div class="mode-actions">
-                    <button type="button" class="btn btn-success small-btn" id="ssBtnTenantLoadTop" style="display:none;">
-                        <i class="bi bi-cloud-download"></i>Tenant einlesen
-                    </button>
-                </div>
             </div>
 
             <div class="live-banner" id="ssLiveBanner" role="status" aria-live="polite">
-                <span class="live-badge"><i class="bi bi-broadcast"></i>LIVE‑TENANT</span>
-                Du arbeitest gerade mit <strong>Live‑Daten</strong> aus Microsoft 365. Du kannst in den Details gezielt <strong>Anzeigename</strong>, <strong>Beschreibung</strong>, <strong>Besitzer</strong> und (je nach Typ) weitere Eigenschaften aktualisieren. Beim <strong>Tenant einlesen</strong> werden Besitzer- und Mitgliederzahlen per Graph <code>$count</code> ermittelt (für die Filter „ohne …“).
+                <div class="live-banner-row">
+                    <button type="button" class="btn btn-success small-btn" id="ssBtnTenantLoadTop" style="margin:0;">
+                        <i class="bi bi-cloud-download"></i>Tenant einlesen
+                    </button>
+                    <span class="live-badge" id="ssLiveBadge" hidden><i class="bi bi-broadcast"></i>LIVE‑TENANT</span>
+                </div>
+                <div class="live-banner-text" id="ssLiveBannerText" hidden>
+                    Du arbeitest gerade mit <strong>Live‑Daten</strong> aus Microsoft 365. Du kannst in den Details gezielt <strong>Anzeigename</strong>, <strong>Beschreibung</strong>, <strong>Besitzer</strong> und (je nach Typ) weitere Eigenschaften aktualisieren. Beim <strong>Tenant einlesen</strong> werden Besitzer- und Mitgliederzahlen per Graph <code>$count</code> ermittelt (für die Filter „ohne …“).
+                </div>
             </div>
 
             <div class="live-banner" id="ssStrukturBanner" role="status" aria-live="polite" style="display:none;">
@@ -405,6 +432,9 @@
                     <div class="panel-head">
                         <h2><i class="bi bi-diagram-3" style="margin-right:10px;"></i>Struktur</h2>
                         <div class="tree-actions">
+                            <button type="button" class="btn btn-success small-btn" id="ssBtnTenantCreate" style="display:none;" title="Einfache Gruppe im Tenant anlegen">
+                                <i class="bi bi-plus-lg"></i>Gruppe anlegen
+                            </button>
                             <button type="button" class="btn btn-success small-btn" id="ssBtnNeu"><i class="bi bi-plus-circle"></i>Neu</button>
                             <button type="button" class="btn small-btn" id="ssBtnDemo"><i class="bi bi-stars"></i>Demo</button>
                             <button type="button" class="btn btn-danger small-btn" id="ssBtnReset"><i class="bi bi-trash"></i>Zurücksetzen</button>
@@ -430,6 +460,15 @@
                                     <option value="Gruppe">Gruppe</option>
                                 </select>
                             </div>
+                            <div id="ssTenantSourceFilterWrap" style="display:none;">
+                                <label for="ssTenantSourceFilter">AD‑Sync</label>
+                                <select id="ssTenantSourceFilter" title="Gruppen aus lokalem Active Directory (Hybrid)">
+                                    <option value="" selected>(alle)</option>
+                                    <option value="adSync">Mit lokalem AD synchronisiert</option>
+                                    <option value="cloud">Nur Cloud (kein AD‑Sync)</option>
+                                    <option value="flagged">Nur markiert (für Admin)</option>
+                                </select>
+                            </div>
                             <div id="ssTenantVisibilityFilterWrap" style="display:none;">
                                 <label for="ssTenantVisibilityFilter">Sichtbarkeit</label>
                                 <select id="ssTenantVisibilityFilter">
@@ -449,7 +488,7 @@
                             </div>
                             <div style="grid-column:1 / -1;">
                                 <label for="ssFilterText">Suche</label>
-                                <input type="text" id="ssFilterText" placeholder="z. B. 1A, Robotik, Jg …" autocomplete="off">
+                                <input type="text" id="ssFilterText" placeholder="z. B. Name, Alias, SAM‑Account …" autocomplete="off">
                             </div>
                         </div>
                     </div>
@@ -460,6 +499,15 @@
                             <li class="stat"><div class="n" id="ssStatAbweichung">–</div><div class="l">Abweichung</div></li>
                             <li class="stat"><div class="n" id="ssStatFehler">–</div><div class="l">Fehler</div></li>
                         </ul>
+                        <p class="hint" id="ssTenantAdSummary" style="display:none;margin:10px 0 0;line-height:1.45;"></p>
+                        <div class="tm-actions" id="ssTenantAdActions" style="display:none;margin-top:10px;flex-wrap:wrap;gap:8px;">
+                            <button type="button" class="btn small-btn" id="ssBtnExportAdFlagged" title="Markierte Gruppen als Liste für den lokalen AD-Admin">
+                                <i class="bi bi-clipboard-data"></i>Markierte exportieren
+                            </button>
+                            <button type="button" class="btn small-btn" id="ssBtnExportAdSync" title="Alle AD-gesyncten Gruppen exportieren">
+                                <i class="bi bi-hdd-network"></i>AD‑Sync exportieren
+                            </button>
+                        </div>
 
                         <div id="ssTenantProgressWrap" style="display:none; margin-top:12px; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:var(--soft);">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
@@ -762,6 +810,60 @@
                         </div>
 
                         <div id="ssTenantDetail" style="display:none;">
+                            <div id="ssTenantAdSyncPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb, #fbbf24 35%, transparent);background:color-mix(in srgb, #fbbf24 10%, transparent);">
+                                <div style="font-weight:1000;color:#856404;margin-bottom:6px;">
+                                    <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                                    Aus lokalem Active Directory synchronisiert
+                                </div>
+                                <p style="margin:0 0 10px;line-height:1.45;color:var(--text-secondary);">
+                                    Diese Gruppe kommt aus dem On‑Premises‑AD (Hybrid). Löschen, Umbenennen und viele Änderungen nur im lokalen AD – danach Sync abwarten. Hier kannst du sie markieren und dem lokalen Admin eine Notiz mitgeben.
+                                </p>
+                                <div class="form-grid" style="margin:0;">
+                                    <div class="field">
+                                        <label>SAM‑Account (AD)</label>
+                                        <input type="text" id="ssAdSam" readonly>
+                                    </div>
+                                    <div class="field">
+                                        <label>AD‑Domain</label>
+                                        <input type="text" id="ssAdDomain" readonly>
+                                    </div>
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label>Letzter Sync</label>
+                                        <input type="text" id="ssAdLastSync" readonly>
+                                    </div>
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label for="ssAdFlagNote">Notiz für lokalen Admin</label>
+                                        <textarea id="ssAdFlagNote" rows="2" placeholder="z. B. Bitte löschen – Doppelung zu Cloud-Gruppe …"></textarea>
+                                    </div>
+                                </div>
+                                <div class="detail-actions" style="margin-top:10px;">
+                                    <label class="checkbox-label" for="ssAdFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+                                        <input type="checkbox" id="ssAdFlagged">
+                                        Für lokalen Admin markieren
+                                    </label>
+                                    <button type="button" class="btn btn-success small-btn" id="ssAdFlagSave"><i class="bi bi-bookmark-check"></i>Marke speichern</button>
+                                </div>
+                            </div>
+                            <div id="ssTenantCloudFlagPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--soft);">
+                                <div style="font-weight:1000;color:#32325d;margin-bottom:6px;">
+                                    <i class="bi bi-cloud" aria-hidden="true"></i>
+                                    Cloud‑Gruppe (kein AD‑Sync)
+                                </div>
+                                <p style="margin:0 0 10px;line-height:1.45;color:var(--text-secondary);">
+                                    Trotzdem markierbar, z. B. wenn der lokale Admin etwas prüfen soll.
+                                </p>
+                                <div class="field" style="margin:0;">
+                                    <label for="ssCloudFlagNote">Notiz</label>
+                                    <textarea id="ssCloudFlagNote" rows="2" placeholder="Optional …"></textarea>
+                                </div>
+                                <div class="detail-actions" style="margin-top:10px;">
+                                    <label class="checkbox-label" for="ssCloudFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+                                        <input type="checkbox" id="ssCloudFlagged">
+                                        Markieren
+                                    </label>
+                                    <button type="button" class="btn small-btn" id="ssCloudFlagSave"><i class="bi bi-bookmark-check"></i>Speichern</button>
+                                </div>
+                            </div>
                             <div id="groupDetailHost"></div>
                             <div id="ssTenantBulkWrap" style="display:none; margin: 0 0 12px; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#fff;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
@@ -1177,6 +1279,56 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="ss-modal-backdrop" id="ssTenantCreateModal" role="dialog" aria-modal="true" aria-label="Gruppe anlegen">
+                        <div class="ss-modal">
+                            <div class="ss-modal-head">
+                                <h3>Gruppe anlegen</h3>
+                                <button type="button" class="ss-modal-close" id="ssTenantCreateClose" aria-label="Schließen">✕</button>
+                            </div>
+                            <div class="ss-modal-body">
+                                <p class="hint" style="margin:0 0 12px;">Einfache Neuanlage im Tenant – ohne Wizard. Für Verteilerlisten weiterhin <a href="verteilerlisten.html">Verteilerlisten</a> (PowerShell).</p>
+                                <div class="form-grid" style="margin-top:0;">
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label for="ssTenantCreateKind">Typ</label>
+                                        <select id="ssTenantCreateKind">
+                                            <option value="unified" selected>Microsoft 365‑Gruppe (E‑Mail, SharePoint, optional Team)</option>
+                                            <option value="security">Sicherheitsgruppe (ohne E‑Mail)</option>
+                                            <option value="mailSecurity">Mail‑aktivierte Sicherheitsgruppe</option>
+                                        </select>
+                                    </div>
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label for="ssTenantCreateName">Anzeigename</label>
+                                        <input type="text" id="ssTenantCreateName" placeholder="z. B. Elternverein, Projekt Digital" autocomplete="off" maxlength="256">
+                                    </div>
+                                    <div class="field">
+                                        <label for="ssTenantCreateNick">Alias (mailNickname)</label>
+                                        <input type="text" id="ssTenantCreateNick" placeholder="wird aus dem Namen vorgeschlagen" autocomplete="off" maxlength="64" spellcheck="false">
+                                    </div>
+                                    <div class="field" id="ssTenantCreateVisWrap">
+                                        <label for="ssTenantCreateVis">Sichtbarkeit</label>
+                                        <select id="ssTenantCreateVis">
+                                            <option value="Private" selected>Privat</option>
+                                            <option value="Public">Öffentlich</option>
+                                        </select>
+                                    </div>
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label for="ssTenantCreateDesc">Beschreibung (optional)</label>
+                                        <input type="text" id="ssTenantCreateDesc" placeholder="Kurzbeschreibung" autocomplete="off" maxlength="1024">
+                                    </div>
+                                </div>
+                                <label class="checkbox-label" id="ssTenantCreateTeamWrap" for="ssTenantCreateTeam" style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+                                    <input type="checkbox" id="ssTenantCreateTeam">
+                                    <span>Zusätzlich als <strong>Microsoft Team</strong> provisionieren</span>
+                                </label>
+                                <p class="muted" id="ssTenantCreateHint" style="margin:12px 0 0;font-size:0.9em;line-height:1.45;"></p>
+                                <div class="detail-actions" style="margin-top:14px;">
+                                    <button type="button" class="btn btn-success" id="ssTenantCreateOk"><i class="bi bi-plus-lg"></i>Anlegen</button>
+                                    <button type="button" class="btn" id="ssTenantCreateCancel">Abbrechen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     </div>
 
     <script src="../ms365-config.js"></script>
@@ -1187,6 +1339,9 @@
     <script type="module" src="../src/shared/group-detail/group-detail.js"></script>
     <!-- structure-rules / group-detail: Side-Effect-Import in schulstruktur-sync.js (Reihenfolge zu Modul-Bundles) -->
     <script src="../src/tools/schulstruktur-sync/schulstruktur-sync.js" type="module"></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

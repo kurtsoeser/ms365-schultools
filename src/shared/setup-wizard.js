@@ -16,6 +16,9 @@ import {
     SW_MATCH_MEMBER_PREVIEW,
     buildLinkedGroupSummaryHtml
 } from './setup-wizard-group-summary.js';
+import { createShowStep } from './setup-wizard-navigation.js';
+import './utils/strings.js';
+import './utils/school-year.js';
 
 (function () {
     'use strict';
@@ -946,103 +949,93 @@ import {
         });
     }
 
-    function showStep(n) {
-        const step = Math.max(1, Math.min(11, parseInt(n, 10) || 1));
-        if (swPrevWizardStep === 3 && step !== swPrevWizardStep) {
-            captureVerwaltungFormToCache();
-            persistVerwaltungDraftPatch();
-        }
-        if ((swPrevWizardStep === 4 || swPrevWizardStep === 5) && step !== swPrevWizardStep) {
-            captureAllGroupForms();
-            patchSlgOwnerDraftFromDom();
-        }
-        swPrevWizardStep = step;
-
-        for (let i = 1; i <= 11; i++) {
-            const panel = document.getElementById('swStep' + i);
-            if (panel) panel.style.display = i === step ? 'block' : 'none';
-        }
-        document.querySelectorAll('[data-sw-step]').forEach(function (btn) {
-            const sn = parseInt(btn.getAttribute('data-sw-step'), 10);
-            const on = sn === step;
-            btn.classList.toggle('active', on);
-            btn.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        try {
-            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.touchWizardVisit === 'function') {
-                window.ms365AppDataV2.touchWizardVisit(step);
+    const showStep = createShowStep({
+        getPrevStep: function () {
+            return swPrevWizardStep;
+        },
+        setPrevStep: function (n) {
+            swPrevWizardStep = n;
+        },
+        onBeforeLeaveStep: function (prev, step) {
+            if (prev === 3 && step !== prev) {
+                captureVerwaltungFormToCache();
+                persistVerwaltungDraftPatch();
             }
-        } catch {
-            // ignore
+            if ((prev === 4 || prev === 5) && step !== prev) {
+                captureAllGroupForms();
+                patchSlgOwnerDraftFromDom();
+            }
+        },
+        onEnterStep: function (step) {
+            if (step === 2) {
+                const inp = document.getElementById('swDomain');
+                const s = loadTenantSettings();
+                if (inp && s && s.domain) inp.value = s.domain;
+                refreshSwGraphDefaultDomainHint();
+            }
+            if (step === 3) {
+                syncSetupFromAppData();
+                initSwVerwaltungFormCacheFromDraft();
+                writeVerwaltungFormToDom();
+                readLists();
+                renderSwAdminTableBody();
+                applyVerwaltungOwnerDraftFromSetupToDom();
+                renderSwMatchSummaryForKind('verwaltung');
+                refreshSwWizardAuxiliaryForStep(3);
+            }
+            if (step === 4) {
+                syncSetupFromAppData();
+                swActiveKind = 'lehrer';
+                ensureDefaultsInCache('lehrer');
+                writeGroupFormToDom('lehrer');
+                readLists();
+                fillTeachersTextarea();
+                applySlgOwnerDraftFromSetupToDom();
+                renderSwMatchSummaryForKind('lehrer');
+                refreshSwWizardAuxiliaryForStep(4);
+            }
+            if (step === 5) {
+                syncSetupFromAppData();
+                swActiveKind = 'schueler';
+                ensureDefaultsInCache('schueler');
+                writeGroupFormToDom('schueler');
+                readLists();
+                fillStudentsTextarea();
+                applySlgOwnerDraftFromSetupToDom();
+                renderSwMatchSummaryForKind('schueler');
+                refreshSwWizardAuxiliaryForStep(5);
+            }
+            if (step === 6) {
+                syncSetupFromAppData();
+                fillSgaTextarea();
+                renderSwMatchSummaryForKind('sga');
+                refreshSwWizardAuxiliaryForStep(6);
+            }
+            if (step === 7) {
+                syncSetupFromAppData();
+                fillStudentCouncilTextarea();
+                renderSwMatchSummaryForKind('studentCouncil');
+                refreshSwWizardAuxiliaryForStep(7);
+            }
+            if (step === 8) {
+                readGroupPrefixesFromSetupToDom();
+                fillSubjectsBulkFromSettings();
+                fillCatalogSlice('subject');
+            }
+            if (step === 9) {
+                readGroupPrefixesFromSetupToDom();
+                fillArgesBulkFromSettings();
+                fillCatalogSlice('arge');
+            }
+            if (step === 10) {
+                fillClassesBulkTextarea();
+                renderClassesTable();
+            }
+            if (step === 11) {
+                refreshSwStep9Summary();
+            }
         }
-        if (step === 2) {
-            const inp = document.getElementById('swDomain');
-            const s = loadTenantSettings();
-            if (inp && s && s.domain) inp.value = s.domain;
-            refreshSwGraphDefaultDomainHint();
-        }
-        if (step === 3) {
-            syncSetupFromAppData();
-            initSwVerwaltungFormCacheFromDraft();
-            writeVerwaltungFormToDom();
-            readLists();
-            renderSwAdminTableBody();
-            applyVerwaltungOwnerDraftFromSetupToDom();
-            renderSwMatchSummaryForKind('verwaltung');
-            refreshSwWizardAuxiliaryForStep(3);
-        }
-        if (step === 4) {
-            syncSetupFromAppData();
-            swActiveKind = 'lehrer';
-            ensureDefaultsInCache('lehrer');
-            writeGroupFormToDom('lehrer');
-            readLists();
-            fillTeachersTextarea();
-            applySlgOwnerDraftFromSetupToDom();
-            renderSwMatchSummaryForKind('lehrer');
-            refreshSwWizardAuxiliaryForStep(4);
-        }
-        if (step === 5) {
-            syncSetupFromAppData();
-            swActiveKind = 'schueler';
-            ensureDefaultsInCache('schueler');
-            writeGroupFormToDom('schueler');
-            readLists();
-            fillStudentsTextarea();
-            applySlgOwnerDraftFromSetupToDom();
-            renderSwMatchSummaryForKind('schueler');
-            refreshSwWizardAuxiliaryForStep(5);
-        }
-        if (step === 6) {
-            syncSetupFromAppData();
-            fillSgaTextarea();
-            renderSwMatchSummaryForKind('sga');
-            refreshSwWizardAuxiliaryForStep(6);
-        }
-        if (step === 7) {
-            syncSetupFromAppData();
-            fillStudentCouncilTextarea();
-            renderSwMatchSummaryForKind('studentCouncil');
-            refreshSwWizardAuxiliaryForStep(7);
-        }
-        if (step === 8) {
-            readGroupPrefixesFromSetupToDom();
-            fillSubjectsBulkFromSettings();
-            fillCatalogSlice('subject');
-        }
-        if (step === 9) {
-            readGroupPrefixesFromSetupToDom();
-            fillArgesBulkFromSettings();
-            fillCatalogSlice('arge');
-        }
-        if (step === 10) {
-            fillClassesBulkTextarea();
-            renderClassesTable();
-        }
-        if (step === 11) {
-            refreshSwStep9Summary();
-        }
-    }
+    });
 
     function refreshSwStep9Summary() {
         const box = document.getElementById('swStep9SummaryBody');

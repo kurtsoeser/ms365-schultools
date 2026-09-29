@@ -6,6 +6,7 @@
         'https://graph.microsoft.com/User.Read.All',
         'https://graph.microsoft.com/User.ReadWrite.All',
         'https://graph.microsoft.com/Group.ReadWrite.All',
+        'https://graph.microsoft.com/Organization.Read.All',
         'https://graph.microsoft.com/Team.Create',
         'https://graph.microsoft.com/TeamSettings.ReadWrite.All'
     ];
@@ -1195,7 +1196,8 @@
                 fail++;
                 log(label + ': ' + em + ' — ' + (e.message || e), 'err');
             }
-            if ((i + 1) % 8 === 0) await sleep(120);
+            // N2: staerkeres Throttling bei grossen Listen (429-Schutz)
+            if ((i + 1) % 5 === 0) await sleep(emails.length > 80 ? 280 : 160);
         }
         return { ok: ok, skip: skip, fail: fail };
     }
@@ -1236,7 +1238,7 @@
                 fail++;
                 log(label + ': ' + em + ' — ' + (e.message || e), 'err');
             }
-            if ((i + 1) % 8 === 0) await sleep(120);
+            if ((i + 1) % 5 === 0) await sleep(emails.length > 80 ? 280 : 160);
         }
         return { ok: ok, skip: skip, fail: fail };
     }
@@ -1284,6 +1286,7 @@
         ensureOwners,
         syncEmailsToGroup,
         removeEmailsFromGroup,
+        fetchAllPagesSimple,
         patchGroup,
         patchGroupDisplayName,
         renewGroup,

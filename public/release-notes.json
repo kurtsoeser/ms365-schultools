@@ -1,5 +1,14 @@
 [
   {
+    "id": "rn_schulalltag_planer_playbooks_2026-09-29",
+    "at": "2026-09-29T06:00:00.000Z",
+    "title": "Neue Planer, Playbooks und Personen-Tools",
+    "kind": "feature",
+    "source": "manual",
+    "bodyHtml": "<p>Der Schulalltag in Microsoft&nbsp;365 bekommt weitere Bausteine – von Genehmigungen über Lifecycle bis zu geführten Checklisten.</p><ul><li><strong>Schulaktivitäten</strong> und <strong>Freistellungen</strong>: Anträge, Genehmigung und Übersicht (inkl. SharePoint-Listen)</li><li><strong>Schüler-Lifecycle</strong> und <strong>Lizenzverwaltung</strong>: Eintritt, Klassenwechsel und Lizenzen klarer steuern</li><li><strong>Playbooks</strong> für Schuljahresstart, Intranet und Elternkommunikation</li><li><strong>WebUntis-Sync-Monitor</strong>, <strong>Vertretung</strong>, <strong>Räume &amp; Ressourcen</strong> und <strong>Schul-Baseline</strong></li></ul>",
+    "images": []
+  },
+  {
     "id": "rn_admin_shell_2026-09-22",
     "at": "2026-09-22T18:00:00.000Z",
     "title": "Admin mit Tabs und Lizenzverwaltung",

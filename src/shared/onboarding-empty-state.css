@@ -152,26 +152,56 @@
     color: #3d4db8;
 }
 
-/* Kompakter „Ihr Stand“ auf dem Dashboard */
-.dash-stand {
+/* Statuszeile: Ihr Stand | Datenhygiene nebeneinander */
+.dash-status-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
     margin: 0 0 18px;
-    padding: 18px 20px;
+    align-items: stretch;
+}
+
+.dash-status-row:not(:has(#dashStandHygieneWrap:not([hidden]))) {
+    grid-template-columns: 1fr;
+}
+
+/* Kompakter „Ihr Stand“ / Hygiene-Karte auf dem Dashboard */
+.dash-stand {
+    margin: 0;
+    padding: 16px 18px;
     border-radius: 18px;
     border: 1px solid color-mix(in srgb, var(--brand1) 14%, transparent);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(247, 248, 252, 0.95) 100%);
     box-shadow: 0 8px 22px rgba(30, 36, 64, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 100%;
 }
 
-.dash-stand__top {
+.dash-stand--hygiene {
+    border-color: color-mix(in srgb, var(--brand2, #20c997) 22%, transparent);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--brand2, #20c997) 5%, #fff) 0%,
+        rgba(247, 248, 252, 0.95) 100%
+    );
+}
+
+.dash-stand__head {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 14px 20px;
+    gap: 8px 12px;
+}
+
+.dash-stand__head .btn {
+    margin: 0;
 }
 
 .dash-stand__title {
-    margin: 0 0 10px;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -195,7 +225,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin: 10px 0 0;
+    margin: 0;
     padding: 0;
     list-style: none;
 }
@@ -218,55 +248,17 @@
     color: #1e2440;
 }
 
-.dash-stand__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.dash-stand__actions .btn {
+.dash-stand .dash-hygiene__summary {
     margin: 0;
-    padding: 10px 14px;
-    font-size: 0.92em;
 }
 
-.dash-stand__hygiene {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(30, 36, 64, 0.08);
-}
-
-.dash-stand__hygiene-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 12px;
-    margin-bottom: 8px;
-}
-
-.dash-stand__hygiene-head h3 {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.95em;
-    font-weight: 700;
-    color: #32325d;
-}
-
-.dash-stand__hygiene .dash-hygiene__summary {
-    margin: 0 0 6px;
-}
-
-.dash-stand__hygiene .dash-hygiene-teaser__meta {
+.dash-stand .dash-hygiene-teaser__meta {
     margin: 0;
     font-size: 0.86em;
 }
 
 .dash-stand__empty-note {
-    margin: 10px 0 0;
+    margin: 0;
     padding: 10px 12px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--brand1) 6%, transparent);
@@ -276,15 +268,25 @@
 }
 
 .dash-stand[hidden],
-.dash-stand__hygiene[hidden] {
+.dash-stand--hygiene[hidden] {
     display: none !important;
 }
 
-@media (max-width: 640px) {
-    .dash-stand__actions {
-        width: 100%;
+/* Legacy-Aliases (falls externe Selektoren noch greifen) */
+.dash-stand__top,
+.dash-stand__actions {
+    display: contents;
+}
+
+@media (max-width: 900px) {
+    .dash-status-row,
+    .dash-status-row:not(:has(#dashStandHygieneWrap:not([hidden]))) {
+        grid-template-columns: 1fr;
     }
-    .dash-stand__actions .btn {
+}
+
+@media (max-width: 640px) {
+    .dash-stand__head .btn {
         flex: 1 1 auto;
         text-align: center;
         justify-content: center;

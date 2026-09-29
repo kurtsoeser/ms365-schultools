@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Elternsprechtag: Microsoft Bookings-Grundanlage per Graph.
  * Ein Dienst + alle ausgewählten Lehrkräfte als Mitarbeiter.
@@ -38,13 +39,6 @@ function toast(m) {
     else window.alert(m);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
 
 function log(msg) {
     const el = $('esLog');

@@ -7,7 +7,7 @@
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Intranet &amp; Hub-Website</title>
-    <link rel="stylesheet" href="../app.css?v=9">
+    <link rel="stylesheet" href="../app.css?v=12">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -270,7 +270,7 @@
                     </div>
                     <div class="tm-field">
                         <label for="fLocale">Sprache</label>
-                        <input type="text" id="fLocale" value="de-de" spellcheck="false">
+                        <input type="text" id="fLocale" value="de-DE" spellcheck="false">
                     </div>
                     <div class="tm-field" style="grid-column:1/-1;">
                         <label for="fTitle">Titel der Website</label>
@@ -282,7 +282,8 @@
                     </div>
                     <div class="tm-field" style="grid-column:1/-1;">
                         <label for="fOwner">Website-Besitzer (E-Mail / UPN)</label>
-                        <input type="email" id="fOwner" placeholder="admin@schule.at" autocomplete="username">
+                        <input type="email" id="fOwner" placeholder="wird aus Anmeldung übernommen" autocomplete="username">
+                        <p class="hint" style="margin:6px 0 0;">Muss ein Benutzer in <em>diesem</em> Tenant sein (nicht nur Platzhalter). Bei neuen Mandanten zuerst SharePoint einmal im Browser öffnen.</p>
                     </div>
                 </div>
                 <div class="tm-toggle-grid" style="margin-top:4px;">
@@ -344,7 +345,7 @@
                     <i class="bi bi-diagram-3" aria-hidden="true"></i>
                     <div>
                         <h3>2. Als Hub-Website registrieren</h3>
-                        <p>Macht die Site zum Navigations-Hub für weitere Websites.</p>
+                        <p>Macht die Site zum Navigations-Hub. Im Browser oft blockiert (CORS) – dann PowerShell oder Admin Center.</p>
                     </div>
                 </div>
                 <input type="hidden" id="fLastSiteUrl" value="">
@@ -353,11 +354,17 @@
                     <input type="text" id="fManualUrl" placeholder="https://…sharepoint.com/sites/intranet" spellcheck="false">
                 </div>
                 <div class="tm-actions">
-                    <button type="button" class="btn" id="btnHub"><i class="bi bi-link-45deg"></i>Als Hub registrieren</button>
+                    <button type="button" class="btn" id="btnHub"><i class="bi bi-link-45deg"></i>Als Hub registrieren (Browser-Versuch)</button>
                 </div>
-                <details class="tm-tech">
-                    <summary>PowerShell-Fallback &amp; Protokoll</summary>
-                    <p class="hint" style="margin-top:10px;">Falls die Browser-Registrierung an CORS scheitert: Skript kopieren und in der SharePoint-Shell ausführen.</p>
+                <p class="hint" style="margin-top:10px;">
+                    Empfohlen, wenn der Browser scheitert:
+                    <a id="fAdminHubLink" href="https://admin.microsoft.com/sharepoint" target="_blank" rel="noopener">SharePoint Admin Center – Aktive Sites</a>
+                    → Site wählen → <strong>Hub</strong> → <strong>Als Hub-Website registrieren</strong>
+                    (SharePoint-Admin-Recht nötig).
+                </p>
+                <details class="tm-tech" id="ihHubTech" open>
+                    <summary>PowerShell (zuverlässig) &amp; Protokoll</summary>
+                    <p class="hint" style="margin-top:10px;">Skript kopieren, PowerShell als Admin-Benutzer ausführen. Danach ist die Intranet-Site ein Hub.</p>
                     <textarea id="fPsHub" class="spo-ps" readonly aria-label="PowerShell Hub"></textarea>
                     <div class="tm-actions" style="margin-top:10px;">
                         <button type="button" class="btn" id="btnPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>

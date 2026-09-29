@@ -1,15 +1,18 @@
+/**
+ * Gast-Einlader – Entry (Analyse 02 Phase B).
+ */
+import {
+    giGetToken as getGraphToken,
+    graphRequest,
+    graphJson,
+    sleep
+} from './gast-einlader-graph.js';
+
 const STORAGE_KEY = 'ms365-gast-einlader-policy-v1';
 
 // Vorlagen-/Rollen-IDs in Entra (Microsoft Graph)
 // "Guest Inviter" / "Gasteinladende:r":
 const GUEST_INVITER_ROLE_TEMPLATE_ID = '95e79109-95c0-4d8e-aee3-d01accf2d47b';
-
-const GRAPH_SCOPES = [
-    'https://graph.microsoft.com/User.Read',
-    'https://graph.microsoft.com/Group.ReadWrite.All',
-    'https://graph.microsoft.com/RoleManagement.ReadWrite.Directory',
-    'https://graph.microsoft.com/Policy.ReadWrite.Authorization'
-];
 
 let giCurrentStep = 1;
 
@@ -21,71 +24,6 @@ function toast(msg) {
     } else {
         window.alert(msg);
     }
-}
-
-async function getGraphToken() {
-    if (typeof window.ms365AuthEnsureInitialized === 'function') {
-        try {
-            await window.ms365AuthEnsureInitialized();
-        } catch {
-            /* ignore */
-        }
-    }
-    if (typeof window.ms365AuthAcquireToken !== 'function') {
-        throw new Error('Microsoft-Anmeldung nicht verfügbar (msal-auth-ui.js fehlt).');
-    }
-    return window.ms365AuthAcquireToken(GRAPH_SCOPES);
-}
-
-function sleep(ms) {
-    return new Promise(function (r) {
-        setTimeout(r, ms);
-    });
-}
-
-async function graphRequest(method, path, token, body, extraHeaders) {
-    const url = path.indexOf('http') === 0 ? path : 'https://graph.microsoft.com/v1.0' + path;
-    let attempt = 0;
-    while (true) {
-        const headers = { Authorization: 'Bearer ' + token };
-        if (extraHeaders && typeof extraHeaders === 'object') Object.assign(headers, extraHeaders);
-        if (body !== undefined) {
-            headers['Content-Type'] = 'application/json';
-        }
-        const res = await fetch(url, {
-            method: method,
-            headers: headers,
-            body: body !== undefined ? JSON.stringify(body) : undefined
-        });
-        if (res.status === 429 && attempt < 8) {
-            const ra = parseInt(res.headers.get('Retry-After') || '5', 10);
-            await sleep((isNaN(ra) ? 5 : ra) * 1000);
-            attempt++;
-            continue;
-        }
-        return res;
-    }
-}
-
-async function graphJson(method, path, token, body, extraHeaders) {
-    const res = await graphRequest(method, path, token, body, extraHeaders);
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
-    }
-    if (!res.ok) {
-        const msg =
-            typeof data === 'object' && data && data.error
-                ? JSON.stringify(data.error)
-                : text || String(res.status);
-        throw new Error(method + ' ' + path + ': ' + msg);
-    }
-    return data || {};
 }
 
 async function graphCollect(path, token) {

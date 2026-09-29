@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Datei-Migration Archiv-Team → neues Team (Suche + Ordnerbrowser).
  */
@@ -25,12 +26,6 @@ function log(msg) {
     el.textContent += (el.textContent ? '\n' : '') + String(msg || '');
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',

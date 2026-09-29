@@ -49,6 +49,14 @@ describe('kursteam-teacher-match-logic', () => {
         expect(hit).toBeNull();
     });
 
+    it('resolveTeacherMatch: kein Code-Praefix ENGEL↔ENGELM (M5)', () => {
+        const { resolveTeacherMatch } = api();
+        const hit = resolveTeacherMatch('ENGEL', [
+            { code: 'ENGELM', name: 'Maria Huber', email: 'm@schule.at' }
+        ]);
+        expect(hit).toBeNull();
+    });
+
     it('syncTeacherMappingFromTenant übernimmt fehlende und behält Unterrichts-Kürzel', () => {
         const { syncTeacherMappingFromTenant } = api();
         const r = syncTeacherMappingFromTenant(

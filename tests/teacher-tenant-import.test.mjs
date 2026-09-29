@@ -31,10 +31,11 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         const html = read('tools/personen-verwaltung.html');
         expect(html).toContain('id="pvFilterLicense"');
         expect(html).toContain('src/shared/graph-licenses.js');
-        const js = read('src/tools/personen-verwaltung/personen-verwaltung.js');
-        expect(js).toContain('assignedLicenses');
-        expect(js).toContain('pvFilterLicense');
-        expect(js).toContain('userMatchesLicenseFilter');
+        const state = read('src/tools/personen-verwaltung/personen-verwaltung-state.js');
+        const search = read('src/tools/personen-verwaltung/personen-verwaltung-search-ui.js');
+        expect(state).toContain('assignedLicenses');
+        expect(search).toContain('pvFilterLicense');
+        expect(search).toContain('userMatchesLicenseFilter');
         const lic = read('src/shared/graph-licenses.js');
         expect(lic).toContain('student-a1');
         expect(lic).toContain('student-a3');
@@ -62,14 +63,16 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(html).toContain('id="pvPanelLizenzen"');
         expect(html).toContain('id="pvLicAssignBtn"');
         expect(html).toContain('id="pvLicUsageLocation"');
-        const js = read('src/tools/personen-verwaltung/personen-verwaltung.js');
-        expect(js).toContain('/assignLicense');
-        expect(js).toContain('Organization.Read.All');
-        expect(js).toContain('removeLicenses');
-        expect(js).toContain('usageLocation');
-        expect(js).toContain('mailNickname');
-        expect(js).toContain('streetAddress');
-        expect(js).toContain('field-editable');
+        const graph = read('src/tools/personen-verwaltung/personen-verwaltung-graph.js');
+        const license = read('src/tools/personen-verwaltung/personen-verwaltung-license-panel.js');
+        const profile = read('src/tools/personen-verwaltung/personen-verwaltung-profile-ui.js');
+        expect(license).toContain('/assignLicense');
+        expect(graph).toContain('Organization.Read.All');
+        expect(license).toContain('removeLicenses');
+        expect(license).toContain('usageLocation');
+        expect(profile).toContain('mailNickname');
+        expect(profile).toContain('streetAddress');
+        expect(profile).toContain('field-editable');
         expect(html).toContain('id="pvBtnSave"');
         expect(html).toContain('id="pvProfileHint"');
         expect(html).not.toContain('id="pvBtnEdit"');
@@ -80,10 +83,11 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(html).toContain('id="pvGroupSearch"');
         expect(html).toContain('id="pvGroupAddBtn"');
         expect(html).toContain('Zu gewählten Gruppen hinzufügen');
-        const js = read('src/tools/personen-verwaltung/personen-verwaltung.js');
-        expect(js).toContain('Group.ReadWrite.All');
-        expect(js).toContain('/members/$ref');
-        expect(js).toContain('data-pv-group-remove');
+        const graph = read('src/tools/personen-verwaltung/personen-verwaltung-graph.js');
+        const groups = read('src/tools/personen-verwaltung/personen-verwaltung-groups-ui.js');
+        expect(graph).toContain('Group.ReadWrite.All');
+        expect(groups).toContain('/members/$ref');
+        expect(groups).toContain('data-pv-group-remove');
     });
 
     it('Einrichtung Schritt 5 hat den Microsoft-365-Import für Schüler:innen', () => {

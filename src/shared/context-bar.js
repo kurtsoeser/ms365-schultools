@@ -123,6 +123,7 @@
 
         placeDashboardNav(header);
         hideEmptyToolbar(header);
+        /* Schuljahr/Domain nur noch im User-Menü (ms365AuthCtx*), keine Header-Statusleiste */
         fillAccountContext(readContext());
         if (!headerReadySent) {
             headerReadySent = true;
@@ -155,7 +156,10 @@
             render();
         });
         window.addEventListener('ms365-auth-widget-ready', function () {
-            fillAccountContext(readContext());
+            render();
+        });
+        window.addEventListener('ms365-auth-state-changed', function () {
+            render();
         });
         window.ms365RefreshContextBar = render;
     }

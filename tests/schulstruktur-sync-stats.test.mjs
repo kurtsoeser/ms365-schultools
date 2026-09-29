@@ -79,24 +79,45 @@ describe('computeStats', () => {
 });
 
 describe('computeTenantStats', () => {
-    it('zählt total/teams/m365/sec', () => {
+    it('zählt total/teams/m365/sec/adSync/flagged', () => {
         const rows = [
             { typ: 'Team' },
-            { typ: 'Team' },
-            { typ: 'Gruppe' },
+            { typ: 'Team', onPremisesSyncEnabled: true },
+            { typ: 'Gruppe', adFlagged: true },
             { typ: 'Sicherheitsgruppe' },
             { typ: 'E‑Mail‑Sicherheitsgruppe' }, // Unicode-Bindestrich!
-            { typ: 'Sonstiges' }
+            { typ: 'Sonstiges', onPremisesSyncEnabled: true, adFlagged: true }
         ];
-        expect(computeTenantStats(rows)).toEqual({ total: 6, teams: 2, m365: 1, sec: 2 });
+        expect(computeTenantStats(rows)).toEqual({
+            total: 6,
+            teams: 2,
+            m365: 1,
+            sec: 2,
+            adSync: 2,
+            flagged: 2
+        });
     });
 
     it('leeres Array → Nullen', () => {
-        expect(computeTenantStats([])).toEqual({ total: 0, teams: 0, m365: 0, sec: 0 });
+        expect(computeTenantStats([])).toEqual({
+            total: 0,
+            teams: 0,
+            m365: 0,
+            sec: 0,
+            adSync: 0,
+            flagged: 0
+        });
     });
 
     it('robust gegen null-Einträge', () => {
-        expect(computeTenantStats([null, { typ: 'Team' }])).toEqual({ total: 2, teams: 1, m365: 0, sec: 0 });
+        expect(computeTenantStats([null, { typ: 'Team' }])).toEqual({
+            total: 2,
+            teams: 1,
+            m365: 0,
+            sec: 0,
+            adSync: 0,
+            flagged: 0
+        });
     });
 });
 
@@ -108,7 +129,7 @@ describe('applyFiltersPure', () => {
         { typ: 'Kursteam', bezeichnung: 'M-5A', schuljahr: '2025/26' }
     ];
 
-    const noFilter = { schuljahr: '', typ: '', text: '', visibility: '', roster: '' };
+    const noFilter = { schuljahr: '', typ: '', text: '', visibility: '', roster: '', source: '' };
 
     it('ohne Filter: alle Zeilen', () => {
         expect(applyFiltersPure(rowsSoll, 'soll', noFilter).length).toBe(4);
@@ -160,14 +181,14 @@ describe('applyFiltersPure', () => {
         expect(out.length).toBe(1);
     });
 
-    it('tenant: roster=noOwners → nur ownerCount===0', () => {
+    it('tenant: roster=noOwners → ownerCount===0 oder unbekannt (-1)', () => {
         const rows = [
             { typ: 'Team', ownerCount: 0, memberCount: 5 },
             { typ: 'Team', ownerCount: 2, memberCount: 5 },
-            { typ: 'Team', memberCount: 5 } // ownerCount undefined → -1, NICHT 0
+            { typ: 'Team', memberCount: 5 } // ownerCount undefined → -1, bleibt sichtbar
         ];
         const out = applyFiltersPure(rows, 'tenant', { ...noFilter, roster: 'noOwners' });
-        expect(out.length).toBe(1);
+        expect(out.length).toBe(2);
     });
 
     it('tenant: roster=noMembers → nur memberCount===0', () => {
@@ -187,6 +208,25 @@ describe('applyFiltersPure', () => {
         ];
         const out = applyFiltersPure(rows, 'tenant', { ...noFilter, roster: 'noOwnersNoMembers' });
         expect(out.length).toBe(1);
+    });
+
+    it('tenant: source=adSync / cloud / flagged', () => {
+        const rows = [
+            { typ: 'Team', bezeichnung: 'A', onPremisesSyncEnabled: true, adFlagged: false },
+            { typ: 'Gruppe', bezeichnung: 'B', onPremisesSyncEnabled: false, adFlagged: true },
+            { typ: 'Sicherheitsgruppe', bezeichnung: 'C', onPremisesSyncEnabled: true, adFlagged: true }
+        ];
+        expect(applyFiltersPure(rows, 'tenant', { ...noFilter, source: 'adSync' }).map((r) => r.bezeichnung)).toEqual([
+            'A',
+            'C'
+        ]);
+        expect(applyFiltersPure(rows, 'tenant', { ...noFilter, source: 'cloud' }).map((r) => r.bezeichnung)).toEqual([
+            'B'
+        ]);
+        expect(applyFiltersPure(rows, 'tenant', { ...noFilter, source: 'flagged' }).map((r) => r.bezeichnung)).toEqual([
+            'B',
+            'C'
+        ]);
     });
 
     it('soll: visibility/roster werden ignoriert', () => {

@@ -47,6 +47,8 @@ Bildungsportal (BIP)
 
 Politisch und vertraglich andocken wir am **Bildungsportal**, nicht bei Sokrates. Die Datenqualität kommt aus der Schulverwaltung (häufig Sokrates); Freigabe und Vertrag laufen über das BMB.
 
+**Technische Laufzeit (A3):** BIP-APIs werden über ein **kleines Proxy-Backend** aufgerufen (feste Ausgangs-IP + Private Key). Die Browser-App spricht nur dieses Backend an und hält Stammdaten weiter lokal; Microsoft Graph bleibt schulseitig im Browser.
+
 Bereits angebundene Systeme (BMB-Auskunft 2025 u. a.): Sokrates (Bund/Privat), UNTIS/WebUntis, PM-SAP, TeachersDirect, eduvidual, lms.at, ABA-Portal.
 
 ---
@@ -55,8 +57,8 @@ Bereits angebundene Systeme (BMB-Auskunft 2025 u. a.): Sokrates (Bund/Privat), U
 
 **Anwendungsname:** MS365-Schul-Tools / MS365-Schultools  
 
-**Kurzbeschreibung (≤ 512 Zeichen, Entwurf):**  
-Browserbasierte Schul-IT-Werkzeuge zur Pflege von Microsoft-365-Strukturen (Gruppen, Teams, Jahrgänge, Kursteams, Konten-/Mitgliedschaftsabgleiche) auf Basis lokal gehaltener Stammdaten. Stammdaten werden nicht an einen App-Server der Anwendung gesendet; Verarbeitung erfolgt lokal im Browser bzw. über Microsoft Graph im Auftrag der Schule.
+**Kurzbeschreibung (≤ 512 Zeichen, final A2):**  
+Browserbasierte Schul-IT-Werkzeuge zur Pflege von Microsoft-365-Strukturen (Gruppen, Teams, Jahrgänge, Kursteams, Konten-/Mitgliedschaftsabgleiche). Stammdatenabgleich über die Bildungsportal-Standardschnittstellen readorgdata und readuserdata_v3 (Schüler:innen und Lehrkräfte). Verarbeitung lokal im Browser bzw. über Microsoft Graph im Auftrag der Schule; kein zentraler App-Stammdatenspeicher.
 
 **Beantragte Verarbeitungszwecke:**
 
@@ -290,7 +292,11 @@ Konkrete Feldnamen der App (`app-data` / Tenant) werden bei der Umsetzung in Pha
 > Wir bitten um Zuweisung der fachlichen Ansprechpersonen und Freigabe zur Integration in der Q-Umgebung.  
 >  
 > Mit freundlichen Grüßen  
-> [Name, Organisation, Telefon, E-Mail]
+> Kurt Söser  
+> #kurtrocks.edu.innovation / MS365-Schul-Tools  
+> Berggasse 75, 4400 Steyr  
+> Tel. +43 670 1951157 · kontakt@kurtrocks.com  
+> https://app.ms365.schule/hilfe.html
 
 ---
 
@@ -348,11 +354,11 @@ Optional später: eigenes BIP-Widget der MS365-App (Anhang C) – das ersetzt ni
 
 ## 14. Offene Produktentscheidungen
 
-
-1. Rechtsträger / Unterzeichner EdTech-Vertrag  
-2. API-Aufrufe: kleines Backend (empfohlen: Keys, IP, Audit) vs. anderer sicherer Weg  
+1. ~~Rechtsträger / Unterzeichner EdTech-Vertrag~~ → **Kurt Söser / #kurtrocks.edu.innovation** (A1)
+2. ~~API-Aufrufe: Backend vs. anderer Weg~~ → **BIP-Proxy auf günstigem EU-VPS (Hetzner Cloud, ~4–6 €/Monat)**; Private Key nur serverseitig (A3). Azure Static Outbound verworfen (zu teuer). World4you nur für Website/App, nicht für BIP-Proxy.
 3. Pilotschule  
 4. Ob bis zur Freigabe WebUntis/CSV als Übergang gebaut wird  
+5. ~~Hosting-IP final~~ → VPS anlegen, dann BIP-IP-Whitelist aktualisieren
 
 ---
 

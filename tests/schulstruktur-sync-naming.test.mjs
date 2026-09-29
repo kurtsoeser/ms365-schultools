@@ -30,11 +30,14 @@ describe('Schuljahr-Helfer', () => {
         expect(parseSchoolYearStartYear(null)).toBeNaN();
     });
 
-    it('currentSchoolYearLabel: Format YYYY/YY', () => {
+    it('currentSchoolYearLabel: Format YYYY/YY (Sep–Aug)', () => {
         const lbl = currentSchoolYearLabel();
         expect(lbl).toMatch(/^\d{4}\/\d{2}$/);
-        const cy = new Date().getFullYear();
-        expect(lbl.startsWith(String(cy))).toBe(true);
+        const d = new Date();
+        const start = d.getMonth() < 8 ? d.getFullYear() - 1 : d.getFullYear();
+        expect(lbl.startsWith(String(start))).toBe(true);
+        expect(currentSchoolYearLabel(new Date('2026-03-15'))).toBe('2025/26');
+        expect(currentSchoolYearLabel(new Date('2026-09-01'))).toBe('2026/27');
     });
 
     it('nextSchoolYearLabel: aus gültigem Vorgänger', () => {

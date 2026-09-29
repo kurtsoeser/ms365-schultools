@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Räume &amp; Ressourcen</title>
+    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .rr-table{width:100%;border-collapse:collapse;font-size:.9em}
+        .rr-table th,.rr-table td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left}
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-door-open"></i>Räume &amp; Ressourcen</span>
+            </div>
+            <p>Read-first: Raum-Postfächer und Places aus Microsoft&nbsp;365 – Schreiben bleibt bei Postfächern / Exchange.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-raeume-ressourcen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="postfaecher.html?filter=room"><i class="bi bi-inbox"></i>Postfächer (Räume)</a>
+            </div>
+        </div>
+        <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten in diesem Browser. Räume/Ressourcen kommen aus Microsoft 365 – Einrichtung oder Demo für den Schulkontext."></div>
+
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-building"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Betrieb · read-only</p>
+                    <h2>Räume sichtbar machen</h2>
+                    <p>Graph Places (Place.Read.All) – ohne Schreibzugriff. Bei Fehlern: Postfächer-Tool nutzen.</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <button type="button" class="btn" id="rrLoad"><i class="bi bi-cloud-download"></i>Räume laden</button>
+                </div>
+            </section>
+            <section class="tm-panel">
+                <p id="rrStatus" class="muted" role="status">Noch nicht geladen.</p>
+                <div style="overflow:auto;margin-top:10px;">
+                    <table class="rr-table" id="rrTable">
+                        <thead><tr><th>Name</th><th>E-Mail</th><th>Kapazität</th><th>Gebäude</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="tm-actions" style="margin-top:14px;">
+                    <a class="btn" href="postfaecher.html"><i class="bi bi-inbox"></i>Gemeinsame Postfächer</a>
+                    <a class="btn" href="elternsprechtag-bookings.html"><i class="bi bi-calendar2-heart"></i>Bookings</a>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/graph-unified-groups.js" defer></script>
+    <script type="module">
+        import { getGraphToken, graphJson } from '../src/shared/graph-client.js';
+
+        const SCOPES = [
+            'https://graph.microsoft.com/User.Read',
+            'https://graph.microsoft.com/Place.Read.All'
+        ];
+
+        function setStatus(msg) {
+            const el = document.getElementById('rrStatus');
+            if (el) el.textContent = msg;
+        }
+
+        async function loadRooms() {
+            setStatus('Anmeldung / Places werden gelesen …');
+            const tb = document.querySelector('#rrTable tbody');
+            if (tb) tb.replaceChildren();
+            try {
+                const token = await getGraphToken(SCOPES);
+                const path =
+                    '/places/microsoft.graph.room?$select=id,displayName,emailAddress,capacity,building,floorLabel&$top=200';
+                const data = await graphJson('GET', path, token);
+                const rooms = (data && Array.isArray(data.value) ? data.value : []).slice();
+                rooms.sort(function (a, b) {
+                    return String(a.displayName || '').localeCompare(String(b.displayName || ''), 'de');
+                });
+                if (!rooms.length) {
+                    setStatus('Keine Räume gefunden (oder Place.Read.All fehlt). Nutzen Sie alternativ Postfächer → Filter Räume.');
+                    return;
+                }
+                rooms.forEach(function (r) {
+                    const tr = document.createElement('tr');
+                    [r.displayName, r.emailAddress, r.capacity, r.building || r.floorLabel]
+                        .forEach(function (v) {
+                            const td = document.createElement('td');
+                            td.textContent = v == null || v === '' ? '–' : String(v);
+                            tr.appendChild(td);
+                        });
+                    tb.appendChild(tr);
+                });
+                setStatus(rooms.length + ' Räume geladen (read-only).');
+            } catch (e) {
+                setStatus(
+                    'Places nicht lesbar: ' +
+                        (e && e.message ? e.message : String(e)) +
+                        ' – öffnen Sie Postfächer und filtern nach Räumen.'
+                );
+            }
+        }
+
+        document.getElementById('rrLoad')?.addEventListener('click', loadRooms);
+    </script>
+</body>
+</html>

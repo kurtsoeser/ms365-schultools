@@ -1,3 +1,4 @@
+import { escapeHtml } from './utils/strings.js';
 /**
  * Admin: Materialien (Ordner/Dateien) in MS365-Katalog/materialien.
  * Explorer-Layout: links Ordnerbaum, rechts Inhalt des gewählten Ordners.
@@ -16,13 +17,6 @@ function $(id) {
     return document.getElementById(id);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
 
 /** @type {{ path: string, items: Array, busy: boolean, cache: Map<string, {folders: Array, files: Array}>, expanded: Set<string> }} */
 const mat = {

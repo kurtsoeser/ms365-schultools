@@ -154,11 +154,13 @@ describe('Tenant-Gruppenverwaltung nutzt die zentrale Ansicht', () => {
         expect(html).toContain('id="ssTabAbgleichenTop"');
         expect(html).toContain('id="ssTabTenantTop"');
         expect(html).toContain('id="ssStrukturBanner"');
-        const js = read('src/tools/schulstruktur-sync/schulstruktur-sync.js');
+        const entry = read('src/tools/schulstruktur-sync/schulstruktur-sync.js');
+        expect(entry).toContain("import './schulstruktur-sync-bind.js'");
+        const js = read('src/tools/schulstruktur-sync/schulstruktur-sync-bind.js');
         expect(js).toContain("import '../../shared/group-detail/group-detail.js'");
         expect(js).toContain("import '../schueler-lehrer-gruppen/slg-live-details.js'");
         expect(js).toContain("mount('#groupDetailHost'");
-        expect(js).toContain('ensureTenantGroupDetailMounted');
+        expect(js).toContain('setEnsureTenantGroupDetailMounted');
         expect(js).toContain('matchUi: false');
         expect(js).toContain('teamArchive: true');
         expect(js).toContain('deleteGroup: true');

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Vertretungsplan-Liste</title>
+    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-arrow-repeat"></i>Vertretungsplan-Liste</span>
+            </div>
+            <p>SharePoint-Liste für den täglichen Vertretungsplan – Schema wie andere Intranet-Listen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-vertretung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="playbook-intranet.html"><i class="bi bi-list-check"></i>Intranet-Playbook</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-calendar2-week"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Intranet · Tagesbetrieb</p>
+                    <h2>Vertretung sichtbar machen</h2>
+                    <p>Datum, Stunde, Klasse, Fach, Abwesend, Vertretung, Raum, Hinweis – optional später Power Automate.</p>
+                </div>
+            </section>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-cloud-upload" aria-hidden="true"></i>
+                    <div><h3>Liste anlegen</h3><p>Ziel-Website (meist Intranet) und Listenname.</p></div>
+                </div>
+                <div class="tm-field">
+                    <label for="vpSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="vpSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="vpListName">Name der Liste</label>
+                    <input type="text" id="vpListName" value="Vertretungsplan" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="vpBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                    <button type="button" class="btn" id="vpBtnRun"><i class="bi bi-cloud-upload"></i>Liste anlegen</button>
+                </div>
+                <details class="tm-tech"><summary>Protokoll</summary><div id="vpLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div></details>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="../src/tools/sharepoint/sharepoint-liste-vertretung.js" defer></script>
+</body>
+</html>

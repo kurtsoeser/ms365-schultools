@@ -1,3 +1,4 @@
+import { escapeHtml } from './utils/strings.js';
 /**
  * Stammdaten-Health Panel für Datenhygiene-Seite.
  */
@@ -12,12 +13,6 @@ function toast(m) {
     else window.alert(m);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 async function runAttributeScan() {
     const G = window.ms365GraphUnifiedGroups;

@@ -316,14 +316,29 @@
         try {
             const token = await getGraphToken();
             const mem = await gug().fetchGroupMembers(token, gid);
-            const graphEmails = (mem.items || [])
-                .map(function (m) {
-                    return mr().memberEmailFromGraph(m);
-                })
-                .filter(function (em) {
-                    return em.indexOf('@') !== -1;
-                });
-            const diff = mr().diffMemberships(localEmails, graphEmails);
+            const guard = mr().membershipFetchGuard ? mr().membershipFetchGuard(mem) : { ok: true };
+            if (!guard.ok) {
+                deviationReviewState = null;
+                summaryEl.textContent = '';
+                const p = document.createElement('p');
+                p.className = 'slg-deviation-panel__error';
+                p.textContent = guard.error || 'Mitgliederliste unvollständig.';
+                body.appendChild(p);
+                toast(guard.error || 'Mitgliederliste unvollständig – kein Abgleich.');
+                return;
+            }
+            const diff = mr().diffMembershipsAgainstPeople
+                ? mr().diffMembershipsAgainstPeople(localEmails, mem.items || [])
+                : mr().diffMemberships(
+                      localEmails,
+                      (mem.items || [])
+                          .map(function (m) {
+                              return mr().memberEmailFromGraph(m);
+                          })
+                          .filter(function (em) {
+                              return em.indexOf('@') !== -1;
+                          })
+                  );
             deviationReviewState = {
                 kind: kind,
                 gid: gid,
@@ -672,31 +687,119 @@
         try {
             const token = await getGraphToken();
             const label = activeKind === 'schueler' ? 'Schüler' : 'Lehrer';
-            const lc = window.ms365StudentClassLifecycle;
             let joinEmails = emails;
             let leaveEmails = [];
-            if (lc && typeof lc.reconcileSammelgruppe === 'function' && typeof gug().fetchGroupMembers === 'function') {
+            const dryRunEl = document.getElementById('slgSyncDryRun');
+            const allowLeaveEl = document.getElementById('slgSyncAllowLeave');
+            const dryRun = !dryRunEl || dryRunEl.checked;
+            const allowLeave = !!(allowLeaveEl && allowLeaveEl.checked);
+            const trustHost = document.getElementById('slgSyncTrustHost');
+            if (typeof gug().fetchGroupMembers === 'function') {
                 const mem = await gug().fetchGroupMembers(token, gid);
-                const current = (mem.items || [])
-                    .map(function (m) {
-                        return String((m && (m.mail || m.userPrincipalName)) || '')
-                            .trim()
-                            .toLowerCase();
-                    })
-                    .filter(function (em) {
-                        return em.indexOf('@') !== -1;
-                    });
-                const rec = lc.reconcileSammelgruppe(emails, current);
-                joinEmails = rec.join;
-                leaveEmails = rec.leave;
+                const guard = mr().membershipFetchGuard ? mr().membershipFetchGuard(mem) : { ok: true };
+                if (!guard.ok) {
+                    if (trustHost && window.ms365TruncationUi) {
+                        window.ms365TruncationUi.showTruncationBanner(trustHost, { message: guard.error });
+                        window.ms365TruncationUi.guardApplyAgainstTruncation(
+                            true,
+                            document.getElementById('slgBtnSync')
+                        );
+                    }
+                    appendSyncLog(guard.error || 'Mitgliederliste gekürzt – Sync abgebrochen.', 'err');
+                    toast(guard.error || 'Sync abgebrochen (Mitgliederliste gekürzt).');
+                    return;
+                }
+                if (trustHost && window.ms365TruncationUi) {
+                    window.ms365TruncationUi.hideTruncationBanner(trustHost);
+                    window.ms365TruncationUi.guardApplyAgainstTruncation(
+                        false,
+                        document.getElementById('slgBtnSync')
+                    );
+                }
+                if (typeof mr().reconcileAgainstGraphMembers === 'function') {
+                    const rec = mr().reconcileAgainstGraphMembers(emails, mem.items || []);
+                    joinEmails = rec.join;
+                    leaveEmails = rec.leave;
+                } else {
+                    const lc = window.ms365StudentClassLifecycle;
+                    const current = (mem.items || [])
+                        .map(function (m) {
+                            return mr().memberEmailFromGraph(m);
+                        })
+                        .filter(function (em) {
+                            return em.indexOf('@') !== -1;
+                        });
+                    const rec =
+                        lc && typeof lc.reconcileSammelgruppe === 'function'
+                            ? lc.reconcileSammelgruppe(emails, current)
+                            : { join: emails, leave: [] };
+                    joinEmails = rec.join;
+                    leaveEmails = rec.leave;
+                }
                 appendSyncLog('Abgleich mit Stammliste: +' + joinEmails.length + ' / −' + leaveEmails.length + '.', '');
             }
+            if (dryRun) {
+                appendSyncLog(
+                    'Dry-Run: keine Graph-Änderungen. Join ' +
+                        joinEmails.length +
+                        ', Leave ' +
+                        leaveEmails.length +
+                        (leaveEmails.length && !allowLeave ? ' (Leave wäre gesperrt)' : '') +
+                        '.',
+                    'ok'
+                );
+                toast('Vorschau: +' + joinEmails.length + ' / −' + leaveEmails.length + ' (Dry-Run).');
+                return;
+            }
+            if (leaveEmails.length && !allowLeave) {
+                appendSyncLog(
+                    'Leave übersprungen (' + leaveEmails.length + '): Checkbox „Entfernen erlauben“ nicht gesetzt.',
+                    ''
+                );
+                leaveEmails = [];
+            }
+            const totalOps = joinEmails.length + leaveEmails.length;
+            const bpApi = window.ms365BulkProgress;
+            const bp =
+                bpApi && typeof bpApi.createBulkProgress === 'function'
+                    ? bpApi.createBulkProgress('slgSyncBulkProgress')
+                    : null;
+            let doneOps = 0;
+            if (bp && totalOps) {
+                bp.show('Mitglieder-Sync …', totalOps);
+            }
+            function tickProgress(msg) {
+                doneOps += 1;
+                if (bp) bp.set(doneOps, totalOps, msg || doneOps + ' / ' + totalOps);
+                return !(bp && bp.isCancelled());
+            }
+            function wrapLog(phase) {
+                return function (line, kind) {
+                    appendSyncLog(line, kind);
+                    if (kind === 'err' && bp) bp.addError(String(line || ''));
+                    if (!tickProgress(phase)) {
+                        throw new Error('Abbruch durch Benutzer.');
+                    }
+                };
+            }
             if (joinEmails.length) {
-                const r = await gug().syncEmailsToGroup(token, gid, joinEmails, label, appendSyncLog);
+                const r = await gug().syncEmailsToGroup(
+                    token,
+                    gid,
+                    joinEmails,
+                    label,
+                    wrapLog('Aufnehmen')
+                );
                 appendSyncLog('Aufnehmen: neu ' + r.ok + ', übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
             }
             if (leaveEmails.length && typeof gug().removeEmailsFromGroup === 'function') {
-                const r = await gug().removeEmailsFromGroup(token, gid, leaveEmails, label, appendSyncLog);
+                const r = await gug().removeEmailsFromGroup(
+                    token,
+                    gid,
+                    leaveEmails,
+                    label,
+                    wrapLog('Entfernen')
+                );
                 appendSyncLog('Entfernen: ' + r.ok + ' OK, übersprungen ' + r.skip + ', Fehler ' + r.fail + '.', 'ok');
             }
             if (!joinEmails.length && !leaveEmails.length) {
@@ -710,6 +813,13 @@
         } catch (e) {
             appendSyncLog('Abbruch: ' + (e.message || e), 'err');
             toast('Fehler: ' + (e.message || e));
+        } finally {
+            try {
+                const host = document.getElementById('slgSyncBulkProgress');
+                if (host) host.hidden = true;
+            } catch {
+                /* ignore */
+            }
         }
     }
 

@@ -3,6 +3,20 @@
  * Kein DOM, kein localStorage, kein Graph.
  */
 
+import {
+    parseSchoolYearStartYear,
+    currentSchoolYearLabel,
+    nextSchoolYearLabel,
+    isSchoolYearLabel
+} from '../../shared/utils/school-year.js';
+
+export {
+    parseSchoolYearStartYear,
+    currentSchoolYearLabel,
+    nextSchoolYearLabel,
+    isSchoolYearLabel
+};
+
 export const PLAYBOOK_STEP_IDS = [
     'year',
     'names',
@@ -80,29 +94,6 @@ export function playbookStepDefs() {
             optional: true
         }
     ];
-}
-
-export function parseSchoolYearStartYear(label) {
-    const m = String(label || '')
-        .trim()
-        .match(/^(\d{4})\s*\/\s*(\d{2}|\d{4})/);
-    return m ? parseInt(m[1], 10) : NaN;
-}
-
-export function currentSchoolYearLabel(now) {
-    const d = now instanceof Date ? now : new Date();
-    const y = d.getFullYear();
-    return String(y) + '/' + String(y + 1).slice(2);
-}
-
-export function nextSchoolYearLabel(cur) {
-    const y = parseSchoolYearStartYear(cur);
-    if (!isFinite(y)) return currentSchoolYearLabel();
-    return String(y + 1) + '/' + String(y + 2).slice(2);
-}
-
-export function isSchoolYearLabel(label) {
-    return isFinite(parseSchoolYearStartYear(label));
 }
 
 function emptyDone() {

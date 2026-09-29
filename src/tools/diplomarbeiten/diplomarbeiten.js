@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Diplomarbeiten-Gruppen UI.
  */
@@ -22,12 +23,6 @@ function log(msg) {
     el.textContent += (el.textContent ? '\n' : '') + String(msg || '');
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 function readForm() {
     return {

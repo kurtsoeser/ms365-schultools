@@ -1,7 +1,10 @@
 /**
  * Namenskonvention-Audit UI
+ * Pilot Phase A (Analyse 02): ausschließlich shared/graph-client.js – keine lokale PCA.
  */
 import { analyzeUsersNaming, buildAdExportCsv } from '../../shared/naming-convention-audit.js';
+import { escapeHtml } from '../../shared/utils/strings.js';
+import { getGraphToken, graphJson, fetchAllPages } from '../../shared/graph-client.js';
 
 function $(id) {
     return document.getElementById(id);
@@ -12,36 +15,39 @@ function toast(m) {
     else window.alert(m);
 }
 
-function gug() {
-    return window.ms365GraphUnifiedGroups;
-}
-
 /** @type {ReturnType<typeof analyzeUsersNaming>|null} */
 let lastResult = null;
 /** @type {object[]} */
 let loadedUsers = [];
 
+const READ_SCOPES = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/User.Read.All',
+    'https://graph.microsoft.com/Directory.Read.All'
+];
+
+const WRITE_SCOPES = [
+    'https://graph.microsoft.com/User.ReadWrite.All',
+    'https://graph.microsoft.com/Directory.AccessAsUser.All'
+];
+
 async function loadUsers() {
-    const G = gug();
-    if (!G) throw new Error('Graph-Modul nicht geladen.');
-    const token = await G.getGraphToken([
-        'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/User.Read.All',
-        'https://graph.microsoft.com/Directory.Read.All'
-    ]);
+    const token = await getGraphToken(READ_SCOPES);
     const select =
         'id,displayName,givenName,surname,userPrincipalName,mail,accountEnabled,onPremisesSyncEnabled';
-    let next = '/users?$select=' + encodeURIComponent(select) + '&$top=999';
-    const raw = [];
-    let page = 0;
-    while (next && page < 40 && raw.length < 8000) {
-        page++;
-        const data = await G.graphJson('GET', next, token, undefined);
-        if (Array.isArray(data.value)) raw.push.apply(raw, data.value);
-        next = data['@odata.nextLink'] || null;
-        if ($('naStatus')) $('naStatus').textContent = 'Geladen: ' + raw.length + ' …';
+    const path = '/users?$select=' + encodeURIComponent(select) + '&$top=999';
+    const page = await fetchAllPages(token, path, {
+        maxItems: 8000,
+        maxPages: 40,
+        onProgress: function (info) {
+            if ($('naStatus')) $('naStatus').textContent = 'Geladen: ' + info.loaded + ' …';
+        }
+    });
+    if (page.truncated && $('naStatus')) {
+        $('naStatus').textContent =
+            'Geladen: ' + page.items.length + ' (Liste gekürzt – Truncation-Limit)';
     }
-    loadedUsers = raw.filter((u) => u && u.accountEnabled !== false);
+    loadedUsers = page.items.filter((u) => u && u.accountEnabled !== false);
     return loadedUsers;
 }
 
@@ -110,22 +116,11 @@ function render() {
         });
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
 async function patchOne(row) {
-    const G = gug();
-    const token = await G.getGraphToken([
-        'https://graph.microsoft.com/User.ReadWrite.All',
-        'https://graph.microsoft.com/Directory.AccessAsUser.All'
-    ]);
+    const token = await getGraphToken(WRITE_SCOPES);
     const body = row.patch || {};
     if (!body.displayName) throw new Error('Kein Patch möglich');
-    await G.graphJson('PATCH', '/users/' + encodeURIComponent(row.id), token, body);
+    await graphJson('PATCH', '/users/' + encodeURIComponent(row.id), token, body);
     const u = loadedUsers.find((x) => x.id === row.id);
     if (u) {
         u.displayName = body.displayName;
@@ -178,7 +173,8 @@ function boot() {
     $('naFilter') && $('naFilter').addEventListener('change', render);
     $('naOrder') && $('naOrder').addEventListener('change', render);
     $('naNoNumericUpn') && $('naNoNumericUpn').addEventListener('change', render);
-    $('naBtnFixCloud') && $('naBtnFixCloud').addEventListener('click', () => patchAllCloud().catch((e) => toast(e.message || String(e))));
+    $('naBtnFixCloud') &&
+        $('naBtnFixCloud').addEventListener('click', () => patchAllCloud().catch((e) => toast(e.message || String(e))));
     $('naBtnExportAd') && $('naBtnExportAd').addEventListener('click', downloadAdCsv);
 }
 

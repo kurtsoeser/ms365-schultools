@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Stammdaten → IT-Dokumentbibliothek (Upload / Rechte / Liste / Download).
  */
@@ -709,12 +710,6 @@ async function runDownload(itemId, name) {
     if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 function fillDefaults() {
     const hint = $('suDesignHint');

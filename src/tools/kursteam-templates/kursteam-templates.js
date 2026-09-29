@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Kursteam-Vorlagen – UI (Verwaltung + Anwenden).
  */
@@ -118,13 +119,6 @@ function setMatCopyBusy(busy) {
     }
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
 
 function log(msg) {
     const el = $('ktplLog');

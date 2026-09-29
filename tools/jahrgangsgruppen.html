@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Klassengruppen</title>
-    <link rel="stylesheet" href="../app.css?v=9">
+    <link rel="stylesheet" href="../app.css?v=12">
     <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -363,11 +363,18 @@
                                 </div>
                                 <span class="jg-bulk-count" id="jgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Klassen ausgewählt</span>
                             </summary>
-                            <div class="jg-bulk-progress" id="jgBulkProgress" hidden>
-                                <div class="jg-bulk-progress-track" aria-hidden="true">
-                                    <div class="jg-bulk-progress-bar" id="jgBulkProgressBar"></div>
+                            <div class="jg-bulk-progress ms365-bulk-progress" id="jgBulkProgress" data-ms365-bulk-progress hidden>
+                                <div class="jg-bulk-progress-track ms365-bulk-progress__bar" aria-hidden="true">
+                                    <div class="jg-bulk-progress-bar" id="jgBulkProgressBar" data-fill></div>
                                 </div>
-                                <div class="jg-bulk-progress-label" id="jgBulkProgressLabel">0 / 0</div>
+                                <p class="jg-bulk-progress-label" id="jgBulkProgressLabel" data-text>0 / 0</p>
+                                <button type="button" class="btn btn-sm" data-cancel hidden id="jgBulkCancel">Abbrechen</button>
+                                <ul data-errors class="jg-bulk-errors" hidden id="jgBulkErrors"></ul>
+                            </div>
+                            <div class="ms365-sync-trust" id="jgBulkSyncTrust" style="margin:10px 0;">
+                                <label class="ms365-sync-trust__check"><input type="checkbox" id="jgBulkSyncDryRun" checked> Nur Vorschau (Dry-Run) – ändert Microsoft&nbsp;365 nicht</label>
+                                <label class="ms365-sync-trust__check"><input type="checkbox" id="jgBulkSyncAllowLeave"> Entfernen (Leave) erlauben</label>
+                                <p class="ms365-write-hint muted">Sammel-Sync schreibt nach Microsoft&nbsp;365 (nicht nur lokal), sobald Dry-Run aus ist.</p>
                             </div>
                             <div class="jg-bulk-body" id="jgBulkBody">
                             <p class="jg-bulk-hint muted">Klassen ankreuzen (auch ungematchte). <strong>Anlegen &amp; matchen</strong> erstellt M365‑Gruppen für ungematchte Klassen. Mitglieder/Besitzer/Löschen wirken nur auf bereits gematchte Klassen.</p>
@@ -565,7 +572,7 @@
     <script type="module" src="../src/shared/membership-reconcile.js"></script>
     <script type="module" src="../src/shared/membership-import-ui.js"></script>
     <script type="module" src="../src/shared/membership-review-ui.js"></script>
-    <script src="../src/tools/jahrgangsgruppen/jahrgangsgruppen.js" defer></script>
+    <script type="module" src="../src/tools/jahrgangsgruppen/jahrgangsgruppen.js"></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

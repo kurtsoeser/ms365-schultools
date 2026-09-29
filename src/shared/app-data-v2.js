@@ -22,8 +22,17 @@
         }
     }
 
-    function currentSchoolYearLabel() {
-        const y = new Date().getFullYear();
+    /** Schuljahr Sep–Aug (kanonisch, siehe shared/utils/school-year.js). */
+    function currentSchoolYearLabel(now) {
+        try {
+            if (typeof window !== 'undefined' && window.ms365SchoolYear && typeof window.ms365SchoolYear.currentSchoolYearLabel === 'function') {
+                return window.ms365SchoolYear.currentSchoolYearLabel(now);
+            }
+        } catch {
+            /* fallback */
+        }
+        const d = now instanceof Date && !isNaN(now.getTime()) ? now : new Date();
+        const y = d.getMonth() < 8 ? d.getFullYear() - 1 : d.getFullYear();
         return String(y) + '/' + String(y + 1).slice(2);
     }
 
@@ -1019,6 +1028,10 @@
     /** In-memory cache: avoid re-parse/re-normalize/re-write of large student lists on every getSetup/getContainer. */
     let containerCache = null;
 
+    function invalidateCache() {
+        containerCache = null;
+    }
+
     function saveV2(container) {
         const normalized = normalizeContainer(container);
         try {
@@ -1028,6 +1041,13 @@
         }
         containerCache = normalized;
         return normalized;
+    }
+
+    /* Multi-Tab: Cache invalidieren, wenn ein anderer Tab schreibt */
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('storage', function (e) {
+            if (e && e.key === STORAGE_KEY_V2) invalidateCache();
+        });
     }
 
     function migrateFromV1IfNeeded() {
@@ -1737,6 +1757,7 @@
     window.ms365AppDataV2 = {
         STORAGE_KEY_V2,
         VERSION,
+        invalidateCache,
         getContainer,
         setContainer,
         exportJson,

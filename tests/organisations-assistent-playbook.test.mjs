@@ -36,8 +36,9 @@ describe('Schuljahr-Playbook Logik', () => {
         expect(isSchoolYearLabel('foo')).toBe(false);
     });
 
-    it('currentSchoolYearLabel folgt dem übergebenen Datum', () => {
-        expect(currentSchoolYearLabel(new Date('2026-03-01T12:00:00Z'))).toBe('2026/27');
+    it('currentSchoolYearLabel folgt Sep–Aug (März = noch Vorjahr)', () => {
+        expect(currentSchoolYearLabel(new Date('2026-03-01T12:00:00Z'))).toBe('2025/26');
+        expect(currentSchoolYearLabel(new Date('2026-09-01T12:00:00Z'))).toBe('2026/27');
     });
 
     it('normalizePlaybook setzt den Jahr-Schritt, wenn Ziel = aktuelles Jahr', () => {

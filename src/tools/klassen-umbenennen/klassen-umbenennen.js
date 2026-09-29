@@ -219,9 +219,19 @@ function odataEscape(s) {
 }
 
 function deriveMailNickname(displayName) {
-    let s = displayName.trim().toLowerCase().replace(/\s+/g, '');
-    s = s.replace(/[^a-z0-9\-]/g, '');
-    if (s.length > 64) s = s.slice(0, 64);
+    // Umlaute → ae/oe/ue/ss (kanonisch wie Shared normalizeMailNickname)
+    let s = String(displayName || '')
+        .trim()
+        .toLowerCase()
+        .replace(/ä/g, 'ae')
+        .replace(/ö/g, 'oe')
+        .replace(/ü/g, 'ue')
+        .replace(/ß/g, 'ss')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    if (s.length > 64) s = s.slice(0, 64).replace(/-$/g, '');
     return s;
 }
 
@@ -571,14 +581,26 @@ async function ensureOwnersForVisibleGroups(token) {
 async function checkMailNicknameConflict(token, mailNickname, excludeId) {
     if (!mailNickname) return 'Leerer Mail-Nickname.';
     const filter = "mailNickname eq '" + odataEscape(mailNickname) + "'";
-    const path = '/groups?$filter=' + encodeURIComponent(filter) + '&$select=id,displayName';
-    const data = await graphJson('GET', path, token, undefined);
-    const v = data.value || [];
-    if (!v.length) return null;
-    if (v.length === 1 && v[0].id === excludeId) return null;
+    let path =
+        '/groups?$filter=' +
+        encodeURIComponent(filter) +
+        '&$select=id,displayName&$top=50';
+    const found = [];
+    let pages = 0;
+    while (path && pages < 10) {
+        pages++;
+        const data = await graphJson('GET', path, token, undefined);
+        const v = Array.isArray(data.value) ? data.value : [];
+        for (let i = 0; i < v.length; i++) found.push(v[i]);
+        path = data['@odata.nextLink'] || null;
+    }
+    const others = found.filter(function (g) {
+        return g && g.id !== excludeId;
+    });
+    if (!others.length) return null;
     return (
         'Mail-Nickname bereits vergeben (Gruppe: ' +
-        (v[0].displayName || v[0].id) +
+        (others[0].displayName || others[0].id) +
         ').'
     );
 }

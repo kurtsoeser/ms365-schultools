@@ -9,6 +9,15 @@
  */
 
 export { normStr, normCode, normEmail, normHeaderKey, escapeHtml, attrEscape, compareDe } from './strings.js';
+export {
+    schoolYearStartYear,
+    currentSchoolYearLabel,
+    parseSchoolYearStartYear,
+    nextSchoolYearLabel,
+    isSchoolYearLabel
+} from './school-year.js';
+export { normalizeMailNickname } from './mail-nickname.js';
+export { csvEscape, rowsToCsv, downloadCsv } from './csv.js';
 export { safeJsonParse } from './json.js';
 export { dlgAlert, dlgConfirm, dlgPrompt, dlgToast } from './dialog.js';
 export { loadJson, saveJson, removeKey } from './storage.js';

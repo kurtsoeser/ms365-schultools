@@ -7,7 +7,7 @@
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Cleanup-Playbook</title>
-    <link rel="stylesheet" href="../app.css?v=9">
+    <link rel="stylesheet" href="../app.css?v=12">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -68,7 +68,7 @@
                     <i class="bi bi-signpost-2" aria-hidden="true"></i>
                     <div>
                         <h3>Schritte</h3>
-                        <p id="cpProgress" class="muted" style="margin:0;">0 / 5 erledigt</p>
+                        <p id="cpProgress" class="muted" style="margin:0;">0 / 7 erledigt</p>
                     </div>
                 </div>
                 <div class="cp-steps" id="cpSteps">
@@ -149,59 +149,13 @@
     </div>
 
     <script src="../src/shared/theme-toggle.js" defer></script>
-
     <script src="../src/shared/app-dialog.js" defer></script>
-    <script>
-        (function () {
-            var KEY = 'ms365-cleanup-playbook-v1';
-            var ids = ['owners', 'empty', 'archiv', 'hygiene', 'naming', 'gaeste', 'uebergabe'];
-
-            function load() {
-                try {
-                    return JSON.parse(localStorage.getItem(KEY) || '{}') || {};
-                } catch (e) {
-                    return {};
-                }
-            }
-
-            function save(state) {
-                try {
-                    localStorage.setItem(KEY, JSON.stringify(state));
-                } catch (e) { /* ignore */ }
-            }
-
-            function refresh() {
-                var state = load();
-                var done = 0;
-                ids.forEach(function (id) {
-                    var el = document.querySelector('[data-cp-check="' + id + '"]');
-                    if (!el) return;
-                    el.checked = !!state[id];
-                    if (el.checked) done++;
-                });
-                var p = document.getElementById('cpProgress');
-                if (p) p.textContent = done + ' / ' + ids.length + ' erledigt';
-            }
-
-            document.querySelectorAll('[data-cp-check]').forEach(function (el) {
-                el.addEventListener('change', function () {
-                    var state = load();
-                    state[el.getAttribute('data-cp-check')] = !!el.checked;
-                    save(state);
-                    refresh();
-                });
-            });
-
-            var reset = document.getElementById('cpReset');
-            if (reset) {
-                reset.addEventListener('click', function () {
-                    if (!confirm('Alle Haken zurücksetzen?')) return;
-                    save({});
-                    refresh();
-                });
-            }
-            refresh();
-        })();
+    <script type="module">
+        import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        wirePlaybookPage({
+            storageKey: 'ms365-cleanup-playbook-v1',
+            stepIds: ['owners', 'empty', 'archiv', 'hygiene', 'naming', 'gaeste', 'uebergabe']
+        });
     </script>
 </body>
 </html>

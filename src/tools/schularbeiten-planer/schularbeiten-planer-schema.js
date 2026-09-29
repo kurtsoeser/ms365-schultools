@@ -160,6 +160,11 @@ export const SCHULARBEITEN_COLUMNS = [
         name: 'SchulterminKey',
         displayName: 'Schultermin-Key',
         text: { allowMultipleLines: false, maxLength: 80 }
+    },
+    {
+        name: 'TeamsCalendarEventId',
+        displayName: 'Teams-Kalender-Event-ID',
+        text: { allowMultipleLines: false, maxLength: 120 }
     }
 ];
 

@@ -59,3 +59,16 @@ export function attrEscape(s) {
 export function compareDe(a, b) {
     return String(a ?? '').localeCompare(String(b ?? ''), 'de', { sensitivity: 'base' });
 }
+
+/** Für Legacy-IIFE-Module. */
+if (typeof window !== 'undefined') {
+    window.ms365Strings = {
+        normStr,
+        normCode,
+        normEmail,
+        normHeaderKey,
+        escapeHtml,
+        attrEscape,
+        compareDe
+    };
+}

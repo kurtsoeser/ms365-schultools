@@ -1,3 +1,4 @@
+import { escapeHtml } from './utils/strings.js';
 /**
  * UI für den Querschnitts-Gruppenabgleich (tools/datenhygiene.html + Teaser auf index.html).
  * @file
@@ -10,13 +11,6 @@ import {
 } from './membership-hygiene.js';
 import { resolveToolsHref } from './app-paths.js';
 
-function escapeHtml(s) {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
 
 function formatWhen(iso) {
     if (!iso) return '';

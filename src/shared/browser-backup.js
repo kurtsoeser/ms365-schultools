@@ -55,8 +55,13 @@
                 'ms365-schulstruktur-sync-v1',
                 'ms365-schulstruktur-match-v1',
                 'ms365-schulstruktur-tenant-cache-v1',
-                'ms365-schulstruktur-sync-ui-mode-v1'
+                'ms365-schulstruktur-sync-ui-mode-v1',
+                'ms365-schulstruktur-ad-flags-v1'
             ]
+        },
+        {
+            label: 'Personen-Verwaltung AD-Flags',
+            keys: ['ms365-pv-ad-flags-v1']
         },
         { label: 'Kursteams / WebUntis', keys: ['webuntis-teams-creator-state-v1'] },
         {
@@ -114,7 +119,9 @@
                 'ms365-sa-site-url',
                 'ms365-sa-demo-role',
                 'ms365-sa-settings-v1',
-                'ms365-sa-demo-klasse'
+                'ms365-sa-demo-klasse',
+                'ms365-freistellung-planer-role-v1',
+                'ms365-freistellung-planer-site-v1'
             ]
         },
         {

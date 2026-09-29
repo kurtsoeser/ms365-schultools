@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Schul-Baseline</title>
+    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .cp-steps{display:grid;gap:14px;margin-top:8px}
+        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
+        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
+        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
+        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
+        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
+        .bl-note{margin-top:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:color-mix(in srgb,var(--accent,#0d6efd) 8%,var(--card));font-size:.9em;line-height:1.45}
+        @media (max-width:720px){.cp-step{grid-template-columns:40px 1fr}.cp-step .btn{grid-column:1/-1;justify-self:start}}
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-shield-check"></i>Schul-Baseline</span>
+            </div>
+            <p>Ampel-Checkliste für typische Schul-Sicherheits- und Organisationsgrundlagen – Hinweise, keine Pseudo-Security-Suite.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-schul-baseline" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="gruppenerstellung.html"><i class="bi bi-shield-lock"></i>Teams anlegen</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-clipboard2-check"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">IT · Hinweise</p>
+                    <h2>Grundlage einmal prüfen</h2>
+                    <p>Deep-Links in bestehende Tools. Secure Score bleibt im Microsoft Admin Center.</p>
+                </div>
+            </section>
+            <div class="bl-note"><strong>Hinweis:</strong> Diese Liste ersetzt keinen Compliance-Audit. Sie hilft der Schul-IT, die wichtigsten MS365-Schul-Tools-Themen nicht zu vergessen.</div>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div><h3>Checkliste</h3><p id="cpProgress" class="muted" style="margin:0;">0 / 8 erledigt</p></div>
+                </div>
+                <div class="cp-steps">
+                    <article class="cp-step"><div class="cp-step__n">1</div><div><h3>Wer darf Teams anlegen?</h3><p>Gruppenerstellung einschränken, damit nicht jede Person eigene Teams erzeugt.</p><label class="cp-check"><input type="checkbox" data-cp-check="teams"> Geprüft</label></div><a class="btn" href="gruppenerstellung.html"><i class="bi bi-shield-lock"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">2</div><div><h3>Dateien teilen</h3><p>Externe Freigaben und Gastlinks bewusst setzen.</p><label class="cp-check"><input type="checkbox" data-cp-check="teilen"> Geprüft</label></div><a class="btn" href="sharepoint-mandant-teilen.html"><i class="bi bi-share"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">3</div><div><h3>Neue Websites</h3><p>Site-Erstellung im Tenant steuern.</p><label class="cp-check"><input type="checkbox" data-cp-check="sites"> Geprüft</label></div><a class="btn" href="sharepoint-mandant-website.html"><i class="bi bi-building-gear"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">4</div><div><h3>Gäste</h3><p>Alte Gäste und Einladungen bereinigen.</p><label class="cp-check"><input type="checkbox" data-cp-check="gaeste"> Geprüft</label></div><a class="btn" href="gaeste-verwalten.html"><i class="bi bi-people"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">5</div><div><h3>Leere / besitzlose Gruppen</h3><p>Cleanup-Playbook durchgehen.</p><label class="cp-check"><input type="checkbox" data-cp-check="cleanup"> Geprüft</label></div><a class="btn" href="cleanup-playbook.html"><i class="bi bi-broom"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">6</div><div><h3>Namenskonvention</h3><p>DisplayName/UPN-Chaos erkennen.</p><label class="cp-check"><input type="checkbox" data-cp-check="naming"> Geprüft</label></div><a class="btn" href="namenskonvention-audit.html"><i class="bi bi-fonts"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">7</div><div><h3>Datenhygiene</h3><p>Stammliste ↔ Microsoft 365 abgleichen.</p><label class="cp-check"><input type="checkbox" data-cp-check="hygiene"> Geprüft</label></div><a class="btn" href="datenhygiene.html"><i class="bi bi-intersect"></i>Öffnen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">8</div><div><h3>Backup / Übergabe</h3><p>Browser-Backup oder SharePoint-Übergabe.</p><label class="cp-check"><input type="checkbox" data-cp-check="backup"> Geprüft</label></div><a class="btn" href="stammdaten-uebergabe.html"><i class="bi bi-cloud-arrow-up"></i>Öffnen</a></article>
+                </div>
+                <div class="tm-actions" style="margin-top:16px;">
+                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                    <a class="btn" href="https://admin.microsoft.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Microsoft Admin Center</a>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        wirePlaybookPage({
+            storageKey: 'ms365-schul-baseline-v1',
+            stepIds: ['teams', 'teilen', 'sites', 'gaeste', 'cleanup', 'naming', 'hygiene', 'backup']
+        });
+    </script>
+</body>
+</html>

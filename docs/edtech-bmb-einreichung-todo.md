@@ -11,29 +11,55 @@ Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt
 ## Phase A – Vorbereitung (vor dem Support-Ticket)
 
 ### A1 Organisation & Rechtsträger
-- [ ] Rechtsträger festlegen, der den EdTech-Vertrag unterzeichnet (Firma / Verein / …)
-- [ ] Bevollmächtigte Person mit **ID-Austria** bestimmen (Onboarding + Unterzeichnung)
-- [ ] Offizielle Kontaktdaten für BMB bereithalten (Firma, Adresse, Telefon, E-Mail, optional Logo)
-- [ ] Interne Datenschutz-/Rechtsfreigabe: Zweck Stammdatenabruf + AVV ist gewollt und vertretbar
-- [ ] Klären: Wer ist Auftragsverarbeiter gegenüber der Schule, wer Verantwortlicher (Formulierung für AVV)
+- [x] Rechtsträger festlegen, der den EdTech-Vertrag unterzeichnet (Firma / Verein / …)
+  - **Kurt Söser**, Einzelunternehmen / Marke **#kurtrocks.edu.innovation** (GISA 29320646)
+  - Adresse: Berggasse 75, 4400 Steyr
+- [x] Bevollmächtigte Person mit **ID-Austria** bestimmen (Onboarding + Unterzeichnung)
+  - **Kurt Söser**
+- [x] Offizielle Kontaktdaten für BMB bereithalten (Firma, Adresse, Telefon, E-Mail, optional Logo)
+  - Tel. **+43 670 1951157** · Mail **kontakt@kurtrocks.com** · Logo: `public/assets/ms365-schulverwaltung-logo.png`
+- [x] Interne Datenschutz-/Rechtsfreigabe: Zweck Stammdatenabruf + AVV ist gewollt und vertretbar
+- [x] Klären: Wer ist Auftragsverarbeiter gegenüber der Schule, wer Verantwortlicher (Formulierung für AVV)
+  - **Schule** = Verantwortliche; **Kurt Söser / MS365-Schul-Tools** = Auftragsverarbeiter, soweit BIP-Abruf über betriebenes Backend; bei rein lokalem Browser-Abruf bleibt die Verarbeitung bei der Schule (Softwarebereitstellung).
 
 ### A2 Anwendung inhaltlich scharf schneiden
-- [ ] Finalen **Anwendungsnamen** festlegen (Anzeige im Portal)
-- [ ] Kurzbeschreibung ≤ 512 Zeichen formulieren (siehe Begleitdokument §3)
-- [ ] Support-Kontakte der App festlegen (E-Mail, optional Telefon, Support-URL)
-- [ ] Anwendungs-Logo bereitstellen
-- [ ] Zweckbeschreibung für **Anhang B** finalisieren (nur Stammdaten für MS-365-Strukturpflege)
-- [ ] Feldliste „minimal nötig“ aufschreiben (Datensparsamkeit): z. B. Name, Vorname, Rolle, Klasse, stabile ID, schulische E-Mail, Ein-/Austritt
-- [ ] Explizit **nicht** beantragen: `manageuserdata_v1`, Mitteilungen, Zustellung, Content-Repos, Eltern/`lgn` (vorerst)
-- [ ] Primär-APIs in Kurzbeschreibung nennen: `readorgdata` + `readuserdata_v3`
+- [x] Finalen **Anwendungsnamen** festlegen (Anzeige im Portal) → **MS365-Schul-Tools**
+- [x] Kurzbeschreibung ≤ 512 Zeichen formulieren (siehe Begleitdokument §3)
+  - Browserbasierte Schul-IT-Werkzeuge zur Pflege von Microsoft-365-Strukturen (Gruppen, Teams, Jahrgänge, Kursteams, Konten-/Mitgliedschaftsabgleiche). Stammdatenabgleich über die Bildungsportal-Standardschnittstellen readorgdata und readuserdata_v3 (Schüler:innen und Lehrkräfte). Verarbeitung lokal im Browser bzw. über Microsoft Graph im Auftrag der Schule; kein zentraler App-Stammdatenspeicher.
+- [x] Support-Kontakte der App festlegen (E-Mail, optional Telefon, Support-URL)
+  - Mail **kontakt@kurtrocks.com** · Tel. **+43 670 1951157** · URL **https://app.ms365.schule/hilfe.html**
+- [x] Anwendungs-Logo bereitstellen → `public/assets/ms365-schulverwaltung-logo.png`
+- [x] Zweckbeschreibung für **Anhang B** finalisieren (nur Stammdaten für MS-365-Strukturpflege)
+- [x] Feldliste „minimal nötig“ aufschreiben (Datensparsamkeit)
+  - Nachname, Vorname, Rolle (`std`/`tch`), Klasse(n), stabile ID (`sokratesids`/`bpkbf`), schulische E-Mail (falls freigegeben), Status / Ein-/Austritt
+- [x] Explizit **nicht** beantragen: `manageuserdata_v1`, Mitteilungen, Zustellung, Content-Repos, Eltern/`lgn` (vorerst)
+- [x] Primär-APIs in Kurzbeschreibung nennen: `readorgdata` + `readuserdata_v3`
 
 ### A3 Technische Vorentscheidungen
-- [ ] Entscheiden: API-Aufrufe über **kleines Backend** (empfohlen wegen Public Key / IP) oder anderer sicherer Weg
-- [ ] Server-/Ausgangs-IPs für **IP-Einschränkung** notieren (sobald bekannt)
-- [ ] Schlüsselpaar erzeugen und **Public Key** für BIP-Anwendung bereithalten
-- [ ] Private Key sicher verwahren (nicht ins Git-Repo)
-- [ ] Swagger grob sichten: https://www.bildung.gv.at/swagger
-- [ ] Q-Umgebung als erstes Integrationsziel festlegen (keine Echtdaten vor Vertrag/AVV)
+- [x] Entscheiden: API-Aufrufe über **kleines Backend** (empfohlen wegen Public Key / IP) oder anderer sicherer Weg
+  - **Entscheidung:** BIP wird **nicht** aus dem Browser aufgerufen.
+  - **Architektur:** kleines **BIP-Proxy-Backend** (`backend/bip-api`, analog zu `license-api` / `kursteams-api`): hält Private Key + BIP-Credentials, ruft `readorgdata` / `readuserdata_v3` serverseitig auf, liefert Abgleichsdaten an die App.
+  - **Hosting (feste Ausgangs-IP):** **günstiger EU-VPS mit fester IPv4** – Erstwahl **Hetzner Cloud** (ca. 4–6 €/Monat). Azure mit Static Outbound (VM ~15–25 €, Premium+NAT ~200 €) bewusst verworfen (zu teuer für den Use-Case). World4you-Webhosting ungeeignet (keine stabile dedizierte Outbound-IP für BIP).
+  - **Key-Halter:** Kurt Söser / Server – Private Key nur auf dem VPS (Secret/Dateirechte), nie im Frontend, nie im Git.
+- [~] Server-/Ausgangs-IPs für **IP-Einschränkung** notieren (sobald bekannt)
+  - **Jetzt (Formular speichern):** Arbeitsplatz-IP `86.56.206.76` (Übergang, dynamisch)
+  - **Vor Q-Integration:** feste VPS-IPv4 eintragen und Arbeitsplatz-IP entfernen (sobald VPS angelegt)
+  - Platzhalter in BIP-UI bis dahin ok; vor Echttests zwingend ersetzen
+- [x] Schlüsselpaar erzeugen und **Public Key** für BIP-Anwendung bereithalten
+  - Ablage außerhalb Git: `%USERPROFILE%\.ms365schule-secrets\bip\`
+  - Dateien: `bip-schnittstellen-public.pem` / `bip-schnittstellen-private.pem` (RSA 4096)
+- [x] Private Key sicher verwahren (nicht ins Git-Repo)
+- [x] Swagger grob sichten: https://www.bildung.gv.at/swagger
+  - Bestätigt laut OpenAPI: Basic Auth; P1 = `readorgdata` + `readuserdata_v3`; optional `searchuserdata_v3`
+- [x] Q-Umgebung als erstes Integrationsziel festlegen (keine Echtdaten vor Vertrag/AVV)
+  - Reihenfolge: Vertrag/AVV/Anhang B → Freischaltung → **Q** → erst danach I/P
+
+#### A3 Nacharbeit (Hosting, **verschoben** – nicht blockierend für Formular/Einreichung)
+- [ ] ~~jetzt~~ später: Hetzner-Cloud-Konto / kleinster sinnvoller VPS anlegen (feste IPv4 notieren)
+- [ ] BIP-Formular: IP-Einschränkung auf VPS-IP umstellen
+- [ ] Private Key + BIP-Credentials auf VPS ablegen
+- [ ] Später Phase F: `backend/bip-api` implementieren und deployen
+- Status 2026-09-28: Hosting bewusst **zurückgestellt**; Einreichung läuft mit Übergangs-IP `86.56.206.76` weiter.
 
 ---
 
@@ -60,43 +86,50 @@ Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt
 
 ## Phase C – Vertragsunterlagen ausfüllen
 
+**Entwürfe (2026-09-28):** `docs/edtech-vertragsentwurf/ausgefuellt-*.docx` (+ Kopie in Downloads)  
+**Ausfüllhilfe:** `docs/edtech-vertragsentwurf/AUSFUELLHILFE.md`
+
 ### C1 Partnerschaftsvertrag
-- [ ] Vertragspartnerdaten eintragen
-- [ ] Anwendungsbezug klar auf MS365-Schul-Tools beziehen
+- [x] Vertragspartnerdaten eintragen → Kurt Söser / GISA / Steyr
+- [x] Anwendungsbezug klar auf MS365-Schul-Tools beziehen *(über Anhänge)*
+- [ ] Datum eintragen + Unterschrift (nach Prüfung / vor finaler Einreichung)
 
 ### C2 Anhang A – AVV
-- [ ] AVV vollständig ausfüllen
-- [ ] Verarbeitungsgegenstand: Stammdaten/Nutzerdaten aus Bildungsportal für Schul-IT-Provisioning
+- [x] Partnerkopf ausfüllen
+- [x] Verarbeitungsgegenstand: Stammdaten/Nutzerdaten aus Bildungsportal für Schul-IT-Provisioning *(via Anhang B)*
+- [x] Anlage 1 TOM: relevante Checkboxen + Sonstige-Texte
 - [ ] Interne Rechtsprüfung / Unterschriftsfähigkeit sicherstellen
+- [ ] Datum + Unterschrift
 
 ### C3 Anhang B – Schnittstellen (Kern der Einreichung)
-- [ ] Anwendung beschreiben
-- [ ] Zwecke der Datenverarbeitung beschreiben (Import/Abgleich Stammdaten → MS-365-Strukturen)
-- [ ] **Primär beantragen:** `readuserdata_v3` (Personen) **und** `readorgdata` (Schule/Klassen)
-- [ ] Nutzertypen beantragen: mindestens **`std` + `tch`** (Schüler:innen + Lehrkräfte)
-- [ ] **Sekundär optional:** `searchuserdata_v3` (Punktabfrage, z. B. über `sokratesid`)
-- [ ] **Nicht beantragen:** `manageuserdata_v1` (Schreiben für Schulanmeldung – anderer Use-Case)
-- [ ] In Anhang B explizit technische Namen nennen (Swagger/OpenAPI), damit Freigabe eindeutig ist
-- [ ] Datensparsamkeit und Zweckbindung explizit formulieren
-- [ ] Widgets (Anhang C): vorerst „keine“ oder „später“ – klarstellen
-- [ ] Anhang D (eigene Schnittstellen/Moodle): vorerst leer / nicht beantragen
-- [ ] Anhang E (SSO-Token-Anreicherung): nur ausfüllen, wenn SSO von Anfang an geplant – sonst „noch nicht“
+- [x] Anwendung beschreiben
+- [x] Zwecke der Datenverarbeitung beschreiben
+- [x] **Primär beantragen:** `readuserdata_v3` + `readorgdata` → **an aktivierten Schulen**
+- [x] Nutzertypen: **`std` + `tch`**
+- [x] **Sekundär:** `searchuserdata_v3` → an aktivierten Schulen
+- [x] **Nicht beantragen:** App-Berechtigungen, Benachrichtigungen, Amtssignatur, `manageuserdata`
+- [x] Technische Endpoint-Namen in Umfangstexten
+- [x] Datensparsamkeit formuliert
+- [x] Widgets (Anhang C): keine / später
+- [x] Anhang D: keine
+- [x] Anhang E (SSO): nicht beantragt
 
 ### C4 Interne Freigabe vor Absenden
-- [ ] Alle Felder auf Vollständigkeit prüfen
-- [ ] Keine übertriebenen Datenwünsche (erhöht Ablehnungs-/Verzögerungsrisiko)
-- [ ] PDF/DOCX-Paket schnüren: Vertrag + A + B–E + ggf. Kurzcover (Begleitdokument §8)
+- [x] Paket eingereicht (2026-09-28) – visuelle Word-Prüfung vor Absenden vorausgesetzt
+- [x] Keine übertriebenen Datenwünsche
+- [x] DOCX-Paket: Vertrag + A + B–E
+- [x] Support-Ticket-Text aus Begleitdokument verwendet
 
 ---
 
 ## Phase D – Einreichung beim BMB
 
-- [ ] Ticket/Anfrage über https://bip.gv.at/support erstellen
-- [ ] Betreff klar: „EdTech-Partnerschaft – Antrag Stammdatenabruf …“
-- [ ] Textbaustein aus Begleitdokument §8 verwenden und personalisieren
-- [ ] Alle Anhänge hochladen / beifügen
-- [ ] Bestätigung/Ticketnummer sichern
-- [ ] Optional parallel: support@bildung.gv.at nur nutzen, wenn Support das so lenkt (Haupteinreichung bleibt bip.gv.at/support)
+- [x] Ticket/Anfrage über https://bip.gv.at/support erstellen (**2026-09-28**)
+- [x] Betreff: EdTech-Partnerschaft – Antrag Stammdatenabruf (readorgdata + readuserdata_v3) für MS365-Schul-Tools
+- [x] Textbaustein personalisiert und gesendet
+- [x] Anhänge: ausgefuellt Partnerschaftsvertrag + Anhang A + Anhang B_E
+- [x] Bestätigung/Ticketnummer sichern → **#12337** (2026-09-28)
+- [x] Haupteinreichung über bip.gv.at/support
 
 ---
 
@@ -147,13 +180,15 @@ Status-Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt
 
 Zum Starten reichen:
 
-1. ID-Austria der bevollmächtigten Person  
-2. Firmendaten + Kurzbeschreibung der App  
-3. Entscheidung: Backend ja/nein + wer den Key hält  
+1. ID-Austria der bevollmächtigten Person → **Kurt Söser**  
+2. Firmendaten + Kurzbeschreibung der App → **erledigt (A1/A2)**  
+3. Entscheidung: Backend ja/nein + wer den Key hält → **BIP-Proxy auf VPS (Hetzner), Key auf Server (A3)**  
 4. Ausgefüllte Vertragsdokumente (A + B–E)  
 5. Support-Ticket auf bip.gv.at/support  
 
-Alles Weitere (Swagger-Details, Feldmapping, Knopf-UI) kann parallel oder nach Q-Zugang laufen.
+Formular jetzt: Public Key aus `%USERPROFILE%\.ms365schule-secrets\bip\bip-schnittstellen-public.pem`, IP vorerst `86.56.206.76`, Hilfe-URL `https://app.ms365.schule/hilfe.html`.
+
+Alles Weitere (VPS-IP final, Feldmapping, Knopf-UI) kann parallel oder nach Q-Zugang laufen.
 
 ---
 

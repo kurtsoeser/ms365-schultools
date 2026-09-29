@@ -104,16 +104,142 @@
     }
 
     /**
-     * @param {string} operationUrl Vollständige URL aus dem Location-Header (202)
-     * @param {string} token Graph-Zugriffstoken
+     * Location nach Site-Create zeigt manchmal auf *.sharepoint.com (_api/v2…),
+     * nicht auf graph.microsoft.com → Graph-Token → invalidAudienceUri.
+     * Operation-ID extrahieren und immer über Graph beta pollen.
+     * @param {string} operationUrl
+     * @returns {string}
      */
-    async function pollRichLongRunningOperation(operationUrl, token) {
+    function normalizeSiteOperationPollUrl(operationUrl) {
+        const raw = String(operationUrl || '').trim();
+        if (!raw) return '';
+
+        let abs = raw;
+        if (abs.indexOf('http') !== 0) {
+            abs = 'https://graph.microsoft.com' + (abs.indexOf('/') === 0 ? '' : '/') + abs;
+        }
+
+        let opId = '';
+        const mFn = abs.match(/getOperationStatus\s*\(\s*operationId\s*=\s*'([^']+)'\s*\)/i);
+        if (mFn) opId = mFn[1];
+        if (!opId) {
+            const mFn2 = abs.match(/getOperationStatus\s*\(\s*operationId\s*=\s*"([^"]+)"\s*\)/i);
+            if (mFn2) opId = mFn2[1];
+        }
+        if (!opId) {
+            try {
+                const u = new URL(abs);
+                opId = u.searchParams.get('operationId') || u.searchParams.get('opId') || '';
+            } catch {
+                /* ignore */
+            }
+        }
+        if (!opId) {
+            const mPath = abs.match(/operations?\/([A-Za-z0-9_\-=+%]+)/i);
+            if (mPath) opId = decodeURIComponent(mPath[1]);
+        }
+
+        if (opId) {
+            return (
+                'https://graph.microsoft.com/beta/sites/getOperationStatus(operationId=\'' +
+                opId.replace(/'/g, '') +
+                '\')'
+            );
+        }
+
+        try {
+            const u = new URL(abs);
+            if (/\.sharepoint\.com$/i.test(u.hostname) || /sharepoint\.com$/i.test(u.hostname)) {
+                /* Keine ID → Caller muss Fallback (Site-Existenz) nutzen */
+                return '';
+            }
+        } catch {
+            /* ignore */
+        }
+        return abs;
+    }
+
+    function isInvalidAudienceError(status, text) {
+        if (status !== 401 && status !== 403) return false;
+        return /invalidAudienceUri|Invalid audience|audience Uri/i.test(String(text || ''));
+    }
+
+    /**
+     * Wartet, bis die Site per Graph erreichbar ist (Fallback wenn Op-URL SPO/Audience-Problem).
+     * @param {string} siteWebUrl
+     * @param {string} token
+     */
+    async function waitUntilSiteExists(siteWebUrl, token) {
         const max = 45;
         for (let i = 0; i < max; i++) {
-            const res = await fetch(operationUrl, {
-                method: 'GET',
-                headers: { Authorization: 'Bearer ' + token }
-            });
+            try {
+                const site = await resolveSiteFromWebUrl(token, siteWebUrl);
+                if (site && site.id) {
+                    return {
+                        status: 'succeeded',
+                        resourceId: site.id,
+                        resourceLocation: site.webUrl || siteWebUrl,
+                        fallback: 'site-exists'
+                    };
+                }
+            } catch (e) {
+                const st = e && e.status;
+                if (st && st !== 404 && !/itemNotFound|not found/i.test(String(e && e.message ? e.message : e))) {
+                    /* andere Fehler kurz tolerieren, Site kann noch provisionieren */
+                }
+            }
+            await sleep(2000);
+        }
+        throw new Error(
+            'Timeout: Site noch nicht sichtbar unter ' +
+                siteWebUrl +
+                '. Bitte im SharePoint Admin Center prüfen – die Erstellung kann trotzdem laufen.'
+        );
+    }
+
+    /**
+     * @param {string} operationUrl Vollständige URL aus dem Location-Header (202)
+     * @param {string} token Graph-Zugriffstoken
+     * @param {{ siteWebUrl?: string }} [opts] Fallback: auf Site-Existenz pollen
+     */
+    async function pollRichLongRunningOperation(operationUrl, token, opts) {
+        const siteWebUrl = opts && opts.siteWebUrl ? String(opts.siteWebUrl).trim() : '';
+        let pollUrl = normalizeSiteOperationPollUrl(operationUrl);
+
+        if (!pollUrl) {
+            if (siteWebUrl) return await waitUntilSiteExists(siteWebUrl, token);
+            throw new Error(
+                'Vorgangs-URL zeigt auf SharePoint (nicht Graph) und enthält keine operationId. ' +
+                    'Site ggf. im Admin Center prüfen.'
+            );
+        }
+
+        const max = 45;
+        for (let i = 0; i < max; i++) {
+            let res;
+            try {
+                res = await fetch(pollUrl, {
+                    method: 'GET',
+                    headers: { Authorization: 'Bearer ' + token },
+                    redirect: 'manual'
+                });
+            } catch (e) {
+                if (siteWebUrl && i > 2) return await waitUntilSiteExists(siteWebUrl, token);
+                throw e;
+            }
+
+            /* Cross-Host-Redirect auf SPO / opaque → Graph-Token ungültig */
+            if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) {
+                const loc = res.headers.get('Location') || res.headers.get('location') || '';
+                const rewritten = loc ? normalizeSiteOperationPollUrl(loc) : '';
+                if (rewritten && rewritten !== pollUrl) {
+                    pollUrl = rewritten;
+                    continue;
+                }
+                if (siteWebUrl) return await waitUntilSiteExists(siteWebUrl, token);
+                throw new Error('Vorgang: Redirect auf nicht-Graph-URL – ' + (loc || res.status));
+            }
+
             const text = await res.text();
             let data = null;
             if (text) {
@@ -124,6 +250,14 @@
                 }
             }
             if (!res.ok) {
+                if (isInvalidAudienceError(res.status, text)) {
+                    const again = normalizeSiteOperationPollUrl(pollUrl);
+                    if (again && again !== pollUrl) {
+                        pollUrl = again;
+                        continue;
+                    }
+                    if (siteWebUrl) return await waitUntilSiteExists(siteWebUrl, token);
+                }
                 throw new Error('Vorgang: HTTP ' + res.status + ' – ' + (text || ''));
             }
             const status = data && (data.status || data.Status);
@@ -132,10 +266,22 @@
                 return data;
             }
             if (s === 'failed' || s === 'cancelled' || s === 'canceled') {
-                throw new Error('Vorgang fehlgeschlagen: ' + (data && (data.error || data.resourceId) ? JSON.stringify(data.error || data) : JSON.stringify(data)));
+                throw new Error(
+                    'Vorgang fehlgeschlagen: ' +
+                        (data && (data.error || data.resourceId)
+                            ? JSON.stringify(data.error || data)
+                            : JSON.stringify(data))
+                );
             }
             /* notStarted, running, waiting … → weiter pollen */
             await sleep(2000);
+        }
+        if (siteWebUrl) {
+            try {
+                return await waitUntilSiteExists(siteWebUrl, token);
+            } catch {
+                /* unten Timeout */
+            }
         }
         throw new Error('Timeout: Die Site-Erstellung dauert ungewöhnlich lange. Bitte im SharePoint Admin Center prüfen.');
     }

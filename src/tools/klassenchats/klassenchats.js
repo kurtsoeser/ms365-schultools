@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * KlassenChats-Wizard: Gruppenchats für Lehrkräfte einer Klasse.
  */
@@ -26,12 +27,6 @@ function toast(m) {
     else window.alert(m);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 function G() {
     const api = window.ms365GraphUnifiedGroups;

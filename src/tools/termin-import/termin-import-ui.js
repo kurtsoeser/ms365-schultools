@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * CSV-Import-UI für SharePoint-Schultermine.
  */
@@ -12,12 +13,6 @@ function toast(m) {
     else window.alert(m);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 function targetLabel(t) {
     if (t === 'teachers') return 'Lehrer';

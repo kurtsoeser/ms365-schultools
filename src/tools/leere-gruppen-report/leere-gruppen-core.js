@@ -1,105 +1,28 @@
-export function compareDe(a, b) {
-    return String(a || '').localeCompare(String(b || ''), 'de', { sensitivity: 'base' });
-}
+/**
+ * Domain-Helfer für „Leere Gruppen".
+ * Graph-Transport: shared/graph-client.js (Analyse 02 Phase A).
+ */
+import { compareDe, escapeHtml } from '../../shared/utils/strings.js';
+import { csvEscape, rowsToCsv } from '../../shared/utils/csv.js';
+import {
+    getGraphToken,
+    graphRequest,
+    graphJson,
+    sleep,
+    fetchAllPages as fetchAllPagesCap
+} from '../../shared/graph-client.js';
 
-export function escapeHtml(s) {
-    return String(s ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+export { compareDe, escapeHtml, csvEscape, rowsToCsv, getGraphToken, graphRequest, graphJson, sleep };
 
-export function csvEscape(cell) {
-    const s = String(cell ?? '');
-    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-    return s;
-}
-
-export function rowsToCsv(rows, columns) {
-    const header = columns.map((c) => c.label).join(';');
-    const lines = rows.map((row) => columns.map((c) => csvEscape(c.value(row))).join(';'));
-    return '\uFEFF' + header + '\n' + lines.join('\n');
-}
-
-export function sleep(ms) {
-    return new Promise((r) => setTimeout(r, ms));
-}
-
-export async function getGraphToken(scopes) {
-    if (typeof window.ms365AuthAcquireToken === 'function') {
-        return await window.ms365AuthAcquireToken(scopes);
-    }
-    throw new Error('Bitte oben rechts anmelden (MSAL-Widget nicht verfügbar).');
-}
-
-export async function graphRequest(method, pathOrUrl, token, body, extraHeaders) {
-    const url = pathOrUrl.indexOf('http') === 0 ? pathOrUrl : 'https://graph.microsoft.com/v1.0' + pathOrUrl;
-    let attempt = 0;
-    while (true) {
-        try {
-            const headers = { Authorization: 'Bearer ' + token };
-            if (extraHeaders && typeof extraHeaders === 'object') Object.assign(headers, extraHeaders);
-            let payload = undefined;
-            if (body !== undefined) {
-                headers['Content-Type'] = 'application/json';
-                payload = JSON.stringify(body);
-            }
-            const res = await fetch(url, { method, headers, body: payload });
-            if ((res.status === 429 || res.status === 503) && attempt < 8) {
-                const ra = parseInt(res.headers.get('Retry-After') || String(Math.min(60, 2 ** attempt + 2)), 10);
-                await sleep((isNaN(ra) ? 5 : ra) * 1000);
-                attempt++;
-                continue;
-            }
-            return res;
-        } catch (e) {
-            if (attempt < 8) {
-                await sleep(Math.min(30, 2 ** attempt + 1) * 1000);
-                attempt++;
-                continue;
-            }
-            throw e;
-        }
-    }
-}
-
-export async function graphJson(method, pathOrUrl, token, body, extraHeaders) {
-    const res = await graphRequest(method, pathOrUrl, token, body, extraHeaders);
-    const text = await res.text();
-    let data = null;
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
-    }
-    if (!res.ok) {
-        const msg =
-            typeof data === 'object' && data && data.error
-                ? JSON.stringify(data.error)
-                : text || String(res.status);
-        const err = new Error(method + ' ' + pathOrUrl + ': ' + msg);
-        err.status = res.status;
-        throw err;
-    }
-    return data || {};
-}
-
+/** Abwärtskompatibel: liefert nur items[] (wie früher). */
 export async function fetchAllPages(token, initialPath, onProgress, extraHeaders) {
-    const out = [];
-    let next = initialPath;
-    let page = 0;
-    while (next) {
-        page++;
-        const data = await graphJson('GET', next, token, undefined, extraHeaders);
-        const vals = data.value;
-        if (Array.isArray(vals)) for (let i = 0; i < vals.length; i++) out.push(vals[i]);
-        next = data['@odata.nextLink'] || null;
-        if (typeof onProgress === 'function') onProgress({ page, loaded: out.length, hasMore: !!next });
-    }
-    return out;
+    const r = await fetchAllPagesCap(token, initialPath, {
+        maxItems: 20000,
+        maxPages: 200,
+        extraHeaders: extraHeaders,
+        onProgress: onProgress
+    });
+    return r.items;
 }
 
 export function parseCountValue(body) {

@@ -1,0 +1,5174 @@
+/**
+ * Schulstruktur-Sync – UI-Wiring, Provision, Inventory-Facade (Analyse 02 Phase B).
+ * Move-first aus dem Entry-IIFE. Graph/Tenant-Detail liegen in eigenen Modulen.
+ */
+
+import './structure-rules.js';
+import { allowedStructureChildTypes, structureTreeRowShowsAddChildControl } from './schulstruktur-sync-helpers.js';
+import { normStr, escapeHtml, compareDe } from '../../shared/utils/strings.js';
+import { safeJsonParse } from '../../shared/utils/json.js';
+import { dlgAlert, dlgConfirm, dlgPrompt } from '../../shared/utils/dialog.js';
+import { getEl } from '../../shared/utils/dom.js';
+import {
+    loadState,
+    saveState,
+    loadMatchState,
+    saveMatchState,
+    loadTenantCache,
+    saveTenantCache,
+    loadGraphCollapsedSet,
+    saveGraphCollapsedSet,
+    loadAdGroupFlags,
+    patchAdGroupFlag,
+    wireStructureStorageListener
+} from './schulstruktur-sync-state.js';
+import {
+    currentSchoolYearLabel,
+    nextSchoolYearLabel,
+    gradeFromGraduationYear,
+    replaceLeadingNumber,
+    buildKursteamNameFromTemplate,
+    buildKursteamMailNickFromTemplate,
+    buildJgMailNick,
+    buildArgeMailNick,
+    mailNicknameFromUpn,
+    generateGraphTempPassword
+} from './schulstruktur-sync-naming.js';
+import {
+    STRUCT_TREE_ROOT_STUDENTS,
+    STRUCT_TREE_ROOT_TEACHERS,
+    STRUCT_TREE_ROOT_ADMIN,
+    uid,
+    isStructureSyntheticGraphNodeId,
+    isStructureTreeRootId,
+    structureTreeRootDefaultTitle,
+    defaultStructureTreeRootRow,
+    mergeStructureTreeRootRow,
+    pickStorableStructureTreeRootFields,
+    ensureFachschaftFachGruppen,
+    buildStructuredTreeOrder,
+    treeIconForRow,
+    treeIconForVirtualItem
+} from './schulstruktur-sync-tree.js';
+import { renderGraphView as _renderGraphViewImpl } from './schulstruktur-sync-graph-layout.js';
+import {
+    buildKursteamCsv as _buildKursteamCsvImpl,
+    buildKursteamProvisionScript,
+    downloadJson,
+    downloadText
+} from './schulstruktur-sync-io.js';
+import {
+    defaultAnlegenSchemas,
+    normalizeGraphLayoutModeInSettings,
+    normalizeClassLabel,
+    buildDemoRows
+} from './schulstruktur-sync-demo.js';
+import {
+    suggestTenantGroupForUnitFromList,
+    suggestTenantMatchSelectValue,
+    rebuildMatchTenantSelectOptions,
+    wireMatchTenantSearchOnce
+} from './schulstruktur-sync-match.js';
+import {
+    pillClass,
+    applyFilters
+} from './schulstruktur-sync-stats.js';
+import {
+    isInteractionRequired,
+    sleep,
+    parseTeamsOperationPathFromLocation,
+    groupIsTeam,
+    graphErrorLooksLikeNotFound,
+    personLabel,
+    odataEscape,
+    directoryObjectRef,
+    isGraphDuplicateRefError
+} from './schulstruktur-sync-graph-helpers.js';
+import {
+    setModeHint,
+    renderFilters,
+    renderStats
+} from './schulstruktur-sync-render.js';
+import {
+    defaultTenantTargetForTypeStr,
+    defaultTenantVisibilityForTypeStr,
+    resolveKursteamKlasseFachForRow,
+    computeTenantCreateSuggestionPure,
+    normRoleKey
+} from './schulstruktur-sync-anlegen.js';
+import { toast, setTenantProgress } from './schulstruktur-sync-notify.js';
+import {
+    parseMatchSelectValue,
+    applyMatchLinkUpdate,
+    persistedMatchSelectValuePure,
+    computeMatchDraftDirty,
+    catalogRefForStructureRow,
+    overlayCatalogOnMatchLinks,
+    catalogUpsertsFromOrphanMatchLinks
+} from './schulstruktur-sync-mapping.js';
+import '../../shared/graph-unified-groups.js';
+import '../schueler-lehrer-gruppen/slg-live-details.js';
+import '../../shared/group-detail/group-detail.js';
+import {
+    GRAPH_SCOPES_TENANT_READ,
+    GRAPH_SCOPES_TENANT_INVENTORY,
+    GRAPH_SCOPES_TENANT_WRITE,
+    GRAPH_SCOPES_TENANT_OWNER_MANAGE,
+    GRAPH_SCOPES_TENANT_TEAM_ARCHIVE,
+    GRAPH_SCOPES_GRAPH_OBJECT_CREATE,
+    getGraphToken,
+    graphJson,
+    graphRequest,
+    fetchAllPages,
+    setTenantTeamArchiveState,
+    resolveTeamsArchiveStateForUnifiedGroupId,
+    loadTenantInventoryFull,
+    fetchTenantGroupDetail,
+    applyAdFlagsToTenantRows,
+    graphSearchUsersForOwner,
+    mapWithConcurrencyLimited,
+    enrichTenantRowsOwnerMemberCounts,
+    addGroupOwner,
+    addGroupMember,
+    addOwnerWithMemberFallback,
+    deleteTenantGroup,
+    createUnifiedGroup,
+    createMailEnabledSecurityGroup,
+    createSecurityGroup,
+    suggestGroupMailNickname,
+    createTeamForGroup
+} from './schulstruktur-sync-graph.js';
+import {
+    applyTenantArchiveUi,
+    fillTenantAdSyncPanels,
+    showTenantDetail,
+    setEnsureTenantGroupDetailMounted,
+    getEnsureTenantGroupDetailMounted
+} from './schulstruktur-sync-tenant-detail-ui.js';
+
+
+const structureRules = (typeof window !== 'undefined' && window.ms365StructureRules) ? window.ms365StructureRules : null;
+const canReparentStrict = structureRules && typeof structureRules.canReparent === 'function'
+    ? structureRules.canReparent
+    : () => false;
+const inferRootForType = structureRules && typeof structureRules.inferRootForType === 'function'
+    ? structureRules.inferRootForType
+    : () => '';
+
+/** Storage-Keys & State-Helfer leben in `schulstruktur-sync-state.js`. */
+const UI_MODE_KEY = 'ms365-schulstruktur-sync-ui-mode-v1';
+
+/* GRAPH_SCOPES_* → schulstruktur-sync-graph.js */
+
+/*
+ * Tenant-Match-Helfer (`normKey`, `suggestTenantGroupForUnitFromList`,
+ * `suggestTenantUserForPersonFromList`, `suggestTenantMatchSelectValue`,
+ * `formatEntraUserPickLabel`, `matchTenant*`, `rebuildMatchTenantSelectOptions`,
+ * `wireMatchTenantSearchOnce`) leben in `schulstruktur-sync-match.js`.
+ */
+
+/** Klasse aus ktKlasse oder Eltern-Knoten „Klasse"; Fach aus ktFach (Differenz/Anlage konsistent). */
+/*
+ * `resolveKursteamKlasseFachForRow`, `defaultTenantTargetForTypeStr`,
+ * `defaultTenantVisibilityForTypeStr` und `normRoleKey` leben in
+ * `schulstruktur-sync-anlegen.js`. Der folgende Wrapper bindet den
+ * Pure-Vorschlag an den aktuellen `loadState()`-Zustand.
+ */
+function computeTenantCreateSuggestionFromRow(row, schemaState) {
+    const st = typeof loadState === 'function' ? loadState() : { rows: [] };
+    const allRows = (st && st.rows) || [];
+    return computeTenantCreateSuggestionPure(row, schemaState, (r) =>
+        resolveKursteamKlasseFachForRow(r, allRows)
+    );
+}
+
+function patchStructureRowById(rowId, patch) {
+    const st = loadState();
+    const idx = st.rows.findIndex((r) => String(r.id) === String(rowId));
+    if (idx === -1) return false;
+    const rows = st.rows.slice();
+    rows[idx] = Object.assign({}, rows[idx], patch);
+    saveState({ rows, memberships: st.memberships, settings: st.settings });
+    try {
+        window.dispatchEvent(new CustomEvent('ms365-structure-changed', { detail: {} }));
+    } catch {
+        // ignore
+    }
+    return true;
+}
+
+function structureRowForMatchId(structureId) {
+    const id = String(structureId || '');
+    const st = loadState();
+    if (isStructureTreeRootId(id)) {
+        const details = st.settings && st.settings.structRootDetails;
+        return mergeStructureTreeRootRow(id, details) || defaultStructureTreeRootRow(id);
+    }
+    const rows = Array.isArray(st.rows) ? st.rows : [];
+    return rows.find((r) => String(r.id) === id) || null;
+}
+
+function syncMatchToCatalogAndDirectory(structureId, tenantGroupId, tenantUserId) {
+    const api = window.ms365AppDataV2;
+    if (!api) return;
+    const row = structureRowForMatchId(structureId);
+    if (!row) return;
+    const ref = catalogRefForStructureRow(row);
+    if (ref && typeof api.upsertCatalogLink === 'function') {
+        const existing = typeof api.getCatalogLink === 'function' ? api.getCatalogLink(ref.kind, ref.code) : null;
+        api.upsertCatalogLink({
+            kind: ref.kind,
+            code: ref.code,
+            graphGroupId: tenantGroupId || '',
+            displayName: existing && existing.displayName ? existing.displayName : '',
+            mailNickname: existing && existing.mailNickname ? existing.mailNickname : '',
+            mode: tenantGroupId ? (existing && existing.mode) || 'matched' : ''
+        });
+    }
+    if (String(row.typ || '') !== 'Person' || typeof api.patchSetup !== 'function') return;
+    const em = String(row.personEmail || '')
+        .trim()
+        .toLowerCase();
+    if (!em || em.indexOf('@') === -1) return;
+    const uid = String(tenantUserId || '').trim();
+    if (uid) {
+        api.patchSetup({
+            directoryMatchByEmail: {
+                [em]: {
+                    graphUserId: uid,
+                    displayName: String(row.personName || row.bezeichnung || ''),
+                    userPrincipalName: em
+                }
+            }
+        });
+    } else {
+        api.patchSetup({ directoryMatchByEmailRemove: { [em]: true } });
+    }
+}
+
+/**
+ * Wrapper um {@link applyMatchLinkUpdate}, bindet die Pure-Funktion an
+ * den persistierten Match-State und den `window`-Spiegel/Event.
+ * Katalog-gemappte Knoten schreiben zusätzlich nach `catalogLinks` /
+ * `matched` bzw. Personen nach `directoryMatchByEmail`.
+ */
+function saveMatchLinkPublic(structureId, tenantGroupId, note, tenantUserId) {
+    const cur = loadMatchState().links || {};
+    const next = applyMatchLinkUpdate(cur, structureId, {
+        tenantGroupId,
+        tenantUserId,
+        note
+    });
+    saveMatchState(next);
+    try {
+        syncMatchToCatalogAndDirectory(structureId, tenantGroupId, tenantUserId);
+    } catch {
+        // ignore
+    }
+    try {
+        window.__ms365MatchLinks = next;
+    } catch {
+        // ignore
+    }
+    try {
+        window.dispatchEvent(new CustomEvent('ms365-match-links-changed', { detail: { links: next } }));
+    } catch {
+        // ignore
+    }
+    return next;
+}
+
+function readCatalogSetup() {
+    try {
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
+            return window.ms365AppDataV2.getSetup();
+        }
+    } catch {
+        // ignore
+    }
+    return { catalogLinks: [], matched: {}, directoryMatchByEmail: {} };
+}
+
+function structureRowsForCatalogMatch(rows, settings) {
+    const details = settings && settings.structRootDetails;
+    const roots = [
+        mergeStructureTreeRootRow(STRUCT_TREE_ROOT_STUDENTS, details),
+        mergeStructureTreeRootRow(STRUCT_TREE_ROOT_TEACHERS, details),
+        mergeStructureTreeRootRow(STRUCT_TREE_ROOT_ADMIN, details)
+    ].filter(Boolean);
+    return (Array.isArray(rows) ? rows : []).concat(roots);
+}
+
+function effectiveMatchLinksFromStore() {
+    const st = loadState();
+    return overlayCatalogOnMatchLinks(
+        loadMatchState().links || {},
+        structureRowsForCatalogMatch(st.rows, st.settings),
+        readCatalogSetup()
+    );
+}
+
+async function graphProvisionStructureGroupRow(row) {
+    const st = loadState();
+    const schemaState = Object.assign({}, defaultAnlegenSchemas(), st.settings || {});
+    const sug = computeTenantCreateSuggestionFromRow(row, schemaState);
+    if (!sug.displayName) throw new Error('Keine Bezeichnung.');
+    if (!sug.mailNick) throw new Error('Mail‑Nickname leer (Schema prüfen).');
+    const desc = normStr(row.beschreibung || '');
+    const typ = String(row.typ || '');
+    let created;
+    if (typ === 'Jahrgang') {
+        // Jahrgänge: mail-enabled Sicherheitsgruppe (verschachtelungsfreundlich, kein Team).
+        created = await createMailEnabledSecurityGroup(sug.displayName, desc, sug.mailNick);
+    } else {
+        const vis = defaultTenantVisibilityForTypeStr(row.typ);
+        created = await createUnifiedGroup(sug.displayName, desc, sug.mailNick, vis);
+    }
+    const gid = String(created.id || '').trim();
+    if (!gid) throw new Error('Keine Gruppen-ID von Graph.');
+    const target = typ === 'Jahrgang' ? 'security' : defaultTenantTargetForTypeStr(row.typ);
+    if (target === 'team') await createTeamForGroup(gid);
+    const mem = st.memberships[String(row.id)] || { owners: [], members: [] };
+    const ownerIds = (mem.owners || []).map((p) => String(p.id || '')).filter(Boolean);
+    const memberIds = (mem.members || []).map((p) => String(p.id || '')).filter(Boolean);
+    for (let i = 0; i < ownerIds.length; i++) {
+        try {
+            await addOwnerWithMemberFallback(gid, ownerIds[i]);
+        } catch {
+            /* optional */
+        }
+    }
+    for (let j = 0; j < memberIds.length; j++) {
+        try {
+            await addGroupMember(gid, memberIds[j]);
+        } catch (e) {
+            if (!isGraphDuplicateRefError(e)) throw e;
+        }
+    }
+    patchStructureRowById(row.id, {
+        tenantGroupId: gid,
+        tenantMailNickname: sug.mailNick,
+        tenantTarget: target,
+        tenantVisibility: typ === 'Jahrgang' ? '' : defaultTenantVisibilityForTypeStr(row.typ),
+        syncStatus: 'Ok',
+        letzteFehlermeldung: ''
+    });
+    saveMatchLinkPublic(String(row.id), gid, 'Schritt 5');
+    return { groupId: gid };
+}
+
+async function graphProvisionPersonRowPublic(row, opts) {
+    const o = opts && typeof opts === 'object' ? opts : {};
+    const skipConfirm = !!o.skipConfirm;
+    const displayName = normStr(row.personName) || normStr(row.bezeichnung);
+    const upn = normStr(row.personEmail).toLowerCase();
+    if (!displayName) throw new Error('Name fehlt (Person).');
+    if (!upn || upn.indexOf('@') === -1) throw new Error('UPN/E-Mail fehlt.');
+    if (normStr(row.tenantUserId)) throw new Error('Benutzer bereits verknüpft.');
+    const mailNick = mailNicknameFromUpn(upn);
+    const pwd = generateGraphTempPassword();
+    if (!skipConfirm) {
+        if (!(await dlgConfirm('Benutzer in Entra anlegen?\n\n' + displayName + '\n' + upn, { title: 'Entra', okText: 'Anlegen' }))) {
+            throw new Error('Abgebrochen.');
+        }
+    }
+    const token = await getGraphToken(GRAPH_SCOPES_GRAPH_OBJECT_CREATE);
+    const body = {
+        accountEnabled: true,
+        displayName,
+        mailNickname: mailNick,
+        userPrincipalName: upn,
+        passwordProfile: {
+            forceChangePasswordNextSignIn: true,
+            password: pwd
+        }
+    };
+    const created = await graphJson('POST', '/users', token, body, undefined);
+    const uid = String(created.id || '').trim();
+    if (!uid) throw new Error('Keine Benutzer-ID von Graph.');
+    patchStructureRowById(row.id, {
+        personName: displayName,
+        personEmail: upn,
+        tenantUserId: uid,
+        syncStatus: 'Ok',
+        letzteFehlermeldung: ''
+    });
+    return { userId: uid, tempPassword: pwd };
+}
+
+/*
+ * Demo-Daten und Anlegen-Schema-Defaults leben in `schulstruktur-sync-demo.js`:
+ * `defaultAnlegenSchemas`, `normalizeGraphLayoutModeInSettings`,
+ * `normalizeClassLabel`, `deriveGradeFromClassLabel`, `buildDemoRows`,
+ * `buildDemoFromTenantSettings`, `getTenantSettingsDomainFallback`.
+ */
+
+/*
+ * `toast` und `setTenantProgress` leben in `schulstruktur-sync-notify.js`.
+ */
+
+/*
+ * Statistik-/Filter-/Format-Helfer (`formatDateTimeAT`, `pillClass`,
+ * `computeStats`, `computeTenantStats`, `getFilterState`, `applyFilters`)
+ * leben in `schulstruktur-sync-stats.js`.
+ */
+
+/*
+ * `setModeHint`, `renderFilters`, `renderStats` leben in
+ * `schulstruktur-sync-render.js`.
+ */
+
+/*
+ * `getFilterState` und `applyFilters` leben in `schulstruktur-sync-stats.js`.
+ */
+
+/*
+ * Tree-/Strukturbaum-Helfer (Konstanten, byId, uid, isStructureTreeRootId,
+ * structureTreeRootTitle, defaultStructureTreeRootRow,
+ * mergeStructureTreeRootRow, pickStorableStructureTreeRootFields,
+ * migrateLegacyFachschaftenContainer, ensureFachschaftFachGruppen,
+ * sortStructureTreeChildren, buildTreeOrder, buildStructuredTreeOrder,
+ * typeIcon, treeIconForRow, treeIconForVirtualItem, graphNodeIconClass)
+ * leben in `schulstruktur-sync-tree.js`.
+ */
+
+/*
+ * `computeGraphModel` und `renderGraphView` leben in
+ * `schulstruktur-sync-graph-layout.js`. Dieser Wrapper reicht den
+ * Tool-spezifischen `normRoleKey` an die Render-Funktion durch.
+ */
+function renderGraphView(
+    rowsStruktur,
+    selectedId,
+    onSelect,
+    viewport,
+    collapsedSet,
+    personInfoByRole,
+    structRootDetails,
+    graphLayoutMode,
+    _onGraphAddChild
+) {
+    return _renderGraphViewImpl(
+        rowsStruktur,
+        selectedId,
+        onSelect,
+        viewport,
+        collapsedSet,
+        personInfoByRole,
+        structRootDetails,
+        graphLayoutMode,
+        _onGraphAddChild,
+        normRoleKey
+    );
+}
+
+function renderTree(rows, selectedId, mode, collapsedSet, onToggleCollapse, structRootDetails, onStructureTreeAdd) {
+    const tree = getEl('ssTree');
+    if (!tree) return;
+    tree.replaceChildren();
+
+    const visible = applyFilters(rows, mode);
+    renderStats(visible, mode);
+
+    if (!visible.length) {
+        const li = document.createElement('li');
+        li.style.padding = '10px 12px';
+        li.style.color = '#6c757d';
+        li.textContent = rows.length ? 'Keine Treffer für den Filter.' : 'Noch keine Einheiten. Mit „Demo“ oder „Neu“ starten.';
+        tree.appendChild(li);
+        return;
+    }
+
+    const coll = collapsedSet || new Set();
+
+    const ordered =
+        mode === 'tenant'
+            ? visible
+                  .slice()
+                  .sort((a, b) => compareDe(a.bezeichnung, b.bezeichnung))
+                  .map((r) => ({ r, depth: 0 }))
+            : buildStructuredTreeOrder(visible, collapsedSet, structRootDetails);
+
+    for (const item of ordered) {
+        if (item.virtual) {
+            const li = document.createElement('li');
+            const isSelectableRoot = (mode === 'struktur' || mode === 'match') && item.kind === 'root';
+            const showBranchToggle = (mode === 'struktur' || mode === 'match') && item.hasKids && onToggleCollapse;
+
+            if (showBranchToggle) {
+                li.style.display = 'flex';
+                li.style.alignItems = 'stretch';
+                const togg = document.createElement('button');
+                togg.type = 'button';
+                togg.setAttribute(
+                    'aria-expanded',
+                    coll.has(String(item.rootId)) ? 'false' : 'true'
+                );
+                togg.setAttribute('aria-label', coll.has(String(item.rootId)) ? 'Bereich aufklappen' : 'Bereich einklappen');
+                togg.style.flexShrink = '0';
+                togg.style.width = '32px';
+                togg.style.alignSelf = 'center';
+                togg.style.border = 'none';
+                togg.style.background = 'transparent';
+                togg.style.cursor = 'pointer';
+                togg.style.color = '#32325d';
+                togg.textContent = coll.has(String(item.rootId)) ? '▸' : '▾';
+                togg.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onToggleCollapse(String(item.rootId));
+                });
+                li.appendChild(togg);
+            }
+
+            const isKursteamsPlaceholder = item.kind === 'kursteams';
+            const row = isSelectableRoot || isKursteamsPlaceholder ? document.createElement('button') : document.createElement('div');
+            if (isSelectableRoot) {
+                row.type = 'button';
+                row.dataset.ssSelect = String(item.rootId);
+                row.dataset.ssType = String(item.typ || '');
+                row.setAttribute(
+                    'aria-current',
+                    selectedId && String(selectedId) === String(item.rootId) ? 'true' : 'false'
+                );
+                row.style.border = 'none';
+                row.style.background = 'rgba(50, 50, 93, 0.06)';
+                row.style.font = 'inherit';
+                row.style.textAlign = 'left';
+                row.style.cursor = 'pointer';
+                row.style.width = showBranchToggle ? 'auto' : '100%';
+            } else if (isKursteamsPlaceholder) {
+                row.type = 'button';
+                row.dataset.ssOpenKursteams = '1';
+                row.dataset.ssKurClassId = String(item.classId || '');
+                row.setAttribute('aria-label', 'Kursteams öffnen');
+                row.style.border = 'none';
+                row.style.background = 'rgba(50, 50, 93, 0.03)';
+                row.style.font = 'inherit';
+                row.style.textAlign = 'left';
+                row.style.cursor = 'pointer';
+                row.style.width = showBranchToggle ? 'auto' : '100%';
+            } else {
+                row.style.background = 'rgba(50, 50, 93, 0.06)';
+            }
+            // Mit Zweig-Toggle: Zeile muss restliche Breite füllen, sonst kleben „Ordner“/Status-Pills am Namen.
+            if (showBranchToggle) {
+                row.style.flex = '1';
+                row.style.minWidth = '0';
+            } else if (!isSelectableRoot) {
+                row.style.width = '100%';
+            }
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.gap = '8px';
+            row.style.padding = '10px 12px';
+            row.style.paddingLeft = String(12 + (item.depth || 0) * 18) + 'px';
+            row.style.borderRadius = '6px';
+
+            const vIcon = document.createElement('i');
+            vIcon.setAttribute('aria-hidden', 'true');
+            vIcon.className = 'bi ' + treeIconForVirtualItem(item);
+            vIcon.style.flexShrink = '0';
+            vIcon.style.fontSize = '1.1em';
+            vIcon.style.lineHeight = '1';
+            vIcon.style.opacity = '0.92';
+            vIcon.style.color = 'var(--brand1)';
+
+            const name = document.createElement('div');
+            name.style.minWidth = '0';
+            name.style.flex = '1';
+            name.style.fontWeight = '900';
+            name.style.color = '#32325d';
+            name.style.overflow = 'hidden';
+            name.style.textOverflow = 'ellipsis';
+            name.style.whiteSpace = 'nowrap';
+            name.textContent = item.label;
+
+            const meta2 = document.createElement('div');
+            meta2.className = 'pill';
+            meta2.title = 'Bereich';
+            meta2.textContent = item.typLabel
+                ? item.typLabel
+                : item.typ === 'SchuelerInnen'
+                  ? 'Schüler:innen'
+                  : item.typ === 'LehrerInnen'
+                    ? 'Lehrer:innen'
+                    : 'Verwaltung';
+
+            const meta = document.createElement('div');
+            meta.className = 'pill';
+            meta.title = 'Sync-Status';
+            if (item.kind === 'root' && item.rootSyncStatus) {
+                meta.className = 'pill ' + pillClass(item.rootSyncStatus);
+                meta.textContent = String(item.rootSyncStatus);
+            } else {
+                meta.textContent = '–';
+            }
+            if (mode === 'struktur' || mode === 'match') {
+                // Im Struktur-Baum nur Typ/Labels anzeigen – keine Status-Pills.
+                meta.style.display = 'none';
+            }
+
+            row.appendChild(vIcon);
+            row.appendChild(name);
+            row.appendChild(meta2);
+            row.appendChild(meta);
+            if (structureTreeRowShowsAddChildControl(mode, item) && typeof onStructureTreeAdd === 'function' && isSelectableRoot) {
+                const addB = document.createElement('button');
+                addB.type = 'button';
+                addB.className = 'ss-tree-add-btn';
+                addB.title = 'Unterpunkt hinzufügen';
+                addB.setAttribute('aria-label', 'Unterpunkt hinzufügen');
+                addB.textContent = '+';
+                addB.style.cssText =
+                    'flex-shrink:0;align-self:center;width:38px;min-width:38px;height:38px;border:1px solid color-mix(in srgb, var(--brand1) 28%, transparent);border-radius:10px;background:#fff;font-weight:1000;cursor:pointer;color:#32325d;line-height:1;padding:0;margin:0 4px 0 0;';
+                addB.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onStructureTreeAdd(String(item.rootId || ''), String(item.typ || ''), addB);
+                });
+                const wrap = document.createElement('div');
+                wrap.style.cssText = showBranchToggle
+                    ? 'display:flex;flex:1;min-width:0;align-items:stretch;gap:0;'
+                    : 'display:flex;width:100%;min-width:0;align-items:stretch;gap:0;';
+                row.style.flex = '1';
+                row.style.minWidth = '0';
+                if (isSelectableRoot) row.style.width = 'auto';
+                wrap.appendChild(row);
+                wrap.appendChild(addB);
+                li.appendChild(wrap);
+            } else {
+                li.appendChild(row);
+            }
+            tree.appendChild(li);
+            continue;
+        }
+
+        const { r, depth, hasKids } = item;
+        const li = document.createElement('li');
+        const showToggle = (mode === 'struktur' || mode === 'match') && hasKids && onToggleCollapse;
+        if (showToggle) {
+            li.style.display = 'flex';
+            li.style.alignItems = 'stretch';
+            const togg = document.createElement('button');
+            togg.type = 'button';
+            togg.setAttribute('aria-expanded', coll.has(String(r.id)) ? 'false' : 'true');
+            togg.setAttribute('aria-label', coll.has(String(r.id)) ? 'Zweig aufklappen' : 'Zweig einklappen');
+            togg.style.flexShrink = '0';
+            togg.style.width = '32px';
+            togg.style.alignSelf = 'center';
+            togg.style.border = 'none';
+            togg.style.background = 'transparent';
+            togg.style.cursor = 'pointer';
+            togg.style.color = '#32325d';
+            togg.textContent = coll.has(String(r.id)) ? '▸' : '▾';
+            togg.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onToggleCollapse(String(r.id));
+            });
+            li.appendChild(togg);
+        }
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.ssSelect = String(r.id);
+        btn.dataset.ssType = String(r.typ || '');
+        btn.setAttribute('aria-current', selectedId && String(selectedId) === String(r.id) ? 'true' : 'false');
+        btn.style.paddingLeft = String(12 + depth * 18) + 'px';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.gap = '8px';
+        if (showToggle) btn.style.flex = '1';
+        if (mode === 'struktur' || mode === 'match') {
+            btn.draggable = true;
+        }
+
+        const rowIcon = document.createElement('i');
+        rowIcon.setAttribute('aria-hidden', 'true');
+        rowIcon.className = 'bi ' + treeIconForRow(r, mode);
+        rowIcon.style.flexShrink = '0';
+        rowIcon.style.fontSize = '1.08em';
+        rowIcon.style.lineHeight = '1';
+        rowIcon.style.opacity = '0.92';
+        rowIcon.style.color = 'var(--brand1)';
+
+        const name = document.createElement('div');
+        name.style.minWidth = '0';
+        name.style.flex = '1';
+        name.style.fontWeight = '900';
+        name.style.color = '#32325d';
+        name.style.overflow = 'hidden';
+        name.style.textOverflow = 'ellipsis';
+        name.style.whiteSpace = 'nowrap';
+        name.textContent = r.bezeichnung || '(ohne Bezeichnung)';
+
+        const meta = document.createElement('div');
+        meta.className = 'pill ' + pillClass(r.syncStatus);
+        meta.title = mode === 'tenant' ? 'Art' : 'Sync-Status';
+        meta.textContent =
+            mode === 'tenant'
+                ? (r.hiddenMembership ? 'Kursteam' : String(r.typ || '–'))
+                : String(r.syncStatus || 'Ausstehend');
+        if (mode === 'struktur' || mode === 'match') {
+            // Im Struktur-Baum soll nicht der Status im Fokus stehen.
+            meta.style.display = 'none';
+        }
+
+        const meta2 = document.createElement('div');
+        meta2.className = 'pill';
+        meta2.title = mode === 'tenant' ? 'Alias / E-Mail' : 'Typ / Schuljahr';
+        meta2.textContent =
+            mode === 'tenant'
+                ? String(r.alias || r.mail || '–')
+                : mode === 'struktur'
+                  ? String(r.typ || '–')
+                  : String(r.typ || '–') + (r.schuljahr ? ' · ' + String(r.schuljahr) : '');
+
+        btn.appendChild(
+            mode === 'tenant' &&
+                window.ms365GroupPhotoThumb &&
+                typeof window.ms365GroupPhotoThumb.createThumb === 'function'
+                ? window.ms365GroupPhotoThumb.createThumb({
+                      groupId: String(r.id || ''),
+                      displayName: String(r.bezeichnung || ''),
+                      size: 'list'
+                  })
+                : rowIcon
+        );
+        btn.appendChild(name);
+        if (mode === 'tenant' && r.onPremisesSyncEnabled) {
+            const adPill = document.createElement('div');
+            adPill.className = 'pill warn';
+            adPill.title =
+                'Aus lokalem Active Directory synchronisiert' +
+                (r.onPremisesSamAccountName ? ' · SAM: ' + r.onPremisesSamAccountName : '');
+            adPill.textContent = 'AD‑Sync';
+            btn.appendChild(adPill);
+        }
+        if (mode === 'tenant' && r.adFlagged) {
+            const flagPill = document.createElement('div');
+            flagPill.className = 'pill';
+            flagPill.style.borderColor = 'color-mix(in srgb, var(--brand1) 40%, transparent)';
+            flagPill.style.background = 'color-mix(in srgb, var(--brand1) 12%, transparent)';
+            flagPill.title = r.adFlagNote ? String(r.adFlagNote) : 'Für lokalen Admin markiert';
+            flagPill.textContent = 'Markiert';
+            btn.appendChild(flagPill);
+        }
+        btn.appendChild(meta2);
+        btn.appendChild(meta);
+        if (structureTreeRowShowsAddChildControl(mode, item) && typeof onStructureTreeAdd === 'function') {
+            const addB = document.createElement('button');
+            addB.type = 'button';
+            addB.className = 'ss-tree-add-btn';
+            addB.title = 'Unterpunkt hinzufügen';
+            addB.setAttribute('aria-label', 'Unterpunkt hinzufügen');
+            addB.textContent = '+';
+            addB.style.cssText =
+                'flex-shrink:0;align-self:center;width:38px;min-width:38px;height:38px;border:1px solid color-mix(in srgb, var(--brand1) 28%, transparent);border-radius:10px;background:#fff;font-weight:1000;cursor:pointer;color:#32325d;line-height:1;padding:0;margin:0 4px 0 0;';
+            addB.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onStructureTreeAdd(String(r.id || ''), String(r.typ || ''), addB);
+            });
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;flex:1;min-width:0;align-items:center;gap:0;';
+            btn.style.flex = '1';
+            btn.style.minWidth = '0';
+            btn.style.width = 'auto';
+            wrap.appendChild(btn);
+            wrap.appendChild(addB);
+            li.appendChild(wrap);
+        } else {
+            li.appendChild(btn);
+        }
+        tree.appendChild(li);
+    }
+
+    if (
+        mode === 'tenant' &&
+        window.ms365GroupPhotoThumb &&
+        typeof window.ms365GroupPhotoThumb.hydrate === 'function'
+    ) {
+        window.ms365GroupPhotoThumb.hydrate(tree);
+    }
+}
+
+function ensureTreeContextMenu() {
+    const existing = document.getElementById('ssCtxMenu');
+    if (existing) return existing;
+    const menu = document.createElement('div');
+    menu.id = 'ssCtxMenu';
+    menu.setAttribute('role', 'menu');
+    menu.style.cssText =
+        'position:fixed;z-index:10000;min-width:220px;max-width:min(340px,92vw);background:#fff;border:1px solid color-mix(in srgb, var(--brand1) 22%, transparent);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,0.18);padding:8px;display:none;';
+
+    const head = document.createElement('div');
+    head.id = 'ssCtxMenuTitle';
+    head.style.cssText =
+        'padding:8px 10px 6px;font-weight:1000;color:#32325d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+
+    const sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:#eef0f3;margin:6px 0 8px;';
+
+    const btnDelete = document.createElement('button');
+    btnDelete.type = 'button';
+    btnDelete.id = 'ssCtxDelete';
+    btnDelete.setAttribute('role', 'menuitem');
+    btnDelete.style.cssText =
+        'width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(245,54,92,0.22);border-radius:12px;background:rgba(245,54,92,0.06);color:#b00020;font-weight:900;cursor:pointer;font:inherit;text-align:left;';
+    btnDelete.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i><span>Löschen</span>';
+
+    const hint = document.createElement('div');
+    hint.id = 'ssCtxHint';
+    hint.style.cssText = 'padding:8px 10px 4px;color:#6c757d;font-size:0.9em;line-height:1.35;display:none;';
+
+    menu.appendChild(head);
+    menu.appendChild(sep);
+    menu.appendChild(btnDelete);
+    menu.appendChild(hint);
+    document.body.appendChild(menu);
+
+    function hide() {
+        menu.style.display = 'none';
+        menu.dataset.targetId = '';
+        menu.dataset.targetKind = '';
+        head.textContent = '';
+        hint.style.display = 'none';
+        hint.textContent = '';
+    }
+    // @ts-ignore - lightweight helper
+    menu.hide = hide;
+
+    // close on outside click / escape / scroll
+    window.addEventListener('click', () => hide(), true);
+    window.addEventListener(
+        'keydown',
+        (ev) => {
+            if (ev.key === 'Escape') hide();
+        },
+        true
+    );
+    window.addEventListener('scroll', () => hide(), true);
+
+    return menu;
+}
+
+function fillParentSelect(rows, currentId, childTyp) {
+    const sel = getEl('ssUebergeordnet');
+    if (!sel) return;
+    const prev = sel.value || '';
+    const ct = normStr(childTyp);
+    const opts = rows
+        .filter((r) => r && r.id && String(r.id) !== String(currentId || ''))
+        .filter((r) => (ct ? canReparentStrict(ct, String(r.typ || '')) : true))
+        .slice()
+        .sort((a, b) => compareDe(a.bezeichnung, b.bezeichnung));
+
+    sel.replaceChildren();
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = '(keine)';
+    sel.appendChild(none);
+
+    for (const r of opts) {
+        const o = document.createElement('option');
+        o.value = String(r.id);
+        o.textContent = String(r.bezeichnung || '(ohne Bezeichnung)') + ' – ' + String(r.typ || '');
+        sel.appendChild(o);
+    }
+    if (prev && opts.some((r) => String(r.id) === String(prev))) sel.value = prev;
+}
+
+function isValidStructureParentChild(childTyp, parentId, rows) {
+    const c = normStr(childTyp);
+    if (!c) return false;
+    const pid = normStr(parentId);
+    if (!pid) {
+        const root = inferRootForType(c);
+        return canReparentStrict(c, root);
+    }
+    const pRow = rows.find((r) => String(r.id) === String(pid));
+    if (!pRow) return false;
+    return canReparentStrict(c, String(pRow.typ || ''));
+}
+
+function fillPersonKontaktFields(cur, typEffective, personInfoByRole) {
+    const wrap = getEl('ssPersonKontaktWrap');
+    const inpN = getEl('ssPersonName');
+    const inpE = getEl('ssPersonEmail');
+    if (!wrap || !inpN || !inpE) return;
+    const t = String(typEffective || '');
+    if (t === 'Person' && cur && !cur.isStructureTreeRoot) {
+        wrap.style.display = '';
+        const labelForRole = normStr(getEl('ssBezeichnung')?.value) || String(cur.bezeichnung || '');
+        const fromRole =
+            personInfoByRole && typeof personInfoByRole.get === 'function'
+                ? personInfoByRole.get(normRoleKey(labelForRole)) || {}
+                : {};
+        const storedN = normStr(cur.personName);
+        const storedE = normStr(cur.personEmail).toLowerCase();
+        const active = typeof document !== 'undefined' ? document.activeElement : null;
+        if (active !== inpN && active !== inpE) {
+            inpN.value = storedN || normStr(fromRole.name) || '';
+            inpE.value = storedE || normStr(fromRole.email).toLowerCase() || '';
+        }
+    } else {
+        wrap.style.display = 'none';
+        inpN.value = '';
+        inpE.value = '';
+    }
+}
+
+function refreshStrukturTypDependentUi(ctx) {
+    const hintTyp = getEl('ssTypM365Hint');
+    const hintOwn = getEl('ssStructOwnerTabHint');
+    const hintMem = getEl('ssStructMemberTabHint');
+    const besch = getEl('ssBeschreibung');
+    const mode = ctx && ctx.mode;
+    const selectedId = ctx && ctx.selectedId;
+    const rowsStruktur = (ctx && ctx.rowsStruktur) || [];
+    const structRootDetails = ctx && ctx.structRootDetails;
+    if (mode !== 'struktur' || !selectedId) {
+        if (hintTyp) hintTyp.textContent = '';
+        const onTabs = ctx && ctx.onPersonDetailTabs;
+        if (typeof onTabs === 'function') onTabs('');
+        fillPersonKontaktFields(null, '', null);
+        return;
+    }
+    const typFromDom = normStr(getEl('ssTyp')?.value);
+    let cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+    if (!cur && isStructureTreeRootId(selectedId)) {
+        cur = mergeStructureTreeRootRow(selectedId, structRootDetails);
+    }
+    const rowTyp = cur ? String(cur.typ || '') : '';
+    const t = typFromDom || rowTyp;
+
+    const typHints = {
+        Jahrgang:
+            'Organisatorische Jahrgangs‑Einheit unter „Schüler:innen“. Untergeordnet: Klassen. Kein eigenes M365‑Team/Gruppe vorgesehen.',
+        Klasse:
+            'Klasse unter einem Jahrgang. Darunter: Kursteams (M365‑Teams, oft HiddenMembership) und ggf. Gruppen.',
+        Arbeitsgemeinschaft:
+            'Lehrer:innen‑Fachgemeinschaft. In M365 oft eine eigene M365‑Gruppe oder ein Team; Besitzer/Mitglieder steuern Zugriff.',
+        Kursteam:
+            'Kurs‑Team: in M365 typischerweise ein Team mit HiddenMembership; Besitzer/Mitglieder entsprechen Lehrkräften und SuS im Kurs.',
+        Gruppe:
+            'M365‑Gruppe oder Team (SOLL). Beschreibung wird bei „Im Tenant anlegen“ als Graph‑description genutzt; Besitzer/Mitglieder für das Gruppenobjekt.',
+        Person: ''
+    };
+    if (hintTyp) hintTyp.textContent = typHints[t] || '';
+
+    const defOwn =
+        'Besitzer für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.';
+    const defMem =
+        'Mitglieder für diese Einheit (lokal gespeichert). Wenn du oben rechts angemeldet bist, kannst du User bequem über Entra suchen.';
+    if (hintOwn) hintOwn.textContent = t === 'Person' ? '' : defOwn;
+    if (hintMem) hintMem.textContent = t === 'Person' ? '' : defMem;
+
+    const ph = {
+        Jahrgang: 'Optional: interner Hinweis zur Jahrgangs‑Einheit.',
+        Klasse: 'Optional: interner Hinweis zur Klasse.',
+        Arbeitsgemeinschaft: 'Optional: interner Hinweis zur ARGE.',
+        Kursteam: 'Optional: interner Hinweis zum Kursteam.',
+        Gruppe: 'Wird bei „Im Tenant anlegen“ als Beschreibung der Microsoft‑365‑Gruppe (Graph-Feld description) gesetzt.',
+        Person: 'Optional: interne Notiz zur Rolle (kein Ersatz für Benutzerprofile in Entra ID).'
+    };
+    if (besch && cur && !cur.isStructureTreeRoot && ph[t]) {
+        besch.setAttribute('placeholder', ph[t]);
+    }
+
+    const onTabs = ctx && ctx.onPersonDetailTabs;
+    if (typeof onTabs === 'function') onTabs(t);
+    const pir = ctx && ctx.personInfoByRole;
+    fillPersonKontaktFields(cur, t, pir);
+}
+
+function showDetail(isOn) {
+    const hint = getEl('ssHint');
+    const detail = getEl('ssDetail');
+    const tenantDetail = getEl('ssTenantDetail');
+    if (hint) hint.style.display = isOn ? 'none' : '';
+    if (detail) detail.style.display = isOn ? '' : 'none';
+    if (tenantDetail) tenantDetail.style.display = 'none';
+}
+
+function setDetailFromRow(row, rows) {
+    if (!row) {
+        showDetail(false);
+        return;
+    }
+    showDetail(true);
+    fillParentSelect(rows, row.id, String(row.typ || ''));
+    getEl('ssBezeichnung').value = String(row.bezeichnung || '');
+    const besch = getEl('ssBeschreibung');
+    if (besch) besch.value = String(row.beschreibung || '');
+    getEl('ssTyp').value = String(row.typ || 'Gruppe');
+    getEl('ssSchuljahr').value = String(row.schuljahr || '');
+    getEl('ssStatus').value = String(row.status || 'Aktiv');
+    getEl('ssUebergeordnet').value = String(row.parentId || '');
+    getEl('ssSyncStatus').value = String(row.syncStatus || 'Ausstehend');
+    getEl('ssLetzteFehlermeldung').value = String(row.letzteFehlermeldung || '');
+
+    // Schema-spezifische Felder (Anlegen)
+    const jgYear = getEl('ssJgYear');
+    const jgSuffix = getEl('ssJgSuffix');
+    const argeCode = getEl('ssArgeCode');
+    const argeName = getEl('ssArgeName');
+    const ktKlasse = getEl('ssKtKlasse');
+    const ktFach = getEl('ssKtFach');
+    const ktGruppe = getEl('ssKtGruppe');
+    if (jgYear) jgYear.value = String(row.jgYear || '');
+    if (jgSuffix) jgSuffix.value = String(row.jgSuffix || '');
+    if (argeCode) argeCode.value = String(row.argeCode || '');
+    if (argeName) argeName.value = String(row.argeName || '');
+    if (ktKlasse) ktKlasse.value = String(row.ktKlasse || '');
+    if (ktFach) ktFach.value = String(row.ktFach || '');
+    if (ktGruppe) ktGruppe.value = String(row.ktGruppe || '');
+
+    // Tenant-Create Meta (Anlegen)
+    const target = getEl('ssStructTenantTarget');
+    const vis = getEl('ssStructTenantVisibility');
+    const nick = getEl('ssStructTenantMailNick');
+    const created = getEl('ssStructTenantCreatedId');
+    if (target) target.value = String(row.tenantTarget || '');
+    if (vis) vis.value = String(row.tenantVisibility || '');
+    if (nick) nick.value = String(row.tenantMailNickname || '');
+    if (created) created.value = String(row.tenantGroupId || '');
+
+    const ue = getEl('ssUebergeordnet');
+    const typEl = getEl('ssTyp');
+    if (row.isStructureTreeRoot) {
+        if (ue) {
+            ue.disabled = true;
+            ue.value = '';
+        }
+        if (typEl) typEl.disabled = true;
+    } else {
+        if (ue) ue.disabled = false;
+        if (typEl) typEl.disabled = false;
+    }
+}
+
+/* Tenant-Detail-UI → schulstruktur-sync-tenant-detail-ui.js */
+
+function readDetailToRow(row) {
+    const next = Object.assign({}, row);
+    next.bezeichnung = normStr(getEl('ssBezeichnung')?.value);
+    next.beschreibung = normStr(getEl('ssBeschreibung')?.value);
+    next.typ = normStr(getEl('ssTyp')?.value) || 'Gruppe';
+    next.schuljahr = normStr(getEl('ssSchuljahr')?.value);
+    next.status = normStr(getEl('ssStatus')?.value) || 'Aktiv';
+    next.parentId = normStr(getEl('ssUebergeordnet')?.value);
+    next.syncStatus = normStr(getEl('ssSyncStatus')?.value) || 'Ausstehend';
+    next.letzteFehlermeldung = normStr(getEl('ssLetzteFehlermeldung')?.value);
+    if (next.typ === 'Person') {
+        next.personName = normStr(getEl('ssPersonName')?.value);
+        next.personEmail = normStr(getEl('ssPersonEmail')?.value).toLowerCase();
+    } else {
+        next.personName = '';
+        next.personEmail = '';
+    }
+
+    // Schema-spezifische Meta (nur für Anlegen; optional)
+    next.jgYear = normStr(getEl('ssJgYear')?.value);
+    next.jgSuffix = normStr(getEl('ssJgSuffix')?.value);
+    next.argeCode = normStr(getEl('ssArgeCode')?.value);
+    next.argeName = normStr(getEl('ssArgeName')?.value);
+    next.ktKlasse = normStr(getEl('ssKtKlasse')?.value);
+    next.ktFach = normStr(getEl('ssKtFach')?.value);
+    next.ktGruppe = normStr(getEl('ssKtGruppe')?.value);
+
+    // Tenant-Create Meta (Anlegen)
+    next.tenantTarget = normStr(getEl('ssStructTenantTarget')?.value);
+    next.tenantVisibility = normStr(getEl('ssStructTenantVisibility')?.value);
+    if (row.isStructureTreeRoot) {
+        const canon = defaultStructureTreeRootRow(row.id);
+        if (canon) {
+            next.typ = canon.typ;
+            next.parentId = '';
+            next.id = String(row.id);
+            next.isStructureTreeRoot = true;
+        }
+    }
+    return next;
+}
+
+/*
+ * I/O-Helfer (`csvEscape`, `buildKursteamCsv*`, `buildKursteamProvisionScript`,
+ * `downloadJson`, `downloadText`) leben in `schulstruktur-sync-io.js`.
+ *
+ * Die folgenden Wrapper reichen die laufende Struktur-Auflösung
+ * (`resolveKursteamKlasseFachForRow` + aktuelle `loadState().rows`) per
+ * Dependency-Injection durch, damit die Aufrufer signaturgleich bleiben.
+ */
+function _currentKlasseFachResolver() {
+    const st = typeof loadState === 'function' ? loadState() : { rows: [] };
+    const allRows = (st && st.rows) || [];
+    return (row) => resolveKursteamKlasseFachForRow(row, allRows);
+}
+
+function buildKursteamCsv(rows, memberships, schemaState) {
+    return _buildKursteamCsvImpl(rows, memberships, schemaState, _currentKlasseFachResolver());
+}
+
+/* Graph-Client → schulstruktur-sync-graph.js */
+
+window.ms365TenantInventory = {
+    refresh: (onProgress) => loadTenantInventoryFull(onProgress || function () {}),
+    readCache: () => loadTenantCache(),
+    loadStructureState: () => {
+        const st = loadState();
+        // Für Schritt 4 (Matching) sollen auch die drei virtuellen Hauptbereiche verknüpfbar sein.
+        const settings = st.settings || {};
+        const structRootDetails = settings && settings.structRootDetails ? settings.structRootDetails : {};
+        const roots = [
+            mergeStructureTreeRootRow(STRUCT_TREE_ROOT_STUDENTS, structRootDetails),
+            mergeStructureTreeRootRow(STRUCT_TREE_ROOT_TEACHERS, structRootDetails),
+            mergeStructureTreeRootRow(STRUCT_TREE_ROOT_ADMIN, structRootDetails)
+        ].filter(Boolean);
+        return { rows: (st.rows || []).concat(roots), memberships: st.memberships, settings: st.settings };
+    },
+    loadMatchLinks: () => effectiveMatchLinksFromStore(),
+    suggestGroupForUnit: (unit) => suggestTenantGroupForUnitFromList(unit, loadTenantCache().rows || []),
+    saveMatchLink: (structureId, tenantGroupId, note, tenantUserId) =>
+        saveMatchLinkPublic(structureId, tenantGroupId, note, tenantUserId),
+    computeCreateSuggestion: (row) => {
+        const st = loadState();
+        const schemaState = Object.assign({}, defaultAnlegenSchemas(), st.settings || {});
+        return computeTenantCreateSuggestionFromRow(row, schemaState);
+    },
+    patchStructureRow: (rowId, patch) => {
+        const rid = String(rowId || '');
+        if (isStructureTreeRootId(rid)) {
+            const st = loadState();
+            const settings = Object.assign({}, st.settings || {});
+            if (!settings.structRootDetails || typeof settings.structRootDetails !== 'object') settings.structRootDetails = {};
+            const cur = mergeStructureTreeRootRow(rid, settings.structRootDetails) || defaultStructureTreeRootRow(rid);
+            if (!cur) return false;
+            const next = Object.assign({}, cur, patch || {});
+            settings.structRootDetails[rid] = pickStorableStructureTreeRootFields(next);
+            saveState({ rows: st.rows, memberships: st.memberships, settings });
+            try {
+                window.dispatchEvent(new CustomEvent('ms365-structure-changed', { detail: {} }));
+            } catch {
+                // ignore
+            }
+            return true;
+        }
+        return patchStructureRowById(rid, patch);
+    },
+    provisionGroupRow: (row) => graphProvisionStructureGroupRow(row),
+    provisionPersonRow: (row, opts) => graphProvisionPersonRowPublic(row, opts)
+};
+
+
+
+function bind() {
+    const isEmbedStructure =
+        typeof document !== 'undefined' &&
+        document.body &&
+        String(document.body.getAttribute('data-ss-embed-structure') || '') === 'true';
+    const state = loadState();
+    let rowsStruktur = state.rows.slice();
+    /** @type {Record<string, { owners: any[], members: any[] }>} */
+    let memberships = state.memberships || {};
+    const schemaState = Object.assign({}, defaultAnlegenSchemas(), state.settings || {});
+    normalizeGraphLayoutModeInSettings(schemaState);
+    /** @type {{links: Record<string, { tenantGroupId: string, note: string, updatedAt: string }>}} */
+    const matchState = loadMatchState();
+    /** @type {Record<string, { tenantGroupId: string, note: string, updatedAt: string }>} */
+    let links = matchState.links || {};
+    const tenantCache = loadTenantCache();
+    let rowsTenant = applyAdFlagsToTenantRows(tenantCache.rows.slice());
+    let selectedId = '';
+    /** @type {Set<string>} */
+    let tenantMultiSel = new Set();
+    /** @type {'struktur'|'tenant'|'match'} */
+    let mode = 'struktur';
+
+    function refreshEffectiveMatchLinks() {
+        links = overlayCatalogOnMatchLinks(
+            loadMatchState().links || {},
+            structureRowsForCatalogMatch(rowsStruktur, schemaState),
+            readCatalogSetup()
+        );
+        window.__ms365MatchLinks = links;
+    }
+
+    function migrateOrphanMatchLinksOnce() {
+        const api = window.ms365AppDataV2;
+        if (!api || typeof api.upsertCatalogLink !== 'function') return;
+        const upserts = catalogUpsertsFromOrphanMatchLinks(
+            structureRowsForCatalogMatch(rowsStruktur, schemaState),
+            loadMatchState().links || {},
+            readCatalogSetup()
+        );
+        upserts.forEach(function (u) {
+            api.upsertCatalogLink(u);
+        });
+    }
+
+    // Default-Verwaltung beim Start sicherstellen (auch bei komplett leeren Daten)
+    (function ensureDefaultVerwaltungOnInit() {
+        const schuljahr = currentSchoolYearLabel();
+        const hasTop = rowsStruktur.some((r) => r && r.typ === 'Gruppe' && String(r.bezeichnung || '').trim().toLowerCase() === 'verwaltung');
+        if (hasTop) return;
+        const vId = uid();
+        rowsStruktur.push({ id: vId, parentId: '', typ: 'Gruppe', bezeichnung: 'Verwaltung', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+        // Direktion/Administration sind in der Regel einzelne Personen; Sekretariat oft als Team/Gruppe
+        rowsStruktur.push({ id: uid(), parentId: vId, typ: 'Person', bezeichnung: 'Direktion', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+        rowsStruktur.push({ id: uid(), parentId: vId, typ: 'Person', bezeichnung: 'Administration', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+        rowsStruktur.push({ id: uid(), parentId: vId, typ: 'Gruppe', bezeichnung: 'Sekretariat', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+    })();
+
+    /* Multi-Tab / Org-Assistent: externe Structure-Writes einlesen */
+    wireStructureStorageListener(function () {
+        const st = loadState();
+        rowsStruktur = Array.isArray(st.rows) ? st.rows.slice() : [];
+        memberships = st.memberships && typeof st.memberships === 'object' ? st.memberships : {};
+        if (st.settings && typeof st.settings === 'object') {
+            Object.assign(schemaState, st.settings);
+        }
+        const ms = loadMatchState();
+        links = ms.links || {};
+        window.__ms365MatchLinks = links;
+        refreshEffectiveMatchLinks();
+        try {
+            rerender();
+        } catch {
+            /* rerender ggf. noch nicht definiert beim allerersten Tick */
+        }
+    });
+
+    /**
+     * Verwaltungszweig an Schul‑Einstellungen (admin: Rolle;Name;E‑Mail) angleichen:
+     * fehlende Rollen als Person anlegen, Kontaktdaten aus den Einstellungen übernehmen.
+     */
+    function syncVerwaltungStructureFromTenantSettings(settings, schuljahr) {
+        if (!settings || typeof settings !== 'object') return false;
+        const admin = Array.isArray(settings.admin) ? settings.admin : [];
+        if (!admin.length) return false;
+        const sj = String(schuljahr || '').trim() || currentSchoolYearLabel();
+        let changed = false;
+        let verw = rowsStruktur.find(
+            (r) =>
+                r &&
+                r.typ === 'Gruppe' &&
+                String(r.bezeichnung || '').trim().toLowerCase() === 'verwaltung' &&
+                !String(r.parentId || '').trim()
+        );
+        if (!verw) {
+            verw = {
+                id: uid(),
+                parentId: '',
+                typ: 'Gruppe',
+                bezeichnung: 'Verwaltung',
+                schuljahr: sj,
+                status: 'Aktiv',
+                syncStatus: 'Ausstehend',
+                letzteFehlermeldung: ''
+            };
+            rowsStruktur.push(verw);
+            changed = true;
+        }
+        const verwId = String(verw.id);
+        const byRole = new Map();
+        for (let i = 0; i < rowsStruktur.length; i++) {
+            const r = rowsStruktur[i];
+            if (!r || String(r.parentId || '') !== verwId) continue;
+            const key = normRoleKey(r.bezeichnung);
+            if (key && !byRole.has(key)) byRole.set(key, r);
+        }
+        for (let j = 0; j < admin.length; j++) {
+            const a = admin[j];
+            const role = normStr(a && (a.role || a.rolle || a.title));
+            if (!role) continue;
+            const rk = normRoleKey(role);
+            const name = normStr(a && a.name);
+            const email = normStr(a && a.email).toLowerCase();
+            const existing = byRole.get(rk);
+            if (existing) {
+                const nextN = name || '';
+                const nextE = email || '';
+                if (normStr(existing.personName) !== nextN || normStr(existing.personEmail).toLowerCase() !== nextE) {
+                    existing.personName = nextN;
+                    existing.personEmail = nextE;
+                    changed = true;
+                }
+                if (String(existing.typ || '') === 'Person' && normStr(existing.bezeichnung) !== role) {
+                    existing.bezeichnung = role;
+                    changed = true;
+                }
+                continue;
+            }
+            rowsStruktur.push({
+                id: uid(),
+                parentId: verwId,
+                typ: 'Person',
+                bezeichnung: role,
+                personName: name,
+                personEmail: email,
+                schuljahr: sj,
+                status: 'Aktiv',
+                syncStatus: 'Ausstehend',
+                letzteFehlermeldung: ''
+            });
+            byRole.set(rk, rowsStruktur[rowsStruktur.length - 1]);
+            changed = true;
+        }
+        return changed;
+    }
+
+    /** @type {{dragId: string, dragType: string}|null} */
+    let graphDrag = null;
+    let graphWrapDnDBound = false;
+    let graphNodesToggleBound = false;
+    /** @type {{x:number,y:number,scale:number}} */
+    let graphViewport = { x: 0, y: 0, scale: 1 };
+    let graphPan = null;
+    /** @type {Set<string>} */
+    let graphCollapsed = loadGraphCollapsedSet();
+    // In der Ersteinrichtung ist die Erwartung: alles sichtbar.
+    // Persistierte Collapsed-States aus anderen Seiten sind hier verwirrend.
+    try {
+        if (isEmbedStructure && /ersteinrichtung\.html$/i.test(String(window.location?.pathname || ''))) {
+            graphCollapsed = new Set();
+            saveGraphCollapsedSet(graphCollapsed);
+        }
+    } catch {
+        // ignore
+    }
+    /** @type {Map<string, {name:string,email:string}>} */
+    let personInfoByRole = new Map();
+
+    function refreshPersonInfoFromTenantSettings(settings) {
+        const next = new Map();
+        const s = settings && typeof settings === 'object' ? settings : null;
+        const admin = s && Array.isArray(s.admin) ? s.admin : [];
+        admin.forEach((a) => {
+            const role = normRoleKey(a?.role || a?.rolle || a?.title);
+            if (!role) return;
+            next.set(role, { name: normStr(a?.name), email: normStr(a?.email).toLowerCase() });
+        });
+        personInfoByRole = next;
+    }
+
+    // Initial: wenn wir in `tenant.html` laufen, Tenant-Settings sind vorhanden
+    try {
+        if (typeof window.ms365TenantSettingsLoad === 'function') {
+            const s = window.ms365TenantSettingsLoad();
+            refreshPersonInfoFromTenantSettings(s);
+            if (syncVerwaltungStructureFromTenantSettings(s, currentSchoolYearLabel())) {
+                saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            }
+        }
+    } catch {
+        // ignore
+    }
+
+    try {
+        migrateOrphanMatchLinksOnce();
+    } catch {
+        // ignore
+    }
+    refreshEffectiveMatchLinks();
+
+    // Graph/Create modal (Grundkonfiguration)
+    const modal = getEl('ssStructCreateModal');
+    const modalTitle = getEl('ssStructCreateTitle');
+    const modalHint = getEl('ssStructCreateHint');
+    const modalType = getEl('ssStructCreateType');
+    const modalName = getEl('ssStructCreateName');
+    const modalYear = getEl('ssStructCreateSchoolYear');
+    const modalOk = getEl('ssStructCreateOk');
+    const modalCancel = getEl('ssStructCreateCancel');
+    const modalClose = getEl('ssStructCreateClose');
+    const schemaWrap = getEl('ssStructCreateSchemaWrap');
+    const wrapJg = getEl('ssStructCreateSchemaJg');
+    const wrapArge = getEl('ssStructCreateSchemaArge');
+    const wrapKt = getEl('ssStructCreateSchemaKursteam');
+    const inpJgYear = getEl('ssStructCreateJgYear');
+    const inpJgSuffix = getEl('ssStructCreateJgSuffix');
+    const inpArgeCode = getEl('ssStructCreateArgeCode');
+    const inpArgeName = getEl('ssStructCreateArgeName');
+    const inpKtKlasse = getEl('ssStructCreateKtKlasse');
+    const inpKtFach = getEl('ssStructCreateKtFach');
+    const inpKtGruppe = getEl('ssStructCreateKtGruppe');
+    let modalParent = { id: '', typ: '' };
+
+    function allowedChildTypes(parentType) {
+        return allowedStructureChildTypes(String(parentType || ''));
+    }
+
+    function updateCreateSchemaUi() {
+        if (!schemaWrap || !wrapJg || !wrapArge || !wrapKt || !modalType) return;
+        const t = String(modalType.value || '');
+        const show = t === 'Jahrgang' || t === 'Arbeitsgemeinschaft' || t === 'Kursteam';
+        schemaWrap.style.display = show ? '' : 'none';
+        wrapJg.style.display = t === 'Jahrgang' ? '' : 'none';
+        wrapArge.style.display = t === 'Arbeitsgemeinschaft' ? '' : 'none';
+        wrapKt.style.display = t === 'Kursteam' ? '' : 'none';
+    }
+
+    function openCreateModal(parentId, parentType, preferredChildTyp) {
+        if (!modal || !modalType || !modalName || !modalYear) return;
+        modalParent = { id: String(parentId || ''), typ: String(parentType || '') };
+        const opts = allowedChildTypes(modalParent.typ);
+        modalType.replaceChildren();
+        for (const t of opts) {
+            const o = document.createElement('option');
+            o.value = t;
+            o.textContent = t === 'Arbeitsgemeinschaft' ? 'ARGE (Arbeitsgemeinschaft)' : t;
+            modalType.appendChild(o);
+        }
+        const pref = String(preferredChildTyp || '').trim();
+        modalType.value = opts.indexOf(pref) !== -1 ? pref : opts[0] || '';
+
+        // defaults
+        const parentRow = rowsStruktur.find((r) => String(r.id) === String(modalParent.id));
+        modalYear.value = parentRow && parentRow.schuljahr ? String(parentRow.schuljahr) : currentSchoolYearLabel();
+        modalName.value = '';
+        if (inpJgYear) inpJgYear.value = '';
+        if (inpJgSuffix) inpJgSuffix.value = '';
+        if (inpArgeCode) inpArgeCode.value = '';
+        if (inpArgeName) inpArgeName.value = '';
+        if (inpKtKlasse) inpKtKlasse.value = parentRow && parentRow.typ === 'Klasse' ? String(parentRow.bezeichnung || '') : '';
+        if (inpKtFach) inpKtFach.value = '';
+        if (inpKtGruppe) inpKtGruppe.value = '';
+
+        if (modalTitle) modalTitle.textContent = 'Neues Element hinzufügen';
+        if (modalHint) {
+            const pLab = modalParent.typ === 'SchuelerInnen' ? 'Schüler:innen' : modalParent.typ === 'LehrerInnen' ? 'Lehrer:innen' : modalParent.typ;
+            modalHint.textContent =
+                opts.length > 1
+                    ? `Unter „${pLab}“ anlegen. Typ: im Feld „Typ“ wählen (oder über das +-Menü im Baum/Organigramm).`
+                    : `Unter „${pLab}“ anlegen.`;
+        }
+
+        updateCreateSchemaUi();
+        closeStructureAddTypePicker();
+        modal.classList.add('active');
+        setTimeout(() => modalName.focus(), 0);
+    }
+
+    let structAddPickerOutsideDown = null;
+    let structAddPickerEscDown = null;
+    function closeStructureAddTypePicker() {
+        const el = getEl('ssStructAddTypePicker');
+        if (el) el.style.display = 'none';
+        if (structAddPickerOutsideDown) {
+            document.removeEventListener('mousedown', structAddPickerOutsideDown, true);
+            structAddPickerOutsideDown = null;
+        }
+        if (structAddPickerEscDown) {
+            document.removeEventListener('keydown', structAddPickerEscDown, true);
+            structAddPickerEscDown = null;
+        }
+    }
+
+    function openStructureAddTypePicker(opts, anchorEl, onPick) {
+        let el = getEl('ssStructAddTypePicker');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'ssStructAddTypePicker';
+            el.setAttribute('role', 'dialog');
+            el.setAttribute('aria-label', 'Typ wählen');
+            el.style.cssText = [
+                'display:none',
+                'position:fixed',
+                'z-index:100000',
+                'min-width:200px',
+                'max-width:min(92vw,340px)',
+                'padding:12px 12px 8px',
+                'border-radius:12px',
+                'border:1px solid color-mix(in srgb, var(--brand1) 35%, transparent)',
+                'background:#fff',
+                'box-shadow:0 18px 40px rgba(50,50,93,0.22)'
+            ].join(';');
+            const tit = document.createElement('div');
+            tit.textContent = 'Unterpunkt-Typ wählen';
+            tit.style.cssText = 'font-weight:1000;font-size:0.92em;color:#32325d;margin:0 0 8px;';
+            const row = document.createElement('div');
+            row.id = 'ssStructAddTypePickerRow';
+            row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
+            el.appendChild(tit);
+            el.appendChild(row);
+            document.body.appendChild(el);
+        }
+        const row = getEl('ssStructAddTypePickerRow');
+        if (!row) return;
+        row.replaceChildren();
+        for (const typ of opts) {
+            const lab = typ === 'Arbeitsgemeinschaft' ? 'ARGE' : typ;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn small-btn';
+            b.style.margin = '0';
+            b.textContent = lab;
+            b.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeStructureAddTypePicker();
+                onPick(typ);
+            });
+            row.appendChild(b);
+        }
+        const r =
+            anchorEl && typeof anchorEl.getBoundingClientRect === 'function'
+                ? anchorEl.getBoundingClientRect()
+                : { left: Math.max(12, window.innerWidth / 2 - 120), top: 96, bottom: 120, right: window.innerWidth / 2 + 120 };
+        el.style.display = 'block';
+        const ew = el.offsetWidth || 220;
+        const eh = el.offsetHeight || 80;
+        let left = Math.round(r.left);
+        let top = Math.round(r.bottom + 6);
+        if (left + ew > window.innerWidth - 8) left = Math.max(8, window.innerWidth - ew - 8);
+        if (top + eh > window.innerHeight - 8) top = Math.max(8, Math.round(r.top - eh - 6));
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+
+        structAddPickerOutsideDown = (ev) => {
+            if (!el || el.style.display === 'none') return;
+            const t = ev && ev.target;
+            if (el.contains(t)) return;
+            if (anchorEl && anchorEl.contains && anchorEl.contains(t)) return;
+            closeStructureAddTypePicker();
+        };
+        structAddPickerEscDown = (ev) => {
+            if (ev && ev.key === 'Escape') closeStructureAddTypePicker();
+        };
+        setTimeout(() => {
+            document.addEventListener('mousedown', structAddPickerOutsideDown, true);
+            document.addEventListener('keydown', structAddPickerEscDown, true);
+        }, 0);
+    }
+
+    function openStructureAddPicker(parentId, parentType, anchorEl) {
+        const opts = allowedChildTypes(String(parentType || ''));
+        if (!opts.length) return;
+        if (opts.length === 1) {
+            openCreateModal(parentId, parentType, opts[0]);
+            return;
+        }
+        openStructureAddTypePicker(opts, anchorEl, (typ) => openCreateModal(parentId, parentType, typ));
+    }
+
+    function closeCreateModal() {
+        if (!modal) return;
+        closeStructureAddTypePicker();
+        modal.classList.remove('active');
+    }
+
+    async function commitCreateModal() {
+        if (!modalType || !modalName || !modalYear) return;
+        const typ = String(modalType.value || '').trim();
+        if (!typ) return;
+        const bezeichnung = normStr(modalName.value);
+        if (!bezeichnung) {
+            await dlgAlert('Bitte eine Bezeichnung eingeben.', { title: 'Eingabe' });
+            return;
+        }
+        const schuljahr = normStr(modalYear.value) || currentSchoolYearLabel();
+
+        // strict rule guard (virtual root handled here)
+        if (!canReparentStrict(typ, modalParent.typ)) {
+            await dlgAlert('Nicht erlaubt: ' + typ + ' kann nicht unter ' + modalParent.typ + ' angelegt werden.', { title: 'Struktur' });
+            return;
+        }
+
+        const r = {
+            id: uid(),
+            parentId: (modalParent.typ === 'SchuelerInnen' || modalParent.typ === 'LehrerInnen') ? '' : String(modalParent.id || ''),
+            typ,
+            bezeichnung,
+            beschreibung: '',
+            schuljahr,
+            status: 'Aktiv',
+            syncStatus: 'Ausstehend',
+            letzteFehlermeldung: '',
+            jgYear: '',
+            jgSuffix: '',
+            argeCode: '',
+            argeName: '',
+            ktKlasse: '',
+            ktFach: '',
+            ktGruppe: '',
+            personName: '',
+            personEmail: ''
+        };
+
+        if (typ === 'Jahrgang') {
+            r.jgYear = normStr(inpJgYear?.value);
+            r.jgSuffix = normStr(inpJgSuffix?.value);
+        } else if (typ === 'Arbeitsgemeinschaft') {
+            r.argeCode = normStr(inpArgeCode?.value);
+            r.argeName = normStr(inpArgeName?.value);
+        } else if (typ === 'Kursteam') {
+            r.ktKlasse = normStr(inpKtKlasse?.value);
+            r.ktFach = normStr(inpKtFach?.value);
+            r.ktGruppe = normStr(inpKtGruppe?.value);
+        }
+
+        rowsStruktur.push(r);
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        emitWritebackFromStructure();
+        closeCreateModal();
+        if (!(await confirmMatchLeaveIfNeeded(String(r.id)))) return;
+        select(r.id);
+    }
+
+    if (modalType) modalType.addEventListener('change', () => updateCreateSchemaUi());
+    if (modalOk) modalOk.addEventListener('click', () => void commitCreateModal());
+    if (modalCancel) modalCancel.addEventListener('click', () => closeCreateModal());
+    if (modalClose) modalClose.addEventListener('click', () => closeCreateModal());
+    if (modal) {
+        modal.addEventListener('click', (ev) => {
+            if (ev.target === modal) closeCreateModal();
+        });
+        window.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape' && modal.classList.contains('active')) closeCreateModal();
+        });
+    }
+
+    // Graph/Edit modal (Details per Pop-Up)
+    const editModal = getEl('ssStructEditModal');
+    const editTitle = getEl('ssStructEditTitle');
+    const editHint = getEl('ssStructEditHint');
+    const editName = getEl('ssStructEditName');
+    const editType = getEl('ssStructEditType');
+    const editYear = getEl('ssStructEditSchoolYear');
+    const editStatus = getEl('ssStructEditStatus');
+    const editParent = getEl('ssStructEditParent');
+    const editSyncStatus = getEl('ssStructEditSyncStatus');
+    const editLastError = getEl('ssStructEditLastError');
+    const editBeschreibung = getEl('ssStructEditBeschreibung');
+    const editSave = getEl('ssStructEditSave');
+    const editDelete = getEl('ssStructEditDelete');
+    const editCancel = getEl('ssStructEditCancel');
+    const editClose = getEl('ssStructEditClose');
+    const editSchemaWrap = getEl('ssStructEditSchemaWrap');
+    const editWrapJg = getEl('ssStructEditSchemaJg');
+    const editWrapArge = getEl('ssStructEditSchemaArge');
+    const editWrapKt = getEl('ssStructEditSchemaKursteam');
+    const editJgYear = getEl('ssStructEditJgYear');
+    const editJgSuffix = getEl('ssStructEditJgSuffix');
+    const editArgeCode = getEl('ssStructEditArgeCode');
+    const editArgeName = getEl('ssStructEditArgeName');
+    const editKtKlasse = getEl('ssStructEditKtKlasse');
+    const editKtFach = getEl('ssStructEditKtFach');
+    const editKtGruppe = getEl('ssStructEditKtGruppe');
+    let editId = '';
+    /** Bearbeiten-Modal für virtuelle Baum-Wurzeln (__root_students__ / …), nicht für echte `rowsStruktur`-Zeilen. */
+    let editModalIsStructureTreeRoot = false;
+
+    // Listen <-> Struktur Sync
+    let __tenantToStructureGuard = 0;
+
+    function normalizeTenantClassCode(c) {
+        const code = c && c.code ? String(c.code).trim().toUpperCase() : '';
+        const name = c && c.name ? String(c.name).trim() : '';
+        return code || name || '';
+    }
+
+    function gradeLabelFromGraduationYear(gradYear, schuljahr) {
+        const gy = String(gradYear || '').trim();
+        const sy = String(schuljahr || '').trim().slice(0, 4);
+        const gyi = /^\d{4}$/.test(gy) ? parseInt(gy, 10) : NaN;
+        const syi = /^\d{4}$/.test(sy) ? parseInt(sy, 10) : NaN;
+        if (!isFinite(gyi) || !isFinite(syi)) return '';
+        const grade = gradeFromGraduationYear(gy, String(schuljahr || ''), schemaState.maxSchulstufen || 5);
+        if (!isFinite(grade) || grade < 1 || grade > 5) return '';
+        return String(Math.round(grade));
+    }
+
+    function ensureJahrgangForClass(classCode, graduationYear, schuljahr) {
+        const gy = String(graduationYear || '').trim();
+        if (!gy) return '';
+        const grade = gradeLabelFromGraduationYear(gy, schuljahr);
+        const labelByGrade = ('Jahrgang ' + (grade || '')).trim();
+        const existing = rowsStruktur.find((r) => r && r.typ === 'Jahrgang' && String(r.jgYear || '').trim() === gy);
+        if (existing) return String(existing.id);
+        // Wenn ein Jahrgang bereits manuell existiert (ohne jgYear), nutze ihn statt einen zweiten anzulegen.
+        const existingByLabel =
+            grade && labelByGrade
+                ? rowsStruktur.find(
+                      (r) =>
+                          r &&
+                          r.typ === 'Jahrgang' &&
+                          !String(r.jgYear || '').trim() &&
+                          String(r.bezeichnung || '').trim() === labelByGrade
+                  )
+                : null;
+        if (existingByLabel) {
+            existingByLabel.jgYear = gy;
+            return String(existingByLabel.id);
+        }
+        const jg = {
+            id: uid(),
+            parentId: '',
+            typ: 'Jahrgang',
+            bezeichnung: labelByGrade,
+            schuljahr: schuljahr || currentSchoolYearLabel(),
+            status: 'Aktiv',
+            syncStatus: 'Ausstehend',
+            letzteFehlermeldung: '',
+            jgYear: gy,
+            jgSuffix: ''
+        };
+        rowsStruktur.push(jg);
+        return String(jg.id);
+    }
+
+    function ensureStructureFromTenantSettings(settings, reason) {
+        if (!settings || typeof settings !== 'object') return;
+        if (__tenantToStructureGuard) return;
+        __tenantToStructureGuard++;
+        try {
+            const schuljahr = currentSchoolYearLabel();
+            let structureChanged = syncVerwaltungStructureFromTenantSettings(settings, schuljahr);
+
+            const classes = Array.isArray(settings.classes) ? settings.classes : [];
+            if (!classes.length) {
+                if (structureChanged) {
+                    saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+                    if (reason === 'render' || reason === 'manual-save' || reason === 'autosave') {
+                        rerender();
+                    }
+                }
+                return;
+            }
+
+            // Default-Verwaltung sicherstellen
+            (function ensureDefaultVerwaltung() {
+                const hasTop = rowsStruktur.some((r) => r && r.typ === 'Gruppe' && String(r.bezeichnung || '').trim().toLowerCase() === 'verwaltung');
+                if (hasTop) return;
+                const vId = uid();
+                rowsStruktur.push({ id: vId, parentId: '', typ: 'Gruppe', bezeichnung: 'Verwaltung', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+                rowsStruktur.push({ id: uid(), parentId: vId, typ: 'Person', bezeichnung: 'Direktion', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+                rowsStruktur.push({ id: uid(), parentId: vId, typ: 'Person', bezeichnung: 'Administration', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+                rowsStruktur.push({ id: uid(), parentId: vId, typ: 'Gruppe', bezeichnung: 'Sekretariat', schuljahr, status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' });
+            })();
+
+            // ARGEs/Arbeitsgemeinschaften aus Listen sicherstellen (Top-Level unter Lehrer:innen)
+            (function ensureArges() {
+                const arges = Array.isArray(settings.arges) ? settings.arges : [];
+                if (!arges.length) return;
+                const existingByCode = new Map(
+                    rowsStruktur
+                        .filter((r) => r && r.typ === 'Arbeitsgemeinschaft')
+                        .map((r) => [String(r.argeCode || r.bezeichnung || '').trim().toUpperCase(), r])
+                        .filter((x) => x[0])
+                );
+                arges.forEach((a) => {
+                    const code = String(a.code || '').trim().toUpperCase();
+                    if (!code) return;
+                    const name = String(a.name || '').trim();
+                    const ex = existingByCode.get(code);
+                    if (ex) {
+                        if (!ex.argeCode) ex.argeCode = code;
+                        if (name && !ex.argeName) ex.argeName = name;
+                        if (!ex.bezeichnung) ex.bezeichnung = name || code;
+                        return;
+                    }
+                    rowsStruktur.push({
+                        id: uid(),
+                        parentId: '',
+                        typ: 'Arbeitsgemeinschaft',
+                        bezeichnung: name || code,
+                        schuljahr,
+                        status: 'Aktiv',
+                        syncStatus: 'Ausstehend',
+                        letzteFehlermeldung: '',
+                        argeCode: code,
+                        argeName: name
+                    });
+                });
+            })();
+
+            const existingClasses = rowsStruktur.filter((r) => r && r.typ === 'Klasse');
+            const byCode = new Map(existingClasses.map((c) => [String(c.bezeichnung || '').trim().toUpperCase(), c]));
+
+            classes.forEach((c) => {
+                const label = normalizeTenantClassCode(c);
+                if (!label) return;
+                const parentId = ensureJahrgangForClass(label, c.year, schuljahr);
+                const ex = byCode.get(label.toUpperCase());
+                if (ex) {
+                    if (!ex.parentId && parentId) ex.parentId = parentId;
+                    if (!ex.schuljahr) ex.schuljahr = schuljahr;
+                    if (c.year && !ex.classGradYear) ex.classGradYear = String(c.year || '').trim();
+                    return;
+                }
+                rowsStruktur.push({
+                    id: uid(),
+                    parentId: parentId || '',
+                    typ: 'Klasse',
+                    bezeichnung: label,
+                    classGradYear: String(c.year || '').trim(),
+                    schuljahr,
+                    status: 'Aktiv',
+                    syncStatus: 'Ausstehend',
+                    letzteFehlermeldung: ''
+                });
+            });
+
+            // Optional: wenn Domain gesetzt ist, Schema-Domain aktualisieren
+            if (settings.domain && typeof settings.domain === 'string' && settings.domain.trim()) {
+                schemaState.domain = String(settings.domain).trim();
+            }
+
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            if (reason === 'render' || reason === 'manual-save' || reason === 'autosave') {
+                rerender();
+            }
+        } finally {
+            __tenantToStructureGuard--;
+        }
+    }
+
+    function emitWritebackFromStructure() {
+        try {
+            const classCodes = rowsStruktur
+                .filter((r) => r && r.typ === 'Klasse')
+                .map((r) => String(r.bezeichnung || '').trim())
+                .filter(Boolean);
+            const subjectCodes = rowsStruktur
+                .filter((r) => r && r.typ === 'Kursteam')
+                .map((r) => String(r.ktFach || '').trim())
+                .filter(Boolean);
+            const argeCodes = rowsStruktur
+                .filter((r) => r && r.typ === 'Arbeitsgemeinschaft')
+                .map((r) => String(r.argeCode || r.bezeichnung || '').trim())
+                .filter(Boolean);
+            window.dispatchEvent(
+                new CustomEvent('ms365-structure-changed', {
+                    detail: {
+                        writeback: { classCodes, subjectCodes, argeCodes }
+                    }
+                })
+            );
+        } catch {
+            // ignore
+        }
+    }
+
+    try {
+        window.addEventListener('ms365-tenant-settings-changed', (ev) => {
+            const d = ev && ev.detail ? ev.detail : null;
+            if (!d || !d.settings) return;
+            refreshPersonInfoFromTenantSettings(d.settings);
+            ensureStructureFromTenantSettings(d.settings, String(d.reason || ''));
+            rerender();
+        });
+    } catch {
+        // ignore
+    }
+
+    function openEditModalForId(id) {
+        if (!editModal || !editName || !editType || !editYear || !editStatus || !editParent) return;
+        if (editParent) editParent.disabled = false;
+        editModalIsStructureTreeRoot = false;
+
+        if (isStructureTreeRootId(id)) {
+            const rootRow = mergeStructureTreeRootRow(id, schemaState.structRootDetails);
+            if (!rootRow) return;
+            editModalIsStructureTreeRoot = true;
+            editId = String(id);
+            select(String(id));
+            if (editTitle) editTitle.textContent = 'Details: ' + (rootRow.bezeichnung || '(Hauptbereich)');
+            if (editHint) {
+                editHint.textContent =
+                    'Virtueller Hauptbereich (lokal). Bezeichnung/Beschreibung u. a. gelten u. a. für „Im Tenant anlegen“ und die Baum-Anzeige. Übergeordnet ist nicht wählbar.';
+            }
+
+            editName.value = String(rootRow.bezeichnung || '');
+            editType.value = String(rootRow.typ || '');
+            editYear.value = String(rootRow.schuljahr || currentSchoolYearLabel());
+            if (editStatus) editStatus.value = String(rootRow.status || 'Aktiv');
+            if (editSyncStatus) editSyncStatus.value = String(rootRow.syncStatus || 'Ausstehend');
+            if (editLastError) editLastError.value = String(rootRow.letzteFehlermeldung || '');
+            if (editBeschreibung) editBeschreibung.value = String(rootRow.beschreibung || '');
+
+            const editPersonWrap = getEl('ssStructEditPersonKontaktWrap');
+            const editPersonName = getEl('ssStructEditPersonName');
+            const editPersonEmail = getEl('ssStructEditPersonEmail');
+            if (editPersonWrap) editPersonWrap.style.display = 'none';
+            if (editPersonName) editPersonName.value = '';
+            if (editPersonEmail) editPersonEmail.value = '';
+
+            if (editSchemaWrap && editWrapJg && editWrapArge && editWrapKt) {
+                editSchemaWrap.style.display = 'none';
+                editWrapJg.style.display = 'none';
+                editWrapArge.style.display = 'none';
+                editWrapKt.style.display = 'none';
+            }
+
+            editParent.replaceChildren();
+            const optTop = document.createElement('option');
+            optTop.value = '';
+            optTop.textContent = '(oberste Ebene)';
+            editParent.appendChild(optTop);
+            editParent.value = '';
+            editParent.disabled = true;
+
+            editModal.classList.add('active');
+            setStructEditTab('allg');
+            applyPersonStructEditModalTabs(String(rootRow.typ || ''));
+            renderStructEditMembershipUi();
+            setTimeout(() => editName.focus(), 0);
+            return;
+        }
+
+        const row = rowsStruktur.find((r) => String(r.id) === String(id));
+        if (!row) return;
+        editId = String(row.id);
+        if (editTitle) editTitle.textContent = 'Details: ' + (row.bezeichnung || '(ohne Bezeichnung)');
+        if (editHint) editHint.textContent = 'Änderungen gelten für die SOLL‑Struktur (lokal). Drag&Drop funktioniert alternativ direkt im Organigramm.';
+
+        editName.value = String(row.bezeichnung || '');
+        editType.value = String(row.typ || '');
+        editYear.value = String(row.schuljahr || currentSchoolYearLabel());
+        if (editStatus) editStatus.value = String(row.status || 'Aktiv');
+        if (editSyncStatus) editSyncStatus.value = String(row.syncStatus || 'Ausstehend');
+        if (editLastError) editLastError.value = String(row.letzteFehlermeldung || '');
+        if (editBeschreibung) editBeschreibung.value = String(row.beschreibung || '');
+
+        // schema fields
+        const t = String(row.typ || '');
+        const editPersonWrap = getEl('ssStructEditPersonKontaktWrap');
+        const editPersonName = getEl('ssStructEditPersonName');
+        const editPersonEmail = getEl('ssStructEditPersonEmail');
+        const fromRolePerson =
+            personInfoByRole && typeof personInfoByRole.get === 'function'
+                ? personInfoByRole.get(normRoleKey(String(row.bezeichnung || ''))) || {}
+                : {};
+        if (editPersonWrap && editPersonName && editPersonEmail) {
+            if (t === 'Person') {
+                editPersonWrap.style.display = '';
+                editPersonName.value = normStr(row.personName) || normStr(fromRolePerson.name) || '';
+                editPersonEmail.value =
+                    normStr(row.personEmail).toLowerCase() || normStr(fromRolePerson.email).toLowerCase() || '';
+            } else {
+                editPersonWrap.style.display = 'none';
+                editPersonName.value = '';
+                editPersonEmail.value = '';
+            }
+        }
+        if (editSchemaWrap && editWrapJg && editWrapArge && editWrapKt) {
+            const show = t === 'Jahrgang' || t === 'Arbeitsgemeinschaft' || t === 'Kursteam';
+            editSchemaWrap.style.display = show ? '' : 'none';
+            editWrapJg.style.display = t === 'Jahrgang' ? '' : 'none';
+            editWrapArge.style.display = t === 'Arbeitsgemeinschaft' ? '' : 'none';
+            editWrapKt.style.display = t === 'Kursteam' ? '' : 'none';
+        }
+        if (editJgYear) editJgYear.value = String(row.jgYear || '');
+        if (editJgSuffix) editJgSuffix.value = String(row.jgSuffix || '');
+        if (editArgeCode) editArgeCode.value = String(row.argeCode || '');
+        if (editArgeName) editArgeName.value = String(row.argeName || '');
+        if (editKtKlasse) editKtKlasse.value = String(row.ktKlasse || '');
+        if (editKtFach) editKtFach.value = String(row.ktFach || '');
+        if (editKtGruppe) editKtGruppe.value = String(row.ktGruppe || '');
+
+        // parent options (strict)
+        editParent.replaceChildren();
+        const type = String(row.typ || '');
+        const root = inferRootForType(type);
+        const optRoot = document.createElement('option');
+        optRoot.value = root === 'LehrerInnen' ? '__root_teachers__' : '__root_students__';
+        optRoot.textContent = root === 'LehrerInnen' ? '(Lehrer:innen)' : '(Schüler:innen)';
+
+        // Determine allowed parent types
+        const candidates = [];
+        if (type === 'Klasse') {
+            rowsStruktur.filter((x) => x && x.typ === 'Jahrgang').forEach((x) => candidates.push(x));
+        } else if (type === 'Kursteam' || type === 'Gruppe') {
+            rowsStruktur.filter((x) => x && x.typ === 'Klasse').forEach((x) => candidates.push(x));
+            if (type === 'Gruppe') {
+                rowsStruktur.filter((x) => x && x.typ === 'Gruppe' && String(x.id) !== String(row.id)).forEach((x) => candidates.push(x));
+            }
+        } else if (type === 'Person') {
+            rowsStruktur.filter((x) => x && x.typ === 'Gruppe').forEach((x) => candidates.push(x));
+        } else if (type === 'Jahrgang' || type === 'Arbeitsgemeinschaft') {
+            // root only
+        }
+
+        // root allowed?
+        if (canReparentStrict(type, root)) editParent.appendChild(optRoot);
+        candidates
+            .sort((a, b) => compareDe(String(a.bezeichnung || ''), String(b.bezeichnung || '')))
+            .forEach((p) => {
+                const ok = canReparentStrict(type, String(p.typ || ''));
+                if (!ok) return;
+                const o = document.createElement('option');
+                o.value = String(p.id);
+                o.textContent = String(p.bezeichnung || '(ohne Bezeichnung)');
+                editParent.appendChild(o);
+            });
+
+        // current parent
+        const currentPid = String(row.parentId || '');
+        if (!currentPid) {
+            editParent.value = optRoot.value;
+        } else {
+            editParent.value = currentPid;
+        }
+
+        editModal.classList.add('active');
+        setStructEditTab('allg');
+        applyPersonStructEditModalTabs(String(row.typ || ''));
+        renderStructEditMembershipUi();
+        setTimeout(() => editName.focus(), 0);
+    }
+
+    function closeEditModal() {
+        if (!editModal) return;
+        editModal.classList.remove('active');
+        editId = '';
+        editModalIsStructureTreeRoot = false;
+        if (editParent) editParent.disabled = false;
+    }
+
+    // Details-Pop-Up Tabs (Allgemein | Owner | Mitglieder)
+    const editTabAllgBtn = getEl('ssStructEditTabAllgBtn');
+    const editTabOwnerBtn = getEl('ssStructEditTabOwnerBtn');
+    const editTabMitglBtn = getEl('ssStructEditTabMitglBtn');
+    const editTabAllg = getEl('ssStructEditTabAllg');
+    const editTabOwner = getEl('ssStructEditTabOwner');
+    const editTabMitgl = getEl('ssStructEditTabMitgl');
+
+    function setStructEditTab(key) {
+        const k = String(key || 'allg');
+        const isAllg = k === 'allg';
+        const isOwner = k === 'own';
+        const isMitgl = k === 'mem';
+        if (editTabAllgBtn) editTabAllgBtn.classList.toggle('active', isAllg);
+        if (editTabOwnerBtn) editTabOwnerBtn.classList.toggle('active', isOwner);
+        if (editTabMitglBtn) editTabMitglBtn.classList.toggle('active', isMitgl);
+        if (editTabAllgBtn) editTabAllgBtn.setAttribute('aria-selected', isAllg ? 'true' : 'false');
+        if (editTabOwnerBtn) editTabOwnerBtn.setAttribute('aria-selected', isOwner ? 'true' : 'false');
+        if (editTabMitglBtn) editTabMitglBtn.setAttribute('aria-selected', isMitgl ? 'true' : 'false');
+        if (editTabAllg) editTabAllg.classList.toggle('active', isAllg);
+        if (editTabOwner) editTabOwner.classList.toggle('active', isOwner);
+        if (editTabMitgl) editTabMitgl.classList.toggle('active', isMitgl);
+    }
+
+    if (editTabAllgBtn) editTabAllgBtn.addEventListener('click', () => setStructEditTab('allg'));
+    if (editTabOwnerBtn) editTabOwnerBtn.addEventListener('click', () => setStructEditTab('own'));
+    if (editTabMitglBtn) editTabMitglBtn.addEventListener('click', () => setStructEditTab('mem'));
+
+    function applyPersonStructEditModalTabs(typ) {
+        const isPerson = String(typ || '') === 'Person';
+        ['ssStructEditTabOwnerBtn', 'ssStructEditTabMitglBtn'].forEach((id) => {
+            const el = getEl(id);
+            if (!el) return;
+            el.style.display = isPerson ? 'none' : '';
+            el.disabled = isPerson;
+            el.setAttribute('aria-hidden', isPerson ? 'true' : 'false');
+            if (isPerson) el.classList.remove('active');
+        });
+        ['ssStructEditTabOwner', 'ssStructEditTabMitgl'].forEach((id) => {
+            const el = getEl(id);
+            if (!el) return;
+            el.style.display = isPerson ? 'none' : '';
+            el.setAttribute('aria-hidden', isPerson ? 'true' : 'false');
+            if (isPerson) el.classList.remove('active');
+        });
+        if (isPerson) setStructEditTab('allg');
+    }
+
+    function renderStructEditMembershipUi() {
+        const id = String(editId || '');
+        if (!id) return;
+        const m = getStructMembership(id);
+        renderStructPeople(m.owners, 'ssStructEditOwnersList', 'data-ss-struct-edit-remove-owner');
+        renderStructPeople(m.members, 'ssStructEditMembersList', 'data-ss-struct-edit-remove-member');
+    }
+
+    // Owner/Mitglieder im Details-Pop-Up
+    getEl('ssStructEditOwnerSearchBtn')?.addEventListener('click', async () => {
+        await runStructUserSearch(getEl('ssStructEditOwnerSearch')?.value || '', 'ssStructEditOwnerSearchResults');
+    });
+    getEl('ssStructEditMemberSearchBtn')?.addEventListener('click', async () => {
+        await runStructUserSearch(getEl('ssStructEditMemberSearch')?.value || '', 'ssStructEditMemberSearchResults');
+    });
+    getEl('ssStructEditOwnerAddBtn')?.addEventListener('click', () => {
+        if (!editId) return;
+        const sel = getEl('ssStructEditOwnerSearchResults');
+        const raw = sel ? sel.value : '';
+        const user = safeJsonParse(raw);
+        if (!user) return;
+        const m = getStructMembership(editId);
+        if (!m.owners.some((x) => String(x.id) === String(user.id))) m.owners.push(user);
+        setStructMembership(editId, m);
+        renderStructEditMembershipUi();
+    });
+    getEl('ssStructEditMemberAddBtn')?.addEventListener('click', () => {
+        if (!editId) return;
+        const sel = getEl('ssStructEditMemberSearchResults');
+        const raw = sel ? sel.value : '';
+        const user = safeJsonParse(raw);
+        if (!user) return;
+        const m = getStructMembership(editId);
+        if (!m.members.some((x) => String(x.id) === String(user.id))) m.members.push(user);
+        setStructMembership(editId, m);
+        renderStructEditMembershipUi();
+    });
+    getEl('ssStructEditOwnersList')?.addEventListener('click', (ev) => {
+        if (!editId) return;
+        const t = ev && ev.target ? ev.target : null;
+        const btn = t && t.closest ? t.closest('[data-ss-struct-edit-remove-owner]') : null;
+        if (!btn) return;
+        const uid = btn.getAttribute('data-ss-struct-edit-remove-owner') || '';
+        const m = getStructMembership(editId);
+        m.owners = (m.owners || []).filter((x) => String(x.id) !== String(uid));
+        setStructMembership(editId, m);
+        renderStructEditMembershipUi();
+    });
+    getEl('ssStructEditMembersList')?.addEventListener('click', (ev) => {
+        if (!editId) return;
+        const t = ev && ev.target ? ev.target : null;
+        const btn = t && t.closest ? t.closest('[data-ss-struct-edit-remove-member]') : null;
+        if (!btn) return;
+        const uid = btn.getAttribute('data-ss-struct-edit-remove-member') || '';
+        const m = getStructMembership(editId);
+        m.members = (m.members || []).filter((x) => String(x.id) !== String(uid));
+        setStructMembership(editId, m);
+        renderStructEditMembershipUi();
+    });
+
+    async function saveEditModal() {
+        if (!editId) return;
+        if (editModalIsStructureTreeRoot && isStructureTreeRootId(editId)) {
+            const nextName = normStr(editName?.value);
+            if (!nextName) {
+                await dlgAlert('Bitte eine Bezeichnung eingeben.', { title: 'Eingabe' });
+                return;
+            }
+            if (!schemaState.structRootDetails || typeof schemaState.structRootDetails !== 'object') {
+                schemaState.structRootDetails = {};
+            }
+            const cur = mergeStructureTreeRootRow(editId, schemaState.structRootDetails) || defaultStructureTreeRootRow(editId);
+            if (!cur) return;
+            cur.bezeichnung = nextName;
+            if (editBeschreibung) cur.beschreibung = normStr(editBeschreibung.value);
+            cur.schuljahr = normStr(editYear?.value) || currentSchoolYearLabel();
+            cur.status = normStr(editStatus?.value) || 'Aktiv';
+            cur.syncStatus = normStr(editSyncStatus?.value) || 'Ausstehend';
+            cur.letzteFehlermeldung = normStr(editLastError?.value);
+            schemaState.structRootDetails[String(editId)] = pickStorableStructureTreeRootFields(cur);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            selectedId = String(editId);
+            rerender();
+            closeEditModal();
+            return;
+        }
+
+        const row = rowsStruktur.find((r) => String(r.id) === String(editId));
+        if (!row) return;
+        const nextName = normStr(editName?.value);
+        if (!nextName) {
+            await dlgAlert('Bitte eine Bezeichnung eingeben.', { title: 'Eingabe' });
+            return;
+        }
+        row.bezeichnung = nextName;
+        if (editBeschreibung) row.beschreibung = normStr(editBeschreibung.value);
+        row.schuljahr = normStr(editYear?.value) || currentSchoolYearLabel();
+        row.status = normStr(editStatus?.value) || 'Aktiv';
+        row.syncStatus = normStr(editSyncStatus?.value) || 'Ausstehend';
+        row.letzteFehlermeldung = normStr(editLastError?.value);
+
+        const t = String(row.typ || '');
+        if (t === 'Person') {
+            row.personName = normStr(getEl('ssStructEditPersonName')?.value);
+            row.personEmail = normStr(getEl('ssStructEditPersonEmail')?.value).toLowerCase();
+        } else {
+            row.personName = '';
+            row.personEmail = '';
+        }
+        if (t === 'Jahrgang') {
+            row.jgYear = normStr(editJgYear?.value);
+            row.jgSuffix = normStr(editJgSuffix?.value);
+        } else if (t === 'Arbeitsgemeinschaft') {
+            row.argeCode = normStr(editArgeCode?.value);
+            row.argeName = normStr(editArgeName?.value);
+        } else if (t === 'Kursteam') {
+            row.ktKlasse = normStr(editKtKlasse?.value);
+            row.ktFach = normStr(editKtFach?.value);
+            row.ktGruppe = normStr(editKtGruppe?.value);
+        }
+
+        // parent
+        const pv = editParent && editParent.value ? String(editParent.value) : '';
+        const root = inferRootForType(row.typ);
+        const isRootSel = pv === '__root_students__' || pv === '__root_teachers__';
+        if (isRootSel) {
+            if (!canReparentStrict(row.typ, root)) {
+                await dlgAlert('Nicht erlaubt: ' + row.typ + ' kann nicht direkt unter Root liegen.', { title: 'Struktur' });
+                return;
+            }
+            row.parentId = '';
+        } else {
+            const pRow = rowsStruktur.find((r) => String(r.id) === String(pv));
+            if (!pRow) {
+                await dlgAlert('Übergeordnetes Element ungültig.', { title: 'Struktur' });
+                return;
+            }
+            if (!canReparentStrict(row.typ, String(pRow.typ || ''))) {
+                await dlgAlert('Nicht erlaubt: ' + row.typ + ' kann nicht unter ' + pRow.typ + ' liegen.', { title: 'Struktur' });
+                return;
+            }
+            // cycle guard
+            if (String(pRow.id) === String(row.id)) {
+                await dlgAlert('Nicht erlaubt: Zyklus.', { title: 'Struktur' });
+                return;
+            }
+            row.parentId = String(pRow.id);
+        }
+
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        emitWritebackFromStructure();
+        selectedId = String(row.id);
+        rerender();
+        closeEditModal();
+    }
+
+    async function deleteEditModal() {
+        if (!editId) return;
+        if (editModalIsStructureTreeRoot || isStructureTreeRootId(editId)) {
+            await dlgAlert('Die Hauptäste Schüler:innen, Lehrer:innen und Verwaltung können nicht gelöscht werden.', { title: 'Löschen' });
+            return;
+        }
+        const row = rowsStruktur.find((r) => String(r.id) === String(editId));
+        if (!row) return;
+        const label = row.bezeichnung ? `"${row.bezeichnung}"` : 'diesen Eintrag';
+        if (!(await dlgConfirm('Wirklich ' + label + ' löschen? (Unterpunkte werden ebenfalls entfernt.)', { title: 'Löschen', okText: 'Löschen', danger: true })))
+            return;
+        remove(row.id);
+        selectedId = '';
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        emitWritebackFromStructure();
+        rerender();
+        closeEditModal();
+    }
+
+    if (editSave) editSave.addEventListener('click', () => void saveEditModal());
+    if (editDelete) editDelete.addEventListener('click', () => void deleteEditModal());
+    if (editCancel) editCancel.addEventListener('click', () => closeEditModal());
+    if (editClose) editClose.addEventListener('click', () => closeEditModal());
+    if (editModal) {
+        editModal.addEventListener('click', (ev) => {
+            if (ev.target === editModal) closeEditModal();
+        });
+        window.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape' && editModal.classList.contains('active')) closeEditModal();
+        });
+    }
+
+    function setTenantBulkModeUi(isBulk) {
+        // Bulk-Controls (im Owner-Tab)
+        const bulkWrap = getEl('ssTenantBulkWrap');
+        const bulkCount = getEl('ssTenantBulkCount');
+        if (bulkWrap) bulkWrap.style.display = isBulk ? '' : 'none';
+        if (bulkCount) bulkCount.textContent = String(tenantMultiSel ? tenantMultiSel.size : 0);
+
+        // Disable other details in bulk mode (Allgemein/Mitglieder + Single-Owner-Controls)
+        const allgPanel = getEl('slgTabGeneral');
+        const memPanel = getEl('slgTabMembers');
+        if (allgPanel) allgPanel.classList.toggle('bulk-disabled', !!isBulk);
+        if (memPanel) memPanel.classList.toggle('bulk-disabled', !!isBulk);
+
+        const disableIds = [
+            'slgLiveName',
+            'slgLiveDescription',
+            'slgArchiveState',
+            'slgArchiveSpoReadonly',
+            'slgBtnUpdateGroup',
+            'slgBtnRefreshGroup',
+            'slgBtnRenewExpires',
+            'slgBtnDeleteGroup',
+            'slgBtnOpenEntra',
+            'slgOwnerSearch',
+            'slgOwnerSearchBtn',
+            'slgOwnerSearchResults',
+            'slgOwnerAddBtn',
+            'slgOwnersReloadBtn',
+            'slgMemberSearch',
+            'slgMemberSearchBtn',
+            'slgMemberSearchResults',
+            'slgMemberAddBtn',
+            'slgMembersReloadBtn'
+        ];
+        for (const id of disableIds) {
+            const el = getEl(id);
+            if (!el) continue;
+            try {
+                el.disabled = !!isBulk;
+            } catch {
+                // ignore
+            }
+        }
+
+        // Make lists non-interactive in bulk mode (remove buttons etc.)
+        const ownersList = getEl('slgOwnersList');
+        const membersList = getEl('slgMembersList');
+        if (ownersList) ownersList.classList.toggle('bulk-disabled', !!isBulk);
+        if (membersList) membersList.classList.toggle('bulk-disabled', !!isBulk);
+        const singleWrap = getEl('slgOwnerSingleWrap');
+        if (singleWrap) singleWrap.style.display = isBulk ? 'none' : '';
+    }
+
+    function toggleStructureBranch(collapsedId) {
+        const sid = String(collapsedId);
+        if (graphCollapsed.has(sid)) graphCollapsed.delete(sid);
+        else graphCollapsed.add(sid);
+        saveGraphCollapsedSet(graphCollapsed);
+        rerender();
+    }
+
+    function rerender() {
+        if (mode === 'struktur' && rowsStruktur && rowsStruktur.length) {
+            let st = null;
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    st = window.ms365TenantSettingsLoad();
+                }
+            } catch {
+                // ignore
+            }
+            if (ensureFachschaftFachGruppen(rowsStruktur, st)) {
+                saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            }
+        }
+        const rows = mode === 'tenant' ? rowsTenant : rowsStruktur;
+        renderFilters(rows, mode);
+        renderTree(
+            rows,
+            selectedId,
+            mode,
+            mode === 'struktur' || mode === 'match' ? graphCollapsed : null,
+            mode === 'struktur' || mode === 'match' ? toggleStructureBranch : null,
+            mode === 'struktur' || mode === 'match' ? schemaState.structRootDetails : null,
+            mode === 'struktur' || mode === 'match' ? openStructureAddPicker : null
+        );
+        setModeHint(mode, tenantCache.loadedAt || '');
+
+        // Multi-select highlight + bulk UI
+        if (mode === 'tenant') {
+            try {
+                const tree = getEl('ssTree');
+                const buttons = tree ? tree.querySelectorAll('button[data-ss-select]') : [];
+                buttons.forEach((b) => {
+                    const id = b.getAttribute('data-ss-select') || '';
+                    b.classList.toggle('is-multi-selected', tenantMultiSel.has(id));
+                });
+            } catch {
+                // ignore
+            }
+            const isBulk = tenantMultiSel.size >= 2;
+            setTenantBulkModeUi(isBulk);
+            // In Bulk-Modus automatisch Owner-Tab anzeigen (dort ist die Bulk-Maske).
+            if (isBulk) {
+                const G = window.ms365GroupDetail;
+                if (G) G.setTab('owners');
+            }
+        } else {
+            setTenantBulkModeUi(false);
+        }
+
+        let sel = rows.find((r) => String(r.id) === String(selectedId));
+        if ((mode === 'struktur' || mode === 'match') && !sel && isStructureTreeRootId(selectedId)) {
+            sel = mergeStructureTreeRootRow(selectedId, schemaState.structRootDetails);
+        }
+        if (mode === 'tenant') {
+            showTenantDetail(sel || null);
+            const md = getEl('ssMatchDetail');
+            if (md) md.style.display = 'none';
+        } else {
+            setDetailFromRow(sel || null, rowsStruktur);
+            const td = getEl('ssTenantDetail');
+            if (td) td.style.display = 'none';
+        }
+        // Schema-Vorschau (Anlegen) aktualisieren
+        if (mode === 'struktur') {
+            renderAnlegenSchemaUnitUi();
+            updateStructTenantCreateUi();
+            updateGraphQuickCreateBtn();
+            refreshStrukturTypDependentUi({
+                mode,
+                selectedId,
+                rowsStruktur,
+                structRootDetails: schemaState.structRootDetails,
+                onPersonDetailTabs: applyPersonStructTabsForDetailPanel,
+                personInfoByRole
+            });
+        }
+
+        // Organigramm (SOLL): Anlegen + Abgleich
+        if (mode === 'struktur' || mode === 'match') {
+            const graphPanel = getEl('ssGraphViewPanel');
+            const treePanel = getEl('ssTreeViewPanel');
+            const bTree = getEl('ssViewTabTreeBtn');
+            const bGraph = getEl('ssViewTabGraphBtn');
+            const activeGraph = bGraph && bGraph.getAttribute('aria-selected') === 'true';
+            if (graphPanel && treePanel) {
+                graphPanel.classList.toggle('active', !!activeGraph);
+                treePanel.classList.toggle('active', !activeGraph);
+            }
+            if (activeGraph) {
+                const model = renderGraphView(
+                    rowsStruktur,
+                    selectedId,
+                    (id, meta) => {
+                        void (async () => {
+                            if (!(await confirmMatchLeaveIfNeeded(id))) return;
+                            select(id);
+                            if (meta && meta.openDetails) openEditModalForId(id);
+                        })();
+                    },
+                    graphViewport,
+                    graphCollapsed,
+                    personInfoByRole,
+                    schemaState.structRootDetails,
+                    schemaState.graphLayoutMode,
+                    openStructureAddPicker
+                );
+                updateGraphToolbarState();
+                // Bind DnD after render
+                try {
+                    const nodesHost = getEl('ssGraphNodes');
+                    const wrap = getEl('ssGraphWrap');
+                    if (nodesHost && wrap && model) {
+                        if (!graphNodesToggleBound) {
+                            graphNodesToggleBound = true;
+                            nodesHost.addEventListener('click', (ev) => {
+                                const t = ev && ev.target ? ev.target : null;
+                                const btn = t && typeof t.closest === 'function' ? t.closest('.ss-graph-toggle') : null;
+                                if (!btn) return;
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                const id = String(btn.getAttribute('data-ss-toggle-for') || '');
+                                if (!id) return;
+                                if (graphCollapsed.has(id)) graphCollapsed.delete(id);
+                                else graphCollapsed.add(id);
+                                saveGraphCollapsedSet(graphCollapsed);
+                                rerender();
+                            });
+                        }
+                        const nodeEls = Array.from(nodesHost.querySelectorAll('.ss-graph-node[data-ss-node-id]'));
+                        nodeEls.forEach((el) => {
+                            // plus button -> create modal
+                            const plus = el.querySelector('button[data-ss-plus-for]');
+                            if (plus) {
+                                plus.addEventListener('click', (ev) => {
+                                    ev.preventDefault();
+                                    ev.stopPropagation();
+                                    const pid = el.getAttribute('data-ss-node-id') || '';
+                                    const pt = el.getAttribute('data-ss-node-type') || '';
+                                    if (typeof openStructureAddPicker === 'function') {
+                                        openStructureAddPicker(pid, pt, plus);
+                                    }
+                                });
+                            }
+
+                            el.addEventListener('dragstart', (ev) => {
+                                const did = el.getAttribute('data-ss-node-id') || '';
+                                if (isStructureSyntheticGraphNodeId(did)) {
+                                    try {
+                                        ev.preventDefault();
+                                    } catch {
+                                        // ignore
+                                    }
+                                    return;
+                                }
+                                const dt = el.getAttribute('data-ss-node-type') || '';
+                                graphDrag = { dragId: did, dragType: dt };
+                                try {
+                                    ev.dataTransfer.effectAllowed = 'move';
+                                    ev.dataTransfer.setData('text/plain', did);
+                                } catch {
+                                    // ignore
+                                }
+                            });
+                            el.addEventListener('dragend', () => {
+                                graphDrag = null;
+                            });
+                            el.addEventListener('dragover', (ev) => {
+                                if (!graphDrag || !graphDrag.dragId) return;
+                                const targetId = el.getAttribute('data-ss-node-id') || '';
+                                if (!targetId || targetId === graphDrag.dragId) return;
+                                if (isStructureSyntheticGraphNodeId(targetId)) return;
+                                const targetType = el.getAttribute('data-ss-node-type') || '';
+                                const ok = canReparentStrict(graphDrag.dragType, targetType);
+                                if (!ok) return;
+                                ev.preventDefault();
+                                try {
+                                    ev.dataTransfer.dropEffect = 'move';
+                                } catch {
+                                    // ignore
+                                }
+                            });
+                            el.addEventListener('drop', (ev) => {
+                                if (!graphDrag || !graphDrag.dragId) return;
+                                const targetId = el.getAttribute('data-ss-node-id') || '';
+                                const targetType = el.getAttribute('data-ss-node-type') || '';
+                                if (!targetId || targetId === graphDrag.dragId) return;
+                                if (isStructureSyntheticGraphNodeId(targetId)) return;
+                                const ok = canReparentStrict(graphDrag.dragType, targetType);
+                                if (!ok) return;
+                                ev.preventDefault();
+
+                                const child = rowsStruktur.find((r) => String(r.id) === String(graphDrag.dragId));
+                                if (!child) return;
+                                void (async () => {
+                                    if (!(await confirmMatchLeaveIfNeeded(String(child.id)))) return;
+                                    // Virtual roots reset to ''
+                                    const isRootTarget = targetType === 'SchuelerInnen' || targetType === 'LehrerInnen';
+                                    child.parentId = isRootTarget ? '' : String(targetId);
+                                    saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+                                    emitWritebackFromStructure();
+                                    selectedId = String(child.id);
+                                    rerender();
+                                })();
+                            });
+                        });
+
+                        // allow dropping onto background -> root (only if allowed)
+                        if (!graphWrapDnDBound) {
+                            graphWrapDnDBound = true;
+                            wrap.addEventListener('dragover', (ev) => {
+                                if (!graphDrag || !graphDrag.dragId) return;
+                                const rootType = inferRootForType(graphDrag.dragType);
+                                const ok =
+                                    rootType === 'SchuelerInnen'
+                                        ? canReparentStrict(graphDrag.dragType, 'SchuelerInnen')
+                                        : rootType === 'LehrerInnen'
+                                          ? canReparentStrict(graphDrag.dragType, 'LehrerInnen')
+                                          : false;
+                                if (!ok) return;
+                                ev.preventDefault();
+                            });
+                            wrap.addEventListener('drop', (ev) => {
+                                if (!graphDrag || !graphDrag.dragId) return;
+                                const rootType = inferRootForType(graphDrag.dragType);
+                                const ok =
+                                    rootType === 'SchuelerInnen'
+                                        ? canReparentStrict(graphDrag.dragType, 'SchuelerInnen')
+                                        : rootType === 'LehrerInnen'
+                                          ? canReparentStrict(graphDrag.dragType, 'LehrerInnen')
+                                          : false;
+                                if (!ok) return;
+                                ev.preventDefault();
+                                const child = rowsStruktur.find((r) => String(r.id) === String(graphDrag.dragId));
+                                if (!child) return;
+                                void (async () => {
+                                    if (!(await confirmMatchLeaveIfNeeded(String(child.id)))) return;
+                                    child.parentId = '';
+                                    saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+                                    emitWritebackFromStructure();
+                                    selectedId = String(child.id);
+                                    rerender();
+                                })();
+                            });
+
+                            // Pan (drag background)
+                            wrap.addEventListener('mousedown', (ev) => {
+                                // only left button and only background (not nodes/buttons)
+                                if (ev.button !== 0) return;
+                                const target = ev.target;
+                                const isInteractive = target && (target.closest && target.closest('.ss-graph-node'));
+                                if (isInteractive) return;
+                                graphPan = {
+                                    startX: ev.clientX,
+                                    startY: ev.clientY,
+                                    baseX: graphViewport.x,
+                                    baseY: graphViewport.y
+                                };
+                                wrap.style.cursor = 'grabbing';
+                                ev.preventDefault();
+                            });
+                            window.addEventListener('mousemove', (ev) => {
+                                if (!graphPan) return;
+                                const dx = ev.clientX - graphPan.startX;
+                                const dy = ev.clientY - graphPan.startY;
+                                graphViewport.x = graphPan.baseX + dx;
+                                graphViewport.y = graphPan.baseY + dy;
+                                rerender();
+                            });
+                            window.addEventListener('mouseup', () => {
+                                if (!graphPan) return;
+                                graphPan = null;
+                                try {
+                                    wrap.style.cursor = '';
+                                } catch {
+                                    // ignore
+                                }
+                            });
+
+                            // Zoom (mouse wheel)
+                            wrap.addEventListener('wheel', (ev) => {
+                                // allow page scroll when not over organigramm
+                                ev.preventDefault();
+                                const rect = wrap.getBoundingClientRect();
+                                const cx = ev.clientX - rect.left;
+                                const cy = ev.clientY - rect.top;
+                                const prev = graphViewport.scale;
+                                const delta = ev.deltaY;
+                                const factor = delta > 0 ? 0.9 : 1.1;
+                                let next = prev * factor;
+                                next = Math.max(0.4, Math.min(2.4, next));
+                                const k = next / prev;
+                                // zoom around cursor: adjust translation so the point under cursor stays stable
+                                graphViewport.x = cx - (cx - graphViewport.x) * k;
+                                graphViewport.y = cy - (cy - graphViewport.y) * k;
+                                graphViewport.scale = next;
+                                rerender();
+                            }, { passive: false });
+                        }
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+            if (!activeGraph) {
+                updateGraphToolbarState();
+            }
+        }
+
+
+        // Match view uses structure selection but different right panel
+        if (mode === 'match') {
+            // expose caches for renderMatchDetail helper
+            window.__ms365TenantRowsCache = rowsTenant;
+            try {
+                window.__ms365TenantUsersCache = loadTenantCache().users || [];
+            } catch {
+                window.__ms365TenantUsersCache = [];
+            }
+            refreshEffectiveMatchLinks();
+            const td = getEl('ssTenantDetail');
+            if (td) td.style.display = 'none';
+            const sd = getEl('ssDetail');
+            if (sd) sd.style.display = 'none';
+            const md = getEl('ssMatchDetail');
+            if (md) md.style.display = sel ? '' : 'none';
+            if (sel) {
+                renderMatchDetail(sel);
+            }
+        }
+
+        // Anlegen: wenn nichts ausgewählt ist, Settings anzeigen
+        const settingsPanel = getEl('ssAnlegenSettingsPanel');
+        if (settingsPanel) {
+            const show = mode === 'struktur';
+            settingsPanel.style.display = show ? '' : 'none';
+            if (show) {
+                wireSchemaTabsOnce();
+                bindAnlegenSettingsUi();
+            }
+        }
+    }
+
+    async function synchronizeTenantTeamArchiveFlag() {
+        const rid = selectedId ? String(selectedId) : '';
+        if (mode !== 'tenant' || !rid) return;
+        const row = rowsTenant.find((r) => String(r.id) === String(rid));
+        const typ = String(row && row.typ ? row.typ : '');
+        if (!row || (typ !== 'Team' && typ !== 'Gruppe')) return;
+        try {
+            const token = await getGraphToken(GRAPH_SCOPES_TENANT_READ);
+            const ar = await resolveTeamsArchiveStateForUnifiedGroupId(rid, token);
+            if (String(selectedId) !== rid) return;
+            const idx = rowsTenant.findIndex((r) => String(r.id) === String(rid));
+            if (idx === -1) return;
+            rowsTenant[idx] = Object.assign({}, rowsTenant[idx], {
+                hasTeamsForArchive: ar.hasTeamsForArchive,
+                teamIsArchived: ar.teamIsArchived
+            });
+            saveTenantCache(rowsTenant);
+            if (String(selectedId) === rid) {
+                showTenantDetail(rowsTenant[idx]);
+            }
+        } catch {
+            if (String(selectedId) !== rid) return;
+            const idx = rowsTenant.findIndex((r) => String(r.id) === String(rid));
+            if (idx === -1) return;
+            rowsTenant[idx] = Object.assign({}, rowsTenant[idx], {
+                hasTeamsForArchive: true,
+                teamIsArchived: null
+            });
+            saveTenantCache(rowsTenant);
+            if (String(selectedId) === rid) showTenantDetail(rowsTenant[idx]);
+        }
+    }
+
+    function select(id) {
+        selectedId = id ? String(id) : '';
+        rerender();
+        if (mode === 'tenant' && selectedId) {
+            const L = window.ms365SlgLiveDetails;
+            if (L) L.loadGroup({ silent: true });
+        }
+        if (mode === 'struktur' && selectedId) {
+            renderStructMembershipUi();
+        }
+    }
+
+    /** Gespeicherte Match-Auswahl als g:/u:-Wert (wie im Dropdown), für Abgleich mit UI. */
+    function persistedMatchSelectValueForRow(structureId) {
+        const users = Array.isArray(window.__ms365TenantUsersCache) ? window.__ms365TenantUsersCache : [];
+        refreshEffectiveMatchLinks();
+        return persistedMatchSelectValuePure(structureId, links, (id) =>
+            users.some((u) => String(u.id) === String(id))
+        );
+    }
+
+    function isMatchDraftDirty() {
+        if (mode !== 'match' || !selectedId) return false;
+        const selTenant = getEl('ssMatchTenantGroup');
+        const noteEl = getEl('ssMatchNote');
+        if (!selTenant || !noteEl) return false;
+        const users = Array.isArray(window.__ms365TenantUsersCache) ? window.__ms365TenantUsersCache : [];
+        refreshEffectiveMatchLinks();
+        const savedObj = links[String(selectedId)] || null;
+        return computeMatchDraftDirty(savedObj, selTenant.value, noteEl.value, (id) =>
+            users.some((u) => String(u.id) === String(id))
+        );
+    }
+
+    /**
+     * Vor Wechsel der Strukturauswahl im Abgleich: ungespeicherte Zuordnung speichern, verwerfen oder abbrechen.
+     * @param {string} [nextSelectedId] Ziel-ID (leer = Auswahl aufheben / Tab wechseln)
+     */
+    async function confirmMatchLeaveIfNeeded(nextSelectedId) {
+        const next = nextSelectedId != null ? String(nextSelectedId) : '';
+        if (mode !== 'match') return true;
+        if (!isMatchDraftDirty()) return true;
+        if (String(selectedId || '') === next) return true;
+
+        const saveFirst = await dlgConfirm(
+            'Die Tenant-Zuordnung wurde geändert, aber noch nicht mit „Verknüpfen“ übernommen. Zuerst speichern und dann wechseln?',
+            { title: 'Ungesicherte Zuordnung', okText: 'Speichern und wechseln', cancelText: 'Zurück' }
+        );
+        if (saveFirst) {
+            const selTenant = getEl('ssMatchTenantGroup');
+            const note = getEl('ssMatchNote');
+            saveLinkForSelected(selTenant ? selTenant.value : '', note ? note.value : '');
+            toast('Zuordnung gespeichert.');
+            return true;
+        }
+        const discard = await dlgConfirm(
+            'Ohne Speichern wechseln? Die Änderung an der Zuordnung geht verloren.',
+            { title: 'Änderung verwerfen', okText: 'Verwerfen und wechseln', cancelText: 'Abbrechen', danger: true }
+        );
+        return !!discard;
+    }
+
+    function upsert(row) {
+        const id = String(row.id);
+        const idx = rowsStruktur.findIndex((r) => String(r.id) === id);
+        if (idx === -1) rowsStruktur.push(row);
+        else rowsStruktur[idx] = row;
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+    }
+
+    function remove(id) {
+        const sid = String(id);
+        // entferne auch direkte Kinder (Mock: 1 Ebene reicht fürs UI, reicht für v1)
+        const childIds = rowsStruktur.filter((r) => String(r.parentId || '') === sid).map((r) => String(r.id));
+        rowsStruktur = rowsStruktur.filter((r) => String(r.id) !== sid && childIds.indexOf(String(r.id)) === -1);
+        try {
+            delete memberships[sid];
+            childIds.forEach((cid) => {
+                delete memberships[String(cid)];
+            });
+        } catch {
+            // ignore
+        }
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        if (selectedId === sid) selectedId = '';
+    }
+
+    // Tree click
+    getEl('ssTree')?.addEventListener('click', (ev) => {
+        void (async () => {
+            const t = ev.target;
+            const openK = t && t.closest ? t.closest('button[data-ss-open-kursteams]') : null;
+            if (openK) {
+                try {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                } catch {
+                    /* ignore */
+                }
+                const inToolsFolder = String(window.location && window.location.pathname ? window.location.pathname : '').toLowerCase().includes('/tools/');
+                const href = (inToolsFolder ? '' : 'tools/') + 'kursteams.html';
+                window.open(href, '_blank', 'noopener');
+                return;
+            }
+            const btn = t && t.closest ? t.closest('button[data-ss-select]') : null;
+            if (!btn) return;
+            const id = btn.getAttribute('data-ss-select');
+            if (!id) return;
+            if (mode === 'tenant' && (ev.ctrlKey || ev.metaKey)) {
+                // toggle multi selection
+                if (tenantMultiSel.has(id)) tenantMultiSel.delete(id);
+                else tenantMultiSel.add(id);
+                // keep last clicked as details target
+                selectedId = id;
+                rerender();
+                return;
+            }
+            if (!(await confirmMatchLeaveIfNeeded(id))) {
+                try {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                } catch {
+                    /* ignore */
+                }
+                return;
+            }
+            // single select resets multi selection
+            if (mode === 'tenant') tenantMultiSel = new Set([id]);
+            select(id);
+        })();
+    });
+
+    // Tree context menu (right click)
+    getEl('ssTree')?.addEventListener('contextmenu', (ev) => {
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button[data-ss-select]') : null;
+        if (!btn) return;
+        const id = String(btn.getAttribute('data-ss-select') || '').trim();
+        if (!id) return;
+
+        // Only for structure/match: deleting tenant objects should be explicit in details UI.
+        if (mode === 'tenant') return;
+
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const menu = ensureTreeContextMenu();
+        const title = document.getElementById('ssCtxMenuTitle');
+        const hint = document.getElementById('ssCtxHint');
+        const delBtn = document.getElementById('ssCtxDelete');
+
+        // disallow delete for main roots + synthetic nodes
+        const isRoot = isStructureTreeRootId(id);
+        const isSynthetic = isStructureSyntheticGraphNodeId(id);
+        const row = rowsStruktur.find((r) => String(r.id) === String(id));
+        const label = row && row.bezeichnung ? String(row.bezeichnung) : isRoot ? structureTreeRootDefaultTitle(id) : '';
+
+        if (title) title.textContent = label || 'Eintrag';
+        if (hint) {
+            if (isRoot || isSynthetic || !row) {
+                hint.style.display = '';
+                hint.textContent = isRoot
+                    ? 'Die Hauptäste können nicht gelöscht werden.'
+                    : isSynthetic
+                      ? 'Dieser Eintrag ist ein Hinweis/virtueller Knoten und kann nicht gelöscht werden.'
+                      : 'Dieser Eintrag kann nicht gelöscht werden.';
+            } else {
+                hint.style.display = 'none';
+                hint.textContent = '';
+            }
+        }
+
+        if (delBtn) {
+            delBtn.disabled = !!(isRoot || isSynthetic || !row);
+            delBtn.onclick = async () => {
+                // @ts-ignore
+                if (menu && typeof menu.hide === 'function') menu.hide();
+                if (!row) return;
+                const rowLabel = row.bezeichnung ? `"${row.bezeichnung}"` : 'diesen Eintrag';
+                if (!(await dlgConfirm('Wirklich ' + rowLabel + ' löschen? (Unterpunkte werden ebenfalls entfernt.)', { title: 'Löschen', okText: 'Löschen', danger: true })))
+                    return;
+                remove(row.id);
+                selectedId = '';
+                saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+                emitWritebackFromStructure();
+                rerender();
+            };
+        }
+
+        const vw = window.innerWidth || 0;
+        const vh = window.innerHeight || 0;
+        const rect = menu.getBoundingClientRect();
+        let x = ev.clientX;
+        let y = ev.clientY;
+        // keep inside viewport
+        if (x + rect.width + 8 > vw) x = Math.max(8, vw - rect.width - 8);
+        if (y + rect.height + 8 > vh) y = Math.max(8, vh - rect.height - 8);
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.style.display = 'block';
+    });
+
+    getEl('ssTree')?.addEventListener('dblclick', (ev) => {
+        void (async () => {
+            if (mode !== 'struktur' && mode !== 'match') return;
+            const t = ev.target;
+            const btn = t && t.closest ? t.closest('button[data-ss-select]') : null;
+            if (!btn) return;
+            const id = btn.getAttribute('data-ss-select');
+            if (!id) return;
+            try {
+                ev.preventDefault();
+            } catch {
+                /* ignore */
+            }
+            if (!(await confirmMatchLeaveIfNeeded(id))) return;
+            select(id);
+            openEditModalForId(id);
+        })();
+    });
+
+    // Tree drag & drop (SOLL: Anlegen + Abgleich)
+    /** @type {{id: string, type: string}|null} */
+    let treeDrag = null;
+
+    function isDescendant(childId, maybeAncestorId) {
+        const map = new Map(rowsStruktur.map((r) => [String(r.id), r]));
+        let cur = map.get(String(maybeAncestorId));
+        let guard = 0;
+        while (cur && guard++ < 30) {
+            const pid = String(cur.parentId || '');
+            if (!pid) return false;
+            if (pid === String(childId)) return true;
+            cur = map.get(pid);
+        }
+        return false;
+    }
+
+    getEl('ssTree')?.addEventListener('dragstart', (ev) => {
+        if (mode !== 'struktur' && mode !== 'match') return;
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button[data-ss-select]') : null;
+        if (!btn) return;
+        const id = btn.getAttribute('data-ss-select') || '';
+        const typ = btn.getAttribute('data-ss-type') || '';
+        treeDrag = { id, type: typ };
+        try {
+            ev.dataTransfer.effectAllowed = 'move';
+            ev.dataTransfer.setData('text/plain', id);
+        } catch {
+            // ignore
+        }
+    });
+    getEl('ssTree')?.addEventListener('dragend', () => {
+        treeDrag = null;
+    });
+    getEl('ssTree')?.addEventListener('dragover', (ev) => {
+        if ((mode !== 'struktur' && mode !== 'match') || !treeDrag) return;
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button[data-ss-select]') : null;
+        if (!btn) {
+            // allow dropping to root if rule allows
+            const rootType = inferRootForType(treeDrag.type);
+            const ok = rootType === 'SchuelerInnen'
+                ? canReparentStrict(treeDrag.type, 'SchuelerInnen')
+                : rootType === 'LehrerInnen'
+                  ? canReparentStrict(treeDrag.type, 'LehrerInnen')
+                  : false;
+            if (ok) ev.preventDefault();
+            return;
+        }
+        const targetId = btn.getAttribute('data-ss-select') || '';
+        const targetType = btn.getAttribute('data-ss-type') || '';
+        if (!targetId || targetId === treeDrag.id) return;
+        if (isDescendant(treeDrag.id, targetId)) return;
+        const ok = canReparentStrict(treeDrag.type, targetType);
+        if (!ok) return;
+        ev.preventDefault();
+        try {
+            ev.dataTransfer.dropEffect = 'move';
+        } catch {
+            // ignore
+        }
+    });
+    getEl('ssTree')?.addEventListener('drop', (ev) => {
+        if ((mode !== 'struktur' && mode !== 'match') || !treeDrag) return;
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button[data-ss-select]') : null;
+        const child = rowsStruktur.find((r) => String(r.id) === String(treeDrag.id));
+        if (!child) return;
+
+        if (!btn) {
+            const rootType = inferRootForType(treeDrag.type);
+            const ok = rootType === 'SchuelerInnen'
+                ? canReparentStrict(treeDrag.type, 'SchuelerInnen')
+                : rootType === 'LehrerInnen'
+                  ? canReparentStrict(treeDrag.type, 'LehrerInnen')
+                  : false;
+            if (!ok) return;
+            ev.preventDefault();
+            void (async () => {
+                if (!(await confirmMatchLeaveIfNeeded(String(child.id)))) return;
+                child.parentId = '';
+                saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+                emitWritebackFromStructure();
+                selectedId = String(child.id);
+                rerender();
+            })();
+            return;
+        }
+
+        const targetId = btn.getAttribute('data-ss-select') || '';
+        const targetType = btn.getAttribute('data-ss-type') || '';
+        if (!targetId || targetId === treeDrag.id) return;
+        if (isDescendant(treeDrag.id, targetId)) return;
+        const ok = canReparentStrict(treeDrag.type, targetType);
+        if (!ok) return;
+        ev.preventDefault();
+        void (async () => {
+            if (!(await confirmMatchLeaveIfNeeded(String(child.id)))) return;
+            child.parentId = String(targetId);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            emitWritebackFromStructure();
+            selectedId = String(child.id);
+            rerender();
+        })();
+    });
+
+    // Filter
+    const onFilter = () => rerender();
+    getEl('ssFilterSchuljahr')?.addEventListener('change', onFilter);
+    getEl('ssFilterTyp')?.addEventListener('change', onFilter);
+    getEl('ssTenantVisibilityFilter')?.addEventListener('change', onFilter);
+    getEl('ssTenantRosterFilter')?.addEventListener('change', onFilter);
+    getEl('ssTenantSourceFilter')?.addEventListener('change', onFilter);
+    getEl('ssTenantAdSummary')?.addEventListener('click', (ev) => {
+        const t = ev.target && ev.target.closest ? ev.target.closest('[data-ss-source]') : null;
+        if (!t) return;
+        const src = String(t.getAttribute('data-ss-source') || '');
+        const sel = getEl('ssTenantSourceFilter');
+        if (!sel || !src) return;
+        sel.value = src;
+        onFilter();
+    });
+    getEl('ssFilterText')?.addEventListener('input', onFilter);
+
+    // View tabs: Baum ↔ Organigramm (SOLL)
+    const viewTreeBtn = getEl('ssViewTabTreeBtn');
+    const viewGraphBtn = getEl('ssViewTabGraphBtn');
+    const viewTreePanel = getEl('ssTreeViewPanel');
+    const viewGraphPanel = getEl('ssGraphViewPanel');
+    function setView(v) {
+        const isGraph = v === 'graph';
+        if (viewTreeBtn) viewTreeBtn.setAttribute('aria-selected', isGraph ? 'false' : 'true');
+        if (viewGraphBtn) viewGraphBtn.setAttribute('aria-selected', isGraph ? 'true' : 'false');
+        if (viewTreePanel) viewTreePanel.classList.toggle('active', !isGraph);
+        if (viewGraphPanel) viewGraphPanel.classList.toggle('active', isGraph);
+        rerender();
+    }
+    if (viewTreeBtn) viewTreeBtn.addEventListener('click', () => setView('tree'));
+    if (viewGraphBtn) viewGraphBtn.addEventListener('click', () => setView('graph'));
+
+    // Struktur-Modals: im Browser-Vollbild nur sichtbar, wenn sie Nachkommen des Fullscreen-Knotens sind
+    function isGraphFullscreenTarget(el) {
+        if (!el) return false;
+        const id = el.id || '';
+        return id === 'ssGraphViewPanel' || id === 'ssGraphFullscreenContainer' || id === 'ssGraphWrap';
+    }
+    function syncStructureModalsWithFullscreen() {
+        const home = getEl('ssStructModalsHome');
+        const createModal = getEl('ssStructCreateModal');
+        const editModal = getEl('ssStructEditModal');
+        if (!home || !createModal || !editModal) return;
+        const fs = document.fullscreenElement;
+        if (isGraphFullscreenTarget(fs)) {
+            fs.appendChild(createModal);
+            fs.appendChild(editModal);
+        } else {
+            home.appendChild(createModal);
+            home.appendChild(editModal);
+        }
+    }
+
+    // Organigramm Vollbild
+    const fsBtn = getEl('ssGraphFullscreenBtn');
+    function setFsBtnLabel() {
+        if (!fsBtn) return;
+        const on = !!document.fullscreenElement;
+        fsBtn.innerHTML = on
+            ? '<i class="bi bi-fullscreen-exit"></i>Vollbild beenden'
+            : '<i class="bi bi-arrows-fullscreen"></i>Vollbild';
+    }
+    if (fsBtn) {
+        fsBtn.addEventListener('click', async () => {
+            const container = getEl('ssGraphViewPanel') || getEl('ssGraphFullscreenContainer') || getEl('ssGraphWrap');
+            if (!container) return;
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else {
+                    // Fullscreen on the whole panel so the header/toolbar stays visible
+                    await container.requestFullscreen();
+                }
+            } catch (e) {
+                toast('Vollbild nicht möglich: ' + (e?.message || String(e)));
+            }
+            setFsBtnLabel();
+            // Nach Toggle einmal rerendern, damit Canvas-Größen passen
+            setTimeout(() => rerender(), 50);
+        });
+        document.addEventListener('fullscreenchange', () => {
+            syncStructureModalsWithFullscreen();
+            setFsBtnLabel();
+            setTimeout(() => rerender(), 50);
+        });
+        setFsBtnLabel();
+        syncStructureModalsWithFullscreen();
+    }
+
+    // Organigramm Toolbar Actions
+    const graphEditBtn = getEl('ssGraphEditBtn');
+    const graphCopyBtn = getEl('ssGraphCopyBtn');
+    const graphDeleteBtn = getEl('ssGraphDeleteBtn');
+    const graphCollapseAllBtn = getEl('ssGraphCollapseAllBtn');
+    const graphExpandToClassesBtn = getEl('ssGraphExpandToClassesBtn');
+
+    function syncGraphLayoutToggleUi() {
+        const hBtn = getEl('ssGraphLayoutHorizontalBtn');
+        const vBtn = getEl('ssGraphLayoutVerticalBtn');
+        if (!hBtn && !vBtn) return;
+        const vert = schemaState.graphLayoutMode === 'vertical';
+        if (hBtn) {
+            hBtn.classList.toggle('ss-graph-layout-btn--active', !vert);
+            hBtn.setAttribute('aria-pressed', vert ? 'false' : 'true');
+        }
+        if (vBtn) {
+            vBtn.classList.toggle('ss-graph-layout-btn--active', !!vert);
+            vBtn.setAttribute('aria-pressed', vert ? 'true' : 'false');
+        }
+    }
+
+    function updateGraphToolbarState() {
+        const row = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        const enabled = !!row || isStructureTreeRootId(selectedId);
+        if (graphEditBtn) graphEditBtn.disabled = !enabled;
+        if (graphCopyBtn) graphCopyBtn.disabled = !row;
+        if (graphDeleteBtn) graphDeleteBtn.disabled = !row;
+        syncGraphLayoutToggleUi();
+    }
+
+    function collapseAllGraph() {
+        const next = new Set();
+        for (const r of rowsStruktur) {
+            if (r && r.id) next.add(String(r.id));
+        }
+        graphCollapsed = next;
+        saveGraphCollapsedSet(graphCollapsed);
+        rerender();
+    }
+
+    function expandToClassesGraph() {
+        const next = new Set();
+        for (const r of rowsStruktur) {
+            const t = String(r?.typ || '');
+            // Unter Schüler:innen: Klassen als "Stop" (Kursteams/Gruppe darunter einklappen)
+            // Unter Lehrer:innen: Arbeitsgemeinschaft/Gruppe als "Stop"
+            if (t === 'Klasse' || t === 'Arbeitsgemeinschaft' || t === 'Gruppe') {
+                if (r && r.id) next.add(String(r.id));
+            }
+        }
+        graphCollapsed = next;
+        saveGraphCollapsedSet(graphCollapsed);
+        rerender();
+    }
+
+    if (graphCollapseAllBtn) {
+        graphCollapseAllBtn.addEventListener('click', () => collapseAllGraph());
+    }
+    if (graphExpandToClassesBtn) {
+        graphExpandToClassesBtn.addEventListener('click', () => expandToClassesGraph());
+    }
+
+    function applyGraphLayoutMode(next) {
+        const v = next === 'vertical' ? 'vertical' : 'horizontal';
+        if (schemaState.graphLayoutMode === v) return;
+        schemaState.graphLayoutMode = v;
+        normalizeGraphLayoutModeInSettings(schemaState);
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        graphViewport = { x: 0, y: 0, scale: 1 };
+        rerender();
+    }
+    getEl('ssGraphLayoutHorizontalBtn')?.addEventListener('click', () => applyGraphLayoutMode('horizontal'));
+    getEl('ssGraphLayoutVerticalBtn')?.addEventListener('click', () => applyGraphLayoutMode('vertical'));
+
+    if (graphEditBtn) {
+        graphEditBtn.addEventListener('click', () => {
+            if (!selectedId) return;
+            openEditModalForId(selectedId);
+        });
+    }
+    if (graphDeleteBtn) {
+        graphDeleteBtn.addEventListener('click', () => {
+            if (!selectedId) return;
+            // reuse edit modal delete semantics
+            openEditModalForId(selectedId);
+            try {
+                const btn = getEl('ssStructEditDelete');
+                if (btn) btn.focus();
+            } catch {
+                // ignore
+            }
+        });
+    }
+    if (graphCopyBtn) {
+        graphCopyBtn.addEventListener('click', async () => {
+            const row = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+            if (!row) return;
+            const payload = JSON.stringify(row, null, 2);
+            try {
+                await navigator.clipboard.writeText(payload);
+                toast('Kopiert.');
+            } catch (e) {
+                toast('Kopieren fehlgeschlagen: ' + (e?.message || String(e)));
+            }
+        });
+    }
+
+    // Mode switch
+    const tabStruktur = getEl('ssTabStrukturTop');
+    const tabMatch = getEl('ssTabAbgleichenTop');
+    const tabTenant = getEl('ssTabTenantTop');
+    const btnNeu = getEl('ssBtnNeu');
+    const btnTenantCreate = getEl('ssBtnTenantCreate');
+    const btnDemo = getEl('ssBtnDemo');
+    const btnReset = getEl('ssBtnReset');
+    const btnLoad = getEl('ssBtnTenantLoadTop');
+    const tenantKindSel = null; // Gruppentyp-Filter entfernt
+    const tenantKindWrap = null;
+    const liveBanner = getEl('ssLiveBanner');
+    const filterTypWrap = getEl('ssFilterTypWrap');
+    const filterTypSel = getEl('ssFilterTyp');
+
+    function updateLiveBannerSyncedState() {
+        const badge = getEl('ssLiveBadge');
+        const text = getEl('ssLiveBannerText');
+        let synced = false;
+        try {
+            const cache = loadTenantCache();
+            synced = !!(
+                (cache && cache.loadedAt) ||
+                (cache && Array.isArray(cache.rows) && cache.rows.length) ||
+                (Array.isArray(rowsTenant) && rowsTenant.length) ||
+                (tenantCache && tenantCache.loadedAt)
+            );
+        } catch {
+            synced = !!(Array.isArray(rowsTenant) && rowsTenant.length);
+        }
+        if (badge) badge.hidden = !synced;
+        if (text) text.hidden = !synced;
+    }
+
+    async function setActiveTab(nextMode) {
+        if (!(await confirmMatchLeaveIfNeeded(''))) return false;
+        mode = nextMode === 'tenant' ? 'tenant' : nextMode === 'match' ? 'match' : 'struktur';
+        selectedId = '';
+        if (tabStruktur) tabStruktur.setAttribute('aria-selected', mode === 'struktur' ? 'true' : 'false');
+        if (tabMatch) tabMatch.setAttribute('aria-selected', mode === 'match' ? 'true' : 'false');
+        if (tabTenant) tabTenant.setAttribute('aria-selected', mode === 'tenant' ? 'true' : 'false');
+        try {
+            sessionStorage.setItem(UI_MODE_KEY, mode);
+        } catch {
+            // ignore
+        }
+        try {
+            const u = new URL(window.location.href);
+            u.searchParams.set('mode', mode);
+            window.history.replaceState({}, '', u);
+        } catch {
+            // ignore
+        }
+        updateModeUi();
+        rerender();
+        return true;
+    }
+
+    function updateModeUi() {
+        if (isEmbedStructure) {
+            // Embedded in Schul‑Grundeinstellungen: only structure planning UI is available.
+            mode = 'struktur';
+        }
+        const isTenant = mode === 'tenant';
+        const isMatch = mode === 'match';
+        const rollWrap = getEl('ssWrapSchoolYearRollBtn');
+        const sjWrap = getEl('ssFilterSchuljahrWrap');
+        if (rollWrap) rollWrap.style.display = isTenant ? 'none' : '';
+        if (sjWrap) sjWrap.style.display = isTenant ? 'none' : '';
+        if (btnNeu) btnNeu.style.display = isTenant ? 'none' : '';
+        if (btnTenantCreate) btnTenantCreate.style.display = isTenant ? '' : 'none';
+        if (btnDemo) btnDemo.style.display = isTenant ? 'none' : '';
+        if (btnReset) btnReset.style.display = isTenant ? 'none' : '';
+        // Tenant-einlesen-Button sitzt im Live-Banner (links)
+        if (liveBanner) liveBanner.style.display = isTenant ? 'block' : 'none';
+        updateLiveBannerSyncedState();
+        const matchBanner = getEl('ssMatchBanner');
+        if (matchBanner) matchBanner.style.display = isMatch ? 'block' : 'none';
+        const strukturBanner = getEl('ssStrukturBanner');
+        if (strukturBanner) strukturBanner.style.display = !isTenant && !isMatch ? 'block' : 'none';
+        // Im Tenant-Modus wollen wir "Typ" als Filter (Team/Gruppe/Sicherheitsgruppe …) nutzen.
+        if (filterTypWrap) filterTypWrap.style.display = '';
+        if (!isTenant) {
+            // Tenant-spezifische Filter zurücksetzen, damit sie nicht "unsichtbar" filtern
+            const vSel = getEl('ssTenantVisibilityFilter');
+            if (vSel) vSel.value = '';
+            const rSel = getEl('ssTenantRosterFilter');
+            if (rSel) rSel.value = '';
+            const sSel = getEl('ssTenantSourceFilter');
+            if (sSel) sSel.value = '';
+        }
+        const visWrap = getEl('ssTenantVisibilityFilterWrap');
+        if (visWrap) visWrap.style.display = isTenant ? '' : 'none';
+        const rosterWrap = getEl('ssTenantRosterFilterWrap');
+        if (rosterWrap) rosterWrap.style.display = isTenant ? '' : 'none';
+        const sourceWrap = getEl('ssTenantSourceFilterWrap');
+        if (sourceWrap) sourceWrap.style.display = isTenant ? '' : 'none';
+        const adActions = getEl('ssTenantAdActions');
+        if (adActions) adActions.style.display = isTenant ? '' : 'none';
+
+        // Baum/Organigramm: im Tenant-Modus nur Liste (kein Organigramm für Tenant-Inventar)
+        const tabBar = getEl('ssStructureViewTabsBar');
+        const treePanel = getEl('ssTreeViewPanel');
+        const graphPanel = getEl('ssGraphViewPanel');
+        const bTree = getEl('ssViewTabTreeBtn');
+        const bGraph = getEl('ssViewTabGraphBtn');
+        if (isTenant) {
+            if (tabBar) tabBar.style.display = 'none';
+            if (treePanel) {
+                treePanel.classList.add('active');
+                treePanel.style.display = '';
+            }
+            if (graphPanel) {
+                graphPanel.classList.remove('active');
+                graphPanel.style.display = 'none';
+            }
+            if (bTree) bTree.setAttribute('aria-selected', 'true');
+            if (bGraph) bGraph.setAttribute('aria-selected', 'false');
+        } else {
+            if (tabBar) tabBar.style.display = '';
+            if (treePanel) treePanel.style.display = '';
+            if (graphPanel) graphPanel.style.display = '';
+        }
+
+        // Multi selection should not leak across modes
+        if (!isTenant) tenantMultiSel = new Set();
+    }
+    if (tabStruktur) tabStruktur.addEventListener('click', () => void setActiveTab('struktur'));
+    if (tabMatch) tabMatch.addEventListener('click', () => void setActiveTab('match'));
+    if (tabTenant) tabTenant.addEventListener('click', () => void setActiveTab('tenant'));
+    async function reloadTenantNow(reasonText) {
+        const btn = getEl('ssBtnTenantLoadTop');
+        if (btn) btn.disabled = true;
+        try {
+            setTenantProgress(
+                true,
+                (reasonText ? reasonText + ' – ' : '') + 'lese M365‑Gruppen/Teams und Benutzer (Entra) …',
+                0.02
+            );
+            await loadTenantInventoryFull((p) => {
+                if (p && p.phase === 'users') {
+                    setTenantProgress(
+                        true,
+                        `Benutzer: Seite ${p.page} … (${p.loaded})`,
+                        Math.min(0.95, 0.5 + (p.page || 0) * 0.04)
+                    );
+                } else if (p && p.phase === 'counts') {
+                    const tot = Math.max(1, p.total || 1);
+                    const ld = Math.min(p.loaded || 0, tot);
+                    setTenantProgress(
+                        true,
+                        `Besitzer/Mitglieder zählen … ${ld} / ${tot}`,
+                        Math.min(0.48, 0.12 + (ld / tot) * 0.34)
+                    );
+                } else {
+                    const ratio = p && p.page ? Math.min(0.45, 0.08 + p.page * 0.08) : 0.12;
+                    setTenantProgress(
+                        true,
+                        p && p.page
+                            ? `Gruppen: Seite ${p.page} – ${p.loaded} …` + (p.hasMore ? '' : ' (fertig)')
+                            : 'Gruppen …',
+                        ratio
+                    );
+                }
+            });
+            const cache = loadTenantCache();
+            rowsTenant = applyAdFlagsToTenantRows(cache.rows.slice());
+            tenantCache.loadedAt = cache.loadedAt;
+            window.__ms365TenantRowsCache = rowsTenant;
+            try {
+                window.__ms365TenantUsersCache = Array.isArray(cache.users) ? cache.users : [];
+            } catch {
+                // ignore
+            }
+            const nu = Array.isArray(cache.users) ? cache.users.length : 0;
+            setTenantProgress(true, `Fertig: ${rowsTenant.length} Gruppe(n)/Team(s), ${nu} Benutzer.`, 1);
+            setTimeout(() => setTenantProgress(false, '', null), 2200);
+            updateLiveBannerSyncedState();
+            selectedId = '';
+            rerender();
+        } catch (e) {
+            setTenantProgress(true, 'Fehler beim Einlesen: ' + (e?.message || String(e)), null);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // Gruppentyp-Filter entfernt -> kein handler
+
+    // Buttons
+    getEl('ssBtnDemo')?.addEventListener('click', () => {
+        const demoPack = buildDemoRows();
+        rowsStruktur = demoPack.rows || [];
+        memberships = {};
+
+        const ts = demoPack.tenantSettings;
+        if (ts && Array.isArray(ts.classes)) {
+            const classOwners = new Map();
+            ts.classes.forEach((c) => {
+                const label = normalizeClassLabel(c);
+                const mail = c && c.headEmail ? String(c.headEmail).trim().toLowerCase() : '';
+                const name = c && c.headName ? String(c.headName).trim() : '';
+                if (label && (mail || name)) {
+                    classOwners.set(label, {
+                        id: mail || name,
+                        displayName: name || mail,
+                        userPrincipalName: mail || ''
+                    });
+                }
+            });
+            rowsStruktur.forEach((u) => {
+                if (!u || u.typ !== 'Klasse') return;
+                const label = String(u.bezeichnung || '').trim();
+                const owner = classOwners.get(label);
+                if (!owner) return;
+                memberships[String(u.id)] = { owners: [owner], members: [] };
+            });
+        }
+
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        selectedId = '';
+        rerender();
+    });
+
+    function ensureHeaderTenantLoadButton() {
+        if (isEmbedStructure) return;
+        try {
+            const slot =
+                typeof window.ms365AuthGetActionSlot === 'function' ? window.ms365AuthGetActionSlot() : null;
+            if (!slot) return;
+            if (document.getElementById('ssHeaderTenantLoadBtn')) return;
+            const hb = document.createElement('button');
+            hb.type = 'button';
+            hb.className = 'btn btn-success small-btn';
+            hb.id = 'ssHeaderTenantLoadBtn';
+            hb.style.margin = '0';
+            hb.innerHTML = '<i class="bi bi-cloud-download"></i>Tenant einlesen';
+            hb.addEventListener('click', async () => {
+                try {
+                    sessionStorage.setItem(UI_MODE_KEY, 'tenant');
+                } catch {
+                    // ignore
+                }
+                if (mode !== 'tenant') {
+                    if (!(await setActiveTab('tenant'))) return;
+                }
+                await reloadTenantNow('Starte');
+            });
+            slot.appendChild(hb);
+        } catch {
+            // ignore
+        }
+    }
+
+    // sofort versuchen + nachträglich wenn Widget fertig ist
+    ensureHeaderTenantLoadButton();
+    try {
+        window.addEventListener('ms365-auth-widget-ready', () => ensureHeaderTenantLoadButton(), { once: true });
+    } catch {
+        // ignore
+    }
+    getEl('ssBtnReset')?.addEventListener('click', async () => {
+        if (!(await dlgConfirm('Lokale Mock-Daten wirklich löschen?', { title: 'Zurücksetzen', okText: 'Löschen', danger: true }))) return;
+        rowsStruktur = [];
+        memberships = {};
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        selectedId = '';
+        rerender();
+    });
+
+    function applySchoolYearRollforward(targetSchoolYearLabel, maxStufen) {
+        const tgt = String(targetSchoolYearLabel || '').trim();
+        const ms = isFinite(maxStufen) ? Math.max(1, Math.min(12, Math.round(maxStufen))) : 5;
+        schemaState.maxSchulstufen = ms;
+
+        // Jahrgänge: anhand Abschlussjahr (jgYear) neue Stufe berechnen, ggf. archivieren.
+        rowsStruktur.forEach((r) => {
+            if (!r) return;
+            if (String(r.typ || '') === 'Jahrgang') {
+                const g = gradeFromGraduationYear(String(r.jgYear || '').trim(), tgt, ms);
+                if (isFinite(g) && g >= 1 && g <= ms) {
+                    r.bezeichnung = 'Jahrgang ' + String(Math.round(g));
+                    if (String(r.status || '') === 'Archiviert') r.status = 'Aktiv';
+                } else if (isFinite(g) && g > ms) {
+                    r.status = 'Archiviert';
+                }
+                r.schuljahr = tgt;
+            }
+        });
+
+        // Klassen: neue Stufe aus classGradYear, Bezeichnung vorne anpassen, ggf. archivieren, Schuljahr setzen,
+        // parentId auf passenden Jahrgang (jgYear) binden.
+        const jahrgangByYear = new Map(
+            rowsStruktur
+                .filter((r) => r && String(r.typ || '') === 'Jahrgang' && String(r.jgYear || '').trim())
+                .map((r) => [String(r.jgYear || '').trim(), r])
+        );
+        rowsStruktur.forEach((r) => {
+            if (!r) return;
+            if (String(r.typ || '') !== 'Klasse') return;
+            const gy = String(r.classGradYear || '').trim();
+            if (!gy) {
+                r.schuljahr = tgt;
+                return;
+            }
+            const g = gradeFromGraduationYear(gy, tgt, ms);
+            if (isFinite(g) && g >= 1 && g <= ms) {
+                r.bezeichnung = replaceLeadingNumber(String(r.bezeichnung || ''), g);
+                if (String(r.status || '') === 'Archiviert') r.status = 'Aktiv';
+                const jg = jahrgangByYear.get(gy);
+                if (jg) r.parentId = String(jg.id || '');
+            } else if (isFinite(g) && g > ms) {
+                r.status = 'Archiviert';
+            }
+            r.schuljahr = tgt;
+        });
+
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        rerender();
+        toast('Schuljahrswechsel angewendet: ' + tgt + ' (Stufen: ' + String(ms) + ').');
+    }
+
+    getEl('ssBtnSchoolYearRoll')?.addEventListener('click', async () => {
+        if (mode !== 'struktur') return;
+        const cur = normStr(getEl('ssFilterSchuljahr')?.value) || currentSchoolYearLabel();
+        const suggest = nextSchoolYearLabel(cur);
+        const tgt = await dlgPrompt('Neues Schuljahr (z. B. 2027/28)', suggest, { title: 'Schuljahr', inputLabel: 'Bezeichnung' });
+        if (tgt == null || !normStr(tgt)) return;
+        const msRaw = await dlgPrompt('Max. Schulstufen (3, 4, 5 oder 8)', String(schemaState.maxSchulstufen || 5), {
+            title: 'Schulstufen',
+            inputLabel: 'Anzahl (3, 4, 5 oder 8)'
+        });
+        if (msRaw == null) return;
+        const ms = parseInt(String(msRaw || '').trim(), 10);
+        if (![3, 4, 5, 8].includes(ms)) {
+            await dlgAlert('Bitte 3, 4, 5 oder 8 eingeben.', { title: 'Eingabe' });
+            return;
+        }
+        const ok = await dlgConfirm(
+            'Schuljahrswechsel auf ' +
+                String(tgt).trim() +
+                ' anwenden?\n\n- Klassen/Jahrgänge werden hochgestuft\n- Ausgelaufene Einheiten werden archiviert\n- Tenant-Verknüpfungen bleiben unverändert',
+            { title: 'Schuljahrswechsel', okText: 'Anwenden', danger: true }
+        );
+        if (!ok) return;
+        applySchoolYearRollforward(String(tgt).trim(), ms);
+    });
+    getEl('ssBtnNeu')?.addEventListener('click', () => {
+        void (async () => {
+            const r = { id: uid(), parentId: '', typ: 'Klasse', bezeichnung: '', beschreibung: '', schuljahr: '', status: 'Aktiv', syncStatus: 'Ausstehend', letzteFehlermeldung: '' };
+            rowsStruktur.push(r);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            if (!(await confirmMatchLeaveIfNeeded(String(r.id)))) return;
+            select(r.id);
+        })();
+    });
+
+    const tenantCreateModal = getEl('ssTenantCreateModal');
+    const tenantCreateName = getEl('ssTenantCreateName');
+    const tenantCreateNick = getEl('ssTenantCreateNick');
+    const tenantCreateKind = getEl('ssTenantCreateKind');
+    let tenantCreateNickTouched = false;
+
+    function syncTenantCreateKindUi() {
+        const kind = String(tenantCreateKind?.value || 'unified');
+        const isUnified = kind === 'unified';
+        const visWrap = getEl('ssTenantCreateVisWrap');
+        const teamWrap = getEl('ssTenantCreateTeamWrap');
+        const hint = getEl('ssTenantCreateHint');
+        if (visWrap) visWrap.style.display = isUnified ? '' : 'none';
+        if (teamWrap) teamWrap.style.display = isUnified ? '' : 'none';
+        if (hint) {
+            if (kind === 'mailSecurity') {
+                hint.textContent =
+                    'Mail‑aktivierte Sicherheitsgruppen: Graph‑Anlage funktioniert nicht in jedem Tenant. Bei Fehler siehe „Verteilerlisten“ (Exchange‑PowerShell).';
+            } else if (kind === 'security') {
+                hint.textContent = 'Reine Sicherheitsgruppe ohne Postfach – geeignet für Rechte und Richtlinien.';
+            } else {
+                hint.textContent = 'Microsoft 365‑Gruppe mit Gruppenpostfach und SharePoint. Team optional zusätzlich.';
+            }
+        }
+    }
+
+    function openTenantCreateModal() {
+        if (!tenantCreateModal) return;
+        tenantCreateNickTouched = false;
+        if (tenantCreateName) tenantCreateName.value = '';
+        if (tenantCreateNick) tenantCreateNick.value = '';
+        const desc = getEl('ssTenantCreateDesc');
+        if (desc) desc.value = '';
+        if (tenantCreateKind) tenantCreateKind.value = 'unified';
+        const vis = getEl('ssTenantCreateVis');
+        if (vis) vis.value = 'Private';
+        const team = getEl('ssTenantCreateTeam');
+        if (team) team.checked = false;
+        syncTenantCreateKindUi();
+        tenantCreateModal.classList.add('active');
+        try {
+            tenantCreateName?.focus();
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function closeTenantCreateModal() {
+        if (tenantCreateModal) tenantCreateModal.classList.remove('active');
+    }
+
+    function mapCreatedGroupToTenantRow(g, kind, asTeam) {
+        const isUnified = kind === 'unified';
+        const isSecurity = kind === 'security' || kind === 'mailSecurity';
+        let typ = 'Gruppe';
+        if (asTeam) typ = 'Team';
+        else if (isUnified) typ = 'Gruppe';
+        else if (kind === 'mailSecurity') typ = 'E‑Mail‑Sicherheitsgruppe';
+        else if (isSecurity) typ = 'Sicherheitsgruppe';
+        return {
+            id: String(g.id || ''),
+            bezeichnung: String(g.displayName || ''),
+            typ,
+            mail: String(g.mail || ''),
+            alias: String(g.mailNickname || ''),
+            description: String(g.description || ''),
+            expirationDateTime: String(g.expirationDateTime || ''),
+            visibility: String(g.visibility || ''),
+            hiddenMembership: String(g.visibility || '') === 'HiddenMembership',
+            createdDateTime: String(g.createdDateTime || ''),
+            ownerCount: null,
+            memberCount: null
+        };
+    }
+
+    getEl('ssBtnTenantCreate')?.addEventListener('click', () => {
+        if (mode !== 'tenant') {
+            void setActiveTab('tenant').then((ok) => {
+                if (ok) openTenantCreateModal();
+            });
+            return;
+        }
+        openTenantCreateModal();
+    });
+    getEl('ssTenantCreateClose')?.addEventListener('click', closeTenantCreateModal);
+    getEl('ssTenantCreateCancel')?.addEventListener('click', closeTenantCreateModal);
+    tenantCreateModal?.addEventListener('click', (ev) => {
+        if (ev.target === tenantCreateModal) closeTenantCreateModal();
+    });
+    tenantCreateKind?.addEventListener('change', syncTenantCreateKindUi);
+    tenantCreateName?.addEventListener('input', () => {
+        if (tenantCreateNickTouched) return;
+        if (tenantCreateNick) tenantCreateNick.value = suggestGroupMailNickname(tenantCreateName.value);
+    });
+    tenantCreateNick?.addEventListener('input', () => {
+        tenantCreateNickTouched = true;
+    });
+    getEl('ssTenantCreateOk')?.addEventListener('click', () => {
+        void (async () => {
+            const kind = String(tenantCreateKind?.value || 'unified');
+            const name = String(tenantCreateName?.value || '').trim();
+            let nick = String(tenantCreateNick?.value || '').trim();
+            if (!nick) nick = suggestGroupMailNickname(name);
+            const desc = String(getEl('ssTenantCreateDesc')?.value || '').trim();
+            const vis = String(getEl('ssTenantCreateVis')?.value || 'Private');
+            const asTeam = !!(getEl('ssTenantCreateTeam')?.checked) && kind === 'unified';
+            if (!name) {
+                await dlgAlert('Bitte einen Anzeigenamen eingeben.', { title: 'Gruppe anlegen' });
+                return;
+            }
+            if (!nick) {
+                await dlgAlert('Bitte einen Alias (mailNickname) eingeben.', { title: 'Gruppe anlegen' });
+                return;
+            }
+            const okBtn = getEl('ssTenantCreateOk');
+            if (okBtn) okBtn.disabled = true;
+            try {
+                let created;
+                if (kind === 'security') {
+                    created = await createSecurityGroup(name, desc || 'MS365-Schul-Tools – Sicherheitsgruppe', nick);
+                } else if (kind === 'mailSecurity') {
+                    created = await createMailEnabledSecurityGroup(
+                        name,
+                        desc || 'MS365-Schul-Tools – Mail-Sicherheitsgruppe',
+                        nick
+                    );
+                } else {
+                    created = await createUnifiedGroup(
+                        name,
+                        desc || 'MS365-Schul-Tools – Microsoft 365-Gruppe',
+                        nick,
+                        vis
+                    );
+                }
+                const gid = String(created && created.id ? created.id : '').trim();
+                if (!gid) throw new Error('Keine Gruppen-ID von Graph.');
+                if (asTeam) {
+                    try {
+                        await createTeamForGroup(gid);
+                    } catch (te) {
+                        toast(
+                            'Gruppe angelegt, Team-Provisionierung fehlgeschlagen: ' +
+                                (te && te.message ? te.message : te)
+                        );
+                    }
+                }
+                let detail;
+                try {
+                    detail = await fetchTenantGroupDetail(gid);
+                } catch {
+                    detail = mapCreatedGroupToTenantRow(created, kind, asTeam);
+                }
+                const cache = loadTenantCache();
+                const nextRows = (cache.rows || []).filter((r) => String(r.id) !== gid);
+                nextRows.push(detail);
+                nextRows.sort((a, b) => compareDe(a.bezeichnung, b.bezeichnung));
+                saveTenantCache(nextRows, cache.users || []);
+                rowsTenant = nextRows;
+                closeTenantCreateModal();
+                selectedId = gid;
+                tenantMultiSel = new Set([gid]);
+                rerender();
+                toast(
+                    (asTeam ? 'Team' : detail.typ || 'Gruppe') +
+                        ' angelegt: ' +
+                        (detail.bezeichnung || name)
+                );
+            } catch (e) {
+                const msg = String(e && e.message ? e.message : e);
+                let tip = msg;
+                if (kind === 'mailSecurity' && /mailEnabled|Request_BadRequest|400|not supported|Unsupported/i.test(msg)) {
+                    tip =
+                        msg +
+                        '\n\nTipp: Mail‑aktivierte Sicherheitsgruppen oft nur per Exchange‑PowerShell – Tool „Verteilerlisten“.';
+                }
+                await dlgAlert(tip, { title: 'Gruppe anlegen' });
+            } finally {
+                if (okBtn) okBtn.disabled = false;
+            }
+        })();
+    });
+
+    getEl('ssBtnGraphCreate')?.addEventListener('click', async () => {
+        if (mode !== 'struktur' || !selectedId) return;
+        const cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!cur) return;
+        const t = String(cur.typ || '');
+        if (t === 'Person') await createSelectedPersonUserInTenant();
+        else if (t === 'Gruppe') await createSelectedStructInTenant();
+    });
+    getEl('ssBtnSpeichern')?.addEventListener('click', async () => {
+        if (isStructureTreeRootId(selectedId)) {
+            const base = mergeStructureTreeRootRow(selectedId, schemaState.structRootDetails);
+            if (!base) return;
+            const next = readDetailToRow(base);
+            if (!next.bezeichnung) {
+                await dlgAlert('Bitte eine Bezeichnung eingeben.', { title: 'Eingabe' });
+                return;
+            }
+            if (!schemaState.structRootDetails || typeof schemaState.structRootDetails !== 'object') {
+                schemaState.structRootDetails = {};
+            }
+            schemaState.structRootDetails[String(selectedId)] = pickStorableStructureTreeRootFields(next);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            rerender();
+            return;
+        }
+        const cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!cur) return;
+        const next = readDetailToRow(cur);
+        if (!next.bezeichnung) {
+            await dlgAlert('Bitte eine Bezeichnung eingeben.', { title: 'Eingabe' });
+            return;
+        }
+        // simple cycle guard
+        if (next.parentId && String(next.parentId) === String(next.id)) next.parentId = '';
+        if (!isValidStructureParentChild(next.typ, next.parentId, rowsStruktur)) {
+            await dlgAlert(
+                'Die Kombination aus Typ und übergeordneter Einheit ist nicht erlaubt (z. B. „Person“ nur unter „Gruppe“).',
+                { title: 'Struktur' }
+            );
+            return;
+        }
+        upsert(next);
+        rerender();
+    });
+
+    function computeAnlegenSuggestionFromInputs() {
+        const typ = normStr(getEl('ssTyp')?.value);
+        const domain = String(schemaState.domain || '').trim();
+        if (typ === 'Jahrgang') {
+            const y = normStr(getEl('ssJgYear')?.value);
+            const suf = normStr(getEl('ssJgSuffix')?.value);
+            const mailNick = y && suf ? buildJgMailNick(schemaState, y, suf) : '';
+            const displayName = normStr(getEl('ssBezeichnung')?.value) || (y && suf ? `Jahrgang ${y} ${suf}` : '');
+            return { displayName, mailNick, email: mailNick && domain ? mailNick + '@' + domain : '' };
+        }
+        if (typ === 'Arbeitsgemeinschaft') {
+            const code = normStr(getEl('ssArgeCode')?.value);
+            const name = normStr(getEl('ssArgeName')?.value);
+            const displayName = name ? `ARGE ${name}` : (code ? `ARGE ${code}` : '');
+            const mailNick = code ? buildArgeMailNick(schemaState, code) : '';
+            return { displayName, mailNick, email: mailNick && domain ? mailNick + '@' + domain : '' };
+        }
+        if (typ === 'Kursteam') {
+            const yearPrefix = String(schemaState.kursteamYearPrefix || '').trim();
+            const klasse = normStr(getEl('ssKtKlasse')?.value);
+            const fach = normStr(getEl('ssKtFach')?.value);
+            const gruppe = normStr(getEl('ssKtGruppe')?.value);
+            const displayName = buildKursteamNameFromTemplate(schemaState.kursteamPattern, { yearPrefix, klasse, fach, gruppe });
+            const mailNick = buildKursteamMailNickFromTemplate(schemaState.kursteamMailNickPattern, { yearPrefix, klasse, fach, gruppe });
+            return { displayName, mailNick, email: mailNick && domain ? mailNick + '@' + domain : '' };
+        }
+        return { displayName: '', mailNick: '', email: '' };
+    }
+
+    function renderAnlegenSchemaUnitUi() {
+        const box = getEl('ssAnlegenSchemaUnitBox');
+        const p = getEl('ssAnlegenSchemaUnitPreview');
+        const wrapJg = getEl('ssAnlegenSchemaJg');
+        const wrapArge = getEl('ssAnlegenSchemaArge');
+        const wrapKt = getEl('ssAnlegenSchemaKursteam');
+        const btnApply = getEl('ssApplyNameSuggestion');
+        if (!box || !p || !wrapJg || !wrapArge || !wrapKt) return;
+
+        if (mode !== 'struktur' || !selectedId) {
+            box.style.display = 'none';
+            return;
+        }
+        const cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!cur) {
+            box.style.display = 'none';
+            return;
+        }
+        const typ = String(cur.typ || '');
+        const show = typ === 'Jahrgang' || typ === 'Arbeitsgemeinschaft' || typ === 'Kursteam';
+        box.style.display = show ? '' : 'none';
+        wrapJg.style.display = typ === 'Jahrgang' ? '' : 'none';
+        wrapArge.style.display = typ === 'Arbeitsgemeinschaft' ? '' : 'none';
+        wrapKt.style.display = typ === 'Kursteam' ? '' : 'none';
+
+        if (!show) return;
+        const s = computeAnlegenSuggestionFromInputs();
+        const has = !!(s.displayName || s.mailNick);
+        p.innerHTML =
+            `<div><strong>Bezeichnung (Vorschlag):</strong> <code>${escapeHtml(s.displayName || '–')}</code></div>` +
+            `<div style="margin-top:6px;"><strong>Mail‑Nickname (Vorschau):</strong> <code>${escapeHtml(s.mailNick || '–')}</code>` +
+            (s.email ? ` &nbsp;→&nbsp; <code>${escapeHtml(s.email)}</code>` : '') +
+            `</div>`;
+        if (btnApply) btnApply.disabled = !has;
+    }
+
+    // Vorschlag übernehmen
+    getEl('ssApplyNameSuggestion')?.addEventListener('click', () => {
+        if (mode !== 'struktur' || !selectedId) return;
+        const sug = computeAnlegenSuggestionFromInputs();
+        if (!sug.displayName) return;
+        const inp = getEl('ssBezeichnung');
+        if (inp) inp.value = sug.displayName;
+    });
+
+    // Live-Vorschau bei Eingaben
+    ['ssTyp','ssBezeichnung','ssJgYear','ssJgSuffix','ssArgeCode','ssArgeName','ssKtKlasse','ssKtFach','ssKtGruppe','ssPersonName','ssPersonEmail'].forEach((id) => {
+        const el = getEl(id);
+        if (!el) return;
+        const evt = id === 'ssTyp' ? 'change' : 'input';
+        el.addEventListener(evt, () => {
+            // Bei Typ-Wechsel: wenn Bezeichnung leer ist, Vorschlag einmalig übernehmen
+            if (id === 'ssTyp') {
+                const b = getEl('ssBezeichnung');
+                if (b && !normStr(b.value)) {
+                    const sug = computeAnlegenSuggestionFromInputs();
+                    if (sug.displayName) b.value = sug.displayName;
+                }
+                if (mode === 'struktur' && selectedId) {
+                    fillParentSelect(rowsStruktur, selectedId, normStr(getEl('ssTyp')?.value));
+                }
+            }
+            if (mode === 'struktur' && selectedId) {
+                refreshStrukturTypDependentUi({
+                    mode,
+                    selectedId,
+                    rowsStruktur,
+                    structRootDetails: schemaState.structRootDetails,
+                    onPersonDetailTabs: applyPersonStructTabsForDetailPanel,
+                    personInfoByRole
+                });
+                updateGraphQuickCreateBtn();
+            }
+            renderAnlegenSchemaUnitUi();
+        });
+    });
+    getEl('ssBtnLoeschen')?.addEventListener('click', async () => {
+        if (isStructureTreeRootId(selectedId)) {
+            await dlgAlert('Die Hauptäste Schüler:innen, Lehrer:innen und Verwaltung können nicht gelöscht werden.', { title: 'Löschen' });
+            return;
+        }
+        const cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!cur) return;
+        const label = cur.bezeichnung ? '"' + cur.bezeichnung + '"' : 'diesen Eintrag';
+        if (!(await dlgConfirm('Wirklich ' + label + ' löschen? (Unterpunkte werden ebenfalls entfernt.)', { title: 'Löschen', okText: 'Löschen', danger: true })))
+            return;
+        remove(cur.id);
+        selectedId = '';
+        rerender();
+    });
+
+    getEl('ssBtnExport')?.addEventListener('click', () => {
+        downloadJson('schulstruktur-sync.json', { rows: rowsStruktur, memberships, settings: schemaState });
+    });
+    getEl('ssImportFile')?.addEventListener('change', async (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        try {
+            const text = await f.text();
+            const obj = safeJsonParse(text);
+            const nextRows = obj && Array.isArray(obj.rows) ? obj.rows : null;
+            if (!nextRows) {
+                await dlgAlert('Import fehlgeschlagen: ungültige Datei (erwartet { "rows": [...] }).', { title: 'Import' });
+                return;
+            }
+            rowsStruktur = nextRows
+                .filter((r) => r && r.id)
+                .map((r) => ({
+                    id: String(r.id),
+                    parentId: String(r.parentId || ''),
+                    typ: normStr(r.typ) || 'Gruppe',
+                    bezeichnung: normStr(r.bezeichnung) || '',
+                    beschreibung: normStr(r.beschreibung) || '',
+                    schuljahr: normStr(r.schuljahr) || '',
+                    status: normStr(r.status) || 'Aktiv',
+                    syncStatus: normStr(r.syncStatus) || 'Ausstehend',
+                    letzteFehlermeldung: normStr(r.letzteFehlermeldung) || '',
+                    jgYear: normStr(r.jgYear) || '',
+                    jgSuffix: normStr(r.jgSuffix) || '',
+                    argeCode: normStr(r.argeCode) || '',
+                    argeName: normStr(r.argeName) || '',
+                    ktKlasse: normStr(r.ktKlasse) || '',
+                    ktFach: normStr(r.ktFach) || '',
+                    ktGruppe: normStr(r.ktGruppe) || '',
+                    tenantGroupId: normStr(r.tenantGroupId) || '',
+                    tenantMailNickname: normStr(r.tenantMailNickname) || '',
+                    tenantTarget: normStr(r.tenantTarget) || '',
+                    tenantVisibility: normStr(r.tenantVisibility) || '',
+                    tenantUserId: normStr(r.tenantUserId) || '',
+                    personName: normStr(r.personName) || '',
+                    personEmail: normStr(r.personEmail).toLowerCase() || ''
+                }));
+            memberships = (obj && obj.memberships && typeof obj.memberships === 'object') ? obj.memberships : memberships;
+            if (obj && obj.settings && typeof obj.settings === 'object') {
+                Object.assign(schemaState, obj.settings);
+                normalizeGraphLayoutModeInSettings(schemaState);
+            }
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            selectedId = '';
+            rerender();
+        } catch (err) {
+            await dlgAlert('Import fehlgeschlagen: ' + (err?.message || String(err)), { title: 'Import' });
+        } finally {
+            e.target.value = '';
+        }
+    });
+
+    // --- Schulstruktur: Tabs (Allgemein/Owner/Mitglieder) + lokale Mitgliedschaft ---
+    const sAllgBtn = getEl('ssStructTabAllgemeinBtn');
+    const sOwnBtn = getEl('ssStructTabOwnerBtn');
+    const sMemBtn = getEl('ssStructTabMitgliederBtn');
+    const spAllg = getEl('ssStructTabAllgemein');
+    const spOwn = getEl('ssStructTabOwner');
+    const spMem = getEl('ssStructTabMitglieder');
+    let structActiveTab = 'allg';
+
+    function setStructTab(next) {
+        structActiveTab = next === 'own' ? 'own' : next === 'mem' ? 'mem' : 'allg';
+        if (sAllgBtn) sAllgBtn.setAttribute('aria-selected', structActiveTab === 'allg' ? 'true' : 'false');
+        if (sOwnBtn) sOwnBtn.setAttribute('aria-selected', structActiveTab === 'own' ? 'true' : 'false');
+        if (sMemBtn) sMemBtn.setAttribute('aria-selected', structActiveTab === 'mem' ? 'true' : 'false');
+        if (spAllg) spAllg.classList.toggle('active', structActiveTab === 'allg');
+        if (spOwn) spOwn.classList.toggle('active', structActiveTab === 'own');
+        if (spMem) spMem.classList.toggle('active', structActiveTab === 'mem');
+    }
+
+    if (sAllgBtn) sAllgBtn.addEventListener('click', () => setStructTab('allg'));
+    if (sOwnBtn) sOwnBtn.addEventListener('click', () => setStructTab('own'));
+    if (sMemBtn) sMemBtn.addEventListener('click', () => setStructTab('mem'));
+    setStructTab('allg');
+
+    function applyPersonStructTabsForDetailPanel(effectiveTyp) {
+        const t = String(effectiveTyp || '');
+        const hideOwnerMem = t === 'Person';
+        const ownBtn = getEl('ssStructTabOwnerBtn');
+        const memBtn = getEl('ssStructTabMitgliederBtn');
+        const pOwn = getEl('ssStructTabOwner');
+        const pMem = getEl('ssStructTabMitglieder');
+        [ownBtn, memBtn].forEach((el) => {
+            if (!el) return;
+            el.style.display = hideOwnerMem ? 'none' : '';
+            el.disabled = hideOwnerMem;
+            el.setAttribute('aria-hidden', hideOwnerMem ? 'true' : 'false');
+        });
+        [pOwn, pMem].forEach((el) => {
+            if (!el) return;
+            el.style.display = hideOwnerMem ? 'none' : '';
+            el.setAttribute('aria-hidden', hideOwnerMem ? 'true' : 'false');
+            if (hideOwnerMem) el.classList.remove('active');
+        });
+        if (hideOwnerMem || !t) setStructTab('allg');
+    }
+
+    function defaultTenantTargetForType(typ) {
+        return defaultTenantTargetForTypeStr(typ);
+    }
+
+    function defaultTenantVisibilityForType(typ) {
+        return defaultTenantVisibilityForTypeStr(typ);
+    }
+
+    function computeTenantCreateSuggestion(row) {
+        return computeTenantCreateSuggestionFromRow(row, schemaState);
+    }
+
+    function updateStructTenantCreateUi() {
+        const wrap = getEl('ssStructTenantCreateWrap');
+        if (!wrap) return;
+        if (mode !== 'struktur' || !selectedId) {
+            wrap.style.display = 'none';
+            return;
+        }
+        let row = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!row && isStructureTreeRootId(selectedId)) {
+            row = mergeStructureTreeRootRow(selectedId, schemaState.structRootDetails);
+        }
+        if (!row) {
+            wrap.style.display = 'none';
+            return;
+        }
+        if (String(row.typ || '') === 'Person') {
+            wrap.style.display = 'none';
+            return;
+        }
+        wrap.style.display = '';
+
+        const selTarget = getEl('ssStructTenantTarget');
+        const selVis = getEl('ssStructTenantVisibility');
+        const inpNick = getEl('ssStructTenantMailNick');
+        const inpCreated = getEl('ssStructTenantCreatedId');
+        const btn = getEl('ssStructTenantCreateBtn');
+        const psWrap = getEl('ssStructKursteamPsWrap');
+        const psTa = getEl('ssKursteamPsScript');
+
+        if (selTarget && !selTarget.value) selTarget.value = row.tenantTarget || defaultTenantTargetForType(row.typ);
+        if (selVis && !selVis.value) selVis.value = row.tenantVisibility || defaultTenantVisibilityForType(row.typ);
+
+        const sug = computeTenantCreateSuggestion(row);
+        const nick = sug.mailNick || '';
+        if (inpNick) inpNick.value = nick;
+        if (inpCreated) inpCreated.value = String(row.tenantGroupId || '');
+
+        const isKursteam = String(row.typ || '') === 'Kursteam';
+        if (psWrap) psWrap.style.display = isKursteam ? '' : 'none';
+        if (btn) {
+            // Kursteam: prefer PS/CSV instead of online create
+            btn.style.display = isKursteam ? 'none' : '';
+            btn.disabled = !sug.displayName || !nick || !!row.tenantGroupId;
+        }
+        if (psTa && isKursteam) {
+            psTa.value = buildKursteamProvisionScript('kursteams.csv');
+        }
+    }
+
+    function updateGraphQuickCreateBtn() {
+        const btn = getEl('ssBtnGraphCreate');
+        if (!btn) return;
+        if (mode !== 'struktur' || !selectedId) {
+            btn.style.display = 'none';
+            return;
+        }
+        let row = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!row && isStructureTreeRootId(selectedId)) {
+            row = mergeStructureTreeRootRow(selectedId, schemaState.structRootDetails);
+        }
+        if (!row || row.isStructureTreeRoot) {
+            btn.style.display = 'none';
+            return;
+        }
+        const t = String(row.typ || '');
+        if (t === 'Person') {
+            btn.style.display = '';
+            btn.innerHTML = '<i class="bi bi-person-plus"></i>Benutzer anlegen (Graph)';
+            const next = readDetailToRow(row);
+            const upn = normStr(next.personEmail).toLowerCase();
+            const dn = normStr(next.personName) || normStr(next.bezeichnung);
+            const hasUpn = upn.includes('@');
+            btn.disabled = !hasUpn || !dn || !!normStr(next.tenantUserId);
+            return;
+        }
+        if (t === 'Gruppe') {
+            btn.style.display = '';
+            btn.innerHTML = '<i class="bi bi-people"></i>M365‑Gruppe anlegen (Graph)';
+            const next = readDetailToRow(row);
+            const sug = computeTenantCreateSuggestion(next);
+            const nick = String(getEl('ssStructTenantMailNick')?.value || sug.mailNick || '').trim();
+            btn.disabled = !sug.displayName || !nick || !!normStr(next.tenantGroupId);
+            return;
+        }
+        btn.style.display = 'none';
+    }
+
+    async function createSelectedPersonUserInTenant() {
+        if (mode !== 'struktur' || !selectedId) return;
+        const cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!cur || String(cur.typ || '') !== 'Person') return;
+        const next = readDetailToRow(cur);
+        const displayName = normStr(next.personName) || normStr(next.bezeichnung);
+        const upn = normStr(next.personEmail).toLowerCase();
+        if (!displayName) {
+            await dlgAlert('Bitte einen Anzeigenamen im Feld „Name“ eingeben (und speichern oder hier direkt ausfüllen).', { title: 'Eingabe' });
+            return;
+        }
+        if (!upn || upn.indexOf('@') === -1) {
+            await dlgAlert('Bitte eine gültige UPN/E‑Mail im Feld „E‑Mail / UPN“ eingeben.', { title: 'Eingabe' });
+            return;
+        }
+        if (normStr(next.tenantUserId)) {
+            await dlgAlert('Für diesen Eintrag ist bereits eine Entra-Benutzer-ID gespeichert.', { title: 'Entra' });
+            return;
+        }
+        const mailNick = mailNicknameFromUpn(upn);
+        const pwd = generateGraphTempPassword();
+        if (
+            !(await dlgConfirm(
+                'Benutzer in Entra ID anlegen (Microsoft Graph)?\n\n' +
+                    'Anzeigename: ' +
+                    displayName +
+                    '\nUPN: ' +
+                    upn +
+                    '\nMail‑Nickname: ' +
+                    mailNick +
+                    '\n\nEs wird ein temporäres Kennwort gesetzt (Wechsel beim ersten Anmelden).',
+                { title: 'Entra', okText: 'Anlegen' }
+            ))
+        ) {
+            return;
+        }
+        const btn = getEl('ssBtnGraphCreate');
+        if (btn) btn.disabled = true;
+        try {
+            setTenantProgress(true, 'Benutzer wird angelegt …', 0.25);
+            const token = await getGraphToken(GRAPH_SCOPES_GRAPH_OBJECT_CREATE);
+            const body = {
+                accountEnabled: true,
+                displayName,
+                mailNickname: mailNick,
+                userPrincipalName: upn,
+                passwordProfile: {
+                    forceChangePasswordNextSignIn: true,
+                    password: pwd
+                }
+            };
+            const created = await graphJson('POST', '/users', token, body, undefined);
+            const uid = String(created.id || '').trim();
+            if (!uid) throw new Error('Keine Benutzer-ID von Graph erhalten.');
+            next.personName = displayName;
+            next.personEmail = upn;
+            next.tenantUserId = uid;
+            next.syncStatus = 'Ok';
+            next.letzteFehlermeldung = '';
+            upsert(next);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            setTenantProgress(true, 'Benutzer angelegt.', 1);
+            setTimeout(() => setTenantProgress(false, '', null), 1600);
+            try {
+                await dlgAlert(
+                    'Benutzer wurde angelegt.\n\nBitte das temporäre Startkennwort sicher weitergeben (einmalige Anzeige):\n\n' + pwd,
+                    { title: 'Kennwort notieren', okText: 'Verstanden' }
+                );
+            } catch {
+                // ignore
+            }
+            rerender();
+        } catch (e) {
+            const msg = e?.message || String(e);
+            next.syncStatus = 'Fehler';
+            next.letzteFehlermeldung = msg;
+            upsert(next);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            setTenantProgress(true, 'Anlegen fehlgeschlagen: ' + msg, null);
+            rerender();
+        } finally {
+            if (btn) btn.disabled = false;
+            updateGraphQuickCreateBtn();
+        }
+    }
+
+    async function createSelectedStructInTenant() {
+        if (mode !== 'struktur' || !selectedId) return;
+        let row = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!row && isStructureTreeRootId(selectedId)) {
+            row = mergeStructureTreeRootRow(selectedId, schemaState.structRootDetails);
+        }
+        if (!row) return;
+        if (String(row.typ || '') === 'Person') {
+            await dlgAlert('Für den Typ „Person“ wird hier kein Microsoft‑365‑Gruppen‑ oder Team‑Objekt angelegt (Person = Benutzerkonto in Entra ID).', {
+                title: 'Hinweis'
+            });
+            return;
+        }
+        const btn = getEl('ssStructTenantCreateBtn');
+        const graphQuickBtn = getEl('ssBtnGraphCreate');
+        if (btn) btn.disabled = true;
+        if (graphQuickBtn) graphQuickBtn.disabled = true;
+        try {
+            const target = normStr(getEl('ssStructTenantTarget')?.value) || row.tenantTarget || defaultTenantTargetForType(row.typ);
+            const vis = normStr(getEl('ssStructTenantVisibility')?.value) || row.tenantVisibility || defaultTenantVisibilityForType(row.typ);
+            const sug = computeTenantCreateSuggestion(row);
+            const nick = String(getEl('ssStructTenantMailNick')?.value || sug.mailNick || '').trim();
+            if (!sug.displayName) throw new Error('Bitte zuerst eine Bezeichnung eingeben.');
+            if (!nick) throw new Error('Mail‑Nickname ist leer.');
+            if (
+                !(await dlgConfirm(
+                    `Im Tenant anlegen?\n\nName: ${sug.displayName}\nMailNick: ${nick}\nZiel: ${target === 'team' ? 'Team' : 'Gruppe'}\nSichtbarkeit: ${vis}`,
+                    { title: 'Tenant-Anlage', okText: 'Anlegen' }
+                ))
+            ) {
+                return;
+            }
+
+            setTenantProgress(true, 'Anlegen im Tenant …', 0.15);
+            const descForGroup = normStr(getEl('ssBeschreibung')?.value);
+            const created = await createUnifiedGroup(sug.displayName, descForGroup, nick, vis);
+            const gid = String(created.id || '').trim();
+            if (!gid) throw new Error('Anlegen fehlgeschlagen: keine Gruppen-ID erhalten.');
+
+            setTenantProgress(true, 'Angelegt. Übernehme Besitzer/Mitglieder …', 0.45);
+            if (target === 'team') {
+                setTenantProgress(true, 'Team wird erstellt …', 0.55);
+                await createTeamForGroup(gid);
+            }
+
+            const mem = memberships[String(row.id)] || { owners: [], members: [] };
+            const ownerIds = (mem.owners || []).map((p) => String(p.id || '')).filter(Boolean);
+            const memberIds = (mem.members || []).map((p) => String(p.id || '')).filter(Boolean);
+
+            if (ownerIds.length) await mapWithConcurrency(ownerIds, 4, async (uid) => await addOwnerWithMemberFallback(gid, uid));
+            if (memberIds.length) await mapWithConcurrency(memberIds, 6, async (uid) => await addGroupMember(gid, uid));
+
+            row.tenantGroupId = gid;
+            row.tenantMailNickname = nick;
+            row.tenantTarget = target;
+            row.tenantVisibility = vis;
+            row.beschreibung = descForGroup;
+            row.syncStatus = 'Ok';
+            row.letzteFehlermeldung = '';
+            if (row.isStructureTreeRoot) {
+                if (!schemaState.structRootDetails || typeof schemaState.structRootDetails !== 'object') {
+                    schemaState.structRootDetails = {};
+                }
+                schemaState.structRootDetails[String(row.id)] = pickStorableStructureTreeRootFields(row);
+            }
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            links = saveMatchLinkPublic(String(row.id), gid, 'Auto: im Tenant angelegt', '');
+            refreshEffectiveMatchLinks();
+
+            setTenantProgress(true, 'Fertig: im Tenant angelegt.', 1);
+            setTimeout(() => setTenantProgress(false, '', null), 1600);
+            rerender();
+        } catch (e) {
+            const msg = e?.message || String(e);
+            row.syncStatus = 'Fehler';
+            row.letzteFehlermeldung = msg;
+            if (row.isStructureTreeRoot) {
+                if (!schemaState.structRootDetails || typeof schemaState.structRootDetails !== 'object') {
+                    schemaState.structRootDetails = {};
+                }
+                schemaState.structRootDetails[String(row.id)] = pickStorableStructureTreeRootFields(row);
+            }
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            setTenantProgress(true, 'Anlegen fehlgeschlagen: ' + msg, null);
+            rerender();
+        } finally {
+            if (btn) btn.disabled = false;
+            if (graphQuickBtn) graphQuickBtn.disabled = false;
+            updateGraphQuickCreateBtn();
+        }
+    }
+
+    getEl('ssStructTenantCreateBtn')?.addEventListener('click', createSelectedStructInTenant);
+    ['ssStructTenantTarget', 'ssStructTenantVisibility'].forEach((id) => {
+        const el = getEl(id);
+        if (!el) return;
+        el.addEventListener('change', () => {
+            const cur = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+            if (!cur) return;
+            cur.tenantTarget = normStr(getEl('ssStructTenantTarget')?.value);
+            cur.tenantVisibility = normStr(getEl('ssStructTenantVisibility')?.value);
+            saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+            updateStructTenantCreateUi();
+            updateGraphQuickCreateBtn();
+        });
+    });
+    getEl('ssStructTenantMailNick')?.addEventListener('input', () => {
+        if (mode === 'struktur' && selectedId) updateGraphQuickCreateBtn();
+    });
+
+    function getSelectedKursteamRows() {
+        if (!selectedId) return [];
+        const row = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        if (!row) return [];
+        if (String(row.typ || '') !== 'Kursteam') return [];
+        return [row];
+    }
+
+    getEl('ssKursteamCsvDownload')?.addEventListener('click', async () => {
+        const rows = getSelectedKursteamRows();
+        if (!rows.length) {
+            await dlgAlert('Bitte zuerst ein Kursteam auswählen.', { title: 'Kursteam' });
+            return;
+        }
+        // ensure latest suggestion/visibility is written to row fields
+        const cur = rows[0];
+        cur.tenantVisibility = normStr(getEl('ssStructTenantVisibility')?.value) || cur.tenantVisibility || 'HiddenMembership';
+        cur.tenantTarget = normStr(getEl('ssStructTenantTarget')?.value) || cur.tenantTarget || 'team';
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+
+        const csv = buildKursteamCsv(rows, memberships, schemaState);
+        downloadText('kursteams.csv', csv);
+    });
+
+    getEl('ssKursteamPsCopy')?.addEventListener('click', async () => {
+        const ta = getEl('ssKursteamPsScript');
+        const text = ta ? String(ta.value || '') : '';
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            // ignore
+        }
+    });
+
+    getEl('ssKursteamPsDownload')?.addEventListener('click', () => {
+        const ta = getEl('ssKursteamPsScript');
+        const text = ta ? String(ta.value || '') : '';
+        if (!text) return;
+        downloadText('kursteams-provision.ps1', text);
+    });
+
+    function renderAnlegenSettingsPreview() {
+        const el = getEl('ssSchemaPreview');
+        if (!el) return;
+        const domain = String(schemaState.domain || '').trim() || '…';
+        const yearPrefix = String(schemaState.kursteamYearPrefix || '').trim() || '…';
+        const kurTpl = String(schemaState.kursteamPattern || '').trim();
+        const kurNickTpl = String(schemaState.kursteamMailNickPattern || '').trim();
+        const kurName = buildKursteamNameFromTemplate(kurTpl, { yearPrefix, klasse: '1AK', fach: 'D', gruppe: 'G1' });
+        const kurNick = buildKursteamMailNickFromTemplate(kurNickTpl, { yearPrefix, klasse: '1AK', fach: 'D', gruppe: 'G1' });
+
+        const jgNick = buildJgMailNick(schemaState, '2030', 'AK');
+        const argeNick = buildArgeMailNick(schemaState, 'M');
+
+        const bK = getEl('ssSchemaTabKursteamBtn');
+        const bJ = getEl('ssSchemaTabJahrgangBtn');
+        const bA = getEl('ssSchemaTabArgeBtn');
+        const active =
+            bJ && bJ.getAttribute('aria-selected') === 'true'
+                ? 'jg'
+                : bA && bA.getAttribute('aria-selected') === 'true'
+                  ? 'arge'
+                  : 'kt';
+
+        if (active === 'jg') {
+            el.innerHTML =
+                `<div><strong>Jahrgang (Mail‑Nickname):</strong> <code>${escapeHtml(jgNick)}</code> &nbsp;→&nbsp; <code>${escapeHtml(jgNick)}@${escapeHtml(domain)}</code></div>`;
+        } else if (active === 'arge') {
+            el.innerHTML =
+                `<div><strong>ARGE (Mail‑Nickname):</strong> <code>${escapeHtml(argeNick)}</code> &nbsp;→&nbsp; <code>${escapeHtml(argeNick)}@${escapeHtml(domain)}</code></div>`;
+        } else {
+            el.innerHTML =
+                `<div><strong>Kursteam (Anzeige):</strong> <code>${escapeHtml(kurName)}</code></div>` +
+                `<div style="margin-top:6px;"><strong>Kursteam (Mail‑Nickname):</strong> <code>${escapeHtml(kurNick)}</code> &nbsp;→&nbsp; <code>${escapeHtml(kurNick)}@${escapeHtml(domain)}</code></div>`;
+        }
+    }
+
+    function bindAnlegenSettingsUi() {
+        const panel = getEl('ssAnlegenSettingsPanel');
+        if (!panel) return;
+        const domainEl = getEl('ssSchemaDomain');
+        const ypEl = getEl('ssSchemaSchoolYearPrefix');
+        const kurTplEl = getEl('ssSchemaKursteamPattern');
+        const kurNickTplEl = getEl('ssSchemaKursteamMailNickPattern');
+        const jgPrefEl = getEl('ssSchemaJgPrefix');
+        const jgUpperEl = getEl('ssSchemaJgUpper');
+        const argePrefEl = getEl('ssSchemaArgePrefix');
+        const argeUpperEl = getEl('ssSchemaArgeUpper');
+
+        if (domainEl) domainEl.value = String(schemaState.domain || '');
+        if (ypEl) ypEl.value = String(schemaState.kursteamYearPrefix || '');
+        if (kurTplEl) kurTplEl.value = String(schemaState.kursteamPattern || '');
+        if (kurNickTplEl) kurNickTplEl.value = String(schemaState.kursteamMailNickPattern || '');
+        if (jgPrefEl) jgPrefEl.value = String(schemaState.jgPrefix || '');
+        if (jgUpperEl) jgUpperEl.checked = !!schemaState.jgUpper;
+        if (argePrefEl) argePrefEl.value = String(schemaState.argePrefix || '');
+        if (argeUpperEl) argeUpperEl.checked = !!schemaState.argeUpper;
+
+        let t;
+        const saveNow = () => saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+        const onChange = () => {
+            clearTimeout(t);
+            t = setTimeout(() => {
+                if (domainEl) schemaState.domain = String(domainEl.value || '').trim();
+                if (ypEl) schemaState.kursteamYearPrefix = String(ypEl.value || '').trim();
+                if (kurTplEl) schemaState.kursteamPattern = String(kurTplEl.value || '').trim();
+                if (kurNickTplEl) schemaState.kursteamMailNickPattern = String(kurNickTplEl.value || '').trim();
+                if (jgPrefEl) schemaState.jgPrefix = String(jgPrefEl.value || '').trim();
+                if (jgUpperEl) schemaState.jgUpper = !!jgUpperEl.checked;
+                if (argePrefEl) schemaState.argePrefix = String(argePrefEl.value || '').trim();
+                if (argeUpperEl) schemaState.argeUpper = !!argeUpperEl.checked;
+                saveNow();
+                renderAnlegenSettingsPreview();
+            }, 120);
+        };
+
+        [domainEl, ypEl, kurTplEl, kurNickTplEl, jgPrefEl, argePrefEl].forEach((x) => x && x.addEventListener('input', onChange));
+        [jgUpperEl, argeUpperEl].forEach((x) => x && x.addEventListener('change', onChange));
+        renderAnlegenSettingsPreview();
+    }
+
+    // Tabs im Schema-Panel (Kursteams/Jahrgang/ARGEs)
+    let schemaTabWired = false;
+    function wireSchemaTabsOnce() {
+        if (schemaTabWired) return;
+        schemaTabWired = true;
+        const bK = getEl('ssSchemaTabKursteamBtn');
+        const bJ = getEl('ssSchemaTabJahrgangBtn');
+        const bA = getEl('ssSchemaTabArgeBtn');
+        const pK = getEl('ssSchemaTabKursteam');
+        const pJ = getEl('ssSchemaTabJahrgang');
+        const pA = getEl('ssSchemaTabArge');
+        if (!bK || !bJ || !bA || !pK || !pJ || !pA) return;
+
+        function setTab(which) {
+            const w = which === 'jg' ? 'jg' : which === 'arge' ? 'arge' : 'kt';
+            bK.setAttribute('aria-selected', w === 'kt' ? 'true' : 'false');
+            bJ.setAttribute('aria-selected', w === 'jg' ? 'true' : 'false');
+            bA.setAttribute('aria-selected', w === 'arge' ? 'true' : 'false');
+            pK.classList.toggle('active', w === 'kt');
+            pJ.classList.toggle('active', w === 'jg');
+            pA.classList.toggle('active', w === 'arge');
+            renderAnlegenSettingsPreview();
+        }
+
+        bK.addEventListener('click', () => setTab('kt'));
+        bJ.addEventListener('click', () => setTab('jg'));
+        bA.addEventListener('click', () => setTab('arge'));
+        setTab('kt');
+    }
+
+    function getStructMembership(unitId) {
+        const id = String(unitId || '');
+        if (!id) return { owners: [], members: [] };
+        const m = memberships[id];
+        if (m && typeof m === 'object') {
+            return {
+                owners: Array.isArray(m.owners) ? m.owners : [],
+                members: Array.isArray(m.members) ? m.members : []
+            };
+        }
+        return { owners: [], members: [] };
+    }
+
+    function setStructMembership(unitId, next) {
+        const id = String(unitId || '');
+        if (!id) return;
+        memberships[id] = {
+            owners: Array.isArray(next.owners) ? next.owners : [],
+            members: Array.isArray(next.members) ? next.members : []
+        };
+        saveState({ rows: rowsStruktur, memberships, settings: schemaState });
+    }
+
+    function renderStructPeople(list, targetId, removeAttr) {
+        const wrap = getEl(targetId);
+        if (!wrap) return;
+        wrap.replaceChildren();
+        const arr = Array.isArray(list) ? list : [];
+        if (!arr.length) {
+            const p = document.createElement('p');
+            p.style.margin = '0';
+            p.style.color = '#6c757d';
+            p.textContent = 'Keine Einträge.';
+            wrap.appendChild(p);
+            return;
+        }
+        arr
+            .slice()
+            .sort((a, b) => compareDe(personLabel(a), personLabel(b)))
+            .forEach((u) => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'space-between';
+                row.style.alignItems = 'flex-start';
+                row.style.gap = '10px';
+                row.style.padding = '8px 0';
+                row.style.borderBottom = '1px solid #e9ecef';
+                const txt = document.createElement('div');
+                txt.style.whiteSpace = 'pre-wrap';
+                txt.style.lineHeight = '1.35';
+                txt.style.fontSize = '0.92em';
+                txt.textContent = personLabel(u) || '–';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn';
+                btn.style.padding = '6px 10px';
+                btn.style.fontSize = '0.85em';
+                btn.textContent = 'Entfernen';
+                btn.setAttribute(removeAttr, String(u.id || u.userPrincipalName || u.mail || personLabel(u)));
+                row.appendChild(txt);
+                row.appendChild(btn);
+                wrap.appendChild(row);
+            });
+    }
+
+    function fillStructSearchSelect(users, selectId) {
+        const sel = getEl(selectId);
+        if (!sel) return;
+        sel.replaceChildren();
+        if (!users || !users.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '(keine Treffer)';
+            sel.appendChild(opt);
+            return;
+        }
+        for (let i = 0; i < users.length; i++) {
+            const u = users[i];
+            const opt = document.createElement('option');
+            opt.value = u.id || '';
+            opt.textContent = personLabel(u) || (u.id ? String(u.id) : '');
+            sel.appendChild(opt);
+        }
+    }
+
+    function renderStructMembershipUi() {
+        if (mode !== 'struktur' || !selectedId) return;
+        const m = getStructMembership(selectedId);
+        renderStructPeople(m.owners, 'ssStructOwnersList', 'data-ss-struct-remove-owner');
+        renderStructPeople(m.members, 'ssStructMembersList', 'data-ss-struct-remove-member');
+    }
+
+    async function runStructUserSearch(query, selectId) {
+        const q = String(query || '').trim();
+        if (!q) {
+            fillStructSearchSelect([], selectId);
+            return;
+        }
+        try {
+            const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
+            const users = await graphSearchUsersForOwner(token, q);
+            fillStructSearchSelect(users, selectId);
+        } catch (e) {
+            toast('Suche: ' + (e?.message || String(e)));
+            fillStructSearchSelect([], selectId);
+        }
+    }
+
+    getEl('ssStructOwnerSearchBtn')?.addEventListener('click', async () => {
+        if (mode !== 'struktur') return;
+        await runStructUserSearch(getEl('ssStructOwnerSearch')?.value || '', 'ssStructOwnerSearchResults');
+    });
+    getEl('ssStructMemberSearchBtn')?.addEventListener('click', async () => {
+        if (mode !== 'struktur') return;
+        await runStructUserSearch(getEl('ssStructMemberSearch')?.value || '', 'ssStructMemberSearchResults');
+    });
+
+    function addStructPerson(kind, user) {
+        if (!selectedId) return;
+        const m = getStructMembership(selectedId);
+        const arr = kind === 'owners' ? m.owners : m.members;
+        const id = String(user.id || '');
+        if (id && arr.some((x) => String(x.id || '') === id)) return;
+        arr.push(user);
+        if (kind === 'owners') m.owners = arr;
+        else m.members = arr;
+        setStructMembership(selectedId, m);
+        renderStructMembershipUi();
+    }
+
+    getEl('ssStructOwnerAddBtn')?.addEventListener('click', () => {
+        if (mode !== 'struktur' || !selectedId) return;
+        const sel = getEl('ssStructOwnerSearchResults');
+        const userId = sel && sel.value ? String(sel.value).trim() : '';
+        if (!userId) return toast('Bitte zuerst einen Benutzer aus den Treffern auswählen.');
+        // Minimal speichern: id + displayName/upn (falls vorhanden)
+        const opt = sel.options[sel.selectedIndex];
+        addStructPerson('owners', { id: userId, displayName: opt ? String(opt.textContent || '') : '' });
+    });
+    getEl('ssStructMemberAddBtn')?.addEventListener('click', () => {
+        if (mode !== 'struktur' || !selectedId) return;
+        const sel = getEl('ssStructMemberSearchResults');
+        const userId = sel && sel.value ? String(sel.value).trim() : '';
+        if (!userId) return toast('Bitte zuerst einen Benutzer aus den Treffern auswählen.');
+        const opt = sel.options[sel.selectedIndex];
+        addStructPerson('members', { id: userId, displayName: opt ? String(opt.textContent || '') : '' });
+    });
+
+    getEl('ssStructOwnersList')?.addEventListener('click', (ev) => {
+        if (mode !== 'struktur' || !selectedId) return;
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button[data-ss-struct-remove-owner]') : null;
+        if (!btn) return;
+        const key = btn.getAttribute('data-ss-struct-remove-owner') || '';
+        const m = getStructMembership(selectedId);
+        m.owners = m.owners.filter((u) => String(u.id || u.displayName || '') !== String(key));
+        setStructMembership(selectedId, m);
+        renderStructMembershipUi();
+    });
+    getEl('ssStructMembersList')?.addEventListener('click', (ev) => {
+        if (mode !== 'struktur' || !selectedId) return;
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('button[data-ss-struct-remove-member]') : null;
+        if (!btn) return;
+        const key = btn.getAttribute('data-ss-struct-remove-member') || '';
+        const m = getStructMembership(selectedId);
+        m.members = m.members.filter((u) => String(u.id || u.displayName || '') !== String(key));
+        setStructMembership(selectedId, m);
+        renderStructMembershipUi();
+    });
+
+    getEl('ssBtnTenantLoadTop')?.addEventListener('click', async () => {
+        // Wenn ein Login-Redirect passiert, wollen wir nach Rückkehr im "Verwalten"-Tab bleiben.
+        try {
+            sessionStorage.setItem(UI_MODE_KEY, 'tenant');
+        } catch {
+            // ignore
+        }
+        await reloadTenantNow('Starte');
+    });
+
+    // --- Bulk Owner add (Tenant) ---
+    function fillBulkOwnerSearchSelect(users) {
+        const sel = getEl('ssTenantBulkOwnerResults');
+        if (!sel) return;
+        sel.replaceChildren();
+        if (!users || !users.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '(keine Treffer)';
+            sel.appendChild(opt);
+            return;
+        }
+        for (let i = 0; i < users.length; i++) {
+            const u = users[i];
+            const opt = document.createElement('option');
+            opt.value = u.id || '';
+            opt.textContent = personLabel(u) || (u.id ? String(u.id) : '');
+            sel.appendChild(opt);
+        }
+    }
+
+    async function mapWithConcurrency(items, limit, fn) {
+        const results = new Array(items.length);
+        let i = 0;
+        async function worker() {
+            while (i < items.length) {
+                const idx = i++;
+                results[idx] = await fn(items[idx], idx);
+            }
+        }
+        const n = Math.min(limit, items.length || 1);
+        const workers = [];
+        for (let w = 0; w < n; w++) workers.push(worker());
+        await Promise.all(workers);
+        return results;
+    }
+
+    getEl('ssTenantBulkClear')?.addEventListener('click', () => {
+        if (mode !== 'tenant') return;
+        tenantMultiSel = new Set();
+        selectedId = '';
+        rerender();
+    });
+
+    getEl('ssTenantBulkOwnerSearchBtn')?.addEventListener('click', async () => {
+        if (mode !== 'tenant') return;
+        const q = getEl('ssTenantBulkOwnerSearch')?.value || '';
+        const btn = getEl('ssTenantBulkOwnerSearchBtn');
+        if (btn) btn.disabled = true;
+        try {
+            const token = await getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
+            const users = await graphSearchUsersForOwner(token, q);
+            fillBulkOwnerSearchSelect(users);
+            toast('Suche: ' + users.length + ' Treffer.');
+        } catch (e) {
+            toast('Suche: ' + (e?.message || String(e)));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    });
+
+    getEl('ssTenantBulkAddOwnerBtn')?.addEventListener('click', async () => {
+        if (mode !== 'tenant') return;
+        if (tenantMultiSel.size < 2) {
+            toast('Bitte mindestens 2 Gruppen/Teams auswählen.');
+            return;
+        }
+        const sel = getEl('ssTenantBulkOwnerResults');
+        const userId = sel && sel.value ? String(sel.value).trim() : '';
+        if (!userId) {
+            toast('Bitte zuerst einen Besitzer aus den Treffern auswählen.');
+            return;
+        }
+        if (!(await dlgConfirm('Besitzer wirklich zu ALLEN ausgewählten Gruppen/Teams hinzufügen?', { title: 'Bulk-Besitzer', okText: 'Hinzufügen' }))) return;
+
+        const ids = Array.from(tenantMultiSel);
+        const btn = getEl('ssTenantBulkAddOwnerBtn');
+        if (btn) btn.disabled = true;
+        try {
+            setTenantProgress(true, 'Bulk: Besitzer wird gesetzt … 0 / ' + ids.length, 0.1);
+            let ok = 0;
+            let fail = 0;
+            await mapWithConcurrency(ids, 4, async (gid, idx) => {
+                try {
+                    await addOwnerWithMemberFallback(gid, userId);
+                    ok++;
+                    const ix = rowsTenant.findIndex((r) => String(r.id) === String(gid));
+                    if (ix !== -1) {
+                        const prev = rowsTenant[ix].ownerCount;
+                        const next =
+                            typeof prev === 'number' && prev >= 0 ? Math.max(1, prev + 1) : 1;
+                        rowsTenant[ix] = Object.assign({}, rowsTenant[ix], { ownerCount: next });
+                    }
+                } catch {
+                    fail++;
+                }
+                if (idx % 2 === 0) {
+                    const ratio = Math.min(0.95, (idx + 1) / ids.length);
+                    setTenantProgress(true, 'Bulk: Besitzer wird gesetzt … ' + (idx + 1) + ' / ' + ids.length, ratio);
+                }
+            });
+            try {
+                saveTenantCache(rowsTenant);
+            } catch (_) {}
+            try {
+                rerender();
+            } catch (_) {}
+            setTenantProgress(true, 'Bulk fertig. OK: ' + ok + ', Fehler: ' + fail, 1);
+            setTimeout(() => setTenantProgress(false, '', null), 1800);
+        } catch (e) {
+            setTenantProgress(true, 'Bulk fehlgeschlagen: ' + (e?.message || String(e)), null);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    });
+
+    // --- Abgleichen (Mapping) ---
+    function saveLinkForSelected(selectValue, noteText) {
+        if (!selectedId) return;
+        const { tenantGroupId, tenantUserId } = parseMatchSelectValue(selectValue);
+        links = saveMatchLinkPublic(String(selectedId), tenantGroupId, noteText || '', tenantUserId);
+        refreshEffectiveMatchLinks();
+    }
+
+    function suggestTenantGroupForUnit(unit) {
+        return suggestTenantGroupForUnitFromList(unit, rowsTenant || []);
+    }
+
+    getEl('ssMatchSaveBtn')?.addEventListener('click', () => {
+        if (mode !== 'match' || !selectedId) return;
+        const selTenant = getEl('ssMatchTenantGroup');
+        const note = getEl('ssMatchNote');
+        const val = selTenant && selTenant.value ? String(selTenant.value) : '';
+        saveLinkForSelected(val, note ? note.value : '');
+        toast(val ? 'Verknüpft.' : 'Verknüpfung gelöst.');
+    });
+    getEl('ssMatchClearBtn')?.addEventListener('click', () => {
+        if (mode !== 'match' || !selectedId) return;
+        const selTenant = getEl('ssMatchTenantGroup');
+        const note = getEl('ssMatchNote');
+        const inpSearch = getEl('ssMatchTenantSearch');
+        if (inpSearch) inpSearch.value = '';
+        if (selTenant) {
+            rebuildMatchTenantSelectOptions(selTenant, '', '');
+            selTenant.value = '';
+        }
+        if (note) note.value = '';
+        saveLinkForSelected('', '');
+        toast('Verknüpfung gelöst.');
+    });
+    getEl('ssMatchSuggestBtn')?.addEventListener('click', () => {
+        if (mode !== 'match' || !selectedId) return;
+        const unit = rowsStruktur.find((r) => String(r.id) === String(selectedId));
+        const cache = loadTenantCache();
+        const sug = suggestTenantMatchSelectValue(unit, rowsTenant || [], cache.users || []);
+        const selTenant = getEl('ssMatchTenantGroup');
+        const inpSearch = getEl('ssMatchTenantSearch');
+        if (inpSearch) inpSearch.value = '';
+        if (selTenant) {
+            rebuildMatchTenantSelectOptions(selTenant, '', sug || '');
+            selTenant.value = sug || '';
+        }
+        toast(sug ? 'Vorschlag gesetzt.' : 'Kein passender Vorschlag gefunden.');
+    });
+
+    function mergeTenantCacheFromLive(g) {
+        if (!g || !g.id) return;
+        const idx = rowsTenant.findIndex((r) => String(r.id) === String(g.id));
+        if (idx === -1) return;
+        rowsTenant[idx] = Object.assign({}, rowsTenant[idx], {
+            bezeichnung: String(g.displayName || ''),
+            mail: String(g.mail || ''),
+            alias: String(g.mailNickname || ''),
+            description: String(g.description || ''),
+            visibility: String(g.visibility || ''),
+            expirationDateTime: String(g.expirationDateTime || ''),
+            createdDateTime: String(g.createdDateTime || '')
+        });
+        saveTenantCache(rowsTenant);
+    }
+
+    async function applyTenantArchiveAfterUpdate() {
+        if (mode !== 'tenant' || !selectedId) return '';
+        const archSel = getEl('slgArchiveState');
+        const archSpo = getEl('slgArchiveSpoReadonly');
+        const idxPre = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
+        const rowPre = idxPre === -1 ? null : rowsTenant[idxPre];
+        const baselineArchived =
+            rowPre && (rowPre.teamIsArchived === true || rowPre.teamIsArchived === false)
+                ? rowPre.teamIsArchived
+                : null;
+        const wantArchived =
+            archSel && !archSel.disabled && String(archSel.value || '') === 'archived'
+                ? true
+                : archSel && !archSel.disabled
+                  ? false
+                  : null;
+        const typPre = String(rowPre && rowPre.typ ? rowPre.typ : '');
+        const unifyArch = typPre === 'Team' || typPre === 'Gruppe';
+        const hasTeamForMutation =
+            rowPre &&
+            (rowPre.hasTeamsForArchive === true ||
+                (rowPre.hasTeamsForArchive === undefined &&
+                    (rowPre.teamIsArchived === true || rowPre.teamIsArchived === false)));
+        const doArchiveMutation =
+            rowPre &&
+            unifyArch &&
+            !!hasTeamForMutation &&
+            wantArchived !== null &&
+            baselineArchived !== null &&
+            wantArchived !== baselineArchived;
+        const spoForArchive = !!(wantArchived && archSpo && archSpo.checked);
+        if (doArchiveMutation) {
+            setTenantProgress(
+                true,
+                wantArchived ? 'Team wird archiviert …' : 'Archivierung wird aufgehoben …',
+                0.5
+            );
+            await setTenantTeamArchiveState(selectedId, wantArchived, spoForArchive);
+            const fresh = await fetchTenantGroupDetail(selectedId);
+            const idx = rowsTenant.findIndex((r) => String(r.id) === String(selectedId));
+            if (idx !== -1) {
+                rowsTenant[idx] = Object.assign({}, rowsTenant[idx], fresh);
+                saveTenantCache(rowsTenant);
+                applyTenantArchiveUi(rowsTenant[idx]);
+            }
+        }
+        rerender();
+        return '';
+    }
+
+    async function deleteSelectedTenantGroup() {
+        if (mode !== 'tenant' || !selectedId) return;
+        const cur = rowsTenant.find((r) => String(r.id) === String(selectedId));
+        if (cur && cur.onPremisesSyncEnabled) {
+            await dlgAlert(
+                'Diese Gruppe ist aus dem lokalen Active Directory synchronisiert.\n\n' +
+                    'Löschen/Ändern nur im On‑Premises‑AD (SAM: ' +
+                    (cur.onPremisesSamAccountName || '–') +
+                    '). Danach wartet der Sync.\n\n' +
+                    'Tipp: Markiere die Gruppe und exportiere die Liste für den lokalen Admin.',
+                { title: 'AD‑Sync – nicht in der Cloud löschen' }
+            );
+            return;
+        }
+        if (
+            !(await dlgConfirm(
+                'Diese Gruppe/dieses Team wirklich LÖSCHEN? Dieser Vorgang kann nicht rückgängig gemacht werden.',
+                { title: 'Löschen', okText: 'Endgültig löschen', danger: true }
+            ))
+        ) {
+            return;
+        }
+        const btn = getEl('slgBtnDeleteGroup');
+        if (btn) btn.disabled = true;
+        try {
+            setTenantProgress(true, 'Lösche Gruppe/Team …', 0.45);
+            await deleteTenantGroup(selectedId);
+            rowsTenant = rowsTenant.filter((r) => String(r.id) !== String(selectedId));
+            saveTenantCache(rowsTenant);
+            selectedId = '';
+            setTenantProgress(true, 'Gelöscht.', 1);
+            setTimeout(() => setTenantProgress(false, '', null), 1200);
+            rerender();
+        } catch (e) {
+            setTenantProgress(true, 'Löschen fehlgeschlagen: ' + (e?.message || String(e)), null);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function saveFlagForSelected(flaggedElId, noteElId) {
+        if (mode !== 'tenant' || !selectedId) return;
+        const flaggedEl = getEl(flaggedElId);
+        const noteEl = getEl(noteElId);
+        const flagged = !!(flaggedEl && flaggedEl.checked);
+        const note = noteEl ? String(noteEl.value || '') : '';
+        patchAdGroupFlag(selectedId, { flagged: flagged, note: note });
+        rowsTenant = applyAdFlagsToTenantRows(rowsTenant);
+        saveTenantCache(rowsTenant);
+        const row = rowsTenant.find((r) => String(r.id) === String(selectedId));
+        if (row) fillTenantAdSyncPanels(row);
+        rerender();
+        toast(flagged ? 'Für lokalen Admin markiert.' : 'Markierung entfernt.');
+    }
+
+    function csvEscape(v) {
+        const s = String(v == null ? '' : v);
+        if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+    }
+
+    function exportTenantRowsCsv(rows, filename) {
+        const list = Array.isArray(rows) ? rows : [];
+        const header = [
+            'displayName',
+            'typ',
+            'mail',
+            'alias',
+            'onPremisesSyncEnabled',
+            'onPremisesSamAccountName',
+            'onPremisesDomainName',
+            'onPremisesLastSyncDateTime',
+            'onPremisesSecurityIdentifier',
+            'adFlagged',
+            'adFlagNote',
+            'id'
+        ];
+        const lines = [header.join(';')];
+        list.forEach((r) => {
+            lines.push(
+                [
+                    r.bezeichnung,
+                    r.typ,
+                    r.mail,
+                    r.alias,
+                    r.onPremisesSyncEnabled ? 'true' : 'false',
+                    r.onPremisesSamAccountName,
+                    r.onPremisesDomainName,
+                    r.onPremisesLastSyncDateTime,
+                    r.onPremisesSecurityIdentifier,
+                    r.adFlagged ? 'true' : 'false',
+                    r.adFlagNote,
+                    r.id
+                ]
+                    .map(csvEscape)
+                    .join(';')
+            );
+        });
+        downloadText(filename, lines.join('\r\n'));
+    }
+
+    getEl('ssAdFlagSave')?.addEventListener('click', () => saveFlagForSelected('ssAdFlagged', 'ssAdFlagNote'));
+    getEl('ssCloudFlagSave')?.addEventListener('click', () =>
+        saveFlagForSelected('ssCloudFlagged', 'ssCloudFlagNote')
+    );
+    getEl('ssBtnExportAdFlagged')?.addEventListener('click', () => {
+        const list = applyAdFlagsToTenantRows(rowsTenant).filter((r) => r && r.adFlagged);
+        if (!list.length) {
+            toast('Keine markierten Gruppen.');
+            return;
+        }
+        exportTenantRowsCsv(list, 'ad-admin-markierte-gruppen.csv');
+        toast(list.length + ' markierte Gruppe(n) exportiert.');
+    });
+    getEl('ssBtnExportAdSync')?.addEventListener('click', () => {
+        const list = applyAdFlagsToTenantRows(rowsTenant).filter((r) => r && r.onPremisesSyncEnabled);
+        if (!list.length) {
+            toast('Keine AD‑Sync‑Gruppen gefunden (Tenant erneut einlesen?).');
+            return;
+        }
+        exportTenantRowsCsv(list, 'ad-sync-gruppen.csv');
+        toast(list.length + ' AD‑Sync‑Gruppe(n) exportiert.');
+    });
+
+    let archiveStateWired = false;
+    function wireArchiveStateOnce() {
+        if (archiveStateWired) return;
+        const sel = getEl('slgArchiveState');
+        if (!sel) return;
+        archiveStateWired = true;
+        sel.addEventListener('change', () => {
+            const spo = getEl('slgArchiveSpoReadonly');
+            if (!spo) return;
+            spo.disabled = sel.disabled || String(sel.value || '') !== 'archived';
+            if (String(sel.value || '') !== 'archived') spo.checked = false;
+        });
+    }
+
+    function mountTenantGroupDetail() {
+        const G = window.ms365GroupDetail;
+        if (!G) throw new Error('group-detail.js muss vor diesem Skript geladen werden.');
+        G.mount('#groupDetailHost', {
+            title: 'Gruppe',
+            subtitle: 'Details der Microsoft 365‑Gruppe im Tenant',
+            features: {
+                header: false,
+                matchUi: false,
+                openEntra: true,
+                deleteGroup: true,
+                teamArchive: true,
+                syncMembers: false,
+                ensureDirektion: false,
+                aliasEditable: false,
+                smtpSlot: false,
+                visibilityUnsupported: true
+            },
+            ids: { ownerExtra: 'ssTenantBulkWrap' },
+            live: {
+                toast: toast,
+                dlgConfirm: dlgConfirm,
+                getGroupId: function () {
+                    return mode === 'tenant' && selectedId ? String(selectedId) : null;
+                },
+                getGraphToken: function () {
+                    return getGraphToken(GRAPH_SCOPES_TENANT_OWNER_MANAGE);
+                },
+                confirmUpdate: function () {
+                    return dlgConfirm('Änderungen im LIVE‑Tenant wirklich speichern?', {
+                        title: 'Tenant-Update',
+                        okText: 'Speichern'
+                    });
+                },
+                onAfterLoad: async function (g) {
+                    mergeTenantCacheFromLive(g);
+                    const row = rowsTenant.find((r) => String(r.id) === String(selectedId));
+                    const art = getEl('slgLiveArt');
+                    if (art && row) art.value = String(row.typ || '');
+                    if (row) fillTenantAdSyncPanels(row);
+                    await synchronizeTenantTeamArchiveFlag();
+                },
+                onAfterUpdate: async function () {
+                    return applyTenantArchiveAfterUpdate();
+                },
+                onDelete: function () {
+                    void deleteSelectedTenantGroup();
+                }
+            }
+        });
+        wireArchiveStateOnce();
+    }
+
+    setEnsureTenantGroupDetailMounted(function () {
+        if (!document.getElementById('groupDetailHost')) return false;
+        try {
+            mountTenantGroupDetail();
+            return !!document.getElementById('slgLiveName');
+        } catch (e) {
+            console.error('Gruppen-Details konnten nicht eingehängt werden:', e);
+            return false;
+        }
+    });
+    getEnsureTenantGroupDetailMounted()();
+
+    // initial render (restore last tab if available)
+    function readStartMode() {
+        const valid = (m) => m === 'tenant' || m === 'match' || m === 'struktur';
+        // 1) URL parameter (?mode=match)
+        try {
+            const q = new URLSearchParams(String(window.location.search || ''));
+            const m = String(q.get('mode') || '').trim();
+            if (valid(m)) return m;
+        } catch {
+            // ignore
+        }
+        // 2) Explicit force mode on body
+        try {
+            const m = String(document?.body?.getAttribute('data-ss-force-mode') || '').trim();
+            if (valid(m)) return m;
+        } catch {
+            // ignore
+        }
+        // 3) Default mode on body (used by pages without tabs)
+        try {
+            const m = String(document?.body?.getAttribute('data-ss-default-mode') || '').trim();
+            if (valid(m)) return m;
+        } catch {
+            // ignore
+        }
+        // 4) Restore last
+        try {
+            const saved = String(sessionStorage.getItem(UI_MODE_KEY) || '').trim();
+            if (valid(saved)) return saved;
+        } catch {
+            // ignore
+        }
+        // 5) Fallback
+        if (!tabStruktur && !tabMatch) return 'tenant';
+        return 'struktur';
+    }
+    mode = readStartMode();
+    if (tabStruktur) tabStruktur.setAttribute('aria-selected', mode === 'struktur' ? 'true' : 'false');
+    if (tabMatch) tabMatch.setAttribute('aria-selected', mode === 'match' ? 'true' : 'false');
+    if (tabTenant) tabTenant.setAttribute('aria-selected', mode === 'tenant' ? 'true' : 'false');
+    updateModeUi();
+    rerender();
+}
+
+function renderMatchDetail(unit) {
+    const inpUnit = getEl('ssMatchUnit');
+    const selTenant = getEl('ssMatchTenantGroup');
+    const note = getEl('ssMatchNote');
+    if (!inpUnit || !selTenant || !note) return;
+
+    inpUnit.value = (unit.bezeichnung || '(ohne Bezeichnung)') + ' – ' + (unit.typ || '');
+
+    const list = Array.isArray(window.__ms365TenantRowsCache) ? window.__ms365TenantRowsCache : [];
+    const users = Array.isArray(window.__ms365TenantUsersCache) ? window.__ms365TenantUsersCache : [];
+    window.__ms365MatchTenantPickSource = { groups: list, users };
+
+    const links = window.__ms365MatchLinks || {};
+    const cur = links[String(unit.id)] || null;
+    let selVal = '';
+    if (cur && normStr(cur.tenantUserId)) selVal = 'u:' + String(cur.tenantUserId);
+    else if (cur && normStr(cur.tenantGroupId)) {
+        const gid = String(cur.tenantGroupId);
+        const isUser = users.some((u) => String(u.id) === gid);
+        selVal = (isUser ? 'u:' : 'g:') + gid;
+    }
+
+    const inpSearch = getEl('ssMatchTenantSearch');
+    if (inpSearch) inpSearch.value = '';
+    rebuildMatchTenantSelectOptions(selTenant, '', selVal);
+    wireMatchTenantSearchOnce();
+
+    note.value = cur && cur.note ? String(cur.note) : '';
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+else bind();

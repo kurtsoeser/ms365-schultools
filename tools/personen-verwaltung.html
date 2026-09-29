@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Personen</title>
-    <link rel="stylesheet" href="../app.css?v=9">
+    <link rel="stylesheet" href="../app.css?v=12">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .page-card { max-width: var(--app-max-width); margin: 0 auto; }
@@ -58,6 +58,20 @@
         @media (min-width: 900px) {
             .tree-filter.pv-filters-3 { grid-template-columns: 1fr 1fr 1fr 1fr; }
         }
+
+        #pvAdSummary .pv-ad-filter-link {
+            appearance: none;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        #pvAdSummary .pv-ad-filter-link:hover { color: var(--brand1); }
 
         .tree {
             margin: 12px 0 0;
@@ -474,6 +488,8 @@
         </div>
 
         <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Personen geladen. Melden Sie sich an und lesen Sie Konten ein – oder starten Sie die Demo für lokale Stammdaten."></div>
+
             <div class="layout">
                 <section class="panel" aria-label="Personenliste">
                     <div class="panel-head">
@@ -482,6 +498,8 @@
                             <button type="button" class="btn btn-success small-btn" id="pvBtnNeu"><i class="bi bi-plus-circle"></i>Neu</button>
                             <button type="button" class="btn btn-success small-btn" id="pvBtnLoad"><i class="bi bi-cloud-download"></i>Personen einlesen</button>
                             <button type="button" class="btn small-btn" id="pvBtnCsv"><i class="bi bi-download"></i>CSV</button>
+                            <button type="button" class="btn small-btn" id="pvBtnExportAdSync" title="Alle AD-gesyncten Konten als Bericht"><i class="bi bi-hdd-network"></i>AD‑Sync‑Bericht</button>
+                            <button type="button" class="btn small-btn" id="pvBtnExportAdFlagged" title="Markierte Konten für lokalen Admin"><i class="bi bi-clipboard-data"></i>Markierte</button>
                         </div>
                         <div class="tree-filter pv-filters-3" aria-label="Filter">
                             <div>
@@ -512,9 +530,18 @@
                                     <option value="">(alle Lizenzen)</option>
                                 </select>
                             </div>
+                            <div>
+                                <label for="pvFilterAdSync">AD‑Sync</label>
+                                <select id="pvFilterAdSync" autocomplete="off" title="Konten aus lokalem Active Directory (Hybrid)">
+                                    <option value="" selected>(alle)</option>
+                                    <option value="adSync">Mit lokalem AD synchronisiert</option>
+                                    <option value="cloud">Nur Cloud (kein AD‑Sync)</option>
+                                    <option value="flagged">Nur markiert (für Admin)</option>
+                                </select>
+                            </div>
                             <div class="pv-filter-sort">
                                 <label for="pvFilterText">Suche</label>
-                                <input type="text" id="pvFilterText" placeholder="z. B. Name, UPN, E-Mail, ID …" autocomplete="off">
+                                <input type="text" id="pvFilterText" placeholder="z. B. Name, UPN, SAM‑Account …" autocomplete="off">
                             </div>
                             <div class="pv-filter-sort">
                                 <label for="pvSortKey">Sortierung</label>
@@ -535,6 +562,7 @@
                             <li class="stat"><div class="n" id="pvStatGuest">–</div><div class="l">Gäste</div></li>
                             <li class="stat"><div class="n" id="pvStatActive">–</div><div class="l">Konto aktiv</div></li>
                         </ul>
+                        <p class="hint" id="pvAdSummary" style="display:none;margin:10px 0 0;line-height:1.45;"></p>
                         <p id="pvCacheBanner" style="display:none;margin:8px 2px 0;padding:8px 12px;background:color-mix(in srgb, var(--brand1) 9%, transparent);border:1px solid color-mix(in srgb, var(--brand1) 25%, transparent);border-radius:10px;font-size:0.9em;color:#32325d;"></p>
                         <p id="pvProgress" class="muted" style="margin:10px 2px 0;font-size:0.92em;min-height:1.35em;"></p>
                         <ul class="tree tree--scroll" id="pvTree" aria-label="Personen (Liste)"></ul>
@@ -552,6 +580,57 @@
 
                         <div id="pvDetail" style="display:none;">
                             <p style="margin:0 0 8px;font-weight:900;color:#32325d;font-size:1.02em;" id="pvManageTitle"></p>
+                            <div id="pvAdSyncPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb, #fbbf24 35%, transparent);background:color-mix(in srgb, #fbbf24 10%, transparent);">
+                                <div style="font-weight:1000;color:#856404;margin-bottom:6px;">
+                                    <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                                    Aus lokalem Active Directory synchronisiert
+                                </div>
+                                <p style="margin:0 0 10px;line-height:1.45;color:var(--text-secondary);">
+                                    Dieses Konto kommt aus dem On‑Premises‑AD. Löschen und viele Stammdatenänderungen nur lokal – danach Sync abwarten. Hier markieren und dem lokalen Admin eine Notiz mitgeben.
+                                </p>
+                                <div class="form-grid" style="margin:0;">
+                                    <div class="field">
+                                        <label>SAM‑Account (AD)</label>
+                                        <input type="text" id="pvAdSam" readonly>
+                                    </div>
+                                    <div class="field">
+                                        <label>AD‑Domain</label>
+                                        <input type="text" id="pvAdDomain" readonly>
+                                    </div>
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label>Letzter Sync</label>
+                                        <input type="text" id="pvAdLastSync" readonly>
+                                    </div>
+                                    <div class="field" style="grid-column:1 / -1;">
+                                        <label for="pvAdFlagNote">Notiz für lokalen Admin</label>
+                                        <textarea id="pvAdFlagNote" rows="2" placeholder="z. B. Bitte deaktivieren – Doppelkonto …"></textarea>
+                                    </div>
+                                </div>
+                                <div class="detail-actions" style="margin-top:10px;">
+                                    <label class="checkbox-label" for="pvAdFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+                                        <input type="checkbox" id="pvAdFlagged">
+                                        Für lokalen Admin markieren
+                                    </label>
+                                    <button type="button" class="btn btn-success small-btn" id="pvAdFlagSave"><i class="bi bi-bookmark-check"></i>Marke speichern</button>
+                                </div>
+                            </div>
+                            <div id="pvCloudFlagPanel" class="hint" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--soft);">
+                                <div style="font-weight:1000;color:#32325d;margin-bottom:6px;">
+                                    <i class="bi bi-cloud" aria-hidden="true"></i>
+                                    Cloud‑Konto (kein AD‑Sync)
+                                </div>
+                                <div class="field" style="margin:0;">
+                                    <label for="pvCloudFlagNote">Notiz (optional markieren)</label>
+                                    <textarea id="pvCloudFlagNote" rows="2" placeholder="Optional …"></textarea>
+                                </div>
+                                <div class="detail-actions" style="margin-top:10px;">
+                                    <label class="checkbox-label" for="pvCloudFlagged" style="display:flex;gap:8px;align-items:center;margin:0;font-weight:800;">
+                                        <input type="checkbox" id="pvCloudFlagged">
+                                        Markieren
+                                    </label>
+                                    <button type="button" class="btn small-btn" id="pvCloudFlagSave"><i class="bi bi-bookmark-check"></i>Speichern</button>
+                                </div>
+                            </div>
                             <div class="detail-actions" id="pvDetailActions">
                                 <button type="button" class="btn btn-success small-btn" id="pvBtnSave"><i class="bi bi-save"></i>Speichern</button>
                                 <button type="button" class="btn small-btn" id="pvBtnCancelEdit">Zurücksetzen</button>
@@ -785,7 +864,11 @@
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module" src="../src/shared/graph-licenses.js"></script>
-    <script src="../src/tools/personen-verwaltung/personen-verwaltung.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/tools/personen-verwaltung/personen-verwaltung.js"></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
 </body>
 </html>

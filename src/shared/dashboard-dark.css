@@ -346,11 +346,21 @@ html[data-theme="dark"] .dash-stand__pill strong {
     color: var(--heading) !important;
 }
 
+html[data-theme="dark"] .dash-stand--hygiene {
+    border-color: color-mix(in srgb, var(--brand2, #20c997) 28%, var(--border)) !important;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--brand2, #20c997) 10%, var(--card)) 0%,
+        var(--surface-muted) 100%
+    ) !important;
+}
+
 html[data-theme="dark"] .dash-stand__hygiene {
     border-top-color: var(--border) !important;
 }
 
-html[data-theme="dark"] .dash-stand__hygiene-head h3 {
+html[data-theme="dark"] .dash-stand__hygiene-head h3,
+html[data-theme="dark"] .dash-stand--hygiene .dash-stand__title {
     color: var(--heading) !important;
 }
 

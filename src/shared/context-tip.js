@@ -46,6 +46,8 @@
             'Schilf-/Demo-Teams ohne Live-Schüler; Notebook und Aufgaben erst nach Fortbildung freigeben.',
         'personen-verwaltung':
             'Personen der Schule im Microsoft-Tenant suchen, Lizenzen prüfen und sehen, in welchen Gruppen sie sind.',
+        lizenzverwaltung:
+            'Sicherheitsgruppen für A1/A3 (Group-based Licensing) anlegen, Lizenzen zuweisen und Mitglieder aus Sammelgruppen übernehmen.',
         'namenskonvention-audit':
             'DisplayName und UPN gegen eine Schulregel prüfen – Cloud korrigieren, AD-sync als CSV an die IT geben.',
         'gaeste-verwalten':
@@ -71,7 +73,9 @@
         'pa-erst-setup':
             'Hinweis: Postfächer sind pro Workflow (nicht eins für die ganze Schule). Environment, Maker-Rechte, dann jeweiliges Automations-Tool.',
         'freistellung-setup':
-            'Freistellungsliste anlegen und Power-Automate-Paket (KV + Direktion) für den Ziel-Tenant parametrieren.',
+            'Freistellungsliste anlegen und Power-Automate-Paket (KV + Direktion / Microsoft Approvals) parametrieren.',
+        'freistellung-planer':
+            'Freistellung beantragen, Übersicht für KV/Direktion, Filter und CSV – Genehmigung über Approvals aus dem Setup-Flow.',
         'pa-termine-sync':
             'Flow-Setup: SharePoint-Schultermine nach Outlook (Schul-/Lehrerkalender) synchronisieren.',
         'pa-antraege': 'Antragsliste anlegen und Flow Forms → Genehmigung einrichten.',
@@ -197,7 +201,9 @@
         if (stand) {
             appendTipToHeading(stand, 'stammdaten', '.dash-stand__title', 'Hinweis zu Ihrem Stand');
         }
-        var hygieneHead = (root || document).querySelector('.dash-stand__hygiene-head h3');
+        var hygieneHead = (root || document).querySelector(
+            '.dash-stand--hygiene .dash-stand__title, .dash-stand__hygiene-head h3, .dash-stand__hygiene-head .dash-stand__title'
+        );
         if (hygieneHead && !hygieneHead.querySelector('[data-context-tip-mounted="datenhygiene"]')) {
             var tip = createTipElement('datenhygiene', 'Hinweis zum Gruppenabgleich');
             if (tip) hygieneHead.appendChild(tip);

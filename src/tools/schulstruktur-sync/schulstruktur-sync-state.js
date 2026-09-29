@@ -15,6 +15,8 @@ import { safeJsonParse } from '../../shared/utils/json.js';
 const STORAGE_KEY = 'ms365-schulstruktur-sync-v1';
 const STORAGE_TENANT_CACHE_KEY = 'ms365-schulstruktur-tenant-cache-v1';
 const STORAGE_MATCH_KEY = 'ms365-schulstruktur-match-v1';
+/** Markierungen für AD-gesyncte Gruppen (Hinweise an lokalen Admin). */
+const STORAGE_AD_FLAGS_KEY = 'ms365-schulstruktur-ad-flags-v1';
 /** Geteilte ID-Menge mit der Graph-Ansicht (Tree-Collapse). */
 const GRAPH_COLLAPSE_KEY = 'ms365-ss-graph-collapsed-v1';
 
@@ -54,13 +56,26 @@ export function loadState() {
  * Persistiert den Strukturbaum. Schreibt parallel in `localStorage` UND
  * `ms365AppDataV2`, damit beide Quellen synchron bleiben.
  *
- * @param {{ rows?: any[], memberships?: object, settings?: object }} state
- * @returns {{ rows: any[], memberships: object }}
+ * Vor dem Schreiben wird frisch geladen (Reload-before-save).
+ * `organisationAssist` aus dem Speicher wird nicht von veraltetem
+ * In-Memory-Settings der Gruppenverwaltung ueberschrieben, es sei denn
+ * `organisationAssistSource: 'incoming'` (Org-Assistent).
+ *
+ * @param {{ rows?: any[], memberships?: object, settings?: object, organisationAssistSource?: 'incoming'|'fresh' }} state
+ * @returns {{ rows: any[], memberships: object, settings: object }}
  */
 export function saveState(state) {
-    const rows = state && Array.isArray(state.rows) ? state.rows : [];
-    const memberships = state && state.memberships && typeof state.memberships === 'object' ? state.memberships : {};
-    const settings = state && state.settings && typeof state.settings === 'object' ? state.settings : {};
+    const fresh = loadState();
+    const rows = state && Array.isArray(state.rows) ? state.rows : fresh.rows;
+    const memberships =
+        state && state.memberships && typeof state.memberships === 'object' ? state.memberships : fresh.memberships;
+    const incoming = state && state.settings && typeof state.settings === 'object' ? state.settings : {};
+    const settings = Object.assign({}, fresh.settings || {}, incoming);
+    if (state && state.organisationAssistSource === 'incoming') {
+        /* Org-Assistent: eingehendes organisationAssist behalten */
+    } else if (fresh.settings && fresh.settings.organisationAssist !== undefined) {
+        settings.organisationAssist = fresh.settings.organisationAssist;
+    }
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ rows, memberships, settings }));
     } catch {
@@ -68,6 +83,9 @@ export function saveState(state) {
     }
     try {
         if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function' && typeof window.ms365AppDataV2.setContainer === 'function') {
+            if (typeof window.ms365AppDataV2.invalidateCache === 'function') {
+                window.ms365AppDataV2.invalidateCache();
+            }
             const c = window.ms365AppDataV2.getContainer();
             c.structure = { rows, memberships, settings };
             window.ms365AppDataV2.setContainer(c);
@@ -75,7 +93,30 @@ export function saveState(state) {
     } catch {
         // ignore
     }
-    return { rows, memberships };
+    return { rows, memberships, settings };
+}
+
+/**
+ * Multi-Tab: bei Aenderung der Struktur-Keys Handler aufrufen.
+ * @param {(ev: StorageEvent) => void} handler
+ * @returns {() => void} unsubscribe
+ */
+export function wireStructureStorageListener(handler) {
+    if (typeof window === 'undefined' || typeof handler !== 'function') {
+        return function () {};
+    }
+    const keys = new Set([STORAGE_KEY, STORAGE_MATCH_KEY, 'ms365-schooltool-data-v2']);
+    const fn = function (e) {
+        if (!e || !e.key || !keys.has(e.key)) return;
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.invalidateCache === 'function') {
+            window.ms365AppDataV2.invalidateCache();
+        }
+        handler(e);
+    };
+    window.addEventListener('storage', fn);
+    return function () {
+        window.removeEventListener('storage', fn);
+    };
 }
 
 /**
@@ -209,4 +250,87 @@ export function saveGraphCollapsedSet(set) {
     } catch {
         // ignore
     }
+}
+
+/**
+ * Lokale Markierungen für AD-gesyncte / hybrid Gruppen.
+ * @returns {Record<string, { flagged: boolean, note: string, flaggedAt: string }>}
+ */
+export function loadAdGroupFlags() {
+    try {
+        const raw = localStorage.getItem(STORAGE_AD_FLAGS_KEY);
+        const obj = raw ? safeJsonParse(raw) : null;
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+        /** @type {Record<string, { flagged: boolean, note: string, flaggedAt: string }>} */
+        const out = {};
+        Object.keys(obj).forEach((k) => {
+            const id = String(k || '').trim();
+            if (!id) return;
+            const v = obj[k];
+            if (!v || typeof v !== 'object') return;
+            out[id] = {
+                flagged: !!v.flagged,
+                note: v.note != null ? String(v.note) : '',
+                flaggedAt: v.flaggedAt != null ? String(v.flaggedAt) : ''
+            };
+        });
+        return out;
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * @param {Record<string, { flagged?: boolean, note?: string, flaggedAt?: string }>} map
+ */
+export function saveAdGroupFlags(map) {
+    const src = map && typeof map === 'object' ? map : {};
+    /** @type {Record<string, { flagged: boolean, note: string, flaggedAt: string }>} */
+    const clean = {};
+    Object.keys(src).forEach((k) => {
+        const id = String(k || '').trim();
+        if (!id) return;
+        const v = src[k];
+        if (!v || typeof v !== 'object') return;
+        const flagged = !!v.flagged;
+        const note = v.note != null ? String(v.note) : '';
+        if (!flagged && !note.trim()) return;
+        clean[id] = {
+            flagged: flagged,
+            note: note,
+            flaggedAt: v.flaggedAt != null ? String(v.flaggedAt) : flagged ? new Date().toISOString() : ''
+        };
+    });
+    try {
+        localStorage.setItem(STORAGE_AD_FLAGS_KEY, JSON.stringify(clean));
+    } catch {
+        // ignore
+    }
+}
+
+/**
+ * @param {string} groupId
+ * @param {{ flagged?: boolean, note?: string }} patch
+ */
+export function patchAdGroupFlag(groupId, patch) {
+    const id = String(groupId || '').trim();
+    if (!id) return loadAdGroupFlags();
+    const map = loadAdGroupFlags();
+    const prev = map[id] || { flagged: false, note: '', flaggedAt: '' };
+    const nextFlagged = patch && patch.flagged !== undefined ? !!patch.flagged : !!prev.flagged;
+    const nextNote = patch && patch.note !== undefined ? String(patch.note) : String(prev.note || '');
+    if (!nextFlagged && !String(nextNote || '').trim()) {
+        delete map[id];
+    } else {
+        map[id] = {
+            flagged: nextFlagged,
+            note: nextNote,
+            flaggedAt:
+                nextFlagged && !prev.flagged
+                    ? new Date().toISOString()
+                    : prev.flaggedAt || (nextFlagged ? new Date().toISOString() : '')
+        };
+    }
+    saveAdGroupFlags(map);
+    return map;
 }

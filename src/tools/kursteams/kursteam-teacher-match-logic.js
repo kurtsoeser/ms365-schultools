@@ -63,32 +63,16 @@ function resolveTeacherMatch(kuerzel, teachers) {
         return { code: exact[0].code, name: exact[0].name, email: exact[0].email, method: 'exact' };
     }
 
-    // 2) Eindeutiger Code-Präfix (min. 4 Zeichen), z. B. ENGEL ↔ ENGELM
-    if (code.length >= 4) {
-        const prefixHits = withCode.filter(
-            (t) =>
-                t.email &&
-                t.email.includes('@') &&
-                (t.code.startsWith(code) || code.startsWith(t.code)) &&
-                Math.min(t.code.length, code.length) >= 4
-        );
-        if (prefixHits.length === 1) {
-            return {
-                code: prefixHits[0].code,
-                name: prefixHits[0].name,
-                email: prefixHits[0].email,
-                method: 'codePrefix'
-            };
-        }
-    }
+    // 2) Code-Praefix absichtlich entfallen (M5: ENGEL↔ENGELM zu riskant).
+    //    Nur exakter Code oder Nachname-Praefix.
 
-    // 3) Eindeutiger Nachname-Präfix: Kürzel ENGEL ↔ „Anita Engelmann“
-    if (code.length >= 4) {
+    // 3) Nachname beginnt mit Kuerzel (min. 5) – nur diese Richtung (ENGEL→Engelmann ok)
+    if (code.length >= 5) {
         const nameHits = withCode.filter((t) => {
             if (!t.email || !t.email.includes('@')) return false;
             const last = normalizeTeacherCode(lastNameFromTeacherName(t.name));
-            if (!last || last.length < 4) return false;
-            return last.startsWith(code) || code.startsWith(last);
+            if (!last || last.length < code.length) return false;
+            return last.startsWith(code);
         });
         if (nameHits.length === 1) {
             return {

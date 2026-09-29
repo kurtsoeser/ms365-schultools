@@ -1,3 +1,4 @@
+import { escapeHtml } from './utils/strings.js';
 /**
  * Admin: zentrale Kursteam-Vorlagen pflegen und nach SharePoint schreiben.
  * Schulen lesen denselben Katalog im Werkzeug, ohne ihn zu veröffentlichen.
@@ -31,13 +32,6 @@ function $(id) {
     return document.getElementById(id);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
 
 const ui = {
     templates: [],

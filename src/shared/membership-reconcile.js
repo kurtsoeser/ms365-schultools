@@ -51,10 +51,99 @@ export function diffMemberships(localEmails, graphEmails) {
     return { onlyLocal: onlyLocal, onlyGraph: onlyGraph, both: both };
 }
 
+/**
+ * Alle E-Mail-/UPN-Identitäten eines Graph-Mitglieds (mail, UPN, otherMails).
+ * @param {object|null|undefined} person
+ * @returns {string[]}
+ */
+export function memberEmailsFromGraph(person) {
+    const out = [];
+    const seen = new Set();
+    function add(raw) {
+        const em = normMemberEmail(raw);
+        if (!em || em.indexOf('@') === -1 || seen.has(em)) return;
+        seen.add(em);
+        out.push(em);
+    }
+    if (!person || typeof person !== 'object') return out;
+    add(person.mail);
+    add(person.userPrincipalName);
+    const others = Array.isArray(person.otherMails) ? person.otherMails : [];
+    for (let i = 0; i < others.length; i++) add(others[i]);
+    return out;
+}
+
+/**
+ * Bevorzugte Adresse: mail → first otherMail → UPN (AT Education / Nummern-UPN).
+ * @param {object|null|undefined} person
+ * @returns {string}
+ */
 export function memberEmailFromGraph(person) {
     if (!person || typeof person !== 'object') return '';
-    const em = normMemberEmail(person.mail || person.userPrincipalName);
-    return em.indexOf('@') !== -1 ? em : '';
+    const mail = normMemberEmail(person.mail);
+    if (mail && mail.indexOf('@') !== -1) return mail;
+    const others = Array.isArray(person.otherMails) ? person.otherMails : [];
+    for (let i = 0; i < others.length; i++) {
+        const o = normMemberEmail(others[i]);
+        if (o && o.indexOf('@') !== -1) return o;
+    }
+    const upn = normMemberEmail(person.userPrincipalName);
+    return upn.indexOf('@') !== -1 ? upn : '';
+}
+
+/**
+ * Guard: Sync/Leave nur bei vollständiger Mitgliederliste.
+ * @param {{ truncated?: boolean, items?: unknown[] }|null|undefined} mem
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function membershipFetchGuard(mem) {
+    if (mem && mem.truncated) {
+        return {
+            ok: false,
+            error:
+                'Mitgliederliste unvollständig (gekürzt, Limit Graph-Abruf). Sync abgebrochen – es wurden keine Mitglieder entfernt. Bitte später erneut oder in kleineren Gruppen prüfen.'
+        };
+    }
+    return { ok: true };
+}
+
+/**
+ * Reconcile gegen volle Graph-Personen (inkl. otherMails), nicht nur eine E-Mail-Spalte.
+ * @param {string[]} localEmails
+ * @param {object[]} graphMembers
+ * @returns {{ join: string[], leave: string[] }}
+ */
+export function reconcileAgainstGraphMembers(localEmails, graphMembers) {
+    const local = normEmailList(localEmails);
+    const localSet = new Set(local);
+    const coveredLocal = new Set();
+    const leave = [];
+    const leaveSeen = new Set();
+
+    (Array.isArray(graphMembers) ? graphMembers : []).forEach(function (person) {
+        const keys = memberEmailsFromGraph(person);
+        if (!keys.length) return;
+        let inLocal = false;
+        for (let i = 0; i < keys.length; i++) {
+            if (localSet.has(keys[i])) {
+                inLocal = true;
+                coveredLocal.add(keys[i]);
+            }
+        }
+        if (inLocal) return;
+        const preferred = memberEmailFromGraph(person) || keys[0];
+        if (preferred && !leaveSeen.has(preferred)) {
+            leaveSeen.add(preferred);
+            leave.push(preferred);
+        }
+    });
+
+    const join = local.filter(function (em) {
+        return !coveredLocal.has(em);
+    });
+    join.sort();
+    leave.sort();
+    return { join: join, leave: leave };
 }
 
 export function memberDisplayNameFromGraph(person, email) {
@@ -128,8 +217,10 @@ export function buildStudentImportRow(person, defaultClass) {
 export function indexGraphMembersByEmail(items) {
     const map = new Map();
     (Array.isArray(items) ? items : []).forEach(function (p) {
-        const em = memberEmailFromGraph(p);
-        if (em && !map.has(em)) map.set(em, p);
+        const keys = memberEmailsFromGraph(p);
+        for (let i = 0; i < keys.length; i++) {
+            if (!map.has(keys[i])) map.set(keys[i], p);
+        }
     });
     return map;
 }
@@ -215,6 +306,65 @@ export function applyMembershipImportSelection(kind, existingRows, previewRows) 
         return applyTeacherImportSelection(existingRows, previewRows);
     }
     return applyStudentImportSelection(existingRows, previewRows);
+}
+
+/**
+ * Diff gegen Graph-Personen inkl. otherMails (für UI-Abgleich).
+ * @param {string[]} localEmails
+ * @param {object[]} graphMembers
+ */
+export function diffMembershipsAgainstPeople(localEmails, graphMembers) {
+    const local = normEmailList(localEmails);
+    const rec = reconcileAgainstGraphMembers(local, graphMembers);
+    const joinSet = new Set(rec.join);
+    const both = local.filter(function (em) {
+        return !joinSet.has(em);
+    });
+    both.sort();
+    return { onlyLocal: rec.join, onlyGraph: rec.leave, both: both };
+}
+
+/**
+ * Klassen-Reconcile gegen Graph-Personen (otherMails); Nicht-Schüler bleiben erhalten.
+ * @param {string[]} classEmails
+ * @param {string[]} allStudentEmails
+ * @param {object[]} graphMembers
+ */
+export function reconcileClassAgainstGraphMembers(classEmails, allStudentEmails, graphMembers) {
+    const classList = normEmailList(classEmails);
+    const classSet = new Set(classList);
+    const studentSet = new Set(normEmailList(allStudentEmails));
+    const coveredClass = new Set();
+    const leave = [];
+    const leaveSeen = new Set();
+
+    (Array.isArray(graphMembers) ? graphMembers : []).forEach(function (person) {
+        const keys = memberEmailsFromGraph(person);
+        if (!keys.length) return;
+        let inClass = false;
+        let isStudent = false;
+        for (let i = 0; i < keys.length; i++) {
+            if (classSet.has(keys[i])) {
+                inClass = true;
+                coveredClass.add(keys[i]);
+            }
+            if (studentSet.has(keys[i])) isStudent = true;
+        }
+        if (inClass) return;
+        if (!isStudent) return;
+        const preferred = memberEmailFromGraph(person) || keys[0];
+        if (preferred && !leaveSeen.has(preferred)) {
+            leaveSeen.add(preferred);
+            leave.push(preferred);
+        }
+    });
+
+    const join = classList.filter(function (em) {
+        return !coveredClass.has(em);
+    });
+    join.sort();
+    leave.sort();
+    return { join: join, leave: leave };
 }
 
 /**
@@ -308,7 +458,12 @@ const api = {
     normMemberEmail: normMemberEmail,
     normEmailList: normEmailList,
     diffMemberships: diffMemberships,
+    diffMembershipsAgainstPeople: diffMembershipsAgainstPeople,
+    memberEmailsFromGraph: memberEmailsFromGraph,
     memberEmailFromGraph: memberEmailFromGraph,
+    membershipFetchGuard: membershipFetchGuard,
+    reconcileAgainstGraphMembers: reconcileAgainstGraphMembers,
+    reconcileClassAgainstGraphMembers: reconcileClassAgainstGraphMembers,
     memberDisplayNameFromGraph: memberDisplayNameFromGraph,
     suggestTeacherCode: suggestTeacherCode,
     buildTeacherImportRow: buildTeacherImportRow,

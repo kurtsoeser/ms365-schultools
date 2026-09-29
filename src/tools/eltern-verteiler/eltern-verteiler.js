@@ -1,1532 +1,1527 @@
-(function () {
-    'use strict';
+/**
+ * Analyse 02 Phase B – ESM + shared/utils/strings.
+ */
+import { escapeHtml, normStr, normCode, normEmail } from '../../shared/utils/strings.js';
 
-    function getEl(id) {
-        return document.getElementById(id);
+
+function getEl(id) {
+    return document.getElementById(id);
+}
+
+function toast(msg, kind) {
+    const el = getEl('toast');
+    if (!el) return;
+    el.textContent = String(msg || '');
+    el.className = 'toast' + (kind === 'ok' ? ' ok' : kind === 'err' ? ' err' : '');
+    el.style.display = 'block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () {
+        el.style.display = 'none';
+    }, 3200);
+}
+
+function setImportStatus(msg) {
+    const status = getEl('evImportStatus');
+    if (status) status.textContent = msg || '';
+}
+
+function compareDe(a, b) {
+    return String(a || '').localeCompare(String(b || ''), 'de', { numeric: true, sensitivity: 'base' });
+}
+
+const state = {
+    tab: 'class', // class | year
+    selectedKey: '',
+    selectedKeys: new Set(),
+    lastScriptLabel: '',
+    classRows: [],
+    yearRows: [],
+    importPreview: null,
+    patterns: {
+        classAlias: [],
+        classDisplay: [],
+        yearAlias: [],
+        yearDisplay: []
+    }
+};
+
+const PATTERN_KEYS = {
+    classAlias: 'elternClassAliasPattern',
+    classDisplay: 'elternClassDisplayPattern',
+    yearAlias: 'elternYearAliasPattern',
+    yearDisplay: 'elternYearDisplayPattern'
+};
+
+function api() {
+    return window.ms365AppDataV2 || null;
+}
+
+function eg() {
+    return window.ms365ElternGuardians || null;
+}
+
+function loadPatternsFromSetup() {
+    const g = eg();
+    const naming = g && g.getNaming ? g.getNaming() : null;
+    if (naming) {
+        state.patterns.classAlias = naming.classAliasPattern;
+        state.patterns.classDisplay = naming.classDisplayPattern;
+        state.patterns.yearAlias = naming.yearAliasPattern;
+        state.patterns.yearDisplay = naming.yearDisplayPattern;
+        return;
+    }
+    state.patterns.classAlias = [
+        { type: 'text', value: 'eltern' },
+        { type: 'klasse' }
+    ];
+    state.patterns.classDisplay = [
+        { type: 'text', value: 'Eltern ' },
+        { type: 'klasse' }
+    ];
+    state.patterns.yearAlias = [
+        { type: 'text', value: 'elternjg' },
+        { type: 'year' }
+    ];
+    state.patterns.yearDisplay = [
+        { type: 'text', value: 'Eltern JG ' },
+        { type: 'year' }
+    ];
+}
+
+function namingFromState() {
+    return {
+        classAliasPattern: state.patterns.classAlias,
+        classDisplayPattern: state.patterns.classDisplay,
+        yearAliasPattern: state.patterns.yearAlias,
+        yearDisplayPattern: state.patterns.yearDisplay
+    };
+}
+
+function patternFromZone(key) {
+    const zone = document.querySelector('[data-ev-zone="' + key + '"]');
+    const g = eg();
+    if (!zone || !g) return state.patterns[key] || [];
+    const tokens = [];
+    zone.querySelectorAll('[data-token-type]').forEach(function (el) {
+        const type = String(el.getAttribute('data-token-type') || '');
+        if (type === 'text') tokens.push({ type: 'text', value: String(el.getAttribute('data-token-value') || '') });
+        else tokens.push({ type: type });
+    });
+    return g.normalizeNamePattern(tokens, state.patterns[key] || []);
+}
+
+function syncPatternFromZone(key) {
+    state.patterns[key] = patternFromZone(key);
+    updatePatternPreview(key);
+}
+
+function updatePatternPreview(key) {
+    const el = document.querySelector('[data-ev-preview="' + key + '"]');
+    const g = eg();
+    if (!el || !g) return;
+    const pattern = state.patterns[key] || [];
+    const forAlias = key.indexOf('Alias') !== -1;
+    const sample =
+        key.indexOf('year') === 0
+            ? g.buildNameFromPattern(pattern, {
+                  year: '2030',
+                  stufe: '1',
+                  classCodes: ['1A', '1B'],
+                  forAlias: forAlias
+              })
+            : g.buildNameFromPattern(pattern, { klasse: '1A', year: '2030', stufe: '1', forAlias: forAlias });
+    el.textContent = 'Vorschau: ' + sample;
+}
+
+function addChip(zone, token) {
+    const g = eg();
+    const chip = document.createElement('span');
+    chip.className = 'name-chip';
+    chip.draggable = true;
+    chip.setAttribute('data-token-type', token.type);
+    if (token.type === 'text') chip.setAttribute('data-token-value', String(token.value ?? ''));
+
+    const txt = document.createElement('span');
+    if (token.type === 'text') {
+        const v = String(token.value ?? '');
+        txt.textContent = v === '' ? '(leer)' : v;
+    } else {
+        txt.textContent = g && g.tokenLabel ? g.tokenLabel(token) : token.type;
     }
 
-    function toast(msg, kind) {
-        const el = getEl('toast');
-        if (!el) return;
-        el.textContent = String(msg || '');
-        el.className = 'toast' + (kind === 'ok' ? ' ok' : kind === 'err' ? ' err' : '');
-        el.style.display = 'block';
-        clearTimeout(toast._t);
-        toast._t = setTimeout(function () {
-            el.style.display = 'none';
-        }, 3200);
-    }
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'chip-x';
+    x.textContent = '✕';
+    x.title = 'Baustein entfernen';
+    x.addEventListener('click', function () {
+        const key = zone.getAttribute('data-ev-zone');
+        chip.remove();
+        if (key) syncPatternFromZone(key);
+    });
 
-    function setImportStatus(msg) {
-        const status = getEl('evImportStatus');
-        if (status) status.textContent = msg || '';
-    }
+    chip.append(txt, x);
+    zone.appendChild(chip);
+}
 
-    function compareDe(a, b) {
-        return String(a || '').localeCompare(String(b || ''), 'de', { numeric: true, sensitivity: 'base' });
-    }
+function wireZoneDnD(zone) {
+    let dragEl = null;
+    zone.addEventListener('dragstart', function (e) {
+        const target = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
+        if (!target) return;
+        dragEl = target;
+        target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    zone.addEventListener('dragend', function () {
+        if (dragEl) dragEl.classList.remove('dragging');
+        dragEl = null;
+        const key = zone.getAttribute('data-ev-zone');
+        if (key) syncPatternFromZone(key);
+    });
+    zone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        const over = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
+        if (!dragEl || !over || over === dragEl) return;
+        const rect = over.getBoundingClientRect();
+        const after = e.clientX > rect.left + rect.width / 2;
+        if (after) over.after(dragEl);
+        else over.before(dragEl);
+    });
+    zone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        const key = zone.getAttribute('data-ev-zone');
+        if (key) syncPatternFromZone(key);
+    });
+}
 
-    const state = {
-        tab: 'class', // class | year
-        selectedKey: '',
-        selectedKeys: new Set(),
-        lastScriptLabel: '',
-        classRows: [],
-        yearRows: [],
-        importPreview: null,
-        patterns: {
-            classAlias: [],
-            classDisplay: [],
-            yearAlias: [],
-            yearDisplay: []
+function renderPatternBuilder(key) {
+    const zone = document.querySelector('[data-ev-zone="' + key + '"]');
+    if (!zone) return;
+    const pattern = state.patterns[key] || [];
+    zone.replaceChildren();
+    pattern.forEach(function (t) {
+        addChip(zone, t);
+    });
+    updatePatternPreview(key);
+}
+
+function renderAllPatternBuilders() {
+    Object.keys(PATTERN_KEYS).forEach(renderPatternBuilder);
+}
+
+function defaultPatternFor(key) {
+    const g = eg();
+    if (!g) return [];
+    if (key === 'classAlias') return g.defaultClassAliasPattern();
+    if (key === 'classDisplay') return g.defaultClassDisplayPattern();
+    if (key === 'yearAlias') return g.defaultYearAliasPattern();
+    if (key === 'yearDisplay') return g.defaultYearDisplayPattern();
+    return [];
+}
+
+function saveNamingSchema() {
+    const a = api();
+    if (!a || typeof a.patchSetup !== 'function') {
+        toast('Speichern nicht möglich', 'err');
+        return;
+    }
+    Object.keys(PATTERN_KEYS).forEach(function (key) {
+        syncPatternFromZone(key);
+    });
+    const patch = {};
+    Object.keys(PATTERN_KEYS).forEach(function (key) {
+        patch[PATTERN_KEYS[key]] = state.patterns[key];
+    });
+    a.patchSetup(patch);
+    refresh();
+    toast('Namensschema gespeichert', 'ok');
+}
+
+function existingStudentRecords(bucket) {
+    const b = bucket && typeof bucket === 'object' ? bucket : currentBucket().bucket;
+    const gBy = new Map((b.guardians || []).map(function (g) { return [g.id, g]; }));
+    return (b.students || []).map(function (s) {
+        const pairs = (s.guardianIds || [])
+            .map(function (id) {
+                const g = gBy.get(id);
+                return g ? { name: g.name || '', email: g.email || '', phone: g.phone || '' } : null;
+            })
+            .filter(Boolean);
+        return {
+            id: s.id,
+            klasse: s.klasse,
+            name: s.name,
+            email: s.email,
+            externalId: s.externalId,
+            parentPairs: pairs
+        };
+    });
+}
+
+function applySisRecords(records, removedIds) {
+    const a = api();
+    if (!a || typeof a.mergeStudentsImport !== 'function' || typeof a.saveYearBucket !== 'function') {
+        throw new Error('Stammdaten-API fehlt.');
+    }
+    const { year, bucket } = currentBucket();
+    const gById = new Map(
+        (bucket.guardians || []).map(function (g) {
+            return [g.id, g];
+        })
+    );
+    function keyOf(r) {
+        const em = String(r.email || '')
+            .trim()
+            .toLowerCase();
+        if (em) return 'e:' + em;
+        const ext = String(r.externalId || '')
+            .trim()
+            .toLowerCase();
+        if (ext) return 'x:' + ext;
+        return (
+            'n:' +
+            String(r.klasse || '')
+                .trim()
+                .toLowerCase() +
+            '|' +
+            String(r.name || '')
+                .trim()
+                .toLowerCase()
+        );
+    }
+    const map = new Map();
+    (bucket.students || []).forEach(function (s) {
+        const pairs = (s.guardianIds || [])
+            .map(function (id) {
+                const g = gById.get(id);
+                return g ? { name: g.name || '', email: g.email || '' } : null;
+            })
+            .filter(Boolean);
+        const row = {
+            id: s.id,
+            klasse: s.klasse,
+            name: s.name,
+            email: s.email,
+            guardianIds: s.guardianIds,
+            parentPairs: pairs
+        };
+        map.set(keyOf(row), row);
+    });
+    (records || []).forEach(function (r) {
+        const row = {
+            klasse: r.klasse,
+            name: r.name,
+            email: r.email,
+            externalId: r.externalId,
+            parentPairs: r.parentPairs || []
+        };
+        const k = keyOf(row);
+        const prev = map.get(k);
+        if (prev) {
+            map.set(k, {
+                id: prev.id,
+                klasse: row.klasse || prev.klasse,
+                name: row.name || prev.name,
+                email: row.email || prev.email,
+                guardianIds: prev.guardianIds,
+                parentPairs: row.parentPairs && row.parentPairs.length ? row.parentPairs : prev.parentPairs
+            });
+        } else {
+            map.set(k, row);
         }
-    };
-
-    const PATTERN_KEYS = {
-        classAlias: 'elternClassAliasPattern',
-        classDisplay: 'elternClassDisplayPattern',
-        yearAlias: 'elternYearAliasPattern',
-        yearDisplay: 'elternYearDisplayPattern'
-    };
-
-    function api() {
-        return window.ms365AppDataV2 || null;
+    });
+    const next = a.mergeStudentsImport(
+        {
+            students: [],
+            classes: bucket.classes || [],
+            guardians: [],
+            parentLists: bucket.parentLists || []
+        },
+        Array.from(map.values())
+    );
+    next.classes = bucket.classes || [];
+    next.parentLists = bucket.parentLists || [];
+    a.saveYearBucket(year, next);
+    let removedStudents = 0;
+    let removedGuardians = 0;
+    if (Array.isArray(removedIds) && removedIds.length && typeof a.removeStudents === 'function') {
+        const cleanup = a.removeStudents(removedIds, year);
+        removedStudents = cleanup && cleanup.removedStudents ? cleanup.removedStudents : 0;
+        removedGuardians = cleanup && cleanup.removedGuardians ? cleanup.removedGuardians : 0;
     }
-
-    function eg() {
-        return window.ms365ElternGuardians || null;
+    const sis = window.ms365SchoolSisImport;
+    if (sis && typeof sis.diffSisImport === 'function') {
+        const existing = existingStudentRecords(bucket);
+        const diff = sis.diffSisImport(existing, records || []);
+        const summary = sis.summarizeSisDiff ? sis.summarizeSisDiff(diff) : '';
+        return {
+            next: next,
+            diff: diff,
+            summary: summary,
+            removedStudents: removedStudents,
+            removedGuardians: removedGuardians
+        };
     }
+    return { next: next, removedStudents: removedStudents, removedGuardians: removedGuardians };
+}
 
-    function loadPatternsFromSetup() {
-        const g = eg();
-        const naming = g && g.getNaming ? g.getNaming() : null;
-        if (naming) {
-            state.patterns.classAlias = naming.classAliasPattern;
-            state.patterns.classDisplay = naming.classDisplayPattern;
-            state.patterns.yearAlias = naming.yearAliasPattern;
-            state.patterns.yearDisplay = naming.yearDisplayPattern;
+function domainFromCore() {
+    try {
+        const a = api();
+        const c = a && typeof a.getContainer === 'function' ? a.getContainer() : null;
+        return String((c && c.core && c.core.domain) || '').trim();
+    } catch {
+        return '';
+    }
+}
+
+function renderDiagnose() {
+    const eg = window.ms365ElternGuardians;
+    const summary = getEl('evDiagnoseSummary');
+    const ul = getEl('evDiagnoseIssues');
+    const hints = getEl('evDiagnoseHints');
+    const orphanEl = getEl('evOrphanGuardians');
+    if (!eg || typeof eg.buildElternDiagnoseReport !== 'function') return;
+    const { bucket } = currentBucket();
+    const report = eg.buildElternDiagnoseReport(bucket, eg.getNaming(), domainFromCore());
+    const linked = new Set();
+    (bucket.students || []).forEach(function (s) {
+        (s.guardianIds || []).forEach(function (id) {
+            linked.add(String(id || '').trim());
+        });
+    });
+    const orphanCount = (bucket.guardians || []).filter(function (g) {
+        return !linked.has(String((g && g.id) || '').trim());
+    }).length;
+    if (summary) {
+        const c = report.counts || {};
+        summary.textContent =
+            (report.ok ? 'Keine Warnungen. ' : 'Bitte prüfen: ') +
+            (c.withParents || 0) +
+            ' von ' +
+            (c.lists || 0) +
+            ' Listen mit Elternmails' +
+            ' · ' +
+            orphanCount +
+            ' verwaiste Elternkontakte' +
+            (c.exported ? ' · ' + c.exported + ' zuletzt exportiert' : '');
+    }
+    if (orphanEl) {
+        orphanEl.textContent = orphanCount
+            ? orphanCount + ' Elternkontakt(e) sind aktuell keinem Schüler mehr zugeordnet.'
+            : 'Keine verwaisten Elternkontakte gefunden.';
+    }
+    if (ul) {
+        ul.innerHTML = '';
+        (report.issues || []).forEach(function (iss) {
+            const li = document.createElement('li');
+            li.textContent = (iss.level === 'warn' ? 'Warnung: ' : '') + iss.summary;
+            ul.appendChild(li);
+        });
+        if (!ul.childNodes.length) {
+            const li = document.createElement('li');
+            li.textContent = 'Alias-Kollisionen: keine. GAL: Listen sichtbar, Contacts versteckt (vom Sync-Skript).';
+            ul.appendChild(li);
+        }
+    }
+    if (hints && report.hints) {
+        hints.textContent = report.hints.gal + ' ' + report.hints.contacts + ' ' + report.hints.naming;
+    }
+    try {
+        const a = api();
+        if (a && typeof a.patchSetup === 'function' && typeof a.getSetup === 'function') {
+            const cur = a.getSetup() || {};
+            const es = cur.elternSetup && typeof cur.elternSetup === 'object' ? cur.elternSetup : {};
+            a.patchSetup({
+                elternSetup: {
+                    completedSteps: Array.isArray(es.completedSteps) ? es.completedSteps : [],
+                    lastDiagnoseAt: new Date().toISOString()
+                }
+            });
+        }
+    } catch {
+        /* ignore */
+    }
+    return report;
+}
+
+function setSetupStep(n) {
+    const step = String(n || '1');
+    document.querySelectorAll('#evSetupSteps [data-ev-step]').forEach(function (btn) {
+        btn.setAttribute('aria-current', btn.getAttribute('data-ev-step') === step ? 'step' : 'false');
+    });
+    const importPanel = getEl('evImportPanel');
+    const namingPanel = getEl('evNamingPanel');
+    if (importPanel) importPanel.open = step === '1';
+    if (namingPanel) namingPanel.open = step === '2';
+    const diag = getEl('evDiagnosePanel');
+    if (diag && step === '3') {
+        renderDiagnose();
+        if (typeof diag.scrollIntoView === 'function') diag.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    const listTitle = getEl('evListTitle');
+    if (step === '4' && listTitle && typeof listTitle.scrollIntoView === 'function') {
+        listTitle.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function parentMailsLabel(rec) {
+    const sis = window.ms365SchoolSisImport;
+    let mails = [];
+    if (sis && typeof sis.parentEmailsOf === 'function') {
+        mails = sis.parentEmailsOf(rec) || [];
+    } else {
+        const raw = (rec && (rec.parentEmails || rec.parents || rec.guardians)) || [];
+        if (Array.isArray(raw)) {
+            mails = raw
+                .map(function (p) {
+                    return typeof p === 'string' ? p : p && p.email;
+                })
+                .filter(Boolean);
+        }
+    }
+    return mails.length ? mails.join(', ') : '–';
+}
+
+function importDiffLine(entry) {
+    if (!entry) return '';
+    const prev = entry.previous || {};
+    const cur = entry.incoming || entry;
+    const bits = [];
+    if (entry.klasseChanged) bits.push('Klasse ' + (prev.klasse || '–') + ' → ' + (cur.klasse || '–'));
+    if (entry.emailChanged) bits.push('E-Mail ' + ((prev.email || '–') + ' → ' + (cur.email || '–')));
+    if (entry.parentsChanged) {
+        bits.push('Eltern ' + parentMailsLabel(prev) + ' → ' + parentMailsLabel(cur));
+    }
+    if (entry.nameChanged) bits.push('Name ' + (prev.name || '–') + ' → ' + (cur.name || '–'));
+    return (cur.name || prev.name || cur.email || 'Ohne Namen') + ' (' + (bits.join(' · ') || 'geändert') + ')';
+}
+
+function removedLabel(entry) {
+    return [entry && entry.name, entry && entry.klasse, entry && entry.email].filter(Boolean).join(' · ');
+}
+
+function searchBlobForRow(row) {
+    const bits = [row.code, row.displayName, row.mailNickname].concat(row.classCodes || []);
+    (row.guardians || []).forEach(function (g) {
+        bits.push(g && g.name);
+        bits.push(g && g.email);
+    });
+    if (row.scope === 'class') {
+        const bucket = currentBucket().bucket;
+        (bucket.students || []).forEach(function (s) {
+            if (String(s.klasse || '').trim().toUpperCase() !== String(row.code || '').trim().toUpperCase()) return;
+            bits.push(s.name);
+            bits.push(s.email);
+        });
+    }
+    return bits.filter(Boolean).join(' ').toLowerCase();
+}
+
+function renderImportPreview() {
+    const root = getEl('evImportPreview');
+    const summary = getEl('evImportPreviewSummary');
+    const added = getEl('evImportAdded');
+    const updated = getEl('evImportUpdated');
+    const removed = getEl('evImportRemoved');
+    const conflicts = getEl('evImportConflicts');
+    const actions = getEl('evImportApplyBar');
+    const count = getEl('evImportRemovedCount');
+    if (!root || !summary || !added || !updated || !removed || !conflicts || !actions) return;
+    const p = state.importPreview;
+    if (!p || !p.diff) {
+        root.hidden = true;
+        return;
+    }
+    root.hidden = false;
+    const diff = p.diff;
+    const c = diff.counts || {};
+    summary.textContent =
+        (p.meta && p.meta.studentCount ? p.meta.studentCount : 0) +
+        ' Schüler aus ' +
+        (p.source || 'Import') +
+        ' · ' +
+        (c.added || 0) +
+        ' neu · ' +
+        (c.updated || 0) +
+        ' geändert · ' +
+        (c.removed || 0) +
+        ' nicht mehr in der Datei';
+    count.textContent = String(p.removedSelected.size || 0);
+
+    function fillList(el, rows, mapLine, withChecks) {
+        el.replaceChildren();
+        if (!rows.length) {
+            const li = document.createElement('li');
+            li.className = 'muted';
+            li.textContent = 'Keine';
+            el.appendChild(li);
             return;
         }
-        state.patterns.classAlias = [
-            { type: 'text', value: 'eltern' },
-            { type: 'klasse' }
-        ];
-        state.patterns.classDisplay = [
-            { type: 'text', value: 'Eltern ' },
-            { type: 'klasse' }
-        ];
-        state.patterns.yearAlias = [
-            { type: 'text', value: 'elternjg' },
-            { type: 'year' }
-        ];
-        state.patterns.yearDisplay = [
-            { type: 'text', value: 'Eltern JG ' },
-            { type: 'year' }
-        ];
+        rows.slice(0, 20).forEach(function (row) {
+            const li = document.createElement('li');
+            if (withChecks) {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                const id = String((row && row.id) || '');
+                cb.type = 'checkbox';
+                cb.checked = p.removedSelected.has(id);
+                cb.style.marginRight = '8px';
+                cb.addEventListener('change', function () {
+                    if (cb.checked) p.removedSelected.add(id);
+                    else p.removedSelected.delete(id);
+                    renderImportPreview();
+                });
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(mapLine(row)));
+                li.appendChild(label);
+            } else {
+                li.textContent = mapLine(row);
+            }
+            el.appendChild(li);
+        });
+        if (rows.length > 20) {
+            const li = document.createElement('li');
+            li.className = 'muted';
+            li.textContent = '... und ' + (rows.length - 20) + ' weitere';
+            el.appendChild(li);
+        }
     }
 
-    function namingFromState() {
-        return {
-            classAliasPattern: state.patterns.classAlias,
-            classDisplayPattern: state.patterns.classDisplay,
-            yearAliasPattern: state.patterns.yearAlias,
-            yearDisplayPattern: state.patterns.yearDisplay
+    fillList(added, diff.added || [], function (row) {
+        return [row.name, row.klasse, row.email].filter(Boolean).join(' · ');
+    });
+    fillList(updated, diff.updated || [], importDiffLine);
+    fillList(removed, diff.removed || [], removedLabel, true);
+    fillList(conflicts, diff.conflicts || [], function (row) {
+        return row.summary || '';
+    });
+    actions.hidden = false;
+}
+
+function wireSisImport() {
+    const fileInput = getEl('evImportFile');
+    const sourceEl = getEl('evImportSource');
+    if (getEl('evTplXlsx')) {
+        getEl('evTplXlsx').addEventListener('click', function () {
+            const sis = window.ms365SchoolSisImport;
+            if (!sis || !sis.downloadXlsxTemplates || !sis.downloadXlsxTemplates()) {
+                toast('XLSX-Vorlage: Bibliothek fehlt – Seite neu laden', 'err');
+                return;
+            }
+            toast('XLSX-Vorlage heruntergeladen', 'ok');
+        });
+    }
+    if (getEl('evTplCsv')) {
+        getEl('evTplCsv').addEventListener('click', function () {
+            const sis = window.ms365SchoolSisImport;
+            if (!sis || !sis.downloadCsv) {
+                toast('CSV-Vorlage nicht verfügbar', 'err');
+                return;
+            }
+            sis.downloadCsv('Schueler-Eltern-Vorlage.csv', sis.ms365TemplateAoa());
+            toast('CSV-Vorlage heruntergeladen', 'ok');
+        });
+    }
+    if (!fileInput) return;
+    fileInput.addEventListener('change', function () {
+        const files = fileInput.files;
+        fileInput.value = '';
+        if (!files || !files.length) return;
+        if (typeof XLSX === 'undefined') {
+            toast('Excel-Bibliothek nicht geladen', 'err');
+            return;
+        }
+        const sis = window.ms365SchoolSisImport;
+        if (!sis) {
+            toast('Import-Modul fehlt', 'err');
+            return;
+        }
+        const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
+        const patternEl = getEl('evImportEmailPattern');
+        const pattern = patternEl ? String(patternEl.value || 'vorname.nachname') : 'vorname.nachname';
+        const givenEl = getEl('evImportEmailGivenNames');
+        const firstNameMode = givenEl ? String(givenEl.value || 'first') : 'first';
+        setImportStatus('Lese Datei(en) …');
+
+        function finishWithResult(result) {
+            if (!result || !result.meta) {
+                setImportStatus('Keine Daten erkannt');
+                toast('Import fehlgeschlagen', 'err');
+                return;
+            }
+            if (result.meta.error) {
+                setImportStatus(result.meta.error);
+                toast(result.meta.error, 'err');
+                return;
+            }
+            let records = result.records || [];
+            if (sis.preferExistingStudentEmails) {
+                records = sis.preferExistingStudentEmails(records, existingStudentRecords(currentBucket().bucket));
+                result.records = records;
+                if (sis.recordsToSemicolonLines) result.lines = sis.recordsToSemicolonLines(records);
+            }
+            const diff = sis.diffSisImport(existingStudentRecords(currentBucket().bucket), records);
+            state.importPreview = {
+                source: result.source,
+                records: records,
+                meta: result.meta,
+                diff: diff,
+                removedSelected: new Set()
+            };
+            renderImportPreview();
+            const extra = [];
+            if (result.meta && result.meta.emailsGenerated) extra.push(result.meta.emailsGenerated + ' Mails vorgeschlagen');
+            if (result.meta && result.meta.unmatchedGuardians) {
+                extra.push(result.meta.unmatchedGuardians + ' Eltern ohne Zuordnung');
+            }
+            setImportStatus(
+                'Vorschau bereit: ' +
+                    result.meta.studentCount +
+                    ' Schüler, ' +
+                    result.meta.withParents +
+                    ' mit Elternmails (Quelle: ' +
+                    result.source +
+                    ')' +
+                    (extra.length ? ' · ' + extra.join(' · ') : '') +
+                    '. Änderungen unten prüfen und dann übernehmen.'
+            );
+            toast('Import-Vorschau erzeugt', 'ok');
+        }
+
+        function readOneFile(file) {
+            return new Promise(function (resolve, reject) {
+                const name = String(file.name || '').toLowerCase();
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        let wb;
+                        if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                            let s = String(e.target.result || '');
+                            if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+                            wb = XLSX.read(s, { type: 'string', FS: ';' });
+                            let aoaProbe = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
+                                header: 1,
+                                defval: ''
+                            });
+                            if (!aoaProbe || aoaProbe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                        } else {
+                            wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        }
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                        resolve({ name: file.name || '', aoa: aoa });
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = function () {
+                    reject(new Error('Datei konnte nicht gelesen werden'));
+                };
+                if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
+                else reader.readAsArrayBuffer(file);
+            });
+        }
+
+        Promise.all(Array.from(files).map(readOneFile))
+            .then(function (sheets) {
+                const wu = window.ms365WebuntisExportImport;
+                const domain =
+                    typeof window.ms365GetSchoolDomainNoAt === 'function'
+                        ? String(window.ms365GetSchoolDomainNoAt() || '').replace(/^@+/, '')
+                        : '';
+                const classified = wu && wu.classifySheets ? wu.classifySheets(sheets) : null;
+                if (classified && classified.studentAoa && wu.importStudentsFromWebuntis) {
+                    finishWithResult(
+                        wu.importStudentsFromWebuntis({
+                            studentAoa: classified.studentAoa,
+                            guardianAoa: classified.guardianAoa || [],
+                            domain: domain,
+                            pattern: pattern,
+                            firstNameMode: firstNameMode,
+                            applyEmails: !!domain
+                        })
+                    );
+                    return;
+                }
+                const first = sheets[0];
+                const objectRows = [];
+                const headers = (first && first.aoa && first.aoa[0]) || [];
+                for (let i = 1; first && i < first.aoa.length; i++) {
+                    const row = first.aoa[i] || [];
+                    const o = {};
+                    headers.forEach(function (h, idx) {
+                        const key = String(h || '').trim();
+                        if (!key) return;
+                        if (o[key] == null || o[key] === '') o[key] = row[idx];
+                    });
+                    objectRows.push(o);
+                }
+                finishWithResult(
+                    sis.importStudentsAndGuardians({
+                        aoa: first ? first.aoa : [],
+                        objectRows: objectRows,
+                        source: sourceHint
+                    })
+                );
+            })
+            .catch(function (err) {
+                setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                toast('Import fehlgeschlagen', 'err');
+            });
+    });
+}
+
+function wireNamingBuilders() {
+    document.querySelectorAll('[data-ev-zone]').forEach(function (zone) {
+        wireZoneDnD(zone);
+    });
+    document.querySelectorAll('[data-ev-add-token]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const key = btn.getAttribute('data-ev-for');
+            const type = btn.getAttribute('data-ev-add-token');
+            const zone = document.querySelector('[data-ev-zone="' + key + '"]');
+            if (!zone || !type) return;
+            addChip(zone, { type: type });
+            syncPatternFromZone(key);
+        });
+    });
+    document.querySelectorAll('[data-ev-add-sep]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const key = btn.getAttribute('data-ev-add-sep');
+            const inp = document.querySelector('[data-ev-sep="' + key + '"]');
+            const zone = document.querySelector('[data-ev-zone="' + key + '"]');
+            if (!zone) return;
+            addChip(zone, { type: 'text', value: String((inp && inp.value) ?? '') });
+            syncPatternFromZone(key);
+        });
+    });
+    document.querySelectorAll('[data-ev-reset]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const key = btn.getAttribute('data-ev-reset');
+            state.patterns[key] = defaultPatternFor(key);
+            renderPatternBuilder(key);
+        });
+    });
+    const saveBtn = getEl('evNamingSave');
+    if (saveBtn) saveBtn.addEventListener('click', saveNamingSchema);
+}
+
+function currentBucket() {
+    const a = api();
+    if (!a || typeof a.getYearBucket !== 'function') {
+        return { year: '', bucket: { students: [], classes: [], guardians: [], parentLists: [] } };
+    }
+    return a.getYearBucket();
+}
+
+function domain() {
+    try {
+        if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
+            return String(window.ms365GetSchoolDomainNoAt() || '').replace(/^@+/, '');
+        }
+    } catch {
+        /* ignore */
+    }
+    const a = api();
+    const c = a && a.getContainer ? a.getContainer() : null;
+    return String((c && c.core && c.core.domain) || '').replace(/^@+/, '');
+}
+
+function schoolName() {
+    const a = api();
+    const c = a && a.getContainer ? a.getContainer() : null;
+    return String((c && c.core && c.core.schoolName) || '').trim();
+}
+
+function ensureScriptPrerequisites() {
+    const dom = domain();
+    if (!dom) {
+        toast('Schul-Domain fehlt in den Stammdaten – bitte zuerst setzen.', 'err');
+        return false;
+    }
+    return true;
+}
+
+function reloadSoll() {
+    const { bucket } = currentBucket();
+    const g = eg();
+    const naming = namingFromState();
+    state.classRows = g && g.buildClassParentSoll ? g.buildClassParentSoll(bucket, { naming: naming }) : [];
+    state.yearRows = g && g.buildYearParentSoll ? g.buildYearParentSoll(bucket, { naming: naming }) : [];
+}
+
+function rowsForTab() {
+    return state.tab === 'year' ? state.yearRows : state.classRows;
+}
+
+function rowKey(row) {
+    return String(row.scope || 'class') + ':' + String(row.code || '');
+}
+
+function findRow(key) {
+    return rowsForTab().find(function (r) {
+        return rowKey(r) === key;
+    }) || null;
+}
+
+function pruneSelectedKeys() {
+    const valid = new Set(rowsForTab().map(rowKey));
+    Array.from(state.selectedKeys).forEach(function (key) {
+        if (!valid.has(key)) state.selectedKeys.delete(key);
+    });
+}
+
+function selectedCountWithParents() {
+    let n = 0;
+    state.selectedKeys.forEach(function (key) {
+        const r = findRow(key);
+        if (r && r.guardianCount > 0) n += 1;
+    });
+    return n;
+}
+
+function setListSelected(key, on) {
+    if (on) state.selectedKeys.add(key);
+    else state.selectedKeys.delete(key);
+    const sel = getEl('evSelectList');
+    if (sel && key === state.selectedKey) sel.checked = !!on;
+    updateListMeta();
+}
+
+function selectAllWithParents() {
+    rowsForTab().forEach(function (r) {
+        if (r.guardianCount > 0) state.selectedKeys.add(rowKey(r));
+    });
+    renderList();
+    renderDetail();
+    toast(selectedCountWithParents() + ' Listen ausgewählt', 'ok');
+}
+
+function clearSelection() {
+    state.selectedKeys.clear();
+    renderList();
+    renderDetail();
+    toast('Auswahl geleert', 'ok');
+}
+
+function updateListMeta() {
+    const meta = getEl('evListMeta');
+    if (!meta) return;
+    const withParents = rowsForTab().filter(function (r) {
+        return r.guardianCount > 0;
+    }).length;
+    const selected = selectedCountWithParents();
+    meta.textContent =
+        rowsForTab().length +
+        ' Listen · ' +
+        withParents +
+        ' mit Elternmails · ' +
+        selected +
+        ' ausgewählt · Schuljahr ' +
+        (currentBucket().year || '–');
+}
+
+function showScriptForLists(lists, toastMsg) {
+    if (!lists.length) return;
+    if (!ensureScriptPrerequisites()) return;
+    const keepKey = lists.some(function (r) {
+        return rowKey(r) === state.selectedKey;
+    });
+    if (!keepKey) state.selectedKey = rowKey(lists[0]);
+    renderList();
+    renderDetail();
+    const script = buildScriptForLists(lists);
+    setScript(script);
+    markExported(lists);
+    state.lastScriptLabel =
+        lists.length > 1
+            ? 'sammel-' + lists.length
+            : lists[0].mailNickname || lists[0].code || 'sync';
+    downloadCmd(script, state.lastScriptLabel, toastMsg || undefined);
+}
+
+function renderList() {
+    const ul = getEl('evList');
+    const title = getEl('evListTitle');
+    if (!ul) return;
+    pruneSelectedKeys();
+    const q = String((getEl('evSearch') && getEl('evSearch').value) || '')
+        .trim()
+        .toLowerCase();
+    const rows = rowsForTab().filter(function (r) {
+        if (!q) return true;
+        return searchBlobForRow(r).indexOf(q) !== -1;
+    });
+    ul.replaceChildren();
+    if (title) {
+        title.innerHTML =
+            state.tab === 'year'
+                ? '<i class="bi bi-calendar3" style="margin-right:8px;"></i>Jahrgangs-Elternlisten'
+                : '<i class="bi bi-list-ul" style="margin-right:8px;"></i>Klassen-Elternlisten';
+    }
+    updateListMeta();
+    if (!rows.length) {
+        const li = document.createElement('li');
+        li.innerHTML =
+            '<div class="muted" style="padding:12px;">Keine Einträge. Schüler und optional Eltern in den <a href="../tenant.html">Stammdaten</a> pflegen.</div>';
+        ul.appendChild(li);
+        return;
+    }
+    rows.forEach(function (r) {
+        const li = document.createElement('li');
+        const row = document.createElement('div');
+        row.className = 'tree-row';
+        const key = rowKey(r);
+        const isCurrent = key === state.selectedKey;
+        if (isCurrent) row.setAttribute('data-current', 'true');
+
+        const checkLabel = document.createElement('label');
+        checkLabel.className = 'tree-check';
+        checkLabel.title =
+            r.guardianCount > 0
+                ? 'Für Sammel-Skript auswählen'
+                : 'Keine Elternmails – nicht auswählbar';
+        const check = document.createElement('input');
+        check.type = 'checkbox';
+        check.setAttribute('aria-label', 'Auswählen: ' + (r.displayName || r.code));
+        check.disabled = !(r.guardianCount > 0);
+        check.checked = state.selectedKeys.has(key);
+        check.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+        });
+        check.addEventListener('change', function () {
+            setListSelected(key, check.checked);
+        });
+        checkLabel.appendChild(check);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        if (isCurrent) btn.setAttribute('aria-current', 'true');
+        const pillClass = r.guardianCount > 0 ? 'ok' : 'warn';
+        btn.innerHTML =
+            '<span style="font-weight:900;color:#32325d;">' +
+            escapeHtml(r.displayName || r.code) +
+            '</span>' +
+            '<span class="pill ' +
+            pillClass +
+            '">' +
+            r.guardianCount +
+            ' Eltern</span>' +
+            (state.tab === 'class'
+                ? '<span class="pill">' + r.studentCount + ' Schüler</span>'
+                : '<span class="pill">' + (r.classCodes || []).length + ' Klassen</span>') +
+            '<span class="muted" style="font-size:0.82em;">' +
+            escapeHtml(r.mailNickname || '') +
+            '</span>';
+        btn.addEventListener('click', function () {
+            state.selectedKey = key;
+            renderList();
+            renderDetail();
+        });
+
+        row.appendChild(checkLabel);
+        row.appendChild(btn);
+        li.appendChild(row);
+        ul.appendChild(li);
+    });
+}
+
+
+function guardiansForStudent(student, byId) {
+    return (student.guardianIds || [])
+        .map(function (id) {
+            return byId.get(String(id));
+        })
+        .filter(Boolean);
+}
+
+function renderDetail() {
+    const empty = getEl('evDetailEmpty');
+    const detail = getEl('evDetail');
+    const wrap = getEl('evStudentsWrap');
+    const summary = getEl('evDetailSummary');
+    const title = getEl('evDetailTitle');
+    const sel = getEl('evSelectList');
+    const row = findRow(state.selectedKey);
+    if (!row) {
+        if (empty) empty.hidden = false;
+        if (detail) detail.hidden = true;
+        return;
+    }
+    if (empty) empty.hidden = true;
+    if (detail) detail.hidden = false;
+    if (title) title.textContent = row.displayName || row.code;
+    if (summary) {
+        summary.textContent =
+            'Alias ' +
+            (row.mailNickname || '–') +
+            ' · ' +
+            row.guardianCount +
+            ' eindeutige Elternmail(s)' +
+            (state.tab === 'year' ? ' · Klassen: ' + (row.classCodes || []).join(', ') : '');
+    }
+    if (sel) {
+        sel.checked = state.selectedKeys.has(state.selectedKey);
+        sel.disabled = !(row.guardianCount > 0);
+        sel.onchange = function () {
+            setListSelected(state.selectedKey, sel.checked);
+            renderList();
         };
     }
 
-    function patternFromZone(key) {
-        const zone = document.querySelector('[data-ev-zone="' + key + '"]');
-        const g = eg();
-        if (!zone || !g) return state.patterns[key] || [];
-        const tokens = [];
-        zone.querySelectorAll('[data-token-type]').forEach(function (el) {
-            const type = String(el.getAttribute('data-token-type') || '');
-            if (type === 'text') tokens.push({ type: 'text', value: String(el.getAttribute('data-token-value') || '') });
-            else tokens.push({ type: type });
-        });
-        return g.normalizeNamePattern(tokens, state.patterns[key] || []);
-    }
+    if (!wrap) return;
+    wrap.replaceChildren();
 
-    function syncPatternFromZone(key) {
-        state.patterns[key] = patternFromZone(key);
-        updatePatternPreview(key);
-    }
-
-    function updatePatternPreview(key) {
-        const el = document.querySelector('[data-ev-preview="' + key + '"]');
-        const g = eg();
-        if (!el || !g) return;
-        const pattern = state.patterns[key] || [];
-        const forAlias = key.indexOf('Alias') !== -1;
-        const sample =
-            key.indexOf('year') === 0
-                ? g.buildNameFromPattern(pattern, {
-                      year: '2030',
-                      stufe: '1',
-                      classCodes: ['1A', '1B'],
-                      forAlias: forAlias
-                  })
-                : g.buildNameFromPattern(pattern, { klasse: '1A', year: '2030', stufe: '1', forAlias: forAlias });
-        el.textContent = 'Vorschau: ' + sample;
-    }
-
-    function addChip(zone, token) {
-        const g = eg();
-        const chip = document.createElement('span');
-        chip.className = 'name-chip';
-        chip.draggable = true;
-        chip.setAttribute('data-token-type', token.type);
-        if (token.type === 'text') chip.setAttribute('data-token-value', String(token.value ?? ''));
-
-        const txt = document.createElement('span');
-        if (token.type === 'text') {
-            const v = String(token.value ?? '');
-            txt.textContent = v === '' ? '(leer)' : v;
-        } else {
-            txt.textContent = g && g.tokenLabel ? g.tokenLabel(token) : token.type;
-        }
-
-        const x = document.createElement('button');
-        x.type = 'button';
-        x.className = 'chip-x';
-        x.textContent = '✕';
-        x.title = 'Baustein entfernen';
-        x.addEventListener('click', function () {
-            const key = zone.getAttribute('data-ev-zone');
-            chip.remove();
-            if (key) syncPatternFromZone(key);
-        });
-
-        chip.append(txt, x);
-        zone.appendChild(chip);
-    }
-
-    function wireZoneDnD(zone) {
-        let dragEl = null;
-        zone.addEventListener('dragstart', function (e) {
-            const target = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
-            if (!target) return;
-            dragEl = target;
-            target.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        });
-        zone.addEventListener('dragend', function () {
-            if (dragEl) dragEl.classList.remove('dragging');
-            dragEl = null;
-            const key = zone.getAttribute('data-ev-zone');
-            if (key) syncPatternFromZone(key);
-        });
-        zone.addEventListener('dragover', function (e) {
-            e.preventDefault();
-            const over = e.target && e.target.closest ? e.target.closest('.name-chip') : null;
-            if (!dragEl || !over || over === dragEl) return;
-            const rect = over.getBoundingClientRect();
-            const after = e.clientX > rect.left + rect.width / 2;
-            if (after) over.after(dragEl);
-            else over.before(dragEl);
-        });
-        zone.addEventListener('drop', function (e) {
-            e.preventDefault();
-            const key = zone.getAttribute('data-ev-zone');
-            if (key) syncPatternFromZone(key);
-        });
-    }
-
-    function renderPatternBuilder(key) {
-        const zone = document.querySelector('[data-ev-zone="' + key + '"]');
-        if (!zone) return;
-        const pattern = state.patterns[key] || [];
-        zone.replaceChildren();
-        pattern.forEach(function (t) {
-            addChip(zone, t);
-        });
-        updatePatternPreview(key);
-    }
-
-    function renderAllPatternBuilders() {
-        Object.keys(PATTERN_KEYS).forEach(renderPatternBuilder);
-    }
-
-    function defaultPatternFor(key) {
-        const g = eg();
-        if (!g) return [];
-        if (key === 'classAlias') return g.defaultClassAliasPattern();
-        if (key === 'classDisplay') return g.defaultClassDisplayPattern();
-        if (key === 'yearAlias') return g.defaultYearAliasPattern();
-        if (key === 'yearDisplay') return g.defaultYearDisplayPattern();
-        return [];
-    }
-
-    function saveNamingSchema() {
-        const a = api();
-        if (!a || typeof a.patchSetup !== 'function') {
-            toast('Speichern nicht möglich', 'err');
-            return;
-        }
-        Object.keys(PATTERN_KEYS).forEach(function (key) {
-            syncPatternFromZone(key);
-        });
-        const patch = {};
-        Object.keys(PATTERN_KEYS).forEach(function (key) {
-            patch[PATTERN_KEYS[key]] = state.patterns[key];
-        });
-        a.patchSetup(patch);
-        refresh();
-        toast('Namensschema gespeichert', 'ok');
-    }
-
-    function existingStudentRecords(bucket) {
-        const b = bucket && typeof bucket === 'object' ? bucket : currentBucket().bucket;
-        const gBy = new Map((b.guardians || []).map(function (g) { return [g.id, g]; }));
-        return (b.students || []).map(function (s) {
-            const pairs = (s.guardianIds || [])
-                .map(function (id) {
-                    const g = gBy.get(id);
-                    return g ? { name: g.name || '', email: g.email || '', phone: g.phone || '' } : null;
-                })
-                .filter(Boolean);
-            return {
-                id: s.id,
-                klasse: s.klasse,
-                name: s.name,
-                email: s.email,
-                externalId: s.externalId,
-                parentPairs: pairs
-            };
-        });
-    }
-
-    function applySisRecords(records, removedIds) {
-        const a = api();
-        if (!a || typeof a.mergeStudentsImport !== 'function' || typeof a.saveYearBucket !== 'function') {
-            throw new Error('Stammdaten-API fehlt.');
-        }
-        const { year, bucket } = currentBucket();
-        const gById = new Map(
-            (bucket.guardians || []).map(function (g) {
-                return [g.id, g];
-            })
-        );
-        function keyOf(r) {
-            const em = String(r.email || '')
-                .trim()
-                .toLowerCase();
-            if (em) return 'e:' + em;
-            const ext = String(r.externalId || '')
-                .trim()
-                .toLowerCase();
-            if (ext) return 'x:' + ext;
-            return (
-                'n:' +
-                String(r.klasse || '')
-                    .trim()
-                    .toLowerCase() +
-                '|' +
-                String(r.name || '')
-                    .trim()
-                    .toLowerCase()
-            );
-        }
-        const map = new Map();
-        (bucket.students || []).forEach(function (s) {
-            const pairs = (s.guardianIds || [])
-                .map(function (id) {
-                    const g = gById.get(id);
-                    return g ? { name: g.name || '', email: g.email || '' } : null;
-                })
-                .filter(Boolean);
-            const row = {
-                id: s.id,
-                klasse: s.klasse,
-                name: s.name,
-                email: s.email,
-                guardianIds: s.guardianIds,
-                parentPairs: pairs
-            };
-            map.set(keyOf(row), row);
-        });
-        (records || []).forEach(function (r) {
-            const row = {
-                klasse: r.klasse,
-                name: r.name,
-                email: r.email,
-                externalId: r.externalId,
-                parentPairs: r.parentPairs || []
-            };
-            const k = keyOf(row);
-            const prev = map.get(k);
-            if (prev) {
-                map.set(k, {
-                    id: prev.id,
-                    klasse: row.klasse || prev.klasse,
-                    name: row.name || prev.name,
-                    email: row.email || prev.email,
-                    guardianIds: prev.guardianIds,
-                    parentPairs: row.parentPairs && row.parentPairs.length ? row.parentPairs : prev.parentPairs
-                });
-            } else {
-                map.set(k, row);
-            }
-        });
-        const next = a.mergeStudentsImport(
-            {
-                students: [],
-                classes: bucket.classes || [],
-                guardians: [],
-                parentLists: bucket.parentLists || []
-            },
-            Array.from(map.values())
-        );
-        next.classes = bucket.classes || [];
-        next.parentLists = bucket.parentLists || [];
-        a.saveYearBucket(year, next);
-        let removedStudents = 0;
-        let removedGuardians = 0;
-        if (Array.isArray(removedIds) && removedIds.length && typeof a.removeStudents === 'function') {
-            const cleanup = a.removeStudents(removedIds, year);
-            removedStudents = cleanup && cleanup.removedStudents ? cleanup.removedStudents : 0;
-            removedGuardians = cleanup && cleanup.removedGuardians ? cleanup.removedGuardians : 0;
-        }
-        const sis = window.ms365SchoolSisImport;
-        if (sis && typeof sis.diffSisImport === 'function') {
-            const existing = existingStudentRecords(bucket);
-            const diff = sis.diffSisImport(existing, records || []);
-            const summary = sis.summarizeSisDiff ? sis.summarizeSisDiff(diff) : '';
-            return {
-                next: next,
-                diff: diff,
-                summary: summary,
-                removedStudents: removedStudents,
-                removedGuardians: removedGuardians
-            };
-        }
-        return { next: next, removedStudents: removedStudents, removedGuardians: removedGuardians };
-    }
-
-    function domainFromCore() {
-        try {
-            const a = api();
-            const c = a && typeof a.getContainer === 'function' ? a.getContainer() : null;
-            return String((c && c.core && c.core.domain) || '').trim();
-        } catch {
-            return '';
-        }
-    }
-
-    function renderDiagnose() {
-        const eg = window.ms365ElternGuardians;
-        const summary = getEl('evDiagnoseSummary');
-        const ul = getEl('evDiagnoseIssues');
-        const hints = getEl('evDiagnoseHints');
-        const orphanEl = getEl('evOrphanGuardians');
-        if (!eg || typeof eg.buildElternDiagnoseReport !== 'function') return;
-        const { bucket } = currentBucket();
-        const report = eg.buildElternDiagnoseReport(bucket, eg.getNaming(), domainFromCore());
-        const linked = new Set();
-        (bucket.students || []).forEach(function (s) {
-            (s.guardianIds || []).forEach(function (id) {
-                linked.add(String(id || '').trim());
-            });
-        });
-        const orphanCount = (bucket.guardians || []).filter(function (g) {
-            return !linked.has(String((g && g.id) || '').trim());
-        }).length;
-        if (summary) {
-            const c = report.counts || {};
-            summary.textContent =
-                (report.ok ? 'Keine Warnungen. ' : 'Bitte prüfen: ') +
-                (c.withParents || 0) +
-                ' von ' +
-                (c.lists || 0) +
-                ' Listen mit Elternmails' +
-                ' · ' +
-                orphanCount +
-                ' verwaiste Elternkontakte' +
-                (c.exported ? ' · ' + c.exported + ' zuletzt exportiert' : '');
-        }
-        if (orphanEl) {
-            orphanEl.textContent = orphanCount
-                ? orphanCount + ' Elternkontakt(e) sind aktuell keinem Schüler mehr zugeordnet.'
-                : 'Keine verwaisten Elternkontakte gefunden.';
-        }
-        if (ul) {
-            ul.innerHTML = '';
-            (report.issues || []).forEach(function (iss) {
-                const li = document.createElement('li');
-                li.textContent = (iss.level === 'warn' ? 'Warnung: ' : '') + iss.summary;
-                ul.appendChild(li);
-            });
-            if (!ul.childNodes.length) {
-                const li = document.createElement('li');
-                li.textContent = 'Alias-Kollisionen: keine. GAL: Listen sichtbar, Contacts versteckt (vom Sync-Skript).';
-                ul.appendChild(li);
-            }
-        }
-        if (hints && report.hints) {
-            hints.textContent = report.hints.gal + ' ' + report.hints.contacts + ' ' + report.hints.naming;
-        }
-        try {
-            const a = api();
-            if (a && typeof a.patchSetup === 'function' && typeof a.getSetup === 'function') {
-                const cur = a.getSetup() || {};
-                const es = cur.elternSetup && typeof cur.elternSetup === 'object' ? cur.elternSetup : {};
-                a.patchSetup({
-                    elternSetup: {
-                        completedSteps: Array.isArray(es.completedSteps) ? es.completedSteps : [],
-                        lastDiagnoseAt: new Date().toISOString()
-                    }
-                });
-            }
-        } catch {
-            /* ignore */
-        }
-        return report;
-    }
-
-    function setSetupStep(n) {
-        const step = String(n || '1');
-        document.querySelectorAll('#evSetupSteps [data-ev-step]').forEach(function (btn) {
-            btn.setAttribute('aria-current', btn.getAttribute('data-ev-step') === step ? 'step' : 'false');
-        });
-        const importPanel = getEl('evImportPanel');
-        const namingPanel = getEl('evNamingPanel');
-        if (importPanel) importPanel.open = step === '1';
-        if (namingPanel) namingPanel.open = step === '2';
-        const diag = getEl('evDiagnosePanel');
-        if (diag && step === '3') {
-            renderDiagnose();
-            if (typeof diag.scrollIntoView === 'function') diag.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        const listTitle = getEl('evListTitle');
-        if (step === '4' && listTitle && typeof listTitle.scrollIntoView === 'function') {
-            listTitle.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-
-    function parentMailsLabel(rec) {
-        const sis = window.ms365SchoolSisImport;
-        let mails = [];
-        if (sis && typeof sis.parentEmailsOf === 'function') {
-            mails = sis.parentEmailsOf(rec) || [];
-        } else {
-            const raw = (rec && (rec.parentEmails || rec.parents || rec.guardians)) || [];
-            if (Array.isArray(raw)) {
-                mails = raw
-                    .map(function (p) {
-                        return typeof p === 'string' ? p : p && p.email;
-                    })
-                    .filter(Boolean);
-            }
-        }
-        return mails.length ? mails.join(', ') : '–';
-    }
-
-    function importDiffLine(entry) {
-        if (!entry) return '';
-        const prev = entry.previous || {};
-        const cur = entry.incoming || entry;
-        const bits = [];
-        if (entry.klasseChanged) bits.push('Klasse ' + (prev.klasse || '–') + ' → ' + (cur.klasse || '–'));
-        if (entry.emailChanged) bits.push('E-Mail ' + ((prev.email || '–') + ' → ' + (cur.email || '–')));
-        if (entry.parentsChanged) {
-            bits.push('Eltern ' + parentMailsLabel(prev) + ' → ' + parentMailsLabel(cur));
-        }
-        if (entry.nameChanged) bits.push('Name ' + (prev.name || '–') + ' → ' + (cur.name || '–'));
-        return (cur.name || prev.name || cur.email || 'Ohne Namen') + ' (' + (bits.join(' · ') || 'geändert') + ')';
-    }
-
-    function removedLabel(entry) {
-        return [entry && entry.name, entry && entry.klasse, entry && entry.email].filter(Boolean).join(' · ');
-    }
-
-    function searchBlobForRow(row) {
-        const bits = [row.code, row.displayName, row.mailNickname].concat(row.classCodes || []);
+    if (state.tab === 'year') {
+        const p = document.createElement('p');
+        p.className = 'muted';
+        p.textContent =
+            'Jahrgangslisten aggregieren die Elternmails aller Klassen mit diesem Abschlussjahr. Schulstufe-Bausteine (n. JG / n. Klassen) leiten die Nummer aus den Klassenkürzeln ab (1A → 1). Zuordnung der Eltern erfolgt pro Schüler in der Klassenansicht.';
+        wrap.appendChild(p);
+        const ul = document.createElement('ul');
         (row.guardians || []).forEach(function (g) {
-            bits.push(g && g.name);
-            bits.push(g && g.email);
-        });
-        if (row.scope === 'class') {
-            const bucket = currentBucket().bucket;
-            (bucket.students || []).forEach(function (s) {
-                if (String(s.klasse || '').trim().toUpperCase() !== String(row.code || '').trim().toUpperCase()) return;
-                bits.push(s.name);
-                bits.push(s.email);
-            });
-        }
-        return bits.filter(Boolean).join(' ').toLowerCase();
-    }
-
-    function renderImportPreview() {
-        const root = getEl('evImportPreview');
-        const summary = getEl('evImportPreviewSummary');
-        const added = getEl('evImportAdded');
-        const updated = getEl('evImportUpdated');
-        const removed = getEl('evImportRemoved');
-        const conflicts = getEl('evImportConflicts');
-        const actions = getEl('evImportApplyBar');
-        const count = getEl('evImportRemovedCount');
-        if (!root || !summary || !added || !updated || !removed || !conflicts || !actions) return;
-        const p = state.importPreview;
-        if (!p || !p.diff) {
-            root.hidden = true;
-            return;
-        }
-        root.hidden = false;
-        const diff = p.diff;
-        const c = diff.counts || {};
-        summary.textContent =
-            (p.meta && p.meta.studentCount ? p.meta.studentCount : 0) +
-            ' Schüler aus ' +
-            (p.source || 'Import') +
-            ' · ' +
-            (c.added || 0) +
-            ' neu · ' +
-            (c.updated || 0) +
-            ' geändert · ' +
-            (c.removed || 0) +
-            ' nicht mehr in der Datei';
-        count.textContent = String(p.removedSelected.size || 0);
-
-        function fillList(el, rows, mapLine, withChecks) {
-            el.replaceChildren();
-            if (!rows.length) {
-                const li = document.createElement('li');
-                li.className = 'muted';
-                li.textContent = 'Keine';
-                el.appendChild(li);
-                return;
-            }
-            rows.slice(0, 20).forEach(function (row) {
-                const li = document.createElement('li');
-                if (withChecks) {
-                    const label = document.createElement('label');
-                    const cb = document.createElement('input');
-                    const id = String((row && row.id) || '');
-                    cb.type = 'checkbox';
-                    cb.checked = p.removedSelected.has(id);
-                    cb.style.marginRight = '8px';
-                    cb.addEventListener('change', function () {
-                        if (cb.checked) p.removedSelected.add(id);
-                        else p.removedSelected.delete(id);
-                        renderImportPreview();
-                    });
-                    label.appendChild(cb);
-                    label.appendChild(document.createTextNode(mapLine(row)));
-                    li.appendChild(label);
-                } else {
-                    li.textContent = mapLine(row);
-                }
-                el.appendChild(li);
-            });
-            if (rows.length > 20) {
-                const li = document.createElement('li');
-                li.className = 'muted';
-                li.textContent = '... und ' + (rows.length - 20) + ' weitere';
-                el.appendChild(li);
-            }
-        }
-
-        fillList(added, diff.added || [], function (row) {
-            return [row.name, row.klasse, row.email].filter(Boolean).join(' · ');
-        });
-        fillList(updated, diff.updated || [], importDiffLine);
-        fillList(removed, diff.removed || [], removedLabel, true);
-        fillList(conflicts, diff.conflicts || [], function (row) {
-            return row.summary || '';
-        });
-        actions.hidden = false;
-    }
-
-    function wireSisImport() {
-        const fileInput = getEl('evImportFile');
-        const sourceEl = getEl('evImportSource');
-        if (getEl('evTplXlsx')) {
-            getEl('evTplXlsx').addEventListener('click', function () {
-                const sis = window.ms365SchoolSisImport;
-                if (!sis || !sis.downloadXlsxTemplates || !sis.downloadXlsxTemplates()) {
-                    toast('XLSX-Vorlage: Bibliothek fehlt – Seite neu laden', 'err');
-                    return;
-                }
-                toast('XLSX-Vorlage heruntergeladen', 'ok');
-            });
-        }
-        if (getEl('evTplCsv')) {
-            getEl('evTplCsv').addEventListener('click', function () {
-                const sis = window.ms365SchoolSisImport;
-                if (!sis || !sis.downloadCsv) {
-                    toast('CSV-Vorlage nicht verfügbar', 'err');
-                    return;
-                }
-                sis.downloadCsv('Schueler-Eltern-Vorlage.csv', sis.ms365TemplateAoa());
-                toast('CSV-Vorlage heruntergeladen', 'ok');
-            });
-        }
-        if (!fileInput) return;
-        fileInput.addEventListener('change', function () {
-            const files = fileInput.files;
-            fileInput.value = '';
-            if (!files || !files.length) return;
-            if (typeof XLSX === 'undefined') {
-                toast('Excel-Bibliothek nicht geladen', 'err');
-                return;
-            }
-            const sis = window.ms365SchoolSisImport;
-            if (!sis) {
-                toast('Import-Modul fehlt', 'err');
-                return;
-            }
-            const sourceHint = sourceEl ? String(sourceEl.value || 'auto') : 'auto';
-            const patternEl = getEl('evImportEmailPattern');
-            const pattern = patternEl ? String(patternEl.value || 'vorname.nachname') : 'vorname.nachname';
-            const givenEl = getEl('evImportEmailGivenNames');
-            const firstNameMode = givenEl ? String(givenEl.value || 'first') : 'first';
-            setImportStatus('Lese Datei(en) …');
-
-            function finishWithResult(result) {
-                if (!result || !result.meta) {
-                    setImportStatus('Keine Daten erkannt');
-                    toast('Import fehlgeschlagen', 'err');
-                    return;
-                }
-                if (result.meta.error) {
-                    setImportStatus(result.meta.error);
-                    toast(result.meta.error, 'err');
-                    return;
-                }
-                let records = result.records || [];
-                if (sis.preferExistingStudentEmails) {
-                    records = sis.preferExistingStudentEmails(records, existingStudentRecords(currentBucket().bucket));
-                    result.records = records;
-                    if (sis.recordsToSemicolonLines) result.lines = sis.recordsToSemicolonLines(records);
-                }
-                const diff = sis.diffSisImport(existingStudentRecords(currentBucket().bucket), records);
-                state.importPreview = {
-                    source: result.source,
-                    records: records,
-                    meta: result.meta,
-                    diff: diff,
-                    removedSelected: new Set()
-                };
-                renderImportPreview();
-                const extra = [];
-                if (result.meta && result.meta.emailsGenerated) extra.push(result.meta.emailsGenerated + ' Mails vorgeschlagen');
-                if (result.meta && result.meta.unmatchedGuardians) {
-                    extra.push(result.meta.unmatchedGuardians + ' Eltern ohne Zuordnung');
-                }
-                setImportStatus(
-                    'Vorschau bereit: ' +
-                        result.meta.studentCount +
-                        ' Schüler, ' +
-                        result.meta.withParents +
-                        ' mit Elternmails (Quelle: ' +
-                        result.source +
-                        ')' +
-                        (extra.length ? ' · ' + extra.join(' · ') : '') +
-                        '. Änderungen unten prüfen und dann übernehmen.'
-                );
-                toast('Import-Vorschau erzeugt', 'ok');
-            }
-
-            function readOneFile(file) {
-                return new Promise(function (resolve, reject) {
-                    const name = String(file.name || '').toLowerCase();
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        try {
-                            let wb;
-                            if (name.endsWith('.csv') || name.endsWith('.txt')) {
-                                let s = String(e.target.result || '');
-                                if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-                                wb = XLSX.read(s, { type: 'string', FS: ';' });
-                                let aoaProbe = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
-                                    header: 1,
-                                    defval: ''
-                                });
-                                if (!aoaProbe || aoaProbe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
-                            } else {
-                                wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                            }
-                            const sheet = wb.Sheets[wb.SheetNames[0]];
-                            const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                            resolve({ name: file.name || '', aoa: aoa });
-                        } catch (err) {
-                            reject(err);
-                        }
-                    };
-                    reader.onerror = function () {
-                        reject(new Error('Datei konnte nicht gelesen werden'));
-                    };
-                    if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
-                    else reader.readAsArrayBuffer(file);
-                });
-            }
-
-            Promise.all(Array.from(files).map(readOneFile))
-                .then(function (sheets) {
-                    const wu = window.ms365WebuntisExportImport;
-                    const domain =
-                        typeof window.ms365GetSchoolDomainNoAt === 'function'
-                            ? String(window.ms365GetSchoolDomainNoAt() || '').replace(/^@+/, '')
-                            : '';
-                    const classified = wu && wu.classifySheets ? wu.classifySheets(sheets) : null;
-                    if (classified && classified.studentAoa && wu.importStudentsFromWebuntis) {
-                        finishWithResult(
-                            wu.importStudentsFromWebuntis({
-                                studentAoa: classified.studentAoa,
-                                guardianAoa: classified.guardianAoa || [],
-                                domain: domain,
-                                pattern: pattern,
-                                firstNameMode: firstNameMode,
-                                applyEmails: !!domain
-                            })
-                        );
-                        return;
-                    }
-                    const first = sheets[0];
-                    const objectRows = [];
-                    const headers = (first && first.aoa && first.aoa[0]) || [];
-                    for (let i = 1; first && i < first.aoa.length; i++) {
-                        const row = first.aoa[i] || [];
-                        const o = {};
-                        headers.forEach(function (h, idx) {
-                            const key = String(h || '').trim();
-                            if (!key) return;
-                            if (o[key] == null || o[key] === '') o[key] = row[idx];
-                        });
-                        objectRows.push(o);
-                    }
-                    finishWithResult(
-                        sis.importStudentsAndGuardians({
-                            aoa: first ? first.aoa : [],
-                            objectRows: objectRows,
-                            source: sourceHint
-                        })
-                    );
-                })
-                .catch(function (err) {
-                    setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
-                    toast('Import fehlgeschlagen', 'err');
-                });
-        });
-    }
-
-    function wireNamingBuilders() {
-        document.querySelectorAll('[data-ev-zone]').forEach(function (zone) {
-            wireZoneDnD(zone);
-        });
-        document.querySelectorAll('[data-ev-add-token]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const key = btn.getAttribute('data-ev-for');
-                const type = btn.getAttribute('data-ev-add-token');
-                const zone = document.querySelector('[data-ev-zone="' + key + '"]');
-                if (!zone || !type) return;
-                addChip(zone, { type: type });
-                syncPatternFromZone(key);
-            });
-        });
-        document.querySelectorAll('[data-ev-add-sep]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const key = btn.getAttribute('data-ev-add-sep');
-                const inp = document.querySelector('[data-ev-sep="' + key + '"]');
-                const zone = document.querySelector('[data-ev-zone="' + key + '"]');
-                if (!zone) return;
-                addChip(zone, { type: 'text', value: String((inp && inp.value) ?? '') });
-                syncPatternFromZone(key);
-            });
-        });
-        document.querySelectorAll('[data-ev-reset]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const key = btn.getAttribute('data-ev-reset');
-                state.patterns[key] = defaultPatternFor(key);
-                renderPatternBuilder(key);
-            });
-        });
-        const saveBtn = getEl('evNamingSave');
-        if (saveBtn) saveBtn.addEventListener('click', saveNamingSchema);
-    }
-
-    function currentBucket() {
-        const a = api();
-        if (!a || typeof a.getYearBucket !== 'function') {
-            return { year: '', bucket: { students: [], classes: [], guardians: [], parentLists: [] } };
-        }
-        return a.getYearBucket();
-    }
-
-    function domain() {
-        try {
-            if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
-                return String(window.ms365GetSchoolDomainNoAt() || '').replace(/^@+/, '');
-            }
-        } catch {
-            /* ignore */
-        }
-        const a = api();
-        const c = a && a.getContainer ? a.getContainer() : null;
-        return String((c && c.core && c.core.domain) || '').replace(/^@+/, '');
-    }
-
-    function schoolName() {
-        const a = api();
-        const c = a && a.getContainer ? a.getContainer() : null;
-        return String((c && c.core && c.core.schoolName) || '').trim();
-    }
-
-    function ensureScriptPrerequisites() {
-        const dom = domain();
-        if (!dom) {
-            toast('Schul-Domain fehlt in den Stammdaten – bitte zuerst setzen.', 'err');
-            return false;
-        }
-        return true;
-    }
-
-    function reloadSoll() {
-        const { bucket } = currentBucket();
-        const g = eg();
-        const naming = namingFromState();
-        state.classRows = g && g.buildClassParentSoll ? g.buildClassParentSoll(bucket, { naming: naming }) : [];
-        state.yearRows = g && g.buildYearParentSoll ? g.buildYearParentSoll(bucket, { naming: naming }) : [];
-    }
-
-    function rowsForTab() {
-        return state.tab === 'year' ? state.yearRows : state.classRows;
-    }
-
-    function rowKey(row) {
-        return String(row.scope || 'class') + ':' + String(row.code || '');
-    }
-
-    function findRow(key) {
-        return rowsForTab().find(function (r) {
-            return rowKey(r) === key;
-        }) || null;
-    }
-
-    function pruneSelectedKeys() {
-        const valid = new Set(rowsForTab().map(rowKey));
-        Array.from(state.selectedKeys).forEach(function (key) {
-            if (!valid.has(key)) state.selectedKeys.delete(key);
-        });
-    }
-
-    function selectedCountWithParents() {
-        let n = 0;
-        state.selectedKeys.forEach(function (key) {
-            const r = findRow(key);
-            if (r && r.guardianCount > 0) n += 1;
-        });
-        return n;
-    }
-
-    function setListSelected(key, on) {
-        if (on) state.selectedKeys.add(key);
-        else state.selectedKeys.delete(key);
-        const sel = getEl('evSelectList');
-        if (sel && key === state.selectedKey) sel.checked = !!on;
-        updateListMeta();
-    }
-
-    function selectAllWithParents() {
-        rowsForTab().forEach(function (r) {
-            if (r.guardianCount > 0) state.selectedKeys.add(rowKey(r));
-        });
-        renderList();
-        renderDetail();
-        toast(selectedCountWithParents() + ' Listen ausgewählt', 'ok');
-    }
-
-    function clearSelection() {
-        state.selectedKeys.clear();
-        renderList();
-        renderDetail();
-        toast('Auswahl geleert', 'ok');
-    }
-
-    function updateListMeta() {
-        const meta = getEl('evListMeta');
-        if (!meta) return;
-        const withParents = rowsForTab().filter(function (r) {
-            return r.guardianCount > 0;
-        }).length;
-        const selected = selectedCountWithParents();
-        meta.textContent =
-            rowsForTab().length +
-            ' Listen · ' +
-            withParents +
-            ' mit Elternmails · ' +
-            selected +
-            ' ausgewählt · Schuljahr ' +
-            (currentBucket().year || '–');
-    }
-
-    function showScriptForLists(lists, toastMsg) {
-        if (!lists.length) return;
-        if (!ensureScriptPrerequisites()) return;
-        const keepKey = lists.some(function (r) {
-            return rowKey(r) === state.selectedKey;
-        });
-        if (!keepKey) state.selectedKey = rowKey(lists[0]);
-        renderList();
-        renderDetail();
-        const script = buildScriptForLists(lists);
-        setScript(script);
-        markExported(lists);
-        state.lastScriptLabel =
-            lists.length > 1
-                ? 'sammel-' + lists.length
-                : lists[0].mailNickname || lists[0].code || 'sync';
-        downloadCmd(script, state.lastScriptLabel, toastMsg || undefined);
-    }
-
-    function renderList() {
-        const ul = getEl('evList');
-        const title = getEl('evListTitle');
-        if (!ul) return;
-        pruneSelectedKeys();
-        const q = String((getEl('evSearch') && getEl('evSearch').value) || '')
-            .trim()
-            .toLowerCase();
-        const rows = rowsForTab().filter(function (r) {
-            if (!q) return true;
-            return searchBlobForRow(r).indexOf(q) !== -1;
-        });
-        ul.replaceChildren();
-        if (title) {
-            title.innerHTML =
-                state.tab === 'year'
-                    ? '<i class="bi bi-calendar3" style="margin-right:8px;"></i>Jahrgangs-Elternlisten'
-                    : '<i class="bi bi-list-ul" style="margin-right:8px;"></i>Klassen-Elternlisten';
-        }
-        updateListMeta();
-        if (!rows.length) {
             const li = document.createElement('li');
-            li.innerHTML =
-                '<div class="muted" style="padding:12px;">Keine Einträge. Schüler und optional Eltern in den <a href="../tenant.html">Stammdaten</a> pflegen.</div>';
-            ul.appendChild(li);
-            return;
-        }
-        rows.forEach(function (r) {
-            const li = document.createElement('li');
-            const row = document.createElement('div');
-            row.className = 'tree-row';
-            const key = rowKey(r);
-            const isCurrent = key === state.selectedKey;
-            if (isCurrent) row.setAttribute('data-current', 'true');
-
-            const checkLabel = document.createElement('label');
-            checkLabel.className = 'tree-check';
-            checkLabel.title =
-                r.guardianCount > 0
-                    ? 'Für Sammel-Skript auswählen'
-                    : 'Keine Elternmails – nicht auswählbar';
-            const check = document.createElement('input');
-            check.type = 'checkbox';
-            check.setAttribute('aria-label', 'Auswählen: ' + (r.displayName || r.code));
-            check.disabled = !(r.guardianCount > 0);
-            check.checked = state.selectedKeys.has(key);
-            check.addEventListener('click', function (ev) {
-                ev.stopPropagation();
-            });
-            check.addEventListener('change', function () {
-                setListSelected(key, check.checked);
-            });
-            checkLabel.appendChild(check);
-
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            if (isCurrent) btn.setAttribute('aria-current', 'true');
-            const pillClass = r.guardianCount > 0 ? 'ok' : 'warn';
-            btn.innerHTML =
-                '<span style="font-weight:900;color:#32325d;">' +
-                escapeHtml(r.displayName || r.code) +
-                '</span>' +
-                '<span class="pill ' +
-                pillClass +
-                '">' +
-                r.guardianCount +
-                ' Eltern</span>' +
-                (state.tab === 'class'
-                    ? '<span class="pill">' + r.studentCount + ' Schüler</span>'
-                    : '<span class="pill">' + (r.classCodes || []).length + ' Klassen</span>') +
-                '<span class="muted" style="font-size:0.82em;">' +
-                escapeHtml(r.mailNickname || '') +
-                '</span>';
-            btn.addEventListener('click', function () {
-                state.selectedKey = key;
-                renderList();
-                renderDetail();
-            });
-
-            row.appendChild(checkLabel);
-            row.appendChild(btn);
-            li.appendChild(row);
+            li.textContent = (g.name ? g.name + ' – ' : '') + g.email;
             ul.appendChild(li);
         });
+        if (!(row.guardians || []).length) {
+            const li = document.createElement('li');
+            li.className = 'muted';
+            li.textContent = 'Noch keine Elternmails.';
+            ul.appendChild(li);
+        }
+        wrap.appendChild(ul);
+        return;
     }
 
-    function escapeHtml(s) {
-        return String(s || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+    const { bucket } = currentBucket();
+    const byId = new Map(
+        (bucket.guardians || []).map(function (g) {
+            return [g.id, g];
+        })
+    );
+    const students = (bucket.students || [])
+        .filter(function (s) {
+            return String(s.klasse || '').trim().toUpperCase() === String(row.code).toUpperCase();
+        })
+        .slice()
+        .sort(function (a, b) {
+            return compareDe(a.name, b.name);
+        });
+
+    if (!students.length) {
+        const p = document.createElement('p');
+        p.className = 'muted';
+        p.textContent = 'Keine Schüler in dieser Klasse.';
+        wrap.appendChild(p);
+        return;
     }
 
-    function guardiansForStudent(student, byId) {
-        return (student.guardianIds || [])
-            .map(function (id) {
-                return byId.get(String(id));
-            })
-            .filter(Boolean);
-    }
+    students.forEach(function (stu) {
+        const card = document.createElement('div');
+        card.className = 'student-card';
+        const h = document.createElement('h3');
+        h.textContent = (stu.name || 'Ohne Name') + (stu.email ? ' · ' + stu.email : '');
+        card.appendChild(h);
 
-    function renderDetail() {
-        const empty = getEl('evDetailEmpty');
-        const detail = getEl('evDetail');
-        const wrap = getEl('evStudentsWrap');
-        const summary = getEl('evDetailSummary');
-        const title = getEl('evDetailTitle');
-        const sel = getEl('evSelectList');
-        const row = findRow(state.selectedKey);
-        if (!row) {
-            if (empty) empty.hidden = false;
-            if (detail) detail.hidden = true;
-            return;
-        }
-        if (empty) empty.hidden = true;
-        if (detail) detail.hidden = false;
-        if (title) title.textContent = row.displayName || row.code;
-        if (summary) {
-            summary.textContent =
-                'Alias ' +
-                (row.mailNickname || '–') +
-                ' · ' +
-                row.guardianCount +
-                ' eindeutige Elternmail(s)' +
-                (state.tab === 'year' ? ' · Klassen: ' + (row.classCodes || []).join(', ') : '');
-        }
-        if (sel) {
-            sel.checked = state.selectedKeys.has(state.selectedKey);
-            sel.disabled = !(row.guardianCount > 0);
-            sel.onchange = function () {
-                setListSelected(state.selectedKey, sel.checked);
-                renderList();
-            };
-        }
-
-        if (!wrap) return;
-        wrap.replaceChildren();
-
-        if (state.tab === 'year') {
-            const p = document.createElement('p');
-            p.className = 'muted';
-            p.textContent =
-                'Jahrgangslisten aggregieren die Elternmails aller Klassen mit diesem Abschlussjahr. Schulstufe-Bausteine (n. JG / n. Klassen) leiten die Nummer aus den Klassenkürzeln ab (1A → 1). Zuordnung der Eltern erfolgt pro Schüler in der Klassenansicht.';
-            wrap.appendChild(p);
-            const ul = document.createElement('ul');
-            (row.guardians || []).forEach(function (g) {
-                const li = document.createElement('li');
-                li.textContent = (g.name ? g.name + ' – ' : '') + g.email;
-                ul.appendChild(li);
-            });
-            if (!(row.guardians || []).length) {
-                const li = document.createElement('li');
-                li.className = 'muted';
-                li.textContent = 'Noch keine Elternmails.';
-                ul.appendChild(li);
-            }
-            wrap.appendChild(ul);
-            return;
-        }
-
-        const { bucket } = currentBucket();
-        const byId = new Map(
-            (bucket.guardians || []).map(function (g) {
-                return [g.id, g];
-            })
-        );
-        const students = (bucket.students || [])
-            .filter(function (s) {
-                return String(s.klasse || '').trim().toUpperCase() === String(row.code).toUpperCase();
-            })
-            .slice()
-            .sort(function (a, b) {
-                return compareDe(a.name, b.name);
-            });
-
-        if (!students.length) {
-            const p = document.createElement('p');
-            p.className = 'muted';
-            p.textContent = 'Keine Schüler in dieser Klasse.';
-            wrap.appendChild(p);
-            return;
-        }
-
-        students.forEach(function (stu) {
-            const card = document.createElement('div');
-            card.className = 'student-card';
-            const h = document.createElement('h3');
-            h.textContent = (stu.name || 'Ohne Name') + (stu.email ? ' · ' + stu.email : '');
-            card.appendChild(h);
-
-            const gs = guardiansForStudent(stu, byId);
-            gs.forEach(function (g) {
-                const rowEl = document.createElement('div');
-                rowEl.className = 'guardian-row';
-                const nameIn = document.createElement('input');
-                nameIn.type = 'text';
-                nameIn.value = g.name || '';
-                nameIn.placeholder = 'Name';
-                nameIn.setAttribute('aria-label', 'Name Erziehungsberechtigte');
-                const mailIn = document.createElement('input');
-                mailIn.type = 'email';
-                mailIn.value = g.email || '';
-                mailIn.placeholder = 'E-Mail';
-                mailIn.setAttribute('aria-label', 'E-Mail Erziehungsberechtigte');
-                const del = document.createElement('button');
-                del.type = 'button';
-                del.className = 'btn';
-                del.innerHTML = '<i class="bi bi-x-lg"></i>';
-                del.title = 'Zuordnung entfernen';
-                del.addEventListener('click', function () {
-                    try {
-                        api().unlinkGuardianFromStudent(stu.id, g.id);
-                        refresh();
-                        toast('Zuordnung entfernt', 'ok');
-                    } catch (e) {
-                        toast(String(e && e.message ? e.message : e), 'err');
-                    }
-                });
-                let saveTimer;
-                function saveGuardian() {
-                    clearTimeout(saveTimer);
-                    saveTimer = setTimeout(function () {
-                        try {
-                            api().upsertGuardian({ id: g.id, name: nameIn.value, email: mailIn.value });
-                            refresh(true);
-                        } catch (e) {
-                            toast(String(e && e.message ? e.message : e), 'err');
-                        }
-                    }, 400);
-                }
-                nameIn.addEventListener('input', saveGuardian);
-                mailIn.addEventListener('change', saveGuardian);
-                rowEl.append(nameIn, mailIn, del);
-                card.appendChild(rowEl);
-            });
-
-            const add = document.createElement('div');
-            add.className = 'add-guardian';
-            const an = document.createElement('input');
-            an.type = 'text';
-            an.placeholder = 'Neuer Name';
-            const am = document.createElement('input');
-            am.type = 'email';
-            am.placeholder = 'Neue E-Mail';
-            const ab = document.createElement('button');
-            ab.type = 'button';
-            ab.className = 'btn btn-success';
-            ab.innerHTML = '<i class="bi bi-plus-lg"></i>';
-            ab.title = 'Elternkontakt zuordnen';
-            ab.addEventListener('click', function () {
+        const gs = guardiansForStudent(stu, byId);
+        gs.forEach(function (g) {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'guardian-row';
+            const nameIn = document.createElement('input');
+            nameIn.type = 'text';
+            nameIn.value = g.name || '';
+            nameIn.placeholder = 'Name';
+            nameIn.setAttribute('aria-label', 'Name Erziehungsberechtigte');
+            const mailIn = document.createElement('input');
+            mailIn.type = 'email';
+            mailIn.value = g.email || '';
+            mailIn.placeholder = 'E-Mail';
+            mailIn.setAttribute('aria-label', 'E-Mail Erziehungsberechtigte');
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'btn';
+            del.innerHTML = '<i class="bi bi-x-lg"></i>';
+            del.title = 'Zuordnung entfernen';
+            del.addEventListener('click', function () {
                 try {
-                    api().linkGuardianToStudent(stu.id, { name: an.value, email: am.value });
-                    an.value = '';
-                    am.value = '';
+                    api().unlinkGuardianFromStudent(stu.id, g.id);
                     refresh();
-                    toast('Elternkontakt zugeordnet', 'ok');
+                    toast('Zuordnung entfernt', 'ok');
                 } catch (e) {
                     toast(String(e && e.message ? e.message : e), 'err');
                 }
             });
-            add.append(an, am, ab);
-            card.appendChild(add);
-            wrap.appendChild(card);
+            let saveTimer;
+            function saveGuardian() {
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(function () {
+                    try {
+                        api().upsertGuardian({ id: g.id, name: nameIn.value, email: mailIn.value });
+                        refresh(true);
+                    } catch (e) {
+                        toast(String(e && e.message ? e.message : e), 'err');
+                    }
+                }, 400);
+            }
+            nameIn.addEventListener('input', saveGuardian);
+            mailIn.addEventListener('change', saveGuardian);
+            rowEl.append(nameIn, mailIn, del);
+            card.appendChild(rowEl);
         });
-    }
 
-    function buildScriptForLists(lists) {
-        const g = eg();
-        if (!g || typeof g.buildElternSyncScript !== 'function') {
-            return '# Eltern-Hilfsmodul nicht geladen.';
-        }
-        const payload = lists.map(function (r) {
-            return {
+        const add = document.createElement('div');
+        add.className = 'add-guardian';
+        const an = document.createElement('input');
+        an.type = 'text';
+        an.placeholder = 'Neuer Name';
+        const am = document.createElement('input');
+        am.type = 'email';
+        am.placeholder = 'Neue E-Mail';
+        const ab = document.createElement('button');
+        ab.type = 'button';
+        ab.className = 'btn btn-success';
+        ab.innerHTML = '<i class="bi bi-plus-lg"></i>';
+        ab.title = 'Elternkontakt zuordnen';
+        ab.addEventListener('click', function () {
+            try {
+                api().linkGuardianToStudent(stu.id, { name: an.value, email: am.value });
+                an.value = '';
+                am.value = '';
+                refresh();
+                toast('Elternkontakt zugeordnet', 'ok');
+            } catch (e) {
+                toast(String(e && e.message ? e.message : e), 'err');
+            }
+        });
+        add.append(an, am, ab);
+        card.appendChild(add);
+        wrap.appendChild(card);
+    });
+}
+
+function buildScriptForLists(lists) {
+    const g = eg();
+    if (!g || typeof g.buildElternSyncScript !== 'function') {
+        return '# Eltern-Hilfsmodul nicht geladen.';
+    }
+    const payload = lists.map(function (r) {
+        return {
+            displayName: r.displayName,
+            mailNickname: r.mailNickname,
+            guardians: r.guardians || [],
+            primarySmtp: ''
+        };
+    });
+    return g.buildElternSyncScript({
+        lists: payload,
+        domain: domain(),
+        schoolName: schoolName()
+    });
+}
+
+function setScript(text) {
+    const ta = getEl('evPsScript');
+    if (ta) ta.value = text || '';
+}
+
+function markExported(lists) {
+    const a = api();
+    if (!a || typeof a.upsertParentList !== 'function') return;
+    const now = new Date().toISOString();
+    lists.forEach(function (r) {
+        try {
+            a.upsertParentList({
+                scope: r.scope,
+                code: r.code,
                 displayName: r.displayName,
                 mailNickname: r.mailNickname,
-                guardians: r.guardians || [],
-                primarySmtp: ''
-            };
-        });
-        return g.buildElternSyncScript({
-            lists: payload,
-            domain: domain(),
-            schoolName: schoolName()
-        });
-    }
-
-    function setScript(text) {
-        const ta = getEl('evPsScript');
-        if (ta) ta.value = text || '';
-    }
-
-    function markExported(lists) {
-        const a = api();
-        if (!a || typeof a.upsertParentList !== 'function') return;
-        const now = new Date().toISOString();
-        lists.forEach(function (r) {
-            try {
-                a.upsertParentList({
-                    scope: r.scope,
-                    code: r.code,
+                graphGroupId: r.graphGroupId || '',
+                lastExportAt: now
+            });
+            if (r.scope === 'year' && /^\d{4}$/.test(String(r.code))) {
+                a.upsertCatalogLink({
+                    kind: 'eltern',
+                    code: String(r.code),
                     displayName: r.displayName,
                     mailNickname: r.mailNickname,
                     graphGroupId: r.graphGroupId || '',
-                    lastExportAt: now
+                    mode: r.graphGroupId ? 'matched' : ''
                 });
-                if (r.scope === 'year' && /^\d{4}$/.test(String(r.code))) {
-                    a.upsertCatalogLink({
-                        kind: 'eltern',
-                        code: String(r.code),
-                        displayName: r.displayName,
-                        mailNickname: r.mailNickname,
-                        graphGroupId: r.graphGroupId || '',
-                        mode: r.graphGroupId ? 'matched' : ''
-                    });
-                }
-            } catch {
-                /* ignore */
             }
-        });
-        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
-            window.ms365ActionLog.append({
-                tool: 'eltern-verteiler',
-                action: 'export-script',
-                summary: 'Exchange-Skript für ' + lists.length + ' Elternliste(n)'
-            });
+        } catch {
+            /* ignore */
         }
-    }
-
-    function refresh(keepScript) {
-        const prevScript = keepScript && getEl('evPsScript') ? getEl('evPsScript').value : '';
-        Object.keys(PATTERN_KEYS).forEach(function (key) {
-            const zone = document.querySelector('[data-ev-zone="' + key + '"]');
-            if (zone && zone.querySelector('[data-token-type]')) syncPatternFromZone(key);
+    });
+    if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+        window.ms365ActionLog.append({
+            tool: 'eltern-verteiler',
+            action: 'export-script',
+            summary: 'Exchange-Skript für ' + lists.length + ' Elternliste(n)'
         });
-        reloadSoll();
+    }
+}
+
+function refresh(keepScript) {
+    const prevScript = keepScript && getEl('evPsScript') ? getEl('evPsScript').value : '';
+    Object.keys(PATTERN_KEYS).forEach(function (key) {
+        const zone = document.querySelector('[data-ev-zone="' + key + '"]');
+        if (zone && zone.querySelector('[data-token-type]')) syncPatternFromZone(key);
+    });
+    reloadSoll();
+    renderList();
+    renderDetail();
+    if (keepScript && prevScript) setScript(prevScript);
+}
+
+function setTab(tab) {
+    state.tab = tab === 'year' ? 'year' : 'class';
+    state.selectedKey = '';
+    state.selectedKeys.clear();
+    document.querySelectorAll('[data-ev-tab]').forEach(function (btn) {
+        btn.setAttribute('aria-selected', btn.getAttribute('data-ev-tab') === state.tab ? 'true' : 'false');
+    });
+    refresh();
+}
+
+function copyText(text) {
+    const t = String(text || '');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(t).then(
+            function () {
+                toast('Kopiert', 'ok');
+            },
+            function () {
+                toast('Kopieren fehlgeschlagen', 'err');
+            }
+        );
+    }
+    toast('Zwischenablage nicht verfügbar', 'err');
+    return Promise.resolve();
+}
+
+function downloadBlob(filename, text) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+    }, 500);
+}
+
+/** Doppelklickbare .cmd (Polyglot): Anmeldung + Sync ohne separate .ps1 */
+function downloadCmd(psText, base, okToast) {
+    if (typeof window.ms365BuildPolyglotCmd !== 'function') {
+        toast('polyglot-cmd.js fehlt – Seite neu laden.', 'err');
+        return;
+    }
+    const body = String(psText || '').trim();
+    if (!body) {
+        toast('Kein Skript vorhanden – zuerst erzeugen.', 'err');
+        return;
+    }
+    const label = 'eltern-verteiler-' + (base || 'sync');
+    const cmd = window.ms365BuildPolyglotCmd({
+        title: 'Eltern-Mailverteiler',
+        echoLine: 'Starte Eltern-Mailverteiler (Exchange Online) …',
+        psBody: body
+    });
+    downloadBlob(label + '.cmd', cmd);
+    toast(okToast || label + '.cmd heruntergeladen – Doppelklick zum Start.', 'ok');
+}
+
+function bind() {
+    wireNamingBuilders();
+    wireSisImport();
+    document.querySelectorAll('#evSetupSteps [data-ev-step]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            setSetupStep(btn.getAttribute('data-ev-step'));
+        });
+    });
+    const btnDiag = getEl('evDiagnoseRefresh');
+    if (btnDiag) btnDiag.addEventListener('click', function () {
+        renderDiagnose();
+        toast('Diagnose aktualisiert', 'ok');
+    });
+    const btnCleanOrphans = getEl('evOrphanGuardiansClean');
+    if (btnCleanOrphans) {
+        btnCleanOrphans.addEventListener('click', function () {
+            const a = api();
+            if (!a || typeof a.pruneUnlinkedGuardians !== 'function') return toast('Bereinigen nicht verfügbar', 'err');
+            const removed = a.pruneUnlinkedGuardians();
+            refresh();
+            renderDiagnose();
+            toast(removed ? removed + ' verwaiste Elternkontakte entfernt' : 'Keine verwaisten Kontakte vorhanden', 'ok');
+        });
+    }
+    const btnDiagPs = getEl('evDiagnoseScript');
+    if (btnDiagPs) {
+        btnDiagPs.addEventListener('click', function () {
+            const eg = window.ms365ElternGuardians;
+            const ta = getEl('evDiagnosePs');
+            if (!eg || typeof eg.buildElternDiagnoseScript !== 'function') return;
+            if (!ensureScriptPrerequisites()) return;
+            const report = renderDiagnose();
+            const script = eg.buildElternDiagnoseScript(
+                report && report.lists,
+                domainFromCore() || domain(),
+                schoolName()
+            );
+            if (ta) ta.value = script;
+            toast('Diagnose-Skript erzeugt', 'ok');
+        });
+    }
+    document.querySelectorAll('[data-ev-tab]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            setTab(btn.getAttribute('data-ev-tab'));
+        });
+    });
+    const search = getEl('evSearch');
+    if (search) search.addEventListener('input', function () {
         renderList();
         renderDetail();
-        if (keepScript && prevScript) setScript(prevScript);
-    }
-
-    function setTab(tab) {
-        state.tab = tab === 'year' ? 'year' : 'class';
-        state.selectedKey = '';
-        state.selectedKeys.clear();
-        document.querySelectorAll('[data-ev-tab]').forEach(function (btn) {
-            btn.setAttribute('aria-selected', btn.getAttribute('data-ev-tab') === state.tab ? 'true' : 'false');
+    });
+    const btnRemovedAll = getEl('evImportRemovedAll');
+    if (btnRemovedAll) {
+        btnRemovedAll.addEventListener('click', function () {
+            const p = state.importPreview;
+            if (!p || !p.diff) return;
+            p.removedSelected = new Set((p.diff.removed || []).map(function (row) { return String(row.id || ''); }).filter(Boolean));
+            renderImportPreview();
         });
-        refresh();
     }
-
-    function copyText(text) {
-        const t = String(text || '');
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            return navigator.clipboard.writeText(t).then(
-                function () {
-                    toast('Kopiert', 'ok');
-                },
-                function () {
-                    toast('Kopieren fehlgeschlagen', 'err');
-                }
-            );
-        }
-        toast('Zwischenablage nicht verfügbar', 'err');
-        return Promise.resolve();
-    }
-
-    function downloadBlob(filename, text) {
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function () {
-            URL.revokeObjectURL(a.href);
-            a.remove();
-        }, 500);
-    }
-
-    /** Doppelklickbare .cmd (Polyglot): Anmeldung + Sync ohne separate .ps1 */
-    function downloadCmd(psText, base, okToast) {
-        if (typeof window.ms365BuildPolyglotCmd !== 'function') {
-            toast('polyglot-cmd.js fehlt – Seite neu laden.', 'err');
-            return;
-        }
-        const body = String(psText || '').trim();
-        if (!body) {
-            toast('Kein Skript vorhanden – zuerst erzeugen.', 'err');
-            return;
-        }
-        const label = 'eltern-verteiler-' + (base || 'sync');
-        const cmd = window.ms365BuildPolyglotCmd({
-            title: 'Eltern-Mailverteiler',
-            echoLine: 'Starte Eltern-Mailverteiler (Exchange Online) …',
-            psBody: body
+    const btnRemovedNone = getEl('evImportRemovedNone');
+    if (btnRemovedNone) {
+        btnRemovedNone.addEventListener('click', function () {
+            const p = state.importPreview;
+            if (!p) return;
+            p.removedSelected = new Set();
+            renderImportPreview();
         });
-        downloadBlob(label + '.cmd', cmd);
-        toast(okToast || label + '.cmd heruntergeladen – Doppelklick zum Start.', 'ok');
     }
-
-    function bind() {
-        wireNamingBuilders();
-        wireSisImport();
-        document.querySelectorAll('#evSetupSteps [data-ev-step]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                setSetupStep(btn.getAttribute('data-ev-step'));
-            });
+    const btnDiffCsv = getEl('evImportDiffCsv');
+    if (btnDiffCsv) {
+        btnDiffCsv.addEventListener('click', function () {
+            const p = state.importPreview;
+            const sis = window.ms365SchoolSisImport;
+            if (!p || !p.diff || !sis || typeof sis.downloadSisDiffCsv !== 'function') {
+                toast('Keine Diff-Vorschau vorhanden', 'err');
+                return;
+            }
+            sis.downloadSisDiffCsv(p.diff, 'eltern-import-diff.csv');
+            toast('Diff-CSV heruntergeladen', 'ok');
         });
-        const btnDiag = getEl('evDiagnoseRefresh');
-        if (btnDiag) btnDiag.addEventListener('click', function () {
-            renderDiagnose();
-            toast('Diagnose aktualisiert', 'ok');
-        });
-        const btnCleanOrphans = getEl('evOrphanGuardiansClean');
-        if (btnCleanOrphans) {
-            btnCleanOrphans.addEventListener('click', function () {
-                const a = api();
-                if (!a || typeof a.pruneUnlinkedGuardians !== 'function') return toast('Bereinigen nicht verfügbar', 'err');
-                const removed = a.pruneUnlinkedGuardians();
+    }
+    const btnImportApply = getEl('evImportApply');
+    if (btnImportApply) {
+        btnImportApply.addEventListener('click', function () {
+            const p = state.importPreview;
+            if (!p) return toast('Keine Import-Vorschau vorhanden', 'err');
+            try {
+                const applied = applySisRecords(p.records, Array.from(p.removedSelected));
+                state.importPreview = null;
                 refresh();
+                renderImportPreview();
                 renderDiagnose();
-                toast(removed ? removed + ' verwaiste Elternkontakte entfernt' : 'Keine verwaisten Kontakte vorhanden', 'ok');
-            });
-        }
-        const btnDiagPs = getEl('evDiagnoseScript');
-        if (btnDiagPs) {
-            btnDiagPs.addEventListener('click', function () {
-                const eg = window.ms365ElternGuardians;
-                const ta = getEl('evDiagnosePs');
-                if (!eg || typeof eg.buildElternDiagnoseScript !== 'function') return;
-                if (!ensureScriptPrerequisites()) return;
-                const report = renderDiagnose();
-                const script = eg.buildElternDiagnoseScript(
-                    report && report.lists,
-                    domainFromCore() || domain(),
-                    schoolName()
-                );
-                if (ta) ta.value = script;
-                toast('Diagnose-Skript erzeugt', 'ok');
-            });
-        }
-        document.querySelectorAll('[data-ev-tab]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                setTab(btn.getAttribute('data-ev-tab'));
-            });
-        });
-        const search = getEl('evSearch');
-        if (search) search.addEventListener('input', function () {
-            renderList();
-            renderDetail();
-        });
-        const btnRemovedAll = getEl('evImportRemovedAll');
-        if (btnRemovedAll) {
-            btnRemovedAll.addEventListener('click', function () {
-                const p = state.importPreview;
-                if (!p || !p.diff) return;
-                p.removedSelected = new Set((p.diff.removed || []).map(function (row) { return String(row.id || ''); }).filter(Boolean));
-                renderImportPreview();
-            });
-        }
-        const btnRemovedNone = getEl('evImportRemovedNone');
-        if (btnRemovedNone) {
-            btnRemovedNone.addEventListener('click', function () {
-                const p = state.importPreview;
-                if (!p) return;
-                p.removedSelected = new Set();
-                renderImportPreview();
-            });
-        }
-        const btnDiffCsv = getEl('evImportDiffCsv');
-        if (btnDiffCsv) {
-            btnDiffCsv.addEventListener('click', function () {
-                const p = state.importPreview;
-                const sis = window.ms365SchoolSisImport;
-                if (!p || !p.diff || !sis || typeof sis.downloadSisDiffCsv !== 'function') {
-                    toast('Keine Diff-Vorschau vorhanden', 'err');
-                    return;
+                const extra = [];
+                if (applied && applied.summary) extra.push(applied.summary);
+                if (applied && applied.removedStudents) {
+                    extra.push(
+                        applied.removedStudents +
+                            ' Abgänger entfernt' +
+                            (applied.removedGuardians ? ' · ' + applied.removedGuardians + ' Elternkontakte bereinigt' : '')
+                    );
                 }
-                sis.downloadSisDiffCsv(p.diff, 'eltern-import-diff.csv');
-                toast('Diff-CSV heruntergeladen', 'ok');
-            });
-        }
-        const btnImportApply = getEl('evImportApply');
-        if (btnImportApply) {
-            btnImportApply.addEventListener('click', function () {
-                const p = state.importPreview;
-                if (!p) return toast('Keine Import-Vorschau vorhanden', 'err');
-                try {
-                    const applied = applySisRecords(p.records, Array.from(p.removedSelected));
-                    state.importPreview = null;
-                    refresh();
-                    renderImportPreview();
-                    renderDiagnose();
-                    const extra = [];
-                    if (applied && applied.summary) extra.push(applied.summary);
-                    if (applied && applied.removedStudents) {
-                        extra.push(
-                            applied.removedStudents +
-                                ' Abgänger entfernt' +
-                                (applied.removedGuardians ? ' · ' + applied.removedGuardians + ' Elternkontakte bereinigt' : '')
-                        );
-                    }
-                    setImportStatus('Import übernommen' + (extra.length ? ': ' + extra.join(' · ') : '.'));
-                    toast('Import übernommen', 'ok');
-                } catch (err) {
-                    setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
-                    toast('Import fehlgeschlagen', 'err');
-                }
-            });
-        }
-        const btnRefresh = getEl('evBtnRefresh');
-        if (btnRefresh) btnRefresh.addEventListener('click', function () {
-            refresh();
-            toast('Aktualisiert', 'ok');
+                setImportStatus('Import übernommen' + (extra.length ? ': ' + extra.join(' · ') : '.'));
+                toast('Import übernommen', 'ok');
+            } catch (err) {
+                setImportStatus('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                toast('Import fehlgeschlagen', 'err');
+            }
         });
-        const btnOne = getEl('evBtnScriptOne');
-        if (btnOne) {
-            btnOne.addEventListener('click', function () {
-                const row = findRow(state.selectedKey);
-                if (!row) return toast('Keine Liste gewählt', 'err');
-                if (!row.guardianCount) return toast('Keine Elternmails für diese Liste', 'err');
-                showScriptForLists([row], '.cmd erzeugt – Doppelklick zum Start');
-            });
-        }
-        const btnSelAll = getEl('evBtnSelectAll');
-        if (btnSelAll) btnSelAll.addEventListener('click', selectAllWithParents);
-        const btnSelNone = getEl('evBtnSelectNone');
-        if (btnSelNone) btnSelNone.addEventListener('click', clearSelection);
-        const btnSel = getEl('evBtnScriptSelected');
-        if (btnSel) {
-            btnSel.addEventListener('click', function () {
-                const lists = Array.from(state.selectedKeys)
-                    .map(findRow)
-                    .filter(function (r) {
-                        return r && r.guardianCount > 0;
-                    });
-                if (!lists.length) return toast('Keine Listen ausgewählt (Checkboxen links oder „Alle auswählen“)', 'err');
-                showScriptForLists(lists, 'Sammel-.cmd erzeugt (' + lists.length + ') – Doppelklick zum Start');
-            });
-        }
-        const btnAll = getEl('evBtnScriptAll');
-        if (btnAll) {
-            btnAll.addEventListener('click', function () {
-                const lists = rowsForTab().filter(function (r) {
-                    return r.guardianCount > 0;
-                });
-                if (!lists.length) return toast('Keine Listen mit Elternmails', 'err');
-                showScriptForLists(lists, '.cmd für ' + lists.length + ' Listen – Doppelklick zum Start');
-            });
-        }
-        const copy = getEl('evPsCopy');
-        if (copy) {
-            copy.addEventListener('click', function () {
-                const ta = getEl('evPsScript');
-                copyText(ta ? ta.value : '');
-            });
-        }
-        const dl = getEl('evPsDownload');
-        if (dl) {
-            dl.addEventListener('click', function () {
-                const ta = getEl('evPsScript');
-                const row = findRow(state.selectedKey);
-                const base =
-                    state.lastScriptLabel ||
-                    (row ? row.mailNickname || row.code : 'sync');
-                downloadCmd(ta ? ta.value : '', base);
-            });
-        }
     }
-
-    function init() {
-        if (!api()) {
-            toast('Stammdaten-Modul nicht geladen', 'err');
-            return;
-        }
-        loadPatternsFromSetup();
-        bind();
-        renderAllPatternBuilders();
+    const btnRefresh = getEl('evBtnRefresh');
+    if (btnRefresh) btnRefresh.addEventListener('click', function () {
         refresh();
-        renderDiagnose();
-        renderImportPreview();
-        setSetupStep('1');
+        toast('Aktualisiert', 'ok');
+    });
+    const btnOne = getEl('evBtnScriptOne');
+    if (btnOne) {
+        btnOne.addEventListener('click', function () {
+            const row = findRow(state.selectedKey);
+            if (!row) return toast('Keine Liste gewählt', 'err');
+            if (!row.guardianCount) return toast('Keine Elternmails für diese Liste', 'err');
+            showScriptForLists([row], '.cmd erzeugt – Doppelklick zum Start');
+        });
     }
+    const btnSelAll = getEl('evBtnSelectAll');
+    if (btnSelAll) btnSelAll.addEventListener('click', selectAllWithParents);
+    const btnSelNone = getEl('evBtnSelectNone');
+    if (btnSelNone) btnSelNone.addEventListener('click', clearSelection);
+    const btnSel = getEl('evBtnScriptSelected');
+    if (btnSel) {
+        btnSel.addEventListener('click', function () {
+            const lists = Array.from(state.selectedKeys)
+                .map(findRow)
+                .filter(function (r) {
+                    return r && r.guardianCount > 0;
+                });
+            if (!lists.length) return toast('Keine Listen ausgewählt (Checkboxen links oder „Alle auswählen“)', 'err');
+            showScriptForLists(lists, 'Sammel-.cmd erzeugt (' + lists.length + ') – Doppelklick zum Start');
+        });
+    }
+    const btnAll = getEl('evBtnScriptAll');
+    if (btnAll) {
+        btnAll.addEventListener('click', function () {
+            const lists = rowsForTab().filter(function (r) {
+                return r.guardianCount > 0;
+            });
+            if (!lists.length) return toast('Keine Listen mit Elternmails', 'err');
+            showScriptForLists(lists, '.cmd für ' + lists.length + ' Listen – Doppelklick zum Start');
+        });
+    }
+    const copy = getEl('evPsCopy');
+    if (copy) {
+        copy.addEventListener('click', function () {
+            const ta = getEl('evPsScript');
+            copyText(ta ? ta.value : '');
+        });
+    }
+    const dl = getEl('evPsDownload');
+    if (dl) {
+        dl.addEventListener('click', function () {
+            const ta = getEl('evPsScript');
+            const row = findRow(state.selectedKey);
+            const base =
+                state.lastScriptLabel ||
+                (row ? row.mailNickname || row.code : 'sync');
+            downloadCmd(ta ? ta.value : '', base);
+        });
+    }
+}
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+function init() {
+    if (!api()) {
+        toast('Stammdaten-Modul nicht geladen', 'err');
+        return;
     }
-})();
+    loadPatternsFromSetup();
+    bind();
+    renderAllPatternBuilders();
+    refresh();
+    renderDiagnose();
+    renderImportPreview();
+    setSetupStep('1');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}

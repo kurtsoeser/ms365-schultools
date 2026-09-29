@@ -463,7 +463,19 @@
                 html +=
                     '<button type="button" class="btn" id="slgBtnMembershipReview"><i class="bi bi-intersect"></i>Mitglieder vergleichen</button>';
             }
-            html += '</div>';
+            html +=
+                '</div>' +
+                '<div id="slgSyncTrustHost" class="ms365-sync-trust" style="margin-top:10px;">' +
+                '<label class="ms365-sync-trust__check"><input type="checkbox" id="slgSyncDryRun" checked> Nur Vorschau (Dry-Run) – ändert Microsoft&nbsp;365 nicht</label>' +
+                '<label class="ms365-sync-trust__check"><input type="checkbox" id="slgSyncAllowLeave"> Entfernen (Leave) erlauben</label>' +
+                '<p class="ms365-write-hint muted" style="margin:6px 0 0;font-size:0.88em;">Sync schreibt nach Microsoft&nbsp;365 (nicht nur lokal).</p>' +
+                '</div>' +
+                '<div id="slgSyncBulkProgress" class="ms365-bulk-progress" data-ms365-bulk-progress hidden style="margin-top:10px;">' +
+                '<div class="ms365-bulk-progress__bar"><div data-fill></div></div>' +
+                '<p data-text></p>' +
+                '<button type="button" class="btn btn-sm" data-cancel>Abbrechen</button>' +
+                '<ul data-errors></ul>' +
+                '</div>';
         }
         html +=
             '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px;">' +

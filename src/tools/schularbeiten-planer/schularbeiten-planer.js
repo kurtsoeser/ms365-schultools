@@ -34,6 +34,10 @@ import {
 } from './schularbeiten-planer-graph.js';
 import { upsertSchulterminFromSchularbeit } from './schularbeiten-planer-sync.js';
 import {
+    upsertGroupCalendarEvent,
+    removeGroupCalendarEventForSa
+} from './schularbeiten-planer-calendar-sync.js';
+import {
     seedDemoSchularbeiten,
     parseDemoImportJson,
     applyDemoStammdatenLocal,
@@ -276,10 +280,12 @@ function bindMeineActions() {
     root.querySelectorAll('[data-sa-del]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-sa-del');
+            const sa = state.items.find((x) => x.itemId === id);
             if (!id || !state.ctx) return;
             if (!window.confirm('Antrag wirklich löschen?')) return;
             state.detailId = null;
-            deleteSchularbeitItem(state.ctx, id)
+            maybeRemoveClassCalendar(sa)
+                .then(() => deleteSchularbeitItem(state.ctx, id))
                 .then(() => refreshData({ silent: true }))
                 .then(() => toast('Gelöscht.'))
                 .catch((e) => toast(e && e.message ? e.message : String(e)));
@@ -304,10 +310,16 @@ function bindAdminActions() {
             updateSchularbeitItem(state.ctx, id, patch)
                 .then(() => maybeSyncSchultermin(patch))
                 .then((syncResult) =>
+                    maybeSyncClassCalendar(patch).then((calResult) => ({ syncResult, calResult }))
+                )
+                .then(({ syncResult, calResult }) =>
                     refreshData({ silent: true }).then(() => {
-                        if (syncResult && syncResult.created) toast('Fixiert und in Schultermine angelegt.');
-                        else if (syncResult) toast('Fixiert und Schultermine aktualisiert.');
-                        else toast('Fixiert.');
+                        const parts = ['Fixiert'];
+                        if (syncResult && syncResult.created) parts.push('Schultermine angelegt');
+                        else if (syncResult) parts.push('Schultermine aktualisiert');
+                        if (calResult && calResult.created) parts.push('Klassenkalender angelegt');
+                        else if (calResult) parts.push('Klassenkalender aktualisiert');
+                        toast(parts.join(' · ') + '.');
                     })
                 )
                 .catch((e) => toast(e && e.message ? e.message : String(e)));
@@ -327,7 +339,11 @@ function bindAdminActions() {
                 fixiertAm: new Date().toISOString()
             };
             state.detailId = null;
-            updateSchularbeitItem(state.ctx, id, patch)
+            maybeRemoveClassCalendar(sa)
+                .then(() => {
+                    patch.teamsCalendarEventId = '';
+                    return updateSchularbeitItem(state.ctx, id, patch);
+                })
                 .then(() => refreshData({ silent: true }))
                 .then(() => toast('Abgelehnt.'))
                 .catch((e) => toast(e && e.message ? e.message : String(e)));
@@ -449,8 +465,85 @@ async function maybeSyncSchultermin(sa) {
             ...sa,
             schulterminKey: result.itemId
         });
+        sa.schulterminKey = result.itemId;
     }
     return result;
+}
+
+async function maybeSyncClassCalendar(sa) {
+    if (!state.settings || !state.settings.syncClassCalendar || !state.ctx) return null;
+    const labels = labelMaps(state.stammdaten);
+    const result = await upsertGroupCalendarEvent(sa, {
+        fachLabel: labels.fach[sa.fachCode] || sa.fachCode,
+        klasseLabel: labels.klasse[sa.klasseCode] || sa.klasseCode
+    });
+    if (sa.itemId && result.eventId) {
+        await updateSchularbeitItem(state.ctx, sa.itemId, {
+            ...sa,
+            teamsCalendarEventId: result.eventId
+        });
+        sa.teamsCalendarEventId = result.eventId;
+    }
+    return result;
+}
+
+async function maybeRemoveClassCalendar(sa) {
+    if (!sa || !sa.teamsCalendarEventId) return null;
+    try {
+        return await removeGroupCalendarEventForSa(sa);
+    } catch (e) {
+        console.warn('Klassenkalender-Löschen:', e);
+        return null;
+    }
+}
+
+async function bulkSyncClassCalendars() {
+    if (!state.ctx) {
+        toast('Bitte zuerst mit SharePoint verbinden.');
+        return;
+    }
+    const fixed = (state.items || []).filter((x) => x.status === 'fixiert');
+    if (!fixed.length) {
+        toast('Keine fixierten Schularbeiten.');
+        return;
+    }
+    if (
+        !window.confirm(
+            fixed.length + ' fixierte Schularbeit(en) in die jeweiligen Klassenkalender schreiben?'
+        )
+    ) {
+        return;
+    }
+    const labels = labelMaps(state.stammdaten);
+    let ok = 0;
+    let fail = 0;
+    const errors = [];
+    for (let i = 0; i < fixed.length; i++) {
+        const sa = fixed[i];
+        try {
+            const result = await upsertGroupCalendarEvent(sa, {
+                fachLabel: labels.fach[sa.fachCode] || sa.fachCode,
+                klasseLabel: labels.klasse[sa.klasseCode] || sa.klasseCode
+            });
+            if (sa.itemId && result.eventId) {
+                await updateSchularbeitItem(state.ctx, sa.itemId, {
+                    ...sa,
+                    teamsCalendarEventId: result.eventId
+                });
+                sa.teamsCalendarEventId = result.eventId;
+            }
+            ok++;
+        } catch (e) {
+            fail++;
+            const msg = e && e.message ? e.message : String(e);
+            errors.push((sa.klasseCode || '?') + ': ' + msg);
+        }
+    }
+    await refreshData({ silent: true });
+    let text = ok + ' geschrieben';
+    if (fail) text += ', ' + fail + ' fehlgeschlagen';
+    if (errors.length) text += ' – ' + errors.slice(0, 2).join('; ');
+    toast(text + '.');
 }
 
 function bindPhase5() {
@@ -475,11 +568,19 @@ function bindPhase5() {
         saveSettings.addEventListener('click', () => {
             const syncEl = document.getElementById('saSyncTermine');
             const listEl = document.getElementById('saSyncList');
+            const calEl = document.getElementById('saSyncClassCalendar');
             state.settings = persistPlanerSettings({
                 syncSchultermine: !!(syncEl && syncEl.checked),
-                schultermineList: listEl ? String(listEl.value || '').trim() || 'Schultermine' : 'Schultermine'
+                schultermineList: listEl ? String(listEl.value || '').trim() || 'Schultermine' : 'Schultermine',
+                syncClassCalendar: !!(calEl && calEl.checked)
             });
             toast('Einstellungen gespeichert.');
+        });
+    }
+    const bulkCal = document.getElementById('saBtnSyncClassCal');
+    if (bulkCal) {
+        bulkCal.addEventListener('click', () => {
+            bulkSyncClassCalendars().catch((e) => toast(e && e.message ? e.message : String(e)));
         });
     }
     const addMeta = document.getElementById('saBtnAddFachMeta');

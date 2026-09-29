@@ -9,7 +9,7 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <script src="../ms365-config.js"></script>
     <title>MS365-Schul-Tools – Leere Gruppen (Report)</title>
-    <link rel="stylesheet" href="../app.css?v=9">
+    <link rel="stylesheet" href="../app.css?v=12">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -298,6 +298,8 @@
         </div>
 
         <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine lokalen Stammdaten. Der Report lädt Gruppen aus Microsoft 365 – Einrichtung oder Demo für den Kontext."></div>
+
             <section class="tm-hero" aria-label="Kurzüberblick">
                 <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-search"></i></div>
                 <div>
@@ -540,6 +542,10 @@
     </div>
 
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/demo-mode.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/theme-toggle.js" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script type="module" src="../src/tools/leere-gruppen-report/leere-gruppen-report.js"></script>

@@ -101,11 +101,14 @@ export function buildMergePlan(opts) {
     });
 
     const warnings = [];
+    let graphMatchOk = true;
     if (!survivorTeam || !survivorTeam.graphGroupId) {
+        graphMatchOk = false;
         warnings.push('Survivor hat keine verknüpfte M365-Gruppe – bitte zuerst in Klassengruppen matchen.');
     }
     sourceTeams.forEach(function (st) {
         if (!st.team || !st.team.graphGroupId) {
+            graphMatchOk = false;
             warnings.push(
                 'Quelle ' + normCode(st.class.code) + ' ohne verknüpfte Gruppe – nur Stammdaten werden zusammengeführt.'
             );
@@ -167,8 +170,13 @@ export function buildMergePlan(opts) {
     });
 
     return {
-        ok: true,
-        error: '',
+        // Kein stilles ok bei fehlendem Graph-Match (Stammdaten≠Cloud)
+        ok: graphMatchOk,
+        error: graphMatchOk
+            ? ''
+            : 'Graph-Match fehlt: Survivor und alle Quellen brauchen eine verknüpfte M365-Gruppe (Klassengruppen).',
+        requiresGraphConfirm: !graphMatchOk,
+        localOnlyAllowed: true,
         survivorOriginalCode,
         survivor: Object.assign({}, survivor, { code: newCode, name: newName }),
         sources: sources.slice(),

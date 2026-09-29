@@ -119,7 +119,8 @@ export function mapSchularbeitFromItem(item) {
         beantragtVon: fieldStr(f, 'BeantragtVon'),
         fixiertVon: fieldStr(f, 'FixiertVon'),
         fixiertAm: fieldStr(f, 'FixiertAm'),
-        schulterminKey: fieldStr(f, 'SchulterminKey')
+        schulterminKey: fieldStr(f, 'SchulterminKey'),
+        teamsCalendarEventId: fieldStr(f, 'TeamsCalendarEventId')
     };
 }
 
@@ -149,6 +150,9 @@ export function mapSchularbeitToFields(sa, opts) {
     }
     if (sa.schulterminKey) {
         fields.SchulterminKey = String(sa.schulterminKey);
+    }
+    if (sa.teamsCalendarEventId != null) {
+        fields.TeamsCalendarEventId = String(sa.teamsCalendarEventId || '');
     }
     if (includeId) {
         fields.SchularbeitId = String(sa.schularbeitId || '').trim() || newEntityId('sa');

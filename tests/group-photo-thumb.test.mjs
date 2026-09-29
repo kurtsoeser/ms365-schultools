@@ -32,7 +32,7 @@ describe('Gruppenbild-Thumbnails', () => {
             'src/tools/jahrgangsgruppen/jahrgangsgruppen.js',
             'src/tools/arge-fachgruppen/arge-fachgruppen.js',
             'src/tools/organisations-assistent/organisations-assistent-cohorts.js',
-            'src/tools/schulstruktur-sync/schulstruktur-sync.js',
+            'src/tools/schulstruktur-sync/schulstruktur-sync-bind.js',
             'src/tools/schueler-lehrer-gruppen/slg-gruppenverwaltung.js'
         ]) {
             const js = read(rel);

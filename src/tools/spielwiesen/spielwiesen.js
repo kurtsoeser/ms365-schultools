@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Spielwiesen-Wizard: Demo-Klasse, Lehrer-Bulk, Einzel-Team.
  */
@@ -38,12 +39,6 @@ function toast(m) {
     else window.alert(m);
 }
 
-function escapeHtml(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
 
 function log(msg) {
     const el = $('spLog');

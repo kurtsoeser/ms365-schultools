@@ -261,15 +261,21 @@ export function persistSiteUrl(url) {
 }
 
 /**
- * @returns {{ syncSchultermine: boolean, schultermineList: string }}
+ * @returns {{ syncSchultermine: boolean, schultermineList: string, syncClassCalendar: boolean }}
  */
 export function loadPlanerSettings() {
-    const defaults = { syncSchultermine: false, schultermineList: 'Schultermine' };
+    const defaults = {
+        syncSchultermine: false,
+        schultermineList: 'Schultermine',
+        syncClassCalendar: false
+    };
     try {
         const raw = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}') || {};
         return {
             syncSchultermine: !!raw.syncSchultermine,
-            schultermineList: String(raw.schultermineList || defaults.schultermineList).trim() || defaults.schultermineList
+            schultermineList:
+                String(raw.schultermineList || defaults.schultermineList).trim() || defaults.schultermineList,
+            syncClassCalendar: !!raw.syncClassCalendar
         };
     } catch {
         return { ...defaults };
@@ -277,7 +283,7 @@ export function loadPlanerSettings() {
 }
 
 /**
- * @param {{ syncSchultermine?: boolean, schultermineList?: string }} patch
+ * @param {{ syncSchultermine?: boolean, schultermineList?: string, syncClassCalendar?: boolean }} patch
  */
 export function persistPlanerSettings(patch) {
     const next = { ...loadPlanerSettings(), ...(patch || {}) };

@@ -54,8 +54,27 @@ describe('suggestTenantGroupForUnitFromList', () => {
         expect(suggestTenantGroupForUnitFromList({ bezeichnung: '1B' }, groups)).toBe('g2');
     });
 
-    it('Substring-Match auf Bezeichnung', () => {
+    it('Token-Match auf Bezeichnung (ARGE-Robotik)', () => {
         expect(suggestTenantGroupForUnitFromList({ bezeichnung: 'Robotik' }, groups)).toBe('g4');
+    });
+
+    it('kein False-Positive: 1A matcht nicht Klasse 11A', () => {
+        const tricky = [
+            { id: 'g11', bezeichnung: 'Klasse 11A', alias: '11a' },
+            { id: 'g1', bezeichnung: 'Klasse 1A', alias: '1a' }
+        ];
+        expect(suggestTenantGroupForUnitFromList({ bezeichnung: '1A' }, tricky)).toBe('g1');
+        expect(suggestTenantGroupForUnitFromList({ bezeichnung: '1A' }, [{ id: 'g11', bezeichnung: 'Klasse 11A', alias: '' }])).toBe(
+            ''
+        );
+    });
+
+    it('bei mehrdeutigen Token-Treffern kein Auto-Vorschlag', () => {
+        const multi = [
+            { id: 'a', bezeichnung: 'Team Robotik Nord', alias: '' },
+            { id: 'b', bezeichnung: 'Team Robotik Süd', alias: '' }
+        ];
+        expect(suggestTenantGroupForUnitFromList({ bezeichnung: 'Robotik' }, multi)).toBe('');
     });
 
     it('liefert Leerstring ohne Match', () => {
@@ -130,14 +149,12 @@ describe('suggestTenantUserForPersonFromList', () => {
         ).toBe('u8');
     });
 
-    it('Substring-Match scored niedriger als exakt', () => {
+    it('kurze / mehrdeutige Namen → kein Auto-Vorschlag (M4)', () => {
         const users2 = [
             { id: 'u1', displayName: 'Max Mustermann', userPrincipalName: 'mm@x.at' },
             { id: 'u2', displayName: 'Maximilian Müller', userPrincipalName: 'mm2@x.at' }
         ];
-        // "Max" → Substring in beiden → der erste gewinnt (gleicher Score, erstes Auftreten)
-        const id = suggestTenantUserForPersonFromList({ typ: 'Person', personName: 'Max' }, users2);
-        expect(['u1', 'u2']).toContain(id);
+        expect(suggestTenantUserForPersonFromList({ typ: 'Person', personName: 'Max' }, users2)).toBe('');
     });
 
     it('liefert Leerstring ohne Match', () => {

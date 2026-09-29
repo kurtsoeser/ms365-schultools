@@ -1,7 +1,16 @@
-﻿(function () {
+﻿import { classesToLines as classesToLinesPure } from './tenant-settings-ui-classes.js';
+
+(function () {
     'use strict';
 
     function normStr(v) {
+        try {
+            if (typeof window !== 'undefined' && window.ms365Strings && typeof window.ms365Strings.normStr === 'function') {
+                return window.ms365Strings.normStr(v);
+            }
+        } catch {
+            /* fallback */
+        }
         return String(v ?? '').trim();
     }
 
@@ -28,10 +37,24 @@
     }
 
     function normCode(v) {
+        try {
+            if (typeof window !== 'undefined' && window.ms365Strings && typeof window.ms365Strings.normCode === 'function') {
+                return window.ms365Strings.normCode(v);
+            }
+        } catch {
+            /* fallback */
+        }
         return normStr(v).toUpperCase();
     }
 
     function escapeHtml(s) {
+        try {
+            if (typeof window !== 'undefined' && window.ms365Strings && typeof window.ms365Strings.escapeHtml === 'function') {
+                return window.ms365Strings.escapeHtml(s);
+            }
+        } catch {
+            /* fallback */
+        }
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
@@ -898,6 +921,13 @@
         const sgaGroupMatchCell = document.getElementById('tenantSgaGroupMatchCell');
         const btnVerifySgaGroup = document.getElementById('tenantBtnVerifySgaGroup');
         const btnCreateSgaGroup = document.getElementById('tenantBtnCreateSgaGroup');
+        const btnUnmatchSgaGroup = document.getElementById('tenantBtnUnmatchSgaGroup');
+        const btnOpenSgaGroup = document.getElementById('tenantBtnOpenSgaGroup');
+        const inpSgaGroupSearch = document.getElementById('tenantSgaGroupSearch');
+        const btnSearchSgaGroup = document.getElementById('tenantBtnSearchSgaGroup');
+        const sgaGroupSearchResults = document.getElementById('tenantSgaGroupSearchResults');
+        const ENTRA_GROUP_DETAILS =
+            'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Members/groupId/';
         const taStudents = document.getElementById('tenantStudentsLines');
         const studentsTbody = document.getElementById('tenantStudentsTableBody');
         const studentsTable = studentsTbody ? studentsTbody.closest('table') : null;
@@ -917,6 +947,11 @@
         const studentCouncilGroupMatchCell = document.getElementById('tenantStudentCouncilGroupMatchCell');
         const btnVerifyStudentCouncilGroup = document.getElementById('tenantBtnVerifyStudentCouncilGroup');
         const btnCreateStudentCouncilGroup = document.getElementById('tenantBtnCreateStudentCouncilGroup');
+        const btnUnmatchStudentCouncilGroup = document.getElementById('tenantBtnUnmatchStudentCouncilGroup');
+        const btnOpenStudentCouncilGroup = document.getElementById('tenantBtnOpenStudentCouncilGroup');
+        const inpStudentCouncilGroupSearch = document.getElementById('tenantStudentCouncilGroupSearch');
+        const btnSearchStudentCouncilGroup = document.getElementById('tenantBtnSearchStudentCouncilGroup');
+        const studentCouncilGroupSearchResults = document.getElementById('tenantStudentCouncilGroupSearchResults');
         const taClasses = document.getElementById('tenantClassesLines');
         const classesTbody = document.getElementById('tenantClassesTableBody');
         const btnAddClassRow = document.getElementById('tenantClassesAddRow');
@@ -944,8 +979,17 @@
         const schoolYearSelect = document.getElementById('schoolYearSelect');
         const schoolYearAddBtn = document.getElementById('schoolYearAddBtn');
 
-        function currentSchoolYearLabel() {
-            const y = new Date().getFullYear();
+        /** Schuljahr Sep–Aug (kanonisch, siehe shared/utils/school-year.js). */
+        function currentSchoolYearLabel(now) {
+            try {
+                if (typeof window !== 'undefined' && window.ms365SchoolYear && typeof window.ms365SchoolYear.currentSchoolYearLabel === 'function') {
+                    return window.ms365SchoolYear.currentSchoolYearLabel(now);
+                }
+            } catch {
+                /* fallback */
+            }
+            const d = now instanceof Date && !isNaN(now.getTime()) ? now : new Date();
+            const y = d.getMonth() < 8 ? d.getFullYear() - 1 : d.getFullYear();
             return String(y) + '/' + String(y + 1).slice(2);
         }
 
@@ -2981,6 +3025,7 @@
             el.title = '';
             if (!payload) {
                 el.textContent = 'Noch nicht geprüft';
+                updateSchoolWideGroupMatchActions();
                 return;
             }
             if (payload.loading) {
@@ -2991,31 +3036,49 @@
                 const g = payload.group || {};
                 const gid = normStr(g.id);
                 const short = gid.length > 14 ? gid.slice(0, 12) + '…' : gid;
-                const shownNick = expectedNick ? expectedNick : normStr(g.mailNickname);
+                const shown =
+                    normStr(g.displayName) ||
+                    normStr(g.mailNickname) ||
+                    (expectedNick ? expectedNick : '') ||
+                    'gematcht';
                 el.innerHTML =
                     '<span style="color:#0d8050;font-weight:700;">✓</span> <code style="font-size:0.92em;">' +
-                    escapeHtml(shownNick || '') +
+                    escapeHtml(shown) +
                     '</code>';
                 el.title =
                     (g.displayName ? String(g.displayName) : '') +
+                    (g.mailNickname ? '\nAlias: ' + String(g.mailNickname) : '') +
                     (g.mail ? '\nMail: ' + String(g.mail) : '') +
                     (gid ? '\nObject-ID: ' + short : '');
                 el.style.background = 'color-mix(in srgb, #0d8050 8%, transparent)';
                 el.style.color = 'var(--text)';
+                updateSchoolWideGroupMatchActions();
                 return;
             }
             if (payload.notFound) {
                 el.innerHTML =
                     '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
                 el.title = 'Keine passende Gruppe in Microsoft 365 gefunden';
+                updateSchoolWideGroupMatchActions();
                 return;
             }
             if (payload.error) {
                 el.textContent = 'Fehler';
                 el.title = String(payload.error || '');
+                updateSchoolWideGroupMatchActions();
                 return;
             }
             el.textContent = '–';
+            updateSchoolWideGroupMatchActions();
+        }
+
+        function updateSchoolWideGroupMatchActions() {
+            const sgaId = getMatchedGroupId('sga');
+            const svId = getMatchedGroupId('studentCouncil');
+            if (btnUnmatchSgaGroup) btnUnmatchSgaGroup.hidden = !sgaId;
+            if (btnOpenSgaGroup) btnOpenSgaGroup.hidden = !sgaId;
+            if (btnUnmatchStudentCouncilGroup) btnUnmatchStudentCouncilGroup.hidden = !svId;
+            if (btnOpenStudentCouncilGroup) btnOpenStudentCouncilGroup.hidden = !svId;
         }
 
         function getMatchedGroupId(kind) {
@@ -3033,6 +3096,7 @@
             const gid = normStr(group && group.id);
             const key = kind === 'sga' ? 'sgaGroupId' : 'studentCouncilGroupId';
             api.patchSetup({ matched: { [key]: gid || null } });
+            updateSchoolWideGroupMatchActions();
         }
 
         function clearStoredSchoolWideGroupMatches() {
@@ -3040,6 +3104,14 @@
             patchMatchedGroupId('studentCouncil', null);
             setSingleGroupMatchStatus(sgaGroupMatchCell, null);
             setSingleGroupMatchStatus(studentCouncilGroupMatchCell, null);
+            if (sgaGroupSearchResults) {
+                sgaGroupSearchResults.style.display = 'none';
+                sgaGroupSearchResults.replaceChildren();
+            }
+            if (studentCouncilGroupSearchResults) {
+                studentCouncilGroupSearchResults.style.display = 'none';
+                studentCouncilGroupSearchResults.replaceChildren();
+            }
             renderStatusOverview();
         }
 
@@ -3078,6 +3150,147 @@
             } else {
                 setSingleGroupMatchStatus(studentCouncilGroupMatchCell, null);
             }
+            updateSchoolWideGroupMatchActions();
+        }
+
+        async function resolveSchoolWideGroupByStoredOrExpected(kind, expectedNick, expectedDn) {
+            const token = await graphApi().getGraphToken();
+            const storedId = getMatchedGroupId(kind);
+            if (storedId && typeof graphApi().fetchGroup === 'function') {
+                try {
+                    const g = await graphApi().fetchGroup(token, storedId);
+                    if (g && g.id) return { found: true, group: g, by: 'stored' };
+                } catch {
+                    // gespeicherte ID ungültig → weiter mit Nick/Name-Suche
+                }
+            }
+            const queries = [expectedNick, expectedDn].filter(Boolean);
+            let hits = [];
+            for (let i = 0; i < queries.length; i++) {
+                hits = await graphApi().searchUnifiedGroups(token, queries[i]);
+                if (hits && hits.length) break;
+            }
+            const nickLc = normStr(expectedNick).toLowerCase();
+            const matchByNick =
+                Array.isArray(hits) &&
+                hits.find(function (g) {
+                    const mn = normStr(g && g.mailNickname).toLowerCase();
+                    if (mn && mn === nickLc) return true;
+                    const mail = normStr(g && g.mail).toLowerCase();
+                    return mail && mail.startsWith(nickLc + '@');
+                });
+            if (matchByNick) return { found: true, group: matchByNick, by: 'nick' };
+            return { found: false, notFound: true, hits: hits || [] };
+        }
+
+        function renderSchoolWideGroupSearchResults(host, kind, list) {
+            if (!host) return;
+            host.replaceChildren();
+            if (!list || !list.length) {
+                host.style.display = 'none';
+                return;
+            }
+            host.style.display = 'block';
+            const box = document.createElement('div');
+            box.style.border = '1px solid var(--border)';
+            box.style.borderRadius = '10px';
+            box.style.overflow = 'hidden';
+            list.forEach(function (g, idx) {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.flexWrap = 'wrap';
+                row.style.gap = '10px';
+                row.style.alignItems = 'center';
+                row.style.justifyContent = 'space-between';
+                row.style.padding = '10px 12px';
+                if (idx > 0) row.style.borderTop = '1px solid var(--border)';
+                const dn = normStr(g && g.displayName) || '(ohne Namen)';
+                const mail = normStr(g && g.mail) || '–';
+                const nick = normStr(g && g.mailNickname) || '–';
+                const left = document.createElement('div');
+                left.style.minWidth = '0';
+                left.style.flex = '1 1 220px';
+                left.innerHTML =
+                    '<div style="font-weight:700;line-height:1.25;">' +
+                    escapeHtml(dn) +
+                    '</div>' +
+                    '<div class="muted" style="margin-top:2px;font-size:0.92em;">Alias: <code>' +
+                    escapeHtml(nick) +
+                    '</code> · ' +
+                    escapeHtml(mail) +
+                    '</div>';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-primary';
+                btn.innerHTML = '<i class="bi bi-link-45deg" aria-hidden="true"></i> Zuordnen';
+                btn.addEventListener('click', function () {
+                    applyManualSchoolWideGroupMatch(kind, g);
+                });
+                row.appendChild(left);
+                row.appendChild(btn);
+                box.appendChild(row);
+            });
+            host.appendChild(box);
+        }
+
+        function applyManualSchoolWideGroupMatch(kind, group) {
+            if (!group || !group.id) return;
+            const expectedNick =
+                kind === 'sga' ? expectedSgaGroupMailNickname() : expectedStudentCouncilGroupMailNickname();
+            const cell = kind === 'sga' ? sgaGroupMatchCell : studentCouncilGroupMatchCell;
+            const resultsHost = kind === 'sga' ? sgaGroupSearchResults : studentCouncilGroupSearchResults;
+            patchMatchedGroupId(kind, group);
+            setSingleGroupMatchStatus(cell, { found: true, group: group }, expectedNick);
+            if (resultsHost) {
+                resultsHost.style.display = 'none';
+                resultsHost.replaceChildren();
+            }
+            setSummary(
+                (kind === 'sga' ? 'SGA' : 'Schülervertretung') + ': bestehende Microsoft-365-Gruppe zugeordnet.',
+                'ok'
+            );
+            renderStatusOverview();
+        }
+
+        async function searchSchoolWideGroups(kind) {
+            const inp = kind === 'sga' ? inpSgaGroupSearch : inpStudentCouncilGroupSearch;
+            const host = kind === 'sga' ? sgaGroupSearchResults : studentCouncilGroupSearchResults;
+            const q = inp && inp.value ? String(inp.value).trim() : '';
+            if (!q) {
+                setSummary('Bitte einen Suchbegriff eingeben (Name, Mail oder Alias).', 'warn');
+                return;
+            }
+            setSummary((kind === 'sga' ? 'SGA' : 'Schülervertretung') + ': Suche Gruppen …', 'warn');
+            const token = await graphApi().getGraphToken();
+            const list = await graphApi().searchUnifiedGroups(token, q);
+            renderSchoolWideGroupSearchResults(host, kind, list);
+            if (!list || !list.length) {
+                setSummary('Keine passenden Microsoft-365-Gruppen gefunden.', 'warn');
+            } else {
+                setSummary(list.length + ' Gruppe(n) gefunden – bitte zuordnen.', 'ok');
+            }
+        }
+
+        function unmatchSchoolWideGroup(kind) {
+            const cell = kind === 'sga' ? sgaGroupMatchCell : studentCouncilGroupMatchCell;
+            const host = kind === 'sga' ? sgaGroupSearchResults : studentCouncilGroupSearchResults;
+            patchMatchedGroupId(kind, null);
+            setSingleGroupMatchStatus(cell, null);
+            if (host) {
+                host.style.display = 'none';
+                host.replaceChildren();
+            }
+            setSummary((kind === 'sga' ? 'SGA' : 'Schülervertretung') + ': Match gelöst.', 'ok');
+            renderStatusOverview();
+        }
+
+        function openSchoolWideGroupInEntra(kind) {
+            const gid = getMatchedGroupId(kind);
+            if (!gid) {
+                setSummary('Keine gematchte Gruppe zum Öffnen.', 'warn');
+                return;
+            }
+            window.open(ENTRA_GROUP_DETAILS + encodeURIComponent(gid), '_blank', 'noopener');
         }
 
         function schoolBaseNick() {
@@ -3119,41 +3332,27 @@
             const expectedNick = expectedSgaGroupMailNickname();
             const expectedDn = expectedSgaGroupDisplayName();
             if (!expectedNick || !expectedDn) {
+                // Ohne Schulname trotzdem gespeicherte Zuordnung behalten/anzeigen
+                const storedOnly = getMatchedGroupId('sga');
+                if (storedOnly) {
+                    setSingleGroupMatchStatus(
+                        sgaGroupMatchCell,
+                        { found: true, group: { id: storedOnly } },
+                        ''
+                    );
+                    return { found: true, group: { id: storedOnly } };
+                }
                 patchMatchedGroupId('sga', null);
                 setSingleGroupMatchStatus(sgaGroupMatchCell, { notFound: true }, expectedNick || '');
                 setSummary('SGA: Bitte zuerst „Schulname“ setzen.', 'warn');
                 return { found: false, notFound: true };
             }
             setSingleGroupMatchStatus(sgaGroupMatchCell, { loading: true }, expectedNick);
-            const token = await graphApi().getGraphToken();
-            const storedId = getMatchedGroupId('sga');
-            const queries = [expectedNick, expectedDn].filter(Boolean);
-            let hits = [];
-            for (let i = 0; i < queries.length; i++) {
-                const q = queries[i];
-                hits = await graphApi().searchUnifiedGroups(token, q);
-                if (hits && hits.length) break;
-            }
-            const nickLc = normStr(expectedNick).toLowerCase();
-            const matchById =
-                storedId && Array.isArray(hits)
-                    ? hits.find(function (g) {
-                        return normStr(g && g.id) === storedId;
-                    })
-                    : null;
-            const matchByNick =
-                Array.isArray(hits) &&
-                hits.find(function (g) {
-                    const mn = normStr(g && g.mailNickname).toLowerCase();
-                    if (mn && mn === nickLc) return true;
-                    const mail = normStr(g && g.mail).toLowerCase();
-                    return mail && mail.startsWith(nickLc + '@');
-                });
-            const match = matchById || matchByNick || null;
-            if (match) {
-                patchMatchedGroupId('sga', match);
-                setSingleGroupMatchStatus(sgaGroupMatchCell, { found: true, group: match }, expectedNick);
-                return { found: true, group: match };
+            const resolved = await resolveSchoolWideGroupByStoredOrExpected('sga', expectedNick, expectedDn);
+            if (resolved && resolved.found && resolved.group) {
+                patchMatchedGroupId('sga', resolved.group);
+                setSingleGroupMatchStatus(sgaGroupMatchCell, { found: true, group: resolved.group }, expectedNick);
+                return { found: true, group: resolved.group };
             }
             patchMatchedGroupId('sga', null);
             setSingleGroupMatchStatus(sgaGroupMatchCell, { notFound: true }, expectedNick);
@@ -3197,41 +3396,34 @@
             const expectedNick = expectedStudentCouncilGroupMailNickname();
             const expectedDn = expectedStudentCouncilGroupDisplayName();
             if (!expectedNick || !expectedDn) {
+                const storedOnly = getMatchedGroupId('studentCouncil');
+                if (storedOnly) {
+                    setSingleGroupMatchStatus(
+                        studentCouncilGroupMatchCell,
+                        { found: true, group: { id: storedOnly } },
+                        ''
+                    );
+                    return { found: true, group: { id: storedOnly } };
+                }
                 patchMatchedGroupId('studentCouncil', null);
                 setSingleGroupMatchStatus(studentCouncilGroupMatchCell, { notFound: true }, expectedNick || '');
                 setSummary('Schülervertretung: Bitte zuerst „Schulname“ setzen.', 'warn');
                 return { found: false, notFound: true };
             }
             setSingleGroupMatchStatus(studentCouncilGroupMatchCell, { loading: true }, expectedNick);
-            const token = await graphApi().getGraphToken();
-            const storedId = getMatchedGroupId('studentCouncil');
-            const queries = [expectedNick, expectedDn].filter(Boolean);
-            let hits = [];
-            for (let i = 0; i < queries.length; i++) {
-                const q = queries[i];
-                hits = await graphApi().searchUnifiedGroups(token, q);
-                if (hits && hits.length) break;
-            }
-            const nickLc = normStr(expectedNick).toLowerCase();
-            const matchById =
-                storedId && Array.isArray(hits)
-                    ? hits.find(function (g) {
-                        return normStr(g && g.id) === storedId;
-                    })
-                    : null;
-            const matchByNick =
-                Array.isArray(hits) &&
-                hits.find(function (g) {
-                    const mn = normStr(g && g.mailNickname).toLowerCase();
-                    if (mn && mn === nickLc) return true;
-                    const mail = normStr(g && g.mail).toLowerCase();
-                    return mail && mail.startsWith(nickLc + '@');
-                });
-            const match = matchById || matchByNick || null;
-            if (match) {
-                patchMatchedGroupId('studentCouncil', match);
-                setSingleGroupMatchStatus(studentCouncilGroupMatchCell, { found: true, group: match }, expectedNick);
-                return { found: true, group: match };
+            const resolved = await resolveSchoolWideGroupByStoredOrExpected(
+                'studentCouncil',
+                expectedNick,
+                expectedDn
+            );
+            if (resolved && resolved.found && resolved.group) {
+                patchMatchedGroupId('studentCouncil', resolved.group);
+                setSingleGroupMatchStatus(
+                    studentCouncilGroupMatchCell,
+                    { found: true, group: resolved.group },
+                    expectedNick
+                );
+                return { found: true, group: resolved.group };
             }
             patchMatchedGroupId('studentCouncil', null);
             setSingleGroupMatchStatus(studentCouncilGroupMatchCell, { notFound: true }, expectedNick);
@@ -3861,14 +4053,7 @@
         }
 
         function classesToLines(rows) {
-            return (rows || [])
-                .map((x) => {
-                    const y = normStr(x.year || '');
-                    const year = /^\d{4}$/.test(y) ? y : '';
-                    return `${normCode(x.code)};${year};${normStr(x.name || '')};${normStr(x.headName || '')};${normStr(x.headEmail || '').toLowerCase()}`.trim();
-                })
-                .filter(Boolean)
-                .join('\n');
+            return classesToLinesPure(rows);
         }
 
         function getClassesFromTextarea() {
@@ -5295,6 +5480,81 @@
                     btnCreateStudentCouncilGroup.disabled = false;
                     btnCreateStudentCouncilGroup.removeAttribute('aria-busy');
                 }
+            });
+        }
+
+        if (btnSearchStudentCouncilGroup && !btnSearchStudentCouncilGroup.dataset.tenantSearchSvGroupBound) {
+            btnSearchStudentCouncilGroup.dataset.tenantSearchSvGroupBound = '1';
+            btnSearchStudentCouncilGroup.addEventListener('click', async () => {
+                if (btnSearchStudentCouncilGroup.disabled) return;
+                try {
+                    btnSearchStudentCouncilGroup.disabled = true;
+                    await searchSchoolWideGroups('studentCouncil');
+                } catch (e) {
+                    setSummary(
+                        'Schülervertretung Suche: ' + (e && e.message ? e.message : String(e)),
+                        'warn'
+                    );
+                } finally {
+                    btnSearchStudentCouncilGroup.disabled = false;
+                }
+            });
+        }
+        if (inpStudentCouncilGroupSearch && !inpStudentCouncilGroupSearch.dataset.tenantSearchSvEnterBound) {
+            inpStudentCouncilGroupSearch.dataset.tenantSearchSvEnterBound = '1';
+            inpStudentCouncilGroupSearch.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    if (btnSearchStudentCouncilGroup) btnSearchStudentCouncilGroup.click();
+                }
+            });
+        }
+        if (btnUnmatchStudentCouncilGroup && !btnUnmatchStudentCouncilGroup.dataset.tenantUnmatchSvBound) {
+            btnUnmatchStudentCouncilGroup.dataset.tenantUnmatchSvBound = '1';
+            btnUnmatchStudentCouncilGroup.addEventListener('click', () => {
+                unmatchSchoolWideGroup('studentCouncil');
+            });
+        }
+        if (btnOpenStudentCouncilGroup && !btnOpenStudentCouncilGroup.dataset.tenantOpenSvBound) {
+            btnOpenStudentCouncilGroup.dataset.tenantOpenSvBound = '1';
+            btnOpenStudentCouncilGroup.addEventListener('click', () => {
+                openSchoolWideGroupInEntra('studentCouncil');
+            });
+        }
+
+        if (btnSearchSgaGroup && !btnSearchSgaGroup.dataset.tenantSearchSgaGroupBound) {
+            btnSearchSgaGroup.dataset.tenantSearchSgaGroupBound = '1';
+            btnSearchSgaGroup.addEventListener('click', async () => {
+                if (btnSearchSgaGroup.disabled) return;
+                try {
+                    btnSearchSgaGroup.disabled = true;
+                    await searchSchoolWideGroups('sga');
+                } catch (e) {
+                    setSummary('SGA Suche: ' + (e && e.message ? e.message : String(e)), 'warn');
+                } finally {
+                    btnSearchSgaGroup.disabled = false;
+                }
+            });
+        }
+        if (inpSgaGroupSearch && !inpSgaGroupSearch.dataset.tenantSearchSgaEnterBound) {
+            inpSgaGroupSearch.dataset.tenantSearchSgaEnterBound = '1';
+            inpSgaGroupSearch.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    if (btnSearchSgaGroup) btnSearchSgaGroup.click();
+                }
+            });
+        }
+        if (btnUnmatchSgaGroup && !btnUnmatchSgaGroup.dataset.tenantUnmatchSgaBound) {
+            btnUnmatchSgaGroup.dataset.tenantUnmatchSgaBound = '1';
+            btnUnmatchSgaGroup.addEventListener('click', () => {
+                unmatchSchoolWideGroup('sga');
+            });
+        }
+        if (btnOpenSgaGroup && !btnOpenSgaGroup.dataset.tenantOpenSgaBound) {
+            btnOpenSgaGroup.dataset.tenantOpenSgaBound = '1';
+            btnOpenSgaGroup.addEventListener('click', () => {
+                openSchoolWideGroupInEntra('sga');
             });
         }
 

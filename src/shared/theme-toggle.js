@@ -82,11 +82,15 @@
             const teal = wrap.querySelector('.app-brand-logo__mark--teal');
             const classicImg = wrap.querySelector('.app-brand-logo__mark--classic');
             if (teal) {
+                teal.hidden = classic;
+                teal.style.display = classic ? 'none' : 'block';
                 teal.setAttribute('aria-hidden', classic ? 'true' : 'false');
                 if (!classic) teal.setAttribute('alt', 'Logo MS365-Schul-Tools');
                 else teal.setAttribute('alt', '');
             }
             if (classicImg) {
+                classicImg.hidden = !classic;
+                classicImg.style.display = classic ? 'block' : 'none';
                 classicImg.setAttribute('aria-hidden', classic ? 'false' : 'true');
                 if (classic) classicImg.setAttribute('alt', 'Logo MS365-Schul-Tools');
                 else classicImg.setAttribute('alt', '');

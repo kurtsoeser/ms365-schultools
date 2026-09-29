@@ -40,11 +40,28 @@ export function normKey(s) {
 }
 
 /**
+ * Token-Grenze: `needle` kommt in `haystack` als eigenes Token vor
+ * (Separator = alles außer Buchstabe/Zahl). Verhindert `1a` ∈ `11a`.
+ *
+ * @param {string} haystack bereits normKey-normalisiert
+ * @param {string} needle bereits normKey-normalisiert
+ * @returns {boolean}
+ */
+export function keyAppearsAsToken(haystack, needle) {
+    if (!haystack || !needle) return false;
+    if (haystack === needle) return true;
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('(?:^|[^\\p{L}\\p{N}])' + escaped + '(?:$|[^\\p{L}\\p{N}])', 'u');
+    return re.test(haystack);
+}
+
+/**
  * Abgleich-Vorschlag: passende Tenant-Gruppe für eine Strukturzeile.
  * Reihenfolge:
  *  1. exakter Match auf `bezeichnung`
  *  2. exakter Match auf `alias`
- *  3. „enthält" auf `bezeichnung` oder `alias`
+ *  3. Token-Match (Wortgrenze) auf Bezeichnung/Alias – bei Mehrdeutigkeit kein Vorschlag
+ *  4. Substring nur wenn `uKey.length ≥ 3` und eindeutig (kein Zahlen-Teilmatch)
  *
  * @param {{ bezeichnung?: string } | null} unit
  * @param {Array<{ id: string|number, bezeichnung?: string, alias?: string }>} list
@@ -59,10 +76,24 @@ export function suggestTenantGroupForUnitFromList(unit, list) {
     if (best) return String(best.id);
     best = rows.find((g) => g.alias && normKey(g.alias) === uKey);
     if (best) return String(best.id);
-    best = rows.find(
-        (g) => normKey(g.bezeichnung).includes(uKey) || (g.alias && normKey(g.alias).includes(uKey))
-    );
-    return best ? String(best.id) : '';
+
+    const tokenHits = rows.filter((g) => {
+        const bez = normKey(g.bezeichnung);
+        const alias = g.alias ? normKey(g.alias) : '';
+        return keyAppearsAsToken(bez, uKey) || (alias && keyAppearsAsToken(alias, uKey));
+    });
+    if (tokenHits.length === 1) return String(tokenHits[0].id);
+    if (tokenHits.length > 1) return '';
+
+    // Rohes includes nur ab Länge 3 und nur wenn eindeutig; Zahlenkürzel nie so.
+    if (uKey.length < 3 || /^\d/.test(uKey)) return '';
+    const softHits = rows.filter((g) => {
+        const bez = normKey(g.bezeichnung);
+        const alias = g.alias ? normKey(g.alias) : '';
+        return (bez && bez.includes(uKey)) || (alias && alias.includes(uKey));
+    });
+    if (softHits.length === 1) return String(softHits[0].id);
+    return '';
 }
 
 /**
@@ -165,13 +196,16 @@ export function suggestTenantUserForPersonFromList(unit, users) {
             for (let s = 0; s < ids.soft.length; s++) {
                 const soft = ids.soft[s];
                 if (k === soft) best = Math.max(best, 80);
-                else if (soft && (soft.includes(k) || k.includes(soft))) best = Math.max(best, 50);
+                // Substring nur ab Länge 4 (kurze Vornamen wie „Max“/„Li“ zu riskant)
+                else if (soft && k.length >= 4 && soft.length >= 4 && (soft.includes(k) || k.includes(soft))) {
+                    best = Math.max(best, 50);
+                }
             }
             for (let e = 0; e < ids.exact.length; e++) {
                 const ex = ids.exact[e];
                 if (!ex) continue;
                 // kurze Nummern-UPNs nicht per Substring gegen lange Namen matchen
-                if (ex.length >= 3 && k.length >= 3 && (ex.includes(k) || k.includes(ex))) {
+                if (ex.length >= 4 && k.length >= 4 && (ex.includes(k) || k.includes(ex))) {
                     best = Math.max(best, 45);
                 }
             }
@@ -181,16 +215,21 @@ export function suggestTenantUserForPersonFromList(unit, users) {
 
     let bestId = '';
     let bestScore = 0;
+    let tie = false;
     for (let j = 0; j < arr.length; j++) {
         const u = arr[j];
         const sc = scoreUser(u);
         if (sc > bestScore) {
             bestScore = sc;
             bestId = String(u.id || '');
+            tie = false;
+        } else if (sc > 0 && sc === bestScore) {
+            tie = true;
         }
     }
-    // Unter 45 zu unsicher (reine Substring-Zufallstreffer vermeiden)
-    return bestScore >= 45 ? bestId : '';
+    // Unter 45 zu unsicher; bei Gleichstand kein Auto-Vorschlag (M4)
+    if (bestScore < 45 || tie) return '';
+    return bestId;
 }
 
 /**

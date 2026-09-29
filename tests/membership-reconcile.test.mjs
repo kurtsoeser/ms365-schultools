@@ -6,8 +6,13 @@ import {
     buildTeacherImportRow,
     diffClassMemberships,
     diffMemberships,
+    diffMembershipsAgainstPeople,
     indexGraphMembersByEmail,
     memberEmailFromGraph,
+    memberEmailsFromGraph,
+    membershipFetchGuard,
+    reconcileAgainstGraphMembers,
+    reconcileClassAgainstGraphMembers,
     suggestTeacherCode
 } from '../src/shared/membership-reconcile.js';
 
@@ -39,9 +44,58 @@ describe('membership-reconcile', () => {
         expect(r.admin[0]).toEqual({ role: 'Sekretariat', name: 'Sek', email: 'sek@s.at' });
     });
 
-    it('memberEmailFromGraph bevorzugt mail vor upn', () => {
+    it('memberEmailFromGraph bevorzugt mail → otherMails → upn', () => {
         expect(memberEmailFromGraph({ mail: 'a@s.at', userPrincipalName: 'b@s.at' })).toBe('a@s.at');
+        expect(
+            memberEmailFromGraph({
+                userPrincipalName: '8801@s.at',
+                otherMails: ['elisabeth@s.at']
+            })
+        ).toBe('elisabeth@s.at');
         expect(memberEmailFromGraph({ userPrincipalName: 'b@s.at' })).toBe('b@s.at');
+    });
+
+    it('Nummern-UPN + Alias: kein leave wenn Stammliste Alias hat', () => {
+        const people = [
+            {
+                displayName: '8801',
+                userPrincipalName: '8801@schule.at',
+                mail: '',
+                otherMails: ['elisabeth.muster@schule.at']
+            }
+        ];
+        const rec = reconcileAgainstGraphMembers(['elisabeth.muster@schule.at'], people);
+        expect(rec.join).toEqual([]);
+        expect(rec.leave).toEqual([]);
+        const diff = diffMembershipsAgainstPeople(['elisabeth.muster@schule.at'], people);
+        expect(diff.both).toEqual(['elisabeth.muster@schule.at']);
+        expect(diff.onlyGraph).toEqual([]);
+    });
+
+    it('membershipFetchGuard blockiert truncated', () => {
+        expect(membershipFetchGuard({ truncated: true, items: [] }).ok).toBe(false);
+        expect(membershipFetchGuard({ truncated: false, items: [] }).ok).toBe(true);
+    });
+
+    it('reconcileClassAgainstGraphMembers: Lehrer bleiben, Schüler-Diff mit otherMails', () => {
+        const people = [
+            { mail: '', userPrincipalName: '8801@s.at', otherMails: ['ada@s.at'] },
+            { mail: 'lehrer@s.at', userPrincipalName: 'lehrer@s.at' },
+            { mail: 'bob@s.at', userPrincipalName: 'bob@s.at' }
+        ];
+        const rec = reconcileClassAgainstGraphMembers(['ada@s.at', 'neu@s.at'], ['ada@s.at', 'neu@s.at', 'bob@s.at'], people);
+        expect(rec.join).toEqual(['neu@s.at']);
+        expect(rec.leave).toEqual(['bob@s.at']);
+    });
+
+    it('memberEmailsFromGraph sammelt alle Identitäten', () => {
+        expect(
+            memberEmailsFromGraph({
+                mail: 'a@s.at',
+                userPrincipalName: 'u@s.at',
+                otherMails: ['b@s.at', 'a@s.at']
+            }).sort()
+        ).toEqual(['a@s.at', 'b@s.at', 'u@s.at']);
     });
 
     it('suggestTeacherCode vermeidet Kollisionen', () => {

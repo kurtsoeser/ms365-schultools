@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schul-Tools</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=9">
+    <link rel="stylesheet" href="app.css?v=12">
     <style>
         body { padding-bottom: 0; }
         .help-layout {
@@ -359,6 +359,7 @@
                                 <li><a href="#tool-onenote-verteilung">OneNote-Inhalte verteilen</a></li>
                                 <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
                                 <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
+                                <li><a href="#tool-lizenzverwaltung">Lizenzverwaltung</a></li>
                                 <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
                                 <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
                                 <li><a href="#tool-verwaltung">Verwaltung</a></li>
@@ -406,6 +407,7 @@
                                     <li><a href="#tool-onenote-verteilung">OneNote-Inhalte verteilen</a></li>
                                     <li><a href="#tool-arge">Fächer &amp; ARGEs</a></li>
                                     <li><a href="#tool-personen-verwaltung">Personen-Verwaltung</a></li>
+                                    <li><a href="#tool-lizenzverwaltung">Lizenzverwaltung</a></li>
                                     <li><a href="#tool-gaeste-verwalten">Gäste</a></li>
                                     <li><a href="#tool-slg">Schüler &amp; Lehrkräfte</a></li>
                                     <li><a href="#tool-verwaltung">Verwaltung</a></li>
@@ -857,6 +859,28 @@
                         <p class="help-open"><a href="tools/personen-verwaltung.html">→ Personen-Verwaltung öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="lizenz a1 a3 sicherheitsgruppe group based licensing zuweisen">
+                        <h3 id="tool-lizenzverwaltung">Lizenzverwaltung <span class="pill">Lizenzen</span></h3>
+                        <p>
+                            Eigene <strong>Sicherheitsgruppen</strong> für Group-based Licensing (A1/A3 u. a.) anlegen oder zuordnen,
+                            Lizenzen der Gruppe zuweisen und Mitglieder anzeigen. Mitglieder können aus den M365‑Sammelgruppen
+                            (Schüler / Lehrkräfte / Verwaltung) übernommen werden. Optional: dynamische Mitgliedschaftsregeln (Entra&nbsp;ID&nbsp;P1).
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Profil wählen (Schüler, Lehrkräfte, Verwaltung oder eigenes).</li>
+                                <li>Sicherheitsgruppe <strong>anlegen</strong> oder bestehende <strong>suchen und zuordnen</strong>.</li>
+                                <li>Lizenz (SKU) der Gruppe zuweisen.</li>
+                                <li>Mitglieder aus der Sammelgruppe übernehmen – oder dynamische Regel setzen.</li>
+                            </ol>
+                        </div>
+                        <div class="warn">
+                            Braucht Lizenz-/Gruppen-Admin-Rechte. Dynamische Regeln brauchen typischerweise Entra&nbsp;ID&nbsp;P1.
+                            Lizenzen gelten nur für <strong>direkte</strong> Mitglieder (keine Verschachtelung).
+                        </div>
+                        <p class="help-open"><a href="tools/lizenzverwaltung.html">→ Lizenzverwaltung öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="namenskonvention displayname upn vorname nachname audit ad sync">
                         <h3 id="tool-namenskonvention-audit">Namenskonvention prüfen <span class="pill">Audit</span></h3>
                         <p>
@@ -887,6 +911,7 @@
 
                     <article class="help-article" data-help-article data-search="sammelgruppe schüler lehrer listen-sync additiv">
                         <h3 id="tool-slg">Lehrerinnen &amp; Schülerinnen <span class="pill">Sammelgruppen</span></h3>
+                        <!-- Sync: otherMails/Nummern-UPN; Truncation blockiert leave – siehe FAQ „gekürzter Liste“ -->
                         <p>
                             Zwei Sammelgruppen (alle Schüler:innen, alle Lehrkräfte). Nach dem Match dieselben Live-Details
                             wie in der Gruppenverwaltung, plus additiver Listen-Sync aus den Stammdaten.
@@ -1113,6 +1138,18 @@
                         <p class="help-open"><a href="tools/sharepoint-liste-schularbeiten.html">→ Schularbeiten-Listen öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="exkursion schulaktivität aktivität antrag genehmigung sharepoint liste regelwerk">
+                        <h3 id="tool-schulaktivitaeten-listen">Schulaktivitäten-Listen <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Richtet auf der Intranet-Website die Listen <strong>Schulaktivitaeten</strong> und
+                            <strong>Aktivitaet-Regelwerk</strong> ein (Anträge für Exkursionen und schulische Aktivitäten,
+                            Status beantragt/genehmigt/abgelehnt, Vorlauf- und Überlappungsregeln). Klassen und Lehrkräfte
+                            bleiben in den Stammdaten. Planer: <a href="tools/schulaktivitaeten-planer.html">Schulaktivitäten</a>.
+                            Planung: <code>docs/schulaktivitaeten-planer.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-schulaktivitaeten.html">→ Schulaktivitäten-Listen öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste anmeldung">
                         <h3 id="tool-projektwochen-listen">Projektwochen-Listen <span class="pill">SharePoint</span></h3>
                         <p>
@@ -1161,6 +1198,18 @@
                         <p class="help-open"><a href="tools/schularbeiten-planer.html">→ Planer öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="exkursion schulaktivität aktivität antrag genehmigung kalender liste ics export direktion">
+                        <h3 id="tool-schulaktivitaeten-planer">Schulaktivitäten <span class="pill">Planung</span></h3>
+                        <p>
+                            Exkursionen und schulische Aktivitäten beantragen (Typ, Klasse, Ort, Zeitraum, Begleitung),
+                            in Liste und Kalender führen, durch Direktion/Admin genehmigen oder ablehnen, als
+                            <strong>ICS</strong> exportieren. Daten in SharePoint. Listen zuerst mit
+                            <a href="tools/sharepoint-liste-schulaktivitaeten.html">Schulaktivitäten-Listen</a> anlegen.
+                            Planung: <code>docs/schulaktivitaeten-planer.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/schulaktivitaeten-planer.html">→ Schulaktivitäten öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="power automate schularbeiten status mail fixiert abgelehnt">
                         <h3 id="tool-pa-schularbeiten-mail">Schularbeiten Status-Mail <span class="pill">Power Automate</span></h3>
                         <p>
@@ -1193,9 +1242,22 @@
                         <h3 id="tool-freistellung">Freistellungen Setup <span class="pill">SharePoint + Flow</span></h3>
                         <p>
                             Drei Phasen: Vorbereitung (Erst-Setup), SharePoint-Liste anlegen, Flow-Paket herunterladen und
-                            in Power Automate importieren (Legacy-Package, Connections zuweisen). Auch mit A3 nutzbar.
+                            in Power Automate importieren (Legacy-Package, Connections zuweisen – Microsoft Approvals für KV und Direktion).
+                            Auch mit A3 nutzbar. Anträge und Berichte: <a href="tools/freistellung-planer.html">Freistellungen-Planer</a>.
                         </p>
                         <p class="help-open"><a href="tools/freistellung-setup.html">→ Freistellungen Setup öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="freistellung antrag schüler klassenvorstand direktion genehmigung approvals csv bericht">
+                        <h3 id="tool-freistellung-planer">Freistellungen <span class="pill">Antrag &amp; Übersicht</span></h3>
+                        <p>
+                            Schüler/innen stellen Freistellungsanträge im Formular (Klasse, Zeitraum, Kategorie, Begründung).
+                            Die App schreibt in die SharePoint-Liste aus dem Setup; der Power-Automate-Flow startet
+                            <strong>Microsoft Approvals</strong> (Klassenvorstand, bei mehrtägigen Anträgen sequentiell Direktion).
+                            KV und Direktion sehen Übersicht, Filter, Berichte und CSV-Export. Liste/Flow zuerst mit
+                            <a href="tools/freistellung-setup.html">Freistellungen Setup</a> einrichten.
+                        </p>
+                        <p class="help-open"><a href="tools/freistellung-planer.html">→ Freistellungen öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="power automate schultermine kalender outlook sync">
@@ -1309,6 +1371,48 @@
                         <p class="help-open"><a href="tools/cleanup-playbook.html">→ Cleanup-Playbook öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="playbook schuljahresstart checkliste start kursteams">
+                        <h3 id="tool-playbook-schuljahresstart">Playbook Schuljahresstart <span class="pill">Checkliste</span></h3>
+                        <p>Orientierung für den Jahresbeginn: Stammdaten, Klassen, SLG, Kursteams, Sync-Monitor, Lifecycle, Cleanup.</p>
+                        <p class="help-open"><a href="tools/playbook-schuljahresstart.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="playbook intranet hub listen">
+                        <h3 id="tool-playbook-intranet">Playbook Intranet <span class="pill">Checkliste</span></h3>
+                        <p>Hub und Listen einmal einrichten, danach Planer nutzen.</p>
+                        <p class="help-open"><a href="tools/playbook-intranet.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="playbook eltern kommunikation verteiler bookings">
+                        <h3 id="tool-playbook-eltern">Playbook Elternkommunikation <span class="pill">Checkliste</span></h3>
+                        <p>Verteiler, Sprechtag und Intranet als Kanal – ohne Doppelarbeit.</p>
+                        <p class="help-open"><a href="tools/playbook-eltern.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="lifecycle schüler klassenwechsel abgang zugang diff truncation">
+                        <h3 id="tool-schueler-lifecycle">Schüler-Lifecycle <span class="pill">Diff</span></h3>
+                        <p>Zu-/Abgänge und Klassenwechsel zuerst als Diff. Dry-Run ist Standard; Leave erst nach Checkbox. Truncation sperrt Apply.</p>
+                        <p id="faq-truncation"></p>
+                        <p class="help-open"><a href="tools/schueler-lifecycle.html">→ Lifecycle öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="webuntis sync monitor kursteams fehlend besitzer">
+                        <h3 id="tool-webuntis-sync-monitor">WebUntis-Sync-Monitor <span class="pill">Report</span></h3>
+                        <p>Liest den lokalen Kursteams-Stand: Teams ohne Besitzer, Lehrer ohne Match, Klassen ohne Team.</p>
+                        <p class="help-open"><a href="tools/webuntis-sync-monitor.html">→ Monitor öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="räume room places ressourcen">
+                        <h3 id="tool-raeume-ressourcen">Räume &amp; Ressourcen <span class="pill">read-only</span></h3>
+                        <p>Places aus Graph lesen. Schreiben weiterhin über gemeinsame Postfächer.</p>
+                        <p class="help-open"><a href="tools/raeume-ressourcen.html">→ Räume öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="vertretung vertretungsplan sharepoint">
+                        <h3 id="tool-vertretung">Vertretungsplan-Liste <span class="pill">SharePoint</span></h3>
+                        <p>Liste für den täglichen Vertretungsplan auf dem Intranet anlegen.</p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-vertretung.html">→ Liste anlegen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="baseline secure score sicherheit checkliste">
+                        <h3 id="tool-schul-baseline">Schul-Baseline <span class="pill">Hinweise</span></h3>
+                        <p>Checkliste mit Deep-Links (Teams anlegen, Teilen, Gäste, Cleanup) – kein Ersatz für Secure Score.</p>
+                        <p class="help-open"><a href="tools/schul-baseline.html">→ Baseline öffnen</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="stammdaten übergabe sharepoint backup json document library it rechte">
                         <h3 id="tool-stammdaten-uebergabe">Stammdaten-Übergabe <span class="pill">SharePoint</span></h3>
                         <p>
@@ -1407,6 +1511,14 @@
                         <div class="faq-body">
                             <p>Das hängt vom Werkzeug ab. Bei <strong>Lehrerinnen &amp; Schülerinnen</strong>, <strong>Jahrgangsgruppen</strong> und <strong>Klassenvorstände</strong> gleicht „Mitglieder synchronisieren“ die Gruppe mit der Stammliste ab – dabei können auch Personen entfernt werden, die nur online in der Gruppe stehen. Bei der <strong>Verwaltungs-Sammelgruppe</strong> ist der Sync dagegen bewusst <strong>additiv</strong> (nur hinzufügen).</p>
                             <p>Wenn die Zahlen links rot sind, nutzen Sie bei Schüler/Lehrer <strong>Abweichungen anzeigen</strong>, um zu sehen, wer nur lokal oder nur in Microsoft&nbsp;365 steht, bevor Sie synchronisieren.</p>
+                        </div>
+                    </details>
+
+                    <details class="help-faq" data-help-faq data-search="gekürzt truncation mitgliederliste 2000 sync abbruch nummern-upn othermails alias">
+                        <summary>Mitglieder-Sync bricht ab oder warnt vor „gekürzter“ Liste – was tun?</summary>
+                        <div class="faq-body">
+                            <p>Beim Abruf großer Gruppen stoppt die App nach einem Sicherheitslimit (u. a. ca. 2000 Mitglieder / begrenzte Graph-Seiten). Ist die Liste <strong>unvollständig</strong>, werden <em>keine</em> Entfernungen ausgeführt – sonst könnten Personen fälschlich als „nur online“ gelten.</p>
+                            <p><strong>Was Sie tun können:</strong> Sync später erneut versuchen; bei sehr großen Sammelgruppen zuerst in Microsoft&nbsp;365 prüfen; Abweichungen-Panel nur nutzen, wenn die Liste vollständig geladen wurde. Identitäten mit Nummern-UPN und Alias in <code>otherMails</code> werden beim Abgleich mitberücksichtigt.</p>
                         </div>
                     </details>
 

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Lizenzverwaltung</title>
+    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .lv-layout {
+            display: grid;
+            grid-template-columns: minmax(240px, 320px) 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+        @media (max-width: 980px) {
+            .lv-layout { grid-template-columns: 1fr; }
+        }
+        .lv-panel {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--card);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        .lv-panel-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 10%, transparent) 0%, color-mix(in srgb, var(--brand2) 6%, transparent) 100%);
+        }
+        .lv-panel-head h2 {
+            margin: 0;
+            font-size: 1.05em;
+            color: var(--heading);
+            font-weight: 900;
+        }
+        .lv-panel-body { padding: 14px 16px; }
+        .lv-slot-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .lv-slot-list li { border-bottom: 1px solid var(--border); }
+        .lv-slot-list li:last-child { border-bottom: 0; }
+        .lv-slot-btn {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            padding: 12px 14px;
+            cursor: pointer;
+            font: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: var(--text);
+        }
+        .lv-slot-btn:hover { background: color-mix(in srgb, var(--brand1) 7%, transparent); }
+        .lv-slot-btn[aria-current="true"] {
+            background: color-mix(in srgb, var(--brand1) 12%, transparent);
+            box-shadow: inset 3px 0 0 var(--brand1);
+        }
+        .lv-slot-title { font-weight: 800; }
+        .lv-slot-meta { font-size: 0.88em; color: var(--muted); line-height: 1.35; }
+        .lv-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.82em;
+            font-weight: 700;
+        }
+        .lv-status--ok {
+            background: color-mix(in srgb, #0d8050 12%, transparent);
+            color: #0d8050;
+        }
+        .lv-status--warn {
+            background: color-mix(in srgb, #f59e0b 14%, transparent);
+            color: #92400e;
+        }
+        .lv-section {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .lv-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+        .lv-section h3 {
+            margin: 0 0 8px;
+            font-size: 0.98em;
+            color: var(--heading);
+        }
+        .lv-search-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .lv-search-row input { flex: 1 1 200px; min-width: 160px; }
+        .lv-results {
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+        }
+        .lv-result-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-top: 1px solid var(--border);
+        }
+        .lv-result-row:first-child { border-top: 0; }
+        .lv-members {
+            max-height: min(42vh, 420px);
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+        .lv-members table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+        .lv-members th, .lv-members td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+        .lv-members th {
+            position: sticky;
+            top: 0;
+            background: var(--soft);
+            font-weight: 800;
+        }
+        .lv-sku-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--soft);
+            margin: 0 8px 8px 0;
+            font-size: 0.9em;
+        }
+        #lvLog {
+            margin-top: 12px;
+            max-height: 160px;
+            overflow: auto;
+            font-size: 0.88em;
+            line-height: 1.4;
+            color: var(--muted);
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container page-card">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-key"></i>Lizenzverwaltung</span>
+            </div>
+            <p>
+                Sicherheitsgruppen für <strong>Group-based Licensing</strong> (z. B. A1 Schüler:innen, A3 Lehrkräfte) anlegen oder zuordnen,
+                Lizenzen der Gruppe zuweisen und Mitglieder sehen bzw. aus den Sammelgruppen übernehmen.
+                Ideal, wenn die Schule ohne lokales AD die Lizenzen in Microsoft&nbsp;365 steuert.
+            </p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-lizenzverwaltung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                    <a class="btn" href="schueler-lehrer-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-people"></i>Sammelgruppen</a>
+                    <a class="btn" href="personen-verwaltung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-person-badge"></i>Personen</a>
+                    <a class="btn" href="schulstruktur-sync.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-3"></i>Alle Gruppen</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="hint" style="margin:0 0 14px;line-height:1.45;">
+                <strong>Tipp:</strong> Kollaboration bleibt bei Microsoft‑365‑Gruppen/Teams.
+                Für Lizenzen eigene <strong>Sicherheitsgruppen ohne E‑Mail</strong> verwenden.
+                Group-based Licensing braucht passende Admin-Rechte (z. B. Lizenzadministrator) und setzt oft <code>LicenseAssignment.ReadWrite.All</code> bzw. <code>Group.ReadWrite.All</code> voraus.
+            </div>
+
+            <div class="lv-layout">
+                <section class="lv-panel" aria-label="Lizenz-Profile">
+                    <div class="lv-panel-head">
+                        <h2><i class="bi bi-list-ul" style="margin-right:8px;"></i>Profile</h2>
+                    </div>
+                    <div class="lv-panel-body" style="padding:0;">
+                        <ul class="lv-slot-list" id="lvSlotList" aria-label="Lizenz-Sicherheitsgruppen">
+                            <li>
+                                <button type="button" class="lv-slot-btn" data-lv-slot="schueler" aria-current="true">
+                                    <span class="lv-slot-title">Schüler:innen</span>
+                                    <span class="lv-slot-meta" id="lvMetaSchueler">Noch keine Lizenzgruppe</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="lv-slot-btn" data-lv-slot="lehrer" aria-current="false">
+                                    <span class="lv-slot-title">Lehrkräfte</span>
+                                    <span class="lv-slot-meta" id="lvMetaLehrer">Noch keine Lizenzgruppe</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="lv-slot-btn" data-lv-slot="verwaltung" aria-current="false">
+                                    <span class="lv-slot-title">Verwaltung</span>
+                                    <span class="lv-slot-meta" id="lvMetaVerwaltung">Noch keine Lizenzgruppe</span>
+                                </button>
+                            </li>
+                        </ul>
+                        <div style="padding:12px 14px;border-top:1px solid var(--border);">
+                            <button type="button" class="btn small-btn" id="lvBtnAddCustom" style="width:100%;justify-content:center;">
+                                <i class="bi bi-plus-circle"></i>Eigenes Profil
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="lv-panel" aria-label="Details">
+                    <div class="lv-panel-head">
+                        <h2 id="lvDetailTitle"><i class="bi bi-key" style="margin-right:8px;"></i>Schüler:innen</h2>
+                    </div>
+                    <div class="lv-panel-body">
+                        <div class="lv-section">
+                            <h3>1. Sicherheitsgruppe</h3>
+                            <p class="muted" style="margin:0 0 10px;line-height:1.45;" id="lvGroupHint">
+                                Reine Sicherheitsgruppe (kein Postfach, kein Team) für die Lizenzzuweisung.
+                            </p>
+                            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;">
+                                <span id="lvGroupStatus" class="lv-status lv-status--warn"><i class="bi bi-x-circle"></i> nicht zugeordnet</span>
+                                <button type="button" class="btn btn-success" id="lvBtnCreateGroup"><i class="bi bi-plus-lg"></i>Anlegen</button>
+                                <button type="button" class="btn btn-danger" id="lvBtnUnmatch" hidden><i class="bi bi-x-circle"></i>Zuordnung lösen</button>
+                                <button type="button" class="btn" id="lvBtnOpenEntra" hidden><i class="bi bi-box-arrow-up-right"></i>In Entra öffnen</button>
+                            </div>
+                            <label for="lvGroupSearch">Bestehende Sicherheitsgruppe suchen</label>
+                            <div class="lv-search-row" style="margin-top:6px;">
+                                <input type="text" id="lvGroupSearch" autocomplete="off" placeholder="Name oder Alias …">
+                                <button type="button" class="btn" id="lvBtnSearchGroup"><i class="bi bi-search"></i>Suchen</button>
+                            </div>
+                            <div class="lv-results" id="lvGroupSearchResults"></div>
+                        </div>
+
+                        <div class="lv-section" id="lvLicenseSection" hidden>
+                            <h3>2. Lizenz an Gruppe</h3>
+                            <p class="muted" style="margin:0 0 10px;line-height:1.45;">
+                                Die Lizenz gilt für <strong>direkte</strong> Mitglieder der Sicherheitsgruppe (keine Verschachtelung).
+                            </p>
+                            <div id="lvAssignedSkus" style="margin-bottom:10px;"></div>
+                            <div class="lv-search-row">
+                                <select id="lvSkuSelect" style="flex:1 1 220px;min-width:180px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font:inherit;"></select>
+                                <button type="button" class="btn btn-success" id="lvBtnAssignSku"><i class="bi bi-plus-circle"></i>Zuweisen</button>
+                                <button type="button" class="btn" id="lvBtnReloadSkus" title="Mandanten-SKUs neu laden"><i class="bi bi-arrow-clockwise"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="lv-section" id="lvMembersSection" hidden>
+                            <h3>3. Mitglieder</h3>
+                            <div class="settings-actions" style="gap:10px;flex-wrap:wrap;">
+                                <button type="button" class="btn" id="lvBtnReloadMembers"><i class="bi bi-arrow-clockwise"></i>Mitglieder laden</button>
+                                <button type="button" class="btn btn-primary" id="lvBtnSyncFromSammel" title="Mitglieder der zugehörigen Microsoft-365-Sammelgruppe übernehmen">
+                                    <i class="bi bi-people"></i>Aus Sammelgruppe übernehmen
+                                </button>
+                            </div>
+                            <p class="muted" style="margin:8px 0 0;line-height:1.45;" id="lvMembersMeta">–</p>
+                            <div class="lv-members">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>UPN / Mail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="lvMembersBody">
+                                        <tr><td colspan="2" class="muted">Noch nicht geladen.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="lv-section" id="lvDynamicSection" hidden>
+                            <h3>4. Dynamische Mitgliedschaft <span class="pill" style="font-size:0.75em;">optional · Entra&nbsp;P1</span></h3>
+                            <p class="muted" style="margin:0 0 10px;line-height:1.45;">
+                                Statt manueller Mitglieder: Regel in Microsoft Entra (z. B. Abteilung). Braucht typischerweise Entra&nbsp;ID&nbsp;P1 (oft in A3 enthalten).
+                            </p>
+                            <label for="lvDynamicRule">Mitgliedschaftsregel</label>
+                            <input type="text" id="lvDynamicRule" style="width:100%;margin-top:6px;box-sizing:border-box;" placeholder='(user.department -eq "Schüler")' autocomplete="off">
+                            <div class="settings-actions" style="margin-top:10px;gap:10px;flex-wrap:wrap;">
+                                <button type="button" class="btn" id="lvBtnDynTemplateDept"><i class="bi bi-magic"></i>Vorlage Abteilung</button>
+                                <button type="button" class="btn btn-success" id="lvBtnEnableDynamic"><i class="bi bi-lightning"></i>Regel aktivieren</button>
+                                <button type="button" class="btn" id="lvBtnDisableDynamic"><i class="bi bi-pause-circle"></i>Pausieren</button>
+                            </div>
+                        </div>
+
+                        <div id="lvLog" aria-live="polite"></div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script type="module" src="../src/shared/graph-licenses.js"></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/tools/lizenzverwaltung/lizenzverwaltung.js" defer></script>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+</body>
+</html>

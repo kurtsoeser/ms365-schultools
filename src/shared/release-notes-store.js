@@ -5,6 +5,8 @@
  * images: [{ src, alt }], gitSha (optional, für Auto-Dedup).
  */
 
+import { escapeHtml } from './utils/strings.js';
+
 export const RELEASE_NOTES_KEY = 'ms365-schooltool-release-notes-v1';
 export const RELEASE_NOTES_LAST_SEEN_AT_KEY = 'ms365-schooltool-release-notes-last-seen-at-v1';
 
@@ -46,14 +48,6 @@ function normalizeIsoDate(raw) {
     const d = new Date(s);
     if (Number.isNaN(d.getTime())) return '';
     return d.toISOString();
-}
-
-function escapeHtml(s) {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }
 
 /** Plaintext → einfaches HTML (Absätze). */

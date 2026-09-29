@@ -1,6 +1,7 @@
 /**
  * Klassen-Merge Wizard – Wiring.
  */
+import { dlgConfirm } from '../../shared/utils/dialog.js';
 import { buildMergePlan, applyLocalMerge } from './klassen-merge-logic.js';
 
 function $(id) {
@@ -111,21 +112,29 @@ function renderPreview() {
     const warn = $('kmWarnings');
     if (!box) return;
     const plan = currentPlan();
-    if (!plan.ok) {
+    if (!plan.ok && !plan.localOnlyAllowed) {
         box.textContent = plan.error || 'Plan unvollständig.';
         if (warn) warn.textContent = '';
         return;
     }
     box.replaceChildren();
+    if (!plan.ok && plan.requiresGraphConfirm) {
+        const err = document.createElement('p');
+        err.className = 'warn';
+        err.textContent =
+            (plan.error || 'Graph-Match fehlt.') +
+            ' Sie können trotzdem nur die lokalen Stammdaten zusammenführen (ohne Cloud-Mitglieder).';
+        box.appendChild(err);
+    }
     const ul = document.createElement('ul');
-    plan.steps.forEach(function (s) {
+    (plan.steps || []).forEach(function (s) {
         const li = document.createElement('li');
         li.textContent = s.label + (s.count != null ? ' (' + s.count + ')' : '');
         ul.appendChild(li);
     });
     box.appendChild(ul);
     const p = document.createElement('p');
-    p.textContent = 'Schüler-E-Mails in der Merge-Gruppe: ' + plan.memberEmails.length;
+    p.textContent = 'Schüler-E-Mails in der Merge-Gruppe: ' + (plan.memberEmails || []).length;
     box.appendChild(p);
     if (warn) {
         warn.textContent = (plan.warnings || []).join(' ');
@@ -135,8 +144,23 @@ function renderPreview() {
 async function runMerge() {
     const plan = currentPlan();
     if (!plan.ok) {
-        toast(plan.error || 'Plan ungültig');
-        return;
+        if (plan.localOnlyAllowed && plan.requiresGraphConfirm) {
+            const ok = await dlgConfirm(
+                (plan.error || 'Graph-Match fehlt.') +
+                    '\n\nNur lokale Stammdaten zusammenführen (keine Graph-Mitglieder-Sync)?',
+                { title: 'Merge ohne Graph-Match', okLabel: 'Nur lokal', cancelLabel: 'Abbrechen' }
+            );
+            if (!ok) return;
+            plan.ok = true;
+            plan.sourceAction = 'keep';
+            plan.survivorTeam = null;
+            plan.steps = (plan.steps || []).filter(function (s) {
+                return s && String(s.id || '').indexOf('graph') !== 0;
+            });
+        } else {
+            toast(plan.error || 'Plan ungültig');
+            return;
+        }
     }
     const ok = window.confirm(
         'Klassen zusammenführen zu „' +

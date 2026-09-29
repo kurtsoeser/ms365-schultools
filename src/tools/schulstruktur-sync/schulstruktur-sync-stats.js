@@ -91,9 +91,16 @@ export function computeTenantStats(rows) {
     const teams = list.filter((r) => r && r.typ === 'Team').length;
     const m365 = list.filter((r) => r && r.typ === 'Gruppe').length;
     const sec = list.filter(
-        (r) => r && (r.typ === 'Sicherheitsgruppe' || r.typ === 'E‑Mail‑Sicherheitsgruppe')
+        (r) =>
+            r &&
+            (r.typ === 'Sicherheitsgruppe' ||
+                r.typ === 'E‑Mail‑Sicherheitsgruppe' ||
+                r.typ === 'E-Mail-Sicherheitsgruppe' ||
+                String(r.typ || '').replace(/\u2011/g, '-') === 'E-Mail-Sicherheitsgruppe')
     ).length;
-    return { total, teams, m365, sec };
+    const adSync = list.filter((r) => r && r.onPremisesSyncEnabled).length;
+    const flagged = list.filter((r) => r && r.adFlagged).length;
+    return { total, teams, m365, sec, adSync, flagged };
 }
 
 /**
@@ -103,6 +110,7 @@ export function computeTenantStats(rows) {
  * @property {string} text           Volltext (bereits getrimmt + lowercase).
  * @property {string} visibility     Tenant-Filter: Sichtbarkeit (`Public`/…).
  * @property {string} roster         Tenant-Filter: `noOwners` / `noMembers` / `noOwnersNoMembers`.
+ * @property {string} source         Tenant-Filter: `adSync` / `cloud` / `flagged`.
  */
 
 /**
@@ -117,7 +125,8 @@ export function getFilterState() {
     const text = normStr(getEl('ssFilterText')?.value).toLowerCase();
     const visibility = normStr(getEl('ssTenantVisibilityFilter')?.value);
     const roster = normStr(getEl('ssTenantRosterFilter')?.value);
-    return { schuljahr, typ, text, visibility, roster };
+    const source = normStr(getEl('ssTenantSourceFilter')?.value);
+    return { schuljahr, typ, text, visibility, roster, source };
 }
 
 /**
@@ -131,7 +140,7 @@ export function getFilterState() {
  */
 export function applyFiltersPure(rows, mode, filterState) {
     const list = Array.isArray(rows) ? rows : [];
-    const f = filterState || { schuljahr: '', typ: '', text: '', visibility: '', roster: '' };
+    const f = filterState || { schuljahr: '', typ: '', text: '', visibility: '', roster: '', source: '' };
     return list.filter((r) => {
         if (!r) return false;
         if (mode !== 'tenant') {
@@ -151,15 +160,25 @@ export function applyFiltersPure(rows, mode, filterState) {
                 if (v !== f.visibility) return false;
             }
             if (f.roster) {
+                // -1 = Counts noch nicht geladen („unbekannt“) – in Risiko-Filtern behalten
                 const oc = typeof r.ownerCount === 'number' ? r.ownerCount : -1;
                 const mc = typeof r.memberCount === 'number' ? r.memberCount : -1;
                 if (f.roster === 'noOwners') {
-                    if (oc !== 0) return false;
+                    if (oc !== 0 && oc !== -1) return false;
                 } else if (f.roster === 'noMembers') {
-                    if (mc !== 0) return false;
+                    if (mc !== 0 && mc !== -1) return false;
                 } else if (f.roster === 'noOwnersNoMembers') {
-                    if (oc !== 0 || mc !== 0) return false;
+                    const ownersEmptyOrUnknown = oc === 0 || oc === -1;
+                    const membersEmptyOrUnknown = mc === 0 || mc === -1;
+                    if (!ownersEmptyOrUnknown || !membersEmptyOrUnknown) return false;
                 }
+            }
+            if (f.source === 'adSync') {
+                if (!r.onPremisesSyncEnabled) return false;
+            } else if (f.source === 'cloud') {
+                if (r.onPremisesSyncEnabled) return false;
+            } else if (f.source === 'flagged') {
+                if (!r.adFlagged) return false;
             }
         }
         if (f.text) {
@@ -168,7 +187,17 @@ export function applyFiltersPure(rows, mode, filterState) {
                 ' ' +
                 String(r.typ || '') +
                 ' ' +
-                String(r.schuljahr || '')
+                String(r.schuljahr || '') +
+                ' ' +
+                String(r.alias || '') +
+                ' ' +
+                String(r.mail || '') +
+                ' ' +
+                String(r.onPremisesSamAccountName || '') +
+                ' ' +
+                String(r.onPremisesDomainName || '') +
+                ' ' +
+                String(r.adFlagNote || '')
             ).toLowerCase();
             if (hay.indexOf(f.text) === -1) return false;
         }

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – WebUntis-Sync-Monitor</title>
+    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .wsm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+        .wsm-stat{border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--card);text-align:center}
+        .wsm-stat strong{display:block;font-size:1.35rem;color:var(--heading)}
+        .wsm-stat span{font-size:.82em;color:var(--muted,#6c757d)}
+        .wsm-table{width:100%;border-collapse:collapse;font-size:.9em}
+        .wsm-table th,.wsm-table td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;vertical-align:top}
+        .wsm-warn{color:#b42318;font-weight:700}
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-activity"></i>WebUntis-Sync-Monitor</span>
+            </div>
+            <p>Letzter Kursteams-/WebUntis-Stand: fehlende Besitzer, Lehrer ohne Match, Klassen ohne Team.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-webuntis-sync-monitor" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="kursteams.html"><i class="bi bi-rocket-takeoff"></i>Kursteams</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-graph-up"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Unterricht · Gesundheit</p>
+                    <h2>Sync auf einen Blick</h2>
+                    <p id="wsmMeta">Stand wird gelesen …</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <button type="button" class="btn" id="wsmRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="wsm-stats" id="wsmStats" aria-label="Kennzahlen"></div>
+                <p id="wsmEmpty" class="muted" hidden>Kein Kursteams-Zwischenstand gefunden. Zuerst in <a href="kursteams.html">Unterrichtsteams</a> importieren oder erzeugen.</p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div><h3>Actionable</h3><p>Diese Einträge blockieren oder verzögern den Sync.</p></div></div>
+                <h4>Teams ohne Besitzer</h4>
+                <div style="overflow:auto"><table class="wsm-table" id="wsmMissingOwner"><thead><tr><th>Team</th><th>Fach</th><th>Klasse</th><th>Lehrer</th></tr></thead><tbody></tbody></table></div>
+                <h4 style="margin-top:16px;">Lehrer-Kürzel ohne E-Mail-Match</h4>
+                <div style="overflow:auto"><table class="wsm-table" id="wsmTeachers"><thead><tr><th>Kürzel</th><th>Name</th><th>Hinweis</th></tr></thead><tbody></tbody></table></div>
+                <h4 style="margin-top:16px;">Klassen ohne Kursteam (Stammdaten)</h4>
+                <div style="overflow:auto"><table class="wsm-table" id="wsmClasses"><thead><tr><th>Code</th><th>Name</th></tr></thead><tbody></tbody></table></div>
+                <div class="tm-actions" style="margin-top:14px;">
+                    <a class="btn" href="kursteams.html"><i class="bi bi-wrench"></i>In Kursteams beheben</a>
+                    <a class="btn" href="../tenant.html"><i class="bi bi-gear"></i>Stammdaten</a>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script type="module">
+        import {
+            buildSyncMonitorReport,
+            loadKursteamStateFromStorage
+        } from '../src/shared/webuntis-sync-monitor-logic.js';
+
+        function fillTable(table, rows, cols) {
+            const tb = table && table.querySelector('tbody');
+            if (!tb) return;
+            tb.replaceChildren();
+            if (!rows.length) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = cols.length;
+                td.className = 'muted';
+                td.textContent = 'Keine Einträge.';
+                tr.appendChild(td);
+                tb.appendChild(tr);
+                return;
+            }
+            rows.slice(0, 100).forEach(function (r) {
+                const tr = document.createElement('tr');
+                cols.forEach(function (c) {
+                    const td = document.createElement('td');
+                    td.textContent = String(r[c] == null ? '' : r[c]);
+                    tr.appendChild(td);
+                });
+                tb.appendChild(tr);
+            });
+        }
+
+        function loadStamm() {
+            try {
+                if (typeof window.ms365TenantSettingsLoad === 'function') {
+                    return window.ms365TenantSettingsLoad() || {};
+                }
+            } catch { /* ignore */ }
+            return {};
+        }
+
+        function refresh() {
+            const parsed = loadKursteamStateFromStorage();
+            const meta = document.getElementById('wsmMeta');
+            const empty = document.getElementById('wsmEmpty');
+            const stats = document.getElementById('wsmStats');
+            if (!parsed.ok) {
+                if (meta) meta.textContent = 'Kein lokaler Kursteams-Stand.';
+                if (empty) empty.hidden = false;
+                if (stats) stats.replaceChildren();
+                fillTable(document.getElementById('wsmMissingOwner'), [], ['teamName']);
+                fillTable(document.getElementById('wsmTeachers'), [], ['code']);
+                fillTable(document.getElementById('wsmClasses'), [], ['code']);
+                return;
+            }
+            if (empty) empty.hidden = true;
+            const report = buildSyncMonitorReport(parsed.state, loadStamm());
+            if (meta) {
+                meta.textContent =
+                    (report.savedAt ? 'Gespeichert: ' + new Date(report.savedAt).toLocaleString('de-AT') : 'Zeitstempel unbekannt') +
+                    ' · Modus: ' + (report.entryMode || '–') +
+                    (report.yearPrefix ? ' · Präfix ' + report.yearPrefix : '') +
+                    (report.actionable ? ' · ' + report.actionable + ' actionable' : ' · ok');
+            }
+            if (stats) {
+                const items = [
+                    ['Teams', report.counts.teams],
+                    ['Bereit', report.counts.ready],
+                    ['Ohne Besitzer', report.counts.missingOwner],
+                    ['Lehrer-Match fehlt', report.counts.teachersWithoutMatch],
+                    ['Klassen ohne Team', report.counts.classesWithoutTeam],
+                    ['Rohzeilen', report.counts.rawRows]
+                ];
+                stats.replaceChildren();
+                items.forEach(function (it) {
+                    const div = document.createElement('div');
+                    div.className = 'wsm-stat';
+                    if (it[0].indexOf('Ohne') >= 0 || it[0].indexOf('fehlt') >= 0 || it[0].indexOf('ohne') >= 0) {
+                        if (it[1] > 0) div.classList.add('wsm-warn');
+                    }
+                    div.innerHTML = '<strong>' + it[1] + '</strong><span>' + it[0] + '</span>';
+                    stats.appendChild(div);
+                });
+            }
+            fillTable(document.getElementById('wsmMissingOwner'), report.missingOwner, ['teamName', 'fach', 'originalClass', 'lehrerCode']);
+            fillTable(document.getElementById('wsmTeachers'), report.teachersWithoutMatch, ['code', 'name', 'hint']);
+            fillTable(document.getElementById('wsmClasses'), report.classesWithoutTeam, ['code', 'name']);
+        }
+
+        document.getElementById('wsmRefresh')?.addEventListener('click', refresh);
+        setTimeout(refresh, 80);
+        setTimeout(refresh, 400);
+    </script>
+</body>
+</html>

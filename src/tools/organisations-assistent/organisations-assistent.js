@@ -1,5 +1,6 @@
 import { getEl } from '../../shared/utils/dom.js';
 import { dlgConfirm } from '../../shared/utils/dialog.js';
+import { loadState, saveState } from '../schulstruktur-sync/schulstruktur-sync-state.js';
 import {
     PLAYBOOK_REQUIRED_IDS,
     appendRunLogEntry,
@@ -50,16 +51,14 @@ function getSettings() {
 }
 
 function saveStructurePatch(patch) {
-    const api = appData();
-    if (!api || typeof api.getContainer !== 'function' || typeof api.setContainer !== 'function') {
-        throw new Error('Lokale Daten (app-data-v2) nicht verfügbar.');
-    }
-    const c = api.getContainer();
-    if (!c.structure) c.structure = { rows: [], memberships: {}, settings: {} };
-    if (patch.rows) c.structure.rows = patch.rows;
-    if (patch.memberships) c.structure.memberships = patch.memberships;
-    if (patch.settings) c.structure.settings = Object.assign({}, c.structure.settings || {}, patch.settings);
-    api.setContainer(c);
+    const fresh = loadState();
+    const nextSettings = Object.assign({}, fresh.settings || {}, patch && patch.settings ? patch.settings : {});
+    saveState({
+        rows: patch && patch.rows !== undefined ? patch.rows : fresh.rows,
+        memberships: patch && patch.memberships !== undefined ? patch.memberships : fresh.memberships,
+        settings: nextSettings,
+        organisationAssistSource: 'incoming'
+    });
 }
 
 function getOrganisationAssist(settings) {

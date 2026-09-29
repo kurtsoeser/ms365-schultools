@@ -330,6 +330,7 @@ export function packToLocalPlanerState(pack) {
         fixiertVon: String(f.FixiertVon || ''),
         fixiertAm: f.FixiertAm ? String(f.FixiertAm) : '',
         schulterminKey: String(f.SchulterminKey || ''),
+        teamsCalendarEventId: String(f.TeamsCalendarEventId || ''),
         _localOnly: true
     }));
     const windows = (p.terminfenster || []).map((f, i) => ({
