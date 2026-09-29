@@ -1,6 +1,7 @@
 /**
  * Wizard-Bindings OneNote-Verteilung (Analyse 02 Phase B).
  */
+import { escapeHtml } from '../../shared/utils/strings.js';
 import { ui } from './onenote-verteilung-state.js';
 import {
     searchTeams,
@@ -18,6 +19,28 @@ import {
     listPublishedSnapshotNotebooks,
     CENTRAL_TEMPLATE_NOTEBOOK_NAME
 } from './onenote-verteilung-graph.js';
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+function formatNotebookWhen(iso) {
+    const raw = String(iso || '').trim();
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    try {
+        return new Intl.DateTimeFormat('de-AT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(d);
+    } catch {
+        return d.toLocaleString('de-AT');
+    }
+}
 
 /** @type {any} */
 let api = null;

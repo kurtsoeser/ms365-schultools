@@ -3,7 +3,16 @@
  */
 import { pv } from './personen-verwaltung-state.js';
 import { getGraphToken, graphJson } from './personen-verwaltung-graph.js';
-import { graphErrorFriendly, formatPhones, formatDate, userTypeLabel } from './personen-verwaltung-logic.js';
+import {
+    graphErrorFriendly,
+    formatPhones,
+    formatDate,
+    userTypeLabel,
+    userLicenseSummary,
+    sanitizeMailNickname,
+    applyAdFlagsToUsers,
+    readInputTrim
+} from './personen-verwaltung-logic.js';
 
 const USER_REFRESH_SELECT = pv.USER_REFRESH_SELECT;
 
@@ -124,11 +133,6 @@ export function renderProfileTab(u, editable) {
             : 'Keine'
         : '–';
     addProfileTextField(root, 'Lizenzen (Übersicht)', '_licenses', licText, false, true);
-}
-
-export function readInputTrim(el) {
-    if (!el) return '';
-    return String(el.value || '').trim();
 }
 
 export function buildPatchFromForm(u) {

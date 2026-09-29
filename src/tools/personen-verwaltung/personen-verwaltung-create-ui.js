@@ -17,7 +17,7 @@ import {
     formatDate
 } from './personen-verwaltung-logic.js';
 import { dlgConfirm } from '../../shared/utils/dialog.js';
-
+import { readInputTrim } from './personen-verwaltung-logic.js';
 
 /** @type {any} */
 let host = null;

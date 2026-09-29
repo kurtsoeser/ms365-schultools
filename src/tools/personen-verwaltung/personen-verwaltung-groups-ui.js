@@ -2,13 +2,14 @@
  * Gruppen-Tab UI (Analyse 02 Phase B).
  */
 import { pv } from './personen-verwaltung-state.js';
-import { GRAPH_SCOPES, getGraphToken, graphJson, odataEscape } from './personen-verwaltung-graph.js';
+import { GRAPH_SCOPES, getGraphToken, graphJson, fetchAllPages, odataEscape } from './personen-verwaltung-graph.js';
 import {
     graphErrorFriendly,
     norm,
     isGuid,
     isDuplicateMemberError,
-    groupTypeLabel
+    groupTypeLabel,
+    compareStrings
 } from './personen-verwaltung-logic.js';
 import { dlgConfirm } from '../../shared/utils/dialog.js';
 

@@ -16,7 +16,7 @@ import {
     groupTypeLabel,
     formatDate
 } from './personen-verwaltung-logic.js';
-import { dlgConfirm } from '../../shared/utils/dialog.js';
+import { dlgConfirm, dlgPrompt } from '../../shared/utils/dialog.js';
 
 
 /** @type {any} */

@@ -25,6 +25,11 @@ export function compareStrings(a, b) {
     return String(a || '').localeCompare(String(b || ''), 'de', { sensitivity: 'base' });
 }
 
+export function readInputTrim(el) {
+    if (!el) return '';
+    return String(el.value || '').trim();
+}
+
 export function readSortFromSelect() {
     const sel = document.getElementById('pvSortKey');
     const raw = sel && sel.value ? String(sel.value) : 'displayName:asc';
@@ -118,4 +123,38 @@ export function userLicenseSummary(u) {
     const api = Lic();
     if (!api || typeof api.summarizeUserLicenses !== 'function') return null;
     return api.summarizeUserLicenses(u);
+}
+
+export function loadAdUserFlags() {
+    try {
+        const raw = localStorage.getItem(pv.AD_FLAGS_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+        return obj;
+    } catch {
+        return {};
+    }
+}
+
+export function saveAdUserFlags(map) {
+    try {
+        localStorage.setItem(pv.AD_FLAGS_KEY, JSON.stringify(map && typeof map === 'object' ? map : {}));
+    } catch {
+        /* ignore */
+    }
+}
+
+export function applyAdFlagsToUsers(users) {
+    const flags = loadAdUserFlags();
+    return (Array.isArray(users) ? users : []).map(function (u) {
+        if (!u || !u.id) return u;
+        const f = flags[String(u.id)] || null;
+        const next = Object.assign({}, u);
+        next.onPremisesSyncEnabled = u.onPremisesSyncEnabled === true;
+        next.adFlagged = !!(f && f.flagged);
+        next.adFlagNote = f && f.note ? String(f.note) : '';
+        next.adFlaggedAt = f && f.flaggedAt ? String(f.flaggedAt) : '';
+        return next;
+    });
 }

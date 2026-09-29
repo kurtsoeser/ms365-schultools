@@ -28,7 +28,10 @@ import {
     assignedSkuIdsOfUser,
     skuLookupFromSubscribed,
     Lic,
-    userLicenseSummary
+    userLicenseSummary,
+    loadAdUserFlags,
+    saveAdUserFlags,
+    applyAdFlagsToUsers
 } from './personen-verwaltung-logic.js';
 import { dlgConfirm, dlgPrompt } from '../../shared/utils/dialog.js';
 
@@ -81,7 +84,6 @@ import { pv } from './personen-verwaltung-state.js';
 const USER_LIST_SELECT = pv.USER_LIST_SELECT;
 const USER_REFRESH_SELECT = pv.USER_REFRESH_SELECT;
 const GROUP_MEMBEROF_SELECT = pv.GROUP_MEMBEROF_SELECT;
-const AD_FLAGS_KEY = pv.AD_FLAGS_KEY;
 const SESSION_CACHE_KEY = pv.SESSION_CACHE_KEY;
 const SESSION_CACHE_MAX_AGE_MS = pv.SESSION_CACHE_MAX_AGE_MS;
 
@@ -147,26 +149,6 @@ function hideCacheBanner() {
     if (banner) banner.style.display = 'none';
 }
 
-function loadAdUserFlags() {
-    try {
-        const raw = localStorage.getItem(AD_FLAGS_KEY);
-        if (!raw) return {};
-        const obj = JSON.parse(raw);
-        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
-        return obj;
-    } catch {
-        return {};
-    }
-}
-
-function saveAdUserFlags(map) {
-    try {
-        localStorage.setItem(AD_FLAGS_KEY, JSON.stringify(map && typeof map === 'object' ? map : {}));
-    } catch {
-        /* ignore */
-    }
-}
-
 function patchAdUserFlag(userId, patch) {
     const id = String(userId || '').trim();
     if (!id) return;
@@ -187,20 +169,6 @@ function patchAdUserFlag(userId, patch) {
         };
     }
     saveAdUserFlags(map);
-}
-
-function applyAdFlagsToUsers(users) {
-    const flags = loadAdUserFlags();
-    return (Array.isArray(users) ? users : []).map(function (u) {
-        if (!u || !u.id) return u;
-        const f = flags[String(u.id)] || null;
-        const next = Object.assign({}, u);
-        next.onPremisesSyncEnabled = u.onPremisesSyncEnabled === true;
-        next.adFlagged = !!(f && f.flagged);
-        next.adFlagNote = f && f.note ? String(f.note) : '';
-        next.adFlaggedAt = f && f.flaggedAt ? String(f.flaggedAt) : '';
-        return next;
-    });
 }
 
 function formatAdSyncDate(iso) {
