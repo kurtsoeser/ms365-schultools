@@ -3,22 +3,7 @@ import { escapeHtml } from '../../shared/utils/strings.js';
  * OneNote-Inhalte verteilen – 4-Schritt-Assistent
  * Material → Teams → Wohin → Kopieren
  */
-import {
-    searchTeams,
-    searchSites,
-    listOnenoteNotebooks,
-    listCentralTemplateNotebooks,
-    loadOnenoteNotebookTree,
-    copySectionToGroupSectionGroup,
-    listSectionPages,
-    getPagePreview,
-    getPageContent,
-    pickClassNotebook,
-    pickSectionGroup,
-    publishCentralNotebookSnapshot,
-    listPublishedSnapshotNotebooks,
-    CENTRAL_TEMPLATE_NOTEBOOK_NAME
-} from './onenote-verteilung-graph.js';
+import { listOnenoteNotebooks, loadOnenoteNotebookTree, listSectionPages, getPagePreview, getPageContent, pickClassNotebook, pickSectionGroup, listPublishedSnapshotNotebooks, CENTRAL_TEMPLATE_NOTEBOOK_NAME } from './onenote-verteilung-graph.js';
 import {
     initOnenoteSteps,
     bindWizardNav,
@@ -45,7 +30,6 @@ function toast(m) {
     else if (typeof window.ms365ShowToast === 'function') window.ms365ShowToast(m);
     else window.alert(m);
 }
-
 
 function log(msg) {
     const el = $('onvLog');

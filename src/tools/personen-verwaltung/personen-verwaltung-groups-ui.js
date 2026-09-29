@@ -2,15 +2,8 @@
  * Gruppen-Tab UI (Analyse 02 Phase B).
  */
 import { pv } from './personen-verwaltung-state.js';
-import { GRAPH_SCOPES, getGraphToken, graphJson, fetchAllPages, odataEscape } from './personen-verwaltung-graph.js';
-import {
-    graphErrorFriendly,
-    norm,
-    isGuid,
-    isDuplicateMemberError,
-    groupTypeLabel,
-    compareStrings
-} from './personen-verwaltung-logic.js';
+import { getGraphToken, graphJson, fetchAllPages, odataEscape } from './personen-verwaltung-graph.js';
+import { graphErrorFriendly, isGuid, isDuplicateMemberError, groupTypeLabel, compareStrings } from './personen-verwaltung-logic.js';
 import { dlgConfirm } from '../../shared/utils/dialog.js';
 
 const GROUP_MEMBEROF_SELECT = pv.GROUP_MEMBEROF_SELECT;
@@ -68,8 +61,6 @@ export function renderGroupsTable(groups) {
         tbody.appendChild(tr);
     }
 }
-
-
 
 export function memberGroupIds() {
     const set = new Set();
@@ -374,6 +365,5 @@ export async function removeUserFromGroup(groupIdRaw) {
         pv.groupBusy = false;
     }
 }
-
 
 /* renderLicenseTab… ausgelagert */

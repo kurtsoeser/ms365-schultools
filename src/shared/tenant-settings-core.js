@@ -281,11 +281,11 @@
         return adminRolesAndAdminToGroups(rolesIn, adminIn);
     }
 
-    function deriveAdminRolesFromAdministration(entries) {
+    function _deriveAdminRolesFromAdministration(entries) {
         return deriveAdminRolesFromGroups(normalizeAdministrationEntries(entries, [], []));
     }
 
-    function deriveAdminPeopleFromAdministration(entries) {
+    function _deriveAdminPeopleFromAdministration(entries) {
         return deriveAdminPeopleFromGroups(normalizeAdministrationEntries(entries, [], []));
     }
 

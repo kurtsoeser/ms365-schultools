@@ -280,7 +280,7 @@ function getFilteredGroups() {
     return list;
 }
 
-function getTenantClassesMatcher() {
+function _getTenantClassesMatcher() {
     if (typeof window.ms365TenantSettingsLoad !== 'function') return null;
     let settings = null;
     try {
@@ -323,7 +323,7 @@ function getTenantClassesMatcher() {
     };
 }
 
-function getTenantClassesList() {
+function _getTenantClassesList() {
     if (typeof window.ms365TenantSettingsLoad !== 'function') return [];
     try {
         const s = window.ms365TenantSettingsLoad();
@@ -578,7 +578,7 @@ async function ensureOwnersForVisibleGroups(token) {
     });
 }
 
-async function checkMailNicknameConflict(token, mailNickname, excludeId) {
+async function _checkMailNicknameConflict(token, mailNickname, excludeId) {
     if (!mailNickname) return 'Leerer Mail-Nickname.';
     const filter = "mailNickname eq '" + odataEscape(mailNickname) + "'";
     let path =
@@ -665,7 +665,6 @@ async function buildPreview() {
         return true;
     }
 
-    const token = await getGraphToken();
     const groups = getFilteredGroups();
     previewRows = [];
 

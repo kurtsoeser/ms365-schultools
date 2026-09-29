@@ -2,16 +2,7 @@ import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Stammdaten → IT-Dokumentbibliothek (Upload / Rechte / Liste / Download).
  */
-import {
-    DEFAULT_FOLDER,
-    CURRENT_FILE,
-    IT_LIBRARY_TITLE,
-    designHintDe,
-    isBroadSiteAudience,
-    entraGroupLogonName,
-    buildItLibraryPlan,
-    SPO_ROLE
-} from '../../shared/stammdaten-sharepoint-sync-logic.js';
+import { DEFAULT_FOLDER, IT_LIBRARY_TITLE, designHintDe, isBroadSiteAudience, entraGroupLogonName, buildItLibraryPlan, SPO_ROLE } from '../../shared/stammdaten-sharepoint-sync-logic.js';
 import {
     loadItMeta,
     saveItMeta,
@@ -709,7 +700,6 @@ async function runDownload(itemId, name) {
     toast('Backup übernommen.');
     if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
 }
-
 
 function fillDefaults() {
     const hint = $('suDesignHint');

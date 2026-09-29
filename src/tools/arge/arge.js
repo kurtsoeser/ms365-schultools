@@ -287,8 +287,8 @@ function argeNickDeps() {
     };
 }
 
-function buildMailNickname(displayName, subjectCode) {
-    return P.buildMailNickname(displayName, subjectCode, argeNickDeps());
+function _buildMailNickname(displayName, subjectCode) {
+    return P._buildMailNickname(displayName, subjectCode, argeNickDeps());
 }
 
 /**

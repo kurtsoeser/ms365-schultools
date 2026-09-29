@@ -973,7 +973,7 @@
         const fileImport = document.getElementById('tenantSettingsImportFile');
         const btnClear = document.getElementById('tenantSettingsClear');
         const summary = document.getElementById('tenantSettingsSummary');
-        const inpDefaultGradYear = null;
+        const _inpDefaultGradYear = null;
         const schoolNameInput = document.getElementById('schoolName');
         const domainInput = document.getElementById('schoolEmailDomain');
         const schoolYearSelect = document.getElementById('schoolYearSelect');
@@ -1258,7 +1258,7 @@
                 chips.push({ icon, label, kind, title: title || '' });
             }
 
-            function personChip(label, stat, tab) {
+            function personChip(label, stat, _tab) {
                 const { total, matched, notFound, unchecked } = stat;
                 if (total === 0) {
                     chip('bi-dash', label + ': keine Einträge', 'muted', 'Keine Einträge in der Liste.');

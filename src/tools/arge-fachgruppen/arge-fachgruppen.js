@@ -1,8 +1,7 @@
 /**
  * Analyse 02 Phase B – ESM + shared/utils/strings.
  */
-import { escapeHtml, normStr, normCode, normEmail } from '../../shared/utils/strings.js';
-
+import { normStr, normCode, normEmail } from '../../shared/utils/strings.js';
 
 function gug() {
     const G = window.ms365GraphUnifiedGroups;
@@ -70,7 +69,6 @@ function dlgConfirm(message, options) {
     }
     return Promise.resolve(window.confirm(message));
 }
-
 
 function getCatalogLink(kind, code) {
     const api = dataV2();

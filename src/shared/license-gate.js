@@ -12,7 +12,7 @@
 
     var OVERLAY_ID = 'ms365LicenseGateOverlay';
     var checking = false;
-    var lastMode = '';
+    var _lastMode = '';
 
     function $(id) {
         return document.getElementById(id);
@@ -43,7 +43,7 @@
         var el = $(OVERLAY_ID);
         if (el) el.hidden = true;
         document.documentElement.removeAttribute('data-ms365-license');
-        lastMode = 'ok';
+        _lastMode = 'ok';
     }
 
     function setActions(buttons) {
@@ -79,7 +79,7 @@
         setActions(opts.actions || []);
         el.hidden = false;
         document.documentElement.setAttribute('data-ms365-license', opts.mode || 'blocked');
-        lastMode = opts.mode || 'blocked';
+        _lastMode = opts.mode || 'blocked';
     }
 
     function metaFromResult(result) {

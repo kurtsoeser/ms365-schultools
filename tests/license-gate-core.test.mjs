@@ -1,5 +1,5 @@
-import { createRequire } from 'node:module';
-import { describe, expect, it, beforeEach } from 'vitest';
+
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

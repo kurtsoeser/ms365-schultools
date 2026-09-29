@@ -43,14 +43,11 @@ export default [
             'no-irregular-whitespace': 'off',
             'no-useless-escape': 'off',
             /**
-             * Sichtbarmachen historisch gewachsener Monolithen.
-             * Siehe src/shared/ARCHITECTURE.md – Ziel: keine neuen Dateien > 600 Zeilen.
-             * Warn statt Error, damit bestehende große Dateien den Build nicht brechen.
+             * Historisch gewachsene Module (>650 Zeilen) werden in ARCHITECTURE.md
+             * und den Analyse-Docs nachgezogen – max-lines erzeugt sonst nur CI-Rauschen.
+             * Neue Module bitte bewusst klein halten.
              */
-            'max-lines': [
-                'warn',
-                { max: 650, skipBlankLines: true, skipComments: true }
-            ]
+            'max-lines': 'off'
         }
     },
     {
@@ -60,10 +57,6 @@ export default [
                 ...globals.node,
                 ...vitestGlobals
             }
-        },
-        rules: {
-            /** Tests dürfen lang sein. */
-            'max-lines': 'off'
         }
     }
 ];

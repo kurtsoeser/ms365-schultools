@@ -102,15 +102,6 @@
             'Gruppen ohne Besitzer oder ohne Mitglieder finden – zum Aufräumen und für die IT-Hygiene.'
     };
 
-    var mounted = false;
-
-    function escapeAttr(s) {
-        return String(s || '')
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;');
-    }
-
     function createTipElement(tipId, label, alignRight) {
         var text = TIPS[tipId];
         if (!text) return null;
@@ -216,7 +207,6 @@
         mountStandTips(root);
         mountProgressTips(root);
         mountStandaloneTips(root);
-        mounted = true;
     }
 
     window.ms365ContextTips = {

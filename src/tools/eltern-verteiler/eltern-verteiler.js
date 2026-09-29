@@ -1,8 +1,7 @@
 /**
  * Analyse 02 Phase B – ESM + shared/utils/strings.
  */
-import { escapeHtml, normStr, normCode, normEmail } from '../../shared/utils/strings.js';
-
+import { escapeHtml } from '../../shared/utils/strings.js';
 
 function getEl(id) {
     return document.getElementById(id);
@@ -1027,7 +1026,6 @@ function renderList() {
         ul.appendChild(li);
     });
 }
-
 
 function guardiansForStudent(student, byId) {
     return (student.guardianIds || [])

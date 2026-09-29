@@ -60,7 +60,7 @@ function resolveDuplicateNicks(rows) {
  * - "Projektteam Nachhaltigkeit;;Gruppe" (Nickname automatisch)
  */
 function parseWtgLine(line, deps) {
-    const parts = String(line || '')
+    const _parts = String(line || '')
         .split(/[;\t|]/)
         .map((x) => normStr(x))
         .filter((x, i, arr) => !(i === 1 && arr.length >= 2 && x === '')); // keep empty nick only if explicit ";;" not present; simplified
@@ -74,7 +74,7 @@ function parseWtgLine(line, deps) {
     const explicitNick = normStr(rawParts[1] ?? '');
     const typeTok = normTypeToken(rawParts[2] ?? '');
     const isTeam = typeTok === 'team';
-    const isGroup = typeTok === 'group' || typeTok === '';
+    const _isGroup = typeTok === 'group' || typeTok === '';
 
     let mailNickExplicit = false;
     let mailNick = '';

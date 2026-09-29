@@ -1,39 +1,8 @@
 /**
  * Personen-Verwaltung – Entry (Analyse 02 Phase B).
  */
-import {
-    GRAPH_SCOPES,
-    getGraphToken,
-    graphRequest,
-    graphJson,
-    graphDelete,
-    fetchAllPages,
-    sleep,
-    odataEscape,
-    appendLog,
-    clearLog
-} from './personen-verwaltung-graph.js';
-import {
-    graphErrorFriendly,
-    norm,
-    compareStrings,
-    readSortFromSelect,
-    formatPhones,
-    formatDate,
-    groupTypeLabel,
-    userTypeLabel,
-    sanitizeMailNickname,
-    isGuid,
-    isDuplicateMemberError,
-    assignedSkuIdsOfUser,
-    skuLookupFromSubscribed,
-    Lic,
-    userLicenseSummary,
-    loadAdUserFlags,
-    saveAdUserFlags,
-    applyAdFlagsToUsers
-} from './personen-verwaltung-logic.js';
-import { dlgConfirm, dlgPrompt } from '../../shared/utils/dialog.js';
+import { getGraphToken, fetchAllPages, appendLog, clearLog } from './personen-verwaltung-graph.js';
+import { compareStrings, userLicenseSummary, loadAdUserFlags, saveAdUserFlags, applyAdFlagsToUsers } from './personen-verwaltung-logic.js';
 
 import {
     init as initCreateUi,
@@ -46,15 +15,7 @@ import {
     syncDeleteConfirmButton,
     submitDeleteUser
 } from './personen-verwaltung-create-ui.js';
-import {
-    init as initLicensePanel,
-    renderLicenseTab,
-    loadSubscribedSkus,
-    ensureUsageLocation,
-    assignSelectedLicense,
-    removeLicense,
-    saveUsageLocation
-} from './personen-verwaltung-license-panel.js';
+import { init as initLicensePanel, renderLicenseTab, loadSubscribedSkus, assignSelectedLicense, removeLicense, saveUsageLocation } from './personen-verwaltung-license-panel.js';
 import {
     init as initSearchUi,
     getVisibleRows,
@@ -82,8 +43,8 @@ import {
 
 import { pv } from './personen-verwaltung-state.js';
 const USER_LIST_SELECT = pv.USER_LIST_SELECT;
-const USER_REFRESH_SELECT = pv.USER_REFRESH_SELECT;
-const GROUP_MEMBEROF_SELECT = pv.GROUP_MEMBEROF_SELECT;
+const _USER_REFRESH_SELECT = pv._USER_REFRESH_SELECT;
+const _GROUP_MEMBEROF_SELECT = pv._GROUP_MEMBEROF_SELECT;
 const SESSION_CACHE_KEY = pv.SESSION_CACHE_KEY;
 const SESSION_CACHE_MAX_AGE_MS = pv.SESSION_CACHE_MAX_AGE_MS;
 
@@ -213,7 +174,6 @@ function fillUserAdPanels(u) {
     }
 }
 
-
 function toast(msg) {
     const el = document.getElementById('toast');
     if (el) {
@@ -262,10 +222,8 @@ function updateDetailActionButtons() {
     }
 }
 
-
 /* getVisibleRows… ausgelagert */
 /* Profil-UI → personen-verwaltung-profile-ui.js */
-
 
 /* openCreateModal… ausgelagert */
 /* renderGroupsTable… → personen-verwaltung-groups-ui.js */
@@ -576,8 +534,6 @@ function bind() {
         initLicensePanel(api);
         initSearchUi(api);
         initGroupsUi(api);
-
-
 
     const btnLoad = document.getElementById('pvBtnLoad');
     const btnCsv = document.getElementById('pvBtnCsv');

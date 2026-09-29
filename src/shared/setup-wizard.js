@@ -652,11 +652,11 @@ import './utils/school-year.js';
         }
     }
 
-    function getActiveGid() {
+    function _getActiveGid() {
         return swActiveKind === 'lehrer' ? swMatched.lehrerGroupId : swMatched.schuelerGroupId;
     }
 
-    function setActiveGid(id) {
+    function _setActiveGid(id) {
         if (swActiveKind === 'lehrer') swMatched.lehrerGroupId = id;
         else swMatched.schuelerGroupId = id;
     }
@@ -3390,7 +3390,7 @@ import './utils/school-year.js';
     /**
      * @param {'subject'|'arge'} sliceKind
      */
-    function smtpPreviewCellHtml(sliceKind, code, link) {
+    function _smtpPreviewCellHtml(sliceKind, code, link) {
         const p = buildSmtpPreviewPartsForRow(sliceKind, code, link);
         const isLinked = !!(link && normStr(link.graphGroupId) && normStr(link.mailNickname));
         const title = isLinked

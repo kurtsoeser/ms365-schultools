@@ -3,16 +3,7 @@
  */
 import { pv } from './personen-verwaltung-state.js';
 import { getGraphToken, graphJson } from './personen-verwaltung-graph.js';
-import {
-    graphErrorFriendly,
-    formatPhones,
-    formatDate,
-    userTypeLabel,
-    userLicenseSummary,
-    sanitizeMailNickname,
-    applyAdFlagsToUsers,
-    readInputTrim
-} from './personen-verwaltung-logic.js';
+import { graphErrorFriendly, formatDate, userTypeLabel, userLicenseSummary, sanitizeMailNickname, applyAdFlagsToUsers, readInputTrim } from './personen-verwaltung-logic.js';
 
 const USER_REFRESH_SELECT = pv.USER_REFRESH_SELECT;
 

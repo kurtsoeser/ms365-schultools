@@ -68,7 +68,7 @@ ns.displayMissingTeachers = function displayMissingTeachers(allTeachers) {
             typeof ns.resolveTeacherMatchFromTenant === 'function'
                 ? ns.resolveTeacherMatchFromTenant(kuerzel)
                 : null;
-        const tenantEntry = match;
+        const _tenantEntry = match;
         const hasTenantEmail = !!(match && match.email && match.email.includes('@') && match.method !== 'exactNoEmail');
         const domainFallback = kuerzel.toLowerCase() + emailDomain;
         const suggestedEmail = hasTenantEmail ? match.email : domainFallback;

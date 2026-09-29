@@ -1,12 +1,7 @@
 /**
  * Gast-Einlader – Entry (Analyse 02 Phase B).
  */
-import {
-    giGetToken as getGraphToken,
-    graphRequest,
-    graphJson,
-    sleep
-} from './gast-einlader-graph.js';
+import { giGetToken as getGraphToken, graphJson } from './gast-einlader-graph.js';
 
 const STORAGE_KEY = 'ms365-gast-einlader-policy-v1';
 

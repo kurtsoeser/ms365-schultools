@@ -396,7 +396,7 @@ async function listSnapshotSectionPages(sectionId) {
 /**
  * @param {string} pageId
  */
-async function getSnapshotPageContent(pageId) {
+async function _getSnapshotPageContent(pageId) {
     const pid = String(pageId || '').trim();
     if (!pid) {
         const err = new Error('pageId fehlt.');

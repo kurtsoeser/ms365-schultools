@@ -15,14 +15,13 @@ import {
     remapStudentKlassen,
     deriveNickFallback
 } from './jahrgangsgruppen-logic.js';
-import { psEscapeSingle, buildClassSmtpPs1 } from './jahrgangsgruppen-smtp.js';
+import { buildClassSmtpPs1 } from './jahrgangsgruppen-smtp.js';
 import { createBulkProgress } from '../../shared/bulk-progress.js';
 import {
     showTruncationBanner,
     hideTruncationBanner,
     guardApplyAgainstTruncation
 } from '../../shared/truncation-banner.js';
-
 
 function classCodeExists(code, exceptCode) {
     return classCodeExistsIn(classes, code, exceptCode);
@@ -38,7 +37,6 @@ function deriveNick(row) {
     }
     return deriveNickFallback(row);
 }
-
 
 function gug() {
     const G = window.ms365GraphUnifiedGroups;

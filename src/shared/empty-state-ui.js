@@ -152,7 +152,6 @@
 
         var settings = loadSettings();
         var hasData = hasMeaningfulTenantData(settings);
-        var demo = isDemoMode();
 
         if (hasData) {
             mount.hidden = true;

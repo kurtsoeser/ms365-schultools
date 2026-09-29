@@ -9,19 +9,7 @@ import { normStr, escapeHtml, compareDe } from '../../shared/utils/strings.js';
 import { safeJsonParse } from '../../shared/utils/json.js';
 import { dlgAlert, dlgConfirm, dlgPrompt } from '../../shared/utils/dialog.js';
 import { getEl } from '../../shared/utils/dom.js';
-import {
-    loadState,
-    saveState,
-    loadMatchState,
-    saveMatchState,
-    loadTenantCache,
-    saveTenantCache,
-    loadGraphCollapsedSet,
-    saveGraphCollapsedSet,
-    loadAdGroupFlags,
-    patchAdGroupFlag,
-    wireStructureStorageListener
-} from './schulstruktur-sync-state.js';
+import { loadState, saveState, loadMatchState, saveMatchState, loadTenantCache, saveTenantCache, loadGraphCollapsedSet, saveGraphCollapsedSet, patchAdGroupFlag, wireStructureStorageListener } from './schulstruktur-sync-state.js';
 import {
     currentSchoolYearLabel,
     nextSchoolYearLabel,
@@ -73,17 +61,7 @@ import {
     pillClass,
     applyFilters
 } from './schulstruktur-sync-stats.js';
-import {
-    isInteractionRequired,
-    sleep,
-    parseTeamsOperationPathFromLocation,
-    groupIsTeam,
-    graphErrorLooksLikeNotFound,
-    personLabel,
-    odataEscape,
-    directoryObjectRef,
-    isGraphDuplicateRefError
-} from './schulstruktur-sync-graph-helpers.js';
+import { personLabel, isGraphDuplicateRefError } from './schulstruktur-sync-graph-helpers.js';
 import {
     setModeHint,
     renderFilters,
@@ -109,35 +87,7 @@ import {
 import '../../shared/graph-unified-groups.js';
 import '../schueler-lehrer-gruppen/slg-live-details.js';
 import '../../shared/group-detail/group-detail.js';
-import {
-    GRAPH_SCOPES_TENANT_READ,
-    GRAPH_SCOPES_TENANT_INVENTORY,
-    GRAPH_SCOPES_TENANT_WRITE,
-    GRAPH_SCOPES_TENANT_OWNER_MANAGE,
-    GRAPH_SCOPES_TENANT_TEAM_ARCHIVE,
-    GRAPH_SCOPES_GRAPH_OBJECT_CREATE,
-    getGraphToken,
-    graphJson,
-    graphRequest,
-    fetchAllPages,
-    setTenantTeamArchiveState,
-    resolveTeamsArchiveStateForUnifiedGroupId,
-    loadTenantInventoryFull,
-    fetchTenantGroupDetail,
-    applyAdFlagsToTenantRows,
-    graphSearchUsersForOwner,
-    mapWithConcurrencyLimited,
-    enrichTenantRowsOwnerMemberCounts,
-    addGroupOwner,
-    addGroupMember,
-    addOwnerWithMemberFallback,
-    deleteTenantGroup,
-    createUnifiedGroup,
-    createMailEnabledSecurityGroup,
-    createSecurityGroup,
-    suggestGroupMailNickname,
-    createTeamForGroup
-} from './schulstruktur-sync-graph.js';
+import { GRAPH_SCOPES_TENANT_READ, GRAPH_SCOPES_TENANT_OWNER_MANAGE, GRAPH_SCOPES_GRAPH_OBJECT_CREATE, getGraphToken, graphJson, setTenantTeamArchiveState, resolveTeamsArchiveStateForUnifiedGroupId, loadTenantInventoryFull, fetchTenantGroupDetail, applyAdFlagsToTenantRows, graphSearchUsersForOwner, addGroupMember, addOwnerWithMemberFallback, deleteTenantGroup, createUnifiedGroup, createMailEnabledSecurityGroup, createSecurityGroup, suggestGroupMailNickname, createTeamForGroup } from './schulstruktur-sync-graph.js';
 import {
     applyTenantArchiveUi,
     fillTenantAdSyncPanels,
@@ -145,7 +95,6 @@ import {
     setEnsureTenantGroupDetailMounted,
     getEnsureTenantGroupDetailMounted
 } from './schulstruktur-sync-tenant-detail-ui.js';
-
 
 const structureRules = (typeof window !== 'undefined' && window.ms365StructureRules) ? window.ms365StructureRules : null;
 const canReparentStrict = structureRules && typeof structureRules.canReparent === 'function'
@@ -1159,8 +1108,6 @@ window.ms365TenantInventory = {
     provisionGroupRow: (row) => graphProvisionStructureGroupRow(row),
     provisionPersonRow: (row, opts) => graphProvisionPersonRowPublic(row, opts)
 };
-
-
 
 function bind() {
     const isEmbedStructure =
@@ -2407,7 +2354,7 @@ function bind() {
         if (mode === 'struktur' || mode === 'match') {
             const graphPanel = getEl('ssGraphViewPanel');
             const treePanel = getEl('ssTreeViewPanel');
-            const bTree = getEl('ssViewTabTreeBtn');
+            const _bTree = getEl('ssViewTabTreeBtn');
             const bGraph = getEl('ssViewTabGraphBtn');
             const activeGraph = bGraph && bGraph.getAttribute('aria-selected') === 'true';
             if (graphPanel && treePanel) {
@@ -2634,7 +2581,6 @@ function bind() {
             }
         }
 
-
         // Match view uses structure selection but different right panel
         if (mode === 'match') {
             // expose caches for renderMatchDetail helper
@@ -2714,7 +2660,7 @@ function bind() {
     }
 
     /** Gespeicherte Match-Auswahl als g:/u:-Wert (wie im Dropdown), für Abgleich mit UI. */
-    function persistedMatchSelectValueForRow(structureId) {
+    function _persistedMatchSelectValueForRow(structureId) {
         const users = Array.isArray(window.__ms365TenantUsersCache) ? window.__ms365TenantUsersCache : [];
         refreshEffectiveMatchLinks();
         return persistedMatchSelectValuePure(structureId, links, (id) =>
@@ -3236,12 +3182,12 @@ function bind() {
     const btnTenantCreate = getEl('ssBtnTenantCreate');
     const btnDemo = getEl('ssBtnDemo');
     const btnReset = getEl('ssBtnReset');
-    const btnLoad = getEl('ssBtnTenantLoadTop');
-    const tenantKindSel = null; // Gruppentyp-Filter entfernt
-    const tenantKindWrap = null;
+    const _btnLoad = getEl('ssBtnTenantLoadTop');
+    const _tenantKindSel = null; // Gruppentyp-Filter entfernt
+    const _tenantKindWrap = null;
     const liveBanner = getEl('ssLiveBanner');
     const filterTypWrap = getEl('ssFilterTypWrap');
-    const filterTypSel = getEl('ssFilterTyp');
+    const _filterTypSel = getEl('ssFilterTyp');
 
     function updateLiveBannerSyncedState() {
         const badge = getEl('ssLiveBadge');
@@ -3332,7 +3278,7 @@ function bind() {
         const tabBar = getEl('ssStructureViewTabsBar');
         const treePanel = getEl('ssTreeViewPanel');
         const graphPanel = getEl('ssGraphViewPanel');
-        const bTree = getEl('ssViewTabTreeBtn');
+        const _bTree = getEl('ssViewTabTreeBtn');
         const bGraph = getEl('ssViewTabGraphBtn');
         if (isTenant) {
             if (tabBar) tabBar.style.display = 'none';
@@ -3344,7 +3290,7 @@ function bind() {
                 graphPanel.classList.remove('active');
                 graphPanel.style.display = 'none';
             }
-            if (bTree) bTree.setAttribute('aria-selected', 'true');
+            if (_bTree) _bTree.setAttribute('aria-selected', 'true');
             if (bGraph) bGraph.setAttribute('aria-selected', 'false');
         } else {
             if (tabBar) tabBar.style.display = '';
@@ -4384,7 +4330,7 @@ function bind() {
         const jgNick = buildJgMailNick(schemaState, '2030', 'AK');
         const argeNick = buildArgeMailNick(schemaState, 'M');
 
-        const bK = getEl('ssSchemaTabKursteamBtn');
+        const _bK = getEl('ssSchemaTabKursteamBtn');
         const bJ = getEl('ssSchemaTabJahrgangBtn');
         const bA = getEl('ssSchemaTabArgeBtn');
         const active =
@@ -4456,17 +4402,17 @@ function bind() {
     function wireSchemaTabsOnce() {
         if (schemaTabWired) return;
         schemaTabWired = true;
-        const bK = getEl('ssSchemaTabKursteamBtn');
+        const _bK = getEl('ssSchemaTabKursteamBtn');
         const bJ = getEl('ssSchemaTabJahrgangBtn');
         const bA = getEl('ssSchemaTabArgeBtn');
         const pK = getEl('ssSchemaTabKursteam');
         const pJ = getEl('ssSchemaTabJahrgang');
         const pA = getEl('ssSchemaTabArge');
-        if (!bK || !bJ || !bA || !pK || !pJ || !pA) return;
+        if (!_bK || !bJ || !bA || !pK || !pJ || !pA) return;
 
         function setTab(which) {
             const w = which === 'jg' ? 'jg' : which === 'arge' ? 'arge' : 'kt';
-            bK.setAttribute('aria-selected', w === 'kt' ? 'true' : 'false');
+            _bK.setAttribute('aria-selected', w === 'kt' ? 'true' : 'false');
             bJ.setAttribute('aria-selected', w === 'jg' ? 'true' : 'false');
             bA.setAttribute('aria-selected', w === 'arge' ? 'true' : 'false');
             pK.classList.toggle('active', w === 'kt');
@@ -4475,7 +4421,7 @@ function bind() {
             renderAnlegenSettingsPreview();
         }
 
-        bK.addEventListener('click', () => setTab('kt'));
+        _bK.addEventListener('click', () => setTab('kt'));
         bJ.addEventListener('click', () => setTab('jg'));
         bA.addEventListener('click', () => setTab('arge'));
         setTab('kt');
@@ -4786,7 +4732,7 @@ function bind() {
         refreshEffectiveMatchLinks();
     }
 
-    function suggestTenantGroupForUnit(unit) {
+    function _suggestTenantGroupForUnit(unit) {
         return suggestTenantGroupForUnitFromList(unit, rowsTenant || []);
     }
 

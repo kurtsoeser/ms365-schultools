@@ -2,21 +2,9 @@
  * Create/Delete-Modals (Analyse 02 Phase B).
  */
 import { pv } from './personen-verwaltung-state.js';
-import { GRAPH_SCOPES, getGraphToken, graphJson, graphDelete, fetchAllPages, odataEscape } from './personen-verwaltung-graph.js';
-import {
-    graphErrorFriendly,
-    norm,
-    sanitizeMailNickname,
-    isGuid,
-    isDuplicateMemberError,
-    assignedSkuIdsOfUser,
-    skuLookupFromSubscribed,
-    Lic,
-    userLicenseSummary,
-    groupTypeLabel,
-    formatDate
-} from './personen-verwaltung-logic.js';
-import { dlgConfirm } from '../../shared/utils/dialog.js';
+import { getGraphToken, graphJson, graphDelete } from './personen-verwaltung-graph.js';
+import { sanitizeMailNickname } from './personen-verwaltung-logic.js';
+
 import { readInputTrim } from './personen-verwaltung-logic.js';
 
 /** @type {any} */

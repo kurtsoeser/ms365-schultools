@@ -2,22 +2,9 @@
  * Lizenz-Panel (Analyse 02 Phase B).
  */
 import { pv } from './personen-verwaltung-state.js';
-import { GRAPH_SCOPES, getGraphToken, graphJson, graphDelete, fetchAllPages, odataEscape } from './personen-verwaltung-graph.js';
-import {
-    graphErrorFriendly,
-    norm,
-    sanitizeMailNickname,
-    isGuid,
-    isDuplicateMemberError,
-    assignedSkuIdsOfUser,
-    skuLookupFromSubscribed,
-    Lic,
-    userLicenseSummary,
-    groupTypeLabel,
-    formatDate
-} from './personen-verwaltung-logic.js';
+import { getGraphToken, graphJson } from './personen-verwaltung-graph.js';
+import { graphErrorFriendly, assignedSkuIdsOfUser, skuLookupFromSubscribed, Lic } from './personen-verwaltung-logic.js';
 import { dlgConfirm, dlgPrompt } from '../../shared/utils/dialog.js';
-
 
 /** @type {any} */
 let host = null;

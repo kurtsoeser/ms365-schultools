@@ -3,22 +3,7 @@
  */
 import { escapeHtml } from '../../shared/utils/strings.js';
 import { ui } from './onenote-verteilung-state.js';
-import {
-    searchTeams,
-    searchSites,
-    listOnenoteNotebooks,
-    listCentralTemplateNotebooks,
-    loadOnenoteNotebookTree,
-    copySectionToGroupSectionGroup,
-    listSectionPages,
-    getPagePreview,
-    getPageContent,
-    pickClassNotebook,
-    pickSectionGroup,
-    publishCentralNotebookSnapshot,
-    listPublishedSnapshotNotebooks,
-    CENTRAL_TEMPLATE_NOTEBOOK_NAME
-} from './onenote-verteilung-graph.js';
+import { searchTeams, searchSites, listOnenoteNotebooks, listCentralTemplateNotebooks, loadOnenoteNotebookTree, copySectionToGroupSectionGroup, pickClassNotebook, publishCentralNotebookSnapshot, CENTRAL_TEMPLATE_NOTEBOOK_NAME } from './onenote-verteilung-graph.js';
 
 function $(id) {
     return document.getElementById(id);

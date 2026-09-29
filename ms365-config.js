@@ -9,13 +9,6 @@ window.MS365_MSAL_CONFIG = {
         if (typeof window === 'undefined') return '';
         try {
             const origin = window.location.origin;
-            const host = (window.location.hostname || '').toLowerCase();
-            const isLocal =
-                host === 'localhost' ||
-                host === '127.0.0.1' ||
-                host === '::1' ||
-                host.endsWith('.localhost');
-
             function basePathForThisHost() {
                 // Ziel: bei GitHub Pages Project Pages (…/repo/…) automatisch den Repo-Pfad mitnehmen.
                 // Beispiele:
@@ -86,7 +79,6 @@ window.MS365_LICENSE_API = {
         xhr.send(null);
         if (xhr.status !== 200 || !String(xhr.responseText || '').trim()) return;
         // Lokale Override-Datei (gitignored) – optional, nur auf Ihrer Maschine / im Deployment
-        // eslint-disable-next-line no-new-func
         new Function(xhr.responseText)();
         const local = window.MS365_CONFIG_LOCAL;
         if (!local) return;
