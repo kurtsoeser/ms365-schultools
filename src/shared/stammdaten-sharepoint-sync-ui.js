@@ -14,6 +14,8 @@ import {
     downloadCurrentBackup
 } from './stammdaten-sharepoint-sync-api.js';
 import * as autoSync from './stammdaten-sharepoint-auto-sync.js';
+import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
+import { applySharePointBackupLocally } from './stammdaten-sharepoint-pull-apply.js';
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -81,7 +83,7 @@ async function runUpload(btns) {
     if (!ok) return;
     setBusy(btns, true);
     try {
-        await uploadCurrentBackup({ folder: DEFAULT_FOLDER, keepDated: false });
+        await uploadCurrentBackup({ folder: DEFAULT_FOLDER });
         refreshStatus();
         toast('Schul-/App-Daten in SharePoint gesichert.');
     } catch (e) {
@@ -104,31 +106,35 @@ async function runLoad(btns) {
     try {
         const preview = await downloadCurrentBackup({ folder: DEFAULT_FOLDER, apply: false });
         const obj = preview.payload || {};
-        const summary =
-            (obj.schoolName || obj.domain || preview.item.name || 'Backup') +
-            (obj.exportedAt ? ' · ' + String(obj.exportedAt).replace('T', ' ').slice(0, 19) : '');
-        const ok = await confirmAsync(
-            'Backup aus SharePoint übernehmen und lokale Stammdaten ersetzen?\n\n' + summary,
-            { title: 'Von SharePoint einlesen', confirmLabel: 'Übernehmen', cancelLabel: 'Abbrechen' }
-        );
-        if (!ok) return;
-        const bb = window.ms365BrowserBackup;
-        if (!bb || typeof bb.importPayload !== 'function') throw new Error('Backup-Modul fehlt.');
-        bb.importPayload(obj);
-        if (preview.meta) {
-            try {
-                const { saveLocalSyncMeta } = await import('./stammdaten-sharepoint-sync-api.js');
-                saveLocalSyncMeta(
-                    Object.assign({}, preview.meta, {
-                        at: new Date().toISOString(),
-                        direction: 'pull',
-                        dirty: false
-                    })
-                );
-            } catch {
-                /* ignore */
-            }
+        const item = preview.item || {};
+        const choice = await resolveSharePointImportChoice(obj, {
+            auto: false,
+            remoteLastModified: item.lastModifiedDateTime || ''
+        });
+        if (choice === 'skip') {
+            toast('Keine Änderung – lokaler und SharePoint-Stand sind identisch.');
+            refreshStatus();
+            return;
         }
+        if (choice === 'keep-local') {
+            toast('Lokaler Stand unverändert.');
+            refreshStatus();
+            return;
+        }
+        if (choice === 'push-local') {
+            await uploadCurrentBackup({ folder: DEFAULT_FOLDER });
+            toast('Lokaler Stand nach SharePoint gesichert.');
+            refreshStatus();
+            return;
+        }
+        const syncMeta = preview.meta
+            ? Object.assign({}, preview.meta, {
+                  at: new Date().toISOString(),
+                  direction: 'pull',
+                  dirty: false
+              })
+            : null;
+        applySharePointBackupLocally(obj, syncMeta, { reload: false });
         toast('Backup übernommen.');
         const reload = await confirmAsync('Seite jetzt neu laden?', {
             title: 'Neu laden',

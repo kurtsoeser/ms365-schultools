@@ -44,6 +44,7 @@
             return pdfjsLib.getDocument({ data: buf }).promise.then(function (pdf) {
                 const pagePromises = [];
                 for (let p = 1; p <= pdf.numPages; p++) {
+                    const pageNum = p;
                     pagePromises.push(
                         pdf.getPage(p).then(function (page) {
                             return page.getTextContent().then(function (content) {
@@ -55,7 +56,7 @@
                                     const tr = item.transform || [1, 0, 0, 1, 0, 0];
                                     const x = Number(tr[4]) || 0;
                                     const y = Number(tr[5]) || 0;
-                                    words.push({ str: str, x: x, y: y });
+                                    words.push({ str: str, x: x, y: y, page: pageNum });
                                     lines.push(str);
                                 });
                                 return { words: words, text: lines.join('\n') };

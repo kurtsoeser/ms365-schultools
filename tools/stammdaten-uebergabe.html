@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Stammdaten-Übergabe</title>
-    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
@@ -27,6 +27,7 @@
                 <a class="btn" href="../tenant.html"><i class="bi bi-sliders2-vertical"></i>Stammdaten</a>
                 <a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Intranet</a>
                 <a class="btn" href="verwaltung.html"><i class="bi bi-building-gear"></i>Verwaltung</a>
+                <a class="btn alt" href="stammdaten-backup-abgleich.html" title="Lokal vs. SharePoint (nach Abgleich-Dialog)"><i class="bi bi-columns-gap"></i>Backup-Abgleich</a>
             </div>
         </div>
 
@@ -86,8 +87,8 @@
                     <input type="text" id="suFolder" value="Backups" maxlength="120" spellcheck="false">
                 </div>
                 <label class="checkbox-label" style="display:flex;gap:8px;align-items:center;margin:8px 0 12px;">
-                    <input type="checkbox" id="suKeepDated">
-                    <span>Zusätzlich datierte Kopie ablegen</span>
+                    <input type="checkbox" id="suKeepDated" checked>
+                    <span>Datierte Kopie ablegen (Standard; aktuelle Datei wird zusätzlich immer aktualisiert)</span>
                 </label>
                 <p id="suLastMeta" class="muted" style="margin:0 0 10px;"></p>
                 <a id="suFileLink" class="btn btn-sm" hidden target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Bibliothek / Datei öffnen</a>
@@ -147,7 +148,7 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/browser-backup.js" defer></script>

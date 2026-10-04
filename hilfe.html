@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hilfe, Datenschutz &amp; Hinweise – MS365-Schul-Tools</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=12">
+    <link rel="stylesheet" href="app.css?v=13">
     <style>
         body { padding-bottom: 0; }
         .help-layout {
@@ -608,6 +608,7 @@
                                 <li>Listen füllen: Copy &amp; Paste, CSV/XLSX-Vorlage oder Import aus Sokrates/WebUntis.</li>
                                 <li>Lehrkräfte und Schüler:innen optional <strong>aus Microsoft 365 einlesen</strong> (Lizenzfilter A1/A3/A5).</li>
                                 <li>Speichern. Mit <strong>Browser-Backup</strong> alle lokalen Daten sichern oder in einen anderen Browser übertragen; optional <strong>Nach SharePoint</strong> in die IT-Sicherungsbibliothek.</li>
+                                <li>Tab <strong>Intranet-Listen</strong>: SharePoint-Website angeben, Listen abgleichen (Schüler, Fächer, ARGE, Klassen …) inkl. Berechtigungen – auch in Schritt 11 der <a href="einrichtung.html">geführten Einrichtung</a>.</li>
                             </ol>
                         </div>
                         <div class="hint">
@@ -679,6 +680,24 @@
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/datenhygiene.html">→ Datenhygiene öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="datenlandkarte listen quellen canvas sync sharepoint stammdaten">
+                        <h3 id="tool-datenlandkarte">Datenlandkarte <span class="pill">Übersicht</span></h3>
+                        <p>
+                            Die <a href="tools/datenlandkarte.html">Datenlandkarte</a> zeigt Listen und Datenquellen als Blöcke mit Verbindungslinien
+                            (Sync, Joins, Feld-Verknüpfungen) – hilfreich für IT und Stammdaten-Verantwortliche.
+                        </p>
+                        <p class="help-open"><a href="tools/datenlandkarte.html">→ Datenlandkarte öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="schulgraph karte graph beziehungen klasse fach lehrer eltern">
+                        <h3 id="tool-schulgraph">Schuldaten-Karte <span class="pill">Visualisierung</span></h3>
+                        <p>
+                            Unter <a href="tools/schulgraph.html">Schuldaten-Karte</a> sehen Sie Stammdaten und M365-Bezüge als zoombaren Graph
+                            (Klassen, Fächer, ARGE, Lehrkräfte, Unterrichtsbelegung, Eltern/Schüler, Gruppen).
+                        </p>
+                        <p class="help-open"><a href="tools/schulgraph.html">→ Schuldaten-Karte öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="kursteam unterrichtsteams stundenplan webuntis fach csv powershell anlage">
@@ -1111,8 +1130,21 @@
 
                     <article class="help-article" data-help-article data-search="lehrerliste sharepoint liste stammdaten">
                         <h3 id="tool-lehrerliste">Lehrerliste <span class="pill">SharePoint</span></h3>
-                        <p>Lehrkräfte aus den Stammdaten als neue SharePoint-Liste auf einer gewählten Website anlegen.</p>
+                        <p>Lehrkräfte aus den Stammdaten als SharePoint-Liste anlegen oder abgleichen – inkl. Textfelder E-Mail/UPN und optional Personenfeld <strong>Lehrkraft (Person)</strong> für den M365-Benutzer.</p>
                         <p class="help-open"><a href="tools/sharepoint-liste-lehrer.html">→ Lehrerliste öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="schüler schueler fächer klassen stammdaten sharepoint liste intranet">
+                        <h3 id="tool-stammdaten-listen">Stammdaten-Listen <span class="pill">SharePoint</span></h3>
+                        <p>
+                            Schülerinnen-, Fächer-, Fachgruppen-, ARGE- und optional Klassenliste auf einer SharePoint-Website
+                            <strong>abgleichen</strong> (vorhandene Liste nach Name) oder neu anlegen. Zeilen werden ergänzt/aktualisiert;
+                            optional werden Einträge entfernt, die nicht mehr in den Stammdaten stehen.
+                            Bei der <strong>Klassenliste</strong> optional Personenfeld „Schülerinnen“ (M365-Benutzer pro Klasse, aus Schüler-Stammdaten nach Klassen-Kürzel/Name).
+                            <strong>Berechtigungen</strong> wie beim Schularbeiten-Planer über Entra-Gruppen (Verwaltung / Lehrkräfte / Schüler):
+                            z. B. Klassen und Fächer für Schüler nur Lesen, Gesamt-Schülerliste ohne Schüler-Gruppe.
+                        </p>
+                        <p class="help-open"><a href="tools/sharepoint-liste-stammdaten.html">→ Stammdaten-Listen öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="schultermine kalender sharepoint power automate csv import ziel lehrer">
@@ -1238,12 +1270,34 @@
                         <p class="help-open"><a href="tools/pa-erst-setup.html">→ Erst-Setup öffnen</a></p>
                     </article>
 
+                    <article class="help-article" data-help-article data-search="freistellung ablauf workflow diagramm antrag planer genehmigung idee konzept">
+                        <h3 id="tool-freistellung-konzept">Freistellungen – Ablauf &amp; Idee <span class="pill">Dokumentation</span></h3>
+                        <p>
+                            Erklärt den gesamten Weg: Antrag im <strong>Freistellungen-Planer</strong> (kein separates Formular nötig),
+                            Datensatz in der SharePoint-Liste, Power Automate mit <strong>Microsoft Approvals</strong>
+                            (ein Tag: Klassenvorstand; ab zwei Tagen: KV und Direktion), Status und Übersicht im Planer.
+                            Inkl. Flussdiagramm für Leitung und IT.
+                        </p>
+                        <p class="help-open"><a href="tools/freistellung-konzept.html">→ Ablauf &amp; Idee öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="freistellung flow v2 power automate anleitung maker genehmigung teams audit">
+                        <h3 id="tool-freistellung-flow-v2">Freistellungen Flow v2 <span class="pill">IT / Maker</span></h3>
+                        <p>
+                            Bauanleitung für Power Automate: Approvals in Teams, Tageslogik (1 Tag / mehrtägig / KV=Direktion),
+                            Audit-Spalten in SharePoint für Planer und CSV. Nach Export ZIP ins Projekt einspielen.
+                        </p>
+                        <p class="help-open"><a href="tools/freistellung-flow-v2-anleitung.html">→ Flow v2 Anleitung öffnen</a>
+                            · <a href="../docs/freistellung-flow-v2-copilot.md">Copilot-Prompts (Markdown)</a></p>
+                    </article>
+
                     <article class="help-article" data-help-article data-search="freistellung genehmigung kv direktion power automate sharepoint liste paket">
                         <h3 id="tool-freistellung">Freistellungen Setup <span class="pill">SharePoint + Flow</span></h3>
                         <p>
                             Drei Phasen: Vorbereitung (Erst-Setup), SharePoint-Liste anlegen, Flow-Paket herunterladen und
                             in Power Automate importieren (Legacy-Package, Connections zuweisen – Microsoft Approvals für KV und Direktion).
-                            Auch mit A3 nutzbar. Anträge und Berichte: <a href="tools/freistellung-planer.html">Freistellungen-Planer</a>.
+                            Auch mit A3 nutzbar. Zuerst den <a href="tools/freistellung-konzept.html">Ablauf verstehen</a>,
+                            dann einrichten. Anträge und Berichte: <a href="tools/freistellung-planer.html">Freistellungen-Planer</a>.
                         </p>
                         <p class="help-open"><a href="tools/freistellung-setup.html">→ Freistellungen Setup öffnen</a></p>
                     </article>
@@ -1397,6 +1451,11 @@
                         <p>Liest den lokalen Kursteams-Stand: Teams ohne Besitzer, Lehrer ohne Match, Klassen ohne Team.</p>
                         <p class="help-open"><a href="tools/webuntis-sync-monitor.html">→ Monitor öffnen</a></p>
                     </article>
+                    <article class="help-article" data-help-article data-search="unterrichtsteams katalog kursteam liste filter bearbeiten belegung">
+                        <h3 id="tool-unterrichtsteams-katalog">Unterrichtsteams-Katalog <span class="pill">Pflege</span></h3>
+                        <p>Zeigt die <strong>Unterrichtsbelegung</strong> (nach Import aus Kursteams oder M365): filtern nach Klasse, Fach, Lehrkraft; Anzeigenamen und Mail-Nicknames bearbeiten; optional Anzeigenamen in Entra aktualisieren.</p>
+                        <p class="help-open"><a href="tools/unterrichtsteams-katalog.html">→ Katalog öffnen</a></p>
+                    </article>
                     <article class="help-article" data-help-article data-search="räume room places ressourcen">
                         <h3 id="tool-raeume-ressourcen">Räume &amp; Ressourcen <span class="pill">read-only</span></h3>
                         <p>Places aus Graph lesen. Schreiben weiterhin über gemeinsame Postfächer.</p>
@@ -1425,12 +1484,17 @@
                             Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt.
                             Nach der Einrichtung laden Dashboard und relevante Tool-Seiten die Datei nach der Anmeldung automatisch
                             und sichern lokale Änderungen wieder nach SharePoint (manuelle Buttons bleiben verfügbar).
+                            Die Verknüpfung zur Bibliothek wird <strong>pro Microsoft-365-Mandant</strong> im Browser gespeichert;
+                            auf einem neuen Gerät verknüpft die App die Bibliothek nach dem Login oft selbst (Intranet-URL + Bibliotheksname),
+                            sobald Sie angemeldet sind – ohne die Bibliothek neu anzulegen.
                         </p>
                         <div class="mini-steps">
                             <ol>
                                 <li>Intranet-URL und IT-Gruppe (E-Mail oder GUID) eintragen – Vorschlag: Verwaltungsgruppe.</li>
                                 <li><strong>IT-Bibliothek einrichten</strong> (einmalig; braucht SharePoint FullControl).</li>
                                 <li>Einmalig <strong>Jetzt hochladen</strong> – danach hält der Auto-Sync den Stand aktuell; bei Bedarf weiterhin manuell laden/sichern.</li>
+                                <li>Weicht der Stand ab (anderes Gerät, ältere Sicherung), öffnet sich ein <strong>Abgleich-Dialog</strong> mit Zeitstempeln und ausklappbaren Listen der betroffenen Datenbereiche; optional <strong>In neuem Tab öffnen</strong> (
+                                    <a href="tools/stammdaten-backup-abgleich.html">Backup-Abgleich</a>). Dort wählen Sie: von SharePoint übernehmen, lokal behalten oder lokal nach SharePoint sichern.</li>
                             </ol>
                         </div>
                         <div class="warn">
@@ -1533,7 +1597,7 @@
                         <summary>Wie komme ich mit den Daten auf einen anderen PC?</summary>
                         <div class="faq-body">
                             <p><strong>Variante A – Datei:</strong> Dashboard → <strong>Browser-Backup</strong> → JSON speichern. Am Ziel-PC dieselbe App öffnen → Backup importieren. Danach erneut bei Microsoft anmelden.</p>
-                            <p><strong>Variante B – SharePoint:</strong> Wenn die IT-Sicherungsbibliothek eingerichtet ist: am Quell-PC <strong>Nach SharePoint</strong>, am Ziel-PC anmelden und <strong>Von SharePoint</strong> (oder Auto-Sync nach dem Login). Details: <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>.</p>
+                            <p><strong>Variante B – SharePoint:</strong> Wenn die IT-Sicherungsbibliothek eingerichtet ist: am Quell-PC <strong>Nach SharePoint</strong>, am Ziel-PC anmelden – die App verknüpft die Bibliothek oft automatisch und bietet den Abgleich mit <strong>Vergleichsdialog</strong> an (<strong>Von SharePoint</strong> oder Auto-Sync nach Login). Auf einem leeren Browser übernimmt sie die SharePoint-Sicherung ohne Rückfrage. Details: <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>.</p>
                             <p>Nicht enthalten: MSAL-Tokens / PIN. Enthalten: Stammdaten, Verknüpfungen, Dashboard-Favoriten und lokale Werkzeugstände mit Präfix <code>ms365-</code> / <code>webuntis-</code>.</p>
                         </div>
                     </details>
@@ -1728,7 +1792,7 @@
     </div>
     <p class="site-credit-row"><a href="https://www.kurtrocks.com/" class="site-credit-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-info-circle" aria-hidden="true"></i>kurtrocks.com</a></p>
     <script src="src/shared/help-page.js" defer></script>
-    <script src="src/shared/theme-toggle.js" defer></script>
+    <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
 </body>
 </html>

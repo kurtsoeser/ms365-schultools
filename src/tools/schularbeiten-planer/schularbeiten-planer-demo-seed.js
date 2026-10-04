@@ -1,8 +1,19 @@
 /**
  * Demo-Daten 2026/27 auf SharePoint-Listen schreiben (idempotent per Seed-Tag / IDs).
  */
-import { LIST_TITLES, newEntityId } from './schularbeiten-planer-schema.js';
+import { LIST_TITLES, LIST_KEYS, newEntityId } from './schularbeiten-planer-schema.js';
+import { resolvePlanerList } from './schularbeiten-planer-lists.js';
+import { findListByDisplayName } from './schularbeiten-planer-graph.js';
+import { normalizeSchuljahr } from './schularbeiten-planer-schuljahr.js';
 import { getDemoSeedPackage, DEMO_SEED_TAG } from './schularbeiten-planer-demo-data.js';
+import {
+    mapFachMetaToFields,
+    mapFensterToFields,
+    mapRegelwerkToFields,
+    mapSchularbeitToFields
+} from './schularbeiten-planer-graph.js';
+import { mergeSubjectCatalogRows } from '../../shared/subject-list-enrich.js';
+import { normCode } from '../../shared/utils/strings.js';
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',
@@ -35,7 +46,7 @@ async function fetchAllItems(tok, siteId, listId) {
         G().graphPathSite(siteId) +
         '/lists/' +
         encodeURIComponent(listId) +
-        '/items?$expand=fields&$top=100';
+        '/items?$expand=fields&$top=999';
     const out = [];
     while (path) {
         const data = await G().graphJson('GET', path, tok, undefined, 'v1.0');
@@ -76,9 +87,78 @@ async function patchItemFields(tok, siteId, listId, itemId, fields) {
 function cleanFields(fields) {
     const out = { ...fields };
     Object.keys(out).forEach((k) => {
-        if (out[k] === undefined || out[k] === null) delete out[k];
+        const v = out[k];
+        if (v === undefined || v === null) delete out[k];
+        else if (v === '') delete out[k];
     });
     return out;
+}
+
+/** Demo-/Import-JSON-Zeile → Graph-Felder (ohne leere Datumswerte). */
+function packSchularbeitRowToFields(row) {
+    const r = row || {};
+    return mapSchularbeitToFields({
+        titel: r.Titel || r.titel || r.Title || '',
+        thema: r.Thema || r.thema || '',
+        schularbeitId: r.SchularbeitId,
+        fachCode: r.FachCode,
+        klasseCode: r.KlasseCode,
+        lehrerCode: r.LehrerCode,
+        lehrerEmail: r.LehrerEmail,
+        datum: r.Datum,
+        beginnUhrzeit: r.BeginnUhrzeit,
+        dauerMinuten: r.DauerMinuten,
+        semester: r.Semester,
+        status: r.Status,
+        notiz: r.Notiz,
+        ablehnungsGrund: r.AblehnungsGrund,
+        beantragtVon: r.BeantragtVon,
+        fixiertVon: r.FixiertVon,
+        fixiertAm: r.FixiertAm || undefined,
+        schulterminKey: r.SchulterminKey || undefined,
+        teamsCalendarEventId: r.TeamsCalendarEventId || undefined,
+        schuljahr: normalizeSchuljahr(r.Schuljahr)
+    });
+}
+
+function packFachMetaRowToFields(row) {
+    const r = row || {};
+    return mapFachMetaToFields({
+        name: r.Title,
+        fachCode: r.FachCode,
+        farbe: r.Farbe,
+        hatSchularbeiten: r.HatSchularbeiten,
+        proSemester: r.ProSemester,
+        standardDauer: r.StandardDauer,
+        schuljahr: normalizeSchuljahr(r.Schuljahr)
+    });
+}
+
+function packFensterRowToFields(row) {
+    const r = row || {};
+    return mapFensterToFields({
+        titel: r.Title,
+        terminfensterId: r.TerminfensterId,
+        typ: r.Typ,
+        startdatum: r.Startdatum,
+        enddatum: r.Enddatum,
+        beschreibung: r.Beschreibung,
+        schuljahr: normalizeSchuljahr(r.Schuljahr)
+    });
+}
+
+function packRegelwerkToFields(rw) {
+    const r = rw || {};
+    return mapRegelwerkToFields({
+        name: r.Title,
+        regelwerkId: r.RegelwerkId,
+        maxProTag: r.MaxProTag,
+        maxProWoche: r.MaxProWoche,
+        ankuendigungsfristTage: r.AnkuendigungsfristTage,
+        sperreVorNotenkonferenzTage: r.SperreVorNotenkonferenzTage,
+        aktiv: r.Aktiv,
+        schuljahr: normalizeSchuljahr(r.Schuljahr)
+    });
 }
 
 /**
@@ -103,43 +183,41 @@ export async function seedDemoSchularbeiten(webUrl, logFn, opts) {
     if (!siteId) throw new Error('Site-ID fehlt.');
     write('Site: ' + (site.displayName || siteId));
 
-    const need = [
-        LIST_TITLES.regelwerk,
-        LIST_TITLES.terminfenster,
-        LIST_TITLES.schularbeiten,
-        LIST_TITLES.fachMeta
-    ];
     /** @type {Record<string, { id: string }>} */
     const lists = {};
-    for (let i = 0; i < need.length; i++) {
-        const title = need[i];
-        const list = await findListByTitle(tok, siteId, title);
-        if (!list || !list.id) {
+    for (let i = 0; i < LIST_KEYS.length; i++) {
+        const key = LIST_KEYS[i];
+        const resolved = await resolvePlanerList(tok, siteId, key, findListByDisplayName);
+        if (!resolved || !resolved.list || !resolved.list.id) {
             throw new Error(
-                'Liste „' + title + '“ fehlt. Bitte zuerst „Paket anlegen“ ausführen.'
+                'Liste „' + LIST_TITLES[key] + '“ fehlt. Bitte zuerst „Paket anlegen“ ausführen.'
             );
         }
-        lists[title] = { id: String(list.id) };
-        write('OK Liste: ' + title);
+        lists[key] = { id: String(resolved.list.id) };
+        write('OK Liste: ' + (resolved.displayName || LIST_TITLES[key]));
     }
+    const schoolYear = normalizeSchuljahr(pack.schoolYear);
 
     // Regelwerk
     write('Regelwerk …');
-    const rwItems = await fetchAllItems(tok, siteId, lists[LIST_TITLES.regelwerk].id);
+    const rwItems = await fetchAllItems(tok, siteId, lists.regelwerk.id);
     const rwDemo = rwItems.find(
         (it) => String((it.fields && it.fields.RegelwerkId) || '') === pack.regelwerk.RegelwerkId
     );
+    const rwFields = cleanFields(
+        packRegelwerkToFields({ ...pack.regelwerk, Schuljahr: pack.regelwerk.Schuljahr || schoolYear })
+    );
     if (rwDemo) {
-        await patchItemFields(tok, siteId, lists[LIST_TITLES.regelwerk].id, rwDemo.id, cleanFields(pack.regelwerk));
+        await patchItemFields(tok, siteId, lists.regelwerk.id, rwDemo.id, rwFields);
         write('  Regelwerk aktualisiert.');
     } else {
-        await createItem(tok, siteId, lists[LIST_TITLES.regelwerk].id, cleanFields(pack.regelwerk));
+        await createItem(tok, siteId, lists.regelwerk.id, rwFields);
         write('  Regelwerk angelegt.');
     }
 
     // FachMeta
-    write('SA-FachMeta (' + pack.fachMeta.length + ') …');
-    const metaItems = await fetchAllItems(tok, siteId, lists[LIST_TITLES.fachMeta].id);
+    write('SAP-FachMeta (' + pack.fachMeta.length + ') …');
+    const metaItems = await fetchAllItems(tok, siteId, lists.fachMeta.id);
     const metaByCode = new Map();
     metaItems.forEach((it) => {
         const code = String((it.fields && it.fields.FachCode) || '').trim();
@@ -148,13 +226,13 @@ export async function seedDemoSchularbeiten(webUrl, logFn, opts) {
     let metaCreated = 0;
     let metaUpdated = 0;
     for (let i = 0; i < pack.fachMeta.length; i++) {
-        const row = pack.fachMeta[i];
+        const row = cleanFields(packFachMetaRowToFields(pack.fachMeta[i]));
         const existing = metaByCode.get(row.FachCode);
         if (existing) {
-            await patchItemFields(tok, siteId, lists[LIST_TITLES.fachMeta].id, existing.id, cleanFields(row));
+            await patchItemFields(tok, siteId, lists.fachMeta.id, existing.id, row);
             metaUpdated++;
         } else {
-            await createItem(tok, siteId, lists[LIST_TITLES.fachMeta].id, cleanFields(row));
+            await createItem(tok, siteId, lists.fachMeta.id, row);
             metaCreated++;
         }
     }
@@ -162,7 +240,7 @@ export async function seedDemoSchularbeiten(webUrl, logFn, opts) {
 
     // Terminfenster
     write('Terminfenster (' + pack.terminfenster.length + ') …');
-    const tfItems = await fetchAllItems(tok, siteId, lists[LIST_TITLES.terminfenster].id);
+    const tfItems = await fetchAllItems(tok, siteId, lists.terminfenster.id);
     const tfById = new Map();
     tfItems.forEach((it) => {
         const id = String((it.fields && it.fields.TerminfensterId) || '').trim();
@@ -171,13 +249,14 @@ export async function seedDemoSchularbeiten(webUrl, logFn, opts) {
     let tfC = 0;
     let tfU = 0;
     for (let i = 0; i < pack.terminfenster.length; i++) {
-        const row = pack.terminfenster[i];
-        const existing = tfById.get(row.TerminfensterId);
+        const src = pack.terminfenster[i];
+        const row = cleanFields(packFensterRowToFields(src));
+        const existing = tfById.get(src.TerminfensterId);
         if (existing) {
-            await patchItemFields(tok, siteId, lists[LIST_TITLES.terminfenster].id, existing.id, cleanFields(row));
+            await patchItemFields(tok, siteId, lists.terminfenster.id, existing.id, row);
             tfU++;
         } else {
-            await createItem(tok, siteId, lists[LIST_TITLES.terminfenster].id, cleanFields(row));
+            await createItem(tok, siteId, lists.terminfenster.id, row);
             tfC++;
         }
     }
@@ -185,7 +264,7 @@ export async function seedDemoSchularbeiten(webUrl, logFn, opts) {
 
     // Schularbeiten
     write('Schularbeiten (' + pack.schularbeiten.length + ') …');
-    const saItems = await fetchAllItems(tok, siteId, lists[LIST_TITLES.schularbeiten].id);
+    const saItems = await fetchAllItems(tok, siteId, lists.schularbeiten.id);
     const saById = new Map();
     saItems.forEach((it) => {
         const id = String((it.fields && it.fields.SchularbeitId) || '').trim();
@@ -200,14 +279,14 @@ export async function seedDemoSchularbeiten(webUrl, logFn, opts) {
     let saC = 0;
     let saU = 0;
     for (let i = 0; i < pack.schularbeiten.length; i++) {
-        const row = cleanFields(pack.schularbeiten[i]);
+        let row = cleanFields(packSchularbeitRowToFields(pack.schularbeiten[i]));
         if (!row.SchularbeitId) row.SchularbeitId = newEntityId('sa');
         const existing = saById.get(row.SchularbeitId);
         if (existing) {
-            await patchItemFields(tok, siteId, lists[LIST_TITLES.schularbeiten].id, existing.id, row);
+            await patchItemFields(tok, siteId, lists.schularbeiten.id, existing.id, row);
             saU++;
         } else {
-            await createItem(tok, siteId, lists[LIST_TITLES.schularbeiten].id, row);
+            await createItem(tok, siteId, lists.schularbeiten.id, row);
             saC++;
         }
         if ((saC + saU) % 10 === 0) write('  … ' + (saC + saU) + '/' + pack.schularbeiten.length);
@@ -284,21 +363,54 @@ export function parseDemoImportJson(raw) {
  * Stammdaten aus Demo-Paket in tenant-settings schreiben.
  * @param {object} stammdaten
  */
+function mergeClassesByCode(existing, incoming) {
+    const by = new Map();
+    (existing || []).forEach(function (c) {
+        const code = normCode(c && c.code);
+        if (!code) return;
+        by.set(code, Object.assign({}, c, { code: code }));
+    });
+    (incoming || []).forEach(function (c) {
+        const code = normCode(c && c.code);
+        if (!code || by.has(code)) return;
+        by.set(code, Object.assign({}, c, { code: code }));
+    });
+    return Array.from(by.values());
+}
+
+function mergeTeachersByCode(existing, incoming) {
+    const by = new Map();
+    (existing || []).forEach(function (t) {
+        const code = normCode(t && t.code);
+        if (!code) return;
+        by.set(code, Object.assign({}, t, { code: code }));
+    });
+    (incoming || []).forEach(function (t) {
+        const code = normCode(t && t.code);
+        if (!code || by.has(code)) return;
+        by.set(code, Object.assign({}, t, { code: code }));
+    });
+    return Array.from(by.values());
+}
+
 export function applyDemoStammdatenLocal(stammdaten) {
     if (!stammdaten || typeof window === 'undefined') return false;
     if (typeof window.ms365TenantSettingsLoad !== 'function' || typeof window.ms365TenantSettingsSave !== 'function') {
         return false;
     }
     const cur = window.ms365TenantSettingsLoad() || {};
+    const subMerge = mergeSubjectCatalogRows(cur.subjects, stammdaten.subjects || []);
     const next = {
         ...cur,
         schoolName: stammdaten.schoolName || cur.schoolName,
         domain: stammdaten.domain || cur.domain,
-        subjects: Array.isArray(stammdaten.subjects) && stammdaten.subjects.length ? stammdaten.subjects : cur.subjects,
-        classes: Array.isArray(stammdaten.classes) && stammdaten.classes.length ? stammdaten.classes : cur.classes,
-        teachers: Array.isArray(stammdaten.teachers) && stammdaten.teachers.length ? stammdaten.teachers : cur.teachers,
+        subjects: subMerge.subjects || cur.subjects,
+        classes: mergeClassesByCode(cur.classes, stammdaten.classes),
+        teachers: mergeTeachersByCode(cur.teachers, stammdaten.teachers),
         students:
-            Array.isArray(stammdaten.students) && stammdaten.students.length
+            !(cur.students && cur.students.length) &&
+            Array.isArray(stammdaten.students) &&
+            stammdaten.students.length
                 ? stammdaten.students
                 : cur.students
     };
@@ -315,7 +427,8 @@ export function packToLocalPlanerState(pack) {
     const items = (p.schularbeiten || []).map((f, i) => ({
         itemId: 'local-' + String(f.SchularbeitId || i),
         schularbeitId: String(f.SchularbeitId || ''),
-        thema: String(f.Title || ''),
+        titel: String(f.Titel || f.titel || f.Title || ''),
+        thema: String(f.Thema || f.thema || f.Title || f.Titel || f.title || ''),
         fachCode: String(f.FachCode || ''),
         klasseCode: String(f.KlasseCode || ''),
         lehrerCode: String(f.LehrerCode || ''),

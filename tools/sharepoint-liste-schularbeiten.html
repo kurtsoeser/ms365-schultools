@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Schularbeiten-Listen</title>
-    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../src/shared/planner-entra-perms.css">
 </head>
 <body>
     <div class="container page-card tm-page">
@@ -23,6 +24,7 @@
             <p class="header-help-row"><a href="../hilfe.html#tool-schularbeiten-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn btn-success spsa-go-planer" href="schularbeiten-planer.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-journal-check"></i>Schularbeiten-Planer</a>
             </div>
         </div>
 
@@ -30,11 +32,13 @@
             <section class="tm-hero" aria-label="Kurzüberblick">
                 <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></div>
                 <div>
-                    <p class="tm-hero__kicker">SharePoint · Intranet</p>
+                    <p class="tm-hero__kicker">SharePoint · Planungs-Site</p>
                     <h2>Schularbeiten-Paket einrichten</h2>
                     <p>
-                        Drei Listen auf der Schulwebsite. Klassen, Lehrer und Fächer kommen aus den
-                        <strong>Stammdaten</strong> – keine doppelten Lookup-Listen.
+                        Vier Listen auf der gewählten Website (empfohlen:
+                        <strong>Administrations-Site</strong>). Bestehende Listen werden erkannt;
+                        fehlende Spalten ergänzt. Regelwerk-Seed nur bei leerer Liste.
+                        Berechtigungen optional über Entra-Gruppen-Picker.
                     </p>
                 </div>
                 <div class="tm-hero__actions">
@@ -51,10 +55,11 @@
                     </div>
                 </div>
                 <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li><strong>Regelwerk</strong> – max. pro Tag/Woche, Ankündigungsfrist (inkl. Standard-Seed)</li>
-                    <li><strong>Terminfenster</strong> – Sperrzeiten (Ferien, Sportwoche, …)</li>
-                    <li><strong>Schularbeiten</strong> – Anträge mit Fach-/Klassen-/Lehrer-<em>Codes</em> und Status</li>
-                    <li><strong>SA-FachMeta</strong> – optional Farbe, Kontingent, Standarddauer pro Fach-Code</li>
+                    <li><strong>SAP-Regelwerk</strong> – max. pro Tag/Woche, Ankündigungsfrist (inkl. Standard-Seed, Schuljahr)</li>
+                    <li><strong>SAP-Terminfenster</strong> – Sperrzeiten je Schuljahr</li>
+                    <li><strong>SAP-Schularbeiten</strong> – Anträge mit Codes und Status</li>
+                    <li><strong>SAP-FachMeta</strong> – optional Farbe, Kontingent, Standarddauer</li>
+                    <li>Bestehende Listen ohne <code>SAP-</code>-Präfix werden beim Setup umbenannt; Spalte <code>Schuljahr</code> wird ergänzt.</li>
                 </ul>
             </section>
 
@@ -68,22 +73,31 @@
                 </div>
                 <div class="tm-field">
                     <label for="spsaSiteUrl">SharePoint-Website</label>
-                    <input type="url" id="spsaSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                    <input type="url" id="spsaSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/administration" autocomplete="off" spellcheck="false">
                 </div>
+                <p class="muted" style="font-size:0.88em;line-height:1.45;margin:8px 0 4px;">
+                    Entra-Gruppen und optional Einzelpersonen für Planer-Rolle und SharePoint-Listenrechte (wie im Freistellungs-Setup).
+                </p>
+                <div id="spsaEntraPermGrid" class="fr-setup-perm-grid-host"></div>
+                <label class="checkbox-label" style="display:block;margin:8px 0;">
+                    <input type="checkbox" id="spsaSkipPerms"> Berechtigungen diesmal überspringen (nur Listen/Spalten)
+                </label>
                 <div class="tm-actions">
                     <button type="button" class="btn" id="spsaBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
                     <button type="button" class="btn" id="spsaBtnHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>
                     <button type="button" class="btn" id="spsaBtnRun"><i class="bi bi-list-ul"></i>Paket anlegen</button>
+                    <button type="button" class="btn" id="spsaBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen</button>
                     <button type="button" class="btn btn-success" id="spsaBtnDemo"><i class="bi bi-database-add"></i>Demo 2026/27 laden</button>
+                    <a class="btn spsa-go-planer" href="schularbeiten-planer.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="bi bi-journal-check"></i>Zum Planer</a>
                 </div>
                 <p id="spsaHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
-                <details class="tm-tech">
-                    <summary>Protokoll</summary>
-                    <div id="spsaLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
-                </details>
+                <div class="tm-tech" style="margin-top:14px;">
+                    <h4 style="margin:0 0 8px;font-size:0.95rem;">Protokoll</h4>
+                    <div id="spsaLog" class="tm-log" aria-live="polite" role="log"></div>
+                </div>
                 <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
                     Voraussetzung: Stammdaten in den Schul-Grundeinstellungen pflegen (Klassen/Lehrer/Fächer-Codes).
-                    <strong>Demo 2026/27 laden</strong> schreibt Regelwerk, SA-FachMeta, Terminfenster und ca. 50+ Schularbeiten
+                    <strong>Demo 2026/27 laden</strong> schreibt SAP-Listen inkl. Schuljahr und ca. 50+ Schularbeiten
                     (idempotent per ID) – Standard-URL: kurtrocks MS365-Schultools.
                     JSON-Referenz: <code>docs/demo-data/schularbeiten-2026-27.json</code>.
                 </p>
@@ -93,7 +107,7 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/action-log.js" defer></script>

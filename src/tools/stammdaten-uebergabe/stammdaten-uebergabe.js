@@ -46,8 +46,8 @@ function applyFormState(state) {
     if ($('suLibraryTitle') && state.libraryTitle) $('suLibraryTitle').value = String(state.libraryTitle);
     if ($('suItGroup') && state.itGroup) $('suItGroup').value = String(state.itGroup);
     if ($('suFolder') && state.folder) $('suFolder').value = String(state.folder);
-    if ($('suKeepDated') && typeof state.keepDated === 'boolean') {
-        $('suKeepDated').checked = state.keepDated;
+    if ($('suKeepDated')) {
+        $('suKeepDated').checked = typeof state.keepDated === 'boolean' ? state.keepDated : true;
     }
 }
 

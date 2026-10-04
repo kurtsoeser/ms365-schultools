@@ -21,7 +21,7 @@ function foucScript(withAdminBootClear) {
         "<script>(function(){try{var d=document.documentElement;" +
         "var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}" +
         "d.setAttribute('data-theme',t);d.style.colorScheme=t;" +
-        "var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}" +
+        "var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}" +
         "d.setAttribute('data-brand',b);" +
         clear +
         "}catch(e){}})();</script>"
@@ -53,14 +53,25 @@ for (const full of files) {
         if (html.includes("d.setAttribute('data-theme',t);d.style.colorScheme=t;")) {
             html = html.replace(
                 "d.setAttribute('data-theme',t);d.style.colorScheme=t;",
-                "d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);"
+                "d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);"
             );
             changed = true;
         }
     }
 
     const depth = (rel.match(/\//g) || []).length;
-    const src = (depth ? '../'.repeat(depth) : '') + 'src/shared/theme-toggle.js';
+    const src = (depth ? '../'.repeat(depth) : '') + 'src/shared/theme-toggle.js?v=2';
+    if (html.includes('theme-toggle.js?v=1')) {
+        html = html.replace(/theme-toggle\.js\?v=1/g, 'theme-toggle.js?v=2');
+        changed = true;
+    } else if (html.includes('src/shared/theme-toggle.js"') && !html.includes('theme-toggle.js?v=')) {
+        html = html.replace(/src\/shared\/theme-toggle\.js/g, 'src/shared/theme-toggle.js?v=2');
+        changed = true;
+    }
+    if (html.includes('app.css?v=12')) {
+        html = html.replace(/app\.css\?v=12/g, 'app.css?v=13');
+        changed = true;
+    }
     if (!html.includes('theme-toggle.js')) {
         if (/msal-auth-ui\.js/.test(html)) {
             html = html.replace(

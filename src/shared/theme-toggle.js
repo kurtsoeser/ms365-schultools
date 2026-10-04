@@ -1,5 +1,5 @@
 /**
- * Light/Dark + Brand-Theme (teal | classic) für die gesamte App.
+ * Light/Dark + Brand-Theme (teal | classic | wine) für die gesamte App.
  * Standard: Hellmodus + Brand teal (Landing).
  * Speichert: ms365-theme-v1, ms365-brand-v1.
  * Hell/Dunkel-Schalter: Fußzeile. Brand: Konto-Menü oben rechts.
@@ -10,7 +10,17 @@
     const STORAGE_KEY = 'ms365-theme-v1';
     const BRAND_KEY = 'ms365-brand-v1';
     const THEMES = { light: 'light', dark: 'dark' };
-    const BRANDS = { teal: 'teal', classic: 'classic' };
+    const BRANDS = { teal: 'teal', classic: 'classic', wine: 'wine' };
+
+    const VALID_BRAND_LIST = [BRANDS.teal, BRANDS.classic, BRANDS.wine];
+
+    function isValidBrand(brand) {
+        return VALID_BRAND_LIST.indexOf(brand) !== -1;
+    }
+
+    function normalizeBrand(brand) {
+        return isValidBrand(brand) ? brand : BRANDS.teal;
+    }
 
     function preferredTheme() {
         return THEMES.light;
@@ -33,7 +43,7 @@
     function readStoredBrand() {
         try {
             const v = localStorage.getItem(BRAND_KEY);
-            if (v === BRANDS.classic || v === BRANDS.teal) return v;
+            if (isValidBrand(v)) return v;
         } catch {
             /* ignore */
         }
@@ -48,8 +58,7 @@
 
     function currentBrand() {
         const attr = document.documentElement.getAttribute('data-brand');
-        if (attr === BRANDS.classic || attr === BRANDS.teal) return attr;
-        return preferredBrand();
+        return normalizeBrand(attr);
     }
 
     function applyTheme(theme) {
@@ -99,7 +108,7 @@
     }
 
     function applyBrand(brand) {
-        const next = brand === BRANDS.classic ? BRANDS.classic : BRANDS.teal;
+        const next = normalizeBrand(brand);
         document.documentElement.setAttribute('data-brand', next);
         try {
             localStorage.setItem(BRAND_KEY, next);
@@ -197,7 +206,8 @@
     function init() {
         const stored = readStored();
         applyTheme(stored || preferredTheme());
-        applyBrand(readStoredBrand() || preferredBrand());
+        const domBrand = document.documentElement.getAttribute('data-brand');
+        applyBrand(readStoredBrand() || (isValidBrand(domBrand) ? domBrand : null) || preferredBrand());
         mountWhenReady(40);
     }
 
@@ -208,6 +218,11 @@
         mount: mountToggle,
         getBrand: currentBrand,
         setBrand: applyBrand,
+        syncBrandUi: function () {
+            syncBrandButtons();
+            syncBrandLogos();
+        },
+        isValidBrand: isValidBrand,
         brands: BRANDS
     };
 

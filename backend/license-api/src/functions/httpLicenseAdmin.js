@@ -8,7 +8,9 @@ const {
     readJsonBody,
     errorJsonResponse
 } = require('../lib/http-utils');
-const { requireOperatorCaller } = require('../lib/require-operator');
+const { getConfig } = require('../lib/config');
+const { validateCallerToken } = require('../lib/validate-token');
+const { isOperatorCaller, requireOperatorCaller } = require('../lib/require-operator');
 const {
     listLicenses,
     createLicense,
@@ -32,16 +34,20 @@ app.http('httpLicenseAdminMe', {
     route: 'license/admin/me',
     handler: async (request, context) => {
         try {
-            const caller = await requireOperatorCaller(bearerTokenFromRequest(request));
-            return jsonResponse(200, {
-                operator: true,
-                user: {
-                    oid: caller.oid || null,
-                    upn: caller.upn || null,
-                    name: caller.name || null,
-                    tid: caller.tid || null
-                }
-            });
+            const cfg = getConfig();
+            const token = bearerTokenFromRequest(request);
+            const caller = await validateCallerToken(token, cfg.tokenAudiences);
+            const user = {
+                oid: caller.oid || null,
+                upn: caller.upn || null,
+                name: caller.name || null,
+                tid: caller.tid || null
+            };
+            if (!isOperatorCaller(caller, cfg)) {
+                /* 200 + operator:false – kein „Fehler“ in der Browser-Konsole für normale Schul-Admins */
+                return jsonResponse(200, { operator: false, user });
+            }
+            return jsonResponse(200, { operator: true, user });
         } catch (e) {
             return errorJsonResponse(context, 'license/admin/me GET:', e, {
                 operator: false,

@@ -5,11 +5,13 @@
  * Phase 2: debounced Push nach lokalen Änderungen + Flush beim Verlassen
  * Phase 3: Versionsvergleich (lastModified / exportedAt) + Status-Events
  *
- * Voraussetzung: IT-Bibliothek eingerichtet, User angemeldet, kein Demo-Modus.
+ * Voraussetzung: IT-Bibliothek eingerichtet, User angemeldet.
  */
 import {
     DEFAULT_FOLDER,
     IT_LIBRARY_TITLE,
+    isItLibraryConfigured,
+    compareBackupPayloads,
     isAutoSyncIgnoredChangeSource,
     shouldApplyRemoteBackup,
     formatSyncStatusDe
@@ -25,8 +27,11 @@ import {
     downloadCurrentBackup,
     uploadCurrentBackup
 } from './stammdaten-sharepoint-sync-api.js';
+import { tryAutoLinkItLibrary } from './stammdaten-sharepoint-auto-link.js';
+import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
+import { applySharePointBackupLocally } from './stammdaten-sharepoint-pull-apply.js';
 
-const SESSION_PULL_KEY = 'ms365-spo-auto-pull-done-v1';
+const SESSION_PULL_KEY_PREFIX = 'ms365-spo-auto-pull-done-v1';
 const PUSH_DEBOUNCE_MS = 3000;
 const FOLDER = DEFAULT_FOLDER;
 
@@ -57,17 +62,22 @@ function isLoggedIn() {
     }
 }
 
-function isDemoActive() {
+function sessionPullKey() {
+    let tid = '';
     try {
-        return !!(window.ms365DemoMode && typeof window.ms365DemoMode.isActive === 'function' && window.ms365DemoMode.isActive());
+        if (typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            tid = info && info.tenantId ? String(info.tenantId).trim() : '';
+        }
     } catch {
-        return false;
+        /* ignore */
     }
+    return SESSION_PULL_KEY_PREFIX + (tid ? ':' + tid : '');
 }
 
 function sessionPullDone() {
     try {
-        return sessionStorage.getItem(SESSION_PULL_KEY) === '1';
+        return sessionStorage.getItem(sessionPullKey()) === '1';
     } catch {
         return false;
     }
@@ -75,7 +85,7 @@ function sessionPullDone() {
 
 function markSessionPullDone() {
     try {
-        sessionStorage.setItem(SESSION_PULL_KEY, '1');
+        sessionStorage.setItem(sessionPullKey(), '1');
     } catch {
         /* ignore */
     }
@@ -124,7 +134,7 @@ export function getStatus() {
 }
 
 function canRunNetworkSync() {
-    return isReady() && isLoggedIn() && !isDemoActive();
+    return isReady() && isLoggedIn();
 }
 
 /**
@@ -207,7 +217,29 @@ export async function runSessionPull(opts) {
                 pendingError: null
             };
 
-            if (!decision2.apply) {
+            const cmp = compareBackupPayloads(
+                window.ms365BrowserBackup && typeof window.ms365BrowserBackup.buildBackup === 'function'
+                    ? window.ms365BrowserBackup.buildBackup()
+                    : null,
+                payload
+            );
+
+            if (cmp.identical) {
+                saveLocalSyncMeta(
+                    Object.assign({}, loadLocalSyncMeta(), {
+                        remoteETag: syncMetaFromRemote.remoteETag,
+                        remoteLastModified: syncMetaFromRemote.remoteLastModified,
+                        remoteExportedAt: syncMetaFromRemote.remoteExportedAt,
+                        contentFingerprint: syncMetaFromRemote.contentFingerprint,
+                        dirty: false
+                    })
+                );
+                markSessionPullDone();
+                setLive({ phase: 'idle', message: '' });
+                return { skipped: true, reason: 'identical' };
+            }
+
+            if (!decision2.apply && options.auto !== false) {
                 saveLocalSyncMeta(
                     Object.assign({}, loadLocalSyncMeta(), {
                         remoteETag: syncMetaFromRemote.remoteETag,
@@ -221,34 +253,47 @@ export async function runSessionPull(opts) {
                 return { skipped: true, reason: decision2.reason };
             }
 
-            suppressPushUntil = Date.now() + 5000;
-            const bb = window.ms365BrowserBackup;
-            if (!bb || typeof bb.importPayload !== 'function') {
-                throw new Error('Backup-Modul fehlt.');
+            const choice = await resolveSharePointImportChoice(payload, {
+                auto: options.auto !== false,
+                remoteLastModified: syncMetaFromRemote.remoteLastModified
+            });
+
+            if (choice === 'skip') {
+                saveLocalSyncMeta(
+                    Object.assign({}, loadLocalSyncMeta(), {
+                        remoteETag: syncMetaFromRemote.remoteETag,
+                        remoteLastModified: syncMetaFromRemote.remoteLastModified,
+                        remoteExportedAt: syncMetaFromRemote.remoteExportedAt,
+                        dirty: false
+                    })
+                );
+                markSessionPullDone();
+                setLive({ phase: 'idle', message: '' });
+                return { skipped: true, reason: 'identical' };
             }
+
             markSessionPullDone();
-            bb.importPayload(payload);
-            saveLocalSyncMeta(syncMetaFromRemote);
 
-            live.lastPullAt = syncMetaFromRemote.at;
-            setLive({ phase: 'idle', error: '', message: 'Schul-/App-Daten von SharePoint aktualisiert' });
-            toast('Schul-/App-Daten von SharePoint aktualisiert.');
-
-            const reload = options.reloadOnApply !== false;
-            if (reload) {
-                try {
-                    window.dispatchEvent(
-                        new CustomEvent('ms365-tenant-settings-changed', {
-                            detail: { source: 'spo-auto-pull' }
-                        })
-                    );
-                } catch {
-                    /* ignore */
-                }
-                window.setTimeout(function () {
-                    window.location.reload();
-                }, 200);
+            if (choice === 'keep-local') {
+                setLive({ phase: 'idle', message: 'Lokaler Stand behalten (SharePoint unverändert).' });
+                return { skipped: true, reason: 'keep-local' };
             }
+
+            if (choice === 'push-local') {
+                suppressPushUntil = Date.now() + 5000;
+                await uploadCurrentBackup({ folder: FOLDER });
+                setLive({ phase: 'idle', message: 'Lokaler Stand nach SharePoint gesichert.' });
+                toast('Lokaler Stand nach SharePoint gesichert.');
+                return { pushed: true };
+            }
+
+            suppressPushUntil = Date.now() + 5000;
+            live.lastPullAt = syncMetaFromRemote.at;
+            setLive({ phase: 'idle', error: '', message: 'Schul-/App-Daten von SharePoint übernommen' });
+            toast('Schul-/App-Daten von SharePoint übernommen.');
+            applySharePointBackupLocally(payload, syncMetaFromRemote, {
+                reload: options.reloadOnApply !== false
+            });
             return { applied: true, payload: payload };
         } catch (e) {
             const msg = e && e.message ? String(e.message) : String(e);
@@ -280,7 +325,7 @@ export async function runPush(opts) {
         try {
             const result = await uploadCurrentBackup({
                 folder: FOLDER,
-                keepDated: !!options.keepDated
+                keepDated: options.keepDated
             });
             live.lastPushAt = new Date().toISOString();
             setLive({ phase: 'idle', error: '', message: '' });
@@ -373,14 +418,32 @@ function fingerprintChanged() {
     return String(meta.contentFingerprint) !== String(fp);
 }
 
+let authBootstrapInFlight = null;
+
 function onAuthReady() {
     if (!isLoggedIn()) return;
-    runSessionPull({ reloadOnApply: true }).then(function () {
+    if (authBootstrapInFlight) return;
+    authBootstrapInFlight = (async function () {
+        try {
+            if (!isItLibraryConfigured(loadItMeta())) {
+                const linkResult = await tryAutoLinkItLibrary();
+                if (linkResult && linkResult.linked) {
+                    const title = loadItMeta().listTitle || IT_LIBRARY_TITLE;
+                    setLive({ message: 'IT-Sicherungsbibliothek automatisch verknüpft („' + title + '“).' });
+                    toast('IT-Sicherungsbibliothek automatisch verknüpft („' + title + '“).');
+                }
+            }
+        } catch {
+            /* Auto-Verknüpfung optional */
+        }
+        await runSessionPull({ reloadOnApply: true });
         try {
             window.dispatchEvent(new CustomEvent('ms365-spo-sync-status', { detail: getStatus() }));
         } catch {
             /* ignore */
         }
+    })().finally(function () {
+        authBootstrapInFlight = null;
     });
 }
 

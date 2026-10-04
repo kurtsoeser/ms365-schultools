@@ -8,6 +8,7 @@ import {
     computeDashboardKpis,
     filterFreistellungen
 } from '../src/tools/freistellung-planer/freistellung-planer-logic.js';
+import { itemVisibleForRole } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
 
 describe('freistellung-planer-logic', () => {
     it('toIsoDateOnly parses dates', () => {
@@ -99,5 +100,20 @@ describe('freistellung-planer-logic', () => {
         expect(
             filterFreistellungen(items, {}, { onlyMine: true, accountEmail: 'a@schule.at' }).length
         ).toBe(1);
+    });
+
+    it('itemVisibleForRole schränkt Schüler und KV ein', () => {
+        const row = {
+            authorEmail: 'a@schule.at',
+            kvEmail: 'kv@schule.at',
+            status: 'Ausstehend'
+        };
+        const schuelerState = { role: 'schueler', accountEmail: 'a@schule.at' };
+        const otherSchueler = { role: 'schueler', accountEmail: 'x@schule.at' };
+        const kvState = { role: 'kv', accountEmail: 'kv@schule.at' };
+        expect(itemVisibleForRole(schuelerState, row)).toBe(true);
+        expect(itemVisibleForRole(otherSchueler, row)).toBe(false);
+        expect(itemVisibleForRole(kvState, row)).toBe(true);
+        expect(itemVisibleForRole({ role: 'direktion', accountEmail: 'dir@schule.at' }, row)).toBe(true);
     });
 });

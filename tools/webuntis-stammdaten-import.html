@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – WebUntis-Import</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../src/shared/webuntis-stammdaten-import.css?v=5">
+</head>
+<body>
+    <div class="container page-card wu-import-page" id="wuImportPage">
+        <div class="header">
+            <h1>Import von WebUntis</h1>
+            <div class="header-tool-indicator">
+                <span class="header-tool-indicator__label">Stammdaten</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-box-arrow-in-down"></i>WebUntis-Import</span>
+            </div>
+            <p>Exporte aus WebUntis hochladen, Bereiche prüfen und in die lokalen Stammdaten übernehmen. Schüler und Eltern werden über die Untis-ID automatisch verknüpft.</p>
+            <div class="toolbar">
+                <a class="btn" href="../tenant.html" id="wuImportBackLink"><i class="bi bi-arrow-left"></i>Zurück zu Stammdaten</a>
+            </div>
+        </div>
+
+        <div class="content wu-import-content">
+            <ol class="wu-import-steps" aria-label="Fortschritt">
+                <li class="wu-import-step is-active" id="wuImportStepUpload"><span class="wu-import-step__n">1</span>Dateien hochladen</li>
+                <li class="wu-import-step" id="wuImportStepReview"><span class="wu-import-step__n">2</span>Daten prüfen &amp; übernehmen</li>
+            </ol>
+
+            <div class="wu-import-status" role="status">
+                <p class="wu-import-status__text muted" id="wuStammdatenWizardStatus">
+                    Laden Sie die WebUntis-Dateien hoch (mehrere gleichzeitig möglich). Anschließend auf „Auswerten &amp; prüfen“ klicken.
+                </p>
+                <p class="slg-import-modal__warn wu-import-status__warn" id="wuStammdatenWizardWarn" hidden></p>
+            </div>
+
+            <div id="wuStammdatenWizardUpload" class="wu-import-panel">
+                <div class="wu-import-panel__head">
+                    <h2 class="wu-import-panel__title"><i class="bi bi-cloud-upload"></i>Dateien</h2>
+                    <p class="muted wu-import-panel__lead">Teacher_*, Student_*, LegalGuardian_*.csv · Subject_*.pdf · Class_*.pdf</p>
+                </div>
+                <div class="upload-area wu-import-drop" id="wuStammdatenDrop" tabindex="0" role="button" aria-label="Dateien auswählen oder ablegen">
+                    <div class="upload-icon wu-import-drop__icon"><i class="bi bi-cloud-upload"></i></div>
+                    <p class="wu-import-drop__title"><strong>Dateien hier ablegen</strong> oder klicken</p>
+                    <p class="muted wu-import-drop__meta">Tab-CSV und Excel · Fächer und Klassen auch als PDF</p>
+                    <input type="file" id="wuStammdatenFileInput" multiple accept=".csv,.xlsx,.xls,.txt,.pdf" />
+                </div>
+                <ul class="wu-import-files" id="wuStammdatenFileList" aria-live="polite"></ul>
+                <div class="wu-import-panel__foot" id="wuImportUploadActions">
+                    <p class="muted wu-import-panel__foot-hint">Schüler- und Eltern-CSV am besten zusammen laden.</p>
+                    <button type="button" class="btn btn-primary wu-import-btn-primary" id="wuStammdatenBtnNext"><i class="bi bi-search"></i>Auswerten &amp; prüfen</button>
+                </div>
+            </div>
+
+            <div id="wuStammdatenWizardReview" class="wu-import-panel wu-import-review" hidden>
+            <div class="wu-import-review__tabs-wrap">
+                <div class="tabs wu-import-area-tabs" id="wuImportAreaTabs" role="tablist" aria-label="Import-Bereiche"></div>
+                <p class="muted wu-import-tab-meta" id="wuImportTabMeta">Bereich wählen, Einträge prüfen und für die Übernahme markieren.</p>
+            </div>
+            <h2 class="sr-only" id="wuImportReviewTitle">Prüfung</h2>
+            <div id="wuImportReviewBody" role="tabpanel" aria-labelledby="wuImportTab-subjects">
+            <section id="wuSubjectImportPanel" class="wu-subject-import" hidden aria-label="Fächer für die Übernahme">
+                <div class="wu-subject-import__hero" id="wuSubjectImportHero" aria-live="polite"></div>
+                <div class="wu-subject-import__toolbar" id="wuSubjectImportToolbar">
+                    <div class="wu-subject-import__presets" role="group" aria-label="Schnellauswahl">
+                        <button type="button" class="btn btn-sm btn-primary" data-subject-preset="recommended"><i class="bi bi-magic"></i> Empfohlene Auswahl</button>
+                        <button type="button" class="btn btn-sm" data-subject-preset="teaching"><i class="bi bi-mortarboard"></i> Alle Unterrichtsfächer</button>
+                        <button type="button" class="btn btn-sm" data-subject-preset="all">Alle übernehmen</button>
+                        <button type="button" class="btn btn-sm" data-subject-preset="none">Keine übernehmen</button>
+                    </div>
+                    <div class="wu-subject-import__view" role="group" aria-label="Listenansicht">
+                        <button type="button" class="btn btn-sm is-active" data-subject-view="import">Nur Übernahme</button>
+                        <button type="button" class="btn btn-sm" data-subject-view="all">Alle Fächer</button>
+                    </div>
+                </div>
+                <details class="wu-subject-import__advanced" id="wuSubjectCleanupDetails">
+                    <summary><i class="bi bi-sliders2"></i> Einzelne Fächer anpassen</summary>
+                    <section id="wuStammdatenSubjectCleanup" class="wu-import-subject-cleanup" hidden aria-labelledby="wuSubjectCleanupTitle">
+                        <p class="muted wu-import-subject-cleanup__lead" id="wuSubjectCleanupTitle">
+                            Haken = Fach wird <strong>nicht</strong> übernommen. Familien: Endziffer (D1), Ü (RWÜ) oder Plus (M+) – meist nur das Haupt-Kürzel übernehmen.
+                        </p>
+                        <div class="subject-filter-toolbar wu-import-subject-cleanup__toolbar">
+                            <div class="subject-filter-search" style="flex:1;min-width:180px;">
+                                <label for="wuSubjectFilterSearch" class="sr-only">Fächer suchen</label>
+                                <input type="search" id="wuSubjectFilterSearch" placeholder="Kürzel suchen …" autocomplete="off" />
+                            </div>
+                            <button type="button" class="btn btn-sm" id="wuSubjectFilterExcludeNumbered"><i class="bi bi-layers"></i> Varianten ausschließen</button>
+                            <button type="button" class="btn btn-sm" id="wuSubjectFilterKeepFamilyBase"><i class="bi bi-collection"></i> Nur Basis pro Familie</button>
+                            <button type="button" class="btn btn-sm" id="wuSubjectFilterResetDefault"><i class="bi bi-building"></i> Verwaltung ausschließen</button>
+                        </div>
+                        <div id="wuSubjectFilterList" class="subject-filter-list" aria-label="Fächer-Liste"></div>
+                        <p id="wuSubjectFilterSummary" class="subject-filter-summary muted"></p>
+                    </section>
+                </details>
+            </section>
+            <div class="wu-import-filterbar" id="wuImportFilterbar">
+                <input type="search" id="wuStammdatenFilter" placeholder="Textsuche (Name, Kürzel, Klasse …)" autocomplete="off" />
+                <label class="slg-deviation-section__select-all" id="wuStammdatenSelectAllWrap">
+                    <input type="checkbox" id="wuStammdatenSelectAll" checked />
+                    <span id="wuStammdatenSelectAllLabel">Sichtbare für Übernahme markieren</span>
+                </label>
+            </div>
+            <p class="muted wu-stammdaten-wizard__filter-hint" id="wuStammdatenFilterHint" hidden></p>
+            <div class="wu-import-table-wrap slg-import-table-wrap">
+                <table class="slg-deviation-table slg-import-table" aria-label="Import-Vorschau">
+                    <thead id="wuStammdatenTableHead"></thead>
+                    <tbody id="wuStammdatenTableBody"></tbody>
+                </table>
+            </div>
+            <div class="wu-import-panel__foot wu-import-panel__foot--end">
+                <button type="button" class="btn" id="wuStammdatenBtnBack"><i class="bi bi-arrow-left"></i>Zurück zu Dateien</button>
+                <button type="button" class="btn btn-success wu-import-btn-primary" id="wuStammdatenBtnApply"><i class="bi bi-check2-circle"></i>In Stammdaten übernehmen</button>
+            </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="wuImportParseProgress" class="wu-import-progress" hidden role="dialog" aria-modal="true" aria-labelledby="wuImportProgressTitle" aria-describedby="wuImportProgressDetail">
+        <div class="wu-import-progress__card">
+            <div class="wu-import-progress__head">
+                <div class="wu-import-progress__spinner" aria-hidden="true"></div>
+                <div>
+                    <h3 class="wu-import-progress__title" id="wuImportProgressTitle">Dateien werden ausgewertet</h3>
+                    <p class="wu-import-progress__detail" id="wuImportProgressDetail">Bitte warten …</p>
+                </div>
+            </div>
+            <div class="wu-import-progress__bar-wrap" aria-hidden="true">
+                <div class="ms365-bulk-progress__bar wu-import-progress__bar">
+                    <div id="wuImportProgressFill"></div>
+                </div>
+                <span class="wu-import-progress__pct" id="wuImportProgressPct">0&nbsp;%</span>
+            </div>
+            <p class="muted wu-import-progress__eta" id="wuImportProgressEta"></p>
+            <ol class="wu-import-progress__steps" id="wuImportProgressSteps"></ol>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script type="module" src="../src/shared/utils/school-year.js"></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="../src/shared/person-email-from-name.js" defer></script>
+    <script src="../src/shared/pdf-text.js" defer></script>
+    <script src="../src/shared/webuntis-export-import.js" defer></script>
+    <script type="module" src="../src/tools/kursteams/kursteam-subject-filter-logic.js"></script>
+    <script src="../src/shared/school-sis-import.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script type="module" src="../src/shared/tenant-settings-ui.js"></script>
+    <script type="module" src="../src/tools/webuntis-stammdaten-import/webuntis-stammdaten-import.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+</body>
+</html>

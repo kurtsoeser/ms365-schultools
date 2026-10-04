@@ -8,7 +8,8 @@ import {
     buildDriveRelativePath,
     encodeDriveRootPath,
     describeRemoteBackup,
-    isItLibraryConfigured
+    isItLibraryConfigured,
+    normalizeItLibraryMeta
 } from './stammdaten-sharepoint-sync-logic.js';
 
 const SCOPES_GRAPH = [
@@ -17,8 +18,12 @@ const SCOPES_GRAPH = [
     'https://graph.microsoft.com/Group.Read.All'
 ];
 
+/** Legacy (ein Mandant pro Browser); wird in Mandanten-Map migriert. */
 const IT_META_KEY = 'ms365-stammdaten-it-library-v1';
 const SYNC_META_KEY = 'ms365-stammdaten-spo-sync-v1';
+const IT_META_BY_TENANT_KEY = 'ms365-stammdaten-it-library-by-tenant-v2';
+const SYNC_META_BY_TENANT_KEY = 'ms365-stammdaten-spo-sync-by-tenant-v2';
+const FORM_DRAFT_KEY = 'ms365-su-form-draft-v1';
 
 function getG() {
     const G = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
@@ -26,27 +31,148 @@ function getG() {
     return G;
 }
 
-export function loadItMeta() {
+function getTenantIdSync() {
+    try {
+        if (typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            if (info && info.tenantId) return String(info.tenantId).trim();
+        }
+    } catch {
+        /* ignore */
+    }
+    return '';
+}
+
+function readJsonMap(storageKey) {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeJsonMap(storageKey, map) {
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(map || {}));
+    } catch {
+        /* ignore */
+    }
+}
+
+function readLegacyItMeta() {
+    try {
+        return normalizeItLibraryMeta(JSON.parse(localStorage.getItem(IT_META_KEY) || '{}') || {});
+    } catch {
+        return {};
+    }
+}
+
+function readSetupItMeta() {
     try {
         const setup =
             window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
                 ? window.ms365AppDataV2.getSetup()
                 : null;
         if (setup && setup.stammdatenItLibrary && typeof setup.stammdatenItLibrary === 'object') {
-            return setup.stammdatenItLibrary;
+            return normalizeItLibraryMeta(setup.stammdatenItLibrary);
         }
     } catch {
         /* ignore */
     }
+    return {};
+}
+
+export function readItLibraryFormDraft() {
     try {
-        return JSON.parse(localStorage.getItem(IT_META_KEY) || '{}') || {};
+        const raw = localStorage.getItem(FORM_DRAFT_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
     } catch {
         return {};
     }
 }
 
+function mergeItMetaParts() {
+    const parts = [readLegacyItMeta(), readSetupItMeta()];
+    const out = {};
+    parts.forEach(function (p) {
+        Object.keys(p).forEach(function (k) {
+            const v = p[k];
+            if (v != null && v !== '') out[k] = v;
+        });
+    });
+    return normalizeItLibraryMeta(out);
+}
+
+function loadItMetaFromTenantStore(tenantId) {
+    if (!tenantId) return null;
+    const map = readJsonMap(IT_META_BY_TENANT_KEY);
+    const entry = map[tenantId];
+    if (!entry || typeof entry !== 'object') return null;
+    const meta = normalizeItLibraryMeta(entry);
+    if (!Object.keys(meta).some(function (k) {
+        return meta[k] != null && meta[k] !== '' && meta[k] !== false;
+    })) {
+        return null;
+    }
+    return meta;
+}
+
+function persistItMetaToTenantStore(tenantId, meta) {
+    if (!tenantId) return;
+    const map = readJsonMap(IT_META_BY_TENANT_KEY);
+    map[tenantId] = normalizeItLibraryMeta(meta);
+    writeJsonMap(IT_META_BY_TENANT_KEY, map);
+}
+
+function loadSyncMetaFromTenantStore(tenantId) {
+    if (!tenantId) return null;
+    const map = readJsonMap(SYNC_META_BY_TENANT_KEY);
+    const entry = map[tenantId];
+    return entry && typeof entry === 'object' ? entry : null;
+}
+
+function persistSyncMetaToTenantStore(tenantId, meta) {
+    if (!tenantId) return;
+    const map = readJsonMap(SYNC_META_BY_TENANT_KEY);
+    map[tenantId] = meta || {};
+    writeJsonMap(SYNC_META_BY_TENANT_KEY, map);
+}
+
+export function loadItMeta() {
+    const tenantId = getTenantIdSync();
+    let meta = loadItMetaFromTenantStore(tenantId);
+    if (meta && isItLibraryConfigured(meta)) {
+        return meta;
+    }
+
+    const migrated = mergeItMetaParts();
+    if (isItLibraryConfigured(migrated)) {
+        if (tenantId) persistItMetaToTenantStore(tenantId, migrated);
+        return migrated;
+    }
+
+    if (
+        meta &&
+        Object.keys(meta).some(function (k) {
+            return meta[k] != null && meta[k] !== '' && meta[k] !== false;
+        })
+    ) {
+        return meta;
+    }
+    if (Object.keys(migrated).length) return migrated;
+    return {};
+}
+
 export function saveItMeta(meta) {
-    const m = meta || {};
+    const m = normalizeItLibraryMeta(meta || {});
+    const tenantId = getTenantIdSync();
+    if (tenantId) {
+        persistItMetaToTenantStore(tenantId, m);
+    }
     try {
         localStorage.setItem(IT_META_KEY, JSON.stringify(m));
     } catch {
@@ -62,6 +188,9 @@ export function saveItMeta(meta) {
 }
 
 export function loadLocalSyncMeta() {
+    const tenantId = getTenantIdSync();
+    const fromTenant = loadSyncMetaFromTenantStore(tenantId);
+    if (fromTenant) return fromTenant;
     try {
         return JSON.parse(localStorage.getItem(SYNC_META_KEY) || '{}') || {};
     } catch {
@@ -70,8 +199,13 @@ export function loadLocalSyncMeta() {
 }
 
 export function saveLocalSyncMeta(meta) {
+    const m = meta || {};
+    const tenantId = getTenantIdSync();
+    if (tenantId) {
+        persistSyncMetaToTenantStore(tenantId, m);
+    }
     try {
-        localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta || {}));
+        localStorage.setItem(SYNC_META_KEY, JSON.stringify(m));
     } catch {
         /* ignore */
     }
@@ -194,12 +328,13 @@ function buildPayloadJson() {
 
 /**
  * @param {{ folder?: string, keepDated?: boolean, siteUrl?: string }} [opts]
+ * keepDated: Standard true – zusätzlich zur aktuellen Datei eine datierte Kopie im gleichen Ordner.
  */
 export async function uploadCurrentBackup(opts) {
     const options = opts || {};
     const it = requireItLibrary();
     const folder = String(options.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER;
-    const keepDated = !!options.keepDated;
+    const keepDated = options.keepDated !== false;
     const built = buildPayloadJson();
     const token = await ensureGraphToken();
     const currentPath = buildDriveRelativePath(folder, CURRENT_FILE);

@@ -18,7 +18,13 @@ const COLUMNS = [
     { label: 'Beschreibung', value: (r) => r.beschreibung || '' },
     { label: 'Bemerkungen', value: (r) => r.bemerkungen || '' },
     { label: 'Beantragt von', value: (r) => r.authorEmail || r.beantragtVon || '' },
-    { label: 'Genehmigungspfad', value: (r) => r.approvalLabel || '' }
+    { label: 'Genehmigungspfad', value: (r) => r.approvalLabel || '' },
+    { label: 'Genehmigt von (KV)', value: (r) => r.genehmigtVonKv || '' },
+    { label: 'Genehmigt am (KV)', value: (r) => formatDeDate(r.genehmigtAmKv) },
+    { label: 'Genehmigt von (Direktion)', value: (r) => r.genehmigtVonDirektion || '' },
+    { label: 'Genehmigt am (Direktion)', value: (r) => formatDeDate(r.genehmigtAmDirektion) },
+    { label: 'Abgelehnt von', value: (r) => r.abgelehntVon || '' },
+    { label: 'Abgelehnt am', value: (r) => formatDeDate(r.abgelehntAm) }
 ];
 
 /**

@@ -1,13 +1,20 @@
 /**
  * SharePoint-CRUD für Freistellungs-Planer.
  */
-import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
+import { LIST_TITLE_DEFAULT, KATEGORIE_CHOICES } from './freistellung-planer-schema.js';
+import { parseNachweiseField } from './freistellung-planer-nachweise.js';
+import { mergeKategorieChoices } from './freistellung-planer-kategorien.js';
 import { toIsoDateOnly, approvalPath, inclusiveDayCount } from './freistellung-planer-logic.js';
 import { buildAntragTitle } from './freistellung-planer-state.js';
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',
     'https://graph.microsoft.com/Sites.ReadWrite.All'
+];
+
+const SCOPES_READ = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/Sites.Read.All'
 ];
 
 function G() {
@@ -18,6 +25,12 @@ function G() {
 
 async function token() {
     return await G().getGraphToken(SCOPES);
+}
+
+/** Lesen (Schüler/KV oft nur Sites.Read + Listen-contribute). */
+async function tokenRead() {
+    const scopes = [...SCOPES_READ, 'https://graph.microsoft.com/Sites.ReadWrite.All'];
+    return await G().getGraphToken(scopes);
 }
 
 async function findListByTitle(tok, siteId, listTitle) {
@@ -100,14 +113,21 @@ export async function resolvePersonLookupId(tok, siteId, email) {
         .toLowerCase();
     if (!em || !em.includes('@')) return '';
 
-    const listsPath =
-        G().graphPathSite(siteId) + '/lists?$select=id,displayName,system&$top=200';
-    const listsData = await G().graphJson('GET', listsPath, tok, undefined, 'v1.0');
-    const lists = (listsData && listsData.value) || [];
-    const userList =
-        lists.find((l) => String(l.displayName || '') === 'User Information List') ||
-        lists.find((l) => /user information/i.test(String(l.displayName || ''))) ||
-        null;
+    let userList = null;
+    if (typeof G().findSiteUserInformationList === 'function') {
+        userList = await G().findSiteUserInformationList(tok, siteId);
+    } else {
+        const listsPath =
+            G().graphPathSite(siteId) + '/lists?$select=id,displayName,name,system&$top=999';
+        const listsData = await G().graphJson('GET', listsPath, tok, undefined, 'v1.0');
+        const lists = (listsData && listsData.value) || [];
+        userList =
+            lists.find((l) => String(l.name || '').trim().toLowerCase() === 'users') ||
+            lists.find((l) => String(l.displayName || '') === 'User Information List') ||
+            lists.find((l) => /user information/i.test(String(l.displayName || ''))) ||
+            lists.find((l) => /benutzerinformationsliste/i.test(String(l.displayName || ''))) ||
+            null;
+    }
     if (!userList || !userList.id) {
         throw new Error(
             'User Information List nicht gefunden – Klassenvorstand kann nicht als Person gesetzt werden.'
@@ -181,7 +201,7 @@ export async function resolvePersonLookupId(tok, siteId, email) {
 export async function resolveFrContext(webUrl, opts) {
     const url = String(webUrl || '').trim();
     if (!url) throw new Error('Bitte die SharePoint-Website-URL eintragen.');
-    const tok = await token();
+    const tok = await tokenRead();
     const site = await G().resolveSiteFromWebUrl(tok, url);
     const siteId = site && site.id ? String(site.id) : '';
     if (!siteId) throw new Error('Site-ID fehlt.');
@@ -218,6 +238,40 @@ export async function resolveFrContext(webUrl, opts) {
         siteName: site.displayName || '',
         list: { id: String(list.id), webUrl: list.webUrl || '', name: list.displayName || listName }
     };
+}
+
+/**
+ * Listen-ID für Remote-Sync (ohne Fehler, wenn Liste noch nicht erreichbar).
+ * @param {string} webUrl
+ * @param {{ listName?: string, listId?: string }} [opts]
+ */
+export async function tryResolveFrListId(webUrl, opts) {
+    try {
+        const ctx = await resolveFrContext(webUrl, opts);
+        return ctx && ctx.list && ctx.list.id ? String(ctx.list.id) : '';
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * Prüft, ob das Konto die Freistellungsliste lesen darf (ohne alle Items zu laden).
+ * @param {{ siteId: string, list: { id: string } }} ctx
+ */
+export async function probeFreistellungListRead(ctx) {
+    if (!ctx || !ctx.siteId || !ctx.list || !ctx.list.id) return false;
+    const tok = await tokenRead();
+    const path =
+        G().graphPathSite(ctx.siteId) +
+        '/lists/' +
+        encodeURIComponent(ctx.list.id) +
+        '/items?$select=id&$top=1';
+    try {
+        await G().graphJson('GET', path, tok, undefined, 'v1.0');
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 export function mapFreistellungFromItem(item) {
@@ -260,7 +314,14 @@ export function mapFreistellungFromItem(item) {
         beantragtVon: authorEmail,
         dayCount: inclusiveDayCount(beginn, ende),
         multiDay: path.multiDay,
-        approvalLabel: path.label
+        approvalLabel: path.label,
+        genehmigtVonKv: fieldStr(f, 'GenehmigtVonKV'),
+        genehmigtAmKv: toIsoDateOnly(f.GenehmigtAmKV) || '',
+        genehmigtVonDirektion: fieldStr(f, 'GenehmigtVonDirektion'),
+        genehmigtAmDirektion: toIsoDateOnly(f.GenehmigtAmDirektion) || '',
+        abgelehntVon: fieldStr(f, 'AbgelehntVon'),
+        abgelehntAm: toIsoDateOnly(f.AbgelehntAm) || '',
+        nachweise: parseNachweiseField(f.Nachweise)
     };
 }
 
@@ -289,7 +350,7 @@ export function mapFreistellungToFields(draft, extra) {
 }
 
 export async function loadAllFreistellungen(ctx) {
-    const tok = await token();
+    const tok = await tokenRead();
     // Nur fields expandieren – createdBy ist bei listItem keine Navigation Property
     // (kommt oft ohnehin im Default-Payload; sonst Author aus fields).
     let path =
@@ -313,6 +374,36 @@ export async function loadAllFreistellungen(ctx) {
     return rows.map(mapFreistellungFromItem);
 }
 
+/**
+ * @param {string} siteId
+ * @param {string} listId
+ * @param {string[]} choices
+ */
+export async function patchFreistellungKategorieColumn(siteId, listId, choices) {
+    const tok = await token();
+    const base =
+        G().graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/columns';
+    const data = await G().graphJson('GET', base + '?$select=id,name&$top=200', tok, undefined, 'v1.0');
+    const col = ((data && data.value) || []).find(
+        (c) => String(c.name || '').toLowerCase() === 'kategorie'
+    );
+    if (!col || !col.id) return { ok: false, reason: 'no-column' };
+    const merged = mergeKategorieChoices(choices);
+    await G().graphJson(
+        'PATCH',
+        base + '/' + encodeURIComponent(col.id),
+        tok,
+        {
+            choice: {
+                allowTextEntry: true,
+                choices: merged.length ? merged : [...KATEGORIE_CHOICES]
+            }
+        },
+        'v1.0'
+    );
+    return { ok: true, count: merged.length };
+}
+
 export async function createFreistellungItem(ctx, draft) {
     const tok = await token();
     const kvEmail = String(draft.kvEmail || '')
@@ -330,7 +421,20 @@ export async function createFreistellungItem(ctx, draft) {
         { fields },
         'v1.0'
     );
-    return mapFreistellungFromItem(created);
+    const itemId =
+        created && created.id != null
+            ? String(created.id)
+            : created && created.itemId != null
+              ? String(created.itemId)
+              : '';
+    let mapped = mapFreistellungFromItem(created);
+    if (itemId && !mapped.itemId) {
+        mapped = { ...mapped, itemId };
+    }
+    if (!mapped.itemId) {
+        throw new Error('Antrag wurde angelegt, aber die Listen-Item-ID fehlt in der Graph-Antwort.');
+    }
+    return mapped;
 }
 
 export async function updateFreistellungStatus(ctx, itemId, status, bemerkungen) {

@@ -1,4 +1,20 @@
 ﻿import { classesToLines as classesToLinesPure } from './tenant-settings-ui-classes.js';
+import {
+    enrichClassesFromLinkedGroups,
+    enrichClassesKvFromGraphOwners,
+    collectPriorClassFieldsByCode,
+    deriveClassEntryFromGroup
+} from './class-list-enrich.js';
+import {
+    enrichSubjectsFromCatalogSources,
+    subjectCatalogShrinkReport,
+    formatSubjectCatalogShrinkConfirmDe,
+    subjectsFromImportPayload,
+    deriveSubjectEntryFromGroup
+} from './subject-list-enrich.js';
+import { consumeWebuntisImportPayload } from './webuntis-stammdaten-import-handoff.js';
+import { pickEntraGroupsMulti } from './entra-group-picker.js';
+import { mergeWebuntisImportWithExisting, summarizeWebuntisMergeResult } from './webuntis-stammdaten-wizard-logic.js';
 
 (function () {
     'use strict';
@@ -101,17 +117,48 @@
         return XLSX.utils.sheet_to_json(sheet, { defval: '' });
     }
 
-    function parseCsvTextToJsonRows(text) {
-        if (!ensureXlsxReady()) return [];
+    function workbookFirstSheetAoa(wb) {
+        const sheetName = wb && wb.SheetNames && wb.SheetNames[0];
+        const sheet = sheetName && wb.Sheets ? wb.Sheets[sheetName] : null;
+        return sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) : [];
+    }
+
+    /** Maximale Spaltenzahl in den ersten Zeilen (WebUntis-CSV ist oft tab-getrennt). */
+    function aoaMaxColumnCount(aoa, sampleRows) {
+        const n = typeof sampleRows === 'number' ? sampleRows : 5;
+        let max = 0;
+        const rows = Array.isArray(aoa) ? aoa : [];
+        for (let i = 0; i < rows.length && i < n; i++) {
+            const row = rows[i];
+            if (Array.isArray(row)) max = Math.max(max, row.length);
+        }
+        return max;
+    }
+
+    function csvTextToWorkbook(text) {
         let s = String(text || '');
         if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-        let wb = XLSX.read(s, { type: 'string', FS: ';' });
-        let rows = sheetToJsonRows(wb);
-        if (!rows.length) {
-            wb = XLSX.read(s, { type: 'string', FS: ',' });
-            rows = sheetToJsonRows(wb);
-        }
-        return rows;
+        const delimiters = ['\t', ';', ','];
+        let best = null;
+        let bestCols = 0;
+        delimiters.forEach(function (FS) {
+            try {
+                const wb = XLSX.read(s, { type: 'string', FS: FS });
+                const cols = aoaMaxColumnCount(workbookFirstSheetAoa(wb));
+                if (cols > bestCols) {
+                    bestCols = cols;
+                    best = wb;
+                }
+            } catch {
+                /* nächstes Trennzeichen */
+            }
+        });
+        return best || XLSX.read(s, { type: 'string', FS: ';' });
+    }
+
+    function parseCsvTextToJsonRows(text) {
+        if (!ensureXlsxReady()) return [];
+        return sheetToJsonRows(csvTextToWorkbook(text));
     }
 
     function downloadXlsxTemplate(filename, aoa, sheetName) {
@@ -171,7 +218,9 @@
                     const wb = XLSX.read(data, { type: 'array' });
                     jsonRows = sheetToJsonRows(wb);
                 }
-                onRows(jsonRows || []);
+                Promise.resolve(onRows(jsonRows || [])).catch(function (err) {
+                    if (onError) onError('Import fehlgeschlagen: ' + (err && err.message ? err.message : String(err)));
+                });
             } catch (err) {
                 if (onError) onError('Import fehlgeschlagen: ' + (err?.message || String(err)));
             }
@@ -179,18 +228,50 @@
         reader.readAsArrayBuffer(file);
     }
 
+    function exposeSubjectCatalogGuardOnWindow() {
+        try {
+            window.ms365SubjectCatalogShrinkReport = subjectCatalogShrinkReport;
+            window.ms365FormatSubjectCatalogShrinkConfirm = formatSubjectCatalogShrinkConfirmDe;
+            window.ms365SubjectsFromImportPayload = subjectsFromImportPayload;
+        } catch {
+            /* ignore */
+        }
+    }
+
+    async function confirmSubjectCatalogIfShrinks(nextSubjects, sourceLabel) {
+        const loadFn =
+            typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function'
+                ? window.ms365TenantSettingsLoad
+                : null;
+        const current = loadFn ? loadFn().subjects || [] : [];
+        const report = subjectCatalogShrinkReport(current, nextSubjects || []);
+        if (!report.wouldShrink) return true;
+        const msg = formatSubjectCatalogShrinkConfirmDe(report, sourceLabel);
+        return dlgConfirm(msg, {
+            title: 'Fächerliste würde verkleinert',
+            okText: 'Trotzdem übernehmen',
+            cancelText: 'Abbrechen',
+            danger: true
+        });
+    }
+
     /** Lehrer-Zeilen wie in der Textarea: Kürzel;Name;E-Mail pro Zeile */
     function teacherJsonRowsToSemicolonLines(jsonRows) {
         const out = [];
         (jsonRows || []).forEach((r) => {
-            const code = getField(r, ['kürzel', 'kuerzel', 'code', 'lehrer', 'lehrkraft', 'abbrev', 'abbreviation']);
-            let name = getField(r, ['name', 'lehrername', 'anzeigename', 'displayname']);
-            if (!name) {
-                const vor = getField(r, ['vorname', 'forename', 'firstname']);
-                const nach = getField(r, ['familienname', 'nachname', 'lastname', 'longname']);
-                if (vor || nach) name = [vor, nach].filter(Boolean).join(' ');
+            const vor = getField(r, ['vorname', 'forename', 'firstname']);
+            const nach = getField(r, ['familienname', 'nachname', 'lastname', 'longname']);
+            let code = getField(r, ['kürzel', 'kuerzel', 'code', 'lehrer', 'lehrkraft', 'abbrev', 'abbreviation']);
+            if (!code && (vor || nach)) {
+                code = getField(r, ['name']);
             }
-            let email = getField(r, ['e-mail', 'email', 'mail', 'upn']);
+            let name = getField(r, ['lehrername', 'anzeigename', 'displayname']);
+            if (!name && (vor || nach)) {
+                name = [vor, nach].filter(Boolean).join(' ');
+            } else if (!name && !vor && !nach) {
+                name = getField(r, ['name']);
+            }
+            let email = getField(r, ['e-mail', 'email', 'mail', 'upn', 'address.email']);
             const c = normCode(code);
             if (!c) return;
 
@@ -206,7 +287,7 @@
 
             out.push({ code: c, name: normStr(name), email: normStr(email).toLowerCase() });
         });
-        return out.map((x) => [x.code, x.name || '', x.email || ''].filter(Boolean).join(';')).join('\n');
+        return out.map((x) => [x.code, x.name || '', x.email || ''].join(';')).join('\n');
     }
 
     function teachersRowsToAoa(rows) {
@@ -311,13 +392,7 @@
                         try {
                             let wb;
                             if (name.endsWith('.csv') || name.endsWith('.txt')) {
-                                let s = String(e.target.result || '');
-                                if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-                                wb = XLSX.read(s, { type: 'string', FS: ';' });
-                                const probe = wb.SheetNames[0]
-                                    ? XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' })
-                                    : [];
-                                if (!probe || probe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                                wb = csvTextToWorkbook(String(e.target.result || ''));
                             } else {
                                 wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                             }
@@ -673,11 +748,8 @@
         reader.onload = (e) => {
             try {
                 let wb;
-                if (name.endsWith('.csv')) {
-                    let s = String(e.target.result || '');
-                    if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-                    wb = XLSX.read(s, { type: 'string', FS: ';' });
-                    if (!sheetToJsonRows(wb).length) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                    wb = csvTextToWorkbook(String(e.target.result || ''));
                 } else {
                     wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                 }
@@ -686,9 +758,73 @@
                 if (onError) onError('Import fehlgeschlagen: ' + (err?.message || String(err)));
             }
         };
-        if (name.endsWith('.csv')) reader.readAsText(file, 'utf-8');
+        if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file, 'utf-8');
         else reader.readAsArrayBuffer(file);
     }
+
+    function workbookToSheetList(wb, fileName) {
+        const names = (wb && wb.SheetNames) || [];
+        const out = [];
+        names.forEach(function (sn) {
+            const sheet = wb.Sheets[sn];
+            if (!sheet) return;
+            const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (!aoa || !aoa.length) return;
+            out.push({
+                name: (fileName ? fileName + ' — ' : '') + sn,
+                aoa: aoa
+            });
+        });
+        return out;
+    }
+
+    function readFilesToAllSheets(files) {
+        const list = files && files.length != null ? Array.from(files) : files ? [files] : [];
+        if (!ensureXlsxReady()) return Promise.reject(new Error('Excel-Bibliothek nicht geladen'));
+        return Promise.all(
+            list.map(function (file) {
+                return new Promise(function (resolve, reject) {
+                    const name = String(file.name || '').toLowerCase();
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        try {
+                            let wb;
+                            if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                                wb = csvTextToWorkbook(String(e.target.result || ''));
+                            } else {
+                                wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                            }
+                            resolve(workbookToSheetList(wb, file.name || ''));
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    reader.onerror = function () {
+                        reject(new Error('Datei konnte nicht gelesen werden: ' + (file.name || '')));
+                    };
+                    if (name.endsWith('.csv') || name.endsWith('.txt')) reader.readAsText(file);
+                    else reader.readAsArrayBuffer(file);
+                });
+            })
+        ).then(function (nested) {
+            const flat = [];
+            nested.forEach(function (arr) {
+                (arr || []).forEach(function (sh) {
+                    flat.push(sh);
+                });
+            });
+            return flat;
+        });
+    }
+
+    window.ms365SpreadsheetCsv = {
+        csvTextToWorkbook: csvTextToWorkbook
+    };
+
+    window.ms365StammdatenFileIO = {
+        readFilesToAoaSheets: readFilesToAoaSheets,
+        readFilesToAllSheets: readFilesToAllSheets
+    };
 
     window.ms365StudentListImport = {
         isXlsxReady: ensureXlsxReady,
@@ -870,6 +1006,7 @@
 
     // UI binding (optional; nur wenn Elemente existieren)
     function bindUi() {
+        exposeSubjectCatalogGuardOnWindow();
         const form = document.getElementById('tenantSettingsForm');
         if (!form) return;
 
@@ -891,9 +1028,15 @@
 
         const taSubjects = document.getElementById('tenantSubjectsLines');
         const subjectsTbody = document.getElementById('tenantSubjectsTableBody');
+        const subjectsTable = subjectsTbody ? subjectsTbody.closest('table') : null;
+        const subjectsSortState = { key: null, dir: 1 };
         const btnAddSubjectRow = document.getElementById('tenantSubjectsAddRow');
+        const btnSubjectsImportM365 = document.getElementById('tenantSubjectsImportM365');
+        const btnEnrichSubjects = document.getElementById('tenantBtnEnrichSubjects');
         const taArges = document.getElementById('tenantArgesLines');
         const argesTbody = document.getElementById('tenantArgesTableBody');
+        const argesTable = argesTbody ? argesTbody.closest('table') : null;
+        const argesSortState = { key: null, dir: 1 };
         const btnAddArgeRow = document.getElementById('tenantArgesAddRow');
         const taTeachers = document.getElementById('tenantTeachersLines');
         const teachersTbody = document.getElementById('tenantTeachersTableBody');
@@ -908,6 +1051,8 @@
         const taAdmin = document.getElementById('tenantAdminLines');
         const adminTbody = document.getElementById('tenantAdminTableBody');
         const adminUnifiedTbody = document.getElementById('tenantAdminUnifiedTableBody');
+        const adminUnifiedTable = adminUnifiedTbody ? adminUnifiedTbody.closest('table') : null;
+        const adminUnifiedSortState = { key: null, dir: 1 };
         const btnAddAdminRow = document.getElementById('tenantAdminAddRow');
         const taAdminRoles = document.getElementById('tenantAdminRoleLines');
         const adminRolesTbody = document.getElementById('tenantAdminRolesTableBody');
@@ -916,6 +1061,8 @@
         const selSgaMode = document.getElementById('tenantSgaMode');
         const taSga = document.getElementById('tenantSgaLines');
         const sgaTbody = document.getElementById('tenantSgaTableBody');
+        const sgaTable = sgaTbody ? sgaTbody.closest('table') : null;
+        const sgaSortState = { key: null, dir: 1 };
         const btnAddSgaRow = document.getElementById('tenantSgaAddRow');
         const btnVerifySgaGraph = document.getElementById('tenantBtnVerifySgaGraph');
         const sgaGroupMatchCell = document.getElementById('tenantSgaGroupMatchCell');
@@ -942,6 +1089,8 @@
         const studentsSortState = { key: null, dir: 1 };
         const taStudentCouncil = document.getElementById('tenantStudentCouncilLines');
         const studentCouncilTbody = document.getElementById('tenantStudentCouncilTableBody');
+        const studentCouncilTable = studentCouncilTbody ? studentCouncilTbody.closest('table') : null;
+        const studentCouncilSortState = { key: null, dir: 1 };
         const btnAddStudentCouncilRow = document.getElementById('tenantStudentCouncilAddRow');
         const btnVerifyStudentCouncilGraph = document.getElementById('tenantBtnVerifyStudentCouncilGraph');
         const studentCouncilGroupMatchCell = document.getElementById('tenantStudentCouncilGroupMatchCell');
@@ -954,10 +1103,15 @@
         const studentCouncilGroupSearchResults = document.getElementById('tenantStudentCouncilGroupSearchResults');
         const taClasses = document.getElementById('tenantClassesLines');
         const classesTbody = document.getElementById('tenantClassesTableBody');
+        const classesTable = classesTbody ? classesTbody.closest('table') : null;
+        const classesSortState = { key: null, dir: 1 };
         const btnAddClassRow = document.getElementById('tenantClassesAddRow');
         const btnVerifyClassesGraph = document.getElementById('tenantBtnVerifyClassesGraph');
+        const btnClassesImportM365 = document.getElementById('tenantClassesImportM365');
+        const btnEnrichClassesFromGroups = document.getElementById('tenantBtnEnrichClassesFromGroups');
         const fileSubjects = document.getElementById('tenantSubjectsImportFile');
         const fileArges = document.getElementById('tenantArgesImportFile');
+        const btnArgesImportM365 = document.getElementById('tenantArgesImportM365');
         const fileTeachers = document.getElementById('tenantTeachersImportFile');
         const fileStudents = document.getElementById('tenantStudentsImportFile');
         const fileClasses = document.getElementById('tenantClassesImportFile');
@@ -1064,8 +1218,277 @@
             taArges.value = argesToLines(rows);
         }
 
+        function getArgeCatalogLink(code) {
+            const api = window.ms365AppDataV2;
+            if (api && typeof api.getCatalogLink === 'function') return api.getCatalogLink('arge', code);
+            const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+            const links = (setup && setup.catalogLinks) || [];
+            const c = normCode(code);
+            return links.find(function (x) {
+                return x && x.kind === 'arge' && normCode(x.code) === c;
+            });
+        }
+
+        function upsertArgeCatalogLink(code, group) {
+            const api = window.ms365AppDataV2;
+            if (!api || typeof api.upsertCatalogLink !== 'function') return;
+            api.upsertCatalogLink({
+                kind: 'arge',
+                code: normCode(code),
+                graphGroupId: group && group.id ? String(group.id) : '',
+                displayName: group && group.displayName ? String(group.displayName) : '',
+                mailNickname: group && group.mailNickname ? String(group.mailNickname) : '',
+                mode: 'matched'
+            });
+        }
+
+        function getSubjectCatalogLink(code) {
+            const api = window.ms365AppDataV2;
+            if (api && typeof api.getCatalogLink === 'function') return api.getCatalogLink('subject', code);
+            const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+            const links = (setup && setup.catalogLinks) || [];
+            const c = normCode(code);
+            return links.find(function (x) {
+                return x && x.kind === 'subject' && normCode(x.code) === c;
+            });
+        }
+
+        function upsertSubjectCatalogLink(code, group) {
+            const api = window.ms365AppDataV2;
+            if (!api || typeof api.upsertCatalogLink !== 'function') return;
+            api.upsertCatalogLink({
+                kind: 'subject',
+                code: normCode(code),
+                graphGroupId: group && group.id ? String(group.id) : '',
+                displayName: group && group.displayName ? String(group.displayName) : '',
+                mailNickname: group && group.mailNickname ? String(group.mailNickname) : '',
+                mode: 'matched'
+            });
+        }
+
+        function subjectGroupMailPrefixForDerive() {
+            const api = window.ms365AppDataV2;
+            const su = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+            return normStr(su && su.subjectGroupMailPrefix) || 'fach';
+        }
+
+        function deriveArgeEntryFromGroup(g) {
+            const nick = normStr(g && g.mailNickname).toLowerCase();
+            const dn = normStr(g && g.displayName);
+            const prefixes = ['arge-', 'arge.', 'fachgruppe-', 'fachgruppe.', 'fg-', 'fg.', 'ag-', 'ag.'];
+            let rest = nick;
+            for (let i = 0; i < prefixes.length; i++) {
+                if (rest.startsWith(prefixes[i])) {
+                    rest = rest.slice(prefixes[i].length);
+                    break;
+                }
+            }
+            let code = rest ? normCode(rest.replace(/[^a-z0-9]/gi, '')) : '';
+            if (!code && dn) {
+                const m = dn.match(/^(?:ARGE|Fachgruppe|FG|AG)\s*[-–:]?\s*(.+)$/i);
+                if (m) {
+                    const token = normStr(m[1]).split(/\s+/)[0] || '';
+                    code = normCode(token);
+                }
+            }
+            if (!code && nick) code = normCode(nick.replace(/[^a-z0-9]/gi, '').slice(0, 20));
+            const name = dn || code || normStr(g && g.mailNickname);
+            return { code, name };
+        }
+
+        function buildArgeM365Cell(row) {
+            const td = document.createElement('td');
+            td.style.fontSize = '0.88em';
+            td.style.lineHeight = '1.35';
+            const code = normCode(row && row.code);
+            if (!code) {
+                td.style.color = 'var(--muted)';
+                td.textContent = '–';
+                td.title = 'Kürzel nötig für die Verknüpfung';
+                return td;
+            }
+            const link = getArgeCatalogLink(code);
+            if (link && normStr(link.graphGroupId)) {
+                const nick = normStr(link.mailNickname) || normStr(link.displayName);
+                td.innerHTML =
+                    '<span style="color:#0d8050;font-weight:700;">✓</span> ' +
+                    escapeHtml(nick || 'verknüpft');
+                td.title =
+                    (link.displayName ? String(link.displayName) : '') +
+                    (link.mailNickname ? '\nAlias: ' + String(link.mailNickname) : '') +
+                    '\nGroup-ID: ' +
+                    String(link.graphGroupId);
+            } else {
+                td.style.color = 'var(--muted)';
+                td.textContent = '–';
+                td.title = 'Noch nicht mit einer Microsoft-365-Gruppe verknüpft';
+            }
+            return td;
+        }
+
+        async function importArgesFromM365Groups() {
+            try {
+                const searchUnified =
+                    graphApi() && typeof graphApi().searchUnifiedGroups === 'function'
+                        ? async function (q, token) {
+                              const tok = token || (await graphApi().getGraphToken());
+                              return graphApi().searchUnifiedGroups(tok, q);
+                          }
+                        : undefined;
+                const picked = await pickEntraGroupsMulti({
+                    title: 'ARGE-Gruppen aus Microsoft 365',
+                    hint:
+                        'Es werden Vorschläge mit den Suchbegriffen arge, fg und ag geladen. Ausgewählte Gruppen werden als ARGE-Stammdaten übernommen und in catalogLinks verknüpft (wie in der Einrichtung).',
+                    initialQueries: ['arge', 'fg', 'ag'],
+                    searchFn: searchUnified
+                });
+                if (!picked.length) return;
+                const all = getArgesFromTextarea();
+                const byCode = new Map();
+                all.forEach(function (r) {
+                    const c = normCode(r.code);
+                    if (c) byCode.set(c, r);
+                });
+                let added = 0;
+                let linked = 0;
+                let skipped = 0;
+                picked.forEach(function (g) {
+                    const derived = deriveArgeEntryFromGroup(g);
+                    const code = normCode(derived.code);
+                    if (!code) {
+                        skipped++;
+                        return;
+                    }
+                    if (!byCode.has(code)) {
+                        byCode.set(code, { code, name: derived.name || code, subjects: [] });
+                        added++;
+                    } else {
+                        const ex = byCode.get(code);
+                        if (!normStr(ex.name) && derived.name) ex.name = derived.name;
+                    }
+                    upsertArgeCatalogLink(code, g);
+                    linked++;
+                });
+                const next = Array.from(byCode.values()).sort(function (a, b) {
+                    return normCode(a.code).localeCompare(normCode(b.code));
+                });
+                setArgesTextareaFromRows(next);
+                renderArgesTableFromTextarea();
+                scheduleAutoSave();
+                const parts = [];
+                if (added) parts.push(added + ' neue ARGE');
+                if (linked) parts.push(linked + ' verknüpft');
+                if (skipped) parts.push(skipped + ' übersprungen (kein Kürzel)');
+                setSummary(
+                    'Microsoft 365: ' + (parts.length ? parts.join(' · ') : 'Keine Änderung.'),
+                    added || linked ? 'ok' : 'warn'
+                );
+            } catch (e) {
+                const msg = e && e.message ? e.message : String(e);
+                setSummary('Import aus Microsoft 365: ' + msg, 'warn');
+            }
+        }
+
+        function buildSubjectM365Cell(row) {
+            const td = document.createElement('td');
+            td.style.fontSize = '0.88em';
+            td.style.lineHeight = '1.35';
+            const code = normCode(row && row.code);
+            if (!code) {
+                td.style.color = 'var(--muted)';
+                td.textContent = '–';
+                td.title = 'Kürzel nötig für die Verknüpfung';
+                return td;
+            }
+            const link = getSubjectCatalogLink(code);
+            if (link && normStr(link.graphGroupId)) {
+                const nick = normStr(link.mailNickname) || normStr(link.displayName);
+                td.innerHTML =
+                    '<span style="color:#0d8050;font-weight:700;">✓</span> ' +
+                    escapeHtml(nick || 'verknüpft');
+                td.title =
+                    (link.displayName ? String(link.displayName) : '') +
+                    (link.mailNickname ? '\nAlias: ' + String(link.mailNickname) : '') +
+                    '\nGroup-ID: ' +
+                    String(link.graphGroupId);
+            } else {
+                td.style.color = 'var(--muted)';
+                td.textContent = '–';
+                td.title = 'Noch nicht mit einer Microsoft-365-Fachgruppe verknüpft';
+            }
+            return td;
+        }
+
+        async function importSubjectsFromM365Groups() {
+            try {
+                const searchUnified =
+                    graphApi() && typeof graphApi().searchUnifiedGroups === 'function'
+                        ? async function (q, token) {
+                              const tok = token || (await graphApi().getGraphToken());
+                              return graphApi().searchUnifiedGroups(tok, q);
+                          }
+                        : undefined;
+                const prefix = subjectGroupMailPrefixForDerive();
+                const picked = await pickEntraGroupsMulti({
+                    title: 'Fachgruppen aus Microsoft 365',
+                    hint:
+                        'Vorschläge mit fach, fachgruppe und Ihrem Präfix („' +
+                        prefix +
+                        '“). Ausgewählte Gruppen werden als Fachgruppen-Stammdaten übernommen und in catalogLinks verknüpft (wie ARGE & Fachgruppen).',
+                    initialQueries: [prefix, 'fach', 'fachgruppe'],
+                    searchFn: searchUnified
+                });
+                if (!picked.length) return;
+                const all = getSubjectsFromTextarea();
+                const byCode = new Map();
+                all.forEach(function (r) {
+                    const c = normCode(r.code);
+                    if (c) byCode.set(c, r);
+                });
+                let added = 0;
+                let linked = 0;
+                let skipped = 0;
+                const deriveOpts = { mailPrefix: prefix };
+                picked.forEach(function (g) {
+                    const derived = deriveSubjectEntryFromGroup(g, deriveOpts);
+                    const code = normCode(derived.code);
+                    if (!code) {
+                        skipped++;
+                        return;
+                    }
+                    if (!byCode.has(code)) {
+                        byCode.set(code, { code, name: derived.name || code });
+                        added++;
+                    } else {
+                        const ex = byCode.get(code);
+                        if (!normStr(ex.name) && derived.name) ex.name = derived.name;
+                    }
+                    upsertSubjectCatalogLink(code, g);
+                    linked++;
+                });
+                const next = Array.from(byCode.values()).sort(function (a, b) {
+                    return normCode(a.code).localeCompare(normCode(b.code));
+                });
+                setSubjectsTextareaFromRows(next);
+                renderSubjectsTableFromTextarea();
+                scheduleAutoSave();
+                const parts = [];
+                if (added) parts.push(added + ' neue Fachgruppe(n)');
+                if (linked) parts.push(linked + ' verknüpft');
+                if (skipped) parts.push(skipped + ' übersprungen (kein Kürzel)');
+                setSummary(
+                    'Microsoft 365: ' + (parts.length ? parts.join(' · ') : 'Keine Änderung.'),
+                    added || linked ? 'ok' : 'warn'
+                );
+            } catch (e) {
+                const msg = e && e.message ? e.message : String(e);
+                setSummary('Import aus Microsoft 365: ' + msg, 'warn');
+            }
+        }
+
         function renderArgesTableFromTextarea() {
             if (!argesTbody) return;
+            updateTableSortIndicators(argesTable, argesSortState);
             const rows = getArgesFromTextarea();
             argesTbody.replaceChildren();
 
@@ -1091,7 +1514,18 @@
                         const all = getArgesFromTextarea();
                         if (!all[idx]) return renderArgesTableFromTextarea();
                         const prev = all[idx].code;
-                        all[idx].code = meta && meta.cancelled ? prev : normCode(next);
+                        const newCode = meta && meta.cancelled ? prev : normCode(next);
+                        if (prev && newCode && normCode(prev) !== normCode(newCode)) {
+                            const api = window.ms365AppDataV2;
+                            if (api && typeof api.renameCatalogLink === 'function') {
+                                try {
+                                    api.renameCatalogLink('arge', prev, newCode);
+                                } catch {
+                                    /* Verknüpfung bleibt am alten Kürzel */
+                                }
+                            }
+                        }
+                        all[idx].code = newCode;
                         setArgesTextareaFromRows(all);
                         renderArgesTableFromTextarea();
                         scheduleAutoSave();
@@ -1150,7 +1584,9 @@
                 });
                 tdAction.appendChild(btnDel);
 
-                tr.append(tdCode, tdName, tdSubjects, tdAction);
+                const tdM365 = buildArgeM365Cell(row);
+
+                tr.append(tdCode, tdName, tdSubjects, tdM365, tdAction);
                 argesTbody.appendChild(tr);
             });
         }
@@ -1298,12 +1734,39 @@
 
             // Fächer / ARGEs – reine Zahl (kein Gruppen-Match vorhanden)
             if (subjectRows.length > 0) {
-                chip('bi-info-circle', subjectRows.length + ' Fächer', 'muted',
-                    subjectRows.length + ' Fächer eingetragen. Fachgruppen-Abgleich in der geführten Einrichtung.');
+                let subLinked = 0;
+                subjectRows.forEach(function (r) {
+                    const l = getSubjectCatalogLink(r.code);
+                    if (l && normStr(l.graphGroupId)) subLinked++;
+                });
+                const subTitle =
+                    subLinked > 0
+                        ? subLinked + ' von ' + subjectRows.length + ' Fachgruppen mit Microsoft-365-Gruppe verknüpft.'
+                        : subjectRows.length +
+                          ' Fachgruppen eingetragen – „Aus Microsoft 365 übernehmen“ oder ARGE & Fachgruppen.';
+                chip(
+                    subLinked === subjectRows.length && subjectRows.length > 0 ? 'bi-check-circle-fill' : 'bi-info-circle',
+                    subjectRows.length + ' Fachgruppen' + (subLinked ? ' (' + subLinked + ' M365)' : ''),
+                    subLinked === subjectRows.length && subjectRows.length > 0 ? 'ok' : 'muted',
+                    subTitle
+                );
             }
             if (argeRows.length > 0) {
-                chip('bi-info-circle', argeRows.length + ' ARGEs', 'muted',
-                    argeRows.length + ' ARGEs eingetragen. ARGE-Gruppen-Abgleich in der geführten Einrichtung.');
+                let linkedN = 0;
+                argeRows.forEach(function (r) {
+                    const l = getArgeCatalogLink(r.code);
+                    if (l && normStr(l.graphGroupId)) linkedN++;
+                });
+                const argeTitle =
+                    linkedN > 0
+                        ? linkedN + ' von ' + argeRows.length + ' ARGEs mit Microsoft-365-Gruppe verknüpft.'
+                        : argeRows.length + ' ARGEs eingetragen – „Aus Microsoft 365 übernehmen“ oder Einrichtung für Verknüpfungen.';
+                chip(
+                    linkedN === argeRows.length && argeRows.length > 0 ? 'bi-check-circle-fill' : 'bi-info-circle',
+                    argeRows.length + ' ARGEs' + (linkedN ? ' (' + linkedN + ' M365)' : ''),
+                    linkedN === argeRows.length && argeRows.length > 0 ? 'ok' : 'muted',
+                    argeTitle
+                );
             }
 
             // DOM rendern
@@ -1610,6 +2073,19 @@
         window.ms365AppDataV2.patchSetup({ classGroupMatchByKey: { [key]: payload } });
     }
 
+    function linkClassGroupMatch(row, group) {
+        const key = classMatchKey(row);
+        if (!key || !group || !group.id) return;
+        patchClassGroupMatchByKey(key, {
+            groupId: normStr(group.id),
+            displayName: normStr(group.displayName),
+            mailNickname: normStr(group.mailNickname),
+            mail: normStr(group.mail),
+            notFound: false,
+            checkedAt: new Date().toISOString()
+        });
+    }
+
     function buildClassGroupMatchCell(tr, row) {
         const td = document.createElement('td');
         td.style.fontSize = '0.88em';
@@ -1843,15 +2319,16 @@
 
         function renderSubjectsTableFromTextarea() {
             if (!subjectsTbody) return;
+            updateTableSortIndicators(subjectsTable, subjectsSortState);
             const rows = getSubjectsFromTextarea();
             subjectsTbody.replaceChildren();
 
             if (!rows.length) {
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
-                td.colSpan = 3;
+                td.colSpan = 4;
                 td.style.color = 'var(--muted)';
-                td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Zeile“.';
+                td.textContent = 'Noch keine Einträge – oben einfügen, aus Microsoft 365 übernehmen oder „+ Zeile“.';
                 tr.appendChild(td);
                 subjectsTbody.appendChild(tr);
                 return;
@@ -1868,7 +2345,18 @@
                         const all = getSubjectsFromTextarea();
                         if (!all[idx]) return renderSubjectsTableFromTextarea();
                         const prev = all[idx].code;
-                        all[idx].code = meta && meta.cancelled ? prev : normCode(next);
+                        const newCode = meta && meta.cancelled ? prev : normCode(next);
+                        if (prev && newCode && normCode(prev) !== normCode(newCode)) {
+                            const api = window.ms365AppDataV2;
+                            if (api && typeof api.renameCatalogLink === 'function') {
+                                try {
+                                    api.renameCatalogLink('subject', prev, newCode);
+                                } catch {
+                                    /* Verknüpfung bleibt am alten Kürzel */
+                                }
+                            }
+                        }
+                        all[idx].code = newCode;
                         setSubjectsTextareaFromRows(all);
                         renderSubjectsTableFromTextarea();
                         scheduleAutoSave();
@@ -1906,7 +2394,7 @@
                 });
                 tdAction.appendChild(btnDel);
 
-                tr.append(tdCode, tdName, tdAction);
+                tr.append(tdCode, tdName, buildSubjectM365Cell(row), tdAction);
                 subjectsTbody.appendChild(tr);
             });
         }
@@ -2091,6 +2579,7 @@
 
         function renderAdminUnifiedTableFromBundle() {
             if (!adminUnifiedTbody) return;
+            updateTableSortIndicators(adminUnifiedTable, adminUnifiedSortState);
             const displayRows = groupsToDisplayRows(getAdministrationGroups());
             adminUnifiedTbody.replaceChildren();
             if (!displayRows.length) {
@@ -2281,22 +2770,76 @@
             taTeachers.value = teachersToLines(rows);
         }
 
-        function updateTeachersSortIndicators() {
-            if (!teachersTable) return;
-            teachersTable.querySelectorAll('th.is-sortable').forEach((th) => {
-                const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+        function sortValueForTenantRow(row, key) {
+            if (!row) return '';
+            if (key === 'subjects') {
+                return (Array.isArray(row.subjects) ? row.subjects : [])
+                    .map((s) => normCode(s))
+                    .filter(Boolean)
+                    .join(',');
+            }
+            if (key === 'code' || key === 'year') return normCode(String(row[key] || ''));
+            if (key === 'email' || key === 'headEmail') return normStr(row[key]).toLowerCase();
+            if (key === 'scope') return normStr(row.scope).toLowerCase();
+            if (key === 'klasse') return normStr(row.klasse).toLowerCase();
+            if (key === 'personName') return normStr(row.personName);
+            return normStr(row[key]);
+        }
+
+        function sortTenantRows(rows, key, dir) {
+            return (rows || [])
+                .slice()
+                .sort((a, b) => {
+                    const av = sortValueForTenantRow(a, key);
+                    const bv = sortValueForTenantRow(b, key);
+                    return av.localeCompare(bv, 'de', { sensitivity: 'base', numeric: true }) * dir;
+                });
+        }
+
+        function updateTableSortIndicators(table, sortState) {
+            if (!table) return;
+            table.querySelectorAll('th.is-sortable').forEach((th) => {
+                const label = th.dataset.label || th.textContent.replace(/\s*[▲▼]\s*$/, '').trim();
                 th.dataset.label = label;
                 th.textContent = label;
                 th.setAttribute('aria-sort', 'none');
-                if (teachersSortState.key && th.dataset.sortKey === teachersSortState.key) {
+                if (sortState.key && th.dataset.sortKey === sortState.key) {
                     const ind = document.createElement('span');
                     ind.className = 'teachers-sort-ind';
                     ind.setAttribute('aria-hidden', 'true');
-                    ind.textContent = teachersSortState.dir === -1 ? '▼' : '▲';
+                    ind.textContent = sortState.dir === -1 ? '▼' : '▲';
                     th.appendChild(ind);
-                    th.setAttribute('aria-sort', teachersSortState.dir === -1 ? 'descending' : 'ascending');
+                    th.setAttribute('aria-sort', sortState.dir === -1 ? 'descending' : 'ascending');
                 }
             });
+        }
+
+        function toggleTenantSortState(sortState, key) {
+            if (sortState.key === key) sortState.dir = sortState.dir === 1 ? -1 : 1;
+            else {
+                sortState.key = key;
+                sortState.dir = 1;
+            }
+        }
+
+        function bindTenantTableSort(table, sortState, allowedKeys, onSortKey) {
+            if (!table || table.dataset.tenantSortBound) return;
+            table.dataset.tenantSortBound = '1';
+            table.querySelectorAll('th.is-sortable').forEach((th) => {
+                const key = th.dataset.sortKey;
+                if (!key || (allowedKeys && allowedKeys.indexOf(key) < 0)) return;
+                th.addEventListener('click', () => onSortKey(key));
+                th.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onSortKey(key);
+                    }
+                });
+            });
+        }
+
+        function updateTeachersSortIndicators() {
+            updateTableSortIndicators(teachersTable, teachersSortState);
         }
 
         function applyTeachersSort(key) {
@@ -2719,6 +3262,7 @@
 
         function renderSgaTableFromTextarea() {
             if (!sgaTbody) return;
+            updateTableSortIndicators(sgaTable, sgaSortState);
             const rows = getSgaFromTextarea();
             sgaTbody.replaceChildren();
             if (!rows.length) {
@@ -2895,6 +3439,7 @@
 
         function renderStudentCouncilTableFromTextarea() {
             if (!studentCouncilTbody) return;
+            updateTableSortIndicators(studentCouncilTable, studentCouncilSortState);
             const rows = getStudentCouncilFromTextarea();
             studentCouncilTbody.replaceChildren();
             if (!rows.length) {
@@ -3751,21 +4296,60 @@
         }
 
         function updateStudentsSortIndicators() {
-            if (!studentsTable) return;
-            studentsTable.querySelectorAll('th.is-sortable').forEach((th) => {
-                const label = th.dataset.label || th.textContent.replace(/[▲▼]\s*$/, '').trim();
-                th.dataset.label = label;
-                th.textContent = label;
-                th.setAttribute('aria-sort', 'none');
-                if (studentsSortState.key && th.dataset.sortKey === studentsSortState.key) {
-                    const ind = document.createElement('span');
-                    ind.className = 'teachers-sort-ind';
-                    ind.setAttribute('aria-hidden', 'true');
-                    ind.textContent = studentsSortState.dir === -1 ? '▼' : '▲';
-                    th.appendChild(ind);
-                    th.setAttribute('aria-sort', studentsSortState.dir === -1 ? 'descending' : 'ascending');
-                }
-            });
+            updateTableSortIndicators(studentsTable, studentsSortState);
+        }
+
+        function applySubjectsSort(key) {
+            if (!key || (key !== 'code' && key !== 'name')) return;
+            toggleTenantSortState(subjectsSortState, key);
+            setSubjectsTextareaFromRows(sortTenantRows(getSubjectsFromTextarea(), key, subjectsSortState.dir));
+            renderSubjectsTableFromTextarea();
+            scheduleAutoSave();
+        }
+
+        function applyArgesSort(key) {
+            if (!key || (key !== 'code' && key !== 'name' && key !== 'subjects')) return;
+            toggleTenantSortState(argesSortState, key);
+            setArgesTextareaFromRows(sortTenantRows(getArgesFromTextarea(), key, argesSortState.dir));
+            renderArgesTableFromTextarea();
+            scheduleAutoSave();
+        }
+
+        function applyClassesSort(key) {
+            const allowed = ['code', 'year', 'name', 'headName', 'headEmail'];
+            if (!key || allowed.indexOf(key) < 0) return;
+            toggleTenantSortState(classesSortState, key);
+            setClassesTextareaFromRows(sortTenantRows(getClassesFromTextarea(), key, classesSortState.dir));
+            renderClassesTableFromTextarea();
+            scheduleAutoSave();
+        }
+
+        function applySgaSort(key) {
+            if (!key || (key !== 'scope' && key !== 'name' && key !== 'email')) return;
+            toggleTenantSortState(sgaSortState, key);
+            setSgaTextareaFromRows(sortTenantRows(getSgaFromTextarea(), key, sgaSortState.dir));
+            renderSgaTableFromTextarea();
+            scheduleAutoSave();
+        }
+
+        function applyStudentCouncilSort(key) {
+            if (!key || (key !== 'klasse' && key !== 'name' && key !== 'email')) return;
+            toggleTenantSortState(studentCouncilSortState, key);
+            setStudentCouncilTextareaFromRows(
+                sortTenantRows(getStudentCouncilFromTextarea(), key, studentCouncilSortState.dir)
+            );
+            renderStudentCouncilTableFromTextarea();
+            scheduleAutoSave();
+        }
+
+        function applyAdminUnifiedSort(key) {
+            const allowed = ['name', 'code', 'personName', 'email'];
+            if (!key || allowed.indexOf(key) < 0) return;
+            toggleTenantSortState(adminUnifiedSortState, key);
+            const sorted = sortTenantRows(groupsToDisplayRows(getAdministrationGroups()), key, adminUnifiedSortState.dir);
+            setAdministrationGroups(displayRowsToGroups(sorted));
+            renderAdminUnifiedTableFromBundle();
+            scheduleAutoSave();
         }
 
         function syncStudentsClassFilterOptions(rows) {
@@ -4067,6 +4651,7 @@
 
         function renderClassesTableFromTextarea() {
             if (!classesTbody) return;
+            updateTableSortIndicators(classesTable, classesSortState);
             const rows = getClassesFromTextarea();
             classesTbody.replaceChildren();
 
@@ -4202,8 +4787,223 @@
             });
         }
 
+        async function importClassesFromM365Groups() {
+            try {
+                const searchUnified =
+                    graphApi() && typeof graphApi().searchUnifiedGroups === 'function'
+                        ? async function (q, token) {
+                              const tok = token || (await graphApi().getGraphToken());
+                              return graphApi().searchUnifiedGroups(tok, q);
+                          }
+                        : undefined;
+                const picked = await pickEntraGroupsMulti({
+                    title: 'Klassengruppen aus Microsoft 365',
+                    hint:
+                        'Vorschläge mit jg, klasse und class. Ausgewählte Gruppen werden als Klassen übernommen und für den M365-Abgleich verknüpft (typisches Alias: jg2030-1ak).',
+                    initialQueries: ['jg', 'klasse', 'class'],
+                    searchFn: searchUnified
+                });
+                if (!picked.length) return;
+                const all = getClassesFromTextarea();
+                const byCode = new Map();
+                all.forEach(function (r) {
+                    const c = normCode(r.code);
+                    if (c) byCode.set(c, r);
+                });
+                let added = 0;
+                let linked = 0;
+                let skipped = 0;
+                picked.forEach(function (g) {
+                    const derived = deriveClassEntryFromGroup(g);
+                    const code = normCode(derived.code);
+                    if (!code) {
+                        skipped++;
+                        return;
+                    }
+                    let row;
+                    if (!byCode.has(code)) {
+                        row = {
+                            code,
+                            year: derived.year || '',
+                            name: derived.name || code,
+                            headName: '',
+                            headEmail: ''
+                        };
+                        byCode.set(code, row);
+                        added++;
+                    } else {
+                        row = byCode.get(code);
+                        if (!normStr(row.year) && derived.year) row.year = derived.year;
+                        if (!normStr(row.name) && derived.name) row.name = derived.name;
+                    }
+                    linkClassGroupMatch(row, g);
+                    linked++;
+                });
+                const next = Array.from(byCode.values()).sort(function (a, b) {
+                    return normCode(a.code).localeCompare(normCode(b.code));
+                });
+                setClassesTextareaFromRows(next);
+                renderClassesTableFromTextarea();
+                scheduleAutoSave();
+                const parts = [];
+                if (added) parts.push(added + ' neue Klasse(n)');
+                if (linked) parts.push(linked + ' verknüpft');
+                if (skipped) parts.push(skipped + ' übersprungen (kein Kürzel)');
+                setSummary(
+                    'Microsoft 365: ' + (parts.length ? parts.join(' · ') : 'Keine Änderung.'),
+                    added || linked ? 'ok' : 'warn'
+                );
+            } catch (e) {
+                const msg = e && e.message ? e.message : String(e);
+                setSummary('Import aus Microsoft 365: ' + msg, 'warn');
+            }
+        }
+
+        function buildClassEnrichContext() {
+            const teams = [];
+            const matchMap = {};
+            let prior = new Map();
+            try {
+                const api = window.ms365AppDataV2;
+                if (api && typeof api.getContainer === 'function') {
+                    const c = api.getContainer();
+                    if (c && c.core && Array.isArray(c.core.classTeams)) {
+                        const raw = c.core.classTeams;
+                        teams.push(
+                            ...(typeof api.normalizeCoreClassTeams === 'function'
+                                ? api.normalizeCoreClassTeams(raw)
+                                : raw)
+                        );
+                    }
+                    if (c && c.years && c.years.byLabel) {
+                        prior = collectPriorClassFieldsByCode(c.years.byLabel);
+                    }
+                }
+                const setup =
+                    api && typeof api.getSetup === 'function' ? api.getSetup() : {};
+                if (setup && setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object') {
+                    Object.assign(matchMap, setup.classGroupMatchByKey);
+                }
+            } catch {
+                // ignore
+            }
+            const deriveNick =
+                typeof window.ms365DeriveClassStableMailNickname === 'function'
+                    ? window.ms365DeriveClassStableMailNickname
+                    : null;
+            return {
+                classTeams: teams,
+                classGroupMatchByKey: matchMap,
+                priorByCode: prior,
+                deriveStableMailNickname: deriveNick
+            };
+        }
+
+        function applyClassEnrichFromLocalLinks(classes, opts) {
+            const options = opts || {};
+            const result = enrichClassesFromLinkedGroups(classes || [], buildClassEnrichContext());
+            if (!result.changed) return result;
+            if (options.persist && typeof save === 'function') {
+                const cur = load();
+                const saved = save(Object.assign({}, cur, { classes: result.classes }));
+                if (taClasses) {
+                    taClasses.value = classesToLines(saved.classes || []);
+                }
+                renderClassesTableFromTextarea();
+                if (options.summary !== false && summary) {
+                    const st = result.stats || {};
+                    setSummary(
+                        'Klassenliste ergänzt: ' +
+                            (st.yearFilled || 0) +
+                            ' Abschlussjahr(e), ' +
+                            (st.kvFilled || 0) +
+                            ' Klassenvorstand/KV-Daten aus lokalen Verknüpfungen.',
+                        'ok'
+                    );
+                }
+                dispatchTenantSettingsChanged(saved, options.reason || 'class-enrich-local');
+            }
+            return result;
+        }
+
+        function buildSubjectEnrichContext() {
+            let legacySubjects = [];
+            let structureRows = [];
+            let appDataContainer = null;
+            try {
+                const raw = localStorage.getItem('ms365-tenant-settings-v1');
+                if (raw) {
+                    const o = JSON.parse(raw);
+                    if (o && Array.isArray(o.subjects)) legacySubjects = o.subjects.slice();
+                }
+            } catch {
+                // ignore
+            }
+            try {
+                const api = window.ms365AppDataV2;
+                if (api && typeof api.getContainer === 'function') {
+                    const c = api.getContainer();
+                    appDataContainer = c;
+                    if (c && c.structure && Array.isArray(c.structure.rows)) {
+                        structureRows = c.structure.rows.slice();
+                    }
+                }
+            } catch {
+                // ignore
+            }
+            const cur = load();
+            return {
+                legacySubjects: legacySubjects,
+                structureRows: structureRows,
+                arges: (cur && cur.arges) || [],
+                appDataContainer: appDataContainer,
+                storage: typeof localStorage !== 'undefined' ? localStorage : null
+            };
+        }
+
+        function applySubjectEnrichFromSources(subjects, opts) {
+            const options = opts || {};
+            const result = enrichSubjectsFromCatalogSources(subjects || [], buildSubjectEnrichContext());
+            if (!result.changed) return result;
+            if (options.persist && typeof save === 'function') {
+                const cur = load();
+                const saved = save(Object.assign({}, cur, { subjects: result.subjects }));
+                if (taSubjects) {
+                    taSubjects.value = (saved.subjects || [])
+                        .map((x) => `${x.code};${x.name || ''}`.trim())
+                        .join('\n');
+                }
+                renderSubjectsTableFromTextarea();
+                if (options.summary !== false && summary) {
+                    const st = result.stats || {};
+                    setSummary(
+                        'Fächerliste ergänzt: ' +
+                            (st.added || 0) +
+                            ' Kürzel neu, ' +
+                            (st.namesFilled || 0) +
+                            ' Bezeichnungen nachgetragen (Quellen: Unterrichtsteams/Belegung, ARGE, Schulstruktur, ggf. Legacy-Speicher).',
+                        'ok'
+                    );
+                }
+                dispatchTenantSettingsChanged(saved, options.reason || 'subject-enrich-local');
+            }
+            return result;
+        }
+
         function renderFromStorage() {
-            const s = load();
+            let s = load();
+            const enriched = applyClassEnrichFromLocalLinks(s.classes || [], {
+                persist: true,
+                summary: false,
+                reason: 'class-enrich-on-load'
+            });
+            if (enriched && enriched.classes) s = load();
+            applySubjectEnrichFromSources(s.subjects || [], {
+                persist: true,
+                summary: false,
+                reason: 'subject-enrich-on-load'
+            });
+            s = load();
             // Domain in UI-Feld zurückschreiben (wird auch von school-domain.js genutzt)
             try {
                 if (schoolNameInput) schoolNameInput.value = normStr(s.schoolName || '');
@@ -4224,9 +5024,7 @@
                     .join('\n');
             }
             if (taTeachers) {
-                taTeachers.value = (s.teachers || [])
-                    .map((x) => `${x.code};${x.name || ''};${x.email || ''}`.trim())
-                    .join('\n');
+                taTeachers.value = teachersToLines(s.teachers || []);
             }
             if (taAdminBundle) {
                 setAdministrationGroups(adminGroupsFromSettings(s));
@@ -4246,9 +5044,7 @@
             }
             if (taSga) taSga.value = sgaToLines(s.sga || []);
             if (taStudents) {
-                taStudents.value = (s.students || [])
-                    .map((x) => `${x.klasse || ''};${x.name || ''};${x.email || ''}`.trim())
-                    .join('\n');
+                taStudents.value = studentsToLines(s.students || []);
             }
             if (taStudentCouncil) taStudentCouncil.value = studentCouncilToLines(s.studentCouncil || []);
             if (taClasses) {
@@ -4331,7 +5127,7 @@
             importSpreadsheetFileToJsonRows(file, onRows, (msg) => setSummary(msg, 'warn'));
         }
 
-        function importSubjectsRows(jsonRows) {
+        async function importSubjectsRows(jsonRows) {
             const out = [];
             (jsonRows || []).forEach((r) => {
                 const code = getField(r, ['kürzel', 'kuerzel', 'code', 'fach', 'abk', 'abkuerzung', 'abbreviation']);
@@ -4340,8 +5136,15 @@
                 if (!c) return;
                 out.push({ code: c, name: normStr(name) });
             });
+            const ok = await confirmSubjectCatalogIfShrinks(out, 'Fächer-Import (CSV/XLSX)');
+            if (!ok) {
+                setSummary('Fächer-Import abgebrochen – bestehende Liste unverändert.', 'warn');
+                return;
+            }
             if (taSubjects) taSubjects.value = out.map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
+            renderSubjectsTableFromTextarea();
             setSummary(`Fächer importiert: ${out.length} (schulweit)`, 'ok');
+            scheduleAutoSave();
         }
 
         function importArgesRows(jsonRows) {
@@ -4522,10 +5325,18 @@
         }
 
         if (btnSave) {
-            btnSave.addEventListener('click', () => {
+            btnSave.addEventListener('click', async () => {
                 const prevLoaded = load();
                 const prevStudents = (prevLoaded && prevLoaded.students) || [];
                 const subjects = typeof parseLinesToSubjects === 'function' ? parseLinesToSubjects(taSubjects ? taSubjects.value : '') : [];
+                const okSubjects = await confirmSubjectCatalogIfShrinks(
+                    subjects,
+                    'Speichern der Stammdaten'
+                );
+                if (!okSubjects) {
+                    setSummary('Speichern abgebrochen – Fächerliste unverändert.', 'warn');
+                    return;
+                }
                 const teachers = typeof parseLinesToTeachers === 'function' ? parseLinesToTeachers(taTeachers ? taTeachers.value : '') : [];
                 const admin = getAdminFromTextarea();
                 const adminRoles = getAdminRolesFromTextarea();
@@ -4668,6 +5479,21 @@
                 const f = e.target.files && e.target.files[0];
                 importFileToRows(f, (rows) => importArgesRows(rows));
                 fileArges.value = '';
+            });
+        }
+        if (btnArgesImportM365) {
+            btnArgesImportM365.addEventListener('click', () => {
+                importArgesFromM365Groups();
+            });
+        }
+        if (btnSubjectsImportM365) {
+            btnSubjectsImportM365.addEventListener('click', () => {
+                importSubjectsFromM365Groups();
+            });
+        }
+        if (btnClassesImportM365) {
+            btnClassesImportM365.addEventListener('click', () => {
+                importClassesFromM365Groups();
             });
         }
         if (fileTeachers) {
@@ -4992,10 +5818,25 @@
                         return;
                     }
                     if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.isBackupPayload === 'function' && window.ms365BrowserBackup.isBackupPayload(obj)) {
-                        const ok = await dlgConfirm(
-                            'Dieses Browser-Backup ersetzt alle lokalen Schuldaten und wiederherstellbaren Werkzeug-Zwischenstände in diesem Browser. Microsoft-Anmeldung und PIN-Freischaltungen bleiben unberührt. Fortfahren?',
-                            { title: 'Backup importieren', okText: 'Importieren', cancelText: 'Abbrechen', danger: true }
-                        );
+                        let backupMsg =
+                            'Dieses Browser-Backup ersetzt alle lokalen Schuldaten und wiederherstellbaren Werkzeug-Zwischenstände in diesem Browser. Microsoft-Anmeldung und PIN-Freischaltungen bleiben unberührt. Fortfahren?';
+                        const backupSubjects = subjectsFromImportPayload(obj);
+                        if (backupSubjects.length) {
+                            const shrinkMsg = formatSubjectCatalogShrinkConfirmDe(
+                                subjectCatalogShrinkReport(
+                                    typeof load === 'function' ? load().subjects || [] : [],
+                                    backupSubjects
+                                ),
+                                ''
+                            );
+                            if (shrinkMsg) backupMsg += '\n\n' + shrinkMsg;
+                        }
+                        const ok = await dlgConfirm(backupMsg, {
+                            title: 'Backup importieren',
+                            okText: 'Importieren',
+                            cancelText: 'Abbrechen',
+                            danger: true
+                        });
                         if (!ok) return;
                         window.ms365BrowserBackup.applyBackup(obj);
                         location.reload();
@@ -5003,6 +5844,17 @@
                     }
                     const isV2 =
                         obj.version >= 2 && obj.core && obj.structure && obj.match;
+                    const importSubjects = subjectsFromImportPayload(obj);
+                    if (importSubjects.length) {
+                        const okSub = await confirmSubjectCatalogIfShrinks(
+                            importSubjects,
+                            isV2 ? 'JSON-Import (Schuldaten v2)' : 'JSON-Import (Stammdaten)'
+                        );
+                        if (!okSub) {
+                            setSummary('Import abgebrochen – Fächerliste würde verkleinert worden sein.', 'warn');
+                            return;
+                        }
+                    }
                     try {
                         if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.importJson === 'function') {
                             window.ms365AppDataV2.importJson(obj);
@@ -5015,13 +5867,13 @@
                     if (schoolNameInput) schoolNameInput.value = normStr(saved.schoolName || '');
                     if (taSubjects) taSubjects.value = (saved.subjects || []).map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
                     if (taArges) taArges.value = (saved.arges || []).map((x) => `${x.code};${x.name || ''};${(x.subjects || []).join(',')}`.trim()).join('\n');
-                    if (taTeachers) taTeachers.value = (saved.teachers || []).map((x) => `${x.code};${x.name || ''};${x.email || ''}`.trim()).join('\n');
+                    if (taTeachers) taTeachers.value = teachersToLines(saved.teachers || []);
                     if (taAdminBundle) setAdministrationGroups(adminGroupsFromSettings(saved));
                     if (taAdmin) taAdmin.value = (saved.admin || []).map((x) => `${x.role || ''};${x.name || ''};${x.email || ''}`.trim()).join('\n');
                     if (taAdminRoles) taAdminRoles.value = (saved.adminRoles || []).map((x) => `${x.code || ''};${x.name || ''}`.trim()).join('\n');
                     if (selSgaMode) selSgaMode.value = normStr(saved.sgaMode || 'group').toLowerCase() === 'distribution' ? 'distribution' : 'group';
                     if (taSga) taSga.value = sgaToLines(saved.sga || []);
-                    if (taStudents) taStudents.value = (saved.students || []).map((x) => `${x.klasse || ''};${x.name || ''};${x.email || ''}`.trim()).join('\n');
+                    if (taStudents) taStudents.value = studentsToLines(saved.students || []);
                     if (taStudentCouncil) taStudentCouncil.value = studentCouncilToLines(saved.studentCouncil || []);
                     if (taClasses) taClasses.value = (saved.classes || []).map((x) => `${x.code || ''};${x.year || ''};${x.name || ''};${x.headName || ''};${x.headEmail || ''}`.trim()).join('\n');
                     renderSubjectsTableFromTextarea();
@@ -5061,12 +5913,22 @@
             });
         }
         // Kein Standard-Abschlussjahr mehr in den Stammdaten
-        if (taSubjects) taSubjects.addEventListener('input', () => scheduleAutoSave());
-        if (taSubjects) taSubjects.addEventListener('input', () => renderSubjectsTableFromTextarea());
+        if (taSubjects) {
+            taSubjects.addEventListener('input', () => {
+                subjectsSortState.key = null;
+                subjectsSortState.dir = 1;
+                renderSubjectsTableFromTextarea();
+                scheduleAutoSave();
+            });
+        }
 
         if (taArges) {
-            taArges.addEventListener('input', () => renderArgesTableFromTextarea());
-            taArges.addEventListener('input', () => scheduleAutoSave());
+            taArges.addEventListener('input', () => {
+                argesSortState.key = null;
+                argesSortState.dir = 1;
+                renderArgesTableFromTextarea();
+                scheduleAutoSave();
+            });
         }
 
         if (btnAddSubjectRow) {
@@ -5076,6 +5938,24 @@
                 setSubjectsTextareaFromRows(all);
                 renderSubjectsTableFromTextarea();
                 scheduleAutoSave();
+            });
+        }
+        if (btnEnrichSubjects && !btnEnrichSubjects.dataset.tenantEnrichSubjectsBound) {
+            btnEnrichSubjects.dataset.tenantEnrichSubjectsBound = '1';
+            btnEnrichSubjects.addEventListener('click', () => {
+                const rows = getSubjectsFromTextarea();
+                const result = applySubjectEnrichFromSources(rows, {
+                    persist: true,
+                    summary: true,
+                    reason: 'subject-enrich-manual'
+                });
+                if (!result.changed) {
+                    setSummary(
+                        'Keine zusätzlichen Fächer in ARGE, Schulstruktur oder Legacy-Speicher gefunden – Liste unverändert.',
+                        'warn'
+                    );
+                }
+                renderStatusOverview();
             });
         }
 
@@ -5109,6 +5989,22 @@
                 });
             });
         }
+        bindTenantTableSort(subjectsTable, subjectsSortState, ['code', 'name'], applySubjectsSort);
+        bindTenantTableSort(argesTable, argesSortState, ['code', 'name', 'subjects'], applyArgesSort);
+        bindTenantTableSort(classesTable, classesSortState, ['code', 'year', 'name', 'headName', 'headEmail'], applyClassesSort);
+        bindTenantTableSort(sgaTable, sgaSortState, ['scope', 'name', 'email'], applySgaSort);
+        bindTenantTableSort(
+            studentCouncilTable,
+            studentCouncilSortState,
+            ['klasse', 'name', 'email'],
+            applyStudentCouncilSort
+        );
+        bindTenantTableSort(
+            adminUnifiedTable,
+            adminUnifiedSortState,
+            ['name', 'code', 'personName', 'email'],
+            applyAdminUnifiedSort
+        );
         if (btnAddTeacherRow) {
             btnAddTeacherRow.addEventListener('click', () => {
                 const all = getTeachersFromTextarea();
@@ -5169,9 +6065,14 @@
             });
         }
         if (taAdminBundle) {
-            taAdminBundle.addEventListener('input', () => renderAdminRolesTableFromTextarea());
-            taAdminBundle.addEventListener('input', () => renderAdminTableFromTextarea());
-            taAdminBundle.addEventListener('input', () => scheduleAutoSave());
+            taAdminBundle.addEventListener('input', () => {
+                adminUnifiedSortState.key = null;
+                adminUnifiedSortState.dir = 1;
+                renderAdminRolesTableFromTextarea();
+                renderAdminTableFromTextarea();
+                renderAdminUnifiedTableFromBundle();
+                scheduleAutoSave();
+            });
         }
         if (taAdmin) {
             taAdmin.addEventListener('input', () => renderAdminTableFromTextarea());
@@ -5253,8 +6154,12 @@
             });
         }
         if (taSga) {
-            taSga.addEventListener('input', () => renderSgaTableFromTextarea());
-            taSga.addEventListener('input', () => scheduleAutoSave());
+            taSga.addEventListener('input', () => {
+                sgaSortState.key = null;
+                sgaSortState.dir = 1;
+                renderSgaTableFromTextarea();
+                scheduleAutoSave();
+            });
         }
         if (btnAddSgaRow) {
             btnAddSgaRow.addEventListener('click', () => {
@@ -5368,8 +6273,12 @@
             });
         }
         if (taStudentCouncil) {
-            taStudentCouncil.addEventListener('input', () => renderStudentCouncilTableFromTextarea());
-            taStudentCouncil.addEventListener('input', () => scheduleAutoSave());
+            taStudentCouncil.addEventListener('input', () => {
+                studentCouncilSortState.key = null;
+                studentCouncilSortState.dir = 1;
+                renderStudentCouncilTableFromTextarea();
+                scheduleAutoSave();
+            });
         }
         if (btnAddStudentCouncilRow) {
             btnAddStudentCouncilRow.addEventListener('click', () => {
@@ -5569,13 +6478,17 @@
         }
 
         if (taClasses) {
-            taClasses.addEventListener('input', () => renderClassesTableFromTextarea());
-            taClasses.addEventListener('input', () => scheduleAutoSave());
+            taClasses.addEventListener('input', () => {
+                classesSortState.key = null;
+                classesSortState.dir = 1;
+                renderClassesTableFromTextarea();
+                scheduleAutoSave();
+            });
         }
         if (btnAddClassRow) {
             btnAddClassRow.addEventListener('click', () => {
                 const all = getClassesFromTextarea();
-                all.push({ code: '', name: '', headName: '', headEmail: '' });
+                all.push({ code: '', year: '', name: '', headName: '', headEmail: '' });
                 setClassesTextareaFromRows(all);
                 renderClassesTableFromTextarea();
                 scheduleAutoSave();
@@ -5636,19 +6549,71 @@
                 }
             });
         }
+        if (btnEnrichClassesFromGroups && !btnEnrichClassesFromGroups.dataset.tenantEnrichClassesBound) {
+            btnEnrichClassesFromGroups.dataset.tenantEnrichClassesBound = '1';
+            btnEnrichClassesFromGroups.addEventListener('click', async () => {
+                const rows = getClassesFromTextarea();
+                if (!rows.length) {
+                    setSummary('Keine Klassen zum Ergänzen vorhanden.', 'warn');
+                    return;
+                }
+                const btn = btnEnrichClassesFromGroups;
+                try {
+                    btn.disabled = true;
+                    btn.setAttribute('aria-busy', 'true');
+                    let working = rows;
+                    const local = applyClassEnrichFromLocalLinks(working, { persist: false });
+                    working = local.classes || working;
+                    const ctx = buildClassEnrichContext();
+                    const graphResult = await enrichClassesKvFromGraphOwners(working, {
+                        classTeams: ctx.classTeams,
+                        teachers: getTeachersFromTextarea(),
+                        fetchGroupOwners: graphApi().fetchGroupOwners,
+                        getGraphToken: function () {
+                            return graphApi().getGraphToken();
+                        }
+                    });
+                    working = graphResult.classes || working;
+                    const cur = load();
+                    const saved = save(Object.assign({}, cur, { classes: working }));
+                    if (taClasses) taClasses.value = classesToLines(saved.classes || []);
+                    renderClassesTableFromTextarea();
+                    renderStatusOverview();
+                    const loc = local.stats || {};
+                    const gr = graphResult.stats || {};
+                    setSummary(
+                        'Ergänzt: ' +
+                            (loc.yearFilled || 0) +
+                            ' Abschlussjahr(e), ' +
+                            ((loc.kvFilled || 0) + (gr.kvFilled || 0)) +
+                            ' Klassenvorstand-Daten (lokal + ggf. Graph-Besitzer). Bitte prüfen und speichern ist bereits übernommen.',
+                        'ok'
+                    );
+                    dispatchTenantSettingsChanged(saved, 'class-enrich-groups');
+                } catch (e) {
+                    setSummary('Ergänzen fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
+                } finally {
+                    btn.disabled = false;
+                    btn.removeAttribute('aria-busy');
+                }
+            });
+        }
 
         const btnStatusRefresh = document.getElementById('tenantStatusRefresh');
         if (btnStatusRefresh) {
             btnStatusRefresh.addEventListener('click', () => renderStatusOverview());
         }
 
+        window.addEventListener('ms365-tenant-settings-changed', function (ev) {
+            const d = ev && ev.detail;
+            if (!d) return;
+            if (d.reason === 'render' || d.reason === 'autosave') return;
+            if (d.source === 'browser-backup-import' || d.source === 'spo-auto-pull') {
+                renderFromStorage();
+            }
+        });
+
         renderFromStorage();
-        if (window.ms365DemoMode && window.ms365DemoMode.isActive()) {
-            setSummary(
-                'Demo-Modus: Beispieldaten der MS365 Musterschule. Zum Beenden zurück zum Dashboard und „Demo beenden“ wählen.',
-                'ok'
-            );
-        }
 
         // Schritt 4 / 5: Tenant-IST, Match (Dropdown+Speichern), Differenz + Graph-Anlage
         function setTenantDeltaProgress(visible, text, ratio) {
@@ -6227,6 +7192,117 @@
 
         renderTenantInventoryMatchRows();
         renderTenantDeltaRows();
+
+        function webuntisMergeDeps() {
+            return {
+                webuntis: window.ms365WebuntisExportImport,
+                schoolSis: window.ms365SchoolSisImport,
+                parseTeachersLines:
+                    typeof window.ms365TenantSettingsParseTeachersLines === 'function'
+                        ? window.ms365TenantSettingsParseTeachersLines
+                        : function () {
+                              return [];
+                          },
+                parseStudentsLines:
+                    typeof window.ms365TenantSettingsParseStudentsLines === 'function'
+                        ? window.ms365TenantSettingsParseStudentsLines
+                        : function () {
+                              return [];
+                          },
+                parseSubjectsLines:
+                    typeof window.ms365TenantSettingsParseSubjectsLines === 'function'
+                        ? window.ms365TenantSettingsParseSubjectsLines
+                        : function () {
+                              return [];
+                          },
+                parseClassesLines:
+                    typeof window.ms365TenantSettingsParseClassesLines === 'function'
+                        ? window.ms365TenantSettingsParseClassesLines
+                        : function () {
+                              return [];
+                          }
+            };
+        }
+
+        async function applyWebuntisImportPayload(payload) {
+            if (!payload) return;
+            const merged = mergeWebuntisImportWithExisting(
+                {
+                    teachersLines: taTeachers ? taTeachers.value : '',
+                    studentsLines: taStudents ? taStudents.value : '',
+                    subjectsLines: taSubjects ? taSubjects.value : '',
+                    classesLines: taClasses ? taClasses.value : ''
+                },
+                payload,
+                webuntisMergeDeps()
+            );
+            const lines = merged.lines || {};
+            if (lines.subjectsLines != null && typeof parseLinesToSubjects === 'function') {
+                const nextSubjects = parseLinesToSubjects(lines.subjectsLines);
+                const ok = await confirmSubjectCatalogIfShrinks(nextSubjects, 'WebUntis-Import');
+                if (!ok) {
+                    if (summary) {
+                        summary.textContent =
+                            'WebUntis-Import abgebrochen – die Fächerliste würde Kürzel verlieren. Lehrer/Schüler wurden nicht übernommen.';
+                        summary.className = 'summary warn';
+                    }
+                    return;
+                }
+            }
+            const prevStudents = getStudentsFromTextarea();
+            if (taTeachers && lines.teachersLines != null) {
+                taTeachers.value = lines.teachersLines;
+                teachersSortState.key = null;
+                teachersSortState.dir = 1;
+                renderTeachersTableFromTextarea();
+            }
+            if (taStudents && lines.studentsLines != null) {
+                taStudents.value = lines.studentsLines;
+                studentsSortState.key = null;
+                studentsSortState.dir = 1;
+                renderStudentsTableFromTextarea();
+            }
+            if (taSubjects && lines.subjectsLines != null) {
+                taSubjects.value = lines.subjectsLines;
+                renderSubjectsTableFromTextarea();
+            }
+            if (taClasses && lines.classesLines != null) {
+                taClasses.value = lines.classesLines;
+                renderClassesTableFromTextarea();
+            }
+            const sis = sisApi();
+            if (merged.studentDiff && sis) {
+                rememberSisHistory(merged.studentDiff, 'webuntis', 'merge');
+                renderStudentLifecyclePanel(prevStudents, getStudentsFromTextarea());
+            }
+            if (summary) {
+                const detail = summarizeWebuntisMergeResult(merged.stats, merged.studentDiff, sis || {});
+                summary.textContent =
+                    'WebUntis-Import mit bestehenden Stammdaten abgeglichen (kein Doppelimport). ' +
+                    detail +
+                    ' – bitte unten „Speichern“ klicken.';
+                summary.className =
+                    merged.studentDiff && merged.studentDiff.conflicts && merged.studentDiff.conflicts.length
+                        ? 'summary warn'
+                        : 'summary ok';
+            }
+            if (merged.studentDiff && merged.studentDiff.conflicts && merged.studentDiff.conflicts.length) {
+                const msgs = merged.studentDiff.conflicts
+                    .slice(0, 5)
+                    .map(function (c) {
+                        return c.summary || c.type;
+                    })
+                    .join('\n');
+                dlgAlert(
+                    'Beim Abgleich wurden Konflikte gefunden (bitte in der Schülerliste prüfen):\n\n' + msgs,
+                    { title: 'WebUntis-Abgleich', okText: 'Verstanden' }
+                );
+            }
+            scheduleAutoSave();
+        }
+
+        const pendingWebuntis = consumeWebuntisImportPayload();
+        if (pendingWebuntis) void applyWebuntisImportPayload(pendingWebuntis);
 
         // Accordion: immer nur EIN Schritt offen (details.step)
         try {

@@ -275,7 +275,23 @@
             const externalId = cell(row, iKennzahl);
             let name = joinPersonName(cell(row, iStudVor), cell(row, iStudFam));
             if (!name) name = cell(row, iStudName);
-            const email = normEmail(cell(row, iStudMail));
+            let email = normEmail(cell(row, iStudMail));
+            const wu = typeof window !== 'undefined' ? window.ms365WebuntisExportImport : null;
+            let schoolDom = '';
+            try {
+                if (typeof window !== 'undefined' && typeof window.ms365GetSchoolDomainNoAt === 'function') {
+                    schoolDom = String(window.ms365GetSchoolDomainNoAt() || '').replace(/^@+/, '');
+                }
+            } catch {
+                /* ignore */
+            }
+            if (wu && typeof wu.sanitizeStudentEmailFromWebuntis === 'function') {
+                email = wu.sanitizeStudentEmailFromWebuntis(email, schoolDom);
+            } else if (email && schoolDom && email.indexOf('@' + schoolDom.toLowerCase()) < 0) {
+                email = '';
+            } else if (email && !schoolDom) {
+                email = '';
+            }
 
             const parentPairs = [];
             const pName = joinPersonName(

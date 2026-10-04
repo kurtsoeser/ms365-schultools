@@ -34,6 +34,8 @@
             'Mehrere Klassen zu einer zusammenführen: Survivor behält Alias/Gruppe, Quellen werden lokal entfernt und optional archiviert.',
         kursteams:
             'Teams für Unterrichtsfächer aus dem Stundenplan (z. B. WebUntis-Export). Sinnvoll, wenn Lehrkräfte pro Fach/Kurs ein eigenes Team nutzen.',
+        'unterrichtsteams-katalog':
+            'Übersicht aller Unterrichtsteams aus der Unterrichtsbelegung: filtern, Anzeigenamen und Mail-Nicknames bearbeiten, optional Anzeigenamen in M365 aktualisieren.',
         'arge-fachgruppen':
             'Eine Gruppe pro Fach oder Arbeitsgemeinschaft (ARGE). Voraussetzung: Fächer und ARGEs in den Stammdaten gepflegt.',
         diplomarbeiten:
@@ -66,6 +68,8 @@
         'sharepoint-intranet-hub':
             'Schulwebsite/Intranet: Site, Hub, Startlisten und Checkliste Formulare/Medien/News/Stammdaten-Übergabe.',
         'sharepoint-liste-lehrer': 'Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website veröffentlichen.',
+        'sharepoint-liste-stammdaten':
+            'Schülerinnen, Fächer und Klassen aus den Stammdaten als SharePoint-Listen auf der gewählten Website anlegen.',
         'sharepoint-liste-schultermine':
             'Terminliste anlegen, Sync-Health prüfen und Termine per CSV importieren (Ziel Schule/Lehrer/beide).',
         'sharepoint-liste-srdp':

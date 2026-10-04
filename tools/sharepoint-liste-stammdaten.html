@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Stammdaten-Listen (SharePoint)</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-database"></i>Stammdaten-Listen</span>
+            </div>
+            <p>Schülerinnen, Fächer, Fachgruppen, ARGEs und Klassen – anlegen oder bestehende Listen abgleichen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-stammdaten-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="sharepoint-liste-lehrer.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-people"></i>Lehrerliste</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-database"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">SharePoint · Intranet &amp; Listen</p>
+                    <h2>Schule auf SharePoint abbilden</h2>
+                    <p>Website angeben, Listen wählen – Standard ist <strong>Abgleich</strong> mit vorhandenen Listen (gleicher Name).</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <span class="tm-perm" id="spsCounts"><i class="bi bi-bar-chart"></i>Stammdaten werden geladen …</span>
+                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    <div>
+                        <h3>Abgleich-Modus</h3>
+                        <p>Wie mit der Lehrerliste: vorhandene SharePoint-Listen aktualisieren statt Duplikate anzulegen.</p>
+                    </div>
+                </div>
+                <div class="tm-toggle-grid">
+                    <label class="tm-toggle" for="spsAlwaysNew">
+                        <input type="checkbox" id="spsAlwaysNew">
+                        <span class="tm-toggle__icon"><i class="bi bi-plus-square"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Immer neue Listen anlegen</span>
+                            <span class="tm-toggle__desc">Ohne Haken: Liste nach Name suchen und Zeilen abgleichen.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="spsRemoveOrphans">
+                        <input type="checkbox" id="spsRemoveOrphans" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-trash"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Verwaiste Zeilen entfernen</span>
+                            <span class="tm-toggle__desc">Einträge in SharePoint, die nicht mehr in den Stammdaten sind.</span>
+                        </span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-check2-square" aria-hidden="true"></i>
+                    <div>
+                        <h3>Listen auswählen</h3>
+                        <p>Mehrere Listen in einem Durchgang – jeweils mit eigenem Namen auf derselben Site.</p>
+                    </div>
+                </div>
+                <div class="tm-toggle-grid">
+                    <label class="tm-toggle" for="spsWantSchueler">
+                        <input type="checkbox" id="spsWantSchueler" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-person-lines-fill"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Schülerinnenliste</span>
+                            <span class="tm-toggle__desc">Klasse, Name, E-Mail, optionale externe ID.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="spsWantFaecher">
+                        <input type="checkbox" id="spsWantFaecher" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-book"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Fächerliste</span>
+                            <span class="tm-toggle__desc">Kürzel und Bezeichnung.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="spsWantFachgruppen">
+                        <input type="checkbox" id="spsWantFachgruppen" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-diagram-2"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Fachgruppenliste</span>
+                            <span class="tm-toggle__desc">Gleiche Stammdaten wie Fächer, eigene Liste für Teams/Navigation.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="spsWantArge">
+                        <input type="checkbox" id="spsWantArge" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-collection"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">ARGE-Liste</span>
+                            <span class="tm-toggle__desc">Kürzel, Name und zugeordnete Fach-Kürzel (aus Stammdaten ARGEs).</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="spsWantKlassen">
+                        <input type="checkbox" id="spsWantKlassen">
+                        <span class="tm-toggle__icon"><i class="bi bi-grid-3x3-gap"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Klassenliste</span>
+                            <span class="tm-toggle__desc">Kürzel, Abschlussjahr, Klassenvorstand.</span>
+                        </span>
+                    </label>
+                </div>
+                <label class="tm-toggle" for="spsKlassenPersonen" style="margin-top:10px;">
+                    <input type="checkbox" id="spsKlassenPersonen" checked>
+                    <span class="tm-toggle__icon"><i class="bi bi-person-check"></i></span>
+                    <span>
+                        <span class="tm-toggle__title">Klassenliste: Schülerinnen als Personenfeld (M365)</span>
+                        <span class="tm-toggle__desc">Pro Klasse alle Schüler mit E-Mail aus den Stammdaten (Klasse = Kürzel/Name) als Mehrfach-Personenfeld; KV optional als Person.</span>
+                    </span>
+                </label>
+                <p class="hint" style="margin:8px 0 0;">Benutzer müssen im Tenant existieren. Fehlt jemand in der User Information List, versucht das Tool <code>ensureUser</code> (SharePoint-Schreibrecht auf der Site).</p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                    <div>
+                        <h3>Berechtigungen (Entra-Gruppen)</h3>
+                        <p>Wie beim Schularbeiten-Planer: Vererbung brechen, Site-Breite entfernen, Gruppen zuweisen.</p>
+                    </div>
+                </div>
+                <table class="tm-table" style="width:100%;margin-bottom:12px;font-size:0.88em;">
+                    <thead>
+                        <tr><th>Liste</th><th>Verwaltung</th><th>Lehrkräfte</th><th>Schüler</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Schülerinnen</td><td>Vollzugriff</td><td>Beitragen</td><td>—</td></tr>
+                        <tr><td>Fächer / Fachgruppen</td><td>Vollzugriff</td><td>Lesen</td><td>Lesen</td></tr>
+                        <tr><td>ARGEs</td><td>Vollzugriff</td><td>Beitragen</td><td>—</td></tr>
+                        <tr><td>Klassen</td><td>Vollzugriff</td><td>Beitragen</td><td>Lesen</td></tr>
+                    </tbody>
+                </table>
+                <div class="tm-field">
+                    <label for="spsmGroupAdmin">Verwaltung / Admin</label>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="spsmGroupAdmin" readonly placeholder="Gruppe wählen …" style="flex:1;min-width:200px;background:var(--input-bg);">
+                        <input type="hidden" id="spsmGroupAdminId">
+                        <button type="button" class="btn btn-sm" id="spsmGroupAdminPick"><i class="bi bi-search"></i>Gruppe wählen</button>
+                        <button type="button" class="btn btn-sm alt" id="spsmGroupAdminClear" title="Auswahl löschen"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="spsmGroupLehrer">Lehrkräfte</label>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="spsmGroupLehrer" readonly placeholder="Gruppe wählen …" style="flex:1;min-width:200px;background:var(--input-bg);">
+                        <input type="hidden" id="spsmGroupLehrerId">
+                        <button type="button" class="btn btn-sm" id="spsmGroupLehrerPick"><i class="bi bi-search"></i>Gruppe wählen</button>
+                        <button type="button" class="btn btn-sm alt" id="spsmGroupLehrerClear"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="spsmGroupSchueler">Schüler (Sammelgruppe)</label>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="spsmGroupSchueler" readonly placeholder="Gruppe wählen …" style="flex:1;min-width:200px;background:var(--input-bg);">
+                        <input type="hidden" id="spsmGroupSchuelerId">
+                        <button type="button" class="btn btn-sm" id="spsmGroupSchuelerPick"><i class="bi bi-search"></i>Gruppe wählen</button>
+                        <button type="button" class="btn btn-sm alt" id="spsmGroupSchuelerClear"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                </div>
+                <p class="hint">Gruppen werden beim ersten Öffnen aus dem Schularbeiten-Listen-Setup übernommen, falls hier noch leer. Voraussetzung: <code>Sites.FullControl.All</code> für den Berechtigungslauf.</p>
+                <label class="checkbox-label" style="display:block;margin:8px 0;">
+                    <input type="checkbox" id="spsSkipPerms"> Berechtigungen diesmal überspringen (nur Listen abgleichen)
+                </label>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="spsmBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen</button>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-cloud-upload" aria-hidden="true"></i>
+                    <div>
+                        <h3>Website &amp; Listenname</h3>
+                        <p>Typisch die Intranet-URL – wird nach dem Schul-Intranet-Setup vorausgefüllt.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="spsSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="spsSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="spsSchuelerName">Name Schülerinnenliste</label>
+                    <input type="text" id="spsSchuelerName" value="Schülerinnen" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="spsFaecherName">Name Fächerliste</label>
+                    <input type="text" id="spsFaecherName" value="Fächer" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="spsFachgruppenName">Name Fachgruppenliste</label>
+                    <input type="text" id="spsFachgruppenName" value="Fachgruppen" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="spsArgeName">Name ARGE-Liste</label>
+                    <input type="text" id="spsArgeName" value="ARGEs" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="spsKlassenName">Name Klassenliste</label>
+                    <input type="text" id="spsKlassenName" value="Klassen" maxlength="200" spellcheck="false">
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="spsBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                    <button type="button" class="btn" id="spsBtnRun"><i class="bi bi-arrow-repeat"></i>Abgleichen / anlegen</button>
+                </div>
+                <details class="tm-tech">
+                    <summary>Protokoll</summary>
+                    <div id="spsLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="../src/tools/sharepoint/sharepoint-liste-stammdaten.js" defer></script>
+    <script type="module" src="../src/tools/sharepoint/sharepoint-liste-stammdaten-page.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            function refreshCounts() {
+                var el = document.getElementById('spsCounts');
+                if (!el || typeof window.ms365TenantSettingsLoad !== 'function') return;
+                try {
+                    var s = window.ms365TenantSettingsLoad();
+                    var st = (s && Array.isArray(s.students) ? s.students : []).length;
+                    var fa = (s && Array.isArray(s.subjects) ? s.subjects : []).filter(function (x) {
+                        return x && String(x.code || '').trim();
+                    }).length;
+                    var ar = (s && Array.isArray(s.arges) ? s.arges : []).filter(function (x) {
+                        return x && String(x.code || '').trim();
+                    }).length;
+                    var kl = (s && Array.isArray(s.classes) ? s.classes : []).filter(function (x) {
+                        return x && (String(x.code || '').trim() || String(x.name || '').trim());
+                    }).length;
+                    el.innerHTML =
+                        '<i class="bi bi-bar-chart"></i>' +
+                        st + ' Schülerinnen · ' + fa + ' Fächer/FG · ' + ar + ' ARGEs · ' + kl + ' Klassen';
+                } catch (e) {
+                    el.innerHTML = '<i class="bi bi-bar-chart"></i>Stammdaten prüfen';
+                }
+            }
+            setTimeout(refreshCounts, 120);
+            setTimeout(refreshCounts, 600);
+        });
+    </script>
+</body>
+</html>

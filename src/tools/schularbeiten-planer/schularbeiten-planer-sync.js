@@ -1,7 +1,11 @@
 /**
  * Sync fixierter Schularbeiten → SharePoint-Liste „Schultermine“.
  */
-import { toIsoDateOnly } from './schularbeiten-planer-logic.js';
+import {
+    toIsoDateOnly,
+    schularbeitCalendarSubject,
+    formatSchularbeitZeitspanne
+} from './schularbeiten-planer-logic.js';
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',
@@ -45,20 +49,20 @@ export function buildSchulterminFields(sa, labels) {
     const datum = toIsoDateOnly(sa.datum);
     const fach = (labels && labels.fach) || sa.fachCode || 'Fach';
     const klasse = (labels && labels.klasse) || sa.klasseCode || '';
-    const title =
-        fach + (klasse ? ' · ' + klasse : '') + (sa.thema ? ' – ' + String(sa.thema).slice(0, 80) : '');
+    const title = schularbeitCalendarSubject(sa, { fach, klasse });
     const marker = saMarker(sa.schularbeitId);
     const info = [marker, 'Schularbeit', sa.lehrerCode ? 'Lehrer: ' + sa.lehrerCode : '', sa.dauerMinuten ? sa.dauerMinuten + ' Min.' : '']
         .filter(Boolean)
         .join(' · ');
+    const zeit = formatSchularbeitZeitspanne(sa);
     return {
         Title: title.slice(0, 250),
         Beginn: datum,
         Ende: datum,
         Kategorie: 'Prüfung',
         Info: info,
-        ZeitraumText: datum || '',
-        AllDay: true,
+        ZeitraumText: zeit ? datum + ', ' + zeit : datum || '',
+        AllDay: !zeit,
         SyncStatus: 'pending'
     };
 }

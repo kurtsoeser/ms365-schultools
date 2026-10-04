@@ -760,9 +760,19 @@
         return out;
     }
 
+    function parseClassLineParts(line) {
+        const t = normStr(line);
+        if (!t || t.startsWith('#')) return null;
+        return t.split(/[;\t,|]/).map((x) => normStr(x));
+    }
+
     function parseLinesToClasses(text) {
         const out = [];
-        parseDelimitedLines(text).forEach((parts) => {
+        String(text || '')
+            .split(/\r\n|\n|\r/)
+            .forEach((line) => {
+                const parts = parseClassLineParts(line);
+                if (!parts || !parts.length) return;
             const code = normCode(parts[0] || '');
             // Unterstützte Formate:
             // - code;name;headName;headEmail (alt)
@@ -793,7 +803,7 @@
             if (!code && !name && !y && !headName && !headEmail) return;
             const stableMailNickname = deriveClassStableMailNickname(y, code);
             out.push({ code, name, year: y, headName, headEmail, stableMailNickname });
-        });
+            });
         return out;
     }
 

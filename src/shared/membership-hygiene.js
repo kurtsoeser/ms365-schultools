@@ -3,6 +3,7 @@
  * @file
  */
 import { normEmailList } from './membership-reconcile.js';
+import { studentBelongsToClassRow } from './class-student-match.js';
 
 const SCAN_STORAGE_KEY = 'ms365-hygiene-scan-v2';
 
@@ -38,16 +39,12 @@ function collectAdminEmails(admin) {
     );
 }
 
-function emailsForClassCode(students, classCode, className) {
-    const code = normCode(classCode);
-    const name = normStr(className).toLowerCase();
+function emailsForClassCode(students, classCode, className, classTeam) {
+    const row = { code: classCode, name: className };
     const seen = new Set();
     const out = [];
     (Array.isArray(students) ? students : []).forEach(function (s) {
-        const k = normStr(s && s.klasse);
-        if (!k) return;
-        const match = (code && normCode(k) === code) || (name && k.toLowerCase() === name);
-        if (!match) return;
+        if (!studentBelongsToClassRow(s, row, classTeam)) return;
         const em = String((s && s.email) || '')
             .trim()
             .toLowerCase();
@@ -126,6 +123,26 @@ function normalizeClassTeamsFromContainer(container) {
         return globalThis.ms365AppDataV2.normalizeCoreClassTeams(raw);
     }
     return raw;
+}
+
+/**
+ * Verknüpfte Klassengruppen zählen – nur Einträge aus der aktuellen Klassenliste (keine verwaisten classTeams).
+ * @param {object[]} classes
+ * @param {object[]} classTeams
+ * @returns {{ linked: number, total: number }}
+ */
+export function countLinkedClassTeamsForClasses(classes, classTeams) {
+    const list = Array.isArray(classes) ? classes : [];
+    const teams = Array.isArray(classTeams) ? classTeams : [];
+    let linked = 0;
+    list.forEach(function (cls) {
+        const team = findClassTeamForClass(cls, teams);
+        if (!team) return;
+        const gid = String(team.graphGroupId || '').trim();
+        const mode = String(team.mode || '').toLowerCase();
+        if (gid || mode === 'matched' || mode === 'created') linked += 1;
+    });
+    return { linked: linked, total: list.length };
 }
 
 /**
@@ -215,7 +232,7 @@ export function buildHygieneTargets(container, settings) {
             category: 'klasse',
             label: 'Klasse ' + labelParts.join(' · '),
             groupId: gid || null,
-            listCount: emailsForClassCode(students, code, cls.name).length,
+            listCount: emailsForClassCode(students, code, cls.name, team).length,
             toolHref: 'jahrgangsgruppen.html',
             reviewHint: 'Klasse wählen → Mitglieder vergleichen',
             classCode: code
@@ -348,6 +365,7 @@ export async function runHygieneScan(cfg) {
 const api = {
     buildHygieneTargets: buildHygieneTargets,
     findClassTeamForClass: findClassTeamForClass,
+    countLinkedClassTeamsForClasses: countLinkedClassTeamsForClasses,
     hygieneStatusForTarget: hygieneStatusForTarget,
     summarizeHygieneScan: summarizeHygieneScan,
     loadHygieneScanCache: loadHygieneScanCache,

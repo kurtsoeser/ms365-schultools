@@ -5,14 +5,35 @@ import {
     daysBetween,
     isoWeekKey,
     addDays,
+    mondayOfWeekContaining,
+    buildSchoolWeekDays,
     dateInWindow,
     validateSchularbeit,
     computeDashboardKpis,
-    buildWeeklyDistribution
+    buildWeeklyDistribution,
+    composeSchularbeitListItemTitle,
+    schularbeitDisplayTitle,
+    normalizeBeginnUhrzeit,
+    computeEndeUhrzeit,
+    schularbeitTerminZeitfenster,
+    formatSchularbeitZeitspanne,
+    compareSchularbeitenByBeginn,
+    sortSchularbeitenByBeginn
 } from '../src/tools/schularbeiten-planer/schularbeiten-planer-logic.js';
 import { newEntityId, DEFAULT_REGELWERK_FIELDS } from '../src/tools/schularbeiten-planer/schularbeiten-planer-schema.js';
 
 describe('schularbeiten-planer-logic helpers', () => {
+    it('composeSchularbeitListItemTitle und schularbeitDisplayTitle', () => {
+        expect(
+            composeSchularbeitListItemTitle(
+                { fachCode: 'D', klasseCode: '3AK' },
+                { fachLabel: 'Deutsch', klasseLabel: '3AK' }
+            )
+        ).toBe('Schularbeit - Deutsch - 3AK');
+        expect(schularbeitDisplayTitle({ titel: '1. SA', thema: 'Erörterung' })).toBe('1. SA');
+        expect(schularbeitDisplayTitle({ thema: 'Alt' })).toBe('Alt');
+    });
+
     it('toIsoDateOnly aus Date und String', () => {
         expect(toIsoDateOnly('2026-10-14')).toBe('2026-10-14');
         expect(toIsoDateOnly('2026-10-14T12:00:00Z')).toBe('2026-10-14');
@@ -22,6 +43,40 @@ describe('schularbeiten-planer-logic helpers', () => {
     it('daysBetween und addDays', () => {
         expect(daysBetween('2026-10-01', '2026-10-08')).toBe(7);
         expect(addDays('2026-10-01', -1)).toBe('2026-09-30');
+        expect(addDays('2026-03-29', 1)).toBe('2026-03-30');
+    });
+
+    it('Beginn-Uhrzeit und Ende aus Dauer', () => {
+        expect(normalizeBeginnUhrzeit('8:05')).toBe('08:05');
+        expect(normalizeBeginnUhrzeit('25:00')).toBe('');
+        expect(computeEndeUhrzeit('08:00', 100)).toBe('09:40');
+        expect(formatSchularbeitZeitspanne({ beginnUhrzeit: '08:00', dauerMinuten: 50 })).toBe('08:00 – 08:50 Uhr');
+        const slot = schularbeitTerminZeitfenster({
+            datum: '2026-11-11',
+            beginnUhrzeit: '08:00',
+            dauerMinuten: 100
+        });
+        expect(slot.isAllDay).toBe(false);
+        expect(slot.startDateTime).toBe('2026-11-11T08:00:00');
+        expect(slot.endDateTime).toBe('2026-11-11T09:40:00');
+    });
+
+    it('sortiert am selben Tag nach Beginn-Uhrzeit', () => {
+        const sorted = sortSchularbeitenByBeginn([
+            { beginnUhrzeit: '10:00', klasseCode: '1AK', fachCode: 'D', titel: 'B' },
+            { beginnUhrzeit: '08:00', klasseCode: '2AK', fachCode: 'E', titel: 'A' },
+            { beginnUhrzeit: '', klasseCode: '3AK', fachCode: 'M', titel: 'C' }
+        ]);
+        expect(sorted.map((x) => x.titel)).toEqual(['A', 'B', 'C']);
+        expect(compareSchularbeitenByBeginn({ beginnUhrzeit: '08:00' }, { beginnUhrzeit: '09:00' })).toBeLessThan(0);
+    });
+
+    it('Unterrichtswoche Mo–Fr', () => {
+        expect(mondayOfWeekContaining('2026-10-02')).toBe('2026-09-28');
+        const w = buildSchoolWeekDays('2026-10-02');
+        expect(w.days).toHaveLength(5);
+        expect(w.days[0].weekday).toBe('Mo');
+        expect(w.days[4].iso).toBe('2026-10-02');
     });
 
     it('isoWeekKey stabil', () => {
@@ -44,6 +99,7 @@ describe('validateSchularbeit', () => {
         klasseCode: '3AK',
         lehrerCode: 'BAU',
         datum: '2026-11-10',
+        beginnUhrzeit: '08:00',
         dauerMinuten: 100,
         semester: 'WS',
         status: 'beantragt'

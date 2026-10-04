@@ -6,7 +6,8 @@ import {
     isDirektionRole,
     classCodeExists,
     remapStudentKlassen,
-    deriveNickFallback
+    deriveNickFallback,
+    studentBelongsToClassRow
 } from '../src/tools/jahrgangsgruppen/jahrgangsgruppen-logic.js';
 import { psEscapeSingle, buildClassSmtpPs1 } from '../src/tools/jahrgangsgruppen/jahrgangsgruppen-smtp.js';
 
@@ -27,6 +28,17 @@ describe('jahrgangsgruppen-logic', () => {
 
     it('deriveNickFallback folgt dem jg+Jahr+Code-Schema', () => {
         expect(deriveNickFallback({ year: '2026', code: '1A' })).toBe('jg20261a');
+    });
+
+    it('studentBelongsToClassRow: Kürzel, Anzeigename und Gruppen-Link', () => {
+        const row = { code: '1A', name: '1A Demo' };
+        expect(studentBelongsToClassRow({ klasse: '1A' }, row)).toBe(true);
+        expect(studentBelongsToClassRow({ klasse: '1a' }, row)).toBe(true);
+        expect(studentBelongsToClassRow({ klasse: '1B' }, row)).toBe(false);
+        expect(studentBelongsToClassRow({ klasse: '1A' }, { code: '', name: '1A Demo' })).toBe(true);
+        expect(
+            studentBelongsToClassRow({ klasse: '1A' }, { code: '', name: 'Demo-Klasse' }, { classCode: '1A' })
+        ).toBe(true);
     });
 });
 

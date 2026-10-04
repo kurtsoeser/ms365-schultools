@@ -1,6 +1,6 @@
 /**
- * WebUntis-Stammdaten-Exporte: Student_*.xls, LegalGuardian_*.xls, TeacherSalary_*.xls
- * (klassische OLE-XLS, von SheetJS lesbar).
+ * WebUntis-Stammdaten-Exporte: Student_*.xls/csv, LegalGuardian_*.xls, Teacher_*.csv,
+ * TeacherSalary_*.xls (klassische OLE-XLS, von SheetJS lesbar).
  */
 (function () {
     'use strict';
@@ -11,6 +11,61 @@
 
     function normEmail(v) {
         return normStr(v).toLowerCase();
+    }
+
+    function normalizeSchoolDomain(domain) {
+        return normStr(domain).replace(/^@+/, '').toLowerCase();
+    }
+
+    function isEmailOnSchoolDomain(email, schoolDomain) {
+        const em = normEmail(email);
+        const dom = normalizeSchoolDomain(schoolDomain);
+        if (!em || em.indexOf('@') < 0 || !dom) return false;
+        return em.slice(em.lastIndexOf('@') + 1) === dom;
+    }
+
+    /**
+     * WebUntis „address.email“ ist oft eine private Kontaktadresse – keine Schüler-UPN.
+     * Nur Adressen der konfigurierten Schuldomain bleiben; sonst leer (später Schul-Mail erzeugen).
+     * @param {string} email
+     * @param {string} [schoolDomain]
+     * @returns {string}
+     */
+    function sanitizeStudentEmailFromWebuntis(email, schoolDomain) {
+        const em = normEmail(email);
+        if (!em || em.indexOf('@') < 0) return '';
+        const dom = normalizeSchoolDomain(schoolDomain);
+        if (!dom) return '';
+        return isEmailOnSchoolDomain(em, dom) ? em : '';
+    }
+
+    function resolveSchoolDomainForImport(inputDomain) {
+        const fromInp = normalizeSchoolDomain(inputDomain);
+        if (fromInp) return fromInp;
+        try {
+            if (typeof window !== 'undefined' && typeof window.ms365GetSchoolDomainNoAt === 'function') {
+                return normalizeSchoolDomain(window.ms365GetSchoolDomainNoAt());
+            }
+        } catch {
+            /* ignore */
+        }
+        return '';
+    }
+
+    /**
+     * @param {array} records
+     * @param {string} schoolDomain
+     * @returns {{ records: array, ignored: number }}
+     */
+    function stripPrivateStudentEmails(records, schoolDomain) {
+        let ignored = 0;
+        const out = (records || []).map(function (r) {
+            const raw = normEmail(r && r.email);
+            const clean = sanitizeStudentEmailFromWebuntis(raw, schoolDomain);
+            if (raw && !clean) ignored++;
+            return Object.assign({}, r, { email: clean });
+        });
+        return { records: out, ignored: ignored };
     }
 
     function normHeaderKey(k) {
@@ -108,6 +163,33 @@
         }
         if (has('lehrkraft') && (has('familienname') || has('personalnummer'))) {
             return 'teacher';
+        }
+        if (
+            has('longname') &&
+            has('forename') &&
+            has('name') &&
+            !has('klassename') &&
+            !has('klasse.name') &&
+            !has('klasse') &&
+            !has('externkey') &&
+            !has('id')
+        ) {
+            return 'teacher';
+        }
+        if (
+            has('longname') &&
+            has('name') &&
+            !has('forename') &&
+            !has('klassename') &&
+            !has('klasse.name') &&
+            !has('klasse') &&
+            !has('externkey') &&
+            !has('id')
+        ) {
+            return 'subject';
+        }
+        if (has('subject') && (has('teacher') || has('klassen') || has('classes') || has('class'))) {
+            return 'lessons';
         }
         if (
             (has('longname') && has('forename') && (has('klasse.name') || has('klassename') || has('klasse'))) ||
@@ -249,14 +331,15 @@
         if (rows.length < 2) return [];
         const map = headerIndexMap(rows[0]);
 
-        const iCode = findIdx(map, ['lehrkraft', 'kuerzel', 'kürzel', 'code']);
-        const iLast = findIdx(map, ['familienname', 'nachname', 'lastname']);
+        const iCode = findIdx(map, ['lehrkraft', 'kuerzel', 'kürzel', 'code', 'name']);
+        const iLast = findIdx(map, ['familienname', 'nachname', 'lastname', 'longname']);
         const iFirst = findIdx(map, ['vorname', 'forename', 'firstname']);
         const iTitle = findIdx(map, ['titel', 'title']);
-        const iPers = findIdx(map, ['personalnummer', 'personalnr', 'personnelnumber']);
+        const iPers = findIdx(map, ['personalnummer', 'personalnr', 'personnelnumber', 'pnr']);
         const iExit = findIdx(map, ['austrittsdatum', 'exitdate']);
         const iEntry = findIdx(map, ['eintrittsdatum', 'entrydate']);
         const iStatus = findIdx(map, ['lehrkraftstatus', 'status']);
+        const iEmail = findIdx(map, ['address.email', 'email', 'mail']);
 
         const out = [];
         for (let r = 1; r < rows.length; r++) {
@@ -272,7 +355,7 @@
             out.push({
                 code: code,
                 name: name,
-                email: '',
+                email: normEmail(cell(row, iEmail)),
                 externalId: cell(row, iPers),
                 foreName: firstName,
                 longName: lastName,
@@ -285,6 +368,40 @@
             });
         }
         return out;
+    }
+
+    function parseSubjectsAoa(aoa) {
+        const rows = Array.isArray(aoa) ? aoa : [];
+        if (rows.length < 2) return [];
+        const map = headerIndexMap(rows[0]);
+        const iCode = findIdx(map, ['name', 'kuerzel', 'kürzel', 'code', 'abbrev', 'fach']);
+        const iLabel = findIdx(map, ['longname', 'bezeichnung', 'fachname', 'displayname']);
+        const out = [];
+        for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row || !row.length) continue;
+            const code = normStr(cell(row, iCode)).toUpperCase();
+            if (!code) continue;
+            const label = cell(row, iLabel) || code;
+            out.push({ code: code, name: normStr(label) });
+        }
+        return out;
+    }
+
+    function uniqueSubjectsFromLessonsAoa(aoa) {
+        const rows = Array.isArray(aoa) ? aoa : [];
+        if (rows.length < 2) return [];
+        const map = headerIndexMap(rows[0]);
+        const iSubj = findIdx(map, ['subject', 'fach', 'unterrichtsgegenstand', 'lehrgegenstand']);
+        const by = new Map();
+        for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            const raw = normStr(cell(row, iSubj));
+            if (!raw) continue;
+            const code = raw.toUpperCase();
+            if (!by.has(code)) by.set(code, { code: code, name: raw });
+        }
+        return Array.from(by.values());
     }
 
     function pushParent(list, name, email, phone) {
@@ -415,10 +532,12 @@
      */
     function importStudentsFromWebuntis(input) {
         const inp = input && typeof input === 'object' ? input : {};
+        const schoolDomain = resolveSchoolDomainForImport(inp.domain);
         const studentsRaw = parseStudentsAoa(inp.studentAoa || [], { includeExited: inp.includeExited });
         const guardians = parseGuardiansAoa(inp.guardianAoa || []);
         const joined = joinStudentsAndGuardians(studentsRaw, guardians);
-        let records = joined.students;
+        const stripped = stripPrivateStudentEmails(joined.students, schoolDomain);
+        let records = stripped.records;
         let emailMeta = { generated: 0, conflicts: 0 };
 
         if (inp.applyEmails !== false && inp.domain) {
@@ -455,7 +574,8 @@
                 }, 0),
                 unmatchedGuardians: (joined.unmatchedGuardians || []).length,
                 emailsGenerated: emailMeta.generated,
-                emailConflicts: emailMeta.conflicts
+                emailConflicts: emailMeta.conflicts,
+                privateStudentEmailsIgnored: stripped.ignored
             }
         };
     }
@@ -494,12 +614,21 @@
      * @param {{ aoa: any[][], name?: string }[]} sheets
      */
     function classifySheets(sheets) {
-        const out = { studentAoa: null, guardianAoa: null, teacherAoa: null, unknown: [] };
+        const out = {
+            studentAoa: null,
+            guardianAoa: null,
+            teacherAoa: null,
+            subjectAoa: null,
+            lessonsAoa: null,
+            unknown: []
+        };
         (sheets || []).forEach(function (sh) {
             const kind = detectExportKindFromAoa(sh && sh.aoa);
             if (kind === 'student' && !out.studentAoa) out.studentAoa = sh.aoa;
             else if (kind === 'guardian' && !out.guardianAoa) out.guardianAoa = sh.aoa;
             else if (kind === 'teacher' && !out.teacherAoa) out.teacherAoa = sh.aoa;
+            else if (kind === 'subject' && !out.subjectAoa) out.subjectAoa = sh.aoa;
+            else if (kind === 'lessons' && !out.lessonsAoa) out.lessonsAoa = sh.aoa;
             else out.unknown.push({ name: sh && sh.name, kind: kind || 'unknown' });
         });
         return out;
@@ -583,9 +712,43 @@
     }
 
     function parseSchoolYearFromClassPdfText(text) {
-        const m = String(text || '').match(/Schuljahr\s*:?\s*(\d{4})\s*\/\s*(\d{4})/i);
-        if (!m) return { label: '', startYear: 0, endYear: 0 };
-        return { label: m[1] + '/' + m[2], startYear: Number(m[1]), endYear: Number(m[2]) };
+        const raw = String(text || '');
+        let m = raw.match(/Schuljahr\s*:?\s*(\d{4})\s*\/\s*(\d{4})/i);
+        if (m) {
+            return { label: m[1] + '/' + m[2], startYear: Number(m[1]), endYear: Number(m[2]) };
+        }
+        m = raw.match(/Schuljahr\s*:?\s*(\d{4})\s*\/\s*(\d{2})\b/i);
+        if (m) {
+            const start = Number(m[1]);
+            const end = start + 1;
+            return { label: start + '/' + end, startYear: start, endYear: end };
+        }
+        return { label: '', startYear: 0, endYear: 0 };
+    }
+
+    /**
+     * Schuljahres-Endjahr aus PDF oder Fallback (z. B. aktuelles Schuljahr aus App).
+     * @param {string} text
+     * @param {number} [fallbackEndYear]
+     */
+    function resolveSchoolYearForClassPdf(text, fallbackEndYear) {
+        const fromPdf = parseSchoolYearFromClassPdfText(text);
+        if (fromPdf.endYear) return fromPdf;
+        const end = Number(fallbackEndYear) || 0;
+        if (!end) return fromPdf;
+        const start = end - 1;
+        return { label: start + '/' + end, startYear: start, endYear: end };
+    }
+
+    function applyInferYearToClasses(classes, deptByCode, schoolYearEnd, inferYear) {
+        if (!inferYear || !schoolYearEnd) return classes;
+        return (classes || []).map(function (cl) {
+            const rec = Object.assign({}, cl);
+            if (!normStr(rec.year)) {
+                rec.year = inferGraduationYear(rec.code, rec.deptText || deptByCode.get(rec.code) || '', schoolYearEnd);
+            }
+            return rec;
+        });
     }
 
     /**
@@ -727,7 +890,7 @@
             const y = Number(w.y != null ? w.y : w.y0);
             if (!isFinite(x) || !isFinite(y)) return;
             if (y < 130 || y > 760) return;
-            const yk = Math.round(y);
+            const yk = pdfWordRowKey(w);
             if (!rows.has(yk)) rows.set(yk, []);
             rows.get(yk).push({ x: x, text: text });
         });
@@ -758,11 +921,19 @@
                 let teacherCode = '';
                 let dept = '';
                 cells.forEach(function (c) {
+                    // WebUntis-Spalten: Kurzname ~30, Langname ~90, Klassenlehrkraft ~190, Text ~370
                     if (c.x < 70) kurz = c.text;
                     else if (c.x < 160) lang = c.text;
                     else if (c.x < 300) teacherCode = c.text;
+                    else if (c.x >= 320) dept = c.text;
+                    else if (!teacherCode) teacherCode = c.text;
                     else dept = c.text;
                 });
+                if (isDeptTextToken(teacherCode) && isTeacherCodeToken(dept)) {
+                    const swap = teacherCode;
+                    teacherCode = dept;
+                    dept = swap;
+                }
                 if (!isClassCodeToken(kurz) && !isClassCodeToken(lang)) return;
                 const code = normStr(kurz || lang).toUpperCase();
                 if (o.skipWithoutTeacher && !isTeacherCodeToken(teacherCode)) return;
@@ -835,40 +1006,348 @@
             .join('\n');
     }
 
+    function subjectsToSemicolonLines(subjects) {
+        return (subjects || [])
+            .map(function (s) {
+                const code = normStr(s.code).toUpperCase();
+                if (!code) return '';
+                const name = normStr(s.name) || code;
+                return code + ';' + name;
+            })
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    function isSubjectPdfNoiseLine(l) {
+        const t = normStr(l);
+        if (!t) return true;
+        if (/^WebUntis/i.test(t)) return true;
+        if (/^Untis GmbH/i.test(t)) return true;
+        if (/^Seite\s+\d/i.test(t)) return true;
+        if (/^admin_/i.test(t)) return true;
+        if (/TextLangname/i.test(t) && /Kurzname/i.test(t)) return true;
+        if (/^Fächer$/i.test(t) || /^Faecher$/i.test(t)) return true;
+        if (/^Schuljahr/i.test(t)) return true;
+        if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(t)) return true;
+        if (/^\d{1,2}:\d{2}$/.test(t)) return true;
+        if (/^A-\d{4}/.test(t)) return true;
+        if (/^BHAK\b/i.test(t) || /^HAK\b/i.test(t)) return true;
+        if (/^www\./i.test(t)) return true;
+        return false;
+    }
+
+    function isAdminSubjectEntry(code, name, curriculumNo) {
+        const c = normStr(code).toUpperCase();
+        const n = normStr(name).toLowerCase();
+        const no = Number(curriculumNo);
+        if (no >= 49) return true;
+        if (/^(ADM|DIR|BFK|BIB|AUFSICHT|ANDK)/.test(c)) return true;
+        if (/^KUST\b/.test(c) || /^AUD$/.test(c) || /^BWG$/.test(c)) return true;
+        if (/administrator|bildungsberater|schulbibliothek|direktor|aufsicht|koordinator|datenstand/i.test(n)) {
+            return true;
+        }
+        return false;
+    }
+
+    function pdfWordPage(w) {
+        const p = w && (w.page != null ? w.page : w.pageIndex);
+        const n = Number(p);
+        return isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function pdfWordRowKey(w) {
+        const y = Number(w && (w.y != null ? w.y : w.y0));
+        const page = pdfWordPage(w);
+        return page * 100000 + Math.round(isFinite(y) ? y : 0);
+    }
+
+    function subjectParseLooksCorrupt(subjects) {
+        return (subjects || []).some(function (s) {
+            return normStr(s.code).length > 14;
+        });
+    }
+
+    function chooseSubjectPdfParse(fromText, fromWords) {
+        const textN = (fromText && fromText.meta && fromText.meta.subjectCount) || 0;
+        const wordsN = (fromWords && fromWords.meta && fromWords.meta.subjectCount) || 0;
+        if (!fromWords || !wordsN) return fromText;
+        if (subjectParseLooksCorrupt(fromWords.subjects) && !subjectParseLooksCorrupt(fromText.subjects)) {
+            return fromText;
+        }
+        if (wordsN >= textN) return fromWords;
+        if (textN >= wordsN * 0.85) return fromText;
+        return fromWords;
+    }
+
+    function isSubjectKurznameToken(t) {
+        const s = normStr(t);
+        if (!s || s.length > 20) return false;
+        if (/^(Text|Langname|Kurzname|Fächer|Faecher|Seite|von|Konversation)$/i.test(s)) return false;
+        if (/^admin_/i.test(s)) return false;
+        if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(s)) return false;
+        if (/^\d{1,2}:\d{2}$/.test(s)) return false;
+        if (/^A-\d{4}/.test(s)) return false;
+        if (!/^[\wäöüÄÖÜß.+_-]+$/i.test(s)) return false;
+        return /[A-Za-z0-9]/.test(s);
+    }
+
+    function subjectLangCurriculumParts(langText) {
+        const lang = normStr(langText);
+        const m = lang.match(/^(\d{2})\s+(.+)$/);
+        if (m) {
+            return { curriculumNo: m[1], name: normStr(m[2]) };
+        }
+        return { curriculumNo: '', name: lang };
+    }
+
+    function stripLeadingCurriculumFromSubjectName(name, curriculumNo) {
+        let n = normStr(name);
+        const no = normStr(curriculumNo);
+        if (no && n.indexOf(no + ' ') === 0) n = normStr(n.slice(no.length + 1));
+        const m = n.match(/^(\d{2})\s+(.+)$/);
+        if (m) n = normStr(m[2]);
+        return n || normStr(name);
+    }
+
+    function upsertSubjectInMap(byCode, codeRaw, langText) {
+        const codeUp = normStr(codeRaw).toUpperCase();
+        if (!codeUp || !isSubjectKurznameToken(codeUp)) return;
+        const parts = subjectLangCurriculumParts(langText || codeUp);
+        const displayName = stripLeadingCurriculumFromSubjectName(parts.name || codeUp, parts.curriculumNo);
+        const admin = isAdminSubjectEntry(codeUp, displayName, parts.curriculumNo);
+        if (!byCode.has(codeUp)) {
+            byCode.set(codeUp, {
+                code: codeUp,
+                name: displayName,
+                curriculumNo: parts.curriculumNo,
+                admin: admin
+            });
+        } else {
+            const cur = byCode.get(codeUp);
+            if (parts.curriculumNo && !cur.curriculumNo) {
+                cur.curriculumNo = parts.curriculumNo;
+                cur.name = displayName;
+            } else if (displayName.length > (cur.name || '').length) {
+                cur.name = displayName;
+            }
+            if (admin) cur.admin = true;
+        }
+    }
+
+    function shouldPairSubjectLangWithCode(langLine, codeLine) {
+        const lang = normStr(langLine);
+        const code = normStr(codeLine);
+        if (!lang || !isSubjectKurznameToken(code)) return false;
+        if (lang.toUpperCase() === code.toUpperCase()) return true;
+        if (/^\d{2}\s/.test(lang)) return true;
+        if (/\s/.test(lang)) return true;
+        if (lang.length > code.length + 2) return true;
+        if (isSubjectKurznameToken(lang) && !/\s/.test(lang)) return false;
+        return lang.length >= 3;
+    }
+
+    function tryParseMergedSubjectLine(line, byCode) {
+        let raw = normStr(line);
+        if (!raw || isSubjectPdfNoiseLine(raw)) return false;
+        let curriculumNo = '';
+        const numM = raw.match(/^(\d{2})\s+(.+)$/);
+        if (numM) {
+            curriculumNo = numM[1];
+            raw = numM[2];
+        }
+        let best = null;
+        for (let len = 1; len <= Math.min(20, raw.length - 1); len++) {
+            const code = raw.slice(-len);
+            const name = raw.slice(0, -len).trim();
+            if (name.length < 2) continue;
+            if (!isSubjectKurznameToken(code)) continue;
+            if (len === 1 && raw.length > 10) continue;
+            if (!/[a-zA-ZäöüÄÖÜß]/.test(name)) continue;
+            best = { code: code, name: name };
+            break;
+        }
+        if (!best) return false;
+        const displayName = curriculumNo ? curriculumNo + ' ' + best.name : best.name;
+        upsertSubjectInMap(byCode, best.code, displayName);
+        return true;
+    }
+
+    /**
+     * WebUntis Fächer-PDF (Klartext): Zeilenpaar Langname + Kurzname oder zusammengeklebt.
+     * @param {string} text
+     */
+    function parseSubjectsFromPdfText(text) {
+        const lines = String(text || '')
+            .split(/\r\n|\n|\r/)
+            .map(function (l) {
+                return normStr(l);
+            })
+            .filter(Boolean);
+
+        const byCode = new Map();
+        let i = 0;
+        while (i < lines.length) {
+            const line = lines[i];
+            if (isSubjectPdfNoiseLine(line)) {
+                i++;
+                continue;
+            }
+            const next = lines[i + 1];
+            if (next && shouldPairSubjectLangWithCode(line, next)) {
+                upsertSubjectInMap(byCode, next, line);
+                i += 2;
+                continue;
+            }
+            if (!tryParseMergedSubjectLine(line, byCode)) {
+                /* Zeile ohne Kurzname (z. B. „Konversation“) überspringen */
+            }
+            i++;
+        }
+
+        const subjects = Array.from(byCode.values());
+        subjects.sort(function (a, b) {
+            return String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' });
+        });
+        return {
+            subjects: subjects,
+            meta: {
+                subjectCount: subjects.length,
+                adminCount: subjects.filter(function (s) {
+                    return s.admin;
+                }).length
+            }
+        };
+    }
+
+    /**
+     * WebUntis Fächer-PDF: Spalte Kurzname (links, x≈30), Langname (rechts, x≈90+).
+     * @param {array} words
+     */
+    function parseSubjectsFromPdfWords(words) {
+        const list = Array.isArray(words) ? words : [];
+        const rows = new Map();
+        list.forEach(function (w) {
+            const text = normStr(w.str != null ? w.str : w.text);
+            if (!text) return;
+            const x = Number(w.x != null ? w.x : w.x0);
+            const y = Number(w.y != null ? w.y : w.y0);
+            if (!isFinite(x) || !isFinite(y)) return;
+            if (y < 125 || y > 780) return;
+            const yk = pdfWordRowKey(w);
+            if (!rows.has(yk)) rows.set(yk, []);
+            rows.get(yk).push({ x: x, text: text });
+        });
+
+        const byCode = new Map();
+        Array.from(rows.keys())
+            .sort(function (a, b) {
+                return a - b;
+            })
+            .forEach(function (yk) {
+                const cells = rows.get(yk).slice().sort(function (a, b) {
+                    return a.x - b.x;
+                });
+                const kurzCells = cells.filter(function (c) {
+                    return c.x < 75;
+                });
+                const langCells = cells.filter(function (c) {
+                    return c.x >= 75;
+                });
+                if (!kurzCells.length) return;
+                const code = normStr(kurzCells[0].text);
+                if (!isSubjectKurznameToken(code)) return;
+                const lang = langCells
+                    .map(function (c) {
+                        return c.text;
+                    })
+                    .join(' ')
+                    .trim();
+                upsertSubjectInMap(byCode, code, lang || code);
+            });
+
+        const subjects = Array.from(byCode.values());
+        subjects.sort(function (a, b) {
+            return String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' });
+        });
+        return {
+            subjects: subjects,
+            meta: {
+                subjectCount: subjects.length,
+                adminCount: subjects.filter(function (s) {
+                    return s.admin;
+                }).length
+            }
+        };
+    }
+
+    /**
+     * @param {{ text?: string, words?: array }} input
+     */
+    function importSubjectsFromWebuntisPdf(input) {
+        const inp = input && typeof input === 'object' ? input : {};
+        const fromText = parseSubjectsFromPdfText(inp.text || '');
+        const fromWords =
+            inp.words && inp.words.length ? parseSubjectsFromPdfWords(inp.words) : null;
+        const parsed = chooseSubjectPdfParse(fromText, fromWords);
+        return {
+            source: 'webuntis-subject-pdf',
+            subjects: parsed.subjects,
+            lines: subjectsToSemicolonLines(parsed.subjects),
+            meta: parsed.meta
+        };
+    }
+
     /**
      * @param {{ text?: string, words?: array, teachers?: array, skipWithoutTeacher?: boolean, inferYear?: boolean }} input
      */
     function importClassesFromWebuntisPdf(input) {
         const inp = input && typeof input === 'object' ? input : {};
+        const inferYear = inp.inferYear !== false;
+        const sy = resolveSchoolYearForClassPdf(inp.text || '', inp.schoolYearEnd);
+        const parseOpts = {
+            skipWithoutTeacher: inp.skipWithoutTeacher,
+            inferYear: inferYear
+        };
         let parsed;
         if (inp.words && inp.words.length) {
-            parsed = parseClassesFromPdfWords(inp.words, {
-                skipWithoutTeacher: inp.skipWithoutTeacher,
-                inferYear: inp.inferYear
-            });
+            parsed = parseClassesFromPdfWords(inp.words, parseOpts);
+            if (sy.endYear && (!parsed.schoolYear || !parsed.schoolYear.endYear)) {
+                parsed.schoolYear = sy;
+            }
+            if (sy.endYear) {
+                parsed.classes = applyInferYearToClasses(parsed.classes, new Map(), sy.endYear, inferYear);
+            }
         } else {
-            parsed = parseClassesFromPdfText(inp.text || '', {
-                skipWithoutTeacher: inp.skipWithoutTeacher,
-                inferYear: inp.inferYear
-            });
+            parsed = parseClassesFromPdfText(inp.text || '', parseOpts);
+            if (sy.endYear && (!parsed.schoolYear || !parsed.schoolYear.endYear)) {
+                parsed.schoolYear = sy;
+                parsed.classes = applyInferYearToClasses(parsed.classes, new Map(), sy.endYear, inferYear);
+            }
         }
         const enriched = enrichClassesWithTeachers(parsed.classes, inp.teachers || []);
         return {
             source: 'webuntis-class-pdf',
             classes: enriched.classes,
             lines: classesToSemicolonLines(enriched.classes),
-            schoolYear: parsed.schoolYear,
-            meta: Object.assign({}, parsed.meta, enriched.meta)
+            schoolYear: parsed.schoolYear && parsed.schoolYear.endYear ? parsed.schoolYear : sy,
+            meta: Object.assign({}, parsed.meta, enriched.meta, {
+                schoolYearEnd: sy.endYear || 0
+            })
         };
     }
 
     window.ms365WebuntisExportImport = {
         normHeaderKey: normHeaderKey,
+        sanitizeStudentEmailFromWebuntis: sanitizeStudentEmailFromWebuntis,
+        isEmailOnSchoolDomain: isEmailOnSchoolDomain,
+        stripPrivateStudentEmails: stripPrivateStudentEmails,
         detectExportKindFromHeaders: detectExportKindFromHeaders,
         detectExportKindFromAoa: detectExportKindFromAoa,
         parseStudentsAoa: parseStudentsAoa,
         parseGuardiansAoa: parseGuardiansAoa,
         parseTeachersAoa: parseTeachersAoa,
+        parseSubjectsAoa: parseSubjectsAoa,
+        uniqueSubjectsFromLessonsAoa: uniqueSubjectsFromLessonsAoa,
         joinStudentsAndGuardians: joinStudentsAndGuardians,
         importStudentsFromWebuntis: importStudentsFromWebuntis,
         importTeachersFromWebuntis: importTeachersFromWebuntis,
@@ -883,7 +1362,12 @@
         enrichClassesWithTeachers: enrichClassesWithTeachers,
         inferGraduationYear: inferGraduationYear,
         parseSchoolYearFromClassPdfText: parseSchoolYearFromClassPdfText,
+        resolveSchoolYearForClassPdf: resolveSchoolYearForClassPdf,
         classesToSemicolonLines: classesToSemicolonLines,
-        importClassesFromWebuntisPdf: importClassesFromWebuntisPdf
+        importClassesFromWebuntisPdf: importClassesFromWebuntisPdf,
+        parseSubjectsFromPdfText: parseSubjectsFromPdfText,
+        parseSubjectsFromPdfWords: parseSubjectsFromPdfWords,
+        subjectsToSemicolonLines: subjectsToSemicolonLines,
+        importSubjectsFromWebuntisPdf: importSubjectsFromWebuntisPdf
     };
 })();

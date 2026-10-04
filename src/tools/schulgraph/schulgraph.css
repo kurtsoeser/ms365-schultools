@@ -1,0 +1,317 @@
+.sg-page .content {
+    max-width: none;
+}
+
+.sg-hero {
+    margin-bottom: 4px;
+}
+
+.sg-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 320px) 1fr;
+    gap: 16px;
+    align-items: stretch;
+    min-height: 520px;
+}
+
+@media (max-width: 960px) {
+    .sg-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sg-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 72vh;
+    overflow: auto;
+}
+
+.sg-sidebar h3 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.sg-aspect-fieldset {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    padding: 10px 12px 8px;
+    margin: 0;
+}
+
+.sg-aspect-fieldset legend {
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0 6px;
+    color: var(--text-secondary);
+}
+
+.sg-check--aspect span {
+    font-size: 0.92rem;
+}
+
+.sg-preset-hint {
+    font-size: 0.82rem;
+    margin: 6px 0 0;
+    line-height: 1.4;
+}
+
+.sg-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sg-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+.sg-hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 6px 0;
+}
+
+.sg-warnings {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+    color: var(--warning-text, #b45309);
+}
+
+.sg-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.88rem;
+}
+
+.sg-legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    background: var(--brand1);
+}
+
+.sg-legend-dot[data-kind='class'] {
+    background: #2563eb;
+}
+.sg-legend-dot[data-kind='subject'] {
+    background: #7c3aed;
+}
+.sg-legend-dot[data-kind='arge'] {
+    background: #c026d3;
+}
+.sg-legend-dot[data-kind='teacher'] {
+    background: #059669;
+}
+.sg-legend-dot[data-kind='student'] {
+    background: #0891b2;
+}
+.sg-legend-dot[data-kind='guardian'] {
+    background: #db2777;
+}
+.sg-legend-dot[data-kind='m365group'] {
+    background: #6264a7;
+}
+
+.sg-meta {
+    font-size: 0.82rem;
+    margin: 0;
+}
+
+.sg-canvas-wrap {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    min-height: 480px;
+}
+
+.sg-canvas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+}
+
+.sg-zoom-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.sg-canvas-host {
+    flex: 1;
+    min-height: 420px;
+    background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--brand1) 6%, transparent), transparent 55%),
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 23px,
+            color-mix(in srgb, var(--border) 65%, transparent) 23px,
+            color-mix(in srgb, var(--border) 65%, transparent) 24px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 23px,
+            color-mix(in srgb, var(--border) 65%, transparent) 23px,
+            color-mix(in srgb, var(--border) 65%, transparent) 24px
+        );
+    cursor: grab;
+    touch-action: none;
+}
+
+.sg-canvas-host.sg-panning {
+    cursor: grabbing;
+}
+
+.sg-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+}
+
+.sg-edge {
+    stroke: color-mix(in srgb, var(--text-secondary) 55%, transparent);
+    stroke-width: 1.2;
+    pointer-events: none;
+}
+
+.sg-edge--hi {
+    stroke: var(--brand1);
+    stroke-width: 2;
+}
+
+.sg-node {
+    cursor: pointer;
+    outline: none;
+}
+
+.sg-node--dim {
+    opacity: 0.25;
+}
+
+.sg-node__circle {
+    pointer-events: all;
+    fill: var(--card);
+    stroke: var(--brand1);
+    stroke-width: 2;
+    filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--shadow) 40%, transparent));
+}
+
+.sg-node__circle[data-kind='school'] {
+    fill: color-mix(in srgb, var(--brand1) 25%, var(--card));
+    stroke: var(--brand1);
+    stroke-width: 3;
+}
+
+.sg-node__circle[data-kind='class'] {
+    stroke: #2563eb;
+}
+.sg-node__circle[data-kind='subject'] {
+    stroke: #7c3aed;
+}
+.sg-node__circle[data-kind='arge'] {
+    stroke: #c026d3;
+}
+.sg-node__circle[data-kind='teacher'] {
+    stroke: #059669;
+}
+.sg-node__circle[data-kind='student'] {
+    stroke: #0891b2;
+}
+.sg-node__circle[data-kind='guardian'] {
+    stroke: #db2777;
+}
+.sg-node__circle[data-kind='m365group'] {
+    stroke: #6264a7;
+    stroke-dasharray: 3 2;
+}
+
+.sg-node--sel .sg-node__circle {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--brand1) 50%, transparent));
+}
+
+.sg-node__label {
+    font-size: 10px;
+    fill: var(--text-secondary);
+    pointer-events: none;
+}
+
+.sg-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    background: color-mix(in srgb, var(--brand1) 12%, var(--card));
+    border: 1px solid var(--border);
+}
+
+.sg-edges {
+    margin: 8px 0 0;
+    padding-left: 1rem;
+    font-size: 0.85rem;
+    max-height: 200px;
+    overflow: auto;
+}
+
+.sg-mini-table {
+    width: 100%;
+    font-size: 0.88rem;
+    border-collapse: collapse;
+}
+
+.sg-mini-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sg-focus-hint {
+    font-size: 0.85rem;
+    color: var(--brand1);
+}
+
+.sg-explore-status {
+    font-size: 0.88rem;
+    margin: 8px 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--brand1) 8%, var(--card));
+    border: 1px solid var(--border);
+}
+
+.sg-explore-status--err {
+    color: #b45309;
+    background: color-mix(in srgb, #f59e0b 10%, var(--card));
+}
+
+.sg-node__circle[data-kind='entraUser'] {
+    stroke: #475569;
+}
+
+.sg-legend-dot[data-kind='entraUser'] {
+    background: #475569;
+}
+
+.sg-hint code {
+    font-size: 0.82em;
+}

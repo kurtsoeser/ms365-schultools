@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { loadScript } from './kursteams-vm.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -18,36 +18,18 @@ function loadScripts(relativePaths) {
     return sandbox;
 }
 
+/** @type {import('../src/tools/kursteams/kursteam-subject-filter-logic.js')} */
+let kursteamSubjectFilter;
+
 describe('kursteam-subject-filter-logic', () => {
-    it('splitSubjectBaseAndSuffix erkennt OMAI1 / OMAIK2', () => {
-        const { splitSubjectBaseAndSuffix } = loadScript(
-            'src/tools/kursteams/kursteam-subject-filter-logic.js'
-        ).ms365KursteamSubjectFilterLogic;
-
-        expect(splitSubjectBaseAndSuffix('OMAI1')).toEqual({ base: 'OMAI', suffix: '1' });
-        expect(splitSubjectBaseAndSuffix('omaik2')).toEqual({ base: 'OMAIK', suffix: '2' });
-        expect(splitSubjectBaseAndSuffix('ENWS')).toEqual({ base: 'ENWS', suffix: '' });
-        expect(splitSubjectBaseAndSuffix('D')).toEqual({ base: 'D', suffix: '' });
-    });
-
-    it('groupSubjectsByBase fasst nummerierte Varianten zusammen', () => {
-        const { groupSubjectsByBase } = loadScript(
-            'src/tools/kursteams/kursteam-subject-filter-logic.js'
-        ).ms365KursteamSubjectFilterLogic;
-
-        const groups = groupSubjectsByBase(['D', 'OMAI', 'OMAI1', 'OMAI2', 'ENWS3']);
-        const oma = groups.find((g) => g.base === 'OMAI');
-        expect(oma.isFamily).toBe(true);
-        expect(oma.variants).toEqual(['OMAI', 'OMAI1', 'OMAI2']);
-        const enws = groups.find((g) => g.base === 'ENWS');
-        expect(enws.variants).toEqual(['ENWS3']);
-        expect(enws.isFamily).toBe(true);
+    beforeAll(async () => {
+        if (!globalThis.window) globalThis.window = globalThis;
+        await import('../src/tools/kursteams/kursteam-subject-filter-logic.js');
+        kursteamSubjectFilter = globalThis.ms365KursteamSubjectFilterLogic;
     });
 
     it('normalizeNumberedSubjectFields verschiebt Ziffer in Gruppe', () => {
-        const { normalizeNumberedSubjectFields } = loadScript(
-            'src/tools/kursteams/kursteam-subject-filter-logic.js'
-        ).ms365KursteamSubjectFilterLogic;
+        const { normalizeNumberedSubjectFields } = kursteamSubjectFilter;
 
         expect(normalizeNumberedSubjectFields('OMAI1', '')).toEqual({
             fach: 'OMAI',
@@ -59,14 +41,24 @@ describe('kursteam-subject-filter-logic', () => {
         expect(normalizeNumberedSubjectFields('OMAI1', 'G2').gruppe).toBe('G2');
         expect(normalizeNumberedSubjectFields('D', '').changed).toBe(false);
     });
+
+    it('normalizeNumberedSubjectFields verschiebt Ü in Gruppe', () => {
+        const { normalizeNumberedSubjectFields } = kursteamSubjectFilter;
+        expect(normalizeNumberedSubjectFields('RWÜ', '')).toEqual({
+            fach: 'RW',
+            gruppe: 'Ü',
+            changed: true,
+            suffix: 'Ü'
+        });
+    });
 });
 
 describe('kursteam-filter-logic numbered normalize', () => {
-    it('normalisiert vor Dedup und zählt Änderungen', () => {
-        const ctx = loadScripts([
-            'src/tools/kursteams/kursteam-subject-filter-logic.js',
-            'src/tools/kursteams/kursteam-filter-logic.js'
-        ]);
+    it('normalisiert vor Dedup und zählt Änderungen', async () => {
+        if (!globalThis.window) globalThis.window = globalThis;
+        await import('../src/tools/kursteams/kursteam-subject-filter-logic.js');
+        const ctx = loadScripts(['src/tools/kursteams/kursteam-filter-logic.js']);
+        ctx.ms365KursteamSubjectFilterLogic = globalThis.ms365KursteamSubjectFilterLogic;
         const { applyRowFilters } = ctx.ms365KursteamFilterLogic;
         const { normalizeNumberedSubjectFields } = ctx.ms365KursteamSubjectFilterLogic;
 
@@ -87,16 +79,18 @@ describe('kursteam-filter-logic numbered normalize', () => {
 });
 
 describe('kursteam team-build strip digits', () => {
-    it('stripSubjectTrailingDigits nutzt Basis-Fach und Gruppe', () => {
+    it('stripSubjectTrailingDigits nutzt Basis-Fach und Gruppe', async () => {
+        if (!globalThis.window) globalThis.window = globalThis;
+        await import('../src/tools/kursteams/kursteam-subject-filter-logic.js');
         const ctx = loadScripts([
             'src/shared/ms365-module-guard.js',
-            'src/tools/kursteams/kursteam-subject-filter-logic.js',
             'src/tools/kursteams/kursteam-team-names.js',
             'src/tools/kursteams/kursteam-utils.js',
             'src/tools/kursteams/kursteam-team-build.js'
         ]);
         const KTB = ctx.ms365KursteamTeamBuild;
         const KT = ctx.ms365KursteamTeamNames;
+        ctx.ms365KursteamSubjectFilterLogic = globalThis.ms365KursteamSubjectFilterLogic;
         const KS = ctx.ms365KursteamSubjectFilterLogic;
         const ns = ctx.ms365Kursteam;
 

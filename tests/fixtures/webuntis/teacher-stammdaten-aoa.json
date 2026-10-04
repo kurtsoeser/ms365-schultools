@@ -1,0 +1,18 @@
+[
+  [
+    "name",
+    "longName",
+    "foreName",
+    "title",
+    "birthDate",
+    "pnr",
+    "address.email",
+    "address.phone",
+    "address.mobile",
+    "address.street",
+    "address.postCode",
+    "address.city"
+  ],
+  ["ALTH", "Althuber", "Lukas", "", "", "90565023", "lukas.althuber@hak-steyr.at", "", "", "", "", ""],
+  ["SOESER", "Söser", "Kurt", "", "", "90024283", "kurt.soeser@hak-steyr.at", "", "", "", "", ""]
+]

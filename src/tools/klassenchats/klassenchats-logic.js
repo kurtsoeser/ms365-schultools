@@ -89,6 +89,114 @@ function normCode(v) {
     return normStr(v).toUpperCase();
 }
 
+function splitKlassenCell(raw) {
+    const s = normStr(raw);
+    if (!s) return [];
+    return s.split(/[,;~]+/).map((c) => c.trim()).filter(Boolean);
+}
+
+/** Mehrklassen-Zelle (geteilt oder zusammengezogen wie 1AK1BK). */
+export function isCombinedClassCell(raw) {
+    const s = normStr(raw);
+    if (!s) return false;
+    if (/[,;~]/.test(s)) return true;
+    return /(?:\d+[A-Za-z]+){2,}/.test(s);
+}
+
+/**
+ * Index bekannter Klassencodes aus Stammdaten (für Auflösung von Mehrklassen-Zellen).
+ * @param {Array<{ code?: string }>} classes
+ */
+export function buildKnownClassCodeIndex(classes) {
+    /** @type {Map<string, string>} */
+    const canonByUpper = new Map();
+    (Array.isArray(classes) ? classes : []).forEach((c) => {
+        const code = normStr(c && c.code);
+        if (!code) return;
+        const u = code.toUpperCase();
+        if (!canonByUpper.has(u)) canonByUpper.set(u, code);
+    });
+    const codesSortedByLength = Array.from(canonByUpper.values()).sort(
+        (a, b) => b.length - a.length || a.localeCompare(b, 'de')
+    );
+    return { canonByUpper, codesSortedByLength };
+}
+
+function greedyParseCombinedClass(rest, codesSortedByLength, canonByUpper) {
+    let s = String(rest || '').replace(/\s+/g, '');
+    const result = [];
+    while (s.length > 0) {
+        let match = '';
+        codesSortedByLength.forEach((code) => {
+            if (
+                s.length >= code.length &&
+                s.slice(0, code.length).toUpperCase() === code.toUpperCase()
+            ) {
+                if (code.length > match.length) match = code;
+            }
+        });
+        if (!match) return [];
+        result.push(canonByUpper.get(match.toUpperCase()) || match);
+        s = s.slice(match.length);
+    }
+    return result;
+}
+
+/**
+ * Belegungs-Klasse → ein oder mehrere Stammdaten-Klassencodes.
+ * Geteilte / zusammengezogene Gruppen (1AK1BK1CK) werden auf echte Klassen aufgeteilt.
+ * @param {string} klasseRaw
+ * @param {ReturnType<typeof buildKnownClassCodeIndex>|Array<{ code?: string }>} classIndexOrClasses
+ * @returns {string[]}
+ */
+export function expandKlasseToKnownCodes(klasseRaw, classIndexOrClasses) {
+    const classIndex =
+        classIndexOrClasses &&
+        typeof classIndexOrClasses === 'object' &&
+        classIndexOrClasses.canonByUpper instanceof Map
+            ? classIndexOrClasses
+            : buildKnownClassCodeIndex(classIndexOrClasses);
+
+    const { canonByUpper, codesSortedByLength } = classIndex;
+    const single = normStr(klasseRaw);
+    if (!single) return [];
+
+    if (!canonByUpper.size) {
+        return splitKlassenCell(single).length ? splitKlassenCell(single) : [single];
+    }
+
+    const out = [];
+    const seen = new Set();
+    const add = (code) => {
+        const c = normStr(code);
+        if (!c) return;
+        const u = c.toUpperCase();
+        if (seen.has(u)) return;
+        seen.add(u);
+        out.push(canonByUpper.get(u) || c);
+    };
+
+    const parts = splitKlassenCell(single);
+    const segments = parts.length ? parts : [single];
+    segments.forEach((part) => {
+        const p = part.replace(/\s+/g, '');
+        if (!p) return;
+        const upper = p.toUpperCase();
+        if (canonByUpper.has(upper)) {
+            add(canonByUpper.get(upper));
+            return;
+        }
+        if (!isCombinedClassCell(p)) {
+            add(p);
+            return;
+        }
+        const parsed = greedyParseCombinedClass(p, codesSortedByLength, canonByUpper);
+        if (parsed.length > 0) parsed.forEach(add);
+        else add(p);
+    });
+    return out;
+}
+
 /**
  * KV-Map: Klassenkürzel → { email, name }
  * @param {Array<{ code?: string, headEmail?: string, headName?: string }>} classes
@@ -110,7 +218,7 @@ export function buildKvByKlasse(classes) {
 /**
  * @param {object|null} belegung – Snapshot aus getUnterrichtsbelegung()
  * @param {Map<string, { email: string, name: string }>} kvByKlasse
- * @param {{ yearPrefix?: string, namePattern?: NameToken[], existingByKlasse?: Map<string, { chatId?: string, topic?: string }> }} [opts]
+ * @param {{ yearPrefix?: string, namePattern?: NameToken[], existingByKlasse?: Map<string, { chatId?: string, topic?: string }>, knownClassCodes?: Array<{ code?: string }> }} [opts]
  * @returns {ClassChatPlan[]}
  */
 export function buildClassChatPlans(belegung, kvByKlasse, opts) {
@@ -118,23 +226,28 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
     const yearPrefix = normStr(o.yearPrefix) || calcYearPrefix();
     const pattern = normalizeChatNamePattern(o.namePattern);
     const existingByKlasse = o.existingByKlasse instanceof Map ? o.existingByKlasse : new Map();
+    const classIndex = buildKnownClassCodeIndex(o.knownClassCodes || []);
 
     /** @type {Map<string, Map<string, ChatMember>>} */
     const byKlasse = new Map();
 
     const rows = belegung && Array.isArray(belegung.rows) ? belegung.rows : [];
     rows.forEach((r) => {
-        const klasse = normStr(r && r.klasse);
-        if (!klasse) return;
+        const klasseRaw = normStr(r && r.klasse);
+        if (!klasseRaw) return;
         const email = normEmail(r.lehrerEmail);
         if (!email || email.indexOf('@') === -1) return;
-        if (!byKlasse.has(klasse)) byKlasse.set(klasse, new Map());
-        const members = byKlasse.get(klasse);
-        if (members.has(email)) return;
-        members.set(email, {
-            email,
-            code: normCode(r.lehrerCode),
-            role: 'lehrer'
+        const targets = expandKlasseToKnownCodes(klasseRaw, classIndex);
+        targets.forEach((klasse) => {
+            if (!klasse) return;
+            if (!byKlasse.has(klasse)) byKlasse.set(klasse, new Map());
+            const members = byKlasse.get(klasse);
+            if (members.has(email)) return;
+            members.set(email, {
+                email,
+                code: normCode(r.lehrerCode),
+                role: 'lehrer'
+            });
         });
     });
 
@@ -170,7 +283,11 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
     // Aktuell: nur Klassen aus Belegung – KV wird ergänzt.
 
     const plans = [];
-    const klassen = Array.from(byKlasse.keys()).sort((a, b) => a.localeCompare(b, 'de'));
+    let klassen = Array.from(byKlasse.keys());
+    if (classIndex.canonByUpper.size) {
+        klassen = klassen.filter((k) => classIndex.canonByUpper.has(k.toUpperCase()));
+    }
+    klassen.sort((a, b) => a.localeCompare(b, 'de'));
     klassen.forEach((klasse) => {
         const members = Array.from(byKlasse.get(klasse).values()).sort((a, b) =>
             a.email.localeCompare(b.email, 'de')

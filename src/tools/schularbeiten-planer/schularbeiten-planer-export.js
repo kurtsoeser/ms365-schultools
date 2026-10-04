@@ -2,6 +2,13 @@
  * Export: iCal (.ics) für Schularbeiten.
  */
 import { formatDeDate, labelMaps, statusLabel } from './schularbeiten-planer-state.js';
+import {
+    schularbeitCalendarSubject,
+    schularbeitTerminZeitfenster,
+    formatSchularbeitZeitspanne,
+    SCHULARBEIT_CALENDAR_TZ,
+    icsViennaTimezoneBlock
+} from './schularbeiten-planer-logic.js';
 
 /**
  * @param {object[]} items
@@ -11,25 +18,30 @@ import { formatDeDate, labelMaps, statusLabel } from './schularbeiten-planer-sta
 export function buildIcs(items, stammdaten, calendarName) {
     const labels = labelMaps(stammdaten || {});
     const list = Array.isArray(items) ? items : [];
+    const tz = SCHULARBEIT_CALENDAR_TZ;
     const lines = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
         'PRODID:-//MS365schule//Schularbeiten-Planer//DE',
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH',
-        'X-WR-CALNAME:' + escapeIcsText(calendarName || 'Schularbeiten')
+        'X-WR-TIMEZONE:' + tz,
+        'X-WR-CALNAME:' + escapeIcsText(calendarName || 'Schularbeiten'),
+        icsViennaTimezoneBlock()
     ];
 
     list.forEach((sa) => {
         const day = String(sa.datum || '').replace(/-/g, '');
         if (!/^\d{8}$/.test(day)) return;
         const uid = (sa.schularbeitId || sa.itemId || day) + '@schularbeiten.ms365schule';
-        const summary =
-            (labels.fach[sa.fachCode] || sa.fachCode || 'Fach') +
-            ' · ' +
-            (labels.klasse[sa.klasseCode] || sa.klasseCode || '') +
-            (sa.thema ? ' – ' + sa.thema : '');
+        const summary = schularbeitCalendarSubject(sa, {
+            fach: labels.fach[sa.fachCode] || sa.fachCode,
+            klasse: labels.klasse[sa.klasseCode] || sa.klasseCode
+        });
+        const slot = schularbeitTerminZeitfenster(sa);
+        const zeit = formatSchularbeitZeitspanne(sa);
         const desc = [
+            zeit ? 'Zeit: ' + zeit : '',
             'Status: ' + statusLabel(sa.status),
             'Dauer: ' + (sa.dauerMinuten || '') + ' Min.',
             sa.notiz ? 'Notiz: ' + sa.notiz : ''
@@ -40,8 +52,13 @@ export function buildIcs(items, stammdaten, calendarName) {
         lines.push('BEGIN:VEVENT');
         lines.push('UID:' + uid);
         lines.push('DTSTAMP:' + utcStamp());
-        lines.push('DTSTART;VALUE=DATE:' + day);
-        lines.push('DTEND;VALUE=DATE:' + nextDayCompact(day));
+        if (slot && !slot.isAllDay && slot.startDateTime && slot.endDateTime) {
+            lines.push('DTSTART;TZID=' + tz + ':' + toIcsLocalDateTime(slot.startDateTime));
+            lines.push('DTEND;TZID=' + tz + ':' + toIcsLocalDateTime(slot.endDateTime));
+        } else {
+            lines.push('DTSTART;VALUE=DATE:' + day);
+            lines.push('DTEND;VALUE=DATE:' + nextDayCompact(day));
+        }
         lines.push('SUMMARY:' + escapeIcsText(summary));
         if (desc) lines.push('DESCRIPTION:' + escapeIcsText(desc));
         lines.push('END:VEVENT');
@@ -49,6 +66,13 @@ export function buildIcs(items, stammdaten, calendarName) {
 
     lines.push('END:VCALENDAR');
     return lines.join('\r\n');
+}
+
+function toIcsLocalDateTime(isoLocal) {
+    const s = String(isoLocal || '').trim();
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s);
+    if (!m) return '';
+    return m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00';
 }
 
 function escapeIcsText(s) {

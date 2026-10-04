@@ -3,8 +3,9 @@
  * Move-first aus jahrgangsgruppen.js – Signaturen an Closure angepasst (explizite Params).
  */
 import { normStr, normCode, normEmail } from '../../shared/utils/strings.js';
+import { classLabelHeadToken, studentBelongsToClassRow } from '../../shared/class-student-match.js';
 
-export { normStr, normCode, normEmail };
+export { normStr, normCode, normEmail, classLabelHeadToken, studentBelongsToClassRow };
 
 export function sanitizeNick(raw) {
     return String(raw || '')
@@ -70,3 +71,4 @@ export function deriveNickFallback(row) {
     if (tail) return ('jg' + tail).toLowerCase().slice(0, 60);
     return '';
 }
+

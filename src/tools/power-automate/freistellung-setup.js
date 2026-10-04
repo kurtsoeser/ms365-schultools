@@ -10,6 +10,8 @@
     ];
 
     const STORAGE_KEY = 'ms365-freistellung-setup-v1';
+    const STEP_STORAGE_KEY = 'ms365-freistellung-setup-step-v1';
+    const FLOW_DONE_KEY = 'ms365-pa-done-freistellung';
     const TEMPLATE_BASE = '../assets/power-automate/freistellung';
     const FLOW_ASSET_ID = 'c9164e06-4dbf-46f1-b99c-86d74bcdf8e4';
 
@@ -92,6 +94,7 @@
     function persistFromForm() {
         const cfg = readForm();
         saveCfg(cfg);
+        refreshGlance();
         return cfg;
     }
 
@@ -100,6 +103,12 @@
     }
 
     function columnDefsFreistellung() {
+        const sch = window.ms365FreistellungSchema;
+        if (sch && sch.columns && typeof sch.toGraphColumnBody === 'function') {
+            return sch.columns.map(function (def) {
+                return sch.toGraphColumnBody(def);
+            });
+        }
         return [
             {
                 name: 'Beginn',
@@ -161,13 +170,46 @@
         ];
     }
 
-    async function addColumns(siteId, listId, token) {
+    async function ensureColumns(siteId, listId, token, write) {
+        const logFn = typeof write === 'function' ? write : log;
         const base = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/columns';
+        const existing = await G.graphJson(
+            'GET',
+            base + '?$select=name,displayName&$top=200',
+            token,
+            undefined,
+            'v1.0'
+        );
+        const have = {};
+        ((existing && existing.value) || []).forEach(function (c) {
+            if (c && c.name) have[String(c.name).toLowerCase()] = true;
+        });
+
         const defs = columnDefsFreistellung();
+        const added = [];
+        const skipped = [];
         for (let i = 0; i < defs.length; i++) {
-            await G.graphJson('POST', base, token, defs[i], 'v1.0');
+            const d = defs[i];
+            const key = String(d.name).toLowerCase();
+            if (have[key]) {
+                skipped.push(d.name);
+                continue;
+            }
+            logFn('Lege Spalte an: ' + d.name + ' …');
+            await G.graphJson('POST', base, token, d, 'v1.0');
+            have[key] = true;
+            added.push(d.name);
             await G.sleep(140);
         }
+        if (added.length) {
+            logFn('Neu angelegt: ' + added.join(', '));
+        }
+        if (skipped.length === defs.length) {
+            logFn('Alle Spalten vorhanden (' + skipped.join(', ') + ').');
+        } else if (skipped.length) {
+            logFn('Bereits vorhanden: ' + skipped.join(', '));
+        }
+        return { added: added, skipped: skipped };
     }
 
     async function findListByTitle(token, siteId, listTitle) {
@@ -198,6 +240,7 @@
 
         let listId = cfg.listId;
         let listWeb = '';
+        let listDisplayName = String(cfg.listName || '').trim();
 
         if (listId) {
             write('Verwende vorhandene Listen-ID: ' + listId);
@@ -213,7 +256,21 @@
                     'v1.0'
                 );
                 listWeb = existing && existing.webUrl ? String(existing.webUrl) : '';
-                write('Liste gefunden: ' + (existing.displayName || listId));
+                listDisplayName = String((existing && existing.displayName) || listDisplayName || listId).trim();
+                write('Liste gefunden: ' + listDisplayName);
+                if (
+                    cfg.listName &&
+                    listDisplayName &&
+                    String(cfg.listName).trim() !== listDisplayName
+                ) {
+                    write(
+                        'Hinweis: SharePoint-Titel ist „' +
+                            listDisplayName +
+                            '“, nicht „' +
+                            cfg.listName +
+                            '“ im Formular – Berechtigungen nutzen den echten Titel.'
+                    );
+                }
             } catch (e) {
                 throw new Error('Listen-ID ungültig oder keine Rechte: ' + (e && e.message ? e.message : e));
             }
@@ -223,6 +280,7 @@
             if (found && found.id) {
                 listId = String(found.id);
                 listWeb = found.webUrl ? String(found.webUrl) : '';
+                listDisplayName = String(found.displayName || cfg.listName).trim();
                 write('Bereits vorhanden – ID: ' + listId);
             } else {
                 write('Erstelle Liste „' + cfg.listName + '" …');
@@ -239,28 +297,82 @@
                 );
                 listId = created && created.id ? String(created.id) : '';
                 listWeb = created && created.webUrl ? String(created.webUrl) : '';
+                listDisplayName = String((created && created.displayName) || cfg.listName).trim();
                 if (!listId) throw new Error('Listen-ID fehlt in der Antwort.');
                 write('Liste angelegt, ID: ' + listId);
-                write('Füge Spalten hinzu …');
-                await addColumns(siteId, listId, token);
-                write('Spalten fertig (Beginn, Ende, Status, Klasse, Klassenvorstand, Kategorie, Beschreibung, Bemerkungen).');
+            }
+        }
+
+        write('Prüfe / ergänze Spalten …');
+        await ensureColumns(siteId, listId, token, write);
+
+        if (window.ms365FreistellungListPerms) {
+            const lp = window.ms365FreistellungListPerms;
+            if (typeof lp.apply === 'function') {
+                try {
+                    await lp.apply(cfg.siteUrl, listDisplayName, null, write);
+                } catch (e) {
+                    write('! Berechtigungen: ' + (e && e.message ? e.message : e));
+                }
+            }
+            if (typeof lp.publishConfig === 'function') {
+                try {
+                    const pub = await lp.publishConfig(cfg.siteUrl, null, listId);
+                    if (pub && pub.ok) {
+                        write(
+                            'Planer-Gruppen: ' +
+                                (pub.listDescription ? 'Listen-Beschreibung + ' : '') +
+                                (pub.path || 'ms365/freistellung-planer-groups.json') +
+                                (pub.driveLabel ? ' (' + pub.driveLabel + ')' : '')
+                        );
+                    }
+                } catch (e) {
+                    write('! Planer-Gruppen-JSON: ' + (e && e.message ? e.message : e));
+                }
             }
         }
 
         if ($('frListId')) $('frListId').value = listId;
-        const next = Object.assign({}, cfg, { listId: listId });
+        if ($('frListName') && listDisplayName) $('frListName').value = listDisplayName;
+        const next = Object.assign({}, cfg, { listId: listId, listName: listDisplayName });
         saveCfg(next);
+        refreshGlance();
 
         if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
             window.ms365ActionLog.append({
                 tool: 'freistellung-setup',
                 action: 'ensure-list',
                 target: cfg.siteUrl,
-                summary: 'Freistellungsliste „' + cfg.listName + '“ (' + listId + ')'
+                summary: 'Freistellungsliste „' + listDisplayName + '“ (' + listId + ')'
             });
         }
 
-        return { listId: listId, webUrl: listWeb, siteId: siteId };
+        return { listId: listId, webUrl: listWeb, siteId: siteId, listDisplayName: listDisplayName };
+    }
+
+    async function resolveListDisplayNameForCfg(cfg) {
+        const token = await ensureToken();
+        const site = await G.resolveSiteFromWebUrl(token, cfg.siteUrl);
+        const siteId = site && site.id ? String(site.id) : '';
+        if (!siteId) throw new Error('Site-ID fehlt.');
+        const listId = String(cfg.listId || '').trim();
+        if (listId) {
+            const existing = await G.graphJson(
+                'GET',
+                G.graphPathSite(siteId) +
+                    '/lists/' +
+                    encodeURIComponent(listId) +
+                    '?$select=displayName',
+                token,
+                undefined,
+                'v1.0'
+            );
+            const name = existing && existing.displayName ? String(existing.displayName).trim() : '';
+            if (name) return name;
+        }
+        const found = await findListByTitle(token, siteId, cfg.listName);
+        if (found && found.displayName) return String(found.displayName).trim();
+        return String(cfg.listName || '').trim();
     }
 
     function replaceAll(haystack, needle, replacement) {
@@ -425,29 +537,284 @@
         }
     }
 
+    function flowImportedFlag() {
+        try {
+            return localStorage.getItem(FLOW_DONE_KEY) === '1';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function onboardingProgress() {
+        try {
+            if (window.ms365PaOnboarding && typeof window.ms365PaOnboarding.progress === 'function') {
+                return window.ms365PaOnboarding.progress();
+            }
+        } catch (e) {
+            /* ignore */
+        }
+        return { done: 0, total: 0 };
+    }
+
+    function computeGlance() {
+        const st = window.ms365FreistellungSetupStatus;
+        const fn = st && typeof st.computeSetupGlance === 'function' ? st.computeSetupGlance : null;
+        const cfg = readForm();
+        const ob = onboardingProgress();
+        if (fn) {
+            return fn(cfg, {
+                flowImported: flowImportedFlag(),
+                onboardingDone: ob.done,
+                onboardingTotal: ob.total
+            });
+        }
+        return {
+            emailsOk: !!(cfg.emailDirektion && cfg.emailSonder && cfg.emailMailbox),
+            listOk: !!(cfg.siteUrl && cfg.listId),
+            flowOk: flowImportedFlag(),
+            prepOk: null
+        };
+    }
+
+    function refreshGlance() {
+        const g = computeGlance();
+        const host = $('frSetupGlance');
+        if (!host) return;
+        host.querySelectorAll('[data-fr-glance]').forEach(function (card) {
+            const key = card.getAttribute('data-fr-glance');
+            let ok = false;
+            let warn = false;
+            if (key === 'prep') {
+                if (g.prepOk === null) {
+                    ok = false;
+                    warn = false;
+                } else {
+                    ok = g.prepOk;
+                    warn = !ok;
+                }
+            } else if (key === 'emails') {
+                ok = g.emailsOk;
+                warn = !ok;
+            } else if (key === 'list') {
+                ok = g.listOk;
+                warn = !ok;
+            } else if (key === 'flow') {
+                ok = g.flowOk;
+                warn = !ok;
+            }
+            card.classList.toggle('is-ok', !!ok);
+            card.classList.toggle('is-warn', !!warn && !ok);
+            const val = card.querySelector('[data-fr-glance-value]');
+            if (val) {
+                if (key === 'prep' && g.prepOk === null) val.textContent = 'Optional';
+                else val.textContent = ok ? 'Erledigt' : 'Offen';
+            }
+        });
+    }
+
+    function updatePhaseHint(step) {
+        const el = $('frPhaseHint');
+        if (!el) return;
+        const g = computeGlance();
+        if (step === 1) {
+            const ob = onboardingProgress();
+            if (ob.total && ob.done >= ob.total) {
+                el.textContent = 'Vorbereitung abgeschlossen – weiter zu Liste und E-Mails.';
+            } else if (ob.total) {
+                el.textContent =
+                    'Schritt 1: Environment & Rechte (' +
+                    ob.done +
+                    '/' +
+                    ob.total +
+                    ' abgehakt). Oder direkt Schritt 2, wenn die IT schon fertig ist.';
+            } else {
+                el.textContent = 'Schritt 1: Schule vorbereiten (Checkliste).';
+            }
+        } else if (step === 2) {
+            el.textContent = g.listOk
+                ? 'Schritt 2: Liste ist bereit – Einstellungen prüfen oder zu Schritt 3.'
+                : 'Schritt 2: Website, Genehmiger und freigegebenes Postfach – dann „Liste anlegen / prüfen“.';
+        } else {
+            el.textContent = g.flowOk
+                ? 'Schritt 3: Flow als importiert markiert – im Planer testen.'
+                : 'Schritt 3: Paket laden und in Power Automate importieren.';
+        }
+    }
+
+    function loadSetupStep() {
+        try {
+            const n = parseInt(localStorage.getItem(STEP_STORAGE_KEY) || '1', 10);
+            if (n >= 1 && n <= 3) return n;
+        } catch (e) {
+            /* ignore */
+        }
+        return 1;
+    }
+
+    function saveSetupStep(n) {
+        try {
+            localStorage.setItem(STEP_STORAGE_KEY, String(n));
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    function showSetupStep(n) {
+        const step = Math.max(1, Math.min(3, parseInt(n, 10) || 1));
+        saveSetupStep(step);
+        for (let i = 1; i <= 3; i++) {
+            const panel = $('frSetupStep' + i);
+            if (!panel) continue;
+            const on = i === step;
+            panel.hidden = !on;
+            panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+        }
+        document.querySelectorAll('[data-fr-setup-step]').forEach(function (btn) {
+            const sn = parseInt(btn.getAttribute('data-fr-setup-step'), 10);
+            const on = sn === step;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            btn.setAttribute('tabindex', on ? '0' : '-1');
+        });
+        const back = $('frSetupBack');
+        const next = $('frSetupNext');
+        if (back) back.disabled = step <= 1;
+        if (next) {
+            next.textContent = step >= 3 ? 'Fertig' : 'Weiter';
+            next.setAttribute('aria-label', step >= 3 ? 'Setup abschließen' : 'Nächster Schritt');
+        }
+        updatePhaseHint(step);
+        refreshGlance();
+    }
+
+    function wireWizard() {
+        document.querySelectorAll('[data-fr-setup-step]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                showSetupStep(btn.getAttribute('data-fr-setup-step'));
+            });
+        });
+        const back = $('frSetupBack');
+        const next = $('frSetupNext');
+        if (back) {
+            back.addEventListener('click', function () {
+                const cur = loadSetupStep();
+                showSetupStep(Math.max(1, cur - 1));
+            });
+        }
+        if (next) {
+            next.addEventListener('click', function () {
+                const cur = loadSetupStep();
+                if (cur >= 3) {
+                    toast('Setup abgeschlossen – Freistellungen-Planer öffnen und testen.');
+                    return;
+                }
+                if (cur === 1) {
+                    persistFromForm();
+                }
+                if (cur === 2) {
+                    const cfg = readForm();
+                    if (!cfg.listId) {
+                        toast('Tipp: Zuerst „Liste anlegen / prüfen“, dann zu Schritt 3.');
+                    }
+                }
+                showSetupStep(cur + 1);
+            });
+        }
+        showSetupStep(loadSetupStep());
+    }
+
     function wire() {
         writeForm(loadCfg());
+        wireWizard();
+        refreshGlance();
         const btnList = $('frBtnList');
         const btnPkg = $('frBtnPackage');
         const btnSave = $('frBtnSave');
         if (btnList) btnList.addEventListener('click', onEnsureList);
+        const btnPerms = $('frBtnPerms');
+        if (btnPerms) {
+            btnPerms.addEventListener('click', async function () {
+                const cfg = persistFromForm();
+                if (!cfg.siteUrl || !cfg.listName) {
+                    toast('Site-URL und Listenname fehlen.');
+                    return;
+                }
+                try {
+                    if (window.ms365FreistellungListPerms && window.ms365FreistellungListPerms.apply) {
+                        const listTitle = await resolveListDisplayNameForCfg(cfg);
+                        log('Berechtigungen für Liste „' + listTitle + '“ …');
+                        await window.ms365FreistellungListPerms.apply(cfg.siteUrl, listTitle, null, log);
+                        if ($('frListName') && listTitle) $('frListName').value = listTitle;
+                        const listId = String(cfg.listId || ($('frListId') && $('frListId').value) || '').trim();
+                        if (
+                            listId &&
+                            window.ms365FreistellungListPerms.publishConfig &&
+                            typeof window.ms365FreistellungListPerms.publishConfig === 'function'
+                        ) {
+                            try {
+                                const pub = await window.ms365FreistellungListPerms.publishConfig(
+                                    cfg.siteUrl,
+                                    null,
+                                    listId
+                                );
+                                if (pub && pub.ok) {
+                                    log(
+                                        'Planer-Gruppen: ' +
+                                            (pub.listDescription ? 'Listen-Beschreibung + ' : '') +
+                                            (pub.path || 'ms365/freistellung-planer-groups.json') +
+                                            (pub.driveLabel ? ' (' + pub.driveLabel + ')' : '')
+                                    );
+                                }
+                            } catch (e) {
+                                log('! Planer-Gruppen-JSON: ' + (e && e.message ? e.message : e));
+                            }
+                        } else if (!listId) {
+                            log(
+                                '! Planer-Gruppen nicht veröffentlicht: Listen-ID fehlt – zuerst „Liste anlegen / prüfen“ oder „Alles speichern“.'
+                            );
+                        }
+                        toast('Berechtigungen angewendet – Protokoll prüfen.');
+                    }
+                } catch (e) {
+                    toast(String((e && e.message) || e));
+                }
+            });
+        }
         if (btnPkg) btnPkg.addEventListener('click', onBuildPackage);
         if (btnSave) {
-            btnSave.addEventListener('click', function () {
+            btnSave.addEventListener('click', async function () {
                 persistFromForm();
-                toast('Einstellungen gespeichert (dieser Browser).');
+                refreshGlance();
+                let msg = 'Setup-Felder (Site, E-Mails, Liste) in diesem Browser gespeichert.';
+                if (window.ms365FreistellungPlannerSave && window.ms365FreistellungPlannerSave.saveAndPublish) {
+                    try {
+                        const pub = await window.ms365FreistellungPlannerSave.saveAndPublish();
+                        if (window.ms365FreistellungPlannerSave.formatToast) {
+                            msg = window.ms365FreistellungPlannerSave.formatToast(pub);
+                        } else if (pub && pub.ok) {
+                            msg += ' Planer-Gruppen auf SharePoint veröffentlicht.';
+                        }
+                    } catch (e) {
+                        msg +=
+                            ' Planer-Gruppen: SharePoint-Fehler – ' +
+                            String((e && e.message) || e);
+                    }
+                }
+                toast(msg);
             });
         }
         const doneBox = $('frDone');
         if (doneBox) {
             try {
-                doneBox.checked = localStorage.getItem('ms365-pa-done-freistellung') === '1';
+                doneBox.checked = flowImportedFlag();
             } catch (e) {}
             doneBox.addEventListener('change', function () {
                 try {
-                    if (doneBox.checked) localStorage.setItem('ms365-pa-done-freistellung', '1');
-                    else localStorage.removeItem('ms365-pa-done-freistellung');
+                    if (doneBox.checked) localStorage.setItem(FLOW_DONE_KEY, '1');
+                    else localStorage.removeItem(FLOW_DONE_KEY);
                 } catch (e2) {}
+                refreshGlance();
+                updatePhaseHint(loadSetupStep());
                 if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.notifyLocalDataChanged === 'function') {
                     window.ms365BrowserBackup.notifyLocalDataChanged('freistellung-done');
                 }
@@ -456,7 +823,13 @@
         ['frSiteUrl', 'frListName', 'frListId', 'frEmailDirektion', 'frEmailSonder', 'frEmailMailbox', 'frFlowName'].forEach(
             function (id) {
                 const el = $(id);
-                if (el) el.addEventListener('change', persistFromForm);
+                if (el) {
+                    el.addEventListener('change', function () {
+                        persistFromForm();
+                        refreshGlance();
+                    });
+                    el.addEventListener('input', refreshGlance);
+                }
             }
         );
     }
@@ -470,6 +843,9 @@
     window.ms365FreistellungSetup = {
         createOrResolveList: createOrResolveList,
         buildPackageZip: buildPackageZip,
-        columnDefs: columnDefsFreistellung
+        columnDefs: columnDefsFreistellung,
+        ensureColumns: ensureColumns,
+        showSetupStep: showSetupStep,
+        refreshGlance: refreshGlance
     };
 })();

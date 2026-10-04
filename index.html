@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Start</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=12">
+    <link rel="stylesheet" href="app.css?v=15">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=2">
@@ -1517,6 +1517,201 @@
             background: color-mix(in srgb, var(--brand1) 8%, transparent);
         }
 
+        .dash-persona-bar {
+            margin: 0 0 18px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border, #dee2e6));
+            background: linear-gradient(135deg, color-mix(in srgb, var(--brand1) 6%, #fff) 0%, #fff 55%);
+        }
+        .dash-persona-bar__inner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 14px;
+        }
+        .dash-persona-bar__title {
+            margin: 0;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: var(--heading, #32325d);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dash-persona-bar__chips {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .dash-persona-chip {
+            border: 1px solid var(--border, #dee2e6);
+            background: #fff;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            color: var(--muted, #5c6578);
+        }
+        .dash-persona-chip.is-active {
+            border-color: color-mix(in srgb, var(--brand1) 45%, transparent);
+            background: color-mix(in srgb, var(--brand1) 12%, #fff);
+            color: var(--brand1, #0d6efd);
+        }
+        .dash-persona-bar__hint {
+            margin: 0;
+            flex: 1 1 220px;
+            font-size: 0.82rem;
+            color: var(--muted, #6c757d);
+            line-height: 1.4;
+        }
+        html[data-dash-view="schueler"] .dashboard-catalog-fold__summary span:first-child,
+        html[data-dash-view="lehrer"] .dashboard-catalog-fold__summary span:first-child {
+            font-weight: 700;
+        }
+        .dash-persona-bar__admin {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--brand1, #0d6efd);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .dash-persona-bar__admin:hover { text-decoration: underline; }
+        .dash-app-only-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin: 0 0 12px;
+        }
+        .dash-quick-apps {
+            margin: 0;
+            padding: 0;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+        }
+        .dash-quick-apps__title {
+            margin: 0 0 14px;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--heading, #32325d);
+            letter-spacing: -0.01em;
+        }
+        .dash-quick-apps__grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        @media (max-width: 640px) {
+            .dash-quick-apps__grid { grid-template-columns: 1fr; }
+        }
+        .dash-quick-apps__card {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 132px;
+            padding: 18px 18px 16px;
+            border-radius: 12px;
+            border: 1px solid #dee2e6;
+            text-decoration: none !important;
+            color: inherit !important;
+            font-weight: 700;
+            background: #f8f9fa;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+        }
+        .dash-quick-apps__card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+        }
+        .dash-quick-apps__card h3 {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #32325d;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .dash-quick-apps__card h3 .bi {
+            font-size: 1.15em;
+            opacity: 0.9;
+            color: color-mix(in srgb, var(--brand1) 85%, #32325d);
+        }
+        .dash-quick-apps__card .dash-quick-apps__chev {
+            flex-shrink: 0;
+            opacity: 0.45;
+            font-size: 1.1rem;
+        }
+        .dash-quick-apps__card-desc {
+            margin: 0;
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: #495057;
+            line-height: 1.45;
+            flex: 1;
+        }
+        .dash-quick-apps__card-action {
+            margin-top: auto;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--brand1, #0d6efd);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dash-quick-apps__card:hover {
+            transform: scale(1.012);
+            border-color: color-mix(in srgb, var(--brand1) 26%, transparent);
+            box-shadow: 0 10px 26px rgba(50, 50, 93, 0.12);
+            background: linear-gradient(180deg, color-mix(in srgb, var(--brand1) 7%, transparent) 0%, color-mix(in srgb, var(--brand2) 4%, transparent) 100%);
+        }
+        html[data-dash-filtering] .choice[data-dash-audience-hidden] {
+            display: none !important;
+        }
+        html[data-dash-filtering] [role="tabpanel"][data-dash-panel-empty] {
+            display: none !important;
+        }
+        html[data-dash-app-only] .dashboard-catalog-fold,
+        html[data-dash-app-only] #dashboard-tools,
+        html[data-dash-app-only] #dashStatusRow,
+        html[data-dash-app-only] .dash-playbooks-wrap,
+        html[data-dash-app-only] #dashboard-tasks,
+        html[data-dash-app-only] .dashboard-head-link[href="tenant.html"] {
+            display: none !important;
+        }
+        html[data-dash-app-only] .dashboard-local-footer {
+            display: none !important;
+        }
+        .dash-it-preview-banner {
+            margin: 0 0 16px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid color-mix(in srgb, var(--brand1) 35%, #dee2e6);
+            background: color-mix(in srgb, var(--brand1) 8%, #fff);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            justify-content: space-between;
+        }
+        .dash-it-preview-banner p { margin: 0; flex: 1; min-width: 200px; }
+        html[data-dash-app-only] .dash-app-only-stack {
+            padding-top: 4px;
+        }
+        html[data-dash-app-only] .dash-persona-bar {
+            margin: 0;
+        }
+        html[data-dash-app-only] .dash-it-preview-banner {
+            margin: 0;
+        }
+
     </style>
 </head>
 <body>
@@ -1530,34 +1725,24 @@
             <p class="app-tagline">Microsoft 365 als Schulplattform: alles, was die Schule braucht – strukturieren, vernetzen und über das Schuljahr hinweg im Griff behalten.</p>
         </div>
         <div class="content">
-            <div class="dash-demo-banner" id="dashDemoBanner" hidden role="status" aria-live="polite">
-                <div class="dash-demo-banner__inner">
-                    <p><strong>Demo-Modus.</strong> Sie arbeiten mit Beispieldaten der MS365 Musterschule – ideal zum Ausprobieren, ohne echte Schuldaten anzulegen.</p>
-                    <button type="button" class="btn btn-sm" id="dashBtnExitDemo">Demo beenden</button>
-                </div>
-            </div>
+            <div id="dashAppOnlyStack" class="dash-app-only-stack" hidden></div>
 
-            <div class="dashboard-tasks" id="dashboard-tasks">
+            <div class="dashboard-tasks" id="dashboard-tasks" data-dash-section-audience="it">
                 <div class="dashboard-tasks-head">
                     <div class="dashboard-tasks-head-row">
                         <h2>Was möchten Sie tun?</h2>
                         <div class="dashboard-tasks-head-tools">
-                            <a class="dashboard-head-link" href="tenant.html" title="Schul-Stammdaten öffnen">
+                            <a class="dashboard-head-link" href="tenant.html" title="Schul-Stammdaten öffnen" data-dash-section-audience="it">
                                 <i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Stammdaten
                             </a>
                             <a class="dashboard-head-link dashboard-head-link--ghost" id="dashHeadSetupLink" href="einrichtung.html" hidden title="Geführte Einrichtung öffnen">
                                 <i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Einrichtung
                             </a>
-                            <label class="dash-demo-switch" id="dashDemoSwitchWrap" title="Beispieldaten der MS365 Musterschule laden – zum Ausprobieren aller Werkzeuge">
-                                <span class="dash-demo-switch__label">Demo-Daten</span>
-                                <input type="checkbox" id="dashDemoSwitch" role="switch" aria-checked="false" aria-label="Demo-Modus mit Beispieldaten der MS365 Musterschule">
-                                <span class="dash-demo-switch__track" aria-hidden="true"></span>
-                            </label>
                             <p class="dashboard-tasks-kicker"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>Schnellstart</p>
                         </div>
                     </div>
                     <div class="dashboard-empty-state" id="dashEmptyState" hidden>
-                        <p><strong>Noch keine Schuldaten in diesem Browser.</strong> Einrichtung starten, oben rechts <strong>Demo-Daten</strong> einschalten – oder unten ein vorhandenes <strong>Browser-Backup</strong> importieren (Microsoft&nbsp;365-Gruppen bleiben davon unberührt).</p>
+                        <p><strong>Noch keine Schuldaten in diesem Browser.</strong> Einrichtung starten oder unten ein vorhandenes <strong>Browser-Backup</strong> importieren (Microsoft&nbsp;365-Gruppen bleiben davon unberührt).</p>
                         <div class="dashboard-empty-state__actions">
                             <a class="btn" href="einrichtung.html"><i class="bi bi-rocket-takeoff"></i>Einrichtung starten</a>
                             <button type="button" class="btn btn-ghost" id="dashEmptyImportBackup"><i class="bi bi-upload"></i>Backup importieren</button>
@@ -1728,7 +1913,7 @@
                 </div>
             </div>
 
-            <section class="dash-playbooks-wrap" aria-labelledby="dash-playbooks-title">
+            <section class="dash-playbooks-wrap" aria-labelledby="dash-playbooks-title" data-dash-section-audience="it">
                 <h2 id="dash-playbooks-title" class="dash-playbooks-title"><i class="bi bi-flag" aria-hidden="true"></i>Playbooks – wo anfangen?</h2>
                 <div class="dash-playbooks">
                     <a class="dash-playbook-card" href="tools/playbook-schuljahresstart.html">
@@ -1754,7 +1939,7 @@
                 </div>
             </section>
 
-            <div class="dash-status-row" id="dashStatusRow" aria-label="Schulstatus und Datenhygiene">
+            <div class="dash-status-row" id="dashStatusRow" aria-label="Schulstatus und Datenhygiene" data-dash-section-audience="it">
                 <section class="dash-stand" id="dashStand" aria-labelledby="dashStandTitle">
                     <div class="dash-stand__head">
                         <h2 class="dash-stand__title" id="dashStandTitle"><i class="bi bi-speedometer2" aria-hidden="true"></i> Ihr Stand</h2>
@@ -1841,6 +2026,11 @@
                                 <h2><i class="bi bi-mortarboard"></i>Unterrichtsteams</h2>
                                 <p>Unterrichtsteams aus dem Stundenplan vorbereiten und per CSV/CMD (<code>Kursteam-Anlage.cmd</code>) anlegen.</p>
                                 <a class="btn" href="tools/kursteams.html"><i class="bi bi-rocket-takeoff"></i>Anlegen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Unterrichtsteams-Katalog" data-tool-id="unterrichtsteams-katalog" data-cluster="unterricht" data-search="unterrichtsteams katalog kursteam liste übersicht filter fach klasse lehrer bearbeiten umbenennen belegung" draggable="true">
+                                <h2><i class="bi bi-table"></i>Unterrichtsteams-Katalog</h2>
+                                <p>Alle Unterrichtsteams anzeigen, nach Klasse/Fach/Lehrkraft filtern und Namen oder Metadaten pflegen.</p>
+                                <a class="btn" href="tools/unterrichtsteams-katalog.html"><i class="bi bi-table"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Einzelne Unterrichtsteams hinzufügen" data-tool-id="kursteam-einzeln" data-cluster="unterricht" data-search="kursteam einzeln nachziehen fehlendes team winf fach klasse anlegen unterrichtsteams hinzufügen" draggable="true">
                                 <h2><i class="bi bi-plus-square"></i>Einzelne Unterrichtsteams hinzufügen</h2>
@@ -2043,6 +2233,11 @@
                                 <p>Die Lehrkräfte aus den Stammdaten als Liste auf der Schul-Website anlegen.</p>
                                 <a class="btn" href="tools/sharepoint-liste-lehrer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Stammdaten-Listen" data-tool-id="sharepoint-liste-stammdaten" data-cluster="intranet" data-search="schüler schueler fächer fach klassen stammdaten sharepoint liste intranet" draggable="true">
+                                <h2><i class="bi bi-database"></i>Stammdaten-Listen</h2>
+                                <p>Schülerinnen, Fächer, Fachgruppen, ARGEs und Klassen – Listen abgleichen oder neu anlegen.</p>
+                                <a class="btn" href="tools/sharepoint-liste-stammdaten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Schultermine-Liste" data-tool-id="sharepoint-liste-schultermine" data-cluster="intranet" data-search="schultermine termin kalender liste sharepoint website csv import" draggable="true">
                                 <h2><i class="bi bi-calendar3"></i>Schultermine-Liste</h2>
                                 <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Schule / Lehrer / beide).</p>
@@ -2173,6 +2368,16 @@
                                 <p>Abgleich mit Microsoft&nbsp;365: Mitglieder und Klassenfeld (Stammdaten ↔ Entra).</p>
                                 <a class="btn" href="tools/datenhygiene.html"><i class="bi bi-intersect"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Datenlandkarte" data-tool-id="datenlandkarte" data-cluster="regeln" data-search="datenlandkarte listen datenquellen canvas blöcke verbindung stammdaten sharepoint sync" draggable="true">
+                                <h2><i class="bi bi-grid-3x3-gap"></i>Datenlandkarte</h2>
+                                <p>Listen &amp; Quellen als Blöcke mit Anzahl – Linien zeigen Sync, Joins und Feld-Verknüpfungen.</p>
+                                <a class="btn" href="tools/datenlandkarte.html"><i class="bi bi-diagram-2"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schuldaten-Karte" data-tool-id="schulgraph" data-cluster="regeln" data-search="schulgraph karte visualisierung beziehungen stammdaten graph klasse fach arge lehrer eltern schüler canvas" draggable="true">
+                                <h2><i class="bi bi-share"></i>Schuldaten-Karte</h2>
+                                <p>Zoombarer Graph: Klassen, Fächer, ARGE, Lehrkräfte, Unterrichtsbelegung, Eltern/Schüler und M365-Gruppen.</p>
+                                <a class="btn" href="tools/schulgraph.html"><i class="bi bi-diagram-2"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Stammdaten-Übergabe" data-tool-id="stammdaten-uebergabe" data-cluster="regeln" data-search="stammdaten übergabe sharepoint backup json document library intranet" draggable="true">
                                 <h2><i class="bi bi-cloud-arrow-up"></i>Stammdaten-Übergabe</h2>
                                 <p>Browser-Backup als JSON in die Intranet-Dokumentbibliothek – für PC-Wechsel und IT-Übergabe.</p>
@@ -2205,7 +2410,7 @@
                 <p class="dashboard-reorder-hint" id="dashboard-reorder-hint">Oben der Schnellstart für den Schulalltag – hier der vollständige Katalog. Mit dem <strong>Stern</strong> können Sie Favoriten pinnen.</p>
             </section>
             </details>
-            <section class="dashboard-local-footer" aria-label="Lokale Daten in diesem Browser">
+            <section class="dashboard-local-footer" aria-label="Lokale Daten in diesem Browser" data-dash-section-audience="it">
                 <p class="dashboard-local-footer__hint">Listen in diesem Browser</p>
                 <div class="dashboard-backup-actions">
                     <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
@@ -2216,10 +2421,9 @@
                     <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
                 </div>
                 <div class="dashboard-backup-actions dashboard-local-footer__actions--danger">
-                    <button type="button" class="btn btn-demo" id="browserBackupLoadDemo" data-ms365-backup="demo" title="Lokale Daten löschen und Muster-Schule laden"><i class="bi bi-play-circle"></i>Demo-Daten laden</button>
                     <button type="button" class="btn btn-danger-outline" id="browserBackupReset" data-ms365-backup="reset" title="Alle lokalen App-Daten in diesem Browser löschen"><i class="bi bi-arrow-counterclockwise"></i>Alles zurücksetzen</button>
                 </div>
-                <p class="dashboard-local-footer__note">Browser-Backup und SharePoint sichern dieselben lokalen App-Daten (<code>ms365-*</code>, <code>webuntis-*</code>): Stammdaten, Schuljahre, Einrichtung, Demo-Modus, Dashboard-Favoriten, Kursteams, Gruppen-Werkzeuge, Projektwochen-/Schularbeiten-Einstellungen u. a. Nicht enthalten: Microsoft-Anmeldung und PIN. <strong>Nach SharePoint</strong> schreibt in die IT-Sicherungsbibliothek; <strong>Von SharePoint</strong> ersetzt die lokalen Daten durch das aktuelle Remote-Backup.</p>
+                <p class="dashboard-local-footer__note">Browser-Backup und SharePoint sichern dieselben lokalen App-Daten (<code>ms365-*</code>, <code>webuntis-*</code>): Stammdaten, Schuljahre, Einrichtung, Dashboard-Favoriten, Kursteams, Gruppen-Werkzeuge, Projektwochen-/Schularbeiten-Einstellungen u. a. Nicht enthalten: Microsoft-Anmeldung und PIN. <strong>Nach SharePoint</strong> schreibt in die IT-Sicherungsbibliothek; <strong>Von SharePoint</strong> ersetzt die lokalen Daten durch das aktuelle Remote-Backup.</p>
                 <p class="dashboard-local-footer__status" id="browserBackupStatus" role="status" aria-live="polite"></p>
                 <p class="dashboard-local-footer__status" id="stammdatenSpoSyncStatus" role="status" aria-live="polite"></p>
             </section>
@@ -2230,23 +2434,38 @@
 
     <script src="ms365-config.js"></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
-    <script src="src/shared/theme-toggle.js" defer></script>
+    <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
-    <script src="src/shared/demo-mode.js" defer></script>
     <script src="src/shared/empty-state-ui.js" defer></script>
     <script src="src/shared/context-tip.js" defer></script>
     <script src="src/shared/onboarding-welcome.js" defer></script>
     <script src="src/shared/tenant-settings-core.js" defer></script>
-    <script src="src/shared/tenant-settings-ui.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
     <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script type="module" src="src/shared/membership-hygiene.js"></script>
     <script type="module" src="src/shared/membership-hygiene-dashboard.js"></script>
+    <script type="module" src="src/shared/dashboard-persona-session.js"></script>
     <script type="module">
+        import { mountDashboardAudience } from './src/shared/dashboard-audience-ui.js';
         import { mountHygieneTeaser } from './src/shared/membership-hygiene-dashboard.js';
+
+        function bootDashboardAudience() {
+            mountDashboardAudience({
+                onSearchRefresh: function () {
+                    if (typeof window.__ms365DashApplySearch === 'function') {
+                        window.__ms365DashApplySearch();
+                    }
+                }
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootDashboardAudience);
+        } else {
+            bootDashboardAudience();
+        }
 
         function bootHygieneTeaser() {
             if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
@@ -2307,6 +2526,7 @@
                 'sharepoint-intranet-hub',
                 'playbook-intranet',
                 'sharepoint-liste-lehrer',
+                'sharepoint-liste-stammdaten',
                 'sharepoint-liste-schultermine',
                 'sharepoint-liste-schularbeiten',
                 'sharepoint-liste-schulaktivitaeten',
@@ -2331,6 +2551,8 @@
                 'sharepoint-mandant-teilen',
                 'schulstruktur-sync',
                 'datenhygiene',
+                'datenlandkarte',
+                'schulgraph',
                 'stammdaten-uebergabe',
                 'cleanup-playbook',
                 'schul-baseline',
@@ -2529,6 +2751,21 @@
                 });
             }
 
+            function activateFirstVisibleCatalogTab() {
+                if (document.documentElement.hasAttribute('data-dash-filtering')) {
+                    for (let i = 0; i < TAB_IDS.length; i += 1) {
+                        const tab = TAB_IDS[i];
+                        const btn = document.querySelector('[data-dashboard-tab="' + tab + '"]');
+                        if (btn && btn.hidden) continue;
+                        const panel = panelForTab(tab);
+                        if (panel && panel.hasAttribute('data-dash-panel-empty')) continue;
+                        setActiveTab(tab);
+                        return;
+                    }
+                }
+            }
+            window.__ms365DashActivateFirstVisibleTab = activateFirstVisibleCatalogTab;
+
             function setActiveTab(tab) {
                 activeTab = isKnownTab(tab) ? tab : 'unterricht';
                 try {
@@ -2553,6 +2790,16 @@
                 return panel && !panel.hidden;
             }
 
+            function audienceAllows(card) {
+                if (
+                    window.ms365DashboardAudience &&
+                    typeof window.ms365DashboardAudience.isToolElementVisible === 'function'
+                ) {
+                    return window.ms365DashboardAudience.isToolElementVisible(card);
+                }
+                return true;
+            }
+
             function applySearchFilter() {
                 const needle = searchQuery;
                 const searching = needle.length > 0;
@@ -2560,7 +2807,7 @@
 
                 let visibleCount = 0;
                 getAllToolCards().forEach(function (card) {
-                    const match = cardMatchesSearch(card, needle);
+                    const match = cardMatchesSearch(card, needle) && audienceAllows(card);
                     card.hidden = !match;
                     if (match) visibleCount += 1;
                 });
@@ -2764,6 +3011,7 @@
             injectFavoriteButtons();
             enableDnD();
             syncDraggableState();
+            window.__ms365DashApplySearch = applySearchFilter;
         })();
 
         (function () {
@@ -2777,10 +3025,6 @@
             const elTaskSetup = document.getElementById('dashTaskSetup');
             const elHeadSetupLink = document.getElementById('dashHeadSetupLink');
             const elEmptyState = document.getElementById('dashEmptyState');
-            const elDemoBanner = document.getElementById('dashDemoBanner');
-            const elDemoSwitch = document.getElementById('dashDemoSwitch');
-            const elDemoSwitchWrap = document.getElementById('dashDemoSwitchWrap');
-            let demoSwitchBusy = false;
             const elStandEmptyNote = document.getElementById('dashStandEmptyNote');
             const elStandHygieneWrap = document.getElementById('dashStandHygieneWrap');
             const elProgUnterricht = document.getElementById('dashProgUnterricht');
@@ -2849,8 +3093,8 @@
             }
 
             /** Großes Start-Banner nur einmal am Anfang – nicht parallel zu Statuszeilen. */
-            function shouldShowSetupPrompt(s, demo) {
-                if (demo || setupFinished()) return false;
+            function shouldShowSetupPrompt(s) {
+                if (setupFinished()) return false;
                 if (isSetupPromptDismissed()) return false;
                 if (hasSubstantialSchoolData(s)) return false;
                 return true;
@@ -2954,7 +3198,6 @@
                 if (window.ms365EmptyStateUi && typeof window.ms365EmptyStateUi.shouldShowHygieneTeaser === 'function') {
                     return window.ms365EmptyStateUi.shouldShowHygieneTeaser();
                 }
-                if (isDemoMode()) return true;
                 return setupFinished() && hasMeaningfulTenantData(loadSettingsQuick());
             }
 
@@ -2969,14 +3212,7 @@
                 return null;
             }
 
-            function isDemoMode() {
-                return !!(window.ms365DemoMode && window.ms365DemoMode.isActive());
-            }
-
             function hasMeaningfulTenantData(s) {
-                if (window.ms365DemoMode && typeof window.ms365DemoMode.hasMeaningfulTenantData === 'function') {
-                    return window.ms365DemoMode.hasMeaningfulTenantData(s);
-                }
                 if (!s) return false;
                 const domain = String((s && s.domain) || '').trim();
                 const schoolName = String((s && s.schoolName) || '').trim();
@@ -2988,7 +3224,6 @@
             }
 
             function shouldShowTaskProgress() {
-                if (isDemoMode()) return false;
                 return setupFinished();
             }
 
@@ -3005,14 +3240,46 @@
                     container && container.core && Array.isArray(container.core.classTeams)
                         ? container.core.classTeams
                         : [];
-                const matchedClasses = classTeams.filter(function (ct) {
-                    return ct && (ct.graphGroupId || ct.mode === 'matched' || ct.mode === 'created');
-                }).length;
-                if (classes.length) {
-                    const tone = matchedClasses >= classes.length ? 'ok' : matchedClasses ? 'warn' : '';
+                let matchedClasses = 0;
+                const classCount = classes.length;
+                const hygieneApi = window.ms365MembershipHygiene;
+                if (hygieneApi && typeof hygieneApi.countLinkedClassTeamsForClasses === 'function') {
+                    matchedClasses = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams).linked;
+                } else {
+                    classes.forEach(function (cls) {
+                        if (!cls) return;
+                        const code = String(cls.code || '')
+                            .trim()
+                            .toUpperCase();
+                        const year = String(cls.year || '').trim();
+                        let team = null;
+                        if (code) {
+                            for (let i = 0; i < classTeams.length; i++) {
+                                const t = classTeams[i];
+                                if (!t) continue;
+                                if (
+                                    String(t.classCode || '')
+                                        .trim()
+                                        .toUpperCase() !== code
+                                ) {
+                                    continue;
+                                }
+                                if (year && t.abschlussJahr && String(t.abschlussJahr) !== year) continue;
+                                team = t;
+                                break;
+                            }
+                        }
+                        if (!team) return;
+                        const gid = String(team.graphGroupId || '').trim();
+                        const mode = String(team.mode || '').toLowerCase();
+                        if (gid || mode === 'matched' || mode === 'created') matchedClasses += 1;
+                    });
+                }
+                if (classCount) {
+                    const tone = matchedClasses >= classCount ? 'ok' : matchedClasses ? 'warn' : '';
                     setProgress(
                         elProgUnterricht,
-                        matchedClasses + ' von ' + classes.length + ' Klassengruppen verknüpft',
+                        matchedClasses + ' von ' + classCount + ' Klassengruppen verknüpft',
                         tone
                     );
                 } else {
@@ -3077,18 +3344,11 @@
                 if (elYear) elYear.textContent = year || 'noch nicht gesetzt';
                 if (elDomain) elDomain.textContent = domain || 'noch nicht gesetzt';
 
-                const demo = isDemoMode();
                 const hasData = hasMeaningfulTenantData(s);
-                const showSetup = shouldShowSetupPrompt(s, demo);
-                const showEmpty = !hasData && !demo;
-                const showHeadSetup = !demo && !showEmpty && !setupFinished();
+                const showSetup = shouldShowSetupPrompt(s);
+                const showEmpty = !hasData;
+                const showHeadSetup = !showEmpty && !setupFinished();
 
-                if (elDemoBanner) elDemoBanner.hidden = !demo;
-                if (elDemoSwitch) {
-                    elDemoSwitch.checked = demo;
-                    elDemoSwitch.setAttribute('aria-checked', demo ? 'true' : 'false');
-                }
-                if (elDemoSwitchWrap) elDemoSwitchWrap.classList.toggle('is-active', demo);
                 if (elEmptyState) elEmptyState.hidden = !showEmpty;
                 if (elTaskSetup) elTaskSetup.hidden = !showSetup || showEmpty;
                 if (elHeadSetupLink) elHeadSetupLink.hidden = !showHeadSetup;
@@ -3097,73 +3357,6 @@
                 renderTaskProgress(s);
                 return true;
             }
-
-            function activateDemoMode() {
-                if (!window.ms365DemoMode || typeof window.ms365DemoMode.activate !== 'function') return false;
-                return window.ms365DemoMode.activate();
-            }
-
-            function confirmDemoOverwrite() {
-                const msg =
-                    'Demo-Daten der MS365 Musterschule laden?\n\nDie vorhandenen Stammdaten in diesem Browser werden dabei ersetzt. Für Ihre echte Schule später: Browser-Backup exportieren, bevor Sie die Demo aktivieren.';
-                if (typeof window.ms365AppDialogConfirm === 'function') {
-                    return window.ms365AppDialogConfirm(msg, { title: 'Demo-Daten laden' });
-                }
-                return Promise.resolve(window.confirm(msg));
-            }
-
-            if (elDemoSwitch) {
-                elDemoSwitch.addEventListener('change', function () {
-                    if (demoSwitchBusy) return;
-                    const wantDemo = !!elDemoSwitch.checked;
-                    if (wantDemo && !isDemoMode()) {
-                        demoSwitchBusy = true;
-                        const s = loadSettingsQuick();
-                        const needsConfirm = hasMeaningfulTenantData(s);
-                        const go = needsConfirm ? confirmDemoOverwrite() : Promise.resolve(true);
-                        go.then(function (ok) {
-                            demoSwitchBusy = false;
-                            if (!ok) {
-                                elDemoSwitch.checked = false;
-                                elDemoSwitch.setAttribute('aria-checked', 'false');
-                                return;
-                            }
-                            if (activateDemoMode()) window.location.reload();
-                            else {
-                                elDemoSwitch.checked = false;
-                                elDemoSwitch.setAttribute('aria-checked', 'false');
-                            }
-                        });
-                        return;
-                    }
-                    if (!wantDemo && isDemoMode()) {
-                        demoSwitchBusy = true;
-                        elDemoSwitch.checked = true;
-                        if (!window.ms365DemoMode || typeof window.ms365DemoMode.deactivate !== 'function') {
-                            demoSwitchBusy = false;
-                            return;
-                        }
-                        window.ms365DemoMode.deactivate().then(function (ok) {
-                            demoSwitchBusy = false;
-                            if (ok) window.location.reload();
-                        });
-                    }
-                });
-            }
-
-            const btnExitDemo = document.getElementById('dashBtnExitDemo');
-            if (btnExitDemo) {
-                btnExitDemo.addEventListener('click', function () {
-                    if (!window.ms365DemoMode || typeof window.ms365DemoMode.deactivate !== 'function') return;
-                    window.ms365DemoMode.deactivate().then(function (ok) {
-                        if (ok) window.location.reload();
-                    });
-                });
-            }
-
-            window.addEventListener('ms365-demo-mode-changed', function () {
-                render();
-            });
 
             const dashEmptyImport = document.getElementById('dashEmptyImportBackup');
             if (dashEmptyImport) {
@@ -3175,21 +3368,6 @@
 
             const btnDismissHero = document.getElementById('dashSetupDismissHero');
             if (btnDismissHero) btnDismissHero.addEventListener('click', dismissSetupPrompt);
-
-            if (location.hash === '#start-demo') {
-                const tryDemo = setInterval(function () {
-                    if (window.ms365DemoMode && typeof window.ms365DemoMode.activate === 'function') {
-                        clearInterval(tryDemo);
-                        if (activateDemoMode()) {
-                            history.replaceState(null, '', location.pathname + location.search);
-                            window.location.reload();
-                        }
-                    }
-                }, 80);
-                setTimeout(function () {
-                    clearInterval(tryDemo);
-                }, 5000);
-            }
 
             let tries = 0;
             const t = setInterval(() => {

@@ -240,6 +240,42 @@
         drop.hidden = !open;
     }
 
+    const MENU_BRANDS = ['teal', 'classic', 'wine'];
+
+    function normalizeMenuBrand(brand) {
+        return MENU_BRANDS.indexOf(brand) !== -1 ? brand : 'teal';
+    }
+
+    function applyMenuBrandChoice(brand) {
+        const next = normalizeMenuBrand(brand);
+        document.documentElement.setAttribute('data-brand', next);
+        try {
+            localStorage.setItem('ms365-brand-v1', next);
+        } catch (_) {
+            /* ignore */
+        }
+        if (window.ms365Theme && typeof window.ms365Theme.setBrand === 'function') {
+            window.ms365Theme.setBrand(next);
+        }
+        if (document.documentElement.getAttribute('data-brand') !== next) {
+            document.documentElement.setAttribute('data-brand', next);
+            try {
+                localStorage.setItem('ms365-brand-v1', next);
+            } catch (_) {
+                /* ignore */
+            }
+        }
+        if (window.ms365Theme && typeof window.ms365Theme.syncBrandUi === 'function') {
+            window.ms365Theme.syncBrandUi();
+        } else {
+            document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
+                const on = el.getAttribute('data-ms365-brand') === next;
+                el.setAttribute('aria-checked', on ? 'true' : 'false');
+                el.classList.toggle('is-active', on);
+            });
+        }
+    }
+
     function bindAuthMenuDismiss() {
         if (bindAuthMenuDismiss.bound) return;
         bindAuthMenuDismiss.bound = true;
@@ -609,6 +645,20 @@
             '<i class="bi bi-clipboard" aria-hidden="true"></i></button>' +
             '</span></div>' +
             '</div>' +
+            '<div class="ms365-auth-menu__section" id="ms365AuthDashViewSection" role="group" aria-label="Dashboard-Ansicht" hidden>' +
+            '<div class="ms365-auth-menu__section-label" id="ms365AuthDashViewLabel">Dashboard-Vorschau</div>' +
+            '<div class="ms365-auth-menu__dash-seg" role="group" aria-labelledby="ms365AuthDashViewLabel">' +
+            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="full" aria-checked="false" title="Vollzugriff (Schul-IT)" aria-label="Vollzugriff Schul-IT">' +
+            '<i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">IT</span></button>' +
+            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="preview-lehrer" aria-checked="false" title="Vorschau Lehrkraft" aria-label="Vorschau Lehrkraft">' +
+            '<i class="bi bi-person-badge" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">Lehrer</span></button>' +
+            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="preview-schueler" aria-checked="false" title="Vorschau Schüler/in" aria-label="Vorschau Schüler/in">' +
+            '<i class="bi bi-mortarboard" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">Schüler</span></button>' +
+            '</div>' +
+            '<p class="ms365-auth-menu__dash-hint" id="ms365AuthDashViewHint" hidden></p>' +
+            '<a class="ms365-auth-menu__item ms365-auth-menu__item--sub" role="menuitem" id="ms365AuthDashWerkzeugeLink" href="tenant.html#werkzeuge">' +
+            '<i class="bi bi-sliders2" aria-hidden="true"></i>Werkzeug-Zugriff konfigurieren</a>' +
+            '</div>' +
             '<div class="ms365-auth-menu__section" role="group" aria-label="Design">' +
             '<div class="ms365-auth-menu__section-label">Design</div>' +
             '<div class="ms365-auth-menu__brand-row">' +
@@ -616,6 +666,8 @@
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--teal" aria-hidden="true"></span>Blau-Grün</button>' +
             '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="classic" aria-checked="false">' +
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--classic" aria-hidden="true"></span>Klassisch</button>' +
+            '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="wine" aria-checked="false">' +
+            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--wine" aria-hidden="true"></span>Dunkelrot</button>' +
             '</div></div>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
             '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin-Bereich</a>' +
@@ -686,20 +738,7 @@
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                const brand = btn.getAttribute('data-ms365-brand');
-                if (window.ms365Theme && typeof window.ms365Theme.setBrand === 'function') {
-                    window.ms365Theme.setBrand(brand);
-                } else {
-                    try {
-                        document.documentElement.setAttribute('data-brand', brand === 'classic' ? 'classic' : 'teal');
-                        localStorage.setItem('ms365-brand-v1', brand === 'classic' ? 'classic' : 'teal');
-                    } catch (_) { /* ignore */ }
-                    document.querySelectorAll('[data-ms365-brand]').forEach(function (el) {
-                        const on = el.getAttribute('data-ms365-brand') === (brand === 'classic' ? 'classic' : 'teal');
-                        el.setAttribute('aria-checked', on ? 'true' : 'false');
-                        el.classList.toggle('is-active', on);
-                    });
-                }
+                applyMenuBrandChoice(btn.getAttribute('data-ms365-brand'));
             });
         });
         if (window.ms365Theme && typeof window.ms365Theme.getBrand === 'function') {
@@ -874,10 +913,19 @@
                 window.ms365OperatorAccess.isCurrentUserOperator()
             )
         );
-        if (a && operatorReady) {
-            window.ms365OperatorAccess.refreshOperatorStatus().then(function (ok) {
-                applyAdminLink(!!ok);
-            });
+        var skipOperator =
+            !!(window.MS365_LICENSE_API && window.MS365_LICENSE_API.skipOperatorCheck === true);
+        if (a && operatorReady && !skipOperator) {
+            if (!setWidgetState._operatorRefreshInFlight) {
+                setWidgetState._operatorRefreshInFlight = true;
+                window.ms365OperatorAccess.refreshOperatorStatus().then(function (ok) {
+                    applyAdminLink(!!ok);
+                }).finally(function () {
+                    setWidgetState._operatorRefreshInFlight = false;
+                });
+            }
+        } else if (a && skipOperator) {
+            applyAdminLink(false);
         } else if (a && !operatorReady) {
             /* pin-gate lädt operator-access/license-api deferred – kurz nachziehen */
             if (!setWidgetState._operatorRetryTimers) setWidgetState._operatorRetryTimers = 0;
@@ -973,6 +1021,15 @@
             // ignore (widget still renders; Anmelden bleibt nutzbar)
         }
         setWidgetState();
+        import('./dashboard-auth-menu-policy.js')
+            .then(function (m) {
+                if (m && typeof m.bootAuthMenuAudiencePolicy === 'function') {
+                    m.bootAuthMenuAudiencePolicy();
+                }
+            })
+            .catch(function () {
+                /* ignore */
+            });
         // Admin: kein SSO-Silent (vermeidet Hänger/Freezes auf localhost)
         const path = String((window.location && window.location.pathname) || '');
         const isAdmin = /\/admin\.html(?:\?|#|$)/i.test(path);

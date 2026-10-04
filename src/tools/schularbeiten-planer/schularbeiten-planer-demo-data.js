@@ -277,13 +277,15 @@ function teacherEmail(code) {
 function sa(id, title, fach, klasse, lehrer, datum, dauer, semester, status, ablehnung) {
     const fixed = status === 'fixiert' || status === 'abgelehnt';
     return {
-        Title: title,
+        Titel: title,
+        Thema: '',
         SchularbeitId: id,
         FachCode: fach,
         KlasseCode: klasse,
         LehrerCode: lehrer,
         LehrerEmail: teacherEmail(lehrer),
         Datum: datum,
+        BeginnUhrzeit: '08:00',
         DauerMinuten: dauer,
         Semester: semester,
         Status: status,

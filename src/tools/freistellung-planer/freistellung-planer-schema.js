@@ -72,7 +72,52 @@ export const FREISTELLUNG_COLUMNS = [
         name: 'Bemerkungen',
         displayName: 'Bemerkungen',
         text: { allowMultipleLines: true, maxLength: 8000 }
+    },
+    {
+        name: 'Nachweise',
+        displayName: 'Nachweise',
+        text: { allowMultipleLines: true, maxLength: 8000 }
+    },
+    {
+        name: 'GenehmigtVonKV',
+        displayName: 'Genehmigt von (KV)',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'GenehmigtAmKV',
+        displayName: 'Genehmigt am (KV)',
+        dateTime: { displayAs: 'default', format: 'dateOnly' }
+    },
+    {
+        name: 'GenehmigtVonDirektion',
+        displayName: 'Genehmigt von (Direktion)',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'GenehmigtAmDirektion',
+        displayName: 'Genehmigt am (Direktion)',
+        dateTime: { displayAs: 'default', format: 'dateOnly' }
+    },
+    {
+        name: 'AbgelehntVon',
+        displayName: 'Abgelehnt von',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'AbgelehntAm',
+        displayName: 'Abgelehnt am',
+        dateTime: { displayAs: 'default', format: 'dateOnly' }
     }
+];
+
+/** Spalten, die Flow v2 nach Genehmigung/Ablehnung befüllt (Planer-Audit). */
+export const AUDIT_COLUMN_NAMES = [
+    'GenehmigtVonKV',
+    'GenehmigtAmKV',
+    'GenehmigtVonDirektion',
+    'GenehmigtAmDirektion',
+    'AbgelehntVon',
+    'AbgelehntAm'
 ];
 
 export const REQUIRED_COLUMN_NAMES = FREISTELLUNG_COLUMNS.map((c) => c.name);

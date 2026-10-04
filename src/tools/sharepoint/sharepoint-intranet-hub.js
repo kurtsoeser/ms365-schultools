@@ -351,7 +351,8 @@
         const wantTermine = $('fPackTermine') && $('fPackTermine').checked;
         const wantSchularbeiten = $('fPackSchularbeiten') && $('fPackSchularbeiten').checked;
         const wantProjektwochen = $('fPackProjektwochen') && $('fPackProjektwochen').checked;
-        if (!wantLehrer && !wantTermine && !wantSchularbeiten && !wantProjektwochen) return;
+        const wantStammdaten = $('fPackStammdaten') && $('fPackStammdaten').checked;
+        if (!wantLehrer && !wantTermine && !wantSchularbeiten && !wantProjektwochen && !wantStammdaten) return;
         if (wantLehrer && window.ms365SpoLehrerListe && typeof window.ms365SpoLehrerListe.createList === 'function') {
             packLog('Startpaket: Lehrerliste …');
             try {
@@ -368,6 +369,24 @@
                 packLog('Schultermine-Liste fertig.');
             } catch (e) {
                 packLog('Schultermine: ' + (e && e.message ? e.message : e));
+            }
+        }
+        if (
+            wantStammdaten &&
+            window.ms365SpoStammdatenListen &&
+            typeof window.ms365SpoStammdatenListen.createSelectedLists === 'function'
+        ) {
+            packLog('Startpaket: Stammdaten-Listen (Schülerinnen, Fächer) …');
+            try {
+                await window.ms365SpoStammdatenListen.syncSelectedLists(
+                    webUrl,
+                    { schueler: true, faecher: true, fachgruppen: true, arges: true, klassen: false },
+                    packLog,
+                    { syncMode: true, removeOrphans: false }
+                );
+                packLog('Stammdaten-Listen fertig.');
+            } catch (e) {
+                packLog('Stammdaten-Listen: ' + (e && e.message ? e.message : e));
             }
         }
         if (

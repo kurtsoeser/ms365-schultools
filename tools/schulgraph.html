@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Schuldaten-Karte</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/schulgraph/schulgraph.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page sg-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-share"></i>Schuldaten-Karte</span>
+            </div>
+            <p>Beziehungen aus Stammdaten und <strong>M365-Mitgliedschaften beim Anklicken</strong> (Person → Gruppen, Gruppe/Klasse → Mitglieder).</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-schulgraph" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="../tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
+                <a class="btn" href="datenlandkarte.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-grid-3x3-gap"></i>Datenlandkarte</a>
+            </div>
+        </div>
+        <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Für die Karte brauchen Sie Stammdaten in diesem Browser (Klassen, Fächer oder Lehrkräfte)."></div>
+            <div id="sgApp" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
+    <script src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script type="module" src="../src/tools/schulgraph/schulgraph.js"></script>
+</body>
+</html>

@@ -10,6 +10,11 @@ import {
     entraGroupLogonName,
     buildItLibraryPlan,
     isItLibraryConfigured,
+    collectItLibraryLinkHints,
+    normalizeItLibraryMeta,
+    compareBackupPayloads,
+    isLikelyFreshLocalBackup,
+    formatBackupCompareDe,
     isAutoSyncIgnoredChangeSource,
     shouldApplyRemoteBackup,
     formatSyncStatusDe,
@@ -61,6 +66,50 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(isItLibraryConfigured(null)).toBe(false);
         expect(isItLibraryConfigured({})).toBe(false);
         expect(isItLibraryConfigured({ driveId: 'abc' })).toBe(true);
+    });
+
+    it('vergleicht Browser-Backups', () => {
+        const a = {
+            exportedAt: '2026-09-20T10:00:00.000Z',
+            contentFingerprint: 'abc:3',
+            schoolName: 'A',
+            localStorage: { 'ms365-schooltool-data-v2': { x: 1 }, 'ms365-tenant-settings-v1': {} }
+        };
+        const b = {
+            exportedAt: '2026-09-21T12:00:00.000Z',
+            contentFingerprint: 'def:3',
+            schoolName: 'A',
+            localStorage: { 'ms365-schooltool-data-v2': { x: 2 }, 'ms365-tenant-settings-v1': {} }
+        };
+        const same = compareBackupPayloads(a, a);
+        expect(same.identical).toBe(true);
+        const diff = compareBackupPayloads(a, b);
+        expect(diff.identical).toBe(false);
+        expect(diff.newerSide).toBe('remote');
+        expect(diff.changedCount).toBe(1);
+        expect(formatBackupCompareDe(diff, { remoteLastModified: '2026-09-21T12:05:00.000Z' })).toMatch(
+            /SharePoint/
+        );
+        expect(isLikelyFreshLocalBackup({ localStorage: {} })).toBe(true);
+        expect(
+            isLikelyFreshLocalBackup({
+                localStorage: {
+                    'ms365-schooltool-data-v2': JSON.stringify({ years: { '2025/26': {} } }),
+                    'ms365-tenant-settings-v1': '{}'
+                }
+            })
+        ).toBe(false);
+    });
+
+    it('sammelt Auto-Verknüpfungs-Hinweise', () => {
+        const hints = collectItLibraryLinkHints({
+            setup: { intranetSiteUrl: 'https://schule.sharepoint.com/sites/intranet' },
+            formDraft: { libraryTitle: 'MS365-IT-Stammdaten', itGroup: 'verwaltung@schule.at' }
+        });
+        expect(hints.hasMinimum).toBe(true);
+        expect(hints.siteUrl).toContain('intranet');
+        expect(hints.itGroupMail).toBe('verwaltung@schule.at');
+        expect(normalizeItLibraryMeta({ driveId: 'x', listTitle: ' Lib ' }).listTitle).toBe('Lib');
     });
 
     it('entscheidet Session-Pull anhand von Versionen', () => {

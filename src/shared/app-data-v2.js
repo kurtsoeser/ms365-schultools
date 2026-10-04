@@ -234,8 +234,10 @@
         const gruppenmail = String(r.gruppenmail || '')
             .trim()
             .toLowerCase();
-        if (!klasse && !fach && !lehrerEmail && !teamName) return null;
-        return {
+        const graphGroupId = String(r.graphGroupId || '').trim();
+        const linkedAt = String(r.linkedAt || '').trim();
+        if (!klasse && !fach && !lehrerEmail && !teamName && !gruppenmail) return null;
+        const out = {
             klasse: klasse,
             lehrerCode: lehrerCode,
             lehrerEmail: lehrerEmail,
@@ -244,6 +246,9 @@
             teamName: teamName,
             gruppenmail: gruppenmail
         };
+        if (graphGroupId) out.graphGroupId = graphGroupId;
+        if (linkedAt) out.linkedAt = linkedAt;
+        return out;
     }
 
     function normalizeUnterrichtsbelegung(raw) {

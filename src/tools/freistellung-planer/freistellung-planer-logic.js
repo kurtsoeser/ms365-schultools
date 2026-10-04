@@ -2,6 +2,7 @@
  * Validierung / Genehmigungspfad für Freistellungen – ohne DOM/fetch.
  */
 import { MULTI_DAY_THRESHOLD, STATUS_CHOICES, KATEGORIE_CHOICES } from './freistellung-planer-schema.js';
+import { isAllowedKategorie } from './freistellung-planer-kategorien.js';
 
 /**
  * @typedef {object} FreistellungDraft
@@ -127,8 +128,9 @@ export function validateFreistellung(opts) {
     }
 
     const kat = String(draft.kategorie || '').trim();
+    const allowedKat = (draft && draft._allowedKategorien) || KATEGORIE_CHOICES;
     if (!kat) errors.push('Bitte eine Kategorie wählen.');
-    else if (!KATEGORIE_CHOICES.includes(kat) && kat.length < 2) {
+    else if (!isAllowedKategorie(kat, allowedKat)) {
         errors.push('Kategorie ist ungültig.');
     }
 

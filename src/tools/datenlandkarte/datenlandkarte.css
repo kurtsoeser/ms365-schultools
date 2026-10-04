@@ -1,0 +1,260 @@
+.dl-page .content {
+    max-width: none;
+}
+
+.dl-spo-status {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius, 8px);
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 92%, var(--warning, #f59e0b) 8%);
+}
+
+.dl-spo-status--load {
+    background: color-mix(in srgb, var(--surface) 94%, var(--accent) 6%);
+}
+
+.dl-spo-status--err {
+    border-color: color-mix(in srgb, var(--danger, #dc2626) 40%, var(--border));
+}
+
+.dl-spo-status__list {
+    margin: 8px 0 0;
+    padding-left: 1.2rem;
+}
+
+.dl-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 300px) 1fr;
+    gap: 16px;
+    min-height: 520px;
+}
+
+@media (max-width: 960px) {
+    .dl-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dl-sidebar {
+    max-height: 75vh;
+    overflow: auto;
+}
+
+.dl-sidebar h4 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+}
+
+.dl-hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+}
+
+.dl-link-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.dl-link-label {
+    text-align: left;
+    font-size: 0.82rem;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+}
+
+.dl-link-label--sel,
+.dl-link-label:hover {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 8%, var(--card));
+}
+
+.dl-canvas-wrap {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 480px;
+}
+
+.dl-canvas-toolbar {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+}
+
+.dl-canvas-host {
+    flex: 1;
+    overflow: hidden;
+    cursor: grab;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 23px,
+            color-mix(in srgb, var(--border) 55%, transparent) 23px,
+            color-mix(in srgb, var(--border) 55%, transparent) 24px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 23px,
+            color-mix(in srgb, var(--border) 55%, transparent) 23px,
+            color-mix(in srgb, var(--border) 55%, transparent) 24px
+        );
+}
+
+.dl-canvas-host.dl-panning {
+    cursor: grabbing;
+}
+
+.dl-canvas-inner {
+    position: relative;
+    margin: 20px;
+}
+
+.dl-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.dl-link {
+    fill: none;
+    stroke: color-mix(in srgb, var(--text-secondary) 45%, transparent);
+    stroke-width: 1.5;
+    pointer-events: stroke;
+}
+
+.dl-link--hi {
+    stroke: var(--brand1);
+    stroke-width: 2.5;
+}
+
+.dl-blocks {
+    position: relative;
+    z-index: 1;
+}
+
+.dl-layer-label {
+    position: absolute;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--brand1);
+    pointer-events: none;
+}
+
+.dl-block {
+    position: absolute;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dl-block--dragging {
+    z-index: 5;
+    box-shadow: var(--shadow), 0 12px 32px color-mix(in srgb, var(--text) 18%, transparent);
+    transition: none;
+}
+
+.dl-block:hover {
+    border-color: color-mix(in srgb, var(--brand1) 40%, var(--border));
+}
+
+.dl-block--sel {
+    border-color: var(--brand1);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 25%, transparent);
+}
+
+.dl-block__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: grab;
+    margin: -4px -6px 0;
+    padding: 4px 6px;
+    border-radius: 8px;
+}
+
+.dl-block__head:active {
+    cursor: grabbing;
+}
+
+.dl-block__grip {
+    color: var(--text-secondary);
+    opacity: 0.65;
+    font-size: 0.95rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.dl-block__head h3 {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.25;
+    color: var(--heading);
+}
+
+.dl-block__head i:not(.dl-block__grip) {
+    color: var(--brand1);
+    font-size: 1.1rem;
+    margin-top: 2px;
+}
+
+.dl-block__count {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--heading);
+    line-height: 1;
+}
+
+.dl-block__count span {
+    color: var(--brand1);
+}
+
+.dl-block__desc {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.dl-block__link {
+    font-size: 0.78rem;
+    align-self: flex-start;
+    text-decoration: none;
+    color: var(--brand1);
+    font-weight: 700;
+}
+
+.dl-detail-count {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0 0 8px;
+}
+
+.dl-detail-links {
+    margin: 10px 0 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+}

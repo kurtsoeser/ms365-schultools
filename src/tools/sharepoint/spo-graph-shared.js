@@ -746,6 +746,175 @@
         return '/sites/' + encodeURIComponent(siteId);
     }
 
+    function normEmailKey(email) {
+        return String(email || '').trim().toLowerCase();
+    }
+
+    function membershipLogonName(email) {
+        const em = normEmailKey(email);
+        if (!em || em.indexOf('@') === -1) return '';
+        return 'i:0#.f|membership|' + em;
+    }
+
+    /**
+     * Systemliste „User Information List“ (interner Listenname users, lokalisiertes displayName).
+     * Graph liefert sie nur mit $select=…,system; Erkennung über name, nicht nur englisches displayName.
+     * @returns {Promise<object|null>}
+     */
+    async function findSiteUserInformationList(token, siteId) {
+        let path = graphPathSite(siteId) + '/lists?$select=id,displayName,name,system&$top=999';
+        while (path) {
+            const data = await graphJson('GET', path, token, undefined, 'v1.0');
+            const lists = (data && data.value) || [];
+            const userList =
+                lists.find(function (l) {
+                    return String(l.name || '').trim().toLowerCase() === 'users';
+                }) ||
+                lists.find(function (l) {
+                    return String(l.displayName || '') === 'User Information List';
+                }) ||
+                lists.find(function (l) {
+                    return /user information/i.test(String(l.displayName || ''));
+                }) ||
+                lists.find(function (l) {
+                    return /benutzerinformationsliste/i.test(String(l.displayName || ''));
+                }) ||
+                null;
+            if (userList && userList.id) return userList;
+            path = data && data['@odata.nextLink'] ? data['@odata.nextLink'] : '';
+        }
+        return null;
+    }
+
+    /**
+     * Lädt die User Information List und baut E-Mail → Listenelement-ID (LookupId).
+     * @returns {Promise<Map<string, string>>}
+     */
+    async function loadSiteUserInfoEmailIndex(token, siteId) {
+        const userList = await findSiteUserInformationList(token, siteId);
+        if (!userList || !userList.id) {
+            throw new Error('User Information List auf dieser Site nicht gefunden.');
+        }
+        const index = new Map();
+        let path =
+            graphPathSite(siteId) +
+            '/lists/' +
+            encodeURIComponent(userList.id) +
+            '/items?$expand=fields&$top=200';
+        while (path) {
+            const data = await graphJson('GET', path, token, undefined, 'v1.0');
+            const rows = (data && data.value) || [];
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const f = (row && row.fields) || {};
+                const id = row && row.id != null ? String(row.id) : '';
+                if (!id) continue;
+                const candidates = [f.EMail, f.Email, f.UserName, f.SipAddress, f.Name]
+                    .map(function (x) {
+                        return String(x || '').trim().toLowerCase();
+                    })
+                    .filter(Boolean);
+                for (let c = 0; c < candidates.length; c++) {
+                    const raw = candidates[c];
+                    if (raw.indexOf('@') === -1) continue;
+                    if (!index.has(raw)) index.set(raw, id);
+                    const pipe = raw.indexOf('|');
+                    if (pipe !== -1) {
+                        const tail = raw.slice(pipe + 1);
+                        if (tail.indexOf('@') !== -1 && !index.has(tail)) index.set(tail, id);
+                    }
+                }
+            }
+            path = data && data['@odata.nextLink'] ? data['@odata.nextLink'] : '';
+        }
+        return index;
+    }
+
+    /**
+     * @param {object} fields
+     * @param {string} columnName interner Spaltenname (ohne LookupId)
+     * @param {number[]} lookupIds SharePoint User Information LookupIds
+     */
+    function applyMultiPersonLookupFields(fields, columnName, lookupIds) {
+        const name = String(columnName || '').trim();
+        const nums = (Array.isArray(lookupIds) ? lookupIds : [])
+            .map(function (x) {
+                return Number(x);
+            })
+            .filter(function (n) {
+                return n > 0;
+            });
+        if (!name || !nums.length) return fields;
+        fields[name + 'LookupId@odata.type'] = 'Collection(Edm.Int32)';
+        fields[name + 'LookupId'] = nums;
+        return fields;
+    }
+
+    function applySinglePersonLookupField(fields, columnName, lookupId) {
+        const name = String(columnName || '').trim();
+        const id = Number(lookupId);
+        if (!name || !id) return fields;
+        fields[name + 'LookupId'] = id;
+        return fields;
+    }
+
+    /**
+     * Personen-LookupIds für eine Site (Index + optional ensureUser).
+     * @param {string} siteWebUrl
+     * @param {string} graphToken
+     * @param {string} siteId
+     * @param {{ ensureMissing?: boolean, write?: function }} [opts]
+     */
+    async function createSitePersonResolver(siteWebUrl, graphToken, siteId, opts) {
+        const write = opts && typeof opts.write === 'function' ? opts.write : function () {};
+        const ensureMissing = !(opts && opts.ensureMissing === false);
+        const index = await loadSiteUserInfoEmailIndex(graphToken, siteId);
+        let spoToken = '';
+        let digest = '';
+        if (ensureMissing) {
+            let host = '';
+            try {
+                host = new URL(siteWebUrl).hostname;
+            } catch {
+                host = '';
+            }
+            if (host) {
+                const spoScope = 'https://' + host + '/AllSites.Write';
+                try {
+                    spoToken = await getGraphToken([spoScope]);
+                    digest = await getSpoRequestDigest(siteWebUrl, spoToken);
+                } catch (e) {
+                    write(
+                        'Hinweis: ensureUser nicht verfügbar (' +
+                            (e && e.message ? e.message : e) +
+                            ') – nur bereits bekannte Site-Benutzer werden verknüpft.'
+                    );
+                    spoToken = '';
+                }
+            }
+        }
+
+        async function lookupIdForEmail(email) {
+            const em = normEmailKey(email);
+            if (!em) return 0;
+            if (index.has(em)) return Number(index.get(em));
+            if (!ensureMissing || !spoToken || !digest) return 0;
+            const logon = membershipLogonName(em);
+            if (!logon) return 0;
+            try {
+                const principal = await spoEnsureUser(siteWebUrl, spoToken, digest, logon);
+                const id = principal && principal.id ? Number(principal.id) : 0;
+                if (id) index.set(em, String(id));
+                return id;
+            } catch (e) {
+                write('ensureUser fehlgeschlagen für ' + em + ': ' + (e && e.message ? e.message : e));
+                return 0;
+            }
+        }
+
+        return { lookupIdForEmail: lookupIdForEmail, index: index };
+    }
+
     global.ms365SpoGraph = {
         getGraphToken: getGraphToken,
         sleep: sleep,
@@ -770,6 +939,12 @@
         graphBase: graphBase,
         parseSharePointWebUrl: parseSharePointWebUrl,
         resolveSiteFromWebUrl: resolveSiteFromWebUrl,
-        graphPathSite: graphPathSite
+        graphPathSite: graphPathSite,
+        membershipLogonName: membershipLogonName,
+        findSiteUserInformationList: findSiteUserInformationList,
+        loadSiteUserInfoEmailIndex: loadSiteUserInfoEmailIndex,
+        applyMultiPersonLookupFields: applyMultiPersonLookupFields,
+        applySinglePersonLookupField: applySinglePersonLookupField,
+        createSitePersonResolver: createSitePersonResolver
     };
 })(typeof window !== 'undefined' ? window : globalThis);

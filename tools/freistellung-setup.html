@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Freistellungen Setup</title>
-    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/power-automate/freistellung-setup.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -19,10 +20,12 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-person-check"></i>Freistellungen Setup</span>
             </div>
-            <p>Für Schulen gedacht: erst vorbereiten, dann Liste, dann Flow importieren – ohne Solutions-Vorkenntnisse. Anträge stellen und verwalten: <a href="freistellung-planer.html">Freistellungen-Planer</a>.</p>
+            <p>Für Schulen gedacht: erst vorbereiten, dann Liste, dann Flow importieren – ohne Solutions-Vorkenntnisse.
+                <a href="freistellung-konzept.html">Ablauf &amp; Idee</a> · Anträge: <a href="freistellung-planer.html">Freistellungen-Planer</a>.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-freistellung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="freistellung-konzept.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-3"></i>Ablauf &amp; Idee</a>
                 <a class="btn" href="freistellung-planer.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-calendar2-check"></i>Planer / Anträge</a>
                 <a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a>
                 <a class="btn" href="power-automate-rezepte.html"><i class="bi bi-collection"></i>Übersicht</a>
@@ -34,85 +37,235 @@
             <section class="tm-hero" aria-label="Kurzüberblick">
                 <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-person-check"></i></div>
                 <div>
-                    <p class="tm-hero__kicker">3 Phasen</p>
+                    <p class="tm-hero__kicker">3 Schritte</p>
                     <h2>Freistellung KV + Direktion</h2>
-                    <p id="frPhaseHint">Phase 1 vorbereiten → Phase 2 Liste → Phase 3 Flow importieren.</p>
+                    <p id="frPhaseHint">Schritt 1: Schule vorbereiten (Checkliste).</p>
                 </div>
                 <div class="tm-hero__actions">
                     <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites.ReadWrite.All</span>
                 </div>
             </section>
 
-            <section class="tm-panel" id="frPhase1">
-                <div class="tm-panel__head">
-                    <i class="bi bi-1-circle" aria-hidden="true"></i>
-                    <div>
-                        <h3>Phase 1 – Schule vorbereiten</h3>
-                        <p>Phase 1: Environment &amp; Rechte (Postfächer erst im jeweiligen Tool). <a href="pa-erst-setup.html">Große Ansicht</a></p>
-                    </div>
+            <section class="tm-glance tm-glance--compact" id="frSetupGlance" aria-label="Fortschritt">
+                <div class="tm-glance__card" data-fr-glance="prep">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <span class="tm-glance__label">Vorbereitung</span>
+                    <span class="tm-glance__value" data-fr-glance-value>Offen</span>
                 </div>
+                <div class="tm-glance__card is-warn" data-fr-glance="emails">
+                    <i class="bi bi-envelope-check" aria-hidden="true"></i>
+                    <span class="tm-glance__label">E-Mails &amp; Postfach</span>
+                    <span class="tm-glance__value" data-fr-glance-value>Offen</span>
+                </div>
+                <div class="tm-glance__card is-warn" data-fr-glance="list">
+                    <i class="bi bi-list-ul" aria-hidden="true"></i>
+                    <span class="tm-glance__label">SharePoint-Liste</span>
+                    <span class="tm-glance__value" data-fr-glance-value>Offen</span>
+                </div>
+                <div class="tm-glance__card is-warn" data-fr-glance="flow">
+                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                    <span class="tm-glance__label">Flow importiert</span>
+                    <span class="tm-glance__value" data-fr-glance-value>Offen</span>
+                </div>
+            </section>
+
+            <section class="tm-wizard" aria-label="Freistellungen einrichten">
+                <div class="tm-wizard__tabs" role="tablist" aria-label="Setup-Schritte">
+                    <button type="button" role="tab" id="frSetupTab1" data-fr-setup-step="1" class="active" aria-selected="true" aria-controls="frSetupStep1"><i class="bi bi-signpost-2" aria-hidden="true"></i> Vorbereiten</button>
+                    <button type="button" role="tab" id="frSetupTab2" data-fr-setup-step="2" aria-selected="false" aria-controls="frSetupStep2"><i class="bi bi-list-ul" aria-hidden="true"></i> Liste</button>
+                    <button type="button" role="tab" id="frSetupTab3" data-fr-setup-step="3" aria-selected="false" aria-controls="frSetupStep3"><i class="bi bi-lightning-charge" aria-hidden="true"></i> Flow</button>
+                </div>
+
+                <div class="tm-wizard__body">
+            <div id="frSetupStep1" class="tm-wizard__pane" role="tabpanel" aria-labelledby="frSetupTab1">
+                <h3 class="tm-wizard__pane-title">Schule vorbereiten</h3>
+                <p class="tm-wizard__pane-lead">Environment &amp; Rechte (Postfächer erst im jeweiligen Tool). <a href="pa-erst-setup.html">Große Ansicht</a></p>
                 <div id="paOnboardingHost"></div>
-            </section>
+            </div>
 
-            <section class="tm-panel" id="frPhase2">
-                <div class="tm-panel__head">
-                    <i class="bi bi-2-circle" aria-hidden="true"></i>
-                    <div>
-                        <h3>Phase 2 – Einstellungen &amp; Liste</h3>
-                        <p>Werte dieser Schule eintragen und SharePoint-Liste anlegen (wir machen das für Sie).</p>
-                    </div>
-                </div>
-                <div class="tm-field">
-                    <label for="frSiteUrl">SharePoint-Website</label>
-                    <input type="url" id="frSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Administration" autocomplete="off" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="frListName">Listenname</label>
-                    <input type="text" id="frListName" value="Freistellungen" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="frListId">Listen-ID <span class="muted">(optional – leer = anlegen/suchen)</span></label>
-                    <input type="text" id="frListId" placeholder="wird nach „Liste anlegen“ befüllt" autocomplete="off" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="frEmailDirektion">Direktion (2. Genehmiger + Sonderfall „KV = Direktion“)</label>
-                    <input type="email" id="frEmailDirektion" placeholder="direktion@schule.at" autocomplete="off" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="frEmailSonder">Sondergenehmigung, wenn KV = Direktion</label>
-                    <input type="email" id="frEmailSonder" placeholder="vertretung@schule.at" autocomplete="off" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="frEmailMailbox">Freigegebenes Postfach <em>nur für Freistellungs-Mails</em></label>
-                    <input type="email" id="frEmailMailbox" placeholder="z. B. freistellung@schule.at oder automate@schule.at" autocomplete="off" spellcheck="false">
-                    <p class="muted" style="margin:6px 0 0;font-size:0.88em;">Andere Flows (Kalender, Anträge, …) haben eigene Postfach-Felder in ihrem Tool – nicht dasselbe wie hier.</p>
-                </div>
-                <div class="tm-field">
-                    <label for="frFlowName">Flow-Anzeigename</label>
-                    <input type="text" id="frFlowName" value="Freistellungen - Genehmigungsprozess" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="frBtnSave"><i class="bi bi-save"></i>Speichern</button>
-                    <button type="button" class="btn btn-success" id="frBtnList"><i class="bi bi-list-ul"></i>Liste anlegen / prüfen</button>
-                </div>
-                <details class="tm-tech" style="margin-top:14px;">
-                    <summary>Protokoll</summary>
-                    <div id="frLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
-                </details>
-            </section>
+            <div id="frSetupStep2" class="tm-wizard__pane" role="tabpanel" aria-labelledby="frSetupTab2" hidden>
+                <h3 class="tm-wizard__pane-title">Einstellungen &amp; Liste</h3>
+                <p class="tm-wizard__pane-lead">SharePoint-Liste, Genehmiger, Planer-Rollen und Flow – in drei Blöcken. Unten speichern und Liste anlegen.</p>
 
-            <section class="tm-panel" id="frPhase3">
-                <div class="tm-panel__head">
-                    <i class="bi bi-3-circle" aria-hidden="true"></i>
-                    <div>
-                        <h3>Phase 3 – Flow-Paket &amp; Import</h3>
-                        <p>ZIP herunterladen, dann die Klicks unten – ohne Fachchinesisch.</p>
+                <div class="fr-setup-step2">
+                    <div class="fr-setup-cols">
+                        <section class="tm-panel fr-setup-panel" aria-labelledby="frSetupSpTitle">
+                            <div class="tm-panel__head">
+                                <i class="bi bi-share" aria-hidden="true"></i>
+                                <div>
+                                    <h3 id="frSetupSpTitle">SharePoint &amp; Liste</h3>
+                                    <p>Website, Listenname und ID nach dem ersten Anlegen.</p>
+                                </div>
+                            </div>
+                            <div class="tm-field">
+                                <label for="frSiteUrl">SharePoint-Website</label>
+                                <input type="url" id="frSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Administration" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="tm-field">
+                                <label for="frListName">Listenname</label>
+                                <input type="text" id="frListName" value="Freistellungen" maxlength="200" spellcheck="false">
+                            </div>
+                            <div class="tm-field">
+                                <label for="frListId">Listen-ID <span class="muted">(optional)</span></label>
+                                <input type="text" id="frListId" placeholder="nach „Liste anlegen“ befüllt" autocomplete="off" spellcheck="false">
+                            </div>
+                        </section>
+
+                        <section class="tm-panel fr-setup-panel" aria-labelledby="frSetupFlowTitle">
+                            <div class="tm-panel__head">
+                                <i class="bi bi-envelope-check" aria-hidden="true"></i>
+                                <div>
+                                    <h3 id="frSetupFlowTitle">Genehmigung &amp; Flow</h3>
+                                    <p>E-Mails für Power Automate und Sonderfälle.</p>
+                                </div>
+                            </div>
+                            <div class="tm-field">
+                                <label for="frEmailDirektion">Direktion (2. Genehmiger)</label>
+                                <input type="email" id="frEmailDirektion" placeholder="direktion@schule.at" autocomplete="off" spellcheck="false">
+                                <p class="muted" style="margin:6px 0 0;font-size:0.85em;">Auch Sonderfall „KV = Direktion“. Diese Adresse erhält im Planer die Rolle Direktion.</p>
+                            </div>
+                            <div class="tm-field">
+                                <label for="frEmailSonder">Sondergenehmigung (KV = Direktion)</label>
+                                <input type="email" id="frEmailSonder" placeholder="vertretung@schule.at" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="tm-field">
+                                <label for="frEmailMailbox">Freigegebenes Postfach (nur Freistellungs-Mails)</label>
+                                <input type="email" id="frEmailMailbox" placeholder="freistellung@schule.at" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="tm-field">
+                                <label for="frFlowName">Flow-Anzeigename</label>
+                                <input type="text" id="frFlowName" value="Freistellungen - Genehmigungsprozess" maxlength="200" spellcheck="false">
+                            </div>
+                        </section>
                     </div>
+
+                    <section class="tm-panel fr-setup-panel" aria-labelledby="frSetupKatTitle">
+                        <div class="tm-panel__head">
+                            <i class="bi bi-tags" aria-hidden="true"></i>
+                            <div>
+                                <h3 id="frSetupKatTitle">Antrags-Kategorien</h3>
+                                <p>Zusätzliche Kategorien für Schüler- und KV-Formulare (mit „Gruppen speichern“ auf die Site).</p>
+                            </div>
+                        </div>
+                        <ul id="frSetupKatExtraList" class="fr-setup-user-list" style="max-width:520px;"></ul>
+                        <div class="fr-setup-egp fr-setup-egp--tight" style="max-width:520px;margin-top:8px;">
+                            <input type="text" id="frSetupKatExtraNew" placeholder="Neue Kategorie …" maxlength="120" style="flex:1;min-width:160px;">
+                            <button type="button" class="btn btn-sm" id="frSetupKatExtraAdd"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
+                        </div>
+                        <button type="button" class="btn btn-sm" id="frSetupKatSyncSp" style="margin-top:10px;"><i class="bi bi-arrow-repeat"></i>Kategorie-Spalte in SharePoint aktualisieren</button>
+                    </section>
+
+                    <section class="tm-panel fr-setup-panel" aria-labelledby="frSetupEntraTitle">
+                        <div class="tm-panel__head">
+                            <i class="bi bi-people" aria-hidden="true"></i>
+                            <div>
+                                <h3 id="frSetupEntraTitle">Entra-Gruppen für den Planer</h3>
+                                <p>Wer welche Ansicht sieht (Schüler / KV / Direktion). Genehmigung selbst bleibt in Microsoft Approvals.</p>
+                            </div>
+                        </div>
+                        <div class="fr-setup-perm-grid">
+                            <article class="fr-setup-perm-card">
+                                <div class="fr-setup-perm-card__head">
+                                    <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+                                    <div>
+                                        <h4>Direktion</h4>
+                                        <p>Gesamtübersicht, Berichte, Testdaten – optional Entra-Gruppe plus Einzelpersonen (Sekretariat, IT).</p>
+                                    </div>
+                                </div>
+                                <p class="fr-setup-perm-sub">Entra-Gruppe (optional)</p>
+                                <label class="sr-only" for="frPermDirektion">Entra-Gruppe Direktion</label>
+                                <div class="fr-setup-egp">
+                                    <input id="frPermDirektion" type="text" readonly placeholder="Gruppe wählen …">
+                                    <input id="frPermDirektionId" type="hidden">
+                                    <button type="button" class="btn btn-sm" id="frPermDirektionPick"><i class="bi bi-search"></i>Gruppe</button>
+                                    <button type="button" class="btn btn-sm alt" id="frPermDirektionClear" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
+                                </div>
+                                <p class="fr-setup-perm-sub">Einzelpersonen</p>
+                                <ul id="frPermDirektionUsers" class="fr-setup-user-list" aria-label="Direktion Einzelpersonen"></ul>
+                                <div class="fr-setup-egp fr-setup-egp--tight">
+                                    <button type="button" class="btn btn-sm" id="frPermDirektionUserAdd"><i class="bi bi-person-plus"></i>Person</button>
+                                    <button type="button" class="btn btn-sm alt" id="frPermDirektionStammdaten" title="Verwaltung aus Stammdaten (tenant.html)"><i class="bi bi-journal-text"></i>Aus Stammdaten</button>
+                                </div>
+                            </article>
+                            <article class="fr-setup-perm-card">
+                                <div class="fr-setup-perm-card__head">
+                                    <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-person-badge"></i></span>
+                                    <div>
+                                        <h4>Klassenvorstände</h4>
+                                        <p>Eigene Klassen, offene Anträge als KV – Entra-Gruppe und optional Einzelpersonen.</p>
+                                    </div>
+                                </div>
+                                <p class="fr-setup-perm-sub">Entra-Gruppe</p>
+                                <label class="sr-only" for="frPermKv">Entra-Gruppe KV</label>
+                                <div class="fr-setup-egp">
+                                    <input id="frPermKv" type="text" readonly placeholder="Gruppe wählen …">
+                                    <input id="frPermKvId" type="hidden">
+                                    <button type="button" class="btn btn-sm" id="frPermKvPick"><i class="bi bi-search"></i>Gruppe</button>
+                                    <button type="button" class="btn btn-sm alt" id="frPermKvClear" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
+                                </div>
+                                <p class="fr-setup-perm-sub">Einzelpersonen</p>
+                                <ul id="frPermKvUsers" class="fr-setup-user-list" aria-label="KV Einzelpersonen"></ul>
+                                <div class="fr-setup-egp fr-setup-egp--tight">
+                                    <button type="button" class="btn btn-sm" id="frPermKvUserAdd"><i class="bi bi-person-plus"></i>Person</button>
+                                </div>
+                            </article>
+                            <article class="fr-setup-perm-card">
+                                <div class="fr-setup-perm-card__head">
+                                    <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
+                                    <div>
+                                        <h4>Schüler</h4>
+                                        <p>Eigene Anträge – Entra-Gruppe und optional Einzelpersonen.</p>
+                                    </div>
+                                </div>
+                                <p class="fr-setup-perm-sub">Entra-Gruppe</p>
+                                <label class="sr-only" for="frPermSchueler">Entra-Gruppe Schüler</label>
+                                <div class="fr-setup-egp">
+                                    <input id="frPermSchueler" type="text" readonly placeholder="Gruppe wählen …">
+                                    <input id="frPermSchuelerId" type="hidden">
+                                    <button type="button" class="btn btn-sm" id="frPermSchuelerPick"><i class="bi bi-search"></i>Gruppe</button>
+                                    <button type="button" class="btn btn-sm alt" id="frPermSchuelerClear" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
+                                </div>
+                                <p class="fr-setup-perm-sub">Einzelpersonen</p>
+                                <ul id="frPermSchuelerUsers" class="fr-setup-user-list" aria-label="Schüler Einzelpersonen"></ul>
+                                <div class="fr-setup-egp fr-setup-egp--tight">
+                                    <button type="button" class="btn btn-sm" id="frPermSchuelerUserAdd"><i class="bi bi-person-plus"></i>Person</button>
+                                </div>
+                            </article>
+                        </div>
+                        <div class="fr-setup-perm-foot">
+                            <p>Gruppen-JSON: <code>SiteAssets/ms365/freistellung-planer-groups.json</code> (Fallback: Standard-Bibliothek). Beim „Liste anlegen / prüfen“ werden Listen-Berechtigungen gesetzt: Direktion Vollzugriff, KV + Schüler Beitragen.</p>
+                            <label class="checkbox-label" style="display:block;margin:10px 0;">
+                                <input type="checkbox" id="frSkipPerms"> Berechtigungen diesmal überspringen (nur Gruppen lokal / JSON)
+                            </label>
+                            <button type="button" class="btn" id="frBtnSavePerms"><i class="bi bi-people"></i>Gruppen speichern</button>
+                        </div>
+                    </section>
+
+                    <div class="tm-actions fr-setup-actions">
+                        <button type="button" class="btn" id="frBtnSave"><i class="bi bi-save"></i>Alles speichern</button>
+                        <button type="button" class="btn btn-success" id="frBtnList"><i class="bi bi-list-ul"></i>Liste anlegen / prüfen</button>
+                        <button type="button" class="btn" id="frBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen</button>
+                    </div>
+
+                    <details class="tm-tech">
+                        <summary>Protokoll</summary>
+                        <div id="frLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                    </details>
                 </div>
+            </div>
+
+            <div id="frSetupStep3" class="tm-wizard__pane" role="tabpanel" aria-labelledby="frSetupTab3" hidden>
+                <h3 class="tm-wizard__pane-title">Flow-Paket &amp; Import</h3>
+                <p class="tm-wizard__pane-lead">ZIP herunterladen und in Power Automate importieren – Schritte unten.</p>
                 <div class="tm-actions" style="margin-bottom:14px;">
                     <button type="button" class="btn btn-success" id="frBtnPackage"><i class="bi bi-download"></i>Flow-Paket herunterladen</button>
+                    <a class="btn" href="freistellung-flow-v2-anleitung.html" style="text-decoration:none"><i class="bi bi-book"></i>Flow v2 bauen (Anleitung)</a>
                     <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate öffnen</a>
                 </div>
+                <p class="muted" style="margin:0 0 14px;font-size:0.9em;line-height:1.45;">
+                    Aktuelles ZIP = Flow v1. Nach dem Bau gemäß Anleitung: Export ins Projekt – dann liefert dieser Button das v2-Paket.
+                    Audit-Spalten für „wer hat wann freigegeben“ legt das Setup bereits an.
+                </p>
                 <ol class="pa-import-steps" style="margin:0;padding-left:1.2em;line-height:1.6;">
                     <li>In Power Automate links <strong>Meine Flows</strong> öffnen.</li>
                     <li>Oben <strong>Importieren</strong> → <strong>Import Package (Legacy)</strong> wählen.</li>
@@ -128,51 +281,64 @@
                 <label class="checkbox-label" style="display:block;margin-top:14px;">
                     <input type="checkbox" id="frDone"> Flow in unserer Schule aktiv / importiert
                 </label>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
-                    <div>
-                        <h3>Was der Flow macht</h3>
-                        <p>Kurz zur Kontrolle – Details ändern sich nur über die E-Mails oben.</p>
-                    </div>
+                <details class="tm-tech" style="margin-top:18px;">
+                    <summary>Was der Flow macht</summary>
+                    <ul style="margin:10px 0 0;padding-left:1.2em;line-height:1.55;">
+                        <li>Trigger: neues Element in der Freistellungsliste (Polling, typisch wenige Minuten).</li>
+                        <li>Wenn Klassenvorstand-E-Mail = Direktion (Setup) → eine Genehmigung an die Sonderperson (Setup).</li>
+                        <li>Sonst derzeit: immer sequentiell Klassenvorstand → Direktion (Mehrtages-Logik im Flow folgt in v2).</li>
+                        <li>Status in SharePoint + Mail aus dem freigegebenen Postfach.</li>
+                    </ul>
+                </details>
+            </div>
                 </div>
-                <ul style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li>Trigger: neues Element in der Freistellungsliste.</li>
-                    <li>Wenn Klassenvorstand = Direktion → nur Sondergenehmigung (eine Person).</li>
-                    <li>Sonst sequentiell: Klassenvorstand, dann Direktion.</li>
-                    <li>Status in SharePoint + Mail aus dem freigegebenen Postfach.</li>
-                </ul>
+
+                <footer class="tm-wizard__footer">
+                    <button type="button" class="btn" id="frSetupBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="btn btn-success" id="frSetupNext" aria-label="Nächster Schritt">Weiter</button>
+                </footer>
             </section>
         </div>
     </div>
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/shared/browser-backup.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/shared/stammdaten-sharepoint-sync-ui.js"></script>
+    <script type="module" src="../src/tools/power-automate/freistellung-setup-bridge.js"></script>
+    <script type="module">
+        import { initFreistellungSetupPermissions } from '../src/tools/freistellung-planer/freistellung-permissions-ui.js';
+        document.addEventListener('DOMContentLoaded', () => initFreistellungSetupPermissions());
+    </script>
     <script src="../src/tools/power-automate/pa-school-onboarding.js"></script>
     <script src="../src/tools/power-automate/freistellung-setup.js" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             if (!window.ms365PaOnboarding) return;
-            function hint(p) {
-                var el = document.getElementById('frPhaseHint');
-                if (!el || !p) return;
-                if (p.done >= p.total) {
-                    el.textContent = 'Vorbereitung fertig – weiter mit Liste und Flow-Import.';
+            function onOnboardingChange(p) {
+                if (window.ms365FreistellungSetup && typeof window.ms365FreistellungSetup.refreshGlance === 'function') {
+                    window.ms365FreistellungSetup.refreshGlance();
+                }
+                var step = 1;
+                try {
+                    step = parseInt(localStorage.getItem('ms365-freistellung-setup-step-v1') || '1', 10) || 1;
+                } catch (e) {}
+                if (window.ms365FreistellungSetup && typeof window.ms365FreistellungSetup.showSetupStep === 'function') {
+                    window.ms365FreistellungSetup.showSetupStep(step);
                 } else {
-                    el.textContent =
-                        'Noch ' + (p.total - p.done) + ' Vorbereitungsschritt(e) – oder direkt Phase 2, wenn die IT schon eingerichtet hat.';
+                    var el = document.getElementById('frPhaseHint');
+                    if (el && p && p.total && p.done >= p.total) {
+                        el.textContent = 'Vorbereitung fertig – weiter mit Liste und Flow-Import.';
+                    }
                 }
             }
-            window.ms365PaOnboarding.mount('#paOnboardingHost', { compact: true, onChange: hint });
-            hint(window.ms365PaOnboarding.progress());
+            window.ms365PaOnboarding.mount('#paOnboardingHost', { compact: true, onChange: onOnboardingChange });
+            onOnboardingChange(window.ms365PaOnboarding.progress());
         });
     </script>
 </body>

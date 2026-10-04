@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
@@ -9,7 +9,8 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Geführte Einrichtung</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=12">
+    <link rel="stylesheet" href="app.css?v=13">
+    <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <style>
         .sw-nav {
             display: flex;
@@ -373,6 +374,7 @@
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                         <a class="btn" href="tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-sliders2-vertical"></i>Stammdaten</a>
+                        <a class="btn btn-primary" id="swBtnWebuntisStammdatenWizard" href="tools/webuntis-stammdaten-import.html?from=einrichtung" title="WebUntis-Exporte gesammelt importieren und prüfen"><i class="bi bi-box-arrow-in-down"></i>Import von WebUntis …</a>
                         <a class="btn" href="tools/schueler-lehrer-gruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-people"></i>Lehrerinnen &amp; Schülerinnen (Detail)</a>
                         <a class="btn" href="tools/verwaltung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-building-gear"></i>Verwaltung (Detail)</a>
                         <a class="btn" href="tools/arge-fachgruppen.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</a>
@@ -1059,6 +1061,8 @@
                                     <th>Kürzel</th>
                                     <th>Jahr</th>
                                     <th>Bezeichnung</th>
+                                    <th>Klassenvorstand</th>
+                                    <th>KV E-Mail</th>
                                     <th>Vorschau SMTP</th>
                                     <th>M365 (Object-ID)</th>
                                     <th class="action-cell">Aktionen</th>
@@ -1079,7 +1083,8 @@
 
             <div id="swStep11" class="sw-panel" style="display:none;">
                 <h2>11. Kurzüberblick &amp; nächste Schritte</h2>
-                <p class="intro">Die geführte Einrichtung ist damit inhaltlich abgeschlossen, sobald Sie die Stammdaten gepflegt haben. Unten sehen Sie eine <strong>Zusammenfassung</strong> aus den gespeicherten Stammdaten; danach können Sie direkt in passende Werkzeuge wechseln – z. B. <strong>Kursteams</strong>, weitere <strong>Gruppen/Teams</strong>, <strong>Personen</strong> oder die <strong>Stammdaten</strong> für Feinkorrekturen.</p>
+                <p class="intro">Die geführte Einrichtung ist damit inhaltlich abgeschlossen, sobald Sie die Stammdaten gepflegt haben. Optional legen Sie die <strong>SharePoint-Intranet-Listen</strong> direkt aus diesen Stammdaten an; unten die <strong>Zusammenfassung</strong> und Links zu weiteren Werkzeugen.</p>
+                <div data-ms365-intranet-listen-mount data-mount-prefix="swSpo" data-compact="true" style="margin:16px 0;"></div>
                 <div id="swStep9SummaryBody" class="sw-wiz-stats" aria-live="polite"></div>
                 <h3 style="margin:22px 0 8px;font-size:1.05em;color:#32325d;">Empfohlene Werkzeuge</h3>
                 <div class="sw-next-grid" aria-label="Weiterführende Werkzeuge">
@@ -1164,7 +1169,7 @@
 
     <script src="ms365-config.js"></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
-    <script src="src/shared/theme-toggle.js" defer></script>
+    <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
@@ -1174,9 +1179,11 @@
     <script src="src/shared/pdf-text.js" defer></script>
     <script src="src/shared/webuntis-export-import.js" defer></script>
     <script src="src/shared/school-sis-import.js" defer></script>
-    <script src="src/shared/tenant-settings-ui.js" defer></script>
+    <script type="module" src="src/shared/tenant-settings-ui.js"></script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
+    <script src="src/tools/sharepoint/sharepoint-liste-stammdaten.js" defer></script>
+    <script type="module" src="src/shared/stammdaten-intranet-listen-ui.js"></script>
     <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script type="module" src="src/shared/graph-unified-groups.js"></script>
     <script type="module" src="src/shared/teacher-tenant-import-ui.js"></script>

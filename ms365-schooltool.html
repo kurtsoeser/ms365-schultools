@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
   <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8" />
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
@@ -9,7 +9,7 @@
     <!-- Fallback für MSAL, falls ms365-config.js nicht lädt. Entra: Anwendungs-ID (Client). -->
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050" />
     <title>MS365-Schul-Tools</title>
-    <link rel="stylesheet" href="app.css?v=12" />
+    <link rel="stylesheet" href="app.css?v=13" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <script src="ms365-config.js"></script>
     <script src="src/shared/app-dialog.js" defer></script>
@@ -82,6 +82,8 @@
           kursteams: 'tools/kursteams.html',
           kursteam: 'tools/kursteams.html',
           webuntis: 'tools/kursteams.html',
+          unterrichtsteams: 'tools/unterrichtsteams-katalog.html',
+          'unterrichtsteams-katalog': 'tools/unterrichtsteams-katalog.html',
           'kursteam-templates': 'tools/kursteam-templates.html',
           'kursteam-vorlagen': 'tools/kursteam-templates.html',
           vorlagen: 'tools/kursteam-templates.html',
@@ -178,6 +180,11 @@
           lehrerliste: 'tools/sharepoint-liste-lehrer.html',
           'sharepoint-lehrer': 'tools/sharepoint-liste-lehrer.html',
           'sharepoint-liste-lehrer': 'tools/sharepoint-liste-lehrer.html',
+          'stammdaten-listen': 'tools/sharepoint-liste-stammdaten.html',
+          'sharepoint-stammdaten': 'tools/sharepoint-liste-stammdaten.html',
+          'sharepoint-liste-stammdaten': 'tools/sharepoint-liste-stammdaten.html',
+          schuelerliste: 'tools/sharepoint-liste-stammdaten.html',
+          faecherliste: 'tools/sharepoint-liste-stammdaten.html',
           schultermine: 'tools/sharepoint-liste-schultermine.html',
           'sharepoint-schultermine': 'tools/sharepoint-liste-schultermine.html',
           'sharepoint-liste-schultermine': 'tools/sharepoint-liste-schultermine.html',
@@ -198,7 +205,12 @@
           srdp: 'tools/sharepoint-liste-srdp.html',
           'srdp-anmeldung': 'tools/sharepoint-liste-srdp.html',
           'sharepoint-liste-srdp': 'tools/sharepoint-liste-srdp.html',
-          'sharepoint-srdp': 'tools/sharepoint-liste-srdp.html'
+          'sharepoint-srdp': 'tools/sharepoint-liste-srdp.html',
+          schulgraph: 'tools/schulgraph.html',
+          'schuldaten-karte': 'tools/schulgraph.html',
+          datenlandkarte: 'tools/datenlandkarte.html',
+          'daten-landkarte': 'tools/datenlandkarte.html',
+          karte: 'tools/schulgraph.html'
         };
 
         window.location.replace(map[mode] || 'index.html');

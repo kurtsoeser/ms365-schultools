@@ -2,16 +2,26 @@
  * State-Helfer & Filter für den Schularbeiten-Planer.
  */
 import { DEFAULT_RULES } from './schularbeiten-planer-logic.js';
+import {
+    currentSchoolYearFromDate,
+    normalizeSchuljahr,
+    matchesSchuljahrFilter,
+    collectSchoolYears
+} from './schularbeiten-planer-schuljahr.js';
 
 export const ROLE_STORAGE_KEY = 'ms365-sa-demo-role';
 export const SITE_STORAGE_KEY = 'ms365-sa-site-url';
 export const SETTINGS_STORAGE_KEY = 'ms365-sa-settings-v1';
 export const DEMO_KLASSE_STORAGE_KEY = 'ms365-sa-demo-klasse';
+export const SCHULJAHR_STORAGE_KEY = 'ms365-sa-schuljahr';
+export const CAL_SHOW_STORAGE_KEY = 'ms365-sa-cal-show-v1';
+export const CAL_MODE_STORAGE_KEY = 'ms365-sa-cal-mode-v1';
 
 /** @typedef {'lehrer'|'admin'|'schueler'} PlanerRole */
 
 export const VIEWS = [
     { id: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', adminOnly: false, staffOnly: false },
+    { id: 'liste', label: 'Liste', icon: 'bi-list-ul', adminOnly: false, staffOnly: false },
     { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', adminOnly: false, staffOnly: false },
     { id: 'neu', label: 'Neue Schularbeit', icon: 'bi-plus-circle', adminOnly: false, staffOnly: true },
     { id: 'meine', label: 'Meine Schularbeiten', icon: 'bi-card-checklist', adminOnly: false, staffOnly: true },
@@ -41,13 +51,22 @@ export function createInitialState() {
         ctx: null,
         view: 'dashboard',
         role: 'lehrer',
+        schuljahr: loadSchuljahr() || currentSchoolYearFromDate(),
         filters: { klasse: '', fach: '', lehrer: '', status: '' },
+        windowsAll: [],
+        allRules: [],
+        fachMetaAll: [],
         stammdaten: { subjects: [], classes: [], teachers: [], students: [] },
         items: [],
         windows: [],
         fachMeta: [],
         rules: { ...DEFAULT_RULES, name: 'Standard', itemId: '', regelwerkId: 'rw-1', aktiv: true },
         settings: loadPlanerSettings(),
+        calShow: loadCalShowSettings(),
+        /** @type {'month'|'week'} */
+        calMode: loadCalModeSettings(),
+        /** Montag (ISO) für Kalender-Wochenansicht */
+        calWeekMonday: '',
         loading: false,
         bootstrapped: false,
         error: '',
@@ -59,20 +78,38 @@ export function createInitialState() {
         demoKlasseCode: loadDemoKlasseCode(),
         calYear: now.getFullYear(),
         calMonth: now.getMonth(),
+        /** Montag (ISO) für Dashboard-Wochenansicht; leer = aktuelle Woche */
+        dashboardWeekMonday: '',
         form: emptyForm(),
         editingItemId: null,
-        detailId: null
+        detailId: null,
+        /** Neue FachMeta-Zeilen in der Admin-Tabelle (noch nicht auf SharePoint) */
+        fachMetaDrafts: [],
+        roleHint: '',
+        /** 'entra' | 'stammdaten' | 'demo' */
+        roleSource: 'demo',
+        entraGroupsConfigured: false,
+        demoRoleOverride: false,
+        planerAccessDenied: false,
+        /** Zugewiesene Planer-Rollen (admin/lehrer/schueler) */
+        planerRoles: [],
+        /** @type {Record<string, string>} */
+        planerRoleSources: {},
+        /** View nach Speichern im Formular (z. B. liste/kalender) */
+        editReturnView: ''
     };
 }
 
 export function emptyForm(overrides) {
     return {
+        titel: '',
         thema: '',
         fachCode: '',
         klasseCode: '',
         lehrerCode: '',
         lehrerEmail: '',
         datum: '',
+        beginnUhrzeit: '08:00',
         dauerMinuten: 100,
         semester: 'WS',
         notiz: '',
@@ -138,7 +175,11 @@ export function matchTeacherByEmail(email, teachers) {
         .toLowerCase();
     if (!em) return null;
     const list = Array.isArray(teachers) ? teachers : [];
-    return list.find((t) => t.email && t.email === em) || null;
+    return (
+        list.find((t) => t.email && String(t.email).trim().toLowerCase() === em) ||
+        list.find((t) => t.mail && String(t.mail).trim().toLowerCase() === em) ||
+        null
+    );
 }
 
 /**
@@ -176,6 +217,37 @@ export function loadDemoKlasseCode() {
     }
 }
 
+export function loadSchuljahr() {
+    try {
+        return normalizeSchuljahr(localStorage.getItem(SCHULJAHR_STORAGE_KEY) || '');
+    } catch {
+        return '';
+    }
+}
+
+export function persistSchuljahr(value) {
+    try {
+        const sj = normalizeSchuljahr(value);
+        if (sj) localStorage.setItem(SCHULJAHR_STORAGE_KEY, sj);
+        else localStorage.removeItem(SCHULJAHR_STORAGE_KEY);
+        return sj;
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * @param {object} state
+ */
+export function schoolYearOptions(state) {
+    return collectSchoolYears(
+        state.items,
+        state.windowsAll && state.windowsAll.length ? state.windowsAll : state.windows,
+        state.allRules && state.allRules.length ? state.allRules : state.rules ? [state.rules] : [],
+        state.schuljahr
+    );
+}
+
 export function persistDemoKlasseCode(code) {
     try {
         const c = String(code || '').trim();
@@ -200,7 +272,8 @@ export function scopeFromState(state, opts) {
         studentMatch: (state && state.studentMatch) || null,
         demoKlasseCode: (state && state.demoKlasseCode) || '',
         accountEmail: (state && state.accountEmail) || '',
-        onlyMine: !!o.onlyMine
+        onlyMine: !!o.onlyMine,
+        schuljahr: normalizeSchuljahr(state && state.schuljahr)
     };
 }
 
@@ -285,6 +358,74 @@ export function loadPlanerSettings() {
 /**
  * @param {{ syncSchultermine?: boolean, schultermineList?: string, syncClassCalendar?: boolean }} patch
  */
+export function loadCalShowSettings() {
+    const defaults = { beantragt: true, fixiert: true, abgelehnt: false };
+    try {
+        const raw = JSON.parse(localStorage.getItem(CAL_SHOW_STORAGE_KEY) || '{}') || {};
+        return {
+            beantragt: raw.beantragt !== false,
+            fixiert: raw.fixiert !== false,
+            abgelehnt: !!raw.abgelehnt
+        };
+    } catch {
+        return { ...defaults };
+    }
+}
+
+/**
+ * @param {{ beantragt?: boolean, fixiert?: boolean, abgelehnt?: boolean }} patch
+ */
+export function persistCalShowSettings(patch) {
+    const next = { ...loadCalShowSettings(), ...(patch || {}) };
+    try {
+        localStorage.setItem(CAL_SHOW_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+        /* ignore */
+    }
+    return next;
+}
+
+/** @returns {'month'|'week'} */
+export function loadCalModeSettings() {
+    try {
+        return localStorage.getItem(CAL_MODE_STORAGE_KEY) === 'week' ? 'week' : 'month';
+    } catch {
+        return 'month';
+    }
+}
+
+/** @param {'month'|'week'} mode */
+export function persistCalModeSettings(mode) {
+    const next = mode === 'week' ? 'week' : 'month';
+    try {
+        localStorage.setItem(CAL_MODE_STORAGE_KEY, next);
+    } catch {
+        /* ignore */
+    }
+    return next;
+}
+
+/**
+ * Kalender: Admin-Anzeige geplant/fixiert/abgelehnt (zusätzlich zum Status-Filter oben).
+ * @param {object[]} items
+ * @param {{ role?: string, calShow?: { beantragt?: boolean, fixiert?: boolean, abgelehnt?: boolean } }} state
+ */
+export function filterItemsForCalendarView(items, state) {
+    const list = Array.isArray(items) ? items : [];
+    const role = state && state.role;
+    const show = (state && state.calShow) || loadCalShowSettings();
+    if (role !== 'admin') {
+        return list.filter((sa) => String(sa.status || '').toLowerCase() !== 'abgelehnt');
+    }
+    return list.filter((sa) => {
+        const st = String(sa.status || '').toLowerCase();
+        if (st === 'beantragt') return show.beantragt !== false;
+        if (st === 'fixiert') return show.fixiert !== false;
+        if (st === 'abgelehnt') return show.abgelehnt === true;
+        return true;
+    });
+}
+
 export function persistPlanerSettings(patch) {
     const next = { ...loadPlanerSettings(), ...(patch || {}) };
     try {
@@ -344,6 +485,9 @@ export function buildEmbedSnippet(url) {
  * @param {object} filters
  * @param {{ role: string, teacherMatch: object|null, studentMatch?: object|null, demoKlasseCode?: string, accountEmail: string, onlyMine?: boolean }} scope
  */
+/** Filter ohne Klassen-/Fach-/Status-Einschränkung (Basis für Filterleiste). */
+export const EMPTY_SCHULARBEIT_FILTERS = { klasse: '', lehrer: '', status: '', fach: '' };
+
 export function filterSchularbeiten(items, filters, scope) {
     const f = filters || {};
     const list = Array.isArray(items) ? items : [];
@@ -352,9 +496,12 @@ export function filterSchularbeiten(items, filters, scope) {
     const teacher = scope && scope.teacherMatch;
     const email = String((scope && scope.accountEmail) || '').toLowerCase();
 
+    const schuljahr = scope && scope.schuljahr ? normalizeSchuljahr(scope.schuljahr) : '';
+
     if (role === 'schueler') {
         const klasse = resolveStudentKlasseCode(scope);
         return list.filter((sa) => {
+            if (!matchesSchuljahrFilter(sa, schuljahr)) return false;
             if (!klasse || sa.klasseCode !== klasse) return false;
             if (String(sa.status || '').toLowerCase() !== 'fixiert') return false;
             if (f.fach && sa.fachCode !== f.fach) return false;
@@ -368,6 +515,7 @@ export function filterSchularbeiten(items, filters, scope) {
     const restrictToOwn = (onlyMine || role !== 'admin') && canScopeToSelf;
 
     return list.filter((sa) => {
+        if (!matchesSchuljahrFilter(sa, schuljahr)) return false;
         if (restrictToOwn) {
             const codeOk = teacher && sa.lehrerCode && sa.lehrerCode === teacher.code;
             const mailOk =
@@ -428,11 +576,27 @@ export function roleLabel(role) {
  * @param {object} sa
  * @param {{ role: string, teacherMatch: object|null, accountEmail: string }} scope
  */
+function schularbeitStatus(sa) {
+    return String((sa && sa.status) || '').toLowerCase();
+}
+
 export function canEditSchularbeit(sa, scope) {
-    if (!sa || String(sa.status || '').toLowerCase() !== 'beantragt') return false;
+    if (!sa) return false;
+    const st = schularbeitStatus(sa);
     if ((scope && scope.role) === 'schueler') return false;
-    if ((scope && scope.role) === 'admin') return true;
+    if ((scope && scope.role) === 'admin') {
+        return st === 'beantragt' || st === 'fixiert' || st === 'abgelehnt';
+    }
+    if (st !== 'beantragt') return false;
     return isOwnSchularbeit(sa, scope);
+}
+
+/**
+ * @param {object} sa
+ * @param {{ role: string, teacherMatch: object|null, accountEmail: string }} scope
+ */
+export function canDeleteSchularbeit(sa, scope) {
+    return canEditSchularbeit(sa, scope);
 }
 
 /**

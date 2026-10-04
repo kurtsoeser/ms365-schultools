@@ -82,10 +82,8 @@
         }
     }
 
-    function cacheValidForAccount(account) {
-        var cache = readCache();
+    function cacheMatchesAccount(cache, account) {
         if (!cache || !cache.checkedAt) return false;
-        if (Date.now() - Number(cache.checkedAt) > TTL_MS) return false;
         var oid = account && account.oid ? account.oid : '';
         var upn = account && account.upn ? account.upn : '';
         if (oid && String(cache.oid || '').toLowerCase() === oid) return true;
@@ -93,11 +91,20 @@
         return false;
     }
 
+    function cacheFreshForAccount(account) {
+        var cache = readCache();
+        if (!cacheMatchesAccount(cache, account)) return false;
+        return Date.now() - Number(cache.checkedAt) <= TTL_MS;
+    }
+
     /**
      * Sync-Hinweis für Menü: nur wenn Cache zum aktuellen Konto passt.
      */
     function isCurrentUserOperator() {
-        return cacheValidForAccount(currentAccountInfo());
+        var account = currentAccountInfo();
+        if (!cacheFreshForAccount(account)) return false;
+        var cache = readCache();
+        return !!(cache && cache.operator === true);
     }
 
     /**
@@ -112,14 +119,22 @@
             clearOperatorCache();
             return false;
         }
-        if (!force && cacheValidForAccount(account)) return true;
+        var cfg = global.MS365_LICENSE_API || {};
+        if (cfg.skipOperatorCheck === true) {
+            clearOperatorCache();
+            return false;
+        }
+
+        if (!force && cacheFreshForAccount(account)) {
+            var cached = readCache();
+            return !!(cached && cached.operator === true);
+        }
 
         var api = global.ms365LicenseApi;
         if (!api || typeof api.acquireLicenseToken !== 'function' || typeof api.fetchAdminMe !== 'function') {
             clearOperatorCache();
             return false;
         }
-        var cfg = global.MS365_LICENSE_API || {};
         if (!String(cfg.baseUrl || '').trim()) {
             clearOperatorCache();
             return false;
@@ -129,15 +144,20 @@
             /* Menü: silentOnly. Admin-Seite (force): Popup bei Bedarf. */
             var token = await api.acquireLicenseToken(force ? { popup: true } : { silentOnly: true });
             var me = await api.fetchAdminMe(token);
-            if (!me || me.operator !== true) {
-                clearOperatorCache();
-                return false;
-            }
-            var oid = String((me.user && me.user.oid) || account.oid || '')
+            var oid = String((me && me.user && me.user.oid) || account.oid || '')
                 .trim()
                 .toLowerCase();
-            var upn = normalizeUpn((me.user && me.user.upn) || account.upn);
-            writeCache({ oid: oid, upn: upn, checkedAt: Date.now() });
+            var upn = normalizeUpn((me && me.user && me.user.upn) || account.upn);
+            var isOp = !!(me && me.operator === true);
+            writeCache({ oid: oid, upn: upn, checkedAt: Date.now(), operator: isOp });
+            if (!isOp) {
+                try {
+                    sessionStorage.removeItem(USER_SESSION_KEY);
+                } catch (e) {
+                    /* ignore */
+                }
+                return false;
+            }
             try {
                 sessionStorage.setItem(USER_SESSION_KEY, '1');
             } catch (e) {
@@ -145,8 +165,11 @@
             }
             return true;
         } catch (e) {
-            /* Menü ohne License.Access im Cache: bestehenden gültigen Cache behalten */
-            if (!force && cacheValidForAccount(account)) return true;
+            /* Menü ohne License.Access im Cache: positiven Cache behalten */
+            if (!force && cacheFreshForAccount(account)) {
+                var c = readCache();
+                return !!(c && c.operator === true);
+            }
             clearOperatorCache();
             return false;
         }

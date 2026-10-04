@@ -1,0 +1,66 @@
+.fr-konzept-diagram {
+    margin: 16px 0 8px;
+    padding: 16px 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--soft);
+    overflow-x: auto;
+}
+
+.fr-konzept-diagram .mermaid {
+    display: flex;
+    justify-content: center;
+    min-width: min(100%, 520px);
+}
+
+.fr-konzept-diagram .mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.fr-konzept-roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 12px 0 0;
+}
+
+.fr-konzept-role {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    background: var(--card);
+}
+
+.fr-konzept-role strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--heading);
+}
+
+.fr-konzept-role p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.fr-konzept-steps {
+    margin: 0;
+    padding-left: 1.25em;
+    line-height: 1.55;
+}
+
+.fr-konzept-steps li {
+    margin-bottom: 8px;
+}
+
+.fr-konzept-fallback {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px dashed var(--border);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}

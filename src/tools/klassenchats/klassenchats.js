@@ -559,7 +559,8 @@ function rebuildPlans() {
     plans = buildClassChatPlans(belegung, kv, {
         yearPrefix,
         namePattern,
-        existingByKlasse: existing
+        existingByKlasse: existing,
+        knownClassCodes: loadTenantClasses()
     });
     return plans;
 }

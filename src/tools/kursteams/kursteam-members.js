@@ -107,7 +107,7 @@ ns.parseStudentRosterFromText = function parseStudentRosterFromText(text) {
 };
 
 /**
- * Entspricht den Demo-Schülern in demo-mode.js (getDemoTenantData) –
+ * Entspricht typischen Demo-Stammdaten in der Musterschule –
  * Klasse;UPN für Schritt 8, falls die Schul‑Einstellungen keine nutzbaren Einträge liefern.
  */
 const DEFAULT_DEMO_STUDENT_ROSTER_LINES = [

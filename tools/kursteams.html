@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,7 +9,7 @@
     <!-- Fallback für MSAL, falls ms365-config.js nicht lädt -->
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Kursteams</title>
-    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -394,6 +394,7 @@
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <a class="btn" href="../index.html" title="Zurück zum Dashboard" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                         <a class="btn" href="spielwiesen.html" title="Demo-Teams für Schilf" style="text-decoration:none;display:inline-block;"><i class="bi bi-joystick"></i>Spielwiese</a>
+                        <a class="btn" href="unterrichtsteams-katalog.html" title="Unterrichtsteams anzeigen und bearbeiten" style="text-decoration:none;display:inline-block;"><i class="bi bi-table"></i>Katalog</a>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;"></div>
                 </div>
@@ -499,6 +500,48 @@
                             <div class="step-nav-row step-nav-row--forward-only">
                                 <button type="button" class="btn btn-success" onclick="startKursteamSingleTeam()"><i class="bi bi-plus-lg"></i>Einzelne Unterrichtsteams hinzufügen</button>
                             </div>
+                        </div>
+                        <div class="kursteam-start-card">
+                            <div class="ks-card-icon"><i class="bi bi-cloud-download"></i></div>
+                            <h3>Bestehende Teams importieren</h3>
+                            <p>Unterrichtsteams, die schon in Microsoft&nbsp;365 existieren (z.&nbsp;B. <code>SJ26-27 | 1A | BW-FRECH</code>), in die App-Daten übernehmen und mit der Entra-Gruppe verknüpfen.</p>
+                            <div class="step-nav-row step-nav-row--forward-only">
+                                <button type="button" class="btn btn-brand" id="kursteamGraphImportOpen"><i class="bi bi-microsoft"></i>Aus M365 importieren</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="kursteamGraphImportPanel" class="filter-section" style="display:none;margin-top:22px;">
+                        <h3><i class="bi bi-cloud-download" style="color:var(--brand1);"></i> Kursteams aus Microsoft 365 importieren</h3>
+                        <p style="margin:0 0 12px;font-size:0.9em;color:var(--text-secondary);">
+                            Es werden Teams mit Mail-Nickname zum Schuljahr-Präfix geladen (z.&nbsp;B. <code>SJ26-27-jg2031-hakb-BW-FRECH</code>).
+                            Der Anzeigename wird in Klasse, Fach und Lehrkraft-Kürzel zerlegt. Gespeichert wird in der
+                            <strong>Unterrichtsbelegung</strong> des aktuellen Schuljahrs (Browser-Backup / SharePoint).
+                        </p>
+                        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px;">
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.88em;">
+                                Schuljahr-Präfix (Filter)
+                                <input type="text" id="kursteamImportYearPrefix" value="SJ26-27" style="min-width:140px;padding:8px 10px;border-radius:8px;border:1px solid var(--input-border);">
+                            </label>
+                            <button type="button" class="btn btn-brand" id="kursteamGraphImportLoad"><i class="bi bi-search"></i>Teams aus M365 laden</button>
+                            <button type="button" class="btn btn-success" id="kursteamGraphImportSave"><i class="bi bi-database-check"></i>Auswahl in App speichern</button>
+                        </div>
+                        <p id="kursteamGraphImportSummary" class="muted" style="margin:0 0 10px;font-size:0.88em;"></p>
+                        <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-small" id="kursteamGraphImportSelectAll">Alle auswählen</button>
+                            <button type="button" class="btn btn-small" id="kursteamGraphImportSelectNone">Keine</button>
+                        </div>
+                        <div id="kursteamGraphImportTableHost"></div>
+                        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+                            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;">
+                                <h4 style="margin:0;flex:1 1 auto;">Abgleich WebUntis / Plan ↔ M365</h4>
+                                <button type="button" class="btn btn-small" id="kursteamGraphAbgleichRefresh"><i class="bi bi-arrow-repeat"></i>Abgleich aktualisieren</button>
+                            </div>
+                            <p style="margin:0 0 10px;font-size:0.85em;color:var(--text-secondary);">
+                                Vergleicht den <strong>Kursteam-Stand im Browser</strong> (WebUntis-Import oder generierte Teamliste) mit den geladenen Teams in M365.
+                                Zeigt fehlende Teams, Zusatz-Teams und passende Verknüpfungen.
+                            </p>
+                            <div id="kursteamGraphAbgleichHost"></div>
                         </div>
                     </div>
                 </div>
@@ -1389,7 +1432,6 @@ Connect-MicrosoftTeams
     <script src="../src/shared/school-domain.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
-    <script src="../src/shared/demo-mode.js" defer></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/tenant-settings-ui.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
@@ -1403,7 +1445,7 @@ Connect-MicrosoftTeams
       Weitere Abhängigkeiten folgen der Import-Reihenfolge in kursteam-teams.js.
     -->
     <script type="module" src="../src/tools/kursteams/kursteam-teams.js"></script>
-    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
 </body>
 </html>
 

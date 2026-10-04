@@ -3,7 +3,7 @@
  * Lokal + SharePoint-Seed (Tag zum gezielten Zurücksetzen).
  */
 
-import { approvalPath, inclusiveDayCount } from './freistellung-planer-logic.js';
+import { approvalPath, inclusiveDayCount, toIsoDateOnly } from './freistellung-planer-logic.js';
 
 export const DEMO_SITE_DEFAULT = 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools';
 export const DEMO_SCHOOL_YEAR = '2026/27';
@@ -414,7 +414,7 @@ export function buildDemoFreistellungen() {
  * @param {string} beschreibung
  */
 export function extractDemoId(beschreibung) {
-    const m = /id:(fr-demo-\d+)/i.exec(String(beschreibung || ''));
+    const m = /id:(fr-(?:demo|test)-\d+)/i.exec(String(beschreibung || ''));
     return m ? m[1] : '';
 }
 
@@ -443,6 +443,12 @@ export function toSharePointFields(row) {
         Beschreibung: row.Beschreibung,
         Bemerkungen: row.Bemerkungen || ''
     };
+    if (row.GenehmigtVonKV) fields.GenehmigtVonKV = row.GenehmigtVonKV;
+    if (row.GenehmigtAmKV) fields.GenehmigtAmKV = row.GenehmigtAmKV;
+    if (row.GenehmigtVonDirektion) fields.GenehmigtVonDirektion = row.GenehmigtVonDirektion;
+    if (row.GenehmigtAmDirektion) fields.GenehmigtAmDirektion = row.GenehmigtAmDirektion;
+    if (row.AbgelehntVon) fields.AbgelehntVon = row.AbgelehntVon;
+    if (row.AbgelehntAm) fields.AbgelehntAm = row.AbgelehntAm;
     if (row.KlassenvorstandLookupId) {
         fields.KlassenvorstandLookupId = String(row.KlassenvorstandLookupId);
     }
@@ -453,6 +459,48 @@ export function toSharePointFields(row) {
  * UI-Items aus Demo-Feldern (lokal).
  * @param {object} [opts]
  */
+/**
+ * Planer-Items aus importiertem Demo-/Test-Paket (JSON).
+ * @param {object} pack
+ * @param {object} [opts]
+ */
+export function itemsFromDemoPack(pack, opts) {
+    const o = opts || {};
+    const rows = (pack && pack.freistellungen) || [];
+    return rows.map((row, idx) => {
+        const beginn = toIsoDateOnly(row.Beginn) || '';
+        const ende = toIsoDateOnly(row.Ende) || beginn;
+        const path = approvalPath(beginn, ende);
+        const nameMatch = /^(.+?)\s*\(/.exec(row.Title || '');
+        return {
+            itemId: 'local-' + (row._demoId || 'row-' + idx),
+            titel: row.Title,
+            schuelerName: nameMatch ? nameMatch[1].trim() : row.Title,
+            klasse: row.Klasse,
+            beginn,
+            ende,
+            status: row.Status || 'Ausstehend',
+            kategorie: row.Kategorie,
+            beschreibung: row.Beschreibung,
+            bemerkungen: row.Bemerkungen || '',
+            kvEmail: row._kvEmail || '',
+            kvName: row._kvName || '',
+            authorEmail: row._authorEmail || o.accountEmail || '',
+            beantragtVon: row._authorEmail || o.accountEmail || '',
+            dayCount: inclusiveDayCount(beginn, ende),
+            multiDay: path.multiDay,
+            approvalLabel: path.label,
+            demoId: row._demoId || extractDemoId(row.Beschreibung),
+            genehmigtVonKv: row.GenehmigtVonKV || '',
+            genehmigtAmKv: toIsoDateOnly(row.GenehmigtAmKV) || '',
+            genehmigtVonDirektion: row.GenehmigtVonDirektion || '',
+            genehmigtAmDirektion: toIsoDateOnly(row.GenehmigtAmDirektion) || '',
+            abgelehntVon: row.AbgelehntVon || '',
+            abgelehntAm: toIsoDateOnly(row.AbgelehntAm) || ''
+        };
+    });
+}
+
 export function buildLocalDemoItems(opts) {
     const o = opts || {};
     const accountEmail = String(o.accountEmail || '').toLowerCase();

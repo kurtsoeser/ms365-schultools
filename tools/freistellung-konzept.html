@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Freistellungen: Ablauf &amp; Idee</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-konzept.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Dokumentation:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-diagram-3"></i>Freistellungen – Ablauf</span>
+            </div>
+            <p>Wofür das Modul da ist, wie Antrag, SharePoint-Liste, Genehmigung und Übersicht zusammenhängen – für Leitung, KV und IT.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-freistellung-konzept" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe-Eintrag</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn btn-success" href="freistellung-planer.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-calendar2-check"></i>Planer / Anträge</a>
+                <a class="btn" href="freistellung-setup.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-wrench"></i>Setup (Liste &amp; Flow)</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-person-check"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Freistellung von Unterricht</p>
+                    <h2>Antrag → Liste → Genehmigung → Übersicht</h2>
+                    <p>
+                        Schüler:innen melden fehlende Unterrichtstage (ein Tag oder mehrere) mit Begründung.
+                        Der Datensatz landet in einer SharePoint-Liste. Ein Power-Automate-Flow startet
+                        <strong>Microsoft Approvals</strong> beim Klassenvorstand – bei längeren Zeiträumen zusätzlich bei der Direktion.
+                        Im <strong>Freistellungen-Planer</strong> sehen alle Beteiligten Status, Filter und Auswertungen.
+                    </p>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-bullseye" aria-hidden="true"></i>
+                    <div>
+                        <h3>Worum geht es?</h3>
+                        <p>Digitaler, nachvollziehbarer Genehmigungsweg statt Zettel oder E-Mail-Ketten.</p>
+                    </div>
+                </div>
+                <ul class="fr-konzept-steps">
+                    <li><strong>Ein Tag</strong> fehlt (Arzt, Bewerbung, …): Klassenvorstand entscheidet in der Regel allein.</li>
+                    <li><strong>Mehrere Tage</strong> (ab 2 Kalendertagen inkl. Beginn/Ende): zuerst Klassenvorstand, danach Direktion – beide müssen zustimmen.</li>
+                    <li><strong>Sonderfall</strong>: Wenn Klassenvorstand und Direktion dieselbe Person sind, genehmigt eine festgelegte Vertretung (im Setup hinterlegt).</li>
+                    <li><strong>Transparenz</strong>: Status (<em>Ausstehend / Genehmigt / Abgelehnt</em>) steht in SharePoint und im Planer – wer wann was beantragt hat, ist filterbar und exportierbar (CSV).</li>
+                </ul>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    <div>
+                        <h3>Gesamtablauf (Visualisierung)</h3>
+                        <p>Vom Antrag bis zur fertigen Freigabe – technische Schritte in der Schule.</p>
+                    </div>
+                </div>
+                <div class="fr-konzept-diagram" aria-hidden="false">
+                    <pre class="fr-konzept-fallback" id="frKonzeptFallback">Schüler:in → Planer (Antragsformular) → SharePoint-Liste „Freistellungen“
+→ Power Automate (neues Element) → Microsoft Approvals (KV, ggf. Direktion)
+→ Status &amp; E-Mail → Planer / Liste (Übersicht für alle Rollen)</pre>
+                    <div class="mermaid" id="frKonzeptMermaid" role="img" aria-label="Flussdiagramm Freistellungsprozess"></div>
+                    <script type="text/plain" id="frKonzeptMermaidSrc">flowchart TB
+  subgraph einreichung ["Antrag einreichen"]
+    S["Schüler:in"]
+    P["Freistellungen-Planer Antragsformular"]
+    SP["Optional: Zeile in SharePoint"]
+    S --> P
+    S -.-> SP
+  end
+  L[("SharePoint-Liste Freistellungen")]
+  P --> L
+  SP -.-> L
+  L --> F["Power Automate Trigger"]
+  F --> Q{"Mehrtägig ab 2 Tagen?"}
+  Q -->|Ein Tag| A1["Approvals Klassenvorstand"]
+  Q -->|Mehrere Tage| A2["Approvals KV dann Direktion"]
+  A1 --> U["Status und Benachrichtigung"]
+  A2 --> U
+  U --> L
+  U --> O["Planer Übersicht und CSV"]</script>
+                </div>
+                <p class="muted" style="margin:12px 0 0;font-size:0.88em;">
+                    Das Diagramm wird im Browser gerendert. Falls es leer bleibt, gilt die Textzeile darüber.
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-ui-checks" aria-hidden="true"></i>
+                    <div>
+                        <h3>Wo füllen Schüler:innen den Antrag aus?</h3>
+                        <p>Kein separates Microsoft-Formular ist Pflicht – der Planer ist das Schulformular.</p>
+                    </div>
+                </div>
+                <p style="margin:0 0 12px;line-height:1.55;">
+                    In dieser App ist der <strong>Freistellungen-Planer</strong> das zentrale Antragsformular: Klasse, Zeitraum (Beginn/Ende),
+                    Kategorie, Begründung, Klassenvorstand. Beim Speichern schreibt die App einen Datensatz in dieselbe SharePoint-Liste,
+                    die Sie im Setup angelegt haben. Dadurch startet der Flow – genau wie bei einem manuellen Listeneintrag.
+                </p>
+                <p class="muted" style="margin:0;line-height:1.5;font-size:0.92em;">
+                    Manche Schulen nutzen zusätzlich ein SharePoint-Formular oder Microsoft Forms, das in die Liste schreibt.
+                    Das ist möglich, solange die Spalten zur Liste passen. Für den Einstieg reicht der Planer.
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <div>
+                        <h3>Wer macht was?</h3>
+                    </div>
+                </div>
+                <div class="fr-konzept-roles">
+                    <div class="fr-konzept-role">
+                        <strong>Schüler:in</strong>
+                        <p>Antrag im Planer stellen, Zeitraum und Begründung angeben, Status verfolgen.</p>
+                    </div>
+                    <div class="fr-konzept-role">
+                        <strong>Klassenvorstand</strong>
+                        <p>Genehmigung in Microsoft Approvals (Teams/E-Mail); im Planer offene Anträge der Klasse sehen.</p>
+                    </div>
+                    <div class="fr-konzept-role">
+                        <strong>Direktion</strong>
+                        <p>Bei mehrtägigen Anträgen zweite Genehmigung; Gesamtübersicht und Berichte im Planer.</p>
+                    </div>
+                    <div class="fr-konzept-role">
+                        <strong>IT / Verwaltung</strong>
+                        <p>Einmalig Setup: Liste, E-Mail-Adressen, Flow-Paket importieren, Planer mit Site verbinden.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <div>
+                        <h3>Einmalige Einrichtung (drei Schritte)</h3>
+                        <p>Entspricht dem Setup-Assistenten in diesem Projekt.</p>
+                    </div>
+                </div>
+                <ol class="fr-konzept-steps">
+                    <li><strong>Vorbereiten:</strong> Power Platform / Maker-Rechte, Prinzip „Postfach pro Workflow“ (<a href="pa-erst-setup.html">Erst-Setup</a>).</li>
+                    <li><strong>Liste &amp; Einstellungen:</strong> SharePoint-Site, Genehmiger-E-Mails, freigegebenes Postfach für Mails – Liste anlegen inkl. Spalten (<a href="freistellung-setup.html">Freistellungen Setup</a>, Schritt 2).</li>
+                    <li><strong>Flow:</strong> Parametriertes Paket laden, in Power Automate importieren, Connections zuweisen, einschalten (<a href="freistellung-setup.html">Setup</a>, Schritt 3).</li>
+                </ol>
+                <div class="tm-actions" style="margin-top:16px;">
+                    <a class="btn btn-success" href="freistellung-setup.html"><i class="bi bi-wrench"></i>Setup starten</a>
+                    <a class="btn" href="freistellung-flow-v2-anleitung.html"><i class="bi bi-book"></i>Flow v2 (IT-Anleitung)</a>
+                    <a class="btn" href="freistellung-planer.html"><i class="bi bi-calendar2-check"></i>Zum Planer</a>
+                </div>
+            </section>
+
+            <section class="tm-panel" id="frKonzeptFlowTech">
+                <div class="tm-panel__head">
+                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                    <div>
+                        <h3>Power-Automate-Flow (Ist-Stand Export)</h3>
+                        <p>Entspricht dem Paket aus dem Setup – analysiert aus dem Schul-Export.</p>
+                    </div>
+                </div>
+                <p style="margin:0 0 12px;line-height:1.55;">
+                    Nach dem Speichern eines Antrags in der Liste startet der Flow. Zuerst wird geprüft, ob die
+                    <strong>E-Mail des Klassenvorstands</strong> dieselbe ist wie die <strong>Direktion</strong> (im Setup hinterlegt, beim Paket-Build eingetragen):
+                </p>
+                <ul class="fr-konzept-steps">
+                    <li><strong>KV = Direktion:</strong> eine einfache Genehmigung (<em>Basic</em>) an die <strong>Sondergenehmigung</strong> (Vertretung) – keine doppelte Freigabe.</li>
+                    <li><strong>Sonst:</strong> sequentielle Genehmigung (<em>Sequential</em>): Schritt 1 Klassenvorstand (aus Listeneintrag), Schritt 2 Direktion (aus Setup). Beide müssen zustimmen (<code>Approve, Approve</code>).</li>
+                </ul>
+                <p class="muted" style="margin:12px 0 0;font-size:0.9em;line-height:1.45;">
+                    <strong>Lücke zum Zielbild:</strong> Der Flow unterscheidet noch <em>nicht</em> „ein Tag“ vs. „mehrere Tage“ – bei unterschiedlichen Personen läuft immer KV und Direktion.
+                    Planer und Doku zeigen bereits die gewünschte Regel (1 Tag nur KV). Flow-Version 2 soll das abbilden.
+                    Kommentare aus Approvals landen in <em>Bemerkungen</em> (Standardpfad); der Listentitel wird bei Entscheidung überschrieben (prüfen, ob die Schule das will).
+                </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-cloud-upload" aria-hidden="true"></i>
+                    <div>
+                        <h3>Ausrollen &amp; Updates (ZIP vs. Solution)</h3>
+                        <p>Wie Schulen den Flow bekommen und wie ihr später verbessern könnt.</p>
+                    </div>
+                </div>
+                <ul class="fr-konzept-steps">
+                    <li><strong>Heute (Setup-Tool):</strong> Legacy-Import-Paket (ZIP) – Site, Listen-ID, E-Mails werden beim Download ersetzt. Pro Schule einmal importieren, Connections zuweisen, einschalten. Updates = neues ZIP, manuell re-importieren oder Flow anpassen.</li>
+                    <li><strong>Microsoft Power Platform Solution (empfohlen für viele Schulen):</strong> Flow + Umgebungsvariablen (Site, Liste, Direktion, Sonder, Postfach) in einer <em>managed Solution</em>. Import über <em>Solutions</em> im Admin Center; Schulen setzen nur die Variablen. Neue Version = Solution hochstufen, Import „Upgrade“ – einheitlicher als String-Ersetzung im JSON.</li>
+                    <li><strong>Zentral vom Anbieter:</strong> Ihr pflegt eine Solution im Partner-/Haupt-Tenant, exportiert signierte managed Packages und stellt sie im Portal bereit (Download + Kurzanleitung) – gleiches Prinzip wie jetzt, nur ALM-tauglicher. Vollautomatisches Push in fremde Tenants ohne Mitwirkung der Schul-IT ist aus Datenschutz/Rechten nicht realistisch.</li>
+                    <li><strong>Pipelines / ALM:</strong> Für eigene Dev→Test→Prod-Umgebungen (Git + PAC CLI) – optional, wenn ihr mehrere Flow-Versionen professionell testet.</li>
+                </ul>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-table" aria-hidden="true"></i>
+                    <div>
+                        <h3>Daten in SharePoint &amp; Planer</h3>
+                        <p>Eine Liste – eine Wahrheit für Flow und Oberfläche.</p>
+                    </div>
+                </div>
+                <p style="margin:0 0 10px;line-height:1.55;">
+                    Jeder Antrag ist eine Zeile mit u. a. Beginn, Ende, Klasse, Klassenvorstand, Kategorie, Beschreibung, Status.
+                    Der Flow setzt den Status nach der Genehmigung. Der Planer liest dieselbe Liste: Dashboard, „Meine Anträge“,
+                    Freigabe-Ansichten für KV/Direktion, CSV-Export für die Verwaltung.
+                </p>
+                <p class="muted" style="margin:0;font-size:0.9em;line-height:1.45;">
+                    Demo-Daten im Planer sind nur lokal zum Ausprobieren – für den Live-Betrieb Site-URL laden und mit der echten Liste verbinden.
+                </p>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        function mermaidTheme() {
+            return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+        }
+
+        async function renderDiagram() {
+            const el = document.getElementById('frKonzeptMermaid');
+            const srcEl = document.getElementById('frKonzeptMermaidSrc');
+            const fallback = document.getElementById('frKonzeptFallback');
+            if (!el || !srcEl) return;
+            const src = srcEl.textContent.trim();
+            if (!src) return;
+            try {
+                const mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')).default;
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: mermaidTheme(),
+                    securityLevel: 'strict',
+                    flowchart: { curve: 'basis', padding: 12 }
+                });
+                const { svg } = await mermaid.render('frKonzeptSvg', src);
+                el.innerHTML = svg;
+                if (fallback) fallback.hidden = true;
+            } catch (e) {
+                console.warn('Mermaid:', e);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderDiagram);
+        } else {
+            renderDiagram();
+        }
+    </script>
+</body>
+</html>

@@ -9,7 +9,9 @@ import {
     parseMemberEmailsText,
     summarizePlans,
     upsertClassChatItem,
-    existingByKlasseFromState
+    existingByKlasseFromState,
+    expandKlasseToKnownCodes,
+    isCombinedClassCell
 } from '../src/tools/klassenchats/klassenchats-logic.js';
 
 describe('klassenchats-logic', () => {
@@ -109,6 +111,47 @@ describe('klassenchats-logic', () => {
             )
         );
         expect(sum.eligible).toBe(1);
+    });
+
+    it('löst Mehrklassen-Belegung auf Stammdaten-Klassen auf', () => {
+        const stammdaten = [
+            { code: '1AK' },
+            { code: '1BK' },
+            { code: '1CK' },
+            { code: '1A' }
+        ];
+        expect(isCombinedClassCell('1AK1BK1CK')).toBe(true);
+        expect(expandKlasseToKnownCodes('1AK1BK1CK', stammdaten)).toEqual(['1AK', '1BK', '1CK']);
+        expect(expandKlasseToKnownCodes('1AK~1BK', stammdaten)).toEqual(['1AK', '1BK']);
+
+        const belegung = {
+            rows: [
+                { klasse: '1AK1BK1CK', lehrerCode: 'X', lehrerEmail: 'x@school.at', fach: 'D' },
+                { klasse: '1AK1BK1CK', lehrerCode: 'Y', lehrerEmail: 'y@school.at', fach: 'M' },
+                { klasse: '1A', lehrerCode: 'Z', lehrerEmail: 'z@school.at', fach: 'D' }
+            ]
+        };
+        const kv = buildKvByKlasse([
+            { code: '1AK', headEmail: 'kvak@school.at', headName: 'KV AK' },
+            { code: '1BK', headEmail: 'kvak@school.at', headName: 'KV AK' },
+            { code: '1CK', headEmail: 'kvck@school.at', headName: 'KV CK' }
+        ]);
+        const plans = buildClassChatPlans(belegung, kv, {
+            yearPrefix: 'SJ26',
+            namePattern: defaultChatNamePattern(),
+            knownClassCodes: stammdaten
+        });
+        expect(plans.find((p) => p.klasse === '1AK1BK1CK')).toBeUndefined();
+        const pak = plans.find((p) => p.klasse === '1AK');
+        const pbk = plans.find((p) => p.klasse === '1BK');
+        const pck = plans.find((p) => p.klasse === '1CK');
+        expect(pak.memberEmails).toContain('x@school.at');
+        expect(pak.memberEmails).toContain('y@school.at');
+        expect(pak.memberEmails).toContain('kvak@school.at');
+        expect(pbk.memberEmails).toEqual(pak.memberEmails);
+        expect(pck.memberEmails).toContain('kvck@school.at');
+        expect(pck.memberEmails).toContain('x@school.at');
+        expect(plans.find((p) => p.klasse === '1A').eligible).toBe(false);
     });
 
     it('baut manuellen Plan inkl. KV und Freitext-Mails', () => {

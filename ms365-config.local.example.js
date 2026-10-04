@@ -11,6 +11,8 @@
 window.MS365_CONFIG_LOCAL = {
     MS365_LICENSE_API: {
         baseUrl: '',
-        functionKey: ''
+        functionKey: '',
+        /** Schul-Hosting ohne Betreiber-Portal: true unterdrückt /admin/me-Aufrufe */
+        skipOperatorCheck: false
     }
 };

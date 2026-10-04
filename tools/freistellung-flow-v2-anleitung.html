@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Freistellungen Flow v2 Anleitung</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-konzept.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .fr-code { font-family: Consolas, ui-monospace, monospace; font-size: 0.82rem; padding: 12px 14px; background: var(--soft); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 10px 0 0; }
+        .fr-test-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px; }
+        .fr-test-table th, .fr-test-table td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+        .fr-test-table th { background: var(--soft); }
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Dokumentation">
+                <span class="header-tool-indicator__label">IT / Maker:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-lightning-charge"></i>Freistellungen Flow v2</span>
+            </div>
+            <p>Schritt-für-Schritt: Power Automate mit Microsoft Approvals (Teams), Tageslogik und Audit-Feldern für den Planer.</p>
+            <div class="toolbar">
+                <a class="btn" href="freistellung-setup.html"><i class="bi bi-wrench"></i>Setup</a>
+                <a class="btn" href="freistellung-konzept.html"><i class="bi bi-diagram-3"></i>Ablauf &amp; Idee</a>
+                <a class="btn" href="freistellung-planer.html"><i class="bi bi-calendar2-check"></i>Planer</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero" aria-label="Ziel">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-phone"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Flow v2</p>
+                    <h2>Genehmigen in Teams – Logik sauber trennen</h2>
+                    <p>Liste und Audit-Spalten legt das Setup-Tool an. Diese Anleitung beschreibt den Flow in Power Automate. Nach dem Export kommt das ZIP zurück ins Projekt.</p>
+                    <p style="margin:10px 0 0;font-size:0.95rem;"><strong>Langsam bauen?</strong> Modul für Modul: <code>docs/freistellung-flow-v2-langsam.md</code> – heute nur Modul 1, dann weiter wenn du bereit bist.</p>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-list-check"></i><div><h3>Regeln (fachlich)</h3></div></div>
+                <ul class="fr-konzept-steps">
+                    <li><strong>KV-E-Mail = Direktion</strong> → eine Genehmigung an die <strong>Sonderperson</strong> (Setup: Sondergenehmigung).</li>
+                    <li><strong>1 Kalendertag</strong> (Beginn = Ende, inkl. Zählung = 1) → nur <strong>Klassenvorstand</strong>.</li>
+                    <li><strong>Ab 2 Tagen</strong> → <strong>Sequential</strong>: Klassenvorstand, dann Direktion.</li>
+                    <li>Nach jeder Entscheidung: <strong>Status</strong> in der Liste, <strong>Audit-Spalten</strong>, Mail aus freigegebenem Postfach.</li>
+                </ul>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-table"></i><div><h3>Audit-Spalten (vom Setup ergänzt)</h3><p>Flow v2 befüllt diese Felder – der Planer zeigt sie in Detail &amp; CSV.</p></div></div>
+                <ul class="fr-konzept-steps">
+                    <li><code>GenehmigtVonKV</code>, <code>GenehmigtAmKV</code></li>
+                    <li><code>GenehmigtVonDirektion</code>, <code>GenehmigtAmDirektion</code></li>
+                    <li><code>AbgelehntVon</code>, <code>AbgelehntAm</code></li>
+                    <li><code>Bemerkungen</code> – Approval-Kommentare (wie bisher)</li>
+                </ul>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-signpost-split"></i><div><h3>Designer-Struktur (empfohlen)</h3></div></div>
+                <ol class="fr-konzept-steps">
+                    <li>Trigger: <strong>Wenn ein Element erstellt wird</strong> (SharePoint, Ihre Freistellungsliste).</li>
+                    <li>Variable: Array für Kommentare (optional).</li>
+                    <li><strong>Compose</strong> <code>KvEmail</code>: <code>toLower(triggerBody()?['Klassenvorstand/Email'])</code></li>
+                    <li><strong>Compose</strong> <code>TageAnzahl</code>: inklusive Kalendertage zwischen <code>Beginn</code> und <code>Ende</code> (siehe Markdown-Datei im Repo für Formel).</li>
+                    <li><strong>Bedingung A:</strong> <code>KvEmail</code> gleich Direktion (E-Mail aus Setup / Umgebungsvariable <code>FR_EmailDirektion</code>)
+                        <ul>
+                            <li><em>Ja:</em> Approvals <strong>Basic</strong> → Sonderperson → Status + Audit + Mail → <strong>Beenden</strong></li>
+                            <li><em>Nein:</em> <strong>Bedingung B:</strong> <code>TageAnzahl</code> &lt; 2?
+                                <ul>
+                                    <li><em>Ja:</em> Approvals Basic → KV</li>
+                                    <li><em>Nein:</em> Approvals Sequential → KV, dann Direktion</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>Bei Sequential: Schleife über <code>responses</code>, Kommentare sammeln; KV/Direktion aus Antwort 1 und 2 in Audit-Spalten schreiben.</li>
+                </ol>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-braces"></i><div><h3>Beispiel: Genehmiger aus Approval (Basic)</h3></div></div>
+                <p class="muted" style="margin:0;">In „Element aktualisieren“ → Spalte <code>GenehmigtVonKV</code>:</p>
+                <div class="fr-code">@{concat(
+  outputs('Genehmigung_KV')?['body/responses'][0]['responder/displayName'],
+  ' &lt;',
+  outputs('Genehmigung_KV')?['body/responses'][0]['responder/email'],
+  '&gt;'
+)}</div>
+                <p class="muted" style="margin:12px 0 0;font-size:0.9em;">Aktionsnamen (<code>Genehmigung_KV</code>) an Ihre Bezeichnung anpassen.</p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-clipboard-check"></i><div><h3>Testfälle vor Export</h3></div></div>
+                <table class="fr-test-table">
+                    <thead><tr><th>Fall</th><th>Erwartung</th></tr></thead>
+                    <tbody>
+                        <tr><td>1 Tag, KV ≠ Direktion</td><td>1× Approval an KV, Audit nur KV</td></tr>
+                        <tr><td>3 Tage, KV ≠ Direktion</td><td>Sequential, beide Audit-Felder</td></tr>
+                        <tr><td>KV = Direktion</td><td>1× Approval Sonderperson, Beenden danach</td></tr>
+                        <tr><td>Ablehnung</td><td>Status Abgelehnt, AbgelehntVon/Am</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="tm-panel" id="frCopilot">
+                <div class="tm-panel__head"><i class="bi bi-stars"></i><div>
+                    <h3>Copilot in Power Automate</h3>
+                    <p>Prompts zum Kopieren – am besten <strong>4 Schritte nacheinander</strong>, nicht alles auf einmal.</p>
+                </div></div>
+                <p style="margin:0 0 10px;line-height:1.55;">
+                    <strong>Realistisch:</strong> Copilot baut Trigger, Bedingungen und Genehmigungen grob richtig.
+                    <strong>Sequential Approvals</strong>, Audit-Spalten und „Beenden“ im Sonderfall prüfst du danach manuell (Checkliste in der Markdown-Datei).
+                </p>
+                <p class="muted" style="margin:0 0 12px;font-size:0.9em;">
+                    Vollständige Texte: <code>docs/freistellung-flow-v2-copilot.md</code> im Repository.
+                    Vor dem Einfügen <code>direktion@…</code>, <code>vertretung@…</code>, <code>automate@…</code> durch echte Adressen ersetzen.
+                </p>
+                <details class="tm-tech" open>
+                    <summary>Prompt 1 – Trigger &amp; Tageszahl (in Copilot einfügen)</summary>
+                    <div class="fr-code">Erstelle einen automatisierten Cloud-Flow für eine Schule (Österreich, Deutsch).
+
+Trigger: Wenn ein Element in einer SharePoint-Liste erstellt wird.
+Liste: Freistellungen (Site und Liste wähle ich im Trigger).
+
+Spalten: Beginn, Ende, Status (Ausstehend|Genehmigt|Abgelehnt), Klasse, Klassenvorstand (Person), Kategorie, Beschreibung, Bemerkungen, GenehmigtVonKV, GenehmigtAmKV, GenehmigtVonDirektion, GenehmigtAmDirektion, AbgelehntVon, AbgelehntAm.
+
+Nach dem Trigger: Array-Variable KommentareGenehmigung; Compose KvEmail = toLower(Klassenvorstand Email); Compose TageAnzahl = inklusive Kalendertage zwischen Beginn und Ende (gleicher Tag = 1). Noch keine Genehmigung.</div>
+                </details>
+                <details class="tm-tech">
+                    <summary>Prompt 2 – KV = Direktion (Sonderfall)</summary>
+                    <div class="fr-code">Bedingung KvIstDirektion: KvEmail gleich direktion@schule.at (ich passe an).
+
+Wenn ja: Approvals Basic an vertretung@schule.at, Details mit Autor, Klasse, Beginn, Ende, Kategorie, Beschreibung, Link.
+Bei Approve: Status Genehmigt, GenehmigtVonKV/GenehmigtAmKV aus Approval, Bemerkungen = Kommentar.
+Bei Ablehnung: Status Abgelehnt, AbgelehntVon/AbgelehntAm.
+Mail aus freigegebenem Postfach automate@schule.at an Autor.
+Danach Beenden (Succeeded). False-Zweig leer.</div>
+                </details>
+                <details class="tm-tech">
+                    <summary>Prompt 3 – 1 Tag vs. mehrtägig</summary>
+                    <div class="fr-code">Im False-Zweig: Bedingung Mehrtaegig wenn TageAnzahl &gt;= 2.
+
+Wenn &lt; 2: Approvals Basic an Klassenvorstand Email; Audit nur KV; Mail an Autor.
+
+Wenn &gt;= 2: Approvals Sequential Schritt1 Klassenvorstand Email, Schritt2 direktion@schule.at;
+bei Erfolg beide Audit-Paare + Kommentare in Bemerkungen; bei Ablehnung AbgelehntVon/Am; Mail an Autor.</div>
+                </details>
+                <details class="tm-tech">
+                    <summary>Prompt 4 – Nachbesserung</summary>
+                    <div class="fr-code">Title nicht ändern. Status exakt Genehmigt/Abgelehnt. Keine doppelte Mail. Nach Sonderfall-Zweig muss Beenden greifen. Kurz auf Deutsch zusammenfassen welche Bedingungen es gibt.</div>
+                </details>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-box-arrow-up"></i><div><h3>Export ins MS365-Schul-Tools-Projekt</h3></div></div>
+                <ol class="fr-konzept-steps">
+                    <li>Power Automate → Flow → <strong>Exportieren</strong> → Package (Legacy).</li>
+                    <li>ZIP unter <code>assets/power-automate/freistellung/</code> einspielen (Ordner-GUID beachten).</li>
+                    <li>In <code>freistellung-setup.js</code> die Platzhalter <code>SOURCE</code> (Site, Liste, E-Mails) auf die Werte im Export anpassen.</li>
+                    <li>Setup-Tool: Paket testen, an Test-Tenant importieren.</li>
+                </ol>
+                <p class="muted" style="margin:12px 0 0;">Ausführliche Version mit Formeln: <code>docs/freistellung-flow-v2-bauanleitung.md</code> im Repository.</p>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+</body>
+</html>

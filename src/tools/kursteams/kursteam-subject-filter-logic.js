@@ -1,25 +1,9 @@
-function normalizeSubjectToken(s) {
-    return String(s || '').trim().toUpperCase();
-}
-
-/**
- * Trennt Endziffern ab: OMAI1 → { base: 'OMAI', suffix: '1' }.
- * Keine Ziffern / nur Ziffern → suffix leer, base = Token.
- */
-function splitSubjectBaseAndSuffix(token) {
-    const t = normalizeSubjectToken(token);
-    if (!t) return { base: '', suffix: '' };
-    const m = t.match(/^(.+?)(\d+)$/);
-    if (!m) return { base: t, suffix: '' };
-    const base = m[1];
-    const suffix = m[2];
-    if (!base || !/[A-ZÄÖÜ]/.test(base)) return { base: t, suffix: '' };
-    return { base, suffix };
-}
-
-function subjectBaseToken(token) {
-    return splitSubjectBaseAndSuffix(token).base;
-}
+import {
+    normalizeSubjectToken,
+    splitSubjectBaseAndSuffix,
+    subjectBaseToken,
+    groupSubjectsByBase
+} from '../../shared/subject-code-family.js';
 
 function parseExcludeSubjectsFromString(value) {
     return String(value || '')
@@ -44,32 +28,7 @@ function collectSubjectsFromRows(rows) {
 }
 
 /**
- * Gruppiert Fächer nach Basis (OMAI + OMAI1/2/3 → eine Familie).
- * @returns {{ base: string, variants: string[], isFamily: boolean }[]}
- */
-function groupSubjectsByBase(subjects) {
-    const map = new Map();
-    (subjects || []).forEach((raw) => {
-        const token = normalizeSubjectToken(raw);
-        if (!token) return;
-        const base = subjectBaseToken(token);
-        if (!map.has(base)) map.set(base, new Set());
-        map.get(base).add(token);
-    });
-    const groups = Array.from(map.entries()).map(([base, set]) => {
-        const variants = Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
-        return {
-            base,
-            variants,
-            isFamily: variants.length > 1 || (variants.length === 1 && variants[0] !== base)
-        };
-    });
-    groups.sort((a, b) => a.base.localeCompare(b.base, 'de'));
-    return groups;
-}
-
-/**
- * Fach-Endziffern → Basis + Gruppe (nur wenn Gruppe leer).
+ * Fach-Endziffern / Ü / Plus → Basis + Gruppe (nur wenn Gruppe leer).
  * @returns {{ fach: string, gruppe: string, changed: boolean, suffix: string }}
  */
 function normalizeNumberedSubjectFields(fach, gruppe) {
@@ -91,7 +50,7 @@ function subjectFilterSummaryText(availableCount, excludedCount, familyCount) {
     if (!a) {
         return 'Noch keine Daten: Importieren Sie zuerst Zeilen in Schritt 1 oder fügen Sie manuell Unterrichtszeilen hinzu.';
     }
-    const fam = f > 0 ? ` ${f} nummerierte Familie(n).` : '';
+    const fam = f > 0 ? ` ${f} Fach-Familie(n).` : '';
     return `${a} Fach/Fächer erkannt.${fam} ${e} ausgeschlossen.`;
 }
 

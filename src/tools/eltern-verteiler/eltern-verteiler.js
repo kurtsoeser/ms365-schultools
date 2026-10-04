@@ -697,14 +697,14 @@ function wireSisImport() {
                     try {
                         let wb;
                         if (name.endsWith('.csv') || name.endsWith('.txt')) {
-                            let s = String(e.target.result || '');
-                            if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
-                            wb = XLSX.read(s, { type: 'string', FS: ';' });
-                            let aoaProbe = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
-                                header: 1,
-                                defval: ''
-                            });
-                            if (!aoaProbe || aoaProbe.length < 2) wb = XLSX.read(s, { type: 'string', FS: ',' });
+                            const csvApi = window.ms365SpreadsheetCsv;
+                            if (csvApi && typeof csvApi.csvTextToWorkbook === 'function') {
+                                wb = csvApi.csvTextToWorkbook(String(e.target.result || ''));
+                            } else {
+                                let s = String(e.target.result || '');
+                                if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
+                                wb = XLSX.read(s, { type: 'string', FS: '\t' });
+                            }
                         } else {
                             wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                         }

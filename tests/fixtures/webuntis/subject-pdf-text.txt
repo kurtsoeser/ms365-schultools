@@ -1,0 +1,120 @@
+TextLangnameKurzname
+Fächer
+A-4400, Leopold-Werndl-Str. 7
+BHAK Steyr
+Schuljahr :  2026/2027
+50 ADMINISTRATORADM
+Arbeitswelten der ZukunftADZ
+Aktuelles Fachgebiet EnglischAFE Konversation
+Aktuelles Fachgebiet FranzösischAFF
+Aktuelles Fachgebiet ItalienischAFI
+Aktuelles Fachgebiet RussischAFR
+Aktuelles Fachgebiet SpanischAFS
+AGBAGB
+AGB1AGB1
+Allgemeinbild SE DALGD
+Allgemeinbild. SE GeschichteALGG
+allgemeinb. SE MALGM
+allgemeinb. SE NaturwissenschaftenALGN
+allgemmeinb. SE ZeitgeschichteALGZ
+Art & Media LabAMLAB
+andragogischer koordinatorANDK
+Angewandte Naturwissenschaften undANWA
+App DesignAPPDS
+App DesignAPPDS1
+App DesignAPPDS2
+Aufsicht wegen QuarantäneAUFSICHT
+Art & Video LabAVLAB
+Business BehaviourBB
+Business BehaviourBB1
+Business BehaviourBB2
+Betr.v.Kind.m.sonderpäd.Förderbed.unt.v.BEHB
+BerufsorientierungBEOR
+BetriebspraktikumBEPRA
+LeibeserziehungBESP
+Leibeserziehung KBESPK
+Sport+ KBESPK+
+Leibeserziehung MBESPM
+Sport+ MBESPM+
+BFK Datenstand EinrechnungBFK
+51 BILDUNGSBERATERBIB
+SchulbibliothekBIBLIO
+Bilanzierung+ControllingBICO
+BildungsstandardsBIST
+Betriebliche Kommunikation+ÜfaBKBC
+Betriebl. Komm HASBKFA
+Büro Kommunikation OrganisationBKOV
+WebUntis 2027 Untis GmbH (www.untis.at)
+admin_kurt 02.10.2026 13:20
+Seite 1 von 7
+TextLangnameKurzname
+Fächer
+A-4400, Leopold-Werndl-Str. 7
+BHAK Steyr
+Schuljahr :  2026/2027
+BMD FörderkursBMD
+16 BIOLOGIE U. WK.BOW
+business trainingBPQM
+berufsparaktische TageBPT
+Business-SoftwareBSOFT
+BühnenspielBSP
+20 BETRIEBSWIRTSCHBW
+20 BETRIEBSWIRTSCHBW1
+20 BETRIEBSWIRTSCHBW2
+Betriebswirtschaft, WR, RWBWRR
+Betriebswirtschaft, WR, RWBWRR1
+Betriebswirtschaft, WR, RWBWRR2
+20 BETRIEBSWIRTSCH FökuBWÜ
+Betreiebswirtschaftl. ÜbungenBWUF
+Betreiebswirtschaftl. ÜbungenBWUF1
+Betreiebswirtschaftl. ÜbungenBWUF2
+KUST BWZBWZ
+Case StudiesCASES
+Case Studies ESFCASES_E
+Case StudiesCASES1
+Case StudiesCASES2
+Case Studies ÜCASESÜ
+17 CHEMIECH
+17 CHEMIECH3
+Coaching und BegabungsförderungCOBF
+Coaching, Organisational LearningCOL
+Kooperation und Soziales LernenCOOL
+ComputerpraktikumCPR
+ComputerpraktikumCPR1
+ComputerpraktikumCPR2
+CRWCRW
+rw+controlling CRW Gruppe1CRW1
+rw+controlling CRW Gruppe2CRW2
+03 DEUTSCHD
+03 DEUTSCHD1
+03 DEUTSCHD2
+DatenmanagementDATMA
+DiskutierclubDCLUB
+DemokratiewerkstattDEMOW
+DESKTOPPUBLISHINGDESK
+49 DIREKTORDIR
+WebUntis 2027 Untis GmbH (www.untis.at)
+admin_kurt 02.10.2026 13:20
+Seite 2 von 7
+TextLangnameKurzname
+Fächer
+A-4400, Leopold-Werndl-Str. 7
+BHAK Steyr
+Schuljahr :  2026/2027
+03 DEUTSCH LernatelierDÜ
+Deutsch zur ÜfaDÜFA
+Sprachvertiefung EE
+Sprachensem EE1
+Economy und EcologyECO
+04 EENWS
+04 EENWS1
+04 EENWS2
+04 EENWS3
+04 E LernatelierENWSÜ
+01 ETHIKETH
+e-Trends WorkshopETREND
+EWNSEWNS
+Französisch 3. FremdspracheF
+FachdidaktikFD
+07 FFRWS
+04 FRWS LernatelierFRWSÜ

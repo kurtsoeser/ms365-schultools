@@ -94,6 +94,21 @@ describe('webuntis-export-import', () => {
         expect(wu.detectExportKindFromAoa(loadJson('student-aoa.json'))).toBe('student');
         expect(wu.detectExportKindFromAoa(loadJson('guardian-aoa.json'))).toBe('guardian');
         expect(wu.detectExportKindFromAoa(loadJson('teacher-aoa.json'))).toBe('teacher');
+        expect(wu.detectExportKindFromAoa(loadJson('teacher-stammdaten-aoa.json'))).toBe('teacher');
+    });
+
+    it('parst Student_*.csv (WebUntis Stammdaten, tab)', () => {
+        const students = wu.parseStudentsAoa(loadJson('student-stammdaten-aoa.json'));
+        expect(students.length).toBe(4);
+        const amir = students.find((s) => s.untisInternalId === '8613');
+        expect(amir.klasse).toBe('2BS');
+        expect(amir.name).toBe('Amirhan Abubakarov');
+        expect(amir.phone).toContain('677');
+        const emin = students.find((s) => s.untisInternalId === '4937');
+        expect(emin.email).toBe('emin.acikyuerek@hak-steyr.at');
+        const noClass = students.find((s) => s.untisInternalId === '6894');
+        expect(noClass.klasse).toBe('');
+        expect(wu.detectExportKindFromAoa(loadJson('student-stammdaten-aoa.json'))).toBe('student');
     });
 
     it('parst Schüler und filtert Abgänger', () => {
@@ -103,6 +118,19 @@ describe('webuntis-export-import', () => {
         const anna = students.find((s) => s.untisInternalId === '1001');
         expect(anna.externalId).toBe('EXT1001');
         expect(anna.klasse).toBe('1A');
+    });
+
+    it('parst LegalGuardian_*.csv (WebUntis Stammdaten)', () => {
+        const rows = wu.parseGuardiansAoa(loadJson('legal-guardian-stammdaten-aoa.json'));
+        expect(rows.length).toBe(3);
+        const both = rows.find((g) => g.email === 'spanring@reload.co.at');
+        expect(both.studentInternalId).toBe('6165');
+        expect(both.name).toBe('Mathias Spanring');
+        const singleName = rows.find((g) => g.email === 'dario_glavas91@gmx.at');
+        expect(singleName.name).toContain('Glavas');
+        const orphan = rows.find((g) => g.email === 'sonja.hinterleitner@gmail.com');
+        expect(orphan.studentInternalId).toBe('');
+        expect(orphan.phone).toMatch(/0699|4369910758267/);
     });
 
     it('ordnet Eltern über Untis-IDs zu', () => {
@@ -131,8 +159,106 @@ describe('webuntis-export-import', () => {
         expect(teachers[0].name).toBe('Lukas Althuber');
     });
 
+    it('parst WebUntis Subject_*.pdf (Langname+Kurzname zusammengeklebt)', () => {
+        const text = readFileSync(join(fixtures, 'subject-pdf-text.txt'), 'utf8');
+        const parsed = wu.parseSubjectsFromPdfText(text);
+        expect(parsed.meta.subjectCount).toBeGreaterThan(35);
+        const deutsch = parsed.subjects.find((s) => s.code === 'D');
+        expect(deutsch).toBeTruthy();
+        expect(deutsch.name).toMatch(/DEUTSCH/i);
+        expect(parsed.subjects.some((s) => s.admin)).toBe(true);
+        const lines = wu.subjectsToSemicolonLines(parsed.subjects.slice(0, 2));
+        expect(lines).toContain(';');
+    });
+
+    it('parst Subject-PDF Zeilenpaar (Langname / Kurzname getrennt)', () => {
+        const text = [
+            '50 ADMINISTRATOR',
+            'ADM',
+            '03 DEUTSCH',
+            'D',
+            '01 ETHIK',
+            'ETH',
+            '17 CHEMIE',
+            'CH'
+        ].join('\n');
+        const parsed = wu.parseSubjectsFromPdfText(text);
+        expect(parsed.subjects.find((s) => s.code === 'D').name).toMatch(/DEUTSCH/);
+        expect(parsed.subjects.find((s) => s.code === 'ETH').name).toBe('ETHIK');
+        expect(parsed.subjects.find((s) => s.code === 'ETH').curriculumNo).toBe('01');
+        expect(parsed.subjects.find((s) => s.code === 'ADM').name).toMatch(/ADMINISTRATOR/);
+        expect(parsed.subjects.find((s) => s.code === 'K')).toBeFalsy();
+    });
+
+    it('parst Subject-PDF mit Kurzname-Spalte (positionsbasiert)', () => {
+        const words = [
+            { str: 'ADM', x: 30, y: 138, page: 1 },
+            { str: '50', x: 90, y: 138, page: 1 },
+            { str: 'ADMINISTRATOR', x: 102, y: 138, page: 1 },
+            { str: 'D', x: 30, y: 632, page: 1 },
+            { str: '03', x: 90, y: 632, page: 1 },
+            { str: 'DEUTSCH', x: 102, y: 632, page: 1 },
+            { str: 'ETH', x: 30, y: 287, page: 1 },
+            { str: '01', x: 90, y: 287, page: 1 },
+            { str: 'ETHIK', x: 102, y: 287, page: 1 }
+        ];
+        const parsed = wu.parseSubjectsFromPdfWords(words);
+        expect(parsed.subjects.find((s) => s.code === 'D').name).toBe('DEUTSCH');
+        expect(parsed.subjects.find((s) => s.code === 'ETH').name).toBe('ETHIK');
+        expect(parsed.subjects.find((s) => s.code === 'D').curriculumNo).toBe('03');
+        const imp = wu.importSubjectsFromWebuntisPdf({ words, text: '' });
+        expect(imp.lines).toContain('D;DEUTSCH');
+    });
+
+    it('Subject-PDF-Wörter: gleiche Y auf verschiedenen Seiten nicht zusammenführen', () => {
+        const words = [
+            { str: 'D1', x: 30, y: 647, page: 1 },
+            { str: '03', x: 90, y: 647, page: 1 },
+            { str: 'DEUTSCH', x: 102, y: 647, page: 1 },
+            { str: 'IMEDIA', x: 30, y: 647, page: 2 },
+            { str: 'Interaktive', x: 90, y: 647, page: 2 },
+            { str: 'Medien', x: 150, y: 647, page: 2 }
+        ];
+        const parsed = wu.parseSubjectsFromPdfWords(words);
+        expect(parsed.subjects.map((s) => s.code).sort()).toEqual(['D1', 'IMEDIA']);
+    });
+
+    it('parst WebUntis Teacher_*.csv (Stammdaten name/longName/foreName)', () => {
+        const teachers = wu.parseTeachersAoa(loadJson('teacher-stammdaten-aoa.json'));
+        expect(teachers.map((t) => t.code)).toEqual(['ALTH', 'SOESER']);
+        expect(teachers[0].email).toBe('lukas.althuber@hak-steyr.at');
+        expect(teachers[1].name).toBe('Kurt Söser');
+    });
+
     it('SIS erkennt WebUntis-Student-Header', () => {
         expect(sis.detectSourceFromAoa(loadJson('student-aoa.json'))).toBe('webuntis');
+    });
+
+    it('ignoriert private Schüler-Mail aus WebUntis und erzeugt Schuladresse', () => {
+        const wu = loadAll().ms365WebuntisExportImport;
+        const aoa = loadJson('student-aoa.json');
+        aoa[1][14] = 'anna.privat@gmail.com';
+        const imp = wu.importStudentsFromWebuntis({
+            studentAoa: aoa,
+            guardianAoa: [],
+            domain: 'schule.at',
+            pattern: 'vorname.nachname',
+            firstNameMode: 'first',
+            applyEmails: true
+        });
+        expect(imp.meta.privateStudentEmailsIgnored).toBe(1);
+        const anna = imp.records.find((s) => s.externalId === 'EXT1001');
+        expect(anna.email).toBe('anna.beispiel@schule.at');
+        expect(anna.email).not.toContain('gmail');
+    });
+
+    it('behält Schüler-Mail nur auf der konfigurierten Schuldomain', () => {
+        const wu = loadAll().ms365WebuntisExportImport;
+        expect(wu.sanitizeStudentEmailFromWebuntis('max@gmx.at', 'hak-steyr.at')).toBe('');
+        expect(wu.sanitizeStudentEmailFromWebuntis('max.mustermann@hak-steyr.at', 'hak-steyr.at')).toBe(
+            'max.mustermann@hak-steyr.at'
+        );
+        expect(wu.sanitizeStudentEmailFromWebuntis('privat@web.de', '')).toBe('');
     });
 
     it('Diff matcht über externalId und behält Mail beim Merge', () => {
@@ -198,6 +324,21 @@ describe('webuntis-export-import', () => {
         expect(wu.inferGraduationYear('5AS', '.has', 2027)).toBe(''); // HAS nur 3 Jahre
         expect(wu.inferGraduationYear('1AK', '.hak', 2027)).toBe('2031');
         expect(wu.inferGraduationYear('3AS', '', 2027)).toBe('2027');
+    });
+
+    it('nutzt Schuljahr-Fallback für Abschlussjahr wenn PDF kein Schuljahr hat', () => {
+        const text = readFileSync(join(fixtures, 'class-pdf-text.txt'), 'utf8');
+        const ohneSj = text.replace(/Schuljahr\s*:?\s*2026\/2027/i, '');
+        const result = wu.importClassesFromWebuntisPdf({
+            text: ohneSj,
+            teachers: [],
+            skipWithoutTeacher: true,
+            schoolYearEnd: 2027
+        });
+        const hak = result.classes.find((c) => c.code === '1AK');
+        expect(hak).toBeTruthy();
+        expect(hak.year).toBe('2031');
+        expect(result.schoolYear.endYear).toBe(2027);
     });
 
     it('reichert Klassen mit Lehrerliste an', () => {

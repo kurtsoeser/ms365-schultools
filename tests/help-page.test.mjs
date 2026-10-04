@@ -151,7 +151,11 @@ describe('Hilfe-Seite', () => {
             'raeume-ressourcen': 'tool-raeume-ressourcen',
             'sharepoint-liste-vertretung': 'tool-vertretung',
             'schul-baseline': 'tool-schul-baseline',
-            'klassen-umbenennen': 'tool-klassen-umbenennen'
+            'klassen-umbenennen': 'tool-klassen-umbenennen',
+            'unterrichtsteams-katalog': 'tool-unterrichtsteams-katalog',
+            'sharepoint-liste-stammdaten': 'tool-stammdaten-listen',
+            datenlandkarte: 'tool-datenlandkarte',
+            schulgraph: 'tool-schulgraph'
         };
         toolIds.forEach(function (id) {
             const anchor = helpAnchors[id];

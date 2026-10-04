@@ -58,7 +58,9 @@ window.MS365_KURSTEAMS_API = {
 window.MS365_LICENSE_API = {
     baseUrl: 'https://func-ms365-license-dev.azurewebsites.net/api/license',
     scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
-    functionKey: ''
+    functionKey: '',
+    /** true = kein /admin/me (nur Schulbetrieb, kein Betreiber-Menü) */
+    skipOperatorCheck: false
 };
 
 (function loadMs365LocalConfig() {
@@ -107,6 +109,9 @@ window.MS365_LICENSE_API = {
         }
         if (lic && lic.scope) {
             window.MS365_LICENSE_API.scope = String(lic.scope).trim();
+        }
+        if (lic && lic.skipOperatorCheck === true) {
+            window.MS365_LICENSE_API.skipOperatorCheck = true;
         }
     } catch {
         /* lokale Overrides optional */

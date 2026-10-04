@@ -24,6 +24,7 @@ import './kursteam-single.js';
 import './kursteam-members.js';
 import './kursteam-steps-export.js';
 import './kursteam-graph.js';
+import './kursteam-graph-import.js';
 import './kursteam-backend.js';
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildHygieneTargets,
     findClassTeamForClass,
+    countLinkedClassTeamsForClasses,
     hygieneStatusForTarget,
     summarizeHygieneScan
 } from '../src/shared/membership-hygiene.js';
@@ -45,6 +46,29 @@ describe('membership-hygiene', () => {
             hygieneStatusForTarget({ groupId: 'g1', listCount: 10 }, 8)
         ).toBe('mismatch');
         expect(hygieneStatusForTarget({ groupId: '', listCount: 5 }, null)).toBe('unmatched');
+    });
+
+    it('countLinkedClassTeamsForClasses zählt nur Stammdaten-Klassen, nicht verwaiste Teams', () => {
+        const classes = [
+            { code: '1A', year: '2032' },
+            { code: '1B', year: '2032' },
+            { code: '2A', year: '2031' },
+            { code: '3A', year: '2030' },
+            { code: '4A', year: '2029' }
+        ];
+        const classTeams = [
+            { classCode: '1A', abschlussJahr: '2032', graphGroupId: 'g-1a' },
+            { classCode: '1B', abschlussJahr: '2032', graphGroupId: 'g-1b' },
+            { classCode: '2A', abschlussJahr: '2031', graphGroupId: 'g-2a' },
+            { classCode: '3A', abschlussJahr: '2030', graphGroupId: 'g-3a' },
+            { classCode: '4A', abschlussJahr: '2029', graphGroupId: 'g-4a' },
+            { classCode: '5A', abschlussJahr: '2028', graphGroupId: 'g-old-5a' },
+            { classCode: '0A', abschlussJahr: '2030', graphGroupId: 'g-orphan' },
+            { classCode: 'X', graphGroupId: 'g-x' }
+        ];
+        const r = countLinkedClassTeamsForClasses(classes, classTeams);
+        expect(r.total).toBe(5);
+        expect(r.linked).toBe(5);
     });
 
     it('findClassTeamForClass unterscheidet gleiche Kürzel nach Abschlussjahr', () => {

@@ -5,6 +5,7 @@ import {
     extractDemoId,
     isDemoFreistellungFields,
     buildLocalDemoItems,
+    itemsFromDemoPack,
     DEMO_SEED_TAG,
     DEMO_SCHOOL_YEAR
 } from '../src/tools/freistellung-planer/freistellung-planer-demo.js';
@@ -28,6 +29,23 @@ describe('freistellung-planer-demo', () => {
         expect(pack.counts.gesamt).toBe(26);
         expect(pack.stammdaten.classes.length).toBeGreaterThan(5);
         expect(pack.counts.ausstehend + pack.counts.genehmigt + pack.counts.abgelehnt).toBe(26);
+    });
+
+    it('itemsFromDemoPack formatiert Datumsfelder', () => {
+        const items = itemsFromDemoPack({
+            freistellungen: [
+                {
+                    Title: 'Test (3A)',
+                    Beginn: '2026-10-15',
+                    Ende: '2026-10-15',
+                    Status: 'Ausstehend',
+                    Klasse: '3A',
+                    GenehmigtAmKV: '2026-09-08'
+                }
+            ]
+        });
+        expect(items[0].beginn).toBe('2026-10-15');
+        expect(items[0].genehmigtAmKv).toBe('2026-09-08');
     });
 
     it('erkennt Demo-Felder und baut lokale UI-Items', () => {

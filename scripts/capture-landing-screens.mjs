@@ -132,16 +132,6 @@ async function enableDemo(page) {
       document.documentElement.style.colorScheme = 'light';
     } catch (_) {}
 
-    const demo = window.ms365DemoMode;
-    if (demo && typeof demo.activate === 'function') {
-      try {
-        demo.activate();
-      } catch (_) {}
-    } else {
-      try {
-        localStorage.setItem('ms365-demo-mode-v1', '1');
-      } catch (_) {}
-    }
   });
   await clearOverlays(page);
   // Dismiss setup banner if present

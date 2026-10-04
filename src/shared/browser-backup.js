@@ -37,16 +37,22 @@
             ]
         },
         {
-            label: 'Einrichtung & Demo',
+            label: 'Einrichtung',
             keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1', 'ms365-dashboard-setup-dismissed-v1']
         },
         {
             label: 'Dashboard',
             keys: [
+                'ms365-dashboard-audience-groups-v1',
+                'ms365-dashboard-tool-access-v1',
                 'ms365-dashboard-favorites-v1',
                 'ms365-dashboard-order-catalog-v1',
                 'ms365-dashboard-category-tab-v1',
-                'ms365-dashboard-expert-open-v1'
+                'ms365-dashboard-expert-open-v1',
+                'ms365-dashboard-view-v1',
+                'ms365-dashboard-it-preview-v1',
+                'ms365-dashboard-tool-access-v1',
+                'ms365-dashboard-persona-cache-v2'
             ]
         },
         {
@@ -90,6 +96,7 @@
             keys: [
                 'ms365-pa-onboarding-v1',
                 'ms365-freistellung-setup-v1',
+                'ms365-freistellung-perms-v1',
                 'ms365-power-automate-recipes-v1',
                 'ms365-pa-termine-sync-v1',
                 'ms365-pa-antraege-v1',
@@ -112,7 +119,9 @@
             keys: [
                 'ms365-intranet-starter-v1',
                 'ms365-stammdaten-it-library-v1',
+                'ms365-stammdaten-it-library-by-tenant-v2',
                 'ms365-stammdaten-spo-sync-v1',
+                'ms365-stammdaten-spo-sync-by-tenant-v2',
                 'ms365-su-form-draft-v1',
                 'ms365-pw-site-url',
                 'ms365-pw-demo-role',
@@ -308,15 +317,6 @@
         }
     }
 
-    function readDemoModeFlag(storage) {
-        try {
-            const store = getStore(storage);
-            return !!(store && store.getItem('ms365-demo-mode-v1') === '1');
-        } catch {
-            return false;
-        }
-    }
-
     /**
      * Vor dem Export: offene Änderungen aus app-data-v2 / Stammdaten in localStorage spiegeln,
      * damit das Backup möglichst vollständig und konsistent ist.
@@ -416,6 +416,9 @@
 
     function postImportNormalize(storage) {
         try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.invalidateCache === 'function') {
+                window.ms365AppDataV2.invalidateCache();
+            }
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
                 window.ms365AppDataV2.getContainer();
             }
@@ -425,11 +428,6 @@
             }
             window.dispatchEvent(
                 new CustomEvent('ms365-tenant-settings-changed', { detail: { source: 'browser-backup-import' } })
-            );
-            window.dispatchEvent(
-                new CustomEvent('ms365-demo-mode-changed', {
-                    detail: { active: readDemoModeFlag(storage) }
-                })
             );
         } catch {
             /* ignore */
@@ -495,7 +493,6 @@
             exportedAt: when.toISOString(),
             schoolName: schoolName,
             domain: domain,
-            demoModeActive: readDemoModeFlag(storage),
             keyCount: Object.keys(local).length + Object.keys(session).length,
             localKeyCount: Object.keys(local).length,
             sessionKeyCount: Object.keys(session).length,
@@ -709,7 +706,6 @@
             const s = Object.keys(obj.sessionStorage || {}).length;
             const when = obj.exportedAt ? String(obj.exportedAt).replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : '';
             const school = String(obj.schoolName || obj.domain || '').trim();
-            const demo = obj.demoModeActive ? ' (Demo-Modus war aktiv)' : '';
             const summary =
                 obj.inventorySummary ||
                 inventorySummaryText(
@@ -724,7 +720,6 @@
                 ' Sitzungs-Einträge' +
                 (when ? ' (Stand: ' + when + ')' : '') +
                 (school ? ' für „' + school + '“' : '') +
-                demo +
                 '.\n\n';
             if (summary) {
                 msg += 'Enthalten u. a.: ' + summary + '.\n\n';
@@ -733,9 +728,34 @@
                 'Alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser werden ersetzt. ' +
                 'Gruppen und Benutzer in Microsoft 365 bleiben unverändert. ' +
                 'Microsoft-Anmeldung und PIN-Freischaltung bleiben unberührt. Fortfahren?';
-            return msg;
+            return subjectCatalogShrinkAppend(obj, msg);
         }
-        return 'Diese JSON-Datei enthält Schuldaten (kein vollständiges Browser-Backup). Vorhandene Stammdaten in diesem Browser werden überschrieben. Fortfahren?';
+        return subjectCatalogShrinkAppend(
+            obj,
+            'Diese JSON-Datei enthält Schuldaten (kein vollständiges Browser-Backup). Vorhandene Stammdaten in diesem Browser werden überschrieben. Fortfahren?'
+        );
+    }
+
+    function subjectCatalogShrinkAppend(obj, baseMsg) {
+        try {
+            if (
+                typeof window.ms365SubjectCatalogShrinkReport !== 'function' ||
+                typeof window.ms365SubjectsFromImportPayload !== 'function' ||
+                typeof window.ms365FormatSubjectCatalogShrinkConfirm !== 'function' ||
+                typeof window.ms365TenantSettingsLoad !== 'function'
+            ) {
+                return baseMsg;
+            }
+            const next = window.ms365SubjectsFromImportPayload(obj);
+            if (!next.length) return baseMsg;
+            const cur = window.ms365TenantSettingsLoad().subjects || [];
+            const rep = window.ms365SubjectCatalogShrinkReport(cur, next);
+            if (!rep.wouldShrink) return baseMsg;
+            const extra = window.ms365FormatSubjectCatalogShrinkConfirm(rep, '');
+            return extra ? baseMsg + '\n\n' + extra : baseMsg;
+        } catch {
+            return baseMsg;
+        }
     }
 
     async function importFile(file, opts) {
@@ -802,11 +822,6 @@
         if (errors.length) {
             throw new Error(errors.slice(0, 3).join('; '));
         }
-        try {
-            window.dispatchEvent(new CustomEvent('ms365-demo-mode-changed', { detail: { active: false } }));
-        } catch {
-            /* ignore */
-        }
         return {
             removed: removed.length,
             keys: removed,
@@ -817,7 +832,7 @@
     async function resetAllAppData(reload) {
         const ok = await dlgConfirm(
             'Alle lokalen App-Daten in diesem Browser löschen?\n\n' +
-                'Entfernt werden: Stammdaten, Einrichtungsstand, Werkzeug-Zwischenstände, Demo-Modus und Favoriten. ' +
+                'Entfernt werden: Stammdaten, Einrichtungsstand, Werkzeug-Zwischenstände und Favoriten. ' +
                 'Nicht gelöscht: Ihre Microsoft-Anmeldung (oben rechts) und der PIN-Zugang dieser Seite.\n\n' +
                 'Tipp: Vorher „Browser-Backup“ exportieren, falls Sie Daten behalten möchten.',
             {
@@ -835,32 +850,6 @@
         return result;
     }
 
-    async function resetAndLoadDemo(reload) {
-        const ok = await dlgConfirm(
-            'Demo-Daten der MS365 Musterschule laden?\n\n' +
-                'Zuerst werden alle lokalen App-Daten in diesem Browser gelöscht, danach die umfangreiche Muster-Schule ' +
-                '(Stammdaten, Verknüpfungen, Beispiel-Schüler:innen, Eltern, Kursteams-Zwischenstand).\n\n' +
-                'Ihre Microsoft-Anmeldung bleibt erhalten.',
-            {
-                title: 'Demo-Daten laden',
-                okText: 'Demo laden',
-                cancelText: 'Abbrechen'
-            }
-        );
-        if (!ok) return { cancelled: true };
-        clearAllAppData({ reload: false });
-        if (!window.ms365DemoMode || typeof window.ms365DemoMode.activate !== 'function') {
-            throw new Error('Demo-Modul nicht geladen.');
-        }
-        if (!window.ms365DemoMode.activate()) {
-            throw new Error('Demo-Daten konnten nicht geladen werden.');
-        }
-        if (reload !== false) {
-            location.reload();
-        }
-        return { demo: true };
-    }
-
     function onResetClick() {
         resetAllAppData(true).catch(function (e) {
             setStatus('Zurücksetzen fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
@@ -868,19 +857,6 @@
                 title: 'Alles zurücksetzen'
             });
         });
-    }
-
-    function onDemoLoadClick() {
-        resetAndLoadDemo(true)
-            .then(function (res) {
-                if (res && res.cancelled) setStatus('Demo-Laden abgebrochen.', 'warn');
-            })
-            .catch(function (e) {
-                setStatus('Demo-Laden fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
-                return dlgAlert('Demo-Laden fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), {
-                    title: 'Demo-Daten laden'
-                });
-            });
     }
 
     function onExportClick() {
@@ -1004,11 +980,6 @@
             btn.dataset.ms365BackupBound = '1';
             btn.addEventListener('click', onResetClick);
         });
-        document.querySelectorAll('[data-ms365-backup="demo"]').forEach(function (btn) {
-            if (!btn || btn.dataset.ms365BackupBound === '1') return;
-            btn.dataset.ms365BackupBound = '1';
-            btn.addEventListener('click', onDemoLoadClick);
-        });
         refreshBackupReminder();
     }
 
@@ -1036,7 +1007,6 @@
         importFile: importFile,
         clearAllAppData: clearAllAppData,
         resetAllAppData: resetAllAppData,
-        resetAndLoadDemo: resetAndLoadDemo,
         bindUi: bindUi
     };
 

@@ -3,18 +3,47 @@
  */
 import {
     LIST_TITLES,
+    LIST_KEYS,
+    LIST_DESCRIPTIONS,
     REGELWERK_COLUMNS,
     TERMINFENSTER_COLUMNS,
     SCHULARBEITEN_COLUMNS,
     FACHMETA_COLUMNS,
-    REQUIRED_COLUMNS,
+    REQUIRED_COLUMNS_BY_KEY,
     DEFAULT_REGELWERK_FIELDS,
-    toGraphColumnBody
+    toGraphColumnBody,
+    titlesForListKey
 } from '../schularbeiten-planer/schularbeiten-planer-schema.js';
+import {
+    ensureCanonicalListTitle,
+    resolvePlanerList
+} from '../schularbeiten-planer/schularbeiten-planer-lists.js';
+import { findListByDisplayName } from '../schularbeiten-planer/schularbeiten-planer-graph.js';
+import { currentSchoolYearFromDate } from '../schularbeiten-planer/schularbeiten-planer-schuljahr.js';
+import {
+    applySchularbeitenPackagePermissions,
+    loadPermissionsConfig,
+    savePermissionsConfig,
+    normalizePermissionsConfig
+} from '../schularbeiten-planer/schularbeiten-planer-permissions.js';
+import { entraGroupsConfigured } from '../schularbeiten-planer/schularbeiten-planer-entra-role.js';
+import { publishPlannerPermissionsToSite } from '../schularbeiten-planer/schularbeiten-planer-remote-config.js';
+import {
+    SETUP_GROUP_FIELDS,
+    readPermissionsFromPickers,
+    fillPermissionsPickers,
+    wirePermissionGroupPickers,
+    persistPickersToStorage,
+    htmlSchularbeitenEntraPermGrid,
+    initSchularbeitenSetupExtraUsers
+} from '../schularbeiten-planer/schularbeiten-permissions-ui.js';
+
+const PLANER_SITE_STORAGE_KEY = 'ms365-sa-site-url';
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',
-    'https://graph.microsoft.com/Sites.ReadWrite.All'
+    'https://graph.microsoft.com/Sites.ReadWrite.All',
+    'https://graph.microsoft.com/Group.Read.All'
 ];
 
 function G() {
@@ -44,15 +73,7 @@ async function ensureToken() {
 }
 
 async function findListByTitle(token, siteId, listTitle) {
-    const title = String(listTitle || '').trim();
-    const path =
-        G().graphPathSite(siteId) +
-        '/lists?$filter=' +
-        encodeURIComponent("displayName eq '" + title.replace(/'/g, "''") + "'") +
-        '&$select=id,displayName,webUrl';
-    const data = await G().graphJson('GET', path, token, undefined, 'v1.0');
-    const list = (data && data.value) || [];
-    return list[0] || null;
+    return findListByDisplayName(token, siteId, listTitle);
 }
 
 async function addMissingColumns(siteId, listId, token, defs, write) {
@@ -76,18 +97,20 @@ async function addMissingColumns(siteId, listId, token, defs, write) {
     return added;
 }
 
-async function ensureList(token, siteId, title, columnDefs, write) {
+async function ensureList(token, siteId, title, columnDefs, write, description) {
     let list = await findListByTitle(token, siteId, title);
     if (!list || !list.id) {
         write('Erstelle Liste „' + title + '" …');
+        const body = {
+            displayName: title,
+            list: { template: 'genericList' }
+        };
+        if (description) body.description = String(description);
         const created = await G().graphJson(
             'POST',
             G().graphPathSite(siteId) + '/lists',
             token,
-            {
-                displayName: title,
-                list: { template: 'genericList' }
-            },
+            body,
             'v1.0'
         );
         const listId = created && created.id ? String(created.id) : '';
@@ -116,11 +139,15 @@ async function seedRegelwerkIfEmpty(token, siteId, listId, write) {
         return false;
     }
     write('Lege Standard-Regelwerk an …');
+    const seedFields = {
+        ...DEFAULT_REGELWERK_FIELDS,
+        Schuljahr: currentSchoolYearFromDate()
+    };
     await G().graphJson(
         'POST',
         G().graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/items',
         token,
-        { fields: { ...DEFAULT_REGELWERK_FIELDS } },
+        { fields: seedFields },
         'v1.0'
     );
     write('Seed: „' + DEFAULT_REGELWERK_FIELDS.Title + '"');
@@ -130,11 +157,15 @@ async function seedRegelwerkIfEmpty(token, siteId, listId, write) {
 /**
  * @param {string} webUrl
  * @param {(msg: string) => void} [logFn]
+ * @param {{ applyPermissions?: boolean, skipPerms?: boolean, groupAdmin?: string, groupLehrer?: string, groupSchueler?: string }} [opts]
  */
-async function createSchularbeitenLists(webUrl, logFn) {
+async function createSchularbeitenLists(webUrl, logFn, opts) {
     const write = typeof logFn === 'function' ? logFn : log;
     const url = String(webUrl || '').trim();
     if (!url) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
+    const o = normalizePermissionsConfig({ ...loadPermissionsConfig(), ...(opts || {}) });
+    if (opts && opts.applyPermissions === false) o.skipPerms = true;
+    savePermissionsConfig(o);
 
     const token = await ensureToken();
     write('Löse Website auf …');
@@ -143,7 +174,19 @@ async function createSchularbeitenLists(webUrl, logFn) {
     if (!siteId) throw new Error('Site-ID fehlt in der Graph-Antwort.');
     write('Site: ' + (site.displayName || siteId));
 
-    const regelwerk = await ensureList(token, siteId, LIST_TITLES.regelwerk, REGELWERK_COLUMNS, write);
+    for (let i = 0; i < LIST_KEYS.length; i++) {
+        const key = LIST_KEYS[i];
+        await ensureCanonicalListTitle(G(), token, siteId, key, findListByDisplayName, write);
+    }
+
+    const regelwerk = await ensureList(
+        token,
+        siteId,
+        LIST_TITLES.regelwerk,
+        REGELWERK_COLUMNS,
+        write,
+        LIST_DESCRIPTIONS.regelwerk
+    );
     await seedRegelwerkIfEmpty(token, siteId, regelwerk.id, write);
 
     const terminfenster = await ensureList(
@@ -151,7 +194,8 @@ async function createSchularbeitenLists(webUrl, logFn) {
         siteId,
         LIST_TITLES.terminfenster,
         TERMINFENSTER_COLUMNS,
-        write
+        write,
+        LIST_DESCRIPTIONS.terminfenster
     );
 
     const schularbeiten = await ensureList(
@@ -159,21 +203,55 @@ async function createSchularbeitenLists(webUrl, logFn) {
         siteId,
         LIST_TITLES.schularbeiten,
         SCHULARBEITEN_COLUMNS,
-        write
+        write,
+        LIST_DESCRIPTIONS.schularbeiten
     );
 
-    const fachMeta = await ensureList(token, siteId, LIST_TITLES.fachMeta, FACHMETA_COLUMNS, write);
+    const fachMeta = await ensureList(
+        token,
+        siteId,
+        LIST_TITLES.fachMeta,
+        FACHMETA_COLUMNS,
+        write,
+        LIST_DESCRIPTIONS.fachMeta
+    );
+
+    if (!o.skipPerms) {
+        try {
+            await applySchularbeitenPackagePermissions(url, o, write);
+        } catch (e) {
+            write('Hinweis Berechtigungen: ' + (e && e.message ? e.message : e));
+        }
+    } else {
+        write('Berechtigungen übersprungen (Haken gesetzt).');
+    }
+
+    if (!o.skipPerms && entraGroupsConfigured(o)) {
+        try {
+            await publishPlannerPermissionsToSite(url, schularbeiten.id, o);
+            write(
+                'Planer-Gruppen auf der Site gespeichert (' +
+                    'Site Assets/ms365/schularbeiten-planer-groups.json) – Lehrkräfte laden diese beim Start.'
+            );
+        } catch (e) {
+            write(
+                'Hinweis Planer-Konfiguration auf Site: ' + (e && e.message ? e.message : String(e))
+            );
+        }
+    }
 
     if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
         window.ms365ActionLog.append({
             tool: 'sharepoint',
             action: 'create-schularbeiten-lists',
             target: url,
-            summary: 'Schularbeiten-Paket (Regelwerk, Terminfenster, Schularbeiten, SA-FachMeta)'
+            summary: 'Schularbeiten-Paket (SAP-Regelwerk, SAP-Terminfenster, SAP-Schularbeiten, SAP-FachMeta)'
         });
     }
 
-    write('Fertig. Stammdaten (Klassen/Lehrer/Fächer) bleiben in den Schultools – optional SA-FachMeta für Farbe/Kontingent.');
+    write(
+        'Fertig. Stammdaten (Klassen/Lehrer/Fächer) bleiben in den Schultools – SAP-FachMeta optional für Farbe/Kontingent. Mehrere Schuljahre über Spalte „Schuljahr“.'
+    );
     return {
         siteId,
         lists: {
@@ -202,22 +280,22 @@ async function probeListsHealth(webUrl, logFn) {
 
     const report = [];
     let allOk = true;
-    const titles = [
-        [LIST_TITLES.regelwerk, REQUIRED_COLUMNS.Regelwerk],
-        [LIST_TITLES.terminfenster, REQUIRED_COLUMNS.Terminfenster],
-        [LIST_TITLES.schularbeiten, REQUIRED_COLUMNS.Schularbeiten],
-        [LIST_TITLES.fachMeta, REQUIRED_COLUMNS['SA-FachMeta']]
-    ];
 
-    for (let i = 0; i < titles.length; i++) {
-        const title = titles[i][0];
-        const required = titles[i][1];
-        const list = await findListByTitle(token, siteId, title);
+    for (let i = 0; i < LIST_KEYS.length; i++) {
+        const key = LIST_KEYS[i];
+        const required = REQUIRED_COLUMNS_BY_KEY[key];
+        const canonical = LIST_TITLES[key];
+        const resolved = await resolvePlanerList(token, siteId, key, findListByDisplayName);
+        const list = resolved && resolved.list;
+        const title = (resolved && resolved.displayName) || canonical;
         if (!list || !list.id) {
-            write('Fehlt: Liste „' + title + '"');
-            report.push({ title, ok: false, missingColumns: required.slice(), missingList: true });
+            write('Fehlt: Liste „' + canonical + '" (auch Legacy: ' + titlesForListKey(key).join(', ') + ')');
+            report.push({ title: canonical, ok: false, missingColumns: required.slice(), missingList: true });
             allOk = false;
             continue;
+        }
+        if (resolved.isLegacyTitle) {
+            write('Hinweis: „' + title + '" noch ohne SAP-Präfix – Setup erneut ausführen zum Umbenennen.');
         }
         const colsPath =
             G().graphPathSite(siteId) + '/lists/' + encodeURIComponent(list.id) + '/columns?$top=200';
@@ -245,7 +323,7 @@ async function probeListsHealth(webUrl, logFn) {
     if (panel) {
         panel.hidden = false;
         panel.textContent = allOk
-            ? 'Status: OK – Listen mit erwarteten Spalten (inkl. SA-FachMeta).'
+            ? 'Status: OK – SAP-Listen mit erwarteten Spalten (inkl. Schuljahr).'
             : 'Status: prüfen – Details im Protokoll.';
         panel.classList.toggle('ok', allOk);
         panel.classList.toggle('warn', !allOk);
@@ -254,29 +332,85 @@ async function probeListsHealth(webUrl, logFn) {
     return { ok: allOk, report };
 }
 
+function readPermissionsFromForm() {
+    return normalizePermissionsConfig({
+        ...readPermissionsFromPickers(SETUP_GROUP_FIELDS),
+        skipPerms: !!($('spsaSkipPerms') && $('spsaSkipPerms').checked)
+    });
+}
+
+function mountSetupEntraPermGrid() {
+    const host = $('spsaEntraPermGrid');
+    if (!host || host.dataset.saPermMounted === '1') return;
+    host.innerHTML = htmlSchularbeitenEntraPermGrid(loadPermissionsConfig(), { mode: 'setup' });
+    host.dataset.saPermMounted = '1';
+}
+
+function fillPermissionsForm(cfg) {
+    mountSetupEntraPermGrid();
+    fillPermissionsPickers(cfg, SETUP_GROUP_FIELDS);
+    const c = normalizePermissionsConfig(cfg);
+    if ($('spsaSkipPerms')) $('spsaSkipPerms').checked = c.skipPerms;
+}
+
 async function runCreate() {
     const logEl = $('spsaLog');
     if (logEl) logEl.textContent = '';
     const webUrl = String(($('spsaSiteUrl') && $('spsaSiteUrl').value) || '').trim();
-    const result = await createSchularbeitenLists(webUrl);
+    const perms = readPermissionsFromForm();
+    savePermissionsConfig(perms);
+    const result = await createSchularbeitenLists(webUrl, log, perms);
     toast('Schularbeiten-Listen angelegt bzw. ergänzt.');
     return result;
+}
+
+async function runApplyPermissionsOnly() {
+    const logEl = $('spsaLog');
+    if (logEl) logEl.textContent = '';
+    const webUrl = String(($('spsaSiteUrl') && $('spsaSiteUrl').value) || '').trim();
+    if (!webUrl) throw new Error('Website-URL fehlt.');
+    const perms = readPermissionsFromForm();
+    if (perms.skipPerms) throw new Error('„Rechte überspringen“ ist aktiv – Haken entfernen.');
+    savePermissionsConfig(perms);
+    await applySchularbeitenPackagePermissions(webUrl, perms, log);
+    toast('Berechtigungen angewendet.');
 }
 
 window.ms365SpoSchularbeiten = {
     createLists: createSchularbeitenLists,
     createList: createSchularbeitenLists,
     probeListsHealth: probeListsHealth,
+    applyPackagePermissions: applySchularbeitenPackagePermissions,
+    loadPermissionsConfig: loadPermissionsConfig,
+    savePermissionsConfig: savePermissionsConfig,
     LIST_TITLES
 };
 
+function persistSiteUrlForPlaner() {
+    const url = String(($('spsaSiteUrl') && $('spsaSiteUrl').value) || '').trim();
+    if (!url) return;
+    try {
+        localStorage.setItem(PLANER_SITE_STORAGE_KEY, url);
+    } catch {
+        /* ignore */
+    }
+}
+
+function wirePlanerLinks() {
+    document.querySelectorAll('.spsa-go-planer').forEach((el) => {
+        el.addEventListener('click', () => persistSiteUrlForPlaner());
+    });
+}
+
 function wireUi() {
+    wirePlanerLinks();
+
     const runBtn = $('spsaBtnRun');
     if (runBtn) {
         runBtn.addEventListener('click', () => {
             if (
                 !window.confirm(
-                    'Schularbeiten-Paket auf der Website anlegen bzw. fehlende Spalten ergänzen?\n\nListen: Regelwerk, Terminfenster, Schularbeiten, SA-FachMeta'
+                    'Schularbeiten-Paket auf der Website anlegen bzw. fehlende Spalten ergänzen?\n\nListen: SAP-Regelwerk, SAP-Terminfenster, SAP-Schularbeiten, SAP-FachMeta (Legacy-Namen werden umbenannt).'
                 )
             ) {
                 return;
@@ -327,6 +461,28 @@ function wireUi() {
         });
     }
 
+    fillPermissionsForm(loadPermissionsConfig());
+
+    wirePermissionGroupPickers(SETUP_GROUP_FIELDS, () => persistPickersToStorage(SETUP_GROUP_FIELDS));
+    initSchularbeitenSetupExtraUsers(() => persistPickersToStorage(SETUP_GROUP_FIELDS));
+    const skipEl = $('spsaSkipPerms');
+    if (skipEl) {
+        skipEl.addEventListener('change', () =>
+            persistPickersToStorage(SETUP_GROUP_FIELDS, skipEl.checked)
+        );
+    }
+
+    const permsBtn = $('spsaBtnPerms');
+    if (permsBtn) {
+        permsBtn.addEventListener('click', () => {
+            if ($('spsaLog')) $('spsaLog').textContent = '';
+            runApplyPermissionsOnly().catch((e) => {
+                log('FEHLER: ' + (e && e.message ? e.message : String(e)));
+                toast('Fehler: ' + (e && e.message ? e.message : e));
+            });
+        });
+    }
+
     try {
         const setup =
             window.ms365AppDataV2 && window.ms365AppDataV2.getSetup
@@ -334,6 +490,9 @@ function wireUi() {
                 : null;
         const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
         if (saved && $('spsaSiteUrl') && !$('spsaSiteUrl').value) $('spsaSiteUrl').value = saved;
+        const adminSite =
+            setup && setup.schularbeitenSiteUrl ? String(setup.schularbeitenSiteUrl).trim() : '';
+        if (adminSite && $('spsaSiteUrl') && !$('spsaSiteUrl').value) $('spsaSiteUrl').value = adminSite;
     } catch {
         /* ignore */
     }

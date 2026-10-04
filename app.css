@@ -1,6 +1,6 @@
 /* Gemeinsames Styling für alle Tool-Seiten (tools/*.html)
  * Design-Foundation: Tokens (Light/Dark × Brand teal|classic), Buttons, Tabs, Panels.
- * Brand-Standard: teal (Landing). Klassisch (Violett) via html[data-brand="classic"].
+ * Brand-Standard: teal (Landing). Klassisch (Violett) via html[data-brand="classic"]. Dunkelrot via html[data-brand="wine"].
  */
 @import url('src/shared/tools-dark.css');
 @import url('src/shared/dashboard-dark.css');
@@ -147,6 +147,39 @@ html[data-brand="classic"][data-theme="dark"] {
     --heading: #f3f4ff;
     --text-secondary: #aeb4c8;
     --muted: #9aa3b8;
+}
+
+/* Dunkelrot: Burgunder mit Verlauf */
+html[data-brand="wine"],
+html[data-brand="wine"][data-theme="light"] {
+    --bg1: #7f1d1d;
+    --bg2: #1a0a0f;
+    --brand1: #b91c1c;
+    --brand2: #7f1d1d;
+    --border-strong: rgba(185, 28, 28, 0.32);
+    --soft: #faf5f5;
+    --surface-muted: #f5e8e8;
+    --code-bg: #fce8e8;
+    --text: #1a0a0f;
+    --heading: #2d0a12;
+    --text-secondary: #6b4f52;
+}
+
+html[data-brand="wine"][data-theme="dark"] {
+    --bg1: #3f0f14;
+    --bg2: #120608;
+    --brand1: #f87171;
+    --brand2: #dc2626;
+    --border-strong: rgba(248, 113, 113, 0.38);
+    --soft: #1a0c10;
+    --surface-muted: #2a1418;
+    --code-bg: #32181c;
+    --card: #1e1014;
+    --card-elevated: rgba(42, 20, 26, 0.92);
+    --text: #f5ecee;
+    --heading: #fff5f6;
+    --text-secondary: #c9aeb4;
+    --muted: #a89096;
 }
 
 * {
@@ -459,6 +492,9 @@ a.dash-playbook-card:active {
     cursor: pointer;
     min-width: 0;
 }
+.ms365-auth-menu__trigger--dash-preview {
+    box-shadow: 0 0 0 2px color-mix(in srgb, #fff 35%, transparent);
+}
 .ms365-auth-menu__trigger:hover,
 .ms365-auth-menu.is-open .ms365-auth-menu__trigger {
     background: #fff;
@@ -582,6 +618,11 @@ a.dash-playbook-card:active {
     font-weight: 700;
     cursor: pointer;
     text-align: left;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+a.ms365-auth-menu__item:visited {
+    color: #32325d;
 }
 .ms365-auth-menu__item .bi {
     margin: 0;
@@ -610,9 +651,69 @@ a.dash-playbook-card:active {
     text-transform: uppercase;
     color: #6c757d;
 }
+.ms365-auth-menu__dash-seg {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0 4px 6px;
+}
+.ms365-auth-menu__dash-seg-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    margin: 0;
+    padding: 8px 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(12, 18, 34, 0.12);
+    background: #f8fafc;
+    color: #32325d;
+    font: inherit;
+    font-size: 0.72em;
+    font-weight: 800;
+    line-height: 1.15;
+    cursor: pointer;
+    text-align: center;
+}
+.ms365-auth-menu__dash-seg-btn .bi {
+    margin: 0;
+    font-size: 1.35rem;
+    opacity: 0.9;
+}
+.ms365-auth-menu__dash-seg-k {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ms365-auth-menu__dash-seg-btn:hover {
+    background: #fff;
+    border-color: color-mix(in srgb, var(--brand1) 45%, transparent);
+}
+.ms365-auth-menu__dash-seg-btn.is-active,
+.ms365-auth-menu__dash-seg-btn[aria-checked="true"] {
+    border-color: var(--brand1);
+    background: color-mix(in srgb, var(--brand1) 12%, #fff);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 18%, transparent);
+}
+.ms365-auth-menu__dash-hint {
+    margin: 0;
+    padding: 0 8px 6px;
+    font-size: 0.78em;
+    line-height: 1.4;
+    color: #6c757d;
+}
+.ms365-auth-menu__item--sub {
+    font-size: 0.88em;
+    padding-top: 6px;
+    padding-bottom: 8px;
+}
 .ms365-auth-menu__brand-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
     padding: 0 4px 4px;
 }
@@ -655,6 +756,9 @@ a.dash-playbook-card:active {
 .ms365-auth-menu__brand-swatch--classic {
     background: linear-gradient(135deg, #5e72e4, #825ee4);
 }
+.ms365-auth-menu__brand-swatch--wine {
+    background: linear-gradient(135deg, #991b1b, #450a0a);
+}
 html[data-theme="dark"] .ms365-auth-menu__section {
     border-bottom-color: rgba(255, 255, 255, 0.1);
 }
@@ -672,6 +776,22 @@ html[data-theme="dark"] .ms365-auth-menu__brand:hover {
 html[data-theme="dark"] .ms365-auth-menu__brand.is-active,
 html[data-theme="dark"] .ms365-auth-menu__brand[aria-checked="true"] {
     background: color-mix(in srgb, var(--brand1) 22%, #1a2638);
+}
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn {
+    background: #1a2638;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e8eef6;
+}
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn:hover {
+    background: #243044;
+}
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn.is-active,
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn[aria-checked="true"] {
+    background: color-mix(in srgb, var(--brand1) 22%, #1a2638);
+}
+html[data-theme="dark"] a.ms365-auth-menu__item,
+html[data-theme="dark"] a.ms365-auth-menu__item:visited {
+    color: #e8eef6;
 }
 html[data-theme="dark"] .ms365-auth-menu__item:hover,
 html[data-theme="dark"] .ms365-auth-menu__item:focus-visible {
@@ -2202,6 +2322,174 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
 }
 #ms365AppDialog .modal-actions {
     margin-top: 18px;
+}
+
+/* SharePoint-Backup-Abgleich (Modal + Seite) */
+.ms365-backup-compare-overlay {
+    z-index: 10060;
+    backdrop-filter: blur(8px);
+    background: rgba(20, 24, 48, 0.52);
+}
+.ms365-backup-compare-box {
+    max-width: min(920px, 96vw);
+    max-height: min(90vh, 900px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+.ms365-bcmp-scroll {
+    overflow: auto;
+    padding: 22px 22px 8px;
+    flex: 1 1 auto;
+}
+.ms365-bcmp-head {
+    margin-bottom: 16px;
+}
+.ms365-bcmp-title {
+    margin: 0 0 8px;
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--heading, #32325d);
+}
+.ms365-bcmp-hint {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary, #495057);
+}
+.ms365-bcmp-hint--remote {
+    color: var(--brand1, #0d6efd);
+    font-weight: 700;
+}
+.ms365-bcmp-hint--local {
+    color: #b45309;
+    font-weight: 700;
+}
+.ms365-bcmp-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+@media (max-width: 640px) {
+    .ms365-bcmp-cards {
+        grid-template-columns: 1fr;
+    }
+}
+.ms365-bcmp-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: color-mix(in srgb, var(--card, #fff) 92%, var(--brand1) 8%);
+}
+.ms365-bcmp-card--remote {
+    background: color-mix(in srgb, var(--card, #fff) 94%, var(--ok1, #22c55e) 6%);
+}
+.ms365-bcmp-card__title {
+    margin: 0 0 10px;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+    color: var(--text-secondary);
+}
+.ms365-bcmp-meta {
+    margin: 0;
+    display: grid;
+    gap: 8px;
+    font-size: 0.92rem;
+}
+.ms365-bcmp-meta div {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    gap: 8px;
+}
+.ms365-bcmp-meta dt {
+    margin: 0;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.ms365-bcmp-meta dd {
+    margin: 0;
+    word-break: break-word;
+}
+.ms365-bcmp-diff__title {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+.ms365-bcmp-details {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    background: var(--card, #fff);
+}
+.ms365-bcmp-details__summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    font-weight: 700;
+    list-style-position: outside;
+}
+.ms365-bcmp-details__body {
+    padding: 0 14px 12px;
+    border-top: 1px solid var(--border);
+}
+.ms365-bcmp-badge {
+    display: inline-block;
+    min-width: 1.5rem;
+    text-align: center;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    background: color-mix(in srgb, var(--brand1) 18%, transparent);
+    color: var(--heading);
+}
+.ms365-bcmp-keys {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    max-height: 220px;
+    overflow: auto;
+}
+.ms365-bcmp-key {
+    padding: 6px 0;
+    border-bottom: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+    font-size: 0.88rem;
+}
+.ms365-bcmp-key:last-child {
+    border-bottom: none;
+}
+.ms365-bcmp-key__code {
+    display: block;
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+.ms365-bcmp-key__label {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.85rem;
+}
+.ms365-bcmp-empty {
+    margin: 8px 0 0;
+}
+.ms365-bcmp-footnote {
+    margin: 12px 0 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+.ms365-bcmp-actions {
+    flex-shrink: 0;
+    padding: 12px 22px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.ms365-bcmp-actions .ms365-bcmp-open-page {
+    margin-right: auto;
 }
 
 /* Schritt-Navigation: Zurück links, Weiter rechts (eine Zeile pro Block) */
@@ -4750,4 +5038,173 @@ html[data-theme='dark'] .admin-setup-check--warn .admin-setup-check__icon {
 html[data-ms365-admin-boot='1'] body.admin-app-page > .admin-app {
     /* Kein pointer-events:none – sonst sind Anmelden/Buttons tot, wenn der Overlay fehlt. */
     filter: none;
+}
+
+/* WebUntis-Stammdaten-Import-Wizard */
+.wu-stammdaten-wizard__box {
+    max-width: min(960px, 96vw);
+    width: 100%;
+    max-height: min(90vh, 920px);
+    overflow: auto;
+}
+.wu-stammdaten-wizard__files {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    font-size: 0.9em;
+}
+.wu-stammdaten-wizard__files li {
+    padding: 4px 0;
+}
+.wu-stammdaten-wizard__tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+}
+.wu-stammdaten-wizard__tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+}
+.wu-stammdaten-wizard__tile.is-active {
+    border-color: var(--brand2, #0d6efd);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand2, #0d6efd) 25%, transparent);
+}
+.wu-stammdaten-wizard__tile .bi {
+    font-size: 1.35rem;
+    opacity: 0.85;
+}
+.wu-stammdaten-wizard__tile-label {
+    font-weight: 800;
+}
+.wu-stammdaten-wizard__tile-meta {
+    font-size: 0.82em;
+    color: var(--muted);
+}
+.wu-stammdaten-wizard__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.wu-stammdaten-wizard__tab {
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font: inherit;
+}
+.wu-stammdaten-wizard__tab.is-active {
+    background: color-mix(in srgb, var(--brand2, #0d6efd) 14%, var(--card));
+    border-color: var(--brand2, #0d6efd);
+}
+.wu-stammdaten-wizard__drop {
+    margin-top: 8px;
+    cursor: pointer;
+}
+.wu-stammdaten-wizard__subject-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--brand2, #0d6efd) 8%, var(--surface-muted));
+    border: 1px solid var(--border);
+}
+.wu-stammdaten-wizard__subject-filters-label {
+    font-weight: 800;
+    font-size: 0.9em;
+    margin-right: 4px;
+}
+.wu-stammdaten-wizard__subject-filters .btn.is-active {
+    border-color: var(--brand2, #0d6efd);
+    background: color-mix(in srgb, var(--brand2, #0d6efd) 18%, var(--card));
+}
+.wu-stammdaten-wizard__filter-hint {
+    margin: 0 0 8px;
+    font-size: 0.88em;
+    line-height: 1.45;
+}
+.wu-stammdaten-wizard__filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Brand-Tokens (am Dateiende): gewinnt gegen spätere Theme-Defaults */
+html[data-brand="classic"][data-theme="light"] {
+    --bg1: #667eea;
+    --bg2: #764ba2;
+    --brand1: #5e72e4;
+    --brand2: #825ee4;
+    --border-strong: rgba(94, 114, 228, 0.28);
+    --soft: #f5f6fb;
+    --surface-muted: #eef0f8;
+    --code-bg: #eef0ff;
+    --text: #1e2440;
+    --heading: #1e2440;
+    --text-secondary: #5c6578;
+}
+
+html[data-brand="classic"][data-theme="dark"] {
+    --bg1: #2a2f6b;
+    --bg2: #3b1f63;
+    --brand1: #7b8cff;
+    --brand2: #a78bfa;
+    --border-strong: rgba(123, 140, 255, 0.35);
+    --soft: #15182a;
+    --surface-muted: #24283e;
+    --code-bg: #2a2f48;
+    --card: #1c1f33;
+    --card-elevated: rgba(36, 40, 62, 0.88);
+    --text: #e8eaf4;
+    --heading: #f3f4ff;
+    --text-secondary: #aeb4c8;
+    --muted: #9aa3b8;
+}
+
+html[data-brand="wine"][data-theme="light"] {
+    --bg1: #7f1d1d;
+    --bg2: #1a0a0f;
+    --brand1: #b91c1c;
+    --brand2: #7f1d1d;
+    --border-strong: rgba(185, 28, 28, 0.32);
+    --soft: #faf5f5;
+    --surface-muted: #f5e8e8;
+    --code-bg: #fce8e8;
+    --text: #1a0a0f;
+    --heading: #2d0a12;
+    --text-secondary: #6b4f52;
+}
+
+html[data-brand="wine"][data-theme="dark"] {
+    --bg1: #3f0f14;
+    --bg2: #120608;
+    --brand1: #f87171;
+    --brand2: #dc2626;
+    --border-strong: rgba(248, 113, 113, 0.38);
+    --soft: #1a0c10;
+    --surface-muted: #2a1418;
+    --code-bg: #32181c;
+    --card: #1e1014;
+    --card-elevated: rgba(42, 20, 26, 0.92);
+    --text: #f5ecee;
+    --heading: #fff5f6;
+    --text-secondary: #c9aeb4;
+    --muted: #a89096;
 }

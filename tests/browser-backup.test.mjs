@@ -202,6 +202,27 @@ describe('browser-backup', () => {
         expect(target.getItem('ms365-arge-state-v2')).toBeNull();
         expect(target.getItem('ms365-dashboard-favorites-v1')).toContain('kursteams');
     });
+
+    it('invalidiert app-data-v2-Cache nach Backup-Import', () => {
+        let invalidated = false;
+        const target = createMemoryStorage();
+        const sandbox = loadBackup(target, sessionStore);
+        sandbox.ms365AppDataV2 = {
+            invalidateCache() {
+                invalidated = true;
+            },
+            getContainer() {
+                return { core: {}, years: { current: '2025/26', byLabel: {} } };
+            }
+        };
+        sandbox.ms365TenantSettingsLoad = function () {
+            return { domain: 'schule.at' };
+        };
+        sandbox.ms365SetSchoolDomainNoAt = function () {};
+        const payload = sandbox.ms365BrowserBackup.buildBackup(store);
+        sandbox.ms365BrowserBackup.applyBackup(payload, target);
+        expect(invalidated).toBe(true);
+    });
 });
 
 describe('browser-backup Seiten', () => {

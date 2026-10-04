@@ -14,6 +14,9 @@ export const IT_LIBRARY_TITLE = 'MS365-IT-Stammdaten';
 export const IT_LIBRARY_DESC =
     'Nur IT/Verwaltung: vollständiges Browser-Backup von MS365-Schul-Tools (Stammdaten, Automationen, Werkzeugstände). Nicht öffentlich.';
 
+/** Entra-Objekt-ID (Gruppe/Benutzer). */
+export const ENTRA_GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** SharePoint Standard-Rollen (RoleDefinitionId). */
 export const SPO_ROLE = {
     read: 1073741826,
@@ -141,6 +144,260 @@ export function isItLibraryConfigured(meta) {
 }
 
 /**
+ * IT-Bibliothek-Metadaten normalisieren (localStorage / Setup).
+ * @param {object|null|undefined} raw
+ */
+export function normalizeItLibraryMeta(raw) {
+    if (!raw || typeof raw !== 'object') return {};
+    return {
+        listTitle: raw.listTitle ? String(raw.listTitle).trim() : '',
+        listId: raw.listId ? String(raw.listId).trim() : '',
+        driveId: raw.driveId ? String(raw.driveId).trim() : '',
+        webUrl: raw.webUrl ? String(raw.webUrl).trim() : '',
+        itGroupId: raw.itGroupId ? String(raw.itGroupId).trim() : '',
+        itGroupMail: raw.itGroupMail ? String(raw.itGroupMail).trim() : '',
+        securedAt: raw.securedAt ? String(raw.securedAt) : null,
+        siteUrl: raw.siteUrl ? String(raw.siteUrl).trim() : '',
+        linkedAt: raw.linkedAt ? String(raw.linkedAt) : null,
+        autoLinked: raw.autoLinked === true
+    };
+}
+
+/**
+ * Hinweise für Auto-Verknüpfung (Site, Bibliothek, IT-Gruppe) aus lokalen Quellen.
+ * @param {{ itMeta?: object, setup?: object, formDraft?: object }} input
+ */
+export function collectItLibraryLinkHints(input) {
+    const src = input || {};
+    const it = normalizeItLibraryMeta(src.itMeta);
+    const setup = src.setup && typeof src.setup === 'object' ? src.setup : {};
+    const draft = src.formDraft && typeof src.formDraft === 'object' ? src.formDraft : {};
+
+    const siteUrl = String(
+        it.siteUrl || draft.siteUrl || setup.intranetSiteUrl || ''
+    ).trim();
+    const listTitle =
+        String(it.listTitle || draft.libraryTitle || IT_LIBRARY_TITLE).trim() || IT_LIBRARY_TITLE;
+
+    let itGroupId = it.itGroupId;
+    let itGroupMail = it.itGroupMail;
+    const draftGroup = String(draft.itGroup || '').trim();
+    if (!itGroupId && !itGroupMail && draftGroup) {
+        if (ENTRA_GUID_RE.test(draftGroup)) itGroupId = draftGroup;
+        else itGroupMail = draftGroup;
+    }
+    if (!itGroupId && !itGroupMail) {
+        const matched = setup.matched && typeof setup.matched === 'object' ? setup.matched : {};
+        if (matched.verwaltungGroupId) itGroupId = String(matched.verwaltungGroupId).trim();
+    }
+
+    return {
+        siteUrl: siteUrl,
+        listTitle: listTitle,
+        itGroupId: itGroupId || '',
+        itGroupMail: itGroupMail || '',
+        hasMinimum: !!(siteUrl && listTitle)
+    };
+}
+
+/** Lesbare Namen für häufige Backup-Schlüssel (Vergleichsdialog). */
+const STORAGE_KEY_LABELS = {
+    'ms365-schooltool-data-v2': 'Zentrale Schuldaten',
+    'ms365-tenant-settings-v1': 'Stammdaten-Einstellungen',
+    'ms365-stammdaten-it-library-v1': 'IT-Sicherungsbibliothek (Verknüpfung)',
+    'ms365-stammdaten-it-library-by-tenant-v2': 'IT-Bibliothek pro Mandant',
+    'ms365-stammdaten-spo-sync-v1': 'SharePoint-Sync-Status',
+    'ms365-stammdaten-spo-sync-by-tenant-v2': 'SharePoint-Sync pro Mandant',
+    'ms365-demo-mode-v1': 'Legacy (Demo-Modus, entfernt)',
+    'ms365-dashboard-favorites-v1': 'Dashboard-Favoriten',
+    'webuntis-teams-creator-state-v1': 'Kursteams / WebUntis',
+    'ms365-freistellung-setup-v1': 'Freistellungen Setup',
+    'ms365-power-automate-recipes-v1': 'Power Automate Rezepte'
+};
+
+function labelForStorageKey(key) {
+    const k = String(key || '').trim();
+    return STORAGE_KEY_LABELS[k] || k;
+}
+
+/** Lesbarer Name für einen localStorage-Schlüssel im Abgleich-UI. */
+export function storageKeyLabel(key) {
+    return labelForStorageKey(key);
+}
+
+function stableStorageValue(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') return v;
+    try {
+        return JSON.stringify(v);
+    } catch {
+        return String(v);
+    }
+}
+
+function parseIsoMs(iso) {
+    const s = String(iso || '').trim();
+    if (!s) return 0;
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? t : 0;
+}
+
+function formatWhenDe(iso) {
+    const s = String(iso || '').trim();
+    if (!s) return '–';
+    return s.replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC').slice(0, 22);
+}
+
+/**
+ * @param {object|null|undefined} payload Browser-Backup (buildBackup / SharePoint-JSON)
+ */
+export function isLikelyFreshLocalBackup(payload) {
+    const loc = payload && payload.localStorage;
+    if (!loc || typeof loc !== 'object') return true;
+    const keys = Object.keys(loc).filter(function (k) {
+        return k.indexOf('ms365-') === 0 || k.indexOf('webuntis-') === 0;
+    });
+    const raw = loc['ms365-schooltool-data-v2'];
+    if (raw != null && raw !== '') {
+        try {
+            const data = typeof raw === 'object' ? raw : JSON.parse(String(raw));
+            const years = data.years && typeof data.years === 'object' ? Object.keys(data.years) : [];
+            if (years.length) return false;
+        } catch {
+            /* weiter unten */
+        }
+    }
+    if (keys.length <= 2) return true;
+    if (raw == null || raw === '') return true;
+    return keys.length < 5;
+}
+
+/**
+ * Vergleicht lokales und SharePoint-Backup (Inhalt/Fingerabdruck/Schlüssel).
+ * @param {object|null|undefined} local
+ * @param {object|null|undefined} remote
+ */
+export function compareBackupPayloads(local, remote) {
+    const loc = local && typeof local === 'object' ? local : {};
+    const rem = remote && typeof remote === 'object' ? remote : {};
+    const locFp = String(loc.contentFingerprint || '').trim();
+    const remFp = String(rem.contentFingerprint || '').trim();
+    if (locFp && remFp && locFp === remFp) {
+        return {
+            identical: true,
+            newerSide: 'equal',
+            localExportedAt: loc.exportedAt || '',
+            remoteExportedAt: rem.exportedAt || '',
+            localSchool: String(loc.schoolName || loc.domain || '').trim(),
+            remoteSchool: String(rem.schoolName || rem.domain || '').trim(),
+            changedCount: 0,
+            onlyLocalCount: 0,
+            onlyRemoteCount: 0,
+            changedKeys: [],
+            onlyLocalKeys: [],
+            onlyRemoteKeys: []
+        };
+    }
+
+    const locAt = parseIsoMs(loc.exportedAt);
+    const remAt = parseIsoMs(rem.exportedAt);
+    let newerSide = 'unknown';
+    if (locAt && remAt) {
+        if (remAt > locAt) newerSide = 'remote';
+        else if (locAt > remAt) newerSide = 'local';
+        else newerSide = 'equal';
+    } else if (remAt) newerSide = 'remote';
+    else if (locAt) newerSide = 'local';
+
+    const locStore = loc.localStorage && typeof loc.localStorage === 'object' ? loc.localStorage : {};
+    const remStore = rem.localStorage && typeof rem.localStorage === 'object' ? rem.localStorage : {};
+    const locKeys = Object.keys(locStore);
+    const remKeys = Object.keys(remStore);
+    const remKeySet = {};
+    remKeys.forEach(function (k) {
+        remKeySet[k] = true;
+    });
+    const onlyLocal = locKeys.filter(function (k) {
+        return !remKeySet[k];
+    });
+    const onlyRemote = remKeys.filter(function (k) {
+        return locKeys.indexOf(k) === -1;
+    });
+    const changed = locKeys.filter(function (k) {
+        if (!remKeySet[k]) return false;
+        return stableStorageValue(locStore[k]) !== stableStorageValue(remStore[k]);
+    });
+
+    return {
+        identical: false,
+        newerSide: newerSide,
+        localExportedAt: loc.exportedAt || '',
+        remoteExportedAt: rem.exportedAt || '',
+        localSchool: String(loc.schoolName || loc.domain || '').trim(),
+        remoteSchool: String(rem.schoolName || rem.domain || '').trim(),
+        localKeyCount: locKeys.length,
+        remoteKeyCount: remKeys.length,
+        changedCount: changed.length,
+        onlyLocalCount: onlyLocal.length,
+        onlyRemoteCount: onlyRemote.length,
+        changedKeys: changed.sort(),
+        onlyLocalKeys: onlyLocal.sort(),
+        onlyRemoteKeys: onlyRemote.sort()
+    };
+}
+
+/**
+ * Text für Bestätigungsdialog (Deutsch).
+ * @param {ReturnType<typeof compareBackupPayloads>} cmp
+ * @param {{ remoteLastModified?: string }} [ctx]
+ */
+export function formatBackupCompareDe(cmp, ctx) {
+    const c = cmp || {};
+    const lines = [];
+    lines.push(
+        'Lokal: ' +
+            formatWhenDe(c.localExportedAt) +
+            (c.localSchool ? ' · ' + c.localSchool : '') +
+            (c.localKeyCount != null ? ' · ' + c.localKeyCount + ' Schlüssel' : '')
+    );
+    lines.push(
+        'SharePoint: ' +
+            formatWhenDe(c.remoteExportedAt) +
+            (c.remoteSchool ? ' · ' + c.remoteSchool : '') +
+            (c.remoteKeyCount != null ? ' · ' + c.remoteKeyCount + ' Schlüssel' : '')
+    );
+    if (ctx && ctx.remoteLastModified) {
+        lines.push('Datei auf SharePoint geändert: ' + formatWhenDe(ctx.remoteLastModified));
+    }
+    if (c.identical) {
+        lines.push('');
+        lines.push('Inhalt ist identisch (gleicher Fingerabdruck).');
+        return lines.join('\n');
+    }
+    lines.push('');
+    if (c.newerSide === 'remote') lines.push('Einschätzung: SharePoint-Stand wirkt aktueller.');
+    else if (c.newerSide === 'local') lines.push('Einschätzung: Lokaler Stand wirkt aktueller.');
+    else lines.push('Einschätzung: Zeitstempel unklar – bitte Inhalt prüfen.');
+
+    function listKeys(title, keys, total) {
+        if (!total) return;
+        lines.push('');
+        lines.push(title + ' (' + total + '):');
+        (keys || []).forEach(function (k) {
+            lines.push('  • ' + labelForStorageKey(k));
+        });
+        const shown = keys || [];
+        if (total > shown.length) {
+            lines.push('  … und ' + (total - shown.length) + ' weitere');
+        }
+    }
+    listKeys('Nur lokal', (c.onlyLocalKeys || []).slice(0, 15), c.onlyLocalCount);
+    listKeys('Nur auf SharePoint', (c.onlyRemoteKeys || []).slice(0, 15), c.onlyRemoteCount);
+    listKeys('Inhalt unterschiedlich', (c.changedKeys || []).slice(0, 25), c.changedCount);
+    return lines.join('\n');
+}
+
+/**
  * Quellen von ms365-tenant-settings-changed, die keinen Auto-Push auslösen sollen.
  * @param {string|undefined|null} sourceOrReason
  */
@@ -151,6 +408,7 @@ export function isAutoSyncIgnoredChangeSource(sourceOrReason) {
     if (!s) return false;
     return (
         s === 'browser-backup-import' ||
+        s === 'spo-backup-import' ||
         s === 'spo-auto-pull' ||
         s === 'spo-auto-push' ||
         s === 'render' ||
@@ -246,6 +504,13 @@ export default {
     entraGroupLogonName,
     buildItLibraryPlan,
     isItLibraryConfigured,
+    normalizeItLibraryMeta,
+    collectItLibraryLinkHints,
+    ENTRA_GUID_RE,
+    isLikelyFreshLocalBackup,
+    compareBackupPayloads,
+    formatBackupCompareDe,
+    storageKeyLabel,
     isAutoSyncIgnoredChangeSource,
     shouldApplyRemoteBackup,
     formatSyncStatusDe

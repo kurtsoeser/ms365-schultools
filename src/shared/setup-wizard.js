@@ -17,6 +17,8 @@ import {
     buildLinkedGroupSummaryHtml
 } from './setup-wizard-group-summary.js';
 import { createShowStep } from './setup-wizard-navigation.js';
+import { consumeWebuntisImportPayload } from './webuntis-stammdaten-import-handoff.js';
+import { mergeWebuntisImportWithExisting, summarizeWebuntisMergeResult } from './webuntis-stammdaten-wizard-logic.js';
 import './utils/strings.js';
 import './utils/school-year.js';
 
@@ -1156,7 +1158,7 @@ import './utils/school-year.js';
         if (tt && s && Array.isArray(s.teachers)) {
             tt.value = s.teachers
                 .map(function (t) {
-                    return [t.code || '', t.name || '', t.email || ''].filter(Boolean).join(';');
+                    return [t.code || '', t.name || '', t.email || ''].join(';');
                 })
                 .join('\n');
         }
@@ -1171,7 +1173,7 @@ import './utils/school-year.js';
         if (st && s && Array.isArray(s.students)) {
             st.value = s.students
                 .map(function (t) {
-                    return [t.klasse || '', t.name || '', t.email || ''].filter(Boolean).join(';');
+                    return [t.klasse || '', t.name || '', t.email || ''].join(';');
                 })
                 .join('\n');
         }
@@ -4134,7 +4136,7 @@ import './utils/school-year.js';
         if (!classes.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 6;
+            td.colSpan = 8;
             td.style.color = 'var(--muted)';
             td.innerHTML =
                 'Noch keine Klassen – oben einfügen, „+ Zeile“ oder in den <a href="tenant.html">Stammdaten</a> pflegen.';
@@ -4212,6 +4214,34 @@ import './utils/school-year.js';
                 });
             });
 
+            const tdHead = document.createElement('td');
+            tdHead.textContent = cl.headName || '';
+            tdHead.title = 'Doppelklick zum Bearbeiten';
+            tdHead.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdHead, cl.headName || '', function (next, meta) {
+                    const all = getSwClassesFromTextarea();
+                    if (!all[idx]) return renderClassesTable();
+                    const prev = all[idx].headName;
+                    all[idx].headName = meta && meta.cancelled ? prev : normStr(next);
+                    setSwClassesTextareaFromRows(all);
+                    renderClassesTable();
+                });
+            });
+
+            const tdHeadMail = document.createElement('td');
+            tdHeadMail.textContent = cl.headEmail || '';
+            tdHeadMail.title = 'Doppelklick zum Bearbeiten';
+            tdHeadMail.addEventListener('dblclick', function () {
+                wizardStartCellEdit(tdHeadMail, cl.headEmail || '', function (next, meta) {
+                    const all = getSwClassesFromTextarea();
+                    if (!all[idx]) return renderClassesTable();
+                    const prev = all[idx].headEmail;
+                    all[idx].headEmail = meta && meta.cancelled ? prev : normStr(next).toLowerCase();
+                    setSwClassesTextareaFromRows(all);
+                    renderClassesTable();
+                });
+            });
+
             const tdPrev = document.createElement('td');
             tdPrev.className = 'sw-smtp-preview';
             tdPrev.title =
@@ -4274,6 +4304,8 @@ import './utils/school-year.js';
             tr.appendChild(tdCode);
             tr.appendChild(tdYear);
             tr.appendChild(tdName);
+            tr.appendChild(tdHead);
+            tr.appendChild(tdHeadMail);
             tr.appendChild(tdPrev);
             tr.appendChild(tdM365);
             tr.appendChild(tdAct);
@@ -5392,6 +5424,61 @@ import './utils/school-year.js';
                 }
                 toast('Einrichtung abgeschlossen (lokal gespeichert).');
             });
+
+        function applySwWebuntisImportPayload(payload) {
+            if (!payload) return;
+            const tTa = document.getElementById('swTeachersLines');
+            const sTa = document.getElementById('swStudentsLines');
+            const subTa = document.getElementById('swSubjectsBulk');
+            const clTa = document.getElementById('swClassesBulk');
+            const merged = mergeWebuntisImportWithExisting(
+                {
+                    teachersLines: tTa ? tTa.value : '',
+                    studentsLines: sTa ? sTa.value : '',
+                    subjectsLines: subTa ? subTa.value : '',
+                    classesLines: clTa ? clTa.value : ''
+                },
+                payload,
+                {
+                    webuntis: window.ms365WebuntisExportImport,
+                    schoolSis: window.ms365SchoolSisImport,
+                    parseTeachersLines: window.ms365TenantSettingsParseTeachersLines,
+                    parseStudentsLines: window.ms365TenantSettingsParseStudentsLines,
+                    parseSubjectsLines: window.ms365TenantSettingsParseSubjectsLines,
+                    parseClassesLines: window.ms365TenantSettingsParseClassesLines
+                }
+            );
+            const lines = merged.lines || {};
+            if (tTa && lines.teachersLines != null) {
+                tTa.value = lines.teachersLines;
+                swTeachersSortState.key = null;
+                swTeachersSortState.dir = 1;
+                renderSwTeachersTableFromTextarea();
+            }
+            if (sTa && lines.studentsLines != null) {
+                sTa.value = lines.studentsLines;
+                swStudentsSortState.key = null;
+                swStudentsSortState.dir = 1;
+                renderSwStudentsTableFromTextarea();
+            }
+            if (subTa && lines.subjectsLines != null) {
+                subTa.value = lines.subjectsLines;
+                fillCatalogSlice('subject');
+            }
+            if (clTa && lines.classesLines != null) {
+                clTa.value = lines.classesLines;
+                renderClassesTable();
+            }
+            const sis = window.ms365SchoolSisImport;
+            toast(
+                'WebUntis mit bestehenden Daten abgeglichen: ' +
+                    summarizeWebuntisMergeResult(merged.stats, merged.studentDiff, sis || {}) +
+                    ' – Einrichtung lokal speichern.'
+            );
+        }
+
+        const pendingWu = consumeWebuntisImportPayload();
+        if (pendingWu) applySwWebuntisImportPayload(pendingWu);
     }
 
     function init() {

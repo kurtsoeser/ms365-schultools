@@ -11,7 +11,9 @@
  *   fach: string,
  *   gruppe: string,
  *   teamName: string,
- *   gruppenmail: string
+ *   gruppenmail: string,
+ *   graphGroupId?: string,
+ *   linkedAt?: string
  * }} UnterrichtsbelegungRow
  */
 
@@ -63,7 +65,9 @@ export function rowFromTeamEntry(team) {
         lehrerCode = normCode(local);
     }
 
-    return {
+    const graphGroupId = normStr(team.graphGroupId);
+    const linkedAt = normStr(team.linkedAt);
+    const out = {
         klasse,
         lehrerCode,
         lehrerEmail,
@@ -72,6 +76,9 @@ export function rowFromTeamEntry(team) {
         teamName,
         gruppenmail
     };
+    if (graphGroupId) out.graphGroupId = graphGroupId;
+    if (linkedAt) out.linkedAt = linkedAt;
+    return out;
 }
 
 /**
@@ -151,6 +158,8 @@ export function normalizeBelegungSnapshot(raw) {
                   gruppe: r.gruppe,
                   teamName: r.teamName,
                   gruppenmail: r.gruppenmail,
+                  graphGroupId: r.graphGroupId,
+                  linkedAt: r.linkedAt,
                   isValid: true
               }))
             : []

@@ -121,6 +121,7 @@ ns.updateUnterrichtsbelegungHint = function updateUnterrichtsbelegungHint() {
               }
           })()
         : '';
+    const linked = (snap.rows || []).filter((r) => r && String(r.graphGroupId || '').trim()).length;
     el.hidden = false;
     el.textContent =
         'App-Unterrichtsbelegung: ' +
@@ -128,6 +129,7 @@ ns.updateUnterrichtsbelegungHint = function updateUnterrichtsbelegungHint() {
         ' Einträge · ' +
         s.classes +
         ' Klassen' +
+        (linked ? ' · ' + linked + ' mit M365-Verknüpfung' : '') +
         (s.yearPrefix ? ' · ' + s.yearPrefix : '') +
         (when ? ' · Stand ' + when : '') +
         ' (wird im Browser-Backup mitexportiert).';

@@ -478,7 +478,7 @@
         title: 'Freistellungen (KV + Direktion)',
         href: 'freistellung-setup.html',
         icon: 'bi-person-check',
-        summary: 'Liste + parametrierbares Flow-Paket für Ziel-Tenants.'
+        summary: 'Liste + Flow-Paket. Ablauf erklärt: freistellung-konzept.html'
     };
 
     function getById(id) {

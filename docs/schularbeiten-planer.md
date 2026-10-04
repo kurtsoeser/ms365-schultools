@@ -36,7 +36,7 @@ Lehrer / Admin ──MSAL──► Schularbeiten-Planer (ms365-schultools)
 | Datenhaltung | SharePoint-Listen auf Intranet-Site |
 | Stammdaten | **Wiederverwenden** – keine Listen `Klassen` / `Lehrer` / `Faecher` als Lookup-Ziele |
 | Referenzen | Text-Codes: `FachCode`, `KlasseCode`, `LehrerCode` (+ optional E-Mail/User) |
-| Rollen | Entra-Gruppen `Schularbeiten-Lehrer` / `Schularbeiten-Admin` / optional `Schularbeiten-Schüler` (Demo-Umschalter nur Dev) |
+| Rollen | Entra-Gruppen `Schularbeiten-Lehrer` / `Schularbeiten-Admin` / optional `Schularbeiten-Schüler`; **Entra Global Administrator** erhält immer Planer-Admin (Graph `RoleManagement.Read.Directory`) |
 | Backend | Kein eigenes Azure für CRUD; delegiertes Graph wie bei Schulterminen |
 | SPFx / Power Apps | Nicht als Primär-UI |
 | Kalender-Sync | Optional: bei Status `fixiert` Eintrag in `Schultermine` (Kategorie Prüfung) oder PA-Flow |
@@ -73,9 +73,20 @@ Voraussetzung für sinnvollen Betrieb: Stammdaten in `tenant.html` gepflegt (wie
 
 ### 4.2 SharePoint-Listen (neu)
 
-Anlegen nur auf der **Intranet-Website** (URL aus Setup / `intranetSiteUrl` wenn gesetzt).
+Anlegen auf der **Administrations-Site** (empfohlen) oder Intranet-URL aus Setup.
 
-Reihenfolge: `Regelwerk` → `Terminfenster` → `Schularbeiten` (keine Lookup-Abhängigkeit; Reihenfolge egal, empfohlen so).
+**Namenskonvention (Präfix `SAP` = Schularbeiten-Planer):**
+
+| Liste | Zweck |
+|-------|--------|
+| `SAP-Regelwerk` | Max/Tag, Fristen, Sperre Notenkonferenz |
+| `SAP-Terminfenster` | erlaubt/gesperrt je Zeitraum |
+| `SAP-Schularbeiten` | Anträge und Termine |
+| `SAP-FachMeta` | optional Farbe, Kontingent, Dauer |
+
+Beim Setup werden **Legacy-Namen** (`Regelwerk`, `Terminfenster`, `Schularbeiten`, `SA-FachMeta`) erkannt und per Graph in die SAP-Namen **umbenannt**; fehlende Spalte `Schuljahr` wird ergänzt.
+
+**Mehrere Schuljahre:** Einmalige Site-Einrichtung; im Planer wählt man das Schuljahr (Dropdown). Neue Einträge erhalten `Schuljahr` (z. B. `2026/27`). Alte Zeilen ohne Spalte werden für die Filterung aus dem **Datum** abgeleitet (Schuljahr ab 1. September). Klassen, Fächer und Lehrer kommen weiter aus den Stammdaten – pro Jahr können Codes wechseln, ohne die Listen neu anzulegen.
 
 ---
 
@@ -83,7 +94,7 @@ Reihenfolge: `Regelwerk` → `Terminfenster` → `Schularbeiten` (keine Lookup-A
 
 Spalten-Definitionen im Graph-Format analog `sharepoint-liste-schultermine.js` (`text`, `number`, `boolean`, `dateTime`, `choice`).
 
-### 5.1 Liste `Regelwerk`
+### 5.1 Liste `SAP-Regelwerk`
 
 | Interner Name | Display | Graph-Typ | Bemerkung |
 |---------------|---------|-----------|-----------|
@@ -93,11 +104,12 @@ Spalten-Definitionen im Graph-Format analog `sharepoint-liste-schultermine.js` (
 | MaxProWoche | Max. pro Woche | number, default 2 | |
 | AnkuendigungsfristTage | Ankündigungsfrist (Tage) | number, default 7 | |
 | SperreVorNotenkonferenzTage | Sperre vor Notenkonferenz | number, default 7 | |
-| Aktiv | Aktiv | boolean, default true | genau ein aktiver Satz empfohlen |
+| Aktiv | Aktiv | boolean, default true | genau ein aktiver Satz pro Schuljahr empfohlen |
+| Schuljahr | Schuljahr | text | z. B. `2026/27` |
 
-**Seed beim Setup:** ein Eintrag „Standard HAK Regelwerk“ mit Defaults.
+**Seed beim Setup:** ein Eintrag „Standard HAK Regelwerk“ mit Defaults und aktuellem Schuljahr.
 
-### 5.2 Liste `Terminfenster`
+### 5.2 Liste `SAP-Terminfenster`
 
 | Interner Name | Display | Graph-Typ | Bemerkung |
 |---------------|---------|-----------|-----------|
@@ -107,18 +119,22 @@ Spalten-Definitionen im Graph-Format analog `sharepoint-liste-schultermine.js` (
 | Startdatum | Startdatum | dateTime dateOnly | |
 | Enddatum | Enddatum | dateTime dateOnly | inklusiv |
 | Beschreibung | Beschreibung | text multiline | |
+| Schuljahr | Schuljahr | text | Fenster gilt für dieses Schuljahr |
 
-### 5.3 Liste `Schularbeiten`
+### 5.3 Liste `SAP-Schularbeiten`
 
 | Interner Name | Display | Graph-Typ | Bemerkung |
 |---------------|---------|-----------|-----------|
-| Title | Thema | (Standard) | |
+| Title | Titel (Liste) | (Standard) | Automatisch: `Schularbeit - {Fach} - {Klasse}` |
+| Titel | Titel | text | Bezeichnung der Schularbeit (Import/Formular) |
+| Thema | Thema | text multiline | Optional: inhaltliches Thema |
 | SchularbeitId | Schularbeit-ID | text, unique/indexed | Client-generiert (`sa-` + UUID-kurz) |
 | FachCode | Fach-Code | text, indexed | = `subjects[].code` |
 | KlasseCode | Klasse-Code | text, indexed | = `classes[].code` |
 | LehrerCode | Lehrer-Kürzel | text, indexed | = `teachers[].code` |
 | LehrerEmail | Lehrer-E-Mail | text | für Filter „meine“ ohne Code-Match |
 | Datum | Datum | dateTime dateOnly, indexed | |
+| BeginnUhrzeit | Beginn (Uhrzeit) | text `HH:mm` | Ende wird im Planer aus **DauerMinuten** berechnet (nicht in SP gespeichert) |
 | DauerMinuten | Dauer (Min.) | number, default 100 | 50–300 |
 | Semester | Semester | choice: `WS`, `SS` | |
 | Status | Status | choice: `beantragt`, `fixiert`, `abgelehnt` | default `beantragt` |
@@ -127,10 +143,11 @@ Spalten-Definitionen im Graph-Format analog `sharepoint-liste-schultermine.js` (
 | BeantragtVon | Beantragt von | text (UPN) oder später User-Feld | MVP: Text UPN |
 | FixiertVon | Fixiert von | text (UPN) | |
 | FixiertAm | Fixiert am | dateTime | |
+| Schuljahr | Schuljahr | text | Pflicht für Mehrjahresbetrieb (Import setzt mit) |
 
 **Kein Lookup** auf andere Listen. Anzeige-Namen (Fach/Klasse/Lehrer) zur Laufzeit aus Stammdaten joinen.
 
-### 5.4 Optional später: `SA-FachMeta`
+### 5.4 Optional: `SAP-FachMeta`
 
 Nur wenn Farbe / Kontingent / Standarddauer nicht in Stammdaten sollen:
 
@@ -198,12 +215,18 @@ Rollenauflösung MVP:
 
 ### 7.2 SharePoint (Empfehlung an die Schule)
 
-| Liste | Lehrer-Gruppe | Admin-Gruppe | Schüler (optional) |
-|-------|---------------|--------------|--------------------|
-| Regelwerk, Terminfenster | Lesen | Bearbeiten | Lesen oder kein Zugriff |
-| Schularbeiten | Beitragen; Elementbearbeitung „nur eigene“ | Vollzugriff | Nur Lesen (idealerweise gefilterte Ansicht / nur fixiert) |
+**Site:** Planungslisten auf einer **Administrations-Site** (z. B. `/sites/administration`), nicht auf dem öffentlichen Intranet.
 
-Durchsetzung „nur eigene bis beantragt“ und „Schüler nur fixiert + Klasse“ zusätzlich in der App.
+**Provisioning:** Tool „Schularbeiten-Listen“ oder Planer → Administration → **SharePoint-Berechtigungen** setzen Entra-Gruppen und brechen die Vererbung pro Liste (breite Site-Besucher/Mitglieder werden entfernt). Voraussetzung für die ausführende Person: `Sites.FullControl.All`.
+
+| Liste | Verwaltung | Lehrer-Gruppe | Schüler-Gruppe |
+|-------|------------|---------------|----------------|
+| **Schularbeiten** | Vollzugriff | Beitragen | Lesen |
+| Regelwerk, Terminfenster, SA-FachMeta | Vollzugriff | Lesen | *(kein Zugriff)* |
+
+Gruppennamen (Anzeigename, Mail oder Objekt-ID) werden in `localStorage` (`ms365-schularbeiten-perms-v1`) geteilt zwischen Setup-Tool und Planer.
+
+Durchsetzung „nur eigene bis beantragt“ und „Schüler nur fixiert + Klasse“ zusätzlich in der App (SharePoint „nur eigene Elemente“ optional manuell in den Listen-Einstellungen).
 
 ---
 
@@ -297,7 +320,7 @@ Globale Filterleiste: Klasse, Fach, Lehrer, Status (wirkt auf Kalender/Listen/Ex
 **T2.2** ✅ Vitest: Tag/Woche/Frist/Sperrfenster/Warnung nach Sperrzeit  
 **T2.3** ✅ Graph-CRUD: Items lesen/schreiben/patchen/löschen  
 **T2.4** ✅ Join Stammdaten ↔ Codes (Label-Resolver)  
-**T2.5** ✅ Rollenauflösung (Demo-Flag; Entra-Gruppen später)  
+**T2.5** ✅ Rollenauflösung (Entra-Gruppen aus Administration; Demo mit `?demoRole=1`)  
 
 **Fertig wenn:** Tests grün; manuell Item in Liste anlegbar über Graph-Hilfsfunktion.
 
@@ -362,7 +385,7 @@ Globale Filterleiste: Klasse, Fach, Lehrer, Status (wirkt auf Kalender/Listen/Ex
 - SPFx-Webpart  
 - Admin-Override bei Regelverstößen  
 - Automatischer Import aus WebUntis/Stundenplan  
-- Entra-Gruppenauflösung produktiv (Demo-Umschalter vorhanden)  
+- ~~Entra-Gruppenauflösung produktiv~~ (umgesetzt; Dev: `?demoRole=1` für Demo-Umschalter)  
 
 ---
 
@@ -395,7 +418,6 @@ Globale Filterleiste: Klasse, Fach, Lehrer, Status (wirkt auf Kalender/Listen/Ex
 
 MVP inkl. Phase 5 und Schüler-Ansicht (Demo) ist im Repo umgesetzt. Optional später:
 
-- Entra-Gruppen statt Demo-Rollen-Umschalter (inkl. `Schularbeiten-Schüler`)  
 - Konflikt-KPI-Drilldown  
 - Automatische Wochenverteilung als Export-Grafik  
 

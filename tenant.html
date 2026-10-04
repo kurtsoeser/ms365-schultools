@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Stammdaten</title>
-    <link rel="stylesheet" href="app.css?v=12">
+    <link rel="stylesheet" href="app.css?v=13">
+    <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -412,6 +413,77 @@
             font-size: 1em;
             color: var(--heading);
         }
+
+        .dash-access-matrix {
+            margin: 20px 0 0;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--card);
+        }
+        .dash-access-matrix__head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .dash-access-matrix__head h3 {
+            margin: 0 0 6px;
+            font-size: 1.05em;
+            color: var(--heading);
+        }
+        .dash-access-matrix__lead {
+            margin: 0;
+            max-width: 52em;
+            font-size: 0.9em;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+        .dash-access-matrix__scroll {
+            overflow: auto;
+            max-height: min(62vh, 520px);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .dash-access-matrix__table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        .dash-access-matrix__table th,
+        .dash-access-matrix__table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .dash-access-matrix__table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--soft, #f8f9fa);
+            z-index: 1;
+        }
+        .dash-access-matrix__cell {
+            text-align: center;
+            width: 6rem;
+        }
+        .dash-access-planner {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 0.72em;
+            font-weight: 700;
+            background: color-mix(in srgb, var(--brand1, #0d6efd) 12%, transparent);
+            color: var(--brand1, #0d6efd);
+            vertical-align: middle;
+        }
+        .dash-access-matrix__note {
+            margin: 10px 0 0;
+            font-size: 0.82em;
+            color: var(--muted);
+        }
     </style>
 </head>
 <body data-ms365-skip-tenant-domain-prompt="true">
@@ -426,8 +498,10 @@
             <p class="header-help-row"><a href="hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                        <a class="btn" href="einrichtung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-signpost-2"></i>Geführte Einrichtung</a>
+                        <a class="btn btn-primary" href="tools/webuntis-stammdaten-import.html?from=tenant" title="Student, LegalGuardian, Teacher, Subject-PDF, Klassen-PDF gesammelt importieren"><i class="bi bi-box-arrow-in-down"></i>Import von WebUntis …</a>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
                         <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
@@ -477,6 +551,7 @@
                             <button type="button" class="tab-btn" id="tabMainSchuelervertretung" role="tab" aria-selected="false" aria-controls="panelStudentCouncilData"><i class="bi bi-megaphone" aria-hidden="true"></i>Schülervertretung</button>
                             <button type="button" class="tab-btn" id="tabMainVerwaltung" role="tab" aria-selected="false" aria-controls="panelMainVerwaltung"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</button>
                             <button type="button" class="tab-btn" id="tabMainSga" role="tab" aria-selected="false" aria-controls="panelMainSga"><i class="bi bi-megaphone" aria-hidden="true"></i>SGA</button>
+                            <button type="button" class="tab-btn" id="tabMainIntranet" role="tab" aria-selected="false" aria-controls="panelMainIntranet"><i class="bi bi-cloud" aria-hidden="true"></i>Intranet-Listen</button>
                             <button type="button" class="tab-btn" id="tabMainWerkzeuge" role="tab" aria-selected="false" aria-controls="panelMainWerkzeuge"><i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Werkzeuge</button>
                         </div>
 
@@ -495,36 +570,45 @@
                                     Wird für Vorschauen und automatische E-Mail-Erzeugung genutzt (z. B. <code>Kürzel@domain</code>).
                                 </small>
                             </div>
+                            <div class="field" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface-muted);">
+                                <p style="margin:0 0 10px;line-height:1.5;"><strong>WebUntis-Import</strong> – Schüler (<code>Student_*.csv</code>), Eltern (<code>LegalGuardian_*.csv</code>), Lehrer, Fächer-PDF und Klassen-PDF in einem Schritt hochladen, prüfen und übernehmen.</p>
+                                <a class="btn btn-primary" href="tools/webuntis-stammdaten-import.html?from=tenant"><i class="bi bi-box-arrow-in-down"></i>Import von WebUntis starten …</a>
+                            </div>
                         </div>
 
                             <div id="panelMainSubjects" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSubjects">
                             <div class="field">
-                                <label for="tenantSubjectsLines">Fächerliste (eine Zeile pro Fach)</label>
+                                <label for="tenantSubjectsLines">Fachgruppen / Fächerliste (eine Zeile pro Fachgruppe)</label>
                                 <textarea id="tenantSubjectsLines" placeholder="D;Deutsch&#10;M;Mathematik&#10;E;Englisch"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Name</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Wie <a href="einrichtung.html">Einrichtung</a> Schritt 6. Zeilen mit <code>#</code> am Anfang werden ignoriert.
+                                    Format: <code>Kürzel;Name</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Entspricht den <strong>Fachgruppen</strong> in <a href="tools/arge-fachgruppen.html">ARGE &amp; Fachgruppen</a> und der <a href="einrichtung.html">Einrichtung</a> Schritt 6. Zeilen mit <code>#</code> am Anfang werden ignoriert.
                                 </small>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <label class="btn" for="tenantSubjectsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantSubjectsImportFile" accept=".csv,.xlsx,.xls">
+                                    <button type="button" class="btn" id="tenantSubjectsImportM365" title="Entra-Gruppen suchen (z. B. fach-, fachgruppe-) und als Fachgruppe mit Verknüpfung übernehmen"><i class="bi bi-microsoft"></i>Aus Microsoft 365 übernehmen</button>
                                     <button type="button" class="btn" id="tenantSubjectsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Fächerliste als Tabelle" style="margin-top:12px;">
                                     <table class="teachers-table" aria-label="Fächerliste (editierbar per Doppelklick)">
                                         <thead>
                                             <tr>
-                                                <th>Kürzel</th>
-                                                <th>Name</th>
+                                                <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Kürzel sortieren (übernimmt die Reihenfolge ins Textfeld)">Kürzel</th>
+                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (übernimmt die Reihenfolge ins Textfeld)">Name</th>
+                                                <th>M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tenantSubjectsTableBody">
-                                            <tr><td colspan="3" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <button type="button" class="btn btn-success" id="tenantSubjectsAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                    <button type="button" class="btn" id="tenantBtnEnrichSubjects" title="Fehlende Fächer aus Unterrichtsteams/Belegung, ARGE, Schulstruktur und Legacy-Speicher ergänzen (nichts löschen)">
+                                        <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Fächer ergänzen
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -539,20 +623,22 @@
                                 <div class="settings-actions" style="margin-top:10px;">
                                     <label class="btn" for="tenantArgesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
                                     <input type="file" id="tenantArgesImportFile" accept=".csv,.xlsx,.xls">
+                                    <button type="button" class="btn" id="tenantArgesImportM365" title="Entra-Gruppen suchen (z. B. arge-, fg-, ag-) und als ARGE mit Verknüpfung übernehmen"><i class="bi bi-microsoft"></i>Aus Microsoft 365 übernehmen</button>
                                     <button type="button" class="btn" id="tenantArgesTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="ARGE-Liste als Tabelle" style="margin-top:12px;">
                                     <table class="teachers-table" aria-label="ARGE-Liste (editierbar per Doppelklick)">
                                         <thead>
                                             <tr>
-                                                <th>Kürzel</th>
-                                                <th>Bezeichnung</th>
-                                                <th>Fächer (Zuordnung)</th>
+                                                <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Kürzel sortieren (übernimmt die Reihenfolge ins Textfeld)">Kürzel</th>
+                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Bezeichnung sortieren (übernimmt die Reihenfolge ins Textfeld)">Bezeichnung</th>
+                                                <th class="is-sortable" data-sort-key="subjects" tabindex="0" title="Nach Fachzuordnung sortieren (übernimmt die Reihenfolge ins Textfeld)">Fächer (Zuordnung)</th>
+                                                <th>M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tenantArgesTableBody">
-                                            <tr><td colspan="4" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -592,10 +678,10 @@
                                     <table class="teachers-table" aria-label="Verwaltung" style="min-width:920px;">
                                         <thead>
                                             <tr>
-                                                <th>Bezeichnung</th>
-                                                <th>Kürzel</th>
-                                                <th>Person</th>
-                                                <th>E-Mail</th>
+                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Bezeichnung sortieren (übernimmt die Reihenfolge ins Textfeld)">Bezeichnung</th>
+                                                <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Kürzel sortieren (übernimmt die Reihenfolge ins Textfeld)">Kürzel</th>
+                                                <th class="is-sortable" data-sort-key="personName" tabindex="0" title="Nach Person sortieren (übernimmt die Reihenfolge ins Textfeld)">Person</th>
+                                                <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
                                                 <th title="Microsoft-365-Abgleich">M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
@@ -667,9 +753,9 @@
                                     <table class="teachers-table" aria-label="SGA-Mitglieder (editierbar per Doppelklick)">
                                         <thead>
                                             <tr>
-                                                <th>Gruppe</th>
-                                                <th>Name</th>
-                                                <th>E-Mail</th>
+                                                <th class="is-sortable" data-sort-key="scope" tabindex="0" title="Nach Gruppe sortieren (übernimmt die Reihenfolge ins Textfeld)">Gruppe</th>
+                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (übernimmt die Reihenfolge ins Textfeld)">Name</th>
+                                                <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
                                                 <th>M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
@@ -985,9 +1071,9 @@
                                         <table class="teachers-table" aria-label="Schülervertretung (editierbar per Doppelklick)">
                                             <thead>
                                                 <tr>
-                                                    <th>Klasse</th>
-                                                    <th>Name</th>
-                                                    <th>E-Mail</th>
+                                                    <th class="is-sortable" data-sort-key="klasse" tabindex="0" title="Nach Klasse sortieren (übernimmt die Reihenfolge ins Textfeld)">Klasse</th>
+                                                    <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (übernimmt die Reihenfolge ins Textfeld)">Name</th>
+                                                    <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
                                                     <th>M365</th>
                                                     <th class="action-cell">Aktion</th>
                                                 </tr>
@@ -1023,17 +1109,18 @@
                                     <label class="btn" style="cursor:pointer;font-weight:600;">
                                         <input type="checkbox" id="tenantClassesSkipNoKv" checked style="margin-right:6px;">Nur mit Klassenvorstand
                                     </label>
+                                    <button type="button" class="btn" id="tenantClassesImportM365" title="Entra-Gruppen suchen (z. B. jg-, klasse-) und als Klassen mit M365-Verknüpfung übernehmen"><i class="bi bi-microsoft"></i>Aus Microsoft 365 übernehmen</button>
                                     <button type="button" class="btn" id="tenantClassesTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Klassenliste als Tabelle">
                                     <table class="teachers-table" aria-label="Klassenliste (editierbar per Doppelklick)">
                                         <thead>
                                             <tr>
-                                                <th>Abkürzung</th>
-                                                <th>Abschlussjahr</th>
-                                                <th>Klasse</th>
-                                                <th>Klassenvorstand</th>
-                                                <th>E-Mail</th>
+                                                <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Abkürzung sortieren (übernimmt die Reihenfolge ins Textfeld)">Abkürzung</th>
+                                                <th class="is-sortable" data-sort-key="year" tabindex="0" title="Nach Abschlussjahr sortieren (übernimmt die Reihenfolge ins Textfeld)">Abschlussjahr</th>
+                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Klassenname sortieren (übernimmt die Reihenfolge ins Textfeld)">Klasse</th>
+                                                <th class="is-sortable" data-sort-key="headName" tabindex="0" title="Nach Klassenvorstand sortieren (übernimmt die Reihenfolge ins Textfeld)">Klassenvorstand</th>
+                                                <th class="is-sortable" data-sort-key="headEmail" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
                                                 <th title="Klassengruppe in Microsoft 365">M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
@@ -1048,12 +1135,25 @@
                                     <button type="button" class="btn btn-primary" id="tenantBtnVerifyClassesGraph" title="Klassengruppen in Microsoft 365 prüfen">
                                         <i class="bi bi-microsoft" aria-hidden="true"></i> Klassengruppen prüfen (Bulk)
                                     </button>
+                                    <button type="button" class="btn" id="tenantBtnEnrichClassesFromGroups" title="Abschlussjahr und Klassenvorstand aus verknüpften Klassengruppen und anderen Schuljahren ergänzen">
+                                        <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Aus Klassengruppen ergänzen
+                                    </button>
                                 </div>
                             </div>
 
                         </div>
 
+                    <div id="panelMainIntranet" class="tab-panel" role="tabpanel" aria-labelledby="tabMainIntranet">
+                        <p class="tile-subtitle" style="margin:0 0 12px;">Nach dem Pflegen der Stammdaten: SharePoint-Listen auf der Schulwebsite anlegen oder aktualisieren (Abgleich, Personenfelder, Entra-Gruppen-Rechte).</p>
+                        <div data-ms365-intranet-listen-mount data-mount-prefix="tsdSpo"></div>
+                    </div>
+
                     <div id="panelMainWerkzeuge" class="tab-panel" role="tabpanel" aria-labelledby="tabMainWerkzeuge">
+                        <p class="tile-subtitle" style="margin:0 0 12px;">
+                            Dashboard-Lehrer-/Schüler-Gruppen und Werkzeug-Kacheln:
+                            <a href="dashboard-werkzeug-zugriff.html"><strong>Dashboard-Werkzeug-Zugriff</strong></a>
+                            (nur Global Administratorinnen/Administratoren).
+                        </p>
                         <div class="tile-head">
                             <h3 class="tile-title">Weitere Werkzeuge</h3>
                             <p class="tile-subtitle">Quellen, Tools und das aktive Schuljahr.</p>
@@ -1118,22 +1218,37 @@
     <script src="src/shared/webuntis-export-import.js" defer></script>
     <script src="src/shared/school-sis-import.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>
-    <script src="src/shared/demo-mode.js" defer></script>
     <script src="src/shared/action-log.js" defer></script>
     <script src="src/shared/tenant-settings-core.js" defer></script>
     <script src="src/shared/graph-rename-preview.js" defer></script>
     <script type="module" src="src/shared/utils/strings.js"></script>
     <script type="module" src="src/shared/utils/school-year.js"></script>
+    <script type="module" src="src/shared/dashboard-persona-session.js"></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
-    <script src="src/shared/theme-toggle.js" defer></script>
+    <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script type="module" src="src/shared/graph-unified-groups.js"></script>
     <script type="module" src="src/shared/teacher-tenant-import-ui.js"></script>
     <script type="module" src="src/shared/student-class-lifecycle.js"></script>
-    <script src="src/shared/demo-mode.js" defer></script>
     <script src="src/shared/empty-state-ui.js" defer></script>
+    <script type="module">
+        import {
+            subjectCatalogShrinkReport,
+            formatSubjectCatalogShrinkConfirmDe,
+            subjectsFromImportPayload
+        } from './src/shared/subject-list-enrich.js';
+        window.ms365SubjectCatalogShrinkReport = subjectCatalogShrinkReport;
+        window.ms365FormatSubjectCatalogShrinkConfirm = formatSubjectCatalogShrinkConfirmDe;
+        window.ms365SubjectsFromImportPayload = subjectsFromImportPayload;
+    </script>
     <script type="module" src="src/shared/tenant-settings-ui.js"></script>
+    <script type="module">
+        import { mountSchoolItAccessGate } from './src/shared/school-it-access-gate.js';
+        mountSchoolItAccessGate({ redirectTo: 'index.html' });
+    </script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
+    <script src="src/tools/sharepoint/sharepoint-liste-stammdaten.js" defer></script>
+    <script type="module" src="src/shared/stammdaten-intranet-listen-ui.js"></script>
     <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script>
         (function () {
@@ -1290,6 +1405,7 @@
                     { btn: 'tabMainSchueler', panel: 'panelStudentsData' },
                     { btn: 'tabMainSchuelervertretung', panel: 'panelStudentCouncilData' },
                     { btn: 'tabMainKlassen', panel: 'panelMainKlassen' },
+                    { btn: 'tabMainIntranet', panel: 'panelMainIntranet' },
                     { btn: 'tabMainWerkzeuge', panel: 'panelMainWerkzeuge' }
                 ],
                 'tabMainStammdaten',

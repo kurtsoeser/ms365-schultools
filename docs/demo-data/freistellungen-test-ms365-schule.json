@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "schoolYear": "2025/26",
+  "seedTag": "fr-test-ms365-v1",
+  "siteUrl": "",
+  "title": "Freistellungen Testpaket ms365.schule (10 Anträge)",
+  "readme": "Import im Planer: Testdaten JSON. KV-E-Mails müssen in SharePoint als Personen bekannt sein (Site einmal öffnen / User anlegen). Klasse 4A hat KV direktion@ms365.schule für Sonderfall-Tests. Flow vor Seed pausieren, sonst starten Approvals bei neuen Ausstehend-Zeilen.",
+  "stammdaten": {
+    "schoolName": "MS365 Schule Test",
+    "domain": "ms365.schule",
+    "classes": [
+      {
+        "code": "3A",
+        "name": "3A",
+        "year": 3,
+        "headName": "Mag. KV Lehmann",
+        "headEmail": "kv.lehmann@ms365.schule"
+      },
+      {
+        "code": "4A",
+        "name": "4A",
+        "year": 4,
+        "headName": "Schulleitung",
+        "headEmail": "direktion@ms365.schule"
+      },
+      {
+        "code": "5A",
+        "name": "5A",
+        "year": 5,
+        "headName": "Mag. KV Weiss",
+        "headEmail": "kv.weiss@ms365.schule"
+      }
+    ],
+    "teachers": [
+      { "code": "DIR", "name": "Schulleitung", "email": "direktion@ms365.schule" },
+      { "code": "LEH", "name": "Mag. KV Lehmann", "email": "kv.lehmann@ms365.schule" },
+      { "code": "WEI", "name": "Mag. KV Weiss", "email": "kv.weiss@ms365.schule" }
+    ]
+  },
+  "counts": {
+    "hinweis": "7 Ausstehend (Flow-Tests), 2 Genehmigt, 1 Abgelehnt"
+  },
+  "freistellungen": [
+    {
+      "Title": "Anna Test (3A)",
+      "Beginn": "2026-10-15",
+      "Ende": "2026-10-15",
+      "Status": "Ausstehend",
+      "Klasse": "3A",
+      "Kategorie": "Ärztlicher Termin",
+      "Beschreibung": "Flow-Test 1 Tag nur KV · fr-test-ms365-v1 · id:fr-test-01 · Zahnarzt",
+      "Bemerkungen": "Szenario: TageAnzahl=1, KV≠Direktion → Basic an kv.lehmann",
+      "_demoId": "fr-test-01",
+      "_kvEmail": "kv.lehmann@ms365.schule",
+      "_kvName": "Mag. KV Lehmann",
+      "_authorEmail": "anna.test@ms365.schule",
+      "_scenario": "offen-1tag-kv"
+    },
+    {
+      "Title": "Ben Test (3A)",
+      "Beginn": "2026-10-20",
+      "Ende": "2026-10-22",
+      "Status": "Ausstehend",
+      "Klasse": "3A",
+      "Kategorie": "Familiäre Angelegenheit",
+      "Beschreibung": "Flow-Test mehrtägig · fr-test-ms365-v1 · id:fr-test-02 · Familienbesuch",
+      "Bemerkungen": "Szenario: 3 Tage → Sequential KV dann direktion@ms365.schule",
+      "_demoId": "fr-test-02",
+      "_kvEmail": "kv.lehmann@ms365.schule",
+      "_kvName": "Mag. KV Lehmann",
+      "_authorEmail": "ben.test@ms365.schule",
+      "_scenario": "offen-mehrtagig"
+    },
+    {
+      "Title": "Clara Test (4A)",
+      "Beginn": "2026-10-18",
+      "Ende": "2026-10-18",
+      "Status": "Ausstehend",
+      "Klasse": "4A",
+      "Kategorie": "Sonstiges",
+      "Beschreibung": "Flow-Test KV=Direktion · fr-test-ms365-v1 · id:fr-test-03",
+      "Bemerkungen": "Szenario: Klassenvorstand=direktion@ms365.schule → Sondergenehmigung",
+      "_demoId": "fr-test-03",
+      "_kvEmail": "direktion@ms365.schule",
+      "_kvName": "Schulleitung",
+      "_authorEmail": "clara.test@ms365.schule",
+      "_scenario": "offen-kv-gleich-direktion"
+    },
+    {
+      "Title": "David Test (5A)",
+      "Beginn": "2026-10-16",
+      "Ende": "2026-10-17",
+      "Status": "Ausstehend",
+      "Klasse": "5A",
+      "Kategorie": "Bewerbung / Schnuppertag",
+      "Beschreibung": "Flow-Test genau 2 Tage · fr-test-ms365-v1 · id:fr-test-04 · Schnuppertag",
+      "Bemerkungen": "Szenario: TageAnzahl=2 → mehrtägig (Schwelle)",
+      "_demoId": "fr-test-04",
+      "_kvEmail": "kv.weiss@ms365.schule",
+      "_kvName": "Mag. KV Weiss",
+      "_authorEmail": "david.test@ms365.schule",
+      "_scenario": "offen-2tage-grenze"
+    },
+    {
+      "Title": "Elena Test (5A)",
+      "Beginn": "2026-11-03",
+      "Ende": "2026-11-03",
+      "Status": "Ausstehend",
+      "Klasse": "5A",
+      "Kategorie": "Ärztlicher Termin",
+      "Beschreibung": "Flow-Test späterer Termin · fr-test-ms365-v1 · id:fr-test-05",
+      "Bemerkungen": "Szenario: 1 Tag, anderer KV",
+      "_demoId": "fr-test-05",
+      "_kvEmail": "kv.weiss@ms365.schule",
+      "_kvName": "Mag. KV Weiss",
+      "_authorEmail": "elena.test@ms365.schule",
+      "_scenario": "offen-1tag"
+    },
+    {
+      "Title": "Felix Test (3A)",
+      "Beginn": "2026-11-10",
+      "Ende": "2026-11-12",
+      "Status": "Ausstehend",
+      "Klasse": "3A",
+      "Kategorie": "Sonstiges",
+      "Beschreibung": "Flow-Test Wiederholung mehrtägig · fr-test-ms365-v1 · id:fr-test-06",
+      "Bemerkungen": "Zweiter Mehrtages-Test",
+      "_demoId": "fr-test-06",
+      "_kvEmail": "kv.lehmann@ms365.schule",
+      "_kvName": "Mag. KV Lehmann",
+      "_authorEmail": "felix.test@ms365.schule",
+      "_scenario": "offen-mehrtagig-2"
+    },
+    {
+      "Title": "Greta Test (4A)",
+      "Beginn": "2026-10-25",
+      "Ende": "2026-10-26",
+      "Status": "Ausstehend",
+      "Klasse": "4A",
+      "Kategorie": "Familiäre Angelegenheit",
+      "Beschreibung": "KV=Direktion mehrtägig · fr-test-ms365-v1 · id:fr-test-07",
+      "Bemerkungen": "Sonderfall hat Vorrang vor Mehrtages-Zweig (nur 1 Approval Sonder)",
+      "_demoId": "fr-test-07",
+      "_kvEmail": "direktion@ms365.schule",
+      "_kvName": "Schulleitung",
+      "_authorEmail": "greta.test@ms365.schule",
+      "_scenario": "offen-kv-direktion-2tage"
+    },
+    {
+      "Title": "Hannah Erledigt (3A)",
+      "Beginn": "2026-09-10",
+      "Ende": "2026-09-10",
+      "Status": "Genehmigt",
+      "Klasse": "3A",
+      "Kategorie": "Ärztlicher Termin",
+      "Beschreibung": "Bereits erledigt 1 Tag · fr-test-ms365-v1 · id:fr-test-08",
+      "Bemerkungen": "KV-Kommentar: passt",
+      "GenehmigtVonKV": "Mag. KV Lehmann <kv.lehmann@ms365.schule>",
+      "GenehmigtAmKV": "2026-09-08",
+      "_demoId": "fr-test-08",
+      "_kvEmail": "kv.lehmann@ms365.schule",
+      "_kvName": "Mag. KV Lehmann",
+      "_authorEmail": "hannah.done@ms365.schule",
+      "_scenario": "erledigt-genehmigt-1tag"
+    },
+    {
+      "Title": "Ivan Erledigt (3A)",
+      "Beginn": "2026-09-14",
+      "Ende": "2026-09-16",
+      "Status": "Genehmigt",
+      "Klasse": "3A",
+      "Kategorie": "Familiäre Angelegenheit",
+      "Beschreibung": "Bereits erledigt mehrtägig · fr-test-ms365-v1 · id:fr-test-09",
+      "Bemerkungen": "Beide Stufen OK",
+      "GenehmigtVonKV": "Mag. KV Lehmann <kv.lehmann@ms365.schule>",
+      "GenehmigtAmKV": "2026-09-10",
+      "GenehmigtVonDirektion": "Schulleitung <direktion@ms365.schule>",
+      "GenehmigtAmDirektion": "2026-09-11",
+      "_demoId": "fr-test-09",
+      "_kvEmail": "kv.lehmann@ms365.schule",
+      "_kvName": "Mag. KV Lehmann",
+      "_authorEmail": "ivan.done@ms365.schule",
+      "_scenario": "erledigt-genehmigt-mehrtagig"
+    },
+    {
+      "Title": "Julia Abgelehnt (5A)",
+      "Beginn": "2026-09-20",
+      "Ende": "2026-09-20",
+      "Status": "Abgelehnt",
+      "Klasse": "5A",
+      "Kategorie": "Sonstiges",
+      "Beschreibung": "Bereits abgelehnt · fr-test-ms365-v1 · id:fr-test-10",
+      "Bemerkungen": "Zu kurzfristig",
+      "AbgelehntVon": "Mag. KV Weiss <kv.weiss@ms365.schule>",
+      "AbgelehntAm": "2026-09-18",
+      "_demoId": "fr-test-10",
+      "_kvEmail": "kv.weiss@ms365.schule",
+      "_kvName": "Mag. KV Weiss",
+      "_authorEmail": "julia.rejected@ms365.schule",
+      "_scenario": "erledigt-abgelehnt"
+    }
+  ]
+}

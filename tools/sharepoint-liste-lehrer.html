@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – SharePoint Lehrerliste</title>
-    <link rel="stylesheet" href="../app.css?v=12">
+    <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
@@ -57,6 +57,7 @@
                                 <th>Kürzel</th>
                                 <th>E-Mail</th>
                                 <th>UPN</th>
+                                <th>Person</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -65,18 +66,21 @@
                                 <td><span class="pill">MUEL</span></td>
                                 <td>anna.mueller@schule.at</td>
                                 <td>anna.mueller@schule.at</td>
+                                <td><i class="bi bi-person-check" title="M365-Benutzer"></i></td>
                             </tr>
                             <tr>
                                 <td>Huber Thomas</td>
                                 <td><span class="pill">HUBT</span></td>
                                 <td>thomas.huber@schule.at</td>
                                 <td>thomas.huber@schule.at</td>
+                                <td><i class="bi bi-person-check"></i></td>
                             </tr>
                             <tr>
                                 <td>Leitner Sara</td>
                                 <td><span class="pill">LEIS</span></td>
                                 <td>sara.leitner@schule.at</td>
                                 <td>sara.leitner@schule.at</td>
+                                <td><i class="bi bi-person-check"></i></td>
                             </tr>
                         </tbody>
                     </table>
@@ -99,10 +103,46 @@
                     <label for="splListName">Name der Liste</label>
                     <input type="text" id="splListName" value="Lehrerinnen" maxlength="200" spellcheck="false">
                 </div>
+                <div class="tm-toggle-grid" style="margin-bottom:12px;">
+                    <label class="tm-toggle" for="splAlwaysNew">
+                        <input type="checkbox" id="splAlwaysNew">
+                        <span class="tm-toggle__icon"><i class="bi bi-plus-square"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Immer neue Liste anlegen</span>
+                            <span class="tm-toggle__desc">Standard: bestehende Liste mit gleichem Namen abgleichen.</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="splRemoveOrphans">
+                        <input type="checkbox" id="splRemoveOrphans" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-trash"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Entfernte Lehrkräfte aus Liste löschen</span>
+                            <span class="tm-toggle__desc">Zeilen, die nicht mehr in den Stammdaten sind (beim Abgleich).</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="splClearFirst">
+                        <input type="checkbox" id="splClearFirst">
+                        <span class="tm-toggle__icon"><i class="bi bi-arrow-repeat"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Beim Abgleich: Liste zuerst leeren</span>
+                            <span class="tm-toggle__desc">Alle Zeilen löschen, dann Stammdaten neu einspielen (Neustart bei Duplikaten).</span>
+                        </span>
+                    </label>
+                    <label class="tm-toggle" for="splPersonField">
+                        <input type="checkbox" id="splPersonField" checked>
+                        <span class="tm-toggle__icon"><i class="bi bi-person-check"></i></span>
+                        <span>
+                            <span class="tm-toggle__title">Personenfeld „Lehrkraft“</span>
+                            <span class="tm-toggle__desc">M365-Benutzer aus E-Mail/UPN (ensureUser auf der Site).</span>
+                        </span>
+                    </label>
+                </div>
                 <div class="tm-actions">
                     <button type="button" class="btn" id="splBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
-                    <button type="button" class="btn" id="splBtnRun"><i class="bi bi-cloud-upload"></i>Anlegen &amp; synchronisieren</button>
+                    <button type="button" class="btn" id="splBtnRun"><i class="bi bi-cloud-upload"></i>Abgleichen / anlegen</button>
+                    <button type="button" class="btn btn-danger" id="splBtnReplace" title="Alle Listeneinträge löschen und aus Stammdaten neu schreiben"><i class="bi bi-arrow-repeat"></i>Liste leeren &amp; neu einspielen</button>
                 </div>
+                <p class="hint" style="margin-top:10px;">Bei doppelten Lehrkräften: <strong>Liste leeren &amp; neu einspielen</strong> – danach genau eine Zeile pro Kürzel aus den Stammdaten.</p>
                 <details class="tm-tech">
                     <summary>Protokoll</summary>
                     <div id="splLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
@@ -113,7 +153,7 @@
 
     <script src="../ms365-config.js"></script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
-    <script src="../src/shared/theme-toggle.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>

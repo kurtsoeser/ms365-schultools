@@ -13,7 +13,8 @@ import {
     isDirektionRole,
     classCodeExists as classCodeExistsIn,
     remapStudentKlassen,
-    deriveNickFallback
+    deriveNickFallback,
+    studentBelongsToClassRow
 } from './jahrgangsgruppen-logic.js';
 import { buildClassSmtpPs1 } from './jahrgangsgruppen-smtp.js';
 import { createBulkProgress } from '../../shared/bulk-progress.js';
@@ -920,14 +921,9 @@ async function deleteActiveClass() {
 
 function studentsForClass(row) {
     if (!row) return [];
-    const code = normCode(row.code);
-    const name = normStr(row.name).toLowerCase();
+    const team = findClassTeam(row);
     return students.filter(function (s) {
-        const k = normStr(s && s.klasse);
-        if (!k) return false;
-        if (code && normCode(k) === code) return true;
-        if (name && k.toLowerCase() === name) return true;
-        return false;
+        return studentBelongsToClassRow(s, row, team);
     });
 }
 
@@ -1354,7 +1350,9 @@ async function syncMembersForGroup(token, row, gid, logFn, opts) {
     const emails = emailsForClass(row);
     const result = { empty: false, unchanged: false, join: 0, leave: 0, skip: 0, fail: 0 };
     if (!emails.length) {
+        const matched = studentsForClass(row).length;
         result.empty = true;
+        result.studentsMatched = matched;
         return result;
     }
     let joinEmails = emails;
@@ -1425,9 +1423,11 @@ async function syncMembersForGroup(token, row, gid, logFn, opts) {
             'Dry-Run: keine Graph-Änderungen (+' + joinEmails.length + ' / −' + leaveEmails.length + ').',
             'ok'
         );
+        result.plannedJoin = joinEmails.length;
+        result.plannedLeave = leaveEmails.length;
         result.unchanged = !joinEmails.length && !leaveEmails.length;
-        result.join = 0;
-        result.leave = 0;
+        result.join = joinEmails.length;
+        result.leave = leaveEmails.length;
         return result;
     }
     if (leaveEmails.length && !allowLeave) {
@@ -1474,6 +1474,7 @@ async function syncMembersForGroup(token, row, gid, logFn, opts) {
 }
 
 async function runSyncMembers() {
+    readLists();
     const gid = getActiveGroupId();
     if (!gid) {
         toast('Zuerst eine Gruppe matchen oder anlegen.');
@@ -1815,6 +1816,7 @@ async function runBulkSetOwner() {
 }
 
 async function runBulkSyncMembers() {
+    readLists();
     const items = collectSelectedMatched();
     if (!items.length) {
         toast('Bitte zuerst gematchte Klassen ankreuzen.');
@@ -1872,7 +1874,11 @@ async function runBulkSyncMembers() {
                 const r = await syncMembersForGroup(token, it.row, it.id, function () {}, trust);
                 if (r.empty) {
                     empty++;
-                    lines.push('keine Schüler  ' + it.name);
+                    lines.push(
+                        r.studentsMatched
+                            ? 'ohne E-Mail  ' + it.name + ' (' + r.studentsMatched + ' ohne Adresse)'
+                            : 'keine Schüler  ' + it.name
+                    );
                 } else if (r.fail) {
                     fail++;
                     joinTotal += r.join;
@@ -2405,6 +2411,12 @@ function init() {
     mountDetail();
     initMembershipReview();
     readLists();
+    window.addEventListener('ms365-tenant-settings-changed', function () {
+        readLists();
+        renderMemberPreview();
+        updateActiveClassCounts();
+        renderLeftList();
+    });
     ensureActiveKey();
     // Gespeichertes Alias-Schema in die UI laden
     if (typeof window.ms365GetClassNickSchema === 'function') {

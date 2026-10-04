@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Unterrichtsteams-Katalog</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/unterrichtsteams-katalog/unterrichtsteams-katalog.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page utk-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-table"></i>Unterrichtsteams-Katalog</span>
+            </div>
+            <p>Alle Unterrichtsteams aus der <strong>Unterrichtsbelegung</strong> – filtern, Namen und Metadaten bearbeiten, optional Anzeigenamen in Microsoft&nbsp;365 aktualisieren.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-unterrichtsteams-katalog" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="kursteams.html"><i class="bi bi-mortarboard"></i>Kursteams anlegen</a>
+                <a class="btn" href="kursteams.html#kursteamGraphImportPanel"><i class="bi bi-cloud-download"></i>Aus M365 importieren</a>
+                <a class="btn" href="webuntis-sync-monitor.html"><i class="bi bi-activity"></i>Sync-Monitor</a>
+            </div>
+        </div>
+        <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Unterrichtsbelegung – in Kursteams importieren oder aus M365 übernehmen."></div>
+
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-table"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Unterricht · Katalog</p>
+                    <h2>Unterrichtsteams im Überblick</h2>
+                    <p id="utkStats" class="utk-stats">Lade …</p>
+                </div>
+                <div class="tm-hero__actions">
+                    <button type="button" class="btn" id="utkRefresh"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                    <button type="button" class="btn btn-brand" id="utkSave"><i class="bi bi-floppy"></i>Speichern</button>
+                </div>
+            </section>
+
+            <p id="utkEmpty" class="alert alert-info" hidden>
+                Noch keine Teams in den App-Daten. <a href="kursteams.html">Kursteams-Assistent</a> nutzen oder
+                <a href="kursteams.html">bestehende Teams aus M365 importieren</a>.
+            </p>
+            <p id="utkDirtyHint" class="utk-dirty-hint" hidden><i class="bi bi-pencil"></i> Ungespeicherte Änderungen – bitte „Speichern“ klicken.</p>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-funnel" aria-hidden="true"></i><div><h3>Filter</h3><p>Schnell nach Klasse, Fach oder Lehrkraft eingrenzen.</p></div></div>
+                <div class="utk-filters">
+                    <label>Suche (Name, Mail, …)
+                        <input type="search" id="utkSearch" placeholder="z. B. BW, FRECH, SJ26-27" autocomplete="off">
+                    </label>
+                    <label>Klasse
+                        <select id="utkFilterKlasse"><option value="">Alle</option></select>
+                    </label>
+                    <label>Fach
+                        <select id="utkFilterFach"><option value="">Alle</option></select>
+                    </label>
+                    <label>Lehrkraft (Kürzel)
+                        <select id="utkFilterLehrer"><option value="">Alle</option></select>
+                    </label>
+                    <label style="flex-direction:row;align-items:center;gap:8px;padding-top:20px;">
+                        <input type="checkbox" id="utkFilterLinked"> nur mit M365-Verknüpfung
+                    </label>
+                    <label>Schuljahr-Präfix (Speichern)
+                        <input type="text" id="utkYearPrefix" placeholder="SJ26-27">
+                    </label>
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn btn-small" id="utkResetFilters"><i class="bi bi-x-circle"></i>Filter zurücksetzen</button>
+                    <button type="button" class="btn btn-small" id="utkPullWizard"><i class="bi bi-box-arrow-in-down"></i>Aus Kursteam-Assistent übernehmen</button>
+                    <button type="button" class="btn btn-small" id="utkAddRow"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head"><i class="bi bi-pencil-square" aria-hidden="true"></i><div><h3>Teams bearbeiten</h3><p>Änderungen gelten in der lokalen Unterrichtsbelegung (Backup/SharePoint).</p></div></div>
+                <p style="font-size:0.85em;color:var(--text-secondary);margin:0 0 12px;">
+                    <strong>Mail-Nickname</strong> hier ändern betrifft nur den App-Katalog (nicht automatisch die Gruppe in M365).
+                    Mit „Anzeigenamen in M365 schreiben“ werden bei verknüpften Teams die <em>displayName</em>-Felder in Entra angepasst (Anmeldung nötig).
+                </p>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.88em;margin-bottom:12px;">
+                    <input type="checkbox" id="utkPushM365">
+                    Beim Speichern: Anzeigenamen in M365 schreiben (nur Teams mit Verknüpfung)
+                </label>
+                <div id="utkTableHost"></div>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script type="module" src="../src/tools/unterrichtsteams-katalog/unterrichtsteams-katalog.js"></script>
+</body>
+</html>
