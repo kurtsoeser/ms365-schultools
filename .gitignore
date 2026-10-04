@@ -6,6 +6,9 @@ backend/license-api/local.settings.json
 ms365-config.local.js
 .ftp-credentials.local
 
+# Vertragsentwürfe / ausgefüllte BMB-Dokumente (nur lokal, nicht versionieren)
+docs/edtech-vertragsentwurf/
+
 # OS / editor
 .DS_Store
 Thumbs.db
