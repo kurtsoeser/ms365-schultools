@@ -23,18 +23,6 @@
         return null;
     }
 
-    function setupFinished() {
-        try {
-            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
-                var setup = window.ms365AppDataV2.getSetup();
-                return !!(setup && setup.finishedAt);
-            }
-        } catch {
-            /* ignore */
-        }
-        return false;
-    }
-
     function resolveHref(path) {
         try {
             var p = String(location.pathname || '');
@@ -85,8 +73,12 @@
 
     function defaultActions() {
         return [
-            { href: 'einrichtung.html', label: '<i class="bi bi-rocket-takeoff"></i>Einrichtung starten' },
-            { href: 'tenant.html', label: '<i class="bi bi-gear"></i>Stammdaten', ghost: true },
+            { href: 'tenant.html', label: '<i class="bi bi-journal-bookmark"></i>Schulregister öffnen' },
+            {
+                href: 'tools/webuntis-stammdaten-import.html?from=tenant',
+                label: '<i class="bi bi-box-arrow-in-down"></i>Daten importieren',
+                ghost: true
+            },
             {
                 tag: 'button',
                 id: 'emptyStateImportBackup',
@@ -120,7 +112,7 @@
             var customMsg = target.getAttribute('data-ms365-empty-message');
             var message =
                 customMsg ||
-                'Noch keine Stammdaten in <strong>diesem Browser</strong>. Gruppen in Microsoft&nbsp;365 sind davon unabhängig – hier fehlen nur die lokalen Listen. Einrichtung starten oder ein vorhandenes <strong>Browser-Backup</strong> importieren.';
+                'Noch keine Stammdaten in <strong>diesem Browser</strong>. Gruppen in Microsoft&nbsp;365 sind davon unabhängig – hier fehlen nur die lokalen Listen. Im <strong>Schulregister</strong> starten, Daten importieren oder ein vorhandenes <strong>Browser-Backup</strong> laden.';
 
             target.hidden = false;
             target.replaceChildren();
@@ -150,10 +142,15 @@
         mount.replaceChildren();
         mount.appendChild(
             createBanner(
-                'Noch keine Schuldaten in diesem Browser. Die Microsoft-365-Gruppen existieren unabhängig davon – hier fehlen nur die lokalen Stammdaten. Einrichtung starten oder ein Browser-Backup (JSON) importieren.',
+                'Noch keine Schuldaten in diesem Browser. Die Microsoft-365-Gruppen existieren unabhängig davon – hier fehlen nur die lokalen Stammdaten. Schulregister öffnen, Daten importieren oder ein Browser-Backup (JSON) laden.',
                 {
                     actions: [
-                        { href: 'einrichtung.html', label: '<i class="bi bi-rocket-takeoff"></i>Einrichtung starten' },
+                        { href: 'tenant.html', label: '<i class="bi bi-journal-bookmark"></i>Schulregister öffnen' },
+                        {
+                            href: 'tools/webuntis-stammdaten-import.html?from=tenant',
+                            label: '<i class="bi bi-box-arrow-in-down"></i>Daten importieren',
+                            ghost: true
+                        },
                         {
                             tag: 'button',
                             id: 'tenantBtnImportBackup',
@@ -173,12 +170,11 @@
     }
 
     function shouldShowHygieneTeaser() {
-        return setupFinished() && hasMeaningfulTenantData(loadSettings());
+        return hasMeaningfulTenantData(loadSettings());
     }
 
     window.ms365EmptyStateUi = {
         hasMeaningfulTenantData: hasMeaningfulTenantData,
-        setupFinished: setupFinished,
         shouldShowHygieneTeaser: shouldShowHygieneTeaser,
         mountEmptyStateTargets: mountEmptyStateTargets,
         refreshTenantEmptyBanner: refreshTenantEmptyBanner

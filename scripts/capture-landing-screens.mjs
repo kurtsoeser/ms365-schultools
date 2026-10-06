@@ -41,7 +41,7 @@ const shots = [
   },
   {
     file: 'einrichtung.png',
-    url: '/einrichtung.html',
+    url: '/tenant.html',
     prepare: async (page) => {
       await enableDemo(page);
       await page.evaluate(() => window.scrollTo(0, 0));

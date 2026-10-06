@@ -258,6 +258,14 @@
         return siteId;
     }
 
+    function splitFirstLastName(displayName) {
+        const s = String(displayName || '').trim();
+        if (!s) return { vorname: '', nachname: '' };
+        const parts = s.split(/\s+/).filter(Boolean);
+        if (parts.length <= 1) return { vorname: parts[0] || '', nachname: '' };
+        return { vorname: parts[0], nachname: parts.slice(1).join(' ') };
+    }
+
     function studentKeyFromParts(klasse, name, email, externalId) {
         const ext = String(externalId || '').trim();
         if (ext) return 'id:' + ext.toLowerCase();
@@ -271,9 +279,12 @@
 
     function studentFields(st) {
         const name = String(st.name || '').trim() || String(st.email || '').trim() || '—';
+        const parts = splitFirstLastName(st.name || name);
         const email = String(st.email || '').trim();
         const fields = {
             Title: name,
+            Vorname: parts.vorname,
+            Nachname: parts.nachname,
             Klasse: String(st.klasse || '').trim(),
             EMail: email,
             UPN: email
@@ -284,10 +295,17 @@
     }
 
     const COL_SCHUELER = [
+        { name: 'Vorname', displayName: 'Vorname', text: { allowMultipleLines: false, maxLength: 120 } },
+        { name: 'Nachname', displayName: 'Nachname', text: { allowMultipleLines: false, maxLength: 120 } },
         { name: 'Klasse', displayName: 'Klasse', text: { allowMultipleLines: false, maxLength: 40 } },
         { name: 'EMail', displayName: 'E-Mail', text: { allowMultipleLines: false, maxLength: 255 } },
         { name: 'UPN', displayName: 'UPN', text: { allowMultipleLines: false, maxLength: 255 } },
-        { name: 'ExternalId', displayName: 'Externe ID', text: { allowMultipleLines: false, maxLength: 80 } }
+        { name: 'ExternalId', displayName: 'Externe ID', text: { allowMultipleLines: false, maxLength: 80 } },
+        {
+            name: 'Schueler',
+            displayName: 'Schüler (Person)',
+            personOrGroup: { allowMultipleSelection: false, chooseFromType: 'peopleOnly' }
+        }
     ];
 
     const COL_FACH = [
@@ -406,32 +424,121 @@
     }
 
     async function syncSchuelerList(webUrl, listTitle, logFn, runOpts) {
+        const write = typeof logFn === 'function' ? logFn : log;
+        const url = String(webUrl || '').trim();
+        const title = String(listTitle || '').trim() || 'Schülerinnen';
+        if (!url) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
+
+        const ro = runOpts && typeof runOpts === 'object' ? runOpts : readRunOpts();
         const s = loadSettings();
         const students = (Array.isArray(s.students) ? s.students : []).filter(function (st) {
             return st && (String(st.name || '').trim() || String(st.email || '').trim() || String(st.klasse || '').trim());
         });
-        const compareKeys = ['Title', 'Klasse', 'EMail', 'UPN', 'ExternalId'];
-        return await runListPipeline(
-            webUrl,
-            listTitle,
-            'Schülerinnen',
-            students,
-            COL_SCHUELER,
-            {
-                keyFromRow: function (st) {
-                    return studentKeyFromParts(st.klasse, st.name, st.email, st.externalId || st.id);
-                },
-                keyFromItem: function (f) {
-                    return studentKeyFromParts(f.Klasse, f.Title, f.EMail, f.ExternalId);
-                },
-                fieldsFromRow: studentFields,
-                compareKeys: compareKeys
+        if (!students.length) throw new Error('Keine Schüler:innen in den Stammdaten – zuerst dort pflegen.');
+
+        write('Schülerinnen aus lokalem Speicher: ' + students.length + ' (mit Personenfeld Schüler)');
+        const token = await ensureToken();
+        const siteId = await resolveSite(url, token, write);
+        const syncMode = ro.syncMode !== false;
+        const removeOrphans = ro.removeOrphans !== false;
+
+        const listMeta = await ensureOrCreateList(siteId, title, token, write, syncMode);
+        write('Prüfe Spalten (Vorname, Nachname, Personenfeld Schüler, …) …');
+        await addMissingColumns(siteId, listMeta.listId, token, COL_SCHUELER);
+
+        let resolver = null;
+        if (typeof G.createSitePersonResolver === 'function') {
+            write('Personen: User Information List / ensureUser …');
+            resolver = await G.createSitePersonResolver(url, token, siteId, { write: write, ensureMissing: true });
+        } else {
+            write('Hinweis: Personen-Hilfen fehlen – Textfelder werden gesetzt, Personenfeld bleibt leer.');
+        }
+
+        const compareKeys = ['Title', 'Vorname', 'Nachname', 'Klasse', 'EMail', 'UPN', 'ExternalId'];
+        let personMiss = 0;
+
+        async function studentFieldsWithPerson(st) {
+            const fields = studentFields(st);
+            const email = String(st.email || '').trim();
+            if (!email || !resolver) return fields;
+            const id = await resolver.lookupIdForEmail(email);
+            if (id && typeof G.applySinglePersonLookupField === 'function') {
+                G.applySinglePersonLookupField(fields, 'Schueler', id);
+            } else if (email) {
+                personMiss++;
+            }
+            return fields;
+        }
+
+        function studentFieldsEqual(prev, next) {
+            for (let i = 0; i < compareKeys.length; i++) {
+                const k = compareKeys[i];
+                if (String(prev[k] || '') !== String(next[k] || '')) return false;
+            }
+            if (personLookupFingerprint(prev, 'Schueler') !== personLookupFingerprint(next, 'Schueler')) {
+                return false;
+            }
+            return true;
+        }
+
+        const syncConfig = {
+            keyFromRow: function (st) {
+                return studentKeyFromParts(st.klasse, st.name, st.email, st.externalId || st.id);
             },
-            logFn,
-            runOpts,
-            'sync-schueler-list',
-            'Schülerinnen'
-        );
+            keyFromItem: function (f) {
+                return studentKeyFromParts(f.Klasse, f.Title, f.EMail, f.ExternalId);
+            },
+            fieldsFromRow: studentFieldsWithPerson,
+            fieldsEqual: studentFieldsEqual,
+            compareKeys: compareKeys
+        };
+
+        if (syncMode) {
+            await syncRowsToList({
+                siteId: siteId,
+                listId: listMeta.listId,
+                token: token,
+                rows: students,
+                keyFromRow: syncConfig.keyFromRow,
+                keyFromItem: syncConfig.keyFromItem,
+                fieldsFromRow: syncConfig.fieldsFromRow,
+                fieldsEqual: syncConfig.fieldsEqual,
+                compareKeys: syncConfig.compareKeys,
+                removeOrphans: removeOrphans,
+                write: write,
+                label: 'Schülerinnen'
+            });
+        } else {
+            const itemsPath = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(listMeta.listId) + '/items';
+            let ok = 0;
+            for (let i = 0; i < students.length; i++) {
+                const fields = await studentFieldsWithPerson(students[i]);
+                await G.graphJson('POST', itemsPath, token, { fields: fields }, 'v1.0');
+                ok++;
+                if (ok % 25 === 0) write('… ' + ok + ' Zeilen geschrieben');
+                await G.sleep(80);
+            }
+            write('Fertig: ' + ok + ' Schüler:innen als Listenelemente.');
+        }
+
+        if (personMiss) {
+            write(
+                'Hinweis: ' +
+                    personMiss +
+                    ' Schüler:innen ohne Personen-Verknüpfung (E-Mail fehlt oder Benutzer auf der Site nicht auflösbar).'
+            );
+        }
+
+        if (listMeta.webUrl) write('Liste im Browser: ' + listMeta.webUrl);
+        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+            window.ms365ActionLog.append({
+                tool: 'sharepoint',
+                action: 'sync-schueler-list',
+                target: url,
+                summary: 'Schülerinnen „' + title + '“ (' + students.length + ' Stammdaten-Zeilen)'
+            });
+        }
+        return { listId: listMeta.listId, webUrl: listMeta.webUrl, count: students.length };
     }
 
     async function syncFaecherList(webUrl, listTitle, logFn, runOpts) {
@@ -744,7 +851,26 @@
             write('—— Klassen ——');
             results.klassen = await syncKlassenList(webUrl, o.klassenTitle || 'Klassen', write, ro);
         }
-        if (!o.schueler && !o.faecher && !o.fachgruppen && !o.arges && !o.klassen) {
+        if (o.lehrer) {
+            write('—— Lehrerinnen ——');
+            const lehrerApi = window.ms365SpoLehrerListe;
+            if (!lehrerApi || typeof lehrerApi.createList !== 'function') {
+                throw new Error('Lehrerlisten-Sync nicht geladen (sharepoint-liste-lehrer.js).');
+            }
+            const lehrerRun = {
+                syncMode: ro.syncMode,
+                removeOrphans: ro.removeOrphans,
+                personField: ro.lehrerPersonen !== false,
+                clearListFirst: false
+            };
+            results.lehrer = await lehrerApi.createList(
+                webUrl,
+                o.lehrerTitle || 'Lehrerinnen',
+                write,
+                lehrerRun
+            );
+        }
+        if (!o.schueler && !o.faecher && !o.fachgruppen && !o.arges && !o.klassen && !o.lehrer) {
             throw new Error('Mindestens eine Liste auswählen.');
         }
         return results;

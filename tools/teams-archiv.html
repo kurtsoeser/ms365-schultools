@@ -6,18 +6,130 @@
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS365-Schul-Tools – Weiterleitung</title>
-    <link rel="canonical" href="archiv/teams-archiv.html">
-    <script>
-        (function () {
-            var t = 'archiv/teams-archiv.html' + (window.location.search || '') + (window.location.hash || '');
-            window.location.replace(t);
-        })();
-    </script>
-    <meta http-equiv="refresh" content="0;url=archiv/teams-archiv.html">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Teams archivieren</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
-    <p style="font-family:system-ui,sans-serif;padding:1.5rem;">Das Werkzeug liegt im <strong>Archiv</strong> (Team-Archiv ist in der <a href="schulstruktur-sync.html">MS&nbsp;365 Gruppenverwaltung</a> integriert). <a href="archiv/teams-archiv.html">Zur Archiv-Seite wechseln</a>.</p>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-archive"></i>Teams archivieren</span>
+            </div>
+            <p>Microsoft&nbsp;365-Teams archivieren oder reaktivieren – einzeln per Suche oder <strong>mehrere Teams in einem Schritt</strong>. Optional SharePoint-Teamwebsite schreibgeschützt. Ein Team in der <a href="schulstruktur-sync.html">Gruppenverwaltung</a> bearbeiten Sie unter Details → Team-Archiv.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-teams-archiv" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
+            <div class="toolbar">
+                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                        <a class="btn" href="schulstruktur-sync.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-2"></i>Alle Gruppen</a>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                        <button type="button" class="btn" id="taBtnLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content" style="padding-bottom: 28px;">
+            <div class="alert alert-info">
+                <strong>Microsoft Graph:</strong> Entspricht Admin-Center / <code>POST …/teams/{id}/archive</code>.
+                Die Team-ID ist die Object-ID der Microsoft&nbsp;365-Gruppe (gleiche GUID).
+            </div>
+            <div class="alert alert-warning">
+                <strong>Entra-Berechtigungen:</strong> <strong>TeamSettings.ReadWrite.All</strong> und
+                <strong>Group.ReadWrite.All</strong> (delegiert, Admin-Zustimmung).
+            </div>
+
+            <h2 style="margin-top:8px;font-size:1.15rem;"><i class="bi bi-search"></i> Einzelnes Team</h2>
+            <div class="filter-section" style="margin-top:12px;">
+                <div class="filter-group">
+                    <label for="taTeamId">Team- / Gruppen-ID (GUID)</label>
+                    <input type="text" id="taTeamId" autocomplete="off" spellcheck="false"
+                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                </div>
+                <div class="filter-group" style="margin-top:14px;">
+                    <label for="taSearch">Oder: Gruppen-E-Mail oder Anzeigename</label>
+                    <input type="text" id="taSearch" autocomplete="off" placeholder="z. B. 1a-mat@schule.at oder Kurs Mathematik 1a">
+                </div>
+                <p style="margin:10px 0 0;">
+                    <button type="button" class="btn" id="taBtnSearch"><i class="bi bi-search"></i>Team suchen</button>
+                </p>
+                <p id="taResolvedSummary" style="display:none;margin-top:14px;padding:12px;background:#e7f0ff;border-radius:8px;border:1px solid #b6d4fe;color:#084298;font-size:0.95em;"></p>
+
+                <div class="filter-group" style="margin-top:18px;">
+                    <label class="checkbox-label" for="taSpoReadOnly">
+                        <input type="checkbox" id="taSpoReadOnly">
+                        <span>SharePoint-Teamwebsite für Mitglieder schreibgeschützt</span>
+                    </label>
+                </div>
+
+                <p style="margin:18px 0 0;">
+                    <button type="button" class="btn btn-success" id="taBtnArchive"><i class="bi bi-archive-fill"></i>Team archivieren</button>
+                    <button type="button" class="btn" id="taBtnUnarchive" style="margin-left:8px;"><i class="bi bi-arrow-counterclockwise"></i>Archivierung aufheben</button>
+                </p>
+            </div>
+
+            <h3 style="margin-top:22px;font-size:1rem;">Protokoll</h3>
+            <div id="taLog" style="max-height:220px;overflow:auto;padding:10px;background:var(--card,#fff);border:1px solid var(--border,#ced4da);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+
+            <h2 style="margin-top:34px;font-size:1.15rem;border-top:2px solid var(--border,#dee2e6);padding-top:22px;">
+                <i class="bi bi-check2-square"></i>&nbsp;Sammel-Archivierung (Bulk)
+            </h2>
+            <div class="alert alert-info">
+                Teams im Mandanten suchen (Teilstring in Name oder Gruppenmail), per Checkbox auswählen und gemeinsam archivieren oder reaktivieren – z.&nbsp;B. alle Kursteams mit Präfix <code>SJ25</code>. Die Gruppen bleiben bestehen, nur der Team-Status ändert sich.
+            </div>
+
+            <div class="filter-section" style="margin-top:18px;">
+                <div class="filter-group">
+                    <label for="taBulkPrefix">Suchbegriff (Team-Name oder Gruppenmail enthält)</label>
+                    <input type="text" id="taBulkPrefix" autocomplete="off" spellcheck="false"
+                        placeholder="z. B. SJ25, Kursteam, Elternverein">
+                </div>
+                <p style="margin:10px 0 0;">
+                    <button type="button" class="btn" id="taBulkSearch"><i class="bi bi-search"></i>Teams suchen</button>
+                </p>
+
+                <div id="taBulkResultsWrap" style="display:none;margin-top:18px;">
+                    <p id="taBulkResultsSummary" style="font-weight:600;"></p>
+                    <p style="margin:0 0 10px;">
+                        <button type="button" class="btn btn-small" id="taBulkSelectAll">Alle auswählen</button>
+                        <button type="button" class="btn btn-small" id="taBulkSelectNone" style="margin-left:8px;">Keine auswählen</button>
+                    </p>
+                    <div class="table-container" style="max-height:340px;overflow:auto;border:1px solid var(--border,#ced4da);border-radius:6px;">
+                        <table style="width:100%;margin:0;">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px;">Auswahl</th>
+                                    <th>Team-Name</th>
+                                    <th>Gruppenmail</th>
+                                </tr>
+                            </thead>
+                            <tbody id="taBulkResultsBody"></tbody>
+                        </table>
+                    </div>
+                    <p style="margin:16px 0 0;">
+                        <button type="button" class="btn btn-success" id="taBulkArchive"><i class="bi bi-archive-fill"></i>Ausgewählte archivieren</button>
+                        <button type="button" class="btn" id="taBulkUnarchive" style="margin-left:8px;"><i class="bi bi-arrow-counterclockwise"></i>Ausgewählte: Archivierung aufheben</button>
+                    </p>
+                </div>
+            </div>
+
+            <h3 style="margin-top:22px;font-size:1rem;">Protokoll (Sammel-Archivierung)</h3>
+            <div id="taBulkLog" style="max-height:280px;overflow:auto;padding:10px;background:var(--card,#fff);border:1px solid var(--border,#ced4da);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/tools/teams-archiv/teams-archiv-bulk-logic.js" defer></script>
+    <script src="../src/tools/teams-archiv/teams-archiv.js" defer></script>
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
 </body>
 </html>

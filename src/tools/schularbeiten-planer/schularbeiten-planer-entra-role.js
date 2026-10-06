@@ -4,6 +4,7 @@
 import { getGraphToken, graphJson, fetchAllPages } from '../../shared/graph-client.js';
 import {
     loadPermissionsConfig,
+    loadEffectivePermissionsConfig,
     normalizePermissionsConfig
 } from './schularbeiten-planer-permissions.js';
 import { accountIsPlannerUserInList } from '../freistellung-planer/freistellung-planer-direktion-users.js';
@@ -23,9 +24,52 @@ const GLOBAL_ADMIN_ROLE_SCOPES = [
 /** Entra: Globaler Administrator */
 export const GLOBAL_ADMINISTRATOR_ROLE_TEMPLATE_ID = '62e90394-69f5-4237-9190-012177145e10';
 
-/** @type {{ key: string, at: number, value: boolean } | null} */
+/** @type {{ key: string, at: number, value: boolean, tokenMissing?: boolean } | null} */
 let globalAdminCache = null;
 const GLOBAL_ADMIN_CACHE_MS = 5 * 60 * 1000;
+const GLOBAL_ADMIN_CACHE_MS_NO_TOKEN = 45 * 1000;
+
+export function clearGlobalAdministratorCache() {
+    globalAdminCache = null;
+}
+
+function globalAdminCheckScopes() {
+    /** @type {string[]} */
+    const merged = GLOBAL_ADMIN_ROLE_SCOPES.slice();
+    const seen = new Set(merged.map((s) => s.toLowerCase()));
+    try {
+        const g = typeof window !== 'undefined' ? window.ms365GraphUnifiedGroups : null;
+        const extra = g && Array.isArray(g.GRAPH_SCOPES) ? g.GRAPH_SCOPES : [];
+        extra.forEach(function (scope) {
+            const s = String(scope || '').trim();
+            if (!s) return;
+            const key = s.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            merged.push(s);
+        });
+    } catch {
+        /* ignore */
+    }
+    return merged;
+}
+
+async function acquireTokenForGlobalAdminCheck() {
+    const scopes = globalAdminCheckScopes();
+    try {
+        if (typeof window !== 'undefined') {
+            if (typeof window.ms365AuthAcquireTokenSilent === 'function') {
+                return await window.ms365AuthAcquireTokenSilent(scopes);
+            }
+            if (typeof window.ms365AuthAcquireTokenSilentOnly === 'function') {
+                return await window.ms365AuthAcquireTokenSilentOnly(scopes);
+            }
+        }
+    } catch {
+        /* consent fehlt oder nicht angemeldet */
+    }
+    return null;
+}
 
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -71,7 +115,7 @@ export function resolveActivePlanerRole(available, opts) {
  * @param {ReturnType<typeof normalizePermissionsConfig>|null|undefined} [config]
  */
 export function entraGroupsConfigured(config) {
-    const c = normalizePermissionsConfig(config || loadPermissionsConfig());
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
     return !!(
         c.groupAdminId ||
         c.groupLehrerId ||
@@ -87,7 +131,7 @@ export function entraGroupsConfigured(config) {
  * @returns {string[]}
  */
 export function planerEntraGroupIds(config) {
-    const c = normalizePermissionsConfig(config || loadPermissionsConfig());
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
     const ids = [c.groupAdminId, c.groupLehrerId, c.groupSchuelerId]
         .map((id) => String(id || '').trim())
         .filter((id) => GUID_RE.test(id));
@@ -135,7 +179,7 @@ export async function fetchUserMemberGroupIds(groupIds) {
  * @returns {PlanerRole[]}
  */
 export function listRolesFromEntraGroups(memberIds, config) {
-    const c = normalizePermissionsConfig(config || loadPermissionsConfig());
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
     const member = memberIds instanceof Set ? memberIds : new Set((memberIds || []).map((x) => String(x).toLowerCase()));
     const inGroup = (idKey) => {
         const id = String(c[idKey] || '').trim().toLowerCase();
@@ -230,21 +274,28 @@ export async function userIsEntraGlobalAdministrator() {
     const key = cacheKeyForAccount();
     if (!key) return false;
     const now = Date.now();
-    if (globalAdminCache && globalAdminCache.key === key && now - globalAdminCache.at <= GLOBAL_ADMIN_CACHE_MS) {
-        return globalAdminCache.value;
+    if (globalAdminCache && globalAdminCache.key === key) {
+        const ttl = globalAdminCache.tokenMissing ? GLOBAL_ADMIN_CACHE_MS_NO_TOKEN : GLOBAL_ADMIN_CACHE_MS;
+        if (now - globalAdminCache.at <= ttl) {
+            return globalAdminCache.value;
+        }
+    }
+    const token = await acquireTokenForGlobalAdminCheck();
+    if (!token) {
+        globalAdminCache = { key, at: now, value: false, tokenMissing: true };
+        return false;
     }
     try {
-        const tok = await getGraphToken(GLOBAL_ADMIN_ROLE_SCOPES);
         const page = await fetchAllPages(
-            tok,
+            token,
             '/me/transitiveMemberOf/microsoft.graph.directoryRole?$select=roleTemplateId,displayName',
             { maxItems: 64, maxPages: 3 }
         );
         const ok = hasGlobalAdministratorDirectoryRole(page.items);
-        globalAdminCache = { key, at: now, value: ok };
+        globalAdminCache = { key, at: now, value: ok, tokenMissing: false };
         return ok;
     } catch {
-        globalAdminCache = { key, at: now, value: false };
+        globalAdminCache = { key, at: now, value: false, tokenMissing: true };
         return false;
     }
 }
@@ -366,7 +417,7 @@ function isLoggedIn() {
  * @param {{ demoRoleOverride?: boolean, preferredDemoRole?: PlanerRole|null, preferredActiveRole?: PlanerRole|null }} [opts]
  */
 export async function applyPlanerRoleFromEntra(state, opts) {
-    const config = loadPermissionsConfig();
+    const config = loadEffectivePermissionsConfig();
     const entra = entraGroupsConfigured(config);
     state.entraGroupsConfigured = entra;
     const demoOverride = readDemoRoleOverrideFromUrl(opts && opts.demoRoleOverride);

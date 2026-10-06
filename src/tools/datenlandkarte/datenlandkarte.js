@@ -13,6 +13,7 @@ import {
 } from './datenlandkarte-layout-store.js';
 import { syncDatenlandkarteCanvasDom } from './datenlandkarte-layout-dom.js';
 import { renderDatenlandkarteApp, applyCanvasTransform } from './datenlandkarte-ui.js';
+import { setDatenlandkarteHrefContext } from './datenlandkarte-register-bridge.js';
 
 const state = {
     metrics: {},
@@ -22,7 +23,8 @@ const state = {
     selectedLinkId: '',
     viewTransform: { x: 40, y: 20, k: 1 },
     spoStatus: 'idle',
-    spoErrors: []
+    spoErrors: [],
+    embedded: false
 };
 
 let root = null;
@@ -242,7 +244,7 @@ function bindUiOnce() {
             return;
         }
         if (!panSession || ev.pointerId !== panSession.pointerId) return;
-        const host = document.getElementById('dlCanvasHost');
+        const host = canvasHostEl();
         panSession = null;
         if (host) host.classList.remove('dl-panning');
         try {
@@ -255,9 +257,13 @@ function bindUiOnce() {
     root.addEventListener('pointercancel', endPan);
 }
 
+function canvasHostEl() {
+    return root ? root.querySelector('#dlCanvasHost') : document.getElementById('dlCanvasHost');
+}
+
 function fitView() {
-    const host = document.getElementById('dlCanvasHost');
-    const inner = document.getElementById('dlCanvasInner');
+    const host = canvasHostEl();
+    const inner = root ? root.querySelector('#dlCanvasInner') : document.getElementById('dlCanvasInner');
     if (!host || !inner) return;
     const cw = host.clientWidth - 40;
     const ch = host.clientHeight - 40;
@@ -272,17 +278,49 @@ function fitView() {
     applyCanvasTransform(state);
 }
 
-function init() {
-    root = document.getElementById('dlApp');
-    if (!root) return;
+let globalListenersBound = false;
+
+function bindGlobalListeners() {
+    if (globalListenersBound) return;
+    globalListenersBound = true;
+    window.addEventListener('resize', () => fitView());
+    window.addEventListener('ms365-spo-sync-status', () => {
+        refreshLocalData();
+        paint();
+    });
+    window.addEventListener('ms365-tenant-settings-changed', () => {
+        refreshLocalData();
+        paint();
+    });
+}
+
+/**
+ * @param {HTMLElement} container
+ * @param {{ embedded?: boolean }} [options]
+ */
+export function mountDatenlandkarte(container, options) {
+    if (!container) return;
+    const embedded = !!(options && options.embedded);
+    setDatenlandkarteHrefContext(embedded ? 'register' : 'tool');
+    state.embedded = embedded;
+    root = container;
+    root.classList.add(embedded ? 'dl-embed' : 'dl-app-root');
     bindUiOnce();
+    bindGlobalListeners();
     refreshAll();
     requestAnimationFrame(() => fitView());
-    window.addEventListener('resize', () => fitView());
+    window.ms365DatenlandkarteFit = () => fitView();
+    window.ms365DatenlandkarteRefresh = () => refreshAll();
+}
+
+function initStandalone() {
+    const el = document.getElementById('dlApp');
+    if (!el) return;
+    mountDatenlandkarte(el, { embedded: false });
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', initStandalone);
 } else {
-    init();
+    initStandalone();
 }

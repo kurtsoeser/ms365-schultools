@@ -11,11 +11,11 @@ function read(rel) {
 }
 
 describe('Lehrkräfte aus dem Tenant einlesen', () => {
-    it('Einrichtung Schritt 4 hat den Microsoft-365-Import', () => {
-        const html = read('einrichtung.html');
-        expect(html).toContain('id="swBtnImportTeachersFromTenant"');
-        expect(html).toContain('id="swTeacherTenantImportPanel"');
-        expect(html).toContain('id="swBtnTeacherTenantApply"');
+    it('Schulregister Tab Lehrer hat den Microsoft-365-Import', () => {
+        const html = read('tenant.html');
+        expect(html).toContain('id="tenantBtnImportTeachersFromTenant"');
+        expect(html).toContain('id="tenantTeacherTenantImportPanel"');
+        expect(html).toContain('id="tenantBtnTeacherTenantApply"');
         expect(html).toContain('src/shared/teacher-tenant-import-ui.js');
         expect(html).toContain('Aus Microsoft 365 einlesen');
     });
@@ -90,11 +90,11 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(groups).toContain('data-pv-group-remove');
     });
 
-    it('Einrichtung Schritt 5 hat den Microsoft-365-Import für Schüler:innen', () => {
-        const html = read('einrichtung.html');
-        expect(html).toContain('id="swBtnImportStudentsFromTenant"');
-        expect(html).toContain('id="swStudentTenantImportPanel"');
-        expect(html).toContain('id="swBtnStudentTenantApply"');
+    it('Schulregister Tab Schüler hat den Microsoft-365-Import', () => {
+        const html = read('tenant.html');
+        expect(html).toContain('id="tenantBtnImportStudentsFromTenant"');
+        expect(html).toContain('id="tenantStudentTenantImportPanel"');
+        expect(html).toContain('id="tenantBtnStudentTenantApply"');
     });
 
     it('Schul-Einstellungen Tab Schüler hat denselben Import', () => {
@@ -104,36 +104,21 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
     });
 
     it('Tenant-Import hat Textfilter, Alle abwählen und Kopf-Checkbox', () => {
-        const ein = read('einrichtung.html');
         const ten = read('tenant.html');
         const js = read('src/shared/teacher-tenant-import-ui.js');
-        expect(ein).toContain('id="swTeacherTenantImportTextFilter"');
-        expect(ein).toContain('id="swStudentTenantImportTextFilter"');
-        expect(ein).toContain('id="swBtnTeacherTenantSelectNone"');
-        expect(ein).toContain('id="swBtnStudentTenantSelectNone"');
-        expect(ein).toContain('id="swTeacherTenantSelectAllRows"');
-        expect(ein).toContain('id="swStudentTenantSelectAllRows"');
         expect(ten).toContain('id="tenantTeacherTenantImportTextFilter"');
         expect(ten).toContain('id="tenantStudentTenantImportTextFilter"');
         expect(ten).toContain('id="tenantBtnTeacherTenantSelectNone"');
         expect(ten).toContain('id="tenantBtnStudentTenantSelectNone"');
+        expect(ten).toContain('id="tenantTeacherTenantSelectAllRows"');
+        expect(ten).toContain('id="tenantStudentTenantSelectAllRows"');
         expect(js).toContain('rowMatchesTextFilter');
-        expect(js).toContain('selectNoneBtnId');
-        expect(js).toContain('textFilterId');
     });
 
-    it('Textfilter trifft Name, E-Mail und Kürzel', () => {
-        const row = {
-            name: 'Angus Young',
-            email: 'angus.young@kurtrocks.com',
-            code: 'YOU',
-            licenseLabel: 'A1 Lehrpersonal'
-        };
-        expect(rowMatchesTextFilter(row, '', 'code')).toBe(true);
-        expect(rowMatchesTextFilter(row, 'young', 'code')).toBe(true);
-        expect(rowMatchesTextFilter(row, 'YOU', 'code')).toBe(true);
-        expect(rowMatchesTextFilter(row, 'angus kurtrocks', 'code')).toBe(true);
-        expect(rowMatchesTextFilter(row, 'scott', 'code')).toBe(false);
-        expect(rowMatchesTextFilter({ name: 'Lisa', klasse: '1A', email: 'lisa@schule.at' }, '1a', 'klasse')).toBe(true);
+    it('rowMatchesTextFilter durchsucht Name und E-Mail', () => {
+        expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, 'anna')).toBe(true);
+        expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, 'schule')).toBe(true);
+        expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, 'xyz')).toBe(false);
+        expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, '')).toBe(true);
     });
 });

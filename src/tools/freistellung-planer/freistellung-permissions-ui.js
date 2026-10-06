@@ -10,18 +10,32 @@ import {
     normalizePermissionsConfig,
     savePermissionsConfig,
     loadPermissionsConfig,
+    loadEffectivePermissionsConfig,
     PERMS_STORAGE_KEY
 } from './freistellung-planer-permissions.js';
 import { publishPlannerPermissionsToSite } from './freistellung-planer-remote-config.js';
 import { loadExtraKategorien } from './freistellung-planer-kategorien.js';
-import { patchFreistellungKategorieColumn } from './freistellung-planer-graph.js';
+import {
+    patchFreistellungKategorieColumn,
+    patchFreistellungKlasseColumn
+} from './freistellung-planer-graph.js';
+import { classCatalogFromSchoolStammdaten } from './freistellung-planer-remote-config.js';
 import { wireFreistellungKategorienAdmin } from './freistellung-kategorien-ui.js';
+import { wireFreistellungKlassenAdmin } from './freistellung-klassen-ui.js';
 import { pickEntraUser } from '../../shared/entra-user-picker.js';
 import {
     normalizePlannerUsers,
     mergePlannerUser,
     direktionUsersFromTenantStammdaten
 } from './freistellung-planer-direktion-users.js';
+import {
+    FR_STAMMDATEN_GROUP_ROLES,
+    stripStammdatenGroupFieldsFromPatch,
+    filterEditableGroupFields,
+    fillReadonlyStammdatenGroupField
+} from '../../shared/planner-stammdaten-audience-ui.js';
+import { pickEntraGroup } from '../../shared/entra-group-picker.js';
+import { normalizeAllowedJahrgang, normalizeJahrgangGroups } from './freistellung-planer-jahrgang-scope.js';
 
 export const SETUP_GROUP_FIELDS = [
     {
@@ -50,12 +64,99 @@ export const SETUP_GROUP_FIELDS = [
     }
 ];
 
+/** Nur Direktion/KV – Schüler-Sammelgruppe aus Stammdaten. */
+export const FR_EDITABLE_GROUP_FIELDS = filterEditableGroupFields(SETUP_GROUP_FIELDS, FR_STAMMDATEN_GROUP_ROLES);
+
+const FR_SCHUELER_GROUP_FIELD = SETUP_GROUP_FIELDS.find((f) => f.role === 'groupSchueler');
+
 /** @type {Record<string, Array<{ id: string, displayName: string, mail: string }>>} */
 const extraUsersDraft = {
     direktionUsers: [],
     kvUsers: [],
     schuelerUsers: []
 };
+
+/** @type {Array<{ jahrgang: string, groupId: string, groupLabel: string }>} */
+let jahrgangGroupsDraft = [];
+
+function readAllowedJahrgangInput() {
+    const el = document.getElementById('frAllowedJahrgang');
+    return normalizeAllowedJahrgang(el ? el.value : '');
+}
+
+function renderJahrgangGroupsList() {
+    const ul = document.getElementById('frJahrgangGroupsList');
+    if (!ul) return;
+    jahrgangGroupsDraft = normalizeJahrgangGroups(jahrgangGroupsDraft);
+    if (!jahrgangGroupsDraft.length) {
+        ul.innerHTML =
+            '<li class="fr-setup-user-row fr-setup-user-row--empty muted">Noch keine Jahrgangs-Gruppen.</li>';
+        return;
+    }
+    ul.innerHTML = jahrgangGroupsDraft
+        .map(
+            (g, idx) =>
+                `<li class="fr-setup-user-row">` +
+                `<span class="fr-setup-user-row__label">Jg ${escapeHtml(g.jahrgang)}: ${escapeHtml(
+                    g.groupLabel || g.groupId
+                )}</span>` +
+                `<button type="button" class="fr-setup-user-row__rm btn btn-sm alt" data-fr-jg-rm="${idx}" title="Entfernen" aria-label="Entfernen"><i class="bi bi-x"></i></button>` +
+                `</li>`
+        )
+        .join('');
+    ul.querySelectorAll('[data-fr-jg-rm]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const i = Number(btn.getAttribute('data-fr-jg-rm'));
+            const list = normalizeJahrgangGroups(jahrgangGroupsDraft);
+            list.splice(i, 1);
+            jahrgangGroupsDraft = list;
+            renderJahrgangGroupsList();
+            persistPickersToStorage(SETUP_GROUP_FIELDS);
+        });
+    });
+}
+
+/**
+ * @param {() => void} [onChange]
+ */
+function wireJahrgangScopeUi(onChange) {
+    const allowedEl = document.getElementById('frAllowedJahrgang');
+    if (allowedEl && !allowedEl.dataset.frJgWired) {
+        allowedEl.dataset.frJgWired = '1';
+        const notify = () => {
+            if (typeof onChange === 'function') onChange();
+        };
+        allowedEl.addEventListener('change', notify);
+        allowedEl.addEventListener('input', notify);
+    }
+    const addBtn = document.getElementById('frJahrgangGroupAdd');
+    if (addBtn && !addBtn.dataset.frJgWired) {
+        addBtn.dataset.frJgWired = '1';
+        addBtn.addEventListener('click', () => {
+            const jgRaw = window.prompt('Schulstufe / Jahrgang (z. B. 5 oder 10):', '');
+            const jahrgang = String(jgRaw || '').trim();
+            if (!jahrgang) return;
+            pickEntraGroup({ title: 'Jahrgangs-Entra-Gruppe' })
+                .then((sel) => {
+                    if (!sel || !sel.id) return;
+                    jahrgangGroupsDraft = normalizeJahrgangGroups([
+                        ...jahrgangGroupsDraft,
+                        {
+                            jahrgang,
+                            groupId: sel.id,
+                            groupLabel: sel.label || sel.displayName || sel.id
+                        }
+                    ]);
+                    renderJahrgangGroupsList();
+                    if (typeof onChange === 'function') onChange();
+                })
+                .catch((e) => {
+                    const msg = e && e.message ? e.message : String(e);
+                    if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
+                });
+        });
+    }
+}
 
 const EXTRA_USER_UI = [
     {
@@ -146,15 +247,25 @@ function setExtraUsersDraft(configKey, users) {
 function wireExtraUsersUi(onChange) {
     EXTRA_USER_UI.forEach((spec) => {
         const addBtn = document.getElementById(spec.addBtnId);
-        if (addBtn) {
+        if (addBtn && !addBtn.dataset.frUserWired) {
+            addBtn.dataset.frUserWired = '1';
             addBtn.addEventListener('click', () => {
                 pickEntraUser({ title: spec.pickTitle, hint: spec.pickHint })
                     .then((sel) => {
-                        if (!sel || !sel.mail) return;
+                        if (!sel) return;
+                        const mail = String(sel.mail || sel.userPrincipalName || '').trim().toLowerCase();
+                        if (!mail) {
+                            if (typeof window.ms365ToastOrAlert === 'function') {
+                                window.ms365ToastOrAlert(
+                                    'Keine E-Mail/UPN für diese Person – bitte anderen Datensatz wählen.'
+                                );
+                            }
+                            return;
+                        }
                         extraUsersDraft[spec.configKey] = mergePlannerUser(extraUsersDraft[spec.configKey], {
                             id: sel.id,
                             displayName: sel.displayName,
-                            mail: sel.mail
+                            mail
                         });
                         renderExtraUsersList(spec);
                         if (typeof onChange === 'function') onChange();
@@ -197,7 +308,7 @@ function wireExtraUsersUi(onChange) {
  */
 export function readPermissionsFromPickers(fieldDefs) {
     const out = {};
-    fieldDefs.forEach((f) => {
+    filterEditableGroupFields(fieldDefs, FR_STAMMDATEN_GROUP_ROLES).forEach((f) => {
         const r = readGroupPickerField(f);
         out[f.role] = r.label;
         out[f.role + 'Id'] = r.id;
@@ -205,6 +316,8 @@ export function readPermissionsFromPickers(fieldDefs) {
     out.direktionUsers = normalizePlannerUsers(extraUsersDraft.direktionUsers);
     out.kvUsers = normalizePlannerUsers(extraUsersDraft.kvUsers);
     out.schuelerUsers = normalizePlannerUsers(extraUsersDraft.schuelerUsers);
+    out.allowedJahrgang = readAllowedJahrgangInput();
+    out.jahrgangGroups = normalizeJahrgangGroups(jahrgangGroupsDraft);
     return out;
 }
 
@@ -215,6 +328,10 @@ export function readPermissionsFromPickers(fieldDefs) {
 export function fillPermissionsPickers(cfg, fieldDefs) {
     const c = normalizePermissionsConfig(cfg);
     fieldDefs.forEach((f) => {
+        if (FR_STAMMDATEN_GROUP_ROLES.has(f.role)) {
+            fillReadonlyStammdatenGroupField(f);
+            return;
+        }
         fillGroupPickerField(f, {
             id: c[f.role + 'Id'],
             label: c[f.role]
@@ -226,7 +343,10 @@ export function fillPermissionsPickers(cfg, fieldDefs) {
  * @param {typeof SETUP_GROUP_FIELDS} fieldDefs
  */
 export function persistPickersToStorage(fieldDefs) {
-    const patch = readPermissionsFromPickers(fieldDefs);
+    const patch = stripStammdatenGroupFieldsFromPatch(
+        readPermissionsFromPickers(fieldDefs),
+        FR_STAMMDATEN_GROUP_ROLES
+    );
     const skip = document.getElementById('frSkipPerms');
     if (skip) patch.skipPerms = !!skip.checked;
     return savePermissionsConfig(patch);
@@ -238,7 +358,7 @@ export function persistPickersToStorage(fieldDefs) {
  */
 export function wirePermissionGroupPickers(fieldDefs, onChange) {
     wireEntraGroupPickerFields({
-        fields: fieldDefs.map((f) => ({
+        fields: filterEditableGroupFields(fieldDefs, FR_STAMMDATEN_GROUP_ROLES).map((f) => ({
             labelInputId: f.labelInputId,
             idInputId: f.idInputId,
             pickBtnId: f.pickBtnId,
@@ -270,7 +390,7 @@ export async function saveAndPublishFreistellungPlannerGroups() {
     try {
         const sharePoint = await publishPlannerPermissionsToSite(
             siteUrl,
-            loadPermissionsConfig(),
+            loadEffectivePermissionsConfig(),
             listId || undefined
         );
         if (listId && sharePoint && sharePoint.ok) {
@@ -283,6 +403,14 @@ export async function saveAndPublishFreistellungPlannerGroups() {
                     ]);
                     const site = await G.resolveSiteFromWebUrl(tok, siteUrl);
                     await patchFreistellungKategorieColumn(site.id, listId, loadExtraKategorien());
+                    const klasseCodes = classCatalogFromSchoolStammdaten()
+                        .map((r) => r.code)
+                        .filter(Boolean);
+                    if (klasseCodes.length) {
+                        await patchFreistellungKlasseColumn(site.id, listId, klasseCodes, {
+                            webUrl: siteUrl
+                        });
+                    }
                 }
             } catch {
                 /* Kategorien-Spalte optional */
@@ -336,9 +464,26 @@ export function formatFreistellungPlannerPublishToast(pub) {
     return 'Gruppen in diesem Browser gespeichert.';
 }
 
+let setupPermissionsBooted = false;
+
 export function initFreistellungSetupPermissions() {
+    if (setupPermissionsBooted) return;
+    try {
+        initFreistellungSetupPermissionsCore();
+        setupPermissionsBooted = true;
+    } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        console.error('[freistellung-setup-perms]', e);
+        if (typeof window.ms365ToastOrAlert === 'function') {
+            window.ms365ToastOrAlert('Berechtigungs-UI konnte nicht starten: ' + msg);
+        }
+    }
+}
+
+export function initFreistellungSetupPermissionsCore() {
     const cfg = loadPermissionsConfig();
     fillPermissionsPickers(cfg, SETUP_GROUP_FIELDS);
+    if (FR_SCHUELER_GROUP_FIELD) fillReadonlyStammdatenGroupField(FR_SCHUELER_GROUP_FIELD);
 
     let explicitlySaved = { direktionUsers: false, kvUsers: false, schuelerUsers: false };
     try {
@@ -358,12 +503,22 @@ export function initFreistellungSetupPermissions() {
     setExtraUsersDraft('kvUsers', cfg.kvUsers);
     setExtraUsersDraft('schuelerUsers', cfg.schuelerUsers);
 
+    jahrgangGroupsDraft = normalizeJahrgangGroups(cfg.jahrgangGroups);
+    const allowedEl = document.getElementById('frAllowedJahrgang');
+    if (allowedEl) {
+        allowedEl.value = (cfg.allowedJahrgang || []).join(', ');
+    }
+    renderJahrgangGroupsList();
+
     const skip = document.getElementById('frSkipPerms');
     if (skip) skip.checked = !!cfg.skipPerms;
     wirePermissionGroupPickers(SETUP_GROUP_FIELDS, () => {
         persistPickersToStorage(SETUP_GROUP_FIELDS);
     });
     wireExtraUsersUi(() => {
+        persistPickersToStorage(SETUP_GROUP_FIELDS);
+    });
+    wireJahrgangScopeUi(() => {
         persistPickersToStorage(SETUP_GROUP_FIELDS);
     });
     const btn = document.getElementById('frBtnSavePerms');
@@ -375,6 +530,40 @@ export function initFreistellungSetupPermissions() {
         });
     }
 
+    window.addEventListener('storage', (ev) => {
+        if (ev && ev.key === 'ms365-schooltool-data-v2' && FR_SCHUELER_GROUP_FIELD) {
+            fillReadonlyStammdatenGroupField(FR_SCHUELER_GROUP_FIELD);
+        }
+    });
+
+    const setupSiteCtx = () => {
+        let siteUrl = '';
+        let listId = '';
+        try {
+            const setup = JSON.parse(localStorage.getItem('ms365-freistellung-setup-v1') || '{}');
+            siteUrl = String(setup.siteUrl || '').trim();
+            listId = String(setup.listId || '').trim();
+        } catch {
+            /* ignore */
+        }
+        return { siteUrl, listId };
+    };
+    try {
+        if (window.ms365StammdatenCanonical && typeof window.ms365StammdatenCanonical.reconcileStammdatenStorage === 'function') {
+            window.ms365StammdatenCanonical.reconcileStammdatenStorage();
+        }
+    } catch {
+        /* ignore */
+    }
+    wireFreistellungKlassenAdmin(
+        {
+            mountId: 'frSetupKlassenList',
+            syncBtnId: 'frSetupKlassenSyncSp',
+            reloadBtnId: 'frSetupKlassenReload',
+            cleanBtnId: 'frSetupKlassenClean'
+        },
+        setupSiteCtx
+    );
     wireFreistellungKategorienAdmin(
         {
             listId: 'frSetupKatExtraList',
@@ -382,17 +571,6 @@ export function initFreistellungSetupPermissions() {
             newInputId: 'frSetupKatExtraNew',
             syncListBtnId: 'frSetupKatSyncSp'
         },
-        () => {
-            let siteUrl = '';
-            let listId = '';
-            try {
-                const setup = JSON.parse(localStorage.getItem('ms365-freistellung-setup-v1') || '{}');
-                siteUrl = String(setup.siteUrl || '').trim();
-                listId = String(setup.listId || '').trim();
-            } catch {
-                /* ignore */
-            }
-            return { siteUrl, listId };
-        }
+        setupSiteCtx
     );
 }

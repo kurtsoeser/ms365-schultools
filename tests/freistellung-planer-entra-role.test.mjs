@@ -6,6 +6,7 @@ import {
     resolveActivePlanerRole,
     finalizePlanerRoles,
     planerEntraGroupIds,
+    schuelerEntraGroupIdsForCheck,
     isPlanerDemoRoleUiEnabled
 } from '../src/tools/freistellung-planer/freistellung-planer-entra-role.js';
 import { matchKvByClassHeadEmail } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
@@ -42,6 +43,25 @@ describe('freistellung-planer-entra-role', () => {
         const all = new Set([DIR, KV, SCH].map((x) => x.toLowerCase()));
         expect(listRolesFromEntraGroups(all, cfg)).toEqual(['direktion', 'kv', 'schueler']);
         expect(listRolesFromEntraGroups(new Set([KV.toLowerCase()]), cfg)).toEqual(['kv']);
+    });
+
+    it('erkennt Schüler über Stammdaten-Sammelgruppe auch ohne groupSchuelerId in Planer-Config', () => {
+        const stammSch = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+        const cfgOhneSch = { groupDirektionId: DIR, groupKvId: KV, groupSchuelerId: '' };
+        const member = new Set([stammSch.toLowerCase()]);
+        const orig = globalThis.localStorage;
+        const store = { 'ms365-dashboard-audience-groups-v1': JSON.stringify({ groupSchuelerId: stammSch }) };
+        globalThis.localStorage = {
+            getItem: (k) => store[k] || null,
+            setItem: () => {}
+        };
+        try {
+            expect(schuelerEntraGroupIdsForCheck(cfgOhneSch)).toContain(stammSch);
+            expect(listRolesFromEntraGroups(member, cfgOhneSch)).toEqual(['schueler']);
+            expect(planerEntraGroupIds(cfgOhneSch)).toContain(stammSch);
+        } finally {
+            globalThis.localStorage = orig;
+        }
     });
 
     it('listRolesFromStammdaten', () => {

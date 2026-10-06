@@ -2,6 +2,7 @@
  * Zentrale Dashboard-Persona: einmal nach Login auflösen, app-weit nutzen.
  */
 import { resolveDashboardPersonas } from './dashboard-audience-resolve.js';
+import { clearGlobalAdministratorCache } from '../tools/schularbeiten-planer/schularbeiten-planer-entra-role.js';
 
 const CACHE_KEY = 'ms365-dashboard-persona-cache-v2';
 const CACHE_TTL_MS = 20 * 60 * 1000;
@@ -46,6 +47,7 @@ function writeCache(key, personas) {
 
 export function clearDashboardPersonaCache() {
     inFlight = null;
+    clearGlobalAdministratorCache();
     try {
         sessionStorage.removeItem(CACHE_KEY);
     } catch {
@@ -68,8 +70,23 @@ export async function refreshDashboardPersonaSession(opts) {
     if (inFlight && !force) return inFlight;
 
     inFlight = (async () => {
-        const personas = await resolveDashboardPersonas({ demoMode: false });
+        let personas = await resolveDashboardPersonas({ demoMode: false });
+        if (
+            personas &&
+            personas.loggedIn &&
+            !personas.isIt &&
+            !personas.globalAdmin &&
+            !personas.designatedSchoolIt
+        ) {
+            clearGlobalAdministratorCache();
+            personas = await resolveDashboardPersonas({ demoMode: false });
+        }
         if (key) writeCache(key, personas);
+        try {
+            window.__ms365DashboardPersonasLast = personas;
+        } catch {
+            /* ignore */
+        }
         try {
             window.dispatchEvent(
                 new CustomEvent('ms365-dashboard-persona-ready', { detail: { personas } })
@@ -106,6 +123,9 @@ function bootSessionListeners() {
     window.addEventListener('ms365-auth-state-changed', rerun);
     window.addEventListener('ms365-dashboard-audience-groups-changed', rerun);
     window.addEventListener('ms365-dashboard-tool-access-changed', rerun);
+    window.addEventListener('storage', (ev) => {
+        if (ev && ev.key === 'ms365-schooltool-data-v2') rerun();
+    });
     window.addEventListener('ms365-auth-widget-ready', () => {
         refreshDashboardPersonaSession({ force: false });
     });

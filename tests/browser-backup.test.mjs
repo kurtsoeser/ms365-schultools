@@ -111,13 +111,17 @@ describe('browser-backup', () => {
         const payload = apiWithSchool.buildBackup(storeWithSchool, now);
         expect(apiWithSchool.isBackupPayload(payload)).toBe(true);
         expect(payload.kind).toBe('ms365-browser-backup-v1');
-        expect(payload.version).toBe(4);
+        expect(payload.version).toBe(5);
         expect(payload.exportedAt).toBe(now.toISOString());
         expect(payload.schoolName).toBe('BRG Muster');
         expect(payload.domain).toBe('brg-muster.at');
         expect(payload.keyCount).toBe(6);
         expect(payload.contentFingerprint).toMatch(/^[0-9a-f]+:\d+$/);
         expect(payload.includesNote).toMatch(/Power-Automate/);
+        expect(payload.legacyMirror).toBeTruthy();
+        expect(payload.legacyMirror.writeEnabled).toBe(false);
+        expect(payload.legacyMirror.canonicalKey).toBe('ms365-schooltool-data-v2');
+        expect(payload.legacyMirror.canonicalPresent).toBe(true);
         expect(Object.keys(payload.sessionStorage || {}).sort()).toEqual([
             'ms365-gaeste-verwalten-active-tab-v1',
             'ms365-gast-zugaenge-snapshot-v1'
@@ -203,6 +207,27 @@ describe('browser-backup', () => {
         expect(target.getItem('ms365-dashboard-favorites-v1')).toContain('kursteams');
     });
 
+    it('lässt SharePoint-Session-Pull-Marker nicht ins Backup importieren', () => {
+        const payload = api.buildBackup(store);
+        payload.sessionStorage['ms365-spo-auto-pull-done-v1:tenant-abc'] = '1';
+        const targetSession = createMemoryStorage();
+        api.applyBackup(payload, store, { sessionStorage: targetSession });
+        expect(targetSession.getItem('ms365-spo-auto-pull-done-v1:tenant-abc')).toBeNull();
+    });
+
+    it('ignoriert SharePoint-Sync-Meta im Inhalts-Fingerprint', () => {
+        const base = createMemoryStorage({
+            'ms365-schooltool-data-v2': JSON.stringify({ version: 4, core: { domain: 't.at' } })
+        });
+        const apiBase = loadBackup(base, sessionStore).ms365BrowserBackup;
+        const fp1 = apiBase.contentFingerprint(base);
+        base.setItem(
+            'ms365-stammdaten-spo-sync-by-tenant-v2',
+            JSON.stringify({ 'tid-1': { dirty: true, at: '2099-01-01T00:00:00.000Z' } })
+        );
+        expect(apiBase.contentFingerprint(base)).toBe(fp1);
+    });
+
     it('invalidiert app-data-v2-Cache nach Backup-Import', () => {
         let invalidated = false;
         const target = createMemoryStorage();
@@ -228,14 +253,17 @@ describe('browser-backup', () => {
 describe('browser-backup Seiten', () => {
     const pages = [
         { file: 'index.html', scriptPrefix: 'src/shared/browser-backup.js' },
-        { file: 'tenant.html', scriptPrefix: 'src/shared/browser-backup.js' },
-        { file: 'einrichtung.html', scriptPrefix: 'src/shared/browser-backup.js' }
+        { file: 'tenant.html', scriptPrefix: 'src/shared/browser-backup.js' }
     ];
 
     it.each(pages)('$file bindet Backup-Skript und Steuerelemente ein', ({ file, scriptPrefix }) => {
         const html = readFileSync(join(projectRoot, file), 'utf8');
         expect(html).toContain(scriptPrefix);
-        expect(html).toContain('id="browserBackupExport"');
+        if (file === 'tenant.html') {
+            expect(html).toContain('data-ms365-backup="export"');
+        } else {
+            expect(html).toContain('id="browserBackupExport"');
+        }
         expect(html).toContain('id="browserBackupImportFile"');
     });
 });

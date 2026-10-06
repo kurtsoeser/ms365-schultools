@@ -379,6 +379,104 @@
      * Vererbung an einer Liste/Bibliothek brechen.
      * @param {boolean} [copyRoleAssignments=true]
      */
+    /**
+     * Elementberechtigungen der Liste (SharePoint „Erweiterte Einstellungen“).
+     * ReadSecurity: 1 = alle Elemente, 2 = nur eigene.
+     * WriteSecurity: 1 = alle, 2 = nur eigene erstellen/bearbeiten, 4 = keine.
+     * @param {number} readSecurity
+     * @param {number} writeSecurity
+     */
+    function spoListApiSegment(listTitle, listId) {
+        const id = String(listId || '').trim();
+        if (id) {
+            return "/lists(guid'" + id.replace(/'/g, "''") + "')";
+        }
+        const title = String(listTitle || '').trim().replace(/'/g, "''");
+        if (!title) throw new Error('Listen-Titel oder -ID fehlt.');
+        return "/lists/getbytitle('" + title + "')";
+    }
+
+    /**
+     * @returns {Promise<{ readSecurity: number, writeSecurity: number, title: string }>}
+     */
+    async function spoGetListItemLevelPermissions(siteWebUrl, spoToken, digest, listTitle, listId) {
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const api =
+            '/_api/web' +
+            spoListApiSegment(listTitle, listId) +
+            '?$select=Title,ReadSecurity,WriteSecurity';
+        const res = await spoRestFetch(siteWebUrl, spoToken, digest, 'GET', api);
+        if (!res.ok) {
+            throw new Error('Elementberechtigungen lesen: ' + res.status + ' ' + (res.text || ''));
+        }
+        const d = res.data || {};
+        return {
+            title: String(d.Title || listTitle || ''),
+            readSecurity: Number(d.ReadSecurity),
+            writeSecurity: Number(d.WriteSecurity)
+        };
+    }
+
+    async function spoSetListItemLevelPermissions(
+        siteWebUrl,
+        spoToken,
+        digest,
+        listTitle,
+        readSecurity,
+        writeSecurity,
+        listId
+    ) {
+        const origin = String(siteWebUrl || '').replace(/\/+$/, '');
+        const api = '/_api/web' + spoListApiSegment(listTitle, listId);
+        const url = origin + api;
+        const rs = Number(readSecurity);
+        const ws = Number(writeSecurity);
+        const payloads = [
+            {
+                headers: {
+                    Accept: 'application/json;odata=verbose',
+                    'Content-Type': 'application/json;odata=verbose'
+                },
+                body: {
+                    __metadata: { type: 'SP.List' },
+                    ReadSecurity: rs,
+                    WriteSecurity: ws
+                }
+            },
+            {
+                headers: {
+                    Accept: 'application/json;odata=nometadata',
+                    'Content-Type': 'application/json;odata=nometadata'
+                },
+                body: { ReadSecurity: rs, WriteSecurity: ws }
+            }
+        ];
+        let lastErr = '';
+        for (let i = 0; i < payloads.length; i++) {
+            const p = payloads[i];
+            const headers = Object.assign(
+                {
+                    Authorization: 'Bearer ' + spoToken,
+                    'X-HTTP-Method': 'MERGE',
+                    'IF-MATCH': '*'
+                },
+                p.headers
+            );
+            if (digest) headers['X-RequestDigest'] = digest;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(p.body)
+            });
+            const text = await res.text();
+            if (res.ok || res.status === 204) {
+                return { ok: true };
+            }
+            lastErr = res.status + ' ' + (text || '');
+        }
+        throw new Error('Listen-Elementberechtigungen: ' + lastErr);
+    }
+
     async function spoBreakListInheritance(siteWebUrl, spoToken, digest, listTitle, copyRoleAssignments) {
         const title = String(listTitle || '').trim();
         if (!title) throw new Error('Listen-Titel fehlt.');
@@ -926,6 +1024,8 @@
         getSpoRequestDigest: getSpoRequestDigest,
         spoRestFetch: spoRestFetch,
         spoBreakListInheritance: spoBreakListInheritance,
+        spoSetListItemLevelPermissions: spoSetListItemLevelPermissions,
+        spoGetListItemLevelPermissions: spoGetListItemLevelPermissions,
         spoListRoleAssignments: spoListRoleAssignments,
         spoRemoveRoleAssignment: spoRemoveRoleAssignment,
         spoEnsureUser: spoEnsureUser,

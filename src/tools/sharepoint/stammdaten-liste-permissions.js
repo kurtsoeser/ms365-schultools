@@ -22,10 +22,12 @@ export const STAMMDATEN_LIST_PERM_PROFILES = {
     fachgruppen: { admin: 'fullControl', lehrer: 'read', schueler: 'read' },
     arges: { admin: 'fullControl', lehrer: 'contribute', schueler: null },
     /** Klassen inkl. Personenfeld Schülerinnen: Schüler-Gruppe nur Lesen. */
-    klassen: { admin: 'fullControl', lehrer: 'contribute', schueler: 'read' }
+    klassen: { admin: 'fullControl', lehrer: 'contribute', schueler: 'read' },
+    /** Lehrkräfte-Stammliste – für Schüler-Gruppe kein Zugriff. */
+    lehrer: { admin: 'fullControl', lehrer: 'read', schueler: null }
 };
 
-export const LIST_TYPE_KEYS = ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen'];
+export const LIST_TYPE_KEYS = ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen', 'lehrer'];
 
 export function loadPermissionsConfig() {
     try {
@@ -97,7 +99,8 @@ export async function applyStammdatenPackagePermissions(siteWebUrl, configPatch,
         faecher: String(o.faecherTitle || 'Fächer').trim() || 'Fächer',
         fachgruppen: String(o.fachgruppenTitle || 'Fachgruppen').trim() || 'Fachgruppen',
         arges: String(o.argesTitle || 'ARGEs').trim() || 'ARGEs',
-        klassen: String(o.klassenTitle || 'Klassen').trim() || 'Klassen'
+        klassen: String(o.klassenTitle || 'Klassen').trim() || 'Klassen',
+        lehrer: String(o.lehrerTitle || 'Lehrerinnen').trim() || 'Lehrerinnen'
     };
 
     const active = [];
@@ -106,6 +109,7 @@ export async function applyStammdatenPackagePermissions(siteWebUrl, configPatch,
     if (o.fachgruppen) active.push('fachgruppen');
     if (o.arges) active.push('arges');
     if (o.klassen) active.push('klassen');
+    if (o.lehrer) active.push('lehrer');
     if (!active.length) {
         LIST_TYPE_KEYS.forEach((k) => active.push(k));
     }

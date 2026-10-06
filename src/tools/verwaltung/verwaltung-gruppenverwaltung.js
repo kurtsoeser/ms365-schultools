@@ -968,19 +968,31 @@
 
     function loadState() {
         let rawLocal = null;
+        let localObj = null;
         try {
             rawLocal = localStorage.getItem(STORAGE_KEY);
+            if (rawLocal) localObj = JSON.parse(rawLocal);
         } catch {
             rawLocal = null;
+            localObj = null;
         }
+        const localMatched =
+            localObj && localObj.matched && typeof localObj.matched === 'object' ? localObj.matched : null;
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
                 const su = window.ms365AppDataV2.getSetup();
                 const hasId = su && su.matched && !!su.matched.verwaltungGroupId;
-                if (hasId || !rawLocal) {
+                const localVw =
+                    localMatched && localMatched.verwaltungGroupId
+                        ? String(localMatched.verwaltungGroupId).trim()
+                        : '';
+                const hasAny = hasId || localVw;
+                if (hasAny || !rawLocal) {
                     const d = su.verwaltungDraft || {};
+                    const merged = su.matched && typeof su.matched === 'object' ? { ...su.matched } : {};
+                    if (localVw && !merged.verwaltungGroupId) merged.verwaltungGroupId = localVw;
                     applyStateObject({
-                        matched: su.matched,
+                        matched: merged,
                         vwNewDisplayName: d.vwNewDisplayName,
                         vwNewMailNick: d.vwNewMailNick,
                         vwNewDescription: d.vwNewDescription,
@@ -993,8 +1005,8 @@
             // ignore
         }
         try {
-            if (!rawLocal) return;
-            applyStateObject(JSON.parse(rawLocal));
+            if (!localObj) return;
+            applyStateObject(localObj);
         } catch {
             // ignore
         }
@@ -1154,7 +1166,7 @@
             live().setMatchedMode(false);
             applyCreateDefaults();
         } else {
-            void refreshGraphMemberCounts();
+            void live().loadGroup({ silent: true });
         }
     }
 

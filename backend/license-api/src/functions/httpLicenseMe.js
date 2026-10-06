@@ -10,7 +10,10 @@ const {
 } = require('../lib/http-utils');
 const { validateCallerToken } = require('../lib/validate-token');
 const { lookupLicenseFields } = require('../lib/sharepoint-license');
-const { evaluateLicense } = require('../lib/evaluate-license');
+const {
+    evaluateLicense,
+    upnMatchesDesignatedItContact
+} = require('../lib/evaluate-license');
 
 app.http('httpLicenseMeOptions', {
     methods: ['OPTIONS'],
@@ -35,11 +38,17 @@ app.http('httpLicenseMe', {
                 allowedStatuses: cfg.allowedStatuses
             });
 
+            const contactEmails = result.contactEmails || [];
+            const isDesignatedSchoolIt =
+                result.allowed &&
+                upnMatchesDesignatedItContact(caller.upn, contactEmails);
+
             return jsonResponse(200, {
                 allowed: result.allowed,
                 reason: result.reason,
                 message: result.message,
                 tenantId: caller.tid,
+                isDesignatedSchoolIt,
                 user: {
                     oid: caller.oid || null,
                     upn: caller.upn || null,
@@ -51,7 +60,8 @@ app.http('httpLicenseMe', {
                     validUntil: result.validUntil,
                     primaryDomain: result.primaryDomain,
                     domains: result.domains || [],
-                    contactEmail: result.contactEmail
+                    contactEmail: result.contactEmail,
+                    contactEmails
                 }
             });
         } catch (e) {

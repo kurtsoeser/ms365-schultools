@@ -3,6 +3,7 @@
  */
 import { MULTI_DAY_THRESHOLD, STATUS_CHOICES, KATEGORIE_CHOICES } from './freistellung-planer-schema.js';
 import { isAllowedKategorie } from './freistellung-planer-kategorien.js';
+import { itemMatchesJahrgangClassCodes } from './freistellung-planer-jahrgang-scope.js';
 
 /**
  * @typedef {object} FreistellungDraft
@@ -219,11 +220,20 @@ export function filterFreistellungen(items, filters, scope) {
                 .toLowerCase();
             if (author !== String(sc.accountEmail).toLowerCase()) return false;
         }
-        if (sc.onlyKv && sc.accountEmail) {
+        if (sc.jahrgangOrKv && sc.accountEmail) {
+            const kv = String(it.kvEmail || '')
+                .trim()
+                .toLowerCase();
+            const kvHit = kv === String(sc.accountEmail).toLowerCase();
+            const jgHit = itemMatchesJahrgangClassCodes(sc.jahrgangClassCodes, it.klasse);
+            if (!kvHit && !jgHit) return false;
+        } else if (sc.onlyKv && sc.accountEmail) {
             const kv = String(it.kvEmail || '')
                 .trim()
                 .toLowerCase();
             if (kv !== String(sc.accountEmail).toLowerCase()) return false;
+        } else if (sc.jahrgangClassCodes && sc.jahrgangClassCodes.size) {
+            if (!itemMatchesJahrgangClassCodes(sc.jahrgangClassCodes, it.klasse)) return false;
         }
         if (f.klasse && String(it.klasse || '') !== String(f.klasse)) return false;
         if (f.status && String(it.status || '') !== String(f.status)) return false;

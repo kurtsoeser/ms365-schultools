@@ -1275,16 +1275,6 @@ function bind() {
     let graphPan = null;
     /** @type {Set<string>} */
     let graphCollapsed = loadGraphCollapsedSet();
-    // In der Ersteinrichtung ist die Erwartung: alles sichtbar.
-    // Persistierte Collapsed-States aus anderen Seiten sind hier verwirrend.
-    try {
-        if (isEmbedStructure && /ersteinrichtung\.html$/i.test(String(window.location?.pathname || ''))) {
-            graphCollapsed = new Set();
-            saveGraphCollapsedSet(graphCollapsed);
-        }
-    } catch {
-        // ignore
-    }
     /** @type {Map<string, {name:string,email:string}>} */
     let personInfoByRole = new Map();
 

@@ -1,0 +1,204 @@
+/**
+ * Werkzeug-Subheader – einheitlich unter dem App-Sticky-Header (Zone D).
+ */
+
+body.app-shell-chrome .container > .header.app-tool-chrome {
+    padding: 16px 18px 14px;
+    text-align: center;
+    color: var(--heading, #1e2440);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--brand1) 11%, #fff) 0%,
+        color-mix(in srgb, var(--brand2) 6%, #fff) 38%,
+        var(--card, #fff) 100%
+    );
+    border-bottom: 1px solid color-mix(in srgb, var(--brand1) 14%, var(--border, #dee2e6));
+    position: relative;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+}
+
+body.app-shell-chrome .container > .header.app-tool-chrome > h1 {
+    display: none !important;
+}
+
+.app-tool-chrome__intro {
+    padding: 4px 12px 12px;
+    max-width: min(52rem, 92vw);
+    margin-inline: auto;
+    text-align: center;
+}
+
+body.app-shell-chrome .app-tool-chrome .header-tool-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 auto 10px;
+    padding: 0;
+    text-align: center;
+}
+
+body.app-shell-chrome .app-tool-chrome .header-tool-indicator__name {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--heading, #1e2440);
+    gap: 10px;
+}
+
+body.app-shell-chrome .app-tool-chrome .header-tool-indicator__name > i.bi {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 14px;
+    font-size: 1.25rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--brand1) 22%, transparent);
+}
+
+body.app-shell-chrome .app-tool-chrome > .app-tool-chrome__intro > p:not(.header-help-row) {
+    margin: 0 auto 8px;
+    max-width: min(42rem, 90vw);
+    opacity: 1;
+    font-size: 0.96rem;
+    line-height: 1.45;
+    color: var(--text-secondary, #5c6578);
+    display: block;
+    text-align: center;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+}
+
+body.app-shell-chrome .app-tool-chrome .header-help-row {
+    margin: 6px 0 0;
+    display: flex;
+    justify-content: center;
+}
+
+body.app-shell-chrome .app-tool-chrome .header-help-link {
+    background: #fff;
+    border: 1px solid color-mix(in srgb, var(--brand1) 16%, var(--border, #dee2e6));
+    color: var(--heading, #1e2440);
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+
+body.app-shell-chrome .app-tool-chrome .header-help-link:hover {
+    border-color: color-mix(in srgb, var(--brand1) 32%, var(--border, #dee2e6));
+    color: var(--brand1);
+}
+
+body.app-shell-chrome .header.app-tool-chrome .app-tool-chrome__nav,
+body.app-shell-chrome .header.app-tool-chrome .toolbar.app-tool-chrome__nav {
+    justify-content: flex-start !important;
+    background: transparent !important;
+    border: none !important;
+    border-top: 1px solid color-mix(in srgb, var(--brand1) 10%, var(--border, #dee2e6)) !important;
+    border-radius: 0 !important;
+    margin-top: 8px !important;
+    padding: 12px 0 4px !important;
+}
+
+.app-tool-chrome__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    align-content: flex-start;
+    gap: 8px 10px;
+    width: 100%;
+    max-width: none;
+    margin: 8px 0 0;
+    padding: 12px 0 4px;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--brand1) 10%, var(--border, #dee2e6));
+    border-radius: 0;
+    text-align: left;
+}
+
+/* Legacy-Toolbars: Wrapper nicht als eigene Flex-Zeile */
+body.app-shell-chrome .header.app-tool-chrome .app-tool-chrome__nav > div {
+    display: contents;
+}
+
+.app-tool-chrome__nav[hidden] {
+    display: none !important;
+}
+
+.app-tool-chrome__nav .app-tool-chrome__nav-link,
+.app-tool-chrome__nav a.btn {
+    margin: 0;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.25;
+    background: color-mix(in srgb, var(--brand1) 10%, #fff);
+    color: color-mix(in srgb, var(--brand1) 88%, #1e2440) !important;
+    border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border, #dee2e6));
+    box-shadow: none;
+    transform: none;
+}
+
+.app-tool-chrome__nav .app-tool-chrome__back {
+    background: #fff;
+    font-weight: 750;
+}
+
+.app-tool-chrome__nav .app-tool-chrome__nav-link:hover,
+.app-tool-chrome__nav a.btn:hover,
+.app-tool-chrome__nav .app-tool-chrome__back:hover {
+    background: color-mix(in srgb, var(--brand1) 16%, #fff);
+    filter: none;
+    transform: translateY(-1px);
+    color: color-mix(in srgb, var(--brand1) 92%, #1e2440) !important;
+}
+
+.app-tool-chrome__nav .app-tool-chrome__back:hover {
+    background: #fff;
+}
+
+.app-tool-chrome__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none !important;
+}
+
+.app-tool-chrome__back .bi {
+    font-size: 1em;
+    opacity: 0.85;
+}
+
+body.app-shell-chrome .ms365-header-nav {
+    display: none !important;
+}
+
+body.app-shell-chrome .container > .header.app-tool-chrome {
+    padding-top: 16px !important;
+}
+
+body.app-shell-chrome:has(#ms365HeaderSchulregister) .app-tool-chrome .toolbar a[href*='tenant.html'],
+body.app-shell-chrome:has(#ms365HeaderSchulregister) .app-tool-chrome__nav a[href*='tenant.html'] {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    body.app-shell-chrome .app-tool-chrome .header-tool-indicator__name {
+        font-size: 1.2rem;
+    }
+    .app-tool-chrome__nav {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}

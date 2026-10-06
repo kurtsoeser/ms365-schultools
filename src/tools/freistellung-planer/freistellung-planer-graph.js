@@ -44,6 +44,63 @@ async function findListByTitle(tok, siteId, listTitle) {
     return ((data && data.value) || [])[0] || null;
 }
 
+/**
+ * Liste auf einer Site finden (ID, Filter oder Enumeration – für Schüler mit nur Listenrecht).
+ * @param {string} webUrl
+ * @param {{ listName?: string, listId?: string }} [opts]
+ */
+export async function findFreistellungListOnSite(webUrl, opts) {
+    const url = String(webUrl || '').trim().replace(/\/$/, '');
+    if (!url) return null;
+    const options = opts || {};
+    const listName = String(options.listName || LIST_TITLE_DEFAULT).trim() || LIST_TITLE_DEFAULT;
+    const hintId = String(options.listId || '').trim();
+    const tok = await tokenRead();
+    const site = await G().resolveSiteFromWebUrl(tok, url);
+    const siteId = site && site.id ? String(site.id) : '';
+    if (!siteId) return null;
+
+    if (hintId) {
+        try {
+            const list = await G().graphJson(
+                'GET',
+                G().graphPathSite(siteId) +
+                    '/lists/' +
+                    encodeURIComponent(hintId) +
+                    '?$select=id,displayName,webUrl',
+                tok,
+                undefined,
+                'v1.0'
+            );
+            if (list && list.id) return list;
+        } catch {
+            /* direkte ID nicht lesbar */
+        }
+    }
+
+    let list = await findListByTitle(tok, siteId, listName);
+    if (list && list.id) return list;
+
+    let path = G().graphPathSite(siteId) + '/lists?$select=id,displayName,webUrl&$top=200';
+    const want = listName.toLowerCase();
+    while (path) {
+        const data = await G().graphJson(
+            'GET',
+            path.indexOf('http') === 0 ? path : path,
+            tok,
+            undefined,
+            'v1.0'
+        );
+        const batch = (data && data.value) || [];
+        for (let i = 0; i < batch.length; i++) {
+            const row = batch[i];
+            if (String(row.displayName || '').trim().toLowerCase() === want) return row;
+        }
+        path = data && data['@odata.nextLink'] ? data['@odata.nextLink'] : '';
+    }
+    return null;
+}
+
 async function fetchAllItems(tok, siteId, listId) {
     let path =
         G().graphPathSite(siteId) +
@@ -207,24 +264,10 @@ export async function resolveFrContext(webUrl, opts) {
     if (!siteId) throw new Error('Site-ID fehlt.');
 
     const listName = String((opts && opts.listName) || LIST_TITLE_DEFAULT).trim() || LIST_TITLE_DEFAULT;
-    let list = null;
-    if (opts && opts.listId) {
-        try {
-            list = await G().graphJson(
-                'GET',
-                G().graphPathSite(siteId) +
-                    '/lists/' +
-                    encodeURIComponent(opts.listId) +
-                    '?$select=id,displayName,webUrl',
-                tok,
-                undefined,
-                'v1.0'
-            );
-        } catch {
-            list = null;
-        }
-    }
-    if (!list) list = await findListByTitle(tok, siteId, listName);
+    const list = await findFreistellungListOnSite(url, {
+        listName,
+        listId: opts && opts.listId ? String(opts.listId) : ''
+    });
     if (!list) {
         throw new Error(
             'Liste „' +
@@ -379,6 +422,489 @@ export async function loadAllFreistellungen(ctx) {
  * @param {string} listId
  * @param {string[]} choices
  */
+/**
+ * Auswahlfeld „Klasse“ der Freistellungsliste (für Schüler-Dropdown).
+ * @param {{ siteId: string, list: { id: string } }} ctx
+ */
+function normalizeKlasseChoiceRows(raw) {
+    const out = [];
+    const seen = new Set();
+    (raw || []).forEach((entry) => {
+        const code = String(entry || '').trim();
+        if (!code || seen.has(code.toLowerCase())) return;
+        seen.add(code.toLowerCase());
+        out.push({ code, name: code });
+    });
+    return out;
+}
+
+function choicesFromSpoFieldPayload(data) {
+    const d = data && data.d ? data.d : data;
+    if (!d) return [];
+    const ch = d.Choices;
+    if (Array.isArray(ch)) return ch;
+    if (ch && Array.isArray(ch.results)) return ch.results;
+    return [];
+}
+
+async function fetchFreistellungKlasseChoicesViaSpoRest(webUrl, listId) {
+    const url = String(webUrl || '').trim().replace(/\/$/, '');
+    const id = String(listId || '').trim();
+    if (!url || !id) return [];
+    let host = '';
+    try {
+        host = new URL(url).hostname;
+    } catch {
+        return [];
+    }
+    const spoScope = 'https://' + host + '/AllSites.Read';
+    const spoTok = await G().getGraphToken([spoScope, 'https://graph.microsoft.com/User.Read']);
+    const digest = await G().getSpoRequestDigest(url, spoTok);
+    const api =
+        "/_api/web/lists(guid'" +
+        id.replace(/'/g, "''") +
+        "')/fields/getbytitle('Klasse')?$select=Title,Choices,Choice";
+    const res = await G().spoRestFetch(url, spoTok, digest, 'GET', api);
+    if (!res || !res.ok) return [];
+    return normalizeKlasseChoiceRows(choicesFromSpoFieldPayload(res.data));
+}
+
+export async function fetchFreistellungKlasseColumnChoices(ctx) {
+    if (!ctx || !ctx.list || !ctx.list.id) return [];
+    const listId = String(ctx.list.id);
+    const webUrl = String(ctx.webUrl || '').trim();
+    let fromGraph = [];
+    if (ctx.siteId) {
+        try {
+            const tok = await tokenRead();
+            const base =
+                G().graphPathSite(ctx.siteId) +
+                '/lists/' +
+                encodeURIComponent(listId) +
+                '/columns';
+            const data = await G().graphJson(
+                'GET',
+                base + '?$select=id,name,choice,displayName&$top=200',
+                tok,
+                undefined,
+                'v1.0'
+            );
+            const col = ((data && data.value) || []).find((c) => {
+                const n = String(c.name || '').toLowerCase();
+                const dn = String(c.displayName || '').toLowerCase();
+                return n === 'klasse' || dn === 'klasse';
+            });
+            const raw =
+                col && col.choice && Array.isArray(col.choice.choices) ? col.choice.choices : [];
+            fromGraph = normalizeKlasseChoiceRows(raw);
+        } catch {
+            fromGraph = [];
+        }
+    }
+    if (fromGraph.length) return fromGraph;
+    try {
+        return await fetchFreistellungKlasseChoicesViaSpoRest(webUrl, listId);
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * @param {string} siteId
+ * @param {string} listId
+ * @param {string[]} choices
+ */
+/**
+ * Alte Schema-Defaults (nicht Stammdaten) – nicht im Schüler-Dropdown zeigen.
+ * @param {string} code
+ */
+export function isLegacyFreistellungKlasseChoice(code) {
+    return /^[1-5]AHW$/i.test(String(code || '').trim());
+}
+
+/**
+ * @param {{ code?: string, name?: string }[]} rows
+ */
+export function filterLegacyFreistellungKlasseChoices(rows) {
+    return (rows || []).filter((r) => !isLegacyFreistellungKlasseChoice(r && (r.code || r.name)));
+}
+
+function normalizeKlasseChoiceCodes(choices) {
+    const merged = [];
+    const seen = new Set();
+    (choices || []).forEach((entry) => {
+        const code = String(entry || '').trim();
+        if (!code || seen.has(code.toLowerCase()) || isLegacyFreistellungKlasseChoice(code)) return;
+        seen.add(code.toLowerCase());
+        merged.push(code);
+    });
+    return merged;
+}
+
+function choiceSetsMatch(expected, actual) {
+    const a = new Set((expected || []).map((x) => String(x).toLowerCase()));
+    const b = new Set((actual || []).map((x) => String(x).toLowerCase()));
+    if (!a.size || a.size !== b.size) return false;
+    for (const x of a) if (!b.has(x)) return false;
+    return true;
+}
+
+function escapeXmlAttr(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function buildKlasseChoiceSchemaXml(internalName, displayName, choices) {
+    const name = String(internalName || 'Klasse').replace(/[^A-Za-z0-9_]/g, '') || 'Klasse';
+    const dn = escapeXmlAttr(displayName || 'Klasse');
+    const choiceXml = (choices || [])
+        .map((c) => '<CHOICE>' + escapeXmlAttr(c) + '</CHOICE>')
+        .join('');
+    return (
+        '<Field Type="Choice" DisplayName="' +
+        dn +
+        '" Name="' +
+        name +
+        '" StaticName="' +
+        name +
+        '" Format="Dropdown" FillInChoice="FALSE" Required="FALSE">' +
+        '<CHOICES>' +
+        choiceXml +
+        '</CHOICES>' +
+        '</Field>'
+    );
+}
+
+async function acquireSpoWriteToken(webUrl) {
+    const origin = String(webUrl || '').trim().replace(/\/$/, '');
+    let host = '';
+    try {
+        host = new URL(origin).hostname;
+    } catch {
+        throw new Error('Ungültige Site-URL.');
+    }
+    const graphExtras = [
+        'https://graph.microsoft.com/User.Read',
+        'https://graph.microsoft.com/Sites.ReadWrite.All'
+    ];
+    let spoTok = null;
+    const spoScopeSets = [
+        ['https://' + host + '/AllSites.FullControl'],
+        ['https://' + host + '/AllSites.Write'],
+        ['https://' + host + '/.default']
+    ];
+    let lastErr = null;
+    for (let i = 0; i < spoScopeSets.length; i++) {
+        try {
+            spoTok = await G().getGraphToken(spoScopeSets[i].concat(graphExtras));
+            if (spoTok) break;
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    if (!spoTok) {
+        throw new Error(
+            'Kein SharePoint-Schreibrecht (AllSites.Write). ' +
+                (lastErr && lastErr.message ? lastErr.message : '')
+        );
+    }
+    const digest = await G().getSpoRequestDigest(origin, spoTok);
+    return { origin, spoTok, digest };
+}
+
+async function spoMergeField(origin, spoTok, digest, listId, fieldApi, body, useVerbose) {
+    const url =
+        origin +
+        "/_api/web/lists(guid'" +
+        String(listId).replace(/'/g, "''") +
+        "')/fields/" +
+        fieldApi;
+    const headers = {
+        Authorization: 'Bearer ' + spoTok,
+        'X-HTTP-Method': 'MERGE',
+        'IF-MATCH': '*',
+        Accept: useVerbose ? 'application/json;odata=verbose' : 'application/json;odata=nometadata',
+        'Content-Type': useVerbose
+            ? 'application/json;odata=verbose;charset=utf-8'
+            : 'application/json;odata=nometadata;charset=utf-8'
+    };
+    if (digest) headers['X-RequestDigest'] = digest;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+    });
+    const text = await res.text();
+    return { ok: res.ok || res.status === 204, status: res.status, text };
+}
+
+async function readKlasseChoicesViaSpoRest(webUrl, listId) {
+    const rows = await fetchFreistellungKlasseChoicesViaSpoRest(webUrl, listId);
+    return rows.map((r) => r.code);
+}
+
+async function readKlasseChoicesViaGraph(siteId, listId) {
+    const tok = await token();
+    const base =
+        G().graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/columns';
+    const data = await G().graphJson(
+        'GET',
+        base + '?$select=id,name,displayName,choice&$top=200',
+        tok,
+        undefined,
+        'v1.0'
+    );
+    const col = ((data && data.value) || []).find((c) => {
+        const n = String(c.name || '').toLowerCase();
+        const dn = String(c.displayName || '').toLowerCase();
+        return n === 'klasse' || dn === 'klasse';
+    });
+    if (!col) {
+        return { codes: [], columnId: '', internalName: 'Klasse', displayName: 'Klasse', allCodes: [] };
+    }
+    const raw = col.choice && Array.isArray(col.choice.choices) ? col.choice.choices : [];
+    const allCodes = (raw || []).map((x) => String(x || '').trim()).filter(Boolean);
+    return {
+        codes: normalizeKlasseChoiceCodes(allCodes),
+        columnId: String(col.id || ''),
+        internalName: String(col.name || 'Klasse'),
+        displayName: String(col.displayName || 'Klasse'),
+        allCodes
+    };
+}
+
+function replaceChoicesInSchemaXml(schemaXml, choices) {
+    const xml = String(schemaXml || '');
+    if (!xml) return '';
+    const choiceXml = (choices || [])
+        .map((c) => '<CHOICE>' + escapeXmlAttr(c) + '</CHOICE>')
+        .join('');
+    const block = '<CHOICES>' + choiceXml + '</CHOICES>';
+    if (/<CHOICES>[\s\S]*?<\/CHOICES>/i.test(xml)) {
+        return xml.replace(/<CHOICES>[\s\S]*?<\/CHOICES>/i, block);
+    }
+    if (/<\/Field>/i.test(xml)) {
+        return xml.replace(/<\/Field>/i, block + '</Field>');
+    }
+    return xml;
+}
+
+async function spoGetFieldMeta(origin, spoTok, digest, listId, fieldApi) {
+    const url =
+        origin +
+        "/_api/web/lists(guid'" +
+        String(listId).replace(/'/g, "''") +
+        "')/fields/" +
+        fieldApi +
+        '?$select=Id,InternalName,Title,TypeAsString,SchemaXml,Choices';
+    const headers = {
+        Authorization: 'Bearer ' + spoTok,
+        Accept: 'application/json;odata=verbose'
+    };
+    if (digest) headers['X-RequestDigest'] = digest;
+    const res = await fetch(url, { method: 'GET', headers });
+    const text = await res.text();
+    let data = null;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch {
+        data = null;
+    }
+    const d = data && data.d ? data.d : data;
+    if (!res.ok || !d) return null;
+    return {
+        id: String(d.Id || ''),
+        internalName: String(d.InternalName || ''),
+        title: String(d.Title || ''),
+        typeAsString: String(d.TypeAsString || ''),
+        schemaXml: String(d.SchemaXml || ''),
+        choices: choicesFromSpoFieldPayload(data)
+    };
+}
+
+async function patchFreistellungKlasseColumnViaSpoRest(webUrl, listId, choices, fieldMeta) {
+    const { origin, spoTok, digest } = await acquireSpoWriteToken(webUrl);
+    const id = String(listId || '').trim();
+    const internal = String((fieldMeta && fieldMeta.internalName) || 'Klasse').trim() || 'Klasse';
+    const display = String((fieldMeta && fieldMeta.displayName) || 'Klasse').trim() || 'Klasse';
+    const fieldApis = [
+        "getbyinternalnameortitle('" + internal.replace(/'/g, "''") + "')",
+        "getbytitle('Klasse')"
+    ];
+
+    const attempts = [];
+    for (let fi = 0; fi < fieldApis.length; fi++) {
+        const fieldApi = fieldApis[fi];
+        const meta = await spoGetFieldMeta(origin, spoTok, digest, id, fieldApi);
+
+        // 1) Choices-Collection ersetzen
+        attempts.push(
+            await spoMergeField(
+                origin,
+                spoTok,
+                digest,
+                id,
+                fieldApi,
+                {
+                    __metadata: { type: 'SP.FieldChoice' },
+                    FillInChoice: false,
+                    Choices: {
+                        __metadata: { type: 'Collection(Edm.String)' },
+                        results: choices
+                    }
+                },
+                true
+            )
+        );
+
+        let verified = await readKlasseChoicesViaSpoRest(origin, id);
+        if (choiceSetsMatch(choices, verified)) {
+            return { ok: true, count: choices.length, via: 'spo-choices', verified };
+        }
+
+        // 2) SchemaXml mit bestehender Feld-Definition (zuverlässig)
+        if (meta && meta.schemaXml) {
+            const patchedXml = replaceChoicesInSchemaXml(meta.schemaXml, choices);
+            attempts.push(
+                await spoMergeField(
+                    origin,
+                    spoTok,
+                    digest,
+                    id,
+                    fieldApi,
+                    {
+                        __metadata: { type: 'SP.Field' },
+                        SchemaXml: patchedXml
+                    },
+                    true
+                )
+            );
+            verified = await readKlasseChoicesViaSpoRest(origin, id);
+            if (choiceSetsMatch(choices, verified)) {
+                return { ok: true, count: choices.length, via: 'spo-schemaxml', verified };
+            }
+        } else {
+            attempts.push(
+                await spoMergeField(
+                    origin,
+                    spoTok,
+                    digest,
+                    id,
+                    fieldApi,
+                    {
+                        __metadata: { type: 'SP.Field' },
+                        SchemaXml: buildKlasseChoiceSchemaXml(internal, display, choices)
+                    },
+                    true
+                )
+            );
+        }
+
+        // 3) nometadata-Fallback
+        attempts.push(
+            await spoMergeField(
+                origin,
+                spoTok,
+                digest,
+                id,
+                fieldApi,
+                { FillInChoice: false, Choices: choices },
+                false
+            )
+        );
+        verified = await readKlasseChoicesViaSpoRest(origin, id);
+        if (choiceSetsMatch(choices, verified)) {
+            return { ok: true, count: choices.length, via: 'spo-nometadata', verified };
+        }
+    }
+    const last = attempts.filter((a) => !a.ok).pop() || attempts[attempts.length - 1];
+    return {
+        ok: false,
+        reason: 'spo-rest-verify',
+        status: last && last.status,
+        detail: last && last.text ? String(last.text).slice(0, 280) : '',
+        verified: await readKlasseChoicesViaSpoRest(origin, id)
+    };
+}
+
+/**
+ * Stammdaten-Klassen in SharePoint-Spalte „Klasse“ schreiben und gegenlesen.
+ * @param {string} siteId
+ * @param {string} listId
+ * @param {string[]} choices
+ * @param {{ webUrl?: string }} [opts]
+ */
+export async function patchFreistellungKlasseColumn(siteId, listId, choices, opts) {
+    const merged = normalizeKlasseChoiceCodes(choices);
+    if (!merged.length) return { ok: false, reason: 'no-choices' };
+
+    const webUrl = String((opts && opts.webUrl) || '').trim();
+    let graphMeta = { codes: [], columnId: '', internalName: 'Klasse', displayName: 'Klasse', allCodes: [] };
+    try {
+        graphMeta = await readKlasseChoicesViaGraph(siteId, listId);
+    } catch {
+        /* SPO only */
+    }
+
+    if (graphMeta.columnId) {
+        try {
+            const tok = await token();
+            const base =
+                G().graphPathSite(siteId) +
+                '/lists/' +
+                encodeURIComponent(listId) +
+                '/columns/' +
+                encodeURIComponent(graphMeta.columnId);
+            await G().graphJson(
+                'PATCH',
+                base,
+                tok,
+                {
+                    choice: {
+                        allowTextEntry: false,
+                        choices: merged
+                    }
+                },
+                'v1.0'
+            );
+            const afterGraph = await readKlasseChoicesViaGraph(siteId, listId);
+            if (choiceSetsMatch(merged, afterGraph.allCodes || afterGraph.codes)) {
+                return {
+                    ok: true,
+                    count: merged.length,
+                    via: 'graph',
+                    verified: afterGraph.allCodes || afterGraph.codes
+                };
+            }
+        } catch {
+            /* SPO-Fallback */
+        }
+    }
+
+    if (webUrl) {
+        const viaRest = await patchFreistellungKlasseColumnViaSpoRest(webUrl, listId, merged, {
+            internalName: graphMeta.internalName || 'Klasse',
+            displayName: graphMeta.displayName || 'Klasse'
+        });
+        if (viaRest && viaRest.ok) return viaRest;
+
+        const still = viaRest && viaRest.verified ? viaRest.verified : [];
+        throw new Error(
+            'SharePoint-Spalte „Klasse“ wurde nicht überschrieben. Aktuell noch: ' +
+                (still.length ? still.join(', ') : 'unbekannt') +
+                '. Erwartet: ' +
+                merged.join(', ') +
+                (viaRest && viaRest.detail ? ' (' + viaRest.detail + ')' : '') +
+                '. Bitte als Site-Besitzer speichern und die richtige Liste (Freistellungen) prüfen.'
+        );
+    }
+
+    return { ok: false, reason: 'no-weburl' };
+}
+
 export async function patchFreistellungKategorieColumn(siteId, listId, choices) {
     const tok = await token();
     const base =

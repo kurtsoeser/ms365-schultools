@@ -38,6 +38,47 @@ function parseDomainList(primary, additional) {
 }
 
 /**
+ * IT-Kontakt(e) aus Listenfeld (eine pro Zeile, Komma oder Semikolon).
+ * @param {unknown} primary
+ * @param {unknown} [additional]
+ * @returns {string[]}
+ */
+function parseContactEmails(primary, additional) {
+    const chunks = [primary, additional]
+        .map((v) => String(v == null ? '' : v))
+        .join('\n');
+    const raw = chunks
+        .split(/[\n,;]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+    const out = [];
+    const seen = new Set();
+    for (let i = 0; i < raw.length; i++) {
+        const e = raw[i];
+        if (!e.includes('@') || seen.has(e)) continue;
+        seen.add(e);
+        out.push(e);
+    }
+    return out;
+}
+
+/**
+ * @param {string|null|undefined} upn
+ * @param {string[]} contactEmails
+ */
+function upnMatchesDesignatedItContact(upn, contactEmails) {
+    const u = String(upn || '')
+        .trim()
+        .toLowerCase();
+    if (!u || !u.includes('@')) return false;
+    const list = Array.isArray(contactEmails) ? contactEmails : [];
+    for (let i = 0; i < list.length; i++) {
+        if (String(list[i] || '').trim().toLowerCase() === u) return true;
+    }
+    return false;
+}
+
+/**
  * Pure Auswertung: Listenzeile → erlaubt ja/nein.
  * @param {{
  *   tenantId: string,
@@ -61,7 +102,8 @@ function evaluateLicense(input) {
         validUntil: null,
         primaryDomain: null,
         domains: [],
-        contactEmail: null
+        contactEmail: null,
+        contactEmails: []
     };
 
     if (!tenantId) {
@@ -80,7 +122,8 @@ function evaluateLicense(input) {
     const status = String(fields.Status || '').trim().toLowerCase() || null;
     const primaryDomain = String(fields.PrimaryDomain || '').trim() || null;
     const domains = parseDomainList(fields.PrimaryDomain, fields.AdditionalDomains);
-    const contactEmail = String(fields.ContactEmail || '').trim() || null;
+    const contactEmails = parseContactEmails(fields.ContactEmail, fields.ItContacts);
+    const contactEmail = contactEmails.length ? contactEmails[0] : null;
     const validUntilRaw = fields.ValidUntil;
     let validUntil = null;
     if (validUntilRaw != null && String(validUntilRaw).trim() !== '') {
@@ -96,7 +139,8 @@ function evaluateLicense(input) {
         validUntil,
         primaryDomain,
         domains,
-        contactEmail
+        contactEmail,
+        contactEmails
     };
 
     if (status === 'blocked') {
@@ -162,4 +206,10 @@ function findFieldsForTenant(items, tenantId) {
     return null;
 }
 
-module.exports = { evaluateLicense, findFieldsForTenant, parseDomainList };
+module.exports = {
+    evaluateLicense,
+    findFieldsForTenant,
+    parseDomainList,
+    parseContactEmails,
+    upnMatchesDesignatedItContact
+};

@@ -46,6 +46,23 @@ describe('tenant-settings adminRoles', () => {
         expect(saved.adminRoles[0].name).toBe('direktion');
     });
 
+    it('schreibt Stammdaten auch in ms365-tenant-settings-v1 (Komfort-Spiegel)', () => {
+        const ctx = loadTenantSettingsCore(store);
+        ctx.window.ms365TenantStorageMirror = {
+            isV1MirrorWriteEnabled: function () {
+                return false;
+            }
+        };
+        ctx.ms365TenantSettingsSave({
+            domain: 'demo.at',
+            teachers: [{ code: 'MU', name: 'Max', email: 'max@demo.at' }]
+        });
+        const raw = store.get('ms365-tenant-settings-v1');
+        expect(raw).toBeTruthy();
+        const parsed = JSON.parse(raw);
+        expect(parsed.teachers[0].email).toBe('max@demo.at');
+    });
+
     it('parseAdminRolesLines liest Kürzel;Bezeichnung', () => {
         const ctx = loadTenantSettingsCore(store);
         const rows = ctx.ms365TenantSettingsParseAdminRolesLines('SEKRETARIAT;Sekretariat\nSchularzt');
@@ -96,5 +113,41 @@ describe('Stammdaten Verwaltung UI', () => {
         expect(html).toContain('id="tenantAdminRoleAddRow"');
         expect(html).toContain('id="tenantAdminRolesDefaults"');
         expect(html).toContain('Personen (eine Zeile pro Person)');
+    });
+});
+
+describe('tenant-settings ARGE-Liste', () => {
+    let store;
+
+    beforeEach(() => {
+        store = new Map();
+    });
+
+    it('parst ARGE-Leitung und leere Zeilen', () => {
+        const ctx = loadTenantSettingsCore(store);
+        const parse = ctx.ms365TenantSettingsParseArgesLines;
+        const rows = parse('ARGE MATHE;DEMO Mathe;MATHE;Anna Leitung;anna@schule.at\n;;;;');
+        expect(rows).toHaveLength(2);
+        expect(rows[0].headEmail).toBe('anna@schule.at');
+        expect(rows[0].subjects).toEqual(['MATHE']);
+        expect(rows[1].code).toBe('');
+    });
+});
+
+describe('tenant-settings Klassenliste', () => {
+    let store;
+
+    beforeEach(() => {
+        store = new Map();
+    });
+
+    it('behält leere Zeilen für „+ Zeile“ im Editor', () => {
+        const ctx = loadTenantSettingsCore(store);
+        const parse = ctx.ms365TenantSettingsParseClassesLines;
+        const rows = parse('1A;2030;Klasse 1A\n;;;;');
+        expect(rows).toHaveLength(2);
+        expect(rows[0].code).toBe('1A');
+        expect(rows[1].code).toBe('');
+        expect(rows[1].name).toBe('');
     });
 });

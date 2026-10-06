@@ -23,6 +23,7 @@ import {
     hideTruncationBanner,
     guardApplyAgainstTruncation
 } from '../../shared/truncation-banner.js';
+import { resolveClassGraphGroupId } from '../../shared/membership-hygiene.js';
 
 function classCodeExists(code, exceptCode) {
     return classCodeExistsIn(classes, code, exceptCode);
@@ -327,6 +328,19 @@ function listClassTeams() {
     return raw;
 }
 
+function getClassGroupMatchByKeyMap() {
+    const api = dataV2();
+    const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+    const map = setup && setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object'
+        ? setup.classGroupMatchByKey
+        : {};
+    return map;
+}
+
+function graphGroupIdForRow(row) {
+    return resolveClassGraphGroupId(row, listClassTeams(), getClassGroupMatchByKeyMap());
+}
+
 function findClassTeam(row) {
     if (!row) return null;
     const teams = listClassTeams();
@@ -352,11 +366,15 @@ function persistNickForRow(row) {
     const existing = findClassTeam(row);
     // Nur bereits gematchte Gruppen behalten ihren echten Graph-Alias.
     // Ungematchte Klassen nehmen immer das aktuelle Nomenklatur-Schema.
-    if (existing && existing.graphGroupId) {
-        const pretty = graphMailNick(existing.mailNickname);
+    if (graphGroupIdForRow(row)) {
+        const pretty = graphMailNick(existing && existing.mailNickname);
         if (pretty) return pretty;
-        const stable = sanitizeNick(existing.stableMailNickname);
+        const stable = sanitizeNick(existing && existing.stableMailNickname);
         if (stable) return stable;
+        const key = normCode(row && row.code);
+        const hit = key ? getClassGroupMatchByKeyMap()[key] : null;
+        const fromMatch = graphMailNick(hit && hit.mailNickname);
+        if (fromMatch) return fromMatch;
     }
     const derived = deriveNick(row);
     if (derived) return graphMailNick(derived) || derived;
@@ -364,9 +382,7 @@ function persistNickForRow(row) {
 }
 
 function getActiveGroupId() {
-    const row = getActiveRow();
-    const team = findClassTeam(row);
-    const id = team && team.graphGroupId ? String(team.graphGroupId).trim() : '';
+    const id = graphGroupIdForRow(getActiveRow());
     return id || null;
 }
 
@@ -410,7 +426,7 @@ function collectSmtpScriptItems(onlyActive) {
     rows.forEach(function (row) {
         if (!row) return;
         const team = findClassTeam(row);
-        const id = team && team.graphGroupId ? String(team.graphGroupId).trim() : '';
+        const id = graphGroupIdForRow(row);
         if (!id) return;
         let nick = '';
         if (onlyActive) {
@@ -517,7 +533,7 @@ function refreshSmtpHint() {
     const actDom = domainFromMail(actual);
     if (!domain) {
         el.innerHTML =
-            'Keine Schul‑Domain gespeichert. Bitte in den <a href="../tenant.html">Stammdaten</a> oder in der Einrichtung (Schritt 2) setzen.';
+            'Keine Schul‑Domain gespeichert. Bitte im <a href="../tenant.html">Schulregister</a> unter Schule &amp; Domain setzen.';
         return;
     }
     let html =
@@ -538,7 +554,7 @@ function refreshSmtpHint() {
 async function runSmtpScript(onlyActive) {
     const pack = collectSmtpScriptItems(onlyActive);
     if (!pack.domain) {
-        toast('Bitte zuerst die Schul‑Domain in den Stammdaten oder in der Einrichtung (Schritt 2) speichern.');
+        toast('Bitte zuerst die Schul‑Domain im Schulregister speichern.');
         return;
     }
     if (!pack.items.length) {
@@ -882,8 +898,7 @@ async function deleteActiveClass() {
         return;
     }
     const code = normCode(row.code);
-    const team = findClassTeam(row);
-    const matched = !!(team && team.graphGroupId);
+    const matched = !!graphGroupIdForRow(row);
     let msg =
         'Klasse „' +
         (row.name || code) +
@@ -1125,8 +1140,7 @@ function renderLeftList() {
     });
     let matchedN = 0;
     all.forEach(function (row) {
-        const team = findClassTeam(row);
-        if (team && team.graphGroupId) matchedN++;
+        if (graphGroupIdForRow(row)) matchedN++;
     });
     if (summary) {
         summary.textContent =
@@ -1156,8 +1170,7 @@ function renderLeftList() {
     }
 
     list.forEach(function (row) {
-        const team = findClassTeam(row);
-        const gid = team && team.graphGroupId ? String(team.graphGroupId) : '';
+        const gid = graphGroupIdForRow(row);
         const nick = persistNickForRow(row);
         const li = document.createElement('li');
         const btn = document.createElement('button');
@@ -1280,6 +1293,29 @@ function persistMatchForRow(row, g, mode) {
         abschlussJahr: row && row.year ? row.year : '',
         mode: mode
     });
+    const matchKey = normCode(row && row.code) || normCode(row && row.name);
+    if (matchKey && typeof api.patchSetup === 'function') {
+        const iso = new Date().toISOString();
+        if (gid) {
+            api.patchSetup({
+                classGroupMatchByKey: {
+                    [matchKey]: {
+                        groupId: gid,
+                        displayName: normStr((g && g.displayName) || (row && row.name)),
+                        mailNickname: pretty || nick,
+                        notFound: false,
+                        checkedAt: iso
+                    }
+                }
+            });
+        } else {
+            api.patchSetup({
+                classGroupMatchByKey: {
+                    [matchKey]: { groupId: '', notFound: false, checkedAt: iso }
+                }
+            });
+        }
+    }
 }
 
 function persistMatch(g, mode) {
@@ -1604,7 +1640,7 @@ function collectSelectedMatched() {
         }
         if (!row) return;
         const team = findClassTeam(row);
-        const id = team && team.graphGroupId ? String(team.graphGroupId).trim() : '';
+        const id = graphGroupIdForRow(row);
         if (!id) return;
         out.push({
             key: key,
@@ -1626,8 +1662,7 @@ function collectSelectedUnmatched() {
             if (rowKey(classes[i]) === key) { row = classes[i]; break; }
         }
         if (!row) return;
-        const team = findClassTeam(row);
-        if (team && team.graphGroupId) return; // already matched
+        if (graphGroupIdForRow(row)) return; // already matched
         out.push({ key: key, row: row, name: normStr(row.name) || normStr(row.code) });
     });
     return out;
@@ -1647,8 +1682,7 @@ function updateBulkCount() {
 function visibleMatchedRows() {
     const q = listFilter.toLowerCase();
     return classes.filter(function (row) {
-        const team = findClassTeam(row);
-        if (!team || !team.graphGroupId) return false;
+        if (!graphGroupIdForRow(row)) return false;
         if (!q) return true;
         const nick = persistNickForRow(row);
         const hay = (row.code + ' ' + (row.name || '') + ' ' + (row.year || '') + ' ' + nick).toLowerCase();
@@ -1668,8 +1702,7 @@ function selectVisibleMatched() {
 function visibleUnmatchedRows() {
     const q = listFilter.toLowerCase();
     return classes.filter(function (row) {
-        const team = findClassTeam(row);
-        if (team && team.graphGroupId) return false;
+        if (graphGroupIdForRow(row)) return false;
         if (!q) return true;
         const nick = persistNickForRow(row);
         const hay = (row.code + ' ' + (row.name || '') + ' ' + (row.year || '') + ' ' + nick).toLowerCase();

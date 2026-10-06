@@ -112,3 +112,20 @@ describe('parseDomainList', () => {
         ).toEqual(['kurtsoeser.at', 'contoso.sharepoint.com', 'modeebensee.at', 'hak-steyr.at']);
     });
 });
+
+describe('parseContactEmails', () => {
+    const { parseContactEmails, upnMatchesDesignatedItContact } = require('../src/lib/evaluate-license.js');
+
+    it('parst mehrere IT-Kontakte', () => {
+        expect(parseContactEmails('a@schule.at; B@schule.at\nb@schule.at', null)).toEqual([
+            'a@schule.at',
+            'b@schule.at'
+        ]);
+    });
+
+    it('erkennt designierten IT-Kontakt per UPN', () => {
+        const emails = parseContactEmails('it@hak-steyr.at, backup@hak-steyr.at', '');
+        expect(upnMatchesDesignatedItContact('IT@hak-steyr.at', emails)).toBe(true);
+        expect(upnMatchesDesignatedItContact('lehrer@hak-steyr.at', emails)).toBe(false);
+    });
+});

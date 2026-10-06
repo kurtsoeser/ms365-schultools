@@ -105,11 +105,9 @@
         if (!teams.length) {
             root.innerHTML =
                 '<p style="margin:0;line-height:1.5;color:var(--muted)">Noch keine Klassengruppen in den lokalen Daten. ' +
-                'Anlegen in der <a href="' +
-                escapeHtml(repoHref('einrichtung.html')) +
-                '">Einrichtung</a> oder über die Klassenliste in den <a href="' +
+                'Anlegen im <a href="' +
                 escapeHtml(repoHref('tenant.html')) +
-                '">Stammdaten</a>.</p>';
+                '">Schulregister</a> (Tab Klassen).</p>';
             return;
         }
 

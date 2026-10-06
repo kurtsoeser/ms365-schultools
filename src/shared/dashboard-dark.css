@@ -66,9 +66,7 @@ html[data-theme="dark"] .featured-icon {
     border-color: var(--border-strong) !important;
 }
 
-html[data-theme="dark"] .featured-kicker,
-html[data-theme="dark"] .dashboard-tools-kicker,
-html[data-theme="dark"] .dashboard-tasks-kicker {
+html[data-theme="dark"] .featured-kicker {
     color: #c4b5fd !important;
     background: color-mix(in srgb, var(--brand1) 16%, transparent) !important;
     border-color: var(--border-strong) !important;
@@ -200,6 +198,71 @@ html[data-theme="dark"] .dash-task--hero .dash-task-link--primary:hover {
 }
 
 /* ── Tabs & Suche ── */
+html[data-theme="dark"] .dashboard-catalog {
+    gap: 20px 24px;
+}
+
+html[data-theme="dark"] .dash-playbook-flow__row {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+html[data-theme="dark"] .dash-playbook-flow__row--complete {
+    background: color-mix(in srgb, #20c997 8%, var(--card)) !important;
+    border-color: color-mix(in srgb, #20c997 28%, var(--border)) !important;
+}
+
+html[data-theme="dark"] .dash-playbook-flow__bar {
+    background: color-mix(in srgb, var(--border) 80%, transparent) !important;
+}
+
+html[data-theme="dark"] .dash-playbooks-lead {
+    color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .dash-choice-status {
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card)) !important;
+    border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .dash-choice-status[data-tone="ok"] {
+    background: color-mix(in srgb, #20c997 12%, var(--card)) !important;
+}
+
+html[data-theme="dark"] .dash-choice-status__primary {
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .dash-choice-status__secondary {
+    color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .dash-personal-tools {
+    background: color-mix(in srgb, var(--card) 78%, transparent) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+html[data-theme="dark"] .dash-personal-tools__label {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .dash-personal-tools__chip {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .dash-personal-tools__chip:hover {
+    border-color: var(--border-strong) !important;
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] .dash-personal-tools__empty {
+    color: var(--muted) !important;
+}
+
 html[data-theme="dark"] .dashboard-tablist {
     background: color-mix(in srgb, var(--card) 75%, transparent) !important;
     border-color: var(--border) !important;
@@ -366,6 +429,21 @@ html[data-theme="dark"] .dash-stand--hygiene .dash-stand__title {
 
 html[data-theme="dark"] .dash-stand__empty-note {
     background: color-mix(in srgb, var(--brand1) 10%, transparent) !important;
+}
+
+html[data-theme="dark"] .dash-stand__lead,
+html[data-theme="dark"] .dash-stand__block-title {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .dash-stand__snapshot {
+    background: var(--surface-muted) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .dash-status-row--footer {
+    border-top-color: var(--border) !important;
 }
 
 /* ── Onboarding-Dialog ── */

@@ -7,10 +7,12 @@
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
-    <title>MS365-Schul-Tools – Stammdaten</title>
+    <title>MS365-Schul-Tools – Schulregister (Stammdaten)</title>
     <link rel="stylesheet" href="app.css?v=13">
     <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
+    <link rel="stylesheet" href="src/shared/tenant-register-ui.css">
+    <link rel="stylesheet" href="src/tools/datenlandkarte/datenlandkarte.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* Layout-Breite ist zentral in app.css definiert (page-card/container) */
@@ -116,6 +118,175 @@
             margin: 8px 0 0;
             font-size: 0.78em;
             color: var(--muted);
+        }
+        .ts-status-grid--layers {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border);
+        }
+        .ts-status-tile--compact {
+            padding: 10px 14px;
+        }
+        .ts-status-compact-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+        }
+        .ts-status-grid--inline {
+            flex: 1 1 280px;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .ts-status-entra-fold {
+            flex: 0 1 auto;
+            font-size: 0.85em;
+        }
+        .ts-status-entra-fold__summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--muted);
+            list-style: none;
+        }
+        .ts-status-entra-fold__summary::-webkit-details-marker {
+            display: none;
+        }
+        a.ts-status-chip--link {
+            text-decoration: none;
+            color: inherit;
+        }
+        a.ts-status-chip--link:hover {
+            filter: brightness(0.95);
+        }
+        .ts-import-review {
+            border: 1px solid color-mix(in srgb, var(--brand1) 35%, var(--border));
+            border-radius: 14px;
+            padding: 16px;
+            background: color-mix(in srgb, var(--brand1) 6%, var(--card));
+            margin-bottom: 16px;
+        }
+        .ts-import-review h3 {
+            margin: 0 0 8px;
+            font-size: 1.05em;
+        }
+        .ts-import-review ul {
+            margin: 0 0 12px;
+            padding-left: 1.2em;
+            line-height: 1.45;
+        }
+        .ts-import-review-students {
+            max-height: 220px;
+            overflow: auto;
+            font-size: 0.88em;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: var(--card);
+            margin-bottom: 12px;
+        }
+        .ts-import-review-students .kind-add { color: #0d8050; }
+        .ts-import-review-students .kind-update { color: #7a5000; }
+        .ts-import-review-students .kind-conflict { color: #a93226; font-weight: 700; }
+
+        .ts-students-view-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 14px;
+        }
+        .ts-students-view-bar button {
+            appearance: none;
+            border: 1px solid var(--border-strong);
+            background: var(--surface-muted);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-weight: 800;
+            font: inherit;
+            cursor: pointer;
+        }
+        .ts-students-view-bar button.is-active {
+            background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+        .ts-klassen-hub__layout {
+            display: grid;
+            grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+        @media (max-width: 720px) {
+            .ts-klassen-hub__layout { grid-template-columns: 1fr; }
+        }
+        .ts-klassen-hub__classes {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+            background: var(--card);
+            max-height: min(70vh, 520px);
+            overflow: auto;
+        }
+        .ts-klassen-hub__aside-title {
+            margin: 0 0 8px;
+            font-weight: 900;
+            font-size: 0.9em;
+        }
+        .ts-klassen-hub__class-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .ts-klassen-hub__class-btn {
+            width: 100%;
+            text-align: left;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            background: transparent;
+            cursor: pointer;
+            font: inherit;
+        }
+        .ts-klassen-hub__class-btn:hover {
+            background: var(--surface-muted);
+        }
+        .ts-klassen-hub__class-btn.is-active {
+            background: color-mix(in srgb, var(--brand1) 14%, transparent);
+            border-color: color-mix(in srgb, var(--brand1) 35%, transparent);
+        }
+        .ts-klassen-hub__class-code {
+            display: block;
+            font-weight: 900;
+        }
+        .ts-klassen-hub__class-meta {
+            font-size: 0.82em;
+            color: var(--muted);
+        }
+        .ts-klassen-hub__head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .ts-klassen-hub__title {
+            margin: 0;
+            font-size: 1.1em;
+        }
+        .ts-klassen-hub__input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            font: inherit;
+            background: var(--input-bg);
+        }
+        .ts-klassen-hub__unassigned {
+            margin: 10px 0 0;
+            font-size: 0.82em;
         }
 
         .settings h2 {
@@ -241,7 +412,7 @@
         }
         .tab-panel {
             display: none;
-            margin-top: 16px;
+            margin-top: 0;
         }
         .tab-panel.active {
             display: block;
@@ -492,88 +663,283 @@
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-sliders2-vertical"></i>Stammdaten</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-journal-bookmark"></i>Schulregister</span>
             </div>
-            <p>Stammdaten (schulweit) und schuljahresbezogene Listen zentral pflegen – gemeinsame Datenbasis für Kursteams, Jahrgang, ARGE und Gruppen‑Tools.</p>
-            <p class="header-help-row"><a href="hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
-            <div class="toolbar">
-                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                        <a class="btn" href="einrichtung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-signpost-2"></i>Geführte Einrichtung</a>
-                        <a class="btn btn-primary" href="tools/webuntis-stammdaten-import.html?from=tenant" title="Student, LegalGuardian, Teacher, Subject-PDF, Klassen-PDF gesammelt importieren"><i class="bi bi-box-arrow-in-down"></i>Import von WebUntis …</a>
+            <p><strong>Schulregister</strong> – hier pflegen Sie die <strong>Stammdaten</strong> Ihrer Schule (Listen, Schuljahr, Abgleich mit Microsoft&nbsp;365).</p>
+            <p class="ts-header-mode-hint" id="tenantHeaderModeHint" aria-live="polite" hidden></p>
+            <p class="header-help-row ts-header-info-row">
+                <details class="header-info-popover ts-register-about">
+                    <summary class="header-help-link header-info-popover__trigger"><i class="bi bi-info-circle" aria-hidden="true"></i><span class="header-info-popover__label">Was ist das Schulregister?</span></summary>
+                    <div class="header-info-popover__panel ts-register-about__body" role="note">
+                        <p>Das <strong>Schulregister</strong> ist die zentrale Stelle für Ihre <strong>Stammdaten</strong> – gespeichert <strong>lokal im Browser</strong>. Schulweit: Domain, Fächer, Lehrkräfte, Verwaltung. Pro <strong>Schuljahr</strong> (Konto-Menü): Schüler:innen und Klassen.</p>
+                        <p>Gemeinsame Basis für Kursteams und Gruppen-Werkzeuge. Optional: Auto-Sync mit der <strong>IT-Bibliothek</strong> und öffentliche <strong>Intranet-Listen</strong> auf SharePoint.</p>
                     </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-                        <button type="button" class="btn" id="browserBackupExport" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
-                        <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
-                        <button type="button" class="btn btn-success" data-ms365-spo-sync="upload" title="Alle lokalen App-Daten (Stammdaten, Automationen, Werkzeuge) in die SharePoint-IT-Bibliothek sichern (sonst Ersteinrichtung)"><i class="bi bi-cloud-arrow-up"></i>In SharePoint sichern</button>
-                        <button type="button" class="btn" data-ms365-spo-sync="load" title="Aktuelles Backup aus der SharePoint-IT-Bibliothek einlesen (sonst Ersteinrichtung)"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint einlesen</button>
-                        <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten oder Details"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
-                    </div>
+                </details>
+                <a href="hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a>
+            </p>
+            <div class="toolbar ts-register-header-toolbar">
+                <div class="ts-register-header-toolbar__nav">
+                    <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                    <a class="btn btn-primary" href="tools/webuntis-stammdaten-import.html?from=tenant" style="text-decoration:none;display:inline-block;" title="WebUntis, Sokrates und weitere Exporte – später auch Anbindung ans Bildungsportal"><i class="bi bi-box-arrow-in-down"></i>Daten importieren …</a>
+                </div>
+                <div class="ts-register-header-toolbar__actions" aria-label="Speichern und Sicherung">
+                    <button type="button" class="btn btn-success" data-tenant-action="save"><i class="bi bi-check2-circle"></i>Speichern</button>
+                    <button type="button" class="btn" data-tenant-action="reload"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                    <details class="ts-register-save-drop ts-register-save-drop--header">
+                        <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-laptop" aria-hidden="true"></i>Browser-Backup<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                        <div class="ts-register-save-drop__panel" role="menu">
+                            <button type="button" class="ts-register-save-link" data-ms365-backup="export" role="menuitem" title="Alle lokalen App-Daten als JSON speichern"><i class="bi bi-download" aria-hidden="true"></i>Exportieren</button>
+                            <label class="ts-register-save-link" for="browserBackupImportFile" role="menuitem" title="JSON-Backup aus einem anderen Browser laden"><i class="bi bi-upload" aria-hidden="true"></i>Importieren</label>
+                        </div>
+                    </details>
+                    <details class="ts-register-save-drop ts-register-save-drop--header">
+                        <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-cloud" aria-hidden="true"></i>SharePoint (IT)<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                        <div class="ts-register-save-drop__panel" role="menu">
+                            <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>
+                            <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Vollbackup laden – überschreibt lokale Daten"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>
+                            <a class="ts-register-save-link" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" role="menuitem"><i class="bi bi-shield-lock" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>
 
         <div class="content">
             <div id="tenantEmptyStateMount"></div>
-            <section class="settings" aria-label="Stammdaten der Schule">
-                <h2>Stammdaten</h2>
-                <form id="tenantSettingsForm" onsubmit="return false;">
-                    <div class="ts-settings-head">
-                        <div class="ts-settings-intro">
-                            <p>Diese <strong>Zentrale</strong> speichert Daten <strong>lokal im Browser</strong>. <strong>Stammdaten</strong> (Domain, Fächer, ARGE, Lehrkräfte, Verwaltung) gelten <strong>schulweit</strong> und ändern sich in der Regel selten. <strong>Schüler:innen, Klassen</strong> und <strong>Klassen‑Gruppen (Microsoft 365)</strong> orientieren sich am gewählten <strong>Schuljahr</strong>.</p>
-                            <p>Gemeinsame Basis für Kursteams, Jahrgang, ARGE, Einrichtung und Gruppen‑Tools. Ist die IT-Bibliothek eingerichtet, werden nach der Anmeldung automatisch die <strong>gesamten lokalen App-Daten</strong> (Stammdaten, Power-Automate-Einstellungen, Werkzeugstände) von SharePoint geladen und nach Änderungen wieder gesichert. Mit <strong>Browser-Backup</strong> übertragen Sie dieselben Daten manuell in einen anderen Browser.</p>
-                        </div>
-                    </div>
-
-                    <!-- Status-Übersicht: Was fehlt noch? -->
-                    <section class="tile ts-status-tile" id="tenantStatusOverview" aria-label="Übersicht: Was fehlt noch?">
-                        <div class="ts-status-header">
-                            <span class="ts-status-title"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Status</span>
-                            <button type="button" class="btn ts-status-refresh" id="tenantStatusRefresh" title="Übersicht aktualisieren" aria-label="Status-Übersicht aktualisieren">
-                                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div class="ts-status-grid" id="tenantStatusGrid">
-                            <!-- wird per JS befüllt -->
-                        </div>
-                        <p class="ts-status-footer" id="tenantStatusLastCheck"></p>
-                    </section>
-
-                    <section class="tile" aria-label="Bereiche der Stammdaten">
-                        <div class="tabs tabs--reorderable" id="tenantMainTabs" role="tablist" aria-label="Stammdaten: Hauptbereiche">
+            <form id="tenantSettingsForm" class="ts-register-page" onsubmit="return false;" aria-label="Schulregister – Stammdaten pflegen">
+                    <div class="ts-register-body">
+                        <section id="tenantWebuntisImportReview" class="ts-import-review" hidden aria-live="polite">
+                            <h3><i class="bi bi-clipboard-check" aria-hidden="true"></i> Import prüfen (WebUntis)</h3>
+                            <p id="tenantWebuntisImportReviewTitle" class="tile-subtitle" style="margin:0 0 10px;"></p>
+                            <ul id="tenantWebuntisImportReviewBullets"></ul>
+                            <details id="tenantWebuntisImportReviewDetails" hidden>
+                                <summary>Schüler-Änderungen (Auszug)</summary>
+                                <div id="tenantWebuntisImportReviewStudents" class="ts-import-review-students"></div>
+                            </details>
+                            <div class="settings-actions">
+                                <button type="button" class="btn btn-success" id="tenantWebuntisImportApply"><i class="bi bi-check2-circle"></i>Übernehmen</button>
+                                <button type="button" class="btn" id="tenantWebuntisImportDiscard">Verwerfen</button>
+                            </div>
+                            <p class="muted" style="margin:10px 0 0;font-size:0.88em;">Nach „Übernehmen“ die Listen prüfen und unten <strong>Speichern</strong> klicken (Auto-Save folgt kurz danach).</p>
+                        </section>
+                        <div id="tenantStatusGrid" hidden aria-hidden="true"></div>
+                        <p id="tenantStatusLastCheck" hidden></p>
+                        <div class="ts-register-shell">
+                        <div class="ts-register-shell__tabs-wrap">
+                        <div class="tabs tabs--reorderable tabs--register" id="tenantMainTabs" role="tablist" aria-label="Stammdaten: Hauptbereiche">
                             <button type="button" class="tab-btn" id="tabMainStammdaten" role="tab" aria-selected="true" aria-controls="panelMainStammdaten"><i class="bi bi-journal-text" aria-hidden="true"></i>Stammdaten</button>
+                            <button type="button" class="tab-btn" id="tabMainVerwaltung" role="tab" aria-selected="false" aria-controls="panelMainVerwaltung"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</button>
                             <button type="button" class="tab-btn" id="tabMainSubjects" role="tab" aria-selected="false" aria-controls="panelMainSubjects"><i class="bi bi-journal-text" aria-hidden="true"></i>Fächer</button>
                             <button type="button" class="tab-btn" id="tabMainArges" role="tab" aria-selected="false" aria-controls="panelMainArges"><i class="bi bi-diagram-3" aria-hidden="true"></i>ARGE</button>
                             <button type="button" class="tab-btn" id="tabMainLehrer" role="tab" aria-selected="false" aria-controls="panelMainLehrer"><i class="bi bi-person-workspace" aria-hidden="true"></i>Lehrer</button>
                             <button type="button" class="tab-btn" id="tabMainKlassen" role="tab" aria-selected="false" aria-controls="panelMainKlassen"><i class="bi bi-mortarboard" aria-hidden="true"></i>Klassen</button>
                             <button type="button" class="tab-btn" id="tabMainSchueler" role="tab" aria-selected="false" aria-controls="panelStudentsData"><i class="bi bi-people" aria-hidden="true"></i>Schüler</button>
                             <button type="button" class="tab-btn" id="tabMainSchuelervertretung" role="tab" aria-selected="false" aria-controls="panelStudentCouncilData"><i class="bi bi-megaphone" aria-hidden="true"></i>Schülervertretung</button>
-                            <button type="button" class="tab-btn" id="tabMainVerwaltung" role="tab" aria-selected="false" aria-controls="panelMainVerwaltung"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</button>
                             <button type="button" class="tab-btn" id="tabMainSga" role="tab" aria-selected="false" aria-controls="panelMainSga"><i class="bi bi-megaphone" aria-hidden="true"></i>SGA</button>
-                            <button type="button" class="tab-btn" id="tabMainIntranet" role="tab" aria-selected="false" aria-controls="panelMainIntranet"><i class="bi bi-cloud" aria-hidden="true"></i>Intranet-Listen</button>
-                            <button type="button" class="tab-btn" id="tabMainWerkzeuge" role="tab" aria-selected="false" aria-controls="panelMainWerkzeuge"><i class="bi bi-sliders2-vertical" aria-hidden="true"></i>Werkzeuge</button>
+                            <button type="button" class="tab-btn" id="tabMainDatenlandkarte" role="tab" aria-selected="false" aria-controls="panelMainDatenlandkarte"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>Datenlandkarte</button>
+                        </div>
                         </div>
 
+                        <div class="ts-register-shell__content">
                         <div id="panelMainStammdaten" class="tab-panel active" role="tabpanel" aria-labelledby="tabMainStammdaten">
-                            <div class="field">
-                                <label for="schoolName">Schulname</label>
-                                <input type="text" id="schoolName" placeholder="z. B. MS Musterstadt" autocomplete="off">
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Freie Bezeichnung der Schule für die lokalen Stammdaten dieser App.
-                                </small>
+                            <div class="ts-stammdaten-core-grid">
+                            <section class="ts-school-profile-card ts-stammdaten-core-grid__profile" id="tenantSchoolProfileCard" aria-labelledby="tenantSchoolProfileTitle">
+                                <h3 class="ts-school-profile-card__title" id="tenantSchoolProfileTitle"><i class="bi bi-building" aria-hidden="true"></i> Schulprofil</h3>
+                                <p class="muted ts-school-profile-card__lead">Schulname, E-Mail-Domain, Logo, Schulkennzahl und Kontakt – Teil der Stammdaten und der SharePoint-Sicherung (IT-Bibliothek).</p>
+                                <div class="ts-school-profile-card__layout">
+                                    <div class="ts-school-profile-card__logo">
+                                        <span class="ts-school-profile-card__logo-label">Schul-Logo</span>
+                                        <div class="ts-school-profile-card__logo-frame" id="tenantSchoolLogoPlaceholder" aria-hidden="false">
+                                            <span class="muted">Kein Logo</span>
+                                        </div>
+                                        <img id="tenantSchoolLogoPreview" class="ts-school-profile-card__logo-img" alt="Schul-Logo Vorschau" hidden>
+                                        <p id="tenantSchoolLogoFileName" class="muted ts-school-profile-card__logo-name"></p>
+                                        <div class="ts-school-profile-card__logo-actions">
+                                            <label class="btn btn-sm" for="tenantSchoolLogoFile"><i class="bi bi-upload" aria-hidden="true"></i> Logo hochladen</label>
+                                            <input type="file" id="tenantSchoolLogoFile" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                                            <button type="button" class="btn btn-sm alt" id="tenantSchoolLogoRemove">Entfernen</button>
+                                        </div>
+                                        <small class="ts-stammdaten-core-hint">PNG/JPEG/GIF/WebP, max. ca. 400 KB.</small>
+                                    </div>
+                                    <div class="ts-school-profile-card__fields">
+                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolName"><span>Schulname</span>
+                                            <input type="text" id="schoolName" placeholder="z. B. MS Musterstadt" autocomplete="organization" spellcheck="false">
+                                            <small class="ts-stammdaten-core-hint">Bezeichnung der Schule in dieser App.</small>
+                                        </label>
+                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolEmailDomain"><span>E-Mail-Domain (ohne @)</span>
+                                            <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off" spellcheck="false" inputmode="url">
+                                            <small class="ts-stammdaten-core-hint">Für Vorschauen und Adressen (<code>kürzel@domain</code>).</small>
+                                        </label>
+                                        <label class="ts-school-profile-card__field" for="tenantSchoolCode"><span>Schulkennzahl / SKZ</span>
+                                            <input type="text" id="tenantSchoolCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. 302123">
+                                        </label>
+                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="tenantSchoolStreet"><span>Straße</span>
+                                            <input type="text" id="tenantSchoolStreet" maxlength="200" autocomplete="street-address" placeholder="Musterstraße 1">
+                                        </label>
+                                        <div class="ts-school-profile-card__row2">
+                                            <label class="ts-school-profile-card__field" for="tenantSchoolPostalCode"><span>PLZ</span>
+                                                <input type="text" id="tenantSchoolPostalCode" maxlength="16" autocomplete="postal-code" inputmode="numeric">
+                                            </label>
+                                            <label class="ts-school-profile-card__field" for="tenantSchoolCity"><span>Ort</span>
+                                                <input type="text" id="tenantSchoolCity" maxlength="120" autocomplete="address-level2">
+                                            </label>
+                                        </div>
+                                        <label class="ts-school-profile-card__field" for="tenantSchoolCountry"><span>Land</span>
+                                            <input type="text" id="tenantSchoolCountry" maxlength="80" autocomplete="country-name" value="Österreich">
+                                        </label>
+                                        <div class="ts-school-profile-card__row2">
+                                            <label class="ts-school-profile-card__field" for="tenantSchoolPhone"><span>Telefon</span>
+                                                <input type="tel" id="tenantSchoolPhone" maxlength="40" autocomplete="tel" placeholder="+43 …">
+                                            </label>
+                                            <label class="ts-school-profile-card__field" for="tenantSchoolPhoneAlt"><span>Weitere Nr.</span>
+                                                <input type="tel" id="tenantSchoolPhoneAlt" maxlength="40" autocomplete="tel" placeholder="Sekretariat, Fax …">
+                                            </label>
+                                        </div>
+                                        <label class="ts-school-profile-card__field" for="tenantSchoolOfficeEmail"><span>E-Mail Sekretariat</span>
+                                            <input type="email" id="tenantSchoolOfficeEmail" maxlength="200" autocomplete="email" placeholder="office@schule.at">
+                                        </label>
+                                        <label class="ts-school-profile-card__field" for="tenantSchoolWebsite"><span>Website</span>
+                                            <input type="url" id="tenantSchoolWebsite" maxlength="300" autocomplete="url" placeholder="https://www.schule.at">
+                                        </label>
+                                    </div>
+                                </div>
+                            </section>
+                            <input type="hidden" id="tenantSchoolEmailPattern" value="vorname.nachname">
+                            <section class="ts-mail-pattern-card ts-stammdaten-core-grid__mail" id="tenantSchoolEmailPatternCard" aria-labelledby="tenantSchoolEmailPatternCardTitle">
+                                <h3 class="ts-mail-pattern-card__title" id="tenantSchoolEmailPatternCardTitle"><i class="bi bi-envelope-at" aria-hidden="true"></i> E-Mail-Muster (schulweit)</h3>
+                                <p class="muted ts-mail-pattern-card__lead">Für fehlende Adressen bei Importen und Vorschläge aus Namen. Gilt für alle Personen in diesem Register – nicht nur für einen Tab.</p>
+                                <div class="ts-mail-pattern-card__row">
+                                    <label for="tenantSchoolEmailGivenNames" class="ts-mail-pattern-card__label">Vornamen</label>
+                                    <select id="tenantSchoolEmailGivenNames" title="Bei mehreren Vornamen" class="ts-mail-pattern-card__select">
+                                        <option value="first" selected>Nur 1. Vorname</option>
+                                        <option value="all">Alle Vornamen</option>
+                                    </select>
+                                </div>
+                                <p class="ts-mail-pattern-card__presets-label">Schnellauswahl</p>
+                                <div class="ts-mail-pattern-card__presets" role="group" aria-label="Mail-Muster Presets">
+                                    <button type="button" class="btn btn-sm is-active" data-email-preset="vorname.nachname">vorname.nachname</button>
+                                    <button type="button" class="btn btn-sm" data-email-preset="nachname.vorname">nachname.vorname</button>
+                                    <button type="button" class="btn btn-sm" data-email-preset="v.nachname">v.nachname</button>
+                                    <button type="button" class="btn btn-sm" data-email-preset="vorname.n">vorname.n</button>
+                                    <button type="button" class="btn btn-sm" data-email-preset="kuerzel">kuerzel</button>
+                                    <button type="button" class="btn btn-sm" data-email-preset="kuerzel.nachname">kuerzel.nachname</button>
+                                    <button type="button" class="btn btn-sm" data-email-preset="custom"><i class="bi bi-puzzle" aria-hidden="true"></i> Eigene Bausteine</button>
+                                </div>
+                                <p class="muted ts-mail-pattern-card__mode-hint" id="tenantSchoolEmailPatternModeHint"></p>
+                                <div id="tenantSchoolEmailPatternCustom" class="ts-mail-pattern-card__custom" hidden>
+                                    <p class="muted">Bausteine per Klick hinzufügen, per Drag &amp; Drop sortieren.</p>
+                                    <div class="ts-email-pattern-builder" id="tenantSchoolEmailPatternBuilder" aria-label="E-Mail Bausteine"></div>
+                                    <div class="ts-email-pattern-palette" role="group" aria-label="Bausteine hinzufügen">
+                                        <button type="button" class="btn btn-sm" data-email-add-token="vorname">+ Vorname</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="nachname">+ Nachname</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="kuerzel">+ Kürzel</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="v0">+ V-Anfangsbuchstabe</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="n0">+ N-Anfangsbuchstabe</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value=".">+ Punkt</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value="_">+ _</button>
+                                        <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value="">+ ohne Trenner</button>
+                                    </div>
+                                </div>
+                                <p class="ts-mail-pattern-card__preview"><strong>Vorschau:</strong> <code id="tenantSchoolEmailPatternPreview">max.mustermann@schule.de</code></p>
+                            </section>
                             </div>
-                            <div class="field">
-                                <label for="schoolEmailDomain">E-Mail-Domain der Schule (ohne @)</label>
-                                <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off">
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Wird für Vorschauen und automatische E-Mail-Erzeugung genutzt (z. B. <code>Kürzel@domain</code>).
-                                </small>
-                            </div>
-                            <div class="field" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface-muted);">
-                                <p style="margin:0 0 10px;line-height:1.5;"><strong>WebUntis-Import</strong> – Schüler (<code>Student_*.csv</code>), Eltern (<code>LegalGuardian_*.csv</code>), Lehrer, Fächer-PDF und Klassen-PDF in einem Schritt hochladen, prüfen und übernehmen.</p>
-                                <a class="btn btn-primary" href="tools/webuntis-stammdaten-import.html?from=tenant"><i class="bi bi-box-arrow-in-down"></i>Import von WebUntis starten …</a>
-                            </div>
+
+                            <section class="ts-stammdaten-spo-cluster" id="tenantSpoCluster" aria-labelledby="tenantSpoClusterTitle">
+                                <header class="ts-stammdaten-spo-cluster__head">
+                                    <h3 class="ts-stammdaten-spo-cluster__title" id="tenantSpoClusterTitle"><i class="bi bi-microsoft" aria-hidden="true"></i> SharePoint</h3>
+                                    <p class="muted ts-stammdaten-spo-cluster__lead">Drei getrennte Ziele: öffentliche Listen, geschütztes Vollbackup und die Schul-Intranet-Website.</p>
+                                </header>
+
+                                <article class="ts-stammdaten-spo-point" aria-labelledby="tenantSpoPointListsTitle">
+                                    <div class="ts-stammdaten-spo-point__head">
+                                        <span class="ts-stammdaten-spo-point__num" aria-hidden="true">1</span>
+                                        <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointListsTitle">Webseite für Intranet-Listen</h4>
+                                    </div>
+                                    <p class="muted ts-stammdaten-spo-point__lead">Stammdaten-Listen (Fächer, Klassen, Schüler:innen, …) – URL und Listennamen hier; Abgleich über die Schnell-Buttons in den jeweiligen Tabs oder <a href="tools/sharepoint-liste-stammdaten.html">Werkzeug Stammdaten-Listen</a>.</p>
+                                    <div class="ts-intranet-site-card__url-row">
+                                        <input type="url" id="tenantIntranetSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/Listen" autocomplete="off" spellcheck="false" aria-label="SharePoint-Webseite für Intranet-Listen">
+                                        <button type="button" class="btn" id="tenantIntranetSiteVerify" title="Mit Microsoft Graph prüfen, ob die Website existiert und erreichbar ist">
+                                            <i class="bi bi-patch-check" aria-hidden="true"></i> Website prüfen
+                                        </button>
+                                    </div>
+                                    <p id="tenantIntranetSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                    <fieldset class="ts-intranet-list-names" aria-labelledby="tenantIntranetListNamesLegend">
+                                        <legend id="tenantIntranetListNamesLegend" class="ts-intranet-site-card__label" style="margin-top:14px;">Listenname je Typ</legend>
+                                        <p class="muted ts-intranet-list-names__hint">Name der SharePoint-Liste auf der Website oben. Leer lassen = Standard (wie im Werkzeug Stammdaten-Listen).</p>
+                                        <div class="ts-intranet-list-names__grid" role="group" aria-label="SharePoint-Listennamen">
+                                            <div class="ts-intranet-list-names__row">
+                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListSchueler">Schüler:innen</label>
+                                                <input type="text" id="tenantIntranetListSchueler" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Schülerinnen" title="Leer = Standard „Schülerinnen“">
+                                            </div>
+                                            <div class="ts-intranet-list-names__row">
+                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListFaecher">Fächer</label>
+                                                <input type="text" id="tenantIntranetListFaecher" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Fächer" title="Leer = Standard „Fächer“">
+                                            </div>
+                                            <div class="ts-intranet-list-names__row">
+                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListFachgruppen">Fachgruppen</label>
+                                                <input type="text" id="tenantIntranetListFachgruppen" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Fachgruppen" title="Leer = Standard „Fachgruppen“">
+                                            </div>
+                                            <div class="ts-intranet-list-names__row">
+                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListArges">ARGEs</label>
+                                                <input type="text" id="tenantIntranetListArges" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="ARGEs" title="Leer = Standard „ARGEs“">
+                                            </div>
+                                            <div class="ts-intranet-list-names__row">
+                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListKlassen">Klassen</label>
+                                                <input type="text" id="tenantIntranetListKlassen" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Klassen" title="Leer = Standard „Klassen“">
+                                            </div>
+                                            <div class="ts-intranet-list-names__row">
+                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListLehrer">Lehrer:innen</label>
+                                                <input type="text" id="tenantIntranetListLehrer" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Lehrerinnen" title="Leer = Standard „Lehrerinnen“">
+                                            </div>
+                                        </div>
+                                    </fieldset>
+                                </article>
+
+                                <article class="ts-stammdaten-spo-point" aria-labelledby="tenantSpoPointItTitle">
+                                    <div class="ts-stammdaten-spo-point__head">
+                                        <span class="ts-stammdaten-spo-point__num" aria-hidden="true">2</span>
+                                        <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointItTitle">IT-Sicherungsbibliothek (Vollbackup)</h4>
+                                    </div>
+                                    <p class="muted ts-stammdaten-spo-point__lead">Synchron mit <a href="tools/stammdaten-uebergabe.html#setup">Stammdaten-Übergabe</a> – JSON-Backup über die Speichern-Leiste „SharePoint (IT)“. Die Site kann von Intranet-Listen und Schul-Intranet abweichen.</p>
+                                    <label class="ts-intranet-site-card__label" for="tenantItLibrarySiteUrl">SharePoint-Webseite für die IT-Bibliothek</label>
+                                    <div class="ts-intranet-site-card__url-row">
+                                        <input type="url" id="tenantItLibrarySiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/IT oder gleiche Site wie oben" autocomplete="off" spellcheck="false" aria-label="SharePoint-Webseite IT-Sicherungsbibliothek">
+                                        <button type="button" class="btn" id="tenantItLibrarySiteVerify" title="Mit Microsoft Graph prüfen, ob die Website erreichbar ist">
+                                            <i class="bi bi-patch-check" aria-hidden="true"></i> Website prüfen
+                                        </button>
+                                    </div>
+                                    <p id="tenantItLibrarySiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                    <label class="ts-intranet-site-card__label" for="tenantItLibraryTitle">Name der IT-Bibliothek</label>
+                                    <input type="text" id="tenantItLibraryTitle" class="ts-intranet-site-card__input" value="MS365-IT-Stammdaten" maxlength="120" spellcheck="false" autocomplete="off">
+                                    <label class="ts-intranet-site-card__label" for="tenantItLibraryGroup">IT-/Verwaltungsgruppe (E-Mail oder Objekt-ID)</label>
+                                    <input type="text" id="tenantItLibraryGroup" class="ts-intranet-site-card__input" placeholder="verwaltung@schule.at oder GUID" autocomplete="off" spellcheck="false">
+                                    <p id="tenantItLibraryStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                    <div class="ts-it-library-embed__actions">
+                                        <button type="button" class="btn btn-success" id="tenantItLibrarySetup"><i class="bi bi-shield-lock" aria-hidden="true"></i> IT-Bibliothek einrichten</button>
+                                        <a class="btn" href="tools/stammdaten-uebergabe.html#setup">Übergabe-Seite öffnen</a>
+                                    </div>
+                                    <details class="ts-it-library-embed__log-wrap">
+                                        <summary>Protokoll</summary>
+                                        <pre id="tenantItLibraryLog" class="tm-log ts-it-library-embed__log" aria-live="polite"></pre>
+                                    </details>
+                                </article>
+
+                                <article class="ts-stammdaten-spo-point" aria-labelledby="tenantSpoPointHubTitle">
+                                    <div class="ts-stammdaten-spo-point__head">
+                                        <span class="ts-stammdaten-spo-point__num" aria-hidden="true">3</span>
+                                        <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointHubTitle">Schul-Intranet (Website)</h4>
+                                    </div>
+                                    <p class="muted ts-stammdaten-spo-point__lead">Die öffentliche Schul-Website / der Intranet-Hub – kann dieselbe Site wie oben sein oder eine eigene Adresse.</p>
+                                    <div class="ts-intranet-site-card__url-row">
+                                        <input type="url" id="tenantSchoolIntranetSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/Schulintranet" autocomplete="off" spellcheck="false" aria-label="SharePoint-Schul-Intranet-Website">
+                                        <button type="button" class="btn" id="tenantSchoolIntranetSiteVerify" title="Mit Microsoft Graph prüfen, ob die Intranet-Website erreichbar ist">
+                                            <i class="bi bi-patch-check" aria-hidden="true"></i> Website prüfen
+                                        </button>
+                                    </div>
+                                    <p id="tenantSchoolIntranetSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                    <a class="btn ts-stammdaten-spo-point__link" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-house-door" aria-hidden="true"></i> Intranet-Hub einrichten</a>
+                                </article>
+                            </section>
                         </div>
 
                             <div id="panelMainSubjects" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSubjects">
@@ -581,13 +947,19 @@
                                 <label for="tenantSubjectsLines">Fachgruppen / Fächerliste (eine Zeile pro Fachgruppe)</label>
                                 <textarea id="tenantSubjectsLines" placeholder="D;Deutsch&#10;M;Mathematik&#10;E;Englisch"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Name</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Entspricht den <strong>Fachgruppen</strong> in <a href="tools/arge-fachgruppen.html">ARGE &amp; Fachgruppen</a> und der <a href="einrichtung.html">Einrichtung</a> Schritt 6. Zeilen mit <code>#</code> am Anfang werden ignoriert.
+                                    Format: <code>Kürzel;Name</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Entspricht den <strong>Fachgruppen</strong> in <a href="tools/arge-fachgruppen.html">ARGE &amp; Fachgruppen</a>. Zeilen mit <code>#</code> am Anfang werden ignoriert.
                                 </small>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantSubjectsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                    <input type="file" id="tenantSubjectsImportFile" accept=".csv,.xlsx,.xls">
-                                    <button type="button" class="btn" id="tenantSubjectsImportM365" title="Entra-Gruppen suchen (z. B. fach-, fachgruppe-) und als Fachgruppe mit Verknüpfung übernehmen"><i class="bi bi-microsoft"></i>Aus Microsoft 365 übernehmen</button>
-                                    <button type="button" class="btn" id="tenantSubjectsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
+                                <div class="ts-list-toolbar settings-actions" style="margin-top:10px;">
+                                    <details class="ts-list-import-drop">
+                                        <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                        <div class="ts-list-import-drop__panel" role="menu">
+                                            <label class="ts-register-save-link" for="tenantSubjectsImportFile" role="menuitem" title="CSV, Excel oder WebUntis Fächer-PDF (Subject_*.pdf)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / PDF)</label>
+                                            <input type="file" id="tenantSubjectsImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls,.pdf,application/pdf">
+                                            <button type="button" class="ts-register-save-link" id="tenantSubjectsImportM365" role="menuitem" title="Entra-Gruppen (z. B. fach-, fachgruppe-) als Fachgruppe mit Verknüpfung"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 übernehmen</button>
+                                            <p class="ts-list-import-drop__hint"><code>Subject_*.pdf</code>: nach dem Upload Auswahl-Dialog (empfohlene Fächer, Filter, Häkchen). Weitere WebUntis-Dateien werden der passenden Liste zugeordnet. Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant#schueler">WebUntis-Import</a>.</p>
+                                        </div>
+                                    </details>
+                                    <button type="button" class="ts-register-save-link" id="tenantSubjectsTemplateXlsx" title="Excel-Vorlage Fächerliste (Spalten Kürzel, Name)"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Fächerliste als Tabelle" style="margin-top:12px;">
                                     <table class="teachers-table" aria-label="Fächerliste (editierbar per Doppelklick)">
@@ -609,6 +981,12 @@
                                     <button type="button" class="btn" id="tenantBtnEnrichSubjects" title="Fehlende Fächer aus Unterrichtsteams/Belegung, ARGE, Schulstruktur und Legacy-Speicher ergänzen (nichts löschen)">
                                         <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Fächer ergänzen
                                     </button>
+                                    <button type="button" class="btn" data-tenant-intranet-sync="fachgruppen" title="Fachgruppen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
+                                        <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet: Fachgruppen
+                                    </button>
+                                    <button type="button" class="btn" data-tenant-intranet-sync="faecher" title="Fächer-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
+                                        <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet: Fächer
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -618,13 +996,20 @@
                                 <label for="tenantArgesLines">Arbeitsgruppen / ARGE (eine Zeile pro ARGE)</label>
                                 <textarea id="tenantArgesLines" spellcheck="false" placeholder="SPRACHEN;Sprachen;D,E&#10;NAWI;Naturwissenschaften;BIO,CH,PH"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Bezeichnung</code> oder <code>Kürzel;Bezeichnung;Fachkürzel1,Fachkürzel2</code> (optionale Zuordnung zu Fächern). Wie <a href="einrichtung.html">Einrichtung</a> Schritt 7. Zeilen mit <code>#</code> am Anfang werden ignoriert.
+                                    Format: <code>Kürzel;Bezeichnung;Fächer</code> oder mit ARGE-Leitung
+                                    <code>Kürzel;Bezeichnung;Fächer;Name;E-Mail</code> (Fächer kommagetrennt, Leitung optional).
+                                    Zeilen mit <code>#</code> am Anfang werden ignoriert.
                                 </small>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantArgesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                    <input type="file" id="tenantArgesImportFile" accept=".csv,.xlsx,.xls">
-                                    <button type="button" class="btn" id="tenantArgesImportM365" title="Entra-Gruppen suchen (z. B. arge-, fg-, ag-) und als ARGE mit Verknüpfung übernehmen"><i class="bi bi-microsoft"></i>Aus Microsoft 365 übernehmen</button>
-                                    <button type="button" class="btn" id="tenantArgesTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
+                                <div class="ts-list-toolbar settings-actions" style="margin-top:10px;">
+                                    <details class="ts-list-import-drop">
+                                        <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                        <div class="ts-list-import-drop__panel" role="menu">
+                                            <label class="ts-register-save-link" for="tenantArgesImportFile" role="menuitem" title="CSV oder Excel"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel)</label>
+                                            <input type="file" id="tenantArgesImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls">
+                                            <button type="button" class="ts-register-save-link" id="tenantArgesImportM365" role="menuitem" title="Entra-Gruppen suchen (z. B. arge-, fg-, ag-) und als ARGE mit Verknüpfung übernehmen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 übernehmen</button>
+                                        </div>
+                                    </details>
+                                    <button type="button" class="ts-register-save-link" id="tenantArgesTemplateXlsx" title="Excel-Vorlage ARGE-Liste (Spalten Kürzel, Name, Fächer)"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="ARGE-Liste als Tabelle" style="margin-top:12px;">
                                     <table class="teachers-table" aria-label="ARGE-Liste (editierbar per Doppelklick)">
@@ -633,18 +1018,31 @@
                                                 <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Kürzel sortieren (übernimmt die Reihenfolge ins Textfeld)">Kürzel</th>
                                                 <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Bezeichnung sortieren (übernimmt die Reihenfolge ins Textfeld)">Bezeichnung</th>
                                                 <th class="is-sortable" data-sort-key="subjects" tabindex="0" title="Nach Fachzuordnung sortieren (übernimmt die Reihenfolge ins Textfeld)">Fächer (Zuordnung)</th>
-                                                <th>M365</th>
+                                                <th class="is-sortable" data-sort-key="headName" tabindex="0" title="ARGE-Leitung">ARGE-Leitung</th>
+                                                <th class="is-sortable" data-sort-key="headEmail" tabindex="0" title="E-Mail der Leitung (Besitzer in M365)">E-Mail</th>
+                                                <th title="Microsoft-365-Gruppe">M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tenantArgesTableBody">
-                                            <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                            <tr><td colspan="7" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantArgesAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
-                                </div>
+                                <section class="ts-klassen-m365-bridge" aria-label="Microsoft 365 ARGE-Gruppen">
+                                    <p class="ts-klassen-m365-bridge__lead">
+                                        <strong>Microsoft 365:</strong> ARGE-Gruppen prüfen oder neu anlegen (Alias nach Stammdaten-Präfix, z. B. <code>arge-mathe</code>).
+                                    </p>
+                                    <div class="settings-actions ts-klassen-m365-bridge__actions">
+                                        <button type="button" class="btn btn-success" id="tenantArgesAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyArgesGraph" title="ARGE-Gruppen in Microsoft 365 prüfen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i> ARGE-Gruppen prüfen (Bulk)
+                                        </button>
+                                        <button type="button" class="btn" data-tenant-intranet-sync="arges" title="ARGE-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
+                                            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet: ARGEs
+                                        </button>
+                                    </div>
+                                </section>
                             </div>
                         </div>
 
@@ -703,60 +1101,44 @@
 
                         <div id="panelMainSga" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSga">
                             <div class="field">
-                                <label for="tenantSgaMode">SGA: Typ</label>
-                                <select id="tenantSgaMode" style="padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                    <option value="group">Microsoft-365-Gruppe</option>
-                                    <option value="distribution">E-Mail-Verteilerliste</option>
-                                </select>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Der SGA kommt an jeder Schule vor. Hier pflegen Sie zuerst die gewünschte Art und darunter die Mitglieder.
-                                </small>
-                            </div>
-                            <div class="field" style="margin-top:18px;">
-                                <label>SGA-Gruppe in Microsoft 365</label>
-                                <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;">
-                                    <span id="tenantSgaGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
-                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifySgaGroup" title="SGA-Gruppe in Microsoft 365 anhand erwarteter Mail-Nickname/Name suchen">
-                                        <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
-                                    </button>
-                                    <button type="button" class="btn btn-success" id="tenantBtnCreateSgaGroup" title="SGA-Gruppe in Microsoft 365 per Graph anlegen">
-                                        <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
-                                    </button>
-                                    <button type="button" class="btn btn-danger" id="tenantBtnUnmatchSgaGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
-                                        <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
-                                    </button>
-                                    <button type="button" class="btn" id="tenantBtnOpenSgaGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
-                                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
-                                    </button>
-                                </div>
-                                <div style="margin-top:12px;">
-                                    <label for="tenantSgaGroupSearch">Bestehende Gruppe suchen und zuordnen</label>
-                                    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;">
-                                        <input type="text" id="tenantSgaGroupSearch" autocomplete="off" placeholder="Name, Mail oder Alias …" style="flex:1 1 220px;min-width:180px;">
-                                        <button type="button" class="btn" id="tenantBtnSearchSgaGroup" title="Microsoft-365-Gruppen suchen">
-                                            <i class="bi bi-search" aria-hidden="true"></i> Suchen
-                                        </button>
+                                <label id="tenantSgaBoardLabel">SGA besetzen (3 Lehrkräfte · 3 Schüler:innen · 3 Elternvertreter:innen)</label>
+                                <p class="muted" style="margin:8px 0 12px;line-height:1.45;">
+                                    Lehrkräfte und Schüler:innen aus den Stammdatenlisten wählen; Elternvertreter:innen in der dritten Spalte mit Name und E-Mail eintragen.
+                                    Unten die Gesamtliste inkl. Herkunft und Microsoft-365-Abgleich.
+                                </p>
+                                <div class="ts-sga-board" id="tenantSgaBoard" aria-labelledby="tenantSgaBoardLabel">
+                                    <div class="ts-sga-board__col">
+                                        <h4 class="ts-sga-board__heading"><i class="bi bi-person-workspace" aria-hidden="true"></i> Lehrer:innen</h4>
+                                        <div id="tenantSgaBoardTeachers" class="ts-sga-board__slots"></div>
                                     </div>
-                                    <div id="tenantSgaGroupSearchResults" style="display:none;margin-top:10px;"></div>
+                                    <div class="ts-sga-board__col">
+                                        <h4 class="ts-sga-board__heading"><i class="bi bi-mortarboard" aria-hidden="true"></i> Schüler:innen</h4>
+                                        <div id="tenantSgaBoardStudents" class="ts-sga-board__slots"></div>
+                                    </div>
+                                    <div class="ts-sga-board__col">
+                                        <h4 class="ts-sga-board__heading"><i class="bi bi-people" aria-hidden="true"></i> Elternvertreter:innen</h4>
+                                        <div id="tenantSgaBoardExternals" class="ts-sga-board__slots"></div>
+                                    </div>
                                 </div>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Auto-Match nach erwarteter Mail-Nickname (Schulname + Schuljahr) — oder bestehende Gruppe suchen und zuordnen. Für „E-Mail-Verteilerliste“ wird beim Anlegen derzeit eine Microsoft‑365‑Gruppe verwendet.
-                                </small>
+                                <details class="ts-sga-board-raw" style="margin-top:14px;">
+                                    <summary class="muted" style="cursor:pointer;">Erweitert: Zeilenformat bearbeiten</summary>
+                                    <label class="sr-only" for="tenantSgaLines">SGA-Mitglieder (eine Zeile pro Person)</label>
+                                    <textarea id="tenantSgaLines" spellcheck="false" style="margin-top:10px;" placeholder="Lehrer;Maria Beispiel;maria@schule.at&#10;Schueler;Ali Demo;ali@schule.at&#10;Extern;Max Extern;max.extern@example.org"></textarea>
+                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                        Format: <code>Gruppe;Name;E-Mail</code> mit <code>Lehrer</code>, <code>Schueler</code> oder <code>Extern</code>.
+                                    </small>
+                                </details>
                             </div>
                             <div class="field" style="margin-top:18px;">
-                                <label for="tenantSgaLines">SGA-Mitglieder</label>
-                                <textarea id="tenantSgaLines" spellcheck="false" placeholder="Lehrer;Maria Beispiel;maria@schule.at&#10;Schueler;Ali Demo;ali@schule.at&#10;Extern;Max Extern;max.extern@example.org"></textarea>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Gruppe;Name;E-Mail</code> mit <code>Lehrer</code>, <code>Schüler</code> oder <code>Extern</code>. Zielbild: typischerweise 3 Lehrkräfte, 3 Schüler:innen und 3 Externe.
-                                </small>
+                                <label>SGA-Gesamtliste</label>
                                 <div class="teachers-table-wrap" aria-label="SGA-Mitglieder als Tabelle" style="margin-top:12px;">
                                     <table class="teachers-table" aria-label="SGA-Mitglieder (editierbar per Doppelklick)">
                                         <thead>
                                             <tr>
-                                                <th class="is-sortable" data-sort-key="scope" tabindex="0" title="Nach Gruppe sortieren (übernimmt die Reihenfolge ins Textfeld)">Gruppe</th>
+                                                <th class="is-sortable" data-sort-key="scope" tabindex="0" title="Nach Herkunft sortieren (übernimmt die Reihenfolge ins Textfeld)">Herkunft</th>
                                                 <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (übernimmt die Reihenfolge ins Textfeld)">Name</th>
                                                 <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
-                                                <th>M365</th>
+                                                <th title="Microsoft-365-Abgleich">M365</th>
                                                 <th class="action-cell">Aktion</th>
                                             </tr>
                                         </thead>
@@ -772,6 +1154,59 @@
                                     </button>
                                 </div>
                             </div>
+                            <section class="ts-register-m365-block field" aria-labelledby="tenantSgaM365Title">
+                                <h3 class="ts-register-m365-block__title" id="tenantSgaM365Title"><i class="bi bi-microsoft" aria-hidden="true"></i> SGA in Microsoft 365</h3>
+                                <p class="muted ts-register-m365-block__lead">Nach der Mitgliederliste: Art der SGA und Zuordnung zur Entra-Gruppe.</p>
+                                <label for="tenantSgaMode" style="display:block;margin-top:12px;font-weight:700;">SGA: Typ</label>
+                                <select id="tenantSgaMode" style="margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;max-width:22rem;">
+                                    <option value="group">Microsoft-365-Gruppe</option>
+                                    <option value="distribution">E-Mail-Verteilerliste</option>
+                                </select>
+                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                    Für „E-Mail-Verteilerliste“ wird beim Anlegen derzeit eine Microsoft‑365‑Gruppe verwendet.
+                                </small>
+                                <p class="ts-register-m365-block__subtitle" style="margin:16px 0 8px;font-weight:700;">Name der SGA-Gruppe (vor Anlegen)</p>
+                                <div class="ts-register-group-naming" style="display:grid;gap:10px;max-width:36rem;margin-top:8px;">
+                                    <div>
+                                        <label for="tenantSgaNewDisplayName">Anzeigename in Microsoft 365</label>
+                                        <input type="text" id="tenantSgaNewDisplayName" maxlength="200" autocomplete="off" placeholder="z. B. SGA Musterschule" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                    </div>
+                                    <div>
+                                        <label for="tenantSgaNewMailNick">Mail-Nickname (Alias, Teil vor @)</label>
+                                        <input type="text" id="tenantSgaNewMailNick" maxlength="64" autocomplete="off" spellcheck="false" placeholder="z. B. sga-musterschule" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                        <small class="muted" style="display:block;margin-top:6px;line-height:1.45;">Gruppen-Adresse (Vorschau): <code id="tenantSgaMailPreview">—</code></small>
+                                    </div>
+                                </div>
+                                <p class="ts-register-m365-block__subtitle" style="margin:16px 0 8px;font-weight:700;">SGA-Gruppe zuordnen</p>
+                                <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;flex-wrap:wrap;">
+                                    <span id="tenantSgaGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifySgaGroup" title="SGA-Gruppe in Microsoft 365 anhand erwarteter Mail-Nickname/Name suchen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="tenantBtnCreateSgaGroup" title="SGA-Gruppe in Microsoft 365 per Graph anlegen">
+                                        <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="tenantBtnUnmatchSgaGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
+                                        <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                    </button>
+                                    <button type="button" class="btn" id="tenantBtnOpenSgaGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
+                                    </button>
+                                </div>
+                                <div style="margin-top:14px;">
+                                    <label for="tenantSgaGroupSearch">Bestehende Gruppe suchen und zuordnen</label>
+                                    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;">
+                                        <input type="text" id="tenantSgaGroupSearch" autocomplete="off" placeholder="Name, Mail oder Alias …" style="flex:1 1 220px;min-width:180px;">
+                                        <button type="button" class="btn" id="tenantBtnSearchSgaGroup" title="Microsoft-365-Gruppen suchen">
+                                            <i class="bi bi-search" aria-hidden="true"></i> Suchen
+                                        </button>
+                                    </div>
+                                    <div id="tenantSgaGroupSearchResults" style="display:none;margin-top:10px;"></div>
+                                </div>
+                                <small style="color:var(--muted);display:block;margin-top:10px;line-height:1.45;">
+                                    Leere Felder oben: Vorschlag aus Schulname. „Prüfen“ und „Anlegen“ nutzen Anzeigename und Mail-Nickname — oder bestehende Gruppe suchen und zuordnen.
+                                </small>
+                            </section>
                         </div>
 
                         <div id="panelMainLehrer" class="tab-panel" role="tabpanel" aria-labelledby="tabMainLehrer">
@@ -779,28 +1214,51 @@
                                 <label for="tenantTeachersLines">Lehrerliste (eine Zeile pro Lehrkraft)</label>
                                 <textarea id="tenantTeachersLines" placeholder="MU;Max Mustermann;max.mustermann@schule.de&#10;BME;Anna Beispiel;anna.beispiel@schule.de"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer). Bestehende Konten mit A1/A3/A5 für Lehrpersonal können Sie aus dem Tenant einlesen.
+                                    Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer). Vorschläge aus Namen/WebUntis nutzen das <strong>E-Mail-Muster</strong> unter <a href="#tabMainStammdaten" data-ms365-register-tab-link="tabMainStammdaten">Stammdaten</a>. Bestehende Konten mit A1/A3/A5 können Sie aus dem Tenant einlesen.
                                 </small>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantTeachersImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                    <input type="file" id="tenantTeachersImportFile" accept=".csv,.xlsx,.xls">
-                                    <label for="tenantTeachersEmailPattern" style="font-weight:700;margin:0 8px;">Mail-Muster</label>
-                                    <select id="tenantTeachersEmailPattern" title="Für WebUntis TeacherSalary ohne E-Mail" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                        <option value="vorname.nachname" selected>vorname.nachname</option>
-                                        <option value="nachname.vorname">nachname.vorname</option>
-                                        <option value="v.nachname">v.nachname</option>
-                                        <option value="vorname.n">vorname.n</option>
-                                    </select>
-                                    <label for="tenantTeachersEmailGivenNames" style="font-weight:700;margin:0 8px 0 0;">Vornamen</label>
-                                    <select id="tenantTeachersEmailGivenNames" title="Bei mehreren Vornamen: nur den ersten oder alle für die E-Mail verwenden" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                        <option value="first" selected>Nur 1. Vorname</option>
-                                        <option value="all">Alle Vornamen</option>
-                                    </select>
-                                    <button type="button" class="btn" id="tenantTeachersTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
-                                    <button type="button" class="btn" id="tenantTeachersExportCsv" title="Aktuelle Lehrerliste als CSV herunterladen"><i class="bi bi-filetype-csv"></i>Export CSV</button>
-                                    <button type="button" class="btn" id="tenantTeachersExportXlsx" title="Aktuelle Lehrerliste als Excel herunterladen"><i class="bi bi-file-earmark-excel"></i>Export XLSX</button>
-                                    <button type="button" class="btn" id="tenantBtnImportTeachersFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Lehrpersonal einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
+                                <div class="ts-list-toolbar ts-list-toolbar--split settings-actions" style="margin-top:10px;">
+                                    <div class="ts-list-toolbar__start">
+                                        <details class="ts-list-import-drop">
+                                            <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                            <div class="ts-list-import-drop__panel" role="menu">
+                                                <label class="ts-register-save-link" for="tenantTeachersImportFile" role="menuitem" title="CSV/Excel inkl. WebUntis Teacher_*.csv – mit Prüfdialog (Kürzel, Name, E-Mail)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / WebUntis)</label>
+                                                <input type="file" id="tenantTeachersImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls">
+                                                <p class="ts-list-import-drop__hint"><code>Teacher_*.csv</code> / <code>TeacherSalary</code> aus WebUntis werden erkannt. Nach dem Upload erscheint eine Vorschau (neu, Änderungen, Konflikte). Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Import</a>.</p>
+                                                <button type="button" class="ts-register-save-link" id="tenantBtnImportTeachersFromTenant" role="menuitem" title="Bestehende Entra-Konten mit A1/A3/A5 für Lehrpersonal einlesen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen</button>
+                                            </div>
+                                        </details>
+                                        <button type="button" class="ts-register-save-link" id="tenantTeachersTemplateXlsx" title="Excel-Vorlage Lehrerliste (Kürzel, Name, E-Mail)"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
+                                    </div>
+                                    <div class="ts-list-toolbar__end">
+                                        <button type="button" class="ts-register-save-link" id="tenantTeachersExportCsv" title="Aktuelle Lehrerliste als CSV"><i class="bi bi-filetype-csv" aria-hidden="true"></i>Export CSV</button>
+                                        <button type="button" class="ts-register-save-link" id="tenantTeachersExportXlsx" title="Aktuelle Lehrerliste als Excel"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i>Export XLSX</button>
+                                    </div>
                                 </div>
+                                <section id="tenantTeachersWuDiff" class="ts-import-review ts-teachers-wu-diff" hidden aria-live="polite" style="margin-top:12px;">
+                                    <h3 style="margin:0 0 8px;font-size:1.05rem;"><i class="bi bi-clipboard-check" aria-hidden="true"></i> WebUntis-Lehrerliste prüfen</h3>
+                                    <p id="tenantTeachersWuDiffMeta" class="tile-subtitle" style="margin:0 0 10px;"></p>
+                                    <div class="teachers-table-wrap" style="max-height:min(42vh,320px);overflow:auto;">
+                                        <table class="teachers-table" aria-label="Import-Vorschau Lehrer">
+                                            <thead>
+                                                <tr>
+                                                    <th>Status</th>
+                                                    <th>Kürzel</th>
+                                                    <th>Name</th>
+                                                    <th>E-Mail</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tenantTeachersWuDiffBody">
+                                                <tr><td colspan="4" style="color:var(--muted);">Noch keine Vorschau.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p class="muted" style="margin:10px 0 0;font-size:0.88em;">Nach „Übernehmen“ die Tabelle prüfen und unten <strong>Speichern</strong> klicken.</p>
+                                    <div class="settings-actions" style="margin-top:10px;">
+                                        <button type="button" class="btn btn-success" id="tenantTeachersWuDiffMerge"><i class="bi bi-intersect"></i>Zusammenführen (nach Kürzel)</button>
+                                        <button type="button" class="btn" id="tenantTeachersWuDiffReplace"><i class="bi bi-arrow-repeat"></i>Liste ersetzen</button>
+                                        <button type="button" class="btn" id="tenantTeachersWuDiffCancel">Verwerfen</button>
+                                    </div>
+                                </section>
                                 <div id="tenantTeacherTenantImportPanel" class="sw-lic-import" hidden>
                                     <div class="sw-lic-import-head">
                                         <h3>Bestehende Lehrkräfte aus dem Tenant</h3>
@@ -873,61 +1331,110 @@
                                     <button type="button" class="btn btn-primary" id="tenantBtnVerifyTeachersGraph" title="Alle E-Mail-Adressen der Lehrkräfte in Microsoft Entra prüfen">
                                         <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
                                     </button>
+                                    <button type="button" class="btn" data-tenant-intranet-sync="lehrer" title="Lehrerinnen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
+                                        <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet: Lehrerinnen
+                                    </button>
                                 </div>
+                                <div id="tenantTeacherLifecycle" class="alert alert-info" hidden style="margin-top:14px;">
+                                    <p id="tenantTeacherLifecycleMeta" style="margin:8px 0;line-height:1.45;">Neue Lehrkräfte in der Liste – optional in die Microsoft-365-Sammelgruppe aufnehmen.</p>
+                                    <ul id="tenantTeacherLifecycleList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                                    <div class="settings-actions" style="margin-top:8px;">
+                                        <button type="button" class="btn btn-success" id="tenantTeacherLifecycleApply"><i class="bi bi-check2-circle"></i>In Lehrer:innen-Gruppe aufnehmen</button>
+                                        <button type="button" class="btn" id="tenantTeacherLifecycleDismiss">Später</button>
+                                    </div>
+                                </div>
+                                <section class="ts-register-m365-block field" aria-labelledby="tenantLehrerSammelgruppeTitle" style="margin-top:16px;">
+                                    <h3 class="ts-register-m365-block__title" id="tenantLehrerSammelgruppeTitle"><i class="bi bi-microsoft" aria-hidden="true"></i> Lehrer:innen-Sammelgruppe in Microsoft 365</h3>
+                                    <p class="muted ts-register-m365-block__lead">
+                                        Zentrale Gruppe aller Lehrkräfte (wie im Werkzeug
+                                        <a href="tools/schueler-lehrer-gruppen.html">Lehrerinnen &amp; Schülerinnen</a>).
+                                        Prüfen oder anlegen, dann fehlende Mitglieder aus dieser Liste ergänzen.
+                                    </p>
+                                    <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;flex-wrap:wrap;">
+                                        <span id="tenantLehrerGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyLehrerGroup" title="Lehrer:innen-Sammelgruppe anhand Alias (z. B. lehrer) oder gespeicherter Zuordnung suchen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
+                                        </button>
+                                        <button type="button" class="btn btn-success" id="tenantBtnCreateLehrerGroup" title="Lehrer:innen-Sammelgruppe in Microsoft 365 anlegen (falls noch keine passende existiert)">
+                                            <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
+                                        </button>
+                                        <button type="button" class="btn" id="tenantBtnSyncLehrerGroupMembers" title="Fehlende E-Mails aus der Lehrerliste in die gematchte Gruppe aufnehmen (nur hinzufügen)">
+                                            <i class="bi bi-people-fill" aria-hidden="true"></i> Mitglieder ergänzen
+                                        </button>
+                                        <button type="button" class="btn btn-danger" id="tenantBtnUnmatchLehrerGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
+                                            <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                        </button>
+                                        <button type="button" class="btn" id="tenantBtnOpenLehrerGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
+                                        </button>
+                                    </div>
+                                    <div style="margin-top:14px;">
+                                        <label for="tenantLehrerGroupSearch">Bestehende Gruppe suchen und zuordnen</label>
+                                        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;">
+                                            <input type="text" id="tenantLehrerGroupSearch" autocomplete="off" placeholder="Name, Mail oder Alias (z. B. lehrer) …" style="flex:1 1 220px;min-width:180px;">
+                                            <button type="button" class="btn" id="tenantBtnSearchLehrerGroup" title="Microsoft-365-Gruppen suchen">
+                                                <i class="bi bi-search" aria-hidden="true"></i> Suchen
+                                            </button>
+                                        </div>
+                                        <div id="tenantLehrerGroupSearchResults" style="display:none;margin-top:10px;"></div>
+                                    </div>
+                                    <small style="color:var(--muted);display:block;margin-top:10px;line-height:1.45;">
+                                        Standard-Alias: <code>lehrer</code> (Gruppen-Mail oft <code>lehrer@Ihre-Domain</code>). Vollständiger Abgleich inkl. Entfernen: Werkzeug
+                                        <a href="tools/schueler-lehrer-gruppen.html">Lehrerinnen &amp; Schülerinnen</a>.
+                                    </small>
+                                </section>
                             </div>
                         </div>
 
                         <div id="panelStudentsData" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSchueler">
+                                <div class="ts-students-view-bar" role="group" aria-label="Schüler-Ansicht">
+                                    <span class="muted" style="font-weight:700;">Ansicht:</span>
+                                    <button type="button" id="tenantStudentsViewListe" class="is-active"><i class="bi bi-table"></i> Gesamtliste</button>
+                                    <button type="button" id="tenantStudentsViewKlassen"><i class="bi bi-layout-three-columns"></i> Nach Klassen</button>
+                                </div>
+                                <div id="tenantStudentsListWrap" class="ts-students-list-wrap">
                                 <div class="field">
-                                    <label for="tenantStudentsLines">Schülerliste (eine Zeile pro Schüler)</label>
+                                    <label for="tenantStudentsLines">Schülerliste (eine Zeile pro Schüler:in)</label>
                                     <textarea id="tenantStudentsLines" placeholder="1AK;Max Mustermann;max.mustermann@schule.de&#10;1B;Dave Grohl;dave.grohl@schule.de;Jane Grohl;jane@mail.com;John Grohl;john@mail.com"></textarea>
                                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                        Format: <code>Klasse;Name;E-Mail</code> — optional: <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>
-                            (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Zeilen mit <code>#</code> am Anfang werden ignoriert.
-                            Import erkennt auch Exporte aus <strong>Sokrates</strong> (Suche 111 / Elternabfrage) und <strong>WebUntis</strong>
-                            (<code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code>, Mehrfachauswahl). Fehlende Schüler-Mails werden nach Muster aus Vor-/Nachname + Schuldomain vorgeschlagen
-                            (Standard: nur der <strong>erste Vorname</strong>, z. B. Anna-Sophie → <code>anna.nachname@…</code>).
-                            Aktualisierungen im Jahr: nach dem Import <strong>Zusammenführen</strong>. Vorlagen: XLSX/CSV. Eltern unter <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a>.
+                                        Format: <code>Klasse;Name;E-Mail</code> — optional <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Fehlende Mails: <strong>E-Mail-Muster</strong> unter <a href="#tabMainStammdaten" data-ms365-register-tab-link="tabMainStammdaten">Stammdaten</a>. Eltern-Verteiler: <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a>.
                                     </small>
-                                    <div class="settings-actions" style="margin-top:10px;flex-wrap:wrap;">
-                                        <label for="tenantStudentsImportSource" style="font-weight:700;margin:0 8px 0 0;">Quelle</label>
-                                        <select id="tenantStudentsImportSource" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                            <option value="auto" selected>Automatisch erkennen</option>
-                                            <option value="ms365">MS365-Vorlage</option>
-                                            <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
-                                            <option value="webuntis">WebUntis Exporte</option>
-                                        </select>
-                                        <label for="tenantStudentsEmailPattern" style="font-weight:700;margin:0 8px 0 0;">Mail-Muster</label>
-                                        <select id="tenantStudentsEmailPattern" title="Für fehlende Schüler-Mails aus dem WebUntis-Export" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                            <option value="vorname.nachname" selected>vorname.nachname</option>
-                                            <option value="nachname.vorname">nachname.vorname</option>
-                                            <option value="v.nachname">v.nachname</option>
-                                            <option value="vorname.n">vorname.n</option>
-                                            <option value="vorname_nachname">vorname_nachname</option>
-                                        </select>
-                                        <label for="tenantStudentsEmailGivenNames" style="font-weight:700;margin:0 8px 0 0;">Vornamen</label>
-                                        <select id="tenantStudentsEmailGivenNames" title="Bei mehreren Vornamen (z. B. Anna-Sophie): nur den ersten oder alle für die E-Mail verwenden" style="padding:8px 10px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
-                                            <option value="first" selected>Nur 1. Vorname</option>
-                                            <option value="all">Alle Vornamen</option>
-                                        </select>
-                                        <label class="btn" for="tenantStudentsImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX)</label>
-                                        <input type="file" id="tenantStudentsImportFile" accept=".csv,.xlsx,.xls,.txt" multiple>
-                                        <button type="button" class="btn" id="tenantStudentsTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
-                                        <button type="button" class="btn" id="tenantStudentsTemplateCsv"><i class="bi bi-filetype-csv"></i>CSV‑Vorlage</button>
-                                        <button type="button" class="btn" id="tenantStudentsExportCsv" title="Aktuelle Schülerliste als CSV herunterladen"><i class="bi bi-download"></i>Export CSV</button>
-                                        <button type="button" class="btn" id="tenantStudentsExportXlsx" title="Aktuelle Schülerliste als Excel herunterladen"><i class="bi bi-file-earmark-excel"></i>Export XLSX</button>
-                                        <button type="button" class="btn" id="tenantBtnImportStudentsFromTenant" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 einlesen</button>
+                                    <div class="ts-list-toolbar ts-list-toolbar--split settings-actions" style="margin-top:10px;">
+                                        <div class="ts-list-toolbar__start">
+                                            <details class="ts-list-import-drop">
+                                                <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                                <div class="ts-list-import-drop__panel" role="menu">
+                                                    <label class="ts-register-save-link" for="tenantStudentsImportFile" role="menuitem" title="CSV, Excel, WebUntis Student/LegalGuardian (Mehrfachauswahl)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / WebUntis)</label>
+                                                    <input type="file" id="tenantStudentsImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls,.txt" multiple>
+                                                    <p class="ts-list-import-drop__hint"><code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code>, auch <strong>Sokrates</strong> und MS365-Vorlage. Nach dem Upload: <strong>Vorschau</strong> mit Zusammenführen/Ersetzen. Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Import</a>.</p>
+                                                    <label for="tenantStudentsImportSource" class="ts-list-import-drop__hint" style="display:block;margin-top:8px;">Quelle (falls nicht automatisch)</label>
+                                                    <select id="tenantStudentsImportSource" class="ts-list-import-drop__source" title="Import-Quelle">
+                                                        <option value="auto" selected>Automatisch erkennen</option>
+                                                        <option value="ms365">MS365-Vorlage</option>
+                                                        <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
+                                                        <option value="webuntis">WebUntis Exporte</option>
+                                                    </select>
+                                                    <button type="button" class="ts-register-save-link" id="tenantBtnImportStudentsFromTenant" role="menuitem" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen</button>
+                                                </div>
+                                            </details>
+                                            <button type="button" class="ts-register-save-link" id="tenantStudentsTemplateXlsx" title="Excel-Vorlage Schülerliste"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
+                                        </div>
+                                        <div class="ts-list-toolbar__end">
+                                            <button type="button" class="ts-register-save-link" id="tenantStudentsExportCsv" title="Aktuelle Schülerliste als CSV"><i class="bi bi-filetype-csv" aria-hidden="true"></i>Export CSV</button>
+                                            <button type="button" class="ts-register-save-link" id="tenantStudentsExportXlsx" title="Aktuelle Schülerliste als Excel"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i>Export XLSX</button>
+                                        </div>
                                     </div>
-                                    <div id="tenantSisDiff" class="alert alert-info" hidden style="margin-top:12px;">
-                                        <strong>Import-Vorschau (lokal)</strong>
-                                        <p id="tenantSisDiffMeta" style="margin:8px 0;line-height:1.45;">Nach dem Datei-Import erscheint hier der Unterschied zur aktuellen Liste.</p>
+                                    <section id="tenantSisDiff" class="ts-import-review" hidden aria-live="polite" style="margin-top:12px;">
+                                        <h3 style="margin:0 0 8px;font-size:1.05rem;"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Schülerimport prüfen</h3>
+                                        <p id="tenantSisDiffMeta" class="tile-subtitle" style="margin:0 0 10px;">Nach dem Datei-Import erscheint hier der Unterschied zur aktuellen Liste.</p>
                                         <ul id="tenantSisDiffList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
                                         <div class="settings-actions">
                                             <button type="button" class="btn btn-success" id="tenantSisDiffMerge"><i class="bi bi-intersect"></i>Zusammenführen</button>
                                             <button type="button" class="btn" id="tenantSisDiffReplace"><i class="bi bi-arrow-repeat"></i>Liste ersetzen</button>
                                             <button type="button" class="btn" id="tenantSisDiffCancel">Verwerfen</button>
                                         </div>
-                                    </div>
+                                        <p class="muted" style="margin:10px 0 0;font-size:0.88em;">Nach „Übernehmen“ unten <strong>Speichern</strong> klicken.</p>
+                                    </section>
                                     <div id="tenantStudentTenantImportPanel" class="sw-lic-import" hidden>
                                         <div class="sw-lic-import-head">
                                             <h3>Bestehende Schüler:innen aus dem Tenant</h3>
@@ -1018,6 +1525,9 @@
                                         <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentsGraph" title="Alle Schüler-E-Mails mit Microsoft Entra abgleichen (bei großen Listen: einmaliges Laden des Verzeichnisses)">
                                             <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
                                         </button>
+                                        <button type="button" class="btn" data-tenant-intranet-sync="schueler" title="Schülerinnen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen">
+                                            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet: Schülerinnen
+                                        </button>
                                     </div>
                                     <div id="tenantStudentLifecycle" class="alert alert-info" hidden style="margin-top:14px;">
                                         <strong>Klassenwechsel in Microsoft 365</strong>
@@ -1028,89 +1538,174 @@
                                             <button type="button" class="btn" id="tenantStudentLifecycleDismiss">Nur Stammdaten behalten</button>
                                         </div>
                                     </div>
+                                    <div id="tenantStudentSammelLifecycle" class="alert alert-info" hidden style="margin-top:14px;">
+                                        <p id="tenantStudentSammelLifecycleMeta" style="margin:8px 0;line-height:1.45;">Neue Schüler:innen in der Liste – optional in die Microsoft-365-Sammelgruppe aufnehmen.</p>
+                                        <ul id="tenantStudentSammelLifecycleList" style="margin:0 0 12px;padding-left:1.2em;line-height:1.45;"></ul>
+                                        <div class="settings-actions" style="margin-top:8px;">
+                                            <button type="button" class="btn btn-success" id="tenantStudentSammelLifecycleApply"><i class="bi bi-check2-circle"></i>In Schüler:innen-Gruppe aufnehmen</button>
+                                            <button type="button" class="btn" id="tenantStudentSammelLifecycleDismiss">Später</button>
+                                        </div>
+                                    </div>
+                                    <section class="ts-register-m365-block field" aria-labelledby="tenantSchuelerSammelgruppeTitle" style="margin-top:16px;">
+                                        <h3 class="ts-register-m365-block__title" id="tenantSchuelerSammelgruppeTitle"><i class="bi bi-microsoft" aria-hidden="true"></i> Schüler:innen-Sammelgruppe in Microsoft 365</h3>
+                                        <p class="muted ts-register-m365-block__lead">
+                                            Zentrale Gruppe aller Schüler:innen (wie im Werkzeug
+                                            <a href="tools/schueler-lehrer-gruppen.html">Lehrerinnen &amp; Schülerinnen</a>).
+                                            Prüfen oder anlegen, dann fehlende Mitglieder aus dieser Liste ergänzen.
+                                        </p>
+                                        <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;flex-wrap:wrap;">
+                                            <span id="tenantSchuelerGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                                            <button type="button" class="btn btn-primary" id="tenantBtnVerifySchuelerGroup" title="Schüler:innen-Sammelgruppe anhand Alias (z. B. schueler) oder gespeicherter Zuordnung suchen">
+                                                <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
+                                            </button>
+                                            <button type="button" class="btn btn-success" id="tenantBtnCreateSchuelerGroup" title="Schüler:innen-Sammelgruppe in Microsoft 365 anlegen (falls noch keine passende existiert)">
+                                                <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
+                                            </button>
+                                            <button type="button" class="btn" id="tenantBtnSyncSchuelerGroupMembers" title="Fehlende E-Mails aus der Schülerliste in die gematchte Gruppe aufnehmen (nur hinzufügen)">
+                                                <i class="bi bi-people-fill" aria-hidden="true"></i> Mitglieder ergänzen
+                                            </button>
+                                            <button type="button" class="btn btn-danger" id="tenantBtnUnmatchSchuelerGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
+                                                <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                            </button>
+                                            <button type="button" class="btn" id="tenantBtnOpenSchuelerGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
+                                            </button>
+                                        </div>
+                                        <div style="margin-top:14px;">
+                                            <label for="tenantSchuelerGroupSearch">Bestehende Gruppe suchen und zuordnen</label>
+                                            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;">
+                                                <input type="text" id="tenantSchuelerGroupSearch" autocomplete="off" placeholder="Name, Mail oder Alias (z. B. schueler) …" style="flex:1 1 220px;min-width:180px;">
+                                                <button type="button" class="btn" id="tenantBtnSearchSchuelerGroup" title="Microsoft-365-Gruppen suchen">
+                                                    <i class="bi bi-search" aria-hidden="true"></i> Suchen
+                                                </button>
+                                            </div>
+                                            <div id="tenantSchuelerGroupSearchResults" style="display:none;margin-top:10px;"></div>
+                                        </div>
+                                        <small style="color:var(--muted);display:block;margin-top:10px;line-height:1.45;">
+                                            Standard-Alias: <code>schueler</code> (Gruppen-Mail oft <code>schueler@Ihre-Domain</code>). Klassenwechsel und Entfernen aus Gruppen: Hinweis „Klassenwechsel“ oben bzw. Werkzeug
+                                            <a href="tools/schueler-lehrer-gruppen.html">Lehrerinnen &amp; Schülerinnen</a>.
+                                        </small>
+                                    </section>
                                 </div>
+                                </div>
+                                <div id="tenantKlassenHub" class="ts-klassen-hub" hidden aria-label="Schüler nach Klassen"></div>
                             </div>
 
                         <div id="panelStudentCouncilData" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSchuelervertretung">
-                                <div class="field">
-                                    <label>Schülervertretung-Gruppe in Microsoft 365</label>
-                                    <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;">
-                                        <span id="tenantStudentCouncilGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
-                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentCouncilGroup" title="Schülervertretung-Gruppe in Microsoft 365 anhand erwarteter Mail-Nickname/Name suchen">
-                                            <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
-                                        </button>
-                                        <button type="button" class="btn btn-success" id="tenantBtnCreateStudentCouncilGroup" title="Schülervertretung-Gruppe in Microsoft 365 per Graph anlegen">
-                                            <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
-                                        </button>
-                                        <button type="button" class="btn btn-danger" id="tenantBtnUnmatchStudentCouncilGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
-                                            <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
-                                        </button>
-                                        <button type="button" class="btn" id="tenantBtnOpenStudentCouncilGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
-                                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
-                                        </button>
-                                    </div>
-                                    <div style="margin-top:12px;">
-                                        <label for="tenantStudentCouncilGroupSearch">Bestehende Gruppe suchen und zuordnen</label>
-                                        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;">
-                                            <input type="text" id="tenantStudentCouncilGroupSearch" autocomplete="off" placeholder="Name, Mail oder Alias …" style="flex:1 1 220px;min-width:180px;">
-                                            <button type="button" class="btn" id="tenantBtnSearchStudentCouncilGroup" title="Microsoft-365-Gruppen suchen">
-                                                <i class="bi bi-search" aria-hidden="true"></i> Suchen
-                                            </button>
-                                        </div>
-                                        <div id="tenantStudentCouncilGroupSearchResults" style="display:none;margin-top:10px;"></div>
-                                    </div>
-                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                        Auto-Match nach erwarteter Mail-Nickname (aus „Schulname“ + Schuljahr) — oder bestehende Gruppe suchen und zuordnen.
-                                    </small>
-                                    <label for="tenantStudentCouncilLines">Schülervertretung</label>
-                                    <textarea id="tenantStudentCouncilLines" spellcheck="false" placeholder="3A;Anna Beispiel;anna@schule.at&#10;4B;Ben Demo;ben@schule.at&#10;5C;Carla Muster;carla@schule.at"></textarea>
-                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                        Format: <code>Klasse;Name;E-Mail</code>. Diese Gruppe ist schuljahresbezogen und typischerweise mit wenigen Schüler:innen befüllt.
-                                    </small>
-                                    <div class="teachers-table-wrap" aria-label="Schülervertretung als Tabelle" style="margin-top:12px;">
-                                        <table class="teachers-table" aria-label="Schülervertretung (editierbar per Doppelklick)">
-                                            <thead>
-                                                <tr>
-                                                    <th class="is-sortable" data-sort-key="klasse" tabindex="0" title="Nach Klasse sortieren (übernimmt die Reihenfolge ins Textfeld)">Klasse</th>
-                                                    <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (übernimmt die Reihenfolge ins Textfeld)">Name</th>
-                                                    <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
-                                                    <th>M365</th>
-                                                    <th class="action-cell">Aktion</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="tenantStudentCouncilTableBody">
-                                                <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                            <div class="field">
+                                <label id="tenantStudentCouncilPickLabel">Schülervertretung besetzen</label>
+                                <p class="muted" style="margin:8px 0 12px;line-height:1.45;">
+                                    Vertreter:innen direkt aus der <strong>Schülerliste</strong> des aktuellen Schuljahrs wählen (typisch drei Personen, beliebig erweiterbar).
+                                    Klasse, Name und E-Mail werden automatisch übernommen.
+                                </p>
+                                <div class="ts-sv-pick-board" id="tenantStudentCouncilPickBoard" aria-labelledby="tenantStudentCouncilPickLabel">
+                                    <div id="tenantStudentCouncilPickSlots" class="ts-sv-pick-board__slots"></div>
                                     <div class="settings-actions" style="margin-top:10px;">
-                                        <button type="button" class="btn btn-success" id="tenantStudentCouncilAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
-                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentCouncilGraph" title="Alle E-Mail-Adressen der Schülervertretung in Microsoft Entra prüfen">
-                                            <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
-                                        </button>
+                                        <button type="button" class="btn" id="tenantStudentCouncilAddPickSlot"><i class="bi bi-plus-circle"></i>Weiteren Platz</button>
                                     </div>
                                 </div>
+                                <details class="ts-sga-board-raw" style="margin-top:14px;">
+                                    <summary class="muted" style="cursor:pointer;">Erweitert: Zeilenformat bearbeiten</summary>
+                                    <label class="sr-only" for="tenantStudentCouncilLines">Schülervertretung (eine Zeile pro Person)</label>
+                                    <textarea id="tenantStudentCouncilLines" spellcheck="false" style="margin-top:10px;" placeholder="3A;Anna Beispiel;anna@schule.at&#10;4B;Ben Demo;ben@schule.at&#10;5C;Carla Muster;carla@schule.at"></textarea>
+                                    <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
+                                        Format: <code>Klasse;Name;E-Mail</code>.
+                                    </small>
+                                </details>
                             </div>
+                            <div class="field" style="margin-top:18px;">
+                                <label>Schülervertretung – Gesamtliste</label>
+                                <div class="teachers-table-wrap" aria-label="Schülervertretung als Tabelle" style="margin-top:12px;">
+                                    <table class="teachers-table" aria-label="Schülervertretung (editierbar per Doppelklick)">
+                                        <thead>
+                                            <tr>
+                                                <th class="is-sortable" data-sort-key="klasse" tabindex="0" title="Nach Klasse sortieren (übernimmt die Reihenfolge ins Textfeld)">Klasse</th>
+                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Name sortieren (übernimmt die Reihenfolge ins Textfeld)">Name</th>
+                                                <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
+                                                <th title="Microsoft-365-Abgleich">M365</th>
+                                                <th class="action-cell">Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tenantStudentCouncilTableBody">
+                                            <tr><td colspan="5" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Zeile“.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="settings-actions" style="margin-top:10px;">
+                                    <button type="button" class="btn btn-success" id="tenantStudentCouncilAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentCouncilGraph" title="Alle E-Mail-Adressen der Schülervertretung in Microsoft Entra prüfen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                    </button>
+                                </div>
+                            </div>
+                            <section class="ts-register-m365-block field" aria-labelledby="tenantStudentCouncilM365Title">
+                                <h3 class="ts-register-m365-block__title" id="tenantStudentCouncilM365Title"><i class="bi bi-microsoft" aria-hidden="true"></i> Schülervertretung-Gruppe in Microsoft 365</h3>
+                                <p class="muted ts-register-m365-block__lead">Nach dem Pflegen der Personenliste: Sammelgruppe in Entra prüfen, anlegen oder manuell zuordnen.</p>
+                                <p class="ts-register-m365-block__subtitle" style="margin:16px 0 8px;font-weight:700;">Name der Schülervertretungs-Gruppe (vor Anlegen)</p>
+                                <div class="ts-register-group-naming" style="display:grid;gap:10px;max-width:36rem;margin-top:8px;">
+                                    <div>
+                                        <label for="tenantSvNewDisplayName">Anzeigename in Microsoft 365</label>
+                                        <input type="text" id="tenantSvNewDisplayName" maxlength="200" autocomplete="off" placeholder="z. B. Schülervertretung Musterschule 2025/26" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                    </div>
+                                    <div>
+                                        <label for="tenantSvNewMailNick">Mail-Nickname (Alias, Teil vor @)</label>
+                                        <input type="text" id="tenantSvNewMailNick" maxlength="64" autocomplete="off" spellcheck="false" placeholder="z. B. sv202526musterschule" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid #ced4da;font:inherit;">
+                                        <small class="muted" style="display:block;margin-top:6px;line-height:1.45;">Gruppen-Adresse (Vorschau): <code id="tenantSvMailPreview">—</code></small>
+                                    </div>
+                                </div>
+                                <p class="ts-register-m365-block__subtitle" style="margin:16px 0 8px;font-weight:700;">Gruppe zuordnen</p>
+                                <div class="settings-actions" style="margin-top:10px;gap:10px;align-items:center;flex-wrap:wrap;">
+                                    <span id="tenantStudentCouncilGroupMatchCell" style="min-width:170px;color:var(--muted);font-size:0.92em;">Noch nicht geprüft</span>
+                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyStudentCouncilGroup" title="Schülervertretung-Gruppe in Microsoft 365 anhand erwarteter Mail-Nickname/Name suchen">
+                                        <i class="bi bi-microsoft" aria-hidden="true"></i> Prüfen
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="tenantBtnCreateStudentCouncilGroup" title="Schülervertretung-Gruppe in Microsoft 365 per Graph anlegen">
+                                        <i class="bi bi-plus-circle" aria-hidden="true"></i> Anlegen
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="tenantBtnUnmatchStudentCouncilGroup" title="Zuordnung zur Microsoft-365-Gruppe lösen" hidden>
+                                        <i class="bi bi-x-circle" aria-hidden="true"></i> Match lösen
+                                    </button>
+                                    <button type="button" class="btn" id="tenantBtnOpenStudentCouncilGroup" title="Gematchte Gruppe in Microsoft Entra öffnen" hidden>
+                                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Verwalten
+                                    </button>
+                                </div>
+                                <div style="margin-top:14px;">
+                                    <label for="tenantStudentCouncilGroupSearch">Bestehende Gruppe suchen und zuordnen</label>
+                                    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;">
+                                        <input type="text" id="tenantStudentCouncilGroupSearch" autocomplete="off" placeholder="Name, Mail oder Alias …" style="flex:1 1 220px;min-width:180px;">
+                                        <button type="button" class="btn" id="tenantBtnSearchStudentCouncilGroup" title="Microsoft-365-Gruppen suchen">
+                                            <i class="bi bi-search" aria-hidden="true"></i> Suchen
+                                        </button>
+                                    </div>
+                                    <div id="tenantStudentCouncilGroupSearchResults" style="display:none;margin-top:10px;"></div>
+                                </div>
+                                <small style="color:var(--muted);display:block;margin-top:10px;line-height:1.45;">
+                                    Leere Felder oben: Vorschlag aus Schulname und Schuljahr. „Prüfen“ und „Anlegen“ nutzen Ihre Angaben — oder bestehende Gruppe suchen und zuordnen.
+                                </small>
+                            </section>
+                        </div>
 
                         <div id="panelMainKlassen" class="tab-panel" role="tabpanel" aria-labelledby="tabMainKlassen">
                             <div class="field">
                                 <label for="tenantClassesLines">Klassenliste (eine Zeile pro Klasse)</label>
                                 <textarea id="tenantClassesLines" placeholder="1AK;2030;1A-Klasse;Max Mustermann;max.mustermann@schule.de&#10;2BK;2029;2B-Klasse;Anna Beispiel;anna.beispiel@schule.de"></textarea>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Abkürzung;Abschlussjahr;Klasse;Klassenvorstand Name;Klassenvorstand E-Mail</code>. Abschlussjahr ist optional.
-                                    <strong>WebUntis:</strong> Klassen-PDF (PD-Bericht „Klassen“, z. B. <code>Class_*.pdf</code>) – Klassenvorstände werden über das Lehrkraft-Kürzel aus der Lehrerliste ergänzt; Abschlussjahr aus Schulstufe + Zweig (.hak≈5 / .has≈3 Jahre) geschätzt.
-                                </small>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Den <strong>Schuljahreswechsel der Klassen‑Gruppen</strong> erledigen Sie im eigenen Werkzeug <a href="tools/klassen-umbenennen.html">Schuljahreswechsel</a>.
-                                </small>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <label class="btn" for="tenantClassesImportFile" style="cursor:pointer;"><i class="bi bi-upload"></i>Import (CSV/XLSX/PDF)</label>
-                                    <input type="file" id="tenantClassesImportFile" accept=".csv,.xlsx,.xls,.pdf">
-                                    <label class="btn" style="cursor:pointer;font-weight:600;">
-                                        <input type="checkbox" id="tenantClassesSkipNoKv" checked style="margin-right:6px;">Nur mit Klassenvorstand
-                                    </label>
-                                    <button type="button" class="btn" id="tenantClassesImportM365" title="Entra-Gruppen suchen (z. B. jg-, klasse-) und als Klassen mit M365-Verknüpfung übernehmen"><i class="bi bi-microsoft"></i>Aus Microsoft 365 übernehmen</button>
-                                    <button type="button" class="btn" id="tenantClassesTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX‑Vorlage</button>
+                                <div class="ts-list-toolbar ts-list-toolbar--split settings-actions" style="margin-top:10px;">
+                                    <div class="ts-list-toolbar__start">
+                                        <details class="ts-list-import-drop">
+                                            <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                            <div class="ts-list-import-drop__panel" role="menu">
+                                                <label class="ts-register-save-link" for="tenantClassesImportFile" role="menuitem" title="CSV, Excel oder WebUntis Klassen-PDF (Class_*.pdf)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / PDF)</label>
+                                                <input type="file" id="tenantClassesImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls,.pdf">
+                                                <button type="button" class="ts-register-save-link" id="tenantClassesImportM365" role="menuitem" title="Entra-Gruppen (z. B. jg-, klasse-) als Klassen mit M365-Verknüpfung"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 übernehmen</button>
+                                                <p class="ts-list-import-drop__hint">WebUntis <code>Class_*.pdf</code>: KV aus der Lehrerliste. Schuljahreswechsel Gruppen: <a href="tools/klassen-umbenennen.html">Schuljahreswechsel</a>.</p>
+                                            </div>
+                                        </details>
+                                        <button type="button" class="ts-register-save-link" id="tenantClassesTemplateXlsx" title="Excel-Vorlage Klassenliste"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
+                                    </div>
+                                    <div class="ts-list-toolbar__end">
+                                        <button type="button" class="ts-register-save-link" id="tenantClassesExportCsv" title="Aktuelle Klassenliste als CSV"><i class="bi bi-filetype-csv" aria-hidden="true"></i>Export CSV</button>
+                                        <button type="button" class="ts-register-save-link" id="tenantClassesExportXlsx" title="Aktuelle Klassenliste als Excel"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i>Export XLSX</button>
+                                    </div>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Klassenliste als Tabelle">
                                     <table class="teachers-table" aria-label="Klassenliste (editierbar per Doppelklick)">
@@ -1130,81 +1725,77 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantClassesAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
-                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyClassesGraph" title="Klassengruppen in Microsoft 365 prüfen">
-                                        <i class="bi bi-microsoft" aria-hidden="true"></i> Klassengruppen prüfen (Bulk)
-                                    </button>
-                                    <button type="button" class="btn" id="tenantBtnEnrichClassesFromGroups" title="Abschlussjahr und Klassenvorstand aus verknüpften Klassengruppen und anderen Schuljahren ergänzen">
-                                        <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Aus Klassengruppen ergänzen
-                                    </button>
-                                </div>
-                            </div>
-
-                        </div>
-
-                    <div id="panelMainIntranet" class="tab-panel" role="tabpanel" aria-labelledby="tabMainIntranet">
-                        <p class="tile-subtitle" style="margin:0 0 12px;">Nach dem Pflegen der Stammdaten: SharePoint-Listen auf der Schulwebsite anlegen oder aktualisieren (Abgleich, Personenfelder, Entra-Gruppen-Rechte).</p>
-                        <div data-ms365-intranet-listen-mount data-mount-prefix="tsdSpo"></div>
-                    </div>
-
-                    <div id="panelMainWerkzeuge" class="tab-panel" role="tabpanel" aria-labelledby="tabMainWerkzeuge">
-                        <p class="tile-subtitle" style="margin:0 0 12px;">
-                            Dashboard-Lehrer-/Schüler-Gruppen und Werkzeug-Kacheln:
-                            <a href="dashboard-werkzeug-zugriff.html"><strong>Dashboard-Werkzeug-Zugriff</strong></a>
-                            (nur Global Administratorinnen/Administratoren).
-                        </p>
-                        <div class="tile-head">
-                            <h3 class="tile-title">Weitere Werkzeuge</h3>
-                            <p class="tile-subtitle">Quellen, Tools und das aktive Schuljahr.</p>
-                        </div>
-                        <div class="ts-hub-year-row">
-                            <div class="settings-module ts-hub-tools" aria-label="Weitere Einstiegspunkte">
-                                <h3>Quellen &amp; Werkzeuge</h3>
-                                <p style="margin:0 0 10px;color:var(--muted);font-size:0.92em;line-height:1.4;">Daten können auch in der Einrichtung bzw. Gruppenverwaltung importiert und übernommen werden.</p>
-                                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                                    <a class="btn btn-success" href="einrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Geführte Einrichtung <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-                                    <a class="btn" href="tools/schulstruktur-sync.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">MS 365 Gruppenverwaltung <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                                    <a class="btn" href="tools/klassen-umbenennen.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Schuljahreswechsel <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                                    <a class="btn" href="ersteinrichtung.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">Experten‑Ansicht <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                                </div>
-                            </div>
-                            <div class="ts-year-strip" aria-label="Aktuelles Schuljahr">
-                                <div class="ts-year-strip__inner">
-                                    <label class="ts-year-strip__title" for="schoolYearSelect">
-                                        <i class="bi bi-calendar3" aria-hidden="true"></i>
-                                        Schuljahr
-                                    </label>
-                                    <div class="ts-year-strip__controls">
-                                        <select id="schoolYearSelect" class="ts-year-strip__select" aria-describedby="schoolYearStripHint"></select>
-                                        <button type="button" class="btn ts-year-strip__add" id="schoolYearAddBtn" title="Weiteres Schuljahr anlegen" aria-label="Neues Schuljahr anlegen"><i class="bi bi-plus-lg" aria-hidden="true"></i><span class="ts-year-strip__add-text"> Schuljahr</span></button>
+                                <section class="ts-klassen-m365-bridge" aria-label="Microsoft 365 Klassengruppen">
+                                    <p class="ts-klassen-m365-bridge__lead">
+                                        <strong>Microsoft 365:</strong> Gruppen zur Klassenliste prüfen; fehlende Verknüpfungen im Werkzeug <strong>Klassengruppen</strong> matchen oder per Sammelaktion anlegen (Klassenvorstand aus den Stammdaten, Präfix und Schema).
+                                    </p>
+                                    <div class="settings-actions ts-klassen-m365-bridge__actions">
+                                        <button type="button" class="btn btn-success" id="tenantClassesAddRow"><i class="bi bi-plus-circle"></i>Zeile</button>
+                                        <button type="button" class="btn btn-primary" id="tenantBtnVerifyClassesGraph" title="Klassengruppen in Microsoft 365 prüfen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i> Klassengruppen prüfen (Bulk)
+                                        </button>
+                                        <a class="btn btn-success" id="tenantLinkKlassengruppenVerwalten" href="tools/jahrgangsgruppen.html" title="Klassen matchen, Sammelaktionen, Besitzer und Mitglieder pflegen">
+                                            <i class="bi bi-diagram-3" aria-hidden="true"></i> Klassengruppen
+                                        </a>
+                                        <button type="button" class="btn" id="tenantBtnEnrichClassesFromGroups" title="Abschlussjahr und Klassenvorstand aus verknüpften Klassengruppen und anderen Schuljahren ergänzen">
+                                            <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Aus Klassengruppen ergänzen
+                                        </button>
+                                        <button type="button" class="btn" data-tenant-intranet-sync="klassen" title="Klassen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen (optional Schüler als Personenfeld)">
+                                            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Intranet: Klassen
+                                        </button>
                                     </div>
-                                    <p id="schoolYearStripHint" class="ts-year-strip__hint">Gilt für Schüler:innen, Klassen und Klassen‑Gruppen. Stammdaten (Domain, Fächer, …) sind schulweit und unabhängig vom Schuljahr.</p>
-                                </div>
+                                </section>
                             </div>
+
+                        </div>
+
+                        <div id="panelMainDatenlandkarte" class="tab-panel" role="tabpanel" aria-labelledby="tabMainDatenlandkarte">
+                            <div id="tenantDatenlandkarteApp" class="ts-dl-embed" aria-label="Datenlandkarte – Stammdaten visualisieren"></div>
+                        </div>
+
+                        </div>
+                        </div>
+
+                    <section class="ts-register-actions-card ts-register-dock" aria-label="Speichern, Backup und Status">
+                    <div class="ts-register-save-bar" id="tenantSaveBar">
+                        <div class="ts-register-save-bar__row">
+                            <div class="ts-register-save-bar__main settings-actions">
+                                <button type="button" class="btn btn-success" id="tenantSettingsSave" data-tenant-action="save"><i class="bi bi-check2-circle"></i>Speichern</button>
+                                <button type="button" class="btn" id="tenantSettingsReload" data-tenant-action="reload"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                            </div>
+                            <div class="ts-register-save-bar__tools" aria-label="Backup und IT-Sicherung">
+                                <details class="ts-register-save-drop">
+                                    <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-laptop" aria-hidden="true"></i>Browser-Backup<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                    <div class="ts-register-save-drop__panel" role="menu">
+                                        <button type="button" class="ts-register-save-link" data-ms365-backup="export" role="menuitem" title="Alle lokalen App-Daten als JSON speichern"><i class="bi bi-download" aria-hidden="true"></i>Exportieren</button>
+                                        <label class="ts-register-save-link" for="browserBackupImportFile" role="menuitem" title="JSON-Backup aus einem anderen Browser laden"><i class="bi bi-upload" aria-hidden="true"></i>Importieren</label>
+                                        <input type="file" id="browserBackupImportFile" class="ts-register-save-bar__file" accept="application/json,.json">
+                                    </div>
+                                </details>
+                                <details class="ts-register-save-drop">
+                                    <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-cloud" aria-hidden="true"></i>SharePoint (IT)<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                    <div class="ts-register-save-drop__panel" role="menu">
+                                        <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>
+                                        <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Vollbackup laden – überschreibt lokale Daten"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>
+                                        <a class="ts-register-save-link" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" role="menuitem"><i class="bi bi-shield-lock" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>
+                                    </div>
+                                </details>
+                            </div>
+                            <details class="ts-register-save-bar__more">
+                                <summary class="btn ts-register-save-drop__trigger ts-register-save-drop__trigger--muted" aria-label="Weitere Aktionen"><i class="bi bi-three-dots" aria-hidden="true"></i><span class="ts-register-save-drop__more-label">Mehr</span></summary>
+                                <div class="ts-register-save-drop__panel ts-register-save-drop__panel--more" role="menu">
+                                    <button type="button" class="ts-register-save-link ts-register-save-link--danger" id="tenantSettingsClear" role="menuitem"><i class="bi bi-trash" aria-hidden="true"></i>Alle Stammdaten löschen</button>
+                                    <p class="ts-register-save-hint">Backup/SharePoint: gesamte App (<code>ms365-</code>). Sammelgruppen: <strong>Dashboard</strong>.</p>
+                                </div>
+                            </details>
                         </div>
                     </div>
+                    <div id="stammdatenSpoSyncStatus" class="summary ts-register-actions-card__status" role="status" aria-live="polite"></div>
+                    <div id="browserBackupStatus" class="summary ts-register-actions-card__status" role="status" aria-live="polite"></div>
+                    <div id="tenantSettingsSummary" class="summary ts-register-actions-card__status" role="status" aria-live="polite"></div>
                     </section>
-
-                    <div class="settings-actions">
-                        <button type="button" class="btn btn-success" id="tenantSettingsSave"><i class="bi bi-check2-circle"></i>Speichern</button>
-                        <button type="button" class="btn" id="tenantSettingsReload"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
-                        <button type="button" class="btn" data-ms365-backup="export" title="Alle lokalen Daten dieser App als JSON speichern"><i class="bi bi-download"></i>Browser-Backup</button>
-                        <label class="btn" for="browserBackupImportFile" style="cursor:pointer;" title="Backup-Datei aus einem anderen Browser laden"><i class="bi bi-upload"></i>Backup importieren</label>
-                        <input type="file" id="browserBackupImportFile" accept="application/json,.json">
-                        <button type="button" class="btn btn-success" data-ms365-spo-sync="upload" title="Alle lokalen App-Daten in die SharePoint-IT-Bibliothek sichern"><i class="bi bi-cloud-arrow-up"></i>In SharePoint sichern</button>
-                        <button type="button" class="btn" data-ms365-spo-sync="load" title="Aktuelles Backup aus SharePoint einlesen"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint einlesen</button>
-                        <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
-                        <button type="button" class="btn btn-danger" id="tenantSettingsClear"><i class="bi bi-trash"></i>Löschen</button>
                     </div>
-
-                    <p class="tile-subtitle" style="margin-top:10px;">Browser-Backup und SharePoint-Sicherung enthalten Stammdaten, Einrichtung, Power-Automate-/Freistellungs-Konfiguration und Werkzeug-Zwischenstände (alle Schlüssel mit Präfix <code>ms365-</code> / <code>webuntis-</code>). Die Microsoft-Anmeldung muss im anderen Browser neu erfolgen. <strong>Auto-Sync</strong> lädt nach der Anmeldung und sichert Änderungen automatisch.</p>
-                    <div id="stammdatenSpoSyncStatus" class="summary" role="status" aria-live="polite"></div>
-                    <div id="browserBackupStatus" class="summary" role="status" aria-live="polite"></div>
-
-                    <div id="tenantSettingsSummary" class="summary" role="status" aria-live="polite"></div>
                 </form>
-            </section>
         </div>
     </div>
 
@@ -1213,6 +1804,7 @@
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="src/shared/eltern-guardians.js" defer></script>
+    <script type="module" src="src/shared/person-email-pattern-logic.js"></script>
     <script src="src/shared/person-email-from-name.js" defer></script>
     <script src="src/shared/pdf-text.js" defer></script>
     <script src="src/shared/webuntis-export-import.js" defer></script>
@@ -1240,6 +1832,9 @@
         window.ms365FormatSubjectCatalogShrinkConfirm = formatSubjectCatalogShrinkConfirmDe;
         window.ms365SubjectsFromImportPayload = subjectsFromImportPayload;
     </script>
+    <script type="module" src="src/shared/tenant-storage-mirror.js"></script>
+    <script type="module" src="src/shared/stammdaten-import-pipeline.js"></script>
+    <script type="module" src="src/shared/stammdaten-import-adapters.js"></script>
     <script type="module" src="src/shared/tenant-settings-ui.js"></script>
     <script type="module">
         import { mountSchoolItAccessGate } from './src/shared/school-it-access-gate.js';
@@ -1247,6 +1842,7 @@
     </script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
+    <script src="src/tools/sharepoint/sharepoint-liste-lehrer.js" defer></script>
     <script src="src/tools/sharepoint/sharepoint-liste-stammdaten.js" defer></script>
     <script type="module" src="src/shared/stammdaten-intranet-listen-ui.js"></script>
     <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
@@ -1348,11 +1944,27 @@
                         // ignore
                     }
                 }
+                window.ms365TenantTabActivate = setActive;
                 function resolveHashTabId() {
+                    if (typeof window.ms365TenantResolveHashTabId === 'function') {
+                        const delegated = window.ms365TenantResolveHashTabId(location.hash);
+                        if (delegated !== undefined && delegated !== null) return delegated;
+                    }
                     const raw = String(location.hash || '')
                         .replace(/^#/, '')
                         .toLowerCase();
                     if (!raw) return '';
+                    if (
+                        raw === 'sync' ||
+                        raw === 'synchron' ||
+                        raw === 'import' ||
+                        raw === 'einspielen' ||
+                        raw === 'pflegen' ||
+                        raw === 'pflege' ||
+                        raw === 'intranet'
+                    ) {
+                        return '';
+                    }
                     const mapping = {
                         stammdaten: 'tabMainStammdaten',
                         faecher: 'tabMainSubjects',
@@ -1367,7 +1979,10 @@
                         klassen: 'tabMainKlassen',
                         classes: 'tabMainKlassen',
                         panelclasses: 'tabMainKlassen',
-                        werkzeuge: 'tabMainWerkzeuge'
+                        datenlandkarte: 'tabMainDatenlandkarte',
+                        landkarte: 'tabMainDatenlandkarte',
+                        'daten-landkarte': 'tabMainDatenlandkarte',
+                        werkzeuge: 'tabMainStammdaten'
                     };
                     return mapping[raw] || '';
                 }
@@ -1393,25 +2008,35 @@
                     if (nextBtnId && byButton[nextBtnId]) setActive(nextBtnId);
                 });
             }
-            initDraggableTabOrder('tenantMainTabs', 'ms365-tenant-main-tab-order-v1');
+            initDraggableTabOrder('tenantMainTabs', 'ms365-tenant-main-tab-order-v2');
             wireTabGroup(
                 [
                     { btn: 'tabMainStammdaten', panel: 'panelMainStammdaten' },
+                    { btn: 'tabMainVerwaltung', panel: 'panelMainVerwaltung' },
                     { btn: 'tabMainSubjects', panel: 'panelMainSubjects' },
                     { btn: 'tabMainArges', panel: 'panelMainArges' },
-                    { btn: 'tabMainVerwaltung', panel: 'panelMainVerwaltung' },
                     { btn: 'tabMainSga', panel: 'panelMainSga' },
                     { btn: 'tabMainLehrer', panel: 'panelMainLehrer' },
                     { btn: 'tabMainSchueler', panel: 'panelStudentsData' },
                     { btn: 'tabMainSchuelervertretung', panel: 'panelStudentCouncilData' },
                     { btn: 'tabMainKlassen', panel: 'panelMainKlassen' },
-                    { btn: 'tabMainIntranet', panel: 'panelMainIntranet' },
-                    { btn: 'tabMainWerkzeuge', panel: 'panelMainWerkzeuge' }
+                    { btn: 'tabMainDatenlandkarte', panel: 'panelMainDatenlandkarte' }
                 ],
                 'tabMainStammdaten',
                 'ms365-tenant-main-active-tab-v1'
             );
         })();
+    </script>
+    <script type="module">
+        import { initTenantSchulregister, tenantResolveHashTabId } from './src/shared/stammdaten-register-ui.js';
+        import { initTenantKlassenHub } from './src/shared/tenant-panel-klassen.js';
+        import { mountTenantSpoPanel } from './src/shared/tenant-panel-spo.js';
+        import { initTenantDatenlandkarteEmbed } from './src/shared/tenant-datenlandkarte-embed.js';
+        window.ms365TenantResolveHashTabId = tenantResolveHashTabId;
+        initTenantSchulregister();
+        initTenantKlassenHub();
+        mountTenantSpoPanel();
+        initTenantDatenlandkarteEmbed();
     </script>
 </body>
 </html>

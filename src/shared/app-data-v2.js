@@ -79,6 +79,16 @@
                 /** team | mail – Ziel beim Anlegen */
                 kvNewCreateTarget: 'mail'
             },
+            /** SGA-Gruppe: Anzeigename / Mail-Nickname vor Anlegen (Schulregister) */
+            sgaDraft: {
+                sgaNewDisplayName: '',
+                sgaNewMailNick: ''
+            },
+            /** Schülervertretung-Gruppe: Anzeigename / Mail-Nickname vor Anlegen */
+            studentCouncilDraft: {
+                svNewDisplayName: '',
+                svNewMailNick: ''
+            },
             /** Kleinbuchstaben/Ziffern; Vorschau/Anlage Fachgruppen (Einrichtungsassistent) */
             subjectGroupMailPrefix: 'fach',
             /**
@@ -110,10 +120,35 @@
             catalogLinks: [],
             actionLog: [],
             intranetSiteUrl: '',
+            /** SharePoint-Listentitel je Stammdaten-Typ (leer = Standard im UI) */
+            intranetListTitles: {
+                schueler: '',
+                faecher: '',
+                fachgruppen: '',
+                arges: '',
+                klassen: '',
+                lehrer: ''
+            },
+            /** Öffentliche Schul-Intranet-Website (Hub), ggf. ≠ Site für Stammdaten-Listen */
+            schoolIntranetSiteUrl: '',
             intranetHubAt: null,
             stammdatenItLibrary: null,
             sisImportHistory: [],
-            elternSetup: { completedSteps: [], lastDiagnoseAt: null }
+            elternSetup: { completedSteps: [], lastDiagnoseAt: null },
+            /** Logo, Adresse, Kontakt – für Intranet & Ausgaben */
+            schoolProfile: {
+                schoolCode: '',
+                logoDataUrl: '',
+                logoFileName: '',
+                street: '',
+                postalCode: '',
+                city: '',
+                country: 'Österreich',
+                phone: '',
+                phoneAlt: '',
+                email: '',
+                website: ''
+            }
         };
     }
 
@@ -761,6 +796,16 @@
             kvNewDescription: String(kd.kvNewDescription != null ? kd.kvNewDescription : ''),
             kvNewCreateTarget: kvTarget === 'team' ? 'team' : 'mail'
         };
+        const sgd = x.sgaDraft && typeof x.sgaDraft === 'object' ? x.sgaDraft : {};
+        d.sgaDraft = {
+            sgaNewDisplayName: String(sgd.sgaNewDisplayName != null ? sgd.sgaNewDisplayName : ''),
+            sgaNewMailNick: String(sgd.sgaNewMailNick != null ? sgd.sgaNewMailNick : '')
+        };
+        const scd = x.studentCouncilDraft && typeof x.studentCouncilDraft === 'object' ? x.studentCouncilDraft : {};
+        d.studentCouncilDraft = {
+            svNewDisplayName: String(scd.svNewDisplayName != null ? scd.svNewDisplayName : ''),
+            svNewMailNick: String(scd.svNewMailNick != null ? scd.svNewMailNick : '')
+        };
         d.subjectGroupMailPrefix = mailNicknamePrefixSanitize(x.subjectGroupMailPrefix, 24) || 'fach';
         d.argeGroupMailPrefix = mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24) || 'arge-';
         const def = defaultSetup();
@@ -793,6 +838,20 @@
         d.matched = filled.matched;
         d.catalogLinks = filled.catalogLinks;
         d.intranetSiteUrl = x.intranetSiteUrl ? String(x.intranetSiteUrl).trim() : '';
+        const ilt = x.intranetListTitles && typeof x.intranetListTitles === 'object' ? x.intranetListTitles : {};
+        d.intranetListTitles = {
+            schueler: String(ilt.schueler != null ? ilt.schueler : '').trim(),
+            faecher: String(ilt.faecher != null ? ilt.faecher : '').trim(),
+            fachgruppen: String(ilt.fachgruppen != null ? ilt.fachgruppen : '').trim(),
+            arges: String(ilt.arges != null ? ilt.arges : '').trim(),
+            klassen: String(ilt.klassen != null ? ilt.klassen : '').trim(),
+            lehrer: String(ilt.lehrer != null ? ilt.lehrer : '').trim()
+        };
+        d.schoolIntranetSiteUrl = x.schoolIntranetSiteUrl
+            ? String(x.schoolIntranetSiteUrl).trim()
+            : x.intranetSiteUrl
+              ? String(x.intranetSiteUrl).trim()
+              : '';
         d.intranetHubAt = x.intranetHubAt != null && x.intranetHubAt !== '' ? String(x.intranetHubAt) : null;
         const itLib = x.stammdatenItLibrary && typeof x.stammdatenItLibrary === 'object' ? x.stammdatenItLibrary : null;
         d.stammdatenItLibrary = itLib
@@ -811,6 +870,25 @@
         d.elternSetup = {
             completedSteps: Array.isArray(es.completedSteps) ? es.completedSteps.map(function (t) { return String(t); }) : [],
             lastDiagnoseAt: es.lastDiagnoseAt ? String(es.lastDiagnoseAt) : null
+        };
+        const sp = x.schoolProfile && typeof x.schoolProfile === 'object' ? x.schoolProfile : {};
+        let logoData = String(sp.logoDataUrl != null ? sp.logoDataUrl : '').trim();
+        if (logoData && !/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(logoData)) {
+            logoData = '';
+        }
+        if (logoData.length > 600000) logoData = '';
+        d.schoolProfile = {
+            schoolCode: String(sp.schoolCode != null ? sp.schoolCode : '').trim(),
+            logoDataUrl: logoData,
+            logoFileName: String(sp.logoFileName != null ? sp.logoFileName : '').trim(),
+            street: String(sp.street != null ? sp.street : '').trim(),
+            postalCode: String(sp.postalCode != null ? sp.postalCode : '').trim(),
+            city: String(sp.city != null ? sp.city : '').trim(),
+            country: String(sp.country != null ? sp.country : '').trim() || 'Österreich',
+            phone: String(sp.phone != null ? sp.phone : '').trim(),
+            phoneAlt: String(sp.phoneAlt != null ? sp.phoneAlt : '').trim(),
+            email: String(sp.email != null ? sp.email : '').trim().toLowerCase(),
+            website: String(sp.website != null ? sp.website : '').trim()
         };
         d.sisImportHistory = [];
         (Array.isArray(x.sisImportHistory) ? x.sisImportHistory : []).slice(-20).forEach(function (row) {
@@ -1274,6 +1352,26 @@
                     {},
                     cur.kvDraft,
                     p.kvDraft && typeof p.kvDraft === 'object' ? p.kvDraft : {}
+                ),
+                sgaDraft: Object.assign(
+                    {},
+                    cur.sgaDraft,
+                    p.sgaDraft && typeof p.sgaDraft === 'object' ? p.sgaDraft : {}
+                ),
+                studentCouncilDraft: Object.assign(
+                    {},
+                    cur.studentCouncilDraft,
+                    p.studentCouncilDraft && typeof p.studentCouncilDraft === 'object' ? p.studentCouncilDraft : {}
+                ),
+                intranetListTitles: Object.assign(
+                    {},
+                    cur.intranetListTitles,
+                    p.intranetListTitles && typeof p.intranetListTitles === 'object' ? p.intranetListTitles : {}
+                ),
+                schoolProfile: Object.assign(
+                    {},
+                    cur.schoolProfile,
+                    p.schoolProfile && typeof p.schoolProfile === 'object' ? p.schoolProfile : {}
                 ),
                 catalogLinks: Array.isArray(p.catalogLinks) ? p.catalogLinks : cur.catalogLinks,
                 directoryMatchByEmail: mergedDir,

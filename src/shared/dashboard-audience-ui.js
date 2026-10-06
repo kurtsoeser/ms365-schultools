@@ -42,11 +42,10 @@ function catalogView() {
     return catalogViewForLayout(layoutMode);
 }
 
-/** IT-Leiste / Vorschau-Umschalter (auch wenn Persona-Cache kurz hinterherhinkt). */
+/** IT-Leiste / Vorschau-Umschalter nur für echte Schul-IT. */
 function itDashboardChrome() {
     if (!personas || !personas.loggedIn) return false;
-    if (personas.isIt) return true;
-    return !!readItPreviewChoice();
+    return !!personas.isIt;
 }
 
 function isToolVisible(toolId) {
@@ -140,7 +139,7 @@ function applyDomFilter() {
         el.hidden = appOnly;
     });
 
-    ['dashStatusRow', 'dashCatalogFold', 'dashboard-tools', 'dashboard-tasks'].forEach((id) => {
+    ['dashStatusRow', 'dashCatalogSection', 'dashboard-tools', 'dashboard-tasks'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.hidden = appOnly;
     });
@@ -205,7 +204,7 @@ function syncDashboardAuthMenuView() {
 
     const label = document.getElementById('ms365AuthDashViewLabel');
     if (label && show) {
-        label.textContent = inPreview ? layoutModeLabel(layoutMode) : 'Dashboard-Vorschau';
+        label.textContent = 'Ansicht (Rollen-Vorschau)';
     }
 
     const trigger = document.getElementById('ms365AuthBadge');

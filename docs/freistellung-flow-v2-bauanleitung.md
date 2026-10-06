@@ -116,8 +116,8 @@ Datum (date only): `@{formatDateTime(utcNow(), 'yyyy-MM-dd')}` oder `responseDat
 ## Export ins Projekt
 
 1. **Meine Flows** → Flow → **Export** → Package (Legacy)
-2. ZIP in `assets/power-automate/freistellung/` ersetzen (Flow-GUID-Ordner beibehalten oder `freistellung-setup.js` `FLOW_ASSET_ID` anpassen)
-3. Platzhalter in `freistellung-setup.js` `SOURCE` aktualisieren
+2. ZIP in `assets/power-automate/freistellung/` ersetzen (Ordner-GUID = `FLOW_ASSET_ID` in `freistellung-setup.js`, aktuell v2: `eff47cd0-dd67-468d-a48a-9e146aab57a7`)
+3. Platzhalter in `freistellung-setup.js` `SOURCE` an die Export-Werte anpassen
 4. Setup-Tool testen: Paket laden, in Test-Tenant importieren
 
 ## Nach dem Export

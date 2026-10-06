@@ -277,9 +277,9 @@
             '<input class="admin-lic-input" data-f="schoolName" type="text" placeholder="Schulname" value="' +
             escapeHtml((school && school.schoolName) || '') +
             '" maxlength="200">' +
-            '<input class="admin-lic-input admin-lic-input--sub" data-f="contactEmail" type="email" placeholder="Kontakt-E-Mail" value="' +
-            escapeHtml((school && school.contactEmail) || '') +
-            '">' +
+            '<textarea class="admin-lic-input admin-lic-input--sub admin-lic-input--area" data-f="contactEmail" rows="2" placeholder="IT-Kontakt(e), eine E-Mail pro Zeile">' +
+            escapeHtml((school && (school.contactEmails && school.contactEmails.join('\n'))) || (school && school.contactEmail) || '') +
+            '</textarea>' +
             '</td>' +
             '<td><input class="admin-lic-input admin-lic-input--mono" data-f="tenantId" type="text" placeholder="Tenant-ID" value="' +
             escapeHtml((school && school.tenantId) || '') +
@@ -330,9 +330,11 @@
             '<span class="admin-lic-school__name">' +
             escapeHtml(s.schoolName || '–') +
             '</span>' +
-            (s.contactEmail
-                ? '<span class="admin-lic-school__mail">' + escapeHtml(s.contactEmail) + '</span>'
-                : '') +
+            (s.contactEmails && s.contactEmails.length
+                ? '<span class="admin-lic-school__mail">' + escapeHtml(s.contactEmails.join(', ')) + '</span>'
+                : s.contactEmail
+                  ? '<span class="admin-lic-school__mail">' + escapeHtml(s.contactEmail) + '</span>'
+                  : '') +
             '</div></td>' +
             '<td><code class="admin-lic-tid">' +
             escapeHtml(s.tenantId || '') +

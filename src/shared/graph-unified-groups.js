@@ -6,6 +6,9 @@
         'https://graph.microsoft.com/User.Read.All',
         'https://graph.microsoft.com/User.ReadWrite.All',
         'https://graph.microsoft.com/Group.ReadWrite.All',
+        'https://graph.microsoft.com/GroupMember.Read.All',
+        'https://graph.microsoft.com/Group.Read.All',
+        'https://graph.microsoft.com/RoleManagement.Read.Directory',
         'https://graph.microsoft.com/Organization.Read.All',
         'https://graph.microsoft.com/Team.Create',
         'https://graph.microsoft.com/TeamSettings.ReadWrite.All'
@@ -106,7 +109,7 @@
                     redirectUri: cfg.redirectUri
                 },
                 cache: {
-                    cacheLocation: 'sessionStorage',
+                    cacheLocation: 'localStorage',
                     storeAuthStateInCookie: true
                 }
             });
@@ -116,28 +119,142 @@
         return pca;
     }
 
-    async function getGraphToken() {
+    function isUserCancelledAuth(e) {
+        if (!e) return false;
+        const msg = String((e && e.message) || e || '');
+        const code = String((e && (e.errorCode || e.code)) || '');
+        return (
+            /abgebrochen|cancelled|canceled|user_cancelled/i.test(msg) ||
+            /user_cancelled/i.test(code)
+        );
+    }
+
+    function isPopupWindowError(e) {
+        if (!e) return false;
+        const code = String((e.errorCode || e.code) || '');
+        const msg = String((e && e.message) || e || '');
+        return (
+            code === 'popup_window_error' ||
+            /popup_window_error/i.test(msg) ||
+            /error opening popup/i.test(msg)
+        );
+    }
+
+    function rememberPostLoginReturnUrl() {
+        const url = window.location.href;
+        try {
+            if (typeof window.ms365AuthRememberReturnUrl === 'function') {
+                window.ms365AuthRememberReturnUrl(url);
+                return;
+            }
+            sessionStorage.setItem('ms365-post-login-url', url);
+        } catch {
+            /* ignore */
+        }
+    }
+
+    async function waitForMs365AuthUi(timeoutMs) {
+        const limit = typeof timeoutMs === 'number' ? timeoutMs : 12000;
+        const start = Date.now();
+        while (Date.now() - start < limit) {
+            if (
+                typeof window.ms365AuthAcquireTokenPopup === 'function' ||
+                typeof window.ms365AuthAcquireToken === 'function'
+            ) {
+                return true;
+            }
+            const tag = document.getElementById('ms365GlobalAuthUiScript');
+            const linked = document.querySelector('script[src*="msal-auth-ui"]');
+            if (!tag && !linked) {
+                return false;
+            }
+            await sleep(40);
+        }
+        return (
+            typeof window.ms365AuthAcquireTokenPopup === 'function' ||
+            typeof window.ms365AuthAcquireToken === 'function'
+        );
+    }
+
+    async function acquireGraphTokenViaAuthUi(scopeList) {
+        if (typeof window.ms365AuthEnsureInitialized === 'function') {
+            try {
+                await window.ms365AuthEnsureInitialized();
+            } catch {
+                /* MSAL-Widget optional */
+            }
+        }
+        if (typeof window.ms365AuthAcquireTokenSilent === 'function') {
+            try {
+                return await window.ms365AuthAcquireTokenSilent(scopeList);
+            } catch {
+                /* nicht angemeldet, fehlender Consent oder andere Scopes */
+            }
+        }
         if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
-            return window.ms365AuthAcquireTokenPopup(GRAPH_SCOPES);
+            try {
+                return await window.ms365AuthAcquireTokenPopup(scopeList);
+            } catch (e) {
+                if (isUserCancelledAuth(e)) {
+                    throw e;
+                }
+                if (typeof window.ms365AuthAcquireToken === 'function') {
+                    return window.ms365AuthAcquireToken(scopeList);
+                }
+                throw e;
+            }
         }
         if (typeof window.ms365AuthAcquireToken === 'function') {
-            return window.ms365AuthAcquireToken(GRAPH_SCOPES);
+            return window.ms365AuthAcquireToken(scopeList);
         }
+        return null;
+    }
+
+    async function getGraphToken(scopes) {
+        const scopeList = Array.isArray(scopes) && scopes.length ? scopes : GRAPH_SCOPES;
+        await waitForMs365AuthUi();
+        const viaUi = await acquireGraphTokenViaAuthUi(scopeList);
+        if (viaUi) return viaUi;
         const instance = await getPca();
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {
-            await instance.loginPopup({ scopes: GRAPH_SCOPES, prompt: 'select_account' });
+            try {
+                await instance.loginPopup({ scopes: scopeList, prompt: 'select_account' });
+            } catch (e) {
+                if (!isUserCancelledAuth(e) && isPopupWindowError(e)) {
+                    rememberPostLoginReturnUrl();
+                    await instance.loginRedirect({
+                        scopes: scopeList,
+                        prompt: 'select_account',
+                        redirectStartPage: window.location.href
+                    });
+                    throw new Error('Weiterleitung zur Anmeldung …');
+                }
+                throw e;
+            }
             accounts = instance.getAllAccounts();
         }
         if (!accounts.length) {
             throw new Error('Anmeldung abgebrochen.');
         }
-        const req = { scopes: GRAPH_SCOPES, account: accounts[0] };
+        const req = { scopes: scopeList, account: accounts[0] };
         try {
             return (await instance.acquireTokenSilent(req)).accessToken;
         } catch (e) {
             if (isInteractionRequired(e)) {
-                return (await instance.acquireTokenPopup(req)).accessToken;
+                try {
+                    return (await instance.acquireTokenPopup(req)).accessToken;
+                } catch (pe) {
+                    if (!isUserCancelledAuth(pe) && isPopupWindowError(pe)) {
+                        rememberPostLoginReturnUrl();
+                        await instance.acquireTokenRedirect({
+                            ...req,
+                            redirectStartPage: window.location.href
+                        });
+                        throw new Error('Weiterleitung zur Anmeldung …');
+                    }
+                    throw pe;
+                }
             }
             throw e;
         }

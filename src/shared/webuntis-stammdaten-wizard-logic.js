@@ -346,6 +346,129 @@ function formatEntityMergeStats(s) {
     );
 }
 
+function normalizeTeacherRow(t) {
+    const code = normStr(t && t.code).toUpperCase();
+    if (!code) return null;
+    return {
+        code: code,
+        name: normStr(t && t.name),
+        email: normStr(t && t.email).toLowerCase()
+    };
+}
+
+/**
+ * Abgleich Lehrerliste (Schlüssel: Kürzel) für Register-Import-Vorschau.
+ * @param {Array<{code:string,name?:string,email?:string}>} existing
+ * @param {Array<{code:string,name?:string,email?:string}>} incoming
+ */
+export function diffTeachersImport(existing, incoming) {
+    const exMap = new Map();
+    (existing || []).forEach(function (t) {
+        const row = normalizeTeacherRow(t);
+        if (row) exMap.set(row.code, row);
+    });
+    const added = [];
+    const updated = [];
+    const unchanged = [];
+    const conflicts = [];
+    (incoming || []).forEach(function (t) {
+        const inRow = normalizeTeacherRow(t);
+        if (!inRow) return;
+        if (!exMap.has(inRow.code)) {
+            added.push(inRow);
+            return;
+        }
+        const cur = exMap.get(inRow.code);
+        const nameChanged = !!inRow.name && inRow.name !== cur.name;
+        const emailChanged = !!inRow.email && inRow.email !== cur.email;
+        if (!nameChanged && !emailChanged) {
+            unchanged.push(inRow);
+            return;
+        }
+        if (cur.email && inRow.email && cur.email !== inRow.email) {
+            conflicts.push({
+                code: inRow.code,
+                summary: 'Kürzel ' + inRow.code + ': E-Mail „' + cur.email + '“ → „' + inRow.email + '“',
+                previous: cur,
+                incoming: inRow
+            });
+        }
+        updated.push({
+            code: inRow.code,
+            previous: cur,
+            incoming: inRow,
+            nameChanged: nameChanged,
+            emailChanged: emailChanged
+        });
+    });
+    return {
+        added: added,
+        updated: updated,
+        unchanged: unchanged,
+        conflicts: conflicts,
+        counts: {
+            added: added.length,
+            updated: updated.length,
+            unchanged: unchanged.length,
+            conflicts: conflicts.length
+        }
+    };
+}
+
+/**
+ * @param {ReturnType<typeof diffTeachersImport>} diff
+ */
+export function summarizeTeachersDiff(diff) {
+    const c = (diff && diff.counts) || {};
+    const parts = [];
+    if (c.added) parts.push(c.added + ' neu');
+    if (c.updated) parts.push(c.updated + ' aktualisiert');
+    if (c.unchanged) parts.push(c.unchanged + ' unverändert');
+    if (c.conflicts) parts.push(c.conflicts + ' E-Mail-Konflikte (bitte prüfen)');
+    return parts.length ? parts.join(', ') : 'Keine Änderungen';
+}
+
+/**
+ * Bestehende Lehrer mit Import zusammenführen (nach Kürzel; Import ergänzt/aktualisiert Felder).
+ * @param {Array<{code:string,name?:string,email?:string}>} existing
+ * @param {Array<{code:string,name?:string,email?:string}>} incoming
+ */
+export function mergeTeachersImportLists(existing, incoming) {
+    const by = new Map();
+    (existing || []).forEach(function (t) {
+        const row = normalizeTeacherRow(t);
+        if (row) by.set(row.code, row);
+    });
+    (incoming || []).forEach(function (t) {
+        const inRow = normalizeTeacherRow(t);
+        if (!inRow) return;
+        if (!by.has(inRow.code)) {
+            by.set(inRow.code, inRow);
+            return;
+        }
+        const cur = by.get(inRow.code);
+        if (inRow.name) cur.name = inRow.name;
+        if (inRow.email) cur.email = inRow.email;
+    });
+    return Array.from(by.values()).sort(function (a, b) {
+        return a.code.localeCompare(b.code);
+    });
+}
+
+/**
+ * @param {Array<{code:string,name?:string,email?:string}>} incoming
+ */
+export function replaceTeachersImportList(incoming) {
+    const by = new Map();
+    (incoming || []).forEach(function (t) {
+        const row = normalizeTeacherRow(t);
+        if (row) by.set(row.code, row);
+    });
+    return Array.from(by.values()).sort(function (a, b) {
+        return a.code.localeCompare(b.code);
+    });
+}
+
 /**
  * @param {object} stats mergeWebuntisImportWithExisting.stats
  * @param {object|null} studentDiff
@@ -717,6 +840,46 @@ export function subjectImportStats(rows) {
     return { total: list.length, selected, excluded: list.length - selected };
 }
 
+/**
+ * Vorschau nur für WebUntis Subject-PDF (Register-Dialog / Fächer-Tab).
+ * @param {Array<{ code?: string, name?: string, admin?: boolean, curriculumNo?: string }>} rawSubjects
+ * @param {{ sourceFileName?: string, deselectThreshold?: number }} [options]
+ */
+export function buildSubjectPdfReviewPreview(rawSubjects, options) {
+    const by = new Map();
+    (rawSubjects || []).forEach(function (s) {
+        const code = normStr(s && s.code).toUpperCase();
+        if (!code) return;
+        const row = {
+            code: code,
+            name: normStr(s && s.name) || code,
+            curriculumNo: normStr(s && s.curriculumNo),
+            admin: !!(s && s.admin)
+        };
+        if (!by.has(code)) by.set(code, row);
+        else {
+            const cur = by.get(code);
+            if (!cur.name && row.name) cur.name = row.name;
+            cur.admin = cur.admin || row.admin;
+        }
+    });
+    const subjects = Array.from(by.values())
+        .sort(function (a, b) {
+            return String(a.code).localeCompare(String(b.code), 'de', { sensitivity: 'base' });
+        })
+        .map(function (r) {
+            return Object.assign({ id: 'sub:' + r.code, selected: true }, r);
+        });
+    const preview = {
+        subjects: subjects,
+        meta: {
+            subjectCount: subjects.length,
+            sourceFileName: options && options.sourceFileName ? String(options.sourceFileName) : ''
+        }
+    };
+    return applySubjectImportDefaults(preview, options);
+}
+
 /** Bei vielen Fächern empfohlene Auswahl (Basis + ohne Verwaltung), sonst alles an. */
 export function applySubjectImportDefaults(preview, options) {
     const p = preview || {};
@@ -835,6 +998,7 @@ export function compileWizardApplyPayload(preview, deps) {
             students: students.length,
             subjects: subjects.length,
             classes: classes.length
-        }
+        },
+        skipTenantReview: !!(preview && preview.skipTenantReview)
     };
 }

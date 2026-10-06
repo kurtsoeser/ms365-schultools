@@ -656,19 +656,30 @@
 
     function loadState() {
         let rawLocal = null;
+        let localObj = null;
         try {
             rawLocal = localStorage.getItem(STORAGE_KEY);
+            if (rawLocal) localObj = JSON.parse(rawLocal);
         } catch {
             rawLocal = null;
+            localObj = null;
         }
+        const localKv =
+            localObj && localObj.matched && localObj.matched.kvGroupId
+                ? String(localObj.matched.kvGroupId).trim()
+                : localObj && localObj.kvGroupId
+                  ? String(localObj.kvGroupId).trim()
+                  : '';
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
                 const su = window.ms365AppDataV2.getSetup();
                 const hasId = su && su.matched && !!su.matched.kvGroupId;
-                if (hasId || !rawLocal) {
+                if (hasId || localKv || !rawLocal) {
                     const d = su.kvDraft || {};
+                    const merged = su.matched && typeof su.matched === 'object' ? { ...su.matched } : {};
+                    if (localKv && !merged.kvGroupId) merged.kvGroupId = localKv;
                     applyStateObject({
-                        matched: su.matched,
+                        matched: merged,
                         kvNewDisplayName: d.kvNewDisplayName,
                         kvNewMailNick: d.kvNewMailNick,
                         kvNewDescription: d.kvNewDescription,
@@ -681,8 +692,8 @@
             // ignore
         }
         try {
-            if (!rawLocal) return;
-            applyStateObject(JSON.parse(rawLocal));
+            if (!localObj) return;
+            applyStateObject(localObj);
         } catch {
             // ignore
         }

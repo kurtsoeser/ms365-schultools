@@ -216,5 +216,8 @@ else boot();
 window.ms365StammdatenSpoSyncUi = {
     refreshStatus: refreshStatus,
     isReady: isReady,
-    setupPageHref: setupPageHref
+    setupPageHref: setupPageHref,
+    bind: bind
 };
+
+window.addEventListener('ms365-auth-widget-ready', bind);

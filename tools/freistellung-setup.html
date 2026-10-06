@@ -6,10 +6,12 @@
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Freistellungen Setup</title>
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="../src/tools/power-automate/freistellung-setup.css">
+    <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-kategorien-admin.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -23,6 +25,7 @@
             <p>Für Schulen gedacht: erst vorbereiten, dann Liste, dann Flow importieren – ohne Solutions-Vorkenntnisse.
                 <a href="freistellung-konzept.html">Ablauf &amp; Idee</a> · Anträge: <a href="freistellung-planer.html">Freistellungen-Planer</a>.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-freistellung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot" style="margin:10px 0 4px;"></div>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                 <a class="btn" href="freistellung-konzept.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-diagram-3"></i>Ablauf &amp; Idee</a>
@@ -116,8 +119,16 @@
                                 <i class="bi bi-envelope-check" aria-hidden="true"></i>
                                 <div>
                                     <h3 id="frSetupFlowTitle">Genehmigung &amp; Flow</h3>
-                                    <p>E-Mails für Power Automate und Sonderfälle.</p>
+                                    <p>Genehmiger, Technik-Konto für Power Automate und Absender der Status-Mails.</p>
                                 </div>
+                            </div>
+                            <div class="tm-field fr-flow-account-field">
+                                <label for="frFlowServiceAccount">Technik-Konto für Power Automate</label>
+                                <div class="fr-setup-egp fr-setup-egp--tight">
+                                    <input type="email" id="frFlowServiceAccount" placeholder="automate@schule.at" autocomplete="off" spellcheck="false" style="flex:1;min-width:0;">
+                                    <button type="button" class="btn btn-sm alt" id="frFlowAccountUseMailbox" title="Gleiche Adresse wie Absender-Postfach"><i class="bi bi-arrow-down-up"></i>Wie Absender</button>
+                                </div>
+                                <p class="muted" style="margin:6px 0 0;font-size:0.85em;">Mit diesem Konto in Power Automate anmelden, Flow importieren und alle Connections (SharePoint, Approvals, Outlook) verbinden – nicht mit einem persönlichen Lehrer-/IT-Konto.</p>
                             </div>
                             <div class="tm-field">
                                 <label for="frEmailDirektion">Direktion (2. Genehmiger)</label>
@@ -129,8 +140,13 @@
                                 <input type="email" id="frEmailSonder" placeholder="vertretung@schule.at" autocomplete="off" spellcheck="false">
                             </div>
                             <div class="tm-field">
-                                <label for="frEmailMailbox">Freigegebenes Postfach (nur Freistellungs-Mails)</label>
-                                <input type="email" id="frEmailMailbox" placeholder="freistellung@schule.at" autocomplete="off" spellcheck="false">
+                                <label for="frEmailMailbox">Absender-Adresse für Status-Mails</label>
+                                <input type="email" id="frEmailMailbox" placeholder="automate@schule.at" autocomplete="off" spellcheck="false">
+                                <label class="checkbox-label" style="display:block;margin-top:8px;font-size:0.9em;">
+                                    <input type="checkbox" id="frMailAsTechnikUser" checked>
+                                    Technik-Konto hat dieses Postfach selbst (empfohlen) – Flow sendet als angemeldeter Benutzer, nicht über „freigegebenes Postfach“
+                                </label>
+                                <p class="muted" style="margin:6px 0 0;font-size:0.85em;">Nur bei separatem freigegebenen Postfach Haken entfernen; dann braucht das Technik-Konto „Senden als“ auf diese Adresse.</p>
                             </div>
                             <div class="tm-field">
                                 <label for="frFlowName">Flow-Anzeigename</label>
@@ -139,7 +155,24 @@
                         </section>
                     </div>
 
-                    <section class="tm-panel fr-setup-panel" aria-labelledby="frSetupKatTitle">
+                    <section class="tm-panel fr-setup-panel fr-kl-admin" aria-labelledby="frSetupKlTitle">
+                        <div class="tm-panel__head">
+                            <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+                            <div>
+                                <h3 id="frSetupKlTitle">Klassen aus Stammdaten</h3>
+                                <p>Klassen aus den Stammdaten (1A, 1B, …) als Auswahl in der SharePoint-Spalte „Klasse“ der Freistellungen-Liste.</p>
+                            </div>
+                        </div>
+                        <div id="frSetupKlassenList" class="fr-kl-admin__mount"></div>
+                        <div class="fr-kl-admin__foot">
+                            <button type="button" class="btn btn-sm alt" id="frSetupKlassenClean"><i class="bi bi-database-check"></i>Speicher bereinigen</button>
+                            <button type="button" class="btn btn-sm alt" id="frSetupKlassenReload"><i class="bi bi-arrow-clockwise"></i>Aus Stammdaten neu laden</button>
+                            <button type="button" class="btn btn-sm" id="frSetupKlassenSyncSp"><i class="bi bi-arrow-repeat"></i>SharePoint-Spalte „Klasse“ aktualisieren</button>
+                        </div>
+                        <p class="muted" style="margin:8px 0 0;font-size:0.85em;">Eine Quelle: App-Daten v2. Pflege: <a href="../tenant.html">Stammdaten → Klassen</a>. Zuerst bereinigen, dann SharePoint aktualisieren.</p>
+                    </section>
+
+                    <section class="tm-panel fr-setup-panel fr-kat-admin" aria-labelledby="frSetupKatTitle">
                         <div class="tm-panel__head">
                             <i class="bi bi-tags" aria-hidden="true"></i>
                             <div>
@@ -147,12 +180,14 @@
                                 <p>Zusätzliche Kategorien für Schüler- und KV-Formulare (mit „Gruppen speichern“ auf die Site).</p>
                             </div>
                         </div>
-                        <ul id="frSetupKatExtraList" class="fr-setup-user-list" style="max-width:520px;"></ul>
-                        <div class="fr-setup-egp fr-setup-egp--tight" style="max-width:520px;margin-top:8px;">
-                            <input type="text" id="frSetupKatExtraNew" placeholder="Neue Kategorie …" maxlength="120" style="flex:1;min-width:160px;">
+                        <div id="frSetupKatExtraList" class="fr-kat-admin__mount"></div>
+                        <div class="fr-kat-admin__add">
+                            <input type="text" id="frSetupKatExtraNew" placeholder="Neue Kategorie …" maxlength="120" autocomplete="off">
                             <button type="button" class="btn btn-sm" id="frSetupKatExtraAdd"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
                         </div>
-                        <button type="button" class="btn btn-sm" id="frSetupKatSyncSp" style="margin-top:10px;"><i class="bi bi-arrow-repeat"></i>Kategorie-Spalte in SharePoint aktualisieren</button>
+                        <div class="fr-kat-admin__foot">
+                            <button type="button" class="btn btn-sm" id="frSetupKatSyncSp"><i class="bi bi-arrow-repeat"></i>SharePoint-Spalte „Kategorie“ aktualisieren</button>
+                        </div>
                     </section>
 
                     <section class="tm-panel fr-setup-panel" aria-labelledby="frSetupEntraTitle">
@@ -214,17 +249,16 @@
                                     <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
                                     <div>
                                         <h4>Schüler</h4>
-                                        <p>Eigene Anträge – Entra-Gruppe und optional Einzelpersonen.</p>
+                                        <p>Eigene Anträge – Schüler-Sammelgruppe aus Stammdaten; optional Einzelpersonen.</p>
                                     </div>
                                 </div>
-                                <p class="fr-setup-perm-sub">Entra-Gruppe</p>
-                                <label class="sr-only" for="frPermSchueler">Entra-Gruppe Schüler</label>
-                                <div class="fr-setup-egp">
-                                    <input id="frPermSchueler" type="text" readonly placeholder="Gruppe wählen …">
-                                    <input id="frPermSchuelerId" type="hidden">
-                                    <button type="button" class="btn btn-sm" id="frPermSchuelerPick"><i class="bi bi-search"></i>Gruppe</button>
-                                    <button type="button" class="btn btn-sm alt" id="frPermSchuelerClear" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
+                                <p class="fr-setup-perm-sub">Standard-Sammelgruppe (Stammdaten)</p>
+                                <label class="sr-only" for="frPermSchueler">Schüler-Sammelgruppe aus Stammdaten</label>
+                                <div class="fr-setup-egp fr-setup-egp--readonly-stamm">
+                                    <input id="frPermSchueler" type="text" readonly placeholder="In Stammdaten noch nicht verknüpft …">
+                                    <input id="frPermSchuelerId" type="hidden" value="">
                                 </div>
+                                <p class="fr-setup-perm-sub fr-setup-perm-sub--stamm" style="margin-top:6px;">Pflege unter <a href="../tenant.html">Stammdaten</a> / MS&nbsp;365-Gruppenverwaltung.</p>
                                 <p class="fr-setup-perm-sub">Einzelpersonen</p>
                                 <ul id="frPermSchuelerUsers" class="fr-setup-user-list" aria-label="Schüler Einzelpersonen"></ul>
                                 <div class="fr-setup-egp fr-setup-egp--tight">
@@ -232,6 +266,17 @@
                                 </div>
                             </article>
                         </div>
+                        <details class="fr-setup-jahrgang" style="margin:12px 0;">
+                            <summary>Jahrgang (optional – nur Freistellungs-Planer, nicht Dashboard)</summary>
+                            <p class="muted" style="font-size:0.9em;line-height:1.45;margin:8px 0;">
+                                Mitglieder einer Jahrgangs-Entra-Gruppe sehen Freistellungen der Klassen dieses Jahrgangs (KV-Ansicht).
+                                In der IT-Bibliothek landet das in <code>config/permissions-freistellung.json</code>.
+                            </p>
+                            <label for="frAllowedJahrgang">Erlaubte Jahrgänge (Schulstufe, kommagetrennt – leer = alle)</label>
+                            <input type="text" id="frAllowedJahrgang" class="form-control" placeholder="z. B. 5, 6" autocomplete="off" style="max-width:280px;margin-bottom:10px;">
+                            <ul id="frJahrgangGroupsList" class="fr-setup-user-list" aria-label="Jahrgangs-Entra-Gruppen"></ul>
+                            <button type="button" class="btn btn-sm" id="frJahrgangGroupAdd"><i class="bi bi-plus-lg"></i>Jahrgangs-Gruppe</button>
+                        </details>
                         <div class="fr-setup-perm-foot">
                             <p>Gruppen-JSON: <code>SiteAssets/ms365/freistellung-planer-groups.json</code> (Fallback: Standard-Bibliothek). Beim „Liste anlegen / prüfen“ werden Listen-Berechtigungen gesetzt: Direktion Vollzugriff, KV + Schüler Beitragen.</p>
                             <label class="checkbox-label" style="display:block;margin:10px 0;">
@@ -244,6 +289,7 @@
                     <div class="tm-actions fr-setup-actions">
                         <button type="button" class="btn" id="frBtnSave"><i class="bi bi-save"></i>Alles speichern</button>
                         <button type="button" class="btn btn-success" id="frBtnList"><i class="bi bi-list-ul"></i>Liste anlegen / prüfen</button>
+                        <p class="muted" style="margin:8px 0 0;font-size:0.85em;">Beim Anlegen/Prüfen erhält das <strong>Technik-Konto</strong> automatisch <strong>Vollzugriff</strong> auf die Freistellungsliste (für den SharePoint-Flow).</p>
                         <button type="button" class="btn" id="frBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen</button>
                     </div>
 
@@ -263,14 +309,18 @@
                     <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate öffnen</a>
                 </div>
                 <p class="muted" style="margin:0 0 14px;font-size:0.9em;line-height:1.45;">
-                    Aktuelles ZIP = Flow v1. Nach dem Bau gemäß Anleitung: Export ins Projekt – dann liefert dieser Button das v2-Paket.
-                    Audit-Spalten für „wer hat wann freigegeben“ legt das Setup bereits an.
+                    Das Paket basiert auf <strong>Flow v2</strong> (sequentielle Genehmigung KV → Direktion, Audit-Spalten, Mehrtages-Logik).
+                    Site, Listen-ID, Genehmiger, Absender und Technik-Konto kommen aus Schritt 2.
+                </p>
+                <p class="muted" style="margin:0 0 10px;font-size:0.9em;line-height:1.45;">
+                    Technik-Konto aus Schritt 2: <strong id="frImportAccountHint">…</strong>
                 </p>
                 <ol class="pa-import-steps" style="margin:0;padding-left:1.2em;line-height:1.6;">
-                    <li>In Power Automate links <strong>Meine Flows</strong> öffnen.</li>
+                    <li>Browser abmelden oder privates Fenster – in <a href="https://make.powerautomate.com/" target="_blank" rel="noopener">Power Automate</a> mit dem <strong>Technik-Konto</strong> anmelden (nicht mit einem persönlichen Konto).</li>
+                    <li>Links <strong>Meine Flows</strong> öffnen.</li>
                     <li>Oben <strong>Importieren</strong> → <strong>Import Package (Legacy)</strong> wählen.</li>
                     <li>Das eben heruntergeladene ZIP hochladen.</li>
-                    <li>Bei jeder Connection (SharePoint, Approvals, Outlook): <strong>Auswählen</strong> → Konto der Schule verbinden (oder vorhandene Connection).</li>
+                    <li>Bei jeder Connection (SharePoint, Approvals, Outlook): <strong>Auswählen</strong> → mit dem <strong>Technik-Konto</strong> verbinden (alle drei dieselbe Anmeldung).</li>
                     <li>Import abschließen, den Flow öffnen und <strong>Einschalten</strong> (Toggle).</li>
                     <li>Test: in der Freistellungsliste ein Testelement anlegen und die Genehmigung prüfen.</li>
                 </ol>
@@ -286,8 +336,8 @@
                     <ul style="margin:10px 0 0;padding-left:1.2em;line-height:1.55;">
                         <li>Trigger: neues Element in der Freistellungsliste (Polling, typisch wenige Minuten).</li>
                         <li>Wenn Klassenvorstand-E-Mail = Direktion (Setup) → eine Genehmigung an die Sonderperson (Setup).</li>
-                        <li>Sonst derzeit: immer sequentiell Klassenvorstand → Direktion (Mehrtages-Logik im Flow folgt in v2).</li>
-                        <li>Status in SharePoint + Mail aus dem freigegebenen Postfach.</li>
+                        <li>Sonst sequentiell Klassenvorstand → Direktion (inkl. Mehrtages-/Audit-Logik v2).</li>
+                        <li>Status in SharePoint + Status-Mail an den Antragsteller (Absender = Technik-Konto bzw. konfiguriertes Postfach).</li>
                     </ul>
                 </details>
             </div>
@@ -305,6 +355,9 @@
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js"></script>
+    <script src="../src/shared/tenant-settings-core.js"></script>
+    <script src="../src/shared/stammdaten-canonical.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/shared/browser-backup.js" defer></script>

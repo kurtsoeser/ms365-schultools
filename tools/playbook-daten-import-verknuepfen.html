@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Daten importieren und Verknüpfen</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .cp-phases{display:grid;gap:22px;margin-top:8px}
+        .cp-phase-head{margin:0 0 10px;font-size:.78em;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#7a8194}
+        .cp-steps{display:grid;gap:14px}
+        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
+        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
+        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
+        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
+        .cp-step ul{margin:8px 0 0;padding-left:1.15em;color:var(--muted,#6c757d);font-size:.88em;line-height:1.45}
+        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
+        .cp-step__actions{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;justify-content:flex-end}
+        .cp-step--optional{border-style:dashed}
+        @media (max-width:720px){
+            .cp-step{grid-template-columns:40px 1fr}
+            .cp-step__actions{grid-column:1/-1;justify-content:flex-start}
+        }
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-box-arrow-in-down"></i>Daten importieren und Verknüpfen</span>
+            </div>
+            <p>Geführter Ablauf: Stammdaten <strong>beschaffen</strong> (Datei-Export oder später Bildungsportal), <strong>prüfen</strong> und mit Microsoft&nbsp;365 <strong>verknüpfen</strong>.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-playbook-daten-import-verknuepfen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="stammdaten-quelle-waehlen.html"><i class="bi bi-signpost-split"></i>Quelle wählen</a>
+                <a class="btn" href="../tenant.html"><i class="bi bi-journal-bookmark"></i>Schulregister</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-link-45deg"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Einstiegs-Playbook</p>
+                    <h2>Von der Schulsoftware bis zur verknüpften Struktur in Entra</h2>
+                    <p>Jeder Schritt verlinkt das passende Werkzeug. Haken setzen, wenn Sie den Schritt erledigt haben – auch wenn Sie nur den <strong>Datei-Import</strong> nutzen (Schritte 4–5 optional für Bildungsportal-Vorbereitung).</p>
+                </div>
+            </section>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Checkliste</h3>
+                        <p id="cpProgress" class="muted" style="margin:0;">0 / 10 erledigt</p>
+                    </div>
+                </div>
+                <div class="cp-phases">
+                    <div>
+                        <p class="cp-phase-head">Phase 1 · Vorbereitung</p>
+                        <div class="cp-steps">
+                            <article class="cp-step">
+                                <div class="cp-step__n">1</div>
+                                <div>
+                                    <h3>Schulregister vorbereiten</h3>
+                                    <p>Schulname, E-Mail-Domain und aktives Schuljahr – ohne diese Basis stimmen Import und Verknüpfung nicht.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="register"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="../tenant.html#stammdaten"><i class="bi bi-journal-bookmark"></i>Schulregister</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="cp-phase-head">Phase 2 · Stammdaten beschaffen</p>
+                        <div class="cp-steps">
+                            <article class="cp-step">
+                                <div class="cp-step__n">2</div>
+                                <div>
+                                    <h3>Datenquelle wählen</h3>
+                                    <p>Entscheiden: <strong>Datei-Export</strong> (WebUntis, Sokrates, …) – heute Standard – oder perspektivisch <strong>Bildungsportal</strong> ohne manuellen Export.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="quelle"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn btn-primary" href="stammdaten-quelle-waehlen.html"><i class="bi bi-signpost-split"></i>Quelle wählen</a>
+                                </div>
+                            </article>
+                            <article class="cp-step">
+                                <div class="cp-step__n">3</div>
+                                <div>
+                                    <h3>Dateien hochladen &amp; übernehmen</h3>
+                                    <p>Im Import-Assistenten:</p>
+                                    <ul>
+                                        <li>Exporte auswählen oder ablegen (WebUntis CSV/PDF, Sokrates XLSX, …)</li>
+                                        <li>„Auswerten &amp; prüfen“ – Bereiche einzeln durchgehen</li>
+                                        <li>Markierte Datensätze ins Schulregister übernehmen</li>
+                                    </ul>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="import-datei"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn btn-primary" href="webuntis-stammdaten-import.html?from=playbook-daten-import"><i class="bi bi-cloud-upload"></i>Import-Assistent</a>
+                                </div>
+                            </article>
+                            <article class="cp-step cp-step--optional">
+                                <div class="cp-step__n">4</div>
+                                <div>
+                                    <h3>Bildungsportal (Vorschau)</h3>
+                                    <p>Optional: Roadmap zur EdTech-Anbindung lesen – wenn Sie später ohne Datei-Export synchronisieren wollen. Überspringen, wenn Sie nur Datei-Import nutzen.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="bildungsportal-info"> Gelesen / geplant</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="bildungsportal-stammdaten.html"><i class="bi bi-building"></i>Roadmap</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="cp-phase-head">Phase 3 · Prüfen &amp; Microsoft&nbsp;365 verknüpfen</p>
+                        <div class="cp-steps">
+                            <article class="cp-step">
+                                <div class="cp-step__n">5</div>
+                                <div>
+                                    <h3>Import im Schulregister prüfen</h3>
+                                    <p>Klassen, Schüler:innen, Lehrkräfte und Fächer gegen Ihre Erwartung kontrollieren – Korrekturen vor Entra-Zuordnung.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="review"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="../tenant.html#klassen"><i class="bi bi-pencil-square"></i>Prüfen</a>
+                                </div>
+                            </article>
+                            <article class="cp-step">
+                                <div class="cp-step__n">6</div>
+                                <div>
+                                    <h3>Sammelgruppen verknüpfen</h3>
+                                    <p>Schüler-, Lehrkräfte- und Verwaltungs-SLG den passenden Microsoft&nbsp;365-Gruppen zuordnen.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="slg"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="schueler-lehrer-gruppen.html"><i class="bi bi-people"></i>SLG</a>
+                                </div>
+                            </article>
+                            <article class="cp-step">
+                                <div class="cp-step__n">7</div>
+                                <div>
+                                    <h3>Klassengruppen</h3>
+                                    <p>Jahrgangs- und Klassenteams anlegen oder im Register mit Entra-Gruppen verknüpfen.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="klassen"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="jahrgangsgruppen.html"><i class="bi bi-collection"></i>Klassengruppen</a>
+                                </div>
+                            </article>
+                            <article class="cp-step">
+                                <div class="cp-step__n">8</div>
+                                <div>
+                                    <h3>Fächer &amp; ARGE-Gruppen</h3>
+                                    <p>Fach- und ARGE-Codes den Entra-Gruppen zuordnen.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="faecher"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="arge-fachgruppen.html"><i class="bi bi-book"></i>Fächer/ARGEs</a>
+                                </div>
+                            </article>
+                            <article class="cp-step">
+                                <div class="cp-step__n">9</div>
+                                <div>
+                                    <h3>Datenhygiene</h3>
+                                    <p>Stammlisten vs. Mitgliedschaften abgleichen – Abweichungen vor dem Alltag beheben.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="hygiene"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="datenhygiene.html"><i class="bi bi-shield-check"></i>Hygiene</a>
+                                </div>
+                            </article>
+                            <article class="cp-step">
+                                <div class="cp-step__n">10</div>
+                                <div>
+                                    <h3>Sicherung</h3>
+                                    <p>Browser-Backup exportieren oder IT-Bibliothek in SharePoint einrichten.</p>
+                                    <label class="cp-check"><input type="checkbox" data-cp-check="backup"> Erledigt</label>
+                                </div>
+                                <div class="cp-step__actions">
+                                    <a class="btn" href="stammdaten-uebergabe.html"><i class="bi bi-shield-lock"></i>IT-Sicherung</a>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+                <div class="tm-actions" style="margin-top:16px;">
+                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        wirePlaybookPage({
+            storageKey: 'ms365-playbook-daten-import-verknuepfen-v2',
+            stepIds: [
+                'register',
+                'quelle',
+                'import-datei',
+                'bildungsportal-info',
+                'review',
+                'slg',
+                'klassen',
+                'faecher',
+                'hygiene',
+                'backup'
+            ]
+        });
+    </script>
+</body>
+</html>

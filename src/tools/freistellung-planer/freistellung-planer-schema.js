@@ -43,8 +43,9 @@ export const FREISTELLUNG_COLUMNS = [
         name: 'Klasse',
         displayName: 'Klasse',
         choice: {
-            allowTextEntry: true,
-            choices: ['1AHW', '2AHW', '3AHW', '4AHW', '5AHW']
+            allowTextEntry: false,
+            // Wird beim Setup aus Stammdaten (1A, 1B, …) überschrieben – keine Demo-Kürzel.
+            choices: []
         }
     },
     {

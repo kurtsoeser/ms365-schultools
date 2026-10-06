@@ -855,6 +855,7 @@ function setActiveKind(kind) {
     syncMailPrefixUi();
     gd().setTab('general');
     refreshMatchUi();
+    if (getActiveGroupId()) live().loadGroup({ silent: true });
 }
 
 function setActiveCode(code) {

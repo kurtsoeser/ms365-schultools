@@ -27,9 +27,9 @@ Das Gefühl „noch nicht ganz rund“ passt zur Architektur: **viele eigenstän
 ## Inventar: sichtbare Werkzeuge (Dashboard & nahe Umgebung)
 
 - **Schul-Grundeinstellungen** (`tenant.html`) – lokale Stammdaten, Klassen-Tab, Statistiken auf dem Start-Dashboard.
-- **Geführte Einrichtung** (`einrichtung.html`) / **Experten: Struktur** (`ersteinrichtung.html`) – Onboarding und strukturierte Planung.
+- **Schulregister** (`tenant.html`) / **Daten importieren** (`tools/webuntis-stammdaten-import.html`) – Stammdaten und Import.
 - **Lehrerinnen & Schülerinnen** – Sammelgruppen (`tools/schueler-lehrer-gruppen.html`).
-- **Jahrgangsgruppen** (`tools/jahrgang.html`).
+- **Klassengruppen** (`tools/jahrgangsgruppen.html`).
 - **Kursteams** – WebUntis-Import, Teams mit EDU-Vorlage, Online vs. PowerShell (`tools/kursteams.html`).
 - **Weitere Teams & Gruppen** – generische Gruppen/Teams-Pipeline (`tools/weitere-teams-gruppen*.html`).
 - **Personen-Verwaltung** – Benutzer:innen und Gruppenmitgliedschaften (`tools/personen-verwaltung.html`).

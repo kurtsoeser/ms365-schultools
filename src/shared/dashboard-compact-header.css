@@ -1,0 +1,481 @@
+/* Sticky-Kompakt-Header (Dashboard + App-weit via app-shell-chrome) */
+
+.container.page-card:has(> .header.dash-compact-header),
+body.app-shell-chrome .container.page-card {
+    overflow: visible;
+}
+
+/* Kern-Layout: am Header selbst hängen – funktioniert auch ohne body-Klasse */
+.header.dash-compact-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 0 !important;
+    text-align: left !important;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+    box-shadow: 0 4px 24px rgba(30, 36, 64, 0.12);
+}
+
+.dash-compact-header__bar {
+    background: transparent;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 8px 14px;
+    min-height: 52px;
+}
+
+.dash-compact-header__nav--spacer {
+    min-height: 1px;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.dash-compact-header__brand {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-width: 0;
+    text-decoration: none !important;
+    color: #fff !important;
+    font-weight: 800;
+    font-size: 0.95rem;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    grid-column: 1;
+}
+
+.dash-compact-header__brand img,
+.dash-compact-header__brand .app-brand-logo__mark {
+    width: 32px !important;
+    height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    border-radius: 9px !important;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.dash-compact-header__brand span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: min(14rem, 28vw);
+    color: #fff !important;
+}
+
+.dash-compact-header__actions {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.dash-compact-header__search-slot {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.dash-compact-header__search.dashboard-search--tasks {
+    margin: 0 !important;
+    padding: 0;
+    border: none;
+    background: transparent;
+    max-width: none;
+    position: relative;
+}
+
+.dash-compact-header__search .dashboard-search-label {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.dash-compact-header__search .dashboard-search-wrap {
+    margin: 0;
+}
+
+.dash-compact-header__search .dashboard-search-wrap > .bi-search {
+    left: 12px;
+    font-size: 0.9rem;
+}
+
+.dash-compact-header__search .dashboard-search-wrap input {
+    width: min(200px, 26vw) !important;
+    min-width: 7.5rem;
+    padding: 7px 10px 7px 32px !important;
+    font-size: 0.82rem !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: #32325d;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+.dash-compact-header__search .dashboard-search-meta,
+.dash-compact-header__search .dashboard-search-empty {
+    display: none !important;
+}
+
+.dash-compact-header__actions .ms365-header-schulregister {
+    background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #1c1408 !important;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 7px 12px;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+    flex-shrink: 0;
+}
+
+.dash-compact-header__actions .ms365-header-schulregister .bi {
+    color: #fffbeb;
+}
+
+.dash-compact-header__actions .ms365-header-schulregister:hover {
+    filter: brightness(1.05);
+    color: #1c1408 !important;
+    transform: none;
+}
+
+.dash-compact-header__actions #ms365AuthWidget,
+.dash-compact-header__actions .ms365-auth-widget {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    max-width: min(280px, 38vw);
+    margin: 0 !important;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.dash-compact-header__actions #ms365AuthWidget .btn,
+.dash-compact-header__actions .ms365-auth-menu__trigger {
+    margin: 0 !important;
+    padding: 7px 12px !important;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.25;
+    background: rgba(255, 255, 255, 0.92);
+    color: #32325d;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.dash-compact-header__actions #ms365AuthWidget .btn:hover,
+.dash-compact-header__actions .ms365-auth-menu__trigger:hover {
+    background: #fff;
+    color: #32325d;
+    transform: none;
+}
+
+.dash-compact-header__search-dash-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    font-weight: 650;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.92);
+    color: #32325d !important;
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+
+.dash-compact-header__search-dash-link:hover {
+    background: #fff;
+    color: #32325d !important;
+}
+
+.dash-greeting-band {
+    padding: 10px 18px;
+    color: #fff;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--brand1) 88%, #1e2440) 0%,
+        color-mix(in srgb, var(--brand2) 82%, #1e2440) 100%
+    );
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.dash-greeting-band__text {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 650;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+    text-align: center;
+    max-width: 72rem;
+    margin-inline: auto;
+    color: #fff;
+}
+
+html.dash-header-scrolled .dash-greeting-band {
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .dash-greeting-band {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--brand1) 55%, #0a1018) 0%,
+        color-mix(in srgb, var(--brand2) 45%, #0a1018) 100%
+    );
+}
+
+body.app-shell-chrome .content {
+    padding-top: 12px;
+}
+
+body.app-shell-chrome .dashboard-tasks-head {
+    margin-bottom: 12px;
+}
+
+@media (max-width: 1020px) {
+    .dash-compact-header__bar {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .dash-compact-header__brand {
+        grid-column: 1;
+        min-width: 0;
+    }
+    .dash-compact-header__actions {
+        grid-column: 2;
+    }
+}
+
+@media (max-width: 640px) {
+    .dash-compact-header__bar {
+        padding: 8px 10px;
+        gap: 8px;
+    }
+    .dash-compact-header__brand span {
+        max-width: 9rem;
+        font-size: 0.88rem;
+    }
+    .ms365-header-schulregister__label {
+        display: none;
+    }
+}
+
+html[data-theme="dark"] .header.dash-compact-header {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] .dash-compact-header__actions .ms365-header-schulregister {
+    color: #1c1408 !important;
+}
+
+body.app-shell-chrome .container > .header.app-tool-subheader:not(.app-tool-chrome) {
+    padding: 14px 18px 12px;
+    text-align: left;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--brand1) 14%, var(--card, #fff)) 0%,
+        var(--card, #fff) 100%
+    );
+    color: var(--heading, #32325d);
+    border-bottom: 1px solid var(--border, #dee2e6);
+    position: relative;
+}
+
+body.app-shell-chrome .container > .header.app-tool-subheader > h1 {
+    display: none !important;
+}
+
+body.app-shell-chrome .container > .header.app-tool-subheader .header-tool-indicator__name {
+    color: var(--heading, #32325d);
+}
+
+body.app-shell-chrome .container > .header.app-tool-subheader > p,
+body.app-shell-chrome .container > .header.app-tool-subheader .header-help-link {
+    color: var(--text-secondary, #5b6b82);
+}
+
+body.app-shell-chrome .container > .header.app-tool-subheader .header-help-link {
+    background: var(--soft, #f0f7f5);
+    border-color: var(--border, #dee2e6);
+}
+
+/* Doppelte Backup-Dropdowns im Schulregister-Toolbar (App-Header hat 💾) */
+body.app-shell-chrome:has(#ms365BackupHeader) .ts-register-header-toolbar__actions .ts-register-save-drop--header {
+    display: none;
+}
+
+/* Stammdaten-Link im Werkzeug-Toolbar – Schulregister sitzt im App-Header */
+body.app-shell-chrome:has(#ms365HeaderSchulregister) .app-tool-subheader .toolbar a[href*="tenant.html"] {
+    display: none;
+}
+
+.dash-compact-header__actions .ms365-backup-header {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.dash-compact-header__actions .ms365-backup-header__btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin: 0;
+    padding: 7px 11px;
+    min-width: 2.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.92);
+    color: #32325d;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 140ms ease, border-color 140ms ease;
+}
+
+.dash-compact-header__actions .ms365-backup-header__btn:hover {
+    background: #fff;
+}
+
+.dash-compact-header__actions .ms365-backup-header__dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+}
+
+.dash-compact-header__actions .ms365-backup-header__btn--ok .ms365-backup-header__dot,
+.dash-compact-header__actions .ms365-backup-header__dot--ok {
+    background: #22c55e;
+}
+
+.dash-compact-header__actions .ms365-backup-header__btn--aging .ms365-backup-header__dot,
+.dash-compact-header__actions .ms365-backup-header__dot--warn {
+    background: #f59e0b;
+}
+
+.dash-compact-header__actions .ms365-backup-header__btn--stale .ms365-backup-header__dot,
+.dash-compact-header__actions .ms365-backup-header__dot--stale {
+    background: #ef4444;
+}
+
+.dash-compact-header__actions .ms365-backup-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 80;
+    width: min(320px, calc(100vw - 24px));
+    padding: 14px 14px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border, #dee2e6);
+    background: var(--card, #fff);
+    color: var(--text, #0c1222);
+    box-shadow: 0 16px 40px rgba(30, 36, 64, 0.18);
+}
+
+.dash-compact-header__actions .ms365-backup-panel[hidden] {
+    display: none !important;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    color: var(--heading, #32325d);
+}
+
+.dash-compact-header__actions .ms365-backup-panel__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary, #5b6b82);
+    margin: 0 0 8px;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__block {
+    margin: 0 0 12px;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border, #dee2e6);
+    background: var(--soft, #f0f7f5);
+    color: var(--heading, #32325d);
+    font-size: 0.8rem;
+    font-weight: 650;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__btn:hover {
+    background: #fff;
+    border-color: color-mix(in srgb, var(--brand1) 28%, var(--border, #dee2e6));
+}
+
+.dash-compact-header__actions .ms365-backup-panel__file {
+    display: none;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__foot {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border, #dee2e6);
+}
+
+.dash-compact-header__actions .ms365-backup-panel__setup {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 650;
+    color: var(--heading, #32325d);
+    text-decoration: none;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__setup:hover {
+    color: var(--brand1);
+}
+
+.dash-compact-header__actions .ms365-backup-panel__status {
+    margin: 10px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-secondary, #5b6b82);
+}
+
+.dash-compact-header__actions .ms365-backup-panel__status--ok {
+    color: #0d5c3a;
+}
+
+.dash-compact-header__actions .ms365-backup-panel__status--warn {
+    color: #9a3412;
+}

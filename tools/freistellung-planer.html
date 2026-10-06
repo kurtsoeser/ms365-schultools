@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-planer.css">
+    <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-kategorien-admin.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -22,9 +23,9 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-calendar2-check"></i>Freistellungen</span>
             </div>
             <p class="fr-page-header-staff">Freistellung beantragen, Genehmigung über Microsoft Approvals (KV / Direktion), Übersicht und CSV – Daten in der SharePoint-Liste aus dem Freistellungen-Setup.</p>
-            <p class="fr-page-header-student">Hier sehen Sie den Status Ihrer Freistellungsanträge.</p>
-            <p class="fr-page-header-kv">Freistellungsanträge Ihrer Klasse – Übersicht und Status.</p>
-            <p class="fr-page-header-direktion">Freistellungen verwalten: Übersicht, Anträge und Genehmigungen. Technik und Einrichtung im Menü „Administration“.</p>
+            <p class="fr-page-header-student">Anträge stellen und Status verfolgen.</p>
+            <p class="fr-page-header-kv">Anträge Ihrer Klasse – Status und Übersicht.</p>
+            <p class="fr-page-header-direktion">Übersicht und Genehmigungen. Technik: Menü „Administration“.</p>
             <p class="header-help-row fr-page-header-staff">
                 <a href="freistellung-konzept.html" class="header-help-link"><i class="bi bi-diagram-3"></i>Ablauf &amp; Idee</a>
                 <a href="../hilfe.html#tool-freistellung-planer" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a>
@@ -45,14 +46,21 @@
     </div>
 
     <script src="../ms365-config.js"></script>
+    <script>
+        // Schüler: nur User.Read beim Login – keine IT-Admin-Genehmigung (Graph-IT-Scopes kommen ggf. still nach).
+        window.MS365_AUTH_LOGIN_SCOPES = ['https://graph.microsoft.com/User.Read'];
+    </script>
     <script type="module" src="../src/shared/msal-auth-ui.js"></script>
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/action-log.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/stammdaten-canonical.js" defer></script>
+    <script src="../src/shared/browser-backup.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script type="module" src="../src/tools/freistellung-planer/freistellung-planer.js"></script>
 </body>
 </html>

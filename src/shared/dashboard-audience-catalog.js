@@ -26,6 +26,7 @@ export const DASHBOARD_TOOL_RULES = {
     jahrgang: { audience: 'it' },
     'klassen-merge': { audience: 'it' },
     kursteams: { audience: 'lehrer' },
+    'playbook-kursteams': { audience: 'it' },
     'unterrichtsteams-katalog': { audience: 'lehrer' },
     'kursteam-einzeln': { audience: 'lehrer' },
     'kursteam-templates': { audience: 'it' },
@@ -43,15 +44,20 @@ export const DASHBOARD_TOOL_RULES = {
     'gaeste-verwalten': { audience: 'it' },
     'schueler-lifecycle': { audience: 'it' },
     'pa-gast-erinnerung': { audience: 'it' },
-    slg: { audience: 'it' },
+    'slg-schueler': { audience: 'it' },
+    'slg-lehrer': { audience: 'it' },
     verwaltung: { audience: 'it' },
     klassenvorstaende: { audience: 'it' },
+    'weitere-teams-gruppen': { audience: 'it' },
 
     // —— Schuljahr ——
     'playbook-schuljahresstart': { audience: 'it' },
+    'playbook-daten-import-verknuepfen': { audience: 'it' },
+    'bildungsportal-stammdaten': { audience: 'it' },
     'organisations-assistent': { audience: 'it' },
     'klassen-umbenennen': { audience: 'it' },
     'webuntis-sync-monitor': { audience: 'it' },
+    'webuntis-stammdaten-import': { audience: 'it' },
     'cleanup-playbook-schuljahr': { audience: 'it' },
 
     // —— Kommunikation ——
@@ -60,11 +66,13 @@ export const DASHBOARD_TOOL_RULES = {
     'eltern-verteiler': { audience: 'it' },
     'elternsprechtag-bookings': { audience: 'lehrer' },
     'playbook-eltern': { audience: 'it' },
+    'playbook-elternsprechtag': { audience: 'it' },
     'raeume-ressourcen': { audience: 'it' },
 
     // —— Intranet & Apps ——
     'sharepoint-intranet-hub': { audience: 'all' },
     'playbook-intranet': { audience: 'it' },
+    'playbook-schularbeiten-planer': { audience: 'it' },
     'sharepoint-liste-lehrer': { audience: 'it' },
     'sharepoint-liste-stammdaten': { audience: 'it' },
     'sharepoint-liste-schultermine': { audience: 'it' },
@@ -91,6 +99,7 @@ export const DASHBOARD_TOOL_RULES = {
     'pa-erst-setup': { audience: 'it' },
     'power-automate-rezepte': { audience: 'it' },
     'freistellung-setup': { audience: 'it' },
+    'playbook-freistellungen': { audience: 'it' },
     'pa-termine-sync': { audience: 'it' },
     'pa-schularbeiten-mail': { audience: 'it' },
     'pa-projektwochen-mail': { audience: 'it' },
@@ -107,32 +116,39 @@ export const DASHBOARD_TOOL_RULES = {
     datenlandkarte: { audience: 'it' },
     schulgraph: { audience: 'it' },
     'stammdaten-uebergabe': { audience: 'it' },
+    'stammdaten-backup-abgleich': { audience: 'it' },
     'cleanup-playbook': { audience: 'it' },
     'schul-baseline': { audience: 'it' },
     'datei-migration': { audience: 'it' },
-    'leere-gruppen-report': { audience: 'it' }
+    'leere-gruppen-report': { audience: 'it' },
+    'teams-archiv': { audience: 'it' }
 };
 
-/** Dashboard-Tabs / Cluster wie auf index.html (data-cluster) */
+/**
+ * Aufgabenorientierte Cluster (Sidebar „Alle Werkzeuge“).
+ * `panel`: DOM-Tab (dash-panel-*), kann vom Cluster-ID abweichen (Legacy-Panel-IDs).
+ */
 export const DASHBOARD_CLUSTER_ORDER = [
+    'gruppen',
     'unterricht',
     'personen',
-    'schuljahr',
-    'kommunikation',
+    'planung',
     'intranet',
-    'automationen',
-    'regeln'
+    'hygiene',
+    'kommunikation',
+    'automationen'
 ];
 
-/** @type {Record<string, { label: string, icon: string }>} */
+/** @type {Record<string, { label: string, icon: string, panel: string }>} */
 export const DASHBOARD_CLUSTER_META = {
-    unterricht: { label: 'Unterricht & Klassen', icon: 'bi-mortarboard' },
-    personen: { label: 'Personen & Zugänge', icon: 'bi-person-badge' },
-    schuljahr: { label: 'Schuljahr', icon: 'bi-calendar2-range' },
-    kommunikation: { label: 'Kommunikation', icon: 'bi-envelope' },
-    intranet: { label: 'Intranet & Listen', icon: 'bi-house-door' },
-    automationen: { label: 'Automationen', icon: 'bi-lightning-charge' },
-    regeln: { label: 'Einstellungen & Übersicht', icon: 'bi-sliders2' }
+    gruppen: { label: '01 Mitgliedschaften', icon: 'bi-people', panel: 'gruppen' },
+    unterricht: { label: '02 Klassen & Kurse', icon: 'bi-mortarboard', panel: 'unterricht' },
+    personen: { label: '03 Personen & Gäste', icon: 'bi-person-badge', panel: 'personen' },
+    planung: { label: '04 Schuljahresstart', icon: 'bi-rocket-takeoff', panel: 'schuljahr' },
+    intranet: { label: '05 Intranet & Schulalltag', icon: 'bi-house-door', panel: 'intranet' },
+    hygiene: { label: '06 Aufräumen & Audit', icon: 'bi-broom', panel: 'kommunikation' },
+    kommunikation: { label: 'Kommunikation', icon: 'bi-envelope', panel: 'intranet' },
+    automationen: { label: 'Automatisieren', icon: 'bi-lightning-charge', panel: 'automationen' }
 };
 
 /** @type {Record<string, string>} */
@@ -140,37 +156,46 @@ export const DASHBOARD_TOOL_CLUSTER = {
     jahrgang: 'unterricht',
     'klassen-merge': 'unterricht',
     kursteams: 'unterricht',
+    'playbook-kursteams': 'unterricht',
     'unterrichtsteams-katalog': 'unterricht',
     'kursteam-einzeln': 'unterricht',
     'kursteam-templates': 'unterricht',
     'onenote-verteilung': 'unterricht',
-    'arge-fachgruppen': 'unterricht',
     diplomarbeiten: 'unterricht',
     'pa-diplom-ordner': 'unterricht',
     spielwiesen: 'unterricht',
-    klassenchats: 'unterricht',
+    'arge-fachgruppen': 'gruppen',
+    klassenchats: 'gruppen',
+    datenhygiene: 'hygiene',
+    'slg-schueler': 'gruppen',
+    'slg-lehrer': 'gruppen',
+    verwaltung: 'gruppen',
+    klassenvorstaende: 'gruppen',
+    'weitere-teams-gruppen': 'gruppen',
     lizenzverwaltung: 'personen',
     'personen-verwaltung': 'personen',
     'namenskonvention-audit': 'personen',
     'gaeste-verwalten': 'personen',
     'schueler-lifecycle': 'personen',
     'pa-gast-erinnerung': 'personen',
-    slg: 'personen',
-    verwaltung: 'personen',
-    klassenvorstaende: 'personen',
-    'playbook-schuljahresstart': 'schuljahr',
-    'organisations-assistent': 'schuljahr',
-    'klassen-umbenennen': 'schuljahr',
-    'webuntis-sync-monitor': 'schuljahr',
-    'cleanup-playbook-schuljahr': 'schuljahr',
+    'playbook-schuljahresstart': 'planung',
+    'playbook-daten-import-verknuepfen': 'planung',
+    'bildungsportal-stammdaten': 'planung',
+    'organisations-assistent': 'planung',
+    'klassen-umbenennen': 'planung',
+    'webuntis-sync-monitor': 'planung',
+    'webuntis-stammdaten-import': 'planung',
+    'cleanup-playbook-schuljahr': 'planung',
     postfaecher: 'kommunikation',
     verteilerlisten: 'kommunikation',
     'eltern-verteiler': 'kommunikation',
     'elternsprechtag-bookings': 'kommunikation',
     'playbook-eltern': 'kommunikation',
+    'playbook-elternsprechtag': 'kommunikation',
     'raeume-ressourcen': 'kommunikation',
     'sharepoint-intranet-hub': 'intranet',
     'playbook-intranet': 'intranet',
+    'playbook-schularbeiten-planer': 'intranet',
     'sharepoint-liste-lehrer': 'intranet',
     'sharepoint-liste-stammdaten': 'intranet',
     'sharepoint-liste-schultermine': 'intranet',
@@ -186,24 +211,26 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'pa-erst-setup': 'automationen',
     'power-automate-rezepte': 'automationen',
     'freistellung-setup': 'automationen',
+    'playbook-freistellungen': 'automationen',
     'pa-termine-sync': 'automationen',
     'pa-schularbeiten-mail': 'automationen',
     'pa-projektwochen-mail': 'automationen',
     'pa-antraege': 'automationen',
     'pa-seminar': 'automationen',
     'pa-schilf': 'automationen',
-    gruppenerstellung: 'regeln',
-    'sharepoint-mandant-website': 'regeln',
-    'sharepoint-mandant-teilen': 'regeln',
-    'schulstruktur-sync': 'regeln',
-    datenhygiene: 'regeln',
-    datenlandkarte: 'regeln',
-    schulgraph: 'regeln',
-    'stammdaten-uebergabe': 'regeln',
-    'cleanup-playbook': 'regeln',
-    'schul-baseline': 'regeln',
-    'datei-migration': 'regeln',
-    'leere-gruppen-report': 'regeln'
+    gruppenerstellung: 'automationen',
+    'sharepoint-mandant-website': 'automationen',
+    'sharepoint-mandant-teilen': 'automationen',
+    'schul-baseline': 'automationen',
+    'schulstruktur-sync': 'hygiene',
+    datenlandkarte: 'hygiene',
+    schulgraph: 'hygiene',
+    'stammdaten-uebergabe': 'hygiene',
+    'stammdaten-backup-abgleich': 'hygiene',
+    'cleanup-playbook': 'hygiene',
+    'datei-migration': 'hygiene',
+    'leere-gruppen-report': 'hygiene',
+    'teams-archiv': 'hygiene'
 };
 
 /**
@@ -215,7 +242,7 @@ export function listDashboardToolsByCluster() {
         buckets[clusterId] = [];
     }
     for (const toolId of Object.keys(DASHBOARD_TOOL_RULES)) {
-        const clusterId = DASHBOARD_TOOL_CLUSTER[toolId] || 'regeln';
+        const clusterId = DASHBOARD_TOOL_CLUSTER[toolId] || 'hygiene';
         if (!buckets[clusterId]) buckets[clusterId] = [];
         buckets[clusterId].push(toolId);
     }
@@ -340,6 +367,7 @@ export const DASHBOARD_TOOL_LABELS = {
     jahrgang: 'Klassengruppen',
     'klassen-merge': 'Klassen zusammenlegen',
     kursteams: 'Unterrichtsteams',
+    'playbook-kursteams': 'Playbook Unterrichtsteams',
     'unterrichtsteams-katalog': 'Unterrichtsteams-Katalog',
     'kursteam-einzeln': 'Einzelne Unterrichtsteams',
     'kursteam-templates': 'Kursteam-Vorlagen',
@@ -355,22 +383,29 @@ export const DASHBOARD_TOOL_LABELS = {
     'gaeste-verwalten': 'Gäste',
     'schueler-lifecycle': 'Schüler-Lifecycle',
     'pa-gast-erinnerung': 'Gast-Erinnerung Flow',
-    slg: 'Alle Schüler / alle Lehrkräfte',
+    'slg-schueler': 'Schüler:innen-Sammelgruppe',
+    'slg-lehrer': 'Lehrer:innen-Sammelgruppe',
     verwaltung: 'Schulverwaltung',
     klassenvorstaende: 'Klassenvorstände',
+    'weitere-teams-gruppen': 'Weitere Teams & Gruppen',
     'playbook-schuljahresstart': 'Playbook Schuljahresstart',
+    'playbook-daten-import-verknuepfen': 'Daten importieren & Verknüpfen',
+    'bildungsportal-stammdaten': 'Bildungsportal (Vorschau)',
     'organisations-assistent': 'Schuljahr wechseln',
     'klassen-umbenennen': 'Klassen umbenennen',
     'webuntis-sync-monitor': 'WebUntis-Sync-Monitor',
+    'webuntis-stammdaten-import': 'Daten importieren',
     'cleanup-playbook-schuljahr': 'Cleanup zum Schuljahr',
     postfaecher: 'Gemeinsame Postfächer',
     verteilerlisten: 'E-Mail-Verteiler',
     'eltern-verteiler': 'Eltern-Verteiler',
     'elternsprechtag-bookings': 'Elternsprechtag Bookings',
     'playbook-eltern': 'Playbook Elternkommunikation',
+    'playbook-elternsprechtag': 'Playbook Elternsprechtag',
     'raeume-ressourcen': 'Räume und Ressourcen',
     'sharepoint-intranet-hub': 'Schul-Intranet',
     'playbook-intranet': 'Playbook Intranet',
+    'playbook-schularbeiten-planer': 'Playbook Schularbeiten-Planer',
     'sharepoint-liste-lehrer': 'Lehrerliste',
     'sharepoint-liste-stammdaten': 'Stammdaten-Listen',
     'sharepoint-liste-schultermine': 'Schultermine-Liste',
@@ -386,6 +421,7 @@ export const DASHBOARD_TOOL_LABELS = {
     'pa-erst-setup': 'Power Platform Erst-Setup',
     'power-automate-rezepte': 'Automationen-Übersicht',
     'freistellung-setup': 'Freistellungen Setup',
+    'playbook-freistellungen': 'Playbook Freistellungen',
     'pa-termine-sync': 'Termine → Kalender',
     'pa-schularbeiten-mail': 'Schularbeiten-Mail Flow',
     'pa-projektwochen-mail': 'Projektwochen-Mail Flow',
@@ -400,10 +436,12 @@ export const DASHBOARD_TOOL_LABELS = {
     datenlandkarte: 'Datenlandkarte',
     schulgraph: 'Schuldaten-Karte',
     'stammdaten-uebergabe': 'Stammdaten-Übergabe',
+    'stammdaten-backup-abgleich': 'Backup-Abgleich',
     'cleanup-playbook': 'Cleanup-Playbook',
     'schul-baseline': 'Schul-Baseline',
     'datei-migration': 'Datei-Migration',
-    'leere-gruppen-report': 'Leere Gruppen finden'
+    'leere-gruppen-report': 'Leere Gruppen finden',
+    'teams-archiv': 'Teams archivieren'
 };
 
 /** Standard-Schnellstart (sichtbare Tools in Reihenfolge) */

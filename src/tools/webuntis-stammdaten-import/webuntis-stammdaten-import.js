@@ -810,20 +810,28 @@ async function runParseAndReview() {
 
 function applyImport() {
     if (!previewState) return;
+    const skipEl = document.getElementById('wuStammdatenSkipTenantReview');
+    previewState.skipTenantReview = !!(skipEl && skipEl.checked);
     const payload = compileWizardApplyPayload(previewState, {
         webuntis: window.ms365WebuntisExportImport,
         schoolSis: window.ms365SchoolSisImport
     });
     const returnUrl = resolveReturnUrl(fromParam());
     stashWebuntisImportPayload(payload, returnUrl);
+    const reviewHint = payload.skipTenantReview
+        ? 'Direktübernahme im Schulregister – bitte „Speichern“ nicht vergessen.'
+        : 'Bitte im Schulregister prüfen und „Übernehmen“ klicken.';
     toast(
-        'Weiterleitung – dort werden die Daten mit bestehenden Stammdaten abgeglichen (kein Doppelimport). Bitte noch „Speichern“ klicken (' +
+        reviewHint +
+            ' (' +
             payload.counts.teachers +
             ' Lehrer, ' +
             payload.counts.students +
-            ' Schüler, …).'
+            ' Schüler, …)',
+        { kind: 'success', durationMs: 4500 }
     );
-    window.location.href = returnUrl;
+    const dest = returnUrl.indexOf('#') >= 0 ? returnUrl : returnUrl + '#import';
+    window.location.href = dest;
 }
 
 function wireSubjectImportUx() {
@@ -847,8 +855,28 @@ function wireSubjectImportUx() {
 }
 
 function init() {
+    const from = fromParam();
     const back = document.getElementById('wuImportBackLink');
-    if (back) back.href = resolveReturnUrl(fromParam());
+    if (back) {
+        back.href = resolveReturnUrl(from);
+        if (from === 'playbook-daten-import') {
+            back.innerHTML = '<i class="bi bi-arrow-left"></i>Zurück zum Playbook';
+        }
+    }
+    const pageTitle = document.querySelector('.header h1');
+    const toolName = document.querySelector('.header-tool-indicator__name');
+    if (from === 'playbook-daten-import') {
+        if (pageTitle) pageTitle.textContent = 'Stammdaten importieren';
+        if (toolName) {
+            toolName.innerHTML =
+                '<i class="bi bi-box-arrow-in-down"></i>Import (WebUntis, Sokrates, …)';
+        }
+        const lead = document.querySelector('.header > p');
+        if (lead) {
+            lead.textContent =
+                'Schritt 3 im Playbook: Exporte hochladen, prüfen und ins Schulregister übernehmen. WebUntis, Sokrates und weitere Formate – Schüler und Eltern werden über die Untis-ID verknüpft, wo möglich.';
+        }
+    }
 
     document.getElementById('wuStammdatenBtnBack').addEventListener('click', function () {
         setPhase('upload');

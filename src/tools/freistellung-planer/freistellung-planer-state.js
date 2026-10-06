@@ -7,7 +7,14 @@ import { mergeKategorieChoices, loadExtraKategorien, KATEGORIE_CHOICES } from '.
 import { accountIsDirektionPlannerUser } from './freistellung-planer-direktion-users.js';
 import { loadPermissionsConfig } from './freistellung-planer-permissions.js';
 import { enrichClassesFromLinkedGroups } from '../../shared/class-list-enrich.js';
-import { collectAllClassRows, loadClassTeamsContext } from './freistellung-planer-class-context.js';
+import {
+    collectAllClassRows,
+    collectAllStudentRows,
+    loadClassTeamsContext,
+    classRowsFromTeamLinks,
+    classTeamLinksFromAppData
+} from './freistellung-planer-class-context.js';
+import { loadEffectivePermissionsConfig } from './freistellung-planer-permissions.js';
 
 export { filterFreistellungen as filterItems };
 
@@ -15,6 +22,7 @@ const ROLE_KEY = 'ms365-freistellung-planer-role-v1';
 export const ROLE_STORAGE_KEY = ROLE_KEY;
 const SITE_KEY = 'ms365-freistellung-planer-site-v1';
 const SETUP_KEY = 'ms365-freistellung-setup-v1';
+const STUDENT_KLASSE_PICK_KEY = 'ms365-freistellung-student-klasse-pick-v1';
 
 /** @typedef {'schueler'|'kv'|'direktion'} FrRole */
 
@@ -140,7 +148,9 @@ export function createInitialState() {
         kvMatch: null,
         direktionMatch: false,
         demoKlasseCode: '',
-        kategorieChoices: mergeKategorieChoices(loadExtraKategorien())
+        kategorieChoices: mergeKategorieChoices(loadExtraKategorien()),
+        /** Aus SharePoint-Liste „Freistellungen“, Spalte Klasse (Choice). */
+        klasseColumnChoices: []
     };
 }
 
@@ -190,14 +200,42 @@ export function loadSetupCfg() {
     }
 }
 
-export function loadSavedSiteUrl(setup) {
+/** @param {Record<string, unknown>} patch */
+export function persistSetupFields(patch) {
+    const p = patch && typeof patch === 'object' ? patch : {};
+    const setup = loadSetupCfg();
+    const next = Object.assign({}, setup, p);
     try {
-        const local = String(localStorage.getItem(SITE_KEY) || '').trim();
-        if (local) return local;
+        localStorage.setItem(SETUP_KEY, JSON.stringify(next));
     } catch {
         /* ignore */
     }
-    if (setup && setup.siteUrl) return String(setup.siteUrl).trim();
+    return next;
+}
+
+/** Mandanten-Stammweb ohne /sites/… – dort liegt die Freistellungsliste selten. */
+export function isLikelySharePointTenantRoot(url) {
+    try {
+        const u = new URL(String(url || '').trim());
+        const path = u.pathname.replace(/\/+$/, '');
+        return path === '' || path === '/';
+    } catch {
+        return false;
+    }
+}
+
+export function loadSavedSiteUrl(setup) {
+    const cfg = setup || loadSetupCfg();
+    try {
+        const local = String(localStorage.getItem(SITE_KEY) || '').trim();
+        if (local && !isLikelySharePointTenantRoot(local)) return local;
+        if (local && isLikelySharePointTenantRoot(local)) {
+            /* Altes Auto-Fallback – Setup/Discovery bevorzugen */
+        }
+    } catch {
+        /* ignore */
+    }
+    if (cfg && cfg.siteUrl) return String(cfg.siteUrl).trim();
     try {
         const s =
             window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
@@ -210,6 +248,13 @@ export function loadSavedSiteUrl(setup) {
     return '';
 }
 
+/** Site für Planer/Setup (lokal, Setup-JSON, Stammdaten-Intranet). */
+export function resolveFreistellungSiteUrl(current) {
+    const direct = String(current || '').trim();
+    if (direct) return direct;
+    return loadSavedSiteUrl(loadSetupCfg());
+}
+
 export function persistSiteUrl(url) {
     try {
         localStorage.setItem(SITE_KEY, String(url || '').trim());
@@ -220,16 +265,56 @@ export function persistSiteUrl(url) {
 
 export function loadStammdaten() {
     try {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365StammdatenCanonical &&
+            typeof window.ms365StammdatenCanonical.reconcileStammdatenStorage === 'function'
+        ) {
+            try {
+                window.ms365StammdatenCanonical.reconcileStammdatenStorage();
+            } catch {
+                /* ignore */
+            }
+        }
         const core = window.ms365TenantSettingsLoad && window.ms365TenantSettingsLoad();
         const data = (core && core.data) || core || {};
+        let baseClasses = Array.isArray(data.classes) ? data.classes : [];
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365StammdatenCanonical &&
+            typeof window.ms365StammdatenCanonical.listAllClasses === 'function'
+        ) {
+            const canon = window.ms365StammdatenCanonical.listAllClasses();
+            if (canon && canon.length) baseClasses = canon;
+        }
         return {
-            classes: Array.isArray(data.classes) ? data.classes : [],
+            classes: collectAllClassRows({ stammdaten: { classes: baseClasses } }),
             teachers: Array.isArray(data.teachers) ? data.teachers : [],
-            students: Array.isArray(data.students) ? data.students : []
+            students: collectAllStudentRows()
         };
     } catch {
         return { classes: [], teachers: [], students: [] };
     }
+}
+
+/**
+ * Nach SharePoint-Stammdaten-Pull: Schülerzeile (Klasse) neu zuordnen.
+ * @param {object} state
+ */
+export function refreshStudentMatchFromStammdaten(state) {
+    if (!state || state.role !== 'schueler') return false;
+    state.stammdaten = loadStammdaten();
+    const hit = matchStudentByEmail(state.accountEmail, state.stammdaten.students);
+    if (!hit || !studentKlasseFromRecord(hit)) return false;
+    state.studentMatch = {
+        ...hit,
+        email: state.accountEmail,
+        klasseSource: 'stammdaten'
+    };
+    state.demoKlasseCode = '';
+    persistDemoKlasseCode('');
+    prefillStudentFreistellungForm(state);
+    return true;
 }
 
 /** @param {object} s */
@@ -258,29 +343,121 @@ export function findClassInStammdaten(classes, codeOrName) {
  * Klassen für Schüler-Dropdown: Stammdaten plus ggf. Klassen aus bereits geladenen Anträgen.
  * @param {{ stammdaten?: { classes?: object[] }, items?: { klasse?: string }[] }} state
  */
-export function classesForStudentPicker(state) {
-    const base = Array.isArray(state && state.stammdaten && state.stammdaten.classes)
-        ? state.stammdaten.classes
-        : [];
+function mergeClassPickerRows(rows) {
+    const out = [];
     const seen = new Set();
-    base.forEach((c) => {
+    (rows || []).forEach((c) => {
+        if (!c || typeof c !== 'object') return;
         const code = String(c.code || c.name || '').trim();
-        if (code) seen.add(code.toLowerCase());
+        if (!code || seen.has(code.toLowerCase())) return;
+        seen.add(code.toLowerCase());
+        out.push({
+            code,
+            name: String(c.name || c.code || code).trim()
+        });
     });
+    return out;
+}
+
+function dropLegacyKlasseRows(rows) {
+    return (rows || []).filter((r) => !/^[1-5]AHW$/i.test(String((r && (r.code || r.name)) || '')));
+}
+
+export function classesForStudentPicker(state) {
+    const perms = loadEffectivePermissionsConfig();
+    // 1) Veröffentlichtes Klassenverzeichnis (aus Stammdaten: 1A, 1B, …)
+    const fromCatalog = dropLegacyKlasseRows(mergeClassPickerRows(perms.classCatalog || []));
+    if (fromCatalog.length) {
+        return fromCatalog;
+    }
+    // 2) Lokale Stammdaten (IT-Browser)
+    const fromStamm = dropLegacyKlasseRows(mergeClassPickerRows(collectAllClassRows(state || {})));
+    if (fromStamm.length) {
+        return fromStamm;
+    }
+    // 3) SharePoint-Spalte „Klasse“ – ohne alte Schema-Defaults 1AHW…
+    const fromList = dropLegacyKlasseRows(
+        mergeClassPickerRows(state && state.klasseColumnChoices ? state.klasseColumnChoices : [])
+    );
+    if (fromList.length) {
+        return fromList;
+    }
+    const fromTeams = classRowsFromTeamLinks(
+        (perms.classTeamLinks || []).concat(classTeamLinksFromAppData())
+    );
+    const merged = dropLegacyKlasseRows(mergeClassPickerRows(fromTeams));
+    const seen = new Set(merged.map((c) => String(c.code).toLowerCase()));
     const extra = [];
     const pushCode = (k) => {
         const code = String(k || '').trim();
-        if (!code || seen.has(code.toLowerCase())) return;
+        if (!code || seen.has(code.toLowerCase()) || /^[1-5]AHW$/i.test(code)) return;
         seen.add(code.toLowerCase());
-        const hit = findClassInStammdaten(base, code);
-        extra.push(hit || { code, name: code });
+        extra.push({ code, name: code });
     };
-    const ownKlasse = resolveStudentKlasseCode(state);
-    if (ownKlasse) pushCode(ownKlasse);
+    pushCode(resolveStudentKlasseCode(state));
     (state && state.items ? state.items : []).forEach((it) => {
         pushCode(it.klasse);
     });
-    return base.concat(extra);
+    return merged.concat(extra);
+}
+
+export function loadStudentKlassePick(email) {
+    const em = String(email || '').trim().toLowerCase();
+    if (!em) return '';
+    try {
+        const raw = JSON.parse(localStorage.getItem(STUDENT_KLASSE_PICK_KEY) || '{}');
+        return String((raw && raw[em]) || '').trim();
+    } catch {
+        return '';
+    }
+}
+
+export function clearStudentKlassePick(email) {
+    const em = String(email || '').trim().toLowerCase();
+    if (!em) return;
+    try {
+        const raw = JSON.parse(localStorage.getItem(STUDENT_KLASSE_PICK_KEY) || '{}') || {};
+        if (!raw[em]) return;
+        delete raw[em];
+        localStorage.setItem(STUDENT_KLASSE_PICK_KEY, JSON.stringify(raw));
+    } catch {
+        /* ignore */
+    }
+}
+
+export function persistStudentKlassePick(email, klasseCode) {
+    const em = String(email || '').trim().toLowerCase();
+    const code = String(klasseCode || '').trim();
+    if (!em || !code) return;
+    try {
+        const raw = JSON.parse(localStorage.getItem(STUDENT_KLASSE_PICK_KEY) || '{}') || {};
+        raw[em] = code;
+        localStorage.setItem(STUDENT_KLASSE_PICK_KEY, JSON.stringify(raw));
+    } catch {
+        /* ignore */
+    }
+}
+
+/**
+ * Gespeicherte Klassenwahl (einmal wählen, danach fix) wenn Stammdaten/Entra fehlen.
+ * @param {object} state
+ */
+export function applyStudentKlasseFromLocalPick(state) {
+    if (!state || state.role !== 'schueler') return false;
+    if (studentKlasseFromRecord(state.studentMatch)) return true;
+    const code = loadStudentKlassePick(state.accountEmail);
+    if (!code) return false;
+    state.studentMatch = {
+        ...(state.studentMatch && typeof state.studentMatch === 'object' ? state.studentMatch : {}),
+        email: state.accountEmail,
+        name: state.accountName || '',
+        klasse: code,
+        klasseSource: 'local-pick'
+    };
+    state.demoKlasseCode = '';
+    persistDemoKlasseCode('');
+    prefillStudentFreistellungForm(state);
+    return true;
 }
 
 function studentRecordEmails(s) {
@@ -335,6 +512,17 @@ export function matchKvByClassHeadEmail(email, classes) {
 /**
  * @param {{ studentMatch?: { klasse?: string }|null, demoKlasseCode?: string }} stateOrScope
  */
+/** Schüler: Klasse nur bei Stammdaten/Entra sperren – nicht bei freier Auswahl im Formular. */
+export function isStudentKlasseLocked(state) {
+    if (!state || state.role !== 'schueler') return false;
+    const sm = state.studentMatch;
+    if (!sm || !studentKlasseFromRecord(sm)) return false;
+    const src = String(sm.klasseSource || 'stammdaten');
+    return (
+        src === 'stammdaten' || src === 'entra-class-group' || src === 'entra-group-label'
+    );
+}
+
 export function resolveStudentKlasseCode(stateOrScope) {
     const fromMatch =
         stateOrScope && stateOrScope.studentMatch
@@ -493,13 +681,28 @@ export function formatDeDate(iso) {
 export function scopeFromState(state, opts) {
     const o = opts || {};
     const role = state.role;
+    const base = { accountEmail: state.accountEmail };
+    const jahrgCodes =
+        state.jahrgangScope && state.jahrgangScope.classCodes && state.jahrgangScope.classCodes.size
+            ? state.jahrgangScope.classCodes
+            : null;
+
     if (o.scopeAll || role === 'direktion') {
-        return { accountEmail: state.accountEmail };
+        return base;
     }
     if (role === 'kv') {
-        return { onlyKv: true, accountEmail: state.accountEmail };
+        const src = state.planerRoleSources && state.planerRoleSources.kv;
+        const entraKv = src === 'entra' || src === 'global-admin' || src === 'kv-user';
+        const scope = Object.assign({}, base);
+        if (entraKv) scope.onlyKv = true;
+        if (jahrgCodes) {
+            scope.jahrgangClassCodes = jahrgCodes;
+            if (scope.onlyKv) scope.jahrgangOrKv = true;
+        }
+        if (!scope.onlyKv && !scope.jahrgangClassCodes) scope.onlyKv = true;
+        return scope;
     }
-    return { onlyMine: true, accountEmail: state.accountEmail };
+    return Object.assign({}, base, { onlyMine: true });
 }
 
 /**

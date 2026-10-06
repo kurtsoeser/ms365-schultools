@@ -10,6 +10,7 @@
 
 export const DEFAULT_FOLDER = 'Backups';
 export const CURRENT_FILE = 'ms365-stammdaten-aktuell.json';
+export { CONFIG_FOLDER, CONFIG_MANIFEST_FILE } from './stammdaten-sharepoint-config-bundle.js';
 export const IT_LIBRARY_TITLE = 'MS365-IT-Stammdaten';
 export const IT_LIBRARY_DESC =
     'Nur IT/Verwaltung: vollständiges Browser-Backup von MS365-Schul-Tools (Stammdaten, Automationen, Werkzeugstände). Nicht öffentlich.';
@@ -67,8 +68,12 @@ export function designHintDe() {
     return (
         'Schul- und App-Daten liegen als vollständiges JSON-Backup in der eigenen IT-Bibliothek „' +
         IT_LIBRARY_TITLE +
-        '“ (nicht in „Dokumente“ für alle). ' +
-        'Enthalten: Stammdaten, Power-Automate-/Freistellungs-Konfiguration und weitere Werkzeugstände. ' +
+        '“ (Ordner „' +
+        DEFAULT_FOLDER +
+        '“: ' +
+        CURRENT_FILE +
+        '). Zusätzlich werden Schul-Konfigurationen aufgeteilt unter „config/“ (manifest.json, Stammdaten, Dashboard, permissions-schularbeiten.json, permissions-freistellung.json inkl. optionaler Jahrgangs-Gruppen). ' +
+        'Enthalten: Stammdaten, Dashboard-Zugriff, Power-Automate-/Freistellungs-Konfiguration und weitere Werkzeugstände im Monolithen. ' +
         'Rechte: Vererbung gebrochen, nur Site-Besitzer + gewählte IT-/Verwaltungsgruppe. ' +
         'Schüler-/Elternlisten bleiben bewusst keine SharePoint-Listenzeilen.'
     );
@@ -173,9 +178,7 @@ export function collectItLibraryLinkHints(input) {
     const setup = src.setup && typeof src.setup === 'object' ? src.setup : {};
     const draft = src.formDraft && typeof src.formDraft === 'object' ? src.formDraft : {};
 
-    const siteUrl = String(
-        it.siteUrl || draft.siteUrl || setup.intranetSiteUrl || ''
-    ).trim();
+    const siteUrl = String(it.siteUrl || draft.siteUrl || setup.intranetSiteUrl || '').trim();
     const listTitle =
         String(it.listTitle || draft.libraryTitle || IT_LIBRARY_TITLE).trim() || IT_LIBRARY_TITLE;
 
@@ -208,11 +211,38 @@ const STORAGE_KEY_LABELS = {
     'ms365-stammdaten-it-library-by-tenant-v2': 'IT-Bibliothek pro Mandant',
     'ms365-stammdaten-spo-sync-v1': 'SharePoint-Sync-Status',
     'ms365-stammdaten-spo-sync-by-tenant-v2': 'SharePoint-Sync pro Mandant',
+    'ms365-stammdaten-listen-perms-v1': 'SharePoint-Listen-Berechtigungen',
     'ms365-demo-mode-v1': 'Legacy (Demo-Modus, entfernt)',
     'ms365-dashboard-favorites-v1': 'Dashboard-Favoriten',
+    'ms365-dashboard-recent-tools-v1': 'Dashboard zuletzt verwendet',
+    'ms365-dashboard-audience-groups-v1': 'Dashboard Entra-Gruppen (Personas)',
+    'ms365-dashboard-tool-access-v1': 'Dashboard Werkzeug-Zugriff (Matrix)',
+    'ms365-dashboard-order-catalog-v1': 'Dashboard Katalog-Reihenfolge',
+    'ms365-dash-catalog-fold-v1': 'Dashboard Katalog aufgeklappt',
     'webuntis-teams-creator-state-v1': 'Kursteams / WebUntis',
     'ms365-freistellung-setup-v1': 'Freistellungen Setup',
-    'ms365-power-automate-recipes-v1': 'Power Automate Rezepte'
+    'ms365-freistellung-setup-step-v1': 'Freistellungen Setup (Schritt)',
+    'ms365-freistellung-perms-v1': 'Freistellungs-Planer Berechtigungen',
+    'ms365-freistellung-kategorien-extra-v1': 'Freistellung Zusatz-Kategorien',
+    'ms365-power-automate-recipes-v1': 'Power Automate Rezepte',
+    'ms365-pa-termine-sync-v1': 'PA Schultermine',
+    'ms365-pa-antraege-v1': 'PA Anträge',
+    'ms365-pa-schularbeiten-mail-v1': 'PA Schularbeiten-Mail',
+    'ms365-pa-projektwochen-mail-v1': 'PA Projektwochen-Mail',
+    'ms365-sa-settings-v1': 'Schularbeiten-Planer Einstellungen',
+    'ms365-schularbeiten-perms-v1': 'Schularbeiten-Planer Berechtigungen',
+    'ms365-akt-planer-site-v1': 'Schulaktivitäten-Planer Site',
+    'ms365-playbook-eltern-v1': 'Playbook Eltern',
+    'ms365-playbook-elternsprechtag-v1': 'Playbook Elternsprechtag',
+    'ms365-playbook-freistellungen-v1': 'Playbook Freistellungen',
+    'ms365-playbook-intranet-v1': 'Playbook Intranet',
+    'ms365-playbook-kursteams-v1': 'Playbook Kursteams',
+    'ms365-playbook-schularbeiten-v1': 'Playbook Schularbeiten',
+    'ms365-playbook-schuljahresstart-v1': 'Playbook Schuljahresstart',
+    'ms365-cleanup-playbook-v1': 'Cleanup-Playbook',
+    'ms365-elternsprechtag-bookings-v1': 'Elternsprechtag Buchungen',
+    'ms365-hygiene-scan-v2': 'Datenhygiene-Scan',
+    'ms365-student-lifecycle-prev-v1': 'Schüler-Lifecycle Snapshot'
 };
 
 function labelForStorageKey(key) {

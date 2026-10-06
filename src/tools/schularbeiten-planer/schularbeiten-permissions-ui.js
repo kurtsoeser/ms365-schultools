@@ -14,6 +14,14 @@ import {
     PERMS_STORAGE_KEY
 } from './schularbeiten-planer-permissions.js';
 import { createPlannerExtraUsersController } from '../../shared/planner-extra-users-ui.js';
+import {
+    SA_STAMMDATEN_GROUP_ROLES,
+    htmlReadonlyStammdatenAudienceEgp,
+    fillReadonlyStammdatenGroupField,
+    stripStammdatenGroupFieldsFromPatch,
+    filterEditableGroupFields,
+    saRoleToAudienceKind
+} from '../../shared/planner-stammdaten-audience-ui.js';
 
 /** Setup-Tool sharepoint-liste-schularbeiten.html */
 export const SETUP_GROUP_FIELDS = [
@@ -173,6 +181,14 @@ export function htmlSchularbeitenEntraPermGrid(p, opts) {
         const f = fields[i];
         const label = escapeAttr(vals[f.role] || '');
         const gid = escapeAttr(vals[f.role + 'Id'] || '');
+        if (SA_STAMMDATEN_GROUP_ROLES.has(f.role)) {
+            const kind = saRoleToAudienceKind(f.role);
+            return htmlReadonlyStammdatenAudienceEgp({
+                labelInputId: f.labelInputId,
+                idInputId: f.idInputId,
+                kind: kind === 'lehrer' ? 'lehrer' : 'schueler'
+            });
+        }
         if (delegated) {
             return `<div class="fr-setup-egp">
             <input id="${f.labelInputId}" type="text" readonly value="${label}" placeholder="Gruppe wählen …">
@@ -222,7 +238,7 @@ export function htmlSchularbeitenEntraPermGrid(p, opts) {
       ${card(
           'person-badge',
           'Lehrkräfte',
-          'Schularbeiten: Beitragen; Regelwerk &amp; Terminfenster: Lesen – Gruppe und optional Einzelpersonen.',
+          'Schularbeiten: Beitragen; Regelwerk &amp; Terminfenster: Lesen – Sammelgruppe aus Stammdaten; optional Einzelpersonen.',
           lehrerEgp,
           specs[1],
           false
@@ -230,7 +246,7 @@ export function htmlSchularbeitenEntraPermGrid(p, opts) {
       ${card(
           'mortarboard',
           'Schüler',
-          'Nur Schularbeiten-Liste: Lesen – Entra-Gruppe und optional Einzelpersonen.',
+          'Nur Schularbeiten-Liste: Lesen – Schüler-Sammelgruppe aus Stammdaten; optional Einzelpersonen.',
           schuelerEgp,
           specs[2],
           false
@@ -243,7 +259,7 @@ export function htmlSchularbeitenEntraPermGrid(p, opts) {
  */
 export function readPermissionsFromPickers(fieldDefs) {
     const out = { skipPerms: false };
-    fieldDefs.forEach((f) => {
+    filterEditableGroupFields(fieldDefs, SA_STAMMDATEN_GROUP_ROLES).forEach((f) => {
         const r = readGroupPickerField(f);
         out[f.role] = r.label;
         out[f.role + 'Id'] = r.id;
@@ -260,6 +276,10 @@ export function readPermissionsFromPickers(fieldDefs) {
 export function fillPermissionsPickers(cfg, fieldDefs) {
     const c = normalizePermissionsConfig(cfg);
     fieldDefs.forEach((f) => {
+        if (SA_STAMMDATEN_GROUP_ROLES.has(f.role)) {
+            fillReadonlyStammdatenGroupField(f);
+            return;
+        }
         fillGroupPickerField(f, {
             id: c[f.role + 'Id'],
             label: c[f.role]
@@ -275,7 +295,7 @@ export function fillPermissionsPickers(cfg, fieldDefs) {
  */
 export function wirePermissionGroupPickers(fieldDefs, onChange) {
     wireEntraGroupPickerFields({
-        fields: fieldDefs.map((f) => ({
+        fields: filterEditableGroupFields(fieldDefs, SA_STAMMDATEN_GROUP_ROLES).map((f) => ({
             labelInputId: f.labelInputId,
             idInputId: f.idInputId,
             pickBtnId: f.pickBtnId,
@@ -298,6 +318,7 @@ export function wirePermissionGroupPickersDelegated(root, fieldDefs, onChange) {
         const pick = ev.target.closest('[data-egp-pick]');
         if (pick) {
             const id = pick.getAttribute('data-egp-pick');
+            if (SA_STAMMDATEN_GROUP_ROLES.has(id)) return;
             const def = fieldDefs.find((f) => f.role === id);
             if (!def) return;
             pickEntraGroup({ title: def.dialogTitle })
@@ -316,6 +337,7 @@ export function wirePermissionGroupPickersDelegated(root, fieldDefs, onChange) {
         const clear = ev.target.closest('[data-egp-clear]');
         if (clear) {
             const role = clear.getAttribute('data-egp-clear');
+            if (SA_STAMMDATEN_GROUP_ROLES.has(role)) return;
             const def = fieldDefs.find((f) => f.role === role);
             if (!def) return;
             fillGroupPickerField(def, { id: '', label: '' });
@@ -325,7 +347,10 @@ export function wirePermissionGroupPickersDelegated(root, fieldDefs, onChange) {
 }
 
 export function persistPickersToStorage(fieldDefs, skipPerms) {
-    const patch = readPermissionsFromPickers(fieldDefs);
+    const patch = stripStammdatenGroupFieldsFromPatch(
+        readPermissionsFromPickers(fieldDefs),
+        SA_STAMMDATEN_GROUP_ROLES
+    );
     if (skipPerms != null) patch.skipPerms = !!skipPerms;
     return savePermissionsConfig(patch);
 }
@@ -340,6 +365,9 @@ export function initSchularbeitenSetupExtraUsers(onChange) {
         });
         setupExtraWired = true;
     }
+    SETUP_GROUP_FIELDS.forEach((f) => {
+        if (SA_STAMMDATEN_GROUP_ROLES.has(f.role)) fillReadonlyStammdatenGroupField(f);
+    });
     setupExtraCtrl.loadFromConfig(loadPermissionsConfig(), explicitSavedUserFlags());
 }
 
@@ -349,6 +377,9 @@ export function initSchularbeitenSetupExtraUsers(onChange) {
  */
 export function refreshSchularbeitenPlanerExtraUsers(onChange) {
     if (!document.getElementById('saPermAdminUsers')) return;
+    PLANER_GROUP_FIELDS.forEach((f) => {
+        if (SA_STAMMDATEN_GROUP_ROLES.has(f.role)) fillReadonlyStammdatenGroupField(f);
+    });
     planerExtraCtrl.wire(() => {
         if (typeof onChange === 'function') onChange();
     });

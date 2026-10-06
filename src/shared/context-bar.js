@@ -78,6 +78,12 @@
     }
 
     function placeDashboardNav(header) {
+        if (document.body && document.body.classList.contains('app-shell-chrome')) {
+            if (typeof window.ms365NormalizeToolPageChrome === 'function') {
+                window.ms365NormalizeToolPageChrome();
+            }
+            return;
+        }
         var nav = document.getElementById('ms365HeaderNav');
         if (nav && nav.querySelector('a[href]')) return;
         var toolbar = header.querySelector('.toolbar');
@@ -108,11 +114,13 @@
     }
 
     function fillAccountContext(ctx) {
-        var yearEl = document.getElementById('ms365AuthCtxYear');
         var domainEl = document.getElementById('ms365AuthCtxDomain');
-        if (yearEl) yearEl.textContent = ctx.year || '–';
         if (domainEl) domainEl.textContent = ctx.domain || '–';
-        return !!(yearEl || domainEl);
+        var ui = window.ms365SchoolYearUi;
+        if (ui && typeof ui.bindSchoolYearControls === 'function') {
+            ui.bindSchoolYearControls();
+        }
+        return !!(document.getElementById('schoolYearSelect') || domainEl);
     }
 
     var headerReadySent = false;

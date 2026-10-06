@@ -67,8 +67,8 @@ function renderTable(root) {
                 <div>
                     <h3 id="dashAccessMatrixTitle">Dashboard: Werkzeug-Zugriff</h3>
                     <p class="dash-access-matrix__lead">
-                        Legt fest, welche Kacheln Mitglieder der <strong>Lehrer-Entra-Gruppe</strong> bzw. <strong>Schüler-Entra-Gruppe</strong> auf dem Start-Dashboard sehen
-                        (Gruppen oben auf dieser Seite). Global Administratorinnen/Administratoren sehen immer den vollen Katalog.
+                        Legt fest, welche Kacheln Lehrkräfte bzw. Schülerinnen/Schüler auf dem Start-Dashboard sehen
+                        (Standard-Gruppen aus den <strong>Stammdaten</strong>). Schul-IT sieht den vollen Katalog.
                         Schularbeiten- und Freistellungs-Planer haben zusätzlich eigene Berechtigungen im jeweiligen Tool.
                     </p>
                 </div>

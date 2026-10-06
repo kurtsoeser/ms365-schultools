@@ -1,49 +1,30 @@
 /**
  * Entra-Gruppen für Dashboard-Personas (Lehrkraft / Schüler).
- * Nur Schul-IT pflegt diese Zuordnung auf der Seite „Dashboard-Werkzeug-Zugriff“.
+ * Kanonische Quelle: Stammdaten (Lehrer-/Schüler-Sammelgruppe), siehe school-audience-groups.js.
  */
+import { notifyAppLocalDataChanged } from './app-local-data-notify.js';
+import {
+    loadSchoolAudienceGroups,
+    schoolAudienceGroupsConfigured,
+    normalizeSchoolAudienceGroups
+} from './school-audience-groups.js';
+
 export const DASHBOARD_AUDIENCE_GROUPS_KEY = 'ms365-dashboard-audience-groups-v1';
 
-const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** @typedef {import('./school-audience-groups.js').SchoolAudienceGroupsConfig} DashboardAudienceGroupsConfig */
 
-/**
- * @typedef {{
- *   groupLehrerId?: string,
- *   groupLehrerName?: string,
- *   groupSchuelerId?: string,
- *   groupSchuelerName?: string
- * }} DashboardAudienceGroupsConfig
- */
-
-export function normalizeDashboardAudienceGroups(raw) {
-    const o = raw && typeof raw === 'object' ? raw : {};
-    const normId = (v) => {
-        const id = String(v || '').trim();
-        return GUID_RE.test(id) ? id : '';
-    };
-    return {
-        groupLehrerId: normId(o.groupLehrerId),
-        groupLehrerName: String(o.groupLehrerName || '').trim(),
-        groupSchuelerId: normId(o.groupSchuelerId),
-        groupSchuelerName: String(o.groupSchuelerName || '').trim()
-    };
-}
+export const normalizeDashboardAudienceGroups = normalizeSchoolAudienceGroups;
 
 export function loadDashboardAudienceGroups() {
-    try {
-        const raw = localStorage.getItem(DASHBOARD_AUDIENCE_GROUPS_KEY);
-        if (!raw) return normalizeDashboardAudienceGroups({});
-        return normalizeDashboardAudienceGroups(JSON.parse(raw));
-    } catch {
-        return normalizeDashboardAudienceGroups({});
-    }
+    return loadSchoolAudienceGroups();
 }
 
 /**
+ * Legacy: separate Dashboard-Gruppen (nur wenn Stammdaten leer). Bevorzugt Stammdaten pflegen.
  * @param {DashboardAudienceGroupsConfig} config
  */
 export function saveDashboardAudienceGroups(config) {
-    const payload = normalizeDashboardAudienceGroups(config);
+    const payload = normalizeSchoolAudienceGroups(config);
     try {
         localStorage.setItem(DASHBOARD_AUDIENCE_GROUPS_KEY, JSON.stringify(payload));
     } catch {
@@ -54,13 +35,8 @@ export function saveDashboardAudienceGroups(config) {
     } catch {
         /* ignore */
     }
+    notifyAppLocalDataChanged('dashboard-audience-groups');
     return payload;
 }
 
-/**
- * @param {DashboardAudienceGroupsConfig} [config]
- */
-export function dashboardAudienceGroupsConfigured(config) {
-    const c = normalizeDashboardAudienceGroups(config || loadDashboardAudienceGroups());
-    return !!(c.groupLehrerId || c.groupSchuelerId);
-}
+export { schoolAudienceGroupsConfigured as dashboardAudienceGroupsConfigured };

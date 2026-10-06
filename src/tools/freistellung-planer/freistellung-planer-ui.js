@@ -9,7 +9,9 @@ import {
     STATUS_CHOICES,
 } from './freistellung-planer-logic.js';
 import { htmlFreistellungKategorienPanel } from './freistellung-kategorien-ui.js';
+import { htmlFreistellungKlassenPanel } from './freistellung-klassen-ui.js';
 import { NACHWEISE_MAX_FILES, NACHWEISE_MAX_BYTES, formatNachweisSize } from './freistellung-planer-nachweise.js';
+import { renderFreistellungAccessDebugEntry } from './freistellung-planer-access-debug-ui.js';
 import {
     viewsForRole,
     useStudentPlanerChrome,
@@ -23,6 +25,7 @@ import {
     scopeFromState,
     canDecide,
     resolveStudentKlasseCode,
+    isStudentKlasseLocked,
     findClassInStammdaten,
     classesForStudentPicker,
     studentKlasseFromRecord,
@@ -235,7 +238,7 @@ function renderKvTop(state) {
         <header class="fr-top fr-top--student">
           <div>
             <h2 class="fr-top__student-title">Freistellungen meiner Klasse</h2>
-            <p class="fr-nav__hint">Anträge Ihrer Schülerinnen und Schüler – Genehmigung in Microsoft Approvals (Teams/Outlook).</p>
+            <p class="fr-nav__hint">Anträge Ihrer Klasse – Status und Übersicht.</p>
             ${
                 classLabels.length
                     ? `<p class="fr-nav__hint">Klassen: <span class="fr-badge fr-nav__account-klasse">${esc(
@@ -262,15 +265,20 @@ function renderKvTop(state) {
 function renderStudentTop(state) {
     const denied = state.planerAccessDenied;
     const hint = state.roleHintPublic || '';
+    const onAntrag = state.view === 'antrag';
+    const title = onAntrag ? 'Neuer Antrag' : 'Meine Anträge';
+    const lead = onAntrag
+        ? 'Antrag absenden – Genehmigung über Microsoft Approvals.'
+        : 'Eingereichte Freistellungen und Status.';
     return `
         <header class="fr-top fr-top--student">
           <div>
-            <h2 class="fr-top__student-title">Meine Freistellungen</h2>
-            <p class="fr-nav__hint">Status Ihrer Anträge – Genehmigung durch Klassenvorstand und Direktion.</p>
+            <h2 class="fr-top__student-title">${esc(title)}</h2>
+            <p class="fr-nav__hint">${esc(lead)}</p>
           </div>
           <div class="fr-top__student-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
           ${
-              state.accountEmail && !denied
+              state.accountEmail && !denied && !onAntrag
                   ? `<button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>`
                   : ''
           }
@@ -294,24 +302,25 @@ function htmlAdminSiteControls(state, opts) {
     const o = opts || {};
     const devTools = showPlanerDevTools(state);
     const setupLinks = o.includeSetupLinks
-        ? `<a class="btn" href="freistellung-konzept.html" style="text-decoration:none" title="Ablauf und Genehmigungslogik"><i class="bi bi-diagram-3"></i>Ablauf</a>
-              <a class="btn" href="freistellung-setup.html" style="text-decoration:none"><i class="bi bi-gear"></i>Setup</a>`
+        ? `<a class="btn btn-sm" href="freistellung-konzept.html" style="text-decoration:none" title="Ablauf und Genehmigungslogik"><i class="bi bi-diagram-3"></i>Ablauf</a>
+              <a class="btn btn-sm" href="freistellung-setup.html" style="text-decoration:none"><i class="bi bi-gear"></i>Setup</a>`
+        : '';
+    const devBlock = devTools
+        ? `<button type="button" class="btn btn-sm" id="frBtnDemo" title="SJ 2026/27 Demo laden"><i class="bi bi-database"></i>Demo</button>
+              <button type="button" class="btn btn-sm" id="frBtnJsonImport" title="JSON-Testpaket"><i class="bi bi-filetype-json"></i>JSON</button>
+              <input type="file" id="frJsonImportFile" accept="application/json,.json" hidden>
+              <button type="button" class="btn btn-sm alt" id="frBtnDemoReset" title="Demo zurücksetzen"><i class="bi bi-trash"></i>Reset</button>`
         : '';
     return `
-            <label for="frSiteUrl">SharePoint-Site</label>
-            <div class="fr-top__row" style="margin-top:6px;">
-              <input type="url" id="frSiteUrl" value="${esc(state.siteUrl)}" placeholder="https://…sharepoint.com/sites/Administration" spellcheck="false" style="flex:1;min-width:200px;">
-              <button type="button" class="btn" id="frBtnLoad"><i class="bi bi-arrow-repeat"></i>Laden</button>
-              ${setupLinks}
-              <button type="button" class="btn" id="frBtnCsv"><i class="bi bi-download"></i>CSV</button>
-              ${
-                  devTools
-                      ? `<button type="button" class="btn" id="frBtnDemo" title="SJ 2026/27 Demo laden"><i class="bi bi-database"></i>Demo</button>
-              <button type="button" class="btn" id="frBtnJsonImport" title="JSON-Testpaket"><i class="bi bi-filetype-json"></i>Testdaten JSON</button>
-              <input type="file" id="frJsonImportFile" accept="application/json,.json" hidden>
-              <button type="button" class="btn" id="frBtnDemoReset" title="Demo zurücksetzen"><i class="bi bi-trash"></i>Demo reset</button>`
-                      : ''
-              }
+            <div class="fr-site-controls">
+              <label class="fr-site-controls__label" for="frSiteUrl">SharePoint-Site</label>
+              <input type="url" class="fr-site-controls__input" id="frSiteUrl" value="${esc(state.siteUrl)}" placeholder="https://ihre-schule.sharepoint.com/sites/Administration" spellcheck="false" autocomplete="off">
+              <div class="fr-site-controls__actions">
+                <button type="button" class="btn btn-sm btn-success" id="frBtnLoad"><i class="bi bi-arrow-repeat"></i>Laden</button>
+                ${setupLinks}
+                <button type="button" class="btn btn-sm" id="frBtnCsv"><i class="bi bi-download"></i>CSV</button>
+                ${devBlock}
+              </div>
             </div>`;
 }
 
@@ -342,18 +351,24 @@ function renderAdministration(state) {
         return '<p class="muted">Nur für Direktion / Admin.</p>';
     }
     return `
-    <section class="fr-panel">
+    <section class="fr-panel fr-panel--compact">
       <h2>Administration</h2>
-      <p class="muted">Einrichtung, Dokumentation und technische Werkzeuge – nicht für den täglichen Genehmigungsablauf nötig.</p>
-      <div class="fr-admin-links">
-        <a class="btn" href="freistellung-konzept.html" style="text-decoration:none"><i class="bi bi-diagram-3"></i>Ablauf erklärt</a>
-        <a class="btn" href="freistellung-setup.html" style="text-decoration:none"><i class="bi bi-wrench"></i>Liste &amp; Flow einrichten</a>
-        <a class="btn" href="../tenant.html" style="text-decoration:none"><i class="bi bi-gear"></i>Stammdaten</a>
-        <a class="btn" href="../hilfe.html#tool-freistellung-planer" style="text-decoration:none"><i class="bi bi-question-circle"></i>Hilfe</a>
-        <a class="btn" href="../index.html" style="text-decoration:none"><i class="bi bi-arrow-left"></i>Dashboard Schul-Tools</a>
-      </div>
+      <p class="muted fr-panel__lead">Einrichtung, Dokumentation und Technik – nicht für den täglichen Genehmigungsablauf.</p>
+      <nav class="fr-admin-nav" aria-label="Weitere Seiten">
+        <a class="fr-admin-nav__item" href="freistellung-konzept.html"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Ablauf</span></a>
+        <a class="fr-admin-nav__item" href="freistellung-setup.html"><i class="bi bi-wrench" aria-hidden="true"></i><span>Setup</span></a>
+        <a class="fr-admin-nav__item" href="../tenant.html"><i class="bi bi-gear" aria-hidden="true"></i><span>Stammdaten</span></a>
+        <a class="fr-admin-nav__item" href="../hilfe.html#tool-freistellung-planer"><i class="bi bi-question-circle" aria-hidden="true"></i><span>Hilfe</span></a>
+        <a class="fr-admin-nav__item" href="../index.html"><i class="bi bi-arrow-left" aria-hidden="true"></i><span>Dashboard</span></a>
+      </nav>
     </section>
     ${renderAdminSitePanel(state)}
+    ${htmlFreistellungKlassenPanel({
+        mountId: 'frPlanerKlassenList',
+        syncBtnId: 'frPlanerKlassenSyncSp',
+        reloadBtnId: 'frPlanerKlassenReload',
+        cleanBtnId: 'frPlanerKlassenClean'
+    })}
     ${htmlFreistellungKategorienPanel({
         listId: 'frPlanerKatExtraList',
         newInputId: 'frPlanerKatExtraNew',
@@ -372,7 +387,7 @@ function renderDirektionTop(state) {
             <h2 class="fr-top__student-title">${onAdmin ? 'Administration' : 'Freistellungen – Verwaltung'}</h2>
             <p class="fr-nav__hint">${
                 onAdmin
-                    ? 'SharePoint, Demo-Daten, Kategorien und Links zur Einrichtung.'
+                    ? 'SharePoint, Klassen aus Stammdaten, Kategorien und Links zur Einrichtung.'
                     : 'Übersicht, Anträge und Genehmigungen. Technik: Menü „Administration“.'
             }</p>
           </div>
@@ -438,7 +453,7 @@ export function renderApp(state, root) {
             <strong>Freistellungen</strong>
             <span>${
                 studentChrome
-                    ? 'Meine Anträge'
+                    ? 'Schüler'
                     : kvChrome
                       ? 'Klassenübersicht'
                       : direktionChrome
@@ -469,6 +484,7 @@ export function renderApp(state, root) {
                     ? renderDirektionTop(state)
                     : renderStaffTop(state)
         }
+        ${renderFreistellungAccessDebugEntry(state)}
         ${
             !minimalChrome && state.localDemoOnly
                 ? '<div class="fr-alert fr-alert--info" role="status">Lokaler Demo-Modus – Anzeige ohne SharePoint. Mit „Laden“ echte Liste verbinden.</div>'
@@ -682,14 +698,22 @@ function renderMeine(state) {
         accountEmail: state.accountEmail
     });
     return `
-    <section class="fr-panel">
-      <h2>Meine Anträge</h2>
+    <section class="fr-panel${studentChrome ? ' fr-panel--student-meine' : ''}">
+      ${studentChrome ? '' : '<h2>Meine Anträge</h2>'}
       ${studentChrome ? '' : filterBar(state)}
-      ${items.length ? renderTable(items, state) : '<p class="muted">Noch keine eigenen Anträge.</p>'}
       ${
-          studentChrome
+          items.length
+              ? renderTable(items, state)
+              : `<p class="muted">${
+                    studentChrome
+                        ? 'Noch keine Anträge. Stellen Sie Ihren ersten Antrag über die Navigation oder den Button unten.'
+                        : 'Noch keine eigenen Anträge.'
+                }</p>`
+      }
+      ${
+          studentChrome && !items.length
               ? `<div class="fr-actions" style="margin-top:12px">
-        <button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Neuen Antrag stellen</button>
+        <button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Antrag stellen</button>
       </div>`
               : ''
       }
@@ -749,40 +773,50 @@ function htmlAntragKlasseField(state, f, studentChrome) {
     const selected = String(klasseCode || f.klasse || '').trim();
     const classes = studentChrome ? classesForStudentPicker(state) : state.stammdaten.classes || [];
     const classOpts = optionList(classes, selected, 'Klasse wählen…');
-    const stammLocked =
-        studentChrome && !!state.studentMatch && !!studentKlasseFromRecord(state.studentMatch);
+    const klasseLocked = studentChrome && isStudentKlasseLocked(state);
     const hit = findClassInStammdaten(classes, selected);
+    const src =
+        state.studentMatch && state.studentMatch.klasseSource === 'entra-class-group'
+            ? 'Microsoft-365-Klassengruppe'
+            : state.studentMatch && state.studentMatch.klasseSource === 'entra-group-label'
+              ? 'Microsoft-365-Gruppe (Klasse)'
+              : state.studentMatch && state.studentMatch.klasseSource === 'local-pick'
+                ? 'Ihre Auswahl (dieses Gerät)'
+                : 'Schul-Stammdaten';
     const hintStamm =
-        studentChrome && stammLocked
-            ? '<span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">Ihre Klasse aus den Schul-Stammdaten (E-Mail-Zuordnung).</span>'
+        studentChrome && klasseLocked
+            ? '<span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">Ihre Klasse (' +
+              esc(src) +
+              ') – nicht änderbar.</span>'
             : '';
     const hintPick =
-        studentChrome && !stammLocked
-            ? '<span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">Bitte Ihre Klasse wählen. Die Auswahl wird für weitere Anträge auf diesem Gerät gemerkt.</span>'
+        studentChrome && !klasseLocked && classes.length
+            ? '<span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">Wählen Sie Ihre Klasse aus der Schul-Liste.</span>'
             : '';
     const hintEmpty =
-        studentChrome && !classes.length
-            ? '<p class="muted" style="margin:6px 0 0;font-size:0.88em;">Die Klassenliste ist hier noch leer (Stammdaten nicht synchronisiert). Bitte IT/Sekretariat – oder nach Anmeldung Seite neu laden, wenn Stammdaten-Abgleich aktiv ist.</p>'
+        studentChrome && !klasseLocked && !classes.length
+            ? '<p class="muted" style="margin:6px 0 0;font-size:0.88em;">Noch keine Klassen aus den Stammdaten (1A, 1B, …). Bitte als IT im <strong>Freistellungen-Setup → Gruppen speichern</strong> – das überschreibt die alten Demo-Werte (1AHW …) in SharePoint. Danach hier <strong>Aktualisieren</strong>.</p>'
             : '';
     if (studentChrome) {
-        const label = hit ? hit.name || hit.code : selected;
-        if (stammLocked && selected) {
+        if (klasseLocked && selected) {
             return `<label>Klasse *
-            <select id="frFormKlasse" disabled required aria-readonly="true">${optionList(
-                classes.length ? classes : [{ code: selected, name: label }],
-                selected,
-                'Klasse wählen…'
-            )}</select>
-            ${hintStamm}${hintEmpty}
+            <input type="text" id="frFormKlasse" required readonly aria-readonly="true" value="${esc(
+                selected
+            )}" style="background:var(--surface-2,#f4f6f8);">
+            ${hintStamm}
           </label>`;
         }
-        return `<label>Klasse *
-            <select id="frFormKlasse" required>${classOpts}</select>
-            ${hintPick}${hintEmpty}
+        const opts =
+            classes.length
+                ? classOpts
+                : optionList([], selected, 'Klassenliste wird geladen…');
+        return `<label class="fr-form-klasse-label">Klasse *
+            <select id="frFormKlasse" class="fr-form-klasse-select" required aria-label="Klasse wählen">${opts}</select>
+            ${classes.length ? hintPick : hintEmpty}
           </label>`;
     }
-    return `<label>Klasse *
-            <select id="frFormKlasse" required>${classOpts}</select>
+    return `<label class="fr-form-klasse-label">Klasse *
+            <select id="frFormKlasse" class="fr-form-klasse-select" required aria-label="Klasse wählen">${classOpts}</select>
           </label>`;
 }
 
@@ -795,8 +829,7 @@ function renderAntrag(state) {
         draft: { ...f, _allowedKategorien: kategorieChoicesForState(state) }
     });
     const klasseCode = resolveStudentKlasseCode(state);
-    const klasseLocked =
-        studentChrome && !!studentKlasseFromRecord(state.studentMatch) && !!state.studentMatch;
+    const klasseLocked = studentChrome && isStudentKlasseLocked(state);
     const klasseChosen = !!String(klasseCode || f.klasse || '').trim();
     const nameLocked = studentChrome && !!String(state.accountName || '').trim();
     const kvPrefilled =
@@ -810,22 +843,31 @@ function renderAntrag(state) {
             <input type="hidden" id="frFormKvEmail" value="${esc(f.kvEmail)}">
             <span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">Automatisch aus Stammdaten Ihrer Klasse.</span>
           </label>`
-        : `<label>Klassenvorstand (E-Mail) *
+        : studentChrome
+          ? `<label>Klassenvorstand *
+            <input type="search" id="frFormKvSearch" placeholder="Lehrperson in Microsoft 365 suchen (Name oder E-Mail)…" autocomplete="off" value="${esc(
+                  f.kvName && f.kvEmail ? f.kvName + ' · ' + f.kvEmail : f.kvEmail || ''
+              )}">
+            <input type="hidden" id="frFormKvEmail" value="${esc(f.kvEmail)}">
+            <input type="hidden" id="frFormKvName" value="${esc(f.kvName || '')}">
+            <ul id="frFormKvSearchHits" class="fr-kv-search-hits" hidden></ul>
+            <span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">${
+                klasseCode
+                    ? 'Suche Ihre Lehrperson – wird dem Antrag zugeordnet.'
+                    : 'Zuerst Klasse, dann Lehrperson wählen.'
+            }</span>
+          </label>`
+          : `<label>Klassenvorstand (E-Mail) *
             <input type="email" id="frFormKvEmail" required value="${esc(f.kvEmail)}" placeholder="kv@schule.at">
-            ${
-                studentChrome && klasseCode && !f.kvEmail
-                    ? '<span class="muted" style="font-size:0.85em;display:block;margin-top:4px;">Kein KV in den Stammdaten für diese Klasse – bitte Klassenvorstand informieren.</span>'
-                    : ''
-            }
           </label>`;
     return `
     <section class="fr-panel">
-      <h2>${studentChrome ? 'Freistellung beantragen' : 'Neuer Freistellungsantrag'}</h2>
-      <p class="muted">${
+      ${
           studentChrome
-              ? 'Nach dem Absenden geht der Antrag an Ihren Klassenvorstand (Microsoft Approvals).'
-              : 'Nach dem Speichern schreibt die App in die SharePoint-Liste (Status <em>Ausstehend</em>). Der eingerichtete Flow startet dann den Genehmigungsprozess.'
-      }</p>
+              ? ''
+              : `<h2>Neuer Freistellungsantrag</h2>
+      <p class="muted">Nach dem Speichern schreibt die App in die SharePoint-Liste (Status <em>Ausstehend</em>). Der eingerichtete Flow startet dann den Genehmigungsprozess.</p>`
+      }
       <form id="frAntragForm" class="fr-form" autocomplete="on">
         <div class="fr-form-grid">
           <label>Ihr Name *
@@ -976,9 +1018,115 @@ export function readFormFromDom(root) {
         kvEmail: String(($('frFormKvEmail') && $('frFormKvEmail').value) || '')
             .trim()
             .toLowerCase(),
+        kvName: String(($('frFormKvName') && $('frFormKvName').value) || '').trim(),
         beschreibung: String(($('frFormBeschreibung') && $('frFormBeschreibung').value) || '').trim(),
         status: 'Ausstehend'
     };
+}
+
+/**
+ * Schüler: Klassenvorstand per Microsoft-365-Suche wählen.
+ * @param {HTMLElement} root
+ */
+export function wireFreistellungStudentKvSearch(root) {
+    if (!root) return;
+    const search = root.querySelector('#frFormKvSearch');
+    const hits = root.querySelector('#frFormKvSearchHits');
+    const emailEl = root.querySelector('#frFormKvEmail');
+    const nameEl = root.querySelector('#frFormKvName');
+    if (!search || !hits || !emailEl) return;
+    if (search.dataset.frKvWired === '1') return;
+    search.dataset.frKvWired = '1';
+
+    let timer = null;
+    let inFlight = 0;
+
+    function pickUser(u) {
+        const mail = String(u.mail || u.userPrincipalName || '')
+            .trim()
+            .toLowerCase();
+        const name = String(u.displayName || '').trim();
+        if (!mail.includes('@')) return;
+        emailEl.value = mail;
+        if (nameEl) nameEl.value = name;
+        search.value = name ? name + ' · ' + mail : mail;
+        hits.hidden = true;
+        hits.innerHTML = '';
+    }
+
+    search.addEventListener('input', function () {
+        clearTimeout(timer);
+        const q = String(search.value || '').trim();
+        if (q.length < 2) {
+            hits.hidden = true;
+            hits.innerHTML = '';
+            return;
+        }
+        timer = setTimeout(async function () {
+            const G = typeof window !== 'undefined' ? window.ms365GraphUnifiedGroups : null;
+            if (!G || typeof G.searchUsers !== 'function' || typeof G.getGraphToken !== 'function') {
+                return;
+            }
+            const flight = ++inFlight;
+            try {
+                const scopes = ['https://graph.microsoft.com/User.Read', 'https://graph.microsoft.com/User.ReadBasic.All'];
+                let tok = null;
+                if (typeof window.ms365AuthAcquireTokenSilent === 'function') {
+                    try {
+                        tok = await window.ms365AuthAcquireTokenSilent(scopes);
+                    } catch {
+                        tok = null;
+                    }
+                }
+                if (!tok) {
+                    hits.innerHTML =
+                        '<li class="muted">Lehrersuche braucht eine IT-Freigabe in Microsoft Entra – Klassenvorstand-E-Mail unten eintragen.</li>';
+                    hits.hidden = false;
+                    return;
+                }
+                const users = await G.searchUsers(tok, q);
+                if (flight !== inFlight) return;
+                if (!users.length) {
+                    hits.innerHTML = '<li class="muted">Keine Treffer</li>';
+                    hits.hidden = false;
+                    return;
+                }
+                hits.innerHTML = users
+                    .slice(0, 12)
+                    .map(function (u) {
+                        const mail = String(u.mail || u.userPrincipalName || '').trim();
+                        const name = String(u.displayName || mail).trim();
+                        return (
+                            '<li><button type="button" class="fr-kv-search-hit" data-email="' +
+                            esc(mail) +
+                            '" data-name="' +
+                            esc(name) +
+                            '">' +
+                            esc(name) +
+                            (mail ? ' <span class="muted">' + esc(mail) + '</span>' : '') +
+                            '</button></li>'
+                        );
+                    })
+                    .join('');
+                hits.hidden = false;
+            } catch {
+                if (flight === inFlight) {
+                    hits.innerHTML = '<li class="muted">Suche nicht verfügbar</li>';
+                    hits.hidden = false;
+                }
+            }
+        }, 320);
+    });
+
+    hits.addEventListener('click', function (ev) {
+        const btn = ev.target.closest('.fr-kv-search-hit');
+        if (!btn) return;
+        ev.preventDefault();
+        pickUser({
+            mail: btn.getAttribute('data-email'),
+            displayName: btn.getAttribute('data-name')
+        });
+    });
 }
 
 export function readFiltersFromDom(root) {

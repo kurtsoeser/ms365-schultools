@@ -5,15 +5,28 @@ import {
     normalizePermissionsConfig,
     savePermissionsConfig,
     loadPermissionsConfig,
+    loadEffectivePermissionsConfig,
     entraGroupsConfigured
 } from './freistellung-planer-permissions.js';
+import { overlaySchoolAudienceOnPermissions } from '../../shared/school-audience-groups.js';
 import {
     loadExtraKategorien,
     normalizeExtraKategorien,
     saveExtraKategorien
 } from './freistellung-planer-kategorien.js';
-import { tryResolveFrListId } from './freistellung-planer-graph.js';
+import { tryResolveFrListId, patchFreistellungKlasseColumn } from './freistellung-planer-graph.js';
 import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
+import { persistSiteUrl, persistSetupFields } from './freistellung-planer-state.js';
+import {
+    classTeamLinksFromAppData,
+    collectAllClassRows,
+    classRowsFromTeamLinks
+} from './freistellung-planer-class-context.js';
+import {
+    normalizeClassTeamLinks,
+    normalizeClassCatalog
+} from './freistellung-planer-permissions.js';
+import { loadStammdaten } from './freistellung-planer-state.js';
 
 /** Relativ zum Drive-Root (Site Assets oder „Dokumente“) – ohne Site-Namen im Pfad. */
 export const REMOTE_CONFIG_REL_PATH = 'ms365/freistellung-planer-groups.json';
@@ -74,16 +87,21 @@ export function permissionsToRemotePayload(config, opts) {
         groupSchuelerId: c.groupSchuelerId,
         direktionUsers: c.direktionUsers,
         kvUsers: c.kvUsers,
-        schuelerUsers: c.schuelerUsers
+        schuelerUsers: c.schuelerUsers,
+        allowedJahrgang: c.allowedJahrgang,
+        jahrgangGroups: c.jahrgangGroups,
+        classTeamLinks: c.classTeamLinks,
+        classCatalog: c.classCatalog
     };
     if (extraKat.length) payload.kategorienExtra = extraKat;
     return payload;
 }
 
 /** Kompakt für Listen-Beschreibung (Zeichenlimit). */
-export function permissionsToListDescriptionPayload(config) {
+export function permissionsToListDescriptionPayload(config, opts) {
     const c = normalizePermissionsConfig(config);
-    return {
+    const o = opts || {};
+    const payload = {
         v: REMOTE_CONFIG_VERSION,
         gd: c.groupDirektionId,
         gk: c.groupKvId,
@@ -92,6 +110,93 @@ export function permissionsToListDescriptionPayload(config) {
         ku: compactUserList(c.kvUsers),
         su: compactUserList(c.schuelerUsers)
     };
+    const w = String(o.siteWebUrl || '').trim().replace(/\/$/, '');
+    const lid = String(o.listId || '').trim();
+    if (w) payload.w = w;
+    if (lid) payload.lid = lid;
+    const links = normalizeClassTeamLinks(
+        (opts && opts.classTeamLinks) || c.classTeamLinks || []
+    );
+    if (links.length) {
+        payload.ct = links.slice(0, 120).map((row) => ({
+            c: row.code,
+            g: row.groupId,
+            n: row.name && row.name !== row.code ? row.name : undefined
+        }));
+    }
+    const catalog = normalizeClassCatalog((opts && opts.classCatalog) || c.classCatalog || []);
+    if (catalog.length) {
+        payload.cl = catalog.slice(0, 200).map((row) => ({
+            c: row.code,
+            n: row.name && row.name !== row.code ? row.name : undefined
+        }));
+    }
+    return payload;
+}
+
+/** Stammdaten-Klassen (IT-Browser) für Veröffentlichung an Schüler. */
+export function classCatalogFromSchoolStammdaten() {
+    const st = loadStammdaten();
+    const rows = collectAllClassRows({ stammdaten: { classes: st.classes || [] } });
+    return normalizeClassCatalog(
+        rows.map((r) => ({
+            code: r.code || r.name,
+            name: r.name || r.code
+        }))
+    );
+}
+
+/** Klassen-Teams aus App-Daten in Permissions mergen (für Listen-Beschreibung). */
+export function mergeClassTeamLinksForPublish(config) {
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
+    const merged = normalizeClassTeamLinks(c.classTeamLinks);
+    const seen = new Set(merged.map((r) => r.code.toLowerCase() + '|' + r.groupId.toLowerCase()));
+    classTeamLinksFromAppData().forEach((row) => {
+        const key = row.code.toLowerCase() + '|' + row.groupId.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        merged.push({
+            code: row.code,
+            groupId: row.groupId,
+            name: row.name || row.code
+        });
+    });
+    return normalizePermissionsConfig({ ...c, classTeamLinks: merged });
+}
+
+/** Gruppen + Klassenliste + Team-IDs für SharePoint (Schüler ohne IT-Stammdaten lokal). */
+export function mergePlannerPublishConfig(config) {
+    const withTeams = mergeClassTeamLinksForPublish(config);
+    const fromStamm = classCatalogFromSchoolStammdaten();
+    // Stammdaten (1A, 1B, …) haben Vorrang vor alten Listenwerten (1AHW …).
+    let catalog = fromStamm.length
+        ? fromStamm.slice()
+        : normalizeClassCatalog(withTeams.classCatalog);
+    if (!fromStamm.length) {
+        const seen = new Set(catalog.map((r) => r.code.toLowerCase()));
+        classRowsFromTeamLinks(withTeams.classTeamLinks || []).forEach((row) => {
+            const key = row.code.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            catalog.push({ code: row.code, name: row.name || row.code });
+        });
+    }
+    catalog = catalog.filter((r) => !/^[1-5]AHW$/i.test(String(r.code || '')));
+    return normalizePermissionsConfig({
+        ...withTeams,
+        classCatalog: catalog
+    });
+}
+
+/**
+ * @param {object} raw JSON aus Listen-Beschreibung (nach Marker)
+ */
+export function listDescriptionBootstrapMeta(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const siteUrl = String(raw.w || raw.siteUrl || '').trim().replace(/\/$/, '');
+    const listId = String(raw.lid || raw.listId || '').trim();
+    if (!siteUrl && !listId) return null;
+    return { siteUrl, listId };
 }
 
 function compactUserList(users) {
@@ -112,18 +217,45 @@ function expandUserList(raw) {
 
 function expandListDescriptionPayload(raw) {
     if (!raw || typeof raw !== 'object') return null;
+    let base = null;
     if (raw.groupSchuelerId || raw.groupKvId || raw.groupDirektionId) {
-        return remotePayloadToPermissions(raw);
+        base = remotePayloadToPermissions(raw);
+    } else if (raw.gd || raw.gk || raw.gs) {
+        base = normalizePermissionsConfig({
+            groupDirektionId: raw.gd || '',
+            groupKvId: raw.gk || '',
+            groupSchuelerId: raw.gs || '',
+            direktionUsers: expandUserList(raw.du),
+            kvUsers: expandUserList(raw.ku),
+            schuelerUsers: expandUserList(raw.su)
+        });
+    } else {
+        return null;
     }
-    if (!raw.gd && !raw.gk && !raw.gs) return null;
+    const ct = expandClassTeamLinks(raw.ct);
+    const cl = expandClassCatalog(raw.cl);
     return normalizePermissionsConfig({
-        groupDirektionId: raw.gd || '',
-        groupKvId: raw.gk || '',
-        groupSchuelerId: raw.gs || '',
-        direktionUsers: expandUserList(raw.du),
-        kvUsers: expandUserList(raw.ku),
-        schuelerUsers: expandUserList(raw.su)
+        ...base,
+        classTeamLinks: ct.length ? ct : base.classTeamLinks,
+        classCatalog: cl.length ? cl : base.classCatalog
     });
+}
+
+function expandClassCatalog(raw) {
+    const arr = Array.isArray(raw) ? raw : [];
+    return arr.map((row) => ({
+        code: row.c || row.code || '',
+        name: row.n || row.name || row.c || row.code || ''
+    }));
+}
+
+function expandClassTeamLinks(raw) {
+    const arr = Array.isArray(raw) ? raw : [];
+    return arr.map((row) => ({
+        code: row.c || row.code || '',
+        groupId: row.g || row.groupId || '',
+        name: row.n || row.name || row.c || row.code || ''
+    }));
 }
 
 /**
@@ -214,11 +346,20 @@ export async function publishPlannerGroupsToList(siteWebUrl, listId, config) {
     const url = String(siteWebUrl || '').trim().replace(/\/$/, '');
     const id = String(listId || '').trim();
     if (!url || !id) return { ok: false, reason: 'no-list' };
-    const cfg = normalizePermissionsConfig(config || loadPermissionsConfig());
+    const cfg = mergePlannerPublishConfig(config || loadEffectivePermissionsConfig());
     if (!entraGroupsConfigured(cfg)) return { ok: false, reason: 'no-groups' };
     const tok = await G().getGraphToken(SCOPES);
     const site = await resolveSite(tok, url);
-    const payload = LIST_DESCRIPTION_MARKER + JSON.stringify(permissionsToListDescriptionPayload(cfg));
+    const payload =
+        LIST_DESCRIPTION_MARKER +
+        JSON.stringify(
+            permissionsToListDescriptionPayload(cfg, {
+                siteWebUrl: url,
+                listId: id,
+                classTeamLinks: cfg.classTeamLinks,
+                classCatalog: cfg.classCatalog
+            })
+        );
     await G().graphJson(
         'PATCH',
         G().graphPathSite(site.id) + '/lists/' + encodeURIComponent(id),
@@ -234,43 +375,34 @@ export async function publishPlannerGroupsToList(siteWebUrl, listId, config) {
  * @param {string} listId
  */
 function parseListDescriptionMarker(desc) {
+    const full = parseListDescriptionMarkerFull(desc);
+    return full && full.permissions ? full.permissions : null;
+}
+
+/**
+ * @param {string} desc
+ */
+export function parseListDescriptionMarkerFull(desc) {
     const text = String(desc || '');
     if (!text.startsWith(LIST_DESCRIPTION_MARKER)) return null;
     try {
         const raw = JSON.parse(text.slice(LIST_DESCRIPTION_MARKER.length));
         const expanded = expandListDescriptionPayload(raw);
-        if (expanded) return expanded;
-        return remotePayloadToPermissions(raw);
+        const permissions = expanded || remotePayloadToPermissions(raw);
+        return {
+            permissions,
+            meta: listDescriptionBootstrapMeta(raw),
+            raw
+        };
     } catch {
         return null;
     }
 }
 
-async function fetchListDescriptionViaSpoRest(siteWebUrl, listId) {
+async function readListDescriptionText(siteWebUrl, listId) {
     const url = String(siteWebUrl || '').trim().replace(/\/$/, '');
     const id = String(listId || '').trim();
     if (!url || !id) return '';
-    let host = '';
-    try {
-        host = new URL(url).hostname;
-    } catch {
-        return '';
-    }
-    if (!host) return '';
-    const spoScope = 'https://' + host + '/AllSites.Read';
-    const spoTok = await G().getGraphToken([spoScope, 'https://graph.microsoft.com/User.Read']);
-    const digest = await G().getSpoRequestDigest(url, spoTok);
-    const api = "/_api/web/lists(guid'" + id.replace(/'/g, "''") + "')?$select=Description";
-    const res = await G().spoRestFetch(url, spoTok, digest, 'GET', api);
-    if (!res || !res.ok) return '';
-    const d = res.data && (res.data.Description || (res.data.d && res.data.d.Description));
-    return String(d || '');
-}
-
-export async function fetchPlannerPermissionsFromList(siteWebUrl, listId) {
-    const url = String(siteWebUrl || '').trim().replace(/\/$/, '');
-    const id = String(listId || '').trim();
-    if (!url || !id) return null;
     const readScopes = [
         ...SCOPES_READ,
         'https://graph.microsoft.com/Sites.ReadWrite.All'
@@ -297,13 +429,51 @@ export async function fetchPlannerPermissionsFromList(siteWebUrl, listId) {
             desc = '';
         }
     }
-    return parseListDescriptionMarker(desc);
+    return desc;
+}
+
+async function fetchListDescriptionViaSpoRest(siteWebUrl, listId) {
+    const url = String(siteWebUrl || '').trim().replace(/\/$/, '');
+    const id = String(listId || '').trim();
+    if (!url || !id) return '';
+    let host = '';
+    try {
+        host = new URL(url).hostname;
+    } catch {
+        return '';
+    }
+    if (!host) return '';
+    const spoScope = 'https://' + host + '/AllSites.Read';
+    const spoTok = await G().getGraphToken([spoScope, 'https://graph.microsoft.com/User.Read']);
+    const digest = await G().getSpoRequestDigest(url, spoTok);
+    const api = "/_api/web/lists(guid'" + id.replace(/'/g, "''") + "')?$select=Description";
+    const res = await G().spoRestFetch(url, spoTok, digest, 'GET', api);
+    if (!res || !res.ok) return '';
+    const d = res.data && (res.data.Description || (res.data.d && res.data.d.Description));
+    return String(d || '');
+}
+
+export async function fetchPlannerPermissionsFromList(siteWebUrl, listId) {
+    const bundle = await fetchPlannerListDescriptionBundle(siteWebUrl, listId);
+    return bundle && bundle.permissions ? bundle.permissions : null;
+}
+
+/**
+ * @param {string} siteWebUrl
+ * @param {string} listId
+ */
+export async function fetchPlannerListDescriptionBundle(siteWebUrl, listId) {
+    const desc = await readListDescriptionText(siteWebUrl, listId);
+    if (!desc) return null;
+    const full = parseListDescriptionMarkerFull(desc);
+    if (!full || !full.permissions) return null;
+    return full;
 }
 
 export async function publishPlannerPermissionsToSite(siteWebUrl, config, listId) {
     const url = String(siteWebUrl || '').trim().replace(/\/$/, '');
     if (!url) return { ok: false, reason: 'no-site' };
-    const cfg = normalizePermissionsConfig(config || loadPermissionsConfig());
+    const cfg = mergePlannerPublishConfig(config || loadEffectivePermissionsConfig());
     if (!entraGroupsConfigured(cfg)) return { ok: false, reason: 'no-groups' };
     const tok = await G().getGraphToken(SCOPES);
     let listOk = false;
@@ -311,6 +481,19 @@ export async function publishPlannerPermissionsToSite(siteWebUrl, config, listId
         try {
             const r = await publishPlannerGroupsToList(url, listId, cfg);
             listOk = !!(r && r.ok);
+            if (listOk && cfg.classCatalog && cfg.classCatalog.length) {
+                try {
+                    const site = await resolveSite(tok, url);
+                    await patchFreistellungKlasseColumn(
+                        site.id,
+                        listId,
+                        cfg.classCatalog.map((row) => row.code),
+                        { webUrl: url }
+                    );
+                } catch {
+                    /* Spalte Klasse optional */
+                }
+            }
         } catch {
             /* Datei-Fallback */
         }
@@ -376,6 +559,15 @@ export async function fetchPlannerRemoteRawFromSite(siteWebUrl) {
  * @param {string} siteWebUrl
  * @param {string} [listId]
  */
+export function plannerRemoteHasSchoolData(remote) {
+    const r = normalizePermissionsConfig(remote || {});
+    return (
+        entraGroupsConfigured(r) ||
+        normalizeClassCatalog(r.classCatalog).length > 0 ||
+        normalizeClassTeamLinks(r.classTeamLinks).length > 0
+    );
+}
+
 export async function syncPlannerPermissionsFromSite(siteWebUrl, listId, opts) {
     const url = String(siteWebUrl || '').trim().replace(/\/$/, '');
     let id = String(listId || '').trim();
@@ -394,7 +586,18 @@ export async function syncPlannerPermissionsFromSite(siteWebUrl, listId, opts) {
     let remote = null;
     if (id) {
         try {
-            remote = await fetchPlannerPermissionsFromList(url, id);
+            const bundle = await fetchPlannerListDescriptionBundle(url, id);
+            if (bundle) {
+                remote = bundle.permissions;
+                if (bundle.meta) {
+                    if (bundle.meta.siteUrl) persistSiteUrl(bundle.meta.siteUrl);
+                    persistSetupFields({
+                        siteUrl: bundle.meta.siteUrl || url,
+                        listId: bundle.meta.listId || id,
+                        listName
+                    });
+                }
+            }
         } catch {
             /* ignore */
         }
@@ -411,8 +614,8 @@ export async function syncPlannerPermissionsFromSite(siteWebUrl, listId, opts) {
             /* ignore */
         }
     }
-    if (!remote || !entraGroupsConfigured(remote)) return { source: 'none', changed: false };
-    savePermissionsConfig(remote);
+    if (!remote || !plannerRemoteHasSchoolData(remote)) return { source: 'none', changed: false };
+    savePermissionsConfig(overlaySchoolAudienceOnPermissions(remote));
     if (raw && raw.kategorienExtra) {
         saveExtraKategorien(raw.kategorienExtra);
     }

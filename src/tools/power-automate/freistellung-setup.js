@@ -13,16 +13,17 @@
     const STEP_STORAGE_KEY = 'ms365-freistellung-setup-step-v1';
     const FLOW_DONE_KEY = 'ms365-pa-done-freistellung';
     const TEMPLATE_BASE = '../assets/power-automate/freistellung';
-    const FLOW_ASSET_ID = 'c9164e06-4dbf-46f1-b99c-86d74bcdf8e4';
+    const FLOW_ASSET_ID = 'eff47cd0-dd67-468d-a48a-9e146aab57a7';
 
-    /** Werte aus dem Original-Export (HAK Steyr) – werden ersetzt. */
+    /** Werte aus Flow v2 (Test-Export MS365-Schultools) – werden beim Paketbau ersetzt. */
     const SOURCE = {
-        siteUrl: 'https://haksteyrat.sharepoint.com/sites/Administration',
-        listId: '1f18f04b-c4e2-4845-92b6-190dae7e4411',
-        emailDirektion: 'andreas.steininger@hak-steyr.at',
-        emailSonder: 'ute.wiesmayr@hak-steyr.at',
-        emailMailbox: 'automate@hak-steyr.at',
-        connectionOwner: 'kurt.soeser@hak-steyr.at'
+        siteUrl: 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools',
+        listId: '72d2028f-2ee6-4ce9-a610-0c2ef70196fe',
+        emailDirektion: 'direktion@ms365.schule',
+        emailDirektor: 'direktor@ms365.schule',
+        emailSonder: 'kurt@kurtsoeser.at',
+        emailMailbox: 'demo-freistellungen@ms365.schule',
+        connectionOwner: 'kurt@kurtsoeser.at'
     };
 
     function $(id) {
@@ -74,9 +75,13 @@
             emailMailbox: String(($('frEmailMailbox') && $('frEmailMailbox').value) || '')
                 .trim()
                 .toLowerCase(),
+            flowServiceAccount: String(($('frFlowServiceAccount') && $('frFlowServiceAccount').value) || '')
+                .trim()
+                .toLowerCase(),
             flowDisplayName:
                 String(($('frFlowName') && $('frFlowName').value) || '').trim() ||
-                'Freistellungen - Genehmigungsprozess'
+                'Freistellungen - Genehmigungsprozess',
+            mailAsTechnikUser: !($('frMailAsTechnikUser') && !$('frMailAsTechnikUser').checked)
         };
     }
 
@@ -88,7 +93,30 @@
         if ($('frEmailDirektion') && cfg.emailDirektion) $('frEmailDirektion').value = cfg.emailDirektion;
         if ($('frEmailSonder') && cfg.emailSonder) $('frEmailSonder').value = cfg.emailSonder;
         if ($('frEmailMailbox') && cfg.emailMailbox) $('frEmailMailbox').value = cfg.emailMailbox;
+        if ($('frFlowServiceAccount') && cfg.flowServiceAccount) {
+            $('frFlowServiceAccount').value = cfg.flowServiceAccount;
+        }
         if ($('frFlowName') && cfg.flowDisplayName) $('frFlowName').value = cfg.flowDisplayName;
+        if ($('frMailAsTechnikUser')) {
+            $('frMailAsTechnikUser').checked = cfg.mailAsTechnikUser !== false;
+        }
+    }
+
+    function effectiveFlowAccount(cfg) {
+        const st = window.ms365FreistellungSetupStatus;
+        if (st && typeof st.effectiveFreistellungFlowAccount === 'function') {
+            return st.effectiveFreistellungFlowAccount(cfg);
+        }
+        const explicit = String((cfg && cfg.flowServiceAccount) || '').trim().toLowerCase();
+        if (explicit) return explicit;
+        return String((cfg && cfg.emailMailbox) || '').trim().toLowerCase();
+    }
+
+    function refreshImportAccountHint() {
+        const el = $('frImportAccountHint');
+        if (!el) return;
+        const account = effectiveFlowAccount(readForm());
+        el.textContent = account || 'Technik-Konto aus Schritt 2';
     }
 
     function persistFromForm() {
@@ -228,7 +256,10 @@
         const write = typeof logFn === 'function' ? logFn : log;
         if (!cfg.siteUrl) throw new Error('Bitte die SharePoint-Website eintragen.');
         if (!cfg.emailDirektion || !cfg.emailSonder || !cfg.emailMailbox) {
-            throw new Error('Bitte Direktion, Sondergenehmigung und freigegebenes Postfach ausfüllen.');
+            throw new Error('Bitte Direktion, Sondergenehmigung und Absender-Postfach ausfüllen.');
+        }
+        if (!effectiveFlowAccount(cfg)) {
+            throw new Error('Bitte Technik-Konto für Power Automate eintragen (Schritt 2).');
         }
 
         const token = await ensureToken();
@@ -306,13 +337,30 @@
         write('Prüfe / ergänze Spalten …');
         await ensureColumns(siteId, listId, token, write);
 
+        const flowAccount = effectiveFlowAccount(cfg);
+
         if (window.ms365FreistellungListPerms) {
             const lp = window.ms365FreistellungListPerms;
             if (typeof lp.apply === 'function') {
                 try {
-                    await lp.apply(cfg.siteUrl, listDisplayName, null, write);
+                    await lp.apply(cfg.siteUrl, listDisplayName, {
+                        listId: listId,
+                        flowServiceAccount: flowAccount
+                    }, write);
                 } catch (e) {
                     write('! Berechtigungen: ' + (e && e.message ? e.message : e));
+                }
+            } else if (flowAccount && typeof lp.grantFlowServiceAccount === 'function') {
+                try {
+                    await lp.grantFlowServiceAccount(
+                        cfg.siteUrl,
+                        listDisplayName,
+                        flowAccount,
+                        { listId: listId },
+                        write
+                    );
+                } catch (e) {
+                    write('! Flow-Technik Berechtigung: ' + (e && e.message ? e.message : e));
                 }
             }
             if (typeof lp.publishConfig === 'function') {
@@ -380,13 +428,52 @@
         return String(haystack).split(needle).join(replacement);
     }
 
+    /** Shared Mailbox → normales Senden als angemeldetes Technik-Konto (weniger Rechte-Probleme). */
+    function convertSharedMailboxToUserSend(definitionRoot, useUserMailboxSend) {
+        if (!useUserMailboxSend || !definitionRoot) return;
+
+        function patchAction(action) {
+            if (
+                !action ||
+                !action.inputs ||
+                !action.inputs.host ||
+                action.inputs.host.operationId !== 'SharedMailboxSendEmailV2'
+            ) {
+                return;
+            }
+            const params = action.inputs.parameters || {};
+            delete params['emailMessage/MailboxAddress'];
+            action.inputs.parameters = params;
+            action.inputs.host.operationId = 'SendEmailV2';
+        }
+
+        function walkActions(actions) {
+            if (!actions || typeof actions !== 'object') return;
+            Object.keys(actions).forEach(function (key) {
+                const action = actions[key];
+                patchAction(action);
+                if (action && action.actions) walkActions(action.actions);
+                if (action && action.else && action.else.actions) walkActions(action.else.actions);
+            });
+        }
+
+        walkActions(definitionRoot.actions);
+    }
+
     function applyParamsToDefinition(rawDef, cfg) {
         let s = typeof rawDef === 'string' ? rawDef : JSON.stringify(rawDef);
         s = replaceAll(s, SOURCE.siteUrl, cfg.siteUrl);
         s = replaceAll(s, SOURCE.listId, cfg.listId);
         s = replaceAll(s, SOURCE.emailDirektion, cfg.emailDirektion);
+        if (SOURCE.emailDirektor) {
+            s = replaceAll(s, SOURCE.emailDirektor, cfg.emailDirektion);
+        }
         s = replaceAll(s, SOURCE.emailSonder, cfg.emailSonder);
         s = replaceAll(s, SOURCE.emailMailbox, cfg.emailMailbox);
+        const flowAccount = effectiveFlowAccount(cfg);
+        if (flowAccount) {
+            s = replaceAll(s, SOURCE.connectionOwner, flowAccount);
+        }
 
         const obj = JSON.parse(s);
         if (obj.properties) {
@@ -398,6 +485,9 @@
             if (obj.properties.definition && obj.properties.definition.metadata) {
                 obj.properties.definition.metadata.creator = null;
                 obj.properties.definition.metadata.lastModifiedBy = null;
+            }
+            if (obj.properties.definition) {
+                convertSharedMailboxToUserSend(obj.properties.definition, cfg.mailAsTechnikUser !== false);
             }
         }
         return obj;
@@ -426,6 +516,10 @@
         }
         if (!cfg.listId) throw new Error('Listen-ID fehlt – zuerst Liste anlegen oder ID eintragen.');
         if (!cfg.siteUrl) throw new Error('SharePoint-Website fehlt.');
+        const flowAccount = effectiveFlowAccount(cfg);
+        if (!flowAccount) {
+            throw new Error('Technik-Konto fehlt – in Schritt 2 „Technik-Konto für Power Automate“ eintragen.');
+        }
 
         const defPath = TEMPLATE_BASE + '/Microsoft.Flow/flows/' + FLOW_ASSET_ID + '/definition.json';
         const rootManifestPath = TEMPLATE_BASE + '/manifest.json';
@@ -451,17 +545,17 @@
         rootManifest.details = rootManifest.details || {};
         rootManifest.details.displayName = cfg.flowDisplayName;
         rootManifest.details.description =
-            'Freistellungen: SharePoint-Antrag → Genehmigung KV + Direktion (parametriert für Ziel-Tenant).';
+            'Freistellungen v2: KV + Direktion (sequentiell), Mehrtages-Logik, Audit-Felder – parametriert für Ziel-Tenant.';
         rootManifest.details.createdTime = new Date().toISOString();
         rootManifest.details.sourceEnvironment = '';
 
-        // Connection-Anzeigenamen anonymisieren / auf aktuelle Schule hinweisen
+        // Connection-Anzeigenamen auf Technik-Konto (Ziel beim Import)
         Object.keys(rootManifest.resources || {}).forEach(function (key) {
             const r = rootManifest.resources[key];
             if (!r || !r.details) return;
             if (r.type === 'Microsoft.PowerApps/apis/connections') {
                 if (String(r.details.displayName || '').indexOf('@') !== -1) {
-                    r.details.displayName = 'Ziel-Tenant Connection';
+                    r.details.displayName = flowAccount;
                 }
             }
             if (r.type === 'Microsoft.Flow/flows') {
@@ -470,9 +564,8 @@
             }
         });
 
-        // Auch falls Owner-Mail noch im JSON steht
         let rootStr = JSON.stringify(rootManifest);
-        rootStr = replaceAll(rootStr, SOURCE.connectionOwner, 'Ziel-Tenant Connection');
+        rootStr = replaceAll(rootStr, SOURCE.connectionOwner, flowAccount);
         rootManifest = JSON.parse(rootStr);
 
         const zip = new JSZip();
@@ -490,7 +583,27 @@
         downloadBlob(blob, filename);
         log('Paket heruntergeladen: ' + filename);
         log('Nächster Schritt: make.powerautomate.com → Meine Flows → Importieren → Package (Legacy).');
-        log('Dort Connections (SharePoint, Approvals, Outlook) dem Ziel-Tenant zuweisen und Flow einschalten.');
+        log(
+            'Wichtig: In Power Automate mit ' +
+                flowAccount +
+                ' anmelden (Technik-Konto), dann alle Connections (SharePoint, Approvals, Outlook) mit diesem Konto verbinden.'
+        );
+        if (cfg.mailAsTechnikUser !== false) {
+            log(
+                'E-Mail im Paket: Senden als angemeldetes Technik-Konto (' +
+                    flowAccount +
+                    '), nicht als separates freigegebenes Postfach.'
+            );
+        } else {
+            log(
+                'E-Mail im Paket: freigegebenes Postfach „' +
+                    cfg.emailMailbox +
+                    '“ – Outlook-Connection von ' +
+                    flowAccount +
+                    ' braucht „Senden als“ auf dieses Postfach.'
+            );
+        }
+        log('Flow danach einschalten und mit Testantrag prüfen.');
         return filename;
     }
 
@@ -578,6 +691,7 @@
 
     function refreshGlance() {
         const g = computeGlance();
+        refreshImportAccountHint();
         const host = $('frSetupGlance');
         if (!host) return;
         host.querySelectorAll('[data-fr-glance]').forEach(function (card) {
@@ -633,7 +747,7 @@
         } else if (step === 2) {
             el.textContent = g.listOk
                 ? 'Schritt 2: Liste ist bereit – Einstellungen prüfen oder zu Schritt 3.'
-                : 'Schritt 2: Website, Genehmiger und freigegebenes Postfach – dann „Liste anlegen / prüfen“.';
+                : 'Schritt 2: Website, Genehmiger, Technik-Konto & Postfach – dann „Liste anlegen / prüfen“.';
         } else {
             el.textContent = g.flowOk
                 ? 'Schritt 3: Flow als importiert markiert – im Planer testen.'
@@ -685,6 +799,10 @@
         }
         updatePhaseHint(step);
         refreshGlance();
+        refreshImportAccountHint();
+        if (step === 2 && typeof window.ms365FreistellungInitSetupPermissions === 'function') {
+            window.ms365FreistellungInitSetupPermissions();
+        }
     }
 
     function wireWizard() {
@@ -724,7 +842,11 @@
     }
 
     function wire() {
-        writeForm(loadCfg());
+        const cfg = loadCfg();
+        if (!cfg.flowServiceAccount && cfg.emailMailbox) {
+            cfg.flowServiceAccount = String(cfg.emailMailbox).trim().toLowerCase();
+        }
+        writeForm(cfg);
         wireWizard();
         refreshGlance();
         const btnList = $('frBtnList');
@@ -742,10 +864,18 @@
                 try {
                     if (window.ms365FreistellungListPerms && window.ms365FreistellungListPerms.apply) {
                         const listTitle = await resolveListDisplayNameForCfg(cfg);
-                        log('Berechtigungen für Liste „' + listTitle + '“ …');
-                        await window.ms365FreistellungListPerms.apply(cfg.siteUrl, listTitle, null, log);
-                        if ($('frListName') && listTitle) $('frListName').value = listTitle;
                         const listId = String(cfg.listId || ($('frListId') && $('frListId').value) || '').trim();
+                        log('Berechtigungen für Liste „' + listTitle + '“ …');
+                        await window.ms365FreistellungListPerms.apply(
+                            cfg.siteUrl,
+                            listTitle,
+                            {
+                                listId: listId,
+                                flowServiceAccount: effectiveFlowAccount(cfg)
+                            },
+                            log
+                        );
+                        if ($('frListName') && listTitle) $('frListName').value = listTitle;
                         if (
                             listId &&
                             window.ms365FreistellungListPerms.publishConfig &&
@@ -820,18 +950,41 @@
                 }
             });
         }
-        ['frSiteUrl', 'frListName', 'frListId', 'frEmailDirektion', 'frEmailSonder', 'frEmailMailbox', 'frFlowName'].forEach(
-            function (id) {
-                const el = $(id);
-                if (el) {
-                    el.addEventListener('change', function () {
-                        persistFromForm();
-                        refreshGlance();
-                    });
-                    el.addEventListener('input', refreshGlance);
-                }
+        [
+            'frSiteUrl',
+            'frListName',
+            'frListId',
+            'frEmailDirektion',
+            'frEmailSonder',
+            'frEmailMailbox',
+            'frFlowServiceAccount',
+            'frFlowName',
+            'frMailAsTechnikUser'
+        ].forEach(function (id) {
+            const el = $(id);
+            if (el) {
+                el.addEventListener('change', function () {
+                    persistFromForm();
+                    refreshGlance();
+                });
+                el.addEventListener('input', refreshGlance);
             }
-        );
+        });
+        const syncMailboxBtn = $('frFlowAccountUseMailbox');
+        if (syncMailboxBtn) {
+            syncMailboxBtn.addEventListener('click', function () {
+                const mb = String(($('frEmailMailbox') && $('frEmailMailbox').value) || '')
+                    .trim()
+                    .toLowerCase();
+                if (!mb) {
+                    toast('Zuerst Absender-Postfach eintragen.');
+                    return;
+                }
+                if ($('frFlowServiceAccount')) $('frFlowServiceAccount').value = mb;
+                persistFromForm();
+                refreshGlance();
+            });
+        }
     }
 
     if (document.readyState === 'loading') {

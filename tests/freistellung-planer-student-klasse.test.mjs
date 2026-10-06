@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
     listClassGraphGroupIds,
-    matchStudentKlasseFromMemberGroupIds
+    matchStudentKlasseFromMemberGroupIds,
+    inferStudentKlasseFromGroupLabels
 } from '../src/tools/freistellung-planer/freistellung-planer-student-klasse.js';
 import { prefillStudentFreistellungForm, emptyForm } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
 
@@ -25,6 +26,14 @@ describe('freistellung student klasse entra', () => {
         );
         expect(ids).toContain(id1);
         expect(ids).toContain(id2);
+    });
+
+    it('inferStudentKlasseFromGroupLabels erkennt Klasse 1B in Gruppennamen', () => {
+        const k = inferStudentKlasseFromGroupLabels(
+            [{ displayName: 'Jahrgangsgruppe Klasse 1B' }],
+            ['1A', '1B']
+        );
+        expect(k).toBe('1B');
     });
 
     it('prefill überschreibt Demo-Klasse bei Stammdaten-Treffer', () => {

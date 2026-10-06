@@ -2,6 +2,17 @@
  * Entra-Gruppen für Freistellungs-Planer-Rollen (Schüler, KV, Direktion).
  * Getrennt von Schularbeiten – gleiche Gruppen können eingetragen werden.
  */
+import { overlaySchoolAudienceOnPermissions } from '../../shared/school-audience-groups.js';
+import {
+    FR_STAMMDATEN_GROUP_ROLES,
+    stripStammdatenGroupFieldsFromPatch,
+    filterEditableGroupFields,
+    fillReadonlyStammdatenGroupField
+} from '../../shared/planner-stammdaten-audience-ui.js';
+import {
+    normalizeAllowedJahrgang,
+    normalizeJahrgangGroups
+} from './freistellung-planer-jahrgang-scope.js';
 import { normalizePlannerUsers } from './freistellung-planer-direktion-users.js';
 
 export const PERMS_STORAGE_KEY = 'ms365-freistellung-perms-v1';
@@ -15,6 +26,55 @@ const DEFAULT_GROUPS = {
     groupSchueler: '',
     groupSchuelerId: ''
 };
+
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * @param {unknown} raw
+ * @returns {{ code: string, groupId: string, name: string }[]}
+ */
+/**
+ * Klassenliste für Schüler-Dropdown (vom IT in den Planer veröffentlicht).
+ * @param {unknown} raw
+ * @returns {{ code: string, name: string }[]}
+ */
+export function normalizeClassCatalog(raw) {
+    const arr = Array.isArray(raw) ? raw : [];
+    const out = [];
+    const seen = new Set();
+    arr.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        const code = String(entry.code || entry.c || entry.name || '').trim();
+        if (!code || seen.has(code.toLowerCase())) return;
+        seen.add(code.toLowerCase());
+        out.push({
+            code,
+            name: String(entry.name || entry.n || code).trim()
+        });
+    });
+    return out;
+}
+
+export function normalizeClassTeamLinks(raw) {
+    const arr = Array.isArray(raw) ? raw : [];
+    const out = [];
+    const seen = new Set();
+    arr.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        const code = String(entry.code || entry.c || '').trim();
+        const groupId = String(entry.groupId || entry.g || entry.graphGroupId || '').trim();
+        if (!code || !GUID_RE.test(groupId)) return;
+        const key = code.toLowerCase() + '|' + groupId.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({
+            code,
+            groupId,
+            name: String(entry.name || entry.n || code).trim()
+        });
+    });
+    return out;
+}
 
 /**
  * @param {object|null|undefined} raw
@@ -31,7 +91,11 @@ export function normalizePermissionsConfig(raw) {
         direktionUsers: normalizePlannerUsers(r.direktionUsers),
         kvUsers: normalizePlannerUsers(r.kvUsers),
         schuelerUsers: normalizePlannerUsers(r.schuelerUsers),
-        skipPerms: !!r.skipPerms
+        skipPerms: !!r.skipPerms,
+        allowedJahrgang: normalizeAllowedJahrgang(r.allowedJahrgang),
+        jahrgangGroups: normalizeJahrgangGroups(r.jahrgangGroups),
+        classTeamLinks: normalizeClassTeamLinks(r.classTeamLinks),
+        classCatalog: normalizeClassCatalog(r.classCatalog)
     };
 }
 
@@ -67,6 +131,11 @@ export function loadPermissionsConfig() {
     }
 }
 
+/** Schüler-Sammelgruppe aus Stammdaten, wenn gesetzt. */
+export function loadEffectivePermissionsConfig() {
+    return normalizePermissionsConfig(overlaySchoolAudienceOnPermissions(loadPermissionsConfig()));
+}
+
 /**
  * Gruppen auch im Setup-JSON ablegen (Backup / gleicher Browser).
  * @param {ReturnType<typeof normalizePermissionsConfig>} config
@@ -87,7 +156,10 @@ export function persistPlannerGroupsToSetup(config) {
  * @param {object} patch
  */
 export function savePermissionsConfig(patch) {
-    const next = normalizePermissionsConfig({ ...loadPermissionsConfig(), ...(patch || {}) });
+    const merged = { ...loadPermissionsConfig(), ...(patch || {}) };
+    const next = normalizePermissionsConfig(
+        stripStammdatenGroupFieldsFromPatch(merged, FR_STAMMDATEN_GROUP_ROLES)
+    );
     try {
         localStorage.setItem(PERMS_STORAGE_KEY, JSON.stringify(next));
     } catch {
@@ -101,7 +173,7 @@ export function savePermissionsConfig(patch) {
  * @param {ReturnType<typeof normalizePermissionsConfig>|null|undefined} [config]
  */
 export function entraGroupsConfigured(config) {
-    const c = normalizePermissionsConfig(config || loadPermissionsConfig());
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
     return !!(
         c.groupDirektionId ||
         c.groupKvId ||

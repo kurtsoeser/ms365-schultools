@@ -25,7 +25,9 @@ import {
     isLocalDirty,
     getCurrentBackupRemoteInfo,
     downloadCurrentBackup,
-    uploadCurrentBackup
+    uploadCurrentBackup,
+    downloadConfigBundle,
+    applyConfigBundleFromSharePoint
 } from './stammdaten-sharepoint-sync-api.js';
 import { tryAutoLinkItLibrary } from './stammdaten-sharepoint-auto-link.js';
 import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
@@ -135,6 +137,15 @@ export function getStatus() {
 
 function canRunNetworkSync() {
     return isReady() && isLoggedIn();
+}
+
+function preferNoReloadOnSpoApply() {
+    try {
+        const p = String((window.location && window.location.pathname) || '');
+        return /freistellung-planer\.html/i.test(p);
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -291,10 +302,34 @@ export async function runSessionPull(opts) {
             live.lastPullAt = syncMetaFromRemote.at;
             setLive({ phase: 'idle', error: '', message: 'Schul-/App-Daten von SharePoint übernommen' });
             toast('Schul-/App-Daten von SharePoint übernommen.');
-            applySharePointBackupLocally(payload, syncMetaFromRemote, {
-                reload: options.reloadOnApply !== false
-            });
-            return { applied: true, payload: payload };
+
+            let bundleApplied = false;
+            try {
+                const bundle = await downloadConfigBundle();
+                if (bundle.manifest && bundle.parts.length) {
+                    const syncMetaBundle = Object.assign({}, syncMetaFromRemote, {
+                        configBundleAppliedAt: new Date().toISOString(),
+                        configManifestFingerprint: String(bundle.manifest.contentFingerprint || ''),
+                        configPartCount: bundle.parts.length
+                    });
+                    await applyConfigBundleFromSharePoint({
+                        reload: options.reloadOnApply !== false,
+                        syncMeta: syncMetaBundle
+                    });
+                    bundleApplied = true;
+                }
+            } catch (e) {
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn('Config-Bundle Pull:', e && e.message ? e.message : e);
+                }
+            }
+
+            if (!bundleApplied) {
+                applySharePointBackupLocally(payload, syncMetaFromRemote, {
+                    reload: options.reloadOnApply !== false
+                });
+            }
+            return { applied: true, payload: payload, configBundle: bundleApplied };
         } catch (e) {
             const msg = e && e.message ? String(e.message) : String(e);
             // Einmal pro Session markieren, damit Login-Seiten nicht in einer Fehler-Schleife landen
@@ -436,7 +471,7 @@ function onAuthReady() {
         } catch {
             /* Auto-Verknüpfung optional */
         }
-        await runSessionPull({ reloadOnApply: true });
+        await runSessionPull({ reloadOnApply: !preferNoReloadOnSpoApply() });
         try {
             window.dispatchEvent(new CustomEvent('ms365-spo-sync-status', { detail: getStatus() }));
         } catch {

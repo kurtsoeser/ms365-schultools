@@ -62,6 +62,7 @@
                     tenantId: tid,
                     license: (result && result.license) || null,
                     user: (result && result.user) || null,
+                    isDesignatedSchoolIt: !!(result && result.isDesignatedSchoolIt),
                     accountKey: key,
                     checkedAt: Date.now()
                 })

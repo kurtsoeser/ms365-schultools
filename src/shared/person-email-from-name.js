@@ -109,7 +109,16 @@
         return out;
     }
 
-    function patternLocal(patternId, vorname, nachname, firstNameMode) {
+    function patternLocal(patternId, vorname, nachname, firstNameMode, kuerzel) {
+        const logic = window.ms365PersonEmailPatternLogic;
+        if (logic && typeof logic.localPartFromEmailPatternId === 'function') {
+            return logic.localPartFromEmailPatternId(patternId, {
+                vorname: vorname,
+                nachname: nachname,
+                kuerzel: kuerzel,
+                firstNameMode: firstNameMode
+            });
+        }
         const id = String(patternId || 'vorname.nachname').toLowerCase();
         const vParts = givenPartsForPattern(vorname, firstNameMode);
         const nParts = nameParts(nachname);
@@ -132,7 +141,7 @@
     /**
      * Alle sinnvollen Local-Parts für eine Person (Primärmuster zuerst, dann Doppelname-Varianten).
      */
-    function localPartCandidates(vorname, nachname, patternId, firstNameMode) {
+    function localPartCandidates(vorname, nachname, patternId, firstNameMode, kuerzel) {
         function cleanLocal(s) {
             return stripDiacritics(normStr(s))
                 .toLowerCase()
@@ -149,7 +158,10 @@
         }
 
         const mode = resolveFirstNameMode(firstNameMode);
-        add(patternLocal(patternId, vorname, nachname, mode));
+        add(patternLocal(patternId, vorname, nachname, mode, kuerzel));
+        if (String(patternId || '').startsWith('build:')) {
+            return out;
+        }
 
         const vVars = blockVariants(vorname);
         const nVars = blockVariants(nachname);
@@ -166,7 +178,7 @@
             });
         });
 
-        const primary = cleanLocal(patternLocal(patternId, vorname, nachname, mode));
+        const primary = cleanLocal(patternLocal(patternId, vorname, nachname, mode, kuerzel));
         if (primary) {
             const idx = out.indexOf(primary);
             if (idx > 0) {
@@ -217,7 +229,13 @@
             if (!sur && bits.length > 1) sur = bits.slice(1).join(' ');
         }
 
-        const locals = localPartCandidates(given, sur, pattern, firstNameMode);
+        const locals = localPartCandidates(
+            given,
+            sur,
+            pattern,
+            firstNameMode,
+            normStr(person && (person.code || person.kuerzel)).toUpperCase()
+        );
         const candidates = locals
             .map(function (loc) {
                 return buildEmail(loc, domain);

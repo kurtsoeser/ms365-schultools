@@ -28,6 +28,83 @@
     /** @type {'schueler' | 'lehrer'} */
     let activeKind = 'schueler';
 
+    /** @type {'schueler' | 'lehrer' | null} */
+    const fixedKind = (function readFixedKindFromPage() {
+        try {
+            const preset = window.__SLG_FIXED_KIND__;
+            if (preset === 'lehrer' || preset === 'schueler') return preset;
+        } catch {
+            /* ignore */
+        }
+        try {
+            const p = new URLSearchParams(window.location.search).get('kind');
+            if (p === 'lehrer' || p === 'schueler') return p;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    })();
+
+    function slgToolIdForKind(kind) {
+        return kind === 'lehrer' ? 'slg-lehrer' : 'slg-schueler';
+    }
+
+    function applyFixedKindPageChrome() {
+        if (!fixedKind) return;
+        const isSchueler = fixedKind === 'schueler';
+        const title = isSchueler ? 'Schüler:innen-Sammelgruppe' : 'Lehrer:innen-Sammelgruppe';
+        const icon = isSchueler ? 'bi-mortarboard' : 'bi-person-workspace';
+        try {
+            document.title = 'MS365-Schul-Tools – ' + title;
+        } catch {
+            /* ignore */
+        }
+        const indicator = document.querySelector('.header-tool-indicator__name');
+        if (indicator) {
+            indicator.innerHTML = '<i class="bi ' + icon + '"></i>' + title;
+        }
+        const layout = document.querySelector('.gd-layout--split');
+        if (layout) layout.classList.add('slg-layout--fixed-kind');
+        document.querySelectorAll('button[data-slg-kind]').forEach(function (btn) {
+            const k = btn.getAttribute('data-slg-kind');
+            const li = btn.closest('li');
+            if (li && k !== fixedKind) li.hidden = true;
+            if (k === fixedKind) btn.setAttribute('aria-disabled', 'true');
+        });
+        const panelHead = document.querySelector('[aria-label="Gruppen auswählen"] .panel-head');
+        if (panelHead) {
+            const hint = panelHead.querySelector('p.muted');
+            if (hint) {
+                hint.innerHTML =
+                    'Die Zahlen: <strong>Liste</strong> (Stammdaten) und <strong>Gruppe</strong> (Mitglieder in Microsoft&nbsp;365) – gleich = grün, sonst rot. Bei Abweichung: <strong>Abgleich öffnen</strong> oder im Tab Mitglieder <strong>Mitglieder vergleichen</strong>.';
+            }
+        }
+        const emptyHost = document.querySelector('[data-ms365-empty-state]');
+        if (emptyHost) {
+            emptyHost.setAttribute(
+                'data-ms365-empty-message',
+                isSchueler
+                    ? 'Noch keine Schülerliste. Pflegen Sie die Stammdaten – danach können Sie hier die Sammelgruppe matchen oder anlegen.'
+                    : 'Noch keine Lehrerliste. Pflegen Sie die Stammdaten – danach können Sie hier die Sammelgruppe matchen oder anlegen.'
+            );
+        }
+        const otherHref =
+            fixedKind === 'schueler' ? 'lehrer-sammelgruppe.html' : 'schueler-sammelgruppe.html';
+        const otherLabel =
+            fixedKind === 'schueler' ? 'Lehrer:innen-Sammelgruppe' : 'Schüler:innen-Sammelgruppe';
+        const toolbarRight = document.querySelector('.header .toolbar > div > div:last-child');
+        if (toolbarRight && !document.getElementById('slgSwitchToolLink')) {
+            const a = document.createElement('a');
+            a.id = 'slgSwitchToolLink';
+            a.className = 'btn';
+            a.href = otherHref;
+            a.style.textDecoration = 'none';
+            a.style.display = 'inline-block';
+            a.innerHTML = '<i class="bi bi-arrow-left-right"></i>' + otherLabel;
+            toolbarRight.appendChild(a);
+        }
+    }
+
     /** @type {{ schuelerGroupId: string|null, lehrerGroupId: string|null }} */
     let matched = { schuelerGroupId: null, lehrerGroupId: null };
 
@@ -196,7 +273,7 @@
     function logMembershipAction(action, target, summary, result) {
         if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
             window.ms365ActionLog.append({
-                tool: 'slg',
+                tool: slgToolIdForKind(activeKind),
                 action: action,
                 target: target,
                 summary: summary,
@@ -648,8 +725,24 @@
         live().resetCaches();
     }
 
-    function setActiveKind(kind) {
+    function mergeMatchedIds(a, b) {
+        const pick = function (x, y) {
+            const xs = x ? String(x).trim() : '';
+            const ys = y ? String(y).trim() : '';
+            return xs || ys || null;
+        };
+        a = a && typeof a === 'object' ? a : {};
+        b = b && typeof b === 'object' ? b : {};
+        return {
+            schuelerGroupId: pick(a.schuelerGroupId, b.schuelerGroupId),
+            lehrerGroupId: pick(a.lehrerGroupId, b.lehrerGroupId)
+        };
+    }
+
+    function setActiveKind(kind, opts) {
+        if (fixedKind) kind = fixedKind;
         activeKind = kind === 'lehrer' ? 'lehrer' : 'schueler';
+        const deferLoad = !!(opts && opts.deferLoad);
         const title = document.getElementById('slgDetailTitle');
         if (title) title.textContent = activeKind === 'schueler' ? 'Schüler:innen' : 'Lehrer:innen';
 
@@ -663,7 +756,13 @@
         gd().clearSearchResults();
         const gid = getActiveMatchedId();
         live().setMatchedMode(!!gid);
-        live().fillForm(gid ? { id: gid } : null);
+        if (gid && !deferLoad) {
+            void live().loadGroup({ silent: true });
+        } else if (gid && deferLoad) {
+            live().fillForm({ id: gid });
+        } else {
+            live().fillForm(null);
+        }
         updateLeftListUi();
         gd().setTab('general');
     }
@@ -861,7 +960,7 @@
         if (nn && o.slgNewMailNick !== undefined) nn.value = String(o.slgNewMailNick || '');
         if (dd && o.slgNewDescription !== undefined) dd.value = String(o.slgNewDescription || '');
         if (ct && o.slgNewCreateTeam !== undefined) ct.checked = !!o.slgNewCreateTeam;
-        setActiveKind(o.activeKind === 'lehrer' ? 'lehrer' : 'schueler');
+        setActiveKind(fixedKind || (o.activeKind === 'lehrer' ? 'lehrer' : 'schueler'), { deferLoad: true });
     }
 
     function saveState() {
@@ -887,11 +986,16 @@
 
     function loadState() {
         let rawLocal = null;
+        let localObj = null;
         try {
             rawLocal = localStorage.getItem(STORAGE_KEY);
+            if (rawLocal) localObj = JSON.parse(rawLocal);
         } catch {
             rawLocal = null;
+            localObj = null;
         }
+        const localMatched =
+            localObj && localObj.matched && typeof localObj.matched === 'object' ? localObj.matched : null;
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
                 const su = window.ms365AppDataV2.getSetup();
@@ -899,7 +1003,7 @@
                 if (hasIds || !rawLocal) {
                     const d = su.slgDraft || {};
                     applyStateObject({
-                        matched: su.matched,
+                        matched: mergeMatchedIds(su.matched, localMatched),
                         activeKind: d.activeKind === 'lehrer' ? 'lehrer' : 'schueler',
                         slgNewDisplayName: d.slgNewDisplayName,
                         slgNewMailNick: d.slgNewMailNick,
@@ -913,8 +1017,8 @@
             // ignore
         }
         try {
-            if (!rawLocal) return;
-            applyStateObject(JSON.parse(rawLocal));
+            if (!localObj) return;
+            applyStateObject(localObj);
         } catch {
             // ignore
         }
@@ -1012,6 +1116,7 @@
                 if (!t || !t.closest) return;
                 const item = t.closest('button[data-slg-kind]');
                 if (!item) return;
+                if (fixedKind) return;
                 const kind = item.getAttribute('data-slg-kind');
                 setActiveKind(kind === 'lehrer' ? 'lehrer' : 'schueler');
                 saveState();
@@ -1062,14 +1167,19 @@
     }
 
     function init() {
+        applyFixedKindPageChrome();
         mountDetail();
         readLists();
         loadState();
+        if (fixedKind) setActiveKind(fixedKind, { deferLoad: true });
         updateLeftListUi();
         renderOwnerPreview();
         renderMemberPreview();
         wire();
-        if (!getActiveMatchedId()) {
+        const initGid = getActiveMatchedId();
+        if (initGid) {
+            void live().loadGroup({ silent: true });
+        } else {
             live().setMatchedMode(false);
             applyCreateDefaults();
         }

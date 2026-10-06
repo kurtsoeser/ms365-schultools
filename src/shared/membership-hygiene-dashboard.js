@@ -67,6 +67,7 @@ function paintSummaryPills(container, counts) {
 export function mountHygieneTeaser() {
     const elSummary = document.getElementById('dashHygieneTeaserSummary');
     const elMeta = document.getElementById('dashHygieneTeaserMeta');
+    const elWrap = document.getElementById('dashStandHygieneInline');
     if (!elSummary) return null;
 
     function loadContainer() {
@@ -87,6 +88,10 @@ export function mountHygieneTeaser() {
         return null;
     }
 
+    function setWrapVisible(show) {
+        if (elWrap) elWrap.hidden = !show;
+    }
+
     function render() {
         const cached = loadHygieneScanCache();
         if (cached && cached.counts) {
@@ -94,20 +99,69 @@ export function mountHygieneTeaser() {
             if (elMeta) {
                 const when = formatWhen(cached.scannedAt || cached.savedAt);
                 elMeta.textContent = when
-                    ? 'Letzter Abgleich: ' + when + ' – Details im Werkzeug.'
-                    : 'Details und Prüfung im Werkzeug.';
+                    ? 'Letzter Abgleich: ' + when + ' – Details in „Aufräumen & Hygiene“.'
+                    : 'Details und Prüfung in den Werkzeugen oben.';
             }
+            setWrapVisible(true);
             return;
         }
         const summary = summarizeHygieneScan(buildHygieneTargets(loadContainer(), loadSettings()), {});
         paintSummaryPills(elSummary, summary.counts);
         if (elMeta) {
-            elMeta.textContent = 'Noch nicht geprüft – im Werkzeug mit Microsoft 365 abgleichen.';
+            elMeta.textContent = 'Noch nicht geprüft – Abgleich starten Sie in „Aufräumen & Hygiene“.';
         }
+        const c = summary.counts || {};
+        const hasTargets = (c.ok || 0) + (c.mismatch || 0) + (c.unmatched || 0) + (c.unknown || 0) > 0;
+        setWrapVisible(hasTargets);
     }
 
     render();
     return { refresh: render };
+}
+
+function hygieneLoadContainer() {
+    try {
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
+            return window.ms365AppDataV2.getContainer();
+        }
+    } catch {
+        /* ignore */
+    }
+    return null;
+}
+
+function hygieneLoadSettings() {
+    if (typeof window.ms365TenantSettingsLoad === 'function') {
+        return window.ms365TenantSettingsLoad();
+    }
+    return null;
+}
+
+/**
+ * Graph-Abgleich wie „Jetzt prüfen“ in tools/datenhygiene.html – für Dashboard-Karten.
+ * @param {{ onStatus?: (msg: string) => void }} [options]
+ */
+export async function runDashboardHygieneScan(options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    if (!window.ms365GraphUnifiedGroups) {
+        throw new Error('Graph-Modul fehlt – Seite neu laden.');
+    }
+    const G = window.ms365GraphUnifiedGroups;
+    if (typeof opts.onStatus === 'function') opts.onStatus('Prüfe Microsoft 365 …');
+    try {
+        return await runHygieneScan({
+            loadContainer: hygieneLoadContainer,
+            loadSettings: hygieneLoadSettings,
+            getGraphToken: function () {
+                return G.getGraphToken();
+            },
+            fetchGroupMemberCount: function (token, gid) {
+                return G.fetchGroupMemberCount(token, gid);
+            }
+        });
+    } finally {
+        if (typeof opts.onStatus === 'function') opts.onStatus('');
+    }
 }
 
 /**
@@ -269,14 +323,9 @@ export function mountMembershipHygieneDashboard(cfg) {
         if (elScan) elScan.disabled = true;
         if (elStatus) elStatus.textContent = 'Prüfe Microsoft 365 …';
         try {
-            const payload = await runHygieneScan({
-                loadContainer: loadContainer,
-                loadSettings: loadSettings,
-                getGraphToken: function () {
-                    return G.getGraphToken();
-                },
-                fetchGroupMemberCount: function (token, gid) {
-                    return G.fetchGroupMemberCount(token, gid);
+            const payload = await runDashboardHygieneScan({
+                onStatus: function (msg) {
+                    if (elStatus) elStatus.textContent = msg || 'Abgleich abgeschlossen.';
                 }
             });
             renderSummary(payload.counts || {});
@@ -309,11 +358,13 @@ export function mountMembershipHygieneDashboard(cfg) {
 
 const api = {
     mountMembershipHygieneDashboard: mountMembershipHygieneDashboard,
-    mountHygieneTeaser: mountHygieneTeaser
+    mountHygieneTeaser: mountHygieneTeaser,
+    runDashboardHygieneScan: runDashboardHygieneScan
 };
 
 if (typeof window !== 'undefined') {
     window.ms365MembershipHygieneDashboard = api;
+    window.ms365RunDashboardHygieneScan = runDashboardHygieneScan;
 }
 
 export default api;

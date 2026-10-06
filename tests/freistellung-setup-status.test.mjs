@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { computeSetupGlance } from '../src/tools/power-automate/freistellung-setup-status.js';
+import {
+    computeSetupGlance,
+    effectiveFreistellungFlowAccount
+} from '../src/tools/power-automate/freistellung-setup-status.js';
 
 describe('freistellung-setup-status', () => {
     it('computeSetupGlance reflects list, emails and flow flag', () => {
@@ -22,5 +25,15 @@ describe('freistellung-setup-status', () => {
     it('computeSetupGlance prepOk when onboarding complete', () => {
         const g = computeSetupGlance({}, { onboardingDone: 6, onboardingTotal: 6 });
         expect(g.prepOk).toBe(true);
+    });
+
+    it('effectiveFreistellungFlowAccount prefers flowServiceAccount', () => {
+        expect(
+            effectiveFreistellungFlowAccount({
+                flowServiceAccount: 'auto@schule.at',
+                emailMailbox: 'mail@schule.at'
+            })
+        ).toBe('auto@schule.at');
+        expect(effectiveFreistellungFlowAccount({ emailMailbox: 'mail@schule.at' })).toBe('mail@schule.at');
     });
 });

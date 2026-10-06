@@ -430,7 +430,22 @@ a.dash-playbook-card:active {
     }
 }
 
+.header > #ms365HeaderRightCluster,
+.ms365-header-right-cluster {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+    margin: 0;
+    max-width: min(520px, calc(100% - 168px));
+}
 .header > #ms365AuthWidget,
+.header > #ms365HeaderRightCluster #ms365AuthWidget,
 .ms365-auth-widget {
     display: flex;
     align-items: center;
@@ -445,6 +460,44 @@ a.dash-playbook-card:active {
     z-index: 6;
     margin: 0;
     max-width: min(420px, calc(100% - 168px));
+}
+.header > #ms365HeaderRightCluster #ms365AuthWidget {
+    position: static;
+    top: auto;
+    right: auto;
+    max-width: min(280px, 42vw);
+}
+.ms365-header-schulregister {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-decoration: none !important;
+    white-space: nowrap;
+    color: #32325d !important;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.92);
+    transition: background 140ms ease, transform 140ms ease;
+}
+.ms365-header-schulregister:hover {
+    background: #fff;
+    color: #32325d !important;
+    transform: none;
+}
+.ms365-header-schulregister .bi {
+    font-size: 1.05em;
+}
+@media (max-width: 640px) {
+    .ms365-header-schulregister__label {
+        display: none;
+    }
+    .ms365-header-schulregister {
+        padding: 8px 10px;
+    }
 }
 .ms365-auth-actions {
     display: flex;
@@ -561,6 +614,47 @@ a.dash-playbook-card:active {
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
+}
+.ms365-auth-menu__ctx-row--year {
+    align-items: center;
+}
+.ms365-auth-menu__year-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+}
+.ms365-auth-menu__year-select {
+    max-width: 9.5rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    font-weight: 800;
+    font-size: 0.92em;
+    padding: 6px 8px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--brand1, #0d6efd) 28%, #dee2e6);
+    background: #fff;
+    color: #32325d;
+}
+.ms365-auth-menu__year-add {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--brand1, #0d6efd) 28%, #dee2e6);
+    background: color-mix(in srgb, var(--brand1, #0d6efd) 10%, #fff);
+    color: var(--brand1, #0d6efd);
+    cursor: pointer;
+    line-height: 1;
+}
+.ms365-auth-menu__year-add:hover {
+    background: color-mix(in srgb, var(--brand1, #0d6efd) 16%, #fff);
 }
 .ms365-auth-menu__ctx-k {
     font-size: 0.75em;
@@ -758,6 +852,9 @@ a.ms365-auth-menu__item:visited {
 }
 .ms365-auth-menu__brand-swatch--wine {
     background: linear-gradient(135deg, #991b1b, #450a0a);
+}
+.ms365-auth-menu__brand-swatch--dark {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
 }
 html[data-theme="dark"] .ms365-auth-menu__section {
     border-bottom-color: rgba(255, 255, 255, 0.1);

@@ -1,5 +1,5 @@
 /**
- * Stammdaten und Dashboard-Verwaltung: nur Schul-IT (Global Admin / Plattform-Betreiber).
+ * Stammdaten und Dashboard-Verwaltung: Schul-IT (Global Admin / designierter IT-Kontakt / Plattform-Betreiber).
  */
 import { getDashboardPersonas, clearDashboardPersonaCache } from './dashboard-persona-session.js';
 

@@ -10,6 +10,12 @@ import {
     isBroadSiteAudience
 } from '../../shared/stammdaten-sharepoint-sync-logic.js';
 import { normalizePlannerUsers } from '../freistellung-planer/freistellung-planer-direktion-users.js';
+import { overlaySchoolAudienceOnPermissions } from '../../shared/school-audience-groups.js';
+import { notifyAppLocalDataChanged } from '../../shared/app-local-data-notify.js';
+import {
+    SA_STAMMDATEN_GROUP_ROLES,
+    stripStammdatenGroupFieldsFromPatch
+} from '../../shared/planner-stammdaten-audience-ui.js';
 
 export const PERMS_STORAGE_KEY = 'ms365-schularbeiten-perms-v1';
 
@@ -19,7 +25,7 @@ const SCOPES_GRAPH = [
     'https://graph.microsoft.com/Group.Read.All'
 ];
 
-/** @typedef {'read'|'contribute'|'fullControl'} PermLevel */
+/** @typedef {'read'|'contribute'|'edit'|'fullControl'} PermLevel */
 
 /**
  * Rollen pro Liste (nach Vererbungsbruch).
@@ -53,6 +59,7 @@ export const PACKAGE_LIST_TITLES = LIST_KEYS.map((k) => LIST_TITLES[k]);
 const ROLE_ID = {
     read: SPO_ROLE.read,
     contribute: SPO_ROLE.contribute,
+    edit: SPO_ROLE.edit,
     fullControl: SPO_ROLE.fullControl
 };
 
@@ -111,16 +118,25 @@ export function loadPermissionsConfig() {
     }
 }
 
+/** Stammdaten-Sammelgruppen für Lehrer/Schüler einbeziehen. */
+export function loadEffectivePermissionsConfig() {
+    return normalizePermissionsConfig(overlaySchoolAudienceOnPermissions(loadPermissionsConfig()));
+}
+
 /**
  * @param {object} patch
  */
 export function savePermissionsConfig(patch) {
-    const next = normalizePermissionsConfig({ ...loadPermissionsConfig(), ...(patch || {}) });
+    const merged = { ...loadPermissionsConfig(), ...(patch || {}) };
+    const next = normalizePermissionsConfig(
+        stripStammdatenGroupFieldsFromPatch(merged, SA_STAMMDATEN_GROUP_ROLES)
+    );
     try {
         localStorage.setItem(PERMS_STORAGE_KEY, JSON.stringify(next));
     } catch {
         /* ignore */
     }
+    notifyAppLocalDataChanged('schularbeiten-perms');
     return next;
 }
 

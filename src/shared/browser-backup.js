@@ -8,16 +8,18 @@
     'use strict';
 
     const KIND = 'ms365-browser-backup-v1';
-    const VERSION = 4;
+    const VERSION = 5;
     const SESSION_SKIP_KEYS = {
         'ms365-access-granted-v1': true,
         'ms365-admin-access-granted-v1': true,
-        'ms365-post-login-url': true
+        'ms365-post-login-url': true,
+        'ms365-spo-compare-session-v1': true
     };
 
     /** Keys, die den Inhalts-Fingerprint nicht beeinflussen (Sync-Meta selbst). */
     const FINGERPRINT_SKIP_KEYS = {
         'ms365-stammdaten-spo-sync-v1': true,
+        'ms365-stammdaten-spo-sync-by-tenant-v2': true,
         'ms365-last-backup-export-at': true
     };
 
@@ -37,8 +39,8 @@
             ]
         },
         {
-            label: 'Einrichtung',
-            keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1', 'ms365-dashboard-setup-dismissed-v1']
+            label: 'Demo & Onboarding-Hinweise',
+            keys: ['ms365-demo-mode-v1', 'ms365-onboarding-welcome-v1']
         },
         {
             label: 'Dashboard',
@@ -46,14 +48,22 @@
                 'ms365-dashboard-audience-groups-v1',
                 'ms365-dashboard-tool-access-v1',
                 'ms365-dashboard-favorites-v1',
+                'ms365-dashboard-recent-tools-v1',
                 'ms365-dashboard-order-catalog-v1',
+                'ms365-dashboard-order-m365-v3',
+                'ms365-dashboard-order-sharepoint-v2',
+                'ms365-dashboard-order-v1',
+                'ms365-dash-catalog-fold-v1',
                 'ms365-dashboard-category-tab-v1',
                 'ms365-dashboard-expert-open-v1',
                 'ms365-dashboard-view-v1',
                 'ms365-dashboard-it-preview-v1',
-                'ms365-dashboard-tool-access-v1',
-                'ms365-dashboard-persona-cache-v2'
+                'ms365-dashboard-setup-dismissed-v1'
             ]
+        },
+        {
+            label: 'Dashboard (Sitzung)',
+            keys: ['ms365-dashboard-persona-cache-v2', 'ms365-gaeste-verwalten-active-tab-v1']
         },
         {
             label: 'Schulstruktur (Legacy-Spiegel)',
@@ -66,8 +76,8 @@
             ]
         },
         {
-            label: 'Personen-Verwaltung AD-Flags',
-            keys: ['ms365-pv-ad-flags-v1']
+            label: 'Personen-Verwaltung',
+            keys: ['ms365-pv-ad-flags-v1', 'ms365-pv-users-cache-v1']
         },
         { label: 'Kursteams / WebUntis', keys: ['webuntis-teams-creator-state-v1'] },
         {
@@ -96,7 +106,9 @@
             keys: [
                 'ms365-pa-onboarding-v1',
                 'ms365-freistellung-setup-v1',
+                'ms365-freistellung-setup-step-v1',
                 'ms365-freistellung-perms-v1',
+                'ms365-freistellung-kategorien-extra-v1',
                 'ms365-power-automate-recipes-v1',
                 'ms365-pa-termine-sync-v1',
                 'ms365-pa-antraege-v1',
@@ -104,6 +116,8 @@
                 'ms365-pa-gast-v1',
                 'ms365-pa-diplom-v1',
                 'ms365-pa-schilf-v1',
+                'ms365-pa-schularbeiten-mail-v1',
+                'ms365-pa-projektwochen-mail-v1',
                 'ms365-pa-done-freistellung',
                 'ms365-pa-done-termine-sync',
                 'ms365-pa-done-antraege',
@@ -122,15 +136,26 @@
                 'ms365-stammdaten-it-library-by-tenant-v2',
                 'ms365-stammdaten-spo-sync-v1',
                 'ms365-stammdaten-spo-sync-by-tenant-v2',
+                'ms365-stammdaten-listen-perms-v1',
                 'ms365-su-form-draft-v1',
+                'ms365-su-pending-action-v1',
                 'ms365-pw-site-url',
                 'ms365-pw-demo-role',
+                'ms365-projektwochen-demo-v1',
                 'ms365-sa-site-url',
                 'ms365-sa-demo-role',
                 'ms365-sa-settings-v1',
                 'ms365-sa-demo-klasse',
+                'ms365-sa-schuljahr',
+                'ms365-sa-cal-show-v1',
+                'ms365-sa-cal-mode-v1',
+                'ms365-sa-personal-cal-v1',
+                'ms365-schularbeiten-perms-v1',
+                'ms365-akt-planer-role-v1',
+                'ms365-akt-planer-site-v1',
                 'ms365-freistellung-planer-role-v1',
-                'ms365-freistellung-planer-site-v1'
+                'ms365-freistellung-planer-site-v1',
+                'ms365-freistellung-planer-demo-klasse-v1'
             ]
         },
         {
@@ -150,8 +175,32 @@
             label: 'Playbooks & Spielwiesen',
             keys: [
                 'ms365-cleanup-playbook-v1',
+                'ms365-playbook-eltern-v1',
+                'ms365-playbook-elternsprechtag-v1',
+                'ms365-playbook-freistellungen-v1',
+                'ms365-playbook-intranet-v1',
+                'ms365-playbook-kursteams-v1',
+                'ms365-playbook-schularbeiten-v1',
+                'ms365-playbook-schuljahresstart-v1',
                 'ms365-spielwiesen-notebook-v1',
-                'ms365-kursteam-templates-v1'
+                'ms365-spielwiesen-demo-pool-v1',
+                'ms365-spielwiesen-name-pattern-v1',
+                'ms365-kursteam-templates-v1',
+                'ms365-kursteam-catalog-draft-v1'
+            ]
+        },
+        {
+            label: 'Weitere Werkzeuge',
+            keys: [
+                'ms365-elternsprechtag-bookings-v1',
+                'ms365-datenlandkarte-layout-v1',
+                'ms365-schulgraph-options-v2',
+                'ms365-schul-baseline-v1',
+                'ms365-student-lifecycle-prev-v1',
+                'ms365-lizenzverwaltung-v1',
+                'ms365-tenant-main-active-tab-v1',
+                'ms365-tenant-main-tab-order-v1',
+                'ms365-tenant-main-tab-order-v2'
             ]
         },
         {
@@ -205,7 +254,9 @@
     function isRestorableSessionKey(key) {
         const k = String(key || '');
         if (!isAppStorageKey(k)) return false;
-        return !SESSION_SKIP_KEYS[k];
+        if (SESSION_SKIP_KEYS[k]) return false;
+        if (k.indexOf('ms365-spo-auto-pull-done-v1') === 0) return false;
+        return true;
     }
 
     function listAppKeys(storage) {
@@ -480,6 +531,29 @@
         }
     }
 
+    function buildLegacyMirrorMeta(local) {
+        try {
+            if (
+                window.ms365TenantStorageMirror &&
+                typeof window.ms365TenantStorageMirror.buildLegacyMirrorExportMeta === 'function'
+            ) {
+                return window.ms365TenantStorageMirror.buildLegacyMirrorExportMeta(local);
+            }
+        } catch {
+            /* ignore */
+        }
+        return {
+            key: 'ms365-tenant-settings-v1',
+            role: 'legacy-read-only',
+            writeEnabled: false,
+            canonicalKey: 'ms365-schooltool-data-v2',
+            sunset: '2026-H2',
+            present: !!(local && Object.prototype.hasOwnProperty.call(local, 'ms365-tenant-settings-v1')),
+            canonicalPresent: !!(local && Object.prototype.hasOwnProperty.call(local, 'ms365-schooltool-data-v2')),
+            note: 'Kanonisch ist ms365-schooltool-data-v2; v1 wird nicht mehr automatisch geschrieben.'
+        };
+    }
+
     function buildBackup(storage, now, sessionStorageArg) {
         syncStorageBeforeBackup();
         const local = collectLocalStorage(storage);
@@ -487,6 +561,7 @@
         const when = asDate(now);
         const { schoolName, domain } = readSchoolMeta(storage);
         const inventory = buildInventory(local, session);
+        const legacyMirror = buildLegacyMirrorMeta(local);
         const payload = {
             kind: KIND,
             version: VERSION,
@@ -500,9 +575,10 @@
             contentFingerprint: contentFingerprint(storage),
             includesPrefixes: ['ms365-', 'webuntis-'],
             includesNote:
-                'Vollständiges App-Backup: Stammdaten, Einrichtung, Werkzeugstände, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
+                'Vollständiges App-Backup: Stammdaten (kanonisch v2), optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, Einrichtung, Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
             excludesNote:
                 'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung und kurzlebige Login-Weiterleitungen.',
+            legacyMirror: legacyMirror,
             localStorage: local,
             sessionStorage: session
         };
@@ -983,6 +1059,20 @@
         refreshBackupReminder();
     }
 
+    function mergeLocalStoragePatch(keysObj, storage) {
+        const patch = keysObj && typeof keysObj === 'object' ? keysObj : {};
+        return applyBackup(
+            {
+                kind: KIND,
+                version: VERSION,
+                localStorage: patch,
+                sessionStorage: {}
+            },
+            storage,
+            { replace: false }
+        );
+    }
+
     window.ms365BrowserBackup = {
         KIND: KIND,
         VERSION: VERSION,
@@ -1002,6 +1092,7 @@
         postImportNormalize: postImportNormalize,
         applyBackup: applyBackup,
         importPayload: importPayload,
+        mergeLocalStoragePatch: mergeLocalStoragePatch,
         backupFilename: backupFilename,
         downloadBackup: downloadBackup,
         importFile: importFile,

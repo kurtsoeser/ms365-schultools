@@ -2,7 +2,7 @@
  * Persona-Signale für das Dashboard.
  *
  * Hierarchie (strikt):
- * 1. Global Admin oder Plattform-Betreiber → voller Katalog + Stammdaten
+ * 1. Global Admin, designierter IT-Kontakt (Lizenz) oder Plattform-Betreiber → voller Katalog + Stammdaten
  * 2. Mitglieder der konfigurierten Dashboard-Lehrer-Entra-Gruppe → Lehrkraft-Ansicht
  * 3. Mitglieder der konfigurierten Dashboard-Schüler-Entra-Gruppe → Schüler-Ansicht
  * 4. Sonst (Planer-Rollen / Stammdaten-E-Mail) → Lehrkraft, wenn erkennbar
@@ -19,10 +19,11 @@ import {
     entraGroupsConfigured as saEntraConfigured
 } from '../tools/schularbeiten-planer/schularbeiten-planer-entra-role.js';
 import {
-    loadPermissionsConfig as loadSaPermissions,
+    loadEffectivePermissionsConfig as loadSaEffectivePermissions,
     normalizePermissionsConfig as normalizeSaPermissions
 } from '../tools/schularbeiten-planer/schularbeiten-planer-permissions.js';
 import { accountIsPlannerUserInList } from '../tools/freistellung-planer/freistellung-planer-direktion-users.js';
+import { userIsDesignatedSchoolIt } from './designated-school-it.js';
 import {
     matchTeacherByEmail,
     matchStudentByEmail
@@ -30,7 +31,7 @@ import {
 import { listRolesFromStammdaten as listSaRolesFromStammdaten } from '../tools/schularbeiten-planer/schularbeiten-planer-entra-role.js';
 import {
     entraGroupsConfigured as frEntraConfigured,
-    loadPermissionsConfig as loadFrPermissions,
+    loadEffectivePermissionsConfig as loadFrEffectivePermissions,
     normalizePermissionsConfig as normalizeFrPermissions
 } from '../tools/freistellung-planer/freistellung-planer-permissions.js';
 import {
@@ -111,7 +112,7 @@ async function checkMemberGroups(groupIds) {
 }
 
 async function resolveSchularbeitenRoles() {
-    const config = normalizeSaPermissions(loadSaPermissions());
+    const config = normalizeSaPermissions(loadSaEffectivePermissions());
     const entra = saEntraConfigured(config);
     const mail = accountEmail();
     /** @type {string[]} */
@@ -146,7 +147,7 @@ async function resolveSchularbeitenRoles() {
 }
 
 async function resolveFreistellungRoles() {
-    const config = normalizeFrPermissions(loadFrPermissions());
+    const config = normalizeFrPermissions(loadFrEffectivePermissions());
     const entra = frEntraConfigured(config);
     const mail = accountEmail();
     /** @type {string[]} */
@@ -224,17 +225,18 @@ export async function resolveDashboardPersonas() {
         };
     }
 
-    const [schularbeitenRoles, freistellungRoles, globalAdmin, operator] = await Promise.all([
+    const [schularbeitenRoles, freistellungRoles, globalAdmin, operator, designatedSchoolIt] = await Promise.all([
         resolveSchularbeitenRoles(),
         resolveFreistellungRoles(),
         userIsEntraGlobalAdministrator(),
-        resolveOperatorFlag()
+        resolveOperatorFlag(),
+        userIsDesignatedSchoolIt()
     ]);
 
     const stammdatenScope = loadStammdatenScope();
 
-    /** Nur Global Admin + Plattform-Betreiber: alles sichtbar */
-    const fullAccess = globalAdmin || operator;
+    /** Global Admin, Lizenz-IT-Kontakt oder Plattform-Betreiber: alles sichtbar */
+    const fullAccess = globalAdmin || operator || designatedSchoolIt;
 
     if (fullAccess) {
         return {
@@ -245,6 +247,7 @@ export async function resolveDashboardPersonas() {
             isSchueler: false,
             globalAdmin,
             operator,
+            designatedSchoolIt,
             schularbeitenRoles,
             freistellungRoles
         };

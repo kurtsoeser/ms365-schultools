@@ -88,8 +88,26 @@
         return ((data && data.value) || [])[0] || null;
     }
 
+    function splitFirstLastName(displayName) {
+        const s = String(displayName || '').trim();
+        if (!s) return { vorname: '', nachname: '' };
+        const parts = s.split(/\s+/).filter(Boolean);
+        if (parts.length <= 1) return { vorname: parts[0] || '', nachname: '' };
+        return { vorname: parts[0], nachname: parts.slice(1).join(' ') };
+    }
+
     async function addColumnsLehrer(siteId, listId, token, withPerson) {
         const defs = [
+            {
+                name: 'Vorname',
+                displayName: 'Vorname',
+                text: { allowMultipleLines: false, maxLength: 120 }
+            },
+            {
+                name: 'Nachname',
+                displayName: 'Nachname',
+                text: { allowMultipleLines: false, maxLength: 120 }
+            },
             {
                 name: 'LehrerCode',
                 displayName: 'Kürzel',
@@ -134,7 +152,15 @@
         const email = String(t.email || '').trim();
         const name = String(t.name || '').trim() || String(t.code || '').trim();
         const code = String(t.code || '').trim();
-        return { Title: name, LehrerCode: code, EMail: email, UPN: email };
+        const parts = splitFirstLastName(name);
+        return {
+            Title: name,
+            Vorname: parts.vorname,
+            Nachname: parts.nachname,
+            LehrerCode: code,
+            EMail: email,
+            UPN: email
+        };
     }
 
     async function teacherFieldsFull(t, resolver, withPerson) {
@@ -267,7 +293,9 @@
         }
 
         write(
-            'Prüfe Spalten (Kürzel, E-Mail, UPN' + (withPerson ? ', Personenfeld Lehrkraft' : '') + ') …'
+            'Prüfe Spalten (Vorname, Nachname, Kürzel, E-Mail, UPN' +
+                (withPerson ? ', Personenfeld Lehrkraft' : '') +
+                ') …'
         );
         await addColumnsLehrer(siteId, listId, token, withPerson);
 
@@ -278,7 +306,7 @@
         }
 
         const itemsPath = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/items';
-        const compareKeys = ['Title', 'LehrerCode', 'EMail', 'UPN'];
+        const compareKeys = ['Title', 'Vorname', 'Nachname', 'LehrerCode', 'EMail', 'UPN'];
         let ok = 0;
         let personMiss = 0;
 

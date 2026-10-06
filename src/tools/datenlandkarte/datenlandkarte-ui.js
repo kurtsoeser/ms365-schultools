@@ -1,6 +1,14 @@
 import { DATEN_LINKS } from './datenlandkarte-catalog.js';
 import { formatBlockCount } from './datenlandkarte-metrics.js';
 import { layoutDatenlandkarte, linksForSelection } from './datenlandkarte-layout.js';
+import {
+    primaryHrefForBlock,
+    actionsForBlock,
+    linkSyncHealth,
+    linkHealthLabel,
+    resolveDatenlandkarteHref,
+    getDatenlandkarteHrefContext
+} from './datenlandkarte-register-bridge.js';
 
 function escapeHtml(s) {
     return String(s ?? '')
@@ -36,15 +44,25 @@ export function renderDatenlandkarteApp(state, root) {
         .slice(0, 40)
         .map((l) => {
             const active = selLink === l.id ? ' dl-link-label--sel' : '';
-            return `<button type="button" class="dl-link-label${active}" data-dl-link="${escapeAttr(l.id)}">${escapeHtml(l.label)}<span class="muted"> · ${escapeHtml(shortId(l.from))} → ${escapeHtml(shortId(l.to))}</span></button>`;
+            const health = linkSyncHealth(l.id, metrics);
+            const hi = linkHealthLabel(health);
+            const healthHtml =
+                health !== 'na' && hi.icon
+                    ? `<i class="bi ${escapeAttr(hi.icon)} dl-link-health dl-link-health--${health}" title="${escapeAttr(hi.title)}" aria-hidden="true"></i> `
+                    : '';
+            return `<button type="button" class="dl-link-label${active}" data-dl-link="${escapeAttr(l.id)}" title="${escapeAttr(hi.title || l.detail || '')}">${healthHtml}${escapeHtml(l.label)}<span class="muted"> · ${escapeHtml(shortId(l.from))} → ${escapeHtml(shortId(l.to))}</span></button>`;
         })
         .join('');
 
     const customized = !!layout.customized;
+    const embedded = !!(state && state.embedded) || getDatenlandkarteHrefContext() === 'register';
     let lastLayer = '';
     const blockHtml = layout.blocks
         .map((b) => {
             const count = formatBlockCount(b.countKey, metrics);
+            const openHref = primaryHrefForBlock(b);
+            const rawTool = b.href ? resolveDatenlandkarteHref(b.href) : '';
+            const toolHref = rawTool && rawTool !== openHref ? rawTool : '';
             const isSel = sel === b.id;
             const layerHead =
                 !customized &&
@@ -56,21 +74,33 @@ export function renderDatenlandkarteApp(state, root) {
   <header class="dl-block__head" title="Ziehen zum Verschieben"><i class="bi bi-grip-vertical dl-block__grip" aria-hidden="true"></i><i class="bi ${escapeAttr(b.icon)}"></i><h3>${escapeHtml(b.title)}</h3></header>
   <p class="dl-block__count" title="${escapeAttr(count.hint)}"><span>${escapeHtml(count.text)}</span>${escapeHtml(count.unit || (typeof metrics[b.countKey]?.value === 'number' ? ' Einträge' : ''))}</p>
   <p class="dl-block__desc">${escapeHtml(b.description)}</p>
-  ${b.href ? `<a class="dl-block__link" href="${escapeAttr(b.href)}"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>` : ''}
+  <div class="dl-block__actions">
+  ${openHref ? `<a class="dl-block__link dl-block__link--primary" href="${escapeAttr(openHref)}"><i class="bi bi-journal-bookmark"></i>${b.layer === 'sharepoint' ? 'Synchron' : embedded ? 'Zum Tab' : 'Schulregister'}</a>` : ''}
+  ${toolHref ? `<a class="dl-block__link" href="${escapeAttr(toolHref)}"><i class="bi bi-box-arrow-up-right"></i>Tool</a>` : !openHref && b.href ? `<a class="dl-block__link" href="${escapeAttr(resolveDatenlandkarteHref(b.href))}"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>` : ''}
+  </div>
 </article>`;
         })
         .join('');
 
     const detail = sel ? renderBlockDetail(layout, sel, metrics) : renderOverview(layout, metrics, state);
     const spoBanner = renderSpoStatus(state);
-
-    root.innerHTML = `
-<section class="tm-hero dl-hero">
+    const hero = embedded
+        ? `<div class="dl-embed-toolbar">
+    <p class="muted dl-embed-toolbar__lead">Listen, Quellen und Verknüpfungen Ihrer Stammdaten – Klick auf einen Block springt zum passenden Register-Tab.</p>
+    <div class="dl-embed-toolbar__actions">
+    <button type="button" class="btn btn-success btn-sm" id="dlBtnReload"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+    <button type="button" class="btn btn-sm" id="dlBtnFit"><i class="bi bi-aspect-ratio"></i>Zentrieren</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="dlBtnClearSel"${sel ? '' : ' disabled'}>Auswahl aufheben</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="dlBtnResetLayout"${layout.customized ? '' : ' disabled'} title="Gespeicherte Blockpositionen löschen"><i class="bi bi-layout-three-columns"></i>Standardlayout</button>
+    <a class="btn btn-ghost btn-sm" href="tools/datenlandkarte.html" title="Datenlandkarte im Vollbild"><i class="bi bi-box-arrow-up-right"></i>Vollbild</a>
+    </div>
+  </div>`
+        : `<section class="tm-hero dl-hero">
   <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></div>
   <div>
     <p class="tm-hero__kicker">Listen &amp; Datenquellen</p>
     <h2>Datenlandkarte</h2>
-    <p>Blöcke = Listen oder Quellen · Linien = logische Verknüpfung. Lokale Zahlen aus diesem Browser; SharePoint-Blöcke mit Graph-<code>$count</code> nach Anmeldung.</p>
+    <p>Blöcke = Listen oder Quellen · Linien = logische Verknüpfung. <strong>Schulregister</strong>-Links führen direkt zu Pflegen, Einspielen oder Synchron. Lokale Zahlen aus diesem Browser; SharePoint mit Graph-<code>$count</code> nach Anmeldung.</p>
   </div>
   <div class="tm-hero__actions">
     <button type="button" class="btn btn-success" id="dlBtnReload"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
@@ -78,7 +108,10 @@ export function renderDatenlandkarteApp(state, root) {
     <button type="button" class="btn btn-ghost" id="dlBtnClearSel"${sel ? '' : ' disabled'}>Auswahl aufheben</button>
     <button type="button" class="btn btn-ghost" id="dlBtnResetLayout"${layout.customized ? '' : ' disabled'} title="Gespeicherte Blockpositionen löschen"><i class="bi bi-layout-three-columns"></i>Standardlayout</button>
   </div>
-</section>
+</section>`;
+
+    root.innerHTML = `
+${hero}
 ${spoBanner}
 <div class="dl-layout">
   <aside class="tm-panel dl-sidebar" aria-label="Details">
@@ -122,11 +155,17 @@ function renderOverview(layout, metrics, state) {
               : spo === 'partial' || spo === 'error'
                 ? '<p class="muted"><i class="bi bi-exclamation-triangle"></i> SharePoint teilweise – Details oben.</p>'
                 : '';
+    const amp = metrics.registerAmpel;
+    const ampHref = resolveDatenlandkarteHref('../tenant.html#stammdaten');
+    const registerNote = amp
+        ? `<p class="dl-register-strip"><a href="${escapeAttr(ampHref)}" class="dl-register-strip__link"><i class="bi bi-arrow-repeat"></i> Schulregister: ${escapeHtml(String(amp.value))}</a><span class="muted dl-register-strip__hint" title="${escapeAttr(amp.hint || '')}">${escapeHtml(String(amp.hint || '').slice(0, 120))}${String(amp.hint || '').length > 120 ? '…' : ''}</span></p>`
+        : '';
     return `
     <h3>Überblick</h3>
     <p class="muted">${nBlocks} Datenblöcke · ${nLinks} dokumentierte Verknüpfungen</p>
+    ${registerNote}
     ${spoNote}
-    <p class="muted">Block-Kopfzeile ziehen, um die Anordnung anzupassen. Klick auf den Block (außer Kopfzeile) wählt ihn aus.</p>`;
+    <p class="muted">Block-Kopfzeile ziehen · Klick wählt aus · <strong>Schulregister</strong> auf dem Block springt zur passenden Ansicht.</p>`;
 }
 
 function renderSpoStatus(state) {
@@ -162,11 +201,27 @@ function renderBlockDetail(layout, blockId, metrics) {
             return `<li><strong>${escapeHtml(l.label)}</strong> ${dir} ${escapeHtml(shortId(other))}${l.detail ? `<br/><span class="muted">${escapeHtml(l.detail)}</span>` : ''}</li>`;
         })
         .join('');
+    const actions = actionsForBlock(b)
+        .map(
+            (a) =>
+                `<a class="btn btn-sm${a.label.indexOf('Schulregister') >= 0 || a.label.indexOf('Synchron') >= 0 ? ' btn-primary' : ''}" href="${escapeAttr(a.href)}">${escapeHtml(a.label)}</a>`
+        )
+        .join('');
+    const syncLinks = links
+        .filter((l) => l.label === 'Sync')
+        .map((l) => {
+            const h = linkSyncHealth(l.id, metrics);
+            const hi = linkHealthLabel(h);
+            return `<li><i class="bi ${escapeAttr(hi.icon || 'bi-arrow-left-right')}"></i> ${escapeHtml(l.label)}: ${escapeHtml(hi.title || l.detail || '')}</li>`;
+        })
+        .join('');
     return `
     <h3><i class="bi ${escapeAttr(b.icon)}"></i> ${escapeHtml(b.title)}</h3>
     <p class="dl-detail-count">${escapeHtml(count.text)}${escapeHtml(count.unit || (typeof metrics[b.countKey]?.value === 'number' ? ' Einträge' : ''))}</p>
     <p>${escapeHtml(b.description)}</p>
-    <ul class="dl-detail-links">${rows || '<li class="muted">Keine dokumentierte Verknüpfung.</li>'}</ul>`;
+    ${actions ? `<div class="dl-detail-actions">${actions}</div>` : ''}
+    <ul class="dl-detail-links">${rows || '<li class="muted">Keine dokumentierte Verknüpfung.</li>'}</ul>
+    ${syncLinks ? `<h4>Sync-Status</h4><ul class="dl-detail-links">${syncLinks}</ul>` : ''}`;
 }
 
 export function applyCanvasTransform(state) {

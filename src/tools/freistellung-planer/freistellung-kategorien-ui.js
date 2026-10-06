@@ -32,24 +32,35 @@ export function wireFreistellungKategorienAdmin(spec, getSiteCtx) {
         if (!listEl) return;
         const extra = loadExtraKategorien();
         const all = mergeKategorieChoices(extra);
-        const defaults = new Set(KATEGORIE_CHOICES.map((k) => k.toLowerCase()));
+        const stdChips = KATEGORIE_CHOICES.map(
+            (k) => `<span class="fr-kat-chip fr-kat-chip--std">${escapeHtml(k)}</span>`
+        ).join('');
+        const extraBlock = extra.length
+            ? `<ul class="fr-kat-extra-list">${extra
+                  .map(
+                      (k, idx) =>
+                          `<li class="fr-kat-extra-row"><span class="fr-kat-extra-row__label">${escapeHtml(
+                              k
+                          )}</span><button type="button" class="fr-kat-extra-row__rm btn btn-sm alt" data-fr-kat-rm="${idx}" title="Entfernen" aria-label="Entfernen"><i class="bi bi-x-lg" aria-hidden="true"></i></button></li>`
+                  )
+                  .join('')}</ul>`
+            : '<p class="fr-kat-extra-empty muted">Noch keine zusätzlichen Kategorien.</p>';
         listEl.innerHTML =
-            '<p class="muted" style="margin:0 0 8px;font-size:0.88em;">Standard: ' +
-            escapeHtml(KATEGORIE_CHOICES.join(' · ')) +
-            '</p>' +
-            (extra.length
-                ? extra
-                      .map(
-                          (k, idx) =>
-                              `<li class="fr-setup-user-row"><span class="fr-setup-user-row__label">${escapeHtml(
-                                  k
-                              )}</span><button type="button" class="fr-setup-user-row__rm btn btn-sm alt" data-fr-kat-rm="${idx}" title="Entfernen"><i class="bi bi-x"></i></button></li>`
-                      )
-                      .join('')
-                : '<li class="fr-setup-user-row fr-setup-user-row--empty muted">Noch keine zusätzlichen Kategorien.</li>') +
-            '<li class="fr-setup-user-row fr-setup-user-row--empty muted" style="border:none;background:transparent;padding:6px 0 0;">Gesamt im Formular: ' +
+            '<div class="fr-kat-admin__grid">' +
+            '<div class="fr-kat-admin__block">' +
+            '<span class="fr-kat-admin__block-title">Standard</span>' +
+            '<div class="fr-kat-chips" role="list">' +
+            stdChips +
+            '</div></div>' +
+            '<div class="fr-kat-admin__block">' +
+            '<span class="fr-kat-admin__block-title">Zusätzlich <span class="fr-kat-admin__count">(' +
+            extra.length +
+            ')</span></span>' +
+            extraBlock +
+            '</div></div>' +
+            '<p class="fr-kat-admin__meta muted">Im Antragsformular: <strong>' +
             all.length +
-            ' Kategorien</li>';
+            '</strong> Kategorien</p>';
         listEl.querySelectorAll('[data-fr-kat-rm]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 const i = Number(btn.getAttribute('data-fr-kat-rm'));
@@ -61,7 +72,7 @@ export function wireFreistellungKategorienAdmin(spec, getSiteCtx) {
 
     if (addBtn && input && !addBtn.dataset.frKatWired) {
         addBtn.dataset.frKatWired = '1';
-        addBtn.addEventListener('click', () => {
+        const commitNew = () => {
             const label = String(input.value || '').trim();
             if (!label) return;
             addExtraKategorie(label);
@@ -69,6 +80,13 @@ export function wireFreistellungKategorienAdmin(spec, getSiteCtx) {
             render();
             if (typeof window.ms365ToastOrAlert === 'function') {
                 window.ms365ToastOrAlert('Kategorie „' + label + '“ hinzugefügt (lokal).');
+            }
+        };
+        addBtn.addEventListener('click', commitNew);
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                commitNew();
             }
         });
     }
@@ -116,24 +134,19 @@ export function wireFreistellungKategorienAdmin(spec, getSiteCtx) {
 export function htmlFreistellungKategorienPanel(ids) {
     const id = ids || {};
     return `
-    <section class="tm-panel" aria-labelledby="frKatAdminTitle">
-      <div class="tm-panel__head">
-        <i class="bi bi-tags" aria-hidden="true"></i>
-        <div>
-          <h3 id="frKatAdminTitle">Antrags-Kategorien</h3>
-          <p>Zusätzliche Kategorien für Schüler- und KV-Formulare (werden mit „Gruppen speichern“ auf die Site veröffentlicht).</p>
-        </div>
-      </div>
-      <ul id="${escapeHtml(id.listId || 'frKatExtraList')}" class="fr-setup-user-list" style="max-width:520px;"></ul>
-      <div class="fr-setup-egp fr-setup-egp--tight" style="max-width:520px;margin-top:8px;">
-        <input type="text" id="${escapeHtml(id.newInputId || 'frKatExtraNew')}" placeholder="Neue Kategorie …" maxlength="120" style="flex:1;min-width:160px;">
+    <section class="fr-panel fr-kat-admin" aria-labelledby="frKatAdminTitle">
+      <h2 id="frKatAdminTitle">Antrags-Kategorien</h2>
+      <p class="muted fr-panel__lead">Zusätzliche Kategorien für Schüler- und KV-Formulare – mit „Gruppen speichern“ (Setup) auf die Site.</p>
+      <div id="${escapeHtml(id.listId || 'frKatExtraList')}" class="fr-kat-admin__mount"></div>
+      <div class="fr-kat-admin__add">
+        <input type="text" id="${escapeHtml(id.newInputId || 'frKatExtraNew')}" placeholder="Neue Kategorie …" maxlength="120" autocomplete="off">
         <button type="button" class="btn btn-sm" id="${escapeHtml(id.addId || 'frKatExtraAdd')}"><i class="bi bi-plus-lg"></i>Hinzufügen</button>
       </div>
       ${
           id.syncListBtnId
-              ? `<button type="button" class="btn btn-sm" id="${escapeHtml(
+              ? `<div class="fr-kat-admin__foot"><button type="button" class="btn btn-sm" id="${escapeHtml(
                     id.syncListBtnId
-                )}" style="margin-top:10px;"><i class="bi bi-arrow-repeat"></i>Kategorie-Spalte in SharePoint aktualisieren</button>`
+                )}"><i class="bi bi-arrow-repeat"></i>SharePoint-Spalte „Kategorie“ aktualisieren</button></div>`
               : ''
       }
     </section>`;

@@ -152,17 +152,20 @@
     color: #3d4db8;
 }
 
-/* Statuszeile: Ihr Stand | Datenhygiene nebeneinander */
+/* Statuszeile: Ihr Stand (volle Breite) */
 .dash-status-row {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 14px;
     margin: 0 0 18px;
     align-items: stretch;
 }
 
-.dash-status-row:not(:has(#dashStandHygieneWrap:not([hidden]))) {
-    grid-template-columns: 1fr;
+.dash-status-row--footer {
+    margin-top: 28px;
+    margin-bottom: 4px;
+    padding-top: 22px;
+    border-top: 1px solid color-mix(in srgb, var(--brand1) 12%, var(--border, #dee2e6));
 }
 
 /* Kompakter „Ihr Stand“ / Hygiene-Karte auf dem Dashboard */
@@ -177,6 +180,207 @@
     flex-direction: column;
     gap: 10px;
     min-height: 100%;
+}
+
+.dash-stand--full {
+    gap: 12px;
+}
+
+.dash-stand__overview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+}
+
+.dash-stand__overview .dash-stand__meta {
+    flex: 1 1 240px;
+}
+
+.dash-stand__overall {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 650;
+    line-height: 1.45;
+    color: #3d4a62;
+    background: color-mix(in srgb, var(--brand1) 6%, #fff);
+    border: 1px solid color-mix(in srgb, var(--brand1) 12%, transparent);
+}
+
+.dash-stand__overall[data-tone='ok'] {
+    color: #0d5c3a;
+    background: color-mix(in srgb, #0d8050 8%, #fff);
+    border-color: color-mix(in srgb, #0d8050 22%, transparent);
+}
+
+.dash-stand__overall[data-tone='warn'] {
+    color: #7a5000;
+    background: color-mix(in srgb, #f59f00 10%, #fff);
+    border-color: color-mix(in srgb, #f59f00 28%, transparent);
+}
+
+.dash-stand__metrics {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.dash-stand__metric {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid color-mix(in srgb, var(--brand1) 10%, transparent);
+    min-height: 88px;
+}
+
+.dash-stand__metric[data-tone='ok'] {
+    border-color: color-mix(in srgb, #0d8050 24%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #0d8050 8%, transparent);
+}
+
+.dash-stand__metric[data-tone='warn'] {
+    border-color: color-mix(in srgb, #f59f00 32%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #f59f00 10%, transparent);
+}
+
+.dash-stand__metric-ring {
+    --dash-metric-pct: 0%;
+    --dash-metric-fill: #6366f1;
+    --dash-metric-track: color-mix(in srgb, var(--border, #dee2e6) 55%, transparent);
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: conic-gradient(
+        from -90deg,
+        var(--dash-metric-fill) var(--dash-metric-pct),
+        var(--dash-metric-track) 0
+    );
+    display: grid;
+    place-items: center;
+    position: relative;
+}
+
+.dash-stand__metric-ring-inner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72em;
+    font-weight: 800;
+    color: #1e2440;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand1) 8%, transparent);
+}
+
+.dash-stand__metric-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.dash-stand__metric-title {
+    font-size: 0.78em;
+    font-weight: 750;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #7a8194;
+}
+
+.dash-stand__metric-value {
+    font-size: 1.05em;
+    font-weight: 800;
+    color: #1e2440;
+    line-height: 1.25;
+}
+
+.dash-stand__metric-hint {
+    font-size: 0.82em;
+    font-weight: 550;
+    color: #5c6578;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dash-stand__metric-jump {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    color: #3d4db8;
+    background: color-mix(in srgb, var(--brand1) 10%, #fff);
+    border: 1px solid color-mix(in srgb, var(--brand1) 18%, transparent);
+    text-decoration: none;
+    font-size: 1.35em;
+    line-height: 1;
+}
+
+.dash-stand__metric-jump:hover {
+    filter: brightness(0.96);
+}
+
+.dash-stand__hygiene-inline {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px dashed color-mix(in srgb, var(--brand2, #20c997) 28%, transparent);
+    background: color-mix(in srgb, var(--brand2, #20c997) 4%, #fff);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dash-stand__hygiene-inline-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.dash-stand__hygiene-inline-label {
+    font-size: 0.86em;
+    font-weight: 700;
+    color: #1e2440;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dash-stand__hygiene-inline-link {
+    font-size: 0.86em;
+    font-weight: 650;
+    color: #3d4db8;
+    text-decoration: none;
+}
+
+.dash-stand__hygiene-inline-link:hover {
+    text-decoration: underline;
+}
+
+.dash-stand__next-ok {
+    margin: 8px 0 0;
+    font-size: 0.88em;
+    color: #5c6578;
+    line-height: 1.45;
 }
 
 .dash-stand--hygiene {
@@ -279,8 +483,7 @@
 }
 
 @media (max-width: 900px) {
-    .dash-status-row,
-    .dash-status-row:not(:has(#dashStandHygieneWrap:not([hidden]))) {
+    .dash-stand__metrics {
         grid-template-columns: 1fr;
     }
 }

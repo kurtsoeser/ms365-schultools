@@ -2,6 +2,7 @@
  * Live-Zähler für Datenblöcke (Browser-Stammdaten, Setup, lokale Planer-URLs).
  */
 import { SPO_LIST_PROBES } from './datenlandkarte-spo-metrics.js';
+import { collectRegisterLayerChips } from '../../shared/stammdaten-register-status.js';
 
 function loadSettings() {
     try {
@@ -74,7 +75,7 @@ export function collectDatenMetrics() {
     const base = {
         stammHub: {
             value: stammSum,
-            hint: stammSum ? 'Summe Klassen, Lehrkräfte, Fächer, ARGE' : 'Noch leer – Einrichtung starten'
+            hint: stammSum ? 'Summe Klassen, Lehrkräfte, Fächer, ARGE' : 'Noch leer – Schulregister'
         },
         classes: { value: classes },
         teachers: { value: teachers },
@@ -111,6 +112,23 @@ export function collectDatenMetrics() {
             base[p.countKey] = { value: '…', hint: 'SharePoint-Zähler: Aktualisieren oder anmelden' };
         }
     });
+
+    try {
+        if (typeof window !== 'undefined') {
+            const chips = collectRegisterLayerChips();
+            const bad = chips.filter(function (c) {
+                return c.kind === 'error' || c.kind === 'warn';
+            });
+            base.registerAmpel = {
+                value: bad.length ? '!' : '✓',
+                hint: chips.map(function (c) {
+                    return c.label;
+                }).join(' · ')
+            };
+        }
+    } catch {
+        /* ignore */
+    }
 
     return base;
 }

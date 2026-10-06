@@ -74,7 +74,7 @@ export const DATEN_BLOECKE = [
         description: 'Schuljahr-Bucket inkl. Klasse und E-Mail.',
         icon: 'bi-person',
         layer: 'schuljahr',
-        href: '../tenant.html#students',
+        href: '../tenant.html#schueler',
         countKey: 'students'
     },
     {
@@ -83,7 +83,7 @@ export const DATEN_BLOECKE = [
         description: 'Eltern/EB verknüpft über guardianIds am Schüler.',
         icon: 'bi-person-hearts',
         layer: 'schuljahr',
-        href: '../tenant.html#students',
+        href: '../tenant.html#schueler',
         countKey: 'guardians'
     },
     {
@@ -101,7 +101,7 @@ export const DATEN_BLOECKE = [
         description: 'Import-Historie und Schüler-Stammdaten aus Untis.',
         icon: 'bi-cloud-upload',
         layer: 'schuljahr',
-        href: '../tools/webuntis-stammdaten-import.html',
+        href: '../tenant.html#schueler',
         countKey: 'sisImports'
     },
     {
@@ -214,11 +214,11 @@ export const DATEN_BLOECKE = [
     },
     {
         id: 'm365-catalog',
-        title: 'M365-Gruppen (Einrichtung)',
+        title: 'M365-Gruppen (Schulregister)',
         description: 'catalogLinks: Stammdaten ↔ Entra-Gruppen.',
         icon: 'bi-microsoft-teams',
         layer: 'm365',
-        href: '../ersteinrichtung.html',
+        href: '../tenant.html',
         countKey: 'catalogLinks'
     }
 ];

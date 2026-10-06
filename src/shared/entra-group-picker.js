@@ -557,6 +557,8 @@ export function wireEntraGroupPickerFields(spec) {
         const labelInput = document.getElementById(f.labelInputId);
         const idInput = document.getElementById(f.idInputId);
         if (!pickBtn || !labelInput || !idInput) return;
+        if (pickBtn.dataset.frEgpWired === '1') return;
+        pickBtn.dataset.frEgpWired = '1';
 
         pickBtn.addEventListener('click', () => {
             pickEntraGroup({ title: f.dialogTitle || 'Gruppe wählen' })
@@ -573,7 +575,8 @@ export function wireEntraGroupPickerFields(spec) {
                 });
         });
 
-        if (clearBtn) {
+        if (clearBtn && clearBtn.dataset.frEgpWired !== '1') {
+            clearBtn.dataset.frEgpWired = '1';
             clearBtn.addEventListener('click', () => {
                 idInput.value = '';
                 labelInput.value = '';

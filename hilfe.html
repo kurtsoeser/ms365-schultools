@@ -346,7 +346,7 @@
                             <li><a href="#schnellstart">Schnellstart</a></li>
                             <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                             <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
-                            <li><a href="#einrichtung">Geführte Einrichtung</a></li>
+                            <li><a href="#schulregister">Schulregister</a></li>
                             <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
                         </ul>
                         <div data-help-nav-group>
@@ -394,7 +394,7 @@
                                 <li><a href="#schnellstart">Schnellstart</a></li>
                                 <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                                 <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
-                                <li><a href="#einrichtung">Geführte Einrichtung</a></li>
+                                <li><a href="#schulregister">Schulregister</a></li>
                                 <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
                             </ul>
                             <div data-help-nav-group>
@@ -446,7 +446,7 @@
                         <h2 id="schnellstart">Schnellstart</h2>
                         <p class="help-lead">Die App läuft vollständig im Browser. Sie pflegt Schul-Stammdaten lokal und spricht Microsoft 365 über Graph oder über erzeugte PowerShell-Skripte an. Es gibt keinen App-Server hinter dieser Oberfläche – optional können Sie den lokalen Stand in eine IT-Bibliothek auf Ihrer schulischen SharePoint-Site sichern.</p>
                         <div class="help-chips" aria-label="Häufige Einstiege">
-                            <a href="#einrichtung"><i class="bi bi-signpost-2"></i>Schule einrichten</a>
+                            <a href="#schulregister"><i class="bi bi-journal-bookmark"></i>Schulregister</a>
                             <a href="#begriffe"><i class="bi bi-book"></i>Begriffe</a>
                             <a href="#tool-schuljahr"><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</a>
                             <a href="#tool-eltern-verteiler"><i class="bi bi-people"></i>Eltern-Verteiler</a>
@@ -456,8 +456,8 @@
                         <div class="rec">
                             <strong>Empfohlener Einstieg für eine neue Schule:</strong>
                             gleichen Browser jeden Tag verwenden (nicht privat/inkognito) →
-                            <a href="einrichtung.html">geführte Einrichtung</a> durcharbeiten →
-                            Stammdaten prüfen → Klassengruppen matchen → Sammelgruppen Schüler/Lehrkräfte →
+                            <a href="tenant.html">Schulregister</a> öffnen (Domain, Listen, optional <a href="tools/webuntis-stammdaten-import.html?from=tenant">Daten importieren</a>) →
+                            Klassengruppen matchen → Sammelgruppen Schüler/Lehrkräfte →
                             Unterrichtsteams aus dem Stundenplan → Browser-Backup speichern bzw. <strong>Nach SharePoint</strong> sichern.
                         </div>
                         <div class="mini-steps">
@@ -523,7 +523,7 @@
                         <div class="hint" id="datenspeicher">
                             <strong>Datenhaltung:</strong> Es gibt keinen App-Server dieser Software. Zwischenstände und Stammdaten liegen in
                             diesem Browser (<code>localStorage</code> / <code>sessionStorage</code>). Über <strong>Browser-Backup</strong>
-                            (Dashboard, Stammdaten oder Einrichtung) übertragen Sie <em>alle</em> lokalen App-Daten als JSON
+                            (Dashboard oder Schulregister) übertragen Sie <em>alle</em> lokalen App-Daten als JSON
                             in einen anderen Browser. Zusätzlich können Sie denselben Stand in eine
                             <strong>IT-Sicherungsbibliothek auf der schulischen SharePoint-Site</strong> schreiben
                             (<strong>Nach SharePoint</strong> / optionaler Auto-Sync; siehe
@@ -539,31 +539,29 @@
                     </article>
                 </section>
 
-                <section class="help-section" data-help-section aria-labelledby="einrichtung">
-                    <article class="help-article" data-help-article id="tool-einrichtung" data-search="einrichtung wizard setup domain verwaltung lehrer schüler fächer arge klassen übersicht erste schritte">
-                        <h2 id="einrichtung">Geführte Einrichtung</h2>
+                <section class="help-section" data-help-section aria-labelledby="schulregister">
+                    <article class="help-article" data-help-article id="tool-schulregister" data-search="schulregister stammdaten domain verwaltung lehrer schüler fächer arge klassen import webuntis sokrates erste schritte">
+                        <h2 id="schulregister">Schulregister</h2>
                         <p>
-                            <strong>Was macht’s?</strong> Der einmalige Assistent legt die Schule in dieser App an:
-                            Anmeldung, Schul-Domain, Verwaltung, Lehrkräfte, Schüler:innen, Fächer, ARGE, Klassen, Übersicht.
-                            Die Listen landen in denselben Stammdaten wie unter <a href="tenant.html">Stammdaten</a>.
+                            <strong>Was macht’s?</strong> Das <a href="tenant.html">Schulregister</a> ist die zentrale Stelle für alle Stammdaten:
+                            Schul-Domain, Verwaltung, Lehrkräfte, Schüler:innen, Fächer, ARGE und Klassen – Schritt für Schritt in Tabs, lokal im Browser.
                         </p>
                         <div class="mini-steps">
                             <strong>Empfohlene Reihenfolge</strong>
                             <ol>
                                 <li><strong>Anmeldung:</strong> Konto mit Admin-Rechten. Ohne Zustimmung der Graph-Berechtigungen bleiben Online-Aktionen leer.</li>
-                                <li><strong>Schul-Domain:</strong> ohne <code>@</code>, z. B. <code>ms365.schule</code>. Daraus werden UPNs und Gruppenmails gebaut.</li>
-                                <li><strong>Verwaltung:</strong> wenigstens die Direktion mit E-Mail – sie wird als Besitzerin vieler Sammelgruppen vorgeschlagen.</li>
-                                <li><strong>Lehrkräfte / Schüler:innen:</strong> CSV/XLSX, Copy &amp; Paste oder <strong>Aus Microsoft 365 einlesen</strong> (Konten mit A1/A3/A5).</li>
+                                <li><strong>Schule &amp; Domain:</strong> ohne <code>@</code>, z. B. <code>ms365.schule</code>. Daraus werden UPNs und Gruppenmails gebaut.</li>
+                                <li><strong>Daten importieren (optional):</strong> WebUntis-, Sokrates- oder MS365-Exporte über <a href="tools/webuntis-stammdaten-import.html?from=tenant">Daten importieren</a> oder die Upload-Felder in den jeweiligen Tabs.</li>
+                                <li><strong>Lehrkräfte / Schüler:innen:</strong> Datei-Upload, Copy &amp; Paste oder <strong>Aus Microsoft 365 einlesen</strong> (Konten mit A1/A3/A5).</li>
                                 <li><strong>Fächer, ARGE, Klassen:</strong> Kürzel und Namen pflegen. Klassen brauchen ein Abschlussjahr.</li>
-                                <li><strong>Übersicht:</strong> prüfen, dann Gruppen in den Alltags-Werkzeugen matchen oder neu anlegen – nicht alles auf einmal erzwingen.</li>
+                                <li><strong>Speichern &amp; Backup:</strong> nach größeren Änderungen Browser-Backup oder SharePoint-Sicherung nutzen.</li>
                             </ol>
                         </div>
                         <div class="rec">
                             <strong>Empfehlung:</strong> Bestehende Microsoft-365-Gruppen nicht doppelt anlegen.
-                            Nach der Einrichtung in den jeweiligen Werkzeugen <em>suchen und verknüpfen</em> (Match).
-                            Neu anlegen nur, wenn wirklich keine passende Gruppe existiert.
+                            In den Alltags-Werkzeugen <em>suchen und verknüpfen</em> (Match). Neu anlegen nur, wenn wirklich keine passende Gruppe existiert.
                         </div>
-                        <p class="help-open"><a href="einrichtung.html">→ Geführte Einrichtung öffnen</a></p>
+                        <p class="help-open"><a href="tenant.html">→ Schulregister öffnen</a></p>
                     </article>
                 </section>
 
@@ -608,7 +606,7 @@
                                 <li>Listen füllen: Copy &amp; Paste, CSV/XLSX-Vorlage oder Import aus Sokrates/WebUntis.</li>
                                 <li>Lehrkräfte und Schüler:innen optional <strong>aus Microsoft 365 einlesen</strong> (Lizenzfilter A1/A3/A5).</li>
                                 <li>Speichern. Mit <strong>Browser-Backup</strong> alle lokalen Daten sichern oder in einen anderen Browser übertragen; optional <strong>Nach SharePoint</strong> in die IT-Sicherungsbibliothek.</li>
-                                <li>Tab <strong>Intranet-Listen</strong>: SharePoint-Website angeben, Listen abgleichen (Schüler, Fächer, ARGE, Klassen …) inkl. Berechtigungen – auch in Schritt 11 der <a href="einrichtung.html">geführten Einrichtung</a>.</li>
+                                <li><strong>Stammdaten → SharePoint</strong>: Webseite für Intranet-Listen und Listennamen; Abgleich über Schnell-Buttons in den Tabs oder das Werkzeug <a href="tools/sharepoint-liste-stammdaten.html">Stammdaten-Listen</a>.</li>
                             </ol>
                         </div>
                         <div class="hint">
@@ -641,9 +639,8 @@
                             </ol>
                         </div>
                         <div class="hint">
-                            Selten nötig: einmalige Neuanlage aller Klassengruppen unter
-                            <a href="tools/jahrgang.html">Klassengruppen (einmalige Neuanlage)</a> –
-                            nicht für den Alltag (dort reicht Matchen/Listenansicht).
+                            Mehrere fehlende oder noch nicht verknüpfte Klassen: in den <strong>Sammelaktionen</strong>
+                            „Nicht gematcht“ bzw. „Noch nicht vorhanden“ auswählen und dort anlegen bzw. matchen.
                         </div>
                         <p class="help-open"><a href="tools/jahrgangsgruppen.html">→ Klassengruppen öffnen</a></p>
                     </article>
@@ -839,7 +836,7 @@
                             Spezialfall der Gruppenverwaltung für Katalogeinträge aus den Stammdaten: Fachgruppen und ARGE.
                             Ohne Match suchen oder neu anlegen, mit Match Live-Details pflegen.
                             Gematchte Einträge sind grün markiert, ungematchte rot – wie bei den Klassengruppen.
-                            Verknüpfungen liegen in denselben <code>catalogLinks</code> wie in der Einrichtung.
+                            Verknüpfungen liegen in denselben <code>catalogLinks</code> wie im Schulregister.
                         </p>
                         <div class="mini-steps">
                             <ol>
@@ -1430,6 +1427,16 @@
                         <p>Orientierung für den Jahresbeginn: Stammdaten, Klassen, SLG, Kursteams, Sync-Monitor, Lifecycle, Cleanup.</p>
                         <p class="help-open"><a href="tools/playbook-schuljahresstart.html">→ Playbook öffnen</a></p>
                     </article>
+                    <article class="help-article" data-help-article data-search="playbook import verknüpfen webuntis stammdaten slg klassen hygiene">
+                        <h3 id="tool-playbook-daten-import-verknuepfen">Daten importieren und Verknüpfen <span class="pill">Checkliste</span></h3>
+                        <p>Einstieg für neue Mandanten: Schulregister, <strong>Datei-Import</strong> (WebUntis, Sokrates, …) oder perspektivisch <strong>Bildungsportal</strong>, dann Review, Sammelgruppen, Klassen, Fächer, Hygiene und Sicherung – mit lokalem Fortschritt.</p>
+                        <p class="help-open"><a href="tools/playbook-daten-import-verknuepfen.html">→ Playbook öffnen</a> · <a href="tools/stammdaten-quelle-waehlen.html">Quelle wählen</a> · <a href="tools/bildungsportal-stammdaten.html">Bildungsportal-Roadmap</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="bildungsportal edtech stammdaten readorgdata readuserdata bip bmb">
+                        <h3 id="tool-bildungsportal-stammdaten">Bildungsportal Stammdaten <span class="pill">Vorschau</span></h3>
+                        <p>Geplante direkte Anbindung über EdTech-Schnittstellen des BMB (nicht Sokrates direkt). Heute: Roadmap und Platzhalter; Stammdaten weiter über Datei-Import im Playbook.</p>
+                        <p class="help-open"><a href="tools/bildungsportal-stammdaten.html">→ Vorschau öffnen</a></p>
+                    </article>
                     <article class="help-article" data-help-article data-search="playbook intranet hub listen">
                         <h3 id="tool-playbook-intranet">Playbook Intranet <span class="pill">Checkliste</span></h3>
                         <p>Hub und Listen einmal einrichten, danach Planer nutzen.</p>
@@ -1439,6 +1446,26 @@
                         <h3 id="tool-playbook-eltern">Playbook Elternkommunikation <span class="pill">Checkliste</span></h3>
                         <p>Verteiler, Sprechtag und Intranet als Kanal – ohne Doppelarbeit.</p>
                         <p class="help-open"><a href="tools/playbook-eltern.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="playbook elternsprechtag bookings sprechtag termin verteiler">
+                        <h3 id="tool-playbook-elternsprechtag">Playbook Elternsprechtag <span class="pill">Checkliste</span></h3>
+                        <p>Termin, Stammdaten, Verteiler, Microsoft Bookings und Elterninfo – Schritt für Schritt zum Sprechtag.</p>
+                        <p class="help-open"><a href="tools/playbook-elternsprechtag.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="playbook schularbeiten planer listen regelwerk sharepoint">
+                        <h3 id="tool-playbook-schularbeiten-planer">Playbook Schularbeiten-Planer <span class="pill">Checkliste</span></h3>
+                        <p>Listen, Regelwerk, Berechtigungen und Testantrag bis Lehrkräfte den Planer nutzen.</p>
+                        <p class="help-open"><a href="tools/playbook-schularbeiten-planer.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="playbook freistellungen power automate sharepoint kv direktion">
+                        <h3 id="tool-playbook-freistellungen">Playbook Freistellungen <span class="pill">Checkliste</span></h3>
+                        <p>Konzept, Setup (Liste + Flow) und erster Testantrag im Freistellungen-Planer.</p>
+                        <p class="help-open"><a href="tools/playbook-freistellungen.html">→ Playbook öffnen</a></p>
+                    </article>
+                    <article class="help-article" data-help-article data-search="playbook kursteams unterrichtsteams import monitor vorlagen">
+                        <h3 id="tool-playbook-kursteams">Playbook Unterrichtsteams <span class="pill">Checkliste</span></h3>
+                        <p>Import, SLG, Kursteams anlegen, Vorlagen, Sync-Monitor und Katalog.</p>
+                        <p class="help-open"><a href="tools/playbook-kursteams.html">→ Playbook öffnen</a></p>
                     </article>
                     <article class="help-article" data-help-article data-search="lifecycle schüler klassenwechsel abgang zugang diff truncation">
                         <h3 id="tool-schueler-lifecycle">Schüler-Lifecycle <span class="pill">Diff</span></h3>
@@ -1524,12 +1551,12 @@
                     <article class="help-article" data-help-article data-search="teams archivieren unarchive sharepoint kursteams schuljahreswechsel sammel-archivierung">
                         <h3 id="tool-teams-archiv">Teams archivieren <span class="pill">Graph</span></h3>
                         <p>
-                            Empfohlen: in der Gruppenverwaltung ein Team wählen → Details → Abschnitt Team-Archiv → Update
-                            (optional SharePoint). Legacy-Formular: <a href="tools/archiv/teams-archiv.html">tools/archiv/teams-archiv.html</a> –
-                            dort auch die <strong>Sammel-Archivierung</strong>: Suchbegriff (z.&nbsp;B. Schuljahr-Präfix wie
-                            <code>SJ25</code>) eintragen, alle passenden Kursteams werden gefunden und können gemeinsam
-                            archiviert werden (Ergänzung zum Schuljahreswechsel – alte Unterrichtsteams nicht löschen, sondern archivieren).
+                            In der Gruppenverwaltung (<a href="tools/schulstruktur-sync.html">Alle Gruppen</a>) ein Team wählen → Details → Team-Archiv → Update
+                            (optional SharePoint). Eigenes Werkzeug: <a href="tools/teams-archiv.html">Teams archivieren</a> –
+                            einzeln per GUID/Suche oder <strong>Sammel-Archivierung</strong>: Suchbegriff (z.&nbsp;B. Schuljahr-Präfix wie
+                            <code>SJ25</code>) eintragen, passende Teams auswählen und gemeinsam archivieren (Ergänzung zum Schuljahreswechsel – alte Unterrichtsteams nicht löschen, sondern archivieren).
                         </p>
+                        <p class="help-open"><a href="tools/teams-archiv.html">→ Teams archivieren öffnen</a></p>
                     </article>
                 </section>
 
@@ -1605,7 +1632,7 @@
                     <details class="help-faq" data-help-faq data-search="daten weg privates fenster cache gelöscht sharepoint">
                         <summary>Die Stammdaten sind leer – wo sind die Listen?</summary>
                         <div class="faq-body">
-                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: letztes Browser-Backup importieren – oder, wenn eingerichtet, <strong>Von SharePoint</strong> das aktuelle Remote-Backup laden. Wenn keines existiert, Listen erneut aus Sokrates/WebUntis oder aus Microsoft 365 einlesen. Nach der ersten Einrichtung die IT-Sicherungsbibliothek unter <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a> einrichten und nicht nur auf die Download-Ablage verlassen.</p>
+                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: letztes Browser-Backup importieren – oder, wenn eingerichtet, <strong>Von SharePoint</strong> das aktuelle Remote-Backup laden. Wenn keines existiert, Listen erneut aus Sokrates/WebUntis oder aus Microsoft 365 einlesen. Die IT-Sicherungsbibliothek unter <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a> einrichten und nicht nur auf die Download-Ablage verlassen.</p>
                         </div>
                     </details>
 
@@ -1716,7 +1743,7 @@
 
                         <h3>Sicherung: Browser-Backup und schuleigene SharePoint-Bibliothek</h3>
                         <p>
-                            <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard, Stammdaten, Einrichtung).
+                            <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard, Schulregister).
                             Damit übertragen Sie den lokalen Stand zwischen Browsern oder PCs.
                         </p>
                         <p>
@@ -1770,7 +1797,7 @@
                         <ul>
                             <li>App nur auf dienstlichen Geräten / dienstlichen Browserprofilen nutzen.</li>
                             <li>Browser-Backups, SharePoint-Sicherungsdatei und Skript-Downloads wie andere Dateien mit Schüler- und Elterndaten behandeln (Zugriff beschränken, nicht in Tickets anhängen).</li>
-                            <li>IT-Sicherungsbibliothek nur für berechtigte IT-/Verwaltungsgruppen freigeben (wie von der Einrichtung vorgesehen).</li>
+                            <li>IT-Sicherungsbibliothek nur für berechtigte IT-/Verwaltungsgruppen freigeben (wie in der Stammdaten-Übergabe beschrieben).</li>
                             <li>Eltern nicht als Gäste anlegen, wenn ein Verteiler reicht.</li>
                             <li>Gast-Exporte und Personen-CSVs nur speichern, wenn Ihre Organisation das erlaubt.</li>
                             <li>Konto-Löschen in der Personen-Verwaltung nur mit UPN-Bestätigung und nach dem schulischen Offboarding.</li>

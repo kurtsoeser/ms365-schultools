@@ -2,6 +2,7 @@
  * Schul-spezifische Overrides für Dashboard-Sichtbarkeit (Stammdaten → Werkzeuge).
  */
 import { DASHBOARD_TOOL_RULES, normalizeAudiences } from './dashboard-audience-catalog.js';
+import { notifyAppLocalDataChanged } from './app-local-data-notify.js';
 
 export const DASHBOARD_TOOL_ACCESS_STORAGE_KEY = 'ms365-dashboard-tool-access-v1';
 
@@ -18,6 +19,18 @@ function safeParse(raw) {
     }
 }
 
+function migrateDashboardToolAccessTools(tools) {
+    if (!tools || typeof tools !== 'object') return {};
+    const next = { ...tools };
+    const legacy = next.slg;
+    if (legacy && typeof legacy === 'object') {
+        if (!next['slg-schueler']) next['slg-schueler'] = { ...legacy };
+        if (!next['slg-lehrer']) next['slg-lehrer'] = { ...legacy };
+        delete next.slg;
+    }
+    return next;
+}
+
 /**
  * @returns {DashboardToolAccessConfig}
  */
@@ -26,7 +39,8 @@ export function loadDashboardToolAccessConfig() {
         const raw = localStorage.getItem(DASHBOARD_TOOL_ACCESS_STORAGE_KEY);
         const data = safeParse(raw);
         if (data && typeof data === 'object' && data.tools && typeof data.tools === 'object') {
-            return { version: 1, tools: { ...data.tools } };
+            const tools = migrateDashboardToolAccessTools(data.tools);
+            return { version: 1, tools };
         }
     } catch {
         /* ignore */
@@ -52,6 +66,7 @@ export function saveDashboardToolAccessConfig(config) {
     } catch {
         /* ignore */
     }
+    notifyAppLocalDataChanged('dashboard-tool-access');
     return payload;
 }
 

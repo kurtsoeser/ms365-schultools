@@ -123,12 +123,12 @@ Die App erkennt u. a.: **Klasse(n)**, **Fach**, **Lehrer**, **Schülergruppe**
 
 | Pfad | Beschreibung |
 |--------|----------------|
-| `index.html` | **Dashboard**: Kacheln zu allen Werkzeugen, Suche, Favoriten, Links zu Einstellungen und Einrichtung |
-| `tenant.html` | **Schul-Grundeinstellungen**: Stammdaten, Tab „Klassen“, lokale Daten; nutzt u. a. `src/shared/msal-auth-ui.js` und `src/shared/tenant-settings-*.js` |
-| `einrichtung.html` | **Geführte Einrichtung** (Setup-Wizard; `src/shared/setup-wizard.js` u. a.) |
+| `index.html` | **Dashboard**: Kacheln zu allen Werkzeugen, Suche, Favoriten, Link zum Schulregister |
+| `tenant.html` | **Schulregister**: Stammdaten in Tabs, Import, lokale Daten; nutzt u. a. `src/shared/msal-auth-ui.js` und `src/shared/tenant-settings-*.js` |
+| `tools/webuntis-stammdaten-import.html` | **Daten importieren**: WebUntis/Sokrates-Exporte gesammelt prüfen und ins Schulregister übernehmen |
 | `ms365-schooltool.html` | **Redirect-/Login-Einstieg** für Entra: MSAL `handleRedirectPromise`, Rücksprung nach `sessionStorage`, Weiterleitung per `?mode=…` auf `tools/…` oder `index.html` |
 | `tools/kursteams.html` | Kursteams-Oberfläche; Logik in **`src/tools/kursteams/`** (u. a. `kursteam-graph.js`, `kursteam-ui.js`, …) |
-| `tools/jahrgang.html` | Jahrgangsgruppen-Assistent; Skripte unter **`src/tools/jahrgang/`** |
+| `tools/jahrgangsgruppen.html` | **Klassengruppen**: Stammdaten mit M365-Gruppen abgleichen; Skripte unter **`src/tools/jahrgangsgruppen/`** |
 | `tools/archiv/arge.html` | ARGE-Assistent (Archiv); Skripte unter **`src/tools/arge/`** |
 | `src/shared/` | Gemeinsame Module (z. B. `app-data-v2.js`, `tenant-settings-*.js`, `graph-unified-groups.js`, `msal-loader.js`, `polyglot-cmd.js` für CMD-Downloads) |
 | `app.js` | **Kompatibilitäts-Stub** (no-op): frühere Bookmarks/Deployments, die noch `app.js` laden, brechen nicht; die Kursteams-Logik liegt unter `src/tools/kursteams/` |

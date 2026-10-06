@@ -8,6 +8,19 @@
 
 const IT_PREVIEW_KEY = 'ms365-dashboard-it-preview-v1';
 
+function itPreviewStorageKey() {
+    let tid = '';
+    try {
+        if (typeof window !== 'undefined' && typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            tid = info && info.tenantId ? String(info.tenantId).trim() : '';
+        }
+    } catch {
+        /* ignore */
+    }
+    return tid ? IT_PREVIEW_KEY + ':' + tid : IT_PREVIEW_KEY;
+}
+
 /** @typedef {'full'|'preview-lehrer'|'preview-schueler'|'apps-lehrer'|'apps-schueler'} DashboardLayoutMode */
 
 /**
@@ -52,7 +65,7 @@ export function catalogViewForLayout(mode) {
 
 export function readItPreviewChoice() {
     try {
-        const v = String(localStorage.getItem(IT_PREVIEW_KEY) || '').toLowerCase();
+        const v = String(localStorage.getItem(itPreviewStorageKey()) || '').toLowerCase();
         if (v === 'lehrer' || v === 'schueler') return v;
     } catch {
         /* ignore */
@@ -65,9 +78,10 @@ export function readItPreviewChoice() {
  */
 export function writeItPreviewChoice(mode) {
     try {
-        if (mode === 'full') localStorage.removeItem(IT_PREVIEW_KEY);
-        else if (mode === 'preview-lehrer') localStorage.setItem(IT_PREVIEW_KEY, 'lehrer');
-        else if (mode === 'preview-schueler') localStorage.setItem(IT_PREVIEW_KEY, 'schueler');
+        const storageKey = itPreviewStorageKey();
+        if (mode === 'full') localStorage.removeItem(storageKey);
+        else if (mode === 'preview-lehrer') localStorage.setItem(storageKey, 'lehrer');
+        else if (mode === 'preview-schueler') localStorage.setItem(storageKey, 'schueler');
     } catch {
         /* ignore */
     }

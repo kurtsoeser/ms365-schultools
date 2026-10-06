@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
     buildHygieneTargets,
     findClassTeamForClass,
+    resolveClassGraphGroupId,
     countLinkedClassTeamsForClasses,
     hygieneStatusForTarget,
+    aggregateHygieneStatuses,
+    hygieneStatusDashboardTone,
+    hygieneStatusDashboardHint,
     summarizeHygieneScan
 } from '../src/shared/membership-hygiene.js';
 
@@ -91,6 +95,21 @@ describe('membership-hygiene', () => {
         expect(team && team.graphGroupId).toBe('g-1hma-2031');
     });
 
+    it('resolveClassGraphGroupId nutzt classGroupMatchByKey wenn classTeams leer', () => {
+        const cls = { code: '2B', year: '2031' };
+        expect(resolveClassGraphGroupId(cls, [], {})).toBe('');
+        expect(
+            resolveClassGraphGroupId(cls, [], {
+                '2B': { groupId: 'g-2b', notFound: false }
+            })
+        ).toBe('g-2b');
+        expect(
+            resolveClassGraphGroupId(cls, [{ classCode: '2B', abschlussJahr: '2031', graphGroupId: 'g-team' }], {
+                '2B': { groupId: 'g-map' }
+            })
+        ).toBe('g-team');
+    });
+
     it('summarizeHygieneScan zählt Status korrekt', () => {
         const targets = [
             { id: 'a', groupId: 'g1', listCount: 2 },
@@ -101,5 +120,16 @@ describe('membership-hygiene', () => {
         expect(summary.counts.ok).toBe(1);
         expect(summary.counts.mismatch).toBe(1);
         expect(summary.counts.unmatched).toBe(1);
+    });
+
+    it('aggregateHygieneStatuses und Dashboard-Töne', () => {
+        expect(aggregateHygieneStatuses(['ok', 'ok'])).toBe('ok');
+        expect(aggregateHygieneStatuses(['ok', 'mismatch'])).toBe('mismatch');
+        expect(aggregateHygieneStatuses(['unmatched', 'unmatched'])).toBe('unmatched');
+        expect(aggregateHygieneStatuses(['ok', 'unmatched'])).toBe('mismatch');
+        expect(hygieneStatusDashboardTone('ok')).toBe('ok');
+        expect(hygieneStatusDashboardTone('mismatch')).toBe('warn');
+        expect(hygieneStatusDashboardTone('unknown')).toBe('pending');
+        expect(hygieneStatusDashboardHint('ok')).toBe('Konsistent');
     });
 });

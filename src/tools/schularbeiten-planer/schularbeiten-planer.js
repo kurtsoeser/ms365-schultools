@@ -90,7 +90,7 @@ import {
     canShowPlanerItToolbar,
     entraGroupsConfigured
 } from './schularbeiten-planer-entra-role.js';
-import { loadPermissionsConfig } from './schularbeiten-planer-permissions.js';
+import { loadEffectivePermissionsConfig } from './schularbeiten-planer-permissions.js';
 import {
     syncPlannerPermissionsFromSite,
     publishPlannerPermissionsToSite
@@ -565,7 +565,7 @@ function bindAdminActions() {
     if (savePerms) {
         savePerms.addEventListener('click', () => {
             persistPickersToStorage(PLANER_GROUP_FIELDS);
-            state.entraGroupsConfigured = entraGroupsConfigured(loadPermissionsConfig());
+            state.entraGroupsConfigured = entraGroupsConfigured(loadEffectivePermissionsConfig());
             resolvePlanerRole()
                 .then(() => paint())
                 .catch(() => paint());
@@ -1570,7 +1570,7 @@ async function ensurePlannerPermissionsConfig() {
                 ? String(state.ctx.lists.schularbeiten.id)
                 : '';
         await syncPlannerPermissionsFromSite(site, listId || undefined);
-        state.entraGroupsConfigured = entraGroupsConfigured(loadPermissionsConfig());
+        state.entraGroupsConfigured = entraGroupsConfigured(loadEffectivePermissionsConfig());
     } catch {
         /* optional */
     }
@@ -1583,7 +1583,7 @@ function publishPermissionsToSharePoint() {
         state.ctx && state.ctx.lists && state.ctx.lists.schularbeiten && state.ctx.lists.schularbeiten.id
             ? String(state.ctx.lists.schularbeiten.id)
             : '';
-    publishPlannerPermissionsToSite(site, listId || undefined, loadPermissionsConfig()).catch(() => {});
+    publishPlannerPermissionsToSite(site, listId || undefined, loadEffectivePermissionsConfig()).catch(() => {});
 }
 
 async function tryRecoverPlanerAccess() {
@@ -1647,7 +1647,7 @@ async function refreshData(opts) {
         state.bootstrapped = true;
         state.localDemoOnly = false;
         syncAccount();
-        const entraMode = entraGroupsConfigured(loadPermissionsConfig());
+        const entraMode = entraGroupsConfigured(loadEffectivePermissionsConfig());
         // Demo/IT ohne Entra-Gruppen: Lehrer-Filter leer → Hinweis (kein Auto-Admin bei Entra)
         if (
             !entraMode &&
@@ -1715,7 +1715,7 @@ function boot() {
 
     const params = new URLSearchParams(window.location.search || '');
     state.demoRoleOverride = params.get('demoRole') === '1';
-    state.entraGroupsConfigured = entraGroupsConfigured(loadPermissionsConfig());
+    state.entraGroupsConfigured = entraGroupsConfigured(loadEffectivePermissionsConfig());
 
     const view = params.get('view');
     if (view && VIEWS.some((v) => v.id === view)) state.view = view;

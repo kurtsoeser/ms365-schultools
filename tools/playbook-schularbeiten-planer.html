@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Playbook Schularbeiten-Planer</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .cp-steps{display:grid;gap:14px;margin-top:8px}
+        .cp-step{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:start;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
+        .cp-step__n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent,#0d6efd) 14%,var(--card));color:var(--heading)}
+        .cp-step h3{margin:0 0 4px;font-size:1.05rem}
+        .cp-step p{margin:0;color:var(--muted,#6c757d);font-size:.92em;line-height:1.45}
+        .cp-check{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:.9em}
+        @media (max-width:720px){.cp-step{grid-template-columns:40px 1fr}.cp-step .btn{grid-column:1/-1;justify-self:start}}
+    </style>
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-journal-check"></i>Playbook Schularbeiten-Planer</span>
+            </div>
+            <p>SharePoint-Listen, Regelwerk, Berechtigungen und Testantrag – bis Lehrkräfte den Planer nutzen können.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-playbook-schularbeiten-planer" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="schularbeiten-planer.html"><i class="bi bi-journal-check"></i>Planer</a>
+                <a class="btn" href="playbook-intranet.html"><i class="bi bi-house-door"></i>Intranet-Playbook</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-hero" aria-label="Kurzüberblick">
+                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-journal-check"></i></div>
+                <div>
+                    <p class="tm-hero__kicker">Einrichtungs-Playbook</p>
+                    <h2>Schularbeiten digital planen</h2>
+                    <p>Stammdaten → Listen → Regeln → Freigabe – dann im Alltag antragen und fixieren.</p>
+                </div>
+            </section>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div><h3>Schritte</h3><p id="cpProgress" class="muted" style="margin:0;">0 / 7 erledigt</p></div>
+                </div>
+                <div class="cp-steps">
+                    <article class="cp-step"><div class="cp-step__n">1</div><div><h3>Stammdaten: Fächer &amp; Klassen</h3><p>Fachcodes und Klassen im Schulregister – Grundlage für Anträge und Regeln.</p><label class="cp-check"><input type="checkbox" data-cp-check="stammdaten"> Erledigt</label></div><a class="btn" href="../tenant.html"><i class="bi bi-database"></i>Stammdaten</a></article>
+                    <article class="cp-step"><div class="cp-step__n">2</div><div><h3>SharePoint-Listen anlegen</h3><p>Regelwerk, Terminfenster, Schularbeiten und FachMeta auf der Schul-Site.</p><label class="cp-check"><input type="checkbox" data-cp-check="listen"> Erledigt</label></div><a class="btn" href="sharepoint-liste-schularbeiten.html"><i class="bi bi-list-ul"></i>SA-Listen</a></article>
+                    <article class="cp-step"><div class="cp-step__n">3</div><div><h3>Regelwerk &amp; Fenster</h3><p>Max pro Tag, Fristen und Sperrzeiten im Planer für das Schuljahr pflegen.</p><label class="cp-check"><input type="checkbox" data-cp-check="regelwerk"> Erledigt</label></div><a class="btn" href="schularbeiten-planer.html"><i class="bi bi-sliders"></i>Regelwerk</a></article>
+                    <article class="cp-step"><div class="cp-step__n">4</div><div><h3>Berechtigungen &amp; Rollen</h3><p>Wer darf antragen, fixieren, administrieren – Entra-Gruppen und Planer-Rechte.</p><label class="cp-check"><input type="checkbox" data-cp-check="berechtigungen"> Erledigt</label></div><a class="btn" href="schularbeiten-planer.html"><i class="bi bi-shield-check"></i>Rechte</a></article>
+                    <article class="cp-step"><div class="cp-step__n">5</div><div><h3>Testantrag durchspielen</h3><p>Eine Schularbeit anlegen, Regelprüfung und Freigabe mit Testfach testen.</p><label class="cp-check"><input type="checkbox" data-cp-check="test"> Erledigt</label></div><a class="btn" href="schularbeiten-planer.html"><i class="bi bi-journal-check"></i>Planer</a></article>
+                    <article class="cp-step"><div class="cp-step__n">6</div><div><h3>Intranet &amp; Transparenz</h3><p>Optional: öffentliche SA-Übersicht oder Hinweise auf dem Hub verlinken.</p><label class="cp-check"><input type="checkbox" data-cp-check="intranet"> Erledigt</label></div><a class="btn" href="sharepoint-intranet-hub.html"><i class="bi bi-house-door"></i>Hub</a></article>
+                    <article class="cp-step"><div class="cp-step__n">7</div><div><h3>Lehrkräfte einweisen</h3><p>Kurzanleitung im Intranet; optional Erinnerungs-Mail per Power Automate.</p><label class="cp-check"><input type="checkbox" data-cp-check="schulung"> Erledigt</label></div><a class="btn" href="pa-schularbeiten-mail.html"><i class="bi bi-envelope"></i>SA-Mail (optional)</a></article>
+                </div>
+                <div class="tm-actions" style="margin-top:16px;">
+                    <button type="button" class="btn" id="cpReset"><i class="bi bi-arrow-counterclockwise"></i>Haken zurücksetzen</button>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        import { wirePlaybookPage } from '../src/shared/playbook-store.js';
+        wirePlaybookPage({
+            storageKey: 'ms365-playbook-schularbeiten-v1',
+            stepIds: ['stammdaten', 'listen', 'regelwerk', 'berechtigungen', 'test', 'intranet', 'schulung']
+        });
+    </script>
+</body>
+</html>

@@ -15,10 +15,14 @@ import {
     prefillStudentFreistellungForm,
     loadSetupCfg,
     loadSavedSiteUrl,
+    resolveFreistellungSiteUrl,
     matchStudentByEmail,
+    refreshStudentMatchFromStammdaten,
+    clearStudentKlassePick,
     studentKlasseFromRecord,
     matchKvByClassHeadEmail,
     resolveStudentKlasseCode,
+    isStudentKlasseLocked,
     persistDemoKlasseCode,
     loadDemoKlasseCode,
     viewsForRole,
@@ -37,8 +41,14 @@ import {
     accountIsDirektionPlannerUser,
     accountIsPlannerUserInList
 } from './freistellung-planer-direktion-users.js';
-import { entraGroupsConfigured, loadPermissionsConfig } from './freistellung-planer-permissions.js';
+import {
+    entraGroupsConfigured,
+    loadPermissionsConfig,
+    loadEffectivePermissionsConfig
+} from './freistellung-planer-permissions.js';
 import { syncPlannerPermissionsFromSite } from './freistellung-planer-remote-config.js';
+import { ensureFreistellungPlanerSchoolContext } from './freistellung-planer-bootstrap.js';
+import { wireFreistellungAccessDebug } from './freistellung-planer-access-debug-ui.js';
 import {
     mergeKategorieChoices,
     loadExtraKategorien
@@ -48,8 +58,13 @@ import {
     uploadFreistellungNachweise,
     saveNachweiseOnItem
 } from './freistellung-planer-nachweise.js';
-import { patchFreistellungKategorieColumn } from './freistellung-planer-graph.js';
+import {
+    patchFreistellungKategorieColumn,
+    patchFreistellungKlasseColumn,
+    fetchFreistellungKlasseColumnChoices
+} from './freistellung-planer-graph.js';
 import { wireFreistellungKategorienAdmin } from './freistellung-kategorien-ui.js';
+import { wireFreistellungKlassenAdmin } from './freistellung-klassen-ui.js';
 import {
     resolveFrContext,
     loadAllFreistellungen,
@@ -64,7 +79,8 @@ import {
     readFormFromDom,
     readFiltersFromDom,
     bindFreistellungUploadField,
-    clearFreistellungUploadField
+    clearFreistellungUploadField,
+    wireFreistellungStudentKvSearch
 } from './freistellung-planer-ui.js';
 import { downloadFreistellungCsv } from './freistellung-planer-export.js';
 import {
@@ -80,6 +96,7 @@ import {
     seedDemoFreistellungen,
     resetDemoFreistellungen
 } from './freistellung-planer-demo-seed.js';
+import { resolveStudentKlasseForAccount } from './freistellung-planer-student-klasse.js';
 
 const state = createInitialState();
 let root = null;
@@ -114,12 +131,58 @@ function syncPageHeader() {
     page.setAttribute('data-fr-direktion', direktion ? '1' : '0');
 }
 
+async function ensureKlasseChoicesLoaded() {
+    if (state.role !== 'schueler') return false;
+    const catalog = (loadEffectivePermissionsConfig().classCatalog || []).filter(
+        (r) => r && r.code && !/^[1-5]AHW$/i.test(String(r.code))
+    );
+    if (catalog.length) {
+        state.klasseColumnChoices = catalog.map((r) => ({
+            code: r.code,
+            name: r.name || r.code
+        }));
+        return true;
+    }
+    let ctx = state.ctx;
+    if (!ctx || !ctx.list || !ctx.list.id) {
+        const site = resolveFreistellungSiteUrl(state.siteUrl);
+        if (!site) return false;
+        try {
+            ctx = await resolveFrContext(site, {
+                listName: state.listName,
+                listId: state.listId
+            });
+            state.ctx = ctx;
+            if (ctx && ctx.list && ctx.list.id) state.listId = String(ctx.list.id);
+        } catch {
+            return false;
+        }
+    }
+    try {
+        const fromSp = await fetchFreistellungKlasseColumnChoices(ctx);
+        state.klasseColumnChoices = (fromSp || []).filter(
+            (r) => r && r.code && !/^[1-5]AHW$/i.test(String(r.code))
+        );
+    } catch {
+        state.klasseColumnChoices = [];
+    }
+    return !!(state.klasseColumnChoices && state.klasseColumnChoices.length);
+}
+
+async function afterStudentAntragViewOpen() {
+    if (state.role !== 'schueler') return;
+    await ensureKlasseChoicesLoaded();
+    prefillStudentFreistellungForm(state);
+    paint();
+}
+
 function paint() {
     if (!root) return;
     if (state.role === 'schueler') prefillStudentFreistellungForm(state);
     syncPageHeader();
     renderApp(state, root);
     bindStatic();
+    wireFreistellungAccessDebug(root, state);
     placePlanerAuthWidget();
 }
 
@@ -160,6 +223,10 @@ function syncAccount() {
     }
     state.stammdaten = loadStammdaten();
     state.studentMatch = matchStudentByEmail(state.accountEmail, state.stammdaten.students);
+    clearStudentKlassePick(state.accountEmail);
+    if (state.studentMatch && state.studentMatch.klasseSource === 'local-pick') {
+        state.studentMatch = matchStudentByEmail(state.accountEmail, state.stammdaten.students);
+    }
     if (studentKlasseFromRecord(state.studentMatch)) {
         state.demoKlasseCode = '';
         persistDemoKlasseCode('');
@@ -195,7 +262,8 @@ function friendlySpoError(e) {
 
 async function ensurePlannerPermissionsConfig(listIdHint) {
     const setup = loadSetupCfg();
-    const site = String(state.siteUrl || setup.siteUrl || loadSavedSiteUrl(setup) || '').trim();
+    const site = resolveFreistellungSiteUrl(state.siteUrl || setup.siteUrl);
+    if (site) state.siteUrl = site;
     if (!site) return;
     let listId = String(listIdHint || state.listId || setup.listId || '').trim();
     const listName =
@@ -237,9 +305,11 @@ function applyRecoveredPlanerRoles(roles, sources) {
  * Nach Laden der Gruppen-Config aus SharePoint: Stammdaten, Liste, erneuter Entra-Versuch.
  */
 async function tryRecoverPlanerAccess() {
-    if (!state.planerAccessDenied || !state.siteUrl) return;
+    if (!state.planerAccessDenied) return;
 
     syncAccount();
+    const site = resolveFreistellungSiteUrl(state.siteUrl);
+    if (site) state.siteUrl = site;
     await ensurePlannerPermissionsConfig(state.listId);
     await applyPlanerRoleFromEntra(state, {
         demoRoleOverride: state.demoRoleOverride,
@@ -248,7 +318,7 @@ async function tryRecoverPlanerAccess() {
     });
     if (!state.planerAccessDenied) return;
 
-    const cfg = loadPermissionsConfig();
+    const cfg = loadEffectivePermissionsConfig();
 
     if (state.kvMatch) {
         applyRecoveredPlanerRoles(['kv'], { kv: 'stammdaten' });
@@ -314,8 +384,51 @@ async function tryRecoverPlanerAccess() {
     }
 }
 
+async function grantSchuelerIfFreistellungListReadable() {
+    if (!state.planerAccessDenied) return;
+    if (isLikelyFreistellungStaffAccount(state)) return;
+    const site = resolveFreistellungSiteUrl(state.siteUrl);
+    if (!site) return;
+    state.siteUrl = site;
+    try {
+        const ctx = await resolveFrContext(state.siteUrl, {
+            listName: state.listName,
+            listId: state.listId
+        });
+        if (!ctx || !ctx.list || !ctx.list.id) return;
+        state.listId = String(ctx.list.id);
+        if (!(await probeFreistellungListRead(ctx))) return;
+        await syncPlannerPermissionsFromSite(state.siteUrl, state.listId, {
+            listName: state.listName,
+            listId: state.listId
+        });
+        await applyPlanerRoleFromEntra(state, {
+            demoRoleOverride: state.demoRoleOverride,
+            preferredDemoRole: state.demoRoleOverride ? state.role : null,
+            preferredActiveRole: state.role
+        });
+        if (!state.planerAccessDenied) return;
+        applyRecoveredPlanerRoles(['schueler'], { schueler: 'list-access' });
+        state.stammdaten = loadStammdaten();
+        await resolveStudentKlasseForAccount(state);
+    } catch {
+        /* ignore */
+    }
+}
+
 async function resolvePlanerRole(listIdHint) {
     syncAccount();
+    if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
+        const boot = await ensureFreistellungPlanerSchoolContext({
+            siteUrl: state.siteUrl,
+            listId: listIdHint || state.listId,
+            listName: state.listName
+        });
+        if (boot && boot.siteUrl) state.siteUrl = boot.siteUrl;
+        if (boot && boot.listId) state.listId = boot.listId;
+    }
+    const site = resolveFreistellungSiteUrl(state.siteUrl);
+    if (site) state.siteUrl = site;
     await ensurePlannerPermissionsConfig(listIdHint);
     await applyPlanerRoleFromEntra(state, {
         demoRoleOverride: state.demoRoleOverride,
@@ -323,6 +436,12 @@ async function resolvePlanerRole(listIdHint) {
         preferredActiveRole: state.role
     });
     await tryRecoverPlanerAccess();
+    await grantSchuelerIfFreistellungListReadable();
+    if (!state.planerAccessDenied && state.role === 'schueler') {
+        refreshStudentMatchFromStammdaten(state);
+        await resolveStudentKlasseForAccount(state);
+        await ensureKlasseChoicesLoaded();
+    }
     const allowed = viewsForRole(state.role, state).map((v) => v.id);
     if (!allowed.includes(state.view)) state.view = allowed[0] || 'meine';
 }
@@ -397,6 +516,11 @@ async function refreshData() {
             }
         }
         state.ctx = ctx;
+        try {
+            state.klasseColumnChoices = await fetchFreistellungKlasseColumnChoices(ctx);
+        } catch {
+            state.klasseColumnChoices = [];
+        }
         state.localDemoOnly = false;
         state.items = await loadAllFreistellungen(ctx);
         if (!useMinimalPlanerChrome(state)) {
@@ -653,8 +777,8 @@ async function submitAntrag() {
         );
         state.form = emptyForm({ schuelerName: state.accountName });
         prefillStudentFreistellungForm(state);
-        await refreshData();
         state.view = state.role === 'schueler' ? 'meine' : 'liste';
+        await refreshData();
     } catch (e) {
         state.error = String((e && e.message) || e);
         state.loading = false;
@@ -684,14 +808,20 @@ function bindStatic() {
     root.querySelectorAll('[data-fr-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-fr-view') || 'dashboard';
-            if (state.view === 'antrag' && state.role === 'schueler') prefillStudentFreistellungForm(state);
+            if (state.view === 'antrag' && state.role === 'schueler') {
+                afterStudentAntragViewOpen();
+                return;
+            }
             paint();
         });
     });
     root.querySelectorAll('[data-fr-view-jump]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-fr-view-jump') || 'dashboard';
-            if (state.view === 'antrag' && state.role === 'schueler') prefillStudentFreistellungForm(state);
+            if (state.view === 'antrag' && state.role === 'schueler') {
+                afterStudentAntragViewOpen();
+                return;
+            }
             paint();
         });
     });
@@ -712,7 +842,10 @@ function bindStatic() {
             if (!allowedViews.includes(state.view)) {
                 state.view = allowedViews[0] || (role === 'schueler' ? 'meine' : 'dashboard');
             }
-            if (state.view === 'antrag' && role === 'schueler') prefillStudentFreistellungForm(state);
+            if (state.view === 'antrag' && role === 'schueler') {
+                afterStudentAntragViewOpen();
+                return;
+            }
             paint();
         });
     });
@@ -766,6 +899,19 @@ function bindStatic() {
     }
 
     if (state.view === 'administration' && state.role === 'direktion') {
+        const siteCtx = () => ({
+            siteUrl: state.siteUrl,
+            listId: state.listId || (loadSetupCfg() && loadSetupCfg().listId) || ''
+        });
+        wireFreistellungKlassenAdmin(
+            {
+                mountId: 'frPlanerKlassenList',
+                syncBtnId: 'frPlanerKlassenSyncSp',
+                reloadBtnId: 'frPlanerKlassenReload',
+                cleanBtnId: 'frPlanerKlassenClean'
+            },
+            siteCtx
+        );
         wireFreistellungKategorienAdmin(
             {
                 listId: 'frPlanerKatExtraList',
@@ -773,12 +919,11 @@ function bindStatic() {
                 newInputId: 'frPlanerKatExtraNew',
                 syncListBtnId: 'frPlanerKatSyncSp'
             },
-            () => ({
-                siteUrl: state.siteUrl,
-                listId: state.listId || (loadSetupCfg() && loadSetupCfg().listId) || ''
-            })
+            siteCtx
         );
     }
+
+    wireFreistellungStudentKvSearch(root);
 
     const form = root.querySelector('#frAntragForm');
     if (form) {
@@ -789,15 +934,16 @@ function bindStatic() {
         });
         const klasse = root.querySelector('#frFormKlasse');
         if (klasse) {
-            klasse.addEventListener('change', () => {
+            const onKlasseChange = () => {
                 state.form = { ...state.form, ...readFormFromDom(root) };
-                if (state.role === 'schueler' && !state.studentMatch && state.form.klasse) {
+                if (state.role === 'schueler' && state.form.klasse && !isStudentKlasseLocked(state)) {
                     state.demoKlasseCode = String(state.form.klasse).trim();
                     persistDemoKlasseCode(state.demoKlasseCode);
                 }
                 applyKvFromClass(state);
                 paint();
-            });
+            };
+            klasse.addEventListener('change', onKlasseChange);
         }
         ['frFormBeginn', 'frFormEnde'].forEach((id) => {
             const el = root.querySelector('#' + id);
@@ -887,8 +1033,8 @@ function boot() {
     }
 
     syncAccount();
-    const setup = loadSetupCfg();
-    if (!state.siteUrl && setup.siteUrl) state.siteUrl = setup.siteUrl;
+    const siteBoot = resolveFreistellungSiteUrl(state.siteUrl);
+    if (siteBoot) state.siteUrl = siteBoot;
     if (state.form.klasse) {
         const kv = resolveKvForClass(state, state.form.klasse);
         if (kv) {
@@ -912,6 +1058,17 @@ function boot() {
                 state.error = String((e && e.message) || e);
                 paint();
             });
+    });
+    window.addEventListener('ms365-tenant-settings-changed', () => {
+        if (typeof window.ms365AuthIsLoggedIn !== 'function' || !window.ms365AuthIsLoggedIn()) return;
+        const site = resolveFreistellungSiteUrl(state.siteUrl);
+        if (site) state.siteUrl = site;
+        resolvePlanerRole(state.listId)
+            .then(() => {
+                if (!state.planerAccessDenied && state.siteUrl) return refreshData();
+                paint();
+            })
+            .catch(() => paint());
     });
 
     if (state.siteUrl) {

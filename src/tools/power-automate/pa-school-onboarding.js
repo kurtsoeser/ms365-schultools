@@ -55,10 +55,10 @@
         },
         {
             id: 'mailbox',
-            title: 'Postfächer: pro Workflow, nicht „eins für alles“',
-            why: 'Jeder Flow kann ein anderes freigegebenes Postfach brauchen – Freistellungen z. B. automate@…, Kalender z. B. kalender@…, Anträge etwas anderes.',
+            title: 'Technik-Konto & Postfächer (pro Workflow)',
+            why: 'Flows sollen nicht von einem persönlichen Konto abhängen. Freistellungen: ein dediziertes Konto (z. B. automate@…) besitzt den Flow und die Connections; Status-Mails kommen von derselben Adresse oder einem freigegebenen Postfach mit „Senden als“.',
             how:
-                'Hier noch kein konkretes Postfach anlegen. Merken: Absender und Kalender-Mailbox stellt ihr erst im jeweiligen Automations-Tool ein (Freistellungen, Termine→Kalender, …). Die Flow-Besitzerin braucht dort „Senden als“ / Zugriff auf genau dieses Postfach. Übersicht und Anlage: Postfächer-Tool oder Admin Center.',
+                'Für Freistellungen: lizenziertes Technik-Konto anlegen (z. B. automate@schule.at), Passwort sicher hinterlegen, in Schritt 2 des Freistellungen-Setups eintragen. Import in Power Automate nur mit diesem Konto. Optional separates freigegebenes Postfach – dann Technik-Konto „Senden als“ geben. Weitere Workflows (Kalender, Anträge) können andere Absender nutzen.',
             links: [
                 {
                     href: 'postfaecher.html',

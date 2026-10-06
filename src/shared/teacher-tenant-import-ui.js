@@ -468,6 +468,19 @@ function bindLicenseTenantImport(cfg) {
 
     const btn = el(cfg.btnId);
     if (btn) btn.addEventListener('click', function () {
+        if (cfg.btnId === 'tenantBtnImportTeachersFromTenant' || cfg.btnId === 'tenantBtnImportStudentsFromTenant') {
+            try {
+                const inputId =
+                    cfg.btnId === 'tenantBtnImportStudentsFromTenant'
+                        ? 'tenantStudentsImportFile'
+                        : 'tenantTeachersImportFile';
+                const input = document.getElementById(inputId);
+                const drop = input && input.closest('details.ts-list-import-drop');
+                if (drop) drop.open = false;
+            } catch {
+                /* ignore */
+            }
+        }
         runLoad();
     });
     const applyBtn = el(cfg.applyBtnId);
@@ -682,7 +695,15 @@ function autoBind() {
                 return window.ms365TenantSettingsParseTeachersLines(ta.value);
             },
             onApply: function (result) {
+                let prev = [];
+                const ta = el('tenantTeachersLines');
+                if (ta && typeof window.ms365TenantSettingsParseTeachersLines === 'function') {
+                    prev = window.ms365TenantSettingsParseTeachersLines(ta.value);
+                }
                 applyToTextarea('tenantTeachersLines', result);
+                if (typeof window.ms365TenantTeachersAfterListChange === 'function') {
+                    window.ms365TenantTeachersAfterListChange(prev);
+                }
             }
         });
     }
@@ -717,7 +738,15 @@ function autoBind() {
                 return window.ms365TenantSettingsParseStudentsLines(ta.value);
             },
             onApply: function (result) {
+                let prev = [];
+                const ta = el('swStudentsLines');
+                if (ta && typeof window.ms365TenantSettingsParseStudentsLines === 'function') {
+                    prev = window.ms365TenantSettingsParseStudentsLines(ta.value);
+                }
                 applyToTextarea('swStudentsLines', result);
+                if (typeof window.ms365TenantStudentsAfterListChange === 'function') {
+                    window.ms365TenantStudentsAfterListChange(prev);
+                }
             },
             saveHint: 'Bitte noch „Schülerliste speichern“ wählen.'
         });
@@ -753,7 +782,15 @@ function autoBind() {
                 return window.ms365TenantSettingsParseStudentsLines(ta.value);
             },
             onApply: function (result) {
+                let prev = [];
+                const ta = el('tenantStudentsLines');
+                if (ta && typeof window.ms365TenantSettingsParseStudentsLines === 'function') {
+                    prev = window.ms365TenantSettingsParseStudentsLines(ta.value);
+                }
                 applyToTextarea('tenantStudentsLines', result);
+                if (typeof window.ms365TenantStudentsAfterListChange === 'function') {
+                    window.ms365TenantStudentsAfterListChange(prev);
+                }
             }
         });
     }

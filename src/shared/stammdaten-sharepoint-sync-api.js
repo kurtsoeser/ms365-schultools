@@ -11,6 +11,12 @@ import {
     isItLibraryConfigured,
     normalizeItLibraryMeta
 } from './stammdaten-sharepoint-sync-logic.js';
+import {
+    buildConfigBundleFromBackup,
+    isConfigBundleManifest,
+    parseConfigBundlePart,
+    mergeConfigPartsLocalStorage
+} from './stammdaten-sharepoint-config-bundle.js';
 
 const SCOPES_GRAPH = [
     'https://graph.microsoft.com/User.Read',
@@ -93,6 +99,25 @@ export function readItLibraryFormDraft() {
     } catch {
         return {};
     }
+}
+
+/**
+ * @param {Partial<{ siteUrl: string, libraryTitle: string, itGroup: string, folder: string, keepDated: boolean }>} patch
+ */
+export function writeItLibraryFormDraft(patch) {
+    const cur = readItLibraryFormDraft();
+    const next = Object.assign({}, cur, patch || {});
+    try {
+        localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(next));
+    } catch {
+        /* ignore */
+    }
+    try {
+        sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(next));
+    } catch {
+        /* ignore */
+    }
+    return next;
 }
 
 function mergeItMetaParts() {
@@ -258,6 +283,123 @@ async function ensureGraphToken() {
     return getG().getGraphToken(SCOPES_GRAPH);
 }
 
+export async function getJsonAtDrivePath(driveId, relativePath, token) {
+    const G = getG();
+    const enc = encodeDriveRootPath(relativePath);
+    const url = G.graphBase('v1.0') + '/drives/' + encodeURIComponent(driveId) + '/' + enc + '/content';
+    const res = await fetch(url, { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
+    if (res.status === 404) return null;
+    const text = await res.text();
+    if (!res.ok) {
+        throw new Error('Download fehlgeschlagen (' + relativePath + '): HTTP ' + res.status);
+    }
+    if (!text) return null;
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw new Error('Ungültiges JSON: ' + relativePath);
+    }
+}
+
+/**
+ * @param {object} payload Vollbackup
+ * @param {{ tenantId?: string, backupsFolder?: string }} [opts]
+ */
+export async function uploadConfigBundle(payload, opts) {
+    const options = opts || {};
+    const it = requireItLibrary();
+    const token = await ensureGraphToken();
+    const backupsFolder = String(options.backupsFolder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER;
+    const monolithPath = buildDriveRelativePath(backupsFolder, CURRENT_FILE);
+    const bundle = buildConfigBundleFromBackup(payload, {
+        tenantId: options.tenantId || getTenantIdSync(),
+        monolithPath: monolithPath
+    });
+    for (let i = 0; i < bundle.files.length; i++) {
+        const f = bundle.files[i];
+        await putJsonOnDrive(it.driveId, f.path, JSON.stringify(f.body, null, 2), token);
+    }
+    await putJsonOnDrive(
+        it.driveId,
+        bundle.manifestPath,
+        JSON.stringify(bundle.manifest, null, 2),
+        token
+    );
+    return bundle;
+}
+
+/**
+ * @returns {Promise<{ manifest: object|null, parts: object[], manifestPath: string }>}
+ */
+export async function downloadConfigBundle(opts) {
+    const options = opts || {};
+    const it = requireItLibrary();
+    const token = await ensureGraphToken();
+    const bundle = buildConfigBundleFromBackup({ localStorage: {} });
+    const manifestPath = bundle.manifestPath;
+    const manifest = await getJsonAtDrivePath(it.driveId, manifestPath, token);
+    if (!isConfigBundleManifest(manifest)) {
+        return { manifest: null, parts: [], manifestPath: manifestPath };
+    }
+    /** @type {object[]} */
+    const parts = [];
+    const files = Array.isArray(manifest.files) ? manifest.files : [];
+    for (let i = 0; i < files.length; i++) {
+        const entry = files[i] || {};
+        const path = String(entry.path || '').trim();
+        const id = String(entry.id || '').trim();
+        if (!path || !id) continue;
+        const raw = await getJsonAtDrivePath(it.driveId, path, token);
+        const parsed = parseConfigBundlePart(raw, id);
+        if (parsed) parts.push(parsed);
+    }
+    return { manifest: manifest, parts: parts, manifestPath: manifestPath };
+}
+
+/**
+ * @param {{ reload?: boolean, syncMeta?: object }} [opts]
+ */
+export async function applyConfigBundleFromSharePoint(opts) {
+    const options = opts || {};
+    const downloaded = await downloadConfigBundle();
+    if (!downloaded.manifest || !downloaded.parts.length) {
+        return { applied: false, reason: 'no-manifest' };
+    }
+    const patch = mergeConfigPartsLocalStorage(downloaded.parts);
+    const bb = window.ms365BrowserBackup;
+    if (!bb || typeof bb.mergeLocalStoragePatch !== 'function') {
+        throw new Error('Backup-Modul fehlt (mergeLocalStoragePatch).');
+    }
+    const result = bb.mergeLocalStoragePatch(patch);
+    const meta =
+        options.syncMeta ||
+        Object.assign({}, loadLocalSyncMeta(), {
+            at: new Date().toISOString(),
+            direction: 'pull',
+            dirty: false,
+            pendingError: null,
+            configBundleAppliedAt: new Date().toISOString(),
+            configManifestFingerprint: String(downloaded.manifest.contentFingerprint || ''),
+            configPartCount: downloaded.parts.length
+        });
+    saveLocalSyncMeta(meta);
+    try {
+        window.dispatchEvent(
+            new CustomEvent('ms365-tenant-settings-changed', {
+                detail: { source: 'spo-config-bundle-import' }
+            })
+        );
+    } catch {
+        /* ignore */
+    }
+    if (options.reload !== false) {
+        window.setTimeout(function () {
+            window.location.reload();
+        }, 80);
+    }
+    return { applied: true, manifest: downloaded.manifest, result: result, meta: meta };
+}
+
 export async function putJsonOnDrive(driveId, relativePath, jsonText, token) {
     const G = getG();
     const enc = encodeDriveRootPath(relativePath);
@@ -339,6 +481,22 @@ export async function uploadCurrentBackup(opts) {
     const token = await ensureGraphToken();
     const currentPath = buildDriveRelativePath(folder, CURRENT_FILE);
     const item = await putJsonOnDrive(it.driveId, currentPath, built.text, token);
+    /** @type {string} */
+    let configManifestFingerprint = '';
+    try {
+        const bundle = await uploadConfigBundle(built.payload, {
+            tenantId: getTenantIdSync(),
+            backupsFolder: folder
+        });
+        configManifestFingerprint = String(
+            (bundle && bundle.manifest && bundle.manifest.contentFingerprint) || ''
+        );
+    } catch (e) {
+        /* Config-Bundle optional – Monolith bleibt maßgeblich */
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('Config-Bundle Upload:', e && e.message ? e.message : e);
+        }
+    }
     if (keepDated && window.ms365BrowserBackup && typeof window.ms365BrowserBackup.backupFilename === 'function') {
         const datedName = window.ms365BrowserBackup.backupFilename(new Date());
         await putJsonOnDrive(it.driveId, buildDriveRelativePath(folder, datedName), built.text, token);
@@ -357,6 +515,7 @@ export async function uploadCurrentBackup(opts) {
         remoteLastModified: (item && item.lastModifiedDateTime) || '',
         remoteExportedAt: (built.payload && built.payload.exportedAt) || '',
         contentFingerprint: (built.payload && built.payload.contentFingerprint) || '',
+        configManifestFingerprint: configManifestFingerprint,
         dirty: false,
         pendingError: null
     };
@@ -471,5 +630,9 @@ export default {
     uploadCurrentBackup,
     getCurrentBackupRemoteInfo,
     findCurrentBackupItem,
-    downloadCurrentBackup
+    downloadCurrentBackup,
+    getJsonAtDrivePath,
+    uploadConfigBundle,
+    downloadConfigBundle,
+    applyConfigBundleFromSharePoint
 };

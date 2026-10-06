@@ -5,6 +5,8 @@
 import { normEmailList } from './membership-reconcile.js';
 import { studentBelongsToClassRow } from './class-student-match.js';
 
+import { notifyAppLocalDataChanged } from './app-local-data-notify.js';
+
 const SCAN_STORAGE_KEY = 'ms365-hygiene-scan-v2';
 
 function normStr(v) {
@@ -112,6 +114,31 @@ export function findClassTeamForClass(cls, classTeams) {
     return null;
 }
 
+function classMatchKeyFromRow(cls) {
+    const code = normCode(cls && cls.code);
+    const name = normCode(cls && cls.name);
+    return code || name || '';
+}
+
+/**
+ * Graph-Gruppen-ID für eine Klasse: classTeams (Klassengruppen-Werkzeug), sonst Register-Abgleich.
+ * @param {object|null} cls
+ * @param {object[]} classTeams
+ * @param {Record<string, { groupId?: string, notFound?: boolean }>} [classGroupMatchByKey]
+ * @returns {string}
+ */
+export function resolveClassGraphGroupId(cls, classTeams, classGroupMatchByKey) {
+    const team = findClassTeamForClass(cls, classTeams);
+    const fromTeam = team && String(team.graphGroupId || '').trim();
+    if (fromTeam) return fromTeam;
+    const key = classMatchKeyFromRow(cls);
+    const map =
+        classGroupMatchByKey && typeof classGroupMatchByKey === 'object' ? classGroupMatchByKey : {};
+    const m = key ? map[key] : null;
+    if (m && normStr(m.groupId) && !m.notFound) return normStr(m.groupId);
+    return '';
+}
+
 function normalizeClassTeamsFromContainer(container) {
     const raw =
         container && container.core && Array.isArray(container.core.classTeams) ? container.core.classTeams : [];
@@ -171,8 +198,8 @@ export function buildHygieneTargets(container, settings) {
         label: 'Schüler:innen (Sammelgruppe)',
         groupId: schuelerGid || null,
         listCount: collectStudentEmails(s.students).length,
-        toolHref: 'schueler-lehrer-gruppen.html',
-        reviewHint: 'Schüler:innen wählen → Mitglieder vergleichen'
+        toolHref: 'schueler-sammelgruppe.html',
+        reviewHint: 'Mitglieder vergleichen'
     });
 
     const lehrerGid = matched.lehrerGroupId ? String(matched.lehrerGroupId).trim() : '';
@@ -182,8 +209,8 @@ export function buildHygieneTargets(container, settings) {
         label: 'Lehrer:innen (Sammelgruppe)',
         groupId: lehrerGid || null,
         listCount: collectTeacherEmails(s.teachers).length,
-        toolHref: 'schueler-lehrer-gruppen.html',
-        reviewHint: 'Lehrer:innen wählen → Mitglieder vergleichen'
+        toolHref: 'lehrer-sammelgruppe.html',
+        reviewHint: 'Mitglieder vergleichen'
     });
 
     const vwGid = matched.verwaltungGroupId ? String(matched.verwaltungGroupId).trim() : '';
@@ -257,6 +284,88 @@ export function hygieneStatusForTarget(target, groupCount) {
 }
 
 /**
+ * Status pro Hygiene-Ziel für Dashboard-Zeilen (Cache + lokaler Fallback).
+ * @returns {Record<string, ReturnType<typeof hygieneStatusForTarget>>}
+ */
+export function hygieneStatusByTargetId(container, settings) {
+    const targets = buildHygieneTargets(container, settings);
+    const cache = loadHygieneScanCache();
+    const scanById = {};
+    if (cache && Array.isArray(cache.rows)) {
+        cache.rows.forEach(function (r) {
+            if (r && r.id) scanById[String(r.id)] = r.status;
+        });
+    }
+    /** @type {Record<string, ReturnType<typeof hygieneStatusForTarget>>} */
+    const out = {};
+    targets.forEach(function (t) {
+        const id = String(t.id || '').trim();
+        if (!id) return;
+        if (scanById[id]) out[id] = scanById[id];
+        else out[id] = hygieneStatusForTarget(t, null);
+    });
+    return out;
+}
+
+/**
+ * @param {Array<ReturnType<typeof hygieneStatusForTarget>|null|undefined>} statuses
+ * @returns {ReturnType<typeof hygieneStatusForTarget>|null}
+ */
+export function aggregateHygieneStatuses(statuses) {
+    const list = (Array.isArray(statuses) ? statuses : []).filter(Boolean);
+    if (!list.length) return null;
+    if (list.some(function (s) {
+        return s === 'mismatch';
+    })) {
+        return 'mismatch';
+    }
+    if (list.some(function (s) {
+        return s === 'empty-list';
+    })) {
+        return 'empty-list';
+    }
+    if (list.every(function (s) {
+        return s === 'ok';
+    })) {
+        return 'ok';
+    }
+    if (list.every(function (s) {
+        return s === 'unmatched';
+    })) {
+        return 'unmatched';
+    }
+    if (list.some(function (s) {
+        return s === 'unmatched';
+    })) {
+        return 'mismatch';
+    }
+    if (list.some(function (s) {
+        return s === 'unknown';
+    })) {
+        return 'unknown';
+    }
+    return 'unknown';
+}
+
+/** @param {ReturnType<typeof hygieneStatusForTarget>|null} status */
+export function hygieneStatusDashboardTone(status) {
+    if (status === 'ok') return 'ok';
+    if (status === 'mismatch' || status === 'empty-list') return 'warn';
+    if (status === 'unmatched') return 'unmatched';
+    return 'pending';
+}
+
+/** @param {ReturnType<typeof hygieneStatusForTarget>|null} status */
+export function hygieneStatusDashboardHint(status) {
+    if (status === 'ok') return 'Konsistent';
+    if (status === 'mismatch') return 'Abweichung';
+    if (status === 'unmatched') return 'Nicht verknüpft';
+    if (status === 'empty-list') return 'Leere Liste';
+    if (status === 'unknown') return 'Abgleich offen';
+    return '';
+}
+
+/**
  * @param {object[]} targets
  * @param {Record<string, number>} groupCountsById groupId → count
  * @returns {object}
@@ -312,6 +421,7 @@ export function saveHygieneScanCache(payload) {
     } catch {
         /* ignore */
     }
+    notifyAppLocalDataChanged('membership-hygiene-scan');
 }
 
 /**
@@ -367,6 +477,10 @@ const api = {
     findClassTeamForClass: findClassTeamForClass,
     countLinkedClassTeamsForClasses: countLinkedClassTeamsForClasses,
     hygieneStatusForTarget: hygieneStatusForTarget,
+    hygieneStatusByTargetId: hygieneStatusByTargetId,
+    aggregateHygieneStatuses: aggregateHygieneStatuses,
+    hygieneStatusDashboardTone: hygieneStatusDashboardTone,
+    hygieneStatusDashboardHint: hygieneStatusDashboardHint,
     summarizeHygieneScan: summarizeHygieneScan,
     loadHygieneScanCache: loadHygieneScanCache,
     saveHygieneScanCache: saveHygieneScanCache,

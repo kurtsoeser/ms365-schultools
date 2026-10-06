@@ -322,7 +322,7 @@
         $('fLog').textContent = 'Site bereit (laut Vorgang): ' + webUrl;
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
-                window.ms365AppDataV2.patchSetup({ intranetSiteUrl: webUrl });
+                window.ms365AppDataV2.patchSetup({ intranetSiteUrl: webUrl, schoolIntranetSiteUrl: webUrl });
             }
         } catch {
             /* ignore */
@@ -455,7 +455,11 @@
             toast('Als Hub-Website registriert.');
             try {
                 if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
-                    window.ms365AppDataV2.patchSetup({ intranetSiteUrl: siteUrl, intranetHubAt: new Date().toISOString() });
+                    window.ms365AppDataV2.patchSetup({
+                        intranetSiteUrl: siteUrl,
+                        schoolIntranetSiteUrl: siteUrl,
+                        intranetHubAt: new Date().toISOString()
+                    });
                 }
             } catch {
                 /* ignore */
@@ -534,7 +538,12 @@
     fillOwnerFromAccount();
     try {
         const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
-        const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+        const saved =
+            setup && setup.schoolIntranetSiteUrl
+                ? String(setup.schoolIntranetSiteUrl).trim()
+                : setup && setup.intranetSiteUrl
+                  ? String(setup.intranetSiteUrl).trim()
+                  : '';
         if (saved) {
             if ($('fLastSiteUrl')) $('fLastSiteUrl').value = saved;
             if ($('fManualUrl') && !$('fManualUrl').value) $('fManualUrl').value = saved;

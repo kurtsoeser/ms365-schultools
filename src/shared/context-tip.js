@@ -8,7 +8,9 @@
         'task-unterricht':
             'Wann? Zu Schuljahresbeginn oder bei neuen Klassen/Kursen. Klassengruppen = eine Microsoft-365-Gruppe pro Klasse. Unterrichtsteams = Teams pro Fach/Kurs aus dem Stundenplan. Fehlt etwas? „Einzelne Unterrichtsteams hinzufügen“.',
         'task-gruppen':
-            'Wann? Wenn alle Schülerinnen, Lehrkräfte, Verwaltung oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Das sind Sammelgruppen in Microsoft 365.',
+            'Wann? Wenn alle Schülerinnen, Lehrkräfte, Verwaltung oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Das sind Sammelgruppen in Microsoft 365 – meist vor oder parallel zu Klassen-Teams pflegen.',
+        'task-intranet':
+            'Wann? Intranet und Planer einrichten (IT) oder im Schulalltag nutzen: Schularbeiten-Termine, Freistellungsanträge, Aktivitäten. Einmal-Setup oft über das Playbook Intranet.',
         'task-personen':
             'Wann? Einzelne Konten suchen, ein neues Konto anlegen oder externe Personen (Gäste) einladen – z. B. Eltern oder Projektpartner.',
         'task-schuljahr':
@@ -21,7 +23,7 @@
         'prog-gruppen':
             'Zeigt, wie viele der großen Sammelgruppen (Schüler, Lehrkräfte, Verwaltung, Klassenvorstände) und Fach-/ARGE-Gruppen mit Microsoft 365 verbunden sind.',
         'prog-schuljahr':
-            'Fortschritt der Checkliste „Schuljahr wechseln“. Erscheint erst nach abgeschlossener Ersteinrichtung.',
+            'Fortschritt der Checkliste „Schuljahr wechseln“. Erscheint, sobald Stammdaten im Schulregister vorhanden sind.',
 
         stammdaten:
             'Listen, die alle Werkzeuge nutzen: Domain, Fächer, Lehrkräfte, Klassen und Schülerinnen. Die Daten bleiben in diesem Browser – nichts wird auf einen Schul-Server geschickt.',
@@ -55,6 +57,10 @@
         'gaeste-verwalten':
             'Externe Personen einladen (Gast-Konten) und festlegen, wer einladen darf – z. B. für Eltern oder Kooperationspartner.',
         slg: 'Zwei zentrale Sammelgruppen: alle Schülerinnen und alle Lehrkräfte – für E-Mail-Verteiler und Berechtigungen.',
+        'slg-schueler':
+            'Sammelgruppe aller Schüler:innen – matchen, anlegen und Mitglieder mit der Stammliste abgleichen.',
+        'slg-lehrer':
+            'Sammelgruppe aller Lehrkräfte – matchen, anlegen und Mitglieder mit der Stammliste abgleichen.',
         verwaltung: 'Gruppe für Sekretariat, Direktion und weitere Verwaltungsrollen – oft als Besitzerin anderer Gruppen.',
         klassenvorstaende:
             'Eine Sammelgruppe aller Klassenvorstände aus der Klassenliste – als E-Mail-Verteiler oder inkl. Team, mit Mitglieder-Abgleich.',
@@ -158,9 +164,17 @@
         cards.forEach(function (card) {
             var tipId = card.getAttribute('data-tool-id');
             if (!tipId || !TIPS[tipId]) return;
-            var titleEl = card.querySelector('h2');
-            var label = titleEl ? 'Hinweis: ' + titleEl.textContent.replace(/\s+/g, ' ').trim() : 'Kurzer Hinweis';
-            appendTipToHeading(card, tipId, 'h2', label);
+            if (card.querySelector('[data-context-tip-mounted="' + tipId + '"]')) return;
+            var titleEl = card.querySelector('.card-title, :scope > h2');
+            var label = titleEl
+                ? 'Hinweis: ' + titleEl.textContent.replace(/\s+/g, ' ').trim()
+                : 'Kurzer Hinweis';
+            var header = card.querySelector('.card-header');
+            if (header) {
+                appendTipToHeading(card, tipId, '.card-header', label);
+            } else {
+                appendTipToHeading(card, tipId, 'h2', label);
+            }
         });
     }
 

@@ -2,7 +2,7 @@
 
 const { getConfig } = require('./config');
 const { getOperatorGraphToken } = require('./msal-app-only');
-const { findFieldsForTenant, parseDomainList } = require('./evaluate-license');
+const { findFieldsForTenant, parseDomainList, parseContactEmails } = require('./evaluate-license');
 
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
@@ -303,6 +303,7 @@ function mapListItem(item, extraCols) {
         status: String(fields.Status || '').trim().toLowerCase() || null,
         validUntil: formatValidUntil(fields.ValidUntil),
         contactEmail: String(fields.ContactEmail || '').trim() || null,
+        contactEmails: parseContactEmails(fields.ContactEmail, fields.ItContacts),
         notes: String(fields.Notes || '').trim() || null,
         extra
     };

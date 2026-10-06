@@ -17,7 +17,7 @@ describe('Jahrgangsgruppen-Modul Seite', () => {
         expect(html).toContain('id="groupDetailHost"');
         expect(html).not.toContain('id="slgLiveName"');
         expect(html).toContain('id="jgListItems"');
-        expect(html).toContain('href="jahrgang.html"');
+        expect(html).not.toContain('href="jahrgang.html"');
         expect(html).toContain('id="jgBtnSmtpAll"');
         expect(html).toContain('id="jgBtnBulkSyncMembers"');
         expect(html).toContain('id="jgBtnBulkOwner"');
@@ -41,11 +41,10 @@ describe('Jahrgangsgruppen-Modul Seite', () => {
         expect(graph).toContain('async function deleteUnifiedGroup');
     });
 
-    it('lässt den Bulk-Wizard unter der alten URL erreichbar', () => {
-        const wizard = readFileSync(join(projectRoot, 'tools/jahrgang.html'), 'utf8');
-        expect(wizard).toContain('src/tools/jahrgang/jahrgang.js');
-        expect(wizard).toContain('jahrgangsgruppen.html');
-        expect(wizard).toContain('einmalige Neuanlage');
-        expect(wizard).toContain('Nicht der Alltagsweg');
+    it('verlinkt das Schulregister mit dem Werkzeug Klassengruppen', () => {
+        const tenant = readFileSync(join(projectRoot, 'tenant.html'), 'utf8');
+        expect(tenant).not.toContain('tools/jahrgang.html');
+        expect(tenant).toContain('id="tenantLinkKlassengruppenVerwalten"');
+        expect(tenant).toContain('tools/jahrgangsgruppen.html');
     });
 });

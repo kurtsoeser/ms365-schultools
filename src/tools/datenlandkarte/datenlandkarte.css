@@ -77,6 +77,52 @@
     background: color-mix(in srgb, var(--brand1) 8%, var(--card));
 }
 
+.dl-link-health--ok {
+    color: #0d8050;
+}
+.dl-link-health--warn {
+    color: #b45309;
+}
+.dl-link-health--unknown {
+    color: var(--muted);
+}
+
+.dl-block__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.dl-block__link--primary {
+    font-weight: 800;
+}
+
+.dl-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 12px;
+}
+
+.dl-register-strip {
+    margin: 8px 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-size: 0.88rem;
+}
+.dl-register-strip__link {
+    font-weight: 800;
+    text-decoration: none;
+    color: var(--brand1);
+}
+.dl-register-strip__hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.82rem;
+}
+
 .dl-canvas-wrap {
     padding: 0;
     overflow: hidden;

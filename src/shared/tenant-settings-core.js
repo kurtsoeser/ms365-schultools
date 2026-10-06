@@ -1,6 +1,7 @@
 (function () {
     'use strict';
 
+    /** Legacy-Spiegel; kanonisch: ms365-schooltool-data-v2 – siehe docs/stammdaten-v1-sunset.md */
     const STORAGE_KEY = 'ms365-tenant-settings-v1';
     const CURRENT_VERSION = 2;
 
@@ -462,7 +463,13 @@
             const key = code.toLowerCase();
             if (argesSeen.has(key)) return;
             argesSeen.add(key);
-            arges.push({ code, name, subjects });
+            arges.push({
+                code,
+                name,
+                subjects,
+                headName: normStr(a?.headName || ''),
+                headEmail: normStr(a?.headEmail || '').toLowerCase()
+            });
         });
 
         const teachersSeen = new Set();
@@ -580,6 +587,15 @@
     function save(settings) {
         const normalized = normalizeSettings(settings);
         try {
+            if (
+                window.ms365TenantStorageMirror &&
+                typeof window.ms365TenantStorageMirror.isV1MirrorWriteEnabled === 'function' &&
+                window.ms365TenantStorageMirror.isV1MirrorWriteEnabled() &&
+                typeof window.ms365TenantStorageMirror.writeTenantSettingsV1Mirror === 'function'
+            ) {
+                window.ms365TenantStorageMirror.writeTenantSettingsV1Mirror(normalized);
+            }
+            // Komfort-Spiegel für Backup/Export; kanonisch bleibt ms365-schooltool-data-v2 (setCoreFromTenantSettings).
             localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
         } catch {
             // ignore
@@ -597,65 +613,108 @@
         return normalized;
     }
 
-    function load() {
-        try {
-            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
-                const c = window.ms365AppDataV2.getContainer();
-                if (c && c.core && c.years) {
-                    const cur = String((c.years && c.years.current) || '');
-                    const y = (c.years && c.years.byLabel && cur && c.years.byLabel[cur]) ? c.years.byLabel[cur] : { students: [], classes: [] };
-                    return normalizeSettings({
-                        schoolName: c.core.schoolName,
-                        domain: c.core.domain,
-                        subjects: c.core.subjects,
-                        arges: c.core.arges,
-                        teachers: c.core.teachers,
-                        administration: c.core.administration,
-                        admin: c.core.admin,
-                        adminRoles: c.core.adminRoles,
-                        students: (y.students || []).map(function (s) {
-                            const row = {
-                                id: s.id,
-                                klasse: s.klasse,
-                                name: s.name,
-                                email: s.email,
-                                guardianIds: Array.isArray(s.guardianIds) ? s.guardianIds.slice() : []
-                            };
-                            if (Array.isArray(y.guardians) && row.guardianIds.length) {
-                                const byId = new Map(
-                                    y.guardians.map(function (g) {
-                                        return [g.id, g];
-                                    })
-                                );
-                                row.parentPairs = row.guardianIds
-                                    .map(function (gid) {
-                                        const g = byId.get(gid);
-                                        return g ? { name: g.name || '', email: g.email || '' } : null;
-                                    })
-                                    .filter(Boolean);
-                            }
-                            return row;
-                        }),
-                        studentCouncil: Array.isArray(y.studentCouncil)
-                            ? y.studentCouncil.map(function (s) {
-                                  return {
-                                      klasse: s.klasse,
-                                      name: s.name,
-                                      email: s.email
-                                  };
-                              })
-                            : [],
-                        sgaMode: c.core.sgaMode,
-                        sga: c.core.sga,
-                        classes: y.classes
-                    });
+    function settingsHasSchoolData(s) {
+        if (!s || typeof s !== 'object') return false;
+        if (normStr(s.domain) || normStr(s.schoolName)) return true;
+        if ((s.classes || []).length || (s.students || []).length) return true;
+        if ((s.teachers || []).length || (s.subjects || []).length) return true;
+        if ((s.administration || []).length || (s.admin || []).length) return true;
+        return false;
+    }
+
+    function loadFromAppDataV2() {
+        if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return null;
+        const c = window.ms365AppDataV2.getContainer();
+        if (!c || !c.core || !c.years) return null;
+        const cur = String((c.years && c.years.current) || '');
+        const y =
+            c.years && c.years.byLabel && cur && c.years.byLabel[cur]
+                ? c.years.byLabel[cur]
+                : { students: [], classes: [] };
+        return normalizeSettings({
+            schoolName: c.core.schoolName,
+            domain: c.core.domain,
+            subjects: c.core.subjects,
+            arges: c.core.arges,
+            teachers: c.core.teachers,
+            administration: c.core.administration,
+            admin: c.core.admin,
+            adminRoles: c.core.adminRoles,
+            students: (y.students || []).map(function (s) {
+                const row = {
+                    id: s.id,
+                    klasse: s.klasse,
+                    name: s.name,
+                    email: s.email,
+                    guardianIds: Array.isArray(s.guardianIds) ? s.guardianIds.slice() : []
+                };
+                if (Array.isArray(y.guardians) && row.guardianIds.length) {
+                    const byId = new Map(
+                        y.guardians.map(function (g) {
+                            return [g.id, g];
+                        })
+                    );
+                    row.parentPairs = row.guardianIds
+                        .map(function (gid) {
+                            const g = byId.get(gid);
+                            return g ? { name: g.name || '', email: g.email || '' } : null;
+                        })
+                        .filter(Boolean);
                 }
+                return row;
+            }),
+            studentCouncil: Array.isArray(y.studentCouncil)
+                ? y.studentCouncil.map(function (s) {
+                      return {
+                          klasse: s.klasse,
+                          name: s.name,
+                          email: s.email
+                      };
+                  })
+                : [],
+            sgaMode: c.core.sgaMode,
+            sga: c.core.sga,
+            classes: y.classes
+        });
+    }
+
+    function migrateV1MirrorIntoV2(normalized) {
+        try {
+            if (
+                window.ms365AppDataV2 &&
+                typeof window.ms365AppDataV2.setCoreFromTenantSettings === 'function'
+            ) {
+                window.ms365AppDataV2.setCoreFromTenantSettings(normalized);
+                return true;
             }
         } catch {
-            // ignore
+            /* ignore */
         }
+        return false;
+    }
+
+    /**
+     * Kanonisch: App-Daten v2. v1-Spiegel nur Fallback + einmalige Migration.
+     * Siehe docs/stammdaten-v1-sunset.md
+     */
+    function load() {
+        let fromV2 = null;
+        try {
+            fromV2 = loadFromAppDataV2();
+        } catch {
+            fromV2 = null;
+        }
+        if (fromV2 && settingsHasSchoolData(fromV2)) {
+            return fromV2;
+        }
+
         const raw = loadRaw();
-        return normalizeSettings(raw || {});
+        const fromV1 = normalizeSettings(raw || {});
+        if (settingsHasSchoolData(fromV1)) {
+            migrateV1MirrorIntoV2(fromV1);
+            return fromV1;
+        }
+        return fromV2 || fromV1;
     }
 
     function getTeacherEmailMap() {
@@ -800,12 +859,25 @@
             }
 
             const y = /^\d{4}$/.test(year) ? year : '';
-            if (!code && !name && !y && !headName && !headEmail) return;
+            if (!code && !name && !y && !headName && !headEmail) {
+                // Platzhalterzeile (z. B. nach „+ Zeile“ im Schulregister)
+                out.push({
+                    code: '',
+                    name: '',
+                    year: '',
+                    headName: '',
+                    headEmail: '',
+                    stableMailNickname: ''
+                });
+                return;
+            }
             const stableMailNickname = deriveClassStableMailNickname(y, code);
             out.push({ code, name, year: y, headName, headEmail, stableMailNickname });
             });
         return out;
     }
+
+    const SGA_BOARD_SLOTS = 3;
 
     function parseLinesToSga(text) {
         const out = [];
@@ -816,7 +888,7 @@
                     ? 'teacher'
                     : scopeRaw === 'schueler' || scopeRaw === 'schüler' || scopeRaw === 'student'
                       ? 'student'
-                      : scopeRaw === 'extern' || scopeRaw === 'external'
+                      : scopeRaw === 'extern' || scopeRaw === 'external' || scopeRaw === 'eltern'
                         ? 'external'
                         : '';
             const name = normStr(parts[1] || '');
@@ -827,26 +899,169 @@
         return out;
     }
 
+    function emptySgaSlot() {
+        return { name: '', email: '' };
+    }
+
+    function takeSgaSlots(list, n) {
+        const slots = [];
+        for (let i = 0; i < n; i++) {
+            const x = list[i];
+            slots.push(x ? { name: normStr(x.name), email: normStr(x.email).toLowerCase() } : emptySgaSlot());
+        }
+        return slots;
+    }
+
+    /** @param {{ scope?: string, name?: string, email?: string }[]} rows */
+    function partitionSgaRowsForBoard(rows) {
+        const teachers = [];
+        const students = [];
+        const externals = [];
+        const overflow = [];
+        (rows || []).forEach(function (r) {
+            const scope = normStr(r && r.scope);
+            const entry = {
+                scope: scope,
+                name: normStr(r && r.name),
+                email: normStr(r && r.email).toLowerCase()
+            };
+            if (scope === 'teacher') {
+                if (teachers.length < SGA_BOARD_SLOTS) teachers.push(entry);
+                else overflow.push(entry);
+            } else if (scope === 'student') {
+                if (students.length < SGA_BOARD_SLOTS) students.push(entry);
+                else overflow.push(entry);
+            } else if (scope === 'external') {
+                if (externals.length < SGA_BOARD_SLOTS) externals.push(entry);
+                else overflow.push(entry);
+            } else if (entry.name || entry.email) {
+                overflow.push(entry);
+            }
+        });
+        return {
+            board: {
+                teachers: takeSgaSlots(teachers, SGA_BOARD_SLOTS),
+                students: takeSgaSlots(students, SGA_BOARD_SLOTS),
+                externals: takeSgaSlots(externals, SGA_BOARD_SLOTS)
+            },
+            overflow: overflow
+        };
+    }
+
+    function sgaRowsFromBoard(board, overflow) {
+        const out = [];
+        function pushSlots(slots, scope) {
+            (slots || []).forEach(function (s) {
+                const name = normStr(s && s.name);
+                const email = normStr(s && s.email).toLowerCase();
+                if (!name && !email) return;
+                out.push({ scope: scope, name: name, email: email });
+            });
+        }
+        if (board) {
+            pushSlots(board.teachers, 'teacher');
+            pushSlots(board.students, 'student');
+            pushSlots(board.externals, 'external');
+        }
+        (overflow || []).forEach(function (r) {
+            const scope = normStr(r && r.scope);
+            const name = normStr(r && r.name);
+            const email = normStr(r && r.email).toLowerCase();
+            if (!name && !email) return;
+            out.push({ scope: scope || 'external', name: name, email: email });
+        });
+        return out;
+    }
+
+    function sgaScopeDisplayLabel(scope) {
+        if (scope === 'teacher') return 'Lehrer';
+        if (scope === 'student') return 'Schüler';
+        if (scope === 'external') return 'Extern (Eltern)';
+        return '—';
+    }
+
+    /**
+     * Klasse gilt als M365-verknüpft (Register + Wizard „only missing“).
+     * @param {string} keyRaw Klassenkürzel
+     * @param {{ classGroupMatchByKey?: object }} [setup]
+     * @param {object[]} [classTeams]
+     */
+    function isClassGroupLinkedInSetup(keyRaw, setup, classTeams) {
+        const key = normCode(keyRaw);
+        if (!key) return false;
+        const map = setup && setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object'
+            ? setup.classGroupMatchByKey
+            : {};
+        const m = map[key];
+        if (m && normStr(m.groupId) && !m.notFound) return true;
+        const teams = Array.isArray(classTeams) ? classTeams : [];
+        for (let i = 0; i < teams.length; i++) {
+            const t = teams[i];
+            if (normCode(t && t.classCode) !== key) continue;
+            if (normStr(t && t.graphGroupId)) return true;
+        }
+        return false;
+    }
+
+    /** @param {object[]} classes */
+    function filterClassesMissingM365Group(classes, setup, classTeams) {
+        return (Array.isArray(classes) ? classes : []).filter(function (row) {
+            const key = normCode(row && row.code) || normCode(row && row.name);
+            return key && !isClassGroupLinkedInSetup(key, setup, classTeams);
+        });
+    }
+
     // Public API (kompatibel zu bisher)
     window.ms365TenantSettingsLoad = load;
     window.ms365TenantSettingsSave = save;
     window.ms365TenantSettingsGetTeacherEmailMap = getTeacherEmailMap;
     window.ms365TenantSettingsParseSubjectsLines = parseLinesToSubjects;
+    function parseArgeSubjectTokens(raw) {
+        return String(raw || '')
+            .split(/[,\s|]+/)
+            .map((x) => normCode(x))
+            .filter(Boolean);
+    }
+
     window.ms365TenantSettingsParseArgesLines = function (text) {
         const out = [];
-        parseDelimitedLines(text).forEach((parts) => {
-            const code = normCode(parts[0] || '');
-            const name = normStr(parts[1] || '');
-            const subjRaw = normStr(parts.slice(2).join(' '));
-            const subjects = subjRaw
-                ? subjRaw
-                      .split(/[,\s|]+/)
-                      .map((x) => normCode(x))
-                      .filter(Boolean)
-                : [];
-            if (!code) return;
-            out.push({ code, name, subjects });
-        });
+        String(text || '')
+            .split(/\r\n|\n|\r/)
+            .forEach((line) => {
+                const t = String(line || '').trim();
+                if (!t || t.startsWith('#')) return;
+                const parts = t.split(/[;\t,|]/).map((x) => normStr(x));
+                const code = normCode(parts[0] || '');
+                const name = normStr(parts[1] || '');
+                let headName = '';
+                let headEmail = '';
+                let subjects = [];
+                if (parts.length >= 5) {
+                    subjects = parseArgeSubjectTokens(parts[2]);
+                    headName = normStr(parts[3]);
+                    headEmail = normStr(parts[4]).toLowerCase();
+                } else if (parts.length === 4) {
+                    const p2 = normStr(parts[2]);
+                    const p3 = normStr(parts[3]);
+                    if (p3.indexOf('@') !== -1) {
+                        subjects = parseArgeSubjectTokens(p2);
+                        headEmail = p3.toLowerCase();
+                    } else if (p2.indexOf('@') === -1) {
+                        subjects = parseArgeSubjectTokens(p2);
+                        headName = p3;
+                    } else {
+                        headEmail = p2.toLowerCase();
+                    }
+                } else {
+                    subjects = parseArgeSubjectTokens(parts.slice(2).join(' '));
+                }
+                if (!code && !name && !subjects.length && !headName && !headEmail) {
+                    out.push({ code: '', name: '', subjects: [], headName: '', headEmail: '' });
+                    return;
+                }
+                if (!code) return;
+                out.push({ code, name, subjects, headName, headEmail });
+            });
         return out;
     };
     window.ms365TenantSettingsParseTeachersLines = parseLinesToTeachers;
@@ -969,6 +1184,12 @@
     window.ms365TenantSettingsParseStudentCouncilLines = parseLinesToStudentCouncil;
     window.ms365TenantSettingsParseClassesLines = parseLinesToClasses;
     window.ms365TenantSettingsParseSgaLines = parseLinesToSga;
+    window.ms365TenantSettingsSgaBoardSlots = SGA_BOARD_SLOTS;
+    window.ms365TenantSettingsSgaPartition = partitionSgaRowsForBoard;
+    window.ms365TenantSettingsSgaRowsFromBoard = sgaRowsFromBoard;
+    window.ms365TenantSettingsSgaScopeLabel = sgaScopeDisplayLabel;
+    window.ms365TenantSettingsIsClassGroupLinked = isClassGroupLinkedInSetup;
+    window.ms365TenantSettingsFilterClassesMissingM365Group = filterClassesMissingM365Group;
     window.ms365DeriveClassStableMailNickname = deriveClassStableMailNickname;
     window.ms365GetClassNickSchema = getClassNickSchema;
     window.ms365SaveClassNickSchema = saveClassNickSchema;

@@ -88,11 +88,11 @@ describe('prefillStudentFreistellungForm', () => {
         expect(hit && hit.klasse).toBe('1AK');
     });
 
-    it('classesForStudentPicker ergänzt Klassen aus Anträgen', () => {
+    it('classesForStudentPicker bevorzugt Stammdaten vor Antrags-Klassen', () => {
         const list = classesForStudentPicker({
             stammdaten: { classes: [{ code: '3AH', name: '3. AH' }] },
             items: [{ klasse: '4BK' }]
         });
-        expect(list.map((c) => c.code)).toEqual(['3AH', '4BK']);
+        expect(list.map((c) => c.code)).toEqual(['3AH']);
     });
 });

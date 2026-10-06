@@ -56,7 +56,7 @@ describe('Hilfe-Seite', () => {
             'windows-cmd',
             'datenschutz',
             'schnellstart',
-            'einrichtung',
+            'schulregister',
             'faq',
             'hinweise',
             'tool-postfaecher',
@@ -86,7 +86,11 @@ describe('Hilfe-Seite', () => {
     it('deckt die Dashboard-Werkzeuge in der Hilfe ab', () => {
         const html = read('hilfe.html');
         const index = read('index.html');
-        const toolIds = [...index.matchAll(/data-tool-id="([^"]+)"/g)].map((m) => m[1]);
+        const toolIds = [...new Set(
+            [...index.matchAll(/data-tool-id="([^"]+)"/g)]
+                .map((m) => m[1])
+                .filter((id) => /^[a-z0-9-]+$/.test(id))
+        )];
         expect(toolIds.length).toBeGreaterThan(10);
         const helpAnchors = {
             jahrgang: 'tool-jahrgang',
@@ -103,6 +107,8 @@ describe('Hilfe-Seite', () => {
             'namenskonvention-audit': 'tool-namenskonvention-audit',
             'gaeste-verwalten': 'tool-gaeste-verwalten',
             slg: 'tool-slg',
+            'slg-schueler': 'tool-slg',
+            'slg-lehrer': 'tool-slg',
             verwaltung: 'tool-verwaltung',
             klassenvorstaende: 'tool-klassenvorstaende',
             'organisations-assistent': 'tool-schuljahr',
@@ -133,20 +139,30 @@ describe('Hilfe-Seite', () => {
             'pa-schilf': 'tool-pa-schilf',
             'power-automate-rezepte': 'tool-power-automate',
             gruppenerstellung: 'tool-gruppenerstellung',
+            'weitere-teams-gruppen': 'tool-wtg',
             'sharepoint-mandant-website': 'tool-sharepoint-website',
             'sharepoint-mandant-teilen': 'tool-sharepoint-teilen',
             'schulstruktur-sync': 'tool-schulstruktur',
             datenhygiene: 'tool-datenhygiene',
             'stammdaten-uebergabe': 'tool-stammdaten-uebergabe',
+            'stammdaten-backup-abgleich': 'tool-stammdaten-uebergabe',
+            'webuntis-stammdaten-import': 'tool-schulregister',
             'cleanup-playbook': 'tool-cleanup-playbook',
             'cleanup-playbook-schuljahr': 'tool-cleanup-playbook',
             'datei-migration': 'tool-datei-migration',
             'leere-gruppen-report': 'tool-leere-gruppen',
+            'teams-archiv': 'tool-teams-archiv',
             'onenote-verteilung': 'tool-onenote-verteilung',
             'schueler-lifecycle': 'tool-schueler-lifecycle',
             'playbook-schuljahresstart': 'tool-playbook-schuljahresstart',
+            'playbook-daten-import-verknuepfen': 'tool-playbook-daten-import-verknuepfen',
+            'bildungsportal-stammdaten': 'tool-bildungsportal-stammdaten',
             'playbook-intranet': 'tool-playbook-intranet',
             'playbook-eltern': 'tool-playbook-eltern',
+            'playbook-elternsprechtag': 'tool-playbook-elternsprechtag',
+            'playbook-schularbeiten-planer': 'tool-playbook-schularbeiten-planer',
+            'playbook-freistellungen': 'tool-playbook-freistellungen',
+            'playbook-kursteams': 'tool-playbook-kursteams',
             'webuntis-sync-monitor': 'tool-webuntis-sync-monitor',
             'raeume-ressourcen': 'tool-raeume-ressourcen',
             'sharepoint-liste-vertretung': 'tool-vertretung',
@@ -189,7 +205,6 @@ describe('Hilfe-Seite', () => {
         const files = [
             'index.html',
             'tenant.html',
-            'einrichtung.html',
             'tools/kursteams.html',
             'tools/organisations-assistent.html'
         ];

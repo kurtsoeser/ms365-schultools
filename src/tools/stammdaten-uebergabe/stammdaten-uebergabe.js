@@ -26,11 +26,16 @@ const PENDING_ACTION_KEY = 'ms365-su-pending-action-v1';
 const PENDING_MAX_AGE_MS = 30 * 60 * 1000;
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** @type {null | (() => ReturnType<typeof collectFormStateFromDom>)} */
+let externalFormGetter = null;
+/** @type {null | ((msg: string) => void)} */
+let externalLogFn = null;
+
 function $(id) {
     return document.getElementById(id);
 }
 
-function collectFormState() {
+function collectFormStateFromDom() {
     return {
         siteUrl: String(($('suSiteUrl') && $('suSiteUrl').value) || '').trim(),
         libraryTitle: String(($('suLibraryTitle') && $('suLibraryTitle').value) || '').trim(),
@@ -38,6 +43,28 @@ function collectFormState() {
         folder: String(($('suFolder') && $('suFolder').value) || '').trim(),
         keepDated: !!($('suKeepDated') && $('suKeepDated').checked)
     };
+}
+
+export function configureItLibrarySetupUi(opts) {
+    const o = opts && typeof opts === 'object' ? opts : {};
+    externalFormGetter = typeof o.getFormState === 'function' ? o.getFormState : null;
+    externalLogFn = typeof o.log === 'function' ? o.log : null;
+}
+
+export function collectFormState() {
+    if (externalFormGetter) {
+        const s = externalFormGetter();
+        if (s && typeof s === 'object') {
+            return {
+                siteUrl: String(s.siteUrl || '').trim(),
+                libraryTitle: String(s.libraryTitle || IT_LIBRARY_TITLE).trim() || IT_LIBRARY_TITLE,
+                itGroup: String(s.itGroup || '').trim(),
+                folder: String(s.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER,
+                keepDated: typeof s.keepDated === 'boolean' ? s.keepDated : true
+            };
+        }
+    }
+    return collectFormStateFromDom();
 }
 
 function applyFormState(state) {
@@ -193,12 +220,18 @@ function toast(m) {
 }
 
 function log(msg) {
+    if (externalLogFn) {
+        externalLogFn(String(msg || ''));
+        return;
+    }
     const el = $('suLog');
     if (!el) return;
     el.textContent += (el.textContent ? '\n' : '') + String(msg || '');
+    el.scrollTop = el.scrollHeight;
 }
 
 function clearLog() {
+    if (externalLogFn) return;
     const el = $('suLog');
     if (el) el.textContent = '';
 }
@@ -210,6 +243,8 @@ function getG() {
 }
 
 function getSiteUrl() {
+    const fromState = collectFormState().siteUrl;
+    if (fromState) return fromState;
     const input = $('suSiteUrl');
     let url = input && input.value ? String(input.value).trim() : '';
     if (!url) {
@@ -225,24 +260,16 @@ function getSiteUrl() {
 }
 
 function getFolder() {
-    const el = $('suFolder');
-    return String((el && el.value) || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER;
+    return collectFormState().folder || DEFAULT_FOLDER;
 }
 
 function getLibraryTitle() {
-    const el = $('suLibraryTitle');
-    return String((el && el.value) || IT_LIBRARY_TITLE).trim() || IT_LIBRARY_TITLE;
+    return collectFormState().libraryTitle || IT_LIBRARY_TITLE;
 }
 
 function rememberSite(url) {
-    if (!url || !window.ms365AppDataV2 || typeof window.ms365AppDataV2.patchSetup !== 'function') return;
-    try {
-        const cur = window.ms365AppDataV2.getSetup() || {};
-        if (String(cur.intranetSiteUrl || '').trim() === url) return;
-        window.ms365AppDataV2.patchSetup({ intranetSiteUrl: url });
-    } catch {
-        /* ignore */
-    }
+    /* IT-Bibliothek-Site: Draft + loadItMeta (siteUrl). intranetSiteUrl getrennt in Stammdaten-Tab. */
+    if (!url) return;
 }
 
 function refreshMetaUi() {
@@ -446,13 +473,13 @@ async function secureLibraryWithSpo(siteWebUrl, listTitle, groupObjectId) {
     return { removed: removed, principalId: principal.id };
 }
 
-async function runSetupItLibrary(opts) {
+export async function runSetupItLibrary(opts) {
     clearLog();
     const skipConfirm = !!(opts && opts.skipConfirm);
     const webUrl = getSiteUrl();
     if (!webUrl) throw new Error('SharePoint-Website fehlt.');
     const listTitle = getLibraryTitle();
-    let groupRaw = String(($('suItGroup') && $('suItGroup').value) || '').trim();
+    let groupRaw = String(collectFormState().itGroup || '').trim();
     if (!groupRaw) {
         try {
             const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
@@ -780,6 +807,7 @@ function resumePendingIfAny() {
 }
 
 function boot() {
+    if (!document.getElementById('suBtnSetupIt')) return;
     fillDefaults();
     bindFormDraftPersistence();
     if (location.hash === '#setup') {

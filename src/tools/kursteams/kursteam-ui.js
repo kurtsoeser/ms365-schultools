@@ -99,12 +99,10 @@ ns.dom.appModal.addEventListener('click', (e) => {
 // Toolbar Save/Load/Clear delegiert je nach aktivem Panel
 function getActivePanelMode() {
     const pw = document.getElementById('panelWebuntis');
-    const pj = document.getElementById('panelJahrgang');
     const pa = document.getElementById('panelArge');
     const pg = document.getElementById('panelGruppenPolicy');
     const hidden = el => !el || window.getComputedStyle(el).display === 'none';
     if (!hidden(pw)) return 'webuntis';
-    if (!hidden(pj)) return 'jahrgang';
     if (!hidden(pa)) return 'arge';
     if (!hidden(pg)) return 'gruppenerstellung';
     return 'webuntis';
@@ -112,21 +110,18 @@ function getActivePanelMode() {
 
 document.getElementById('btnSaveState').addEventListener('click', () => {
     const mode = getActivePanelMode();
-    if (mode === 'jahrgang' && typeof window.ms365SaveJahrgang === 'function') return window.ms365SaveJahrgang();
     if (mode === 'arge' && typeof window.ms365SaveArge === 'function') return window.ms365SaveArge();
     if (mode === 'gruppenerstellung' && typeof window.ms365SaveGruppenerstellung === 'function') return window.ms365SaveGruppenerstellung();
     if (typeof ns.saveStateToStorage === 'function') ns.saveStateToStorage();
 });
 document.getElementById('btnLoadState').addEventListener('click', () => {
     const mode = getActivePanelMode();
-    if (mode === 'jahrgang' && typeof window.ms365LoadJahrgang === 'function') return window.ms365LoadJahrgang();
     if (mode === 'arge' && typeof window.ms365LoadArge === 'function') return window.ms365LoadArge();
     if (mode === 'gruppenerstellung' && typeof window.ms365LoadGruppenerstellung === 'function') return window.ms365LoadGruppenerstellung();
     if (typeof ns.loadStateFromStorage === 'function') ns.loadStateFromStorage();
 });
 document.getElementById('btnClearStorage').addEventListener('click', () => {
     const mode = getActivePanelMode();
-    if (mode === 'jahrgang' && typeof window.ms365ClearJahrgang === 'function') return window.ms365ClearJahrgang();
     if (mode === 'arge' && typeof window.ms365ClearArge === 'function') return window.ms365ClearArge();
     if (mode === 'gruppenerstellung' && typeof window.ms365ClearGruppenerstellung === 'function') return window.ms365ClearGruppenerstellung();
     if (typeof ns.clearStorage === 'function') ns.clearStorage();

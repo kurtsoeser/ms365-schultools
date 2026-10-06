@@ -11,6 +11,7 @@
     let ownersLoadedForId = '';
     let membersLoadedForId = '';
     let photoObjectUrl = '';
+    let loadGroupGen = 0;
 
     function revokePhotoObjectUrl() {
         if (!photoObjectUrl) return;
@@ -159,6 +160,17 @@
         return y + '-' + m + '-' + day;
     }
 
+    /** Nur ID aus lokalem Match – noch kein Graph-Objekt. */
+    function needsGraphGroupHydrate(group) {
+        if (!group || !group.id) return false;
+        if (String(group.displayName || '') === '(nicht geladen)') return false;
+        if (group.createdDateTime || group.mailNickname || group.mail) return false;
+        if (group.visibility === 'Public' || group.visibility === 'Private') return false;
+        if (Array.isArray(group.groupTypes) && group.groupTypes.length) return false;
+        if (group['@odata.type']) return false;
+        return true;
+    }
+
     function fillForm(group) {
         liveGroup = group || null;
         const name = document.getElementById('slgLiveName');
@@ -242,6 +254,16 @@
             displayName: group.displayName || '',
             hasPhoto: false
         });
+        if (needsGraphGroupHydrate(group)) {
+            const sub = document.getElementById('slgDetailSubtitle');
+            if (sub) sub.textContent = 'Gematcht – Details werden geladen …';
+            queueMicrotask(function () {
+                const gid = getGroupId();
+                if (gid && String(gid) === String(group.id)) {
+                    void loadGroup({ silent: true });
+                }
+            });
+        }
     }
 
     function setTeamStatusEl(el, text, hasTeam) {
@@ -355,6 +377,7 @@
     }
 
     function resetCaches() {
+        loadGroupGen += 1;
         invalidateMembership();
         liveGroup = null;
         revokePhotoObjectUrl();
@@ -593,22 +616,39 @@
             if (ctx && ctx.onUnmatched) ctx.onUnmatched();
             return;
         }
+        const myGen = ++loadGroupGen;
         setMatchedMode(true);
         try {
             const token = await graphToken();
+            if (myGen !== loadGroupGen || String(getGroupId() || '') !== String(gid)) return;
             const g = await gug().fetchGroup(token, gid);
+            if (myGen !== loadGroupGen || String(getGroupId() || '') !== String(gid)) return;
             fillForm(g);
             setMatchedMode(true);
             await resolveTeamLink(token, g);
+            if (myGen !== loadGroupGen || String(getGroupId() || '') !== String(gid)) return;
             await loadGroupPhoto(token, gid, g.displayName);
+            if (myGen !== loadGroupGen || String(getGroupId() || '') !== String(gid)) return;
             if (ctx && ctx.onAfterLoad) await ctx.onAfterLoad(g);
             const tab = ctx && ctx.getActiveTab ? ctx.getActiveTab() : 'general';
             if (tab === 'owners') await loadOwnersNow();
             else if (tab === 'members') await loadMembersNow();
             if (!silent) toast('Gruppe geladen.');
         } catch (e) {
-            fillForm({ id: gid, displayName: '(nicht geladen)' });
-            toast('Gruppe laden: ' + (e.message || e));
+            if (myGen !== loadGroupGen || String(getGroupId() || '') !== String(gid)) return;
+            const msg = String((e && e.message) || e || '');
+            const redirectPending = /Weiterleitung zur Anmeldung/i.test(msg);
+            if (
+                !liveGroup ||
+                String(liveGroup.id) !== String(gid) ||
+                liveGroup.displayName === '(nicht geladen)'
+            ) {
+                fillForm({ id: gid });
+            }
+            setMatchedMode(true);
+            if (!redirectPending && (!silent || !/popup_window_error|error opening popup/i.test(msg))) {
+                toast('Gruppe laden: ' + msg);
+            }
         }
     }
 

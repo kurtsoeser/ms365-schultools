@@ -39,7 +39,37 @@
     })();
 
     const DEFAULT_SCOPES = ['https://graph.microsoft.com/User.Read'];
+
+    function resolvePreferredLoginScopes() {
+        try {
+            const pageScopes = window.MS365_AUTH_LOGIN_SCOPES;
+            if (Array.isArray(pageScopes) && pageScopes.length) {
+                return pageScopes.slice();
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            const g = window.ms365GraphUnifiedGroups;
+            if (g && Array.isArray(g.GRAPH_SCOPES) && g.GRAPH_SCOPES.length) {
+                return g.GRAPH_SCOPES.slice();
+            }
+        } catch {
+            /* ignore */
+        }
+        return DEFAULT_SCOPES.slice();
+    }
     const POST_LOGIN_KEY = 'ms365-post-login-url';
+
+    function rememberPostLoginReturnUrl(url) {
+        const target = String(url || (window.location && window.location.href) || '').trim();
+        if (!target) return;
+        try {
+            sessionStorage.setItem(POST_LOGIN_KEY, target);
+        } catch {
+            // ignore
+        }
+    }
 
     let msalMod = null;
     let pca = null;
@@ -229,15 +259,38 @@
         if (drop) drop.hidden = true;
     }
 
+    function closeBackupPanel() {
+        const wrap = document.getElementById('ms365BackupHeader');
+        const trigger = document.getElementById('ms365BackupHeaderBtn');
+        const panel = document.getElementById('ms365BackupPanel');
+        if (wrap) wrap.classList.remove('is-open');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        if (panel) panel.hidden = true;
+    }
+
     function toggleAuthMenu() {
         const menu = document.getElementById('ms365AuthMenu');
         const trigger = document.getElementById('ms365AuthBadge');
         const drop = document.getElementById('ms365AuthDropdown');
         if (!menu || !trigger || !drop || menu.hidden) return;
         const open = !menu.classList.contains('is-open');
+        if (open) closeBackupPanel();
         menu.classList.toggle('is-open', open);
         trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
         drop.hidden = !open;
+    }
+
+    function toggleBackupPanel() {
+        const wrap = document.getElementById('ms365BackupHeader');
+        const trigger = document.getElementById('ms365BackupHeaderBtn');
+        const panel = document.getElementById('ms365BackupPanel');
+        if (!wrap || !trigger || !panel) return;
+        const open = !wrap.classList.contains('is-open');
+        if (open) closeAuthMenu();
+        wrap.classList.toggle('is-open', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        panel.hidden = !open;
+        if (open) refreshBackupHeaderStatus();
     }
 
     const MENU_BRANDS = ['teal', 'classic', 'wine'];
@@ -281,12 +334,19 @@
         bindAuthMenuDismiss.bound = true;
         document.addEventListener('click', function (e) {
             const menu = document.getElementById('ms365AuthMenu');
-            if (!menu || !menu.classList.contains('is-open')) return;
-            if (menu.contains(e.target)) return;
-            closeAuthMenu();
+            if (menu && menu.classList.contains('is-open') && !menu.contains(e.target)) {
+                closeAuthMenu();
+            }
+            const backup = document.getElementById('ms365BackupHeader');
+            if (backup && backup.classList.contains('is-open') && !backup.contains(e.target)) {
+                closeBackupPanel();
+            }
         });
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeAuthMenu();
+            if (e.key === 'Escape') {
+                closeAuthMenu();
+                closeBackupPanel();
+            }
         });
     }
 
@@ -296,11 +356,7 @@
      */
     async function login(scopes, opts) {
         const instance = await ensurePca();
-        try {
-            sessionStorage.setItem(POST_LOGIN_KEY, window.location.href);
-        } catch {
-            // ignore
-        }
+        rememberPostLoginReturnUrl();
         const req = {
             scopes: Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES
         };
@@ -312,12 +368,21 @@
             host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost');
         const forcePopup = !!(opts && opts.popup) || isLocal;
         if (forcePopup && typeof instance.loginPopup === 'function') {
-            const result = await instance.loginPopup(req);
-            if (result && result.account && typeof instance.setActiveAccount === 'function') {
-                instance.setActiveAccount(result.account);
+            try {
+                const result = await instance.loginPopup(req);
+                if (result && result.account && typeof instance.setActiveAccount === 'function') {
+                    instance.setActiveAccount(result.account);
+                }
+                setWidgetState();
+                return result;
+            } catch (e) {
+                if (isPopupWindowError(e) && !isUserCancelledAuth(e)) {
+                    req.redirectStartPage = window.location.href;
+                    await instance.loginRedirect(req);
+                    throw new Error('Weiterleitung zur Anmeldung …');
+                }
+                throw e;
             }
-            setWidgetState();
-            return result;
         }
         req.redirectStartPage = window.location.href;
         await instance.loginRedirect(req);
@@ -357,6 +422,27 @@
             msg.indexOf('aadsts70008') !== -1 ||
             msg.indexOf('aadsts50173') !== -1 ||
             msg.indexOf('aadsts700084') !== -1
+        );
+    }
+
+    function isUserCancelledAuth(e) {
+        if (!e) return false;
+        const msg = String((e && e.message) || e || '');
+        const code = String((e && (e.errorCode || e.code)) || '');
+        return (
+            /abgebrochen|cancelled|canceled|user_cancelled/i.test(msg) ||
+            /user_cancelled/i.test(code)
+        );
+    }
+
+    function isPopupWindowError(e) {
+        if (!e) return false;
+        const code = String((e.errorCode || e.code) || '');
+        const msg = String((e && e.message) || e || '');
+        return (
+            code === 'popup_window_error' ||
+            /popup_window_error/i.test(msg) ||
+            /error opening popup/i.test(msg)
         );
     }
 
@@ -429,11 +515,7 @@
                 }
             }
             if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
-                try {
-                    sessionStorage.setItem(POST_LOGIN_KEY, window.location.href);
-                } catch {
-                    // ignore
-                }
+                rememberPostLoginReturnUrl();
                 const redirectReq = { ...req, redirectStartPage: window.location.href };
                 // Beim "Cache broken" zusätzlich Consent erzwingen, damit der Tenant
                 // den User korrekt neu authentifiziert.
@@ -472,7 +554,14 @@
         const scopeList = Array.isArray(scopes) && scopes.length ? scopes : DEFAULT_SCOPES;
         let accounts = instance.getAllAccounts();
         if (!accounts.length) {
-            await instance.loginPopup({ scopes: scopeList, prompt: 'select_account' });
+            try {
+                await instance.loginPopup({ scopes: scopeList, prompt: 'select_account' });
+            } catch (e) {
+                if (isPopupWindowError(e) && !isUserCancelledAuth(e)) {
+                    return acquireToken(scopeList);
+                }
+                throw e;
+            }
             accounts = instance.getAllAccounts();
         }
         if (!accounts.length) {
@@ -496,9 +585,16 @@
                 }
             }
             if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
-                const result = await instance.acquireTokenPopup(req);
-                setWidgetState({ silent: true });
-                return result.accessToken;
+                try {
+                    const result = await instance.acquireTokenPopup(req);
+                    setWidgetState({ silent: true });
+                    return result.accessToken;
+                } catch (pe) {
+                    if (isPopupWindowError(pe) && !isUserCancelledAuth(pe)) {
+                        return acquireToken(scopeList);
+                    }
+                    throw pe;
+                }
             }
             throw e;
         }
@@ -532,11 +628,7 @@
                 }
             }
             if (isInteractionRequired(e) || looksLikeBrokenCache(e)) {
-                try {
-                    sessionStorage.setItem(POST_LOGIN_KEY, window.location.href);
-                } catch {
-                    // ignore
-                }
+                rememberPostLoginReturnUrl();
                 const redirectReq = { ...req, redirectStartPage: window.location.href };
                 if (looksLikeBrokenCache(e)) {
                     redirectReq.prompt = 'select_account';
@@ -627,26 +719,27 @@
         drop.className = 'ms365-auth-menu__panel';
         drop.setAttribute('role', 'menu');
         drop.hidden = true;
+        drop.setAttribute('data-ms365-auth-menu-v', '2');
         drop.innerHTML =
             '<div class="ms365-auth-menu__meta">' +
             '<div class="ms365-auth-menu__meta-name" id="ms365AuthMenuName"></div>' +
             '<div class="ms365-auth-menu__meta-mail" id="ms365AuthMenuMail"></div>' +
             '</div>' +
-            '<div class="ms365-auth-menu__ctx" aria-label="Schulkontext">' +
-            '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Schuljahr</span>' +
-            '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxYear">–</span></div>' +
+            '<div class="ms365-auth-menu__section ms365-auth-menu__section--ctx" aria-label="Kontext">' +
+            '<div class="ms365-auth-menu__section-label">Kontext</div>' +
+            '<div class="ms365-auth-menu__ctx">' +
+            '<div class="ms365-auth-menu__ctx-row ms365-auth-menu__ctx-row--year">' +
+            '<span class="ms365-auth-menu__ctx-k">Schuljahr</span>' +
+            '<div class="ms365-auth-menu__year-wrap">' +
+            '<select class="ms365-auth-menu__year-select" id="schoolYearSelect" aria-label="Aktives Schuljahr"></select>' +
+            '<button type="button" class="ms365-auth-menu__year-add" id="schoolYearAddBtn" title="Weiteres Schuljahr anlegen" aria-label="Neues Schuljahr anlegen">' +
+            '<i class="bi bi-plus-lg" aria-hidden="true"></i></button>' +
+            '</div></div>' +
             '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Domain</span>' +
             '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxDomain">–</span></div>' +
-            '<div class="ms365-auth-menu__ctx-row ms365-auth-menu__ctx-row--tenant">' +
-            '<span class="ms365-auth-menu__ctx-k">Tenant-ID</span>' +
-            '<span class="ms365-auth-menu__ctx-v ms365-auth-menu__tenant">' +
-            '<code id="ms365AuthCtxTenant">–</code> ' +
-            '<button type="button" class="ms365-auth-menu__copy" id="ms365AuthCopyTenant" title="Tenant-ID kopieren" hidden>' +
-            '<i class="bi bi-clipboard" aria-hidden="true"></i></button>' +
-            '</span></div>' +
-            '</div>' +
-            '<div class="ms365-auth-menu__section" id="ms365AuthDashViewSection" role="group" aria-label="Dashboard-Ansicht" hidden>' +
-            '<div class="ms365-auth-menu__section-label" id="ms365AuthDashViewLabel">Dashboard-Vorschau</div>' +
+            '</div></div>' +
+            '<div class="ms365-auth-menu__section" id="ms365AuthDashViewSection" role="group" aria-label="Ansicht (Rollen-Vorschau)" hidden>' +
+            '<div class="ms365-auth-menu__section-label" id="ms365AuthDashViewLabel">Ansicht (Rollen-Vorschau)</div>' +
             '<div class="ms365-auth-menu__dash-seg" role="group" aria-labelledby="ms365AuthDashViewLabel">' +
             '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="full" aria-checked="false" title="Vollzugriff (Schul-IT)" aria-label="Vollzugriff Schul-IT">' +
             '<i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">IT</span></button>' +
@@ -656,8 +749,6 @@
             '<i class="bi bi-mortarboard" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">Schüler</span></button>' +
             '</div>' +
             '<p class="ms365-auth-menu__dash-hint" id="ms365AuthDashViewHint" hidden></p>' +
-            '<a class="ms365-auth-menu__item ms365-auth-menu__item--sub" role="menuitem" id="ms365AuthDashWerkzeugeLink" href="tenant.html#werkzeuge">' +
-            '<i class="bi bi-sliders2" aria-hidden="true"></i>Werkzeug-Zugriff konfigurieren</a>' +
             '</div>' +
             '<div class="ms365-auth-menu__section" role="group" aria-label="Design">' +
             '<div class="ms365-auth-menu__section-label">Design</div>' +
@@ -666,17 +757,21 @@
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--teal" aria-hidden="true"></span>Blau-Grün</button>' +
             '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="classic" aria-checked="false">' +
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--classic" aria-hidden="true"></span>Klassisch</button>' +
-            '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="wine" aria-checked="false">' +
-            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--wine" aria-hidden="true"></span>Dunkelrot</button>' +
+            '<button type="button" class="ms365-auth-menu__brand ms365-auth-menu__theme" data-ms365-auth-theme-toggle="1" aria-label="Hell- und Dunkelmodus umschalten">' +
+            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--dark" aria-hidden="true"></span>Dunkel</button>' +
             '</div></div>' +
+            '<div class="ms365-auth-menu__section ms365-auth-menu__section--links" role="group" aria-label="Verwaltung">' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
             '<i class="bi bi-shield-lock" aria-hidden="true"></i>Admin-Bereich</a>' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthActionLogLink" href="action-log.html">' +
             '<i class="bi bi-journal-text" aria-hidden="true"></i>Aktionsprotokoll</a>' +
+            '</div>' +
+            '<div class="ms365-auth-menu__section ms365-auth-menu__section--account" role="group" aria-label="Konto">' +
             '<button type="button" class="ms365-auth-menu__item" role="menuitem" id="ms365AuthSwitchBtn" title="Konto wechseln / Anmeldung zurücksetzen">' +
             '<i class="bi bi-arrow-repeat" aria-hidden="true"></i>Konto wechseln</button>' +
             '<button type="button" class="ms365-auth-menu__item ms365-auth-menu__item--danger" role="menuitem" id="ms365AuthLogoutBtn">' +
-            '<i class="bi bi-box-arrow-right" aria-hidden="true"></i>Abmelden</button>';
+            '<i class="bi bi-box-arrow-right" aria-hidden="true"></i>Abmelden</button>' +
+            '</div>';
 
         menu.appendChild(trigger);
         menu.appendChild(drop);
@@ -731,6 +826,17 @@
                 logout().catch(function () {});
             });
         }
+        const themeBtn = document.querySelector('#ms365AuthDropdown [data-ms365-auth-theme-toggle]');
+        if (themeBtn && !themeBtn.dataset.bound) {
+            themeBtn.dataset.bound = '1';
+            themeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.ms365Theme && typeof window.ms365Theme.toggle === 'function') {
+                    window.ms365Theme.toggle();
+                }
+            });
+        }
         const brandBtns = document.querySelectorAll('#ms365AuthDropdown [data-ms365-brand]');
         brandBtns.forEach(function (btn) {
             if (btn.dataset.bound) return;
@@ -750,33 +856,279 @@
             });
         }
 
-        const copyTenantBtn = document.getElementById('ms365AuthCopyTenant');
-        if (copyTenantBtn && !copyTenantBtn.dataset.bound) {
-            copyTenantBtn.dataset.bound = '1';
-            copyTenantBtn.addEventListener('click', function (e) {
-                e.preventDefault();
+        bindAuthMenuDismiss();
+    }
+
+    function resolveAppRootHref(file) {
+        try {
+            if (
+                window.ms365OperatorAccess &&
+                typeof window.ms365OperatorAccess.resolveAppRootHref === 'function'
+            ) {
+                return window.ms365OperatorAccess.resolveAppRootHref(file);
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            const p = String(window.location.pathname || '/').split('?')[0].split('#')[0];
+            const norm = p.replace(/\\/g, '/');
+            const iTools = norm.toLowerCase().indexOf('/tools/');
+            if (iTools !== -1) return norm.slice(0, iTools) + '/' + String(file || '').replace(/^\//, '');
+            const slash = norm.lastIndexOf('/');
+            const dir = slash >= 0 ? norm.slice(0, slash + 1) : '/';
+            return dir + String(file || '').replace(/^\//, '');
+        } catch {
+            return String(file || '');
+        }
+    }
+
+    function formatBackupWhenDe(iso) {
+        const ts = Date.parse(iso);
+        if (!iso || isNaN(ts)) return '';
+        const d = new Date(ts);
+        const now = new Date();
+        const sameDay =
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        const time = hh + ':' + mm;
+        if (sameDay) return 'heute ' + time;
+        const yday = new Date(now);
+        yday.setDate(yday.getDate() - 1);
+        const isYday =
+            d.getFullYear() === yday.getFullYear() &&
+            d.getMonth() === yday.getMonth() &&
+            d.getDate() === yday.getDate();
+        if (isYday) return 'gestern ' + time;
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        return dd + '.' + mo + '.' + d.getFullYear() + ' ' + time;
+    }
+
+    function readLastBackupAt() {
+        let browserAt = '';
+        let spoAt = '';
+        try {
+            browserAt = localStorage.getItem('ms365-last-backup-export-at') || '';
+        } catch {
+            /* ignore */
+        }
+        try {
+            const m = JSON.parse(localStorage.getItem('ms365-stammdaten-spo-sync-v1') || '{}') || {};
+            spoAt = m.at || '';
+        } catch {
+            /* ignore */
+        }
+        const bTs = Date.parse(browserAt);
+        const sTs = Date.parse(spoAt);
+        if (!isNaN(bTs) && !isNaN(sTs)) return bTs >= sTs ? browserAt : spoAt;
+        if (!isNaN(bTs)) return browserAt;
+        if (!isNaN(sTs)) return spoAt;
+        return '';
+    }
+
+    function refreshBackupHeaderStatus() {
+        const statusEl = document.getElementById('ms365BackupPanelStatus');
+        const trigger = document.getElementById('ms365BackupHeaderBtn');
+        const last = readLastBackupAt();
+        const ts = Date.parse(last);
+        const ageHours = !isNaN(ts) ? (Date.now() - ts) / (1000 * 3600) : Infinity;
+        const fresh = ageHours < 24;
+        const aging = ageHours >= 24 && ageHours < 72;
+        if (statusEl) {
+            if (!last || isNaN(ts)) {
+                statusEl.textContent = 'Noch nicht gesichert';
+                statusEl.className = 'ms365-backup-panel__status ms365-backup-panel__status--warn';
+            } else {
+                const when = formatBackupWhenDe(last);
+                statusEl.textContent =
+                    'Zuletzt gesichert: ' + when + (fresh ? ' ✅' : ' – bitte erneuern');
+                statusEl.className =
+                    'ms365-backup-panel__status' +
+                    (fresh ? ' ms365-backup-panel__status--ok' : ' ms365-backup-panel__status--warn');
+            }
+        }
+        const dot = trigger ? trigger.querySelector('.ms365-backup-header__dot') : null;
+        if (dot) {
+            dot.classList.remove('ms365-backup-header__dot--ok', 'ms365-backup-header__dot--warn', 'ms365-backup-header__dot--stale');
+            if (fresh) dot.classList.add('ms365-backup-header__dot--ok');
+            else if (aging) dot.classList.add('ms365-backup-header__dot--warn');
+            else dot.classList.add('ms365-backup-header__dot--stale');
+        }
+        if (trigger) {
+            trigger.classList.toggle('ms365-backup-header__btn--ok', !!fresh);
+            trigger.classList.toggle('ms365-backup-header__btn--stale', !fresh && !aging);
+            trigger.classList.toggle('ms365-backup-header__btn--aging', !!aging);
+            trigger.title = fresh
+                ? 'Datensicherung – zuletzt: ' + formatBackupWhenDe(last)
+                : 'Datensicherung – bitte sichern';
+            trigger.setAttribute(
+                'aria-label',
+                fresh ? 'Datensicherung (aktuell)' : 'Datensicherung (nicht aktuell)'
+            );
+        }
+    }
+
+    function bindBackupPanelActions() {
+        try {
+            if (window.ms365BrowserBackup && typeof window.ms365BrowserBackup.bindUi === 'function') {
+                window.ms365BrowserBackup.bindUi();
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            if (window.ms365StammdatenSpoSyncUi && typeof window.ms365StammdatenSpoSyncUi.bind === 'function') {
+                window.ms365StammdatenSpoSyncUi.bind();
+            }
+        } catch {
+            /* ignore */
+        }
+        refreshBackupHeaderStatus();
+    }
+
+    function ensureBackupHeaderControl(container) {
+        if (!container) return null;
+        let wrap = document.getElementById('ms365BackupHeader');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.id = 'ms365BackupHeader';
+            wrap.className = 'ms365-backup-header';
+            wrap.innerHTML =
+                '<button type="button" class="ms365-backup-header__btn" id="ms365BackupHeaderBtn" ' +
+                'aria-haspopup="dialog" aria-expanded="false" aria-controls="ms365BackupPanel" ' +
+                'title="Datensicherung" aria-label="Datensicherung">' +
+                '<i class="bi bi-floppy" aria-hidden="true"></i>' +
+                '<span class="ms365-backup-header__dot" aria-hidden="true"></span>' +
+                '</button>' +
+                '<div class="ms365-backup-panel" id="ms365BackupPanel" role="dialog" aria-label="Datensicherung" hidden>' +
+                '<div class="ms365-backup-panel__head">' +
+                '<i class="bi bi-floppy" aria-hidden="true"></i>' +
+                '<strong>Datensicherung</strong>' +
+                '</div>' +
+                '<div class="ms365-backup-panel__block">' +
+                '<div class="ms365-backup-panel__label">Browser-Backup</div>' +
+                '<div class="ms365-backup-panel__actions">' +
+                '<button type="button" class="ms365-backup-panel__btn" data-ms365-backup="export">' +
+                '<i class="bi bi-upload" aria-hidden="true"></i>Exportieren</button>' +
+                '<label class="ms365-backup-panel__btn" for="ms365BackupPanelImportFile">' +
+                '<i class="bi bi-download" aria-hidden="true"></i>Importieren</label>' +
+                '<input type="file" id="ms365BackupPanelImportFile" class="ms365-backup-panel__file" ' +
+                'data-ms365-backup="import-file" accept="application/json,.json" hidden>' +
+                '</div></div>' +
+                '<div class="ms365-backup-panel__block">' +
+                '<div class="ms365-backup-panel__label">SharePoint (IT)</div>' +
+                '<div class="ms365-backup-panel__actions">' +
+                '<button type="button" class="ms365-backup-panel__btn" data-ms365-spo-sync="upload">' +
+                '<i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>' +
+                '<button type="button" class="ms365-backup-panel__btn" data-ms365-spo-sync="load">' +
+                '<i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>' +
+                '</div></div>' +
+                '<div class="ms365-backup-panel__foot">' +
+                '<a class="ms365-backup-panel__setup" href="' +
+                resolveAppRootHref('tools/stammdaten-uebergabe.html#setup') +
+                '" data-ms365-spo-sync="setup">' +
+                '<i class="bi bi-gear" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>' +
+                '<p class="ms365-backup-panel__status" id="ms365BackupPanelStatus" role="status"></p>' +
+                '</div></div>';
+        } else {
+            const setup = wrap.querySelector('[data-ms365-spo-sync="setup"]');
+            if (setup) setup.setAttribute('href', resolveAppRootHref('tools/stammdaten-uebergabe.html#setup'));
+        }
+
+        if (
+            document.body &&
+            (document.body.classList.contains('page-dashboard') ||
+                document.body.classList.contains('app-shell-chrome'))
+        ) {
+            wrap.classList.add('ms365-backup-header--dash');
+        }
+
+        const schulregister = document.getElementById('ms365HeaderSchulregister');
+        const widget = document.getElementById('ms365AuthWidget');
+        const before =
+            schulregister && schulregister.parentElement === container
+                ? schulregister
+                : widget && widget.parentElement === container
+                  ? widget
+                  : null;
+        if (before) {
+            if (wrap.parentElement !== container || wrap.nextElementSibling !== before) {
+                container.insertBefore(wrap, before);
+            }
+        } else if (wrap.parentElement !== container) {
+            container.appendChild(wrap);
+        }
+
+        const btn = document.getElementById('ms365BackupHeaderBtn');
+        if (btn && !btn.dataset.bound) {
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                const el = document.getElementById('ms365AuthCtxTenant');
-                const tid = el ? String(el.textContent || '').trim() : '';
-                if (!tid || tid === '–') return;
-                const done = function () {
-                    copyTenantBtn.title = 'Kopiert';
-                    copyTenantBtn.innerHTML = '<i class="bi bi-check2" aria-hidden="true"></i>';
-                    setTimeout(function () {
-                        copyTenantBtn.title = 'Tenant-ID kopieren';
-                        copyTenantBtn.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
-                    }, 1600);
-                };
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(tid).then(done).catch(function () {
-                        window.prompt('Tenant-ID kopieren:', tid);
-                    });
-                } else {
-                    window.prompt('Tenant-ID kopieren:', tid);
-                }
+                toggleBackupPanel();
             });
         }
         bindAuthMenuDismiss();
+        bindBackupPanelActions();
+        return wrap;
+    }
+
+    function resolveTenantPageHref() {
+        try {
+            const p = String(window.location.pathname || '/').split('?')[0].split('#')[0];
+            const norm = p.replace(/\\/g, '/');
+            const iTools = norm.toLowerCase().indexOf('/tools/');
+            if (iTools !== -1) return norm.slice(0, iTools) + '/tenant.html';
+            const slash = norm.lastIndexOf('/');
+            const dir = slash >= 0 ? norm.slice(0, slash + 1) : '/';
+            return dir + 'tenant.html';
+        } catch {
+            return 'tenant.html';
+        }
+    }
+
+    function isOnTenantRegisterPage() {
+        return /\/tenant\.html(?:\?|#|$)/i.test(String(window.location.pathname || '').replace(/\\/g, '/'));
+    }
+
+    function ensureSchulregisterHeaderLink(container) {
+        if (!container) return null;
+        let link = document.getElementById('ms365HeaderSchulregister');
+        const hide = isOnTenantRegisterPage();
+        if (!link) {
+            link = document.createElement('a');
+            link.id = 'ms365HeaderSchulregister';
+            link.className = 'ms365-header-schulregister';
+            link.href = resolveTenantPageHref();
+            link.title = 'Schulregister – Stammdaten pflegen';
+            link.innerHTML =
+                '<i class="bi bi-journal-bookmark" aria-hidden="true"></i>' +
+                '<span class="ms365-header-schulregister__label">Schulregister</span>';
+        } else {
+            link.href = resolveTenantPageHref();
+        }
+        link.hidden = hide;
+        if (hide) return null;
+        if (
+            document.body &&
+            (document.body.classList.contains('page-dashboard') ||
+                document.body.classList.contains('app-shell-chrome'))
+        ) {
+            link.classList.add('ms365-header-schulregister--dash');
+        }
+        const widget = document.getElementById('ms365AuthWidget');
+        const before = widget && widget.parentElement === container ? widget : null;
+        if (before) {
+            if (link.parentElement !== container || link.nextElementSibling !== before) {
+                container.insertBefore(link, before);
+            }
+        } else if (link.parentElement !== container) {
+            container.appendChild(link);
+        }
+        return link;
     }
 
     function placeAuthWidgetInMenuHeader() {
@@ -784,7 +1136,11 @@
         const header = adminSlot || $('.header') || $('header');
         if (!header) return false;
         let wrap = $('#ms365AuthWidget');
-        if (!wrap || !wrap.querySelector('#ms365AuthMenu')) {
+        const menuV =
+            wrap &&
+            wrap.querySelector('#ms365AuthDropdown') &&
+            wrap.querySelector('#ms365AuthDropdown').getAttribute('data-ms365-auth-menu-v');
+        if (!wrap || !wrap.querySelector('#ms365AuthMenu') || menuV !== '2') {
             if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
             wrap = createAuthWidget();
         }
@@ -797,21 +1153,41 @@
             wrap.style.marginLeft = '0';
             wrap.style.flexWrap = 'nowrap';
             if (wrap.parentElement !== adminSlot) adminSlot.appendChild(wrap);
+            ensureSchulregisterHeaderLink(adminSlot);
+            ensureBackupHeaderControl(adminSlot);
         } else {
             try {
                 header.style.position = header.style.position || 'relative';
             } catch {
                 /* ignore */
             }
-            wrap.style.position = 'absolute';
-            wrap.style.top = '16px';
-            wrap.style.right = '16px';
-            wrap.style.zIndex = '6';
+            let cluster = document.getElementById('ms365HeaderRightCluster');
+            if (!cluster) {
+                cluster = document.createElement('div');
+                cluster.id = 'ms365HeaderRightCluster';
+                cluster.className = 'ms365-header-right-cluster';
+                header.appendChild(cluster);
+            }
+            wrap.style.position = '';
+            wrap.style.top = '';
+            wrap.style.right = '';
+            wrap.style.zIndex = '';
             wrap.style.marginLeft = '0';
             wrap.style.flexWrap = 'nowrap';
-            if (wrap.parentElement !== header) header.appendChild(wrap);
+            if (wrap.parentElement !== cluster) cluster.appendChild(wrap);
+            ensureSchulregisterHeaderLink(cluster);
+            ensureBackupHeaderControl(cluster);
         }
         ensureAuthMenuBindings();
+        import('./app-header-chrome.js')
+            .then(function (m) {
+                if (m && typeof m.normalizeAppHeaderActionsOrder === 'function') {
+                    m.normalizeAppHeaderActionsOrder(document.getElementById('adminAppTopActions'));
+                }
+            })
+            .catch(function () {
+                /* ignore */
+            });
         // UI sofort, ohne Auth-Event-Sturm beim Platzieren
         setWidgetState({ silent: true });
         try {
@@ -948,13 +1324,10 @@
         ) {
             actionLogLink.href = window.ms365OperatorAccess.resolveAppRootHref('action-log.html');
         }
-        const tenantEl = document.getElementById('ms365AuthCtxTenant');
-        const copyTenantBtn = document.getElementById('ms365AuthCopyTenant');
-        const tid = a
-            ? String(a.tenantId || (a.idTokenClaims && a.idTokenClaims.tid) || '').trim()
-            : '';
-        if (tenantEl) tenantEl.textContent = tid || '–';
-        if (copyTenantBtn) copyTenantBtn.hidden = !tid;
+        if (window.ms365SchoolYearUi && typeof window.ms365SchoolYearUi.bindSchoolYearControls === 'function') {
+            window.ms365SchoolYearUi.bindSchoolYearControls();
+        }
+        refreshBackupHeaderStatus();
         if (trigger) {
             trigger.setAttribute('aria-label', a ? 'Konto: ' + accountLabel(a) : 'Konto');
             trigger.title = a ? accountLabel(a) : 'Konto';
@@ -973,7 +1346,7 @@
                     btn.disabled = true;
                     const prev = btn.innerHTML;
                     btn.innerHTML = '<i class="bi bi-hourglass-split"></i>Anmelden …';
-                    login(DEFAULT_SCOPES)
+                    login(resolvePreferredLoginScopes())
                         .catch(function (e) {
                             const msg = (e && e.message) || String(e || 'Anmeldung fehlgeschlagen');
                             if (typeof window.ms365ToastOrAlert === 'function') {
@@ -1009,6 +1382,16 @@
 
     async function init() {
         if (typeof document === 'undefined') return;
+        try {
+            const headerMod = await import('./app-global-header.js');
+            if (headerMod && typeof headerMod.ensureAppHeaderChrome === 'function') {
+                headerMod.ensureAppHeaderChrome();
+            } else if (headerMod && typeof headerMod.mountAppGlobalHeader === 'function') {
+                headerMod.mountAppGlobalHeader();
+            }
+        } catch {
+            /* ignore */
+        }
         ensureHeaderWidget();
         try {
             window.dispatchEvent(new CustomEvent('ms365-auth-widget-ready'));
@@ -1071,6 +1454,7 @@
     window.ms365AuthLogin = login;
     window.ms365AuthSwitchAccount = switchAccount;
     window.ms365AuthLogout = logout;
+    window.ms365AuthRememberReturnUrl = rememberPostLoginReturnUrl;
     window.ms365AuthAcquireToken = acquireToken;
     window.ms365AuthAcquireTokenSilent = acquireTokenSilentOnly;
     window.ms365AuthAcquireTokenPopup = acquireTokenPopup;

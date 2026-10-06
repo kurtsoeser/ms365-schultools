@@ -2,13 +2,25 @@
  * Einbettung: Stammdaten → SharePoint-Intranet-Listen anlegen/abgleichen.
  * Mount: <div data-ms365-intranet-listen-mount data-mount-prefix="tsdSpo"></div>
  */
-import { applyStammdatenPackagePermissions } from '../tools/sharepoint/stammdaten-liste-permissions.js';
+import {
+    applyStammdatenPackagePermissions,
+    loadPermissionsConfig
+} from '../tools/sharepoint/stammdaten-liste-permissions.js';
 import {
     buildStammdatenGroupFields,
     initEmbeddedPermissionsUi,
     readPermissionsFromPickers,
     persistPickersToStorage
 } from '../tools/sharepoint/stammdaten-permissions-ui.js';
+import {
+    DEFAULT_INTRANET_LIST_TITLES,
+    resolveIntranetListTitle
+} from './intranet-list-title-logic.js';
+import {
+    refreshIntranetListOpenLinks,
+    saveIntranetListLink,
+    showIntranetSyncToast
+} from './tenant-intranet-list-links.js';
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -35,26 +47,25 @@ function el(id) {
 }
 
 function readRunOpts(p) {
-    return {
-        syncMode: !el(p + 'AlwaysNew') || !el(p + 'AlwaysNew').checked,
-        removeOrphans: !el(p + 'RemoveOrphans') || el(p + 'RemoveOrphans').checked,
-        klassenPersonen: !el(p + 'KlassenPersonen') || el(p + 'KlassenPersonen').checked
-    };
+    return readIntranetRunOpts(p);
 }
 
 function collectListOpts(p) {
-    return {
-        schueler: el(p + 'WantSchueler') && el(p + 'WantSchueler').checked,
-        faecher: el(p + 'WantFaecher') && el(p + 'WantFaecher').checked,
-        fachgruppen: el(p + 'WantFachgruppen') && el(p + 'WantFachgruppen').checked,
-        arges: el(p + 'WantArge') && el(p + 'WantArge').checked,
-        klassen: el(p + 'WantKlassen') && el(p + 'WantKlassen').checked,
-        schuelerTitle: String(el(p + 'SchuelerName') && el(p + 'SchuelerName').value || '').trim(),
-        faecherTitle: String(el(p + 'FaecherName') && el(p + 'FaecherName').value || '').trim(),
-        fachgruppenTitle: String(el(p + 'FachgruppenName') && el(p + 'FachgruppenName').value || '').trim(),
-        argesTitle: String(el(p + 'ArgeName') && el(p + 'ArgeName').value || '').trim(),
-        klassenTitle: String(el(p + 'KlassenName') && el(p + 'KlassenName').value || '').trim()
-    };
+    return buildListOptsForKinds(
+        ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen', 'lehrer'].filter(function (kind) {
+            const map = {
+                schueler: 'WantSchueler',
+                faecher: 'WantFaecher',
+                fachgruppen: 'WantFachgruppen',
+                arges: 'WantArge',
+                klassen: 'WantKlassen',
+                lehrer: 'WantLehrer'
+            };
+            const id = map[kind];
+            return el(p + id) && el(p + id).checked;
+        }),
+        p
+    );
 }
 
 function logTo(p, msg) {
@@ -64,16 +75,262 @@ function logTo(p, msg) {
     logEl.scrollTop = logEl.scrollHeight;
 }
 
-function fillSiteUrl(p) {
-    const urlEl = el(p + 'SiteUrl');
-    if (!urlEl || String(urlEl.value || '').trim()) return;
+export const DEFAULT_LIST_TITLES = DEFAULT_INTRANET_LIST_TITLES;
+export { resolveIntranetListTitle };
+
+const INTRANET_LIST_KINDS = ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen', 'lehrer'];
+
+const INTRANET_LIST_TITLE_SUFFIX = {
+    schueler: 'SchuelerName',
+    faecher: 'FaecherName',
+    fachgruppen: 'FachgruppenName',
+    arges: 'ArgeName',
+    klassen: 'KlassenName',
+    lehrer: 'LehrerName'
+};
+
+const TENANT_INTRANET_LIST_INPUT_IDS = {
+    schueler: 'tenantIntranetListSchueler',
+    faecher: 'tenantIntranetListFaecher',
+    fachgruppen: 'tenantIntranetListFachgruppen',
+    arges: 'tenantIntranetListArges',
+    klassen: 'tenantIntranetListKlassen',
+    lehrer: 'tenantIntranetListLehrer'
+};
+
+function readIntranetListTitlesFromSetup() {
     try {
         const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
-        const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
-        if (saved) urlEl.value = saved;
+        const t = setup && setup.intranetListTitles && typeof setup.intranetListTitles === 'object' ? setup.intranetListTitles : {};
+        return t;
+    } catch {
+        return {};
+    }
+}
+
+function storedIntranetListTitle(kind) {
+    const tenantId = TENANT_INTRANET_LIST_INPUT_IDS[kind];
+    const tenantEl = tenantId ? el(tenantId) : null;
+    if (tenantEl) {
+        const tv = String(tenantEl.value || '').trim();
+        if (tv) return tv;
+    }
+    const fromSetup = readIntranetListTitlesFromSetup();
+    return String(fromSetup[kind] != null ? fromSetup[kind] : '').trim();
+}
+
+export function readIntranetListTitlesForUi() {
+    const fromSetup = readIntranetListTitlesFromSetup();
+    const out = {};
+    INTRANET_LIST_KINDS.forEach(function (kind) {
+        const tenantId = TENANT_INTRANET_LIST_INPUT_IDS[kind];
+        const tenantEl = tenantId ? el(tenantId) : null;
+        if (tenantEl && String(tenantEl.value || '').trim()) {
+            out[kind] = String(tenantEl.value).trim();
+        } else {
+            out[kind] = String(fromSetup[kind] != null ? fromSetup[kind] : '').trim();
+        }
+    });
+    return out;
+}
+
+export function writeIntranetListTitles(partial) {
+    const patch = {};
+    INTRANET_LIST_KINDS.forEach(function (kind) {
+        if (!partial || partial[kind] === undefined) return;
+        const v = String(partial[kind] != null ? partial[kind] : '').trim();
+        patch[kind] = v;
+        const tenantId = TENANT_INTRANET_LIST_INPUT_IDS[kind];
+        const tenantEl = tenantId ? el(tenantId) : null;
+        if (tenantEl && tenantEl.value !== v) tenantEl.value = v;
+        const suffix = INTRANET_LIST_TITLE_SUFFIX[kind];
+        document.querySelectorAll('[data-intranet-prefix]').forEach(function (mount) {
+            const p = mount.dataset.intranetPrefix || 'tsdSpo';
+            const mountEl = suffix ? el(p + suffix) : null;
+            if (mountEl && mountEl.type === 'hidden') {
+                mountEl.value = resolveIntranetListTitle(kind, v);
+            }
+        });
+    });
+    if (!Object.keys(patch).length) return;
+    try {
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+            window.ms365AppDataV2.patchSetup({ intranetListTitles: patch });
+        }
     } catch {
         /* ignore */
     }
+}
+
+export function restoreIntranetListTitlesToTenantFields() {
+    const fromSetup = readIntranetListTitlesFromSetup();
+    INTRANET_LIST_KINDS.forEach(function (kind) {
+        const tenantId = TENANT_INTRANET_LIST_INPUT_IDS[kind];
+        const tenantEl = tenantId ? el(tenantId) : null;
+        if (!tenantEl || String(tenantEl.value || '').trim()) return;
+        const v = String(fromSetup[kind] != null ? fromSetup[kind] : '').trim();
+        if (v) tenantEl.value = v;
+    });
+}
+
+export function syncIntranetListTitlesToMounts() {
+    document.querySelectorAll('[data-intranet-prefix]').forEach(function (mount) {
+        const p = mount.dataset.intranetPrefix || 'tsdSpo';
+        INTRANET_LIST_KINDS.forEach(function (kind) {
+            const suffix = INTRANET_LIST_TITLE_SUFFIX[kind];
+            const mountEl = suffix ? el(p + suffix) : null;
+            if (!mountEl) return;
+            const stored = storedIntranetListTitle(kind);
+            if (mountEl.type === 'hidden') {
+                mountEl.value = resolveIntranetListTitle(kind, stored);
+            } else if (!String(mountEl.value || '').trim() && stored) {
+                mountEl.value = stored;
+            }
+        });
+    });
+}
+
+const INTRANET_KIND_LABELS = {
+    schueler: 'Schülerinnen',
+    faecher: 'Fächer',
+    fachgruppen: 'Fachgruppen',
+    arges: 'ARGEs',
+    klassen: 'Klassen',
+    lehrer: 'Lehrerinnen'
+};
+
+export function readIntranetSiteUrl() {
+    const tenant = el('tenantIntranetSiteUrl');
+    if (tenant && String(tenant.value || '').trim()) {
+        return String(tenant.value).trim();
+    }
+    const mounts = document.querySelectorAll('[data-intranet-prefix]');
+    for (let i = 0; i < mounts.length; i++) {
+        const p = mounts[i].dataset.intranetPrefix || 'tsdSpo';
+        const urlEl = el(p + 'SiteUrl');
+        if (urlEl && String(urlEl.value || '').trim()) {
+            return String(urlEl.value).trim();
+        }
+    }
+    try {
+        const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
+        const saved = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+        return saved || '';
+    } catch {
+        return '';
+    }
+}
+
+export function readSchoolIntranetSiteUrl() {
+    const hub = el('tenantSchoolIntranetSiteUrl');
+    if (hub && String(hub.value || '').trim()) {
+        return String(hub.value).trim();
+    }
+    try {
+        const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
+        if (setup && setup.schoolIntranetSiteUrl) {
+            return String(setup.schoolIntranetSiteUrl).trim();
+        }
+        if (setup && setup.intranetSiteUrl) {
+            return String(setup.intranetSiteUrl).trim();
+        }
+    } catch {
+        /* ignore */
+    }
+    return '';
+}
+
+export function writeSchoolIntranetSiteUrl(url) {
+    const u = String(url || '').trim();
+    const hub = el('tenantSchoolIntranetSiteUrl');
+    if (hub && hub.value !== u) hub.value = u;
+    try {
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+            window.ms365AppDataV2.patchSetup({ schoolIntranetSiteUrl: u });
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
+export function writeIntranetSiteUrl(url) {
+    const u = String(url || '').trim();
+    const tenant = el('tenantIntranetSiteUrl');
+    if (tenant && tenant.value !== u) tenant.value = u;
+    document.querySelectorAll('[data-intranet-prefix]').forEach(function (mount) {
+        const p = mount.dataset.intranetPrefix || 'tsdSpo';
+        const urlEl = el(p + 'SiteUrl');
+        if (urlEl && urlEl.value !== u) urlEl.value = u;
+    });
+    if (!u) return;
+    try {
+        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
+            window.ms365AppDataV2.patchSetup({ intranetSiteUrl: u });
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
+function kindFromListTitleSuffix(suffix) {
+    const s = String(suffix || '').trim();
+    let kind = '';
+    INTRANET_LIST_KINDS.forEach(function (k) {
+        if (INTRANET_LIST_TITLE_SUFFIX[k] === s) kind = k;
+    });
+    return kind;
+}
+
+function readListTitle(p, suffix, fallback) {
+    const input = el(p + suffix);
+    const v = input ? String(input.value || '').trim() : '';
+    if (v) return v;
+    const kind = kindFromListTitleSuffix(suffix);
+    if (kind) return resolveIntranetListTitle(kind, storedIntranetListTitle(kind));
+    return fallback;
+}
+
+export function buildListOptsForKinds(kinds, prefix) {
+    const p = prefix || 'tsdSpo';
+    const set = new Set((kinds || []).map(function (k) {
+        return String(k || '').trim();
+    }));
+    return {
+        schueler: set.has('schueler'),
+        faecher: set.has('faecher'),
+        fachgruppen: set.has('fachgruppen'),
+        arges: set.has('arges'),
+        klassen: set.has('klassen'),
+        lehrer: set.has('lehrer'),
+        schuelerTitle: readListTitle(p, 'SchuelerName', DEFAULT_LIST_TITLES.schueler),
+        faecherTitle: readListTitle(p, 'FaecherName', DEFAULT_LIST_TITLES.faecher),
+        fachgruppenTitle: readListTitle(p, 'FachgruppenName', DEFAULT_LIST_TITLES.fachgruppen),
+        argesTitle: readListTitle(p, 'ArgeName', DEFAULT_LIST_TITLES.arges),
+        klassenTitle: readListTitle(p, 'KlassenName', DEFAULT_LIST_TITLES.klassen),
+        lehrerTitle: readListTitle(p, 'LehrerName', DEFAULT_LIST_TITLES.lehrer)
+    };
+}
+
+export function readIntranetRunOpts(prefix) {
+    const p = prefix || 'tsdSpo';
+    const alwaysNew = el(p + 'AlwaysNew');
+    const removeOrphans = el(p + 'RemoveOrphans');
+    const klassenPersonen = el(p + 'KlassenPersonen');
+    const lehrerPersonen = el(p + 'LehrerPersonen');
+    return {
+        syncMode: !alwaysNew || !alwaysNew.checked,
+        removeOrphans: !removeOrphans || removeOrphans.checked,
+        klassenPersonen: !klassenPersonen || klassenPersonen.checked,
+        lehrerPersonen: !lehrerPersonen || lehrerPersonen.checked
+    };
+}
+
+function fillSiteUrl(p) {
+    const urlEl = el(p + 'SiteUrl');
+    if (!urlEl) return;
+    if (String(urlEl.value || '').trim()) return;
+    const saved = readIntranetSiteUrl();
+    if (saved) urlEl.value = saved;
 }
 
 function renderPanel(mount) {
@@ -96,7 +353,9 @@ function renderPanel(mount) {
         checkbox(p, 'WantFachgruppen', 'Fachgruppen', true) +
         checkbox(p, 'WantArge', 'ARGEs', true) +
         checkbox(p, 'WantKlassen', 'Klassen', true) +
+        checkbox(p, 'WantLehrer', 'Lehrerinnen', true) +
         checkbox(p, 'KlassenPersonen', 'Klassen: Schüler als Personenfeld (M365)', true) +
+        checkbox(p, 'LehrerPersonen', 'Lehrer: Personenfeld Lehrkraft (M365)', true) +
         '</div>' +
         (compact
             ? ''
@@ -106,7 +365,9 @@ function renderPanel(mount) {
               nameField(p, 'FachgruppenName', 'Fachgruppen') +
               nameField(p, 'ArgeName', 'ARGEs') +
               nameField(p, 'KlassenName', 'Klassen') +
+              nameField(p, 'LehrerName', 'Lehrerinnen') +
               '</details>') +
+        // Abgleich/Berechtigungen bewusst nicht im Register-Stammdaten-Tab; siehe docs/intranet-stammdaten-listen-notizen.md
         '<details style="margin:8px 0;"><summary style="cursor:pointer;font-weight:700;">Abgleich &amp; Berechtigungen</summary>' +
         '<div style="margin-top:8px;display:grid;gap:6px;font-size:0.88em;">' +
         checkbox(p, 'AlwaysNew', 'Immer neue Listen anlegen (statt Abgleich)', false) +
@@ -132,17 +393,33 @@ function renderPanel(mount) {
         '</div>';
 
     if (compact) {
-        ['SchuelerName', 'FaecherName', 'FachgruppenName', 'ArgeName', 'KlassenName'].forEach(function (suffix, i) {
-            const defaults = ['Schülerinnen', 'Fächer', 'Fachgruppen', 'ARGEs', 'Klassen'];
+        INTRANET_LIST_KINDS.forEach(function (kind) {
+            const suffix = INTRANET_LIST_TITLE_SUFFIX[kind];
             const hidden = document.createElement('input');
             hidden.type = 'hidden';
             hidden.id = p + suffix;
-            hidden.value = defaults[i];
+            hidden.value = resolveIntranetListTitle(kind, storedIntranetListTitle(kind));
             mount.querySelector('.stammdaten-intranet-listen').appendChild(hidden);
+        });
+    } else {
+        INTRANET_LIST_KINDS.forEach(function (kind) {
+            const suffix = INTRANET_LIST_TITLE_SUFFIX[kind];
+            const mountEl = suffix ? el(p + suffix) : null;
+            if (!mountEl) return;
+            const stored = storedIntranetListTitle(kind);
+            if (stored && !String(mountEl.value || '').trim()) mountEl.value = stored;
         });
     }
 
     fillSiteUrl(p);
+    syncIntranetListTitlesToMounts();
+    const urlEl = el(p + 'SiteUrl');
+    if (urlEl && urlEl.dataset.intranetUrlBound !== '1') {
+        urlEl.dataset.intranetUrlBound = '1';
+        urlEl.addEventListener('change', function () {
+            writeIntranetSiteUrl(String(urlEl.value || '').trim());
+        });
+    }
     initEmbeddedPermissionsUi(p, p + 'SkipPerms');
 
     const syncBtn = el(p + 'BtnSync');
@@ -177,7 +454,14 @@ function checkbox(p, id, label, checked) {
 }
 
 function nameField(p, id, label) {
-    const defaults = { SchuelerName: 'Schülerinnen', FaecherName: 'Fächer', FachgruppenName: 'Fachgruppen', ArgeName: 'ARGEs', KlassenName: 'Klassen' };
+    const defaults = {
+        SchuelerName: 'Schülerinnen',
+        FaecherName: 'Fächer',
+        FachgruppenName: 'Fachgruppen',
+        ArgeName: 'ARGEs',
+        KlassenName: 'Klassen',
+        LehrerName: 'Lehrerinnen'
+    };
     return (
         '<label style="display:block;margin-top:6px;"><span style="font-size:0.85em;">' +
         label +
@@ -218,19 +502,81 @@ function groupPickerRow(p, id, label) {
 
 async function applyPerms(webUrl, p, listOpts, write) {
     const defs = buildStammdatenGroupFields(p);
-    const perms = readPermissionsFromPickers(defs, p + 'SkipPerms');
-    persistPickersToStorage(defs, p + 'SkipPerms');
+    const hasPickers = defs.some(function (f) {
+        return el(f.labelInputId);
+    });
+    let perms;
+    if (hasPickers) {
+        perms = readPermissionsFromPickers(defs, p + 'SkipPerms');
+        persistPickersToStorage(defs, p + 'SkipPerms');
+    } else {
+        perms = loadPermissionsConfig();
+        const skipEl = el(p + 'SkipPerms');
+        if (skipEl && skipEl.checked) perms.skipPerms = true;
+    }
     return await applyStammdatenPackagePermissions(webUrl, perms, write, listOpts);
 }
 
-async function runSync(p) {
-    const webUrl = String(el(p + 'SiteUrl') && el(p + 'SiteUrl').value || '').trim();
+export async function runQuickIntranetSync(kind, prefix) {
+    const k = String(kind || '').trim();
+    if (!INTRANET_KIND_LABELS[k]) {
+        throw new Error('Unbekannter Listentyp: ' + k);
+    }
+    const p = prefix || 'tsdSpo';
+    const webUrl = readIntranetSiteUrl();
     if (!webUrl) {
-        toast('Bitte die SharePoint-Website eintragen.');
+        toast('Bitte unter Stammdaten die SharePoint-Webseite für Intranet-Listen eintragen.');
+        return;
+    }
+    const listOpts = buildListOptsForKinds([k], p);
+    const listTitle = listOpts[k + 'Title'] || DEFAULT_LIST_TITLES[k];
+    const ok = await confirmAsync(
+        'SharePoint-Liste „' +
+            listTitle +
+            '“ aus den lokalen Stammdaten abgleichen?\n\n' +
+            webUrl +
+            '\n\nZuerst „Speichern“, wenn Sie gerade Änderungen gemacht haben.'
+    );
+    if (!ok) return;
+
+    const write = function (msg) {
+        logTo(p, msg);
+    };
+    const runOpts = readIntranetRunOpts(p);
+    const results = await api().syncSelectedLists(webUrl, listOpts, write, runOpts);
+
+    const skipPerms = el(p + 'SkipPerms') && el(p + 'SkipPerms').checked;
+    if (!skipPerms) {
+        try {
+            await applyPerms(webUrl, p, listOpts, write);
+        } catch (e) {
+            write('Berechtigungen: ' + (e && e.message ? e.message : String(e)));
+        }
+    }
+
+    writeIntranetSiteUrl(webUrl);
+
+    const entry = results && results[k] ? results[k] : null;
+    const listUrl = entry && entry.webUrl ? String(entry.webUrl).trim() : '';
+    const count = entry && entry.count != null ? entry.count : null;
+    return { kind: k, listTitle: listTitle, webUrl: listUrl, count: count, siteUrl: webUrl };
+}
+
+async function runSync(p) {
+    const webUrl = readIntranetSiteUrl();
+    if (!webUrl) {
+        toast('Bitte die SharePoint-Website eintragen (Stammdaten oder hier).');
         return;
     }
     const listOpts = collectListOpts(p);
-    if (!listOpts.schueler && !listOpts.faecher && !listOpts.fachgruppen && !listOpts.arges && !listOpts.klassen) {
+    if (
+        !listOpts.schueler &&
+        !listOpts.faecher &&
+        !listOpts.fachgruppen &&
+        !listOpts.arges &&
+        !listOpts.klassen &&
+        !listOpts.lehrer
+    ) {
         toast('Mindestens eine Liste auswählen.');
         return;
     }
@@ -246,7 +592,7 @@ async function runSync(p) {
     };
     const runOpts = readRunOpts(p);
 
-    await api().syncSelectedLists(webUrl, listOpts, write, runOpts);
+    const results = await api().syncSelectedLists(webUrl, listOpts, write, runOpts);
 
     const skipPerms = el(p + 'SkipPerms') && el(p + 'SkipPerms').checked;
     if (!skipPerms) {
@@ -259,19 +605,46 @@ async function runSync(p) {
         write('Berechtigungen übersprungen.');
     }
 
-    try {
-        if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
-            window.ms365AppDataV2.patchSetup({ intranetSiteUrl: webUrl });
-        }
-    } catch {
-        /* ignore */
-    }
+    writeIntranetSiteUrl(webUrl);
 
-    toast('Intranet-Listen abgeglichen.');
+    let synced = 0;
+    let totalRows = 0;
+    Object.keys(results || {}).forEach(function (kind) {
+        const row = results[kind];
+        if (!row) return;
+        synced += 1;
+        if (row.count != null) totalRows += Number(row.count) || 0;
+        if (row.webUrl) {
+            const titleKey = kind + 'Title';
+            saveIntranetListLink(kind, {
+                url: row.webUrl,
+                title: listOpts[titleKey] || DEFAULT_LIST_TITLES[kind] || kind,
+                count: row.count
+            });
+        }
+    });
+    refreshIntranetListOpenLinks();
+    if (synced === 1) {
+        const onlyKind = Object.keys(results)[0];
+        const only = results[onlyKind];
+        showIntranetSyncToast(
+            listOpts[onlyKind + 'Title'] || DEFAULT_LIST_TITLES[onlyKind],
+            only && only.count,
+            !!(only && only.webUrl)
+        );
+    } else {
+        showIntranetSyncToast(
+            synced + ' Listen',
+            totalRows || null,
+            Object.keys(results || {}).some(function (k) {
+                return results[k] && results[k].webUrl;
+            })
+        );
+    }
 }
 
 async function runPermsOnly(p) {
-    const webUrl = String(el(p + 'SiteUrl') && el(p + 'SiteUrl').value || '').trim();
+    const webUrl = readIntranetSiteUrl();
     if (!webUrl) {
         toast('Bitte die SharePoint-Website eintragen.');
         return;
@@ -297,5 +670,8 @@ else boot();
 
 window.ms365StammdatenIntranetListenUi = {
     runSync: runSync,
-    runPermsOnly: runPermsOnly
+    runPermsOnly: runPermsOnly,
+    runQuickIntranetSync: runQuickIntranetSync,
+    readIntranetSiteUrl: readIntranetSiteUrl,
+    writeIntranetSiteUrl: writeIntranetSiteUrl
 };

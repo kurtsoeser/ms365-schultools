@@ -54,6 +54,7 @@
     function injectContextBar() {
         if (/\/welcome\.html(?:\?|#|$)/i.test(location.pathname)) return;
         if (/\/ms365-schooltool\.html(?:\?|#|$)/i.test(location.pathname)) return;
+        injectScript('school-year-ui.js', 'data-ms365-school-year-ui', true);
         injectScript('context-bar.js', 'data-ms365-context-bar', false);
     }
 
@@ -78,6 +79,7 @@
         injectScript('operator-admin-boot.js', 'data-ms365-operator-admin-boot', false);
         injectContextBar();
         injectPublishedStamp();
+        injectScript('app-shell-boot.js', 'data-ms365-app-shell-boot', true);
         injectScript('app-paths.js', 'data-ms365-app-paths', true);
         injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
         return;
@@ -111,6 +113,7 @@
 
     injectContextBar();
     injectPublishedStamp();
+    injectScript('app-shell-boot.js', 'data-ms365-app-shell-boot', true);
     injectScript('app-paths.js', 'data-ms365-app-paths', true);
     injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
     injectScript('operator-access.js', 'data-ms365-operator-access', false);

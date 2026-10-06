@@ -16,21 +16,24 @@ describe('Eine globale Menüleiste', () => {
         expect(src).not.toContain('ms365ContextBar');
         expect(src).not.toContain('ms365-context-bar');
         expect(src).toContain('placeDashboardNav');
+        expect(src).toContain('app-shell-chrome');
+        expect(src).toContain('ms365NormalizeToolPageChrome');
         expect(src).toContain('hideEmptyToolbar');
         expect(src).toContain('ms365HeaderNav');
-        expect(src).toContain('ms365AuthCtxYear');
+        expect(src).toContain('schoolYearSelect');
         expect(src).toContain('ms365AuthCtxDomain');
         expect(src).toContain('fillAccountContext');
     });
 
-    it('setzt Dashboard links oben und Konto rechts oben, Kontext im Account-Menü', () => {
+    it('setzt Dashboard unter der App-Leiste (app-shell), Konto rechts oben', () => {
         const auth = read('src/shared/msal-auth-ui.js');
         expect(auth).toContain('placeAuthWidgetInMenuHeader');
-        expect(auth).toContain("header.appendChild(wrap)");
-        expect(auth).toContain("wrap.style.right = '16px'");
+        expect(auth).toContain('ensureSchulregisterHeaderLink');
+        expect(auth).toContain('ms365HeaderRightCluster');
         expect(auth).toContain('ms365-auth-menu');
         expect(auth).toContain('ms365AuthDropdown');
-        expect(auth).toContain('ms365AuthCtxYear');
+        expect(auth).toContain('schoolYearSelect');
+        expect(auth).toContain('schoolYearAddBtn');
         expect(auth).toContain('ms365AuthCtxDomain');
         expect(auth).toContain('Schuljahr');
         expect(auth).toContain('Domain');
