@@ -3,9 +3,9 @@
  */
 
 :root {
-    --color-primary: #6b4fbb;
-    --color-primary-dark: #1e1b4b;
-    --color-primary-light: #ede9f8;
+    --color-primary: var(--brand1, #0d9f8a);
+    --color-primary-dark: #065f46;
+    --color-primary-light: color-mix(in srgb, var(--brand1, #0d9f8a) 14%, #ffffff);
     --color-accent-gold: #f59e0b;
     --color-accent-gold-bg: #fef3c7;
     --color-success: #16a34a;
@@ -108,8 +108,12 @@
 
 /* —— Status-Banner (unter Header) —— */
 .dash-greeting-band {
-    background: var(--color-primary) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--brand1, #0d9f8a) 92%, #064e3b) 0%,
+        color-mix(in srgb, var(--brand2, #12b59c) 88%, #064e3b) 100%
+    ) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
     text-align: center;
     font-size: var(--font-size-sm);
     padding: 8px 24px !important;

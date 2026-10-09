@@ -477,7 +477,7 @@
             .join(' · ');
     }
 
-    function postImportNormalize(storage) {
+    function postImportNormalize(_storage) {
         try {
             if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.invalidateCache === 'function') {
                 window.ms365AppDataV2.invalidateCache();

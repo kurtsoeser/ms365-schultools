@@ -40,6 +40,12 @@
     --icon-muted: rgba(255, 255, 255, 0.92);
     --icon-dim: rgba(33, 37, 41, 0.72);
 
+    /* Hintergrund wie Landing (landing/styles.css .hero-atmosphere) */
+    --app-backdrop-paper: #f4f7fb;
+    --app-backdrop-grad-a: #f4f7fb;
+    --app-backdrop-grad-b: #e8f4f1;
+    --app-backdrop-grad-c: #dff5f0;
+
     --app-page-padding: 24px;
     --app-shell-width: min(1920px, calc(100vw - 2 * var(--app-page-padding)));
     --app-content-max: 1920px;
@@ -50,12 +56,27 @@
 html {
     min-height: 100%;
     overflow-x: clip;
-    background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+    background-color: var(--app-backdrop-paper);
+    background-image:
+        radial-gradient(900px 500px at 88% 18%, rgba(13, 159, 138, 0.14), transparent 55%),
+        radial-gradient(700px 480px at 8% 82%, rgba(240, 180, 41, 0.1), transparent 50%),
+        linear-gradient(
+            155deg,
+            var(--app-backdrop-grad-a) 0%,
+            var(--app-backdrop-grad-b) 48%,
+            var(--app-backdrop-grad-c) 100%
+        );
+    background-attachment: fixed;
 }
 
 
 html[data-theme="dark"] {
     color-scheme: dark;
+
+    --app-backdrop-paper: #07101f;
+    --app-backdrop-grad-a: #07101f;
+    --app-backdrop-grad-b: #0a2540;
+    --app-backdrop-grad-c: #0a3d36;
 
     --bg1: #07101f;
     --bg2: #0a3d36;
@@ -199,6 +220,17 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+/* App-Chrome: Header bündig am oberen Viewport-Rand (keine obere „Spalte“) */
+body.app-shell-chrome {
+    padding-top: 0;
+}
+
+body.app-shell-chrome > .container,
+body.app-shell-chrome > .container.page-card {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 /* Hauptinhalt: feste Shell-Breite, nie breiter als 1920px */

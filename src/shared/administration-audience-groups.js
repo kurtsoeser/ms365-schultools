@@ -5,9 +5,7 @@
 
 import {
     ADMIN_TIER_SCHULLEITUNG,
-    ADMIN_TIER_VERWALTUNG,
     inferAdminTierForPersonRow,
-    inferAdminTierForRole,
     normalizeAdminTier
 } from './administration-audience-logic.js';
 

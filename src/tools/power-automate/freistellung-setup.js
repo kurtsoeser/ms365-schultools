@@ -842,7 +842,7 @@
             el.textContent =
                 'Schritt 5: Antrags-Kategorien prüfen oder ergänzen und SharePoint-Spalte „Kategorie“ aktualisieren.';
         } else if (step === 6) {
-            el.textContent = planerGroupsConfigured()
+            el.textContent = permsStepConfigured()
                 ? 'Schritt 6: Berechtigungen gesetzt – weiter zum Flow-Import.'
                 : 'Schritt 6: Entra-Gruppen für Schüler / KV / Direktion wählen und speichern.';
         } else {
@@ -959,7 +959,7 @@
                         toast('Tipp: Zuerst „Liste anlegen / prüfen“, dann weiter.');
                     }
                 }
-                if (cur === 6 && !planerGroupsConfigured()) {
+                if (cur === 6 && !permsStepConfigured()) {
                     toast('Tipp: KV-/Schüler-Gruppe wählen und „Gruppen speichern“.');
                 }
                 showSetupStep(cur + 1);

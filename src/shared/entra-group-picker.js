@@ -29,7 +29,7 @@ async function graphGet(token, pathOrUrl, extraHeaders) {
     if (ug && typeof ug.graphJson === 'function') {
         return await ug.graphJson('GET', pathOrUrl, token, undefined, extraHeaders || undefined);
     }
-    const G = graphApi();
+    graphApi();
     let url = pathOrUrl;
     if (url.indexOf('http') !== 0) {
         url = 'https://graph.microsoft.com/v1.0' + (url.indexOf('/') === 0 ? url : '/' + url);

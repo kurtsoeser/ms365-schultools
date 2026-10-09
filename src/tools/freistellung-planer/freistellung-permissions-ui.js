@@ -4,7 +4,8 @@
 import {
     wireEntraGroupPickerFields,
     readGroupPickerField,
-    fillGroupPickerField
+    fillGroupPickerField,
+    pickEntraGroup
 } from '../../shared/entra-group-picker.js';
 import {
     normalizePermissionsConfig,

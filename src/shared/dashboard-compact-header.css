@@ -208,8 +208,8 @@ body.app-shell-chrome .container.page-card {
     color: #fff;
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--brand1) 88%, #1e2440) 0%,
-        color-mix(in srgb, var(--brand2) 82%, #1e2440) 100%
+        color-mix(in srgb, var(--brand1) 92%, #064e3b) 0%,
+        color-mix(in srgb, var(--brand2) 88%, #064e3b) 100%
     );
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
@@ -233,8 +233,8 @@ html.dash-header-scrolled .dash-greeting-band {
 html[data-theme="dark"] .dash-greeting-band {
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--brand1) 55%, #0a1018) 0%,
-        color-mix(in srgb, var(--brand2) 45%, #0a1018) 100%
+        color-mix(in srgb, var(--brand1) 58%, #042f2a) 0%,
+        color-mix(in srgb, var(--brand2) 48%, #042f2a) 100%
     );
 }
 

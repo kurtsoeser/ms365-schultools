@@ -3,7 +3,6 @@
  */
 import {
     isToolVisibleForView,
-    viewLabel,
     DASHBOARD_QUICKSTART_BY_VIEW,
     DASHBOARD_TOOL_LINKS,
     DASHBOARD_TOOL_ICONS,

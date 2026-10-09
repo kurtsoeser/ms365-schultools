@@ -24,7 +24,7 @@ export function isDashboardBackLink(a) {
  * @param {ParentNode} root
  * @returns {HTMLAnchorElement|null}
  */
-function findDashboardLink(root) {
+function _findDashboardLink(root) {
     if (!root) return null;
     const nav = document.getElementById('ms365HeaderNav');
     if (nav) {

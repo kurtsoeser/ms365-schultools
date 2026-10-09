@@ -320,7 +320,6 @@ export function mountMembershipHygieneDashboard(cfg) {
             toast('Graph-Modul fehlt – Seite neu laden.');
             return;
         }
-        const G = window.ms365GraphUnifiedGroups;
         if (elScan) elScan.disabled = true;
         if (elStatus) elStatus.textContent = 'Prüfe Microsoft 365 …';
         try {

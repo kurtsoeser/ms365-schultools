@@ -2,13 +2,7 @@
  * Zahlen & Fakten auf Aufgaben-Kacheln („Was möchten Sie tun?“) – angebunden an Register & Hygiene.
  */
 import { taskRowToolId } from './dashboard-task-tool-copy.js';
-import {
-    classTeamsLinkedCounts,
-    hygieneTargetNumericHint,
-    registerSnapshotLine,
-    resolveAggregateTaskRowFacts,
-    resolveToolTaskRowFacts
-} from './dashboard-task-row-facts-logic.js';
+import { resolveAggregateTaskRowFacts, resolveToolTaskRowFacts } from './dashboard-task-row-facts-logic.js';
 
 export {
     classTeamsLinkedCounts,
