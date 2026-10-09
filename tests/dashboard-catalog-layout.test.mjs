@@ -6,8 +6,8 @@ import {
 import { DASHBOARD_CLUSTER_ORDER, DASHBOARD_TOOL_CLUSTER } from '../src/shared/dashboard-audience-catalog.js';
 
 describe('dashboard-catalog-layout', () => {
-    it('hat sieben Sidebar-Tabs ohne Übersicht', () => {
-        expect(DASHBOARD_CATALOG_TAB_IDS).toHaveLength(7);
+    it('hat acht Sidebar-Tabs ohne Übersicht', () => {
+        expect(DASHBOARD_CATALOG_TAB_IDS).toHaveLength(8);
         expect(DASHBOARD_CATALOG_TAB_IDS).not.toContain('uebersicht');
     });
 
@@ -29,6 +29,7 @@ describe('dashboard-catalog-layout', () => {
             'personen',
             'planung',
             'intranet',
+            'schulapps',
             'hygiene',
             'kommunikation',
             'automationen'

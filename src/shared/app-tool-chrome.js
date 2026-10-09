@@ -191,7 +191,7 @@ export function normalizeToolPageChrome(header) {
         ) {
             return;
         }
-        if (node.matches('p.header-help-row, p:not(.header-help-row)')) {
+        if (node.matches('p.header-help-row:not(.ts-header-info-row--nav), p:not(.header-help-row)')) {
             if (node.parentElement !== intro) intro.appendChild(node);
         }
     });

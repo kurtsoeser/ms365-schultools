@@ -1,0 +1,235 @@
+/* Playbooks – Split-Shell wie Aufgaben/Katalog */
+
+.dash-playbooks-split .dash-playbooks-split__panel {
+    display: none;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+}
+
+.dash-playbooks-split .dash-playbooks-split__panel.is-active {
+    display: flex;
+}
+
+.dash-playbooks-split .dash-playbooks-split__panel > h3 {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border, var(--task-line, rgba(30, 36, 64, 0.1)));
+}
+
+.dash-playbooks-split .dash-playbooks-split__panel > p.dash-playbooks-split__lead {
+    margin: 0 0 16px;
+    font-size: 0.92rem;
+    color: var(--task-muted, var(--muted, #6c757d));
+    line-height: 1.45;
+    max-width: 52em;
+}
+
+.dash-playbooks-split__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+@media (max-width: 1100px) {
+    .dash-playbooks-split__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .dash-playbooks-split__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Kachel-Layout: nicht die horizontale Listen-Zeile aus .dash-task-row */
+.dash-playbooks-split__panel .dash-playbook-card.dash-task-row {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 9.5rem;
+}
+
+.dash-playbooks-split__panel .dash-playbook-card.dash-task-row:hover {
+    transform: none;
+}
+
+.dash-playbook-card__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+}
+
+.dash-playbook-card__icon {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 2.65rem;
+    height: 2.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    box-shadow: 0 6px 14px color-mix(in srgb, var(--brand1) 24%, transparent);
+}
+
+.dash-playbook-card__icon .bi {
+    font-size: 1.2rem;
+    line-height: 1;
+    opacity: 1;
+}
+
+.dash-playbook-card__intro {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+}
+
+.dash-playbooks-split__panel .dash-playbook-card .dash-task-row__title {
+    display: block;
+    text-align: left;
+}
+
+.dash-playbook-card__meta {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1.35;
+    color: var(--task-muted, var(--muted, #6c757d));
+}
+
+.dash-playbooks-split__panel .dash-playbook-card .dash-task-row__desc {
+    -webkit-line-clamp: 3;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+}
+
+.dash-playbook-card__bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.dash-playbook-card__bar-row .dash-playbook-card__bar {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.dash-playbook-card__fraction {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    color: var(--task-muted, var(--muted, #6c757d));
+    line-height: 1.2;
+}
+
+.dash-playbooks-split__panel .dash-playbook-card .dash-task-row__foot {
+    margin-top: 6px;
+}
+
+.dash-playbooks-split__panel .dash-playbook-card .dash-task-row__status {
+    max-width: none;
+    flex: 1 1 auto;
+    white-space: normal;
+    text-align: left;
+}
+
+.dash-playbook-card__cta {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 750;
+    line-height: 1.2;
+    background: color-mix(in srgb, var(--brand1) 14%, var(--card, #fff));
+    color: color-mix(in srgb, var(--brand1) 90%, #1e2440);
+    border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border, #dee2e6));
+    transition: background 160ms ease, border-color 160ms ease;
+}
+
+.dash-playbooks-split__panel .dash-playbook-card:hover .dash-playbook-card__cta {
+    background: color-mix(in srgb, var(--brand1) 22%, var(--card, #fff));
+}
+
+.dash-playbooks-split__panel .dash-playbook-card.dash-task-row--primary .dash-playbook-card__cta {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.dash-playbooks-split__panel .dash-playbook-card.dash-task-row--primary:hover .dash-playbook-card__cta {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.dash-playbooks-split__panel .dash-playbook-card .dash-playbook-card__cta .bi {
+    display: inline-block;
+    font-size: 1.05em;
+    opacity: 0.92;
+}
+
+.dash-playbook-card--complete .dash-playbook-card__icon {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    box-shadow: 0 6px 14px color-mix(in srgb, #16a34a 28%, transparent);
+}
+
+.dash-playbook-card__progress {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dash-playbook-card__bar {
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border, #dee2e6) 85%, transparent);
+    overflow: hidden;
+}
+
+.dash-playbook-card__bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--brand1), var(--brand2));
+    transition: width 280ms ease;
+}
+
+.dash-playbook-card--complete .dash-playbook-card__bar-fill {
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.dash-playbooks-split__panel .dash-playbook-card--complete .dash-task-row__status[data-tone='ok'] {
+    color: #146c43;
+}
+
+html[data-theme='dark'] .dash-playbook-card__bar {
+    background: color-mix(in srgb, var(--border) 90%, transparent);
+}
+
+html[data-theme='dark'] .dash-playbooks-split__panel .dash-playbook-card.dash-task-row--primary .dash-playbook-card__meta {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+html[data-theme='dark'] .dash-playbook-card__cta {
+    background: color-mix(in srgb, var(--brand1) 18%, var(--surface-muted));
+    color: var(--heading);
+    border-color: var(--border);
+}

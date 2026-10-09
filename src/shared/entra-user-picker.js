@@ -1,6 +1,8 @@
 /**
  * Entra-Benutzer suchen und per Dialog auswählen.
  */
+import { getGraphPickerApi } from './graph-picker-backend.js';
+
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const USER_SCOPES = [
@@ -9,11 +11,7 @@ const USER_SCOPES = [
 ];
 
 function graphApi() {
-    const g = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
-    if (!g || typeof g.getGraphToken !== 'function' || typeof g.graphJson !== 'function') {
-        throw new Error('Graph-Hilfen nicht geladen (spo-graph-shared).');
-    }
-    return g;
+    return getGraphPickerApi();
 }
 
 function odataEscape(s) {
@@ -89,18 +87,25 @@ export function pickEntraUser(opts) {
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
         overlay.innerHTML =
-            '<div class="modal-box" style="max-width:520px;width:min(96vw,520px);">' +
-            '<h3 class="modal-box__title" style="margin:0 0 8px;">' +
+            '<div class="modal-box ms365-egp-modal">' +
+            '<div class="ms365-egp-modal__head">' +
+            '<span class="ms365-egp-modal__icon" aria-hidden="true"><i class="bi bi-envelope-at"></i></span>' +
+            '<div class="ms365-egp-modal__titles">' +
+            '<h3 class="modal-box__title ms365-egp-modal__title">' +
             escapeHtml(title) +
             '</h3>' +
-            '<p class="muted" style="margin:0 0 12px;font-size:0.9rem;">' +
+            '<p class="muted ms365-egp-modal__hint">' +
             escapeHtml(hint) +
-            '</p>' +
-            '<div class="tm-field"><label>Suche</label>' +
-            '<input type="search" class="ms365-eup-search" autocomplete="off" placeholder="z. B. Sekretariat, name@schule.at …"></div>' +
-            '<p class="ms365-eup-status muted" style="min-height:1.2em;margin:8px 0;font-size:0.88em;"></p>' +
-            '<ul class="ms365-eup-results" style="list-style:none;margin:0;padding:0;max-height:280px;overflow:auto;border:1px solid var(--border,#ddd);border-radius:8px;"></ul>' +
-            '<div class="modal-box__actions" style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">' +
+            '</p></div></div>' +
+            '<div class="field ms365-egp-search-wrap">' +
+            '<label for="ms365-eup-search-input">Suche in Microsoft Entra</label>' +
+            '<div class="ms365-egp-search-row">' +
+            '<i class="bi bi-search ms365-egp-search-icon" aria-hidden="true"></i>' +
+            '<input type="search" id="ms365-eup-search-input" class="ms365-eup-search ms365-egp-search" autocomplete="off" placeholder="Name oder E-Mail …">' +
+            '</div></div>' +
+            '<p class="ms365-eup-status ms365-egp-status muted" role="status" aria-live="polite"></p>' +
+            '<ul class="ms365-eup-results ms365-egp-results" aria-label="Suchergebnisse"></ul>' +
+            '<div class="modal-box__actions ms365-egp-modal__actions">' +
             '<button type="button" class="btn alt ms365-eup-cancel">Abbrechen</button>' +
             '</div></div>';
 
@@ -126,8 +131,7 @@ export function pickEntraUser(opts) {
             listEl.replaceChildren();
             if (!users.length) {
                 const li = document.createElement('li');
-                li.className = 'muted';
-                li.style.padding = '12px';
+                li.className = 'ms365-egp-empty muted';
                 li.textContent = 'Keine Treffer – Suchbegriff anpassen.';
                 listEl.appendChild(li);
                 return;
@@ -136,15 +140,14 @@ export function pickEntraUser(opts) {
                 const li = document.createElement('li');
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'ms365-eup-item';
-                btn.style.cssText =
-                    'display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid var(--border,#eee);background:transparent;cursor:pointer;font:inherit;';
+                btn.className = 'ms365-egp-item ms365-eup-item';
                 const mail = String(u.mail || u.userPrincipalName || '').trim();
                 btn.innerHTML =
-                    '<strong>' +
+                    '<span class="ms365-egp-item__name">' +
                     escapeHtml(String(u.displayName || '')) +
-                    '</strong><br><span class="muted" style="font-size:0.85em;">' +
-                    escapeHtml(formatUserOptionLabel(u)) +
+                    '</span>' +
+                    '<span class="ms365-egp-item__meta muted">' +
+                    escapeHtml(mail || '–') +
                     '</span>';
                 btn.addEventListener('click', () => {
                     close({

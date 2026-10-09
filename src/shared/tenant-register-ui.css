@@ -119,6 +119,22 @@
     gap: 10px;
 }
 
+/* Info-/Hilfe-Pills im Werkzeug-Subheader (neben Import & Co.) */
+body.app-shell-chrome .app-tool-chrome__nav .ts-header-info-row--nav {
+    margin: 0;
+    justify-content: flex-start;
+    display: contents;
+}
+
+body.app-shell-chrome .app-tool-chrome__nav .ts-header-info-row--nav .header-help-link {
+    margin: 0;
+}
+
+body.app-shell-chrome .app-tool-chrome__nav .header-info-popover__panel {
+    left: 0;
+    transform: none;
+}
+
 .page-card:has(#tenantSettingsForm) .header .toolbar.ts-register-header-toolbar {
     justify-content: space-between;
     align-items: center;

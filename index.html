@@ -8,14 +8,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MS365-Schul-Tools – Start</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="app.css?v=18">
+    <link rel="stylesheet" href="app.css?v=22">
     <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=9">
-    <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=8">
+    <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=13">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=3">
     <link rel="stylesheet" href="src/shared/tenant-register-ui.css">
-    <link rel="stylesheet" href="src/shared/dashboard-tasks-split.css?v=9">
+    <link rel="stylesheet" href="src/shared/dashboard-tasks-split.css?v=17">
+    <link rel="stylesheet" href="src/shared/dashboard-playbooks-split.css?v=2">
     <style>
         /* Dashboard-spezifisch: nur Grid/Kacheln – Basislayout kommt aus app.css */
         .header h1 { margin: 0 auto 6px; font-size: 1.45em; }
@@ -1318,13 +1319,18 @@
             --accent-soft: color-mix(in srgb, var(--brand2) 12%, transparent);
             --accent-glow: color-mix(in srgb, var(--brand2) 20%, transparent);
         }
+        .dash-task[data-accent="schulapps"] {
+            --accent: color-mix(in srgb, var(--brand1) 82%, var(--brand2));
+            --accent-soft: color-mix(in srgb, var(--brand1) 14%, transparent);
+            --accent-glow: color-mix(in srgb, var(--brand1) 22%, transparent);
+        }
         .dash-task[data-accent="ordnung"] {
             --accent: color-mix(in srgb, var(--brand1) 42%, var(--heading, #32325d));
             --accent-soft: color-mix(in srgb, var(--brand1) 12%, transparent);
             --accent-glow: color-mix(in srgb, var(--brand1) 16%, transparent);
         }
-        .dash-task:hover,
-        .dash-task:focus-within {
+        .dash-task:not(.dash-tasks-split__panel):hover,
+        .dash-task:not(.dash-tasks-split__panel):focus-within {
             transform: translateY(-4px);
             border-color: color-mix(in srgb, var(--accent) 35%, transparent);
             background: rgba(255, 255, 255, 0.95);
@@ -1356,8 +1362,8 @@
             font-size: 1.35em;
             transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .dash-task:hover .dash-task-icon,
-        .dash-task:focus-within .dash-task-icon {
+        .dash-task:not(.dash-tasks-split__panel):hover .dash-task-icon,
+        .dash-task:not(.dash-tasks-split__panel):focus-within .dash-task-icon {
             transform: scale(1.06) rotate(-2deg);
         }
         .dash-task-index {
@@ -2160,7 +2166,7 @@
 
     </style>
     <link rel="stylesheet" href="src/shared/app-tool-chrome.css?v=4">
-    <link rel="stylesheet" href="src/shared/dashboard-card-surfaces.css?v=3">
+    <link rel="stylesheet" href="src/shared/dashboard-card-surfaces.css?v=5">
 </head>
 <body class="page-dashboard app-shell-chrome">
     <div class="container page-card">
@@ -2417,38 +2423,71 @@
                             </details>
                         </div>
                     </section>
-                    <section class="dash-task" data-accent="intranet" id="dashTaskIntranet" data-context-tip="task-intranet" data-dash-task-search="intranet schularbeiten freistellung planer sharepoint liste">
+                    <section class="dash-task" data-accent="intranet" id="dashTaskIntranet" data-context-tip="task-intranet" data-dash-task-search="intranet sharepoint stammdaten liste hub website">
                         <div class="dash-task-top">
                             <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-house-door"></i></div>
                             <span class="dash-task-index">05</span>
                         </div>
-                        <h3>Intranet &amp; Schulalltag</h3>
-                        <p>Intranet, Schularbeiten-Termine und Freistellungsanträge.</p>
+                        <h3>Intranet &amp; Stammdaten</h3>
+                        <p>Schul-Website und Listen auf der Stammdaten-Site (SharePoint).</p>
                         <div class="dash-task-links dash-task-links--stack">
                             <a class="dash-task-row dash-task-row--primary" href="tools/sharepoint-intranet-hub.html">
                                 <span class="dash-task-row__label"><i class="bi bi-house-door" aria-hidden="true"></i>Schul-Intranet</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/sharepoint-liste-stammdaten.html">
+                                <span class="dash-task-row__label"><i class="bi bi-list-columns" aria-hidden="true"></i>Stammdaten-Listen (IT)</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <details class="dash-task-expert">
+                                <summary><i class="bi bi-three-dots" aria-hidden="true"></i>Weitere Werkzeuge</summary>
+                                <a class="dash-task-row" href="tools/playbook-intranet.html">
+                                    <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook Intranet</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                                <a class="dash-task-row" href="tools/sharepoint-liste-lehrer.html">
+                                    <span class="dash-task-row__label"><i class="bi bi-table" aria-hidden="true"></i>Lehrerliste</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                                <a class="dash-task-row" href="tools/sharepoint-liste-schultermine.html">
+                                    <span class="dash-task-row__label"><i class="bi bi-calendar3" aria-hidden="true"></i>Schultermine-Liste</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                            </details>
+                        </div>
+                    </section>
+                    <section class="dash-task" data-accent="schulapps" id="dashTaskSchulApps" data-context-tip="task-schulapps" data-dash-task-search="planer schularbeiten freistellung projektwochen schulaktivitäten lehrer">
+                        <div class="dash-task-top">
+                            <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-window-stack"></i></div>
+                            <span class="dash-task-index">06</span>
+                        </div>
+                        <h3>Schul-Apps</h3>
+                        <p>Planer für Schularbeiten, Freistellungen, Projektwochen und Aktivitäten.</p>
+                        <div class="dash-task-links dash-task-links--stack">
                             <a class="dash-task-row dash-task-row--primary" href="tools/schularbeiten-planer.html">
                                 <span class="dash-task-row__label"><i class="bi bi-journal-check" aria-hidden="true"></i>Schularbeiten-Planer</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <a class="dash-task-row dash-task-row--primary" href="tools/freistellung-planer.html">
-                                <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Freistellungen</span>
+                                <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Freistellungen (Schüler)</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/lehrer-freistellung-planer.html">
+                                <span class="dash-task-row__label"><i class="bi bi-briefcase" aria-hidden="true"></i>Freistellungen Lehrkräfte</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <details class="dash-task-expert">
                                 <summary><i class="bi bi-three-dots" aria-hidden="true"></i>Weitere Werkzeuge</summary>
-                                <a class="dash-task-row" href="tools/schulaktivitaeten-planer.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Schulaktivitäten</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
                                 <a class="dash-task-row" href="tools/projektwochen.html">
                                     <span class="dash-task-row__label"><i class="bi bi-calendar-week" aria-hidden="true"></i>Projektwochen</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                                 </a>
-                                <a class="dash-task-row" href="tools/sharepoint-liste-stammdaten.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-list-columns" aria-hidden="true"></i>Stammdaten-Listen (IT)</span>
+                                <a class="dash-task-row" href="tools/schulaktivitaeten-planer.html">
+                                    <span class="dash-task-row__label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Schulaktivitäten</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                                <a class="dash-task-row" href="tools/sharepoint-liste-schularbeiten.html">
+                                    <span class="dash-task-row__label"><i class="bi bi-list-ul" aria-hidden="true"></i>Schularbeiten-Listen (IT)</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                                 </a>
                             </details>
@@ -2457,7 +2496,7 @@
                     <section class="dash-task" data-accent="ordnung" id="dashTaskOrdnung" data-context-tip="task-ordnung" data-dash-task-search="cleanup hygiene aufräumen gruppen audit landkarte">
                         <div class="dash-task-top">
                             <div class="dash-task-icon" aria-hidden="true"><i class="bi bi-ui-checks-grid"></i></div>
-                            <span class="dash-task-index">06</span>
+                            <span class="dash-task-index">07</span>
                         </div>
                         <h3>Aufräumen und prüfen</h3>
                         <p>Datenhygiene, Cleanup und Gruppen ohne Besitzer finden.</p>
@@ -2498,10 +2537,10 @@
                 </div>
             </div>
 
-            <section class="dash-playbooks-wrap dash-main-playbooks-only" aria-labelledby="dashMainHeading" data-dash-section-audience="it">
+            <section class="dash-playbooks-wrap dash-main-playbooks-only dashboard-tasks" aria-labelledby="dashMainHeading" data-dash-section-audience="it">
                 <h2 id="dash-playbooks-title" class="dash-playbooks-title"><i class="bi bi-flag" aria-hidden="true"></i>Playbooks – geführte Checklisten</h2>
                 <p class="dash-playbooks-lead">Fortschritt aus den Haken in den Playbook-Seiten – jeder Eintrag führt direkt zur nächsten Checkliste.</p>
-                <div class="dash-playbooks" id="dashPlaybooksList" role="list" aria-label="Playbook-Fortschritt"></div>
+                <div id="dashPlaybooksMount" class="dash-playbooks-mount"></div>
             </section>
 
             <div class="dash-main-catalog-only" id="dashCatalogSection" data-dash-section-audience="it">
@@ -2513,7 +2552,8 @@
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-unterricht" aria-selected="false" aria-controls="dash-panel-unterricht" data-dashboard-tab="unterricht" tabindex="-1"><i class="bi bi-book" aria-hidden="true"></i>Unterricht &amp; Kurse</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-personen" aria-selected="false" aria-controls="dash-panel-personen" data-dashboard-tab="personen" tabindex="-1"><i class="bi bi-calendar2-range" aria-hidden="true"></i>Planung &amp; Schuljahr</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-schuljahr" aria-selected="false" aria-controls="dash-panel-schuljahr" data-dashboard-tab="schuljahr" tabindex="-1"><i class="bi bi-envelope" aria-hidden="true"></i>Kommunikation</button>
-                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-intranet" aria-selected="false" aria-controls="dash-panel-intranet" data-dashboard-tab="intranet" tabindex="-1"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet &amp; Daten</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-intranet" aria-selected="false" aria-controls="dash-panel-intranet" data-dashboard-tab="intranet" tabindex="-1"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet</button>
+                        <button type="button" class="dashboard-tab" role="tab" id="dash-tab-schulapps" aria-selected="false" aria-controls="dash-panel-schulapps" data-dashboard-tab="schulapps" tabindex="-1"><i class="bi bi-window-stack" aria-hidden="true"></i>Schul-Apps</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-kommunikation" aria-selected="false" aria-controls="dash-panel-kommunikation" data-dashboard-tab="kommunikation" tabindex="-1"><i class="bi bi-shield-check" aria-hidden="true"></i>Hygiene &amp; Audit</button>
                         <button type="button" class="dashboard-tab" role="tab" id="dash-tab-automationen" aria-selected="false" aria-controls="dash-panel-automationen" data-dashboard-tab="automationen" tabindex="-1"><i class="bi bi-lightning-charge" aria-hidden="true"></i>Automatisieren</button>
                     </div>
@@ -2777,8 +2817,8 @@
                 <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-intranet" aria-labelledby="dash-tab-intranet" hidden>
                     <section class="dashboard-cluster" aria-labelledby="dash-cluster-intranet">
                         <header class="dashboard-cluster-head">
-                            <h3 id="dash-cluster-intranet"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet &amp; Daten</h3>
-                            <p>Hub, SharePoint-Listen und Planer-Apps – wie Kachel „Intranet &amp; Schulalltag“.</p>
+                            <h3 id="dash-cluster-intranet"><i class="bi bi-house-door" aria-hidden="true"></i>Intranet</h3>
+                            <p>Schul-Website, Stammdaten-Listen und weitere Intranet-Listen – wie Kachel „05 Intranet“.</p>
                         </header>
                         <h4 class="dashboard-cluster-subhead"><i class="bi bi-wrench" aria-hidden="true"></i>Einrichten</h4>
                         <p class="dashboard-cluster-sublead">Website und Listen – typischerweise einmalig.</p>
@@ -2808,21 +2848,6 @@
                                 <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Schule / Lehrer / beide).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schularbeiten-Listen" data-tool-id="sharepoint-liste-schularbeiten" data-cluster="intranet" data-search="schularbeiten planer hak klausur termin regelwerk terminfenster sharepoint liste intranet lbvo schug" draggable="true">
-                                <h2><i class="bi bi-list-ul"></i>Schularbeiten-Listen</h2>
-                                <p>SharePoint-Paket anlegen: Regelwerk, Terminfenster und Schularbeiten-Liste (Codes aus Stammdaten).</p>
-                                <a class="btn" href="tools/sharepoint-liste-schularbeiten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Schulaktivitäten-Listen" data-tool-id="sharepoint-liste-schulaktivitaeten" data-cluster="intranet" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion sharepoint liste kalender ics" draggable="true">
-                                <h2><i class="bi bi-list-check"></i>Schulaktivitäten-Listen</h2>
-                                <p>SharePoint-Paket: Anträge für Exkursionen/schulische Aktivitäten inkl. Regelwerk (Vorlauf, Überlappung).</p>
-                                <a class="btn" href="tools/sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
-                            <section class="choice" role="listitem" aria-label="Projektwochen-Listen" data-tool-id="sharepoint-liste-projektwochen" data-cluster="intranet" data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste intranet anmeldung" draggable="true">
-                                <h2><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</h2>
-                                <p>SharePoint-Paket: PW-Aktionen und PW-Angebote (Anträge; Bookings-Sync folgt).</p>
-                                <a class="btn" href="tools/sharepoint-liste-projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
                             <section class="choice" role="listitem" aria-label="sRDP-Anmeldung" data-tool-id="sharepoint-liste-srdp" data-cluster="intranet" data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang" draggable="true">
                                 <h2><i class="bi bi-mortarboard"></i>sRDP-Anmeldung</h2>
                                 <p>Anmeldeliste pro Jahr &amp; Schulform (HAK/HTL/HLW/BAFEB/AHS): Formular, Varianten, Ansichten, Gruppenrechte.</p>
@@ -2834,35 +2859,63 @@
                                 <a class="btn" href="tools/sharepoint-liste-vertretung.html"><i class="bi bi-arrow-repeat"></i>Öffnen</a>
                             </section>
                         </div>
-                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-calendar2-heart" aria-hidden="true"></i>Nutzen</h4>
-                        <p class="dashboard-cluster-sublead">Planer und Alltagswerkzeuge auf den eingerichteten Listen.</p>
-                        <div class="grid" data-cluster-grid="intranet-nutzen" role="list" aria-label="Intranet nutzen">
-                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="intranet" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
-                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
-                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
-                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                    </section>
+                </div>
+
+                <div class="dashboard-tabpanel" role="tabpanel" id="dash-panel-schulapps" aria-labelledby="dash-tab-schulapps" hidden>
+                    <section class="dashboard-cluster" aria-labelledby="dash-cluster-schulapps">
+                        <header class="dashboard-cluster-head">
+                            <h3 id="dash-cluster-schulapps"><i class="bi bi-window-stack" aria-hidden="true"></i>Schul-Apps</h3>
+                            <p>Planer-Apps und zugehörige Listen – wie Kachel „06 Schul-Apps“.</p>
+                        </header>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-wrench" aria-hidden="true"></i>Einrichten</h4>
+                        <p class="dashboard-cluster-sublead">SharePoint-Listen für Planer – typischerweise einmalig (IT).</p>
+                        <div class="grid" data-cluster-grid="schulapps" role="list" aria-label="Schul-Apps einrichten">
+                            <section class="choice" role="listitem" aria-label="Schularbeiten-Listen" data-tool-id="sharepoint-liste-schularbeiten" data-cluster="schulapps" data-search="schularbeiten planer hak klausur termin regelwerk terminfenster sharepoint liste intranet lbvo schug" draggable="true">
+                                <h2><i class="bi bi-list-ul"></i>Schularbeiten-Listen</h2>
+                                <p>SharePoint-Paket anlegen: Regelwerk, Terminfenster und Schularbeiten-Liste (Codes aus Stammdaten).</p>
+                                <a class="btn" href="tools/sharepoint-liste-schularbeiten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schularbeiten-Planer" data-tool-id="schularbeiten-planer" data-cluster="intranet" data-search="schularbeiten planer kalender antrag fixieren admin export ics lbvo schug hak" draggable="true">
-                                <h2><i class="bi bi-journal-check"></i>Schularbeiten-Planer</h2>
-                                <p>Anträge stellen, Kalender, Freigabe und Export – mit Live-Regelprüfung nach SchUG/LBVO.</p>
-                                <a class="btn" href="tools/schularbeiten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            <section class="choice" role="listitem" aria-label="Schulaktivitäten-Listen" data-tool-id="sharepoint-liste-schulaktivitaeten" data-cluster="schulapps" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion sharepoint liste kalender ics" draggable="true">
+                                <h2><i class="bi bi-list-check"></i>Schulaktivitäten-Listen</h2>
+                                <p>SharePoint-Paket: Anträge für Exkursionen/schulische Aktivitäten inkl. Regelwerk (Vorlauf, Überlappung).</p>
+                                <a class="btn" href="tools/sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Playbook Schularbeiten-Planer" data-tool-id="playbook-schularbeiten-planer" data-cluster="intranet" data-search="playbook schularbeiten planer einrichten listen regelwerk checkliste" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Projektwochen-Listen" data-tool-id="sharepoint-liste-projektwochen" data-cluster="schulapps" data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste intranet anmeldung" draggable="true">
+                                <h2><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</h2>
+                                <p>SharePoint-Paket: PW-Aktionen und PW-Angebote (Anträge; Bookings-Sync folgt).</p>
+                                <a class="btn" href="tools/sharepoint-liste-projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Playbook Schularbeiten-Planer" data-tool-id="playbook-schularbeiten-planer" data-cluster="schulapps" data-search="playbook schularbeiten planer einrichten listen regelwerk checkliste" draggable="true">
                                 <h2><i class="bi bi-list-check"></i>Playbook Schularbeiten-Planer</h2>
                                 <p>Listen, Regeln, Rechte und Test – bis Lehrkräfte antragen können.</p>
                                 <a class="btn" href="tools/playbook-schularbeiten-planer.html"><i class="bi bi-list-check"></i>Playbook</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schulaktivitäten" data-tool-id="schulaktivitaeten-planer" data-cluster="intranet" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion kalender liste ics export" draggable="true">
+                        </div>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-calendar2-heart" aria-hidden="true"></i>Nutzen</h4>
+                        <p class="dashboard-cluster-sublead">Planer im Schulalltag – nach Einrichtung der Listen.</p>
+                        <div class="grid" data-cluster-grid="schulapps-nutzen" role="list" aria-label="Schul-Apps nutzen">
+                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="schulapps" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
+                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
+                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
+                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schularbeiten-Planer" data-tool-id="schularbeiten-planer" data-cluster="schulapps" data-search="schularbeiten planer kalender antrag fixieren admin export ics lbvo schug hak" draggable="true">
+                                <h2><i class="bi bi-journal-check"></i>Schularbeiten-Planer</h2>
+                                <p>Anträge stellen, Kalender, Freigabe und Export – mit Live-Regelprüfung nach SchUG/LBVO.</p>
+                                <a class="btn" href="tools/schularbeiten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schulaktivitäten" data-tool-id="schulaktivitaeten-planer" data-cluster="schulapps" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion kalender liste ics export" draggable="true">
                                 <h2><i class="bi bi-bus-front"></i>Schulaktivitäten</h2>
                                 <p>Exkursionen und schulische Aktivitäten beantragen, freigeben, Liste/Kalender und ICS-Export.</p>
                                 <a class="btn" href="tools/schulaktivitaeten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Freistellungen" data-tool-id="freistellung-planer" data-cluster="intranet" data-search="freistellung antrag schüler kv direktion genehmigung approvals sharepoint csv bericht" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Freistellungen" data-tool-id="freistellung-planer" data-cluster="schulapps" data-search="freistellung antrag schüler kv direktion genehmigung approvals sharepoint csv bericht" draggable="true">
                                 <h2><i class="bi bi-calendar2-check"></i>Freistellungen (Schüler)</h2>
                                 <p>Schülerantrag, Übersicht für KV/Direktion, Filter und CSV – Genehmigung über Microsoft Approvals.</p>
                                 <a class="btn" href="tools/freistellung-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Freistellungen Lehrkräfte" data-tool-id="lehrer-freistellung-planer" data-cluster="intranet" data-search="freistellung lehrer lehrkraft urlaub abwesenheit direktion genehmigung kalender ical fortbildung" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Freistellungen Lehrkräfte" data-tool-id="lehrer-freistellung-planer" data-cluster="schulapps" data-search="freistellung lehrer lehrkraft urlaub abwesenheit direktion genehmigung kalender ical fortbildung" draggable="true">
                                 <h2><i class="bi bi-briefcase"></i>Freistellungen Lehrkräfte</h2>
                                 <p>Anträge für Lehrkräfte, Freigabe durch die Direktion, Kalender und iCal – eigene SharePoint-Liste und Flow.</p>
                                 <a class="btn" href="tools/lehrer-freistellung-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
@@ -3005,7 +3058,7 @@
     <script src="ms365-config.js"></script>
     <script src="src/shared/graph-unified-groups.js" defer></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
-    <script src="src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="src/shared/theme-toggle.js?v=3" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
     <script src="src/shared/app-data-v2.js" defer></script>

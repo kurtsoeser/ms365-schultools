@@ -139,6 +139,18 @@
             : '<i class="bi bi-moon-stars" aria-hidden="true"></i>';
     }
 
+    function syncAuthMenuThemeSwitch() {
+        const theme = currentTheme();
+        const isDark = theme === THEMES.dark;
+        document.querySelectorAll('[data-ms365-auth-theme-toggle]').forEach(function (btn) {
+            btn.setAttribute('aria-checked', isDark ? 'true' : 'false');
+            btn.classList.toggle('is-on', isDark);
+            const modeLabel = isDark ? 'Dunkel' : 'Hell';
+            btn.setAttribute('aria-label', 'Dunkelmodus: ' + modeLabel);
+            btn.setAttribute('title', modeLabel + 'modus');
+        });
+    }
+
     function syncButtons() {
         const theme = currentTheme();
         document.querySelectorAll('[data-ms365-theme-toggle]').forEach(function (btn) {
@@ -146,6 +158,7 @@
             btn.setAttribute('title', labelFor(theme) + 'modus');
             btn.innerHTML = iconFor(theme) + '<span>' + labelFor(theme) + '</span>';
         });
+        syncAuthMenuThemeSwitch();
     }
 
     function syncBrandButtons() {
@@ -222,6 +235,7 @@
             syncBrandButtons();
             syncBrandLogos();
         },
+        syncAuthMenuTheme: syncAuthMenuThemeSwitch,
         isValidBrand: isValidBrand,
         brands: BRANDS
     };

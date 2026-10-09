@@ -766,14 +766,17 @@
             '<p class="ms365-auth-menu__dash-hint" id="ms365AuthDashViewHint" hidden></p>' +
             '</div>' +
             '<div class="ms365-auth-menu__section" role="group" aria-label="Design">' +
+            '<div class="ms365-auth-menu__design-head">' +
             '<div class="ms365-auth-menu__section-label">Design</div>' +
-            '<div class="ms365-auth-menu__brand-row">' +
+            '<button type="button" class="ms365-auth-menu__theme-switch" role="switch" data-ms365-auth-theme-toggle="1" aria-checked="false" title="Dunkelmodus">' +
+            '<span class="ms365-auth-menu__theme-switch-track" aria-hidden="true">' +
+            '<span class="ms365-auth-menu__theme-switch-thumb"></span></span>' +
+            '</button></div>' +
+            '<div class="ms365-auth-menu__brand-row ms365-auth-menu__brand-row--pair">' +
             '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="teal" aria-checked="true">' +
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--teal" aria-hidden="true"></span>Blau-Grün</button>' +
             '<button type="button" class="ms365-auth-menu__brand" role="menuitemradio" data-ms365-brand="classic" aria-checked="false">' +
             '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--classic" aria-hidden="true"></span>Klassisch</button>' +
-            '<button type="button" class="ms365-auth-menu__brand ms365-auth-menu__theme" data-ms365-auth-theme-toggle="1" aria-label="Hell- und Dunkelmodus umschalten">' +
-            '<span class="ms365-auth-menu__brand-swatch ms365-auth-menu__brand-swatch--dark" aria-hidden="true"></span>Dunkel</button>' +
             '</div></div>' +
             '<div class="ms365-auth-menu__section ms365-auth-menu__section--links" role="group" aria-label="Verwaltung">' +
             '<a class="ms365-auth-menu__item" role="menuitem" id="ms365AuthAdminLink" href="admin.html" hidden>' +
@@ -869,6 +872,9 @@
                 el.setAttribute('aria-checked', on ? 'true' : 'false');
                 el.classList.toggle('is-active', on);
             });
+        }
+        if (window.ms365Theme && typeof window.ms365Theme.syncAuthMenuTheme === 'function') {
+            window.ms365Theme.syncAuthMenuTheme();
         }
 
         bindAuthMenuDismiss();

@@ -79,8 +79,8 @@
 }
 
 .pw-nav__btn.is-active {
-    background: color-mix(in srgb, #34d399 80%, #fff);
-    color: #0f172a;
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
 }
 
 .pw-nav__roles-label {
@@ -107,14 +107,16 @@
 }
 
 .pw-chip.is-active {
-    background: #fff;
-    color: #0f172a;
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
+    border-color: transparent;
 }
 
 .pw-main {
     padding: 16px 18px 24px;
     min-width: 0;
-    background: var(--bg, #f8fafc);
+    background: var(--soft);
+    color: var(--text);
 }
 
 .pw-top {

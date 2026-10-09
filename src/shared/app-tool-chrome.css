@@ -202,3 +202,61 @@ body.app-shell-chrome:has(#ms365HeaderSchulregister) .app-tool-chrome__nav a[hre
         padding-right: 0;
     }
 }
+
+/* Dark: kein heller Verlauf — sonst helle --heading/--text-secondary auf Weiß */
+html[data-theme="dark"] body.app-shell-chrome .container > .header.app-tool-chrome {
+    color: var(--text);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--brand1) 16%, var(--card)) 0%,
+        color-mix(in srgb, var(--brand2) 10%, var(--soft)) 42%,
+        var(--card) 100%
+    );
+    border-bottom-color: var(--border);
+    box-shadow: none;
+}
+
+html[data-theme="dark"] body.app-shell-chrome .app-tool-chrome .header-tool-indicator__name {
+    color: var(--heading);
+}
+
+html[data-theme="dark"] body.app-shell-chrome .app-tool-chrome .app-tool-chrome__intro > p:not(.header-help-row) {
+    color: var(--text-secondary);
+}
+
+html[data-theme="dark"] body.app-shell-chrome .app-tool-chrome .app-tool-chrome__intro a {
+    color: var(--brand1);
+}
+
+html[data-theme="dark"] body.app-shell-chrome .app-tool-chrome .app-tool-chrome__intro a:hover {
+    color: color-mix(in srgb, var(--brand1) 78%, #fff);
+}
+
+html[data-theme="dark"] body.app-shell-chrome .header.app-tool-chrome .app-tool-chrome__nav,
+html[data-theme="dark"] body.app-shell-chrome .header.app-tool-chrome .toolbar.app-tool-chrome__nav {
+    border-top-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .app-tool-chrome__nav .app-tool-chrome__nav-link,
+html[data-theme="dark"] .app-tool-chrome__nav a.btn {
+    background: color-mix(in srgb, var(--brand1) 14%, var(--surface-muted));
+    color: var(--heading) !important;
+    border-color: var(--border);
+}
+
+html[data-theme="dark"] .app-tool-chrome__nav .app-tool-chrome__back {
+    background: color-mix(in srgb, var(--brand1) 8%, var(--card));
+}
+
+html[data-theme="dark"] .app-tool-chrome__nav .app-tool-chrome__nav-link:hover,
+html[data-theme="dark"] .app-tool-chrome__nav a.btn:hover,
+html[data-theme="dark"] .app-tool-chrome__nav .app-tool-chrome__back:hover {
+    background: color-mix(in srgb, var(--brand1) 22%, var(--surface-muted));
+    color: var(--heading) !important;
+}
+
+html[data-theme="dark"] body.app-shell-chrome .app-tool-chrome .header-help-link {
+    background: var(--surface-muted);
+    color: var(--heading);
+    border-color: var(--border);
+}

@@ -40,8 +40,8 @@ html[data-theme="dark"] .dashboard-cluster-head p {
 
 html[data-theme="dark"] .choice.featured {
     background:
-        radial-gradient(720px 220px at 0% 0%, rgba(123, 140, 255, 0.2), transparent 55%),
-        radial-gradient(520px 180px at 100% 100%, rgba(167, 139, 250, 0.14), transparent 50%),
+        radial-gradient(720px 220px at 0% 0%, color-mix(in srgb, var(--brand1) 22%, transparent), transparent 55%),
+        radial-gradient(520px 180px at 100% 100%, color-mix(in srgb, var(--brand2) 16%, transparent), transparent 50%),
         var(--card) !important;
     border-color: var(--border-strong) !important;
     box-shadow: var(--shadow) !important;
@@ -49,8 +49,8 @@ html[data-theme="dark"] .choice.featured {
 
 html[data-theme="dark"] .choice.featured:hover {
     background:
-        radial-gradient(720px 220px at 0% 0%, rgba(123, 140, 255, 0.28), transparent 55%),
-        radial-gradient(520px 180px at 100% 100%, rgba(167, 139, 250, 0.18), transparent 50%),
+        radial-gradient(720px 220px at 0% 0%, color-mix(in srgb, var(--brand1) 28%, transparent), transparent 55%),
+        radial-gradient(520px 180px at 100% 100%, color-mix(in srgb, var(--brand2) 20%, transparent), transparent 50%),
         color-mix(in srgb, var(--brand1) 8%, var(--card)) !important;
 }
 
@@ -67,7 +67,7 @@ html[data-theme="dark"] .featured-icon {
 }
 
 html[data-theme="dark"] .featured-kicker {
-    color: #c4b5fd !important;
+    color: color-mix(in srgb, var(--brand1) 62%, #e8eef6) !important;
     background: color-mix(in srgb, var(--brand1) 16%, transparent) !important;
     border-color: var(--border-strong) !important;
 }
@@ -109,31 +109,48 @@ html[data-theme="dark"] .dashboard-fav-btn:hover {
 /* ── Schnellstart & Werkzeug-Katalog ── */
 html[data-theme="dark"] .dashboard-tasks {
     background:
-        radial-gradient(900px 280px at 8% -20%, rgba(123, 140, 255, 0.14), transparent 55%),
-        radial-gradient(700px 240px at 96% 8%, rgba(167, 139, 250, 0.1), transparent 52%),
-        linear-gradient(180deg, #1a1d30 0%, #15182a 100%) !important;
+        radial-gradient(900px 280px at 8% -20%, color-mix(in srgb, var(--brand1) 22%, transparent), transparent 55%),
+        radial-gradient(700px 240px at 96% 8%, color-mix(in srgb, var(--brand2) 16%, transparent), transparent 52%),
+        linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, #000) 0%, var(--soft) 100%) !important;
     border-color: var(--border) !important;
     box-shadow: var(--shadow) !important;
+}
+
+html[data-theme="dark"] body.dash-tasks-split-active .dashboard-tasks,
+html[data-theme="dark"] body.dash-catalog-split-active .dashboard-tasks {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 html[data-theme="dark"] .dashboard-tools {
     background:
-        radial-gradient(900px 260px at 92% -10%, rgba(123, 140, 255, 0.12), transparent 55%),
-        radial-gradient(640px 220px at 0% 100%, rgba(167, 139, 250, 0.08), transparent 50%),
-        linear-gradient(180deg, #1a1d30 0%, #15182a 100%) !important;
+        radial-gradient(900px 260px at 92% -10%, color-mix(in srgb, var(--brand1) 18%, transparent), transparent 55%),
+        radial-gradient(640px 220px at 0% 100%, color-mix(in srgb, var(--brand2) 12%, transparent), transparent 50%),
+        linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, #000) 0%, var(--soft) 100%) !important;
     border-color: var(--border) !important;
     box-shadow: var(--shadow) !important;
 }
 
-html[data-theme="dark"] .dash-task {
+html[data-theme="dark"] .dash-task:not(.dash-tasks-split__panel) {
     background: var(--task-surface) !important;
     box-shadow: var(--shadow) !important;
 }
 
-html[data-theme="dark"] .dash-task:hover,
-html[data-theme="dark"] .dash-task:focus-within {
+html[data-theme="dark"] .dash-task:not(.dash-tasks-split__panel):hover,
+html[data-theme="dark"] .dash-task:not(.dash-tasks-split__panel):focus-within {
     background: color-mix(in srgb, var(--brand1) 8%, var(--card)) !important;
     box-shadow: var(--shadow-lg) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__detail > .dash-task.dash-tasks-split__panel,
+html[data-theme="dark"] .dash-tasks-split__detail > .dash-task.dash-tasks-split__panel:hover,
+html[data-theme="dark"] .dash-tasks-split__detail > .dash-task.dash-tasks-split__panel:focus-within {
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    border-color: transparent !important;
+    backdrop-filter: none !important;
 }
 
 html[data-theme="dark"] .dash-task-icon {
@@ -169,7 +186,7 @@ html[data-theme="dark"] .dash-task-row .bi-chevron-right {
 }
 
 html[data-theme="dark"] .dash-task-progress {
-    color: #c4b5fd !important;
+    color: color-mix(in srgb, var(--brand1) 65%, #e8eef6) !important;
     background: color-mix(in srgb, var(--brand1) 14%, transparent) !important;
     border-color: var(--border-strong) !important;
 }
@@ -514,4 +531,123 @@ html[data-theme="dark"] .dash-hygiene-badge--unknown,
 html[data-theme="dark"] .dash-hygiene-badge--empty-list {
     color: #fcd34d !important;
     background: color-mix(in srgb, #fbbf24 12%, transparent) !important;
+}
+
+/* ── Aufgaben-Split: Sidebar, Resize, Kacheln (Teal + Klassisch) ── */
+html[data-theme="dark"] .dash-tasks-split {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__nav {
+    background: transparent !important;
+    border-right: none !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__nav-item {
+    color: var(--task-ink, var(--text)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__nav-item:hover:not([aria-current='true']) {
+    background: color-mix(in srgb, var(--brand1) 10%, transparent) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__nav-icon {
+    background: color-mix(in srgb, var(--brand1) 14%, var(--card)) !important;
+    border: 1px solid color-mix(in srgb, var(--brand1) 32%, var(--border)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__nav-icon .bi {
+    color: color-mix(in srgb, var(--brand1) 55%, #e8eef6) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__resize::after {
+    background: var(--border) !important;
+    opacity: 0;
+}
+
+html[data-theme="dark"] .dash-tasks-split__resize:hover::after,
+html[data-theme="dark"] .dash-tasks-split__resize.is-dragging::after,
+html[data-theme="dark"] .dash-tasks-split__resize:focus-visible::after {
+    opacity: 0.55 !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__detail {
+    background: transparent !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary) {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--task-ink, var(--text)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary {
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card)) !important;
+    border-color: color-mix(in srgb, var(--brand1) 28%, var(--border)) !important;
+    color: var(--task-ink, var(--text)) !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok'],
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='warn'],
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='mismatch'] {
+    background: color-mix(in srgb, var(--brand1) 7%, var(--card)) !important;
+    border-color: var(--border) !important;
+    color: var(--task-ink, var(--text)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card .dash-task-row__head .bi,
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__head .bi {
+    color: color-mix(in srgb, var(--brand1) 62%, #e8eef6) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card .dash-task-row__title,
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card .dash-task-row__desc,
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__title,
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__desc {
+    color: var(--task-ink, var(--text)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card .dash-task-row__desc {
+    color: var(--task-muted, var(--text-secondary)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card .dash-task-row__action {
+    background: color-mix(in srgb, var(--brand1) 18%, var(--card)) !important;
+    color: color-mix(in srgb, var(--brand1) 55%, #e8eef6) !important;
+    border-color: color-mix(in srgb, var(--brand1) 28%, var(--border)) !important;
+}
+
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card:hover,
+html[data-theme="dark"] .dash-tasks-split__panel .dash-split-tool-card:focus-visible {
+    border-color: color-mix(in srgb, var(--brand1) 58%, var(--border)) !important;
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--brand1) 38%, transparent),
+        0 18px 40px rgba(0, 0, 0, 0.42) !important;
+    background: color-mix(in srgb, var(--brand1) 16%, var(--card)) !important;
+}
+
+html[data-theme="dark"] .dash-task-icon .bi {
+    color: color-mix(in srgb, var(--brand1) 70%, #e8eef6) !important;
+}
+
+html[data-theme="dark"] .alert-section {
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card)) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+
+html[data-theme="dark"] .dash-task-progress[data-tone='warn'] {
+    color: #fcd34d !important;
+    background: color-mix(in srgb, #fbbf24 14%, transparent) !important;
+    border-color: color-mix(in srgb, #fbbf24 28%, transparent) !important;
+}
+
+html[data-theme="dark"] body.dash-tasks-split-active .dash-tasks-split,
+html[data-theme="dark"] body.dash-catalog-split-active #dash-catalog.dash-catalog-split {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }

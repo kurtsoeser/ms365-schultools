@@ -167,6 +167,7 @@ const NAV_LABELS = {
     dashTaskPersonen: 'Personen',
     dashTaskSchuljahr: 'Schuljahresstart',
     dashTaskIntranet: 'Intranet',
+    dashTaskSchulApps: 'Schul-Apps',
     dashTaskOrdnung: 'Aufräumen'
 };
 
@@ -184,6 +185,7 @@ const TASK_HASH_BY_ID = {
     dashTaskPersonen: 'personen',
     dashTaskSchuljahr: 'schuljahresstart',
     dashTaskIntranet: 'intranet',
+    dashTaskSchulApps: 'schulapps',
     dashTaskOrdnung: 'aufraeumen'
 };
 
@@ -194,6 +196,7 @@ const NAV_ICONS = {
     dashTaskPersonen: 'bi bi-person-badge',
     dashTaskSchuljahr: 'bi bi-calendar2-range',
     dashTaskIntranet: 'bi bi-house-door',
+    dashTaskSchulApps: 'bi bi-window-stack',
     dashTaskOrdnung: 'bi bi-ui-checks-grid'
 };
 

@@ -186,8 +186,8 @@
 }
 
 .fr-nav__btn.is-active {
-    background: color-mix(in srgb, #38bdf8 85%, #fff);
-    color: #0f172a;
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
 }
 
 .fr-nav__session {
@@ -279,8 +279,9 @@
 }
 
 .fr-chip.is-active {
-    background: #fff;
-    color: #0f172a;
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
+    border-color: transparent;
 }
 
 .fr-nav__hint {
@@ -293,6 +294,8 @@
 .fr-main {
     padding: 16px 18px 24px;
     min-width: 0;
+    background: var(--soft);
+    color: var(--text);
 }
 
 .fr-top--student {

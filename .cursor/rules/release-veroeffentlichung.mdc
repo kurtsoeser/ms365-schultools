@@ -1,0 +1,29 @@
+---
+description: Vollständiger Veröffentlichungs-Durchlauf (MS365-Schul-Tools) – bei Release/Push/Deploy/Homepage
+alwaysApply: true
+---
+
+# Veröffentlichung MS365-Schul-Tools
+
+Wenn der Nutzer **veröffentlichen**, **deployen**, **pushen**, **Release**, **Landing aktualisieren**, **Screenshots neu**, **ms365.schule** oder einen **kompletten Veröffentlichungs-Durchlauf** verlangt, ist das immer der **gesamte** Ablauf – nicht nur `git push`.
+
+## Pflicht-Schritte (in dieser Reihenfolge)
+
+1. **`npm run release:prep`** (oder manuell dieselben Schritte):
+   - `check:secrets`, Tests, Lint, Production-Build
+   - Landing-Screenshots (Light/Teal) via `scripts/capture-landing-screens.mjs`
+   - Cache-Bust in `landing/index.html` via `scripts/bump-landing-screen-cache.mjs`
+   - optional `scripts/sync-release-notes-from-commits.mjs` → `public/release-notes.json`
+2. **Inhalt prüfen**: `landing/index.html` – Marke **MS365-Schul-Tools**, keine veralteten „Schulverwaltung“-Produktnamen auf der Homepage.
+3. **Git**: alle relevanten Änderungen committen (kein `node_modules`, keine Secrets).
+4. **`git push origin main`** – triggert **CI** sowie **Deploy FTP** (`app.ms365.schule`) und **GitHub Pages** (`dist/`, inkl. `landing/`).
+
+## Deploy-Hinweise
+
+- App: `.github/workflows/deploy-ftp.yml` → `dist/` nach FTP.
+- `landing/` wird mit `scripts/copy-static.mjs` in `dist/landing/` kopiert.
+- Screenshots liegen in `landing/assets/screens/`.
+
+## Kurzbefehl für den Nutzer
+
+Sage z. B.: **„Veröffentlichungs-Durchlauf“** oder **„/release“** – dann diesen Ablauf vollständig ausführen und am Ende Commit-Message vorschlagen bzw. pushen, wenn ausdrücklich gewünscht.

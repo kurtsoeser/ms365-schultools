@@ -168,14 +168,9 @@
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary {
     color: var(--task-ink, #1e2440);
-    background: linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--brand1) 18%, #fff) 0%,
-        color-mix(in srgb, var(--brand2) 11%, #fff) 48%,
-        #fff 100%
-    );
-    border: 1px solid color-mix(in srgb, var(--brand1) 26%, rgba(30, 36, 64, 0.1));
-    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand1) 12%, transparent);
+    background: color-mix(in srgb, var(--brand1) 7%, var(--card, #fff));
+    border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border, rgba(30, 36, 64, 0.1)));
+    box-shadow: none;
 }
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary .dash-task-row__title,
@@ -231,37 +226,19 @@
 }
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok'] {
-    background: linear-gradient(
-        145deg,
-        color-mix(in srgb, #16a34a 7%, #fff) 0%,
-        color-mix(in srgb, var(--brand1) 8%, #fff) 100%
-    );
-    border-color: color-mix(in srgb, #16a34a 22%, var(--color-neutral-200, #e5e7eb));
+    background: color-mix(in srgb, #16a34a 6%, var(--card, #fff));
+    border-color: color-mix(in srgb, #16a34a 22%, var(--border, #e5e7eb));
     color: var(--task-ink, #1e2440);
 }
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='warn'],
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='mismatch'] {
-    background: linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--brand1) 12%, #fff) 0%,
-        color-mix(in srgb, var(--brand2) 8%, #fff) 100%
-    );
-    border-color: color-mix(in srgb, var(--brand1) 32%, #d97706 18%);
+    background: color-mix(in srgb, var(--brand1) 8%, var(--card, #fff));
+    border-color: color-mix(in srgb, var(--brand1) 26%, var(--border, #e5e7eb));
     color: var(--task-ink, #1e2440);
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok']:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='warn']:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='mismatch']:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:hover {
-    filter: none;
-    background-size: 100% 100%;
-    box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--brand1) 28%, transparent),
-        0 10px 24px color-mix(in srgb, var(--brand1) 16%, transparent);
-    transform: translateY(-2px);
-}
+/* Hover: siehe gemeinsame Kachel-Hervorhebung unten */
 
 .dash-tasks-split__panel .dash-split-tool-card[data-hygiene-tone='ok'] .dash-task-row__status[data-tone='ok'],
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary[data-hygiene-tone='ok'] .dash-task-row__status {
@@ -276,44 +253,56 @@
 }
 
 .dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary) {
-    background: #fff;
-    border: 1px solid rgba(30, 36, 64, 0.08);
+    background: var(--card, #fff);
+    border: 1px solid var(--border, rgba(30, 36, 64, 0.1));
 }
 
-.dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary):hover {
-    border-color: color-mix(in srgb, var(--brand1) 22%, rgba(30, 36, 64, 0.1));
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--brand1) 8%, transparent);
-}
 
 /* index.html .dash-task-row-Hygiene: kein Gelb/Grün-Vollflächen im Split-Grid */
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok'] {
-    background: linear-gradient(
-        145deg,
-        color-mix(in srgb, #16a34a 6%, #fff) 0%,
-        #fff 100%
-    );
-    border-color: color-mix(in srgb, #16a34a 18%, rgba(30, 36, 64, 0.08));
+    background: color-mix(in srgb, #16a34a 5%, var(--card, #fff));
+    border-color: color-mix(in srgb, #16a34a 20%, var(--border, rgba(30, 36, 64, 0.1)));
     color: var(--task-ink, #1e2440);
 }
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='warn'],
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='mismatch'] {
-    background: linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--brand1) 10%, #fff) 0%,
-        color-mix(in srgb, var(--brand2) 6%, #fff) 100%
-    );
-    border-color: color-mix(in srgb, var(--brand1) 26%, rgba(30, 36, 64, 0.1));
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card, #fff));
+    border-color: color-mix(in srgb, var(--brand1) 22%, var(--border, rgba(30, 36, 64, 0.1)));
     color: var(--task-ink, #1e2440);
 }
 
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok']:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='warn']:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='mismatch']:hover,
-.dash-tasks-split__panel .dash-split-tool-card.dash-task-row:hover {
-    filter: none;
-    transform: translateY(-2px);
-    color: var(--task-ink, #1e2440);
+/* Split-Kacheln: deutliche Hover-Hervorhebung (nur die Karte, nicht der Mittelbereich) */
+.dash-tasks-split__panel .dash-split-tool-card:hover,
+.dash-tasks-split__panel .dash-split-tool-card:focus-visible {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--brand1) 55%, var(--border, rgba(30, 36, 64, 0.12))) !important;
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--brand1) 28%, transparent),
+        0 16px 36px color-mix(in srgb, var(--brand1) 22%, rgba(12, 18, 34, 0.14));
+    z-index: 3;
+}
+
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:hover,
+.dash-tasks-split__panel .dash-split-tool-card.dash-task-row--primary:focus-visible {
+    background: color-mix(in srgb, var(--brand1) 16%, var(--card, #fff)) !important;
+}
+
+.dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary):hover,
+.dash-tasks-split__panel .dash-split-tool-card:not(.dash-task-row--primary):focus-visible {
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card, #fff)) !important;
+}
+
+.dash-tasks-split__panel .dash-split-tool-card:hover .dash-task-row__head .bi,
+.dash-tasks-split__panel .dash-split-tool-card:focus-visible .dash-task-row__head .bi {
+    color: var(--brand1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dash-tasks-split__panel .dash-split-tool-card:hover,
+    .dash-tasks-split__panel .dash-split-tool-card:focus-visible {
+        transform: none;
+    }
 }
 
 .dash-tasks-split__panel .dash-split-tool-card.dash-task-row[data-hygiene-tone='ok'] .dash-task-row__head .bi {

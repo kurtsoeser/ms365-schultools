@@ -551,7 +551,8 @@
     color: var(--text);
 }
 
-.tm-page .header > p:not(.header-help-row) {
+/* Nur klassischer Violett-Header (ohne App-Subheader) */
+.tm-page .header:not(.app-tool-chrome) > p:not(.header-help-row) {
     max-width: 70ch;
     color: rgba(255, 255, 255, 0.92);
 }

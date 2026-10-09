@@ -1,0 +1,198 @@
+/**
+ * Planer-Apps: Schularbeiten, Freistellungen, Projektwochen, Schulaktivitäten
+ * Hell/Dunkel + Marke (teal | classic | wine) über app.css-Tokens.
+ */
+
+.sa-page .content,
+.pw-page .content,
+.akt-page .content,
+.fr-page .content,
+.lfr-page .content {
+    color: var(--text);
+}
+
+.sa-shell,
+.pw-shell,
+.akt-shell,
+.fr-shell {
+    border-color: var(--border);
+}
+
+/* Kalender / Wochenplan – Kopfzeilen lesbar */
+.sa-week-day__head,
+.akt-week-day__head {
+    background: var(--surface-muted);
+    border-bottom-color: var(--border);
+}
+
+.sa-week-day__wd,
+.akt-week-day__wd {
+    color: var(--heading);
+}
+
+.sa-week-day__date,
+.akt-week-day__date {
+    color: var(--text-secondary);
+}
+
+.sa-week-day,
+.akt-week-day {
+    background: var(--card);
+    border-color: var(--border);
+}
+
+.sa-week-card,
+.akt-week-card {
+    background: color-mix(in srgb, var(--brand1) 6%, var(--soft));
+}
+
+.sa-week-empty,
+.akt-week-empty {
+    color: var(--text-secondary);
+}
+
+.sa-hero-panel h2,
+.pw-view__head h2,
+.akt-view__head h2,
+.fr-top__student-title {
+    color: var(--heading);
+}
+
+/* Filter & Formulare */
+.sa-filter-select,
+.pw-top__aktion-select select,
+.pw-filters__field select,
+.pw-filters__field input[type='search'],
+.fr-nav__klasse select,
+.sa-top__schuljahr select {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text);
+}
+
+.sa-filter-pill {
+    color: var(--text);
+}
+
+.sa-filter-pill.is-active {
+    color: var(--heading);
+}
+
+.pw-filters {
+    background: color-mix(in srgb, var(--brand1) 5%, var(--card));
+    border-color: var(--border);
+}
+
+.pw-filters__title {
+    color: var(--heading);
+}
+
+.pw-filters__reset {
+    background: var(--card);
+    color: var(--brand1);
+    border-color: var(--border);
+}
+
+.pw-filters__reset:hover {
+    background: var(--surface-muted);
+}
+
+.pw-setup-log {
+    background: color-mix(in srgb, var(--brand1) 6%, var(--soft));
+    color: var(--text);
+}
+
+/* KPI & Status-Kacheln */
+.pw-kpi--ok {
+    background: color-mix(in srgb, #22c55e 10%, var(--card));
+}
+
+.pw-kpi--warn {
+    background: color-mix(in srgb, #f59e0b 10%, var(--card));
+}
+
+.pw-kpi--bad {
+    background: color-mix(in srgb, #ef4444 10%, var(--card));
+}
+
+html[data-theme='dark'] .pw-kpi--ok .pw-kpi__top > i {
+    color: #6ee7b7;
+}
+
+html[data-theme='dark'] .pw-kpi--warn .pw-kpi__top > i {
+    color: #fcd34d;
+}
+
+html[data-theme='dark'] .pw-kpi--bad .pw-kpi__top > i {
+    color: #fda4af;
+}
+
+.pw-badge {
+    background: var(--surface-muted);
+    color: var(--text);
+}
+
+.pw-badge--beantragt {
+    background: color-mix(in srgb, #f59e0b 22%, var(--card));
+    color: #fcd34d;
+}
+
+.pw-badge--freigegeben {
+    background: color-mix(in srgb, #22c55e 18%, var(--card));
+    color: #6ee7b7;
+}
+
+.pw-badge--abgelehnt,
+.pw-badge--abgesagt {
+    background: color-mix(in srgb, #ef4444 18%, var(--card));
+    color: #fda4af;
+}
+
+html[data-theme='light'] .pw-badge--beantragt {
+    color: #92400e;
+}
+
+html[data-theme='light'] .pw-badge--freigegeben {
+    color: #065f46;
+}
+
+html[data-theme='light'] .pw-badge--abgelehnt,
+html[data-theme='light'] .pw-badge--abgesagt {
+    color: #991b1b;
+}
+
+/* Panels innerhalb der Planer */
+.sa-page .tm-panel,
+.pw-page .tm-panel,
+.akt-page .tm-panel,
+.fr-page .tm-panel {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.sa-page .tm-panel__head,
+.pw-page .tm-panel__head,
+.akt-page .tm-panel__head,
+.fr-page .tm-panel__head {
+    color: var(--heading);
+}
+
+html[data-theme='dark'] .sa-page .tm-panel,
+html[data-theme='dark'] .pw-page .tm-panel,
+html[data-theme='dark'] .akt-page .tm-panel,
+html[data-theme='dark'] .fr-page .tm-panel {
+    box-shadow: var(--shadow);
+}
+
+html[data-theme='dark'] .pw-conn--ok {
+    color: #6ee7b7;
+}
+
+html[data-theme='dark'] .pw-conn--demo {
+    color: #93c5fd;
+}
+
+html[data-theme='dark'] .pw-conn--wait {
+    color: #fcd34d;
+}

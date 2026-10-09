@@ -10,6 +10,7 @@ export const CATALOG_PANEL_HASH = {
     personen: 'personen',
     schuljahr: 'schuljahresstart',
     intranet: 'intranet',
+    schulapps: 'schulapps',
     kommunikation: 'aufraeumen',
     automationen: 'automationen'
 };
@@ -31,6 +32,7 @@ const TASK_ID_BY_PANEL = {
     personen: 'dashTaskPersonen',
     schuljahr: 'dashTaskSchuljahr',
     intranet: 'dashTaskIntranet',
+    schulapps: 'dashTaskSchulApps',
     kommunikation: 'dashTaskOrdnung'
 };
 

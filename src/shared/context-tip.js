@@ -10,7 +10,9 @@
         'task-gruppen':
             'Wann? Wenn Schülerinnen, Lehrkräfte, Schulleitung, Verwaltung (Personal) oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Fünf Sammelgruppen im Dashboard – Verwaltung getrennt in Schulleitung (z. B. Direktion) und Personal (Sekretariat, IT …). Zielgruppe pro Rolle in den Stammdaten.',
         'task-intranet':
-            'Wann? Intranet und Planer einrichten (IT) oder im Schulalltag nutzen: Schularbeiten-Termine, Freistellungsanträge, Aktivitäten. Einmal-Setup oft über das Playbook Intranet.',
+            'Wann? Schul-Website (Hub) und Stammdaten-Listen auf der Intranet-Site einrichten – Lehrerliste, Termine, Vertretung. Geführte Reihenfolge: Playbook Intranet.',
+        'task-schulapps':
+            'Wann? Planer im Schulalltag: Schularbeiten-Termine, Schüler-Freistellungen, Projektwochen, Exkursionen/Aktivitäten, Freistellungen für Lehrkräfte. IT richtet zuerst die zugehörigen SharePoint-Listen ein.',
         'task-personen':
             'Wann? Einzelne Konten suchen, ein neues Konto anlegen oder externe Personen (Gäste) einladen – z. B. Eltern oder Projektpartner.',
         'task-schuljahr':

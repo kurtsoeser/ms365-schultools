@@ -4,6 +4,7 @@
  */
 @import url('src/shared/tools-dark.css');
 @import url('src/shared/dashboard-dark.css');
+@import url('src/shared/planner-apps-theme.css');
 
 :root {
     color-scheme: light;
@@ -40,11 +41,19 @@
     --icon-muted: rgba(255, 255, 255, 0.92);
     --icon-dim: rgba(33, 37, 41, 0.72);
 
-    /* Hintergrund wie Landing (landing/styles.css .hero-atmosphere) */
+    /* Hintergrund wie Landing (landing/styles.css .hero-atmosphere) – Teal hell */
     --app-backdrop-paper: #f4f7fb;
     --app-backdrop-grad-a: #f4f7fb;
     --app-backdrop-grad-b: #e8f4f1;
     --app-backdrop-grad-c: #dff5f0;
+    --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
+    --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
+
+    /* Planer-Apps (Schularbeiten, Freistellungen, Projektwochen, …) */
+    --bg: var(--soft);
+    --surface-2: var(--surface-muted);
+    --planner-nav-active-bg: color-mix(in srgb, var(--color-accent-gold, #f59e0b) 88%, #fff);
+    --planner-nav-active-fg: #1f2937;
 
     --app-page-padding: 24px;
     --app-shell-width: min(1920px, calc(100vw - 2 * var(--app-page-padding)));
@@ -58,8 +67,8 @@ html {
     overflow-x: clip;
     background-color: var(--app-backdrop-paper);
     background-image:
-        radial-gradient(900px 500px at 88% 18%, rgba(13, 159, 138, 0.14), transparent 55%),
-        radial-gradient(700px 480px at 8% 82%, rgba(240, 180, 41, 0.1), transparent 50%),
+        radial-gradient(900px 500px at 88% 18%, var(--app-backdrop-glow-primary), transparent 55%),
+        radial-gradient(700px 480px at 8% 82%, var(--app-backdrop-glow-accent), transparent 50%),
         linear-gradient(
             155deg,
             var(--app-backdrop-grad-a) 0%,
@@ -77,6 +86,8 @@ html[data-theme="dark"] {
     --app-backdrop-grad-a: #07101f;
     --app-backdrop-grad-b: #0a2540;
     --app-backdrop-grad-c: #0a3d36;
+    --app-backdrop-glow-primary: rgba(20, 196, 171, 0.16);
+    --app-backdrop-glow-accent: rgba(13, 159, 138, 0.1);
 
     --bg1: #07101f;
     --bg2: #0a3d36;
@@ -104,6 +115,11 @@ html[data-theme="dark"] {
     --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.55);
     --icon-muted: rgba(255, 255, 255, 0.9);
     --icon-dim: rgba(232, 238, 246, 0.72);
+
+    --bg: var(--soft);
+    --surface-2: var(--surface-muted);
+    --planner-nav-active-bg: color-mix(in srgb, var(--brand1) 48%, #f2f6fb);
+    --planner-nav-active-fg: #0c1222;
 }
 
 html[data-theme="light"] {
@@ -140,6 +156,13 @@ html[data-theme="light"] {
 /* Klassisch: Violett (bisheriges Design) */
 html[data-brand="classic"],
 html[data-brand="classic"][data-theme="light"] {
+    --app-backdrop-paper: #f5f6fb;
+    --app-backdrop-grad-a: #f5f6fb;
+    --app-backdrop-grad-b: #eef0f8;
+    --app-backdrop-grad-c: #e6eaf5;
+    --app-backdrop-glow-primary: rgba(94, 114, 228, 0.2);
+    --app-backdrop-glow-accent: rgba(118, 75, 162, 0.14);
+
     --bg1: #667eea;
     --bg2: #764ba2;
     --brand1: #5e72e4;
@@ -154,6 +177,13 @@ html[data-brand="classic"][data-theme="light"] {
 }
 
 html[data-brand="classic"][data-theme="dark"] {
+    --app-backdrop-paper: #10121f;
+    --app-backdrop-grad-a: #10121f;
+    --app-backdrop-grad-b: #1a2042;
+    --app-backdrop-grad-c: #241e48;
+    --app-backdrop-glow-primary: rgba(123, 140, 255, 0.18);
+    --app-backdrop-glow-accent: rgba(167, 139, 250, 0.12);
+
     --bg1: #2a2f6b;
     --bg2: #3b1f63;
     --brand1: #7b8cff;
@@ -173,6 +203,13 @@ html[data-brand="classic"][data-theme="dark"] {
 /* Dunkelrot: Burgunder mit Verlauf */
 html[data-brand="wine"],
 html[data-brand="wine"][data-theme="light"] {
+    --app-backdrop-paper: #faf5f5;
+    --app-backdrop-grad-a: #faf5f5;
+    --app-backdrop-grad-b: #f5ebe8;
+    --app-backdrop-grad-c: #fce8ec;
+    --app-backdrop-glow-primary: rgba(185, 28, 28, 0.14);
+    --app-backdrop-glow-accent: rgba(127, 29, 29, 0.1);
+
     --bg1: #7f1d1d;
     --bg2: #1a0a0f;
     --brand1: #b91c1c;
@@ -187,6 +224,13 @@ html[data-brand="wine"][data-theme="light"] {
 }
 
 html[data-brand="wine"][data-theme="dark"] {
+    --app-backdrop-paper: #120608;
+    --app-backdrop-grad-a: #120608;
+    --app-backdrop-grad-b: #1a0a10;
+    --app-backdrop-grad-c: #2a1018;
+    --app-backdrop-glow-primary: rgba(248, 113, 113, 0.14);
+    --app-backdrop-glow-accent: rgba(220, 38, 38, 0.1);
+
     --bg1: #3f0f14;
     --bg2: #120608;
     --brand1: #f87171;
@@ -201,6 +245,26 @@ html[data-brand="wine"][data-theme="dark"] {
     --heading: #fff5f6;
     --text-secondary: #c9aeb4;
     --muted: #a89096;
+}
+
+/* Teal explizit (z. B. nach Wechsel von Klassisch) */
+html[data-brand="teal"],
+html[data-brand="teal"][data-theme="light"] {
+    --app-backdrop-paper: #f4f7fb;
+    --app-backdrop-grad-a: #f4f7fb;
+    --app-backdrop-grad-b: #e8f4f1;
+    --app-backdrop-grad-c: #dff5f0;
+    --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
+    --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
+}
+
+html[data-brand="teal"][data-theme="dark"] {
+    --app-backdrop-paper: #07101f;
+    --app-backdrop-grad-a: #07101f;
+    --app-backdrop-grad-b: #0a2540;
+    --app-backdrop-grad-c: #0a3d36;
+    --app-backdrop-glow-primary: rgba(20, 196, 171, 0.16);
+    --app-backdrop-glow-accent: rgba(13, 159, 138, 0.1);
 }
 
 * {
@@ -837,11 +901,78 @@ a.ms365-auth-menu__item:visited {
     padding-top: 6px;
     padding-bottom: 8px;
 }
+.ms365-auth-menu__design-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 8px 6px;
+}
+
+.ms365-auth-menu__design-head .ms365-auth-menu__section-label {
+    padding: 0;
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ms365-auth-menu__theme-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    flex: 0 0 auto;
+    border-radius: 999px;
+}
+
+.ms365-auth-menu__theme-switch:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--brand1) 55%, transparent);
+    outline-offset: 2px;
+}
+
+.ms365-auth-menu__theme-switch-track {
+    position: relative;
+    width: 2.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: #cbd5e1;
+    transition: background 160ms ease;
+    box-shadow: inset 0 0 0 1px rgba(12, 18, 34, 0.08);
+}
+
+.ms365-auth-menu__theme-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(1.35rem - 4px);
+    height: calc(1.35rem - 4px);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(12, 18, 34, 0.22);
+    transition: transform 160ms ease;
+}
+
+.ms365-auth-menu__theme-switch.is-on .ms365-auth-menu__theme-switch-track {
+    background: color-mix(in srgb, var(--brand1) 72%, #0c1222);
+}
+
+.ms365-auth-menu__theme-switch.is-on .ms365-auth-menu__theme-switch-thumb {
+    transform: translateX(calc(2.35rem - 1.35rem));
+}
+
 .ms365-auth-menu__brand-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
     padding: 0 4px 4px;
+}
+
+.ms365-auth-menu__brand-row--pair {
+    grid-template-columns: repeat(2, 1fr);
 }
 .ms365-auth-menu__brand {
     display: inline-flex;
@@ -894,6 +1025,16 @@ html[data-theme="dark"] .ms365-auth-menu__section {
 html[data-theme="dark"] .ms365-auth-menu__section-label {
     color: #8b9aab;
 }
+
+html[data-theme="dark"] .ms365-auth-menu__theme-switch-track {
+    background: #243044;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .ms365-auth-menu__theme-switch-thumb {
+    background: #e8eef6;
+}
+
 html[data-theme="dark"] .ms365-auth-menu__brand {
     background: #1a2638;
     border-color: rgba(255, 255, 255, 0.12);
@@ -917,14 +1058,68 @@ html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn:hover {
 html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn.is-active,
 html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn[aria-checked="true"] {
     background: color-mix(in srgb, var(--brand1) 22%, #1a2638);
+    border-color: color-mix(in srgb, var(--brand1) 55%, transparent);
+    color: #fff;
+}
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn .bi {
+    color: color-mix(in srgb, var(--brand1) 72%, #e8eef6);
+    opacity: 1;
+}
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn.is-active .bi,
+html[data-theme="dark"] .ms365-auth-menu__dash-seg-btn[aria-checked="true"] .bi {
+    color: #fff;
+}
+html[data-theme="dark"] .ms365-auth-menu__panel {
+    background: var(--card);
+    color: var(--text);
+    border-color: var(--border);
+    box-shadow: var(--shadow-lg);
+}
+html[data-theme="dark"] .ms365-auth-menu__meta,
+html[data-theme="dark"] .ms365-auth-menu__ctx {
+    border-bottom-color: var(--border);
+}
+html[data-theme="dark"] .ms365-auth-menu__meta-name {
+    color: var(--heading);
+}
+html[data-theme="dark"] .ms365-auth-menu__meta-mail,
+html[data-theme="dark"] .ms365-auth-menu__ctx-k,
+html[data-theme="dark"] .ms365-auth-menu__dash-hint {
+    color: var(--text-secondary);
+}
+html[data-theme="dark"] .ms365-auth-menu__ctx-v,
+html[data-theme="dark"] .ms365-auth-menu__item {
+    color: var(--text);
+}
+html[data-theme="dark"] .ms365-auth-menu__year-select {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text);
+}
+html[data-theme="dark"] .ms365-auth-menu__year-add {
+    background: color-mix(in srgb, var(--brand1) 16%, var(--input-bg));
+    border-color: var(--input-border);
+    color: var(--brand1);
+}
+html[data-theme="dark"] .ms365-auth-menu__copy {
+    color: var(--text-secondary);
+}
+html[data-theme="dark"] .ms365-auth-menu__copy:hover {
+    color: var(--heading);
+    background: rgba(255, 255, 255, 0.06);
 }
 html[data-theme="dark"] a.ms365-auth-menu__item,
 html[data-theme="dark"] a.ms365-auth-menu__item:visited {
-    color: #e8eef6;
+    color: var(--text);
 }
 html[data-theme="dark"] .ms365-auth-menu__item:hover,
 html[data-theme="dark"] .ms365-auth-menu__item:focus-visible {
     background: color-mix(in srgb, var(--brand1) 18%, transparent);
+}
+html[data-theme="dark"] .ms365-auth-menu__item--danger:hover,
+html[data-theme="dark"] .ms365-auth-menu__item--danger:focus-visible {
+    background: color-mix(in srgb, var(--danger1) 16%, transparent);
+    color: var(--danger1);
 }
 
 .header-tool-indicator {
@@ -1929,6 +2124,136 @@ input[type="file"] { display: none; }
 }
 .modal-box h3 { margin-bottom: 16px; color: #32325d; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+
+/* Entra-Suchdialoge (Gruppe / Postfach) */
+.ms365-entra-group-picker .ms365-egp-modal,
+.ms365-entra-user-picker .ms365-egp-modal {
+    max-width: 560px;
+    width: min(96vw, 560px);
+    padding: 20px 22px 18px;
+}
+.ms365-egp-modal__head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+.ms365-egp-modal__icon {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--brand1, #5e72e4);
+    background: color-mix(in srgb, var(--brand1, #5e72e4) 14%, var(--card, #fff));
+}
+.ms365-egp-modal__titles { min-width: 0; flex: 1; }
+.ms365-egp-modal__title {
+    margin: 0 0 6px;
+    font-size: 1.12rem;
+    line-height: 1.3;
+    color: var(--heading, #32325d);
+}
+.ms365-egp-modal__hint {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+.ms365-egp-search-wrap { margin-bottom: 10px; }
+.ms365-egp-search-wrap label {
+    font-weight: 650;
+    margin-bottom: 6px;
+    display: block;
+}
+.ms365-egp-search-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.ms365-egp-search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--muted, #6c757d);
+    pointer-events: none;
+    font-size: 1rem;
+}
+.ms365-egp-search,
+.ms365-eup-search.ms365-egp-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 12px 11px 38px;
+    font: inherit;
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 10px;
+    background: var(--card, #fff);
+    color: var(--text, inherit);
+}
+.ms365-egp-search:focus {
+    outline: 2px solid color-mix(in srgb, var(--brand1, #5e72e4) 45%, transparent);
+    outline-offset: 1px;
+    border-color: color-mix(in srgb, var(--brand1, #5e72e4) 55%, var(--border));
+}
+.ms365-egp-status {
+    min-height: 1.35em;
+    margin: 0 0 8px;
+    font-size: 0.88em;
+}
+.ms365-egp-results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: min(52vh, 320px);
+    overflow: auto;
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 10px;
+    background: var(--card, #fff);
+}
+.ms365-egp-empty {
+    padding: 14px 14px;
+    text-align: center;
+}
+.ms365-egp-item {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 14px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+.ms365-egp-item:last-child { border-bottom: 0; }
+.ms365-egp-item:hover,
+.ms365-egp-item:focus-visible {
+    background: color-mix(in srgb, var(--brand1, #5e72e4) 9%, var(--card, #fff));
+    outline: none;
+}
+.ms365-egp-item__name {
+    font-weight: 750;
+    color: var(--heading, #32325d);
+    line-height: 1.3;
+}
+.ms365-egp-item__meta {
+    font-size: 0.88em;
+    line-height: 1.35;
+}
+.ms365-egp-item__tags {
+    font-size: 0.8em;
+    line-height: 1.3;
+}
+.ms365-egp-modal__actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
 
 /* Phase 3: Lizenz-Gate */
 .ms365-license-gate {
@@ -5332,6 +5657,13 @@ html[data-ms365-admin-boot='1'] body.admin-app-page > .admin-app {
 
 /* Brand-Tokens (am Dateiende): gewinnt gegen spätere Theme-Defaults */
 html[data-brand="classic"][data-theme="light"] {
+    --app-backdrop-paper: #f5f6fb;
+    --app-backdrop-grad-a: #f5f6fb;
+    --app-backdrop-grad-b: #eef0f8;
+    --app-backdrop-grad-c: #e6eaf5;
+    --app-backdrop-glow-primary: rgba(94, 114, 228, 0.2);
+    --app-backdrop-glow-accent: rgba(118, 75, 162, 0.14);
+
     --bg1: #667eea;
     --bg2: #764ba2;
     --brand1: #5e72e4;
@@ -5346,6 +5678,13 @@ html[data-brand="classic"][data-theme="light"] {
 }
 
 html[data-brand="classic"][data-theme="dark"] {
+    --app-backdrop-paper: #10121f;
+    --app-backdrop-grad-a: #10121f;
+    --app-backdrop-grad-b: #1a2042;
+    --app-backdrop-grad-c: #241e48;
+    --app-backdrop-glow-primary: rgba(123, 140, 255, 0.18);
+    --app-backdrop-glow-accent: rgba(167, 139, 250, 0.12);
+
     --bg1: #2a2f6b;
     --bg2: #3b1f63;
     --brand1: #7b8cff;
@@ -5363,6 +5702,13 @@ html[data-brand="classic"][data-theme="dark"] {
 }
 
 html[data-brand="wine"][data-theme="light"] {
+    --app-backdrop-paper: #faf5f5;
+    --app-backdrop-grad-a: #faf5f5;
+    --app-backdrop-grad-b: #f5ebe8;
+    --app-backdrop-grad-c: #fce8ec;
+    --app-backdrop-glow-primary: rgba(185, 28, 28, 0.14);
+    --app-backdrop-glow-accent: rgba(127, 29, 29, 0.1);
+
     --bg1: #7f1d1d;
     --bg2: #1a0a0f;
     --brand1: #b91c1c;
@@ -5377,6 +5723,13 @@ html[data-brand="wine"][data-theme="light"] {
 }
 
 html[data-brand="wine"][data-theme="dark"] {
+    --app-backdrop-paper: #120608;
+    --app-backdrop-grad-a: #120608;
+    --app-backdrop-grad-b: #1a0a10;
+    --app-backdrop-grad-c: #2a1018;
+    --app-backdrop-glow-primary: rgba(248, 113, 113, 0.14);
+    --app-backdrop-glow-accent: rgba(220, 38, 38, 0.1);
+
     --bg1: #3f0f14;
     --bg2: #120608;
     --brand1: #f87171;
@@ -5391,4 +5744,22 @@ html[data-brand="wine"][data-theme="dark"] {
     --heading: #fff5f6;
     --text-secondary: #c9aeb4;
     --muted: #a89096;
+}
+
+html[data-brand="teal"][data-theme="light"] {
+    --app-backdrop-paper: #f4f7fb;
+    --app-backdrop-grad-a: #f4f7fb;
+    --app-backdrop-grad-b: #e8f4f1;
+    --app-backdrop-grad-c: #dff5f0;
+    --app-backdrop-glow-primary: rgba(13, 159, 138, 0.14);
+    --app-backdrop-glow-accent: rgba(240, 180, 41, 0.1);
+}
+
+html[data-brand="teal"][data-theme="dark"] {
+    --app-backdrop-paper: #07101f;
+    --app-backdrop-grad-a: #07101f;
+    --app-backdrop-grad-b: #0a2540;
+    --app-backdrop-grad-c: #0a3d36;
+    --app-backdrop-glow-primary: rgba(20, 196, 171, 0.16);
+    --app-backdrop-glow-accent: rgba(13, 159, 138, 0.1);
 }

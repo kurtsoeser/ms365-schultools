@@ -17,7 +17,11 @@
 }
 
 .akt-nav {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--brand1) 92%, #1a1040), color-mix(in srgb, var(--brand1) 75%, #0f172a));
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--brand1) 88%, var(--bg2)),
+        color-mix(in srgb, var(--brand2) 62%, var(--bg1))
+    );
     color: #f8fafc;
     padding: 16px 12px;
     display: flex;
@@ -76,8 +80,8 @@
 }
 
 .akt-nav__btn.is-active {
-    background: color-mix(in srgb, #f59e0b 88%, #fff);
-    color: #1f2937;
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
     font-weight: 650;
 }
 
@@ -117,8 +121,8 @@
 }
 
 .akt-chip.is-active {
-    background: color-mix(in srgb, #f59e0b 88%, #fff);
-    color: #1f2937;
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
     border-color: transparent;
 }
 
@@ -155,7 +159,8 @@
 
 .akt-main {
     padding: 16px 18px 20px;
-    background: var(--bg, #f8fafc);
+    background: var(--soft);
+    color: var(--text);
     min-width: 0;
 }
 

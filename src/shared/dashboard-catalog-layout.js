@@ -15,6 +15,7 @@ export const DASHBOARD_CATALOG_TAB_IDS = [
     'personen',
     'schuljahr',
     'intranet',
+    'schulapps',
     'kommunikation',
     'automationen'
 ];
@@ -25,8 +26,9 @@ export const TAB_LABEL_BY_PANEL = {
     unterricht: '02 Klassen & Unterricht',
     personen: '03 Personen & Gäste',
     schuljahr: '04 Schuljahresstart',
-    intranet: '05 Intranet & Schulalltag',
-    kommunikation: '06 Aufräumen & Audit',
+    intranet: '05 Intranet',
+    schulapps: '06 Schul-Apps',
+    kommunikation: '07 Aufräumen & Audit',
     automationen: 'Automatisieren'
 };
 
@@ -37,6 +39,7 @@ export const TAB_ICON_BY_PANEL = {
     personen: 'bi-person-badge',
     schuljahr: 'bi-rocket-takeoff',
     intranet: 'bi-house-door',
+    schulapps: 'bi-window-stack',
     kommunikation: 'bi-broom',
     automationen: 'bi-lightning-charge'
 };
@@ -100,6 +103,21 @@ function gridForTool(catalog, toolId, clusterId) {
         const existing = card ? card.closest('[data-cluster-grid^="intranet"]') : null;
         if (existing && panel.contains(existing)) return existing;
         return panel.querySelector('[data-cluster-grid="intranet"]');
+    }
+
+    if (clusterId === 'schulapps') {
+        const nutzenIds = [
+            'projektwochen',
+            'schularbeiten-planer',
+            'schulaktivitaeten-planer',
+            'freistellung-planer',
+            'lehrer-freistellung-planer'
+        ];
+        const gridKey = nutzenIds.indexOf(toolId) >= 0 ? 'schulapps-nutzen' : 'schulapps';
+        const card = catalog.querySelector('.choice[data-tool-id="' + toolId + '"]');
+        const existing = card ? card.closest('[data-cluster-grid^="schulapps"]') : null;
+        if (existing && panel.contains(existing)) return existing;
+        return panel.querySelector('[data-cluster-grid="' + gridKey + '"]');
     }
 
     let grid = panel.querySelector('[data-cluster-grid="' + clusterId + '"]');

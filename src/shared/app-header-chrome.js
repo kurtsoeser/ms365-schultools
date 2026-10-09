@@ -110,9 +110,9 @@ export function ensureAppChromeStylesheets() {
     }
 
     linkCss(resolveAppRootHref('src/shared/dashboard-compact-header.css') + '?v=9', 'data-dash-compact-header-css');
-    linkCss(resolveAppRootHref('src/shared/dashboard-ui-spec.css') + '?v=8', 'data-dash-ui-spec-css');
-    linkCss(resolveAppRootHref('src/shared/app-tool-chrome.css') + '?v=4', 'data-app-tool-chrome-css');
-    linkCss(resolveAppRootHref('src/shared/dashboard-card-surfaces.css') + '?v=3', 'data-dash-card-surfaces-css');
+    linkCss(resolveAppRootHref('src/shared/dashboard-ui-spec.css') + '?v=13', 'data-dash-ui-spec-css');
+    linkCss(resolveAppRootHref('src/shared/app-tool-chrome.css') + '?v=5', 'data-app-tool-chrome-css');
+    linkCss(resolveAppRootHref('src/shared/dashboard-card-surfaces.css') + '?v=5', 'data-dash-card-surfaces-css');
 }
 
 /**
