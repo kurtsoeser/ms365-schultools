@@ -80,13 +80,13 @@ describe('Schuljahr-Playbook Logik', () => {
     it('playbookProgress zählt nur Pflichtschritte', () => {
         const pb = {
             targetYear: '2026/27',
-            done: { year: true, names: true, expert: true }
+            done: { year: true, names: true, graduates: true }
         };
         const p = playbookProgress(pb, PLAYBOOK_REQUIRED_IDS);
         expect(PLAYBOOK_REQUIRED_IDS).not.toContain('parents');
         expect(p.total).toBe(6);
-        expect(p.done).toBe(2);
-        expect(p.pct).toBe(33);
+        expect(p.done).toBe(3);
+        expect(p.pct).toBe(50);
     });
 
     it('yearAlreadyExists vergleicht trim-genau', () => {
@@ -97,15 +97,13 @@ describe('Schuljahr-Playbook Logik', () => {
     it('Schritt-Definitionen verlinken Alltagswerkzeuge, nicht den Fachschafts-Tab', () => {
         const defs = playbookStepDefs();
         const ids = defs.map((d) => d.id);
-        expect(ids).toEqual(['year', 'names', 'graduates', 'students', 'kursteams', 'subjects', 'expert']);
+        expect(ids).toEqual(['year', 'names', 'graduates', 'students', 'kursteams', 'subjects']);
         expect(defs.find((d) => d.id === 'year').href).toBe('#year');
         expect(defs.find((d) => d.id === 'subjects').href).toBe('arge-fachgruppen.html');
         expect(defs.find((d) => d.id === 'names').href).toBe('#namen');
         expect(defs.find((d) => d.id === 'graduates').href).toBe('#abschluss');
         expect(defs.find((d) => d.id === 'parents')).toBeUndefined();
-        expect(defs.find((d) => d.id === 'expert').href).toBe('schulstruktur-sync.html?mode=struktur');
-        expect(defs.find((d) => d.id === 'expert').hrefLabel).toBe('Gruppenverwaltung');
-        expect(defs.find((d) => d.id === 'expert').blurb).not.toMatch(/Unterbäume kopieren/);
+        expect(defs.find((d) => d.id === 'expert')).toBeUndefined();
         expect(defs.find((d) => d.id === 'kursteams').blurb).toMatch(/CSV\/CMD/);
         expect(defs.find((d) => d.id === 'students').blurb).toMatch(/automatisch abgehakt/);
     });
@@ -219,8 +217,9 @@ describe('Schuljahr-Playbook Seite', () => {
         expect(html).not.toContain('oaTabfach');
         expect(html).not.toContain('Fachschafts-Gruppen');
         expect(html).not.toContain('oaFachTbody');
-        expect(html).toContain('oaExpertDetails');
-        expect(html).toContain('id="oaExpertMeta"');
+        expect(html).not.toContain('oaExpertDetails');
+        expect(html).not.toContain('id="oaExpertMeta"');
+        expect(html).not.toContain('SOLL-Struktur');
         expect(html).not.toContain('oaDupBtn');
         expect(html).not.toContain('oaBulkYear');
         expect(html).not.toContain('oaArchiveBtn');

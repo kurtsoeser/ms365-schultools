@@ -73,7 +73,7 @@
 
     function defaultActions() {
         return [
-            { href: 'tenant.html', label: '<i class="bi bi-journal-bookmark"></i>Schulregister öffnen' },
+            { href: 'tenant.html', label: '<i class="bi bi-journal-bookmark"></i>Stammdaten öffnen' },
             {
                 href: 'tools/webuntis-stammdaten-import.html?from=tenant',
                 label: '<i class="bi bi-box-arrow-in-down"></i>Daten importieren',
@@ -112,7 +112,7 @@
             var customMsg = target.getAttribute('data-ms365-empty-message');
             var message =
                 customMsg ||
-                'Noch keine Stammdaten in <strong>diesem Browser</strong>. Gruppen in Microsoft&nbsp;365 sind davon unabhängig – hier fehlen nur die lokalen Listen. Im <strong>Schulregister</strong> starten, Daten importieren oder ein vorhandenes <strong>Browser-Backup</strong> laden.';
+                'Noch keine Stammdaten in <strong>diesem Browser</strong>. Gruppen in Microsoft&nbsp;365 sind davon unabhängig – hier fehlen nur die lokalen Listen. Im <strong>Stammdaten</strong> starten, Daten importieren oder ein vorhandenes <strong>Browser-Backup</strong> laden.';
 
             target.hidden = false;
             target.replaceChildren();
@@ -142,10 +142,10 @@
         mount.replaceChildren();
         mount.appendChild(
             createBanner(
-                'Noch keine Schuldaten in diesem Browser. Die Microsoft-365-Gruppen existieren unabhängig davon – hier fehlen nur die lokalen Stammdaten. Schulregister öffnen, Daten importieren oder ein Browser-Backup (JSON) laden.',
+                'Noch keine Schuldaten in diesem Browser. Die Microsoft-365-Gruppen existieren unabhängig davon – hier fehlen nur die lokalen Stammdaten. Stammdaten öffnen, Daten importieren oder ein Browser-Backup (JSON) laden.',
                 {
                     actions: [
-                        { href: 'tenant.html', label: '<i class="bi bi-journal-bookmark"></i>Schulregister öffnen' },
+                        { href: 'tenant.html', label: '<i class="bi bi-journal-bookmark"></i>Stammdaten öffnen' },
                         {
                             href: 'tools/webuntis-stammdaten-import.html?from=tenant',
                             label: '<i class="bi bi-box-arrow-in-down"></i>Daten importieren',

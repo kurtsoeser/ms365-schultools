@@ -11,9 +11,9 @@
   --accent-deep: #087a6a;
   --accent-glow: rgba(13, 159, 138, 0.35);
   --warm: #f0b429;
-  --hero-grad-a: #07101f;
-  --hero-grad-b: #12263f;
-  --hero-grad-c: #0a3d36;
+  --hero-grad-a: #f4f7fb;
+  --hero-grad-b: #e8f4f1;
+  --hero-grad-c: #dff5f0;
   --radius: 18px;
   --font-display: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   --font-body: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -114,13 +114,14 @@ a {
 
 .btn-ghost {
   background: transparent;
-  color: #e8f4f1;
-  border-color: rgba(232, 244, 241, 0.35);
+  color: var(--ink-soft);
+  border-color: rgba(12, 18, 34, 0.18);
 }
 
 .btn-ghost:hover {
-  border-color: #e8f4f1;
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--accent-deep);
+  background: rgba(13, 159, 138, 0.08);
+  color: var(--ink);
 }
 
 .btn-nav {
@@ -168,7 +169,7 @@ a {
   align-items: center;
   gap: 0.65rem;
   text-decoration: none;
-  color: #fff;
+  color: var(--ink);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.95rem;
@@ -204,7 +205,7 @@ a {
 .nav-links a {
   position: relative;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
   font-weight: 550;
   font-size: 0.95rem;
   transition: color 160ms ease;
@@ -230,7 +231,7 @@ a {
 }
 
 .nav-links a:hover {
-  color: #fff;
+  color: var(--ink);
 }
 
 .site-nav.is-scrolled .nav-links a {
@@ -261,7 +262,7 @@ a {
   flex-direction: column;
   justify-content: center;
   padding: calc(var(--nav-h) + 1.5rem) 0 4rem;
-  color: #f2f6fb;
+  color: var(--ink);
   overflow: hidden;
 }
 
@@ -269,8 +270,8 @@ a {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(900px 500px at 85% 20%, rgba(13, 159, 138, 0.28), transparent 55%),
-    radial-gradient(700px 480px at 10% 80%, rgba(240, 180, 41, 0.12), transparent 50%),
+    radial-gradient(900px 500px at 88% 18%, rgba(13, 159, 138, 0.14), transparent 55%),
+    radial-gradient(700px 480px at 8% 82%, rgba(240, 180, 41, 0.1), transparent 50%),
     linear-gradient(155deg, var(--hero-grad-a) 0%, var(--hero-grad-b) 48%, var(--hero-grad-c) 100%);
   z-index: 0;
 }
@@ -311,7 +312,7 @@ a {
   font-weight: 700;
   font-size: clamp(1.05rem, 2vw, 1.25rem);
   letter-spacing: -0.02em;
-  color: #fff;
+  color: var(--ink);
   opacity: 0;
   animation: rise 0.9s 0.1s ease forwards;
 }
@@ -320,7 +321,7 @@ a {
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 28px rgba(13, 159, 138, 0.22);
 }
 
 .hero-copy h1 {
@@ -339,7 +340,7 @@ a {
   margin: 0 0 1.75rem;
   font-size: clamp(1.05rem, 1.6vw, 1.2rem);
   line-height: 1.5;
-  color: rgba(232, 238, 246, 0.82);
+  color: var(--muted);
   max-width: 36em;
   opacity: 0;
   animation: rise 0.9s 0.34s ease forwards;
@@ -372,7 +373,7 @@ a {
   font-size: 0.8rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(91, 107, 130, 0.75);
   opacity: 0;
   animation: fade 1s 1.2s ease forwards;
 }

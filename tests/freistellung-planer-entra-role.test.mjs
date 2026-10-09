@@ -7,6 +7,8 @@ import {
     finalizePlanerRoles,
     planerEntraGroupIds,
     schuelerEntraGroupIdsForCheck,
+    direktionEntraGroupIdsForCheck,
+    kvEntraGroupIdsForCheck,
     isPlanerDemoRoleUiEnabled
 } from '../src/tools/freistellung-planer/freistellung-planer-entra-role.js';
 import { matchKvByClassHeadEmail } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
@@ -62,6 +64,33 @@ describe('freistellung-planer-entra-role', () => {
         } finally {
             globalThis.localStorage = orig;
         }
+    });
+
+    it('erkennt Direktion und KV über zusätzliche Gruppen', () => {
+        const extraDir = '11111111-1111-1111-1111-111111111111';
+        const extraKv = '22222222-2222-2222-2222-222222222222';
+        const cfgExtra = {
+            groupDirektionId: DIR,
+            groupKvId: KV,
+            direktionGroups: [{ groupId: extraDir, groupLabel: 'Sek' }],
+            kvGroups: [{ groupId: extraKv, groupLabel: 'KV Extra' }]
+        };
+        expect(direktionEntraGroupIdsForCheck(cfgExtra)).toEqual(expect.arrayContaining([DIR, extraDir]));
+        expect(kvEntraGroupIdsForCheck(cfgExtra)).toEqual(expect.arrayContaining([KV, extraKv]));
+        expect(listRolesFromEntraGroups(new Set([extraKv.toLowerCase()]), cfgExtra)).toEqual(['kv']);
+        expect(listRolesFromEntraGroups(new Set([extraDir.toLowerCase()]), cfgExtra)).toEqual(['direktion']);
+    });
+
+    it('erkennt Schüler über zusätzliche schuelerGroups', () => {
+        const extra = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+        const cfgExtra = {
+            groupDirektionId: DIR,
+            groupKvId: KV,
+            groupSchuelerId: SCH,
+            schuelerGroups: [{ groupId: extra, groupLabel: 'Extra' }]
+        };
+        expect(schuelerEntraGroupIdsForCheck(cfgExtra)).toEqual(expect.arrayContaining([SCH, extra]));
+        expect(listRolesFromEntraGroups(new Set([extra.toLowerCase()]), cfgExtra)).toEqual(['schueler']);
     });
 
     it('listRolesFromStammdaten', () => {

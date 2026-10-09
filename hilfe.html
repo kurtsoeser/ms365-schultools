@@ -346,7 +346,7 @@
                             <li><a href="#schnellstart">Schnellstart</a></li>
                             <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                             <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
-                            <li><a href="#schulregister">Schulregister</a></li>
+                            <li><a href="#stammdaten">Stammdaten</a></li>
                             <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
                         </ul>
                         <div data-help-nav-group>
@@ -394,7 +394,7 @@
                                 <li><a href="#schnellstart">Schnellstart</a></li>
                                 <li><a href="#begriffe">Begriffe in 30 Sekunden</a></li>
                                 <li><a href="#grundprinzip">Grundprinzip &amp; Datenhaltung</a></li>
-                                <li><a href="#schulregister">Schulregister</a></li>
+                                <li><a href="#stammdaten">Stammdaten</a></li>
                                 <li><a href="#voraussetzungen">Anmeldung &amp; Berechtigungen</a></li>
                             </ul>
                             <div data-help-nav-group>
@@ -446,7 +446,7 @@
                         <h2 id="schnellstart">Schnellstart</h2>
                         <p class="help-lead">Die App läuft vollständig im Browser. Sie pflegt Schul-Stammdaten lokal und spricht Microsoft 365 über Graph oder über erzeugte PowerShell-Skripte an. Es gibt keinen App-Server hinter dieser Oberfläche – optional können Sie den lokalen Stand in eine IT-Bibliothek auf Ihrer schulischen SharePoint-Site sichern.</p>
                         <div class="help-chips" aria-label="Häufige Einstiege">
-                            <a href="#schulregister"><i class="bi bi-journal-bookmark"></i>Schulregister</a>
+                            <a href="#stammdaten"><i class="bi bi-database"></i>Stammdaten</a>
                             <a href="#begriffe"><i class="bi bi-book"></i>Begriffe</a>
                             <a href="#tool-schuljahr"><i class="bi bi-calendar2-range"></i>Schuljahr wechseln</a>
                             <a href="#tool-eltern-verteiler"><i class="bi bi-people"></i>Eltern-Verteiler</a>
@@ -456,7 +456,7 @@
                         <div class="rec">
                             <strong>Empfohlener Einstieg für eine neue Schule:</strong>
                             gleichen Browser jeden Tag verwenden (nicht privat/inkognito) →
-                            <a href="tenant.html">Schulregister</a> öffnen (Domain, Listen, optional <a href="tools/webuntis-stammdaten-import.html?from=tenant">Daten importieren</a>) →
+                            <a href="tenant.html">Stammdaten</a> öffnen (Domain, Listen, optional <a href="tools/webuntis-stammdaten-import.html?from=tenant">Daten importieren</a>) →
                             Klassengruppen matchen → Sammelgruppen Schüler/Lehrkräfte →
                             Unterrichtsteams aus dem Stundenplan → Browser-Backup speichern bzw. <strong>Nach SharePoint</strong> sichern.
                         </div>
@@ -482,7 +482,9 @@
                             <dd>Die Listen Ihrer Schule in dieser App: Domain, Fächer, Lehrkräfte, Klassen, Schülerinnen. Sie liegen im Browser – nicht auf einem Schul-Server.</dd>
 
                             <dt>Sammelgruppen</dt>
-                            <dd>Große Microsoft-365-Gruppen für viele Personen auf einmal – z. B. „Alle Schülerinnen“, „Alle Lehrkräfte“, Verwaltung oder Klassenvorstände. Nützlich für E-Mail und Berechtigungen.</dd>
+                            <dd>Große Microsoft-365-Gruppen für viele Personen auf einmal – z. B. „Alle Schülerinnen“, „Alle Lehrkräfte“, <strong>Schulleitung</strong> und <strong>Verwaltung (Personal)</strong> getrennt, oder Klassenvorstände. Nützlich für E-Mail und Berechtigungen in Planern und Listen.</dd>
+                            <dt>Schulleitung vs. Verwaltung (Personal)</dt>
+                            <dd>Zwei Sammelgruppen aus dem Tab <strong>Verwaltung</strong> in den Stammdaten: <em>Schulleitung</em> (standardmäßig nur Direktion) für höhere Rechte in Schularbeiten-, Freistellungs- und Admin-Listen; <em>Verwaltung (Personal)</em> für Sekretariat, IT, Bibliothek und weitere Rollen. Die Zuordnung steuern Sie pro Rolle in der Spalte <strong>Zielgruppe</strong>.</dd>
 
                             <dt>Klassengruppen · Verknüpfen</dt>
                             <dd>Eine Microsoft-365-Gruppe pro Klasse. <em>Verknüpfen</em> heißt: Eine bestehende Gruppe in Microsoft 365 der Klasse in den Stammdaten zuordnen – statt eine neue anzulegen.</dd>
@@ -523,7 +525,7 @@
                         <div class="hint" id="datenspeicher">
                             <strong>Datenhaltung:</strong> Es gibt keinen App-Server dieser Software. Zwischenstände und Stammdaten liegen in
                             diesem Browser (<code>localStorage</code> / <code>sessionStorage</code>). Über <strong>Browser-Backup</strong>
-                            (Dashboard oder Schulregister) übertragen Sie <em>alle</em> lokalen App-Daten als JSON
+                            (Dashboard oder Stammdaten) übertragen Sie <em>alle</em> lokalen App-Daten als JSON
                             in einen anderen Browser. Zusätzlich können Sie denselben Stand in eine
                             <strong>IT-Sicherungsbibliothek auf der schulischen SharePoint-Site</strong> schreiben
                             (<strong>Nach SharePoint</strong> / optionaler Auto-Sync; siehe
@@ -539,11 +541,11 @@
                     </article>
                 </section>
 
-                <section class="help-section" data-help-section aria-labelledby="schulregister">
+                <section class="help-section" data-help-section aria-labelledby="stammdaten">
                     <article class="help-article" data-help-article id="tool-schulregister" data-search="schulregister stammdaten domain verwaltung lehrer schüler fächer arge klassen import webuntis sokrates erste schritte">
-                        <h2 id="schulregister">Schulregister</h2>
+                        <h2 id="stammdaten">Stammdaten</h2>
                         <p>
-                            <strong>Was macht’s?</strong> Das <a href="tenant.html">Schulregister</a> ist die zentrale Stelle für alle Stammdaten:
+                            <strong>Was macht’s?</strong> Das <a href="tenant.html">Stammdaten</a> ist die zentrale Stelle für alle Stammdaten:
                             Schul-Domain, Verwaltung, Lehrkräfte, Schüler:innen, Fächer, ARGE und Klassen – Schritt für Schritt in Tabs, lokal im Browser.
                         </p>
                         <div class="mini-steps">
@@ -561,7 +563,7 @@
                             <strong>Empfehlung:</strong> Bestehende Microsoft-365-Gruppen nicht doppelt anlegen.
                             In den Alltags-Werkzeugen <em>suchen und verknüpfen</em> (Match). Neu anlegen nur, wenn wirklich keine passende Gruppe existiert.
                         </div>
-                        <p class="help-open"><a href="tenant.html">→ Schulregister öffnen</a></p>
+                        <p class="help-open"><a href="tenant.html">→ Stammdaten öffnen</a></p>
                     </article>
                 </section>
 
@@ -595,7 +597,8 @@
                     <article class="help-article" data-help-article data-search="stammdaten tenant schul-grundeinstellungen domain fächer lehrer klassen schüler sokrates webuntis import csv xlsx schuljahr">
                         <h2 id="tool-tenant">Stammdaten <span class="pill">Basisdaten</span></h2>
                         <p>
-                            <strong>Was macht’s?</strong> Die gemeinsame Basis: Domain, Fächer, ARGE, Lehrkräfte, Verwaltung,
+                            <strong>Was macht’s?</strong> Die gemeinsame Basis: Domain, Fächer, ARGE, Lehrkräfte, Verwaltung
+                            (Rollen inkl. Zielgruppe Schulleitung vs. Personal),
                             Schüler:innen und Klassen. Alle anderen Werkzeuge lesen diese Listen. Schüler und Klassen hängen am
                             <strong>aktuellen Schuljahr</strong>; Domain und Fächer gelten schulweit.
                         </p>
@@ -836,7 +839,7 @@
                             Spezialfall der Gruppenverwaltung für Katalogeinträge aus den Stammdaten: Fachgruppen und ARGE.
                             Ohne Match suchen oder neu anlegen, mit Match Live-Details pflegen.
                             Gematchte Einträge sind grün markiert, ungematchte rot – wie bei den Klassengruppen.
-                            Verknüpfungen liegen in denselben <code>catalogLinks</code> wie im Schulregister.
+                            Verknüpfungen liegen in denselben <code>catalogLinks</code> wie in den Stammdaten.
                         </p>
                         <div class="mini-steps">
                             <ol>
@@ -879,12 +882,12 @@
                         <h3 id="tool-lizenzverwaltung">Lizenzverwaltung <span class="pill">Lizenzen</span></h3>
                         <p>
                             Eigene <strong>Sicherheitsgruppen</strong> für Group-based Licensing (A1/A3 u. a.) anlegen oder zuordnen,
-                            Lizenzen der Gruppe zuweisen und Mitglieder anzeigen. Mitglieder können aus den M365‑Sammelgruppen
-                            (Schüler / Lehrkräfte / Verwaltung) übernommen werden. Optional: dynamische Mitgliedschaftsregeln (Entra&nbsp;ID&nbsp;P1).
+                            Lizenzen der Gruppe zuweisen und Mitglieder anzeigen.                             Mitglieder können aus den M365‑Sammelgruppen
+                            (Schüler / Lehrkräfte / Schulleitung / Verwaltung Personal) übernommen werden. Optional: dynamische Mitgliedschaftsregeln (Entra&nbsp;ID&nbsp;P1).
                         </p>
                         <div class="mini-steps">
                             <ol>
-                                <li>Profil wählen (Schüler, Lehrkräfte, Verwaltung oder eigenes).</li>
+                                <li>Profil wählen (Schüler, Lehrkräfte, Schulleitung, Verwaltung Personal oder eigenes).</li>
                                 <li>Sicherheitsgruppe <strong>anlegen</strong> oder bestehende <strong>suchen und zuordnen</strong>.</li>
                                 <li>Lizenz (SKU) der Gruppe zuweisen.</li>
                                 <li>Mitglieder aus der Sammelgruppe übernehmen – oder dynamische Regel setzen.</li>
@@ -946,22 +949,25 @@
                         <p class="help-open"><a href="tools/schueler-lehrer-gruppen.html">→ Schüler und Lehrkräfte öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="verwaltung sekretariat direktion schularzt rolle sammelgruppe">
+                    <article class="help-article" data-help-article data-search="verwaltung sekretariat direktion schularzt rolle sammelgruppe schulleitung zielgruppe aufteilen migration">
                         <h3 id="tool-verwaltung">Verwaltung <span class="pill">Personen &amp; Gruppe</span></h3>
                         <p>
-                            Rollen und Personen der Schulverwaltung (dieselben Stammdaten)
-                            plus Sammelgruppe: matchen oder anlegen, danach bidirektionaler Listen-Sync.
-                            Links stehen <strong>Liste</strong> und <strong>Gruppe</strong> (Mitgliederzahlen) – bei Abweichung rot.
+                            Rollen und Personen der Schulverwaltung (dieselben Stammdaten) plus <strong>zwei</strong> Microsoft‑365‑Sammelgruppen:
+                            <strong>Schulleitung</strong> (z. B. Direktion) und <strong>Verwaltung (Personal)</strong> (Sekretariat, IT, Bibliothek, …).
+                            In den <a href="tenant.html#verwaltung">Stammdaten</a> legen Sie pro Rolle die <strong>Zielgruppe</strong> fest (Standard: nur Direktion → Schulleitung).
+                            Links in der Sidebar wählen Sie die Gruppe; danach matchen, anlegen und Mitglieder mit der passenden Stammliste abgleichen.
+                            Pro Zeile stehen <strong>Liste</strong> und <strong>Gruppe</strong> (Mitgliederzahlen) – bei Abweichung rot.
                         </p>
                         <div class="mini-steps">
                             <ol>
-                                <li>Rolle wählen oder anlegen, Bezeichnung und Kürzel speichern.</li>
-                                <li>Personen mit E-Mail zuordnen. Direktion nicht vergessen.</li>
-                                <li>Optional Sammelgruppe matchen und Mitglieder synchronisieren (fehlende hinzufügen, nicht gelistete entfernen).</li>
-                                <li>Bei Abweichungen: <strong>Abgleich öffnen</strong> oder <strong>Mitglieder vergleichen</strong>; <strong>Importieren</strong> legt Verwaltungskontakte mit Rolle in den Stammdaten an.</li>
+                                <li>In den Stammdaten: Rollen pflegen, Spalte <strong>Zielgruppe</strong> prüfen (<code>schulleitung</code> / <code>verwaltung</code> im Textformat optional als 5. Feld).</li>
+                                <li>Im Werkzeug links <strong>Schulleitung</strong> oder <strong>Verwaltung (Personal)</strong> wählen, Gruppe matchen oder anlegen.</li>
+                                <li><strong>Mitglieder synchronisieren</strong> nur für die gewählte Sammelgruppe – bidirektional wie bei Schüler/Lehrer (fehlende hinzufügen, nicht gelistete entfernen).</li>
+                                <li>Hatte die Schule früher <em>eine</em> gemischte Verwaltungsgruppe? Button <strong>Aufteilen</strong> führt einmalig durch die Trennung (Vorschau, dann Graph-Sync).</li>
+                                <li>Einzelne Rollen bearbeiten: Rolle in der Liste wählen, Personen mit E-Mail zuordnen; bei Abweichungen <strong>Abgleich öffnen</strong> oder <strong>Importieren</strong>.</li>
                             </ol>
                         </div>
-                        <div class="hint">Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind.</div>
+                        <div class="hint">Rollen löschen geht nur, wenn keine Personen mehr zugeordnet sind. Planer und Stammdaten-Listen nutzen die Schulleitung-Gruppe für Admin-Rechte (nicht die Personal-Sammelgruppe).</div>
                         <p class="help-open"><a href="tools/verwaltung.html">→ Verwaltung öffnen</a></p>
                     </article>
 
@@ -1138,7 +1144,7 @@
                             <strong>abgleichen</strong> (vorhandene Liste nach Name) oder neu anlegen. Zeilen werden ergänzt/aktualisiert;
                             optional werden Einträge entfernt, die nicht mehr in den Stammdaten stehen.
                             Bei der <strong>Klassenliste</strong> optional Personenfeld „Schülerinnen“ (M365-Benutzer pro Klasse, aus Schüler-Stammdaten nach Klassen-Kürzel/Name).
-                            <strong>Berechtigungen</strong> wie beim Schularbeiten-Planer über Entra-Gruppen (Verwaltung / Lehrkräfte / Schüler):
+                            <strong>Berechtigungen</strong> wie beim Schularbeiten-Planer über Entra-Gruppen (Schulleitung / Lehrkräfte / Schüler):
                             z. B. Klassen und Fächer für Schüler nur Lesen, Gesamt-Schülerliste ohne Schüler-Gruppe.
                         </p>
                         <p class="help-open"><a href="tools/sharepoint-liste-stammdaten.html">→ Stammdaten-Listen öffnen</a></p>
@@ -1267,13 +1273,13 @@
                         <p class="help-open"><a href="tools/pa-erst-setup.html">→ Erst-Setup öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="freistellung ablauf workflow diagramm antrag planer genehmigung idee konzept">
+                    <article class="help-article" data-help-article data-search="freistellung ablauf workflow diagramm antrag planer genehmigung idee konzept stunden uhrzeit">
                         <h3 id="tool-freistellung-konzept">Freistellungen – Ablauf &amp; Idee <span class="pill">Dokumentation</span></h3>
                         <p>
-                            Erklärt den gesamten Weg: Antrag im <strong>Freistellungen-Planer</strong> (kein separates Formular nötig),
-                            Datensatz in der SharePoint-Liste, Power Automate mit <strong>Microsoft Approvals</strong>
-                            (ein Tag: Klassenvorstand; ab zwei Tagen: KV und Direktion), Status und Übersicht im Planer.
-                            Inkl. Flussdiagramm für Leitung und IT.
+                            Erklärt den gesamten Weg: Antrag im <strong>Freistellungen-Planer</strong> (auch stundenweise mit Uhrzeit),
+                            Datensatz in der SharePoint-Liste, Power Automate v3 mit <strong>Microsoft Approvals</strong>
+                            (gleicher Tag / Stunden: Klassenvorstand; mehrtägig: KV und Direktion), Status und Übersicht im Planer.
+                            Inkl. Flussdiagrammen und 6-Schritt-Setup für Leitung und IT.
                         </p>
                         <p class="help-open"><a href="tools/freistellung-konzept.html">→ Ablauf &amp; Idee öffnen</a></p>
                     </article>
@@ -1291,8 +1297,8 @@
                     <article class="help-article" data-help-article data-search="freistellung genehmigung kv direktion power automate sharepoint liste paket">
                         <h3 id="tool-freistellung">Freistellungen Setup <span class="pill">SharePoint + Flow</span></h3>
                         <p>
-                            Drei Phasen: Vorbereitung (Erst-Setup), SharePoint-Liste anlegen, Flow-Paket herunterladen und
-                            in Power Automate importieren (Legacy-Package, Connections zuweisen – Microsoft Approvals für KV und Direktion).
+                            Sechs Schritte: Vorbereitung, Konten, SharePoint-Liste (Datum+Uhrzeit), Klassen/Kategorien,
+                            Planer-Gruppen, Flow-Paket v3 importieren (Connections – Microsoft Approvals für KV und Direktion).
                             Auch mit A3 nutzbar. Zuerst den <a href="tools/freistellung-konzept.html">Ablauf verstehen</a>,
                             dann einrichten. Anträge und Berichte: <a href="tools/freistellung-planer.html">Freistellungen-Planer</a>.
                         </p>
@@ -1302,13 +1308,32 @@
                     <article class="help-article" data-help-article data-search="freistellung antrag schüler klassenvorstand direktion genehmigung approvals csv bericht">
                         <h3 id="tool-freistellung-planer">Freistellungen <span class="pill">Antrag &amp; Übersicht</span></h3>
                         <p>
-                            Schüler/innen stellen Freistellungsanträge im Formular (Klasse, Zeitraum, Kategorie, Begründung).
-                            Die App schreibt in die SharePoint-Liste aus dem Setup; der Power-Automate-Flow startet
+                            Schüler/innen stellen Freistellungsanträge im Formular (Klasse, Datum/Uhrzeit, Kategorie, Begründung) –
+                            auch für einzelne Unterrichtsstunden. Die App schreibt in die SharePoint-Liste; der Flow startet
                             <strong>Microsoft Approvals</strong> (Klassenvorstand, bei mehrtägigen Anträgen sequentiell Direktion).
                             KV und Direktion sehen Übersicht, Filter, Berichte und CSV-Export. Liste/Flow zuerst mit
                             <a href="tools/freistellung-setup.html">Freistellungen Setup</a> einrichten.
                         </p>
                         <p class="help-open"><a href="tools/freistellung-planer.html">→ Freistellungen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="lehrer freistellung fortbildung dienstbefreiung sharepoint flow setup">
+                        <h3 id="tool-lehrer-freistellung-setup">Lehrer-Freistellungen Setup <span class="pill">SharePoint + Flow</span></h3>
+                        <p>
+                            Einrichtung der SharePoint-Liste und des Power-Automate-Flows für Freistellungen von Lehrkräften
+                            (Fortbildung, Dienstbefreiung, …). Analog zum Schüler-Freistellungs-Setup, mit eigenen Feldern und Genehmigungsweg.
+                        </p>
+                        <p class="help-open"><a href="tools/lehrer-freistellung-setup.html">→ Lehrer-Freistellungen Setup öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="lehrer freistellung antrag kalender direktion genehmigung">
+                        <h3 id="tool-lehrer-freistellung-planer">Lehrer-Freistellungen <span class="pill">Antrag &amp; Übersicht</span></h3>
+                        <p>
+                            Lehrkräfte stellen Freistellungsanträge; Direktion und zuständige Stellen genehmigen in Microsoft 365.
+                            Übersicht, Kalender und Berichte in der App – nach Einrichtung mit
+                            <a href="tools/lehrer-freistellung-setup.html">Lehrer-Freistellungen Setup</a>.
+                        </p>
+                        <p class="help-open"><a href="tools/lehrer-freistellung-planer.html">→ Lehrer-Freistellungen öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="power automate schultermine kalender outlook sync">
@@ -1391,15 +1416,16 @@
                     <article class="help-article" data-help-article data-search="gruppenverwaltung schulstruktur abgleichen verwalten baum owner mitglieder archiv">
                         <h3 id="tool-schulstruktur">Alle Gruppen und Teams <span class="pill">Gruppenverwaltung</span></h3>
                         <p>
-                            Drei Reiter: <strong>Verwalten</strong> (Live-Gruppen), <strong>Abgleichen</strong> (SOLL mit Tenant verknüpfen),
-                            <strong>Schulstruktur</strong> (geplanter Baum lokal). Details rechts: Anzeigename, Beschreibung, Besitzer, Mitglieder, Team-Archiv.
+                            Zwei Reiter: <strong>Verwalten</strong> (Live-Gruppen) und <strong>Abgleichen</strong> (lokale Planungsliste mit Tenant verknüpfen).
+                            Details rechts: Anzeigename, Beschreibung, Besitzer, Mitglieder, Team-Archiv. Klassen und Schuljahr über Stammdaten und
+                            <a href="tools/organisations-assistent.html">Schuljahr wechseln</a>.
                         </p>
                         <div class="rec">
-                            Alltag: zuerst <strong>Verwalten</strong> einlesen. Die Schulstruktur ist die Planung – nicht der Schuljahreswechsel.
+                            Alltag: zuerst <strong>Verwalten</strong> einlesen. Verknüpfungen zu Klassen und Sammelgruppen laufen über die Spezialwerkzeuge in den Stammdaten.
                         </div>
                         <p class="help-open">
                             <a href="tools/schulstruktur-sync.html">→ Gruppenverwaltung</a>
-                            · <a href="tools/schulstruktur-sync.html?mode=struktur">Schulstruktur</a>
+                            · <a href="tools/abgleichen.html">Abgleichen</a>
                         </p>
                     </article>
 
@@ -1429,7 +1455,7 @@
                     </article>
                     <article class="help-article" data-help-article data-search="playbook import verknüpfen webuntis stammdaten slg klassen hygiene">
                         <h3 id="tool-playbook-daten-import-verknuepfen">Daten importieren und Verknüpfen <span class="pill">Checkliste</span></h3>
-                        <p>Einstieg für neue Mandanten: Schulregister, <strong>Datei-Import</strong> (WebUntis, Sokrates, …) oder perspektivisch <strong>Bildungsportal</strong>, dann Review, Sammelgruppen, Klassen, Fächer, Hygiene und Sicherung – mit lokalem Fortschritt.</p>
+                        <p>Einstieg für neue Mandanten: Stammdaten, <strong>Datei-Import</strong> (WebUntis, Sokrates, …) oder perspektivisch <strong>Bildungsportal</strong>, dann Review, Sammelgruppen, Klassen, Fächer, Hygiene und Sicherung – mit lokalem Fortschritt.</p>
                         <p class="help-open"><a href="tools/playbook-daten-import-verknuepfen.html">→ Playbook öffnen</a> · <a href="tools/stammdaten-quelle-waehlen.html">Quelle wählen</a> · <a href="tools/bildungsportal-stammdaten.html">Bildungsportal-Roadmap</a></p>
                     </article>
                     <article class="help-article" data-help-article data-search="bildungsportal edtech stammdaten readorgdata readuserdata bip bmb">
@@ -1511,9 +1537,13 @@
                             Schüler- und Elternstammdaten werden bewusst <strong>nicht</strong> als SharePoint-Listenzeilen abgelegt.
                             Nach der Einrichtung laden Dashboard und relevante Tool-Seiten die Datei nach der Anmeldung automatisch
                             und sichern lokale Änderungen wieder nach SharePoint (manuelle Buttons bleiben verfügbar).
-                            Die Verknüpfung zur Bibliothek wird <strong>pro Microsoft-365-Mandant</strong> im Browser gespeichert;
-                            auf einem neuen Gerät verknüpft die App die Bibliothek nach dem Login oft selbst (Intranet-URL + Bibliotheksname),
-                            sobald Sie angemeldet sind – ohne die Bibliothek neu anzulegen.
+                            Die Verknüpfung (<code>driveId</code>, Site-URL) liegt <strong>nur lokal im Browser</strong>,
+                            pro Microsoft-365-Mandant – Login allein reicht auf einem leeren Gerät nicht.
+                            Nach dem Login versucht die App: (1)&nbsp;bekannte Site-URLs aus Intranet/Schul-Hub,
+                            (2)&nbsp;Graph-Suche nach „MS365-IT-Stammdaten“ im Tenant,
+                            (3)&nbsp;einmal pro Sitzung Abfrage der Site-URL (Dashboard/Tenant).
+                            Ohne SharePoint-Rechte oder wenn die Bibliothek fehlt, erscheint ein Hinweis mit Link zur Einrichtung.
+                            Alternativ: Browser-Backup-JSON importieren (enthält die Verknüpfung).
                         </p>
                         <div class="mini-steps">
                             <ol>
@@ -1600,7 +1630,7 @@
                     <details class="help-faq" data-help-faq data-search="listen-sync entfernt niemanden mitglieder zu viel abweichungen">
                         <summary>Der Listen-Sync hat alte Schüler:innen nicht entfernt. Ist das ein Fehler?</summary>
                         <div class="faq-body">
-                            <p>Das hängt vom Werkzeug ab. Bei <strong>Lehrerinnen &amp; Schülerinnen</strong>, <strong>Jahrgangsgruppen</strong> und <strong>Klassenvorstände</strong> gleicht „Mitglieder synchronisieren“ die Gruppe mit der Stammliste ab – dabei können auch Personen entfernt werden, die nur online in der Gruppe stehen. Bei der <strong>Verwaltungs-Sammelgruppe</strong> ist der Sync dagegen bewusst <strong>additiv</strong> (nur hinzufügen).</p>
+                            <p>Das hängt vom Werkzeug ab. Bei <strong>Lehrerinnen &amp; Schülerinnen</strong>, <strong>Jahrgangsgruppen</strong>, <strong>Klassenvorstände</strong> und im Werkzeug <strong>Verwaltung</strong> (je gewählter Sammelgruppe Schulleitung oder Personal) gleicht „Mitglieder synchronisieren“ die Gruppe mit der Stammliste ab – dabei können auch Personen entfernt werden, die nur online in der Gruppe stehen.</p>
                             <p>Wenn die Zahlen links rot sind, nutzen Sie bei Schüler/Lehrer <strong>Abweichungen anzeigen</strong>, um zu sehen, wer nur lokal oder nur in Microsoft&nbsp;365 steht, bevor Sie synchronisieren.</p>
                         </div>
                     </details>
@@ -1624,7 +1654,7 @@
                         <summary>Wie komme ich mit den Daten auf einen anderen PC?</summary>
                         <div class="faq-body">
                             <p><strong>Variante A – Datei:</strong> Dashboard → <strong>Browser-Backup</strong> → JSON speichern. Am Ziel-PC dieselbe App öffnen → Backup importieren. Danach erneut bei Microsoft anmelden.</p>
-                            <p><strong>Variante B – SharePoint:</strong> Wenn die IT-Sicherungsbibliothek eingerichtet ist: am Quell-PC <strong>Nach SharePoint</strong>, am Ziel-PC anmelden – die App verknüpft die Bibliothek oft automatisch und bietet den Abgleich mit <strong>Vergleichsdialog</strong> an (<strong>Von SharePoint</strong> oder Auto-Sync nach Login). Auf einem leeren Browser übernimmt sie die SharePoint-Sicherung ohne Rückfrage. Details: <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>.</p>
+                            <p><strong>Variante B – SharePoint:</strong> Wenn die IT-Sicherungsbibliothek eingerichtet ist: am Quell-PC <strong>Nach SharePoint</strong>, am Ziel-PC anmelden. Die App sucht die Bibliothek im Tenant (oder fragt nach der Site-URL) und bietet den Abgleich mit <strong>Vergleichsdialog</strong> an. Auf einem leeren Browser übernimmt sie die SharePoint-Sicherung ohne Rückfrage. Details: <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a>.</p>
                             <p>Nicht enthalten: MSAL-Tokens / PIN. Enthalten: Stammdaten, Verknüpfungen, Dashboard-Favoriten und lokale Werkzeugstände mit Präfix <code>ms365-</code> / <code>webuntis-</code>.</p>
                         </div>
                     </details>
@@ -1632,7 +1662,7 @@
                     <details class="help-faq" data-help-faq data-search="daten weg privates fenster cache gelöscht sharepoint">
                         <summary>Die Stammdaten sind leer – wo sind die Listen?</summary>
                         <div class="faq-body">
-                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: letztes Browser-Backup importieren – oder, wenn eingerichtet, <strong>Von SharePoint</strong> das aktuelle Remote-Backup laden. Wenn keines existiert, Listen erneut aus Sokrates/WebUntis oder aus Microsoft 365 einlesen. Die IT-Sicherungsbibliothek unter <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a> einrichten und nicht nur auf die Download-Ablage verlassen.</p>
+                            <p>Häufige Ursachen: privates Fenster, anderer Browser, Websitedaten gelöscht, anderes Gerät. Lösung: anmelden – die App sucht die IT-Sicherungsbibliothek im Tenant bzw. fragt nach der Site-URL; danach <strong>Von SharePoint</strong> bzw. Auto-Sync. Alternativ Browser-Backup importieren. Wenn noch keine Sicherung existiert: Listen erneut einlesen und die Bibliothek unter <a href="#tool-stammdaten-uebergabe">Stammdaten-Übergabe</a> einrichten.</p>
                         </div>
                     </details>
 
@@ -1743,7 +1773,7 @@
 
                         <h3>Sicherung: Browser-Backup und schuleigene SharePoint-Bibliothek</h3>
                         <p>
-                            <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard, Schulregister).
+                            <strong>Browser-Backup:</strong> Export als JSON-Datei auf dem Gerät (Dashboard, Stammdaten).
                             Damit übertragen Sie den lokalen Stand zwischen Browsern oder PCs.
                         </p>
                         <p>

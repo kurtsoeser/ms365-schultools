@@ -115,11 +115,11 @@ export function schoolAudienceGroupsConfigured(config) {
 export function overlaySchoolAudienceOnPermissions(base) {
     const aud = loadSchoolAudienceGroups();
     const out = Object.assign({}, base || {});
-    if (aud.groupLehrerId) {
+    if (aud.groupLehrerId && !String(out.groupLehrerId || '').trim()) {
         out.groupLehrerId = aud.groupLehrerId;
         if (aud.groupLehrerName) out.groupLehrer = aud.groupLehrerName;
     }
-    if (aud.groupSchuelerId) {
+    if (aud.groupSchuelerId && !String(out.groupSchuelerId || '').trim()) {
         out.groupSchuelerId = aud.groupSchuelerId;
         if (aud.groupSchuelerName) out.groupSchueler = aud.groupSchuelerName;
     }

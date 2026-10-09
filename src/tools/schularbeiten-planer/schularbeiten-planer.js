@@ -87,7 +87,6 @@ import { validateSchularbeit } from './schularbeiten-planer-logic.js';
 import {
     applyPlanerRoleFromEntra,
     isPlanerDemoRoleUiEnabled,
-    canShowPlanerItToolbar,
     entraGroupsConfigured
 } from './schularbeiten-planer-entra-role.js';
 import { loadEffectivePermissionsConfig } from './schularbeiten-planer-permissions.js';
@@ -110,32 +109,20 @@ function graphMapOpts() {
     return { labels: labelMaps(state.stammdaten) };
 }
 
-function placePlanerAuthWidget() {
-    const slot = document.getElementById('saNavAuthSlot');
-    const wrap = document.getElementById('ms365AuthWidget');
-    if (!slot || !wrap) return;
-    wrap.style.position = '';
-    wrap.style.top = '';
-    wrap.style.right = '';
-    wrap.style.zIndex = '';
-    wrap.style.marginLeft = '';
-    wrap.style.flexWrap = 'wrap';
-    wrap.style.width = '100%';
-    if (wrap.parentElement !== slot) slot.appendChild(wrap);
-}
-
 function syncPlanerPageChrome() {
-    const showIt = canShowPlanerItToolbar(state.planerRoles, state.role);
-    document.querySelectorAll('[data-sa-it-only]').forEach((el) => {
-        el.hidden = !showIt;
-    });
+    import('../../shared/frontend-planner-chrome-policy.js')
+        .then((m) => {
+            if (m && typeof m.refreshFrontendPlannerChromeAudience === 'function') {
+                return m.refreshFrontendPlannerChromeAudience();
+            }
+        })
+        .catch(() => {});
 }
 
 function paint() {
     if (!root) return;
     renderApp(state, root);
     bindStatic();
-    placePlanerAuthWidget();
     syncPlanerPageChrome();
 }
 
@@ -1737,8 +1724,6 @@ function boot() {
     }
 
     paint();
-
-    window.addEventListener('ms365-auth-widget-ready', placePlanerAuthWidget);
 
     window.addEventListener('ms365-auth-state-changed', () => {
         resolvePlanerRole()

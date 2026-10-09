@@ -4,6 +4,7 @@
  */
 import { normEmailList } from './membership-reconcile.js';
 import { studentBelongsToClassRow } from './class-student-match.js';
+import { splitAdminEmailsByAudienceTier } from './administration-audience-logic.js';
 
 import { notifyAppLocalDataChanged } from './app-local-data-notify.js';
 
@@ -156,18 +157,17 @@ function normalizeClassTeamsFromContainer(container) {
  * Verknüpfte Klassengruppen zählen – nur Einträge aus der aktuellen Klassenliste (keine verwaisten classTeams).
  * @param {object[]} classes
  * @param {object[]} classTeams
+ * @param {Record<string, { groupId?: string, notFound?: boolean }>} [classGroupMatchByKey]
  * @returns {{ linked: number, total: number }}
  */
-export function countLinkedClassTeamsForClasses(classes, classTeams) {
+export function countLinkedClassTeamsForClasses(classes, classTeams, classGroupMatchByKey) {
     const list = Array.isArray(classes) ? classes : [];
     const teams = Array.isArray(classTeams) ? classTeams : [];
+    const map =
+        classGroupMatchByKey && typeof classGroupMatchByKey === 'object' ? classGroupMatchByKey : {};
     let linked = 0;
     list.forEach(function (cls) {
-        const team = findClassTeamForClass(cls, teams);
-        if (!team) return;
-        const gid = String(team.graphGroupId || '').trim();
-        const mode = String(team.mode || '').toLowerCase();
-        if (gid || mode === 'matched' || mode === 'created') linked += 1;
+        if (resolveClassGraphGroupId(cls, teams, map)) linked += 1;
     });
     return { linked: linked, total: list.length };
 }
@@ -181,6 +181,10 @@ export function buildHygieneTargets(container, settings) {
     const s = settings && typeof settings === 'object' ? settings : {};
     const setup = container && container.setup ? container.setup : {};
     const matched = setup.matched && typeof setup.matched === 'object' ? setup.matched : {};
+    const classGroupMatchByKey =
+        setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object'
+            ? setup.classGroupMatchByKey
+            : {};
     const classTeams = normalizeClassTeamsFromContainer(container);
     const classes = Array.isArray(s.classes) ? s.classes : [];
     const students = Array.isArray(s.students) ? s.students : [];
@@ -213,15 +217,31 @@ export function buildHygieneTargets(container, settings) {
         reviewHint: 'Mitglieder vergleichen'
     });
 
+    const adminSplit = splitAdminEmailsByAudienceTier(
+        s.admin || [],
+        s.adminRoles || [],
+        s.adminAudienceMemberships || []
+    );
+    const slGid = matched.schulleitungGroupId ? String(matched.schulleitungGroupId).trim() : '';
+    pushTarget({
+        id: 'verwaltung-schulleitung',
+        category: 'sammelgruppe',
+        label: 'Schulleitung (Sammelgruppe)',
+        groupId: slGid || null,
+        listCount: adminSplit.schulleitung.length,
+        toolHref: 'verwaltung.html',
+        reviewHint: 'Schulleitung → Mitglieder vergleichen'
+    });
+
     const vwGid = matched.verwaltungGroupId ? String(matched.verwaltungGroupId).trim() : '';
     pushTarget({
         id: 'verwaltung',
         category: 'sammelgruppe',
-        label: 'Verwaltung (Sammelgruppe)',
+        label: 'Verwaltung Personal (Sammelgruppe)',
         groupId: vwGid || null,
-        listCount: collectAdminEmails(s.admin).length,
+        listCount: adminSplit.verwaltung.length,
         toolHref: 'verwaltung.html',
-        reviewHint: 'Sammelgruppe → Mitglieder vergleichen'
+        reviewHint: 'Verwaltung (Personal) → Mitglieder vergleichen'
     });
 
     const kvGid = matched.kvGroupId ? String(matched.kvGroupId).trim() : '';
@@ -251,7 +271,7 @@ export function buildHygieneTargets(container, settings) {
         const code = normCode(cls.code);
         if (!code) return;
         const team = findClassTeamForClass(cls, classTeams);
-        const gid = team && team.graphGroupId ? String(team.graphGroupId).trim() : '';
+        const gid = resolveClassGraphGroupId(cls, classTeams, classGroupMatchByKey);
         const labelParts = [cls.name || cls.code || code];
         if (cls.year) labelParts.push('Abschluss ' + cls.year);
         pushTarget({

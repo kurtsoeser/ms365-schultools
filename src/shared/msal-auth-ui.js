@@ -278,6 +278,21 @@
         menu.classList.toggle('is-open', open);
         trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
         drop.hidden = !open;
+        if (
+            open &&
+            window.ms365OperatorAccess &&
+            typeof window.ms365OperatorAccess.refreshOperatorStatus === 'function'
+        ) {
+            window.ms365OperatorAccess.refreshOperatorStatus({ force: false }).then(function () {
+                const adminLink = document.getElementById('ms365AuthAdminLink');
+                if (!adminLink) return;
+                const show =
+                    typeof window.ms365OperatorAccess.shouldShowAdminMenuLink === 'function'
+                        ? window.ms365OperatorAccess.shouldShowAdminMenuLink()
+                        : window.ms365OperatorAccess.isCurrentUserOperator();
+                adminLink.hidden = !show;
+            });
+        }
     }
 
     function toggleBackupPanel() {
@@ -908,6 +923,41 @@
         return dd + '.' + mo + '.' + d.getFullYear() + ' ' + time;
     }
 
+    function readSpoSyncAtTenantAware() {
+        try {
+            if (
+                window.ms365StammdatenSpoAutoSync &&
+                typeof window.ms365StammdatenSpoAutoSync.getStatus === 'function'
+            ) {
+                const st = window.ms365StammdatenSpoAutoSync.getStatus();
+                if (st && st.lastAt) return String(st.lastAt);
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            let tid = '';
+            if (typeof window.ms365AuthGetAccountInfo === 'function') {
+                const info = window.ms365AuthGetAccountInfo();
+                tid = info && info.tenantId ? String(info.tenantId).trim() : '';
+            }
+            if (tid) {
+                const map = JSON.parse(
+                    localStorage.getItem('ms365-stammdaten-spo-sync-by-tenant-v2') || '{}'
+                );
+                if (map && map[tid] && map[tid].at) return String(map[tid].at);
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            const m = JSON.parse(localStorage.getItem('ms365-stammdaten-spo-sync-v1') || '{}') || {};
+            return m.at ? String(m.at) : '';
+        } catch {
+            return '';
+        }
+    }
+
     function readLastBackupAt() {
         let browserAt = '';
         let spoAt = '';
@@ -916,12 +966,7 @@
         } catch {
             /* ignore */
         }
-        try {
-            const m = JSON.parse(localStorage.getItem('ms365-stammdaten-spo-sync-v1') || '{}') || {};
-            spoAt = m.at || '';
-        } catch {
-            /* ignore */
-        }
+        spoAt = readSpoSyncAtTenantAware();
         const bTs = Date.parse(browserAt);
         const sTs = Date.parse(spoAt);
         if (!isNaN(bTs) && !isNaN(sTs)) return bTs >= sTs ? browserAt : spoAt;
@@ -1027,6 +1072,14 @@
                 '<button type="button" class="ms365-backup-panel__btn" data-ms365-spo-sync="load">' +
                 '<i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>' +
                 '</div></div>' +
+                '<div class="ms365-backup-panel__block">' +
+                '<div class="ms365-backup-panel__label">Abgleich</div>' +
+                '<div class="ms365-backup-panel__actions">' +
+                '<a class="ms365-backup-panel__btn" href="' +
+                resolveAppRootHref('tools/stammdaten-backup-abgleich.html?run=1') +
+                '">' +
+                '<i class="bi bi-columns-gap" aria-hidden="true"></i>Lokal vs. IT prüfen</a>' +
+                '</div></div>' +
                 '<div class="ms365-backup-panel__foot">' +
                 '<a class="ms365-backup-panel__setup" href="' +
                 resolveAppRootHref('tools/stammdaten-uebergabe.html#setup') +
@@ -1037,6 +1090,10 @@
         } else {
             const setup = wrap.querySelector('[data-ms365-spo-sync="setup"]');
             if (setup) setup.setAttribute('href', resolveAppRootHref('tools/stammdaten-uebergabe.html#setup'));
+            const compare = wrap.querySelector('a[href*="stammdaten-backup-abgleich"]');
+            if (compare) {
+                compare.setAttribute('href', resolveAppRootHref('tools/stammdaten-backup-abgleich.html?run=1'));
+            }
         }
 
         if (
@@ -1103,10 +1160,10 @@
             link.id = 'ms365HeaderSchulregister';
             link.className = 'ms365-header-schulregister';
             link.href = resolveTenantPageHref();
-            link.title = 'Schulregister – Stammdaten pflegen';
+            link.title = 'Stammdaten pflegen';
             link.innerHTML =
                 '<i class="bi bi-journal-bookmark" aria-hidden="true"></i>' +
-                '<span class="ms365-header-schulregister__label">Schulregister</span>';
+                '<span class="ms365-header-schulregister__label">Stammdaten</span>';
         } else {
             link.href = resolveTenantPageHref();
         }
@@ -1118,6 +1175,9 @@
                 document.body.classList.contains('app-shell-chrome'))
         ) {
             link.classList.add('ms365-header-schulregister--dash');
+        }
+        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
+            window.ms365SyncFrontendPlannerHeaderChrome();
         }
         const widget = document.getElementById('ms365AuthWidget');
         const before = widget && widget.parentElement === container ? widget : null;
@@ -1195,6 +1255,9 @@
         } catch {
             /* ignore */
         }
+        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
+            window.ms365SyncFrontendPlannerHeaderChrome();
+        }
         return true;
     }
 
@@ -1263,11 +1326,25 @@
         if (switchBtn) switchBtn.hidden = !a;
         if (logoutBtn) logoutBtn.hidden = !a;
         const adminLink = document.getElementById('ms365AuthAdminLink');
-        const applyAdminLink = function (isOperator) {
+        const applyAdminLink = function () {
             if (!adminLink) return;
-            adminLink.hidden = !isOperator;
+            var show = false;
             if (
-                isOperator &&
+                a &&
+                window.ms365OperatorAccess &&
+                typeof window.ms365OperatorAccess.shouldShowAdminMenuLink === 'function'
+            ) {
+                show = !!window.ms365OperatorAccess.shouldShowAdminMenuLink();
+            } else if (
+                a &&
+                window.ms365OperatorAccess &&
+                typeof window.ms365OperatorAccess.isCurrentUserOperator === 'function'
+            ) {
+                show = !!window.ms365OperatorAccess.isCurrentUserOperator();
+            }
+            adminLink.hidden = !show;
+            if (
+                show &&
                 window.ms365OperatorAccess &&
                 window.ms365OperatorAccess.resolveAppRootHref
             ) {
@@ -1281,27 +1358,19 @@
                 window.ms365LicenseApi &&
                 typeof window.ms365LicenseApi.fetchAdminMe === 'function'
             );
-        applyAdminLink(
-            !!(
-                a &&
-                window.ms365OperatorAccess &&
-                typeof window.ms365OperatorAccess.isCurrentUserOperator === 'function' &&
-                window.ms365OperatorAccess.isCurrentUserOperator()
-            )
-        );
+        applyAdminLink();
         var skipOperator =
             !!(window.MS365_LICENSE_API && window.MS365_LICENSE_API.skipOperatorCheck === true);
         if (a && operatorReady && !skipOperator) {
-            if (!setWidgetState._operatorRefreshInFlight) {
-                setWidgetState._operatorRefreshInFlight = true;
-                window.ms365OperatorAccess.refreshOperatorStatus().then(function (ok) {
-                    applyAdminLink(!!ok);
-                }).finally(function () {
-                    setWidgetState._operatorRefreshInFlight = false;
-                });
-            }
+            var gen = (setWidgetState._operatorRefreshGen || 0) + 1;
+            setWidgetState._operatorRefreshGen = gen;
+            window.ms365OperatorAccess.refreshOperatorStatus().then(function () {
+                if (setWidgetState._operatorRefreshGen !== gen) return;
+                applyAdminLink();
+            });
         } else if (a && skipOperator) {
-            applyAdminLink(false);
+            applyAdminLink();
+            if (adminLink) adminLink.hidden = true;
         } else if (a && !operatorReady) {
             /* pin-gate lädt operator-access/license-api deferred – kurz nachziehen */
             if (!setWidgetState._operatorRetryTimers) setWidgetState._operatorRetryTimers = 0;
@@ -1313,7 +1382,7 @@
             }
         } else if (!a && window.ms365OperatorAccess && window.ms365OperatorAccess.clearOperatorCache) {
             window.ms365OperatorAccess.clearOperatorCache();
-            applyAdminLink(false);
+            applyAdminLink();
             setWidgetState._operatorRetryTimers = 0;
         }
         const actionLogLink = document.getElementById('ms365AuthActionLogLink');
@@ -1366,6 +1435,9 @@
         }
         setWidgetState._lastLoggedIn = loggedIn;
         setWidgetState._lastLabel = label;
+        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
+            window.ms365SyncFrontendPlannerHeaderChrome();
+        }
         // Kein Event-Sturm: nur bei echtem Login-/Logout-Wechsel benachrichtigen
         if (silent) return;
         if (prevLoggedIn === loggedIn && prevLabel === label && prevLoggedIn !== undefined) return;
@@ -1388,6 +1460,14 @@
                 headerMod.ensureAppHeaderChrome();
             } else if (headerMod && typeof headerMod.mountAppGlobalHeader === 'function') {
                 headerMod.mountAppGlobalHeader();
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            const chromePol = await import('./frontend-planner-chrome-policy.js');
+            if (chromePol && typeof chromePol.bootFrontendPlannerChromePolicy === 'function') {
+                chromePol.bootFrontendPlannerChromePolicy();
             }
         } catch {
             /* ignore */
@@ -1505,6 +1585,16 @@
             if (!header) return;
             if (document.getElementById('ms365AuthWidget')) return;
             placeAuthWidgetInMenuHeader();
+        });
+    } catch {
+        /* ignore */
+    }
+    try {
+        window.addEventListener('ms365-spo-sync-status', function () {
+            refreshBackupHeaderStatus();
+        });
+        window.addEventListener('ms365-auth-state-changed', function () {
+            refreshBackupHeaderStatus();
         });
     } catch {
         /* ignore */

@@ -146,11 +146,31 @@ export function collectAllClassRows(state) {
         if (!cl || typeof cl !== 'object') return;
         const code = String(cl.code || cl.name || '').trim();
         const key = code.toLowerCase();
-        if (!code || seen.has(key)) return;
+        if (!code) return;
+        if (seen.has(key)) {
+            const idx = rows.findIndex((r) => String(r.code || r.name || '').toLowerCase() === key);
+            if (idx >= 0) {
+                const prev = rows[idx];
+                const em = String(cl.headEmail || cl.klassenvorstandEmail || cl.kvEmail || '').trim();
+                if (em && !String(prev.headEmail || '').trim()) {
+                    rows[idx] = Object.assign({}, prev, cl, { headEmail: em.toLowerCase() });
+                }
+            }
+            return;
+        }
         seen.add(key);
         rows.push(cl);
     };
     (state && state.stammdaten && state.stammdaten.classes ? state.stammdaten.classes : []).forEach(push);
+    try {
+        if (typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function') {
+            const core = window.ms365TenantSettingsLoad();
+            const data = (core && core.data) || core || {};
+            (Array.isArray(data.classes) ? data.classes : []).forEach(push);
+        }
+    } catch {
+        /* ignore */
+    }
     try {
         const api = appDataApi();
         const c = api && typeof api.getContainer === 'function' ? api.getContainer() : null;

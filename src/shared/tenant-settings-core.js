@@ -73,7 +73,14 @@
             const key = code.toLowerCase();
             if (seen.has(key)) return;
             seen.add(key);
-            roles.push({ code: code, name: name || code });
+            const tier = inferAdminTierForRole({ name: name || code, code: code, tier: raw && raw.tier });
+            const roleRec = { code: code, name: name || code, tier: tier };
+            if (raw && raw.seatMode) roleRec.seatMode = normStr(raw.seatMode);
+            if (raw && raw.m365ResourceType) roleRec.m365ResourceType = normStr(raw.m365ResourceType);
+            if (raw && raw.m365ResourceId) roleRec.m365ResourceId = normStr(raw.m365ResourceId);
+            if (raw && raw.m365ResourceEmail) roleRec.m365ResourceEmail = normStr(raw.m365ResourceEmail).toLowerCase();
+            if (raw && raw.m365ResourceLabel) roleRec.m365ResourceLabel = normStr(raw.m365ResourceLabel);
+            roles.push(roleRec);
         });
         (Array.isArray(adminIn) ? adminIn : []).forEach(function (a) {
             const name = normStr(a && (a.role || a.rolle || a.title));
@@ -132,6 +139,17 @@
         return out;
     }
 
+    function inferAdminTierForRole(role) {
+        const explicit = normStr(role && role.tier).toLowerCase();
+        if (explicit === 'schulleitung' || explicit === 'direktion' || explicit === 'schulfuehrung') return 'schulleitung';
+        if (explicit === 'verwaltung' || explicit === 'staff' || explicit === 'admin') return 'verwaltung';
+        const name = normStr(role && role.name).toLowerCase();
+        const code = normStr(role && role.code).toLowerCase();
+        if (name.indexOf('direktion') !== -1 || name.indexOf('direktor') !== -1) return 'schulleitung';
+        if (code.indexOf('direktion') !== -1 || code.indexOf('direktor') !== -1) return 'schulleitung';
+        return 'verwaltung';
+    }
+
     function deriveAdminRolesFromGroups(groups) {
         const out = [];
         const seen = new Set();
@@ -143,7 +161,17 @@
             const key = (name || code).toLowerCase();
             if (seen.has(key)) return;
             seen.add(key);
-            out.push({ code: code || adminRoleCodeFromName(name), name: name || code });
+            const roleOut = {
+                code: code || adminRoleCodeFromName(name),
+                name: name || code,
+                tier: inferAdminTierForRole(group)
+            };
+            if (group && group.seatMode) roleOut.seatMode = normStr(group.seatMode);
+            if (group && group.m365ResourceType) roleOut.m365ResourceType = normStr(group.m365ResourceType);
+            if (group && group.m365ResourceId) roleOut.m365ResourceId = normStr(group.m365ResourceId);
+            if (group && group.m365ResourceEmail) roleOut.m365ResourceEmail = normStr(group.m365ResourceEmail).toLowerCase();
+            if (group && group.m365ResourceLabel) roleOut.m365ResourceLabel = normStr(group.m365ResourceLabel);
+            out.push(roleOut);
         });
         return out;
     }
@@ -155,7 +183,18 @@
             const name = normStr(role && role.name);
             const code = normCode(role && role.code) || adminRoleCodeFromName(name);
             if (!name && !code) return;
-            groupMap.set(name.toLowerCase(), { code: code, name: name || code, people: [] });
+            const groupSeed = {
+                code: code,
+                name: name || code,
+                people: [],
+                tier: inferAdminTierForRole(role)
+            };
+            if (role && role.seatMode) groupSeed.seatMode = normStr(role.seatMode);
+            if (role && role.m365ResourceType) groupSeed.m365ResourceType = normStr(role.m365ResourceType);
+            if (role && role.m365ResourceId) groupSeed.m365ResourceId = normStr(role.m365ResourceId);
+            if (role && role.m365ResourceEmail) groupSeed.m365ResourceEmail = normStr(role.m365ResourceEmail).toLowerCase();
+            if (role && role.m365ResourceLabel) groupSeed.m365ResourceLabel = normStr(role.m365ResourceLabel);
+            groupMap.set(name.toLowerCase(), groupSeed);
         });
         (Array.isArray(adminIn) ? adminIn : []).forEach(function (row) {
             const roleName = normStr(row && (row.role || row.rolle || row.title));
@@ -165,7 +204,8 @@
                 groupMap.set(key, {
                     code: adminRoleCodeFromName(roleName),
                     name: roleName,
-                    people: []
+                    people: [],
+                    tier: inferAdminTierForRole({ name: roleName })
                 });
             }
             const person = normalizeAdminPersonEntry(row);
@@ -227,9 +267,32 @@
                 return (entry.name || entry.code).toLowerCase() === key;
             });
             if (!target) {
-                target = { code: code, name: name || code, people: [] };
+                target = {
+                    code: code,
+                    name: name || code,
+                    people: [],
+                    tier: inferAdminTierForRole({ name: name || code, code: code, tier: group && group.tier })
+                };
+                if (group && group.seatMode) target.seatMode = normStr(group.seatMode);
+                if (group && group.m365ResourceType) target.m365ResourceType = normStr(group.m365ResourceType);
+                if (group && group.m365ResourceId) target.m365ResourceId = normStr(group.m365ResourceId);
+                if (group && group.m365ResourceEmail) {
+                    target.m365ResourceEmail = normStr(group.m365ResourceEmail).toLowerCase();
+                }
+                if (group && group.m365ResourceLabel) target.m365ResourceLabel = normStr(group.m365ResourceLabel);
                 out.push(target);
                 seen.add(key);
+            } else {
+                if (group && group.tier) {
+                    target.tier = inferAdminTierForRole({ name: target.name, code: target.code, tier: group.tier });
+                }
+                if (group && group.seatMode) target.seatMode = normStr(group.seatMode);
+                if (group && group.m365ResourceType) target.m365ResourceType = normStr(group.m365ResourceType);
+                if (group && group.m365ResourceId) target.m365ResourceId = normStr(group.m365ResourceId);
+                if (group && group.m365ResourceEmail) {
+                    target.m365ResourceEmail = normStr(group.m365ResourceEmail).toLowerCase();
+                }
+                if (group && group.m365ResourceLabel) target.m365ResourceLabel = normStr(group.m365ResourceLabel);
             }
             const peopleSeen = new Set(
                 target.people.map(function (person) {
@@ -418,6 +481,19 @@
         }
     }
 
+    function parseVerifiedEmailDomainsField(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) {
+            return raw
+                .map((d) => normStr(d).replace(/^@+/, '').toLowerCase())
+                .filter((d) => d.includes('.'));
+        }
+        return String(raw)
+            .split(/[,;\s]+/)
+            .map((d) => normStr(d).replace(/^@+/, '').toLowerCase())
+            .filter((d) => d.includes('.'));
+    }
+
     function normalizeSettings(obj) {
         const o = obj && typeof obj === 'object' ? obj : {};
         const schoolName = normStr(o.schoolName || o.name || o.school);
@@ -566,16 +642,24 @@
             sga.push({ scope, name, email });
         });
 
+        const verifiedEmailDomains = parseVerifiedEmailDomainsField(o.verifiedEmailDomains);
+
+        const verwaltungAudienceGroups = Array.isArray(o.verwaltungAudienceGroups) ? o.verwaltungAudienceGroups : [];
+        const adminAudienceMemberships = Array.isArray(o.adminAudienceMemberships) ? o.adminAudienceMemberships : [];
+
         return {
             version: CURRENT_VERSION,
             schoolName,
             domain: normStr(domain),
+            verifiedEmailDomains,
             subjects,
             arges,
             teachers,
             administration,
             admin,
             adminRoles,
+            verwaltungAudienceGroups,
+            adminAudienceMemberships,
             sgaMode: sgaModeIn === 'distribution' ? 'distribution' : 'group',
             sga,
             students,
@@ -634,12 +718,15 @@
         return normalizeSettings({
             schoolName: c.core.schoolName,
             domain: c.core.domain,
+            verifiedEmailDomains: c.core.verifiedEmailDomains,
             subjects: c.core.subjects,
             arges: c.core.arges,
             teachers: c.core.teachers,
             administration: c.core.administration,
             admin: c.core.admin,
             adminRoles: c.core.adminRoles,
+            verwaltungAudienceGroups: c.core.verwaltungAudienceGroups,
+            adminAudienceMemberships: c.core.adminAudienceMemberships,
             students: (y.students || []).map(function (s) {
                 const row = {
                     id: s.id,
@@ -860,7 +947,7 @@
 
             const y = /^\d{4}$/.test(year) ? year : '';
             if (!code && !name && !y && !headName && !headEmail) {
-                // Platzhalterzeile (z. B. nach „+ Zeile“ im Schulregister)
+                // Platzhalterzeile (z. B. nach „+ Zeile“ in den Stammdaten)
                 out.push({
                     code: '',
                     name: '',
@@ -1149,6 +1236,12 @@
             const group = groupMap.get(key);
             if (code && !group.code) group.code = code;
             if (name && !group.name) group.name = name;
+            if (parts.length >= 5) {
+                const tierHint = normStr(parts[4] || '');
+                if (tierHint) {
+                    group.tier = inferAdminTierForRole({ name: group.name, code: group.code, tier: tierHint });
+                }
+            }
             if (personName || email) {
                 group.people.push({ name: personName, email: email });
             }
@@ -1160,14 +1253,21 @@
         (Array.isArray(groups) ? groups : []).forEach(function (group) {
             const code = normStr(group && group.code);
             const name = normStr(group && group.name);
+            const tier = inferAdminTierForRole(group);
             const people = Array.isArray(group && group.people) ? group.people : [];
             if (!people.length) {
-                lines.push([name, code, '', ''].join(';'));
+                lines.push([name, code, '', '', tier].join(';'));
                 return;
             }
             people.forEach(function (person) {
                 lines.push(
-                    [name, code, normStr(person && person.name), normStr(person && person.email).toLowerCase()].join(';')
+                    [
+                        name,
+                        code,
+                        normStr(person && person.name),
+                        normStr(person && person.email).toLowerCase(),
+                        tier
+                    ].join(';')
                 );
             });
         });

@@ -56,11 +56,11 @@ export function evaluateSchuljahresstartPrerequisites(counts) {
     return {
         stammdaten: {
             ok: hasSchool && !!year && classes >= 1,
-            message: 'Schuljahr und mindestens eine Klasse im Schulregister pflegen.'
+            message: 'Schuljahr und mindestens eine Klasse in den Stammdaten pflegen.'
         },
         klassen: {
             ok: classes >= 1,
-            message: 'Mindestens eine Klasse im Schulregister (tenant.html → Klassen).'
+            message: 'Mindestens eine Klasse in den Stammdaten (tenant.html → Klassen).'
         },
         slg: {
             ok: students >= 1 || teachers >= 1,
@@ -68,7 +68,7 @@ export function evaluateSchuljahresstartPrerequisites(counts) {
         },
         kursteams: {
             ok: subjects >= 1 && classes >= 1,
-            message: 'Fächerliste und Klassen im Schulregister – dann Kursteams sinnvoll.'
+            message: 'Fächerliste und Klassen in den Stammdaten – dann Kursteams sinnvoll.'
         },
         monitor: {
             ok: classes >= 1,
@@ -76,7 +76,7 @@ export function evaluateSchuljahresstartPrerequisites(counts) {
         },
         lifecycle: {
             ok: students >= 1,
-            message: 'Schülerliste im Schulregister für Zu-/Abgänge.'
+            message: 'Schülerliste in den Stammdaten für Zu-/Abgänge.'
         },
         cleanup: { ok: true, message: '' },
         org: {

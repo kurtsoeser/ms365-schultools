@@ -1,19 +1,14 @@
 /**
- * Entra-Gruppen-Picker für Stammdaten-Listen-Berechtigungen.
+ * Berechtigungen für Stammdaten-Listen (Matrix + optional eingebettet).
  */
-import {
-    wireEntraGroupPickerFields,
-    readGroupPickerField,
-    fillGroupPickerField
-} from '../../shared/entra-group-picker.js';
 import {
     loadPermissionsConfig,
     savePermissionsConfig,
     prefillPermissionsFromSchularbeitenIfEmpty
 } from './stammdaten-liste-permissions.js';
-import { normalizePermissionsConfig } from '../schularbeiten-planer/schularbeiten-planer-permissions.js';
+import { initStammdatenPermMatrixUi, readGrantRowsFromDom } from './stammdaten-perm-matrix-ui.js';
 
-/** @param {string} [prefix] z. B. spsm, tsdSpo, swSpo */
+/** @deprecated Nur noch für eingebettete IDs – Matrix ersetzt die drei Picker. */
 export function buildStammdatenGroupFields(prefix) {
     const p = String(prefix || 'spsm');
     return [
@@ -23,7 +18,7 @@ export function buildStammdatenGroupFields(prefix) {
             idInputId: p + 'GroupAdminId',
             pickBtnId: p + 'GroupAdminPick',
             clearBtnId: p + 'GroupAdminClear',
-            dialogTitle: 'Verwaltung / Admin'
+            dialogTitle: 'Schulleitung (Admin-Gruppe)'
         },
         {
             role: 'groupLehrer',
@@ -47,60 +42,26 @@ export function buildStammdatenGroupFields(prefix) {
 export const STAMMDATEN_GROUP_FIELDS = buildStammdatenGroupFields('spsm');
 
 /**
- * @param {ReturnType<typeof buildStammdatenGroupFields>} fieldDefs
  * @param {string} [skipPermsId]
+ * @param {string} [matrixBodyId]
  */
-export function readPermissionsFromPickers(fieldDefs, skipPermsId) {
-    const fields = fieldDefs || STAMMDATEN_GROUP_FIELDS;
-    const out = { skipPerms: false };
-    fields.forEach((f) => {
-        const r = readGroupPickerField(f);
-        out[f.role] = r.label;
-        out[f.role + 'Id'] = r.id;
-    });
+export function readPermissionsFromPickers(_fieldDefs, skipPermsId, matrixBodyId) {
+    const grantRows = readGrantRowsFromDom(matrixBodyId || 'spsPermMatrixBody');
+    const out = { grantRows, skipPerms: false };
     const skipEl = document.getElementById(skipPermsId || 'spsSkipPerms');
     if (skipEl && skipEl.checked) out.skipPerms = true;
     return out;
 }
 
-export function fillPermissionsPickers(cfg, fieldDefs) {
-    const c = normalizePermissionsConfig(cfg);
-    (fieldDefs || STAMMDATEN_GROUP_FIELDS).forEach((f) => {
-        fillGroupPickerField(f, {
-            id: c[f.role + 'Id'],
-            label: c[f.role]
-        });
-    });
-}
-
-export function wireStammdatenPermissionPickers(fieldDefs, onChange) {
-    const defs = fieldDefs || STAMMDATEN_GROUP_FIELDS;
-    wireEntraGroupPickerFields({
-        fields: defs.map((f) => ({
-            labelInputId: f.labelInputId,
-            idInputId: f.idInputId,
-            pickBtnId: f.pickBtnId,
-            clearBtnId: f.clearBtnId,
-            dialogTitle: f.dialogTitle
-        })),
-        onChange
-    });
-}
-
-/**
- * @param {ReturnType<typeof buildStammdatenGroupFields>} [fieldDefs]
- * @param {string} [skipPermsId]
- */
-export function persistPickersToStorage(fieldDefs, skipPermsId) {
-    const patch = readPermissionsFromPickers(fieldDefs, skipPermsId);
+export function persistPickersToStorage(_fieldDefs, skipPermsId, matrixBodyId) {
+    const patch = readPermissionsFromPickers(null, skipPermsId, matrixBodyId);
     savePermissionsConfig(patch);
     return patch;
 }
 
 export function initStammdatenPermissionsUi() {
     prefillPermissionsFromSchularbeitenIfEmpty();
-    fillPermissionsPickers(loadPermissionsConfig());
-    wireStammdatenPermissionPickers(STAMMDATEN_GROUP_FIELDS, () => persistPickersToStorage());
+    initStammdatenPermMatrixUi('spsPermMatrixBody');
 }
 
 /**
@@ -109,7 +70,29 @@ export function initStammdatenPermissionsUi() {
  */
 export function initEmbeddedPermissionsUi(prefix, skipPermsId) {
     prefillPermissionsFromSchularbeitenIfEmpty();
-    const defs = buildStammdatenGroupFields(prefix);
-    fillPermissionsPickers(loadPermissionsConfig(), defs);
-    wireStammdatenPermissionPickers(defs, () => persistPickersToStorage(defs, skipPermsId));
+    const bodyId = String(prefix || 'tsdSpo') + 'PermMatrixBody';
+    const tbody = document.getElementById(bodyId);
+    if (tbody) {
+        tbody.setAttribute('data-sps-add-btn', String(prefix || 'tsdSpo') + 'PermMatrixAddRow');
+    }
+    initStammdatenPermMatrixUi(bodyId);
+    void skipPermsId;
+}
+
+export function htmlStammdatenPermMatrixBlock(prefix) {
+    const p = String(prefix || 'sps');
+    return (
+        '<table class="tm-table sps-perm-matrix" style="width:100%;font-size:0.88em;margin:8px 0;" aria-label="Berechtigungen pro Entra-Gruppe und Liste">' +
+        '<thead></thead>' +
+        '<tbody id="' +
+        p +
+        'PermMatrixBody" data-sps-add-btn="' +
+        p +
+        'PermMatrixAddRow"></tbody>' +
+        '</table>' +
+        '<p class="hint" style="margin:0 0 8px;font-size:0.82em;">Pro Zeile eine Entra-Gruppe und die Rechte je Stammdaten-Liste (— = kein Zugriff). Gespeichert im Browser.</p>' +
+        '<button type="button" class="btn btn-sm" id="' +
+        p +
+        'PermMatrixAddRow"><i class="bi bi-plus-lg"></i>Gruppe hinzufügen</button>'
+    );
 }

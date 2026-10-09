@@ -9,6 +9,10 @@ import {
 } from '../../shared/kursteam-graph-import-logic.js';
 import { summarizeBelegung } from '../../shared/unterrichtsbelegung-logic.js';
 import {
+    buildTeacherLookupFromCodeMap,
+    enrichBelegungRows
+} from '../../shared/unterrichtsbelegung-teacher-enrich-logic.js';
+import {
     buildKursteamAbgleichReport,
     readKursteamStateFromBrowserStorage,
     resolvePlannedRowsForAbgleich
@@ -112,6 +116,38 @@ async function listTeamGroupsFromGraph(token) {
     } catch {
         return listTeamGroupsFromGraphFallback(token);
     }
+}
+
+async function fetchOwnerEmailsForGroups(groups, token) {
+    const map = new Map();
+    const list = (Array.isArray(groups) ? groups : []).filter((g) => g && g.id);
+    const batchSize = 10;
+    for (let i = 0; i < list.length; i += batchSize) {
+        const slice = list.slice(i, i + batchSize);
+        await Promise.all(
+            slice.map(async (g) => {
+                try {
+                    const data = await graphJson(
+                        'GET',
+                        '/groups/' + encodeURIComponent(g.id) + '/owners?$select=mail,userPrincipalName&$top=5',
+                        token
+                    );
+                    const o = (data.value || []).find((x) => x && (x.mail || x.userPrincipalName));
+                    if (o) {
+                        map.set(
+                            g.id,
+                            String(o.mail || o.userPrincipalName || '')
+                                .trim()
+                                .toLowerCase()
+                        );
+                    }
+                } catch {
+                    /* ignore single group */
+                }
+            })
+        );
+    }
+    return map;
 }
 
 async function listTeamGroupsFromGraphFallback(token) {
@@ -360,7 +396,7 @@ function renderImportTable() {
 
     host.innerHTML =
         '<div style="overflow:auto;max-height:360px;border:1px solid var(--border);border-radius:10px;">' +
-        '<table class="data-table" style="margin:0;font-size:0.88em;">' +
+        '<table class="data-table kt-graph-import-table" style="margin:0;font-size:0.88em;">' +
         '<thead><tr>' +
         '<th style="width:36px;"></th><th>Klasse</th><th>Fach</th><th>LK</th><th>Mail-Nickname</th><th>Status</th>' +
         '</tr></thead><tbody>' +
@@ -385,7 +421,10 @@ async function loadGraphKursteams() {
         const token = await getGraphToken();
         const groups = await listTeamGroupsFromGraph(token);
         const teacherByCode = buildTeacherByCodeMap();
-        const rows = buildBelegungRowsFromGraphGroups(groups, { yearPrefix, teacherByCode });
+        const ownerByGroupId = await fetchOwnerEmailsForGroups(groups, token);
+        const rawRows = buildBelegungRowsFromGraphGroups(groups, { yearPrefix, teacherByCode });
+        const lookup = buildTeacherLookupFromCodeMap(teacherByCode);
+        const rows = enrichBelegungRows(rawRows, lookup, ownerByGroupId);
         const withDisplayPipe = groups.filter((g) => String(g.displayName || '').includes(' | '));
 
         importCandidates = rows.map((row) => ({
@@ -414,6 +453,10 @@ async function loadGraphKursteams() {
         renderAbgleichSection();
         const saveBtn = document.getElementById('kursteamGraphImportSave');
         if (saveBtn) saveBtn.disabled = importCandidates.length === 0;
+        const selectedCount = importCandidates.filter((c) => c.selected).length;
+        if (selectedCount > 0) {
+            saveSelectedToApp({ mentionCatalog: true });
+        }
     } catch (e) {
         toast('Graph-Import: ' + (e && e.message ? e.message : e));
     } finally {
@@ -421,16 +464,17 @@ async function loadGraphKursteams() {
     }
 }
 
-function saveSelectedToApp() {
+function saveSelectedToApp(options) {
+    const opts = options && typeof options === 'object' ? options : {};
     const api = window.ms365AppDataV2;
     if (!api || typeof api.getUnterrichtsbelegung !== 'function' || typeof api.setUnterrichtsbelegung !== 'function') {
         toast('App-Daten nicht verfügbar – Seite neu laden oder Stammdaten öffnen.');
-        return;
+        return false;
     }
     const selected = importCandidates.filter((c) => c.selected).map((c) => c.row);
     if (!selected.length) {
         toast('Bitte mindestens ein Team auswählen.');
-        return;
+        return false;
     }
     const yearPrefix = getYearPrefixFromUi();
     const existing = api.getUnterrichtsbelegung();
@@ -449,12 +493,14 @@ function saveSelectedToApp() {
             stats.linkedCount +
             ' mit M365-ID · ' +
             s.rows +
-            ' Einträge gesamt.'
+            ' Einträge gesamt.' +
+            (opts.mentionCatalog ? ' Sichtbar im Unterrichtsteams-Katalog.' : '')
     );
     if (typeof ns.updateUnterrichtsbelegungHint === 'function') ns.updateUnterrichtsbelegungHint();
     renderImportTable();
     runAbgleich();
     renderAbgleichSection();
+    return true;
 }
 
 function showImportPanel() {

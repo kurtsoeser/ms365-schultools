@@ -90,7 +90,7 @@ export function updateStandOverallBanner(el, summary) {
     el.hidden = false;
     if (warn === 0) {
         el.setAttribute('data-tone', 'ok');
-        el.textContent = ok + ' Bereiche erledigt – Register und M365 im Gleichschritt.';
+        el.textContent = ok + ' Bereiche erledigt – Stammdaten und M365 im Gleichschritt.';
     } else {
         el.setAttribute('data-tone', 'warn');
         el.textContent = warn + ' offen · ' + ok + ' erledigt – Details in den Kacheln oben.';

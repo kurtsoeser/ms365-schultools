@@ -219,7 +219,7 @@ Rollenauflösung MVP:
 
 **Provisioning:** Tool „Schularbeiten-Listen“ oder Planer → Administration → **SharePoint-Berechtigungen** setzen Entra-Gruppen und brechen die Vererbung pro Liste (breite Site-Besucher/Mitglieder werden entfernt). Voraussetzung für die ausführende Person: `Sites.FullControl.All`.
 
-| Liste | Verwaltung | Lehrer-Gruppe | Schüler-Gruppe |
+| Liste | Schulleitung (Admin) | Lehrer-Gruppe | Schüler-Gruppe |
 |-------|------------|---------------|----------------|
 | **Schularbeiten** | Vollzugriff | Beitragen | Lesen |
 | Regelwerk, Terminfenster, SA-FachMeta | Vollzugriff | Lesen | *(kein Zugriff)* |

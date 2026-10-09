@@ -1,5 +1,5 @@
 /**
- * Datenlandkarte ↔ Schulregister (Phase 5): Deep-Links und Sync-Ampeln.
+ * Datenlandkarte ↔ Stammdaten (Phase 5): Deep-Links und Sync-Ampeln.
  */
 
 /** @type {'tool' | 'register'} */
@@ -61,7 +61,7 @@ const BLOCK_PRIMARY_HASH = {
 };
 
 const BLOCK_PRIMARY_TOOL = {
-    'm365-catalog': '../tools/schulstruktur-sync.html?mode=match'
+    'm365-catalog': '../tenant.html#stammdaten'
 };
 
 /**
@@ -90,7 +90,7 @@ export function actionsForBlock(block) {
     const primary = primaryHrefForBlock(block);
     if (primary && (block.layer === 'stamm' || block.layer === 'schuljahr' || block.id === 'import-webuntis')) {
         out.push({
-            label: hrefContext === 'register' ? 'Register-Tab öffnen' : 'Schulregister öffnen',
+            label: hrefContext === 'register' ? 'Stammdaten-Tab öffnen' : 'Stammdaten öffnen',
             href: primary
         });
     } else if (primary && block.layer === 'sharepoint') {

@@ -26,7 +26,7 @@ Für die spätere zentrale Konfiguration gilt inhaltlich:
 | **Lehrkräfte-Gruppe** | Die **Microsoft-365-Gruppe der Lehrkräfte** aus dem Register (Lehrerliste ↔ Sammelgruppe / Entra), nicht eine beliebige Gruppe. Wer in der **Lehrerliste** geführt wird, gehört fachlich zu dieser Lehrkraft-Welt; Listen-Berechtigungen „Lehrer“ beziehen sich auf diese Gruppe. |
 | **Schüler-Sammelgruppe** | Die **zugehörige Microsoft-365-Gruppe der Schüler:innen** aus dem Register (Schülerliste ↔ Sammelgruppe). Berechtigungsprofil „Schüler“ auf Listen (z. B. Lesen bei Fächern/Klassen) bezieht sich auf diese Gruppe – nicht auf die Gesamtschülerliste als Personenfeld-Inhalt allein. |
 
-Personenfelder in Listen (z. B. Klasse → Schüler als M365-Personen, Lehrer → Lehrkraft) sollen **konsistent** zu den Stammdaten und den genannten Sammelgruppen sein; die SharePoint-Rollen kommen über die **Entra-Gruppen-Picker** („Verwaltung“, „Lehrkräfte“, „Schüler (Sammelgruppe)“).
+Personenfelder in Listen (z. B. Klasse → Schüler als M365-Personen, Lehrer → Lehrkraft) sollen **konsistent** zu den Stammdaten und den genannten Sammelgruppen sein; die SharePoint-Rollen kommen über die **Entra-Gruppen-Picker** („Schulleitung“ für Admin/Vollzugriff, „Lehrkräfte“, „Schüler (Sammelgruppe)“). Die Personal-Sammelgruppe (`verwaltungGroupId`) ist für breitere Verwaltungsrollen – nicht automatisch dieselbe Gruppe wie Schulleitung.
 
 ## Offen (bewusst zurückgestellt)
 

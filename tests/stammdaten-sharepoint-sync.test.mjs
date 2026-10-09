@@ -5,12 +5,21 @@ import {
     IT_LIBRARY_TITLE,
     buildDriveRelativePath,
     encodeDriveRootPath,
+    normalizeDriveListFolder,
+    sortDriveBrowserItems,
+    sortDriveBrowserItemsByColumn,
+    isLikelyImportableBackupFileName,
+    CONFIG_FOLDER,
     describeRemoteBackup,
     isBroadSiteAudience,
     entraGroupLogonName,
     buildItLibraryPlan,
     isItLibraryConfigured,
+    resolveItLibraryBrowserHref,
     collectItLibraryLinkHints,
+    uniqueItLibrarySiteUrls,
+    formatItLibraryLinkSkipDe,
+    scoreItLibraryDiscoverySite,
     normalizeItLibraryMeta,
     compareBackupPayloads,
     isLikelyFreshLocalBackup,
@@ -18,7 +27,10 @@ import {
     isAutoSyncIgnoredChangeSource,
     shouldApplyRemoteBackup,
     formatSyncStatusDe,
-    SPO_ROLE
+    SPO_ROLE,
+    designHintSummaryDe,
+    designHintBulletsDe,
+    designHintDe
 } from '../src/shared/stammdaten-sharepoint-sync-logic.js';
 
 describe('stammdaten-sharepoint-sync-logic', () => {
@@ -26,6 +38,40 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(buildDriveRelativePath('', CURRENT_FILE)).toBe(CURRENT_FILE);
         expect(buildDriveRelativePath(DEFAULT_FOLDER, CURRENT_FILE)).toBe('Backups/ms365-stammdaten-aktuell.json');
         expect(buildDriveRelativePath('/a/b/', 'x.json')).toBe('a/b/x.json');
+    });
+
+    it('normalisiert Drive-Listing-Pfade', () => {
+        expect(normalizeDriveListFolder('')).toBe('');
+        expect(normalizeDriveListFolder('/Backups/')).toBe('Backups');
+        expect(normalizeDriveListFolder('config\\manifest')).toBe('config/manifest');
+    });
+
+    it('sortiert Ordner vor Dateien', () => {
+        const sorted = sortDriveBrowserItems([
+            { name: 'z.json', file: {} },
+            { name: 'Backups', folder: {} },
+            { name: 'config', folder: {} },
+            { name: 'a.json', file: {} }
+        ]);
+        expect(sorted.map((x) => x.name)).toEqual(['Backups', 'config', 'a.json', 'z.json']);
+    });
+
+    it('erkennt importierbare Backup-Dateinamen', () => {
+        expect(
+            isLikelyImportableBackupFileName('ms365-browser-backup-2026-10-08-Schule.json', { folder: 'Backups' })
+        ).toBe(true);
+        expect(isLikelyImportableBackupFileName(CURRENT_FILE, { folder: 'Backups' })).toBe(true);
+        expect(isLikelyImportableBackupFileName('manifest.json', { folder: CONFIG_FOLDER })).toBe(false);
+        expect(isLikelyImportableBackupFileName('permissions-freistellung.json', { folder: 'config' })).toBe(false);
+    });
+
+    it('sortiert Browse-Spalten mit Richtung', () => {
+        const rows = [
+            { name: 'b.json', file: {}, size: 200, lastModifiedDateTime: '2026-01-02T10:00:00Z' },
+            { name: 'a.json', file: {}, size: 100, lastModifiedDateTime: '2026-01-03T10:00:00Z' }
+        ];
+        expect(sortDriveBrowserItemsByColumn(rows, 'size', 1).map((x) => x.name)).toEqual(['a.json', 'b.json']);
+        expect(sortDriveBrowserItemsByColumn(rows, 'modified', -1).map((x) => x.name)).toEqual(['a.json', 'b.json']);
     });
 
     it('encodiert Graph root-Pfad', () => {
@@ -66,6 +112,20 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(isItLibraryConfigured(null)).toBe(false);
         expect(isItLibraryConfigured({})).toBe(false);
         expect(isItLibraryConfigured({ driveId: 'abc' })).toBe(true);
+    });
+
+    it('liefert kompakte Hero-Hinweise', () => {
+        expect(designHintSummaryDe()).toContain(IT_LIBRARY_TITLE);
+        expect(designHintBulletsDe().length).toBeGreaterThanOrEqual(4);
+        expect(designHintDe()).toContain(designHintBulletsDe()[0]);
+    });
+
+    it('priorisiert Bibliotheks-URL vor Backup-Datei für Browser-Link', () => {
+        const lib = 'https://contoso.sharepoint.com/sites/s/MS365-IT-Stammdaten';
+        const file = 'https://contoso.sharepoint.com/sites/s/MS365-IT-Stammdaten/Backups/ms365-stammdaten-aktuell.json';
+        expect(resolveItLibraryBrowserHref({ webUrl: lib }, { webUrl: file })).toBe(lib);
+        expect(resolveItLibraryBrowserHref(null, { webUrl: file })).toBe(file);
+        expect(resolveItLibraryBrowserHref({ webUrl: lib }, null)).toBe(lib);
     });
 
     it('vergleicht Browser-Backups', () => {
@@ -110,6 +170,35 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(hints.siteUrl).toContain('intranet');
         expect(hints.itGroupMail).toBe('verwaltung@schule.at');
         expect(normalizeItLibraryMeta({ driveId: 'x', listTitle: ' Lib ' }).listTitle).toBe('Lib');
+
+        const fromSchoolHub = collectItLibraryLinkHints({
+            setup: { schoolIntranetSiteUrl: 'https://schule.sharepoint.com/sites/schulhub' }
+        });
+        expect(fromSchoolHub.hasMinimum).toBe(true);
+        expect(fromSchoolHub.siteUrl).toContain('schulhub');
+
+        const both = collectItLibraryLinkHints({
+            setup: {
+                intranetSiteUrl: 'https://schule.sharepoint.com/sites/intranet',
+                schoolIntranetSiteUrl: 'https://schule.sharepoint.com/sites/schulhub'
+            }
+        });
+        expect(both.siteUrls.length).toBe(2);
+        expect(both.siteUrls[0]).toContain('intranet');
+        expect(both.siteUrls[1]).toContain('schulhub');
+        expect(uniqueItLibrarySiteUrls('https://a/sites/x/', 'https://a/sites/x', 'https://b/sites/y')).toEqual([
+            'https://a/sites/x',
+            'https://b/sites/y'
+        ]);
+        expect(formatItLibraryLinkSkipDe('no-hints')).toMatch(/Site-URL/i);
+        expect(formatItLibraryLinkSkipDe('library-not-found')).toMatch(/MS365-IT-Stammdaten/);
+    });
+
+    it('bewertet Discovery-Site-Kandidaten', () => {
+        expect(scoreItLibraryDiscoverySite('MS365-IT-Stammdaten', 'https://x/sites/a')).toBe(0);
+        expect(scoreItLibraryDiscoverySite('Schultools', 'https://x/sites/schultools')).toBeLessThan(
+            scoreItLibraryDiscoverySite('Allgemein', 'https://x/sites/allgemein')
+        );
     });
 
     it('entscheidet Session-Pull anhand von Versionen', () => {

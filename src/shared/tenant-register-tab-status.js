@@ -1,5 +1,5 @@
 /**
- * Schulregister: Entra-/Listen-Status als Badge an den Haupt-Tabs.
+ * Stammdaten: Entra-/Listen-Status als Badge an den Haupt-Tabs.
  */
 
 const TAB_STATUS_CLASS = ['tab-btn--st-ok', 'tab-btn--st-warn', 'tab-btn--st-error', 'tab-btn--st-muted'];

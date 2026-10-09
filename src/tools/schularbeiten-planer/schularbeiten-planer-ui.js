@@ -107,7 +107,6 @@ function renderNavSession(state, ctx) {
                   ? `<p class="sa-nav__account-name">${esc(state.accountName || state.accountEmail)}</p>`
                   : '<p class="sa-nav__account-hint">Mit Schul-Konto anmelden:</p>'
           }
-          <div class="sa-nav__auth" id="saNavAuthSlot"></div>
           ${
               state.accountEmail || switchable.length
                   ? `<div class="sa-nav__session-role">

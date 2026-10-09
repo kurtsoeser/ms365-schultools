@@ -214,7 +214,7 @@ export const DATEN_BLOECKE = [
     },
     {
         id: 'm365-catalog',
-        title: 'M365-Gruppen (Schulregister)',
+        title: 'M365-Gruppen (Stammdaten)',
         description: 'catalogLinks: Stammdaten ↔ Entra-Gruppen.',
         icon: 'bi-microsoft-teams',
         layer: 'm365',

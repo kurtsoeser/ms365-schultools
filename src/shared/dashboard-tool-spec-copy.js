@@ -8,7 +8,7 @@ export const DASHBOARD_SPEC_TOOL_DESCRIPTIONS = {
     'slg-lehrer':
         'Sammelgruppe für alle Lehrkräfte matchen, anlegen und mit Stammliste abgleichen.',
     verwaltung:
-        'Gruppe für Sekretariat, Direktion und Verwaltungsrollen anlegen und Mitglieder pflegen.',
+        'Schulleitung und Verwaltung (Personal): zwei Sammelgruppen matchen, anlegen und je Zielgruppe abgleichen.',
     klassenvorstaende:
         'Sammelgruppe oder Verteiler aller Klassenvorstände automatisch befüllen.',
     klassenchats: 'Teams-Gruppenchats für alle Lehrkräfte einer Klasse – inkl. Klassenvorstand.',
@@ -46,7 +46,7 @@ export const DASHBOARD_SPEC_TOOL_DESCRIPTIONS = {
     'klassen-umbenennen':
         'Anzeigenamen der Klassenteams für den Schuljahreswechsel anpassen.',
     'webuntis-stammdaten-import':
-        'WebUntis- oder andere Exporte ins Schulregister übernehmen (Review vor dem Speichern).',
+        'WebUntis- oder andere Exporte in die Stammdaten übernehmen (Review vor dem Speichern).',
     'cleanup-playbook':
         'Geführter Aufräum-Prozess: leere Gruppen, besitzlose Teams, Archivierungen.',
     'sharepoint-intranet-hub':

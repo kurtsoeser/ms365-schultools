@@ -93,6 +93,10 @@ export const DASHBOARD_TOOL_RULES = {
         audience: ['lehrer', 'schueler'],
         planner: { app: 'freistellung', roles: ['direktion', 'kv', 'schueler'] }
     },
+    'lehrer-freistellung-planer': {
+        audience: 'lehrer',
+        planner: { app: 'schularbeiten', roles: ['admin', 'lehrer'] }
+    },
     'sharepoint-liste-vertretung': { audience: 'it' },
 
     // —— Automationen ——
@@ -142,7 +146,7 @@ export const DASHBOARD_CLUSTER_ORDER = [
 /** @type {Record<string, { label: string, icon: string, panel: string }>} */
 export const DASHBOARD_CLUSTER_META = {
     gruppen: { label: '01 Mitgliedschaften', icon: 'bi-people', panel: 'gruppen' },
-    unterricht: { label: '02 Klassen & Kurse', icon: 'bi-mortarboard', panel: 'unterricht' },
+    unterricht: { label: '02 Klassen & Unterricht', icon: 'bi-mortarboard', panel: 'unterricht' },
     personen: { label: '03 Personen & Gäste', icon: 'bi-person-badge', panel: 'personen' },
     planung: { label: '04 Schuljahresstart', icon: 'bi-rocket-takeoff', panel: 'schuljahr' },
     intranet: { label: '05 Intranet & Schulalltag', icon: 'bi-house-door', panel: 'intranet' },
@@ -207,6 +211,7 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'schularbeiten-planer': 'intranet',
     'schulaktivitaeten-planer': 'intranet',
     'freistellung-planer': 'intranet',
+    'lehrer-freistellung-planer': 'intranet',
     'sharepoint-liste-vertretung': 'intranet',
     'pa-erst-setup': 'automationen',
     'power-automate-rezepte': 'automationen',
@@ -385,7 +390,7 @@ export const DASHBOARD_TOOL_LABELS = {
     'pa-gast-erinnerung': 'Gast-Erinnerung Flow',
     'slg-schueler': 'Schüler:innen-Sammelgruppe',
     'slg-lehrer': 'Lehrer:innen-Sammelgruppe',
-    verwaltung: 'Schulverwaltung',
+    verwaltung: 'Schulleitung & Verwaltung',
     klassenvorstaende: 'Klassenvorstände',
     'weitere-teams-gruppen': 'Weitere Teams & Gruppen',
     'playbook-schuljahresstart': 'Playbook Schuljahresstart',
@@ -416,7 +421,8 @@ export const DASHBOARD_TOOL_LABELS = {
     'sharepoint-liste-srdp': 'sRDP-Anmeldung',
     'schularbeiten-planer': 'Schularbeiten-Planer',
     'schulaktivitaeten-planer': 'Schulaktivitäten',
-    'freistellung-planer': 'Freistellungen',
+    'freistellung-planer': 'Freistellungen (Schüler)',
+    'lehrer-freistellung-planer': 'Freistellungen Lehrkräfte',
     'sharepoint-liste-vertretung': 'Vertretungsplan-Liste',
     'pa-erst-setup': 'Power Platform Erst-Setup',
     'power-automate-rezepte': 'Automationen-Übersicht',
@@ -447,24 +453,28 @@ export const DASHBOARD_TOOL_LABELS = {
 /** Standard-Schnellstart (sichtbare Tools in Reihenfolge) */
 export const DASHBOARD_QUICKSTART_BY_VIEW = {
     schueler: ['schularbeiten-planer', 'freistellung-planer'],
-    lehrer: ['schularbeiten-planer', 'freistellung-planer']
+    lehrer: ['schularbeiten-planer', 'freistellung-planer', 'lehrer-freistellung-planer']
 };
 
 /** @typedef {import('./dashboard-audience-catalog.js').DashboardView} DashboardView */
 
 export const DASHBOARD_TOOL_LINKS = {
     'schularbeiten-planer': 'tools/schularbeiten-planer.html',
-    'freistellung-planer': 'tools/freistellung-planer.html'
+    'freistellung-planer': 'tools/freistellung-planer.html',
+    'lehrer-freistellung-planer': 'tools/lehrer-freistellung-planer.html'
 };
 
 export const DASHBOARD_TOOL_ICONS = {
     'schularbeiten-planer': 'bi-journal-check',
-    'freistellung-planer': 'bi-calendar2-check'
+    'freistellung-planer': 'bi-calendar2-check',
+    'lehrer-freistellung-planer': 'bi-briefcase'
 };
 
 export const DASHBOARD_TOOL_BLURBS = {
     'schularbeiten-planer': 'Termine, Anträge und Kalender für Ihre Klasse.',
-    'freistellung-planer': 'Freistellungen beantragen und Status verfolgen.'
+    'freistellung-planer': 'Freistellungen beantragen und Status verfolgen (Schüler/KV).',
+    'lehrer-freistellung-planer':
+        'Freistellungen für Lehrkräfte – Direktion genehmigt, Kalender und iCal.'
 };
 
 /**

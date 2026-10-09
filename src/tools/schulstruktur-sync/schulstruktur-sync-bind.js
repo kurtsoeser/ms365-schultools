@@ -3164,8 +3164,7 @@ function bind() {
         });
     }
 
-    // Mode switch
-    const tabStruktur = getEl('ssTabStrukturTop');
+    // Mode switch (nur Verwalten + Abgleichen; alter ?mode=struktur → match)
     const tabMatch = getEl('ssTabAbgleichenTop');
     const tabTenant = getEl('ssTabTenantTop');
     const btnNeu = getEl('ssBtnNeu');
@@ -3200,9 +3199,8 @@ function bind() {
 
     async function setActiveTab(nextMode) {
         if (!(await confirmMatchLeaveIfNeeded(''))) return false;
-        mode = nextMode === 'tenant' ? 'tenant' : nextMode === 'match' ? 'match' : 'struktur';
+        mode = nextMode === 'tenant' ? 'tenant' : 'match';
         selectedId = '';
-        if (tabStruktur) tabStruktur.setAttribute('aria-selected', mode === 'struktur' ? 'true' : 'false');
         if (tabMatch) tabMatch.setAttribute('aria-selected', mode === 'match' ? 'true' : 'false');
         if (tabTenant) tabTenant.setAttribute('aria-selected', mode === 'tenant' ? 'true' : 'false');
         try {
@@ -3224,8 +3222,7 @@ function bind() {
 
     function updateModeUi() {
         if (isEmbedStructure) {
-            // Embedded in Schul‑Grundeinstellungen: only structure planning UI is available.
-            mode = 'struktur';
+            mode = 'match';
         }
         const isTenant = mode === 'tenant';
         const isMatch = mode === 'match';
@@ -3242,8 +3239,6 @@ function bind() {
         updateLiveBannerSyncedState();
         const matchBanner = getEl('ssMatchBanner');
         if (matchBanner) matchBanner.style.display = isMatch ? 'block' : 'none';
-        const strukturBanner = getEl('ssStrukturBanner');
-        if (strukturBanner) strukturBanner.style.display = !isTenant && !isMatch ? 'block' : 'none';
         // Im Tenant-Modus wollen wir "Typ" als Filter (Team/Gruppe/Sicherheitsgruppe …) nutzen.
         if (filterTypWrap) filterTypWrap.style.display = '';
         if (!isTenant) {
@@ -3291,7 +3286,6 @@ function bind() {
         // Multi selection should not leak across modes
         if (!isTenant) tenantMultiSel = new Set();
     }
-    if (tabStruktur) tabStruktur.addEventListener('click', () => void setActiveTab('struktur'));
     if (tabMatch) tabMatch.addEventListener('click', () => void setActiveTab('match'));
     if (tabTenant) tabTenant.addEventListener('click', () => void setActiveTab('tenant'));
     async function reloadTenantNow(reasonText) {
@@ -5033,45 +5027,61 @@ function bind() {
     getEnsureTenantGroupDetailMounted()();
 
     // initial render (restore last tab if available)
+    function normalizePublicUiMode(m) {
+        const s = String(m || '').trim();
+        if (s === 'struktur') return 'match';
+        if (s === 'tenant' || s === 'match') return s;
+        return '';
+    }
+
     function readStartMode() {
-        const valid = (m) => m === 'tenant' || m === 'match' || m === 'struktur';
+        const pick = (raw) => normalizePublicUiMode(raw);
         // 1) URL parameter (?mode=match)
         try {
             const q = new URLSearchParams(String(window.location.search || ''));
-            const m = String(q.get('mode') || '').trim();
-            if (valid(m)) return m;
+            const m = pick(q.get('mode'));
+            if (m) return m;
         } catch {
             // ignore
         }
         // 2) Explicit force mode on body
         try {
-            const m = String(document?.body?.getAttribute('data-ss-force-mode') || '').trim();
-            if (valid(m)) return m;
+            const m = pick(document?.body?.getAttribute('data-ss-force-mode'));
+            if (m) return m;
         } catch {
             // ignore
         }
         // 3) Default mode on body (used by pages without tabs)
         try {
-            const m = String(document?.body?.getAttribute('data-ss-default-mode') || '').trim();
-            if (valid(m)) return m;
+            const m = pick(document?.body?.getAttribute('data-ss-default-mode'));
+            if (m) return m;
         } catch {
             // ignore
         }
         // 4) Restore last
         try {
-            const saved = String(sessionStorage.getItem(UI_MODE_KEY) || '').trim();
-            if (valid(saved)) return saved;
+            const m = pick(sessionStorage.getItem(UI_MODE_KEY));
+            if (m) return m;
         } catch {
             // ignore
         }
         // 5) Fallback
-        if (!tabStruktur && !tabMatch) return 'tenant';
-        return 'struktur';
+        return 'tenant';
     }
     mode = readStartMode();
-    if (tabStruktur) tabStruktur.setAttribute('aria-selected', mode === 'struktur' ? 'true' : 'false');
     if (tabMatch) tabMatch.setAttribute('aria-selected', mode === 'match' ? 'true' : 'false');
     if (tabTenant) tabTenant.setAttribute('aria-selected', mode === 'tenant' ? 'true' : 'false');
+    try {
+        sessionStorage.setItem(UI_MODE_KEY, mode);
+        const u = new URL(window.location.href);
+        const qMode = String(u.searchParams.get('mode') || '').trim();
+        if (qMode && normalizePublicUiMode(qMode) !== qMode) {
+            u.searchParams.set('mode', mode);
+            window.history.replaceState({}, '', u);
+        }
+    } catch {
+        // ignore
+    }
     updateModeUi();
     rerender();
 }

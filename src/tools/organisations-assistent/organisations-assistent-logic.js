@@ -17,18 +17,10 @@ export {
     isSchoolYearLabel
 };
 
-export const PLAYBOOK_STEP_IDS = [
-    'year',
-    'names',
-    'graduates',
-    'students',
-    'kursteams',
-    'subjects',
-    'expert'
-];
+export const PLAYBOOK_STEP_IDS = ['year', 'names', 'graduates', 'students', 'kursteams', 'subjects'];
 
-/** Schritte, die in der Alltags-Checkliste zählen (ohne Experten-Baum). */
-export const PLAYBOOK_REQUIRED_IDS = PLAYBOOK_STEP_IDS.filter((id) => id !== 'expert');
+/** Schritte in der Alltags-Checkliste (identisch mit {@link PLAYBOOK_STEP_IDS}). */
+export const PLAYBOOK_REQUIRED_IDS = PLAYBOOK_STEP_IDS;
 
 /**
  * Statische Schritt-Definitionen. `href` ist relativ zu `tools/`.
@@ -83,15 +75,6 @@ export function playbookStepDefs() {
                 'Fach- und ARGE-Gruppen ändern sich nicht mit der Schulstufe. Prüfen Sie, ob alle Fächer und ARGEs aus den Stammdaten eine Microsoft-365-Gruppe haben. Sind alle verknüpft, wird dieser Schritt automatisch abgehakt.',
             href: 'arge-fachgruppen.html',
             hrefLabel: 'Fächer und ARGEs'
-        },
-        {
-            id: 'expert',
-            title: 'Optional: SOLL-Struktur (Experten)',
-            blurb:
-                'Nur wenn Sie den Baum in der Gruppenverwaltung nutzen. Für Klassengruppen den Baum nicht duplizieren – der Mail-Alias soll bleiben. Der Schuljahreswechsel läuft über Anzeigenamen auf dieser Seite.',
-            href: 'schulstruktur-sync.html?mode=struktur',
-            hrefLabel: 'Gruppenverwaltung',
-            optional: true
         }
     ];
 }

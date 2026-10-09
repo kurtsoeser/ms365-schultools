@@ -14,7 +14,8 @@ import {
     compareBackupPayloads,
     isAutoSyncIgnoredChangeSource,
     shouldApplyRemoteBackup,
-    formatSyncStatusDe
+    formatSyncStatusDe,
+    formatItLibraryLinkSkipDe
 } from './stammdaten-sharepoint-sync-logic.js';
 import {
     isReady,
@@ -23,6 +24,7 @@ import {
     saveLocalSyncMeta,
     setLocalDirty,
     isLocalDirty,
+    setupPageHref,
     getCurrentBackupRemoteInfo,
     downloadCurrentBackup,
     uploadCurrentBackup,
@@ -30,10 +32,15 @@ import {
     applyConfigBundleFromSharePoint
 } from './stammdaten-sharepoint-sync-api.js';
 import { tryAutoLinkItLibrary } from './stammdaten-sharepoint-auto-link.js';
+import {
+    shouldPromptForMissingItLibrary,
+    promptForMissingItLibrary
+} from './stammdaten-sharepoint-it-library-prompt.js';
 import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
 import { applySharePointBackupLocally } from './stammdaten-sharepoint-pull-apply.js';
 
 const SESSION_PULL_KEY_PREFIX = 'ms365-spo-auto-pull-done-v1';
+const SESSION_LINK_FAIL_TOAST_PREFIX = 'ms365-spo-link-fail-toast-v1';
 const PUSH_DEBOUNCE_MS = 3000;
 const FOLDER = DEFAULT_FOLDER;
 
@@ -52,8 +59,77 @@ let pushInFlight = null;
 let pullInFlight = null;
 let suppressPushUntil = 0;
 
-function toast(m) {
+function toast(m, opts) {
+    if (typeof window.ms365ShowToast === 'function') {
+        window.ms365ShowToast(m, opts || {});
+        return;
+    }
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
+}
+
+function sessionLinkFailToastKey() {
+    let tid = '';
+    try {
+        if (typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            tid = info && info.tenantId ? String(info.tenantId).trim() : '';
+        }
+    } catch {
+        /* ignore */
+    }
+    return SESSION_LINK_FAIL_TOAST_PREFIX + (tid ? ':' + tid : '');
+}
+
+function wasLinkFailToastShown() {
+    try {
+        return sessionStorage.getItem(sessionLinkFailToastKey()) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function markLinkFailToastShown() {
+    try {
+        sessionStorage.setItem(sessionLinkFailToastKey(), '1');
+    } catch {
+        /* ignore */
+    }
+}
+
+/**
+ * Einmal pro Sitzung: sichtbarer Hinweis inkl. Link zur Einrichtung.
+ * @param {{ skipped?: string, linked?: boolean }|null|undefined} linkResult
+ */
+function notifyItLibraryLinkFailure(linkResult) {
+    if (!linkResult || linkResult.linked) return;
+    const skipped = String(linkResult.skipped || '');
+    if (
+        !skipped ||
+        skipped === 'already-configured' ||
+        skipped === 'prompt-declined' ||
+        skipped === 'prompt-already-done' ||
+        skipped === 'prompt-cancelled' ||
+        skipped === 'goto-setup' ||
+        skipped === 'invalid-url'
+    ) {
+        return;
+    }
+    if (wasLinkFailToastShown()) return;
+    markLinkFailToastShown();
+
+    const detail = formatItLibraryLinkSkipDe(skipped);
+    const href = setupPageHref();
+    const msg =
+        (detail || 'IT-Sicherungsbibliothek noch nicht verknüpft.') +
+        ' → Stammdaten-Übergabe öffnen (' +
+        href +
+        ')';
+    setLive({
+        phase: 'idle',
+        error: skipped,
+        message: (detail || formatSyncStatusDe({ ready: false })) + ' · Einrichtung: ' + href
+    });
+    toast(msg, { kind: 'warning', title: 'IT-Sicherung', durationMs: 12000 });
 }
 
 function isLoggedIn() {
@@ -461,11 +537,29 @@ function onAuthReady() {
     authBootstrapInFlight = (async function () {
         try {
             if (!isItLibraryConfigured(loadItMeta())) {
-                const linkResult = await tryAutoLinkItLibrary();
+                setLive({ phase: 'linking', message: 'Suche IT-Sicherungsbibliothek …' });
+                let linkResult = await tryAutoLinkItLibrary({ allowDiscover: true });
+                if ((!linkResult || !linkResult.linked) && shouldPromptForMissingItLibrary(linkResult)) {
+                    try {
+                        const prompted = await promptForMissingItLibrary(linkResult || {});
+                        if (prompted && prompted.linked) linkResult = prompted;
+                    } catch {
+                        /* Prompt optional */
+                    }
+                }
                 if (linkResult && linkResult.linked) {
                     const title = loadItMeta().listTitle || IT_LIBRARY_TITLE;
-                    setLive({ message: 'IT-Sicherungsbibliothek automatisch verknüpft („' + title + '“).' });
-                    toast('IT-Sicherungsbibliothek automatisch verknüpft („' + title + '“).');
+                    const via =
+                        linkResult.via === 'site-search' || linkResult.via === 'discover'
+                            ? ' im Tenant gefunden und'
+                            : linkResult.via === 'prompt'
+                              ? ' per Site-URL'
+                              : '';
+                    const msg = 'IT-Sicherungsbibliothek' + via + ' verknüpft („' + title + '“).';
+                    setLive({ phase: 'idle', error: '', message: msg });
+                    toast(msg, { kind: 'success', title: 'IT-Sicherung' });
+                } else {
+                    notifyItLibraryLinkFailure(linkResult);
                 }
             }
         } catch {

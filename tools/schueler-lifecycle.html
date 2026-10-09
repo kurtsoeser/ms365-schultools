@@ -19,6 +19,10 @@
         .slc-status--err{color:#b42318}
         .slc-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
         .slc-check{display:flex;align-items:center;gap:8px;font-size:.92em}
+        .slc-egp{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+        .slc-egp input[type=text]{flex:1 1 200px;min-width:0}
+        .slc-import-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px}
+        .slc-import-row input[type=file]{max-width:100%;font-size:.9em}
     </style>
 </head>
 <body>
@@ -38,7 +42,7 @@
             </div>
         </div>
         <div class="content">
-            <div id="slcBannerHost" data-ms365-empty-state data-ms365-empty-message="Für den Lifecycle brauchen Sie Schüler in den Stammdaten. Schulregister öffnen oder Demo laden."></div>
+            <div id="slcBannerHost" data-ms365-empty-state data-ms365-empty-message="Für den Lifecycle brauchen Sie Schüler in den Stammdaten. Stammdaten öffnen oder Demo laden."></div>
 
             <section class="tm-hero" aria-label="Kurzüberblick">
                 <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-people"></i></div>
@@ -54,7 +58,7 @@
                     <i class="bi bi-clock-history" aria-hidden="true"></i>
                     <div>
                         <h3>1 · Vorher-Stand</h3>
-                        <p>Snapshot speichern (vor Import) oder frühere Liste als CSV einfügen.</p>
+                        <p>Snapshot, Datei (CSV/XLSX/WebUntis) oder CSV-Text als Vergleichsquelle für den Vorher-Stand.</p>
                     </div>
                 </div>
                 <p id="slcSnapshotMeta" class="muted">Noch kein Vorher-Stand gespeichert.</p>
@@ -62,16 +66,32 @@
                     <label for="slcPrevMode">Vergleichsquelle</label>
                     <select id="slcPrevMode">
                         <option value="snapshot">Gespeicherter Snapshot</option>
-                        <option value="csv">CSV (Name;E-Mail;Klasse)</option>
+                        <option value="file">Datei (CSV / XLSX / WebUntis-Export)</option>
+                        <option value="csv">CSV-Text einfügen (Name;E-Mail;Klasse)</option>
                     </select>
                 </div>
-                <div class="tm-field">
-                    <label for="slcCsv">CSV (bei Modus CSV)</label>
+                <div class="tm-field" id="slcFileField" hidden>
+                    <label for="slcImportFile">Schülerliste importieren</label>
+                    <div class="slc-import-row">
+                        <input type="file" id="slcImportFile" accept=".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                        <a class="btn btn-sm alt" href="webuntis-stammdaten-import.html?from=schueler-lifecycle"><i class="bi bi-box-arrow-in-down"></i>WebUntis → Stammdaten</a>
+                    </div>
+                    <p id="slcImportMeta" class="muted">Noch keine Datei geladen.</p>
+                </div>
+                <div class="tm-field" id="slcCsvField" hidden>
+                    <label for="slcCsv">CSV-Text</label>
                     <textarea id="slcCsv" rows="5" placeholder="Name;E-Mail;Klasse" spellcheck="false"></textarea>
                 </div>
                 <div class="tm-field">
-                    <label for="slcSammelGroupId">Sammelgruppe „Alle Schülerinnen“ (Graph Group-ID, optional)</label>
-                    <input type="text" id="slcSammelGroupId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false" autocomplete="off">
+                    <span class="tm-field__label">Sammelgruppe „Alle Schülerinnen“</span>
+                    <p class="muted" style="margin:0 0 6px;font-size:.88em">Vorausgefüllt aus Stammdaten – per Microsoft-365-Picker anpassbar.</p>
+                    <div class="slc-egp">
+                        <input type="text" id="slcSammelGroupLabel" readonly placeholder="Gruppe wählen …" autocomplete="off">
+                        <input type="hidden" id="slcSammelGroupId">
+                        <button type="button" class="btn btn-sm" id="slcSammelPick"><i class="bi bi-search"></i>Gruppe</button>
+                        <button type="button" class="btn btn-sm alt" id="slcSammelClear" title="Auswahl löschen"><i class="bi bi-x-lg"></i></button>
+                        <button type="button" class="btn btn-sm alt" id="slcSammelFromStammdaten" title="Stammdaten-Schüler-Sammelgruppe"><i class="bi bi-journal-text"></i>Aus Stammdaten</button>
+                    </div>
                 </div>
                 <div class="slc-actions">
                     <button type="button" class="btn" id="slcSaveSnapshot"><i class="bi bi-save"></i>Aktuellen Stand als Vorher speichern</button>
@@ -116,6 +136,9 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="../src/shared/webuntis-export-import.js" defer></script>
     <script type="module" src="../src/shared/truncation-banner.js"></script>
     <script type="module" src="../src/tools/schueler-lifecycle/schueler-lifecycle-ui.js"></script>
 </body>

@@ -48,6 +48,15 @@ export function normalizeChatNamePattern(pattern) {
     return out.length ? out : defaultChatNamePattern();
 }
 
+/** Microsoft Graph: Doppelpunkt im group-chat topic ist verboten (max. 250 Zeichen). */
+export function sanitizeTeamsChatTopic(topic) {
+    let s = String(topic ?? '').trim();
+    if (!s) return '';
+    s = s.replace(/:/g, '·');
+    if (s.length > 250) s = s.slice(0, 250);
+    return s;
+}
+
 export function chatTokenLabel(t) {
     if (!t) return '';
     if (t.type === 'yearPrefix') return 'Schuljahr';
@@ -66,7 +75,7 @@ export function buildChatTopicFromPattern(pattern, ctx) {
         else if (p.type === 'yearPrefix') parts.push(String((ctx && ctx.yearPrefix) || ''));
         else if (p.type === 'klasse') parts.push(String((ctx && ctx.klasse) || ''));
     });
-    return parts.join('').trim();
+    return sanitizeTeamsChatTopic(parts.join('').trim());
 }
 
 export function calcYearPrefix(date) {
@@ -311,7 +320,10 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
         let status = 'neu';
         if (!eligible) status = 'skip';
         else if (chatId) {
-            status = existingTopic && existingTopic !== topic ? 'sync' : 'ok';
+            status =
+                existingTopic && sanitizeTeamsChatTopic(existingTopic) !== sanitizeTeamsChatTopic(topic)
+                    ? 'sync'
+                    : 'ok';
         }
 
         plans.push({
@@ -506,7 +518,10 @@ export function buildManualClassChatPlan(input) {
     let status = 'neu';
     if (!eligible) status = 'skip';
     else if (chatId) {
-        status = existingTopic && existingTopic !== topic ? 'sync' : 'ok';
+        status =
+            existingTopic && sanitizeTeamsChatTopic(existingTopic) !== sanitizeTeamsChatTopic(topic)
+                ? 'sync'
+                : 'ok';
     }
 
     return {

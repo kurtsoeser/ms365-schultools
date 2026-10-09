@@ -2,13 +2,29 @@ import { escapeHtml } from '../../shared/utils/strings.js';
 /**
  * Stammdaten → IT-Dokumentbibliothek (Upload / Rechte / Liste / Download).
  */
-import { DEFAULT_FOLDER, IT_LIBRARY_TITLE, designHintDe, isBroadSiteAudience, entraGroupLogonName, buildItLibraryPlan, SPO_ROLE } from '../../shared/stammdaten-sharepoint-sync-logic.js';
+import {
+    DEFAULT_FOLDER,
+    IT_LIBRARY_TITLE,
+    designHintDe,
+    designHintBulletsDe,
+    isBroadSiteAudience,
+    entraGroupLogonName,
+    buildItLibraryPlan,
+    SPO_ROLE,
+    resolveItLibraryBrowserHref,
+    isItLibraryConfigured,
+    normalizeDriveListFolder,
+    sortDriveBrowserItemsByColumn,
+    isLikelyImportableBackupFileName
+} from '../../shared/stammdaten-sharepoint-sync-logic.js';
 import {
     loadItMeta,
     saveItMeta,
     loadLocalSyncMeta,
+    writeItLibraryFormDraft,
     listDriveFolder,
     downloadDriveItem,
+    downloadDriveItemBlob,
     uploadCurrentBackup,
     downloadCurrentBackup,
     requireItLibrary
@@ -24,7 +40,18 @@ const SCOPES_GRAPH = [
 const FORM_DRAFT_KEY = 'ms365-su-form-draft-v1';
 const PENDING_ACTION_KEY = 'ms365-su-pending-action-v1';
 const PENDING_MAX_AGE_MS = 30 * 60 * 1000;
+const SU_WIZARD_STEP_COUNT = 2;
+const SU_WIZARD_STEP_STORAGE_KEY = 'ms365-su-wizard-step-v1';
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Relativer Pfad in der IT-Bibliothek (leer = Root). */
+let suBrowseFolder = '';
+/** @type {null | Promise<void>} */
+let suBrowseInFlight = null;
+/** @type {Array<object>} */
+let suBrowseItems = [];
+/** @type {{ key: 'name'|'modified'|'size', dir: 1|-1 }} */
+let suBrowseSort = { key: 'name', dir: 1 };
 
 /** @type {null | (() => ReturnType<typeof collectFormStateFromDom>)} */
 let externalFormGetter = null;
@@ -268,8 +295,27 @@ function getLibraryTitle() {
 }
 
 function rememberSite(url) {
-    /* IT-Bibliothek-Site: Draft + loadItMeta (siteUrl). intranetSiteUrl getrennt in Stammdaten-Tab. */
-    if (!url) return;
+    const u = String(url || '')
+        .trim()
+        .replace(/\/$/, '');
+    if (!u) return;
+    try {
+        writeItLibraryFormDraft({ siteUrl: u });
+    } catch {
+        /* ignore */
+    }
+    try {
+        if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getSetup !== 'function') return;
+        const setup = window.ms365AppDataV2.getSetup() || {};
+        const patch = {};
+        if (!String(setup.intranetSiteUrl || '').trim()) patch.intranetSiteUrl = u;
+        if (!String(setup.schoolIntranetSiteUrl || '').trim()) patch.schoolIntranetSiteUrl = u;
+        if (Object.keys(patch).length && typeof window.ms365AppDataV2.patchSetup === 'function') {
+            window.ms365AppDataV2.patchSetup(patch);
+        }
+    } catch {
+        /* ignore */
+    }
 }
 
 function refreshMetaUi() {
@@ -296,7 +342,7 @@ function refreshMetaUi() {
     }
     const link = $('suFileLink');
     if (link) {
-        const href = (m && m.webUrl) || (it && it.webUrl) || '';
+        const href = resolveItLibraryBrowserHref(it, m);
         if (href) {
             link.hidden = false;
             link.href = href;
@@ -310,8 +356,155 @@ function refreshMetaUi() {
         status.textContent =
             it && it.driveId
                 ? 'Bereit: Drive ' + String(it.driveId).slice(0, 8) + '…'
-                : 'Noch keine IT-Bibliothek – bitte unten einrichten.';
+                : 'Noch keine IT-Bibliothek – bitte in Schritt 1 einrichten.';
     }
+    refreshSuWizardGlance();
+}
+
+function loadSuWizardStep() {
+    try {
+        const n = parseInt(localStorage.getItem(SU_WIZARD_STEP_STORAGE_KEY) || '0', 10);
+        if (n >= 1 && n <= SU_WIZARD_STEP_COUNT) return n;
+    } catch {
+        /* ignore */
+    }
+    return isItLibraryConfigured(loadItMeta()) ? 2 : 1;
+}
+
+function saveSuWizardStep(n) {
+    try {
+        localStorage.setItem(SU_WIZARD_STEP_STORAGE_KEY, String(n));
+    } catch {
+        /* ignore */
+    }
+}
+
+function updateSuPhaseHint(step) {
+    const el = $('suPhaseHint');
+    if (!el) return;
+    const it = loadItMeta();
+    const m = loadLocalSyncMeta();
+    if (step === 1) {
+        el.textContent = isItLibraryConfigured(it)
+            ? 'Schritt 1: IT-Bibliothek ist eingerichtet – optional prüfen oder weiter zu Backup.'
+            : 'Schritt 1: IT-Bibliothek einrichten (einmalig).';
+        return;
+    }
+    if (!isItLibraryConfigured(it)) {
+        el.textContent = 'Schritt 2: Zuerst IT-Bibliothek in Schritt 1 einrichten, dann Backup hochladen oder laden.';
+        return;
+    }
+    if (m && m.at) {
+        const when = String(m.at).replace('T', ' ').replace(/\.\d+Z$/, '').slice(0, 19);
+        el.textContent = 'Schritt 2: Backup verwalten – zuletzt ' + (m.direction === 'pull' ? 'geladen' : 'gesichert') + ' ' + when + '.';
+    } else {
+        el.textContent = 'Schritt 2: Browser-Backup in die IT-Bibliothek hochladen oder von dort laden.';
+    }
+}
+
+function refreshSuWizardGlance() {
+    const it = loadItMeta();
+    const m = loadLocalSyncMeta();
+    const libOk = isItLibraryConfigured(it);
+    const v1 = $('suGlanceValue1');
+    const v2 = $('suGlanceValue2');
+    const tab1 = $('suWizardTab1');
+    const tab2 = document.querySelector('[data-su-wizard-step="2"]');
+    if (v1) v1.textContent = libOk ? 'Eingerichtet' : 'Offen';
+    if (tab1) {
+        tab1.classList.toggle('is-ok', libOk);
+        tab1.classList.toggle('is-warn', !libOk);
+    }
+    let step2Label = 'Offen';
+    if (m && m.at) {
+        step2Label = m.direction === 'pull' ? 'Geladen' : 'Gesichert';
+    } else if (libOk) {
+        step2Label = 'Bereit';
+    }
+    if (v2) v2.textContent = step2Label;
+    if (tab2) {
+        const step2Ok = !!(m && m.at);
+        tab2.classList.toggle('is-ok', step2Ok);
+        tab2.classList.toggle('is-warn', !step2Ok);
+    }
+}
+
+function showSuWizardStep(n) {
+    const step = Math.max(1, Math.min(SU_WIZARD_STEP_COUNT, parseInt(n, 10) || 1));
+    saveSuWizardStep(step);
+    for (let i = 1; i <= SU_WIZARD_STEP_COUNT; i++) {
+        const panel = $('suWizardStep' + i);
+        if (!panel) continue;
+        const on = i === step;
+        panel.hidden = !on;
+        panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+    }
+    document.querySelectorAll('#suWizardGlance [data-su-wizard-step]').forEach(function (btn) {
+        const sn = parseInt(btn.getAttribute('data-su-wizard-step'), 10);
+        const on = sn === step;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        btn.setAttribute('tabindex', on ? '0' : '-1');
+    });
+    const back = $('suWizardBack');
+    const next = $('suWizardNext');
+    if (back) back.disabled = step <= 1;
+    if (next) {
+        next.textContent = step >= SU_WIZARD_STEP_COUNT ? 'Fertig' : 'Weiter zu Backup';
+        next.setAttribute('aria-label', step >= SU_WIZARD_STEP_COUNT ? 'Assistent schließen' : 'Nächster Schritt');
+    }
+    updateSuPhaseHint(step);
+    refreshSuWizardGlance();
+    if (step === 2 && isItLibraryConfigured(loadItMeta())) {
+        refreshLibraryBrowse({ silent: true }).catch(function () {
+            /* Statuszeile zeigt Fehler */
+        });
+    }
+}
+
+function wireSuWizard() {
+    if (!$('suWizardGlance')) return;
+    document.querySelectorAll('[data-su-wizard-step]').forEach(function (btn) {
+        if (btn.dataset.suWizardBound === '1') return;
+        btn.dataset.suWizardBound = '1';
+        btn.addEventListener('click', function () {
+            showSuWizardStep(btn.getAttribute('data-su-wizard-step'));
+        });
+    });
+    const back = $('suWizardBack');
+    const next = $('suWizardNext');
+    if (back && back.dataset.suWizardBound !== '1') {
+        back.dataset.suWizardBound = '1';
+        back.addEventListener('click', function () {
+            showSuWizardStep(Math.max(1, loadSuWizardStep() - 1));
+        });
+    }
+    if (next && next.dataset.suWizardBound !== '1') {
+        next.dataset.suWizardBound = '1';
+        next.addEventListener('click', function () {
+            const cur = loadSuWizardStep();
+            if (cur >= SU_WIZARD_STEP_COUNT) {
+                toast('Backup-Schritt – Upload oder Laden oben.');
+                return;
+            }
+            showSuWizardStep(cur + 1);
+        });
+    }
+}
+
+function resolveInitialSuWizardStep() {
+    if (location.hash === '#setup') return 1;
+    try {
+        const raw = sessionStorage.getItem(PENDING_ACTION_KEY);
+        if (raw) {
+            const pending = JSON.parse(raw);
+            if (pending && pending.action === 'setup') return 1;
+            if (pending && (pending.action === 'upload' || pending.action === 'list')) return 2;
+        }
+    } catch {
+        /* ignore */
+    }
+    return loadSuWizardStep();
 }
 
 async function ensureGraphToken() {
@@ -484,7 +677,8 @@ export async function runSetupItLibrary(opts) {
         try {
             const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
             const matched = setup && setup.matched ? setup.matched : {};
-            if (matched.verwaltungGroupId) groupRaw = String(matched.verwaltungGroupId);
+            if (matched.schulleitungGroupId) groupRaw = String(matched.schulleitungGroupId);
+            else if (matched.verwaltungGroupId) groupRaw = String(matched.verwaltungGroupId);
         } catch {
             /* ignore */
         }
@@ -633,6 +827,7 @@ export async function runSetupItLibrary(opts) {
     refreshMetaUi();
     log('Fertig. ' + designHintDe());
     toast('IT-Bibliothek eingerichtet.');
+    showSuWizardStep(2);
     return meta;
 }
 
@@ -650,57 +845,288 @@ async function runUpload() {
     refreshMetaUi();
     log('Fertig.');
     toast('Stammdaten in IT-Bibliothek geschrieben.');
+    await refreshLibraryBrowse({ silent: true });
+}
+
+function formatBrowsePathLabel(folderPath) {
+    const p = normalizeDriveListFolder(folderPath);
+    return p || 'Bibliotheks-Root';
+}
+
+function renderBrowseCrumb(folderPath) {
+    const nav = $('suBrowseCrumb');
+    if (!nav) return;
+    nav.replaceChildren();
+    const rootBtn = document.createElement('button');
+    rootBtn.type = 'button';
+    rootBtn.textContent = 'IT-Bibliothek';
+    if (!normalizeDriveListFolder(folderPath)) {
+        rootBtn.setAttribute('aria-current', 'location');
+    }
+    rootBtn.addEventListener('click', function () {
+        suBrowseFolder = '';
+        refreshLibraryBrowse().catch(handleActionError);
+    });
+    nav.appendChild(rootBtn);
+    const parts = normalizeDriveListFolder(folderPath).split('/').filter(Boolean);
+    let acc = '';
+    parts.forEach(function (seg, idx) {
+        const sep = document.createElement('span');
+        sep.className = 'su-browse__sep';
+        sep.textContent = '/';
+        sep.setAttribute('aria-hidden', 'true');
+        nav.appendChild(sep);
+        acc = acc ? acc + '/' + seg : seg;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = seg;
+        const pathHere = acc;
+        if (idx === parts.length - 1) {
+            btn.setAttribute('aria-current', 'location');
+        } else {
+            btn.addEventListener('click', function () {
+                suBrowseFolder = pathHere;
+                refreshLibraryBrowse().catch(handleActionError);
+            });
+        }
+        nav.appendChild(btn);
+    });
+}
+
+function formatItemSize(row) {
+    if (!row || row.size == null) return row && row.folder ? '—' : '';
+    const n = Number(row.size);
+    if (!Number.isFinite(n)) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function triggerBrowserFileDownload(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'download';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () {
+        URL.revokeObjectURL(url);
+    }, 4000);
+}
+
+function updateBrowseSortIndicators() {
+    const table = $('suBrowseTable');
+    if (!table) return;
+    table.querySelectorAll('th.is-sortable[data-su-sort]').forEach(function (th) {
+        const label = th.dataset.sortLabel || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+        th.dataset.sortLabel = label;
+        th.textContent = label;
+        const key = th.getAttribute('data-su-sort');
+        if (key === suBrowseSort.key) {
+            th.setAttribute('aria-sort', suBrowseSort.dir === -1 ? 'descending' : 'ascending');
+            const ind = document.createElement('span');
+            ind.className = 'su-sort-ind';
+            ind.setAttribute('aria-hidden', 'true');
+            ind.textContent = suBrowseSort.dir === -1 ? '▼' : '▲';
+            th.appendChild(ind);
+        } else {
+            th.setAttribute('aria-sort', 'none');
+        }
+    });
+}
+
+function applyBrowseColumnSort(key) {
+    const k = key === 'modified' || key === 'size' ? key : 'name';
+    if (suBrowseSort.key === k) {
+        suBrowseSort.dir = suBrowseSort.dir === 1 ? -1 : 1;
+    } else {
+        suBrowseSort = { key: k, dir: 1 };
+    }
+    renderLibraryBrowseRows(suBrowseItems);
+}
+
+function wireSuBrowseTableSort() {
+    const table = $('suBrowseTable');
+    if (!table || table.dataset.sortBound === '1') return;
+    table.dataset.sortBound = '1';
+    table.querySelectorAll('th.is-sortable[data-su-sort]').forEach(function (th) {
+        th.setAttribute('tabindex', '0');
+        th.addEventListener('click', function () {
+            applyBrowseColumnSort(th.getAttribute('data-su-sort'));
+        });
+        th.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                applyBrowseColumnSort(th.getAttribute('data-su-sort'));
+            }
+        });
+    });
+}
+
+function renderLibraryBrowseRows(items) {
+    const body = $('suRemoteBody');
+    if (!body) return;
+    suBrowseItems = items || [];
+    body.replaceChildren();
+    const sorted = sortDriveBrowserItemsByColumn(suBrowseItems, suBrowseSort.key, suBrowseSort.dir);
+    updateBrowseSortIndicators();
+    if (!sorted.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        td.className = 'muted';
+        td.textContent = 'Dieser Ordner ist leer.';
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+    }
+    sorted.forEach(function (row) {
+        if (!row || !row.id) return;
+        const tr = document.createElement('tr');
+        const isFolder = !!(row.folder && !row.file);
+        if (isFolder) tr.classList.add('su-browse__row-folder');
+        const when = row.lastModifiedDateTime
+            ? String(row.lastModifiedDateTime).replace('T', ' ').replace(/\.\d+Z$/, '')
+            : '';
+        const nameCell = document.createElement('td');
+        if (isFolder) {
+            nameCell.innerHTML = '<i class="bi bi-folder2" aria-hidden="true"></i> ' + escapeHtml(row.name || '');
+        } else {
+            nameCell.innerHTML = '<i class="bi bi-file-earmark" aria-hidden="true"></i> ' + escapeHtml(row.name || '');
+        }
+        const whenCell = document.createElement('td');
+        whenCell.textContent = when;
+        const sizeCell = document.createElement('td');
+        sizeCell.textContent = formatItemSize(row);
+        const actionCell = document.createElement('td');
+        const actions = document.createElement('div');
+        actions.className = 'su-browse__actions';
+        if (isFolder) {
+            const openBtn = document.createElement('button');
+            openBtn.type = 'button';
+            openBtn.className = 'btn btn-sm';
+            openBtn.innerHTML = '<i class="bi bi-folder2-open"></i>Öffnen';
+            const childPath = normalizeDriveListFolder(suBrowseFolder)
+                ? normalizeDriveListFolder(suBrowseFolder) + '/' + String(row.name || '')
+                : String(row.name || '');
+            openBtn.addEventListener('click', function () {
+                suBrowseFolder = childPath;
+                refreshLibraryBrowse().catch(handleActionError);
+            });
+            actions.appendChild(openBtn);
+        } else {
+            const dlBtn = document.createElement('button');
+            dlBtn.type = 'button';
+            dlBtn.className = 'btn btn-sm';
+            dlBtn.innerHTML = '<i class="bi bi-download"></i>Herunterladen';
+            dlBtn.addEventListener('click', function () {
+                runDownloadFile(row.id, row.name).catch(handleActionError);
+            });
+            actions.appendChild(dlBtn);
+            if (isLikelyImportableBackupFileName(row.name, { folder: suBrowseFolder })) {
+                const impBtn = document.createElement('button');
+                impBtn.type = 'button';
+                impBtn.className = 'btn btn-sm alt';
+                impBtn.innerHTML = '<i class="bi bi-box-arrow-in-down"></i>Backup übernehmen';
+                impBtn.addEventListener('click', function () {
+                    runDownload(row.id, row.name).catch(handleActionError);
+                });
+                actions.appendChild(impBtn);
+            }
+        }
+        actionCell.appendChild(actions);
+        tr.appendChild(nameCell);
+        tr.appendChild(whenCell);
+        tr.appendChild(sizeCell);
+        tr.appendChild(actionCell);
+        body.appendChild(tr);
+    });
+}
+
+/**
+ * @param {{ silent?: boolean, folder?: string }} [opts]
+ */
+async function refreshLibraryBrowse(opts) {
+    const options = opts || {};
+    if (suBrowseInFlight) return suBrowseInFlight;
+    const statusEl = $('suBrowseStatus');
+    const setStatus = function (msg) {
+        if (statusEl) statusEl.textContent = msg || '';
+    };
+    suBrowseInFlight = (async function () {
+        let it;
+        try {
+            it = requireDriveId();
+        } catch (e) {
+            renderBrowseCrumb('');
+            renderLibraryBrowseRows([]);
+            setStatus('IT-Bibliothek noch nicht eingerichtet.');
+            if (!options.silent) toast((e && e.message) || String(e));
+            return;
+        }
+        if (typeof options.folder === 'string') {
+            suBrowseFolder = normalizeDriveListFolder(options.folder);
+        }
+        renderBrowseCrumb(suBrowseFolder);
+        setStatus('Lade …');
+        const token = await ensureGraphToken();
+        const data = await listDriveFolder(it.driveId, suBrowseFolder, token);
+        const items = (data && data.value) || [];
+        renderLibraryBrowseRows(items);
+        const folders = items.filter(function (i) {
+            return i && i.folder;
+        }).length;
+        const files = items.filter(function (i) {
+            return i && i.file;
+        }).length;
+        setStatus(
+            formatBrowsePathLabel(suBrowseFolder) +
+                ' · ' +
+                folders +
+                ' Ordner, ' +
+                files +
+                ' Datei' +
+                (files === 1 ? '' : 'en')
+        );
+        if (!options.silent) {
+            log('Inhalt: ' + formatBrowsePathLabel(suBrowseFolder) + ' (' + folders + ' Ordner, ' + files + ' Dateien).');
+        }
+    })()
+        .catch(function (e) {
+            setStatus('Fehler beim Laden.');
+            if (!options.silent) {
+                log('FEHLER: ' + (e && e.message ? e.message : e));
+                toast(e && e.message ? e.message : String(e));
+            }
+            throw e;
+        })
+        .finally(function () {
+            suBrowseInFlight = null;
+        });
+    return suBrowseInFlight;
 }
 
 async function runList() {
-    clearLog();
     persistFormDraft({ mergeSetup: true });
     setPendingAction('list');
-    const it = requireDriveId();
-    const folder = getFolder();
-    const token = await ensureGraphToken();
-    log('Liste „' + it.listTitle + '“ / ' + folder + ' …');
-    const data = await listDriveFolder(it.driveId, folder, token);
-    clearPendingAction();
-    const items = (data && data.value) || [];
-    const body = $('suRemoteBody');
-    if (body) {
-        body.replaceChildren();
-        if (!items.length) {
-            body.innerHTML = '<tr><td colspan="4" class="muted">Ordner leer (wird beim Upload angelegt).</td></tr>';
-        } else {
-            items.forEach(function (row) {
-                if (!row || !row.file) return;
-                const tr = document.createElement('tr');
-                const when = row.lastModifiedDateTime
-                    ? String(row.lastModifiedDateTime).replace('T', ' ').replace(/\.\d+Z$/, ' UTC')
-                    : '';
-                const size = row.size != null ? Math.round(Number(row.size) / 1024) + ' KB' : '';
-                tr.innerHTML =
-                    '<td>' +
-                    escapeHtml(row.name || '') +
-                    '</td><td>' +
-                    escapeHtml(when) +
-                    '</td><td>' +
-                    escapeHtml(size) +
-                    '</td><td></td>';
-                const td = tr.lastElementChild;
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'btn btn-sm';
-                btn.innerHTML = '<i class="bi bi-download"></i>Laden';
-                btn.addEventListener('click', function () {
-                    runDownload(row.id, row.name).catch(function (e) {
-                        toast(e.message || String(e));
-                        log('FEHLER: ' + (e.message || e));
-                    });
-                });
-                td.appendChild(btn);
-                body.appendChild(tr);
-            });
-        }
+    try {
+        await refreshLibraryBrowse();
+        clearPendingAction();
+    } catch (e) {
+        clearPendingAction();
+        throw e;
     }
-    toast(items.filter(function (i) { return i && i.file; }).length + ' Datei(en)');
+}
+
+async function runDownloadFile(itemId, name) {
+    const it = requireDriveId();
+    const token = await ensureGraphToken();
+    log('Lade Datei herunter: ' + (name || itemId) + ' …');
+    const res = await downloadDriveItemBlob(it.driveId, itemId, token);
+    triggerBrowserFileDownload(res.blob, name || 'datei');
+    toast('Download gestartet.');
 }
 
 async function runDownload(itemId, name) {
@@ -728,9 +1154,20 @@ async function runDownload(itemId, name) {
     if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
 }
 
+function fillDesignHintUi() {
+    const list = $('suDesignHintList');
+    if (list) {
+        list.replaceChildren();
+        designHintBulletsDe().forEach(function (line) {
+            const li = document.createElement('li');
+            li.textContent = line;
+            list.appendChild(li);
+        });
+    }
+}
+
 function fillDefaults() {
-    const hint = $('suDesignHint');
-    if (hint) hint.textContent = designHintDe();
+    fillDesignHintUi();
     restoreFormDraft();
     try {
         const setup = window.ms365AppDataV2 && window.ms365AppDataV2.getSetup ? window.ms365AppDataV2.getSetup() : null;
@@ -748,6 +1185,8 @@ function fillDefaults() {
         if ($('suItGroup') && !$('suItGroup').value) {
             if (it.itGroupMail || it.itGroupId) {
                 $('suItGroup').value = it.itGroupMail || it.itGroupId;
+            } else if (setup && setup.matched && setup.matched.schulleitungGroupId) {
+                $('suItGroup').value = String(setup.matched.schulleitungGroupId);
             } else if (setup && setup.matched && setup.matched.verwaltungGroupId) {
                 $('suItGroup').value = String(setup.matched.verwaltungGroupId);
             }
@@ -810,14 +1249,9 @@ function boot() {
     if (!document.getElementById('suBtnSetupIt')) return;
     fillDefaults();
     bindFormDraftPersistence();
-    if (location.hash === '#setup') {
-        const setupEl = document.getElementById('setup');
-        if (setupEl && typeof setupEl.scrollIntoView === 'function') {
-            setTimeout(function () {
-                setupEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 80);
-        }
-    }
+    wireSuWizard();
+    wireSuBrowseTableSort();
+    showSuWizardStep(resolveInitialSuWizardStep());
     const setupBtn = $('suBtnSetupIt');
     if (setupBtn && setupBtn.dataset.bound !== '1') {
         setupBtn.dataset.bound = '1';

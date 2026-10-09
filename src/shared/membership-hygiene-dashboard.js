@@ -166,7 +166,8 @@ export async function runDashboardHygieneScan(options) {
 
 /**
  * @param {object} cfg
- * @param {string} cfg.rootId
+ * @param {string} [cfg.rootId]
+ * @param {boolean} [cfg.autoScan] Beim Öffnen automatisch wie „Jetzt prüfen“ (wartet auf Graph-Modul).
  */
 export function mountMembershipHygieneDashboard(cfg) {
     const rootId = (cfg && cfg.rootId) || 'dashHygiene';
@@ -351,6 +352,20 @@ export function mountMembershipHygieneDashboard(cfg) {
         renderFromCache(cached);
     } else {
         renderFromTargetsOnly();
+    }
+
+    if (cfg && cfg.autoScan && !root.dataset.autoScanScheduled) {
+        root.dataset.autoScanScheduled = '1';
+        let autoTries = 0;
+        const autoTimer = setInterval(function () {
+            autoTries += 1;
+            if (window.ms365GraphUnifiedGroups) {
+                clearInterval(autoTimer);
+                void scan();
+            } else if (autoTries > 50) {
+                clearInterval(autoTimer);
+            }
+        }, 100);
     }
 
     return { refresh: renderFromTargetsOnly, scan: scan };

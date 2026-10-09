@@ -2,7 +2,7 @@
  * Einheitlicher App-Sticky-Header (Dashboard + alle Werkzeug-Seiten).
  *
  * Zonen (Look-and-Feel):
- * A – Sticky-Leiste (#dashCompactHeader): Logo, Suche, Datensicherung, Schulregister, Konto
+ * A – Sticky-Leiste (#dashCompactHeader): Logo, Suche, Datensicherung, Stammdaten, Konto
  * B – optional Begrüßung (nur Dashboard, #dashGreetingBand)
  * C – Dashboard-Inhalt / Katalog
  * D – Werkzeug-Subheader (.app-tool-chrome): ← Dashboard, Titel, Hilfe, Nav-Pills

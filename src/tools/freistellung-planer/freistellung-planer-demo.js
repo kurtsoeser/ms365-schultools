@@ -3,7 +3,12 @@
  * Lokal + SharePoint-Seed (Tag zum gezielten Zurücksetzen).
  */
 
-import { approvalPath, inclusiveDayCount, toIsoDateOnly } from './freistellung-planer-logic.js';
+import {
+    approvalPath,
+    inclusiveDayCount,
+    toIsoDateOnly,
+    toIsoDateTimeLocal
+} from './freistellung-planer-logic.js';
 
 export const DEMO_SITE_DEFAULT = 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools';
 export const DEMO_SCHOOL_YEAR = '2026/27';
@@ -468,8 +473,8 @@ export function itemsFromDemoPack(pack, opts) {
     const o = opts || {};
     const rows = (pack && pack.freistellungen) || [];
     return rows.map((row, idx) => {
-        const beginn = toIsoDateOnly(row.Beginn) || '';
-        const ende = toIsoDateOnly(row.Ende) || beginn;
+        const beginn = toIsoDateTimeLocal(row.Beginn) || toIsoDateOnly(row.Beginn) || '';
+        const ende = toIsoDateTimeLocal(row.Ende) || toIsoDateOnly(row.Ende) || beginn;
         const path = approvalPath(beginn, ende);
         const nameMatch = /^(.+?)\s*\(/.exec(row.Title || '');
         return {

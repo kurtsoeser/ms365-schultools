@@ -1,5 +1,5 @@
 /**
- * WebUntis-Dateien im Schulregister: Ziel-Liste aus Dateiname / Tabellenkopf.
+ * WebUntis-Dateien in den Stammdaten: Ziel-Liste aus Dateiname / Tabellenkopf.
  */
 
 /** @typedef {'subjects'|'teachers'|'students'|'classes'|'arges'|'generic'} RegisterImportTarget */

@@ -45,11 +45,17 @@ export function classTeamsLinkedCounts(container, settings, hygieneApi) {
         container && container.core && Array.isArray(container.core.classTeams)
             ? container.core.classTeams
             : [];
+    const setup = container && container.setup ? container.setup : {};
+    const classGroupMatchByKey =
+        setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object'
+            ? setup.classGroupMatchByKey
+            : {};
     const total = classes.length;
     if (!total) return { linked: 0, total: 0 };
     let linked = 0;
     if (hygieneApi && typeof hygieneApi.countLinkedClassTeamsForClasses === 'function') {
-        linked = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams).linked;
+        linked = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams, classGroupMatchByKey)
+            .linked;
     }
     return { linked: linked, total: total };
 }
@@ -91,12 +97,12 @@ export function hygieneTargetMetricLine(targetId, status, container, settings, h
     }
 
     if (!t.groupId) {
-        return listN ? listN + ' im Register · Gruppe fehlt' : 'Noch nicht verknüpft';
+        return listN ? listN + ' in Stammdaten · Gruppe fehlt' : 'Noch nicht verknüpft';
     }
     if (groupN === null) {
-        return listN ? listN + ' im Register · Abgleich offen' : 'Abgleich offen';
+        return listN ? listN + ' in Stammdaten · Abgleich offen' : 'Abgleich offen';
     }
-    return listN + ' Register · ' + groupN + ' M365';
+    return listN + ' in Stammdaten · ' + groupN + ' in M365';
 }
 
 /** @deprecated Kompatibilität – volle Zeile; neue UI nutzt metric + chip getrennt */
@@ -141,7 +147,7 @@ export function resolveAggregateTaskRowFacts(opts) {
             return {
                 tone: 'pending',
                 chip: 'Offen',
-                desc: 'Noch keine Klassen im Register'
+                desc: 'Noch keine Klassen in den Stammdaten'
             };
         }
         const tone = counts.linked >= counts.total ? 'ok' : counts.linked ? 'warn' : 'pending';
@@ -159,7 +165,7 @@ export function resolveAggregateTaskRowFacts(opts) {
             return {
                 tone: 'pending',
                 chip: '',
-                desc: 'Fächer/ARGEs im Register anlegen'
+                desc: 'Fächer/ARGEs in den Stammdaten anlegen'
             };
         }
         return {
@@ -173,7 +179,7 @@ export function resolveAggregateTaskRowFacts(opts) {
         const st = klassenChatsProvisionStatus(container, settings);
         const classes = ((settings && settings.classes) || []).length;
         if (!classes) {
-            return { tone: 'pending', chip: '', desc: 'Klassen im Register fehlen' };
+            return { tone: 'pending', chip: '', desc: 'Klassen in den Stammdaten fehlen' };
         }
         const hint = klassenChatsStatusHint(container, settings);
         return {
@@ -214,7 +220,7 @@ export function resolveToolTaskRowFacts(opts) {
         return {
             tone: '',
             chip: '',
-            desc: register || 'Stammdaten im Schulregister'
+            desc: register || 'Stammdaten pflegen'
         };
     }
 
@@ -223,7 +229,7 @@ export function resolveToolTaskRowFacts(opts) {
         return {
             tone: n ? 'ok' : 'pending',
             chip: n ? '' : 'Offen',
-            desc: n ? n + ' Schüler:innen im Register' : 'Noch keine Schüler:innen'
+            desc: n ? n + ' Schüler:innen in Stammdaten' : 'Noch keine Schüler:innen'
         };
     }
 
@@ -236,7 +242,7 @@ export function resolveToolTaskRowFacts(opts) {
             desc:
                 teachers + students
                     ? teachers + students + ' interne Konten · Gäste in M365 prüfen'
-                    : 'Register befüllen, dann Gäste prüfen'
+                    : 'Stammdaten befüllen, dann Gäste prüfen'
         };
     }
 
@@ -245,7 +251,7 @@ export function resolveToolTaskRowFacts(opts) {
         return {
             tone: '',
             chip: '',
-            desc: teachers ? teachers + ' Lehrkräfte im Register' : 'Lehrkräfte-Stamm pflegen'
+            desc: teachers ? teachers + ' Lehrkräfte in Stammdaten' : 'Lehrkräfte-Stamm pflegen'
         };
     }
 
@@ -256,7 +262,7 @@ export function resolveToolTaskRowFacts(opts) {
         return {
             tone: '',
             chip: '',
-            desc: n ? n + ' Namen aus dem Register prüfbar' : 'Register befüllen'
+            desc: n ? n + ' Namen aus Stammdaten prüfbar' : 'Stammdaten befüllen'
         };
     }
 
@@ -269,7 +275,7 @@ export function resolveToolTaskRowFacts(opts) {
         return {
             tone: '',
             chip: '',
-            desc: parts.length ? parts.join(' · ') + ' im Register' : 'Stammdaten für Kursteams'
+            desc: parts.length ? parts.join(' · ') + ' in Stammdaten' : 'Stammdaten für Kursteams'
         };
     }
 

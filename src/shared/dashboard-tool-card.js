@@ -45,6 +45,19 @@ export function catalogToolActionLabel(toolId, linkText) {
 }
 
 /**
+ * Primärer Werkzeug-Link auf einer Katalog-Kachel (Legacy `.btn` oder UI-Spec `.card-btn`).
+ * @param {ParentNode|null} card
+ * @returns {HTMLAnchorElement|null}
+ */
+export function catalogToolCardActionLink(card) {
+    if (!card || !card.querySelector) return null;
+    const el = card.querySelector(
+        'a.card-btn[href], .card-actions a[href], a.btn[href], a[href].btn'
+    );
+    return el && el.tagName === 'A' ? el : null;
+}
+
+/**
  * @param {HTMLElement|null} el
  */
 function plainHeadingText(el) {
@@ -102,9 +115,7 @@ function readLegacyCardParts(card) {
     const descEl = card.querySelector(':scope > p, .card-description');
     const rawDesc = descEl ? String(descEl.textContent || '').trim() : '';
     const description = catalogCardDescription(toolId, rawDesc);
-    const link =
-        card.querySelector('a.btn[href], a[href].btn, .card-actions a[href]') ||
-        card.querySelector('a[href]');
+    const link = catalogToolCardActionLink(card) || card.querySelector('a[href]');
     const href = link ? link.getAttribute('href') || '#' : '#';
     const linkText = link ? String(link.textContent || '').trim() : '';
     const comingSoon = card.classList.contains('tool-card--coming-soon');

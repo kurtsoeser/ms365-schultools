@@ -107,7 +107,7 @@
                 '<p style="margin:0;line-height:1.5;color:var(--muted)">Noch keine Klassengruppen in den lokalen Daten. ' +
                 'Anlegen im <a href="' +
                 escapeHtml(repoHref('tenant.html')) +
-                '">Schulregister</a> (Tab Klassen).</p>';
+                '">Stammdaten</a> (Tab Klassen).</p>';
             return;
         }
 

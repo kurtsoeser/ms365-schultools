@@ -132,6 +132,63 @@ export function analyzeUsersNaming(users, rules) {
  * CSV für AD-IT (nur sync-Benutzer mit Problemen).
  * @param {ReturnType<typeof analyzeUserNaming>[]} rows
  */
+/**
+ * @param {object} user
+ * @returns {'guest'|'member'|'other'}
+ */
+export function namingAuditMembershipKind(user) {
+    const t = String((user && user.userType) || '').toLowerCase();
+    if (t === 'guest') return 'guest';
+    if (t === 'member') return 'member';
+    return 'other';
+}
+
+/**
+ * @param {'guest'|'member'|'other'} kind
+ */
+export function namingAuditMembershipLabel(kind) {
+    if (kind === 'guest') return 'Gast';
+    if (kind === 'member') return 'Mitglied';
+    return 'Sonstiger Kontotyp';
+}
+
+/**
+ * Gruppierung für Education-Lizenzen (Ergebnis von summarizeUserLicenses).
+ * @param {{ hasFacultyUserPlan?: boolean, hasFaculty?: boolean, hasStudentUserPlan?: boolean, hasStudent?: boolean, hasAny?: boolean }} sum
+ * @returns {'faculty'|'student'|'mixed'|'none'|'other'}
+ */
+export function namingAuditLicenseGroupKey(sum) {
+    const s = sum || {};
+    const hasF = !!(s.hasFacultyUserPlan || s.hasFaculty);
+    const hasSt = !!(s.hasStudentUserPlan || s.hasStudent);
+    if (hasF && hasSt) return 'mixed';
+    if (hasF) return 'faculty';
+    if (hasSt) return 'student';
+    if (s.hasAny) return 'other';
+    return 'none';
+}
+
+/**
+ * @param {'faculty'|'student'|'mixed'|'none'|'other'} key
+ */
+export function namingAuditLicenseGroupLabel(key) {
+    if (key === 'faculty') return 'Lehrpersonal (Education-Lizenz)';
+    if (key === 'student') return 'Schüler:innen (Education-Lizenz)';
+    if (key === 'mixed') return 'Lehrpersonal & Schüler:innen';
+    if (key === 'other') return 'Andere Lizenzen';
+    return 'Ohne Lizenz';
+}
+
+/**
+ * @param {object} user
+ * @param {string} filterVal '' | 'Member' | 'Guest'
+ */
+export function namingAuditMatchesUserTypeFilter(user, filterVal) {
+    const f = String(filterVal || '').trim();
+    if (!f) return true;
+    return String((user && user.userType) || '') === f;
+}
+
 export function buildAdExportCsv(rows) {
     const lines = [
         'displayName;givenName;surname;userPrincipalName;mail;expectedDisplay;issues;onPremisesSyncEnabled'
@@ -158,4 +215,13 @@ export function buildAdExportCsv(rows) {
     return lines.join('\r\n');
 }
 
-export default { analyzeUserNaming, analyzeUsersNaming, buildAdExportCsv };
+export default {
+    analyzeUserNaming,
+    analyzeUsersNaming,
+    buildAdExportCsv,
+    namingAuditMembershipKind,
+    namingAuditMembershipLabel,
+    namingAuditLicenseGroupKey,
+    namingAuditLicenseGroupLabel,
+    namingAuditMatchesUserTypeFilter
+};

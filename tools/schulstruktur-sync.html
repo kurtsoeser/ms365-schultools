@@ -376,7 +376,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-diagram-2"></i>MS 365 Gruppenverwaltung</span>
             </div>
-            <p>Gruppen und Teams in Microsoft&nbsp;365 einlesen und pflegen. Alltag: <strong>Verwalten</strong> (Live-Gruppen, inkl. einfaches „+ Gruppe anlegen“) und <strong>Abgleichen</strong>. Der Reiter <strong>Strukturplan (SOLL-Baum)</strong> zeigt den geplanten Baum – nicht der Weg für Klassengruppen im Schuljahreswechsel.</p>
+            <p>Gruppen und Teams in Microsoft&nbsp;365 einlesen und pflegen. Alltag: <strong>Verwalten</strong> (Live-Gruppen, inkl. einfaches „+ Gruppe anlegen“) und <strong>Abgleichen</strong> (Verknüpfungen zur lokalen Planungsliste). Klassen und Schuljahreswechsel laufen über das <strong>Stammdaten</strong> und <a href="organisations-assistent.html" style="text-decoration:none;color:inherit;"><strong>Schuljahr wechseln</strong></a> – nicht über einen separaten Strukturbaum.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schulstruktur" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
@@ -395,13 +395,12 @@
         </div>
 
         <div class="content">
-            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen/Gruppen in den Stammdaten. Schulregister öffnen oder Demo laden – danach können Sie hier matchen."></div>
+            <div data-ms365-empty-state data-ms365-empty-message="Noch keine Klassen/Gruppen in den Stammdaten. Stammdaten öffnen oder Demo laden – danach können Sie hier matchen."></div>
 
             <div class="mode-tabs" aria-label="Ansicht wechseln">
                 <div class="tabs" role="tablist" aria-label="Gruppenverwaltung-Modus">
                     <button type="button" class="tab-btn" id="ssTabTenantTop" role="tab" aria-selected="true">Verwalten</button>
                     <button type="button" class="tab-btn" id="ssTabAbgleichenTop" role="tab" aria-selected="false">Abgleichen</button>
-                    <button type="button" class="tab-btn" id="ssTabStrukturTop" role="tab" aria-selected="false">Strukturplan (SOLL-Baum)</button>
                 </div>
             </div>
 
@@ -417,14 +416,9 @@
                 </div>
             </div>
 
-            <div class="live-banner" id="ssStrukturBanner" role="status" aria-live="polite" style="display:none;">
-                <span class="live-badge" style="background:rgba(45, 206, 137, 0.16);border-color:rgba(45, 206, 137, 0.28);color:#1a7a4c;"><i class="bi bi-diagram-3"></i>EXPERTE</span>
-                Das ist der <strong>SOLL-Baum</strong> (geplante Schule): Jahrgänge, Klassen, ARGEs, Kursteams. Für den Alltag reichen <strong>Verwalten</strong> und <strong>Abgleichen</strong>. Klassengruppen im Schuljahreswechsel laufen über Anzeigenamen, nicht über ein Duplizieren dieses Baums.
-            </div>
-
             <div class="live-banner" id="ssMatchBanner" role="status" aria-live="polite" style="display:none;">
                 <span class="live-badge" style="background:color-mix(in srgb, var(--brand1) 14%, transparent);border-color:color-mix(in srgb, var(--brand1) 25%, transparent);color:#32325d;"><i class="bi bi-intersect"></i>ABGLEICH</span>
-                Hier verknüpfst du die <strong>SOLL‑Struktur</strong> (aus „Schulstruktur“) mit bereits vorhandenen <strong>Tenant‑Gruppen/Teams</strong> („Verwalten“). Das Mapping wird lokal gespeichert (später: SharePoint).
+                Hier verknüpfst du Einträge aus der <strong>lokalen Planungsliste</strong> (links) mit <strong>Tenant‑Gruppen/Teams</strong> aus „Verwalten“. Für Klassen, Sammelgruppen und Fächer sind die Spezialwerkzeuge in den Stammdaten meist der einfachere Weg. Das Mapping wird lokal gespeichert.
             </div>
 
             <div class="layout">

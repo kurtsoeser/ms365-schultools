@@ -1,5 +1,5 @@
 /**
- * Schulregister (Stammdaten): IT-Sicherungsbibliothek – eingebettet, sync mit Stammdaten-Übergabe.
+ * Stammdaten (Stammdaten): IT-Sicherungsbibliothek – eingebettet, sync mit Stammdaten-Übergabe.
  */
 import { DEFAULT_FOLDER, IT_LIBRARY_TITLE, isItLibraryConfigured } from './stammdaten-sharepoint-sync-logic.js';
 import {
@@ -131,7 +131,8 @@ function fillItLibraryFields() {
                         ? window.ms365AppDataV2.getSetup()
                         : null;
                 const matched = setup && setup.matched ? setup.matched : {};
-                if (matched.verwaltungGroupId) groupEl.value = String(matched.verwaltungGroupId);
+                if (matched.schulleitungGroupId) groupEl.value = String(matched.schulleitungGroupId);
+                else if (matched.verwaltungGroupId) groupEl.value = String(matched.verwaltungGroupId);
             } catch {
                 /* ignore */
             }

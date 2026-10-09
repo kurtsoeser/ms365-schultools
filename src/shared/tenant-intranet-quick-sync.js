@@ -1,5 +1,5 @@
 /**
- * Schulregister: zentrale Intranet-Site-URL (Stammdaten) + Schnell-Buttons in Listen-Tabs.
+ * Stammdaten: zentrale Intranet-Site-URL (Stammdaten) + Schnell-Buttons in Listen-Tabs.
  */
 import {
     DEFAULT_INTRANET_LIST_TITLES,

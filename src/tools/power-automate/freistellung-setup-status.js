@@ -21,7 +21,6 @@ export function computeSetupGlance(cfg, opts = {}) {
     const flowAccount = effectiveFreistellungFlowAccount(c);
     const emailsOk =
         !!String(c.emailDirektion || '').trim() &&
-        !!String(c.emailSonder || '').trim() &&
         !!String(c.emailMailbox || '').trim() &&
         !!flowAccount;
 

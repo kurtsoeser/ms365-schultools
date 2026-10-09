@@ -53,6 +53,36 @@ export function parseKursteamDisplayName(displayName) {
 }
 
 /**
+ * Mögliche Nickname-Präfixe für ein Schuljahr-Label (z. B. „DEMO SJ26-27“ → demo-sj26-27 und demosj26-27).
+ * @param {string} yearPrefix
+ * @returns {string[]}
+ */
+export function kursteamMailNickPrefixVariants(yearPrefix) {
+    const yp = normStr(yearPrefix);
+    if (!yp) return [];
+    const lower = yp.toLowerCase();
+    const compact = lower.replace(/\s+/g, '');
+    const hyphen = lower.replace(/\s+/g, '-').replace(/-+/g, '-');
+    const out = [];
+    if (compact) out.push(compact);
+    if (hyphen && hyphen !== compact) out.push(hyphen);
+    return out;
+}
+
+/**
+ * @param {string} displayName
+ * @param {string} yearPrefix
+ */
+export function displayNameMatchesKursteamYearPrefix(displayName, yearPrefix) {
+    const dn = normStr(displayName);
+    const yp = normStr(yearPrefix);
+    if (!dn || !yp) return false;
+    const d = dn.toLowerCase();
+    const p = yp.toLowerCase();
+    return d === p || d.startsWith(p + ' |') || d.startsWith(p + '|');
+}
+
+/**
  * @param {string} mailNickname
  * @param {{ yearPrefix?: string, requirePipeInDisplayName?: boolean }} [options]
  */
@@ -61,9 +91,9 @@ export function mailNicknameMatchesKursteamFilter(mailNickname, options) {
     if (!nick) return false;
     const yp = normStr(options && options.yearPrefix);
     if (yp) {
-        const prefix = yp.toLowerCase().replace(/\s+/g, '');
-        if (!nick.startsWith(prefix)) return false;
-    } else if (!/^sj\d{2}-\d{2}-/i.test(nick)) {
+        const variants = kursteamMailNickPrefixVariants(yp);
+        if (!variants.some((prefix) => nick.startsWith(prefix))) return false;
+    } else if (!/^sj\d{2}-\d{2}/i.test(nick) && !/^demo-sj\d{2}-\d{2}/i.test(nick)) {
         return false;
     }
     return true;
@@ -81,9 +111,13 @@ export function graphGroupToBelegungRow(group, options) {
     if (!mailNickname || !graphGroupId) return null;
 
     const opts = options && typeof options === 'object' ? options : {};
-    if (!mailNicknameMatchesKursteamFilter(mailNickname, { yearPrefix: opts.yearPrefix })) {
-        return null;
+    const nickOk = mailNicknameMatchesKursteamFilter(mailNickname, { yearPrefix: opts.yearPrefix });
+    const dnOk = displayNameMatchesKursteamYearPrefix(displayName, opts.yearPrefix);
+    if (!nickOk && !(dnOk && opts.yearPrefix)) {
+        if (opts.yearPrefix) return null;
+        if (!nickOk) return null;
     }
+    if (!opts.yearPrefix && !nickOk) return null;
 
     const parsed = parseKursteamDisplayName(displayName);
     let klasse = '';
@@ -101,11 +135,15 @@ export function graphGroupToBelegungRow(group, options) {
     }
 
     let lehrerEmail = '';
+    let lehrerName = '';
     const byCode = opts.teacherByCode;
     if (lehrerCode && byCode && typeof byCode.get === 'function') {
         const t = byCode.get(normCode(lehrerCode));
         if (t && t.email) lehrerEmail = normStr(t.email).toLowerCase();
+        if (t && t.name) lehrerName = normStr(t.name);
     }
+    const ownerEmail = normStr(opts.ownerEmail).toLowerCase();
+    if (ownerEmail && !lehrerEmail) lehrerEmail = ownerEmail;
 
     const linkedAt = normStr(opts.linkedAt) || new Date().toISOString();
 
@@ -113,6 +151,7 @@ export function graphGroupToBelegungRow(group, options) {
         klasse,
         lehrerCode,
         lehrerEmail,
+        lehrerName,
         fach,
         gruppe: '',
         teamName: displayName || mailNickname,
@@ -209,6 +248,10 @@ export function mergeBelegungWithGraphImport(existingSnapshot, importRows, meta)
         }
         if (!next.lehrerEmail && row.lehrerEmail) {
             next.lehrerEmail = row.lehrerEmail;
+            changed = true;
+        }
+        if (!next.lehrerName && row.lehrerName) {
+            next.lehrerName = row.lehrerName;
             changed = true;
         }
         if (changed) {

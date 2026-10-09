@@ -32,7 +32,7 @@
         </div>
 
         <div class="content">
-            <div data-ms365-empty-state data-ms365-empty-message="Für den Hygiene-Abgleich brauchen Sie Stammdaten in diesem Browser. Schulregister öffnen oder Demo laden."></div>
+            <div data-ms365-empty-state data-ms365-empty-message="Für den Hygiene-Abgleich brauchen Sie Stammdaten in diesem Browser. Stammdaten öffnen oder Demo laden."></div>
 
             <section class="dash-hygiene" id="dashHygiene" aria-label="Datenhygiene Gruppenabgleich">
                 <div class="dash-hygiene__head">
@@ -123,7 +123,7 @@
         function boot() {
             if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
             if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return false;
-            mountMembershipHygieneDashboard({ rootId: 'dashHygiene' });
+            mountMembershipHygieneDashboard({ rootId: 'dashHygiene', autoScan: true });
             mountStammdatenHealth();
             return true;
         }

@@ -1,5 +1,5 @@
 /**
- * Schulregister Stammdaten: Logo, Adresse, Kontakt (setup.schoolProfile).
+ * Stammdaten Stammdaten: Logo, Adresse, Kontakt (setup.schoolProfile).
  */
 import {
     emptySchoolProfile,

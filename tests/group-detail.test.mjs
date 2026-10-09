@@ -150,10 +150,10 @@ describe('Tenant-Gruppenverwaltung nutzt die zentrale Ansicht', () => {
         expect(html).not.toContain('id="ssTenantUpdateBtn"');
         expect(html).not.toContain('id="ssOwnersList"');
         expect(html).not.toContain('id="slgLiveName"');
-        expect(html).toContain('id="ssTabStrukturTop"');
+        expect(html).not.toContain('id="ssTabStrukturTop"');
         expect(html).toContain('id="ssTabAbgleichenTop"');
         expect(html).toContain('id="ssTabTenantTop"');
-        expect(html).toContain('id="ssStrukturBanner"');
+        expect(html).not.toContain('id="ssStrukturBanner"');
         const entry = read('src/tools/schulstruktur-sync/schulstruktur-sync.js');
         expect(entry).toContain("import './schulstruktur-sync-bind.js'");
         const js = read('src/tools/schulstruktur-sync/schulstruktur-sync-bind.js');

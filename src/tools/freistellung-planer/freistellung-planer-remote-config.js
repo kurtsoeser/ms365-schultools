@@ -79,12 +79,20 @@ export function permissionsToRemotePayload(config, opts) {
     const payload = {
         version: REMOTE_CONFIG_VERSION,
         updatedAt: new Date().toISOString(),
+        groupAdmin: c.groupAdmin,
+        groupAdminId: c.groupAdminId,
+        adminGroups: c.adminGroups,
+        adminUsers: c.adminUsers,
         groupDirektion: c.groupDirektion,
         groupDirektionId: c.groupDirektionId,
         groupKv: c.groupKv,
         groupKvId: c.groupKvId,
         groupSchueler: c.groupSchueler,
         groupSchuelerId: c.groupSchuelerId,
+        plannerGrantRows: c.plannerGrantRows,
+        direktionGroups: c.direktionGroups,
+        kvGroups: c.kvGroups,
+        schuelerGroups: c.schuelerGroups,
         direktionUsers: c.direktionUsers,
         kvUsers: c.kvUsers,
         schuelerUsers: c.schuelerUsers,
@@ -126,10 +134,15 @@ export function permissionsToListDescriptionPayload(config, opts) {
     }
     const catalog = normalizeClassCatalog((opts && opts.classCatalog) || c.classCatalog || []);
     if (catalog.length) {
-        payload.cl = catalog.slice(0, 200).map((row) => ({
-            c: row.code,
-            n: row.name && row.name !== row.code ? row.name : undefined
-        }));
+        payload.cl = catalog.slice(0, 200).map((row) => {
+            const entry = { c: row.code };
+            if (row.name && row.name !== row.code) entry.n = row.name;
+            const he = String(row.headEmail || row.klassenvorstandEmail || row.kvEmail || '').trim();
+            if (he.includes('@')) entry.h = he;
+            const hn = String(row.headName || row.klassenvorstandName || '').trim();
+            if (hn) entry.hn = hn;
+            return entry;
+        });
     }
     return payload;
 }
@@ -141,7 +154,9 @@ export function classCatalogFromSchoolStammdaten() {
     return normalizeClassCatalog(
         rows.map((r) => ({
             code: r.code || r.name,
-            name: r.name || r.code
+            name: r.name || r.code,
+            headEmail: r.headEmail || r.klassenvorstandEmail || r.kvEmail,
+            headName: r.headName || r.klassenvorstandName
         }))
     );
 }
@@ -245,7 +260,9 @@ function expandClassCatalog(raw) {
     const arr = Array.isArray(raw) ? raw : [];
     return arr.map((row) => ({
         code: row.c || row.code || '',
-        name: row.n || row.name || row.c || row.code || ''
+        name: row.n || row.name || row.c || row.code || '',
+        headEmail: String(row.h || row.headEmail || '').trim().toLowerCase(),
+        headName: String(row.hn || row.headName || '').trim()
     }));
 }
 

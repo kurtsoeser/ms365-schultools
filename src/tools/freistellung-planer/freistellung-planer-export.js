@@ -2,14 +2,14 @@
  * CSV-Export für Freistellungen.
  */
 import { rowsToCsv, downloadCsv } from '../../shared/utils/csv.js';
-import { formatDeDate, statusLabel } from './freistellung-planer-state.js';
+import { formatDeDate, formatDeDateTime, statusLabel } from './freistellung-planer-state.js';
 import { inclusiveDayCount } from './freistellung-planer-logic.js';
 
 const COLUMNS = [
     { label: 'Schüler/in', value: (r) => r.schuelerName || r.titel || '' },
     { label: 'Klasse', value: (r) => r.klasse || '' },
-    { label: 'Beginn', value: (r) => formatDeDate(r.beginn) },
-    { label: 'Ende', value: (r) => formatDeDate(r.ende) },
+    { label: 'Beginn', value: (r) => formatDeDateTime(r.beginn) },
+    { label: 'Ende', value: (r) => formatDeDateTime(r.ende) },
     { label: 'Tage', value: (r) => inclusiveDayCount(r.beginn, r.ende) ?? '' },
     { label: 'Status', value: (r) => statusLabel(r.status) },
     { label: 'Kategorie', value: (r) => r.kategorie || '' },

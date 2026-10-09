@@ -3,7 +3,8 @@ import {
     mapFreistellungConfigForSpo,
     FREISTELLUNG_LIST_PROFILE,
     FREISTELLUNG_LIST_ITEM_LEVEL,
-    grantFreistellungFlowServiceAccountOnList
+    grantFreistellungFlowServiceAccountOnList,
+    collectFreistellungKlassenvorstandEmails
 } from '../src/tools/freistellung-planer/freistellung-planer-list-permissions.js';
 
 describe('freistellung-planer-list-permissions', () => {
@@ -21,11 +22,19 @@ describe('freistellung-planer-list-permissions', () => {
         expect(m.groupSchuelerId).toBe('cccccccc-cccc-cccc-cccc-cccccccccccc');
     });
 
-    it('Schüler nur eigene Elemente, KV Bearbeiten', () => {
+    it('Schüler nur eigene Elemente, KV Gestaltung (alle Items lesbar)', () => {
         expect(FREISTELLUNG_LIST_PROFILE.schueler).toBe('contribute');
-        expect(FREISTELLUNG_LIST_PROFILE.lehrer).toBe('edit');
+        expect(FREISTELLUNG_LIST_PROFILE.lehrer).toBe('design');
         expect(FREISTELLUNG_LIST_ITEM_LEVEL.readSecurity).toBe(2);
         expect(FREISTELLUNG_LIST_ITEM_LEVEL.writeSecurity).toBe(2);
+    });
+
+    it('collectFreistellungKlassenvorstandEmails aus Katalog und KV-Usern', () => {
+        const mails = collectFreistellungKlassenvorstandEmails({
+            kvUsers: [{ mail: 'kv1@schule.at' }],
+            classCatalog: [{ code: '1A', headEmail: 'kv2@schule.at' }]
+        });
+        expect(mails).toEqual(['kv1@schule.at', 'kv2@schule.at']);
     });
 
     it('grantFreistellungFlowServiceAccountOnList ohne Konto überspringt', async () => {

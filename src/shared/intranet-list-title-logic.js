@@ -7,7 +7,7 @@ export const DEFAULT_INTRANET_LIST_TITLES = {
     lehrer: 'Lehrerinnen'
 };
 
-/** UI: Zeilen „Listen-Typ + Name“ im Schulregister (Stammdaten → SharePoint) */
+/** UI: Zeilen „Listen-Typ + Name“ in den Stammdaten (Stammdaten → SharePoint) */
 export const INTRANET_LIST_KIND_OPTIONS = [
     { kind: 'schueler', label: 'Schüler:innen' },
     { kind: 'faecher', label: 'Fächer' },

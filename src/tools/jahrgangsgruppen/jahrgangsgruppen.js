@@ -24,6 +24,14 @@ import {
     guardApplyAgainstTruncation
 } from '../../shared/truncation-banner.js';
 import { resolveClassGraphGroupId } from '../../shared/membership-hygiene.js';
+import {
+    classGroupStudentCountFromDiff,
+    classMembershipHasMismatch,
+    diffClassMemberships,
+    graphMemberCountFromDiff,
+    memberEmailFromGraph,
+    preservedMemberCountFromDiff
+} from '../../shared/membership-reconcile.js';
 
 function classCodeExists(code, exceptCode) {
     return classCodeExistsIn(classes, code, exceptCode);
@@ -85,7 +93,32 @@ let schoolYearLabel = '';
 let selectedKeys = new Set();
 /** @type {Record<string, number>} */
 let graphMemberCounts = {};
+/** Letzter Klassen-Abgleich je Gruppe (für Lehrkräfte in preserved). */
+/** @type {Record<string, object>} */
+let classMembershipDiffByGid = {};
 let countsFetchGen = 0;
+
+function rememberClassMembershipDiff(gid, diff) {
+    const id = String(gid || '').trim();
+    if (!id || !diff) return;
+    classMembershipDiffByGid[id] = diff;
+}
+
+function classDiffForGroup(gid) {
+    return classMembershipDiffByGid[String(gid || '').trim()] || null;
+}
+
+function computeClassDiffForRow(row, graphMembers) {
+    if (!row) return null;
+    const graphEmails = (Array.isArray(graphMembers) ? graphMembers : [])
+        .map(function (m) {
+            return memberEmailFromGraph(m);
+        })
+        .filter(function (em) {
+            return em.indexOf('@') !== -1;
+        });
+    return diffClassMemberships(emailsForClass(row), collectStudentEmails(), graphEmails);
+}
 /** @type {ReturnType<import('../../shared/membership-review-ui.js').createMembershipReview>|null} */
 let membershipReview = null;
 
@@ -100,36 +133,67 @@ function updateActiveClassCounts() {
     const row = getActiveRow();
     const gid = getActiveGroupId();
     const listN = row ? emailsForClass(row).length : 0;
-    const groupN = graphCountFor(gid);
+    const groupTotalN = graphCountFor(gid);
+    const classDiff = gid ? classDiffForGroup(gid) : null;
+    const groupStudentN = classDiff ? classGroupStudentCountFromDiff(classDiff) : groupTotalN;
+    const preservedN = classDiff ? preservedMemberCountFromDiff(classDiff) : 0;
     const wrap = document.getElementById('jgActiveClassCounts');
     const listEl = document.getElementById('jgActiveListCount');
     const groupEl = document.getElementById('jgActiveGroupCount');
     if (wrap) wrap.hidden = !row;
     if (listEl) listEl.textContent = String(listN);
-    if (groupEl) groupEl.textContent = gid ? (groupN === null ? '–' : String(groupN)) : '–';
+    if (groupEl) {
+        if (!gid) groupEl.textContent = '–';
+        else if (groupStudentN === null) groupEl.textContent = '–';
+        else if (preservedN > 0) groupEl.textContent = String(groupStudentN) + ' (+' + preservedN + ')';
+        else groupEl.textContent = String(groupStudentN);
+    }
     if (wrap) {
         wrap.classList.remove('is-match', 'is-mismatch');
-        const known = gid && groupN !== null;
+        const known = gid && groupStudentN !== null;
         if (known) {
-            const same = listN === groupN;
+            const same = classDiff ? !classMembershipHasMismatch(classDiff) : listN === groupStudentN;
             wrap.classList.add(same ? 'is-match' : 'is-mismatch');
-            wrap.title = same
-                ? 'Klassenliste und Gruppe: je ' + listN + ' – Anzahl stimmt überein.'
-                : 'Klassenliste: ' + listN + ' · Gruppe: ' + groupN + ' Mitglieder.';
+            if (same && preservedN > 0) {
+                wrap.title =
+                    'Klassenliste: ' +
+                    listN +
+                    ' Schüler · in der Gruppe: ' +
+                    groupStudentN +
+                    ' Schüler, zusätzlich ' +
+                    preservedN +
+                    (preservedN === 1 ? ' weiteres Mitglied' : ' weitere Mitglieder') +
+                    ' (z. B. Lehrkräfte).';
+            } else if (same) {
+                wrap.title = 'Klassenliste und Gruppe: je ' + listN + ' Schüler – stimmt überein.';
+            } else {
+                wrap.title =
+                    'Klassenliste: ' +
+                    listN +
+                    ' Schüler · in der Gruppe (Schüler): ' +
+                    groupStudentN +
+                    (preservedN > 0 ? ', zusätzlich ' + preservedN + ' weitere Mitglieder' : '') +
+                    '.';
+            }
         } else {
             wrap.title = gid
-                ? 'Klassenliste: ' + listN + ' E-Mails. Mitgliederzahl wird aus Microsoft Graph geladen.'
+                ? 'Klassenliste: ' + listN + ' Schüler. Mitgliederzahl wird aus Microsoft Graph geladen.'
                 : 'Noch keine Microsoft-365-Gruppe gematcht.';
         }
     }
     if (membershipReview) {
-        if (gid && groupN !== null && listN !== groupN && row) {
+        const showMismatch =
+            gid &&
+            row &&
+            groupStudentN !== null &&
+            (classDiff ? classMembershipHasMismatch(classDiff) : listN !== groupStudentN);
+        if (showMismatch) {
             membershipReview.updateMismatchBar([
                 {
                     key: rowKey(row),
                     label: 'Klasse ' + (row.name || row.code || ''),
                     listN: listN,
-                    groupN: groupN,
+                    groupN: groupStudentN,
                     gid: gid
                 }
             ]);
@@ -141,6 +205,7 @@ function updateActiveClassCounts() {
 
 async function refreshGraphMemberCounts() {
     const gid = getActiveGroupId();
+    const row = getActiveRow();
     if (!gid) {
         updateActiveClassCounts();
         return;
@@ -149,8 +214,18 @@ async function refreshGraphMemberCounts() {
     try {
         const token = await gug().getGraphToken();
         if (gen !== countsFetchGen) return;
-        const n = await gug().fetchGroupMemberCount(token, gid);
-        if (typeof n === 'number' && n >= 0) graphMemberCounts[gid] = n;
+        if (row) {
+            const mem = await gug().fetchGroupMembers(token, gid);
+            const diff = computeClassDiffForRow(row, mem.items || []);
+            if (diff) {
+                rememberClassMembershipDiff(gid, diff);
+                graphMemberCounts[gid] = graphMemberCountFromDiff(diff);
+            }
+        } else {
+            const n = await gug().fetchGroupMemberCount(token, gid);
+            if (typeof n === 'number' && n >= 0) graphMemberCounts[gid] = n;
+            delete classMembershipDiffByGid[gid];
+        }
         if (gen !== countsFetchGen) return;
         updateActiveClassCounts();
     } catch {
@@ -195,6 +270,18 @@ function initMembershipReview() {
             }
         },
         refreshCounts: refreshGraphMemberCounts,
+        syncGraphMemberCount: function (gid, count) {
+            const id = String(gid || '').trim();
+            if (!id) return;
+            const n = typeof count === 'number' ? count : -1;
+            if (n < 0) return;
+            graphMemberCounts[id] = n;
+            updateActiveClassCounts();
+        },
+        syncClassMembershipDiff: function (gid, diff) {
+            rememberClassMembershipDiff(gid, diff);
+            updateActiveClassCounts();
+        },
         onAfterChange: async function () {
             readLists();
             renderLeftList();
@@ -533,7 +620,7 @@ function refreshSmtpHint() {
     const actDom = domainFromMail(actual);
     if (!domain) {
         el.innerHTML =
-            'Keine Schul‑Domain gespeichert. Bitte im <a href="../tenant.html">Schulregister</a> unter Schule &amp; Domain setzen.';
+            'Keine Schul‑Domain gespeichert. Bitte im <a href="../tenant.html">Stammdaten</a> unter Schule &amp; Domain setzen.';
         return;
     }
     let html =
@@ -554,7 +641,7 @@ function refreshSmtpHint() {
 async function runSmtpScript(onlyActive) {
     const pack = collectSmtpScriptItems(onlyActive);
     if (!pack.domain) {
-        toast('Bitte zuerst die Schul‑Domain im Schulregister speichern.');
+        toast('Bitte zuerst die Schul‑Domain in den Stammdaten speichern.');
         return;
     }
     if (!pack.items.length) {

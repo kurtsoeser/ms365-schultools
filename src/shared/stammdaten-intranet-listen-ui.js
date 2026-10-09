@@ -7,10 +7,10 @@ import {
     loadPermissionsConfig
 } from '../tools/sharepoint/stammdaten-liste-permissions.js';
 import {
-    buildStammdatenGroupFields,
     initEmbeddedPermissionsUi,
     readPermissionsFromPickers,
-    persistPickersToStorage
+    persistPickersToStorage,
+    htmlStammdatenPermMatrixBlock
 } from '../tools/sharepoint/stammdaten-permissions-ui.js';
 import {
     DEFAULT_INTRANET_LIST_TITLES,
@@ -374,10 +374,7 @@ function renderPanel(mount) {
         checkbox(p, 'RemoveOrphans', 'Verwaiste Zeilen entfernen', true) +
         checkbox(p, 'SkipPerms', 'Berechtigungen überspringen', false) +
         '</div>' +
-        groupPickerRow(p, 'GroupAdmin', 'Verwaltung / Admin') +
-        groupPickerRow(p, 'GroupLehrer', 'Lehrkräfte') +
-        groupPickerRow(p, 'GroupSchueler', 'Schüler (Sammelgruppe)') +
-        '<p style="margin:8px 0 0;font-size:0.82em;color:var(--muted);">Rollen wie Schularbeiten-Planer: z. B. Klassen/Fächer für Schüler nur Lesen, Schülerinnen-Stammliste ohne Schüler-Gruppe.</p>' +
+        htmlStammdatenPermMatrixBlock(p) +
         '</details>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">' +
         '<button type="button" class="btn btn-success" id="' +
@@ -501,14 +498,12 @@ function groupPickerRow(p, id, label) {
 }
 
 async function applyPerms(webUrl, p, listOpts, write) {
-    const defs = buildStammdatenGroupFields(p);
-    const hasPickers = defs.some(function (f) {
-        return el(f.labelInputId);
-    });
+    const bodyId = p + 'PermMatrixBody';
+    const hasMatrix = el(bodyId);
     let perms;
-    if (hasPickers) {
-        perms = readPermissionsFromPickers(defs, p + 'SkipPerms');
-        persistPickersToStorage(defs, p + 'SkipPerms');
+    if (hasMatrix) {
+        perms = readPermissionsFromPickers(null, p + 'SkipPerms', bodyId);
+        persistPickersToStorage(null, p + 'SkipPerms', bodyId);
     } else {
         perms = loadPermissionsConfig();
         const skipEl = el(p + 'SkipPerms');

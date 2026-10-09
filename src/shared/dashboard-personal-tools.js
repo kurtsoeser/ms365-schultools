@@ -2,6 +2,7 @@
  * Persönliche Leiste im Werkzeugkatalog: Favoriten (Meine Tools) und Zuletzt verwendet.
  */
 import { toolLabel } from './dashboard-audience-catalog.js';
+import { catalogToolCardActionLink } from './dashboard-tool-card.js';
 
 export const DASHBOARD_FAVORITES_KEY = 'ms365-dashboard-favorites-v1';
 export const DASHBOARD_RECENT_TOOLS_KEY = 'ms365-dashboard-recent-tools-v1';
@@ -103,7 +104,7 @@ export function buildDashboardToolHrefMap(catalog) {
     catalog.querySelectorAll('.choice[data-tool-id]').forEach(function (card) {
         const toolId = card.getAttribute('data-tool-id');
         if (!toolId) return;
-        const link = card.querySelector('a.btn[href], a[href].btn');
+        const link = catalogToolCardActionLink(card);
         const href = link ? link.getAttribute('href') : '';
         const key = normalizeDashboardToolHref(href);
         if (key) map.set(key, toolId);
@@ -159,7 +160,7 @@ export function resolveDashboardToolHref(catalog, toolId) {
     if (!catalog || !toolId) return '';
     const card = catalog.querySelector('.choice[data-tool-id="' + toolId + '"]');
     if (!card) return '';
-    const link = card.querySelector('a.btn[href], a[href].btn');
+    const link = catalogToolCardActionLink(card);
     return link ? String(link.getAttribute('href') || '') : '';
 }
 

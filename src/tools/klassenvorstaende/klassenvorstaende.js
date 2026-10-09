@@ -536,6 +536,9 @@
                 diff: diff,
                 graphByEmail: mr().indexGraphMembersByEmail(mem.items || [])
             };
+            if (mr().graphMemberCountFromDiff) {
+                rememberGraphMemberCount(gid, mr().graphMemberCountFromDiff(diff));
+            }
             renderDeviationReviewPanel(deviationReviewState);
         } catch (e) {
             deviationReviewState = null;
@@ -558,9 +561,9 @@
             const token = await getGraphToken();
             await gug().syncEmailsToGroup(token, deviationReviewState.gid, emails, 'KV', appendSyncLog);
             toast(emails.length + ' aufgenommen.');
-            await loadMembershipReview();
-            await refreshGraphMemberCounts();
             live().invalidateMembership();
+            await refreshGraphMemberCounts();
+            await loadMembershipReview();
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
         }
@@ -581,9 +584,9 @@
             const token = await getGraphToken();
             await gug().removeEmailsFromGroup(token, deviationReviewState.gid, emails, 'KV', appendSyncLog);
             toast(emails.length + ' entfernt.');
-            await loadMembershipReview();
-            await refreshGraphMemberCounts();
             live().invalidateMembership();
+            await refreshGraphMemberCounts();
+            await loadMembershipReview();
         } catch (e) {
             toast('Fehler: ' + (e.message || e));
         }

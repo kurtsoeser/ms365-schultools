@@ -8,7 +8,7 @@
         'task-unterricht':
             'Wann? Zu Schuljahresbeginn oder bei neuen Klassen/Kursen. Klassengruppen = eine Microsoft-365-Gruppe pro Klasse. Unterrichtsteams = Teams pro Fach/Kurs aus dem Stundenplan. Fehlt etwas? „Einzelne Unterrichtsteams hinzufügen“.',
         'task-gruppen':
-            'Wann? Wenn alle Schülerinnen, Lehrkräfte, Verwaltung oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Das sind Sammelgruppen in Microsoft 365 – meist vor oder parallel zu Klassen-Teams pflegen.',
+            'Wann? Wenn Schülerinnen, Lehrkräfte, Schulleitung, Verwaltung (Personal) oder Klassenvorstände in großen Gruppen sein sollen (E-Mail, Berechtigungen). Fünf Sammelgruppen im Dashboard – Verwaltung getrennt in Schulleitung (z. B. Direktion) und Personal (Sekretariat, IT …). Zielgruppe pro Rolle in den Stammdaten.',
         'task-intranet':
             'Wann? Intranet und Planer einrichten (IT) oder im Schulalltag nutzen: Schularbeiten-Termine, Freistellungsanträge, Aktivitäten. Einmal-Setup oft über das Playbook Intranet.',
         'task-personen':
@@ -21,9 +21,9 @@
         'prog-unterricht':
             '„Verknüpft“ heißt: Die App kennt die passende Microsoft-365-Gruppe für diese Klasse. Noch nicht verknüpft? Im Werkzeug Klassengruppen die bestehende Gruppe zuordnen oder neu anlegen.',
         'prog-gruppen':
-            'Zeigt, wie viele der großen Sammelgruppen (Schüler, Lehrkräfte, Verwaltung, Klassenvorstände) und Fach-/ARGE-Gruppen mit Microsoft 365 verbunden sind.',
+            'Zeigt, wie viele der fünf Sammelgruppen (Schüler, Lehrkräfte, Schulleitung, Verwaltung Personal, Klassenvorstände) und Fach-/ARGE-Gruppen mit Microsoft 365 verbunden sind.',
         'prog-schuljahr':
-            'Fortschritt der Checkliste „Schuljahr wechseln“. Erscheint, sobald Stammdaten im Schulregister vorhanden sind.',
+            'Fortschritt der Checkliste „Schuljahr wechseln“. Erscheint, sobald Stammdaten in den Stammdaten vorhanden sind.',
 
         stammdaten:
             'Listen, die alle Werkzeuge nutzen: Domain, Fächer, Lehrkräfte, Klassen und Schülerinnen. Die Daten bleiben in diesem Browser – nichts wird auf einen Schul-Server geschickt.',
@@ -61,7 +61,8 @@
             'Sammelgruppe aller Schüler:innen – matchen, anlegen und Mitglieder mit der Stammliste abgleichen.',
         'slg-lehrer':
             'Sammelgruppe aller Lehrkräfte – matchen, anlegen und Mitglieder mit der Stammliste abgleichen.',
-        verwaltung: 'Gruppe für Sekretariat, Direktion und weitere Verwaltungsrollen – oft als Besitzerin anderer Gruppen.',
+        verwaltung:
+            'Zwei Sammelgruppen: Schulleitung (Admin-Rechte in Planern) und Verwaltung Personal – Rollen und Zielgruppe in den Stammdaten, Match und Sync je Gruppe.',
         klassenvorstaende:
             'Eine Sammelgruppe aller Klassenvorstände aus der Klassenliste – als E-Mail-Verteiler oder inkl. Team, mit Mitglieder-Abgleich.',
         'organisations-assistent':

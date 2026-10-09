@@ -31,7 +31,7 @@ export const SETUP_GROUP_FIELDS = [
         idInputId: 'spsaGroupAdminId',
         pickBtnId: 'spsaGroupAdminPick',
         clearBtnId: 'spsaGroupAdminClear',
-        dialogTitle: 'Verwaltung / Admin'
+        dialogTitle: 'Schulleitung (Admin)'
     },
     {
         role: 'groupLehrer',
@@ -59,7 +59,7 @@ export const PLANER_GROUP_FIELDS = [
         idInputId: 'saPermAdminId',
         pickBtnId: 'saPermAdminPick',
         clearBtnId: 'saPermAdminClear',
-        dialogTitle: 'Verwaltung / Admin'
+        dialogTitle: 'Schulleitung (Admin)'
     },
     {
         role: 'groupLehrer',
@@ -85,8 +85,8 @@ const SETUP_EXTRA_USER_SPECS = [
         listId: 'spsaAdminUsers',
         addBtnId: 'spsaAdminUserAdd',
         stammdatenBtnId: 'spsaAdminStammdaten',
-        pickTitle: 'Person für Verwaltung / Admin',
-        pickHint: 'Sekretariat, Schulleitung oder IT – Vollzugriff auf alle Planer-Listen.',
+        pickTitle: 'Person für Schulleitung (Admin)',
+        pickHint: 'Direktion oder weitere Schulleitung – Vollzugriff auf alle Planer-Listen (zusätzlich zur Schulleitungs-Entra-Gruppe).',
         emptyHint: 'Noch keine Einzelpersonen – z. B. aus Stammdaten übernehmen.'
     },
     {
@@ -113,8 +113,8 @@ const PLANER_EXTRA_USER_SPECS = [
         listId: 'saPermAdminUsers',
         addBtnId: 'saPermAdminUserAdd',
         stammdatenBtnId: 'saPermAdminStammdaten',
-        pickTitle: 'Person für Verwaltung / Admin',
-        pickHint: 'Sekretariat, Schulleitung oder IT – Vollzugriff auf alle Planer-Listen.',
+        pickTitle: 'Person für Schulleitung (Admin)',
+        pickHint: 'Direktion oder weitere Schulleitung – Vollzugriff auf alle Planer-Listen (zusätzlich zur Schulleitungs-Entra-Gruppe).',
         emptyHint: 'Noch keine Einzelpersonen – z. B. aus Stammdaten übernehmen.'
     },
     {
@@ -229,8 +229,8 @@ export function htmlSchularbeitenEntraPermGrid(p, opts) {
     return `<div class="fr-setup-perm-grid">
       ${card(
           'building',
-          'Verwaltung / Admin',
-          'Vollzugriff auf alle Planer-Listen – Entra-Gruppe und optional Einzelpersonen (Sekretariat, IT).',
+          'Schulleitung (Admin)',
+          'Vollzugriff auf alle Planer-Listen – Entra-Gruppe Schulleitung aus Stammdaten und optional Einzelpersonen.',
           adminEgp,
           specs[0],
           true

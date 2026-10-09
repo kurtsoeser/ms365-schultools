@@ -10,6 +10,148 @@
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .sps-summary-list { margin: 0; padding-left: 1.15em; line-height: 1.55; }
+        .sps-summary-list li { margin-bottom: 8px; }
+        #spsWizardRunFooter { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .sps-wizard-glance { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .sps-wizard-glance--nav .tm-glance__card {
+            appearance: none;
+            margin: 0;
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            color: inherit;
+            width: 100%;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+        .sps-wizard-glance--nav .tm-glance__card:hover {
+            border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+        }
+        .sps-wizard-glance--nav .tm-glance__card.is-active {
+            border-color: var(--brand1);
+            background: color-mix(in srgb, var(--brand1) 14%, var(--card));
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 28%, transparent);
+        }
+        .sps-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label {
+            color: var(--brand1);
+        }
+        .sps-wizard-glance--nav .tm-glance__card.is-active i {
+            color: var(--brand1);
+        }
+        @media (max-width: 900px) {
+            .sps-wizard-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+            .sps-wizard-glance { grid-template-columns: 1fr 1fr; }
+        }
+        .sps-list-rows {
+            --sps-list-name-col: 14rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sps-list-rows__head {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) var(--sps-list-name-col);
+            gap: 16px;
+            padding: 0 14px 2px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--muted);
+        }
+        .sps-list-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) var(--sps-list-name-col);
+            gap: 8px 16px;
+            align-items: center;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: var(--soft, #f8f9fa);
+        }
+        .sps-list-row__pick {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 4px 10px;
+            align-items: start;
+            cursor: pointer;
+            margin: 0;
+            min-width: 0;
+        }
+        .sps-list-row__pick input { margin-top: 4px; }
+        .sps-list-row__title { font-weight: 800; color: #32325d; grid-column: 2; }
+        .sps-list-row__desc { font-size: 0.88em; color: var(--muted); grid-column: 2; line-height: 1.4; }
+        .sps-list-row__name { margin: 0; min-width: 0; }
+        .sps-list-row__name input { width: 100%; box-sizing: border-box; }
+        .sps-list-row__name input:disabled { opacity: 0.55; }
+        .sps-list-row--off { opacity: 0.72; }
+        .sps-list-row--sub {
+            grid-template-columns: 1fr;
+            margin-left: 12px;
+            border-style: dashed;
+            background: #fff;
+        }
+        @media (max-width: 720px) {
+            .sps-list-rows__head { display: none; }
+            .sps-list-row {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+            .sps-list-row__name label.visually-hidden {
+                position: static;
+                width: auto;
+                height: auto;
+                margin: 0 0 4px;
+                clip: auto;
+                font-size: 0.78rem;
+                font-weight: 600;
+                text-transform: none;
+                letter-spacing: normal;
+            }
+        }
+        .sps-perm-matrix { margin-bottom: 12px; }
+        .sps-perm-matrix__cell { padding: 6px 8px; vertical-align: middle; }
+        .sps-perm-matrix__select {
+            width: 100%;
+            min-width: 7.5rem;
+            max-width: 11rem;
+            font: inherit;
+            font-size: 0.88em;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card, #fff);
+            color: var(--heading, #32325d);
+            cursor: pointer;
+        }
+        .sps-perm-matrix__select:hover,
+        .sps-perm-matrix__select:focus {
+            border-color: color-mix(in srgb, var(--brand1) 50%, var(--border));
+            outline: none;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 22%, transparent);
+        }
+        .sps-perm-matrix__group { min-width: 11rem; vertical-align: middle; }
+        .sps-perm-matrix__group-inner {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .sps-perm-matrix__group-label {
+            flex: 1 1 8rem;
+            min-width: 6rem;
+            font-size: 0.85em;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--input-bg, var(--card));
+        }
+        .sps-perm-matrix__actions-head { width: 2.5rem; }
+        .sps-perm-matrix-wrap { overflow-x: auto; margin-bottom: 8px; }
+    </style>
 </head>
 <body>
     <div class="container page-card tm-page">
@@ -19,7 +161,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-database"></i>Stammdaten-Listen</span>
             </div>
-            <p>Schülerinnen, Fächer, Fachgruppen, ARGEs und Klassen – anlegen oder bestehende Listen abgleichen.</p>
+            <p>Schülerinnen, Fächer, Fachgruppen, ARGEs und Klassen – in <strong>5 Schritten</strong> Website wählen, Modus festlegen, Listen abgleichen und Berechtigungen setzen.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-stammdaten-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -31,9 +173,9 @@
             <section class="tm-hero" aria-label="Kurzüberblick">
                 <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-database"></i></div>
                 <div>
-                    <p class="tm-hero__kicker">SharePoint · Intranet &amp; Listen</p>
-                    <h2>Schule auf SharePoint abbilden</h2>
-                    <p>Website angeben, Listen wählen – Standard ist <strong>Abgleich</strong> mit vorhandenen Listen (gleicher Name).</p>
+                    <p class="tm-hero__kicker">5 Schritte · SharePoint · Intranet</p>
+                    <h2>Stammdaten-Listen pflegen</h2>
+                    <p id="spsPhaseHint">Schritt 1 von 5: Website</p>
                 </div>
                 <div class="tm-hero__actions">
                     <span class="tm-perm" id="spsCounts"><i class="bi bi-bar-chart"></i>Stammdaten werden geladen …</span>
@@ -41,190 +183,187 @@
                 </div>
             </section>
 
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
-                    <div>
-                        <h3>Abgleich-Modus</h3>
-                        <p>Wie mit der Lehrerliste: vorhandene SharePoint-Listen aktualisieren statt Duplikate anzulegen.</p>
-                    </div>
-                </div>
-                <div class="tm-toggle-grid">
-                    <label class="tm-toggle" for="spsAlwaysNew">
-                        <input type="checkbox" id="spsAlwaysNew">
-                        <span class="tm-toggle__icon"><i class="bi bi-plus-square"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Immer neue Listen anlegen</span>
-                            <span class="tm-toggle__desc">Ohne Haken: Liste nach Name suchen und Zeilen abgleichen.</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="spsRemoveOrphans">
-                        <input type="checkbox" id="spsRemoveOrphans" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-trash"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Verwaiste Zeilen entfernen</span>
-                            <span class="tm-toggle__desc">Einträge in SharePoint, die nicht mehr in den Stammdaten sind.</span>
-                        </span>
-                    </label>
-                </div>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
+            <section class="tm-glance tm-glance--compact sps-wizard-glance sps-wizard-glance--nav" id="spsWizardGlance" role="tablist" aria-label="Stammdaten-Listen Schritte">
+                <button type="button" role="tab" class="tm-glance__card is-active" data-sps-wizard-step="1" aria-selected="true" aria-controls="spsWizardStep1">
+                    <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                    <span class="tm-glance__label">1 · Website</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-sps-wizard-step="2" aria-controls="spsWizardStep2">
                     <i class="bi bi-check2-square" aria-hidden="true"></i>
-                    <div>
-                        <h3>Listen auswählen</h3>
-                        <p>Mehrere Listen in einem Durchgang – jeweils mit eigenem Namen auf derselben Site.</p>
-                    </div>
-                </div>
-                <div class="tm-toggle-grid">
-                    <label class="tm-toggle" for="spsWantSchueler">
-                        <input type="checkbox" id="spsWantSchueler" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-person-lines-fill"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Schülerinnenliste</span>
-                            <span class="tm-toggle__desc">Klasse, Name, E-Mail, optionale externe ID.</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="spsWantFaecher">
-                        <input type="checkbox" id="spsWantFaecher" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-book"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Fächerliste</span>
-                            <span class="tm-toggle__desc">Kürzel und Bezeichnung.</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="spsWantFachgruppen">
-                        <input type="checkbox" id="spsWantFachgruppen" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-diagram-2"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Fachgruppenliste</span>
-                            <span class="tm-toggle__desc">Gleiche Stammdaten wie Fächer, eigene Liste für Teams/Navigation.</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="spsWantArge">
-                        <input type="checkbox" id="spsWantArge" checked>
-                        <span class="tm-toggle__icon"><i class="bi bi-collection"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">ARGE-Liste</span>
-                            <span class="tm-toggle__desc">Kürzel, Name und zugeordnete Fach-Kürzel (aus Stammdaten ARGEs).</span>
-                        </span>
-                    </label>
-                    <label class="tm-toggle" for="spsWantKlassen">
-                        <input type="checkbox" id="spsWantKlassen">
-                        <span class="tm-toggle__icon"><i class="bi bi-grid-3x3-gap"></i></span>
-                        <span>
-                            <span class="tm-toggle__title">Klassenliste</span>
-                            <span class="tm-toggle__desc">Kürzel, Abschlussjahr, Klassenvorstand.</span>
-                        </span>
-                    </label>
-                </div>
-                <label class="tm-toggle" for="spsKlassenPersonen" style="margin-top:10px;">
-                    <input type="checkbox" id="spsKlassenPersonen" checked>
-                    <span class="tm-toggle__icon"><i class="bi bi-person-check"></i></span>
-                    <span>
-                        <span class="tm-toggle__title">Klassenliste: Schülerinnen als Personenfeld (M365)</span>
-                        <span class="tm-toggle__desc">Pro Klasse alle Schüler mit E-Mail aus den Stammdaten (Klasse = Kürzel/Name) als Mehrfach-Personenfeld; KV optional als Person.</span>
-                    </span>
-                </label>
-                <p class="hint" style="margin:8px 0 0;">Benutzer müssen im Tenant existieren. Fehlt jemand in der User Information List, versucht das Tool <code>ensureUser</code> (SharePoint-Schreibrecht auf der Site).</p>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
+                    <span class="tm-glance__label">2 · Listen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-sps-wizard-step="3" aria-controls="spsWizardStep3">
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    <span class="tm-glance__label">3 · Modus</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-sps-wizard-step="4" aria-controls="spsWizardStep4">
                     <i class="bi bi-shield-lock" aria-hidden="true"></i>
-                    <div>
-                        <h3>Berechtigungen (Entra-Gruppen)</h3>
-                        <p>Wie beim Schularbeiten-Planer: Vererbung brechen, Site-Breite entfernen, Gruppen zuweisen.</p>
-                    </div>
-                </div>
-                <table class="tm-table" style="width:100%;margin-bottom:12px;font-size:0.88em;">
-                    <thead>
-                        <tr><th>Liste</th><th>Verwaltung</th><th>Lehrkräfte</th><th>Schüler</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Schülerinnen</td><td>Vollzugriff</td><td>Beitragen</td><td>—</td></tr>
-                        <tr><td>Fächer / Fachgruppen</td><td>Vollzugriff</td><td>Lesen</td><td>Lesen</td></tr>
-                        <tr><td>ARGEs</td><td>Vollzugriff</td><td>Beitragen</td><td>—</td></tr>
-                        <tr><td>Klassen</td><td>Vollzugriff</td><td>Beitragen</td><td>Lesen</td></tr>
-                    </tbody>
-                </table>
-                <div class="tm-field">
-                    <label for="spsmGroupAdmin">Verwaltung / Admin</label>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <input type="text" id="spsmGroupAdmin" readonly placeholder="Gruppe wählen …" style="flex:1;min-width:200px;background:var(--input-bg);">
-                        <input type="hidden" id="spsmGroupAdminId">
-                        <button type="button" class="btn btn-sm" id="spsmGroupAdminPick"><i class="bi bi-search"></i>Gruppe wählen</button>
-                        <button type="button" class="btn btn-sm alt" id="spsmGroupAdminClear" title="Auswahl löschen"><i class="bi bi-x-lg"></i></button>
-                    </div>
-                </div>
-                <div class="tm-field">
-                    <label for="spsmGroupLehrer">Lehrkräfte</label>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <input type="text" id="spsmGroupLehrer" readonly placeholder="Gruppe wählen …" style="flex:1;min-width:200px;background:var(--input-bg);">
-                        <input type="hidden" id="spsmGroupLehrerId">
-                        <button type="button" class="btn btn-sm" id="spsmGroupLehrerPick"><i class="bi bi-search"></i>Gruppe wählen</button>
-                        <button type="button" class="btn btn-sm alt" id="spsmGroupLehrerClear"><i class="bi bi-x-lg"></i></button>
-                    </div>
-                </div>
-                <div class="tm-field">
-                    <label for="spsmGroupSchueler">Schüler (Sammelgruppe)</label>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <input type="text" id="spsmGroupSchueler" readonly placeholder="Gruppe wählen …" style="flex:1;min-width:200px;background:var(--input-bg);">
-                        <input type="hidden" id="spsmGroupSchuelerId">
-                        <button type="button" class="btn btn-sm" id="spsmGroupSchuelerPick"><i class="bi bi-search"></i>Gruppe wählen</button>
-                        <button type="button" class="btn btn-sm alt" id="spsmGroupSchuelerClear"><i class="bi bi-x-lg"></i></button>
-                    </div>
-                </div>
-                <p class="hint">Gruppen werden beim ersten Öffnen aus dem Schularbeiten-Listen-Setup übernommen, falls hier noch leer. Voraussetzung: <code>Sites.FullControl.All</code> für den Berechtigungslauf.</p>
-                <label class="checkbox-label" style="display:block;margin:8px 0;">
-                    <input type="checkbox" id="spsSkipPerms"> Berechtigungen diesmal überspringen (nur Listen abgleichen)
-                </label>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="spsmBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen</button>
-                </div>
+                    <span class="tm-glance__label">4 · Rechte</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-sps-wizard-step="5" aria-controls="spsWizardStep5">
+                    <i class="bi bi-play-circle" aria-hidden="true"></i>
+                    <span class="tm-glance__label">5 · Start</span>
+                </button>
             </section>
 
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-cloud-upload" aria-hidden="true"></i>
-                    <div>
-                        <h3>Website &amp; Listenname</h3>
-                        <p>Typisch die Intranet-URL – wird nach dem Schul-Intranet-Setup vorausgefüllt.</p>
+            <section class="tm-wizard" aria-label="Stammdaten-Listen Assistent">
+                <div class="tm-wizard__body">
+                    <div id="spsWizardStep1" class="tm-wizard__pane" role="tabpanel">
+                        <h3 class="tm-wizard__pane-title">SharePoint-Website</h3>
+                        <p class="tm-wizard__pane-lead">Intranet- oder Schultools-Site, auf der die Listen liegen sollen. URL aus den Stammdaten wird vorausgefüllt.</p>
+                        <section class="tm-panel">
+                            <div class="tm-field">
+                                <label for="spsSiteUrl">SharePoint-Website</label>
+                                <input type="url" id="spsSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="tm-actions">
+                                <button type="button" class="btn" id="spsBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div id="spsWizardStep2" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Listen wählen &amp; benennen</h3>
+                        <p class="tm-wizard__pane-lead">Welche Listen in diesem Lauf bearbeitet werden – und unter welchem Namen sie auf der Website stehen.</p>
+                        <section class="tm-panel">
+                            <div class="sps-list-rows">
+                                <div class="sps-list-rows__head" aria-hidden="true">
+                                    <span>Liste</span>
+                                    <span>Listenname auf SharePoint</span>
+                                </div>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantSchueler">
+                                        <input type="checkbox" id="spsWantSchueler" checked data-sps-list-toggle="spsSchuelerName">
+                                        <span class="sps-list-row__title"><i class="bi bi-person-lines-fill"></i> Schülerinnenliste</span>
+                                        <span class="sps-list-row__desc">Klasse, Name, E-Mail, optionale externe ID.</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsSchuelerName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsSchuelerName" value="Schülerinnen" maxlength="200" spellcheck="false">
+                                    </div>
+                                </article>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantFaecher">
+                                        <input type="checkbox" id="spsWantFaecher" checked data-sps-list-toggle="spsFaecherName">
+                                        <span class="sps-list-row__title"><i class="bi bi-book"></i> Fächerliste</span>
+                                        <span class="sps-list-row__desc">Kürzel und Bezeichnung.</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsFaecherName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsFaecherName" value="Fächer" maxlength="200" spellcheck="false">
+                                    </div>
+                                </article>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantFachgruppen">
+                                        <input type="checkbox" id="spsWantFachgruppen" checked data-sps-list-toggle="spsFachgruppenName">
+                                        <span class="sps-list-row__title"><i class="bi bi-diagram-2"></i> Fachgruppenliste</span>
+                                        <span class="sps-list-row__desc">Eigene Liste für Teams und Navigation.</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsFachgruppenName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsFachgruppenName" value="Fachgruppen" maxlength="200" spellcheck="false">
+                                    </div>
+                                </article>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantArge">
+                                        <input type="checkbox" id="spsWantArge" checked data-sps-list-toggle="spsArgeName">
+                                        <span class="sps-list-row__title"><i class="bi bi-collection"></i> ARGE-Liste</span>
+                                        <span class="sps-list-row__desc">Kürzel, Name und Fach-Kürzel aus Stammdaten.</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsArgeName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsArgeName" value="ARGEs" maxlength="200" spellcheck="false">
+                                    </div>
+                                </article>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantKlassen">
+                                        <input type="checkbox" id="spsWantKlassen" data-sps-list-toggle="spsKlassenName">
+                                        <span class="sps-list-row__title"><i class="bi bi-grid-3x3-gap"></i> Klassenliste</span>
+                                        <span class="sps-list-row__desc">Kürzel, Abschlussjahr, Klassenvorstand.</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsKlassenName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsKlassenName" value="Klassen" maxlength="200" spellcheck="false">
+                                    </div>
+                                </article>
+                                <article class="sps-list-row sps-list-row--sub">
+                                    <label class="sps-list-row__pick" for="spsKlassenPersonen">
+                                        <input type="checkbox" id="spsKlassenPersonen" checked>
+                                        <span class="sps-list-row__title"><i class="bi bi-person-check"></i> Klassenliste: Schülerinnen als Personenfeld</span>
+                                        <span class="sps-list-row__desc">Nur wenn Klassenliste aktiv – Mehrfach-Personenfeld pro Klasse; KV optional als Person.</span>
+                                    </label>
+                                </article>
+                            </div>
+                            <p class="hint" style="margin:12px 0 0;">Benutzer müssen im Tenant existieren (<code>ensureUser</code> bei Schreibrecht auf der Site).</p>
+                        </section>
+                    </div>
+
+                    <div id="spsWizardStep3" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Abgleich-Modus</h3>
+                        <p class="tm-wizard__pane-lead">Wie mit der Lehrerliste: vorhandene Listen (gleicher Name aus Schritt 2) aktualisieren statt Duplikate anzulegen.</p>
+                        <section class="tm-panel">
+                            <div class="tm-toggle-grid" style="grid-template-columns:1fr;">
+                                <label class="tm-toggle" for="spsAlwaysNew">
+                                    <input type="checkbox" id="spsAlwaysNew">
+                                    <span class="tm-toggle__icon"><i class="bi bi-plus-square"></i></span>
+                                    <span>
+                                        <span class="tm-toggle__title">Immer neue Listen anlegen</span>
+                                        <span class="tm-toggle__desc">Ohne Haken: Liste nach Name suchen und Zeilen abgleichen.</span>
+                                    </span>
+                                </label>
+                                <label class="tm-toggle" for="spsRemoveOrphans">
+                                    <input type="checkbox" id="spsRemoveOrphans" checked>
+                                    <span class="tm-toggle__icon"><i class="bi bi-trash"></i></span>
+                                    <span>
+                                        <span class="tm-toggle__title">Verwaiste Zeilen entfernen</span>
+                                        <span class="tm-toggle__desc">Einträge in SharePoint, die nicht mehr in den Stammdaten sind.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div id="spsWizardStep4" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Berechtigungen (Entra-Gruppen)</h3>
+                        <p class="tm-wizard__pane-lead">Optional jetzt oder nach dem Abgleich in Schritt 5. Vererbung brechen, Site-Breite entfernen, Gruppen zuweisen.</p>
+                        <section class="tm-panel">
+                            <div class="sps-perm-matrix-wrap">
+                                <table class="tm-table sps-perm-matrix" style="width:100%;font-size:0.88em;" aria-label="Berechtigungen pro Entra-Gruppe und Liste">
+                                    <thead></thead>
+                                    <tbody id="spsPermMatrixBody" data-sps-add-btn="spsPermMatrixAddRow"></tbody>
+                                </table>
+                            </div>
+                            <p class="hint" style="margin:0 0 8px;">Pro Zeile eine Entra-Gruppe (Tenant-Suche) und die Rechte je Stammdaten-Liste. — = kein Zugriff. Wird beim Berechtigungslauf übertragen (Browser).</p>
+                            <button type="button" class="btn btn-sm" id="spsPermMatrixAddRow" style="margin-bottom:12px;"><i class="bi bi-plus-lg"></i>Gruppe hinzufügen</button>
+                            <p class="hint">Voraussetzung Berechtigungslauf: <code>Sites.FullControl.All</code>. Beim ersten Öffnen werden bestehende Drei-Gruppen-Einstellungen übernommen; weitere Gruppen per „Gruppe hinzufügen“.</p>
+                            <label class="checkbox-label" style="display:block;margin:8px 0;">
+                                <input type="checkbox" id="spsSkipPerms"> Berechtigungen beim Start überspringen (nur Listen abgleichen)
+                            </label>
+                            <div class="tm-actions">
+                                <button type="button" class="btn" id="spsmBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen (ohne Abgleich)</button>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div id="spsWizardStep5" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Zusammenfassung &amp; Start</h3>
+                        <p class="tm-wizard__pane-lead">Prüfen Sie die Einstellungen, dann Abgleich starten. Protokoll unten.</p>
+                        <section class="tm-panel">
+                            <div id="spsSummary" class="sps-summary" aria-live="polite"></div>
+                            <div class="tm-actions" id="spsWizardRunFooter">
+                                <button type="button" class="btn btn-success" id="spsBtnRun"><i class="bi bi-arrow-repeat"></i>Abgleichen / anlegen</button>
+                            </div>
+                            <details class="tm-tech" open>
+                                <summary>Protokoll</summary>
+                                <div id="spsLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                            </details>
+                        </section>
                     </div>
                 </div>
-                <div class="tm-field">
-                    <label for="spsSiteUrl">SharePoint-Website</label>
-                    <input type="url" id="spsSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="spsSchuelerName">Name Schülerinnenliste</label>
-                    <input type="text" id="spsSchuelerName" value="Schülerinnen" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="spsFaecherName">Name Fächerliste</label>
-                    <input type="text" id="spsFaecherName" value="Fächer" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="spsFachgruppenName">Name Fachgruppenliste</label>
-                    <input type="text" id="spsFachgruppenName" value="Fachgruppen" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="spsArgeName">Name ARGE-Liste</label>
-                    <input type="text" id="spsArgeName" value="ARGEs" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-field">
-                    <label for="spsKlassenName">Name Klassenliste</label>
-                    <input type="text" id="spsKlassenName" value="Klassen" maxlength="200" spellcheck="false">
-                </div>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="spsBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
-                    <button type="button" class="btn" id="spsBtnRun"><i class="bi bi-arrow-repeat"></i>Abgleichen / anlegen</button>
-                </div>
-                <details class="tm-tech">
-                    <summary>Protokoll</summary>
-                    <div id="spsLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
-                </details>
+                <footer class="tm-wizard__footer">
+                    <button type="button" class="btn" id="spsWizardBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="btn btn-success" id="spsWizardNext">Weiter</button>
+                </footer>
             </section>
         </div>
     </div>

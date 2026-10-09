@@ -48,21 +48,54 @@
                 </div>
                 <p id="naStatus" class="muted" role="status"></p>
                 <p id="naSummary" style="font-weight:600;"></p>
-                <div class="tm-field">
-                    <label for="naFilter">Anzeige</label>
-                    <select id="naFilter">
-                        <option value="problems" selected>Nur Probleme</option>
-                        <option value="cloud">Nur Cloud fixbar</option>
-                        <option value="ad">Nur AD-Export</option>
-                        <option value="all">Alle</option>
-                    </select>
+                <div class="na-filters" style="display:flex;flex-wrap:wrap;gap:12px 16px;margin:12px 0;align-items:flex-end;">
+                    <div class="tm-field">
+                        <label for="naFilter">Anzeige</label>
+                        <select id="naFilter">
+                            <option value="problems" selected>Nur Probleme</option>
+                            <option value="cloud">Nur Cloud fixbar</option>
+                            <option value="ad">Nur AD-Export</option>
+                            <option value="all">Alle</option>
+                        </select>
+                    </div>
+                    <div class="tm-field">
+                        <label for="naFilterUserType">Kontotyp</label>
+                        <select id="naFilterUserType">
+                            <option value="" selected>Alle</option>
+                            <option value="Member">Nur Mitglieder</option>
+                            <option value="Guest">Nur Gäste</option>
+                        </select>
+                    </div>
+                    <div class="tm-field">
+                        <label for="naFilterLicense">Education-Lizenz</label>
+                        <select id="naFilterLicense">
+                            <option value="" selected>Alle</option>
+                            <option value="faculty">Lehrpersonal</option>
+                            <option value="student">Schüler:innen</option>
+                            <option value="none">Ohne Lizenz</option>
+                            <option value="other">Andere Lizenzen</option>
+                        </select>
+                    </div>
+                    <div class="tm-field">
+                        <label for="naGroupBy">Gruppierung</label>
+                        <select id="naGroupBy">
+                            <option value="none" selected>Keine</option>
+                            <option value="kontotyp">Nach Kontotyp</option>
+                            <option value="lizenz">Nach Education-Lizenz</option>
+                        </select>
+                    </div>
                 </div>
+                <style>
+                    tr.na-group-row td { background: var(--surface-2, #f4f6f8); font-weight: 600; padding: 10px 12px; border-top: 2px solid var(--border, #d0d7de); }
+                </style>
                 <div class="table-container" style="max-height:55vh;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Anzeigename</th>
                                 <th>UPN</th>
+                                <th>Kontotyp</th>
+                                <th>Lizenz</th>
                                 <th>Soll</th>
                                 <th>Status</th>
                                 <th>Hinweis</th>

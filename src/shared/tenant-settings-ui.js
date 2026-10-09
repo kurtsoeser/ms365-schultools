@@ -22,6 +22,19 @@ import {
     REGISTER_IMPORT_TARGET_LABEL
 } from './register-webuntis-file-import.js';
 import { openSubjectPdfImportReview } from './subject-pdf-import-review-ui.js';
+import {
+    ADMIN_TIER_SCHULLEITUNG,
+    ADMIN_TIER_VERWALTUNG,
+    inferAdminTierForRole,
+    normalizeAdminTier
+} from './administration-audience-logic.js';
+import {
+    BUILTIN_AUDIENCE_SCHULLEITUNG,
+    ensureAdminAudienceOnSettings,
+    normalizeAdminAudienceMemberships,
+    normalizeVerwaltungAudienceGroups
+} from './administration-audience-groups.js';
+import { mountTenantAdminAudienceBoard } from './tenant-admin-audience-board-ui.js';
 import { mountTenantSchoolEmailPatternUi } from './tenant-teacher-email-pattern-ui.js';
 import { mountTenantIntranetQuickSync } from './tenant-intranet-quick-sync.js';
 import { mountTenantSchoolProfileUi, reloadTenantSchoolProfileForm } from './tenant-school-profile-ui.js';
@@ -29,7 +42,8 @@ import {
     enrichClassesFromLinkedGroups,
     enrichClassesKvFromGraphOwners,
     collectPriorClassFieldsByCode,
-    deriveClassEntryFromGroup
+    deriveClassEntryFromGroup,
+    fillRegisterRowsHeadFromGroupOwners
 } from './class-list-enrich.js';
 import {
     enrichSubjectsFromCatalogSources,
@@ -1145,14 +1159,17 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         const taAdminBundle = document.getElementById('tenantAdminBundleLines');
         const taAdmin = document.getElementById('tenantAdminLines');
         const adminTbody = document.getElementById('tenantAdminTableBody');
-        const adminUnifiedTbody = document.getElementById('tenantAdminUnifiedTableBody');
-        const adminUnifiedTable = adminUnifiedTbody ? adminUnifiedTbody.closest('table') : null;
-        const adminUnifiedSortState = { key: null, dir: 1 };
-        const btnAddAdminRow = document.getElementById('tenantAdminAddRow');
         const taAdminRoles = document.getElementById('tenantAdminRoleLines');
         const adminRolesTbody = document.getElementById('tenantAdminRolesTableBody');
         const btnAdminRolesDefaults = document.getElementById('tenantAdminRolesDefaults');
         const btnVerifyVerwaltungGraph = document.getElementById('tenantBtnVerifyVerwaltungGraph');
+        const tenantAdminAudienceBoardHost = document.getElementById('tenantAdminAudienceBoard');
+        let audienceGroupsSnapshot = [];
+        /** @type {object[]|null} Verwaltung ohne Textfeld-Bundle */
+        let administrationGroupsSnapshot = null;
+        let audienceMembershipsSnapshot = [];
+        /** @type {{ refresh: () => void } | null} */
+        let audienceBoardRef = null;
         const selSgaMode = document.getElementById('tenantSgaMode');
         const taSga = document.getElementById('tenantSgaLines');
         const sgaTbody = document.getElementById('tenantSgaTableBody');
@@ -1242,6 +1259,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         const _inpDefaultGradYear = null;
         const schoolNameInput = document.getElementById('schoolName');
         const domainInput = document.getElementById('schoolEmailDomain');
+        const verifiedDomainsInput = document.getElementById('schoolVerifiedEmailDomains');
         const schoolYearSelect = document.getElementById('schoolYearSelect');
 
         /** Schuljahr Sep–Aug (kanonisch, siehe shared/utils/school-year.js). */
@@ -1312,8 +1330,26 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             const schoolName = schoolNameInput ? normStr(schoolNameInput.value || '') : '';
             const domain =
                 typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
+            const verifiedEmailDomains = verifiedDomainsInput ? normStr(verifiedDomainsInput.value || '') : '';
             const administration = getAdministrationEntries();
-            const saved = save({ schoolName, domain, subjects, arges, teachers, administration, admin, adminRoles, sgaMode, sga, students, studentCouncil, classes });
+            const saved = save({
+                schoolName,
+                domain,
+                verifiedEmailDomains,
+                subjects,
+                arges,
+                teachers,
+                administration,
+                admin,
+                adminRoles,
+                verwaltungAudienceGroups: audienceGroupsSnapshot,
+                adminAudienceMemberships: audienceMembershipsSnapshot,
+                sgaMode,
+                sga,
+                students,
+                studentCouncil,
+                classes
+            });
             dispatchTenantSettingsChanged(saved, 'autosave');
         }
 
@@ -1461,7 +1497,13 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                         return;
                     }
                     if (!byCode.has(code)) {
-                        byCode.set(code, { code, name: derived.name || code, subjects: [] });
+                        byCode.set(code, {
+                            code,
+                            name: derived.name || code,
+                            subjects: [],
+                            headName: '',
+                            headEmail: ''
+                        });
                         added++;
                     } else {
                         const ex = byCode.get(code);
@@ -1473,16 +1515,34 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 const next = Array.from(byCode.values()).sort(function (a, b) {
                     return normCode(a.code).localeCompare(normCode(b.code));
                 });
+                let headFromOwners = { kvFilled: 0 };
+                try {
+                    headFromOwners = await fillRegisterRowsHeadFromGroupOwners(next, picked, {
+                        deriveCode: function (g) {
+                            return deriveArgeEntryFromGroup(g).code;
+                        },
+                        getTeachers: getTeachersFromTextarea,
+                        fetchGroupOwners: graphApi().fetchGroupOwners,
+                        getGraphToken: function () {
+                            return graphApi().getGraphToken();
+                        }
+                    });
+                } catch (headErr) {
+                    if (typeof console !== 'undefined' && console.warn) {
+                        console.warn('ARGE Besitzer:', headErr && headErr.message ? headErr.message : headErr);
+                    }
+                }
                 setArgesTextareaFromRows(next);
                 renderArgesTableFromTextarea();
                 scheduleAutoSave();
                 const parts = [];
                 if (added) parts.push(added + ' neue ARGE');
                 if (linked) parts.push(linked + ' verknüpft');
+                if (headFromOwners.kvFilled) parts.push(headFromOwners.kvFilled + ' Leitung(en) aus Gruppenbesitzer');
                 if (skipped) parts.push(skipped + ' übersprungen (kein Kürzel)');
                 setSummary(
                     'Microsoft 365: ' + (parts.length ? parts.join(' · ') : 'Keine Änderung.'),
-                    added || linked ? 'ok' : 'warn'
+                    added || linked || headFromOwners.kvFilled ? 'ok' : 'warn'
                 );
             } catch (e) {
                 const msg = e && e.message ? e.message : String(e);
@@ -2280,7 +2340,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 patchDirectoryMatchKeys([em], { notFound: true, checkedAt: iso });
                 setSummary('Kein Entra-Benutzer für: ' + em, 'warn');
             }
-            renderAdminUnifiedTableFromBundle();
+            refreshAdminAudienceBoardUi();
             return !!(u && u.id);
         } catch (e) {
             setSummary('Abgleich: ' + (e && e.message ? e.message : String(e)), 'warn');
@@ -2298,7 +2358,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             'Verwaltung',
             btnVerifyVerwaltungGraph,
             function () {
-                renderAdminUnifiedTableFromBundle();
+                refreshAdminAudienceBoardUi();
             }
         );
     }
@@ -2923,7 +2983,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             const existing = await graphApi().resolveUserByEmail(tokenProbe, em);
             if (existing && existing.id) {
                 patchDirectoryMatchKeys([em], directoryMatchUserPayload(existing));
-                renderAdminUnifiedTableFromBundle();
+                refreshAdminAudienceBoardUi();
                 setSummary('Unter dieser E-Mail existiert bereits ein Entra-Benutzer.', 'ok');
                 return;
             }
@@ -2953,7 +3013,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                     iso
                 )
             );
-            renderAdminUnifiedTableFromBundle();
+            refreshAdminAudienceBoardUi();
             await dlgAlert(
                 'Benutzer angelegt.\n\nEinmaliges Kennwort:\n' +
                     created.password +
@@ -3089,6 +3149,9 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             if (taAdminBundle && typeof window.ms365TenantSettingsParseAdminGroupsLines === 'function') {
                 return window.ms365TenantSettingsParseAdminGroupsLines(taAdminBundle.value);
             }
+            if (Array.isArray(administrationGroupsSnapshot)) {
+                return administrationGroupsSnapshot;
+            }
             const roles =
                 typeof parseLinesToAdminRoles === 'function'
                     ? parseLinesToAdminRoles(taAdminRoles ? taAdminRoles.value : '')
@@ -3102,13 +3165,18 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         }
 
         function setAdministrationGroups(groups) {
+            administrationGroupsSnapshot = Array.isArray(groups) ? groups : [];
             if (taAdminBundle && typeof window.ms365TenantSettingsAdminGroupsToLines === 'function') {
-                taAdminBundle.value = window.ms365TenantSettingsAdminGroupsToLines(groups);
+                taAdminBundle.value = window.ms365TenantSettingsAdminGroupsToLines(administrationGroupsSnapshot);
                 return;
             }
             if (typeof window.ms365TenantSettingsAdminRolesAndAdminToGroups !== 'function') return;
             const roles = (groups || []).map(function (group) {
-                return { code: normCode(group && group.code), name: normStr(group && group.name) };
+                return {
+                    code: normCode(group && group.code),
+                    name: normStr(group && group.name),
+                    tier: inferAdminTierForRole(group)
+                };
             });
             const admin = [];
             (groups || []).forEach(function (group) {
@@ -3126,14 +3194,135 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             if (taAdmin) taAdmin.value = adminToLines(admin);
         }
 
+        function adminTierLabel(tier) {
+            const t = normalizeAdminTier(tier) || ADMIN_TIER_VERWALTUNG;
+            return t === ADMIN_TIER_SCHULLEITUNG ? 'Schulleitung' : 'Verwaltung (Personal)';
+        }
+
+        function syncAdministrationSnapshotFromSettings(s) {
+            administrationGroupsSnapshot = adminGroupsFromSettings(s || load());
+        }
+
+        function syncAudienceSnapshotsFromSettings(s) {
+            const ensured = ensureAdminAudienceOnSettings(s || load());
+            audienceGroupsSnapshot = ensured.groups;
+            audienceMembershipsSnapshot = ensured.memberships;
+        }
+
+        function applyAudienceMembershipPatch(groups, memberships) {
+            audienceGroupsSnapshot = normalizeVerwaltungAudienceGroups(groups);
+            audienceMembershipsSnapshot = normalizeAdminAudienceMemberships(memberships);
+            if (audienceBoardRef) audienceBoardRef.refresh();
+        }
+
+        function refreshAdminAudienceBoardUi() {
+            if (audienceBoardRef) audienceBoardRef.refresh();
+        }
+
+        function patchAdministrationDisplayFieldForEmail(emailRaw, field, value, context, meta) {
+            if (meta && meta.cancelled) {
+                refreshAdminAudienceBoardUi();
+                return;
+            }
+            const em = normStr(emailRaw).toLowerCase();
+            if (!em) return;
+            const rows = groupsToDisplayRows(getAdministrationGroups());
+            let idx = rows.findIndex(function (r) {
+                return normStr(r && r.email).toLowerCase() === em;
+            });
+            const val = normStr(value);
+            if (idx < 0) {
+                const ag = context && context.audienceGroupId ? String(context.audienceGroupId) : '';
+                const tier =
+                    ag === BUILTIN_AUDIENCE_SCHULLEITUNG || ag === ADMIN_TIER_SCHULLEITUNG
+                        ? ADMIN_TIER_SCHULLEITUNG
+                        : ADMIN_TIER_VERWALTUNG;
+                const row = {
+                    name: field === 'name' ? val : '',
+                    code: field === 'code' ? normCode(val) : '',
+                    personName: context && context.personName ? normStr(context.personName) : '',
+                    email: em,
+                    tier: tier
+                };
+                if (field === 'name' && val && !row.code && typeof window.ms365TenantSettingsAdminRoleCodeFromName === 'function') {
+                    row.code = normCode(window.ms365TenantSettingsAdminRoleCodeFromName(val));
+                }
+                rows.push(row);
+            } else {
+                const prevName = rows[idx].name;
+                if (field === 'name') {
+                    rows[idx].name = val;
+                    if (rows[idx].code && prevName && val !== prevName && typeof window.ms365TenantSettingsAdminRoleCodeFromName === 'function') {
+                        rows[idx].code = normCode(window.ms365TenantSettingsAdminRoleCodeFromName(val)) || rows[idx].code;
+                    } else if (!rows[idx].code && val && typeof window.ms365TenantSettingsAdminRoleCodeFromName === 'function') {
+                        rows[idx].code = normCode(window.ms365TenantSettingsAdminRoleCodeFromName(val));
+                    }
+                } else if (field === 'code') {
+                    rows[idx].code = normCode(val);
+                }
+            }
+            setAdministrationGroups(displayRowsToGroups(rows));
+            scheduleAutoSave();
+            refreshAdminAudienceBoardUi();
+        }
+
+        syncAdministrationSnapshotFromSettings(load());
+        syncAudienceSnapshotsFromSettings(load());
+        if (tenantAdminAudienceBoardHost) {
+            audienceBoardRef = mountTenantAdminAudienceBoard({
+                host: tenantAdminAudienceBoardHost,
+                getSettings: function () {
+                    const base = load();
+                    return Object.assign({}, base, {
+                        verwaltungAudienceGroups: audienceGroupsSnapshot,
+                        adminAudienceMemberships: audienceMembershipsSnapshot
+                    });
+                },
+                onChange: function (patch) {
+                    applyAudienceMembershipPatch(patch.verwaltungAudienceGroups, patch.adminAudienceMemberships);
+                },
+                scheduleAutoSave,
+                normStr,
+                getSchoolName: function () {
+                    return schoolNameInput ? normStr(schoolNameInput.value || '') : normStr(load().schoolName || '');
+                },
+                setSummary,
+                onVerifyDirectory: function (email) {
+                    return verifyAdminDirectoryEmail(email);
+                },
+                onCreateEntraUser: function (email, personName) {
+                    return createAdminEntraUserInteractive(email, personName);
+                },
+                onDirectoryChanged: function () {
+                    if (audienceBoardRef) audienceBoardRef.refresh();
+                },
+                getAdminDisplayRows: function () {
+                    return groupsToDisplayRows(getAdministrationGroups());
+                },
+                onAdminDisplayFieldEdit: function (email, field, value, ctx, meta) {
+                    patchAdministrationDisplayFieldForEmail(email, field, value, ctx, meta);
+                }
+            });
+        }
+
+        function applyAdminTierToDisplayRows(rows, roleName, tier) {
+            const key = normStr(roleName).toLowerCase();
+            if (!key) return;
+            const next = normalizeAdminTier(tier) || ADMIN_TIER_VERWALTUNG;
+            (Array.isArray(rows) ? rows : []).forEach(function (row) {
+                if (normStr(row && row.name).toLowerCase() === key) row.tier = next;
+            });
+        }
+
         function groupsToDisplayRows(groups) {
             const rows = [];
             (Array.isArray(groups) ? groups : []).forEach(function (group) {
                 const code = normStr(group && group.code);
                 const name = normStr(group && group.name);
+                const tier = inferAdminTierForRole(group);
                 const people = Array.isArray(group && group.people) ? group.people : [];
                 if (!people.length) {
-                    rows.push({ code: code, name: name, personName: '', email: '' });
+                    rows.push({ code: code, name: name, personName: '', email: '', tier: tier });
                     return;
                 }
                 people.forEach(function (person) {
@@ -3141,7 +3330,8 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                         code: code,
                         name: name,
                         personName: normStr(person && person.name),
-                        email: normStr(person && person.email).toLowerCase()
+                        email: normStr(person && person.email).toLowerCase(),
+                        tier: tier
                     });
                 });
             });
@@ -3162,12 +3352,20 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 if (!name && !code && !personName && !email) return;
                 const key = (name || code).toLowerCase();
                 if (!groupMap.has(key)) {
-                    groupMap.set(key, { code: code, name: name || code, people: [] });
+                    groupMap.set(key, {
+                        code: code,
+                        name: name || code,
+                        people: [],
+                        tier: inferAdminTierForRole({ name: name || code, code: code, tier: row && row.tier })
+                    });
                     order.push(key);
                 }
                 const group = groupMap.get(key);
                 if (code) group.code = code;
                 if (name) group.name = name;
+                if (row && row.tier) {
+                    group.tier = inferAdminTierForRole({ name: group.name, code: group.code, tier: row.tier });
+                }
                 if (personName || email) {
                     group.people.push({ name: personName, email: email });
                 }
@@ -3229,7 +3427,11 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
 
         function getAdminRolesFromTextarea() {
             return getAdministrationGroups().map(function (group) {
-                return { code: normCode(group && group.code), name: normStr(group && group.name) };
+                return {
+                    code: normCode(group && group.code),
+                    name: normStr(group && group.name),
+                    tier: inferAdminTierForRole(group)
+                };
             });
         }
 
@@ -3240,190 +3442,6 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 return;
             }
             if (taAdminRoles) taAdminRoles.value = adminRolesToLines(rows);
-        }
-
-        function renderAdminUnifiedTableFromBundle() {
-            if (!adminUnifiedTbody) return;
-            updateTableSortIndicators(adminUnifiedTable, adminUnifiedSortState);
-            const displayRows = groupsToDisplayRows(getAdministrationGroups());
-            adminUnifiedTbody.replaceChildren();
-            if (!displayRows.length) {
-                const tr = document.createElement('tr');
-                const td = document.createElement('td');
-                td.colSpan = 6;
-                td.style.color = 'var(--muted)';
-                td.textContent = 'Noch keine Einträge – oben einfügen oder „+ Eintrag“.';
-                tr.appendChild(td);
-                adminUnifiedTbody.appendChild(tr);
-                return;
-            }
-
-            displayRows.forEach((row, idx) => {
-                const tr = document.createElement('tr');
-
-                const tdLabel = document.createElement('td');
-                tdLabel.textContent = row.name || '';
-                tdLabel.title = 'Doppelklick zum Bearbeiten';
-                tdLabel.addEventListener('dblclick', () => {
-                    startCellEdit(tdLabel, row.name, (next, meta) => {
-                        const all = groupsToDisplayRows(getAdministrationGroups());
-                        if (!all[idx]) return renderAdminUnifiedTableFromBundle();
-                        const prev = all[idx].name;
-                        all[idx].name = meta && meta.cancelled ? prev : normStr(next);
-                        if (all[idx].code && prev && all[idx].name !== prev) {
-                            all[idx].code =
-                                typeof window.ms365TenantSettingsAdminRoleCodeFromName === 'function'
-                                    ? window.ms365TenantSettingsAdminRoleCodeFromName(all[idx].name)
-                                    : all[idx].code;
-                        }
-                        setAdministrationGroups(displayRowsToGroups(all));
-                        renderAdminUnifiedTableFromBundle();
-                        scheduleAutoSave();
-                    });
-                });
-
-                const tdCode = document.createElement('td');
-                tdCode.innerHTML = `<code>${row.code || ''}</code>`;
-                tdCode.title = 'Doppelklick zum Bearbeiten';
-                tdCode.addEventListener('dblclick', () => {
-                    startCellEdit(tdCode, row.code, (next, meta) => {
-                        const all = groupsToDisplayRows(getAdministrationGroups());
-                        if (!all[idx]) return renderAdminUnifiedTableFromBundle();
-                        const prev = all[idx].code;
-                        all[idx].code = meta && meta.cancelled ? prev : normCode(next);
-                        setAdministrationGroups(displayRowsToGroups(all));
-                        renderAdminUnifiedTableFromBundle();
-                        scheduleAutoSave();
-                    });
-                });
-
-                const tdPerson = document.createElement('td');
-                tdPerson.textContent = row.personName || '';
-                tdPerson.title = 'Doppelklick zum Bearbeiten';
-                tdPerson.addEventListener('dblclick', () => {
-                    startCellEdit(tdPerson, row.personName, (next, meta) => {
-                        const all = groupsToDisplayRows(getAdministrationGroups());
-                        if (!all[idx]) return renderAdminUnifiedTableFromBundle();
-                        const prev = all[idx].personName;
-                        all[idx].personName = meta && meta.cancelled ? prev : normStr(next);
-                        setAdministrationGroups(displayRowsToGroups(all));
-                        renderAdminUnifiedTableFromBundle();
-                        scheduleAutoSave();
-                    });
-                });
-
-                const tdEmail = document.createElement('td');
-                tdEmail.textContent = row.email || '';
-                tdEmail.title = 'Doppelklick zum Bearbeiten';
-                tdEmail.addEventListener('dblclick', () => {
-                    startCellEdit(tdEmail, row.email, (next, meta) => {
-                        const all = groupsToDisplayRows(getAdministrationGroups());
-                        if (!all[idx]) return renderAdminUnifiedTableFromBundle();
-                        const prev = all[idx].email;
-                        all[idx].email = meta && meta.cancelled ? prev : normStr(next).toLowerCase();
-                        setAdministrationGroups(displayRowsToGroups(all));
-                        renderAdminUnifiedTableFromBundle();
-                        scheduleAutoSave();
-                    });
-                });
-
-                const tdMs = document.createElement('td');
-                tdMs.style.fontSize = '0.88em';
-                tdMs.style.lineHeight = '1.35';
-                {
-                    const em = row.email ? row.email.trim().toLowerCase() : '';
-                    const m = em && em.indexOf('@') !== -1 ? getDirectoryMatchByEmail(em) : null;
-                    if (!em || em.indexOf('@') === -1) {
-                        tdMs.style.color = 'var(--muted)';
-                        tdMs.textContent = '–';
-                        tdMs.title = 'E‑Mail nötig für Abgleich mit Microsoft Entra';
-                    } else if (m && m.graphUserId) {
-                        const gid = String(m.graphUserId);
-                        const short = gid.length > 14 ? gid.slice(0, 12) + '…' : gid;
-                        tdMs.innerHTML =
-                            '<span style="color:#0d8050;font-weight:700;">✓</span> <code style="font-size:0.82em;">' +
-                            escapeHtml(short) + '</code>';
-                        tdMs.title =
-                            (m.displayName ? m.displayName : '') +
-                            (m.userPrincipalName ? '\n' + m.userPrincipalName : '') +
-                            '\nObject-ID: ' + gid;
-                        tr.style.background = 'color-mix(in srgb, #0d8050 8%, transparent)';
-                    } else if (m && m.notFound) {
-                        tdMs.innerHTML =
-                            '<span style="color:#856404;font-weight:700;">✗</span> <span style="color:var(--muted)">nicht gefunden</span>';
-                        tdMs.title = 'Kein Benutzer mit mail oder UPN gleich dieser E‑Mail';
-                    } else {
-                        tdMs.style.color = 'var(--muted)';
-                        tdMs.textContent = '–';
-                        tdMs.title = 'Noch nicht geprüft – Prüfen-Button in der Aktionsspalte';
-                    }
-                }
-
-                const tdAction = document.createElement('td');
-                tdAction.className = 'action-cell';
-                tdAction.style.whiteSpace = 'nowrap';
-                tdAction.style.display = 'flex';
-                tdAction.style.gap = '6px';
-                tdAction.style.alignItems = 'center';
-                const dir = getDirectoryMatchByEmail(row.email);
-                if (row.email && row.personName) {
-                    const btnCheck = document.createElement('button');
-                    btnCheck.type = 'button';
-                    btnCheck.className = 'mini-btn';
-                    btnCheck.style.background = 'var(--brand1)';
-                    btnCheck.title = 'Diese E‑Mail in Microsoft Entra prüfen';
-                    btnCheck.innerHTML = '<i class="bi bi-microsoft" aria-hidden="true"></i>';
-                    if (dir && dir.graphUserId) {
-                        btnCheck.disabled = true;
-                    } else {
-                        btnCheck.addEventListener('click', async () => {
-                            btnCheck.disabled = true;
-                            try {
-                                await verifyAdminDirectoryEmail(row.email);
-                            } finally {
-                                renderAdminUnifiedTableFromBundle();
-                            }
-                        });
-                    }
-                    tdAction.appendChild(btnCheck);
-
-                    const btnCreate = document.createElement('button');
-                    btnCreate.type = 'button';
-                    btnCreate.className = 'mini-btn';
-                    btnCreate.style.background = '#11cdef';
-                    btnCreate.title = 'Neuen Benutzer in Microsoft Entra ID anlegen (User.ReadWrite.All)';
-                    btnCreate.innerHTML = '<i class="bi bi-person-plus" aria-hidden="true"></i>';
-                    if (dir && dir.graphUserId) {
-                        btnCreate.disabled = true;
-                    } else {
-                        btnCreate.addEventListener('click', async () => {
-                            btnCreate.disabled = true;
-                            try {
-                                await createAdminEntraUserInteractive(row.email, row.personName);
-                            } finally {
-                                renderAdminUnifiedTableFromBundle();
-                            }
-                        });
-                    }
-                    tdAction.appendChild(btnCreate);
-                }
-                const btnDel = document.createElement('button');
-                btnDel.type = 'button';
-                btnDel.className = 'mini-btn';
-                btnDel.textContent = '✕';
-                btnDel.title = 'Zeile löschen';
-                btnDel.addEventListener('click', () => {
-                    const all = groupsToDisplayRows(getAdministrationGroups());
-                    all.splice(idx, 1);
-                    setAdministrationGroups(displayRowsToGroups(all));
-                    renderAdminUnifiedTableFromBundle();
-                    scheduleAutoSave();
-                });
-                tdAction.appendChild(btnDel);
-
-                tr.append(tdLabel, tdCode, tdPerson, tdEmail, tdMs, tdAction);
-                adminUnifiedTbody.appendChild(tr);
-            });
         }
 
         function getTeachersFromTextarea() {
@@ -3448,6 +3466,10 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             if (key === 'scope') return normStr(row.scope).toLowerCase();
             if (key === 'klasse') return normStr(row.klasse).toLowerCase();
             if (key === 'personName') return normStr(row.personName);
+            if (key === 'tier') {
+                const t = inferAdminTierForRole({ name: row.name, code: row.code, tier: row.tier });
+                return adminTierLabel(t);
+            }
             return normStr(row[key]);
         }
 
@@ -3695,10 +3717,6 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         }
 
         function renderAdminRolesTableFromTextarea() {
-            if (adminUnifiedTbody) {
-                renderAdminUnifiedTableFromBundle();
-                return;
-            }
             if (!adminRolesTbody) return;
             const rows = getAdminRolesFromTextarea();
             adminRolesTbody.replaceChildren();
@@ -3793,10 +3811,6 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         }
 
         function renderAdminTableFromTextarea() {
-            if (adminUnifiedTbody) {
-                renderAdminUnifiedTableFromBundle();
-                return;
-            }
             if (!adminTbody) return;
             const rows = getAdminFromTextarea();
             const roleCatalog = getAdminRolesFromTextarea();
@@ -6508,16 +6522,6 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             scheduleAutoSave();
         }
 
-        function applyAdminUnifiedSort(key) {
-            const allowed = ['name', 'code', 'personName', 'email'];
-            if (!key || allowed.indexOf(key) < 0) return;
-            toggleTenantSortState(adminUnifiedSortState, key);
-            const sorted = sortTenantRows(groupsToDisplayRows(getAdministrationGroups()), key, adminUnifiedSortState.dir);
-            setAdministrationGroups(displayRowsToGroups(sorted));
-            renderAdminUnifiedTableFromBundle();
-            scheduleAutoSave();
-        }
-
         function syncStudentsClassFilterOptions(rows) {
             if (!studentsClassFilter) return;
             const prev = String(studentsClassFilter.value || '');
@@ -7139,16 +7143,36 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 const next = Array.from(byCode.values()).sort(function (a, b) {
                     return normCode(a.code).localeCompare(normCode(b.code));
                 });
+                let headFromOwners = { kvFilled: 0 };
+                try {
+                    headFromOwners = await fillRegisterRowsHeadFromGroupOwners(next, picked, {
+                        deriveCode: function (g) {
+                            return deriveClassEntryFromGroup(g).code;
+                        },
+                        getTeachers: getTeachersFromTextarea,
+                        fetchGroupOwners: graphApi().fetchGroupOwners,
+                        getGraphToken: function () {
+                            return graphApi().getGraphToken();
+                        }
+                    });
+                } catch (headErr) {
+                    if (typeof console !== 'undefined' && console.warn) {
+                        console.warn('Klassen Besitzer:', headErr && headErr.message ? headErr.message : headErr);
+                    }
+                }
                 setClassesTextareaFromRows(next);
                 renderClassesTableFromTextarea();
                 scheduleAutoSave();
                 const parts = [];
                 if (added) parts.push(added + ' neue Klasse(n)');
                 if (linked) parts.push(linked + ' verknüpft');
+                if (headFromOwners.kvFilled) {
+                    parts.push(headFromOwners.kvFilled + ' Klassenvorstand/Vorstände aus Gruppenbesitzer');
+                }
                 if (skipped) parts.push(skipped + ' übersprungen (kein Kürzel)');
                 setSummary(
                     'Microsoft 365: ' + (parts.length ? parts.join(' · ') : 'Keine Änderung.'),
-                    added || linked ? 'ok' : 'warn'
+                    added || linked || headFromOwners.kvFilled ? 'ok' : 'warn'
                 );
             } catch (e) {
                 const msg = e && e.message ? e.message : String(e);
@@ -7305,6 +7329,12 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             try {
                 if (schoolNameInput) schoolNameInput.value = normStr(s.schoolName || '');
                 if (domainInput) domainInput.value = normStr(s.domain || '');
+                if (verifiedDomainsInput) {
+                    const vd = Array.isArray(s.verifiedEmailDomains)
+                        ? s.verifiedEmailDomains.join(', ')
+                        : normStr(s.verifiedEmailDomains || '');
+                    verifiedDomainsInput.value = vd;
+                }
                 if (typeof window.ms365SetSchoolDomainNoAt === 'function') {
                     const d = normStr(s.domain || '').replace(/^@+/, '');
                     if (d) window.ms365SetSchoolDomainNoAt(d);
@@ -7323,9 +7353,10 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             if (taTeachers) {
                 taTeachers.value = teachersToLines(s.teachers || []);
             }
-            if (taAdminBundle) {
-                setAdministrationGroups(adminGroupsFromSettings(s));
-            }
+            syncAdministrationSnapshotFromSettings(s);
+            setAdministrationGroups(administrationGroupsSnapshot || []);
+            syncAudienceSnapshotsFromSettings(s);
+            if (audienceBoardRef) audienceBoardRef.refresh();
             if (taAdmin) {
                 taAdmin.value = (s.admin || [])
                     .map((x) => `${x.role || ''};${x.name || ''};${x.email || ''}`.trim())
@@ -7862,9 +7893,25 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 const schoolName = schoolNameInput ? normStr(schoolNameInput.value || '') : '';
                 const domain =
                     typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
+                const verifiedEmailDomains = verifiedDomainsInput ? normStr(verifiedDomainsInput.value || '') : '';
                 const arges = typeof parseLinesToArges === 'function' ? parseLinesToArges(taArges ? taArges.value : '') : [];
                 const administration = getAdministrationEntries();
-                const saved = save({ schoolName, domain, subjects, arges, teachers, administration, admin, adminRoles, sgaMode, sga, students, studentCouncil, classes });
+                const saved = save({
+                    schoolName,
+                    domain,
+                    verifiedEmailDomains,
+                    subjects,
+                    arges,
+                    teachers,
+                    administration,
+                    admin,
+                    adminRoles,
+                    sgaMode,
+                    sga,
+                    students,
+                    studentCouncil,
+                    classes
+                });
                 renderSubjectsTableFromTextarea();
                 renderArgesTableFromTextarea();
                 renderTeachersTableFromTextarea();
@@ -8311,6 +8358,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 if (taArges) taArges.value = '';
                 if (taTeachers) taTeachers.value = '';
                 if (taAdminBundle) taAdminBundle.value = '';
+                administrationGroupsSnapshot = [];
                 if (taAdmin) taAdmin.value = '';
                 if (taAdminRoles) taAdminRoles.value = '';
                 if (selSgaMode) selSgaMode.value = 'group';
@@ -8393,7 +8441,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                     if (taSubjects) taSubjects.value = (saved.subjects || []).map((x) => `${x.code};${x.name || ''}`.trim()).join('\n');
                     if (taArges) taArges.value = (saved.arges || []).map((x) => `${x.code};${x.name || ''};${(x.subjects || []).join(',')}`.trim()).join('\n');
                     if (taTeachers) taTeachers.value = teachersToLines(saved.teachers || []);
-                    if (taAdminBundle) setAdministrationGroups(adminGroupsFromSettings(saved));
+                    setAdministrationGroups(adminGroupsFromSettings(saved));
                     if (taAdmin) taAdmin.value = (saved.admin || []).map((x) => `${x.role || ''};${x.name || ''};${x.email || ''}`.trim()).join('\n');
                     if (taAdminRoles) taAdminRoles.value = (saved.adminRoles || []).map((x) => `${x.code || ''};${x.name || ''}`.trim()).join('\n');
                     if (selSgaMode) selSgaMode.value = normStr(saved.sgaMode || 'group').toLowerCase() === 'distribution' ? 'distribution' : 'group';
@@ -8426,6 +8474,10 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         if (domainInput) {
             domainInput.addEventListener('input', () => scheduleAutoSave());
             domainInput.addEventListener('change', () => scheduleAutoSave());
+        }
+        if (verifiedDomainsInput) {
+            verifiedDomainsInput.addEventListener('input', () => scheduleAutoSave());
+            verifiedDomainsInput.addEventListener('change', () => scheduleAutoSave());
         }
         if (schoolNameInput) {
             schoolNameInput.addEventListener('input', () => {
@@ -8582,12 +8634,6 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             ['klasse', 'name', 'email'],
             applyStudentCouncilSort
         );
-        bindTenantTableSort(
-            adminUnifiedTable,
-            adminUnifiedSortState,
-            ['name', 'code', 'personName', 'email'],
-            applyAdminUnifiedSort
-        );
         if (btnAddTeacherRow) {
             btnAddTeacherRow.addEventListener('click', () => {
                 const all = getTeachersFromTextarea();
@@ -8649,11 +8695,9 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         }
         if (taAdminBundle) {
             taAdminBundle.addEventListener('input', () => {
-                adminUnifiedSortState.key = null;
-                adminUnifiedSortState.dir = 1;
                 renderAdminRolesTableFromTextarea();
                 renderAdminTableFromTextarea();
-                renderAdminUnifiedTableFromBundle();
+                refreshAdminAudienceBoardUi();
                 scheduleAutoSave();
             });
         }
@@ -8665,40 +8709,6 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             taAdminRoles.addEventListener('input', () => renderAdminRolesTableFromTextarea());
             taAdminRoles.addEventListener('input', () => renderAdminTableFromTextarea());
             taAdminRoles.addEventListener('input', () => scheduleAutoSave());
-        }
-        if (btnAddAdminRow) {
-            btnAddAdminRow.addEventListener('click', () => {
-                const rows = groupsToDisplayRows(getAdministrationGroups());
-                const newName = '';
-                rows.push({ code: '', name: newName, personName: '', email: '' });
-                setAdministrationGroups(displayRowsToGroups(rows));
-                renderAdminTableFromTextarea();
-                scheduleAutoSave();
-                // Letzte Zeile sofort in Editiermodus (Bezeichnung-Zelle)
-                if (adminUnifiedTbody) {
-                    const lastTr = adminUnifiedTbody.lastElementChild;
-                    if (lastTr) {
-                        const tdLabel = lastTr.cells && lastTr.cells[0];
-                        if (tdLabel) {
-                            const newIdx = rows.length - 1;
-                            startCellEdit(tdLabel, newName, (next, meta) => {
-                                const all = groupsToDisplayRows(getAdministrationGroups());
-                                if (!all[newIdx]) return renderAdminUnifiedTableFromBundle();
-                                all[newIdx].name = meta && meta.cancelled ? '' : normStr(next);
-                                if (!meta || !meta.cancelled) {
-                                    all[newIdx].code =
-                                        typeof window.ms365TenantSettingsAdminRoleCodeFromName === 'function'
-                                            ? window.ms365TenantSettingsAdminRoleCodeFromName(all[newIdx].name)
-                                            : '';
-                                }
-                                setAdministrationGroups(displayRowsToGroups(all));
-                                renderAdminUnifiedTableFromBundle();
-                                scheduleAutoSave();
-                            });
-                        }
-                    }
-                }
-            });
         }
         if (btnAdminRolesDefaults) {
             btnAdminRolesDefaults.addEventListener('click', () => {
@@ -8717,10 +8727,17 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                     const key = name.toLowerCase();
                     if (!name || seen.has(key)) return;
                     seen.add(key);
-                    rows.push({ code: normCode(d && d.code), name: name, personName: '', email: '' });
+                    rows.push({
+                        code: normCode(d && d.code),
+                        name: name,
+                        personName: '',
+                        email: '',
+                        tier: inferAdminTierForRole(d)
+                    });
                 });
                 setAdministrationGroups(displayRowsToGroups(rows));
                 renderAdminTableFromTextarea();
+                refreshAdminAudienceBoardUi();
                 scheduleAutoSave();
             });
         }

@@ -7,6 +7,7 @@ import {
     buildClassChatPlans,
     buildManualClassChatPlan,
     parseMemberEmailsText,
+    sanitizeTeamsChatTopic,
     summarizePlans,
     upsertClassChatItem,
     existingByKlasseFromState,
@@ -15,6 +16,23 @@ import {
 } from '../src/tools/klassenchats/klassenchats-logic.js';
 
 describe('klassenchats-logic', () => {
+    it('ersetzt Doppelpunkt im Topic für Teams Graph', () => {
+        expect(sanitizeTeamsChatTopic('DEMO SJ26-27 | 1A | Lehrer:innen')).toBe(
+            'DEMO SJ26-27 | 1A | Lehrer·innen'
+        );
+        const topic = buildChatTopicFromPattern(
+            [
+                { type: 'text', value: 'DEMO ' },
+                { type: 'yearPrefix' },
+                { type: 'text', value: ' | ' },
+                { type: 'klasse' },
+                { type: 'text', value: ' | Lehrer:innen' }
+            ],
+            { yearPrefix: 'SJ26-27', klasse: '1A' }
+        );
+        expect(topic).toBe('DEMO SJ26-27 | 1A | Lehrer·innen');
+    });
+
     it('baut Standard-Topic mit Schuljahr', () => {
         const topic = buildChatTopicFromPattern(defaultChatNamePattern(), {
             yearPrefix: 'SJ26',

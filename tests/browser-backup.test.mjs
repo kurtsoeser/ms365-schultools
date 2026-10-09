@@ -52,6 +52,24 @@ function loadBackup(store, sessionStore) {
     return sandbox;
 }
 
+function mountAppDataV2Stub(sandbox, store, v2, tenantSave) {
+    sandbox.ms365AppDataV2 = {
+        getContainer() {
+            try {
+                const raw = store.getItem('ms365-schooltool-data-v2');
+                return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(v2));
+            } catch {
+                return JSON.parse(JSON.stringify(v2));
+            }
+        },
+        setContainer(next) {
+            store.setItem('ms365-schooltool-data-v2', JSON.stringify(next));
+            return next;
+        }
+    };
+    if (tenantSave) sandbox.ms365TenantSettingsSave = tenantSave;
+}
+
 describe('browser-backup', () => {
     let store;
     let sessionStore;
@@ -127,6 +145,49 @@ describe('browser-backup', () => {
             'ms365-gast-zugaenge-snapshot-v1'
         ]);
         expect(apiWithSchool.backupFilename(now, storeWithSchool)).toBe('ms365-browser-backup-2026-08-17-BRG_Muster.json');
+    });
+
+    it('syncStorageBeforeBackup behält Verwaltungs-Zielgruppen in v2', () => {
+        const v2 = {
+            version: 4,
+            core: {
+                schoolName: 'Test',
+                domain: 't.at',
+                verwaltungAudienceGroups: [{ id: 'schulleitung', label: 'Schulleitung', builtin: true }],
+                adminAudienceMemberships: [{ groupId: 'schulleitung', email: 'dir@t.at' }]
+            },
+            years: { current: '2025/26', byLabel: { '2025/26': { students: [], classes: [] } } },
+            setup: {},
+            structure: {},
+            match: {},
+            tenant: {}
+        };
+        const stStore = createMemoryStorage({
+            'ms365-schooltool-data-v2': JSON.stringify(v2),
+            'ms365-tenant-settings-v1': JSON.stringify({ version: 3, schoolName: 'Test', domain: 't.at' })
+        });
+        const stSandbox = loadBackup(stStore, sessionStore);
+        const wipeSave = (partial) => {
+            const raw = stStore.getItem('ms365-tenant-settings-v1');
+            const cur = raw ? JSON.parse(raw) : {};
+            stStore.setItem('ms365-tenant-settings-v1', JSON.stringify({ ...cur, ...partial }));
+            if (partial.verwaltungAudienceGroups !== undefined || partial.adminAudienceMemberships !== undefined) {
+                const v2raw = JSON.parse(stStore.getItem('ms365-schooltool-data-v2'));
+                if (partial.verwaltungAudienceGroups !== undefined) {
+                    v2raw.core.verwaltungAudienceGroups = partial.verwaltungAudienceGroups;
+                }
+                if (partial.adminAudienceMemberships !== undefined) {
+                    v2raw.core.adminAudienceMemberships = partial.adminAudienceMemberships;
+                }
+                stStore.setItem('ms365-schooltool-data-v2', JSON.stringify(v2raw));
+            }
+        };
+        mountAppDataV2Stub(stSandbox, stStore, v2, wipeSave);
+        const stApi = stSandbox.ms365BrowserBackup;
+        stApi.syncStorageBeforeBackup();
+        const after = JSON.parse(stStore.getItem('ms365-schooltool-data-v2'));
+        expect(after.core.verwaltungAudienceGroups).toHaveLength(1);
+        expect(after.core.adminAudienceMemberships).toHaveLength(1);
     });
 
     it('nimmt Power-Automate-Konfiguration in den Export auf', () => {

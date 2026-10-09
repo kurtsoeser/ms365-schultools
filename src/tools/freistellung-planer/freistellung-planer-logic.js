@@ -36,6 +36,83 @@ export function toIsoDateOnly(value) {
     return `${m[1]}-${m[2]}-${m[3]}`;
 }
 
+/**
+ * Lokales Datum+Uhrzeit für &lt;input type="datetime-local"&gt;: `YYYY-MM-DDTHH:mm`.
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+export function toIsoDateTimeLocal(value) {
+    if (value == null || value === '') return null;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return formatLocalDateTimeParts(value);
+    }
+    const s = String(value).trim();
+    const local = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/.exec(s);
+    if (local && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+        return local[1] + 'T' + local[2] + ':' + local[3];
+    }
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+        const d = new Date(s);
+        if (!Number.isNaN(d.getTime())) return formatLocalDateTimeParts(d);
+    }
+    const dateOnly = toIsoDateOnly(s);
+    return dateOnly ? dateOnly + 'T00:00' : null;
+}
+
+/**
+ * @param {Date} d
+ */
+function formatLocalDateTimeParts(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return y + '-' + m + '-' + day + 'T' + h + ':' + min;
+}
+
+/**
+ * @param {unknown} iso
+ * @returns {boolean}
+ */
+export function hasClockTime(iso) {
+    const local = toIsoDateTimeLocal(iso);
+    if (!local || !local.includes('T')) return false;
+    const t = local.split('T')[1] || '';
+    return t !== '00:00';
+}
+
+/**
+ * Millisekunden für Vergleich (lokale Wanduhr bei `YYYY-MM-DDTHH:mm`).
+ * @param {unknown} iso
+ */
+export function toDateTimeMs(iso) {
+    const local = toIsoDateTimeLocal(iso);
+    if (!local) return NaN;
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local);
+    if (!m) return NaN;
+    return new Date(
+        Number(m[1]),
+        Number(m[2]) - 1,
+        Number(m[3]),
+        Number(m[4]),
+        Number(m[5]),
+        0,
+        0
+    ).getTime();
+}
+
+/**
+ * SharePoint Graph dateTime-Feld (ohne Zeitzonen-Suffix → lokale Wandzeit).
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+export function toSharePointDateTime(value) {
+    const local = toIsoDateTimeLocal(value);
+    if (!local) return null;
+    return local.length === 16 ? local + ':00' : local;
+}
+
 function utcNoonMs(iso) {
     const s = toIsoDateOnly(iso);
     if (!s) return NaN;
@@ -117,15 +194,30 @@ export function validateFreistellung(opts) {
     const klasse = String(draft.klasse || '').trim();
     if (!klasse) errors.push('Bitte eine Klasse wählen.');
 
-    const beginn = toIsoDateOnly(draft.beginn);
-    const ende = toIsoDateOnly(draft.ende) || beginn;
-    if (!beginn) errors.push('Bitte ein Beginndatum angeben.');
-    if (beginn && ende && utcNoonMs(ende) < utcNoonMs(beginn)) {
-        errors.push('Das Endedatum darf nicht vor dem Beginn liegen.');
+    const beginnDt = toIsoDateTimeLocal(draft.beginn);
+    const endeDt = toIsoDateTimeLocal(draft.ende) || beginnDt;
+    const beginn = toIsoDateOnly(beginnDt);
+    const ende = toIsoDateOnly(endeDt) || beginn;
+    if (!beginnDt) errors.push('Bitte Beginn (Datum und Uhrzeit) angeben.');
+    if (beginnDt && endeDt && toDateTimeMs(endeDt) < toDateTimeMs(beginnDt)) {
+        errors.push('Ende darf nicht vor dem Beginn liegen.');
     }
 
     if (beginn && today && utcNoonMs(beginn) < utcNoonMs(today)) {
         warnings.push('Beginn liegt in der Vergangenheit – nur sinnvoll bei nachträglicher Dokumentation.');
+    }
+
+    if (
+        beginnDt &&
+        endeDt &&
+        beginn === ende &&
+        hasClockTime(beginnDt) &&
+        toDateTimeMs(endeDt) > toDateTimeMs(beginnDt)
+    ) {
+        const hours = Math.round(((toDateTimeMs(endeDt) - toDateTimeMs(beginnDt)) / 3600000) * 10) / 10;
+        if (hours > 0 && hours < 24) {
+            warnings.push('Stundenweise Freistellung (' + hours + ' Std.) – Genehmigung durch Klassenvorstand.');
+        }
     }
 
     const kat = String(draft.kategorie || '').trim();
@@ -205,6 +297,125 @@ export function computeDashboardKpis(items, today) {
 }
 
 /**
+ * @param {string} [raw]
+ * @returns {string}
+ */
+export function normalizeFreistellungClassCode(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    const m = /\b(\d{1,2}[A-Za-zÄÖÜäöü]{1,4})\b/.exec(s);
+    if (m) return m[1].toUpperCase();
+    return s.toUpperCase();
+}
+
+/**
+ * @param {string} a
+ * @param {string} b
+ */
+export function personNamesLooselyMatch(a, b) {
+    const norm = (s) =>
+        String(s || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, ' ');
+    const aa = norm(a);
+    const bb = norm(b);
+    if (!aa || !bb) return false;
+    if (aa === bb) return true;
+    const tokens = (s) =>
+        s
+            .replace(/[,;]/g, ' ')
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter(Boolean)
+            .sort();
+    const ta = tokens(aa);
+    const tb = tokens(bb);
+    if (ta.length >= 2 && tb.length >= 2 && ta.join(' ') === tb.join(' ')) return true;
+    return false;
+}
+
+/**
+ * @param {object} item
+ * @param {string} accountEmail
+ * @param {string} [accountName]
+ */
+export function freistellungItemHasKvAccount(item, accountEmail, accountName) {
+    const acc = String(accountEmail || '').trim().toLowerCase();
+    if (!acc) return false;
+    const kv = String(item && item.kvEmail ? item.kvEmail : '')
+        .trim()
+        .toLowerCase();
+    if (kv && kv === acc) return true;
+    const accName = String(accountName || '').trim();
+    const kvName = String(item && item.kvName ? item.kvName : '').trim();
+    if (accName && kvName && personNamesLooselyMatch(accName, kvName)) return true;
+    return false;
+}
+
+/**
+ * Klassen, in denen dieses Konto auf mindestens einem Antrag als KV steht → alle Anträge dieser Klasse anzeigen.
+ * @param {object[]} items
+ * @param {string} accountEmail
+ * @param {string} [accountName]
+ * @returns {Set<string>}
+ */
+export function deriveKvClassCodesFromFreistellungItems(items, accountEmail, accountName) {
+    const codes = new Set();
+    const list = Array.isArray(items) ? items : [];
+    for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        if (!freistellungItemHasKvAccount(it, accountEmail, accountName)) continue;
+        const code = normalizeFreistellungClassCode(it.klasse);
+        if (code) codes.add(code);
+    }
+    return codes;
+}
+
+/**
+ * @param {Set<string>|undefined} classCodes
+ * @param {string} itemKlasse
+ */
+export function freistellungClassCodeInSet(classCodes, itemKlasse) {
+    if (!classCodes || !classCodes.size) return false;
+    const ik = normalizeFreistellungClassCode(itemKlasse);
+    if (!ik) return false;
+    for (const c of classCodes) {
+        if (normalizeFreistellungClassCode(c) === ik) return true;
+    }
+    return false;
+}
+
+/**
+ * @param {object} item
+ * @param {object} scope onlyKv, accountEmail, accountName, kvClassCodes, kvResolver(klasse)->email
+ */
+export function freistellungMatchesKvScope(item, scope) {
+    const sc = scope || {};
+    const account = String(sc.accountEmail || '')
+        .trim()
+        .toLowerCase();
+    if (!account || !item) return false;
+    const kv = String(item.kvEmail || '')
+        .trim()
+        .toLowerCase();
+    if (kv && kv === account) return true;
+    if (sc.kvClassCodes && sc.kvClassCodes.size && freistellungClassCodeInSet(sc.kvClassCodes, item.klasse)) {
+        return true;
+    }
+    if (typeof sc.kvResolver === 'function' && item.klasse) {
+        const em = String(sc.kvResolver(item.klasse) || '')
+            .trim()
+            .toLowerCase();
+        if (em && em === account) return true;
+    }
+    const accName = String(sc.accountName || '').trim();
+    const kvName = String(item.kvName || '').trim();
+    if (accName && kvName && personNamesLooselyMatch(accName, kvName)) return true;
+    return false;
+}
+
+/**
  * @param {Array<object>} items
  * @param {object} filters
  * @param {object} [scope]
@@ -228,10 +439,7 @@ export function filterFreistellungen(items, filters, scope) {
             const jgHit = itemMatchesJahrgangClassCodes(sc.jahrgangClassCodes, it.klasse);
             if (!kvHit && !jgHit) return false;
         } else if (sc.onlyKv && sc.accountEmail) {
-            const kv = String(it.kvEmail || '')
-                .trim()
-                .toLowerCase();
-            if (kv !== String(sc.accountEmail).toLowerCase()) return false;
+            if (!freistellungMatchesKvScope(it, sc)) return false;
         } else if (sc.jahrgangClassCodes && sc.jahrgangClassCodes.size) {
             if (!itemMatchesJahrgangClassCodes(sc.jahrgangClassCodes, it.klasse)) return false;
         }
@@ -249,6 +457,40 @@ export function filterFreistellungen(items, filters, scope) {
         }
         return true;
     });
+}
+
+/**
+ * @param {object} item
+ * @param {string} dayIso YYYY-MM-DD
+ */
+export function itemCoversDay(item, dayIso) {
+    const day = toIsoDateOnly(dayIso);
+    if (!day || !item) return false;
+    const b = toIsoDateOnly(item.beginn);
+    const e = toIsoDateOnly(item.ende) || b;
+    if (!b) return false;
+    return day >= b && day <= e;
+}
+
+/**
+ * @param {number} year
+ * @param {number} month 1–12
+ * @returns {string[]}
+ */
+export function monthGridDates(year, month) {
+    const first = new Date(year, month - 1, 1);
+    let dow = first.getDay();
+    if (dow === 0) dow = 7;
+    const start = new Date(year, month - 1, 1 - (dow - 1));
+    const out = [];
+    for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        out.push(`${y}-${m}-${day}`);
+    }
+    return out;
 }
 
 export { STATUS_CHOICES, KATEGORIE_CHOICES, MULTI_DAY_THRESHOLD };

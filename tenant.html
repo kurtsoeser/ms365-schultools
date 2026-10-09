@@ -7,7 +7,7 @@
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
-    <title>MS365-Schul-Tools – Schulregister (Stammdaten)</title>
+    <title>MS365-Schul-Tools – Stammdaten</title>
     <link rel="stylesheet" href="app.css?v=13">
     <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
@@ -663,15 +663,15 @@
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
-                <span class="header-tool-indicator__name"><i class="bi bi-journal-bookmark"></i>Schulregister</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-database"></i>Stammdaten</span>
             </div>
-            <p><strong>Schulregister</strong> – hier pflegen Sie die <strong>Stammdaten</strong> Ihrer Schule (Listen, Schuljahr, Abgleich mit Microsoft&nbsp;365).</p>
+            <p>Hier pflegen Sie die <strong>Stammdaten</strong> Ihrer Schule (Listen, Schuljahr, Abgleich mit Microsoft&nbsp;365) – gespeichert <strong>lokal in diesem Browser</strong>.</p>
             <p class="ts-header-mode-hint" id="tenantHeaderModeHint" aria-live="polite" hidden></p>
             <p class="header-help-row ts-header-info-row">
                 <details class="header-info-popover ts-register-about">
-                    <summary class="header-help-link header-info-popover__trigger"><i class="bi bi-info-circle" aria-hidden="true"></i><span class="header-info-popover__label">Was ist das Schulregister?</span></summary>
+                    <summary class="header-help-link header-info-popover__trigger"><i class="bi bi-info-circle" aria-hidden="true"></i><span class="header-info-popover__label">Was sind die Stammdaten?</span></summary>
                     <div class="header-info-popover__panel ts-register-about__body" role="note">
-                        <p>Das <strong>Schulregister</strong> ist die zentrale Stelle für Ihre <strong>Stammdaten</strong> – gespeichert <strong>lokal im Browser</strong>. Schulweit: Domain, Fächer, Lehrkräfte, Verwaltung. Pro <strong>Schuljahr</strong> (Konto-Menü): Schüler:innen und Klassen.</p>
+                        <p>Die <strong>Stammdaten</strong> sind die zentrale Pflegestelle Ihrer Schule – gespeichert <strong>lokal im Browser</strong>. Schulweit: Domain, Fächer, Lehrkräfte, Verwaltung. Pro <strong>Schuljahr</strong> (Konto-Menü): Schüler:innen und Klassen.</p>
                         <p>Gemeinsame Basis für Kursteams und Gruppen-Werkzeuge. Optional: Auto-Sync mit der <strong>IT-Bibliothek</strong> und öffentliche <strong>Intranet-Listen</strong> auf SharePoint.</p>
                     </div>
                 </details>
@@ -706,7 +706,7 @@
 
         <div class="content">
             <div id="tenantEmptyStateMount"></div>
-            <form id="tenantSettingsForm" class="ts-register-page" onsubmit="return false;" aria-label="Schulregister – Stammdaten pflegen">
+            <form id="tenantSettingsForm" class="ts-register-page" onsubmit="return false;" aria-label="Stammdaten pflegen">
                     <div class="ts-register-body">
                         <section id="tenantWebuntisImportReview" class="ts-import-review" hidden aria-live="polite">
                             <h3><i class="bi bi-clipboard-check" aria-hidden="true"></i> Import prüfen (WebUntis)</h3>
@@ -770,6 +770,10 @@
                                             <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off" spellcheck="false" inputmode="url">
                                             <small class="ts-stammdaten-core-hint">Für Vorschauen und Adressen (<code>kürzel@domain</code>).</small>
                                         </label>
+                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolVerifiedEmailDomains"><span>Weitere E-Mail-Domains (optional)</span>
+                                            <input type="text" id="schoolVerifiedEmailDomains" placeholder="kurtrocks.com, kurtsoeser.at" autocomplete="off" spellcheck="false" inputmode="url">
+                                            <small class="ts-stammdaten-core-hint">Kommagetrennt – für Kursteams-Besitzer mit mehreren verifizierten Domains im Mandanten (z.&nbsp;B. wenn Ihr Login eine andere Domain hat als die Lehrer-UPNs).</small>
+                                        </label>
                                         <label class="ts-school-profile-card__field" for="tenantSchoolCode"><span>Schulkennzahl / SKZ</span>
                                             <input type="text" id="tenantSchoolCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. 302123">
                                         </label>
@@ -807,7 +811,7 @@
                             <input type="hidden" id="tenantSchoolEmailPattern" value="vorname.nachname">
                             <section class="ts-mail-pattern-card ts-stammdaten-core-grid__mail" id="tenantSchoolEmailPatternCard" aria-labelledby="tenantSchoolEmailPatternCardTitle">
                                 <h3 class="ts-mail-pattern-card__title" id="tenantSchoolEmailPatternCardTitle"><i class="bi bi-envelope-at" aria-hidden="true"></i> E-Mail-Muster (schulweit)</h3>
-                                <p class="muted ts-mail-pattern-card__lead">Für fehlende Adressen bei Importen und Vorschläge aus Namen. Gilt für alle Personen in diesem Register – nicht nur für einen Tab.</p>
+                                <p class="muted ts-mail-pattern-card__lead">Für fehlende Adressen bei Importen und Vorschläge aus Namen. Gilt für alle Personen in den Stammdaten – nicht nur für einen Tab.</p>
                                 <div class="ts-mail-pattern-card__row">
                                     <label for="tenantSchoolEmailGivenNames" class="ts-mail-pattern-card__label">Vornamen</label>
                                     <select id="tenantSchoolEmailGivenNames" title="Bei mehreren Vornamen" class="ts-mail-pattern-card__select">
@@ -1046,21 +1050,8 @@
                             </div>
                         </div>
 
-                        <div id="panelMainVerwaltung" class="tab-panel" role="tabpanel" aria-labelledby="tabMainVerwaltung">
-                            <div class="field">
-                                <label for="tenantAdminBundleLines">Verwaltung</label>
-                                <textarea id="tenantAdminBundleLines" spellcheck="false" placeholder="Direktion;DIR;Herbert Mittendorfer;direktion@schule.at&#10;Schulwart;SCHULWART;Robert Reininger;robert@schule.at&#10;Schulwart;SCHULWART;Zweite Person;zweite@schule.at&#10;Sekretariat;SEKRETARIAT;;"></textarea>
-                                <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Pro Zeile: <code>Bezeichnung;Kürzel;Person;E-Mail</code>. Dieselbe Bezeichnung kann mehrfach vorkommen, wenn mehrere Personen dieselbe Funktion haben. Person und E-Mail dürfen leer bleiben.
-                                </small>
-                            </div>
-
-                            <!--
-                                Kompatibilitäts-Markup:
-                                `tenant-settings-ui.js` erwartet optional auch eine „Rollenkatalog/Personen“-Ansicht
-                                mit diesen IDs (u. a. für automatische Tests). Die aktuelle UI nutzt
-                                hauptsächlich `tenantAdminBundleLines`, daher bleibt diese Sektion verborgen.
-                            -->
+                        <div id="panelMainVerwaltung" class="tab-panel" role="tabpanel" aria-labelledby="tabMainVerwaltung" data-tenant-panel-anchor="verwaltung">
+                            <!-- Kompatibilitäts-Markup (verborgen): Legacy-Rollen/Personen-Parser -->
                             <div style="display:none;">
                                 <label for="tenantAdminRoleLines">Personen (eine Zeile pro Person)</label>
                                 <textarea id="tenantAdminRoleLines" spellcheck="false"></textarea>
@@ -1070,33 +1061,18 @@
                                 </table>
                             </div>
 
-                            <div class="field" style="margin-top:18px;">
-                                <label>Verwaltungstabelle</label>
-                                <div class="teachers-table-wrap" aria-label="Verwaltungstabelle" style="margin-top:12px;">
-                                    <table class="teachers-table" aria-label="Verwaltung" style="min-width:920px;">
-                                        <thead>
-                                            <tr>
-                                                <th class="is-sortable" data-sort-key="name" tabindex="0" title="Nach Bezeichnung sortieren (übernimmt die Reihenfolge ins Textfeld)">Bezeichnung</th>
-                                                <th class="is-sortable" data-sort-key="code" tabindex="0" title="Nach Kürzel sortieren (übernimmt die Reihenfolge ins Textfeld)">Kürzel</th>
-                                                <th class="is-sortable" data-sort-key="personName" tabindex="0" title="Nach Person sortieren (übernimmt die Reihenfolge ins Textfeld)">Person</th>
-                                                <th class="is-sortable" data-sort-key="email" tabindex="0" title="Nach E-Mail sortieren (übernimmt die Reihenfolge ins Textfeld)">E-Mail</th>
-                                                <th title="Microsoft-365-Abgleich">M365</th>
-                                                <th class="action-cell">Aktion</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tenantAdminUnifiedTableBody">
-                                            <tr><td colspan="6" style="color:#6c757d;">Noch keine Einträge – oben einfügen oder „+ Eintrag“.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="settings-actions" style="margin-top:10px;">
-                                    <button type="button" class="btn btn-success" id="tenantAdminAddRow"><i class="bi bi-plus-circle"></i>Eintrag</button>
-                                    <button type="button" class="btn" id="tenantAdminRolesDefaults"><i class="bi bi-arrow-counterclockwise"></i>Standardbezeichnungen</button>
-                                    <button type="button" class="btn btn-primary" id="tenantBtnVerifyVerwaltungGraph" title="Alle E-Mail-Adressen in der Verwaltung in Microsoft Entra prüfen">
-                                        <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
-                                    </button>
-                                </div>
+                            <div id="tenantAdminAudienceBoard" class="ts-audience-board field" aria-label="Microsoft-365-Zielgruppen der Verwaltung"></div>
+
+                            <div class="settings-actions ts-audience-board__toolbar" style="margin-top:12px;flex-wrap:wrap;">
+                                <button type="button" class="btn" id="tenantAdminRolesDefaults"><i class="bi bi-arrow-counterclockwise"></i>Standardbezeichnungen (Rollen)</button>
+                                <button type="button" class="btn btn-primary" id="tenantBtnVerifyVerwaltungGraph" title="Alle E-Mail-Adressen der Verwaltung in Microsoft Entra prüfen">
+                                    <i class="bi bi-microsoft" aria-hidden="true"></i> E‑Mails prüfen (Bulk)
+                                </button>
                             </div>
+                            <p class="muted" style="margin-top:12px;line-height:1.45;">
+                                Personen pro Zielgruppe im Board pflegen (Bezeichnung/Kürzel aus den Stammdaten-Rollen, sofern vorhanden).
+                                Vollständiger Gruppen-Abgleich im <a href="tools/verwaltung.html">Werkzeug Verwaltung</a>.
+                            </p>
                         </div>
 
                         <div id="panelMainSga" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSga">

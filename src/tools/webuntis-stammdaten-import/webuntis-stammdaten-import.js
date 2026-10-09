@@ -819,8 +819,8 @@ function applyImport() {
     const returnUrl = resolveReturnUrl(fromParam());
     stashWebuntisImportPayload(payload, returnUrl);
     const reviewHint = payload.skipTenantReview
-        ? 'Direktübernahme im Schulregister – bitte „Speichern“ nicht vergessen.'
-        : 'Bitte im Schulregister prüfen und „Übernehmen“ klicken.';
+        ? 'Direktübernahme in den Stammdaten – bitte „Speichern“ nicht vergessen.'
+        : 'Bitte in den Stammdaten prüfen und „Übernehmen“ klicken.';
     toast(
         reviewHint +
             ' (' +
@@ -874,7 +874,7 @@ function init() {
         const lead = document.querySelector('.header > p');
         if (lead) {
             lead.textContent =
-                'Schritt 3 im Playbook: Exporte hochladen, prüfen und ins Schulregister übernehmen. WebUntis, Sokrates und weitere Formate – Schüler und Eltern werden über die Untis-ID verknüpft, wo möglich.';
+                'Schritt 3 im Playbook: Exporte hochladen, prüfen und in die Stammdaten übernehmen. WebUntis, Sokrates und weitere Formate – Schüler und Eltern werden über die Untis-ID verknüpft, wo möglich.';
         }
     }
 

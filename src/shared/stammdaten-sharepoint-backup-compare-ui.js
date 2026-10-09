@@ -1,7 +1,12 @@
 /**
  * Abgleich-UI: Modal oder Vollseite mit ausklappbaren Schlüssellisten.
  */
-import { storageKeyLabel } from './stammdaten-sharepoint-sync-logic.js';
+import {
+    buildBackupCoverageReport,
+    compareBackupPayloads,
+    storageKeyLabel
+} from './stammdaten-sharepoint-sync-logic.js';
+import { getLocalBackupSnapshot } from './stammdaten-sharepoint-import-prompt.js';
 
 const SESSION_KEY = 'ms365-spo-compare-session-v1';
 const SESSION_MAX_AGE_MS = 45 * 60 * 1000;
@@ -68,11 +73,93 @@ function renderDetails(summary, count, keys, open) {
     );
 }
 
+function spotlightStatusDe(status) {
+    const s = String(status || '');
+    if (s === 'same') return 'Gleich';
+    if (s === 'differs') return 'Unterschiedlich';
+    if (s === 'local-only') return 'Nur lokal';
+    if (s === 'remote-only') return 'Nur SharePoint';
+    return 'Fehlt';
+}
+
+function renderCoverageSection(coverage) {
+    const c = coverage || {};
+    const spotlight = Array.isArray(c.spotlight) ? c.spotlight : [];
+    const rows = Array.isArray(c.schooltoolRows) ? c.schooltoolRows : [];
+    if (!spotlight.length && !rows.length) return '';
+
+    let banner = '';
+    if (c.readyToSync) {
+        banner =
+            '<p class="ms365-bcmp-sync-ok" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i> ' +
+            'Lokal und IT-Bibliothek sind inhaltlich gleich (Fingerabdruck).</p>';
+    } else if (c.mismatchSchooltool || c.mismatchSpotlight) {
+        banner =
+            '<p class="ms365-bcmp-sync-warn" role="status"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> ' +
+            'Es gibt Abweichungen – unten Stichprobe und Schlüssellisten prüfen.</p>';
+    }
+
+    const schoolRows = rows
+        .map(function (r) {
+            const cls = r.match ? 'ms365-bcmp-cov-row--ok' : 'ms365-bcmp-cov-row--diff';
+            return (
+                '<tr class="' +
+                cls +
+                '"><th scope="row">' +
+                escapeHtml(r.label) +
+                '</th><td>' +
+                escapeHtml(r.local) +
+                '</td><td>' +
+                escapeHtml(r.remote) +
+                '</td></tr>'
+            );
+        })
+        .join('');
+
+    const spotRows = spotlight
+        .map(function (s) {
+            const cls =
+                s.status === 'same'
+                    ? 'ms365-bcmp-cov-row--ok'
+                    : s.status === 'missing'
+                      ? 'ms365-bcmp-cov-row--muted'
+                      : 'ms365-bcmp-cov-row--diff';
+            return (
+                '<tr class="' +
+                cls +
+                '"><th scope="row">' +
+                escapeHtml(s.label) +
+                '</th><td>' +
+                escapeHtml(spotlightStatusDe(s.status)) +
+                '</td><td><code class="ms365-bcmp-key__code">' +
+                escapeHtml(s.key) +
+                '</code></td></tr>'
+            );
+        })
+        .join('');
+
+    return (
+        '<section class="ms365-bcmp-coverage" aria-label="Stichprobe wichtiger Bereiche">' +
+        '<h3 class="ms365-bcmp-diff__title">Stichprobe Stammdaten &amp; Konfiguration</h3>' +
+        banner +
+        '<h4 class="ms365-bcmp-cov-sub">Zentrale Schuldaten (ms365-schooltool-data-v2)</h4>' +
+        '<table class="ms365-bcmp-cov-table"><thead><tr><th scope="col">Feld</th><th scope="col">Lokal</th><th scope="col">SharePoint</th></tr></thead><tbody>' +
+        schoolRows +
+        '</tbody></table>' +
+        '<h4 class="ms365-bcmp-cov-sub">Wichtige localStorage-Schlüssel</h4>' +
+        '<table class="ms365-bcmp-cov-table"><thead><tr><th scope="col">Bereich</th><th scope="col">Status</th><th scope="col">Schlüssel</th></tr></thead><tbody>' +
+        spotRows +
+        '</tbody></table>' +
+        '</section>'
+    );
+}
+
 function renderCompareBody(opts) {
     const o = opts || {};
     const cmp = o.compare || {};
     const title = o.title || 'Sicherung abgleichen';
     const remoteLm = o.remoteLastModified ? formatWhen(o.remoteLastModified) : '';
+    const coverageHtml = o.coverage ? renderCoverageSection(o.coverage) : '';
 
     const hintClass =
         cmp.newerSide === 'local'
@@ -129,6 +216,7 @@ function renderCompareBody(opts) {
         renderDetails('Nur lokal', cmp.onlyLocalCount, cmp.onlyLocalKeys, false) +
         renderDetails('Nur auf SharePoint', cmp.onlyRemoteCount, cmp.onlyRemoteKeys, false) +
         '</section>' +
+        coverageHtml +
         '<p class="ms365-bcmp-footnote muted">Es werden nur App-Schlüssel (<code>ms365-*</code>, <code>webuntis-*</code>) verglichen – nicht die Microsoft-Anmeldung.</p>'
     );
 }
@@ -212,11 +300,19 @@ function bindCompareActions(mount, cmp, pageMode, options, onChoice) {
 
 function renderIntoMount(mount, options, pageMode) {
     const cmp = options.compare || {};
+    const coverage =
+        options.coverage ||
+        buildBackupCoverageReport(
+            getLocalBackupSnapshot(),
+            options.remotePayload || null,
+            cmp
+        );
     mount.innerHTML =
         renderCompareBody({
             compare: cmp,
             title: options.title,
-            remoteLastModified: options.remoteLastModified
+            remoteLastModified: options.remoteLastModified,
+            coverage: coverage
         }) + renderActions(cmp, pageMode);
     return cmp;
 }
@@ -369,23 +465,34 @@ async function runPageChoice(choice, session) {
     }
 }
 
-/** Vollseite: Session lesen und UI starten. */
-export function initBackupComparePage() {
-    const mount = document.querySelector('[data-ms365-bcmp-page]');
-    if (!mount) return;
-    const session = readCompareSession();
-    if (!session || !session.compare) {
-        mount.innerHTML =
-            '<div class="tm-panel"><p class="muted">Kein Abgleich in dieser Sitzung. Starten Sie <strong>Von SharePoint</strong> am Dashboard, nutzen Sie den Abgleich nach der Anmeldung oder öffnen Sie im Dialog <strong>In neuem Tab öffnen</strong>.</p>' +
-            '<p><a class="btn" href="../index.html">Dashboard</a></p></div>';
-        return;
+function renderCompareLanding(mount) {
+    mount.innerHTML =
+        '<div class="tm-panel ms365-bcmp-landing">' +
+        '<h2 class="ms365-bcmp-landing__title">Lokal mit IT-Bibliothek vergleichen</h2>' +
+        '<p class="muted">Lädt <code>Backups/ms365-stammdaten-aktuell.json</code> aus der verknüpften IT-Bibliothek und vergleicht sie mit dem aktuellen Browser-Stand (inkl. Stichprobe zu Stammdaten, Dashboard, Planern).</p>' +
+        '<p class="muted">Vor dem Vergleich werden offene Stammdaten-Auto-Speicherungen übernommen.</p>' +
+        '<div class="ms365-bcmp-landing__actions">' +
+        '<button type="button" class="btn btn-success" data-bcmp-run><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Jetzt abgleichen</button>' +
+        '<a class="btn" href="../index.html">Dashboard</a>' +
+        '<a class="btn alt" href="stammdaten-uebergabe.html">Stammdaten-Übergabe</a>' +
+        '</div>' +
+        '<p class="ms365-bcmp-footnote muted">Alternativ: Nach Anmeldung erscheint der Abgleich automatisch, oder im Dialog <strong>In neuem Tab öffnen</strong>.</p>' +
+        '</div>';
+    const btn = mount.querySelector('[data-bcmp-run]');
+    if (btn) {
+        btn.addEventListener('click', function () {
+            void runLiveCompareOnPage(mount);
+        });
     }
+}
 
+function mountPageCompare(mount, session) {
     const options = {
         compare: session.compare,
         remotePayload: session.remotePayload,
         remoteLastModified: session.remoteLastModified,
-        title: session.title || 'Sicherung abgleichen'
+        title: session.title || 'Sicherung abgleichen',
+        coverage: session.coverage
     };
     const cmp = renderIntoMount(mount, options, true);
     bindCompareActions(mount, cmp, true, options, function (choice) {
@@ -397,10 +504,113 @@ export function initBackupComparePage() {
     });
 }
 
+/**
+ * Lädt Remote-Backup und vergleicht mit lokalem Stand (ohne Import).
+ * @returns {Promise<{ local: object, remote: object, compare: object, coverage: object, remoteLastModified?: string }>}
+ */
+export async function runLiveBackupCompare() {
+    const { downloadCurrentBackup } = await import('./stammdaten-sharepoint-sync-api.js');
+    const { DEFAULT_FOLDER } = await import('./stammdaten-sharepoint-sync-logic.js');
+    const local = getLocalBackupSnapshot();
+    if (!local) {
+        throw new Error('Lokales Backup konnte nicht erstellt werden (Browser-Backup-Modul).');
+    }
+    const downloaded = await downloadCurrentBackup({ folder: DEFAULT_FOLDER, apply: false });
+    const remote = downloaded && downloaded.payload ? downloaded.payload : null;
+    if (!remote) {
+        throw new Error('SharePoint-Backup konnte nicht geladen werden.');
+    }
+    const cmp = compareBackupPayloads(local, remote);
+    const coverage = buildBackupCoverageReport(local, remote, cmp);
+    const remoteLastModified =
+        downloaded && downloaded.item && downloaded.item.lastModifiedDateTime
+            ? downloaded.item.lastModifiedDateTime
+            : '';
+    return {
+        local: local,
+        remote: remote,
+        compare: cmp,
+        coverage: coverage,
+        remoteLastModified: remoteLastModified
+    };
+}
+
+async function runLiveCompareOnPage(mount) {
+    const toast =
+        typeof window.ms365ToastOrAlert === 'function'
+            ? window.ms365ToastOrAlert
+            : function (m) {
+                  window.alert(m);
+              };
+    mount.innerHTML =
+        '<div class="tm-panel"><p class="muted"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Lade IT-Bibliothek und vergleiche …</p></div>';
+    try {
+        const result = await runLiveBackupCompare();
+        const session = {
+            compare: result.compare,
+            remotePayload: result.remote,
+            remoteLastModified: result.remoteLastModified,
+            title: 'Lokal vs. IT-Bibliothek',
+            coverage: result.coverage
+        };
+        stashCompareSession(session);
+        mountPageCompare(mount, session);
+        if (result.coverage && result.coverage.readyToSync) {
+            toast('Lokal und SharePoint sind identisch.', { kind: 'success', title: 'Backup-Abgleich' });
+        }
+    } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        mount.innerHTML =
+            '<div class="tm-panel ms365-bcmp-error">' +
+            '<p class="ms365-bcmp-sync-warn">Abgleich fehlgeschlagen: ' +
+            escapeHtml(msg) +
+            '</p>' +
+            '<p class="muted">IT-Bibliothek verknüpft? Angemeldet mit Graph-Rechten? Datei <code>Backups/ms365-stammdaten-aktuell.json</code> vorhanden?</p>' +
+            '<div class="ms365-bcmp-landing__actions">' +
+            '<button type="button" class="btn btn-success" data-bcmp-run>Erneut versuchen</button>' +
+            '<a class="btn alt" href="stammdaten-uebergabe.html#setup">IT-Bibliothek einrichten</a>' +
+            '</div></div>';
+        const retry = mount.querySelector('[data-bcmp-run]');
+        if (retry) {
+            retry.addEventListener('click', function () {
+                void runLiveCompareOnPage(mount);
+            });
+        }
+    }
+}
+
+/** Vollseite: Session lesen und UI starten. */
+export function initBackupComparePage() {
+    const mount = document.querySelector('[data-ms365-bcmp-page]');
+    if (!mount) return;
+
+    if (typeof window !== 'undefined') {
+        window.ms365RunBackupCompare = runLiveBackupCompare;
+    }
+
+    const session = readCompareSession();
+    if (session && session.compare) {
+        mountPageCompare(mount, session);
+        return;
+    }
+
+    renderCompareLanding(mount);
+
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        if (params.get('run') === '1' || params.get('run') === 'true') {
+            void runLiveCompareOnPage(mount);
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
 export default {
     promptBackupCompareChoice,
     stashCompareSession,
     takeCompareSession,
     readCompareSession,
+    runLiveBackupCompare,
     initBackupComparePage
 };

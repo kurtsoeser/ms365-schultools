@@ -422,6 +422,9 @@
                 diff: diff,
                 graphByEmail: mr().indexGraphMembersByEmail(mem.items || [])
             };
+            if (mr().graphMemberCountFromDiff) {
+                rememberGraphMemberCount(gid, mr().graphMemberCountFromDiff(diff));
+            }
             renderDeviationReviewPanel(deviationReviewState);
         } catch (e) {
             deviationReviewState = null;

@@ -1,5 +1,5 @@
 /**
- * Tenant-Panel Synchron: Brücke SharePoint ↔ Schulregister-Ampel.
+ * Tenant-Panel Synchron: Brücke SharePoint ↔ Stammdaten-Ampel.
  */
 export function mountTenantSpoPanel() {
     if (typeof window === 'undefined') return;

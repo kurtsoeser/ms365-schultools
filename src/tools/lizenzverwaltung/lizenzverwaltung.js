@@ -22,9 +22,17 @@
             sammelKey: 'lehrerGroupId',
             deptHint: 'Lehrer'
         },
+        schulleitung: {
+            label: 'Schulleitung',
+            defaultName: 'Lizenz Schulleitung',
+            defaultNick: 'lizenz-schulleitung',
+            audience: 'other',
+            sammelKey: 'schulleitungGroupId',
+            deptHint: 'Schulleitung'
+        },
         verwaltung: {
-            label: 'Verwaltung',
-            defaultName: 'Lizenz Verwaltung',
+            label: 'Verwaltung (Personal)',
+            defaultName: 'Lizenz Verwaltung Personal',
             defaultNick: 'lizenz-verwaltung',
             audience: 'other',
             sammelKey: 'verwaltungGroupId',
@@ -71,13 +79,14 @@
     function log(msg, kind) {
         const el = $('lvLog');
         if (!el) return;
-        const prefix = kind === 'ok' ? '✓ ' : kind === 'warn' ? '! ' : kind === 'err' ? '✗ ' : '';
         const line = document.createElement('div');
-        line.textContent = prefix + String(msg || '');
-        if (kind === 'ok') line.style.color = '#0d8050';
-        if (kind === 'warn') line.style.color = '#856404';
-        if (kind === 'err') line.style.color = '#b02a37';
-        el.prepend(line);
+        const prefix = kind === 'ok' ? '✓ ' : kind === 'warn' ? '! ' : kind === 'err' ? '✗ ' : '';
+        line.textContent = new Date().toLocaleTimeString() + '  ' + prefix + String(msg || '');
+        if (kind === 'err') line.style.color = '#b00020';
+        else if (kind === 'ok') line.style.color = '#0d8050';
+        else if (kind === 'warn') line.style.color = '#856404';
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
     }
 
     function escapeHtml(s) {
@@ -169,7 +178,7 @@
     function renderSlotList() {
         const list = $('lvSlotList');
         if (!list) return;
-        const builtin = ['schueler', 'lehrer', 'verwaltung'];
+        const builtin = ['schueler', 'lehrer', 'schulleitung', 'verwaltung'];
         list.replaceChildren();
         builtin.forEach(function (id) {
             list.appendChild(makeSlotButton(id, slotDef(id).label, getSlotGroupId(id)));
@@ -216,6 +225,7 @@
         const map = {
             schueler: 'lvMetaSchueler',
             lehrer: 'lvMetaLehrer',
+            schulleitung: 'lvMetaSchulleitung',
             verwaltung: 'lvMetaVerwaltung'
         };
         Object.keys(map).forEach(function (k) {
@@ -623,6 +633,12 @@
         }
     }
 
+    function groupMembersArray(mem) {
+        if (Array.isArray(mem)) return mem;
+        if (mem && Array.isArray(mem.items)) return mem.items;
+        return [];
+    }
+
     function renderMembers(list) {
         const tbody = $('lvMembersBody');
         const meta = $('lvMembersMeta');
@@ -651,7 +667,7 @@
         if (meta) meta.textContent = 'Lade Mitglieder …';
         try {
             const members = await gug().fetchGroupMembers(token, gid);
-            const users = (members || []).filter(function (m) {
+            const users = groupMembersArray(members).filter(function (m) {
                 const t = String((m && m['@odata.type']) || '');
                 return !t || t.indexOf('user') !== -1 || m.userPrincipalName || m.mail;
             });
@@ -679,12 +695,12 @@
         }
         try {
             const token = await gug().getGraphToken();
-            const members = await gug().fetchGroupMembers(token, sourceId);
+            const memberList = groupMembersArray(await gug().fetchGroupMembers(token, sourceId));
             let ok = 0;
             let skip = 0;
             let fail = 0;
-            for (let i = 0; i < members.length; i++) {
-                const m = members[i];
+            for (let i = 0; i < memberList.length; i++) {
+                const m = memberList[i];
                 const uid = m && m.id ? String(m.id) : '';
                 if (!uid) continue;
                 try {

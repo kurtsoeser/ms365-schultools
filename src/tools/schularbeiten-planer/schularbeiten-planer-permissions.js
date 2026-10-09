@@ -10,7 +10,7 @@ import {
     isBroadSiteAudience
 } from '../../shared/stammdaten-sharepoint-sync-logic.js';
 import { normalizePlannerUsers } from '../freistellung-planer/freistellung-planer-direktion-users.js';
-import { overlaySchoolAudienceOnPermissions } from '../../shared/school-audience-groups.js';
+import { overlayStammdatenAudienceOnPermissions } from '../../shared/school-admin-groups.js';
 import { notifyAppLocalDataChanged } from '../../shared/app-local-data-notify.js';
 import {
     SA_STAMMDATEN_GROUP_ROLES,
@@ -60,6 +60,7 @@ const ROLE_ID = {
     read: SPO_ROLE.read,
     contribute: SPO_ROLE.contribute,
     edit: SPO_ROLE.edit,
+    design: SPO_ROLE.design,
     fullControl: SPO_ROLE.fullControl
 };
 
@@ -120,7 +121,7 @@ export function loadPermissionsConfig() {
 
 /** Stammdaten-Sammelgruppen für Lehrer/Schüler einbeziehen. */
 export function loadEffectivePermissionsConfig() {
-    return normalizePermissionsConfig(overlaySchoolAudienceOnPermissions(loadPermissionsConfig()));
+    return normalizePermissionsConfig(overlayStammdatenAudienceOnPermissions(loadPermissionsConfig()));
 }
 
 /**
@@ -228,29 +229,38 @@ export async function applyEntraGroupListPermissions(
             );
             return;
         }
-        const principal = await G().spoEnsureUser(siteWebUrl, spoToken, digest, entraGroupLogonName(id));
-        await G().spoAddRoleAssignment(
-            siteWebUrl,
-            spoToken,
-            digest,
-            listTitle,
-            principal.id,
-            roleDefIdForLevel(level)
-        );
-        write(
-            '  + „' +
-                listTitle +
-                '": ' +
-                label +
-                ' → ' +
-                level +
-                ' (' +
-                (principal.title || ref.label || id) +
-                ')'
-        );
+        try {
+            const principal = await G().spoEnsureUser(siteWebUrl, spoToken, digest, entraGroupLogonName(id));
+            await G().spoAddRoleAssignment(
+                siteWebUrl,
+                spoToken,
+                digest,
+                listTitle,
+                principal.id,
+                roleDefIdForLevel(level)
+            );
+            write(
+                '  + „' +
+                    listTitle +
+                    '": ' +
+                    label +
+                    ' → ' +
+                    level +
+                    ' (' +
+                    (principal.title || ref.label || id) +
+                    ')'
+            );
+        } catch (e) {
+            const msg = e && e.message ? String(e.message) : String(e);
+            if (/addroleassignment:\s*500/i.test(msg) || /already|duplicate|vorhanden/i.test(msg)) {
+                write('  = „' + listTitle + '": ' + label + ' bereits zugewiesen.');
+                return;
+            }
+            write('  ! „' + listTitle + '": ' + label + ' (' + level + '): ' + msg);
+        }
     }
 
-    if (config.groupAdmin || config.groupAdminId) await grant('groupAdmin', profile.admin, 'Verwaltung');
+    if (config.groupAdmin || config.groupAdminId) await grant('groupAdmin', profile.admin, 'Schulleitung');
     if ((config.groupLehrer || config.groupLehrerId) && profile.lehrer) {
         await grant('groupLehrer', profile.lehrer, 'Lehrer');
     }

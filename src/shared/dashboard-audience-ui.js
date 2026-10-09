@@ -139,7 +139,7 @@ function applyDomFilter() {
         el.hidden = appOnly;
     });
 
-    ['dashStatusRow', 'dashCatalogSection', 'dashboard-tools', 'dashboard-tasks'].forEach((id) => {
+    ['dashCatalogSection', 'dashboard-tools', 'dashboard-tasks'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.hidden = appOnly;
     });

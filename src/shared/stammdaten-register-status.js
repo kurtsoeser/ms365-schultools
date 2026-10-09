@@ -1,5 +1,5 @@
 /**
- * Schulregister: Ampel für Arbeitskopie, IT-Bibliothek, Intranet, Schuljahr.
+ * Stammdaten: Ampel für Arbeitskopie, IT-Bibliothek, Intranet, Schuljahr.
  */
 import { formatSyncStatusDe, isItLibraryConfigured } from './stammdaten-sharepoint-sync-logic.js';
 import { loadItMeta, loadLocalSyncMeta, isReady } from './stammdaten-sharepoint-sync-api.js';
@@ -177,7 +177,7 @@ export function collectRegisterLayerChips() {
             label: 'Intranet: Site-URL fehlt',
             kind: 'warn',
             title:
-                'Öffentliche SharePoint-Listen brauchen die Intranet-Site-URL (Schulregister oder Synchron-Modus).',
+                'Öffentliche SharePoint-Listen brauchen die Intranet-Site-URL (Stammdaten oder Synchron-Modus).',
             href: 'tenant.html#stammdaten'
         });
     } else {

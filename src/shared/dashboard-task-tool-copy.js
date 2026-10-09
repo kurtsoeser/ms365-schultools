@@ -40,7 +40,7 @@ export const TOOL_PRACTICE_COPY = {
     },
     'tools/webuntis-stammdaten-import.html': {
         title: 'Stammdaten aus WebUntis',
-        desc: 'Export einlesen und im Schulregister prüfen'
+        desc: 'Export einlesen und in den Stammdaten prüfen'
     },
     'tools/bildungsportal-stammdaten.html': {
         title: 'Bildungsportal',
@@ -55,8 +55,8 @@ export const TOOL_PRACTICE_COPY = {
         desc: 'Lehrkräfte-Sammelgruppe verwalten und synchronisieren'
     },
     'tools/verwaltung.html': {
-        title: 'Verwaltung & Sekretariat',
-        desc: 'Verwaltungsgruppe für Office und Teams'
+        title: 'Schulleitung & Verwaltung',
+        desc: 'Zwei Sammelgruppen (Direktion vs. Personal) matchen und synchronisieren'
     },
     'tools/klassenvorstaende.html': {
         title: 'Klassenvorstände',
@@ -164,7 +164,7 @@ export const TOOL_PRACTICE_COPY = {
     },
     'tools/sharepoint-liste-stammdaten.html': {
         title: 'Stammdaten-Listen (IT)',
-        desc: 'SharePoint-Listen mit dem Register synchronisieren'
+        desc: 'SharePoint-Listen mit den Stammdaten synchronisieren'
     },
     'tools/leere-gruppen-report.html': {
         title: 'Leere Gruppen prüfen',
@@ -184,10 +184,10 @@ export const TOOL_PRACTICE_COPY = {
     },
     'tools/stammdaten-backup-abgleich.html': {
         title: 'Backup-Abgleich',
-        desc: 'Register mit IT-Sicherung vergleichen'
+        desc: 'Stammdaten mit IT-Sicherung vergleichen'
     },
     'tenant.html': {
-        title: 'Schulregister',
+        title: 'Stammdaten',
         desc: 'Stammdaten, Klassen und Verknüpfungen zentral pflegen'
     }
 };
@@ -201,10 +201,6 @@ const TOOL_PRACTICE_COPY_QUERY = {
     'tools/personen-verwaltung.html?create=1': {
         title: 'Konto anlegen',
         desc: 'Neues Konto für Lehrkraft oder Schüler:in erstellen'
-    },
-    'tools/schulstruktur-sync.html?mode=struktur': {
-        title: 'Strukturplan (SOLL-Baum)',
-        desc: 'Zielstruktur der Gruppen modellieren'
     },
     'tools/leere-gruppen-report.html?problem=no-owners': {
         title: 'Gruppen ohne Besitzer',
@@ -394,8 +390,8 @@ export const DASH_TASK_SCENARIOS = [
         icon: 'bi-calendar2-range',
         situation: 'Neues Schuljahr startet',
         taskId: 'dashTaskSchuljahr',
-        href: 'tools/playbook-schuljahresstart.html',
-        toolLabel: 'Schuljahresstart'
+        href: 'tools/organisations-assistent.html',
+        toolLabel: 'Schuljahr-Assistent'
     },
     {
         icon: 'bi-diagram-3',

@@ -14,7 +14,7 @@ describe('Verwaltungs-Modul Seite', () => {
         expect(html).toContain('src/tools/schueler-lehrer-gruppen/slg-live-details.js');
         expect(html).toContain('src/tools/verwaltung/verwaltung-gruppenverwaltung.js');
         expect(html).toContain('id="slgVerwaltungCount"');
-        expect(html).toContain('data-slg-kind="verwaltung"');
+        expect(html).toContain('data-vw-kind="verwaltung"');
         expect(html).toContain('id="vwRoleList"');
         expect(html).toContain('id="groupDetailHost"');
         expect(html).toContain('id="vwRolePanel"');

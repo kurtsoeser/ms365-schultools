@@ -56,6 +56,13 @@ function paint() {
     if (!root) return;
     renderApp(state, root);
     bindStatic();
+    import('../../shared/frontend-planner-chrome-policy.js')
+        .then((m) => {
+            if (m && typeof m.refreshFrontendPlannerChromeAudience === 'function') {
+                return m.refreshFrontendPlannerChromeAudience();
+            }
+        })
+        .catch(() => {});
 }
 
 function currentAccount() {

@@ -1,4 +1,4 @@
-/** SessionStorage-Übergabe Import-Seite → Schulregister */
+/** SessionStorage-Übergabe Import-Seite → Stammdaten */
 
 export const WEBUNTIS_IMPORT_PAYLOAD_KEY = 'ms365WebuntisImportPayload';
 export const WEBUNTIS_IMPORT_RETURN_KEY = 'ms365WebuntisImportReturn';
@@ -40,6 +40,7 @@ export function consumeWebuntisImportPayload() {
 export function resolveReturnUrl(fromParam) {
     const from = String(fromParam || '').toLowerCase();
     if (from === 'playbook-daten-import') return 'playbook-daten-import-verknuepfen.html';
+    if (from === 'schueler-lifecycle') return 'schueler-lifecycle.html';
     if (from === 'tenant' || from === 'stammdaten' || from === 'einrichtung') return '../tenant.html';
     try {
         const stored = sessionStorage.getItem(WEBUNTIS_IMPORT_RETURN_KEY);

@@ -97,7 +97,14 @@ export function wireFreistellungAccessDebug(root, state) {
         if (summaryEl) summaryEl.textContent = '';
         if (btnCopy) btnCopy.disabled = true;
         try {
-            const report = await runFreistellungAccessDiagnostics(state, { refreshRemote: true });
+            const report = await Promise.race([
+                runFreistellungAccessDiagnostics(state, { refreshRemote: true }),
+                new Promise(function (_, reject) {
+                    setTimeout(function () {
+                        reject(new Error('Diagnose-Timeout (90 s) – Seite neu laden und erneut versuchen.'));
+                    }, 90000);
+                })
+            ]);
             lastReport = report;
             if (stepsEl) stepsEl.innerHTML = renderSteps(report.steps);
             if (summaryEl) summaryEl.textContent = report.summary || '';

@@ -11,8 +11,8 @@ describe('freistellung-setup-status', () => {
                 siteUrl: 'https://schule.sharepoint.com/sites/admin',
                 listId: 'abc',
                 emailDirektion: 'dir@schule.at',
-                emailSonder: 'son@schule.at',
-                emailMailbox: 'auto@schule.at'
+                emailMailbox: 'auto@schule.at',
+                flowServiceAccount: 'auto@schule.at'
             },
             { flowImported: true, onboardingDone: 2, onboardingTotal: 6 }
         );

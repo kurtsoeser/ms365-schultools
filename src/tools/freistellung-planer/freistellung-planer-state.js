@@ -1,7 +1,14 @@
 /**
  * State / Filter / Rollen für Freistellungs-Planer.
  */
-import { toIsoDateOnly, filterFreistellungen } from './freistellung-planer-logic.js';
+import {
+    toIsoDateOnly,
+    toIsoDateTimeLocal,
+    hasClockTime,
+    filterFreistellungen,
+    deriveKvClassCodesFromFreistellungItems,
+    normalizeFreistellungClassCode
+} from './freistellung-planer-logic.js';
 import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
 import { mergeKategorieChoices, loadExtraKategorien, KATEGORIE_CHOICES } from './freistellung-planer-kategorien.js';
 import { accountIsDirektionPlannerUser } from './freistellung-planer-direktion-users.js';
@@ -29,6 +36,7 @@ const STUDENT_KLASSE_PICK_KEY = 'ms365-freistellung-student-klasse-pick-v1';
 export const VIEWS = [
     { id: 'dashboard', label: 'Übersicht', icon: 'bi-speedometer2', roles: ['kv', 'direktion'] },
     { id: 'liste', label: 'Liste', icon: 'bi-list-ul', roles: ['kv', 'direktion'] },
+    { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', roles: ['kv', 'direktion'] },
     { id: 'meine', label: 'Meine Anträge', icon: 'bi-person', roles: ['schueler'] },
     { id: 'antrag', label: 'Antrag stellen', icon: 'bi-plus-circle', roles: ['kv', 'direktion', 'schueler'] },
     { id: 'freigabe', label: 'Offene Genehmigungen', icon: 'bi-check2-square', roles: ['kv', 'direktion'] },
@@ -43,9 +51,13 @@ export const VIEWS = [
 export function viewsForRole(role, state) {
     const r = role === 'kv' || role === 'direktion' ? role : 'schueler';
     if (state && useKvPlanerChrome(state)) {
-        return VIEWS.filter((v) => v.id === 'dashboard');
+        return VIEWS.filter((v) => v.id === 'dashboard' || v.id === 'kalender');
     }
-    return VIEWS.filter((v) => v.roles.includes(r));
+    let views = VIEWS.filter((v) => v.roles.includes(r));
+    if (r === 'direktion' && state && !state.planerAdminAccess) {
+        views = views.filter((v) => v.id !== 'administration');
+    }
+    return views;
 }
 
 /**
@@ -136,6 +148,7 @@ export function createInitialState() {
         ctx: null,
         localDemoOnly: false,
         entraGroupsConfigured: false,
+        planerAdminAccess: false,
         demoRoleOverride: false,
         planerRoles: [],
         planerRoleSources: {},
@@ -149,19 +162,23 @@ export function createInitialState() {
         direktionMatch: false,
         demoKlasseCode: '',
         kategorieChoices: mergeKategorieChoices(loadExtraKategorien()),
+        calYear: new Date().getFullYear(),
+        calMonth: new Date().getMonth() + 1,
         /** Aus SharePoint-Liste „Freistellungen“, Spalte Klasse (Choice). */
         klasseColumnChoices: []
     };
 }
 
 export function emptyForm(partial) {
-    const iso = toIsoDateOnly(new Date()) || '';
+    const day = toIsoDateOnly(new Date()) || '';
+    const beginn = day ? day + 'T08:00' : '';
+    const ende = day ? day + 'T09:00' : '';
     return {
         titel: '',
         schuelerName: '',
         klasse: '',
-        beginn: iso,
-        ende: iso,
+        beginn,
+        ende,
         kategorie: mergeKategorieChoices(loadExtraKategorien())[0] || KATEGORIE_CHOICES[0],
         beschreibung: '',
         kvEmail: '',
@@ -263,6 +280,59 @@ export function persistSiteUrl(url) {
     }
 }
 
+function classRowHeadEmail(row) {
+    return String(row.headEmail || row.klassenvorstandEmail || row.kvEmail || '')
+        .trim()
+        .toLowerCase();
+}
+
+/**
+ * Klassen aus Stammdaten (v1), App-Daten v2 und Kanonisch zusammenführen – headEmail nicht verlieren.
+ * @param {...unknown[]} classLists
+ * @returns {object[]}
+ */
+/**
+ * Klassenzeilen für KV-Filter: lokale Stammdaten + veröffentlichtes Klassenverzeichnis (Setup/Liste).
+ * @param {object} [state]
+ */
+export function classRowsForKvScope(state) {
+    const base = collectAllClassRows(state || {});
+    const catalog = (loadEffectivePermissionsConfig().classCatalog || []).filter(
+        (r) => r && (r.code || r.name)
+    );
+    if (!catalog.length) return base;
+    return mergeSchoolClassRows(base, catalog);
+}
+
+export function mergeSchoolClassRows(...classLists) {
+    /** @type {Map<string, object>} */
+    const byCode = new Map();
+    const ingest = (raw) => {
+        if (!raw || typeof raw !== 'object') return;
+        const code = String(raw.code || raw.name || '').trim();
+        if (!code) return;
+        const key = code.toLowerCase();
+        const prev = byCode.get(key) || {};
+        const headEmail = classRowHeadEmail(raw) || classRowHeadEmail(prev);
+        const headName = String(
+            raw.headName || raw.klassenvorstandName || prev.headName || ''
+        ).trim();
+        byCode.set(key, {
+            ...prev,
+            ...raw,
+            code,
+            name: String(raw.name || prev.name || code).trim(),
+            headEmail,
+            headName
+        });
+    };
+    for (let i = 0; i < classLists.length; i++) {
+        const arr = classLists[i];
+        if (Array.isArray(arr)) arr.forEach(ingest);
+    }
+    return [...byCode.values()];
+}
+
 export function loadStammdaten() {
     try {
         if (
@@ -278,15 +348,28 @@ export function loadStammdaten() {
         }
         const core = window.ms365TenantSettingsLoad && window.ms365TenantSettingsLoad();
         const data = (core && core.data) || core || {};
-        let baseClasses = Array.isArray(data.classes) ? data.classes : [];
+        const fromTenant = Array.isArray(data.classes) ? data.classes : [];
+        let fromCanon = [];
         if (
             typeof window !== 'undefined' &&
             window.ms365StammdatenCanonical &&
             typeof window.ms365StammdatenCanonical.listAllClasses === 'function'
         ) {
-            const canon = window.ms365StammdatenCanonical.listAllClasses();
-            if (canon && canon.length) baseClasses = canon;
+            fromCanon = window.ms365StammdatenCanonical.listAllClasses() || [];
         }
+        let fromV1 = [];
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                const rawV1 = window.localStorage.getItem('ms365-tenant-settings-v1');
+                if (rawV1) {
+                    const parsed = JSON.parse(rawV1);
+                    if (parsed && Array.isArray(parsed.classes)) fromV1 = parsed.classes;
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+        const baseClasses = mergeSchoolClassRows(fromCanon, fromTenant, fromV1);
         return {
             classes: collectAllClassRows({ stammdaten: { classes: baseClasses } }),
             teachers: Array.isArray(data.teachers) ? data.teachers : [],
@@ -510,6 +593,32 @@ export function matchKvByClassHeadEmail(email, classes) {
 }
 
 /**
+ * Klassen-Codes, für die dieses Konto als Klassenvorstand in den Stammdaten hinterlegt ist.
+ * @param {string} email
+ * @param {object[]} classes
+ * @returns {Set<string>}
+ */
+export function collectKvClassCodesForAccount(email, classes) {
+    const em = String(email || '')
+        .trim()
+        .toLowerCase();
+    const codes = new Set();
+    if (!em) return codes;
+    const list = Array.isArray(classes) ? classes : [];
+    for (let i = 0; i < list.length; i++) {
+        const c = list[i];
+        if (!c || typeof c !== 'object') continue;
+        const head = String(c.headEmail || c.klassenvorstandEmail || c.kvEmail || '')
+            .trim()
+            .toLowerCase();
+        if (!head || head !== em) continue;
+        const code = String(c.code || c.name || '').trim();
+        if (code) codes.add(code);
+    }
+    return codes;
+}
+
+/**
  * @param {{ studentMatch?: { klasse?: string }|null, demoKlasseCode?: string }} stateOrScope
  */
 /** Schüler: Klasse nur bei Stammdaten/Entra sperren – nicht bei freier Auswahl im Formular. */
@@ -678,6 +787,19 @@ export function formatDeDate(iso) {
     return `${d}.${m}.${y}`;
 }
 
+/**
+ * Datum mit optionaler Uhrzeit (wenn nicht Mitternacht / gesetzt).
+ * @param {unknown} iso
+ */
+export function formatDeDateTime(iso) {
+    const local = toIsoDateTimeLocal(iso);
+    if (!local) return '–';
+    const datePart = formatDeDate(local);
+    if (!hasClockTime(local)) return datePart;
+    const time = local.split('T')[1] || '';
+    return datePart + ', ' + time + ' Uhr';
+}
+
 export function scopeFromState(state, opts) {
     const o = opts || {};
     const role = state.role;
@@ -691,15 +813,32 @@ export function scopeFromState(state, opts) {
         return base;
     }
     if (role === 'kv') {
-        const src = state.planerRoleSources && state.planerRoleSources.kv;
-        const entraKv = src === 'entra' || src === 'global-admin' || src === 'kv-user';
         const scope = Object.assign({}, base);
-        if (entraKv) scope.onlyKv = true;
+        scope.accountName = String(state.accountName || '').trim();
+        const classRows = classRowsForKvScope(state);
+        const kvClassCodes = new Set();
+        collectKvClassCodesForAccount(state.accountEmail, classRows).forEach((c) =>
+            kvClassCodes.add(normalizeFreistellungClassCode(c))
+        );
+        const fromItems =
+            state.kvClassCodesFromItems instanceof Set
+                ? state.kvClassCodesFromItems
+                : deriveKvClassCodesFromFreistellungItems(
+                      state.items,
+                      state.accountEmail,
+                      state.accountName
+                  );
+        fromItems.forEach((c) => kvClassCodes.add(normalizeFreistellungClassCode(c)));
+        if (kvClassCodes.size) scope.kvClassCodes = kvClassCodes;
+        scope.kvResolver = function (klasseCode) {
+            const kv = resolveKvForClass(state, klasseCode);
+            return kv && kv.email ? kv.email : '';
+        };
         if (jahrgCodes) {
             scope.jahrgangClassCodes = jahrgCodes;
-            if (scope.onlyKv) scope.jahrgangOrKv = true;
+            scope.jahrgangOrKv = true;
         }
-        if (!scope.onlyKv && !scope.jahrgangClassCodes) scope.onlyKv = true;
+        scope.onlyKv = true;
         return scope;
     }
     return Object.assign({}, base, { onlyMine: true });

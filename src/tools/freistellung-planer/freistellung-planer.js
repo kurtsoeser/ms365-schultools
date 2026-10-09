@@ -21,6 +21,7 @@ import {
     clearStudentKlassePick,
     studentKlasseFromRecord,
     matchKvByClassHeadEmail,
+    classRowsForKvScope,
     resolveStudentKlasseCode,
     isStudentKlasseLocked,
     persistDemoKlasseCode,
@@ -67,13 +68,16 @@ import { wireFreistellungKategorienAdmin } from './freistellung-kategorien-ui.js
 import { wireFreistellungKlassenAdmin } from './freistellung-klassen-ui.js';
 import {
     resolveFrContext,
-    loadAllFreistellungen,
+    loadAllFreistellungenForPlaner,
     createFreistellungItem,
     updateFreistellungStatus,
     probeFreistellungListRead
 } from './freistellung-planer-graph.js';
 import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
-import { validateFreistellung } from './freistellung-planer-logic.js';
+import {
+    validateFreistellung,
+    deriveKvClassCodesFromFreistellungItems
+} from './freistellung-planer-logic.js';
 import {
     renderApp,
     readFormFromDom,
@@ -104,20 +108,6 @@ let root = null;
 function toast(msg) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
     else window.alert(msg);
-}
-
-function placePlanerAuthWidget() {
-    const slot = document.getElementById('frNavAuthSlot');
-    const wrap = document.getElementById('ms365AuthWidget');
-    if (!slot || !wrap) return;
-    wrap.style.position = '';
-    wrap.style.top = '';
-    wrap.style.right = '';
-    wrap.style.zIndex = '';
-    wrap.style.marginLeft = '';
-    wrap.style.flexWrap = 'wrap';
-    wrap.style.width = '100%';
-    if (wrap.parentElement !== slot) slot.appendChild(wrap);
 }
 
 function syncPageHeader() {
@@ -183,7 +173,13 @@ function paint() {
     renderApp(state, root);
     bindStatic();
     wireFreistellungAccessDebug(root, state);
-    placePlanerAuthWidget();
+    import('../../shared/frontend-planner-chrome-policy.js')
+        .then((m) => {
+            if (m && typeof m.refreshFrontendPlannerChromeAudience === 'function') {
+                return m.refreshFrontendPlannerChromeAudience();
+            }
+        })
+        .catch(() => {});
 }
 
 function currentAccount() {
@@ -231,7 +227,7 @@ function syncAccount() {
         state.demoKlasseCode = '';
         persistDemoKlasseCode('');
     }
-    state.kvMatch = matchKvByClassHeadEmail(state.accountEmail, state.stammdaten.classes);
+    state.kvMatch = matchKvByClassHeadEmail(state.accountEmail, classRowsForKvScope(state));
     const dirMail = String(state.emailDirektion || loadSetupCfg().emailDirektion || '')
         .trim()
         .toLowerCase();
@@ -522,7 +518,15 @@ async function refreshData() {
             state.klasseColumnChoices = [];
         }
         state.localDemoOnly = false;
-        state.items = await loadAllFreistellungen(ctx);
+        state.items = await loadAllFreistellungenForPlaner(ctx, state);
+        if (state.role === 'kv') {
+            state.kvClassCodesFromItems = deriveKvClassCodesFromFreistellungItems(
+                state.items,
+                state.accountEmail,
+                state.accountName
+            );
+            state.kvMatch = matchKvByClassHeadEmail(state.accountEmail, classRowsForKvScope(state));
+        }
         if (!useMinimalPlanerChrome(state)) {
             state.info =
                 'Liste „' +
@@ -796,7 +800,12 @@ async function setStatus(itemId, status) {
         return;
     }
     try {
-        await updateFreistellungStatus(state.ctx, itemId, status);
+        await updateFreistellungStatus(state.ctx, itemId, {
+            status,
+            role: state.role,
+            actorName: state.accountName,
+            actorEmail: state.accountEmail
+        });
         toast('Status aktualisiert: ' + status);
         await refreshData();
     } catch (e) {
@@ -989,6 +998,29 @@ function bindStatic() {
         }
     }
 
+    const calPrev = root.querySelector('#frCalPrev');
+    const calNext = root.querySelector('#frCalNext');
+    if (calPrev) {
+        calPrev.addEventListener('click', () => {
+            state.calMonth -= 1;
+            if (state.calMonth < 1) {
+                state.calMonth = 12;
+                state.calYear -= 1;
+            }
+            paint();
+        });
+    }
+    if (calNext) {
+        calNext.addEventListener('click', () => {
+            state.calMonth += 1;
+            if (state.calMonth > 12) {
+                state.calMonth = 1;
+                state.calYear += 1;
+            }
+            paint();
+        });
+    }
+
     root.querySelectorAll('[data-fr-detail]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.detailId = btn.getAttribute('data-fr-detail');
@@ -1047,7 +1079,6 @@ function boot() {
         .then(() => paint())
         .catch(() => paint());
 
-    window.addEventListener('ms365-auth-widget-ready', placePlanerAuthWidget);
     window.addEventListener('ms365-auth-state-changed', () => {
         resolvePlanerRole()
             .then(() => {

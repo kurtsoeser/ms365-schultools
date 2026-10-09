@@ -32,7 +32,7 @@ describe('dashboard-task-row-facts-logic', () => {
             }
         };
         expect(hygieneTargetMetricLine('slg-schueler', 'ok', null, {}, hygieneApi)).toBe(
-            '26 Register · 26 M365'
+            '26 in Stammdaten · 26 in M365'
         );
         expect(hygieneTargetNumericHint('slg-schueler', 'ok', null, {}, hygieneApi)).toContain(
             'Konsistent'

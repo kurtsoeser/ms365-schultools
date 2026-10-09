@@ -7,8 +7,24 @@ import {
     previewMemberships,
     summarizePreview
 } from '../../shared/student-class-lifecycle.js';
+import { loadSchoolAudienceGroups } from '../../shared/school-audience-groups.js';
+import {
+    fillGroupPickerField,
+    readGroupPickerField,
+    wireEntraGroupPickerFields
+} from '../../shared/entra-group-picker.js';
+import { aoaFromXlsxArrayBuffer, parseStudentsTableAoa } from './schueler-lifecycle-import.js';
 
 const SNAPSHOT_KEY = 'ms365-student-lifecycle-prev-v1';
+const SAMMEL_OVERRIDE_KEY = 'ms365-student-lifecycle-sammel-v1';
+
+const SAMMEL_GROUP_FIELD = {
+    labelInputId: 'slcSammelGroupLabel',
+    idInputId: 'slcSammelGroupId',
+    pickBtnId: 'slcSammelPick',
+    clearBtnId: 'slcSammelClear',
+    dialogTitle: 'Sammelgruppe Alle Schülerinnen'
+};
 
 function $(id) {
     return document.getElementById(id);
@@ -146,6 +162,60 @@ function setStatus(msg, isError) {
 
 let lastDiff = null;
 let lastPreview = null;
+/** @type {Array<{ name: string, email: string, klasse: string }>|null} */
+let importedPrevStudents = null;
+let importedPrevLabel = '';
+
+function loadSammelFromStammdaten() {
+    const aud = loadSchoolAudienceGroups();
+    return {
+        id: aud.groupSchuelerId || '',
+        label: aud.groupSchuelerName || 'Alle Schülerinnen'
+    };
+}
+
+function loadSammelOverride() {
+    try {
+        const raw = localStorage.getItem(SAMMEL_OVERRIDE_KEY);
+        if (!raw) return null;
+        const o = JSON.parse(raw);
+        if (!o || typeof o !== 'object') return null;
+        return {
+            id: String(o.id || '').trim(),
+            label: String(o.label || '').trim()
+        };
+    } catch {
+        return null;
+    }
+}
+
+function saveSammelOverride() {
+    try {
+        const r = readGroupPickerField(SAMMEL_GROUP_FIELD);
+        if (!r.id && !r.label) {
+            localStorage.removeItem(SAMMEL_OVERRIDE_KEY);
+            return;
+        }
+        localStorage.setItem(SAMMEL_OVERRIDE_KEY, JSON.stringify(r));
+    } catch {
+        /* ignore */
+    }
+}
+
+function applySammelPrefill() {
+    const stored = loadSammelOverride();
+    const st = loadSammelFromStammdaten();
+    const value = stored && stored.id ? stored : st;
+    fillGroupPickerField(SAMMEL_GROUP_FIELD, value);
+}
+
+function syncPrevModeUi() {
+    const mode = ($('slcPrevMode') && $('slcPrevMode').value) || 'snapshot';
+    const fileField = $('slcFileField');
+    const csvField = $('slcCsvField');
+    if (fileField) fileField.hidden = mode !== 'file';
+    if (csvField) csvField.hidden = mode !== 'csv';
+}
 
 function runPreview() {
     const next = loadStudentsFromTenant();
@@ -165,11 +235,17 @@ function runPreview() {
             setStatus('CSV leer oder nicht lesbar (Spalten: Name;E-Mail;Klasse).', true);
             return;
         }
+    } else if (mode === 'file') {
+        prev = Array.isArray(importedPrevStudents) ? importedPrevStudents : [];
+        if (!prev.length) {
+            setStatus('Bitte zuerst eine CSV- oder Excel-Datei laden (WebUntis Student_*.xlsx geht auch).', true);
+            return;
+        }
     }
 
     lastDiff = diffStudents(prev, next);
     const teams = loadClassTeamsHint();
-    const sammel = String(($('slcSammelGroupId') && $('slcSammelGroupId').value) || '').trim();
+    const sammel = readGroupPickerField(SAMMEL_GROUP_FIELD).id;
     lastPreview = previewMemberships(lastDiff, teams, sammel);
 
     const sum = summarizePreview(lastPreview);
@@ -250,7 +326,113 @@ function runPreview() {
     );
 }
 
+function readImportFile(file) {
+    const name = String((file && file.name) || '').trim();
+    const low = name.toLowerCase();
+    const isXlsx = /\.xlsx?$/.test(low);
+    const isCsv = /\.csv$/.test(low) || /\.txt$/.test(low) || (file && file.type && file.type.indexOf('text') >= 0);
+
+    function onRows(aoa, label) {
+        const students = parseStudentsTableAoa(aoa);
+        importedPrevStudents = students;
+        importedPrevLabel = label || name;
+        const meta = $('slcImportMeta');
+        if (meta) {
+            meta.textContent = students.length
+                ? 'Geladen: ' + (label || name) + ' · ' + students.length + ' Schüler:innen'
+                : 'Datei ohne lesbare Schülerzeilen.';
+        }
+        setStatus(
+            students.length
+                ? 'Import bereit: ' + students.length + ' Personen als Vorher-Stand.'
+                : 'Keine Schüler in der Datei erkannt – Spalten Name/E-Mail/Klasse oder WebUntis-Export prüfen.',
+            !students.length
+        );
+    }
+
+    if (!file) return;
+
+    if (isXlsx) {
+        const reader = new FileReader();
+        reader.onload = function () {
+            const aoa = aoaFromXlsxArrayBuffer(reader.result);
+            if (!aoa) {
+                setStatus('Excel konnte nicht gelesen werden (XLSX-Bibliothek fehlt oder Datei defekt).', true);
+                return;
+            }
+            onRows(aoa, name);
+        };
+        reader.readAsArrayBuffer(file);
+        return;
+    }
+
+    if (isCsv || !isXlsx) {
+        const reader = new FileReader();
+        reader.onload = function () {
+            const text = String(reader.result || '');
+            const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+            if (!lines.length) {
+                setStatus('Datei ist leer.', true);
+                return;
+            }
+            const sep = lines[0].indexOf(';') >= 0 ? ';' : ',';
+            const aoa = lines.map(function (line) {
+                return line.split(sep);
+            });
+            const fromTable = parseStudentsTableAoa(aoa);
+            if (fromTable.length) {
+                onRows(aoa, name);
+                return;
+            }
+            importedPrevStudents = parseCsvStudents(text);
+            importedPrevLabel = name;
+            const meta = $('slcImportMeta');
+            if (meta) {
+                meta.textContent = importedPrevStudents.length
+                    ? 'Geladen: ' + name + ' · ' + importedPrevStudents.length + ' Schüler:innen (CSV)'
+                    : 'CSV ohne lesbare Zeilen.';
+            }
+            setStatus(
+                importedPrevStudents.length
+                    ? 'Import bereit: ' + importedPrevStudents.length + ' Personen.'
+                    : 'CSV nicht lesbar (Name;E-Mail;Klasse).',
+                !importedPrevStudents.length
+            );
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+}
+
 function wire() {
+    applySammelPrefill();
+    wireEntraGroupPickerFields({
+        fields: [SAMMEL_GROUP_FIELD],
+        onChange: saveSammelOverride
+    });
+    const fromSt = $('slcSammelFromStammdaten');
+    if (fromSt) {
+        fromSt.addEventListener('click', function () {
+            fillGroupPickerField(SAMMEL_GROUP_FIELD, loadSammelFromStammdaten());
+            saveSammelOverride();
+            setStatus('Sammelgruppe aus Stammdaten übernommen.');
+        });
+    }
+
+    const prevMode = $('slcPrevMode');
+    if (prevMode) {
+        prevMode.addEventListener('change', syncPrevModeUi);
+        syncPrevModeUi();
+    }
+
+    const importFile = $('slcImportFile');
+    if (importFile) {
+        importFile.addEventListener('change', function () {
+            const f = importFile.files && importFile.files[0];
+            if (f) readImportFile(f);
+            importFile.value = '';
+        });
+    }
+
     const saveBtn = $('slcSaveSnapshot');
     if (saveBtn) {
         saveBtn.addEventListener('click', function () {
@@ -308,4 +490,4 @@ if (document.readyState === 'loading') {
     wire();
 }
 
-export { runPreview, parseCsvStudents, SNAPSHOT_KEY };
+export { runPreview, parseCsvStudents, SNAPSHOT_KEY, parseStudentsTableAoa };

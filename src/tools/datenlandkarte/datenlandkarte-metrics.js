@@ -75,7 +75,7 @@ export function collectDatenMetrics() {
     const base = {
         stammHub: {
             value: stammSum,
-            hint: stammSum ? 'Summe Klassen, Lehrkräfte, Fächer, ARGE' : 'Noch leer – Schulregister'
+            hint: stammSum ? 'Summe Klassen, Lehrkräfte, Fächer, ARGE' : 'Noch leer – Stammdaten'
         },
         classes: { value: classes },
         teachers: { value: teachers },
@@ -159,7 +159,9 @@ export function formatBlockCount(countKey, metrics) {
     const hint = m.hint || '';
     const unit =
         typeof v === 'number'
-            ? hint.indexOf('SharePoint') !== -1 || String(countKey).startsWith('spoList')
+            ? hint.indexOf('SharePoint') !== -1 ||
+              hint.indexOf('Intranet-Sync') !== -1 ||
+              String(countKey).startsWith('spoList')
                 ? ' Zeilen'
                 : ' Einträge'
             : '';

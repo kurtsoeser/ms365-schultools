@@ -6,6 +6,8 @@ window.ms365AssertModules({ KM }, 'kursteam-data-tables-ui.js');
  * Import-Tabelle (Schritt 2), bearbeitbare Tabelle (Schritt 3), kleine Team-Vorschau.
  * @param {object} ns window.ms365Kursteam
  */
+const MANUAL_ROW_EDIT_FIELDS = ['klasse', 'fach', 'lehrer', 'gruppe'];
+
 function mount(ns) {
     function setCellEditMode(td, rowId, field) {
         if (!td || td.dataset.editing === '1') return;
@@ -26,6 +28,8 @@ function mount(ns) {
         input.focus();
         input.select();
 
+        let skipBlurCommit = false;
+
         const commit = () => {
             const val = input.value.trim();
             ns.updateDataRowField(rowId, field, val);
@@ -38,6 +42,18 @@ function mount(ns) {
             td.textContent = originalText;
         };
 
+        const focusAdjacentField = (shiftKey) => {
+            const idx = MANUAL_ROW_EDIT_FIELDS.indexOf(field);
+            const nextIdx = shiftKey ? idx - 1 : idx + 1;
+            if (nextIdx < 0 || nextIdx >= MANUAL_ROW_EDIT_FIELDS.length) return;
+            const tr = td.closest('tr');
+            const nextTd = tr?.children?.[nextIdx];
+            const nextField = MANUAL_ROW_EDIT_FIELDS[nextIdx];
+            if (nextTd) {
+                window.setTimeout(() => setCellEditMode(nextTd, rowId, nextField), 0);
+            }
+        };
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -45,9 +61,17 @@ function mount(ns) {
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 cancel();
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                skipBlurCommit = true;
+                commit();
+                skipBlurCommit = false;
+                focusAdjacentField(e.shiftKey);
             }
         });
-        input.addEventListener('blur', commit);
+        input.addEventListener('blur', () => {
+            if (!skipBlurCommit) commit();
+        });
     }
 
     ns.setCellEditMode = setCellEditMode;

@@ -18,6 +18,26 @@ export function classRowMatchKey(row) {
 }
 
 /**
+ * Klassenkürzel aus Anzeigename (z. B. „DEMO Klasse 3A“ → 3A).
+ * @param {string} displayName
+ */
+export function classCodeFromDisplayName(displayName) {
+    const s = normStr(displayName);
+    if (!s) return '';
+    let m = s.match(/Klasse\s+(\d+[A-Za-zÄÖÜäöüß]+)/i);
+    if (m) return normCode(m[1]);
+    m = s.match(/^(\d+)\s+([A-Za-zÄÖÜäöüß]+)\s*$/);
+    if (m) return normCode(m[1] + m[2]);
+    m = s.match(/^([0-9]+[A-Za-zÄÖÜäöüß]+)\s*[-–]\s*Klasse/i);
+    if (m) return normCode(m[1]);
+    m = s.match(/^([0-9]+[A-Za-zÄÖÜäöüß]+)$/);
+    if (m) return normCode(m[1]);
+    m = s.match(/(\d+[A-Za-zÄÖÜäöüß])\s*$/);
+    if (m) return normCode(m[1]);
+    return '';
+}
+
+/**
  * Klassenzeile aus einer Entra-Gruppe ableiten (Mail-Nickname / Anzeigename).
  * @param {{ mailNickname?: string, displayName?: string }} g
  * @returns {{ code: string, name: string, year: string }}
@@ -26,7 +46,7 @@ export function deriveClassEntryFromGroup(g) {
     const nick = normStr(g && g.mailNickname);
     const dn = normStr(g && g.displayName);
     let year = abschlussjahrFromMailNickname(nick);
-    let code = '';
+    let code = classCodeFromDisplayName(dn);
     let name = dn;
 
     const nickLc = nick.toLowerCase();
@@ -55,15 +75,10 @@ export function deriveClassEntryFromGroup(g) {
         }
     }
 
-    if (!code && dn) {
-        const spaced = dn.match(/^(\d+)\s+([A-Za-zÄÖÜäöüß]+)\s*$/);
-        if (spaced) code = normCode(spaced[1] + spaced[2]);
-        const kl = dn.match(/^Klasse\s+([0-9A-Za-z]+)/i);
-        if (!code && kl) code = normCode(kl[1]);
-        const trailing = dn.match(/^([0-9]+[A-Za-z]+)\s*[-–]\s*Klasse/i);
-        if (!code && trailing) code = normCode(trailing[1]);
-        const bare = dn.match(/^([0-9]+[A-Za-z]+)$/);
-        if (!code && bare) code = normCode(bare[1]);
+    // jg2030-a → nur „A“ ist zu kurz; Anzeigename „Klasse 3A“ hat Vorrang.
+    if (code && code.length <= 1) {
+        const dnCode = classCodeFromDisplayName(dn);
+        if (dnCode) code = dnCode;
     }
 
     if (!code && nick) {
@@ -122,6 +137,101 @@ function pickYearForRow(row, team, groupMatch, prior) {
         if (p && /^\d{4}$/.test(normStr(p.year))) return normStr(p.year);
     }
     return '';
+}
+
+/**
+ * Ersten passenden Gruppenbesitzer als Klassenvorstand / ARGE-Leitung.
+ * @param {object[]} owners Graph-Benutzer
+ * @param {object[]} [teachers] Stammdaten-Lehrer (optional, für Anzeigenamen)
+ * @returns {{ headName: string, headEmail: string }|null}
+ */
+export function pickHeadFromGraphGroupOwners(owners, teachers) {
+    const teacherByEmail = new Map();
+    (teachers || []).forEach(function (t) {
+        const em = normStr(t && t.email).toLowerCase();
+        if (em && em.indexOf('@') !== -1) teacherByEmail.set(em, t);
+    });
+    let picked = null;
+    (owners || []).forEach(function (u) {
+        if (picked) return;
+        const em = normStr(u && (u.mail || u.userPrincipalName)).toLowerCase();
+        if (!em || em.indexOf('@') === -1) return;
+        const t = teacherByEmail.get(em);
+        if (t) {
+            picked = { headName: normStr(t.name) || normStr(u.displayName), headEmail: em };
+            return;
+        }
+        if (!picked) {
+            picked = { headName: normStr(u.displayName), headEmail: em };
+        }
+    });
+    return picked;
+}
+
+/**
+ * Nach M365-Gruppenimport: Besitzer (Owner) in headName/headEmail der Stammdatenzeilen schreiben.
+ * @param {object[]} rows
+ * @param {object[]} pickedGroups
+ * @param {{ deriveCode: (g: object) => string, getTeachers?: () => object[], fetchGroupOwners: function, getGraphToken: function, overwrite?: boolean }} opts
+ */
+export async function fillRegisterRowsHeadFromGroupOwners(rows, pickedGroups, opts) {
+    const o = opts || {};
+    const deriveCode = typeof o.deriveCode === 'function' ? o.deriveCode : null;
+    const fetchGroupOwners = o.fetchGroupOwners;
+    const getGraphToken = o.getGraphToken;
+    if (!deriveCode || typeof fetchGroupOwners !== 'function' || typeof getGraphToken !== 'function') {
+        return { kvFilled: 0, skipped: (pickedGroups || []).length };
+    }
+    let token;
+    try {
+        token = await getGraphToken();
+    } catch {
+        return { kvFilled: 0, skipped: (pickedGroups || []).length, error: 'token' };
+    }
+    const teachers = typeof o.getTeachers === 'function' ? o.getTeachers() : [];
+    const overwrite = o.overwrite === true;
+    let kvFilled = 0;
+    let skipped = 0;
+
+    for (let i = 0; i < (pickedGroups || []).length; i++) {
+        const g = pickedGroups[i];
+        const gid = normStr(g && g.id);
+        if (!gid) {
+            skipped++;
+            continue;
+        }
+        const code = normCode(deriveCode(g));
+        if (!code) {
+            skipped++;
+            continue;
+        }
+        const row = (rows || []).find(function (r) {
+            return normCode(r && r.code) === code;
+        });
+        if (!row) {
+            skipped++;
+            continue;
+        }
+        const hasEmail = normStr(row.headEmail).indexOf('@') !== -1;
+        if (hasEmail && !overwrite) {
+            skipped++;
+            continue;
+        }
+        try {
+            const owners = await fetchGroupOwners(token, gid);
+            const head = pickHeadFromGraphGroupOwners(owners, teachers);
+            if (head) {
+                row.headName = head.headName;
+                row.headEmail = head.headEmail;
+                kvFilled++;
+            } else {
+                skipped++;
+            }
+        } catch {
+            skipped++;
+        }
+    }
+    return { kvFilled, skipped };
 }
 
 function pickKvForRow(row, prior) {
@@ -205,11 +315,6 @@ export async function enrichClassesKvFromGraphOwners(classes, ctx) {
     const o = ctx && typeof ctx === 'object' ? ctx : {};
     const teams = Array.isArray(o.classTeams) ? o.classTeams : [];
     const teachers = Array.isArray(o.teachers) ? o.teachers : [];
-    const teacherByEmail = new Map();
-    teachers.forEach(function (t) {
-        const em = normStr(t && t.email).toLowerCase();
-        if (em && em.indexOf('@') !== -1) teacherByEmail.set(em, t);
-    });
     const fetchOwners = o.fetchGroupOwners;
     const getToken = o.getGraphToken;
     if (typeof fetchOwners !== 'function' || typeof getToken !== 'function') {
@@ -249,20 +354,7 @@ export async function enrichClassesKvFromGraphOwners(classes, ctx) {
 
         try {
             const owners = await fetchOwners(token, gid);
-            let picked = null;
-            (owners || []).forEach(function (u) {
-                if (picked) return;
-                const em = normStr(u.mail || u.userPrincipalName).toLowerCase();
-                if (!em || em.indexOf('@') === -1) return;
-                const t = teacherByEmail.get(em);
-                if (t) {
-                    picked = { headName: normStr(t.name) || normStr(u.displayName), headEmail: em };
-                    return;
-                }
-                if (!picked && teacherByEmail.size === 0) {
-                    picked = { headName: normStr(u.displayName), headEmail: em };
-                }
-            });
+            const picked = pickHeadFromGraphGroupOwners(owners, teachers);
             if (picked) {
                 next.headName = picked.headName;
                 next.headEmail = picked.headEmail;

@@ -65,6 +65,7 @@ export function rowFromTeamEntry(team) {
         lehrerCode = normCode(local);
     }
 
+    const lehrerName = normStr(team.lehrerName);
     const graphGroupId = normStr(team.graphGroupId);
     const linkedAt = normStr(team.linkedAt);
     const out = {
@@ -76,6 +77,7 @@ export function rowFromTeamEntry(team) {
         teamName,
         gruppenmail
     };
+    if (lehrerName) out.lehrerName = lehrerName;
     if (graphGroupId) out.graphGroupId = graphGroupId;
     if (linkedAt) out.linkedAt = linkedAt;
     return out;
@@ -153,6 +155,7 @@ export function normalizeBelegungSnapshot(raw) {
             ? raw.rows.map((r) => ({
                   originalClass: r.klasse,
                   lehrerCode: r.lehrerCode,
+                  lehrerName: r.lehrerName,
                   besitzer: r.lehrerEmail,
                   fach: r.fach,
                   gruppe: r.gruppe,

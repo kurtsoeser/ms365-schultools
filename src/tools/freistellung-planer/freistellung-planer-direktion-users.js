@@ -1,6 +1,11 @@
 /**
  * Einzelpersonen mit Planer-Rolle (zusätzlich zur Entra-Gruppe).
  */
+import {
+    ADMIN_TIER_SCHULLEITUNG,
+    inferAdminTierForPersonRow,
+    inferAdminTierForRole
+} from '../../shared/administration-audience-logic.js';
 
 /**
  * @typedef {{ id?: string, displayName?: string, mail?: string, email?: string, name?: string }} PlannerUser
@@ -61,7 +66,7 @@ export function accountIsDirektionPlannerUser(accountEmail, users) {
 }
 
 /**
- * Verwaltung / Sekretariat aus Tenant-Stammdaten (admin + administration).
+ * Schulleitung (z. B. Direktion) aus Tenant-Stammdaten – nicht das gesamte Verwaltungs-Personal.
  */
 export function direktionUsersFromTenantStammdaten() {
     /** @type {Map<string, { displayName: string, mail: string }>} */
@@ -79,9 +84,20 @@ export function direktionUsersFromTenantStammdaten() {
                 ? window.ms365TenantSettingsLoad()
                 : null;
         const data = (core && core.data) || core || {};
-        (data.admin || []).forEach((p) => add(p.name, p.email));
+        const roles = Array.isArray(data.adminRoles) ? data.adminRoles : [];
+        (data.admin || []).forEach((p) => {
+            if (inferAdminTierForPersonRow(p, roles) !== ADMIN_TIER_SCHULLEITUNG) return;
+            add(p.name, p.email);
+        });
         (data.administration || []).forEach((entry) => {
-            if (!entry || entry.kind !== 'person') return;
+            if (!entry) return;
+            if (Array.isArray(entry.people)) {
+                if (inferAdminTierForRole(entry) !== ADMIN_TIER_SCHULLEITUNG) return;
+                entry.people.forEach((person) => add(person && person.name, person && person.email));
+                return;
+            }
+            if (entry.kind !== 'person') return;
+            if (inferAdminTierForPersonRow(entry, roles) !== ADMIN_TIER_SCHULLEITUNG) return;
             add(entry.name, entry.email);
         });
     } catch {

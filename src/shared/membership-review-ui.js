@@ -2,7 +2,14 @@
  * Wiederverwendbare Mitglieder-Abgleich-UI (Review-Panel + Mismatch-Leiste).
  * @file
  */
-import { diffClassMemberships, diffMemberships, indexGraphMembersByEmail, memberEmailFromGraph } from './membership-reconcile.js';
+import {
+    diffClassMemberships,
+    diffMemberships,
+    classGroupStudentCountFromDiff,
+    graphMemberCountFromDiff,
+    indexGraphMembersByEmail,
+    memberEmailFromGraph
+} from './membership-reconcile.js';
 import {
     attachMembershipReviewSectionActions,
     buildMembershipReviewBody,
@@ -67,6 +74,7 @@ export function createMembershipReview(cfg) {
                 diff: diff,
                 graphByEmail: state.graphByEmail,
                 listCount: state.listCount,
+                groupCount: c.mode === 'class' ? classGroupStudentCountFromDiff(diff) : undefined,
                 labels: labels
             })
         );
@@ -132,6 +140,12 @@ export function createMembershipReview(cfg) {
                 diff: diff,
                 graphByEmail: indexGraphMembersByEmail(mem.items || [])
             };
+            if (typeof c.syncGraphMemberCount === 'function') {
+                c.syncGraphMemberCount(gid, graphMemberCountFromDiff(diff));
+            }
+            if (c.mode === 'class' && typeof c.syncClassMembershipDiff === 'function') {
+                c.syncClassMembershipDiff(gid, diff);
+            }
             renderPanel();
         } catch (e) {
             state = null;
@@ -159,7 +173,8 @@ export function createMembershipReview(cfg) {
         if (!ok) return;
         try {
             const token = await c.getGraphToken();
-            const label = c.syncLabel || 'Mitglied';
+            const label =
+                typeof c.syncLabel === 'function' ? c.syncLabel() : c.syncLabel ? String(c.syncLabel) : 'Mitglied';
             const r = await gug().syncEmailsToGroup(token, state.gid, emails, label, c.appendSyncLog || null);
             if (typeof c.logAction === 'function') {
                 c.logAction('membership-add', state.gid, label + ': +' + r.ok + ' in Gruppe');
@@ -191,7 +206,8 @@ export function createMembershipReview(cfg) {
         if (!ok) return;
         try {
             const token = await c.getGraphToken();
-            const label = c.syncLabel || 'Mitglied';
+            const label =
+                typeof c.syncLabel === 'function' ? c.syncLabel() : c.syncLabel ? String(c.syncLabel) : 'Mitglied';
             const r = await gug().removeEmailsFromGroup(token, state.gid, emails, label, c.appendSyncLog || null);
             if (typeof c.logAction === 'function') {
                 c.logAction('membership-remove', state.gid, label + ': −' + r.ok + ' aus Gruppe');

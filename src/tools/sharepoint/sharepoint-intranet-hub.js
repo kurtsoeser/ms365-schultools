@@ -337,6 +337,11 @@
         }
         toast('Kommunikationswebsite erstellt.');
         await maybeCreateStartpaket(webUrl);
+        try {
+            window.dispatchEvent(new CustomEvent('ms365-ih-site-created', { detail: { webUrl: webUrl } }));
+        } catch {
+            /* ignore */
+        }
         return webUrl;
     }
 
@@ -453,6 +458,11 @@
             $('fHubJson').textContent = JSON.stringify(hubJson, null, 2);
             $('fLog').textContent = 'Hub-Registrierung über SharePoint REST erfolgreich.\n' + siteUrl;
             toast('Als Hub-Website registriert.');
+            try {
+                window.dispatchEvent(new CustomEvent('ms365-ih-hub-registered', { detail: { siteUrl: siteUrl } }));
+            } catch {
+                /* ignore */
+            }
             try {
                 if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.patchSetup === 'function') {
                     window.ms365AppDataV2.patchSetup({

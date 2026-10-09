@@ -10,12 +10,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="app.css?v=17">
     <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=8">
-    <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=6">
+    <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=7">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css?v=3">
     <link rel="stylesheet" href="src/shared/tenant-register-ui.css">
-    <link rel="stylesheet" href="src/shared/dashboard-tasks-split.css?v=6">
+    <link rel="stylesheet" href="src/shared/dashboard-tasks-split.css?v=9">
     <style>
         /* Dashboard-spezifisch: nur Grid/Kacheln – Basislayout kommt aus app.css */
         .header h1 { margin: 0 auto 6px; font-size: 1.45em; }
@@ -961,7 +961,8 @@
             background: rgba(255, 255, 255, 0.7);
             line-height: 1.5;
         }
-        body.dashboard-searching .dashboard-tablist {
+        body.dashboard-searching .dashboard-tablist,
+        body.dashboard-searching #dash-catalog .dash-tasks-split__nav {
             opacity: 0.55;
             pointer-events: none;
         }
@@ -2126,7 +2127,6 @@
         }
         html[data-dash-app-only] #dashCatalogSection,
         html[data-dash-app-only] #dashboard-tools,
-        html[data-dash-app-only] #dashStatusRow,
         html[data-dash-app-only] .dash-playbooks-wrap,
         html[data-dash-app-only] #dashboard-tasks,
         html[data-dash-app-only] .dashboard-head-link[href="tenant.html"] {
@@ -2194,10 +2194,10 @@
                         <div class="dashboard-tasks-head-tools" id="dashMainSectionMount" aria-label="Dashboard-Ansicht"></div>
                     </div>
                     <div class="dashboard-empty-state" id="dashEmptyState" hidden>
-                        <p><strong>Noch keine Schuldaten in diesem Browser.</strong> Mit dem Playbook <strong>Daten importieren und Verknüpfen</strong> starten, das <strong>Schulregister</strong> öffnen oder ein vorhandenes <strong>Browser-Backup</strong> laden (Microsoft&nbsp;365-Gruppen bleiben davon unberührt).</p>
+                        <p><strong>Noch keine Schuldaten in diesem Browser.</strong> Mit dem Playbook <strong>Daten importieren und Verknüpfen</strong> starten, das <strong>Stammdaten</strong> öffnen oder ein vorhandenes <strong>Browser-Backup</strong> laden (Microsoft&nbsp;365-Gruppen bleiben davon unberührt).</p>
                         <div class="dashboard-empty-state__actions">
                             <a class="btn" href="tools/playbook-daten-import-verknuepfen.html"><i class="bi bi-box-arrow-in-down"></i>Playbook starten</a>
-                            <a class="btn btn-ghost" href="tenant.html"><i class="bi bi-journal-bookmark"></i>Schulregister öffnen</a>
+                            <a class="btn btn-ghost" href="tenant.html"><i class="bi bi-database"></i>Stammdaten öffnen</a>
                             <button type="button" class="btn btn-ghost" id="dashEmptyImportBackup"><i class="bi bi-upload"></i>Backup importieren</button>
                         </div>
                     </div>
@@ -2219,7 +2219,7 @@
                             <span class="dash-task-index">Start</span>
                         </div>
                         <h3>Daten importieren &amp; verknüpfen</h3>
-                        <p>Export einlesen, im Schulregister prüfen und Microsoft&nbsp;365-Gruppen Schritt für Schritt zuordnen.</p>
+                        <p>Export einlesen, in den Stammdaten prüfen und Microsoft&nbsp;365-Gruppen Schritt für Schritt zuordnen.</p>
                         <div class="dash-task-links dash-task-links--stack">
                             <a class="dash-task-row dash-task-row--primary" href="tools/playbook-daten-import-verknuepfen.html">
                                 <span class="dash-task-row__label"><i class="bi bi-list-check" aria-hidden="true"></i>Playbook starten</span>
@@ -2240,7 +2240,7 @@
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                                 </a>
                                 <a class="dash-task-row" href="tenant.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-journal-bookmark" aria-hidden="true"></i>Schulregister</span>
+                                    <span class="dash-task-row__label"><i class="bi bi-database" aria-hidden="true"></i>Stammdaten</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                                 </a>
                             </details>
@@ -2252,7 +2252,7 @@
                             <span class="dash-task-index">01</span>
                         </div>
                         <h3>Mitgliedschaften &amp; Sammelgruppen</h3>
-                        <p>Schüler-, Lehrkräfte- und Verwaltungs-Sammelgruppen mit Microsoft&nbsp;365 abgleichen.</p>
+                        <p>Schüler-, Lehrkräfte-, Schulleitungs- und Verwaltungs-Sammelgruppen (Personal getrennt) mit Microsoft&nbsp;365 abgleichen.</p>
                         <div class="dash-task-progress-row" id="dashProgGruppenRow" data-context-tip="prog-gruppen" hidden>
                             <p class="dash-task-progress" id="dashProgGruppen"></p>
                         </div>
@@ -2271,8 +2271,12 @@
                                 <span class="dash-task-row__label"><i class="bi bi-person-workspace" aria-hidden="true"></i>Lehrer:innen-Sammelgruppe</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
-                            <a class="dash-task-row dash-task-row--primary" href="tools/verwaltung.html" data-dash-hygiene-id="verwaltung">
-                                <span class="dash-task-row__label"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung</span>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/verwaltung.html?kind=schulleitung" data-dash-hygiene-id="verwaltung-schulleitung">
+                                <span class="dash-task-row__label"><i class="bi bi-person-badge" aria-hidden="true"></i>Schulleitung</span>
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/verwaltung.html?kind=verwaltung" data-dash-hygiene-id="verwaltung">
+                                <span class="dash-task-row__label"><i class="bi bi-building-gear" aria-hidden="true"></i>Verwaltung (Personal)</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <a class="dash-task-row dash-task-row--primary" href="tools/klassenvorstaende.html" data-dash-hygiene-id="klassenvorstaende">
@@ -2329,10 +2333,6 @@
                                     <span class="dash-task-row__label"><i class="bi bi-table" aria-hidden="true"></i>Unterrichtsteams-Katalog</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                                 </a>
-                                <a class="dash-task-row" href="tools/webuntis-sync-monitor.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-activity" aria-hidden="true"></i>WebUntis-Sync-Monitor</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
                                 <a class="dash-task-row" href="tools/klassen-merge.html">
                                     <span class="dash-task-row__label"><i class="bi bi-intersect" aria-hidden="true"></i>Klassen zusammenlegen</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -2387,21 +2387,17 @@
                             <span class="dash-task-index">04</span>
                         </div>
                         <h3>Schuljahresstart</h3>
-                        <p>Checkliste und Assistenten für den Wechsel ins neue Schuljahr.</p>
+                        <p>Assistenten für den Wechsel ins neue Schuljahr.</p>
                         <div class="dash-task-progress-row" id="dashProgSchuljahrRow" data-context-tip="prog-schuljahr" hidden>
                             <p class="dash-task-progress" id="dashProgSchuljahr"></p>
                         </div>
                         <div class="dash-task-links dash-task-links--stack">
-                            <a class="dash-task-row dash-task-row--primary" href="tools/playbook-schuljahresstart.html">
-                                <span class="dash-task-row__label"><i class="bi bi-flag" aria-hidden="true"></i>Playbook Schuljahresstart</span>
+                            <a class="dash-task-row dash-task-row--primary" href="tools/organisations-assistent.html">
+                                <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Schuljahr-Assistent</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <details class="dash-task-expert">
                                 <summary><i class="bi bi-three-dots" aria-hidden="true"></i>Weitere Werkzeuge</summary>
-                                <a class="dash-task-row" href="tools/organisations-assistent.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Schuljahr-Assistent</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
                                 <a class="dash-task-row" href="tenant.html#classes">
                                     <span class="dash-task-row__label"><i class="bi bi-pencil-square" aria-hidden="true"></i>Klassen-Anzeigenamen</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -2443,10 +2439,6 @@
                             </a>
                             <details class="dash-task-expert">
                                 <summary><i class="bi bi-three-dots" aria-hidden="true"></i>Weitere Werkzeuge</summary>
-                                <a class="dash-task-row" href="tools/playbook-intranet.html">
-                                    <span class="dash-task-row__label"><i class="bi bi-flag" aria-hidden="true"></i>Playbook Intranet</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
                                 <a class="dash-task-row" href="tools/schulaktivitaeten-planer.html">
                                     <span class="dash-task-row__label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Schulaktivitäten</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -2490,10 +2482,6 @@
                                 <summary><i class="bi bi-three-dots" aria-hidden="true"></i>Weitere Werkzeuge</summary>
                                 <a class="dash-task-row" href="tools/schulstruktur-sync.html">
                                     <span class="dash-task-row__label"><i class="bi bi-diagram-2" aria-hidden="true"></i>Alle Gruppen</span>
-                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                                </a>
-                                <a class="dash-task-row" href="tools/schulstruktur-sync.html?mode=struktur">
-                                    <span class="dash-task-row__label"><i class="bi bi-kanban" aria-hidden="true"></i>Strukturplan (SOLL-Baum)</span>
                                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                                 </a>
                                 <a class="dash-task-row" href="tools/datenlandkarte.html">
@@ -2548,9 +2536,9 @@
                                 <p>Sammelgruppe für alle Lehrkräfte matchen, anlegen und Mitglieder mit der Stammliste abgleichen.</p>
                                 <a class="btn" href="tools/lehrer-sammelgruppe.html"><i class="bi bi-person-workspace"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schulverwaltung" data-tool-id="verwaltung" data-cluster="gruppen" data-search="sekretariat direktion schularzt verwaltung sammelgruppe" draggable="true">
-                                <h2><i class="bi bi-building-gear"></i>Schulverwaltung</h2>
-                                <p>Gruppe für Sekretariat, Direktion und weitere Verwaltungsrollen anlegen und Mitglieder pflegen.</p>
+                            <section class="choice" role="listitem" aria-label="Schulleitung und Verwaltung" data-tool-id="verwaltung" data-cluster="gruppen" data-search="sekretariat direktion schularzt verwaltung schulleitung sammelgruppe zielgruppe" draggable="true">
+                                <h2><i class="bi bi-building-gear"></i>Schulleitung &amp; Verwaltung</h2>
+                                <p>Zwei Sammelgruppen: Schulleitung (z. B. Direktion) und Verwaltung (Personal). Zielgruppe pro Rolle in den Stammdaten.</p>
                                 <a class="btn" href="tools/verwaltung.html"><i class="bi bi-building-gear"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Klassenvorstände" data-tool-id="klassenvorstaende" data-cluster="gruppen" data-search="klassenvorstand kv klassenlehrer verteiler sammelgruppe team" draggable="true">
@@ -2718,7 +2706,7 @@
                             </section>
                             <section class="choice" role="listitem" aria-label="Daten importieren" data-tool-id="webuntis-stammdaten-import" data-cluster="schuljahr" data-search="webuntis sokrates import stammdaten export bildungsportal csv xlsx" draggable="true">
                                 <h2><i class="bi bi-box-arrow-in-down"></i>Daten importieren</h2>
-                                <p>WebUntis-, Sokrates- oder MS365-Exporte ins Schulregister übernehmen (Review vor dem Speichern).</p>
+                                <p>WebUntis-, Sokrates- oder MS365-Exporte in die Stammdaten übernehmen (Review vor dem Speichern).</p>
                                 <a class="btn" href="tools/webuntis-stammdaten-import.html?from=tenant"><i class="bi bi-box-arrow-in-down"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Klassen umbenennen" data-tool-id="klassen-umbenennen" data-cluster="schuljahr" data-search="klassen umbenennen anzeigenamen schuljahr" draggable="true">
@@ -2870,9 +2858,14 @@
                                 <a class="btn" href="tools/schulaktivitaeten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Freistellungen" data-tool-id="freistellung-planer" data-cluster="intranet" data-search="freistellung antrag schüler kv direktion genehmigung approvals sharepoint csv bericht" draggable="true">
-                                <h2><i class="bi bi-calendar2-check"></i>Freistellungen</h2>
+                                <h2><i class="bi bi-calendar2-check"></i>Freistellungen (Schüler)</h2>
                                 <p>Schülerantrag, Übersicht für KV/Direktion, Filter und CSV – Genehmigung über Microsoft Approvals.</p>
                                 <a class="btn" href="tools/freistellung-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Freistellungen Lehrkräfte" data-tool-id="lehrer-freistellung-planer" data-cluster="intranet" data-search="freistellung lehrer lehrkraft urlaub abwesenheit direktion genehmigung kalender ical fortbildung" draggable="true">
+                                <h2><i class="bi bi-briefcase"></i>Freistellungen Lehrkräfte</h2>
+                                <p>Anträge für Lehrkräfte, Freigabe durch die Direktion, Kalender und iCal – eigene SharePoint-Liste und Flow.</p>
+                                <a class="btn" href="tools/lehrer-freistellung-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -2953,7 +2946,7 @@
                                 <h2><i class="bi bi-diagram-2"></i>Alle Gruppen und Teams</h2>
                                 <p>Alle Gruppen der Schule anzeigen und pflegen. Neue M365‑, Sicherheits‑ oder Mail‑Sicherheitsgruppe per „+“, zusätzliche Teams auch über den Assistenten.</p>
                                 <a class="btn" href="tools/schulstruktur-sync.html"><i class="bi bi-kanban"></i>Öffnen</a>
-                                <a class="btn alt" href="tools/schulstruktur-sync.html?mode=struktur">Schulstruktur</a>
+                                <a class="btn alt" href="tools/abgleichen.html">Abgleichen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Datenlandkarte" data-tool-id="datenlandkarte" data-cluster="uebersicht" data-search="datenlandkarte listen datenquellen canvas blöcke verbindung stammdaten sharepoint sync" draggable="true">
                                 <h2><i class="bi bi-grid-3x3-gap"></i>Datenlandkarte</h2>
@@ -3004,80 +2997,6 @@
             </section>
             </div>
 
-            <div class="dash-status-row dash-status-row--footer" id="dashStatusRow" aria-label="Schulstatus" data-dash-section-audience="it">
-                <section class="dash-stand dash-stand--full" id="dashStand" aria-labelledby="dashStandTitle">
-                    <div class="dash-stand__head">
-                        <h2 class="dash-stand__title" id="dashStandTitle"><i class="bi bi-speedometer2" aria-hidden="true"></i> Ihr Stand</h2>
-                        <a class="btn btn-sm" href="tenant.html"><i class="bi bi-journal-bookmark"></i>Schulregister</a>
-                    </div>
-                    <p class="dash-stand__lead">Stammdaten, Speicher und Microsoft&nbsp;365 auf einen Blick – ohne die Kacheln oben zu verlassen.</p>
-                    <div class="dash-stand__overview">
-                        <p class="dash-stand__meta">
-                            Schuljahr <strong id="tenantStatYear">–</strong>
-                            · Domain <strong id="tenantStatDomain">–</strong>
-                            · zuletzt geändert <strong id="tenantStatSaved">–</strong>
-                        </p>
-                        <ul class="dash-stand__pills" aria-label="Schul-Statistiken">
-                            <li class="dash-stand__pill"><strong id="tenantStatSubjects">–</strong> Fächer</li>
-                            <li class="dash-stand__pill"><strong id="tenantStatTeachers">–</strong> Lehrer</li>
-                            <li class="dash-stand__pill"><strong id="tenantStatStudents">–</strong> Schüler</li>
-                            <li class="dash-stand__pill"><strong id="tenantStatClasses">–</strong> Klassen</li>
-                        </ul>
-                    </div>
-                    <div class="dash-stand__block" id="dashStandM365Block" hidden>
-                        <h3 class="dash-stand__block-title">Microsoft&nbsp;365 &amp; Checklisten</h3>
-                        <p class="dash-stand__overall" id="dashStandOverall" hidden></p>
-                        <ul class="dash-stand__metrics" id="dashStandSnapshots" aria-label="Fortschritt Verknüpfungen und Schuljahresstart">
-                            <li class="dash-stand__metric" id="tenantStatClassTeams" data-tone="muted">
-                                <div class="dash-stand__metric-ring" style="--dash-metric-pct: 0%; --dash-metric-fill: #8b93a7" aria-hidden="true"><span class="dash-stand__metric-ring-inner">–</span></div>
-                                <div class="dash-stand__metric-body">
-                                    <span class="dash-stand__metric-title">Klassengruppen</span>
-                                    <span class="dash-stand__metric-value">–</span>
-                                    <span class="dash-stand__metric-hint"></span>
-                                </div>
-                                <a class="dash-stand__metric-jump" href="#dashTaskUnterricht" hidden><span class="visually-hidden">Zu Klassen &amp; Kurse</span><i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
-                            </li>
-                            <li class="dash-stand__metric" id="tenantStatSammel" data-tone="muted">
-                                <div class="dash-stand__metric-ring" style="--dash-metric-pct: 0%; --dash-metric-fill: #8b93a7" aria-hidden="true"><span class="dash-stand__metric-ring-inner">–</span></div>
-                                <div class="dash-stand__metric-body">
-                                    <span class="dash-stand__metric-title">Sammelgruppen &amp; Fächer</span>
-                                    <span class="dash-stand__metric-value">–</span>
-                                    <span class="dash-stand__metric-hint"></span>
-                                </div>
-                                <a class="dash-stand__metric-jump" href="#dashTaskGruppen" hidden><span class="visually-hidden">Zu Sammelgruppen</span><i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
-                            </li>
-                            <li class="dash-stand__metric" id="tenantStatSchuljahrSnap" data-tone="muted">
-                                <div class="dash-stand__metric-ring" style="--dash-metric-pct: 0%; --dash-metric-fill: #8b93a7" aria-hidden="true"><span class="dash-stand__metric-ring-inner">–</span></div>
-                                <div class="dash-stand__metric-body">
-                                    <span class="dash-stand__metric-title">Schuljahresstart</span>
-                                    <span class="dash-stand__metric-value">–</span>
-                                    <span class="dash-stand__metric-hint"></span>
-                                </div>
-                                <a class="dash-stand__metric-jump" href="#dashTaskSchuljahr" hidden><span class="visually-hidden">Zum Schuljahresstart</span><i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
-                            </li>
-                        </ul>
-                        <div class="dash-stand__hygiene-inline" id="dashStandHygieneInline" hidden>
-                            <div class="dash-stand__hygiene-inline-head">
-                                <span class="dash-stand__hygiene-inline-label"><i class="bi bi-intersect" aria-hidden="true"></i> Gruppenabgleich (Stammlisten vs. Microsoft&nbsp;365)</span>
-                                <a class="dash-stand__hygiene-inline-link" href="tools/datenhygiene.html">Werkzeug öffnen</a>
-                            </div>
-                            <div class="dash-hygiene__summary" id="dashHygieneTeaserSummary" aria-label="Letzter Abgleich"></div>
-                            <p class="dash-hygiene-teaser__meta muted" id="dashHygieneTeaserMeta"></p>
-                        </div>
-                    </div>
-                    <div class="dash-stand__block" id="dashStandNextBlock" hidden>
-                        <h3 class="dash-stand__block-title">Als Nächstes</h3>
-                        <ul class="dash-stand__jumps" id="dashStandJumps" aria-label="Sprung zu offenen Aufgaben"></ul>
-                        <p class="dash-stand__next-ok" id="dashStandNextOk" hidden>Keine dringenden Sprünge – Sie können die Werkzeuge oben gezielt nutzen.</p>
-                    </div>
-                    <div class="dash-stand__block" id="dashStandRegisterBlock">
-                        <h3 class="dash-stand__block-title">Register, Backup &amp; Intranet</h3>
-                        <div id="dashboardRegisterStatusMount" class="dash-register-status-mount" data-dash-section-audience="it" hidden></div>
-                    </div>
-                    <p class="dash-stand__empty-note" id="dashStandEmptyNote" hidden>Noch keine Schuldaten – Schulregister öffnen, Daten importieren oder die Demo laden.</p>
-                </section>
-            </div>
-
         </div>
     </div>
 
@@ -3097,13 +3016,13 @@
     <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
     <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script type="module" src="src/shared/membership-hygiene.js"></script>
-    <script type="module" src="src/shared/membership-hygiene-dashboard.js"></script>
     <script type="module" src="src/shared/dashboard-persona-session.js"></script>
     <script type="module" src="src/shared/playbook-schuljahresstart-gates.js"></script>
     <script type="module" src="src/shared/dashboard-main-section.js"></script>
     <script type="module" src="src/shared/dashboard-header-chrome.js"></script>
     <script type="module" src="src/shared/dashboard-greeting-band.js"></script>
     <script type="module" src="src/shared/dashboard-tasks-split.js"></script>
+    <script type="module" src="src/shared/dashboard-catalog-split.js"></script>
     <script type="module" src="src/shared/dashboard-catalog-hash.js"></script>
     <script type="module" src="src/shared/dashboard-compact-header.js"></script>
     <script type="module" src="src/shared/dashboard-playbooks-ui.js"></script>
@@ -3111,9 +3030,6 @@
     <script type="module" src="src/shared/dashboard-register-toolbar.js"></script>
     <script type="module">
         import { mountDashboardAudience } from './src/shared/dashboard-audience-ui.js';
-        import { mountHygieneTeaser } from './src/shared/membership-hygiene-dashboard.js';
-        import { mountDashboardRegisterStatus } from './src/shared/stammdaten-register-ui.js';
-        import { updateStandMetricCard, updateStandOverallBanner } from './src/shared/dashboard-stand-ui.js';
         import {
             klassenChatsProvisionStatus,
             klassenChatsStatusHint,
@@ -3121,8 +3037,6 @@
         } from './src/shared/dashboard-tool-status-logic.js';
         import { applyAllTaskRowFacts } from './src/shared/dashboard-task-row-facts.js';
 
-        window.ms365UpdateStandMetricCard = updateStandMetricCard;
-        window.ms365UpdateStandOverallBanner = updateStandOverallBanner;
         window.ms365DashboardTaskStatusHints = {
             klassenChatsProvisionStatus: klassenChatsProvisionStatus,
             klassenChatsStatusHint: klassenChatsStatusHint,
@@ -3139,37 +3053,11 @@
                 }
             });
         }
-        function bootRegisterStatus() {
-            const mount = document.getElementById('dashboardRegisterStatusMount');
-            if (mount) mount.hidden = false;
-            mountDashboardRegisterStatus();
-        }
-
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function () {
-                bootDashboardAudience();
-                bootRegisterStatus();
-            });
+            document.addEventListener('DOMContentLoaded', bootDashboardAudience);
         } else {
             bootDashboardAudience();
-            bootRegisterStatus();
         }
-
-        function bootHygieneTeaser() {
-            if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
-            if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return false;
-            const api = mountHygieneTeaser();
-            if (api && typeof api.refresh === 'function') {
-                window.__ms365HygieneTeaserRefresh = api.refresh;
-            }
-            return true;
-        }
-
-        let hygieneTries = 0;
-        const hygieneTimer = setInterval(function () {
-            hygieneTries += 1;
-            if (bootHygieneTeaser() || hygieneTries > 40) clearInterval(hygieneTimer);
-        }, 100);
     </script>
     <script type="module">
         import {
@@ -3244,6 +3132,7 @@
                 'playbook-schularbeiten-planer',
                 'schulaktivitaeten-planer',
                 'freistellung-planer',
+                'lehrer-freistellung-planer',
                 'playbook-freistellungen',
                 'sharepoint-liste-vertretung',
                 'pa-erst-setup',
@@ -3591,6 +3480,8 @@
                     const on = t === activeTab;
                     btn.setAttribute('aria-selected', on ? 'true' : 'false');
                     btn.tabIndex = on ? 0 : -1;
+                    if (on) btn.setAttribute('aria-current', 'true');
+                    else btn.removeAttribute('aria-current');
                 });
 
                 if (!isSearching()) showOnlyActiveTab();
@@ -3861,23 +3752,7 @@
 
         (function () {
             'use strict';
-            const elSubjects = document.getElementById('tenantStatSubjects');
-            const elTeachers = document.getElementById('tenantStatTeachers');
-            const elStudents = document.getElementById('tenantStatStudents');
-            const elClasses = document.getElementById('tenantStatClasses');
-            const elYear = document.getElementById('tenantStatYear');
-            const elDomain = document.getElementById('tenantStatDomain');
-            const elSaved = document.getElementById('tenantStatSaved');
             const elEmptyState = document.getElementById('dashEmptyState');
-            const elStandEmptyNote = document.getElementById('dashStandEmptyNote');
-            const elStandJumps = document.getElementById('dashStandJumps');
-            const elStandNextBlock = document.getElementById('dashStandNextBlock');
-            const elStandNextOk = document.getElementById('dashStandNextOk');
-            const elStandM365Block = document.getElementById('dashStandM365Block');
-            const elStandOverall = document.getElementById('dashStandOverall');
-            const elStatClassTeams = document.getElementById('tenantStatClassTeams');
-            const elStatSammel = document.getElementById('tenantStatSammel');
-            const elStatSchuljahrSnap = document.getElementById('tenantStatSchuljahrSnap');
             const elProgUnterricht = document.getElementById('dashProgUnterricht');
             const elProgGruppen = document.getElementById('dashProgGruppen');
             const elProgSchuljahr = document.getElementById('dashProgSchuljahr');
@@ -3885,276 +3760,7 @@
             const elGruppenScanBtn = document.getElementById('dashGruppenScanBtn');
             const elGruppenScanMeta = document.getElementById('dashGruppenScanMeta');
             let gruppenScanBusy = false;
-            if (!elSubjects || !elTeachers || !elStudents || !elClasses) return;
-
-            function currentSchoolYear() {
-                try {
-                    if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
-                        const c = window.ms365AppDataV2.getContainer();
-                        return String((c && c.years && c.years.current) || '').trim();
-                    }
-                } catch {
-                    /* ignore */
-                }
-                return '';
-            }
-
-            function progressTone(el) {
-                if (!el) return '';
-                return String(el.getAttribute('data-tone') || '').trim();
-            }
-
-            function formatDashWhen(iso) {
-                if (!iso) return '';
-                try {
-                    const d = new Date(iso);
-                    if (isNaN(d.getTime())) return '';
-                    return d.toLocaleString('de-AT', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                } catch {
-                    return '';
-                }
-            }
-
-            function readLastSavedLabel() {
-                let backup = '';
-                let syncAt = '';
-                try {
-                    backup = localStorage.getItem('ms365-last-backup-export-at') || '';
-                } catch {
-                    /* ignore */
-                }
-                try {
-                    const m = JSON.parse(localStorage.getItem('ms365-stammdaten-spo-sync-v1') || '{}');
-                    syncAt = m && m.at ? String(m.at) : '';
-                } catch {
-                    /* ignore */
-                }
-                const syncFmt = formatDashWhen(syncAt);
-                const backupFmt = formatDashWhen(backup);
-                if (syncFmt) return 'IT-Sync ' + syncFmt;
-                if (backupFmt) return 'Backup ' + backupFmt;
-                return 'nur lokal in diesem Browser';
-            }
-
-            function paintStandMetric(el, payload) {
-                if (typeof window.ms365UpdateStandMetricCard === 'function') {
-                    window.ms365UpdateStandMetricCard(el, payload);
-                }
-            }
-
-            function updateDashStandSnapshots(s, hygieneById) {
-                if (!elStandM365Block) return;
-                if (!shouldShowTaskProgress()) {
-                    elStandM365Block.hidden = true;
-                    return;
-                }
-                const container = readAppContainer();
-                const classes = (s && s.classes) || [];
-                const classTeams =
-                    container && container.core && Array.isArray(container.core.classTeams)
-                        ? container.core.classTeams
-                        : [];
-                let matchedClasses = 0;
-                const classCount = classes.length;
-                const hygieneApi = window.ms365MembershipHygiene;
-                if (hygieneApi && typeof hygieneApi.countLinkedClassTeamsForClasses === 'function') {
-                    matchedClasses = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams).linked;
-                }
-                let classText = '';
-                let classTone = 'muted';
-                let classDone = matchedClasses;
-                let classTotal = classCount;
-                if (classCount) {
-                    classText = 'Microsoft-365-Teams zu Klassen im Register';
-                    classTone = matchedClasses >= classCount ? 'ok' : matchedClasses ? 'warn' : 'warn';
-                } else {
-                    classText = 'Klassen im Schulregister anlegen';
-                    classDone = 0;
-                    classTotal = 0;
-                }
-                paintStandMetric(elStatClassTeams, {
-                    title: 'Klassengruppen',
-                    done: classDone,
-                    total: classTotal,
-                    valueText: classCount ? undefined : 'Noch offen',
-                    hint: classText,
-                    tone: classTone,
-                    jumpTaskId: classTone === 'warn' || (classTone === 'muted' && !classCount) ? 'dashTaskUnterricht' : ''
-                });
-
-                const matched = (container && container.setup && container.setup.matched) || {};
-                const links =
-                    container && container.setup && Array.isArray(container.setup.catalogLinks)
-                        ? container.setup.catalogLinks
-                        : [];
-                let sammel = 0;
-                if (matched.schuelerGroupId) sammel += 1;
-                if (matched.lehrerGroupId) sammel += 1;
-                if (matched.verwaltungGroupId) sammel += 1;
-                if (matched.kvGroupId) sammel += 1;
-                const subjectN = ((s && s.subjects) || []).length + ((s && s.arges) || []).length;
-                let subjectLinked = 0;
-                links.forEach(function (l) {
-                    if (l && (l.kind === 'subject' || l.kind === 'arge') && l.graphGroupId) subjectLinked += 1;
-                });
-                let sammelText = '';
-                let sammelTone = 'muted';
-                let sammelDone = sammel + subjectLinked;
-                let sammelTotal = 4 + (subjectN || 0);
-                if (sammel || subjectN) {
-                    const parts = [];
-                    if (sammel) parts.push(sammel + ' von 4 Sammelgruppen');
-                    if (subjectN) parts.push(subjectLinked + ' von ' + subjectN + ' Fächern/ARGEs');
-                    sammelText = parts.join(' · ') + ' mit Entra verknüpft';
-                    sammelTone = 'warn';
-                    const hygiene = window.ms365MembershipHygiene;
-                    if (hygiene && hygieneById && typeof hygiene.aggregateHygieneStatuses === 'function') {
-                        const sammelAgg = hygiene.aggregateHygieneStatuses([
-                            hygieneById['slg-schueler'],
-                            hygieneById['slg-lehrer'],
-                            hygieneById.verwaltung,
-                            hygieneById.klassenvorstaende
-                        ]);
-                        const subjectsOk = !subjectN || subjectLinked >= subjectN;
-                        if (sammelAgg === 'ok' && subjectsOk && sammel >= 4) sammelTone = 'ok';
-                        else if (sammelAgg === 'unmatched' && !sammel && !subjectN) sammelTone = 'muted';
-                    } else if (sammel >= 4 && (!subjectN || subjectLinked >= subjectN)) {
-                        sammelTone = 'ok';
-                    }
-                } else {
-                    sammelText = 'Sammelgruppen und Fächer mit Entra verknüpfen';
-                    sammelDone = 0;
-                    sammelTotal = 4;
-                }
-                paintStandMetric(elStatSammel, {
-                    title: 'Sammelgruppen & Fächer',
-                    done: sammelDone,
-                    total: sammelTotal,
-                    hint: sammelText,
-                    tone: sammelTone,
-                    jumpTaskId: sammelTone === 'warn' ? 'dashTaskGruppen' : ''
-                });
-
-                let sjText = '';
-                let sjTone = 'muted';
-                let sjDone = 0;
-                let sjTotal = 0;
-                const sjApi = window.ms365SchuljahresstartPlaybook;
-                if (sjApi && window.ms365Playbook && typeof window.ms365Playbook.loadPlaybookState === 'function') {
-                    const sjState = window.ms365Playbook.loadPlaybookState(sjApi.SCHULJAHRSTART_PLAYBOOK_STORAGE_KEY);
-                    const counts = sjApi.tenantCountsFromSettings(s);
-                    const sjProg = sjApi.schuljahresstartPlaybookProgress(sjState);
-                    const gateHint = sjApi.nextSchuljahresstartGateHint(sjState, counts);
-                    sjDone = sjProg.done;
-                    sjTotal = sjProg.total;
-                    const hasSj =
-                        sjProg.done > 0 ||
-                        (gateHint && String(gateHint).trim()) ||
-                        String((container && container.years && container.years.current) || '').trim();
-                    if (hasSj) {
-                        sjText = gateHint ? String(gateHint) : 'Checkliste für den Schuljahresstart';
-                        sjTone = sjProg.done >= sjProg.total ? 'ok' : sjProg.done ? 'warn' : 'warn';
-                    }
-                }
-                if (!sjText && container) {
-                    const pb = playbookDoneCount(container);
-                    sjDone = pb.done;
-                    sjTotal = pb.total;
-                    if (pb.done > 0 || String((container.years && container.years.current) || '').trim()) {
-                        sjText = 'Organisations-Assistent und Verknüpfungen';
-                        sjTone = pb.done >= pb.total ? 'ok' : pb.done ? 'warn' : 'muted';
-                    }
-                }
-                if (!sjText) {
-                    sjText = 'Playbook Schuljahresstart starten';
-                    sjDone = 0;
-                    sjTotal = 8;
-                    sjTone = 'muted';
-                }
-                paintStandMetric(elStatSchuljahrSnap, {
-                    title: 'Schuljahresstart',
-                    done: sjDone,
-                    total: sjTotal,
-                    hint: sjText,
-                    tone: sjTone,
-                    jumpTaskId: sjTone === 'warn' || sjTone === 'muted' ? 'dashTaskSchuljahr' : ''
-                });
-
-                const metricTones = [classTone, sammelTone, sjTone];
-                let okN = 0;
-                let warnN = 0;
-                metricTones.forEach(function (t) {
-                    if (t === 'ok') okN += 1;
-                    else if (t === 'warn') warnN += 1;
-                });
-                if (typeof window.ms365UpdateStandOverallBanner === 'function') {
-                    window.ms365UpdateStandOverallBanner(elStandOverall, { ok: okN, warn: warnN });
-                }
-                elStandM365Block.hidden = false;
-            }
-
-            function shouldSuggestOrdnungJump() {
-                const st = scanSummaryStatus(window.ms365MembershipHygiene);
-                return st === 'mismatch' || st === 'unmatched' || st === 'unknown';
-            }
-
-            function updateDashStandJumps() {
-                if (!elStandJumps) return;
-                const items = [];
-                const gTone = progressTone(elProgGruppen);
-                if (gTone === 'warn' || gTone === 'unmatched') {
-                    items.push({ id: 'dashTaskGruppen', label: 'Sammelgruppen' });
-                }
-                const uTone = progressTone(elProgUnterricht);
-                if (uTone === 'warn' || uTone === 'unmatched') {
-                    items.push({ id: 'dashTaskUnterricht', label: 'Klassen & Kurse' });
-                }
-                const sjTone = progressTone(elProgSchuljahr);
-                if (sjTone === 'warn') {
-                    items.push({ id: 'dashTaskSchuljahr', label: 'Schuljahresstart' });
-                }
-                if (shouldSuggestOrdnungJump()) {
-                    items.push({ id: 'dashTaskOrdnung', label: 'Aufräumen & Hygiene' });
-                }
-                elStandJumps.innerHTML = '';
-                if (!shouldShowTaskProgress()) {
-                    elStandJumps.hidden = true;
-                    if (elStandNextBlock) elStandNextBlock.hidden = true;
-                    if (elStandNextOk) elStandNextOk.hidden = true;
-                    return;
-                }
-                if (elStandNextBlock) elStandNextBlock.hidden = false;
-                if (!items.length) {
-                    elStandJumps.hidden = true;
-                    if (elStandNextOk) elStandNextOk.hidden = false;
-                    return;
-                }
-                elStandJumps.hidden = false;
-                if (elStandNextOk) elStandNextOk.hidden = true;
-                items.forEach(function (item) {
-                    const li = document.createElement('li');
-                    const a = document.createElement('a');
-                    a.className = 'dash-stand__jump';
-                    a.href = '#' + item.id;
-                    a.innerHTML =
-                        '<i class="bi bi-arrow-up-circle" aria-hidden="true"></i>' +
-                        String(item.label || '');
-                    a.addEventListener('click', function (ev) {
-                        ev.preventDefault();
-                        if (typeof window.__ms365DashScrollToTask === 'function') {
-                            window.__ms365DashScrollToTask(item.id);
-                        }
-                    });
-                    li.appendChild(a);
-                    elStandJumps.appendChild(li);
-                });
-            }
+            if (!elProgUnterricht && !elProgGruppen && !elProgSchuljahr && !elEmptyState) return;
 
             function readAppContainer() {
                 try {
@@ -4516,9 +4122,6 @@
                     } else {
                         updateDashGruppenScanMeta();
                     }
-                    if (typeof window.__ms365HygieneTeaserRefresh === 'function') {
-                        window.__ms365HygieneTeaserRefresh();
-                    }
                     if (typeof window.ms365ToastOrAlert === 'function') {
                         window.ms365ToastOrAlert('Sammelgruppen-Abgleich abgeschlossen.');
                     }
@@ -4548,8 +4151,6 @@
                     setProgress(elProgGruppen, '', '');
                     setProgress(elProgSchuljahr, '', '');
                     syncDashGruppenScanRow(false);
-                    updateDashStandSnapshots(s, null);
-                    updateDashStandJumps();
                     if (
                         window.ms365DashboardCatalogStatus &&
                         typeof window.ms365DashboardCatalogStatus.apply === 'function'
@@ -4570,17 +4171,27 @@
                 syncDashGruppenScanRow(true);
                 const container = readAppContainer();
                 const hygieneById = applyDashTaskRowStatuses(container, s);
-                updateDashStandSnapshots(s, hygieneById);
                 const classes = (s && s.classes) || [];
                 const classTeams =
                     container && container.core && Array.isArray(container.core.classTeams)
                         ? container.core.classTeams
                         : [];
+                const classGroupMatchByKey =
+                    container &&
+                    container.setup &&
+                    container.setup.classGroupMatchByKey &&
+                    typeof container.setup.classGroupMatchByKey === 'object'
+                        ? container.setup.classGroupMatchByKey
+                        : {};
                 let matchedClasses = 0;
                 const classCount = classes.length;
                 const hygieneApi = window.ms365MembershipHygiene;
                 if (hygieneApi && typeof hygieneApi.countLinkedClassTeamsForClasses === 'function') {
-                    matchedClasses = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams).linked;
+                    matchedClasses = hygieneApi.countLinkedClassTeamsForClasses(
+                        classes,
+                        classTeams,
+                        classGroupMatchByKey
+                    ).linked;
                 } else {
                     classes.forEach(function (cls) {
                         if (!cls) return;
@@ -4630,8 +4241,10 @@
                 let sammel = 0;
                 if (matched.schuelerGroupId) sammel += 1;
                 if (matched.lehrerGroupId) sammel += 1;
+                if (matched.schulleitungGroupId) sammel += 1;
                 if (matched.verwaltungGroupId) sammel += 1;
                 if (matched.kvGroupId) sammel += 1;
+                const sammelTargetProg = 5;
                 const subjectN = ((s && s.subjects) || []).length + ((s && s.arges) || []).length;
                 let subjectLinked = 0;
                 links.forEach(function (l) {
@@ -4639,7 +4252,7 @@
                 });
                 if (sammel || subjectN) {
                     const parts = [];
-                    if (sammel) parts.push(sammel + '/4 Sammelgruppen');
+                    if (sammel) parts.push(sammel + '/' + sammelTargetProg + ' Sammelgruppen');
                     if (subjectN) parts.push(subjectLinked + '/' + subjectN + ' Fächer/ARGEs');
                     const hygiene = window.ms365MembershipHygiene;
                     let tone = 'warn';
@@ -4647,13 +4260,14 @@
                         const sammelAgg = hygiene.aggregateHygieneStatuses([
                             hygieneById['slg-schueler'],
                             hygieneById['slg-lehrer'],
+                            hygieneById['verwaltung-schulleitung'],
                             hygieneById.verwaltung,
                             hygieneById.klassenvorstaende
                         ]);
                         const subjectsOk = !subjectN || subjectLinked >= subjectN;
-                        if (sammelAgg === 'ok' && subjectsOk) tone = 'ok';
+                        if (sammelAgg === 'ok' && subjectsOk && sammel >= sammelTargetProg) tone = 'ok';
                         else if (sammelAgg === 'unmatched' && !sammel && !subjectN) tone = '';
-                    } else if (sammel >= 4 && (!subjectN || subjectLinked >= subjectN)) {
+                    } else if (sammel >= sammelTargetProg && (!subjectN || subjectLinked >= subjectN)) {
                         tone = 'ok';
                     }
                     setProgress(elProgGruppen, parts.join(' · '), tone);
@@ -4664,42 +4278,20 @@
                 const sjApi = window.ms365SchuljahresstartPlaybook;
                 let sjText = '';
                 let sjTone = '';
-                if (sjApi && window.ms365Playbook && typeof window.ms365Playbook.loadPlaybookState === 'function') {
-                    const sjState = window.ms365Playbook.loadPlaybookState(sjApi.SCHULJAHRSTART_PLAYBOOK_STORAGE_KEY);
+                if (sjApi && typeof sjApi.tenantCountsFromSettings === 'function') {
                     const counts = sjApi.tenantCountsFromSettings(s);
-                    const sjProg = sjApi.schuljahresstartPlaybookProgress(sjState);
-                    const gateHint = sjApi.nextSchuljahresstartGateHint(sjState, counts);
-                    const hasSj =
-                        sjProg.done > 0 ||
-                        counts.classes > 0 ||
-                        String(counts.year || '').trim();
-                    if (hasSj) {
-                        sjText = 'Playbook: ' + sjProg.done + ' / ' + sjProg.total + ' Schritte';
-                        if (gateHint && sjProg.done < sjProg.total) {
-                            sjText += ' · ' + gateHint;
-                        }
-                        sjTone = sjProg.done >= sjProg.total ? 'ok' : sjProg.done ? 'warn' : '';
+                    const year = String(counts.year || '').trim();
+                    const classN = Number(counts.classes) || 0;
+                    if (year || classN) {
+                        const parts = [];
+                        if (year) parts.push('Schuljahr ' + year);
+                        if (classN) parts.push(classN + ' Klassen in Stammdaten');
+                        sjText = parts.join(' · ');
+                        sjTone = year && classN ? 'ok' : 'warn';
                     }
                 }
-                if (sjText) {
-                    setProgress(elProgSchuljahr, sjText, sjTone);
-                } else if (container) {
-                    const pb = playbookDoneCount(container);
-                    if (pb.done > 0 || String((container.years && container.years.current) || '').trim()) {
-                        const tone = pb.done >= pb.total ? 'ok' : pb.done ? 'warn' : '';
-                        setProgress(
-                            elProgSchuljahr,
-                            'Checkliste: ' + pb.done + ' von ' + pb.total + ' erledigt',
-                            tone
-                        );
-                    } else {
-                        setProgress(elProgSchuljahr, '', '');
-                    }
-                } else {
-                    setProgress(elProgSchuljahr, '', '');
-                }
+                setProgress(elProgSchuljahr, sjText, sjTone);
                 updateDashGruppenScanMeta();
-                updateDashStandJumps();
                 if (
                     window.ms365DashboardCatalogStatus &&
                     typeof window.ms365DashboardCatalogStatus.apply === 'function'
@@ -4720,35 +4312,17 @@
                 if (typeof window.__ms365DashGreetingRefresh === 'function') {
                     window.__ms365DashGreetingRefresh();
                 }
-                if (typeof window.__ms365HygieneTeaserRefresh === 'function') {
-                    window.__ms365HygieneTeaserRefresh();
-                }
             }
 
             function render() {
                 if (typeof window.ms365TenantSettingsLoad !== 'function') return false;
                 const s = window.ms365TenantSettingsLoad();
-                const subjects = (s && s.subjects) || [];
-                const teachers = (s && s.teachers) || [];
-                const students = (s && s.students) || [];
-                const classes = (s && s.classes) || [];
-                const domain = String((s && s.domain) || '').trim();
-                const year = currentSchoolYear();
-                elSubjects.textContent = String(subjects.length);
-                elTeachers.textContent = String(teachers.length);
-                elStudents.textContent = String(students.length);
-                elClasses.textContent = String(classes.length);
-                if (elYear) elYear.textContent = year || 'noch nicht gesetzt';
-                if (elDomain) elDomain.textContent = domain || 'noch nicht gesetzt';
-                if (elSaved) elSaved.textContent = readLastSavedLabel();
 
                 const hasData = hasMeaningfulTenantData(s);
                 const showEmpty = !hasData;
 
                 if (elEmptyState) elEmptyState.hidden = !showEmpty;
-                if (elStandEmptyNote) elStandEmptyNote.hidden = !showEmpty;
                 renderTaskProgress(s);
-                updateDashStandJumps();
                 if (typeof window.__ms365DashGreetingRefresh === 'function') {
                     window.__ms365DashGreetingRefresh();
                 }
@@ -4781,7 +4355,6 @@
             });
 
             window.addEventListener('ms365-spo-sync-status', function () {
-                if (elSaved) elSaved.textContent = readLastSavedLabel();
                 if (typeof window.ms365TenantSettingsLoad === 'function') {
                     renderTaskProgress(window.ms365TenantSettingsLoad());
                 }

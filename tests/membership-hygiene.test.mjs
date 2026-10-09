@@ -75,6 +75,17 @@ describe('membership-hygiene', () => {
         expect(r.linked).toBe(5);
     });
 
+    it('countLinkedClassTeamsForClasses zählt Register-Match wie Jahrgangsgruppen', () => {
+        const classes = [{ code: '2B', year: '2032' }, { code: '3A', year: '2030' }];
+        const classTeams = [{ classCode: '3A', abschlussJahr: '2030', graphGroupId: '' }];
+        const map = {
+            '2B': { groupId: 'g-2b-register', notFound: false },
+            '3A': { groupId: 'g-3a-map', notFound: false }
+        };
+        const r = countLinkedClassTeamsForClasses(classes, classTeams, map);
+        expect(r.linked).toBe(2);
+    });
+
     it('findClassTeamForClass unterscheidet gleiche Kürzel nach Abschlussjahr', () => {
         const teams = [
             {
@@ -93,6 +104,47 @@ describe('membership-hygiene', () => {
         const cls = { code: '1HMA', name: 'Klasse 1HMA', year: '2031' };
         const team = findClassTeamForClass(cls, teams);
         expect(team && team.graphGroupId).toBe('g-1hma-2031');
+    });
+
+    it('buildHygieneTargets nutzt classGroupMatchByKey wie Jahrgangsgruppen', () => {
+        const container = {
+            setup: {
+                matched: {},
+                classGroupMatchByKey: {
+                    '2B': { groupId: 'g-2b-register', notFound: false }
+                }
+            },
+            core: {
+                classTeams: [
+                    {
+                        classCode: '2B',
+                        abschlussJahr: '2031',
+                        graphGroupId: 'g-2b-team',
+                        mode: 'matched'
+                    }
+                ]
+            }
+        };
+        const settings = {
+            students: [{ klasse: '2B', email: 's@s.at' }],
+            classes: [{ code: '2B', name: 'DEMO Klasse 2B', year: '2032' }]
+        };
+        const targets = buildHygieneTargets(container, settings);
+        const row = targets.find((t) => t.id === 'klasse-2B');
+        expect(row && row.groupId).toBe('g-2b-register');
+        const alignedYear = buildHygieneTargets(container, {
+            students: settings.students,
+            classes: [{ code: '2B', name: 'DEMO Klasse 2B', year: '2031' }]
+        }).find((t) => t.id === 'klasse-2B');
+        expect(alignedYear && alignedYear.groupId).toBe('g-2b-team');
+        const onlyMap = buildHygieneTargets(
+            {
+                setup: { matched: {}, classGroupMatchByKey: { '2B': { groupId: 'g-2b-only' } } },
+                core: { classTeams: [{ classCode: '2B', abschlussJahr: '2031', graphGroupId: '' }] }
+            },
+            settings
+        ).find((t) => t.id === 'klasse-2B');
+        expect(onlyMap && onlyMap.groupId).toBe('g-2b-only');
     });
 
     it('resolveClassGraphGroupId nutzt classGroupMatchByKey wenn classTeams leer', () => {

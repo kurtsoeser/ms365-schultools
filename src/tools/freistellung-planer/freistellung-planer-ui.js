@@ -6,7 +6,10 @@ import {
     validateFreistellung,
     approvalPath,
     inclusiveDayCount,
+    toIsoDateTimeLocal,
     STATUS_CHOICES,
+    monthGridDates,
+    itemCoversDay
 } from './freistellung-planer-logic.js';
 import { htmlFreistellungKategorienPanel } from './freistellung-kategorien-ui.js';
 import { htmlFreistellungKlassenPanel } from './freistellung-klassen-ui.js';
@@ -20,6 +23,7 @@ import {
     useMinimalPlanerChrome,
     filterItems,
     formatDeDate,
+    formatDeDateTime,
     statusLabel,
     roleLabel,
     scopeFromState,
@@ -119,7 +123,6 @@ function renderNavSession(state) {
                   ? `<p class="fr-nav__account-name">${esc(state.accountName || state.accountEmail)}</p>`
                   : '<p class="fr-nav__hint">Mit Schul-Konto anmelden:</p>'
           }
-          <div class="fr-nav__auth" id="frNavAuthSlot"></div>
           ${
               isSchueler && klasseCode
                   ? `<p class="fr-nav__hint">Klasse <span class="fr-badge fr-nav__account-klasse">${esc(klasseLabel)}</span></p>`
@@ -171,7 +174,6 @@ function renderNavSession(state) {
                   ? `<p class="fr-nav__account-name">${esc(state.accountName || state.accountEmail)}</p>`
                   : '<p class="fr-nav__hint">Mit Schul-Konto anmelden:</p>'
           }
-          <div class="fr-nav__auth" id="frNavAuthSlot"></div>
           ${
               state.accountEmail || switchable.length
                   ? `<div class="fr-nav__session-role">
@@ -616,6 +618,8 @@ function renderView(state) {
     switch (state.view) {
         case 'liste':
             return renderListe(state);
+        case 'kalender':
+            return renderKalender(state);
         case 'antrag':
             return renderAntrag(state);
         case 'meine':
@@ -651,12 +655,21 @@ function renderDashboard(state) {
     </section>
     <section class="fr-panel">
       <h3>Anträge Ihrer Schülerinnen und Schüler</h3>
-      ${sorted.length ? renderTable(sorted, state) : '<p class="muted">Aktuell keine Anträge für Ihre Klasse.</p>'}
+      ${
+          sorted.length
+              ? renderTable(sorted, state)
+              : (state.items || []).length
+                ? '<p class="muted">In der Liste liegen Anträge, aber keiner passt zu Ihrer Klasse/KV-Zuordnung (Filter). IT: Stammdaten <code>headEmail</code> für Ihre Klasse(n); in Anträgen Feld <strong>Klassenvorstand</strong> pflegen. In SharePoint sehen KVs mit „Gestaltung“ oft <em>alle</em> Einträge – im Planer nur die eigenen Klassen.</p>'
+                : '<p class="muted">Aktuell keine Anträge für Ihre Klasse.</p>'
+      }
       ${
           offen.length
               ? '<p class="muted" style="margin-top:10px;">Offene Genehmigungen bearbeiten Sie in Microsoft Approvals (Teams oder Outlook).</p>'
               : ''
       }
+      <div class="fr-actions" style="margin-top:12px">
+        <button type="button" class="btn" data-fr-view-jump="kalender"><i class="bi bi-calendar3"></i>Kalender</button>
+      </div>
     </section>`;
     }
     return `
@@ -675,6 +688,7 @@ function renderDashboard(state) {
       ${offen.length ? renderTable(offen, state) : '<p class="muted">Keine offenen Anträge.</p>'}
       <div class="fr-actions" style="margin-top:12px">
         <button type="button" class="btn btn-success" data-fr-view-jump="antrag"><i class="bi bi-plus-lg"></i>Neuer Antrag</button>
+        <button type="button" class="btn" data-fr-view-jump="kalender"><i class="bi bi-calendar3"></i>Kalender</button>
         ${canDecide(state) ? '<button type="button" class="btn" data-fr-view-jump="freigabe"><i class="bi bi-check2-square"></i>Offene Genehmigungen</button>' : ''}
       </div>
     </section>`;
@@ -688,6 +702,80 @@ function renderListe(state) {
       <h2>Liste</h2>
       ${filterBar(state)}
       ${items.length ? renderTable(items, state) : '<p class="muted">Keine Einträge.</p>'}
+    </section>`;
+}
+
+function calendarChipLabel(it) {
+    const klasse = String(it.klasse || '').trim();
+    const name = String(it.schuelerName || it.titel || '').trim();
+    if (klasse && name) return klasse + ' · ' + name;
+    return name || klasse || 'Antrag';
+}
+
+function calendarStatusClass(status) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'genehmigt') return 'fr-cal__chip--ok';
+    if (s === 'abgelehnt') return 'fr-cal__chip--bad';
+    return 'fr-cal__chip--warn';
+}
+
+function renderKalender(state) {
+    const y = state.calYear;
+    const m = state.calMonth;
+    const scope = scopeFromState(state, { scopeAll: state.role === 'direktion' });
+    const items = filterItems(state.items, state.filters, scope).filter(
+        (it) => String(it.status || '').toLowerCase() !== 'abgelehnt'
+    );
+    const days = monthGridDates(y, m);
+    const monthName = new Date(y, m - 1, 1).toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    const kvChrome = useKvPlanerChrome(state);
+    const cells = days
+        .map((day) => {
+            const inMonth = Number(day.slice(5, 7)) === m;
+            const dayItems = items.filter((it) => itemCoversDay(it, day));
+            return `<div class="fr-cal__day${!inMonth ? ' is-out' : ''}">
+          <div class="fr-cal__num">${Number(day.slice(8))}</div>
+          ${dayItems
+              .slice(0, 4)
+              .map(
+                  (it) =>
+                      `<button type="button" class="fr-cal__chip ${calendarStatusClass(it.status)}" data-fr-detail="${esc(
+                          it.itemId
+                      )}" title="${esc(calendarChipLabel(it))} – ${esc(statusLabel(it.status))}">${esc(
+                          calendarChipLabel(it)
+                      )}</button>`
+              )
+              .join('')}
+          ${dayItems.length > 4 ? `<span class="fr-cal__more muted">+${dayItems.length - 4}</span>` : ''}
+        </div>`;
+        })
+        .join('');
+    return `
+    <section class="fr-panel">
+      <div class="fr-cal__head">
+        <div>
+          <h2>Kalender</h2>
+          <p class="muted" style="margin:4px 0 0;line-height:1.45;">
+            ${
+                kvChrome
+                    ? 'Abwesenheiten der Schülerinnen und Schüler Ihrer Klasse(n) – nach Genehmigung und offene Anträge.'
+                    : 'Schulweite Übersicht: wer wann freigestellt ist (ohne abgelehnte Anträge).'
+            }
+          </p>
+        </div>
+        <div class="fr-cal__nav">
+          <button type="button" class="btn" id="frCalPrev" aria-label="Vorheriger Monat"><i class="bi bi-chevron-left"></i></button>
+          <strong>${esc(monthName)}</strong>
+          <button type="button" class="btn" id="frCalNext" aria-label="Nächster Monat"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      </div>
+      ${filterBar(state)}
+      <div class="fr-cal__legend muted">
+        <span><span class="fr-cal__dot fr-cal__dot--warn"></span> Ausstehend</span>
+        <span><span class="fr-cal__dot fr-cal__dot--ok"></span> Genehmigt</span>
+      </div>
+      <div class="fr-cal__weekdays" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+      <div class="fr-cal__grid">${cells}</div>
     </section>`;
 }
 
@@ -877,11 +965,16 @@ function renderAntrag(state) {
           </label>
           ${klasseField}
           <label>Beginn *
-            <input type="date" id="frFormBeginn" required value="${esc(f.beginn)}">
+            <input type="datetime-local" id="frFormBeginn" required step="300" value="${esc(
+                toIsoDateTimeLocal(f.beginn) || f.beginn || ''
+            )}">
           </label>
           <label>Ende *
-            <input type="date" id="frFormEnde" required value="${esc(f.ende)}">
+            <input type="datetime-local" id="frFormEnde" required step="300" value="${esc(
+                toIsoDateTimeLocal(f.ende) || f.ende || ''
+            )}">
           </label>
+          <p class="muted fr-form-span2" style="margin:0;font-size:0.85em;">Datum und Uhrzeit – auch für einzelne Unterrichtsstunden (z. B. 08:00–09:00 am selben Tag).</p>
           <label>Kategorie *
             <select id="frFormKat" required>
               ${kategorieChoicesForState(state)
@@ -928,7 +1021,9 @@ function renderTable(items, state, opts) {
             return `<tr>
           <td><button type="button" class="fr-link" data-fr-detail="${esc(it.itemId)}">${esc(it.schuelerName || it.titel)}</button></td>
           <td>${esc(it.klasse)}</td>
-          <td>${esc(formatDeDate(it.beginn))}${it.ende && it.ende !== it.beginn ? ' – ' + esc(formatDeDate(it.ende)) : ''}</td>
+          <td>${esc(formatDeDateTime(it.beginn))}${
+                it.ende && it.ende !== it.beginn ? ' – ' + esc(formatDeDateTime(it.ende)) : ''
+            }</td>
           <td>${days != null ? days : '–'}${it.multiDay ? ' <span class="fr-badge fr-badge--info">mehr</span>' : ''}</td>
           <td>${statusBadge(it.status)}</td>
           <td>${esc(it.kategorie)}</td>
@@ -967,7 +1062,9 @@ function renderDetailModal(state) {
           <dl class="fr-dl">
             <dt>Status</dt><dd>${statusBadge(it.status)}</dd>
             <dt>Klasse</dt><dd>${esc(it.klasse)}</dd>
-            <dt>Zeitraum</dt><dd>${esc(formatDeDate(it.beginn))} – ${esc(formatDeDate(it.ende))} (${it.dayCount ?? '–'} Tage)</dd>
+            <dt>Zeitraum</dt><dd>${esc(formatDeDateTime(it.beginn))} – ${esc(formatDeDateTime(it.ende))} (${it.dayCount ?? '–'} Tag${
+                it.dayCount === 1 ? '' : 'e'
+            })</dd>
             <dt>Genehmigung</dt><dd>${esc(it.approvalLabel)}</dd>
             <dt>Kategorie</dt><dd>${esc(it.kategorie)}</dd>
             <dt>KV</dt><dd>${esc(it.kvName || '–')} &lt;${esc(it.kvEmail || '')}&gt;</dd>

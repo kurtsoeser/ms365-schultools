@@ -4,7 +4,8 @@
 import { normalizeBelegungSnapshot, buildSnapshotFromTeamsData } from '../../shared/unterrichtsbelegung-logic.js';
 import {
     collectPlannedRowsFromKursteamState,
-    readKursteamStateFromBrowserStorage
+    readKursteamStateFromBrowserStorage,
+    teachingSlotKey
 } from '../../shared/kursteam-belegung-abgleich-logic.js';
 import { mergeBelegungWithGraphImport } from '../../shared/kursteam-graph-import-logic.js';
 
@@ -95,6 +96,7 @@ export function filterUnterrichtsteamRows(rows, filters) {
             r.klasse,
             r.fach,
             r.lehrerCode,
+            r.lehrerName,
             r.lehrerEmail,
             r.teamName,
             r.gruppenmail,
@@ -111,17 +113,18 @@ export function filterUnterrichtsteamRows(rows, filters) {
  */
 export function normalizeEditableRow(patch) {
     const p = patch && typeof patch === 'object' ? patch : {};
-    return {
-        klasse: normStr(p.klasse),
-        fach: normStr(p.fach),
-        lehrerCode: normCode(p.lehrerCode),
-        lehrerEmail: normMail(p.lehrerEmail),
-        gruppe: normStr(p.gruppe),
-        teamName: normStr(p.teamName),
-        gruppenmail: normMail(p.gruppenmail),
-        graphGroupId: normStr(p.graphGroupId),
-        linkedAt: normStr(p.linkedAt)
-    };
+    const out = {};
+    if (Object.prototype.hasOwnProperty.call(p, 'klasse')) out.klasse = normStr(p.klasse);
+    if (Object.prototype.hasOwnProperty.call(p, 'fach')) out.fach = normStr(p.fach);
+    if (Object.prototype.hasOwnProperty.call(p, 'lehrerCode')) out.lehrerCode = normCode(p.lehrerCode);
+    if (Object.prototype.hasOwnProperty.call(p, 'lehrerName')) out.lehrerName = normStr(p.lehrerName);
+    if (Object.prototype.hasOwnProperty.call(p, 'lehrerEmail')) out.lehrerEmail = normMail(p.lehrerEmail);
+    if (Object.prototype.hasOwnProperty.call(p, 'gruppe')) out.gruppe = normStr(p.gruppe);
+    if (Object.prototype.hasOwnProperty.call(p, 'teamName')) out.teamName = normStr(p.teamName);
+    if (Object.prototype.hasOwnProperty.call(p, 'gruppenmail')) out.gruppenmail = normMail(p.gruppenmail);
+    if (Object.prototype.hasOwnProperty.call(p, 'graphGroupId')) out.graphGroupId = normStr(p.graphGroupId);
+    if (Object.prototype.hasOwnProperty.call(p, 'linkedAt')) out.linkedAt = normStr(p.linkedAt);
+    return out;
 }
 
 /**
@@ -198,6 +201,78 @@ export function loadWizardMergeFromBrowser() {
     return state;
 }
 
+/**
+ * Wenn App-Belegung leer ist: Kursteam-Zwischenstand (localStorage) in Snapshot mergen.
+ * @param {object|null} existingSnapshot
+ * @param {object|null} kursteamState
+ */
+export function hydrateUnterrichtsbelegungFromKursteamState(existingSnapshot, kursteamState) {
+    const { snapshot, imported, source } = mergeWizardStateIntoSnapshot(existingSnapshot, kursteamState);
+    if (!imported || !snapshot || !Array.isArray(snapshot.rows) || !snapshot.rows.length) {
+        return { ok: false, snapshot: existingSnapshot, imported: 0, source: 'none' };
+    }
+    return { ok: true, snapshot, imported: snapshot.rows.length, source };
+}
+
+/**
+ * @param {object|null} container ms365AppDataV2.getContainer()
+ * @param {string} [currentYear]
+ * @returns {{ year: string, count: number }|null}
+ */
+export function findUnterrichtsbelegungInOtherYears(container, currentYear) {
+    const c = container && typeof container === 'object' ? container : null;
+    const by = c && c.years && c.years.byLabel && typeof c.years.byLabel === 'object' ? c.years.byLabel : null;
+    if (!by) return null;
+    const cur = normStr(currentYear || (c.years && c.years.current));
+    let best = null;
+    Object.keys(by).forEach((y) => {
+        if (normStr(y) === cur) return;
+        const snap = by[y] && by[y].unterrichtsbelegung;
+        const count = Array.isArray(snap && snap.rows) ? snap.rows.length : 0;
+        if (count > 0 && (!best || count > best.count)) {
+            best = { year: String(y), count };
+        }
+    });
+    return best;
+}
+
 export function countLinked(rows) {
     return (Array.isArray(rows) ? rows : []).filter((r) => normStr(r && r.graphGroupId)).length;
+}
+
+/**
+ * Graph-IDs aus Abgleich (Mail-Nickname oder Unterrichtsslot) in Katalog-Zeilen schreiben.
+ * @param {object[]} rows
+ * @param {object[]} matched Ausgabe von buildKursteamAbgleichReport().matched
+ * @returns {{ rows: object[], linked: number }}
+ */
+export function applyAbgleichMatchesToRows(rows, matched) {
+    const list = (Array.isArray(rows) ? rows : []).map((r) => Object.assign({}, r));
+    const byMail = new Map();
+    const bySlot = new Map();
+    (Array.isArray(matched) ? matched : []).forEach((m) => {
+        if (!m || !normStr(m.graphGroupId)) return;
+        const mail = normMail(m.gruppenmail);
+        if (mail) byMail.set(mail, m);
+        const sk = teachingSlotKey(m);
+        if (sk && sk !== '|||') bySlot.set(sk, m);
+    });
+    let linked = 0;
+    list.forEach((r, i) => {
+        if (normStr(r.graphGroupId)) return;
+        const mail = normMail(r.gruppenmail);
+        let hit = mail && byMail.has(mail) ? byMail.get(mail) : null;
+        if (!hit) {
+            const sk = teachingSlotKey(r);
+            hit = sk && sk !== '|||' && bySlot.has(sk) ? bySlot.get(sk) : null;
+        }
+        if (!hit || !normStr(hit.graphGroupId)) return;
+        list[i] = Object.assign({}, r, {
+            graphGroupId: normStr(hit.graphGroupId),
+            gruppenmail: r.gruppenmail || hit.gruppenmail || '',
+            teamName: r.teamName || hit.teamName || ''
+        });
+        linked += 1;
+    });
+    return { rows: list, linked };
 }

@@ -7,7 +7,11 @@ import {
     diffClassMemberships,
     diffMemberships,
     diffMembershipsAgainstPeople,
+    classGroupStudentCountFromDiff,
+    classMembershipHasMismatch,
+    graphMemberCountFromDiff,
     indexGraphMembersByEmail,
+    preservedMemberCountFromDiff,
     memberEmailFromGraph,
     memberEmailsFromGraph,
     membershipFetchGuard,
@@ -22,6 +26,23 @@ describe('membership-reconcile', () => {
         expect(d.onlyLocal).toEqual(['neu@s.at']);
         expect(d.onlyGraph).toEqual(['alt@s.at']);
         expect(d.both).toEqual(['ada@s.at']);
+    });
+
+    it('graphMemberCountFromDiff zählt wie das Abgleich-Panel', () => {
+        const d = diffMemberships(['ada@s.at', 'neu@s.at'], ['ada@s.at', 'alt@s.at']);
+        expect(graphMemberCountFromDiff(d)).toBe(2);
+        const klass = diffClassMemberships(
+            ['ada@s.at'],
+            ['ada@s.at', 'bob@s.at'],
+            ['ada@s.at', 'bob@s.at', 'lehrer@s.at']
+        );
+        expect(graphMemberCountFromDiff(klass)).toBe(3);
+        expect(classGroupStudentCountFromDiff(klass)).toBe(2);
+        expect(preservedMemberCountFromDiff(klass)).toBe(1);
+        expect(classMembershipHasMismatch(klass)).toBe(true);
+        const ok = diffClassMemberships(['ada@s.at'], ['ada@s.at'], ['ada@s.at', 'lehrer@s.at']);
+        expect(classGroupStudentCountFromDiff(ok)).toBe(1);
+        expect(classMembershipHasMismatch(ok)).toBe(false);
     });
 
     it('diffClassMemberships trennt Klassenschüler, fremde Schüler und Lehrkräfte', () => {

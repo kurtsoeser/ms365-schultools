@@ -9,7 +9,7 @@
     var USER_SESSION_KEY = 'ms365-access-granted-v1';
     var TTL_MS = 30 * 60 * 1000;
 
-    /** @type {{ oid: string, upn: string, checkedAt: number } | null} */
+    /** @type {{ oid: string, upn: string, checkedAt: number, operator?: boolean|null, pending?: boolean } | null} */
     var memoryCache = null;
 
     function normalizeUpn(v) {
@@ -108,6 +108,23 @@
     }
 
     /**
+     * Admin-Menüpunkt: sichtbar bei bestätigtem Betreiber ODER solange der
+     * stille Check noch nicht klar „kein Betreiber“ geliefert hat (z. B. License.Access fehlt).
+     */
+    function shouldShowAdminMenuLink() {
+        var account = currentAccountInfo();
+        if (!account.oid && !account.upn) return false;
+        var cfg = global.MS365_LICENSE_API || {};
+        if (cfg.skipOperatorCheck === true) return false;
+        var cache = readCache();
+        if (!cacheMatchesAccount(cache, account)) return false;
+        if (cache.operator === true) return true;
+        if (cache.operator === false) return false;
+        /* pending / unklar nach Silent-Fehler */
+        return cache.pending === true || cache.operator == null;
+    }
+
+    /**
      * Betreiber über License-API prüfen (LICENSE_OPERATOR_* in Azure).
      * @param {{ force?: boolean }} [opts]
      * @returns {Promise<boolean>}
@@ -127,12 +144,22 @@
 
         if (!force && cacheFreshForAccount(account)) {
             var cached = readCache();
-            return !!(cached && cached.operator === true);
+            if (cached && cached.operator === true) return true;
+            if (cached && cached.operator === false) return false;
+            /* pending: erneut versuchen, sobald Token da sein könnte */
         }
 
         var api = global.ms365LicenseApi;
         if (!api || typeof api.acquireLicenseToken !== 'function' || typeof api.fetchAdminMe !== 'function') {
-            clearOperatorCache();
+            if (!force) {
+                writeCache({
+                    oid: account.oid,
+                    upn: account.upn,
+                    checkedAt: Date.now(),
+                    operator: null,
+                    pending: true
+                });
+            }
             return false;
         }
         if (!String(cfg.baseUrl || '').trim()) {
@@ -141,7 +168,7 @@
         }
 
         try {
-            /* Menü: silentOnly. Admin-Seite (force): Popup bei Bedarf. */
+            /* Menü: silentOnly. Admin-Seite / Klick (force): Popup bei Bedarf. */
             var token = await api.acquireLicenseToken(force ? { popup: true } : { silentOnly: true });
             var me = await api.fetchAdminMe(token);
             var oid = String((me && me.user && me.user.oid) || account.oid || '')
@@ -149,7 +176,7 @@
                 .toLowerCase();
             var upn = normalizeUpn((me && me.user && me.user.upn) || account.upn);
             var isOp = !!(me && me.operator === true);
-            writeCache({ oid: oid, upn: upn, checkedAt: Date.now(), operator: isOp });
+            writeCache({ oid: oid, upn: upn, checkedAt: Date.now(), operator: isOp, pending: false });
             if (!isOp) {
                 try {
                     sessionStorage.removeItem(USER_SESSION_KEY);
@@ -165,10 +192,28 @@
             }
             return true;
         } catch (e) {
-            /* Menü ohne License.Access im Cache: positiven Cache behalten */
+            /* Positiven Cache behalten */
             if (!force && cacheFreshForAccount(account)) {
                 var c = readCache();
-                return !!(c && c.operator === true);
+                if (c && c.operator === true) return true;
+            }
+            /*
+             * Silent-Fehler ≠ „kein Betreiber“. Cache nicht löschen, sonst verschwindet
+             * der Admin-Menüpunkt (License.Access oft erst nach License-Gate).
+             */
+            if (!force) {
+                var prev = readCache();
+                if (prev && cacheMatchesAccount(prev, account) && prev.operator === true) {
+                    return true;
+                }
+                writeCache({
+                    oid: account.oid,
+                    upn: account.upn,
+                    checkedAt: Date.now(),
+                    operator: null,
+                    pending: true
+                });
+                return false;
             }
             clearOperatorCache();
             return false;
@@ -192,12 +237,32 @@
         }
     }
 
-    function openAdminArea() {
+    async function openAdminArea() {
+        try {
+            var ok = await refreshOperatorStatus({ force: true });
+            if (!ok) {
+                if (typeof global.ms365ShowToast === 'function') {
+                    global.ms365ShowToast(
+                        'Admin-Bereich nur für das Betreiber-Konto (License-API / LICENSE_OPERATOR_*).',
+                        { kind: 'warning', title: 'Kein Betreiber-Zugang' }
+                    );
+                } else if (typeof global.ms365ToastOrAlert === 'function') {
+                    global.ms365ToastOrAlert('Admin-Bereich nur für das Betreiber-Konto.');
+                } else {
+                    global.alert('Admin-Bereich nur für das Betreiber-Konto.');
+                }
+                notifyAuthWidget();
+                return;
+            }
+        } catch (e) {
+            /* trotzdem versuchen zu öffnen – Boot prüft erneut */
+        }
         global.location.href = resolveAppRootHref('admin.html');
     }
 
     global.ms365OperatorAccess = {
         isCurrentUserOperator: isCurrentUserOperator,
+        shouldShowAdminMenuLink: shouldShowAdminMenuLink,
         refreshOperatorStatus: refreshOperatorStatus,
         clearOperatorCache: clearOperatorCache,
         resolveAppRootHref: resolveAppRootHref,
@@ -235,9 +300,9 @@
         }
         try {
             /* License-Gate holt License.Access oft erst nach dem ersten Menü-Check */
-            global.addEventListener('ms365-license-changed', function (ev) {
-                var allowed = ev && ev.detail && ev.detail.allowed === true;
-                if (!allowed) return;
+            global.addEventListener('ms365-license-changed', function () {
+                /* Auch bei allowed:false erneut prüfen – Betreiber-Tenant braucht keine Schul-Lizenz,
+                 * aber License.Access kann erst jetzt im Token-Cache liegen. */
                 refreshOperatorStatus({ force: false }).then(function () {
                     notifyAuthWidget();
                 });

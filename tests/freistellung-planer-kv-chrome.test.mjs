@@ -17,7 +17,7 @@ describe('freistellung KV chrome', () => {
     it('viewsForRole für KV-Chrome nur Übersicht', () => {
         const state = { role: 'kv', demoRoleOverride: false, entraGroupsConfigured: true };
         const views = viewsForRole('kv', state);
-        expect(views.map((v) => v.id)).toEqual(['dashboard']);
+        expect(views.map((v) => v.id)).toEqual(['dashboard', 'kalender']);
     });
 
     it('viewsForRole für KV im Demo-Modus behält Staff-Navigation', () => {
@@ -41,7 +41,7 @@ describe('freistellung Direktion chrome', () => {
     });
 
     it('viewsForRole für Direktion enthält Administration', () => {
-        const state = { role: 'direktion', demoRoleOverride: false };
+        const state = { role: 'direktion', demoRoleOverride: false, planerAdminAccess: true };
         const views = viewsForRole('direktion', state);
         expect(views.some((v) => v.id === 'administration')).toBe(true);
         expect(views.some((v) => v.id === 'dashboard')).toBe(true);

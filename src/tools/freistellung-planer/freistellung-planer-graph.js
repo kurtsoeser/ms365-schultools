@@ -4,8 +4,16 @@
 import { LIST_TITLE_DEFAULT, KATEGORIE_CHOICES } from './freistellung-planer-schema.js';
 import { parseNachweiseField } from './freistellung-planer-nachweise.js';
 import { mergeKategorieChoices } from './freistellung-planer-kategorien.js';
-import { toIsoDateOnly, approvalPath, inclusiveDayCount } from './freistellung-planer-logic.js';
-import { buildAntragTitle } from './freistellung-planer-state.js';
+import {
+    toIsoDateOnly,
+    toIsoDateTimeLocal,
+    toSharePointDateTime,
+    approvalPath,
+    inclusiveDayCount,
+    personNamesLooselyMatch
+} from './freistellung-planer-logic.js';
+import { buildAntragTitle, resolveKvForClass } from './freistellung-planer-state.js';
+import { buildFreistellungStatusFields } from './freistellung-planer-audit.js';
 
 const SCOPES = [
     'https://graph.microsoft.com/User.Read',
@@ -134,28 +142,44 @@ function fieldStr(fields, key) {
  * @param {string} key
  */
 export function readPersonField(fields, key) {
+    const lookupEmail = fieldStr(fields, key + 'Email');
     const raw = fields && fields[key];
+    const lookupIdField = fieldStr(fields, key + 'LookupId');
     if (!raw) {
-        const lookupEmail = fieldStr(fields, key + 'Email');
-        if (lookupEmail) return { email: lookupEmail.toLowerCase(), name: '', lookupId: '' };
-        return { email: '', name: '', lookupId: '' };
+        if (lookupEmail) {
+            return { email: lookupEmail.toLowerCase(), name: '', lookupId: lookupIdField };
+        }
+        return { email: '', name: '', lookupId: lookupIdField };
     }
     const entry = Array.isArray(raw) ? raw[0] : raw;
     if (!entry || typeof entry !== 'object') {
-        return { email: '', name: String(entry || '').trim(), lookupId: '' };
+        const name = String(entry || '').trim();
+        return {
+            email: lookupEmail ? lookupEmail.toLowerCase() : '',
+            name,
+            lookupId: fieldStr(fields, key + 'LookupId')
+        };
     }
-    return {
-        email: String(entry.Email || entry.email || '')
-            .trim()
-            .toLowerCase(),
-        name: String(entry.LookupValue || entry.DisplayName || entry.Title || '').trim(),
-        lookupId:
-            entry.LookupId != null
-                ? String(entry.LookupId)
-                : entry.id != null
-                  ? String(entry.id)
-                  : ''
-    };
+    const entity = entry.EntityData && typeof entry.EntityData === 'object' ? entry.EntityData : null;
+    const email = String(
+        entry.Email ||
+            entry.email ||
+            entry.SIPAddress ||
+            entry.Mail ||
+            lookupEmail ||
+            (entity && (entity.Email || entity.email || entity.SIPAddress)) ||
+            ''
+    )
+        .trim()
+        .toLowerCase();
+    const name = String(entry.LookupValue || entry.DisplayName || entry.Title || '').trim();
+    const lookupId =
+        entry.LookupId != null
+            ? String(entry.LookupId)
+            : entry.id != null
+              ? String(entry.id)
+              : fieldStr(fields, key + 'LookupId');
+    return { email, name, lookupId };
 }
 
 /**
@@ -302,25 +326,169 @@ export async function tryResolveFrListId(webUrl, opts) {
  * @param {{ siteId: string, list: { id: string } }} ctx
  */
 export async function probeFreistellungListRead(ctx) {
-    if (!ctx || !ctx.siteId || !ctx.list || !ctx.list.id) return false;
+    const details = await probeFreistellungListReadDetails(ctx);
+    return !!(details && details.canQuery);
+}
+
+/**
+ * @param {{ siteId: string, list: { id: string } }} ctx
+ * @returns {Promise<{ canQuery: boolean, itemCount: number, error?: string }>}
+ */
+export async function probeFreistellungListReadDetails(ctx) {
+    if (!ctx || !ctx.siteId || !ctx.list || !ctx.list.id) {
+        return { canQuery: false, itemCount: 0, error: 'no-context' };
+    }
     const tok = await tokenRead();
     const path =
         G().graphPathSite(ctx.siteId) +
         '/lists/' +
         encodeURIComponent(ctx.list.id) +
-        '/items?$select=id&$top=1';
+        '/items?$select=id&$top=50';
     try {
-        await G().graphJson('GET', path, tok, undefined, 'v1.0');
-        return true;
+        const data = await G().graphJson('GET', path, tok, undefined, 'v1.0');
+        const rows = (data && data.value) || [];
+        return { canQuery: true, itemCount: rows.length };
+    } catch (e) {
+        return {
+            canQuery: false,
+            itemCount: 0,
+            error: e && e.message ? String(e.message) : String(e)
+        };
+    }
+}
+
+/**
+ * KV-E-Mail aus Stammdaten ergänzen, wenn SharePoint-Personenfeld keine Adresse liefert.
+ * @param {object[]} items
+ * @param {object} state
+ */
+export function enrichFreistellungItemsKvFromStammdaten(items, state) {
+    const list = Array.isArray(items) ? items : [];
+    if (!state) return list;
+    return list.map((it) => {
+        if (!it || typeof it !== 'object') return it;
+        const cur = String(it.kvEmail || '').trim();
+        if (cur.includes('@')) return it;
+        const klasse = String(it.klasse || '').trim();
+        if (!klasse) return it;
+        const kv = resolveKvForClass(state, klasse);
+        if (kv && kv.email) {
+            return Object.assign({}, it, {
+                kvEmail: kv.email,
+                kvName: String(it.kvName || kv.name || '').trim()
+            });
+        }
+        const accName = String(state.accountName || '').trim();
+        const kvName = String(it.kvName || '').trim();
+        const accMail = String(state.accountEmail || '').trim().toLowerCase();
+        if (accName && kvName && personNamesLooselyMatch(accName, kvName) && accMail.includes('@')) {
+            return Object.assign({}, it, { kvEmail: accMail, kvName: it.kvName || state.accountName });
+        }
+        return it;
+    });
+}
+
+/** @type {Map<string, Map<string, { email: string, name: string }>>} */
+const siteUserLookupCache = new Map();
+
+/**
+ * LookupId → E-Mail aus der Benutzerinformationsliste (Person-Spalten ohne E-Mail in fields).
+ * @param {string} tok
+ * @param {string} siteId
+ */
+export async function loadSiteUserLookupById(tok, siteId) {
+    const sid = String(siteId || '').trim();
+    if (!sid) return new Map();
+    const cacheKey = sid.toLowerCase();
+    if (siteUserLookupCache.has(cacheKey)) return siteUserLookupCache.get(cacheKey);
+
+    const out = new Map();
+    let userList = null;
+    if (typeof G().findSiteUserInformationList === 'function') {
+        userList = await G().findSiteUserInformationList(tok, sid);
+    } else {
+        const listsPath = G().graphPathSite(sid) + '/lists?$select=id,displayName,name,system&$top=999';
+        const listsData = await G().graphJson('GET', listsPath, tok, undefined, 'v1.0');
+        const lists = (listsData && listsData.value) || [];
+        userList =
+            lists.find((l) => String(l.name || '').trim().toLowerCase() === 'users') ||
+            lists.find((l) => /user information/i.test(String(l.displayName || ''))) ||
+            null;
+    }
+    if (userList && userList.id) {
+        let path =
+            G().graphPathSite(sid) +
+            '/lists/' +
+            encodeURIComponent(userList.id) +
+            '/items?$expand=fields&$top=200';
+        while (path) {
+            const data = await G().graphJson(
+                'GET',
+                path.indexOf('http') === 0 ? path : path,
+                tok,
+                undefined,
+                'v1.0'
+            );
+            const rows = (data && data.value) || [];
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const id = row && row.id != null ? String(row.id) : '';
+                if (!id) continue;
+                const f = (row && row.fields) || {};
+                const email = String(f.EMail || f.Email || f.UserName || f.SipAddress || '')
+                    .trim()
+                    .toLowerCase();
+                const name = String(f.Title || f.Name || '').trim();
+                if (email.includes('@') || name) out.set(id, { email, name });
+            }
+            path = data && data['@odata.nextLink'] ? data['@odata.nextLink'] : '';
+        }
+    }
+    siteUserLookupCache.set(cacheKey, out);
+    return out;
+}
+
+/**
+ * @param {object[]} items
+ * @param {Map<string, { email: string, name: string }>} lookupById
+ */
+export function enrichFreistellungItemsKvFromSiteUserList(items, lookupById) {
+    const map = lookupById instanceof Map ? lookupById : null;
+    if (!map || !map.size) return items;
+    const list = Array.isArray(items) ? items : [];
+    return list.map((it) => {
+        if (!it || typeof it !== 'object') return it;
+        if (String(it.kvEmail || '').includes('@')) return it;
+        const lid = String(it.kvLookupId || '').trim();
+        if (!lid || !map.has(lid)) return it;
+        const hit = map.get(lid);
+        return Object.assign({}, it, {
+            kvEmail: hit.email || it.kvEmail,
+            kvName: String(it.kvName || hit.name || '').trim()
+        });
+    });
+}
+
+/**
+ * @param {object[]} items
+ * @param {{ siteId: string }} ctx
+ */
+export async function enrichFreistellungItemsKvForPlaner(items, ctx) {
+    const list = Array.isArray(items) ? items : [];
+    if (!ctx || !ctx.siteId) return list;
+    try {
+        const tok = await tokenRead();
+        const lookupById = await loadSiteUserLookupById(tok, ctx.siteId);
+        return enrichFreistellungItemsKvFromSiteUserList(list, lookupById);
     } catch {
-        return false;
+        return list;
     }
 }
 
 export function mapFreistellungFromItem(item) {
     const f = (item && item.fields) || {};
-    const beginn = toIsoDateOnly(f.Beginn) || '';
-    const ende = toIsoDateOnly(f.Ende) || beginn;
+    const beginn = toIsoDateTimeLocal(f.Beginn) || toIsoDateOnly(f.Beginn) || '';
+    const ende = toIsoDateTimeLocal(f.Ende) || toIsoDateOnly(f.Ende) || beginn;
     const kv = readPersonField(f, 'Klassenvorstand');
     const authorPerson = readPersonField(f, 'Author');
     const createdByUser = (item && item.createdBy && item.createdBy.user) || {};
@@ -373,8 +541,8 @@ export function mapFreistellungFromItem(item) {
  * @param {{ kvLookupId?: string }} [extra]
  */
 export function mapFreistellungToFields(draft, extra) {
-    const beginn = toIsoDateOnly(draft.beginn);
-    const ende = toIsoDateOnly(draft.ende) || beginn;
+    const beginn = toSharePointDateTime(draft.beginn) || toIsoDateOnly(draft.beginn);
+    const ende = toSharePointDateTime(draft.ende) || toSharePointDateTime(draft.beginn) || beginn;
     const fields = {
         Title: buildAntragTitle(draft),
         Beginn: beginn,
@@ -415,6 +583,16 @@ export async function loadAllFreistellungen(ctx) {
         path = data && data['@odata.nextLink'] ? data['@odata.nextLink'] : '';
     }
     return rows.map(mapFreistellungFromItem);
+}
+
+/**
+ * @param {{ siteId: string, list: { id: string } }} ctx
+ * @param {object} [state]
+ */
+export async function loadAllFreistellungenForPlaner(ctx, state) {
+    let items = await loadAllFreistellungen(ctx);
+    items = await enrichFreistellungItemsKvForPlaner(items, ctx);
+    return enrichFreistellungItemsKvFromStammdaten(items, state);
 }
 
 /**
@@ -963,11 +1141,34 @@ export async function createFreistellungItem(ctx, draft) {
     return mapped;
 }
 
-export async function updateFreistellungStatus(ctx, itemId, status, bemerkungen) {
+/**
+ * @param {{ siteId: string, list: { id: string } }} ctx
+ * @param {string} itemId
+ * @param {string|{ status?: string, role?: string, actorName?: string, actorEmail?: string, bemerkungen?: string }} statusOrOpts
+ * @param {string} [bemerkungenLegacy]
+ */
+export async function updateFreistellungStatus(ctx, itemId, statusOrOpts, bemerkungenLegacy) {
     const tok = await token();
-    const fields = {
-        Status: String(status || '').trim()
-    };
+    let status = '';
+    let bemerkungen = bemerkungenLegacy;
+    let role = 'kv';
+    let actorName = '';
+    let actorEmail = '';
+    if (statusOrOpts && typeof statusOrOpts === 'object') {
+        status = String(statusOrOpts.status || '').trim();
+        role = String(statusOrOpts.role || 'kv');
+        actorName = String(statusOrOpts.actorName || '');
+        actorEmail = String(statusOrOpts.actorEmail || '');
+        if (statusOrOpts.bemerkungen != null) bemerkungen = statusOrOpts.bemerkungen;
+    } else {
+        status = String(statusOrOpts || '').trim();
+    }
+    const fields = buildFreistellungStatusFields({
+        status,
+        role,
+        actorName,
+        actorEmail
+    });
     if (bemerkungen != null) fields.Bemerkungen = String(bemerkungen);
     await G().graphJson(
         'PATCH',

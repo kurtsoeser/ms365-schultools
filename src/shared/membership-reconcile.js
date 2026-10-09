@@ -368,6 +368,54 @@ export function reconcileClassAgainstGraphMembers(classEmails, allStudentEmails,
 }
 
 /**
+ * Mitgliederzahl der M365-Gruppe wie im Abgleich-Panel (nicht blind $count).
+ * @param {object|null|undefined} diff
+ * @returns {number}
+ */
+export function graphMemberCountFromDiff(diff) {
+    if (!diff || typeof diff !== 'object') return 0;
+    let n = 0;
+    if (Array.isArray(diff.both)) n += diff.both.length;
+    if (Array.isArray(diff.onlyGraph)) n += diff.onlyGraph.length;
+    if (Array.isArray(diff.preserved)) n += diff.preserved.length;
+    return n;
+}
+
+/**
+ * Schüler in der M365-Gruppe (ohne Lehrkräfte/Andere in {@link diffClassMemberships}.preserved).
+ * @param {object|null|undefined} diff
+ * @returns {number}
+ */
+export function classGroupStudentCountFromDiff(diff) {
+    if (!diff || typeof diff !== 'object') return 0;
+    let n = 0;
+    if (Array.isArray(diff.both)) n += diff.both.length;
+    if (Array.isArray(diff.onlyGraph)) n += diff.onlyGraph.length;
+    return n;
+}
+
+/**
+ * @param {object|null|undefined} diff
+ * @returns {number}
+ */
+export function preservedMemberCountFromDiff(diff) {
+    if (!diff || !Array.isArray(diff.preserved)) return 0;
+    return diff.preserved.length;
+}
+
+/**
+ * Echte Abweichung bei Klassengruppen (nicht: Lehrkraft zusätzlich in der Gruppe).
+ * @param {object|null|undefined} diff
+ * @returns {boolean}
+ */
+export function classMembershipHasMismatch(diff) {
+    if (!diff || typeof diff !== 'object') return false;
+    const local = Array.isArray(diff.onlyLocal) ? diff.onlyLocal.length : 0;
+    const graph = Array.isArray(diff.onlyGraph) ? diff.onlyGraph.length : 0;
+    return local > 0 || graph > 0;
+}
+
+/**
  * Klassengruppen-Abgleich: Schüler der Klasse vs. Gruppe; Lehrkräfte/andere bleiben erhalten.
  */
 export function diffClassMemberships(classEmails, allStudentEmails, graphEmails) {
@@ -472,6 +520,10 @@ const api = {
     buildMembershipImportPreview: buildMembershipImportPreview,
     applyMembershipImportSelection: applyMembershipImportSelection,
     diffClassMemberships: diffClassMemberships,
+    graphMemberCountFromDiff: graphMemberCountFromDiff,
+    classGroupStudentCountFromDiff: classGroupStudentCountFromDiff,
+    preservedMemberCountFromDiff: preservedMemberCountFromDiff,
+    classMembershipHasMismatch: classMembershipHasMismatch,
     applyAdminImportSelection: applyAdminImportSelection
 };
 

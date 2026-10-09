@@ -10,19 +10,24 @@
     ];
 
     const STORAGE_KEY = 'ms365-freistellung-setup-v1';
-    const STEP_STORAGE_KEY = 'ms365-freistellung-setup-step-v1';
+    const STEP_STORAGE_KEY = 'ms365-freistellung-setup-step-v3';
+    const STEP_STORAGE_KEY_V2 = 'ms365-freistellung-setup-step-v2';
+    const STEP_STORAGE_KEY_LEGACY = 'ms365-freistellung-setup-step-v1';
+    const SETUP_STEP_COUNT = 7;
     const FLOW_DONE_KEY = 'ms365-pa-done-freistellung';
+    const PERMS_STORAGE_KEY = 'ms365-freistellung-perms-v1';
     const TEMPLATE_BASE = '../assets/power-automate/freistellung';
-    const FLOW_ASSET_ID = 'eff47cd0-dd67-468d-a48a-9e146aab57a7';
+    const FLOW_ASSET_ID = '6c60dd7e-ab68-4cc8-949e-d689badc0993';
 
-    /** Werte aus Flow v2 (Test-Export MS365-Schultools) – werden beim Paketbau ersetzt. */
+    /** Werte aus Flow v3 (Export MS365-Schultools) – werden beim Paketbau ersetzt. */
     const SOURCE = {
         siteUrl: 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools',
         listId: '72d2028f-2ee6-4ce9-a610-0c2ef70196fe',
-        emailDirektion: 'direktion@ms365.schule',
-        emailDirektor: 'direktor@ms365.schule',
-        emailSonder: 'kurt@kurtsoeser.at',
-        emailMailbox: 'demo-freistellungen@ms365.schule',
+        /** Kleinbuchstaben-Variante falls im Export gemischt. */
+        emailDirektion: 'direktor@ms365.schule',
+        /** Exakte Schreibweise aus dem v3-Export (Bedingung + Approval assignedTo). */
+        emailDirektor: 'Direktor@ms365.schule',
+        emailMailbox: 'automate@ms365.schule',
         connectionOwner: 'kurt@kurtsoeser.at'
     };
 
@@ -69,9 +74,6 @@
             emailDirektion: String(($('frEmailDirektion') && $('frEmailDirektion').value) || '')
                 .trim()
                 .toLowerCase(),
-            emailSonder: String(($('frEmailSonder') && $('frEmailSonder').value) || '')
-                .trim()
-                .toLowerCase(),
             emailMailbox: String(($('frEmailMailbox') && $('frEmailMailbox').value) || '')
                 .trim()
                 .toLowerCase(),
@@ -91,7 +93,6 @@
         if ($('frListName') && cfg.listName) $('frListName').value = cfg.listName;
         if ($('frListId') && cfg.listId) $('frListId').value = cfg.listId;
         if ($('frEmailDirektion') && cfg.emailDirektion) $('frEmailDirektion').value = cfg.emailDirektion;
-        if ($('frEmailSonder') && cfg.emailSonder) $('frEmailSonder').value = cfg.emailSonder;
         if ($('frEmailMailbox') && cfg.emailMailbox) $('frEmailMailbox').value = cfg.emailMailbox;
         if ($('frFlowServiceAccount') && cfg.flowServiceAccount) {
             $('frFlowServiceAccount').value = cfg.flowServiceAccount;
@@ -141,12 +142,12 @@
             {
                 name: 'Beginn',
                 displayName: 'Beginn',
-                dateTime: { displayAs: 'default', format: 'dateOnly' }
+                dateTime: { displayAs: 'default', format: 'dateTime' }
             },
             {
                 name: 'Ende',
                 displayName: 'Ende',
-                dateTime: { displayAs: 'default', format: 'dateOnly' }
+                dateTime: { displayAs: 'default', format: 'dateTime' }
             },
             {
                 name: 'Status',
@@ -203,24 +204,58 @@
         const base = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(listId) + '/columns';
         const existing = await G.graphJson(
             'GET',
-            base + '?$select=name,displayName&$top=200',
+            base + '?$select=id,name,displayName,dateTime&$top=200',
             token,
             undefined,
             'v1.0'
         );
         const have = {};
+        const byName = {};
         ((existing && existing.value) || []).forEach(function (c) {
-            if (c && c.name) have[String(c.name).toLowerCase()] = true;
+            if (c && c.name) {
+                const key = String(c.name).toLowerCase();
+                have[key] = true;
+                byName[key] = c;
+            }
         });
 
         const defs = columnDefsFreistellung();
         const added = [];
         const skipped = [];
+        const upgraded = [];
         for (let i = 0; i < defs.length; i++) {
             const d = defs[i];
             const key = String(d.name).toLowerCase();
             if (have[key]) {
                 skipped.push(d.name);
+                const wantDt = d.dateTime && d.dateTime.format === 'dateTime';
+                const col = byName[key];
+                const curFmt =
+                    col && col.dateTime && col.dateTime.format
+                        ? String(col.dateTime.format)
+                        : '';
+                if (wantDt && col && col.id && curFmt === 'dateOnly') {
+                    try {
+                        logFn('Aktualisiere Spalte „' + d.name + '“ auf Datum+Uhrzeit …');
+                        await G.graphJson(
+                            'PATCH',
+                            base + '/' + encodeURIComponent(col.id),
+                            token,
+                            { dateTime: { displayAs: 'default', format: 'dateTime' } },
+                            'v1.0'
+                        );
+                        upgraded.push(d.name);
+                        await G.sleep(140);
+                    } catch (e) {
+                        logFn(
+                            '  ! Spalte „' +
+                                d.name +
+                                '“ konnte nicht auf Uhrzeit umgestellt werden: ' +
+                                (e && e.message ? e.message : e) +
+                                ' – in SharePoint manuell: Spalte → Datum und Uhrzeit.'
+                        );
+                    }
+                }
                 continue;
             }
             logFn('Lege Spalte an: ' + d.name + ' …');
@@ -232,12 +267,15 @@
         if (added.length) {
             logFn('Neu angelegt: ' + added.join(', '));
         }
-        if (skipped.length === defs.length) {
+        if (upgraded.length) {
+            logFn('Auf Datum+Uhrzeit umgestellt: ' + upgraded.join(', '));
+        }
+        if (skipped.length === defs.length && !upgraded.length) {
             logFn('Alle Spalten vorhanden (' + skipped.join(', ') + ').');
         } else if (skipped.length) {
             logFn('Bereits vorhanden: ' + skipped.join(', '));
         }
-        return { added: added, skipped: skipped };
+        return { added: added, skipped: skipped, upgraded: upgraded };
     }
 
     async function findListByTitle(token, siteId, listTitle) {
@@ -255,8 +293,8 @@
     async function createOrResolveList(cfg, logFn) {
         const write = typeof logFn === 'function' ? logFn : log;
         if (!cfg.siteUrl) throw new Error('Bitte die SharePoint-Website eintragen.');
-        if (!cfg.emailDirektion || !cfg.emailSonder || !cfg.emailMailbox) {
-            throw new Error('Bitte Direktion, Sondergenehmigung und Absender-Postfach ausfüllen.');
+        if (!cfg.emailDirektion || !cfg.emailMailbox) {
+            throw new Error('Bitte Direktion und Absender-Postfach ausfüllen (Schritt 2).');
         }
         if (!effectiveFlowAccount(cfg)) {
             throw new Error('Bitte Technik-Konto für Power Automate eintragen (Schritt 2).');
@@ -468,8 +506,9 @@
         if (SOURCE.emailDirektor) {
             s = replaceAll(s, SOURCE.emailDirektor, cfg.emailDirektion);
         }
-        s = replaceAll(s, SOURCE.emailSonder, cfg.emailSonder);
         s = replaceAll(s, SOURCE.emailMailbox, cfg.emailMailbox);
+        // Ältere Flow-Exporte: frühere Sondergenehmigung → heute Direktion (v3)
+        s = replaceAll(s, 'kurt@kurtsoeser.at', cfg.emailDirektion);
         const flowAccount = effectiveFlowAccount(cfg);
         if (flowAccount) {
             s = replaceAll(s, SOURCE.connectionOwner, flowAccount);
@@ -545,7 +584,7 @@
         rootManifest.details = rootManifest.details || {};
         rootManifest.details.displayName = cfg.flowDisplayName;
         rootManifest.details.description =
-            'Freistellungen v2: KV + Direktion (sequentiell), Mehrtages-Logik, Audit-Felder – parametriert für Ziel-Tenant.';
+            'Freistellungen v3: KV + Direktion (sequentiell), Mehrtages-Logik, Kommentare/Audit – parametriert für Ziel-Tenant.';
         rootManifest.details.createdTime = new Date().toISOString();
         rootManifest.details.sourceEnvironment = '';
 
@@ -682,15 +721,51 @@
             });
         }
         return {
-            emailsOk: !!(cfg.emailDirektion && cfg.emailSonder && cfg.emailMailbox),
+            emailsOk: !!(cfg.emailDirektion && cfg.emailMailbox && effectiveFlowAccount(cfg)),
             listOk: !!(cfg.siteUrl && cfg.listId),
             flowOk: flowImportedFlag(),
             prepOk: null
         };
     }
 
+    function klassenStepConfigured() {
+        const st = window.ms365FreistellungSetupStatus;
+        if (st && typeof st.klassenStepConfigured === 'function') {
+            return st.klassenStepConfigured();
+        }
+        return false;
+    }
+
+    function einstellungenStepConfigured() {
+        const st = window.ms365FreistellungSetupStatus;
+        if (st && typeof st.einstellungenStepConfigured === 'function') {
+            return st.einstellungenStepConfigured();
+        }
+        return false;
+    }
+
+    function permsStepConfigured() {
+        const st = window.ms365FreistellungSetupStatus;
+        if (st && typeof st.permsStepConfigured === 'function') {
+            return st.permsStepConfigured();
+        }
+        try {
+            const p = JSON.parse(localStorage.getItem(PERMS_STORAGE_KEY) || '{}') || {};
+            return !!(
+                String(p.groupKvId || '').trim() ||
+                String(p.groupSchuelerId || '').trim() ||
+                String(p.groupDirektionId || '').trim()
+            );
+        } catch (e) {
+            return false;
+        }
+    }
+
     function refreshGlance() {
         const g = computeGlance();
+        const klassenOk = klassenStepConfigured();
+        const settingsOk = einstellungenStepConfigured();
+        const permsOk = permsStepConfigured();
         refreshImportAccountHint();
         const host = $('frSetupGlance');
         if (!host) return;
@@ -711,6 +786,15 @@
                 warn = !ok;
             } else if (key === 'list') {
                 ok = g.listOk;
+                warn = !ok;
+            } else if (key === 'klassen') {
+                ok = klassenOk;
+                warn = !ok;
+            } else if (key === 'settings' || key === 'einstellungen') {
+                ok = settingsOk;
+                warn = !ok;
+            } else if (key === 'perms' || key === 'planer') {
+                ok = permsOk;
                 warn = !ok;
             } else if (key === 'flow') {
                 ok = g.flowOk;
@@ -733,7 +817,7 @@
         if (step === 1) {
             const ob = onboardingProgress();
             if (ob.total && ob.done >= ob.total) {
-                el.textContent = 'Vorbereitung abgeschlossen – weiter zu Liste und E-Mails.';
+                el.textContent = 'Vorbereitung abgeschlossen – weiter zu Konten (Schritt 2).';
             } else if (ob.total) {
                 el.textContent =
                     'Schritt 1: Environment & Rechte (' +
@@ -745,20 +829,51 @@
                 el.textContent = 'Schritt 1: Schule vorbereiten (Checkliste).';
             }
         } else if (step === 2) {
+            el.textContent = g.emailsOk
+                ? 'Schritt 2: Konten sind gesetzt – weiter zur SharePoint-Liste.'
+                : 'Schritt 2: Technik-Konto, Direktion und Absender eintragen (Suchen-Button).';
+        } else if (step === 3) {
             el.textContent = g.listOk
-                ? 'Schritt 2: Liste ist bereit – Einstellungen prüfen oder zu Schritt 3.'
-                : 'Schritt 2: Website, Genehmiger, Technik-Konto & Postfach – dann „Liste anlegen / prüfen“.';
+                ? 'Schritt 3: Liste ist bereit – weiter zu Klassen.'
+                : 'Schritt 3: Website wählen und „Liste anlegen / prüfen“.';
+        } else if (step === 4) {
+            el.textContent = 'Schritt 4: Klassen mit Stammdaten und SharePoint-Spalte „Klasse“ abgleichen.';
+        } else if (step === 5) {
+            el.textContent =
+                'Schritt 5: Antrags-Kategorien prüfen oder ergänzen und SharePoint-Spalte „Kategorie“ aktualisieren.';
+        } else if (step === 6) {
+            el.textContent = planerGroupsConfigured()
+                ? 'Schritt 6: Berechtigungen gesetzt – weiter zum Flow-Import.'
+                : 'Schritt 6: Entra-Gruppen für Schüler / KV / Direktion wählen und speichern.';
         } else {
             el.textContent = g.flowOk
-                ? 'Schritt 3: Flow als importiert markiert – im Planer testen.'
-                : 'Schritt 3: Paket laden und in Power Automate importieren.';
+                ? 'Schritt 7: Flow als importiert markiert – im Planer testen.'
+                : 'Schritt 7: Flow-Paket laden und in Power Automate importieren.';
         }
     }
 
     function loadSetupStep() {
         try {
-            const n = parseInt(localStorage.getItem(STEP_STORAGE_KEY) || '1', 10);
-            if (n >= 1 && n <= 3) return n;
+            let raw = localStorage.getItem(STEP_STORAGE_KEY);
+            if (raw == null) {
+                const v2 = localStorage.getItem(STEP_STORAGE_KEY_V2);
+                if (v2 != null) {
+                    const n2 = parseInt(v2, 10);
+                    if (!isNaN(n2) && n2 >= 5) raw = String(n2 + 1);
+                    else raw = v2;
+                } else {
+                    const legacy = parseInt(localStorage.getItem(STEP_STORAGE_KEY_LEGACY) || '1', 10);
+                    if (legacy === 1) raw = '1';
+                    else if (legacy === 2) raw = '2';
+                    else if (legacy === 3) raw = '7';
+                    else raw = '1';
+                }
+            }
+            const n = parseInt(raw, 10);
+            if (n >= 1 && n <= SETUP_STEP_COUNT) {
+                if (localStorage.getItem(STEP_STORAGE_KEY) == null) saveSetupStep(n);
+                return n;
+            }
         } catch (e) {
             /* ignore */
         }
@@ -774,19 +889,19 @@
     }
 
     function showSetupStep(n) {
-        const step = Math.max(1, Math.min(3, parseInt(n, 10) || 1));
+        const step = Math.max(1, Math.min(SETUP_STEP_COUNT, parseInt(n, 10) || 1));
         saveSetupStep(step);
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= SETUP_STEP_COUNT; i++) {
             const panel = $('frSetupStep' + i);
             if (!panel) continue;
             const on = i === step;
             panel.hidden = !on;
             panel.setAttribute('aria-hidden', on ? 'false' : 'true');
         }
-        document.querySelectorAll('[data-fr-setup-step]').forEach(function (btn) {
+        document.querySelectorAll('#frSetupGlance [data-fr-setup-step]').forEach(function (btn) {
             const sn = parseInt(btn.getAttribute('data-fr-setup-step'), 10);
             const on = sn === step;
-            btn.classList.toggle('active', on);
+            btn.classList.toggle('is-active', on);
             btn.setAttribute('aria-selected', on ? 'true' : 'false');
             btn.setAttribute('tabindex', on ? '0' : '-1');
         });
@@ -794,13 +909,16 @@
         const next = $('frSetupNext');
         if (back) back.disabled = step <= 1;
         if (next) {
-            next.textContent = step >= 3 ? 'Fertig' : 'Weiter';
-            next.setAttribute('aria-label', step >= 3 ? 'Setup abschließen' : 'Nächster Schritt');
+            next.textContent = step >= SETUP_STEP_COUNT ? 'Fertig' : 'Weiter';
+            next.setAttribute(
+                'aria-label',
+                step >= SETUP_STEP_COUNT ? 'Setup abschließen' : 'Nächster Schritt'
+            );
         }
         updatePhaseHint(step);
         refreshGlance();
         refreshImportAccountHint();
-        if (step === 2 && typeof window.ms365FreistellungInitSetupPermissions === 'function') {
+        if (step >= 4 && step <= 6 && typeof window.ms365FreistellungInitSetupPermissions === 'function') {
             window.ms365FreistellungInitSetupPermissions();
         }
     }
@@ -822,18 +940,27 @@
         if (next) {
             next.addEventListener('click', function () {
                 const cur = loadSetupStep();
-                if (cur >= 3) {
+                if (cur >= SETUP_STEP_COUNT) {
                     toast('Setup abgeschlossen – Freistellungen-Planer öffnen und testen.');
                     return;
                 }
-                if (cur === 1) {
+                if (cur === 1 || cur === 2) {
                     persistFromForm();
                 }
                 if (cur === 2) {
                     const cfg = readForm();
-                    if (!cfg.listId) {
-                        toast('Tipp: Zuerst „Liste anlegen / prüfen“, dann zu Schritt 3.');
+                    if (!cfg.emailDirektion || !effectiveFlowAccount(cfg)) {
+                        toast('Tipp: Technik-Konto und Direktion eintragen, bevor Sie weitergehen.');
                     }
+                }
+                if (cur === 3) {
+                    const cfg = readForm();
+                    if (!cfg.listId) {
+                        toast('Tipp: Zuerst „Liste anlegen / prüfen“, dann weiter.');
+                    }
+                }
+                if (cur === 6 && !planerGroupsConfigured()) {
+                    toast('Tipp: KV-/Schüler-Gruppe wählen und „Gruppen speichern“.');
                 }
                 showSetupStep(cur + 1);
             });
@@ -955,7 +1082,6 @@
             'frListName',
             'frListId',
             'frEmailDirektion',
-            'frEmailSonder',
             'frEmailMailbox',
             'frFlowServiceAccount',
             'frFlowName',
@@ -998,6 +1124,7 @@
         buildPackageZip: buildPackageZip,
         columnDefs: columnDefsFreistellung,
         ensureColumns: ensureColumns,
+        loadSetupStep: loadSetupStep,
         showSetupStep: showSetupStep,
         refreshGlance: refreshGlance
     };

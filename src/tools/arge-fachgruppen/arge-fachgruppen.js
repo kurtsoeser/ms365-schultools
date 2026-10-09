@@ -800,12 +800,12 @@ function renderLeftList() {
         btn.appendChild(main);
         const pick = document.createElement('label');
         pick.className = 'afg-pick';
-        pick.title = gid ? 'Für Sammelaktion auswählen' : 'Nur gematchte Gruppen können ausgewählt werden';
+        pick.title = 'Für Sammelaktion auswählen';
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.setAttribute('data-afg-pick', key);
-        cb.checked = gid ? selectedKeys().has(key) : false;
-        cb.disabled = !gid;
+        cb.checked = selectedKeys().has(key);
+        cb.disabled = false;
         cb.addEventListener('click', function (ev) {
             ev.stopPropagation();
         });
@@ -932,16 +932,12 @@ function pruneSelection() {
     const list = rowsForKind(activeKind);
     const keys = selectedKeys();
     keys.forEach(function (key) {
-        let row = null;
         for (let i = 0; i < list.length; i++) {
             if (normCode(list[i].code) === key) {
-                row = list[i];
+                keep.add(key);
                 break;
             }
         }
-        if (!row) return;
-        const link = getCatalogLink(activeKind, row.code);
-        if (link && link.graphGroupId) keep.add(key);
     });
     selectedKeysByKind[activeKind] = keep;
 }
@@ -1000,6 +996,17 @@ function kindLabel(n) {
     return n === 1 ? 'Fachgruppe' : 'Fachgruppen';
 }
 
+function visibleUnmatchedRows() {
+    const q = listFilter.toLowerCase();
+    return rowsForKind(activeKind).filter(function (row) {
+        const link = getCatalogLink(activeKind, row.code);
+        if (link && link.graphGroupId) return false;
+        if (!q) return true;
+        const hay = (row.code + ' ' + (row.name || '')).toLowerCase();
+        return hay.indexOf(q) !== -1;
+    });
+}
+
 function selectVisibleMatched() {
     visibleMatchedRows().forEach(function (row) {
         selectedKeys().add(normCode(row.code));
@@ -1010,6 +1017,19 @@ function selectVisibleMatched() {
         n
             ? String(n) + ' gematchte ' + kindLabel(n) + ' angekreuzt.'
             : 'Keine gematchten Gruppen in der aktuellen Liste.'
+    );
+}
+
+function selectVisibleUnmatched() {
+    const rows = visibleUnmatchedRows();
+    rows.forEach(function (row) {
+        selectedKeys().add(normCode(row.code));
+    });
+    renderLeftList();
+    toast(
+        rows.length
+            ? String(rows.length) + ' ungematchte ' + kindLabel(rows.length) + ' angekreuzt.'
+            : 'Keine ungematchten Einträge in der aktuellen Liste.'
     );
 }
 
@@ -1385,6 +1405,7 @@ function wire() {
         if (ev.key !== 'Escape') return;
         if (modal && modal.classList.contains('open')) closeCatalogModal();
     });
+    onClick('afgBtnSelectUnmatched', selectVisibleUnmatched);
     onClick('afgBtnSelectMatched', selectVisibleMatched);
     onClick('afgBtnSelectNone', clearSelection);
     onClick('afgBtnBulkOwner', function () {

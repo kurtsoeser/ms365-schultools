@@ -9,6 +9,7 @@
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Lizenzverwaltung</title>
     <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .lv-layout {
@@ -149,15 +150,6 @@
             margin: 0 8px 8px 0;
             font-size: 0.9em;
         }
-        #lvLog {
-            margin-top: 12px;
-            max-height: 160px;
-            overflow: auto;
-            font-size: 0.88em;
-            line-height: 1.4;
-            color: var(--muted);
-            white-space: pre-wrap;
-        }
     </style>
 </head>
 <body>
@@ -211,8 +203,14 @@
                                 </button>
                             </li>
                             <li>
+                                <button type="button" class="lv-slot-btn" data-lv-slot="schulleitung" aria-current="false">
+                                    <span class="lv-slot-title">Schulleitung</span>
+                                    <span class="lv-slot-meta" id="lvMetaSchulleitung">Noch keine Lizenzgruppe</span>
+                                </button>
+                            </li>
+                            <li>
                                 <button type="button" class="lv-slot-btn" data-lv-slot="verwaltung" aria-current="false">
-                                    <span class="lv-slot-title">Verwaltung</span>
+                                    <span class="lv-slot-title">Verwaltung (Personal)</span>
                                     <span class="lv-slot-meta" id="lvMetaVerwaltung">Noch keine Lizenzgruppe</span>
                                 </button>
                             </li>
@@ -300,7 +298,10 @@
                             </div>
                         </div>
 
-                        <div id="lvLog" aria-live="polite"></div>
+                        <div class="lv-section" style="margin-top:20px;">
+                            <div class="slg-section-title">Protokoll</div>
+                            <div id="lvLog" class="slg-sync-log" aria-live="polite" role="log" aria-label="Protokoll Lizenzverwaltung"></div>
+                        </div>
                     </div>
                 </section>
             </div>

@@ -1,8 +1,103 @@
-/* Freistellungen-Setup: Schritt Liste – Spalten & Entra-Karten */
+/* Freistellungen-Setup: Wizard mit mehreren Schritten */
+.fr-setup-pane-lead--wide {
+    max-width: none;
+}
+
+.fr-setup-glance {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.fr-setup-glance--nav .tm-glance__card {
+    appearance: none;
+    margin: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fr-setup-glance--nav .tm-glance__card:hover {
+    border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+}
+
+.fr-setup-glance--nav .tm-glance__card.is-active {
+    border-color: var(--brand1);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 32%, transparent);
+}
+
+.fr-setup-glance--nav .tm-glance__card.is-active.is-ok {
+    border-color: color-mix(in srgb, var(--brand1) 55%, var(--ok1));
+}
+
+.fr-setup-glance--nav .tm-glance__card.is-active .tm-glance__value {
+    color: var(--heading);
+}
+
+@media (max-width: 1100px) {
+    .fr-setup-glance {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 960px) {
+    .fr-setup-glance {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .fr-setup-glance {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 .fr-setup-step2 {
     display: flex;
     flex-direction: column;
     gap: 18px;
+}
+
+/* Schritt 2: gleiche Eingabebreite, kompakte Aktions-Buttons */
+#frSetupStep2 .fr-setup-egp {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: unset;
+}
+
+#frSetupStep2 .fr-setup-egp input[type='email'],
+#frSetupStep2 .fr-setup-egp input[type='text'] {
+    grid-column: 1;
+    width: 100%;
+    max-width: none;
+    flex: unset;
+    min-width: 0;
+    background: var(--input-bg, var(--card));
+    border: 1px solid var(--input-border, var(--border));
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+#frSetupStep2 .fr-setup-egp .btn-sm {
+    flex: none;
+    width: auto;
+    white-space: nowrap;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+}
+
+@media (max-width: 560px) {
+    #frSetupStep2 .fr-setup-egp {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    #frSetupStep2 .fr-setup-egp .btn-sm:nth-of-type(2) {
+        grid-column: 2;
+    }
 }
 
 .fr-setup-cols {
@@ -85,9 +180,12 @@
     margin-top: 4px;
 }
 
-.fr-setup-egp input[type='text'] {
-    flex: 1 1 100%;
+.fr-setup-egp input[type='text'],
+.fr-setup-egp input[type='email'] {
+    flex: 1 1 12rem;
     min-width: 0;
+    width: auto;
+    max-width: 100%;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -96,7 +194,8 @@
 }
 
 .fr-setup-egp .btn-sm {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .fr-setup-perm-foot {
@@ -126,6 +225,72 @@
     margin: 10px 0 4px;
     font-size: 0.85em;
     color: var(--muted);
+}
+
+.fr-grant-matrix-wrap {
+    overflow-x: auto;
+    margin: 8px 0;
+}
+
+.fr-grant-matrix {
+    width: 100%;
+    font-size: 0.88em;
+}
+
+.fr-grant-matrix__principal {
+    min-width: 14rem;
+    vertical-align: middle;
+}
+
+.fr-grant-matrix__principal-inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.fr-grant-matrix__type {
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 0 0 auto;
+}
+
+.fr-grant-matrix__label {
+    flex: 1 1 9rem;
+    min-width: 6rem;
+    font-size: 0.85em;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+
+.fr-grant-matrix__cell {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.fr-grant-matrix__role {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    cursor: pointer;
+}
+
+.fr-grant-matrix__cb {
+    width: 1.35rem;
+    height: 1.35rem;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--brand1, #5e72e4);
+}
+
+.fr-grant-matrix__actions-head {
+    width: 2.5rem;
 }
 
 .fr-setup-user-list {
@@ -180,4 +345,29 @@
 
 .fr-setup-egp--tight {
     margin-top: 4px;
+}
+
+.fr-setup-pa-import-shot {
+    max-width: 42rem;
+    margin: 14px 0 18px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.fr-setup-pa-import-shot__cap {
+    margin: 8px 0 0;
+    font-size: 0.85em;
+    line-height: 1.45;
+}
+
+.fr-setup-pa-import-shot img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }

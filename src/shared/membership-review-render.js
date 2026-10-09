@@ -270,6 +270,23 @@ export function buildMembershipReviewBody(cfg) {
 
     frag.appendChild(renderMembershipReviewLegend());
     frag.appendChild(renderMembershipReviewStats(c.listCount || 0, diff, c.groupCount));
+    if (
+        typeof c.groupCount === 'number' &&
+        diff &&
+        Array.isArray(diff.preserved) &&
+        diff.preserved.length
+    ) {
+        const note = document.createElement('p');
+        note.className = 'muted mr-stats-preserved-note';
+        note.style.margin = '0 0 12px';
+        note.style.fontSize = '0.9em';
+        note.textContent =
+            'In der Gruppe zusätzlich ' +
+            diff.preserved.length +
+            (diff.preserved.length === 1 ? ' weiteres Mitglied' : ' weitere Mitglieder') +
+            ' (z. B. Lehrkräfte) – zählt nicht als Schüler-Abweichung.';
+        frag.appendChild(note);
+    }
 
     const columns = document.createElement('div');
     columns.className = 'mr-diff-columns';

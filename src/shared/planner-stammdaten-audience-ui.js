@@ -4,7 +4,8 @@
 import { loadSchoolAudienceGroups } from './school-audience-groups.js';
 
 export const SA_STAMMDATEN_GROUP_ROLES = new Set(['groupLehrer', 'groupSchueler']);
-export const FR_STAMMDATEN_GROUP_ROLES = new Set(['groupSchueler']);
+/** Freistellung: Schüler-Gruppe im Setup wählbar (zusätzlich zur Stammdaten-Sammelgruppe). */
+export const FR_STAMMDATEN_GROUP_ROLES = new Set();
 
 function escapeAttr(s) {
     return String(s ?? '')

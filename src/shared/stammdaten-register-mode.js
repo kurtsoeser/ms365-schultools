@@ -1,5 +1,5 @@
 /**
- * Schulregister: Tab-Hashes (#klassen, #intranet, …).
+ * Stammdaten: Tab-Hashes (#klassen, #intranet, …).
  * Legacy-Hashes (#sync, #import, #pflegen) werden auf Tabs gemappt.
  */
 

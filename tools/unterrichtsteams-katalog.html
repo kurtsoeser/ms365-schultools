@@ -21,7 +21,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-table"></i>Unterrichtsteams-Katalog</span>
             </div>
-            <p>Alle Unterrichtsteams aus der <strong>Unterrichtsbelegung</strong> – filtern, Namen und Metadaten bearbeiten, optional Anzeigenamen in Microsoft&nbsp;365 aktualisieren.</p>
+            <p>Alle Unterrichtsteams aus der <strong>Unterrichtsbelegung</strong> – filtern, mit Microsoft&nbsp;365-Teams verknüpfen (Bulk- und Einzelabgleich), Namen bearbeiten, optional Anzeigenamen in M365 aktualisieren.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-unterrichtsteams-katalog" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div id="ms365AuthWidget" class="header-auth-slot"></div>
             <div class="toolbar">
@@ -78,8 +78,20 @@
                 <div class="tm-actions">
                     <button type="button" class="btn btn-small" id="utkResetFilters"><i class="bi bi-x-circle"></i>Filter zurücksetzen</button>
                     <button type="button" class="btn btn-small" id="utkPullWizard"><i class="bi bi-box-arrow-in-down"></i>Aus Kursteam-Assistent übernehmen</button>
+                    <button type="button" class="btn btn-small" id="utkEnrichTeachers" title="Name und E-Mail aus der Lehrerliste in den Stammdaten ergänzen"><i class="bi bi-person-lines-fill"></i>LK-Daten ergänzen</button>
                     <button type="button" class="btn btn-small" id="utkAddRow"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
                 </div>
+            </section>
+
+            <section class="tm-panel" aria-label="Microsoft 365 Abgleich">
+                <div class="tm-panel__head"><i class="bi bi-microsoft" aria-hidden="true"></i><div><h3>Microsoft&nbsp;365 Abgleich</h3><p>Kursteams im Tenant laden und mit dem Katalog verknüpfen (Mail-Nickname oder Klasse/Fach/Lehrkraft).</p></div></div>
+                <p id="utkAbgleichSummary" class="utk-stats" style="margin-top:0;"></p>
+                <div class="tm-actions" style="margin-bottom:12px;">
+                    <button type="button" class="btn btn-brand" id="utkM365Load"><i class="bi bi-cloud-download"></i>Teams aus M365 laden</button>
+                    <button type="button" class="btn" id="utkM365LinkAll"><i class="bi bi-link-45deg"></i>Automatisch verknüpfen</button>
+                </div>
+                <p id="utkM365Status" class="muted" style="font-size:0.85em;margin:0 0 8px;"></p>
+                <div id="utkAbgleichHost"></div>
             </section>
 
             <section class="tm-panel">
@@ -102,6 +114,7 @@
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script type="module" src="../src/tools/kursteams/kursteam-graph.js"></script>
     <script type="module" src="../src/tools/unterrichtsteams-katalog/unterrichtsteams-katalog.js"></script>
 </body>
 </html>

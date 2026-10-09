@@ -21,7 +21,20 @@ import {
     fetchPlannerPermissionsFromList,
     fetchPlannerPermissionsFromSite
 } from './freistellung-planer-remote-config.js';
-import { resolveFrContext, probeFreistellungListRead } from './freistellung-planer-graph.js';
+import {
+    resolveFrContext,
+    probeFreistellungListRead,
+    probeFreistellungListReadDetails
+} from './freistellung-planer-graph.js';
+import {
+    collectKvClassCodesForAccount,
+    scopeFromState,
+    filterItems,
+    loadStammdaten,
+    matchKvByClassHeadEmail,
+    classRowsForKvScope
+} from './freistellung-planer-state.js';
+import { deriveKvClassCodesFromFreistellungItems } from './freistellung-planer-logic.js';
 import { resolveFreistellungPlanerSiteAndList } from './freistellung-planer-bootstrap.js';
 import { isLikelySharePointTenantRoot } from './freistellung-planer-state.js';
 import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
@@ -71,6 +84,37 @@ function isLoggedIn() {
 }
 
 /**
+ * Lokale + veröffentlichte Gruppen-IDs (Listen-Beschreibung / SiteAssets) für Graph-Prüfung.
+ * @param {ReturnType<typeof normalizePermissionsConfig>} local
+ * @param {object|null|undefined} remoteList
+ * @param {object|null|undefined} remoteFile
+ */
+export function mergePlannerPermsForDiagnostics(local, remoteList, remoteFile) {
+    let merged = normalizePermissionsConfig(local || {});
+    const layers = [remoteList, remoteFile].filter((x) => x && typeof x === 'object');
+    for (let i = 0; i < layers.length; i++) {
+        const o = normalizePermissionsConfig(layers[i]);
+        merged = normalizePermissionsConfig({ ...merged, ...o });
+    }
+    return merged;
+}
+
+/**
+ * @param {object} state
+ * @param {string[]} [entraRoles]
+ */
+export function diagnosticsIsStaffContext(state, entraRoles) {
+    const s = state || {};
+    const roles = Array.isArray(entraRoles)
+        ? entraRoles
+        : Array.isArray(s.planerRoles)
+          ? s.planerRoles
+          : [];
+    if (s.role === 'kv' || s.role === 'direktion') return true;
+    return roles.includes('kv') || roles.includes('direktion');
+}
+
+/**
  * @param {object} state Planer-State (accountEmail, siteUrl, listId, planerAccessDenied, …)
  * @param {{ refreshRemote?: boolean }} [opts]
  */
@@ -78,8 +122,10 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
     const options = opts || {};
     /** @type {ReturnType<typeof step>[]} */
     const steps = [];
-    const s = state || {};
+    const s = Object.assign({}, state || {}, { stammdaten: loadStammdaten() });
     const accountEmail = String(s.accountEmail || '').trim().toLowerCase();
+    const kvClassRows = classRowsForKvScope(s);
+    const kvMatchFresh = matchKvByClassHeadEmail(accountEmail, kvClassRows);
 
     if (!isLoggedIn()) {
         steps.push(step('login', 'Microsoft-Anmeldung', 'fail', 'Nicht angemeldet – zuerst mit Schul-Konto anmelden.'));
@@ -214,9 +260,10 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
     );
 
     let remoteFromFile = null;
+    let remoteFromList = null;
     if (site && listId) {
         try {
-            const remoteFromList = await fetchPlannerPermissionsFromList(site, listId);
+            remoteFromList = await fetchPlannerPermissionsFromList(site, listId);
             const okRemote = entraGroupsConfigured(remoteFromList || {});
             steps.push(
                 step(
@@ -269,7 +316,23 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
         );
     }
 
-    const entraProbe = await probePlanerEntraMembership(perms);
+    const permsMerged = mergePlannerPermsForDiagnostics(perms, remoteFromList, remoteFromFile);
+    const entraProbe = await probePlanerEntraMembership(permsMerged);
+    const staffContext = diagnosticsIsStaffContext(s, entraProbe.roles);
+
+    if (!String(perms.groupSchuelerId || '').trim() && String(permsMerged.groupSchuelerId || '').trim()) {
+        steps.push(
+            step(
+                'local-schueler-sync',
+                'Schüler-Gruppen-ID im Browser',
+                'warn',
+                'Lokal leer, auf der Liste veröffentlicht (' +
+                    formatGuidForDebug(permsMerged.groupSchuelerId) +
+                    '). IT: Setup „Gruppen speichern“ oder Planer einmal als IT öffnen – für Schüler-Diagnose irrelevant bei KV.'
+            )
+        );
+    }
+
     if (entraProbe.error) {
         steps.push(
             step(
@@ -279,13 +342,24 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
                 'Graph-Prüfung fehlgeschlagen: ' + entraProbe.error
             )
         );
-    } else if (!entraProbe.allIds.length) {
+    } else if (!entraProbe.schuelerIds.length) {
+        steps.push(
+            step(
+                'entra-membership',
+                'Mitgliedschaft Schüler-Entra-Gruppe',
+                staffContext ? 'skip' : 'warn',
+                staffContext
+                    ? 'Keine Schüler-Gruppen-ID konfiguriert – für Klassenvorstand/Direktion nicht nötig.'
+                    : 'Keine Schüler-Gruppen-ID in lokaler + Remote-Konfiguration – Schüler-Rolle nicht prüfbar.'
+            )
+        );
+    } else if (staffContext && !entraProbe.memberSchueler) {
         steps.push(
             step(
                 'entra-membership',
                 'Mitgliedschaft Schüler-Entra-Gruppe',
                 'skip',
-                'Keine Gruppen-IDs zum Prüfen – zuerst Schritt „Planer-Gruppen-IDs“ beheben.'
+                'Nicht in der Schüler-Sammelgruppe – für Klassenvorstand/Direktion erwartbar und unkritisch.'
             )
         );
     } else if (entraProbe.memberSchueler) {
@@ -324,6 +398,41 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
         steps.push(step('schueler-user', 'Einzelperson im Setup (schuelerUsers)', 'ok', 'Konto steht in der Schüler-Einzelpersonenliste.'));
     } else {
         steps.push(step('schueler-user', 'Einzelperson im Setup (schuelerUsers)', 'skip', 'Nicht als Einzelperson eingetragen (Sammelgruppe reicht).'));
+    }
+
+    if (accountIsPlannerUserInList(accountEmail, perms.kvUsers)) {
+        steps.push(
+            step('kv-user', 'Einzelperson im Setup (kvUsers)', 'ok', 'Konto in der KV-Einzelpersonenliste – nach Setup „Berechtigungen“ Bearbeiten auf der Liste nötig.')
+        );
+    } else {
+        steps.push(step('kv-user', 'Einzelperson im Setup (kvUsers)', 'skip', 'Nicht als KV-Einzelperson eingetragen.'));
+    }
+
+    if (kvMatchFresh && kvMatchFresh.classCode) {
+        steps.push(
+            step(
+                'stammdaten-kv',
+                'Klassenvorstand in Stammdaten',
+                'ok',
+                'Klasse ' +
+                    kvMatchFresh.classCode +
+                    ' (headEmail = angemeldetes Konto; ' +
+                    (s.stammdaten.classes || []).length +
+                    ' Klassen im Browser geladen).'
+            )
+        );
+    } else {
+        const codes = collectKvClassCodesForAccount(accountEmail, kvClassRows);
+        steps.push(
+            step(
+                'stammdaten-kv',
+                'Klassenvorstand in Stammdaten',
+                codes.size ? 'ok' : 'warn',
+                codes.size
+                    ? 'Klassen: ' + [...codes].join(', ')
+                    : 'Keine Klasse mit headEmail im lokalen Stammdaten – Stammdaten speichern oder App-Daten v2 prüfen (nicht nur SharePoint-Liste).'
+            )
+        );
     }
 
     let dashGrant = false;
@@ -367,10 +476,13 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
     );
 
     let listRead = false;
+    let listItemCount = 0;
     if (site && listId) {
         try {
             const ctx = await resolveFrContext(site, { listName, listId });
-            listRead = await probeFreistellungListRead(ctx);
+            const details = await probeFreistellungListReadDetails(ctx);
+            listRead = !!(details && details.canQuery);
+            listItemCount = details && details.itemCount != null ? details.itemCount : 0;
         } catch {
             listRead = false;
         }
@@ -378,7 +490,35 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
     if (!site) {
         steps.push(step('list-read', 'SharePoint-Liste lesen', 'skip', 'Keine Site-URL.'));
     } else if (listRead) {
-        steps.push(step('list-read', 'SharePoint-Liste lesen', 'ok', 'Liste „' + listName + '“ ist für dieses Konto lesbar (Anträge laden/speichern möglich).'));
+        const kvStaff =
+            staffContext ||
+            s.role === 'kv' ||
+            (s.planerRoles || []).includes('kv') ||
+            (entraProbe.roles && entraProbe.roles.includes('kv'));
+        const zeroKv =
+            listItemCount === 0 &&
+            kvStaff &&
+            entraProbe.roles &&
+            entraProbe.roles.includes('kv');
+        const zeroHint = zeroKv
+            ? 'Graph liefert 0 Einträge trotz KV-Gruppe/Benutzer auf der Liste: Häufige Ursache ist die Elementregel „nur eigene Elemente lesen“ – Standard-„Bearbeiten“ reicht dann nicht (nur Anträge des eigenen Kontos). IT: Freistellungs-Setup → Berechtigungen erneut (KV erhält „Gestaltung“). Manuell: Brian/KV-Gruppe auf „Gestaltung“ statt nur „Bearbeiten“. Stammdaten headEmail = ' +
+              accountEmail +
+              ' hilft zusätzlich im Planer-Filter.'
+            : listItemCount === 0 && kvStaff
+              ? ' Keine sichtbaren Einträge – Berechtigungen prüfen oder noch keine Anträge.'
+              : '';
+        steps.push(
+            step(
+                'list-read',
+                'SharePoint-Liste lesen',
+                zeroKv ? 'fail' : listItemCount === 0 && zeroHint ? 'warn' : 'ok',
+                'Liste „' +
+                    listName +
+                    '“ abfragbar; sichtbare Einträge (Stichprobe): ' +
+                    listItemCount +
+                    (zeroHint ? '\n' + zeroHint : '')
+            )
+        );
     } else {
         steps.push(
             step(
@@ -390,9 +530,69 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
         );
     }
 
+    if (entraProbe.roles && entraProbe.roles.includes('kv')) {
+        steps.push(
+            step(
+                'entra-kv',
+                'Mitgliedschaft KV-Entra-Gruppe',
+                'ok',
+                'Konto in KV-Planer-Gruppe – auf der Liste „Gestaltung“ (oder höher), sonst unter Elementregel „nur eigene“ keine Schüler-Anträge.'
+            )
+        );
+    } else if (entraProbe.allIds && entraProbe.allIds.length) {
+        steps.push(
+            step(
+                'entra-kv',
+                'Mitgliedschaft KV-Entra-Gruppe',
+                'warn',
+                'Konto nicht in der konfigurierten KV-Entra-Gruppe – Rolle ggf. nur über Stammdaten/kvUsers.'
+            )
+        );
+    }
+
+    const roles = s.planerRoles || [];
+    const staffRole =
+        s.role === 'kv' ||
+        s.role === 'direktion' ||
+        roles.includes('kv') ||
+        roles.includes('direktion');
+    if ((s.role === 'kv' || roles.includes('kv')) && Array.isArray(s.items)) {
+        const diagState = Object.assign({}, s, {
+            kvClassCodesFromItems: deriveKvClassCodesFromFreistellungItems(
+                s.items,
+                accountEmail,
+                s.accountName
+            )
+        });
+        const scope = scopeFromState(diagState);
+        const filtered = filterItems(s.items, {}, scope);
+        const loaded = s.items.length;
+        const shown = filtered.length;
+        steps.push(
+            step(
+                'kv-planer-filter',
+                'Planer: geladen vs. Klassenfilter',
+                shown > 0 ? 'ok' : loaded > 0 ? 'warn' : 'info',
+                loaded
+                    ? 'Aus SharePoint geladen: ' +
+                      loaded +
+                      ' · im Planer sichtbar (Ihre Klasse/KV): ' +
+                      shown +
+                      (shown === 0 && loaded > 0
+                          ? '. IT: Stammdaten headEmail = ' +
+                            accountEmail +
+                            ' für Ihre Klasse(n); Anträge mit Klassenvorstand „' +
+                            (s.accountName || accountEmail) +
+                            '“ oder passender E-Mail.'
+                          : '.')
+                    : 'Noch keine Daten im Tab – zuerst „Aktualisieren“ / Seite neu laden.'
+            )
+        );
+    }
+
     const appRole = s.planerAccessDenied
         ? 'fail'
-        : s.role === 'schueler' || (s.planerRoles || []).includes('schueler')
+        : staffRole || s.role === 'schueler' || roles.includes('schueler')
           ? 'ok'
           : 'warn';
     steps.push(
@@ -415,22 +615,41 @@ export async function runFreistellungAccessDiagnostics(state, opts) {
         );
     }
 
-    return pack(steps, s);
+    return pack(steps, s, { entraRoles: entraProbe.roles || [] });
 }
 
 /**
  * @param {ReturnType<typeof step>[]} steps
  * @param {object} state
+ * @param {{ entraRoles?: string[] }} [ctx]
  */
-function pack(steps, state) {
-    const fails = steps.filter((x) => x.status === 'fail');
+function pack(steps, state, ctx) {
+    const staff = diagnosticsIsStaffContext(state, ctx && ctx.entraRoles);
+    const fails = steps.filter((x) => {
+        if (x.status !== 'fail') return false;
+        if (staff && x.id === 'entra-membership') return false;
+        return true;
+    });
     let summary = '';
     if (!steps.find((x) => x.id === 'login') || steps.find((x) => x.id === 'login' && x.status === 'fail')) {
         summary = 'Zuerst anmelden.';
     } else if (fails.length === 0) {
-        summary = state.planerAccessDenied
-            ? 'Alle geprüften Schritte OK, aber die App verweigert noch – „Diagnose erneut“ nach Aktualisieren oder IT mit diesem Bericht.'
-            : 'Zugriff wirkt freigegeben.';
+        const warns = steps.filter((x) => x.status === 'warn');
+        const listWarn = warns.find(
+            (x) => x.id === 'list-read' || x.id === 'stammdaten-kv' || x.id === 'kv-planer-filter'
+        );
+        if (listWarn && staff) {
+            summary =
+                'Rolle OK; Hinweis: „' +
+                listWarn.title +
+                '“ – ' +
+                (listWarn.detail || '').slice(0, 220);
+        } else if (state.planerAccessDenied) {
+            summary =
+                'Alle geprüften Schritte OK, aber die App verweigert noch – „Diagnose erneut“ nach Aktualisieren oder IT mit diesem Bericht.';
+        } else {
+            summary = 'Zugriff wirkt freigegeben.';
+        }
     } else {
         summary =
             'Erster kritischer Schritt: „' +

@@ -46,7 +46,10 @@
                 schuelerGroupId: null,
                 lehrerGroupId: null,
                 verwaltungGroupId: null,
-                kvGroupId: null,
+            schulleitungGroupId: null,
+            /** Custom Verwaltungs-Zielgruppen: va-* → Entra group id */
+            verwaltungAudienceGroupIds: {},
+            kvGroupId: null,
                 sgaGroupId: null,
                 studentCouncilGroupId: null
             },
@@ -72,6 +75,19 @@
                 vwOwnerSource: 'admin',
                 vwOwnerManualEmails: ''
             },
+            schulleitungDraft: {
+                slNewDisplayName: 'Schulleitung',
+                slNewMailNick: 'schulleitung',
+                slNewDescription: '',
+                slNewCreateTeam: false,
+                slOwnerSource: 'direktion',
+                slOwnerManualEmails: ''
+            },
+            /** Einmal-Assistent: gemischte Verwaltungsgruppe → Schulleitung + Personal */
+            verwaltungSplitMigration: {
+                completedAt: null,
+                skippedAt: null
+            },
             kvDraft: {
                 kvNewDisplayName: 'Klassenvorstände',
                 kvNewMailNick: 'klassenvorstaende',
@@ -79,7 +95,7 @@
                 /** team | mail – Ziel beim Anlegen */
                 kvNewCreateTarget: 'mail'
             },
-            /** SGA-Gruppe: Anzeigename / Mail-Nickname vor Anlegen (Schulregister) */
+            /** SGA-Gruppe: Anzeigename / Mail-Nickname vor Anlegen (Stammdaten) */
             sgaDraft: {
                 sgaNewDisplayName: '',
                 sgaNewMailNick: ''
@@ -269,6 +285,7 @@
         const gruppenmail = String(r.gruppenmail || '')
             .trim()
             .toLowerCase();
+        const lehrerName = String(r.lehrerName || '').trim();
         const graphGroupId = String(r.graphGroupId || '').trim();
         const linkedAt = String(r.linkedAt || '').trim();
         if (!klasse && !fach && !lehrerEmail && !teamName && !gruppenmail) return null;
@@ -281,6 +298,7 @@
             teamName: teamName,
             gruppenmail: gruppenmail
         };
+        if (lehrerName) out.lehrerName = lehrerName;
         if (graphGroupId) out.graphGroupId = graphGroupId;
         if (linkedAt) out.linkedAt = linkedAt;
         return out;
@@ -617,7 +635,8 @@
         const c = String(v ?? '')
             .trim()
             .toLowerCase();
-        if (c === 'schueler' || c === 'lehrer' || c === 'verwaltung' || c === 'klassenvorstaende') return c;
+        if (c === 'schueler' || c === 'lehrer' || c === 'verwaltung' || c === 'schulleitung' || c === 'klassenvorstaende')
+            return c;
         if (c === 'kv' || c === 'klassenvorstand') return 'klassenvorstaende';
         return '';
     }
@@ -626,6 +645,7 @@
         if (code === 'schueler') return 'schuelerGroupId';
         if (code === 'lehrer') return 'lehrerGroupId';
         if (code === 'verwaltung') return 'verwaltungGroupId';
+        if (code === 'schulleitung') return 'schulleitungGroupId';
         if (code === 'klassenvorstaende') return 'kvGroupId';
         return '';
     }
@@ -665,7 +685,7 @@
     function fillSammelgruppeGaps(matched, catalogLinks) {
         const m = matched && typeof matched === 'object' ? Object.assign({}, matched) : {};
         let links = Array.isArray(catalogLinks) ? catalogLinks.slice() : [];
-        ['schueler', 'lehrer', 'verwaltung', 'klassenvorstaende'].forEach(function (code) {
+        ['schueler', 'lehrer', 'verwaltung', 'schulleitung', 'klassenvorstaende'].forEach(function (code) {
             const field = sammelgruppeFieldForCode(code);
             const link = links.find(function (x) {
                 return x && x.kind === 'sammelgruppe' && x.code === code;
@@ -756,6 +776,11 @@
             schuelerGroupId: m.schuelerGroupId ? String(m.schuelerGroupId).trim() : null,
             lehrerGroupId: m.lehrerGroupId ? String(m.lehrerGroupId).trim() : null,
             verwaltungGroupId: m.verwaltungGroupId ? String(m.verwaltungGroupId).trim() : null,
+            schulleitungGroupId: m.schulleitungGroupId ? String(m.schulleitungGroupId).trim() : null,
+            verwaltungAudienceGroupIds:
+                m.verwaltungAudienceGroupIds && typeof m.verwaltungAudienceGroupIds === 'object'
+                    ? Object.assign({}, m.verwaltungAudienceGroupIds)
+                    : {},
             kvGroupId: m.kvGroupId ? String(m.kvGroupId).trim() : null,
             sgaGroupId: m.sgaGroupId ? String(m.sgaGroupId).trim() : null,
             studentCouncilGroupId: m.studentCouncilGroupId ? String(m.studentCouncilGroupId).trim() : null
@@ -787,6 +812,21 @@
             vwNewCreateTeam: !!vd.vwNewCreateTeam,
             vwOwnerSource: vwSrc === 'direktion' || vwSrc === 'manual' ? vwSrc : 'admin',
             vwOwnerManualEmails: String(vd.vwOwnerManualEmails != null ? vd.vwOwnerManualEmails : '')
+        };
+        const vsm = x.verwaltungSplitMigration && typeof x.verwaltungSplitMigration === 'object' ? x.verwaltungSplitMigration : {};
+        d.verwaltungSplitMigration = {
+            completedAt: vsm.completedAt != null && vsm.completedAt !== '' ? String(vsm.completedAt) : null,
+            skippedAt: vsm.skippedAt != null && vsm.skippedAt !== '' ? String(vsm.skippedAt) : null
+        };
+        const sld = x.schulleitungDraft && typeof x.schulleitungDraft === 'object' ? x.schulleitungDraft : {};
+        const slSrc = String(sld.slOwnerSource || '').trim();
+        d.schulleitungDraft = {
+            slNewDisplayName: String(sld.slNewDisplayName != null ? sld.slNewDisplayName : 'Schulleitung'),
+            slNewMailNick: mailNicknamePrefixSanitize(sld.slNewMailNick || 'schulleitung', 60) || 'schulleitung',
+            slNewDescription: String(sld.slNewDescription != null ? sld.slNewDescription : ''),
+            slNewCreateTeam: !!sld.slNewCreateTeam,
+            slOwnerSource: slSrc === 'manual' ? 'manual' : 'direktion',
+            slOwnerManualEmails: String(sld.slOwnerManualEmails != null ? sld.slOwnerManualEmails : '')
         };
         const kd = x.kvDraft && typeof x.kvDraft === 'object' ? x.kvDraft : {};
         const kvTarget = String(kd.kvNewCreateTarget || '').trim().toLowerCase();
@@ -863,7 +903,9 @@
                   itGroupId: itLib.itGroupId ? String(itLib.itGroupId).trim() : '',
                   itGroupMail: itLib.itGroupMail ? String(itLib.itGroupMail).trim() : '',
                   securedAt: itLib.securedAt ? String(itLib.securedAt) : null,
-                  siteUrl: itLib.siteUrl ? String(itLib.siteUrl).trim() : ''
+                  siteUrl: itLib.siteUrl ? String(itLib.siteUrl).trim() : '',
+                  linkedAt: itLib.linkedAt ? String(itLib.linkedAt) : null,
+                  autoLinked: itLib.autoLinked === true
               }
             : null;
         const es = x.elternSetup && typeof x.elternSetup === 'object' ? x.elternSetup : {};
@@ -1036,12 +1078,15 @@
             core: {
                 schoolName: '',
                 domain: '',
+                verifiedEmailDomains: [],
                 subjects: [],
                 arges: [],
                 teachers: [],
                 administration: [],
                 admin: [],
                 adminRoles: [],
+                verwaltungAudienceGroups: [],
+                adminAudienceMemberships: [],
                 sgaMode: 'group',
                 sga: [],
                 classTeams: []
@@ -1259,12 +1304,28 @@
         const s = v1Settings && typeof v1Settings === 'object' ? v1Settings : {};
         c.core.schoolName = String(s.schoolName || '').trim();
         c.core.domain = String(s.domain || '').trim();
+        c.core.verifiedEmailDomains = Array.isArray(s.verifiedEmailDomains)
+            ? deepClone(s.verifiedEmailDomains)
+            : String(s.verifiedEmailDomains || '')
+                  .split(/[,;\s]+/)
+                  .map((d) => String(d || '').trim().replace(/^@+/, '').toLowerCase())
+                  .filter((d) => d.includes('.'));
         c.core.subjects = Array.isArray(s.subjects) ? deepClone(s.subjects) : [];
         c.core.arges = Array.isArray(s.arges) ? deepClone(s.arges) : [];
         c.core.teachers = Array.isArray(s.teachers) ? deepClone(s.teachers) : [];
         c.core.administration = Array.isArray(s.administration) ? deepClone(s.administration) : [];
         c.core.admin = Array.isArray(s.admin) ? deepClone(s.admin) : [];
         c.core.adminRoles = Array.isArray(s.adminRoles) ? deepClone(s.adminRoles) : [];
+        if (Object.prototype.hasOwnProperty.call(s, 'verwaltungAudienceGroups')) {
+            c.core.verwaltungAudienceGroups = Array.isArray(s.verwaltungAudienceGroups)
+                ? deepClone(s.verwaltungAudienceGroups)
+                : [];
+        }
+        if (Object.prototype.hasOwnProperty.call(s, 'adminAudienceMemberships')) {
+            c.core.adminAudienceMemberships = Array.isArray(s.adminAudienceMemberships)
+                ? deepClone(s.adminAudienceMemberships)
+                : [];
+        }
         c.core.sgaMode = String(s.sgaMode || '').trim() === 'distribution' ? 'distribution' : 'group';
         c.core.sga = Array.isArray(s.sga) ? deepClone(s.sga) : [];
         c.core.classTeams = keepClassTeams;
@@ -1348,6 +1409,18 @@
                     cur.verwaltungDraft,
                     p.verwaltungDraft && typeof p.verwaltungDraft === 'object' ? p.verwaltungDraft : {}
                 ),
+                schulleitungDraft: Object.assign(
+                    {},
+                    cur.schulleitungDraft,
+                    p.schulleitungDraft && typeof p.schulleitungDraft === 'object' ? p.schulleitungDraft : {}
+                ),
+                verwaltungSplitMigration: Object.assign(
+                    {},
+                    cur.verwaltungSplitMigration,
+                    p.verwaltungSplitMigration && typeof p.verwaltungSplitMigration === 'object'
+                        ? p.verwaltungSplitMigration
+                        : {}
+                ),
                 kvDraft: Object.assign(
                     {},
                     cur.kvDraft,
@@ -1381,7 +1454,24 @@
         const matchedPatched = p.matched && typeof p.matched === 'object';
         const catalogPatched = Array.isArray(p.catalogLinks);
         if (matchedPatched) {
-            ['schuelerGroupId', 'lehrerGroupId', 'verwaltungGroupId', 'kvGroupId'].forEach(function (field) {
+            if (
+                Object.prototype.hasOwnProperty.call(p.matched, 'verwaltungAudienceGroupIds') &&
+                p.matched.verwaltungAudienceGroupIds &&
+                typeof p.matched.verwaltungAudienceGroupIds === 'object'
+            ) {
+                const curMap =
+                    next.matched.verwaltungAudienceGroupIds && typeof next.matched.verwaltungAudienceGroupIds === 'object'
+                        ? next.matched.verwaltungAudienceGroupIds
+                        : {};
+                const merged = Object.assign({}, curMap);
+                Object.keys(p.matched.verwaltungAudienceGroupIds).forEach(function (k) {
+                    const id = p.matched.verwaltungAudienceGroupIds[k];
+                    merged[String(k)] = id ? String(id).trim() : '';
+                });
+                next.matched.verwaltungAudienceGroupIds = merged;
+            }
+            ['schuelerGroupId', 'lehrerGroupId', 'verwaltungGroupId', 'schulleitungGroupId', 'kvGroupId'].forEach(
+                function (field) {
                 if (!Object.prototype.hasOwnProperty.call(p.matched, field)) return;
                 const id = p.matched[field] ? String(p.matched[field]).trim() : '';
                 next.matched[field] = id || null;
@@ -1392,12 +1482,15 @@
                           ? 'lehrer'
                           : field === 'verwaltungGroupId'
                             ? 'verwaltung'
-                            : 'klassenvorstaende';
+                            : field === 'schulleitungGroupId'
+                              ? 'schulleitung'
+                              : 'klassenvorstaende';
                 next.catalogLinks = writeSammelgruppeCatalogLink(next.catalogLinks, code, id);
-            });
+            }
+            );
         }
         if (catalogPatched) {
-            ['schueler', 'lehrer', 'verwaltung', 'klassenvorstaende'].forEach(function (code) {
+            ['schueler', 'lehrer', 'verwaltung', 'schulleitung', 'klassenvorstaende'].forEach(function (code) {
                 const link = next.catalogLinks.find(function (x) {
                     return x && x.kind === 'sammelgruppe' && x.code === code;
                 });

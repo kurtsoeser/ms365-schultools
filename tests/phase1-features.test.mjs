@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { buildMergePlan, applyLocalMerge } from '../src/tools/klassen-merge/klassen-merge-logic.js';
-import { analyzeUserNaming, analyzeUsersNaming, buildAdExportCsv } from '../src/shared/naming-convention-audit.js';
+import {
+    analyzeUserNaming,
+    analyzeUsersNaming,
+    buildAdExportCsv,
+    namingAuditLicenseGroupKey,
+    namingAuditMatchesUserTypeFilter,
+    namingAuditMembershipKind
+} from '../src/shared/naming-convention-audit.js';
+import { summarizeUserLicenses } from '../src/shared/graph-licenses.js';
 import { diffStudentAttributes } from '../src/shared/stammdaten-health.js';
 import { parseTermineCsvText, parseTerminTarget, terminToListFields } from '../src/tools/termin-import/termin-import-logic.js';
 
@@ -68,6 +76,15 @@ describe('naming-convention-audit', () => {
         });
         expect(r.severity).toBe('ad_export');
         expect(r.action).toBe('export');
+    });
+
+    it('filtert Kontotyp und Lizenz-Gruppe', () => {
+        expect(namingAuditMembershipKind({ userType: 'Guest' })).toBe('guest');
+        expect(namingAuditMatchesUserTypeFilter({ userType: 'Member' }, 'Guest')).toBe(false);
+        const sum = summarizeUserLicenses({
+            assignedLicenses: [{ skuId: '314c4481-f395-4525-be8b-2ec4bb1e9d91' }]
+        });
+        expect(namingAuditLicenseGroupKey(sum)).toBe('student');
     });
 
     it('baut CSV', () => {

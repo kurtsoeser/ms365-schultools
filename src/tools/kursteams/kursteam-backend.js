@@ -1,5 +1,10 @@
 'use strict';
 
+import {
+    emailDomainFromAddress,
+    validateKursteamBackendTenantContext
+} from '../../shared/kursteam-owner-domain-policy.js';
+
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
 let pollTimer = null;
@@ -271,10 +276,30 @@ function resolveMailDomain(pack) {
 }
 
 function emailDomain(addr) {
-    const m = String(addr || '')
-        .trim()
-        .match(/@([^@]+)$/i);
-    return m ? m[1].toLowerCase() : '';
+    return emailDomainFromAddress(addr);
+}
+
+function collectOwnerDomainPolicyContext() {
+    let tenantSettings = null;
+    try {
+        if (typeof window.ms365TenantSettingsLoad === 'function') {
+            tenantSettings = window.ms365TenantSettingsLoad();
+        }
+    } catch {
+        tenantSettings = null;
+    }
+    const schoolDomainNoAt =
+        typeof window.ms365GetSchoolDomainNoAt === 'function'
+            ? window.ms365GetSchoolDomainNoAt()
+            : '';
+    const extraEmails = [];
+    const map = ns.teacherEmailMapping;
+    if (map && typeof map === 'object') {
+        Object.values(map).forEach((em) => {
+            if (em) extraEmails.push(String(em));
+        });
+    }
+    return { tenantSettings, schoolDomainNoAt, extraEmails };
 }
 
 async function resolveTenantIdFromLogin() {
@@ -298,43 +323,15 @@ function getLoginUpn() {
  */
 function validateTenantContext(tenantId, teams) {
     const loginUpn = getLoginUpn();
-    const loginDomain = emailDomain(loginUpn);
-
-    if (!tenantId) {
-        return {
-            ok: false,
-            message:
-                'Kein Mandant erkannt. Bitte unten links bei Microsoft mit dem Schul-Konto anmelden.'
-        };
-    }
-
-    if (!loginUpn) {
-        return {
-            ok: false,
-            message:
-                'Bitte bei Microsoft anmelden, bevor Kursteams online angelegt werden.'
-        };
-    }
-
-    const ownerDomains = new Set(
-        teams.map((t) => emailDomain(t.besitzer)).filter(Boolean)
-    );
-    if (loginDomain && ownerDomains.size) {
-        const foreign = [...ownerDomains].filter((d) => d !== loginDomain);
-        if (foreign.length) {
-            return {
-                ok: false,
-                message:
-                    'Die Besitzer-E-Mails (' +
-                    [...ownerDomains].join(', ') +
-                    ') passen nicht zum angemeldeten Konto (' +
-                    loginUpn +
-                    '). Bitte Konto wechseln oder Besitzer in Schritt 5 korrigieren.'
-            };
-        }
-    }
-
-    return { ok: true };
+    const policyCtx = collectOwnerDomainPolicyContext();
+    return validateKursteamBackendTenantContext({
+        tenantId,
+        loginUpn,
+        teams,
+        schoolDomainNoAt: policyCtx.schoolDomainNoAt,
+        tenantSettings: policyCtx.tenantSettings,
+        extraEmails: policyCtx.extraEmails
+    });
 }
 
 async function resolveTenantId() {

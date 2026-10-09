@@ -119,7 +119,7 @@ export function subjectCatalogLinkCounts(s, links) {
  */
 export function subjectCatalogStatusHint(s, links) {
     const counts = subjectCatalogLinkCounts(s, links);
-    if (!counts.total) return 'Noch keine Fächer/ARGEs im Register';
+    if (!counts.total) return 'Noch keine Fächer/ARGEs in den Stammdaten';
     const st = subjectCatalogLinkStatus(s, links);
     if (st === 'ok') return counts.linked + ' von ' + counts.total + ' verknüpft';
     if (st === 'unmatched') return 'Noch nicht verknüpft';
@@ -170,7 +170,7 @@ export function klassenChatsProvisionStatus(container, settings) {
  */
 export function klassenChatsStatusHint(container, settings) {
     const classes = (settings && settings.classes) || [];
-    if (!classes.length) return 'Zuerst Klassen im Register';
+    if (!classes.length) return 'Zuerst Klassen in den Stammdaten';
     const st = klassenChatsProvisionStatus(container, settings);
     const current = String((container && container.years && container.years.current) || '').trim();
     const byLabel =
@@ -262,10 +262,16 @@ function classTeamsProgress(container, settings) {
         container && container.core && Array.isArray(container.core.classTeams)
             ? container.core.classTeams
             : [];
+    const setup = container && container.setup ? container.setup : {};
+    const classGroupMatchByKey =
+        setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object'
+            ? setup.classGroupMatchByKey
+            : {};
     const hygieneApi = typeof window !== 'undefined' ? window.ms365MembershipHygiene : null;
     let matched = 0;
     if (hygieneApi && typeof hygieneApi.countLinkedClassTeamsForClasses === 'function') {
-        matched = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams).linked;
+        matched = hygieneApi.countLinkedClassTeamsForClasses(classes, classTeams, classGroupMatchByKey)
+            .linked;
     }
     const total = classes.length;
     if (!total) return null;
@@ -288,24 +294,58 @@ function playbookStatusForDef(def) {
     return { tone, primary: label, secondary: prog.status === 'in-progress' ? 'Playbook fortsetzen' : '' };
 }
 
+function readSpoSyncAtForStatus() {
+    try {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365StammdatenSpoAutoSync &&
+            typeof window.ms365StammdatenSpoAutoSync.getStatus === 'function'
+        ) {
+            const st = window.ms365StammdatenSpoAutoSync.getStatus();
+            if (st && st.lastAt) return String(st.lastAt);
+        }
+    } catch {
+        /* ignore */
+    }
+    try {
+        let tid = '';
+        if (typeof window !== 'undefined' && typeof window.ms365AuthGetAccountInfo === 'function') {
+            const info = window.ms365AuthGetAccountInfo();
+            tid = info && info.tenantId ? String(info.tenantId).trim() : '';
+        }
+        if (tid && typeof localStorage !== 'undefined') {
+            const map = JSON.parse(localStorage.getItem('ms365-stammdaten-spo-sync-by-tenant-v2') || '{}');
+            if (map && map[tid] && map[tid].at) return String(map[tid].at);
+        }
+    } catch {
+        /* ignore */
+    }
+    try {
+        if (typeof localStorage === 'undefined') return '';
+        const raw = localStorage.getItem('ms365-stammdaten-spo-sync-v1');
+        const m = raw ? JSON.parse(raw) : null;
+        return m && m.at ? String(m.at) : '';
+    } catch {
+        return '';
+    }
+}
+
 function sharepointListStatus(container) {
     const setup = container && container.setup ? container.setup : {};
-    const url = setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+    const url =
+        (setup.intranetSiteUrl && String(setup.intranetSiteUrl).trim()) ||
+        (setup.schoolIntranetSiteUrl && String(setup.schoolIntranetSiteUrl).trim()) ||
+        '';
     if (!url) {
         return {
             tone: 'pending',
             primary: 'Intranet-URL fehlt',
-            secondary: 'Im Schulregister oder Intranet-Hub setzen'
+            secondary: 'In den Stammdaten oder Intranet-Hub setzen'
         };
     }
     let secondary = '';
-    try {
-        const raw = localStorage.getItem('ms365-stammdaten-spo-sync-v1');
-        const m = raw ? JSON.parse(raw) : null;
-        if (m && m.at) secondary = formatSyncSecondary(String(m.at));
-    } catch {
-        /* ignore */
-    }
+    const at = readSpoSyncAtForStatus();
+    if (at) secondary = formatSyncSecondary(at);
     return {
         tone: 'ok',
         primary: 'Intranet verbunden',

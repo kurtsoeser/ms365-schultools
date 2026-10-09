@@ -64,17 +64,23 @@ describe('school-audience-groups', () => {
         expect(loadSchoolAudienceGroups().groupLehrerId).toBe(LEHRER);
     });
 
-    it('overlaySchoolAudienceOnPermissions überschreibt Planer-Gruppen', () => {
+    it('overlaySchoolAudienceOnPermissions füllt nur leere Planer-Gruppen', () => {
         vi.stubGlobal('ms365AppDataV2', {
             getSetup: () => ({ matched: { lehrerGroupId: LEHRER, schuelerGroupId: SCHUELER }, catalogLinks: [] }),
             getCatalogLink: () => null
         });
-        const merged = overlaySchoolAudienceOnPermissions({
+        const filled = overlaySchoolAudienceOnPermissions({
+            groupLehrerId: '',
+            groupSchuelerId: ''
+        });
+        expect(filled.groupLehrerId).toBe(LEHRER);
+        expect(filled.groupSchuelerId).toBe(SCHUELER);
+        const kept = overlaySchoolAudienceOnPermissions({
             groupLehrerId: '',
             groupSchuelerId: 'old-id'
         });
-        expect(merged.groupLehrerId).toBe(LEHRER);
-        expect(merged.groupSchuelerId).toBe(SCHUELER);
+        expect(kept.groupLehrerId).toBe(LEHRER);
+        expect(kept.groupSchuelerId).toBe('old-id');
     });
 
     it('normalizeSchoolAudienceGroups filtert ungültige GUIDs', () => {

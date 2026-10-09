@@ -1,5 +1,5 @@
 /**
- * Schulregister: Tab-Hashes und Dashboard-Status (keine Modi mehr).
+ * Stammdaten: Tab-Hashes und Dashboard-Status (keine Modi mehr).
  */
 import { parseRegisterHash, buildRegisterHash, isRegisterModeHash, BTN_TO_TAB_HASH } from './stammdaten-register-mode.js';
 import { renderRegisterLayerStatus } from './stammdaten-register-status.js';
@@ -98,7 +98,7 @@ export function mountDashboardRegisterStatus() {
 export function initTenantSchulregister() {
     if (!$('tenantMainTabs')) return;
 
-    document.title = 'MS365-Schul-Tools – Schulregister (Stammdaten)';
+    document.title = 'MS365-Schul-Tools – Stammdaten (Stammdaten)';
     const hint = $('tenantHeaderModeHint');
     if (hint) hint.hidden = true;
 

@@ -254,7 +254,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-collection"></i>ARGE &amp; Fachgruppen</span>
             </div>
-            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Stammdaten mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Stammdaten zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie im Schulregister.</p>
+            <p>Bestehende <strong>Fachgruppen</strong> und <strong>ARGE</strong> aus den Stammdaten mit Microsoft‑365‑Gruppen abgleichen oder anlegen – und neue Katalogeinträge direkt hier erfassen (werden in die Stammdaten zurückgeschrieben). Nach dem Match gelten dieselben Live‑Details wie in der MS&nbsp;365 Gruppenverwaltung (Allgemein, Besitzer, Mitglieder). Verknüpfungen werden in denselben <code>catalogLinks</code> gespeichert wie in den Stammdaten.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-arge" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a></p>
             <div class="toolbar">
                 <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
@@ -285,7 +285,7 @@
                                 <input type="text" id="afgMailPrefix" maxlength="24" autocomplete="off" spellcheck="false" placeholder="arge-" title="Wird vor das Kürzel gesetzt. a–z, 0–9, . - _ erlaubt. Beispiel: arge- + FVV → arge-fvv">
                                 <code class="afg-mail-prefix-preview" id="afgMailPrefixPreview" title="Vorschau für den Alias beim Anlegen einer M365-Gruppe">arge-…</code>
                             </div>
-                            <small class="muted" style="display:block;margin-top:6px;line-height:1.4;">Vor dem Kürzel, z. B. <code>arge-</code> → <code>arge-fvv</code>. Gilt für neue Gruppen; im Schulregister ebenfalls einstellbar.</small>
+                            <small class="muted" style="display:block;margin-top:6px;line-height:1.4;">Vor dem Kürzel, z. B. <code>arge-</code> → <code>arge-fvv</code>. Gilt für neue Gruppen; in den Stammdaten ebenfalls einstellbar.</small>
                         </div>
                         <div class="field" style="margin:0 0 10px;">
                             <label for="afgListFilter">Liste filtern</label>
@@ -307,10 +307,11 @@
                                 </div>
                                 <span class="afg-bulk-count" id="afgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
-                            <p class="afg-bulk-hint muted">Zuerst gematchte Einträge ankreuzen. Besitzer wird ergänzt (bestehende bleiben). Löschen entfernt die Microsoft‑365‑Gruppe und löst das Match. Mitglieder gibt es hier nicht als Listen‑Sync – die pflegen Sie nach dem Match in den Tabs.</p>
+                            <p class="afg-bulk-hint muted">Einträge links ankreuzen oder unten gesammelt auswählen. <strong>Besitzer setzen</strong> und <strong>Löschen</strong> gelten nur für bereits gematchte Microsoft‑365‑Gruppen. Mitglieder pflegen Sie nach dem Match in den Tabs.</p>
                             <div class="afg-bulk-group" role="group" aria-label="Auswahl">
                                 <div class="afg-bulk-group-label">Auswahl</div>
                                 <div class="afg-bulk-toolbar">
+                                    <button type="button" class="btn btn-ghost" id="afgBtnSelectUnmatched" title="Alle ungematchten Einträge (rote Badges) in der aktuellen Liste ankreuzen"><i class="bi bi-exclamation-circle"></i>Ungematchte ankreuzen</button>
                                     <button type="button" class="btn btn-ghost" id="afgBtnSelectMatched" title="Alle gematchten Einträge in der aktuellen Liste ankreuzen"><i class="bi bi-check2-all"></i>Gematchte ankreuzen</button>
                                     <button type="button" class="btn btn-ghost" id="afgBtnSelectNone" title="Alle Häkchen in der Katalogliste entfernen"><i class="bi bi-x-square"></i>Auswahl aufheben</button>
                                 </div>
@@ -365,7 +366,7 @@
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Der <strong>Mail‑Alias‑Präfix</strong> steuert die Unique ID neuer M365‑Gruppen (Standard ARGE: <code>arge-</code>).
                         Besitzer beim Anlegen einer M365‑Gruppe: Direktion aus der Verwaltungsliste, sonst der angemeldete Benutzer.
-                        Die Sammelaktionen gelten für angekreuzte, bereits gematchte Gruppen (Besitzer setzen oder Gruppen löschen).
+                        In der Liste können alle Einträge angekreuzt werden. Besitzer setzen und Gruppen löschen gelten nur für angekreuzte, bereits gematchte Gruppen.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.

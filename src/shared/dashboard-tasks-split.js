@@ -8,11 +8,162 @@ import {
 } from './dashboard-task-tool-copy.js';
 
 const STORAGE_KEY = 'ms365-dash-tasks-split-v1';
+export const DASH_TASKS_SPLIT_NAV_WIDTH_KEY = 'ms365-dash-tasks-split-nav-width-v1';
+export const DASH_TASKS_SPLIT_NAV_WIDTH_MIN = 220;
+export const DASH_TASKS_SPLIT_NAV_WIDTH_MAX = 520;
+export const DASH_TASKS_SPLIT_NAV_WIDTH_DEFAULT = 300;
+
+/** @param {number} px */
+export function clampDashTasksSplitNavWidth(px) {
+    const n = Number(px);
+    if (!Number.isFinite(n)) return DASH_TASKS_SPLIT_NAV_WIDTH_DEFAULT;
+    return Math.max(
+        DASH_TASKS_SPLIT_NAV_WIDTH_MIN,
+        Math.min(DASH_TASKS_SPLIT_NAV_WIDTH_MAX, Math.round(n))
+    );
+}
+
+/**
+ * @param {Pick<Storage, 'getItem'>} storage
+ * @param {string} [storageKey]
+ */
+export function readStoredDashSplitNavWidth(storage, storageKey) {
+    const key = storageKey || DASH_TASKS_SPLIT_NAV_WIDTH_KEY;
+    try {
+        const raw = storage.getItem(key);
+        if (raw != null && raw !== '') return clampDashTasksSplitNavWidth(parseInt(raw, 10));
+    } catch (_e) {
+        /* ignore */
+    }
+    return DASH_TASKS_SPLIT_NAV_WIDTH_DEFAULT;
+}
+
+/**
+ * @param {Pick<Storage, 'getItem'>} storage
+ */
+export function readStoredDashTasksSplitNavWidth(storage) {
+    return readStoredDashSplitNavWidth(storage, DASH_TASKS_SPLIT_NAV_WIDTH_KEY);
+}
+
+/** @param {HTMLElement} split @param {number} px @param {string} [cssVar] */
+function applyDashSplitNavWidth(split, px, cssVar) {
+    const w = clampDashTasksSplitNavWidth(px);
+    split.style.setProperty(cssVar || '--dash-tasks-split-nav-width', w + 'px');
+    return w;
+}
+
+/**
+ * @param {HTMLElement} split
+ * @param {{
+ *   storageKey?: string,
+ *   cssVar?: string,
+ *   ariaLabel?: string,
+ *   resizingClass?: string
+ * }} [options]
+ */
+export function wireDashSplitNavResize(split, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const storageKey = opts.storageKey || DASH_TASKS_SPLIT_NAV_WIDTH_KEY;
+    const cssVar = opts.cssVar || '--dash-tasks-split-nav-width';
+    const ariaLabel = opts.ariaLabel || 'Breite der Navigation anpassen';
+    const resizingClass = opts.resizingClass || 'is-resizing-nav';
+
+    const detail = split.querySelector('.dash-tasks-split__detail');
+    if (!detail || split.dataset.navResize === '1') return;
+    split.dataset.navResize = '1';
+
+    let lastWidth = applyDashSplitNavWidth(
+        split,
+        readStoredDashSplitNavWidth(localStorage, storageKey),
+        cssVar
+    );
+
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'dash-tasks-split__resize';
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('aria-orientation', 'vertical');
+    handle.setAttribute('aria-valuemin', String(DASH_TASKS_SPLIT_NAV_WIDTH_MIN));
+    handle.setAttribute('aria-valuemax', String(DASH_TASKS_SPLIT_NAV_WIDTH_MAX));
+    handle.setAttribute('aria-valuenow', String(lastWidth));
+    handle.setAttribute('aria-label', ariaLabel);
+    split.insertBefore(handle, detail);
+
+    let dragging = false;
+
+    function persistWidth() {
+        try {
+            localStorage.setItem(storageKey, String(lastWidth));
+        } catch (_e) {
+            /* ignore */
+        }
+    }
+
+    function setFromPointer(clientX) {
+        const rect = split.getBoundingClientRect();
+        lastWidth = applyDashSplitNavWidth(split, clientX - rect.left, cssVar);
+        handle.setAttribute('aria-valuenow', String(lastWidth));
+    }
+
+    handle.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0) return;
+        dragging = true;
+        split.classList.add(resizingClass);
+        handle.classList.add('is-dragging');
+        handle.setPointerCapture(e.pointerId);
+        setFromPointer(e.clientX);
+        e.preventDefault();
+    });
+
+    handle.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        setFromPointer(e.clientX);
+    });
+
+    function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        split.classList.remove(resizingClass);
+        handle.classList.remove('is-dragging');
+        try {
+            handle.releasePointerCapture(e.pointerId);
+        } catch (_e) {
+            /* ignore */
+        }
+        persistWidth();
+    }
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+
+    handle.addEventListener('keydown', function (e) {
+        const step = e.shiftKey ? 32 : 16;
+        if (e.key === 'ArrowLeft') {
+            lastWidth = applyDashSplitNavWidth(split, lastWidth - step, cssVar);
+            handle.setAttribute('aria-valuenow', String(lastWidth));
+            persistWidth();
+            e.preventDefault();
+        } else if (e.key === 'ArrowRight') {
+            lastWidth = applyDashSplitNavWidth(split, lastWidth + step, cssVar);
+            handle.setAttribute('aria-valuenow', String(lastWidth));
+            persistWidth();
+            e.preventDefault();
+        }
+    });
+}
+
+/** @param {HTMLElement} split */
+function wireDashTasksSplitNavResize(split) {
+    wireDashSplitNavResize(split, {
+        storageKey: DASH_TASKS_SPLIT_NAV_WIDTH_KEY,
+        ariaLabel: 'Breite der Aufgaben-Navigation anpassen'
+    });
+}
 
 const NAV_LABELS = {
     dashTaskImportVerknuepfen: 'Daten importieren',
     dashTaskGruppen: 'Mitgliedschaften',
-    dashTaskUnterricht: 'Klassen',
+    dashTaskUnterricht: 'Klassen & Unterricht',
     dashTaskPersonen: 'Personen',
     dashTaskSchuljahr: 'Schuljahresstart',
     dashTaskIntranet: 'Intranet',
@@ -425,6 +576,7 @@ export function mountDashboardTasksSplit() {
 
     split.appendChild(nav);
     split.appendChild(detail);
+    wireDashTasksSplitNavResize(split);
     grid.replaceWith(split);
 
     split.dataset.splitMounted = '1';

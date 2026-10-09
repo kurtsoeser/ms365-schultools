@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     abschlussjahrFromMailNickname,
     deriveClassEntryFromGroup,
+    classCodeFromDisplayName,
+    pickHeadFromGraphGroupOwners,
     enrichClassesFromLinkedGroups,
     collectPriorClassFieldsByCode
 } from '../src/shared/class-list-enrich.js';
@@ -22,6 +24,33 @@ describe('class-list-enrich', () => {
             year: ''
         });
         expect(deriveClassEntryFromGroup({ displayName: '5 HMA' })).toMatchObject({ code: '5HMA', name: '5 HMA' });
+    });
+
+    it('pickHeadFromGraphGroupOwners nutzt Stammdaten-Lehrer', () => {
+        const head = pickHeadFromGraphGroupOwners(
+            [
+                { displayName: 'Max Mustermann', mail: 'max@schule.at' },
+                { displayName: 'Andere', userPrincipalName: 'andere@schule.at' }
+            ],
+            [{ name: 'Mustermann Max', email: 'max@schule.at' }]
+        );
+        expect(head).toEqual({ headName: 'Mustermann Max', headEmail: 'max@schule.at' });
+    });
+
+    it('deriveClassEntryFromGroup: jg-Alias mit Einbuchstaben + DEMO Klasse 3A', () => {
+        expect(classCodeFromDisplayName('DEMO Klasse 3A')).toBe('3A');
+        expect(
+            deriveClassEntryFromGroup({
+                mailNickname: 'jg2030-a',
+                displayName: 'DEMO Klasse 3A'
+            })
+        ).toEqual({ code: '3A', name: 'DEMO Klasse 3A', year: '2030' });
+        expect(
+            deriveClassEntryFromGroup({
+                mailNickname: 'jg2031-b',
+                displayName: 'DEMO Klasse 2B'
+            })
+        ).toMatchObject({ code: '2B', year: '2031' });
     });
 
     it('enrichClassesFromLinkedGroups füllt Jahr aus classTeams', () => {

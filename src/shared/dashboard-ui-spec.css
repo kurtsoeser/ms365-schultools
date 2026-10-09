@@ -129,7 +129,8 @@
 }
 
 /* —— Tasks: Content-Card + Sidebar (Spec 3) —— */
-body.dash-tasks-split-active .dash-tasks-split {
+body.dash-tasks-split-active .dash-tasks-split,
+body.dash-catalog-split-active #dash-catalog.dash-catalog-split {
     background: var(--color-white);
     border: 1px solid var(--color-neutral-200);
     border-radius: var(--radius-lg);
@@ -137,8 +138,58 @@ body.dash-tasks-split-active .dash-tasks-split {
     overflow: hidden;
 }
 
+body.dash-catalog-split-active #dashboard-tools {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+body.dash-catalog-split-active #dashboard-tools::before {
+    display: none;
+}
+
+#dash-catalog.dash-catalog-split {
+    display: grid;
+    grid-template-columns: var(--dash-tasks-split-nav-width) 8px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
+    min-height: 420px;
+    margin-top: 0;
+    align-items: stretch;
+}
+
+#dash-catalog.dash-catalog-split .dash-catalog-split__personal {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-bottom: 1px solid var(--color-neutral-200);
+    background: color-mix(in srgb, var(--brand1) 4%, var(--color-white));
+}
+
+#dash-catalog.dash-catalog-split .dash-tasks-split__detail .dashboard-tabpanel {
+    padding-top: 0;
+}
+
+.dash-tasks-split__nav-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--brand1) 11%, var(--color-white));
+    border: 1px solid color-mix(in srgb, var(--brand1) 16%, transparent);
+}
+
+.dash-tasks-split__nav-item[aria-current='true'] .dash-tasks-split__nav-icon {
+    background: color-mix(in srgb, var(--brand1) 22%, var(--color-white));
+    border-color: color-mix(in srgb, var(--brand1) 28%, transparent);
+}
+
 .dash-tasks-split__nav {
-    width: 240px;
+    width: auto;
+    min-width: 0;
     padding: 16px 8px;
     border-right: 1px solid var(--color-neutral-200);
     background: var(--color-white);

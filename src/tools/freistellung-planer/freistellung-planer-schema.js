@@ -24,12 +24,12 @@ export const FREISTELLUNG_COLUMNS = [
     {
         name: 'Beginn',
         displayName: 'Beginn',
-        dateTime: { displayAs: 'default', format: 'dateOnly' }
+        dateTime: { displayAs: 'default', format: 'dateTime' }
     },
     {
         name: 'Ende',
         displayName: 'Ende',
-        dateTime: { displayAs: 'default', format: 'dateOnly' }
+        dateTime: { displayAs: 'default', format: 'dateTime' }
     },
     {
         name: 'Status',

@@ -58,7 +58,11 @@
                 'ms365-dashboard-expert-open-v1',
                 'ms365-dashboard-view-v1',
                 'ms365-dashboard-it-preview-v1',
-                'ms365-dashboard-setup-dismissed-v1'
+                'ms365-dashboard-setup-dismissed-v1',
+                'ms365-dash-main-section-v1',
+                'ms365-dash-it-focus-v1',
+                'ms365-dash-tasks-split-v1',
+                'ms365-dash-tasks-split-nav-width-v1'
             ]
         },
         {
@@ -107,8 +111,12 @@
                 'ms365-pa-onboarding-v1',
                 'ms365-freistellung-setup-v1',
                 'ms365-freistellung-setup-step-v1',
+                'ms365-freistellung-setup-step-v2',
+                'ms365-freistellung-setup-step-v3',
                 'ms365-freistellung-perms-v1',
                 'ms365-freistellung-kategorien-extra-v1',
+                'ms365-freistellung-planer-role-v1',
+                'ms365-freistellung-student-klasse-pick-v1',
                 'ms365-power-automate-recipes-v1',
                 'ms365-pa-termine-sync-v1',
                 'ms365-pa-antraege-v1',
@@ -119,19 +127,30 @@
                 'ms365-pa-schularbeiten-mail-v1',
                 'ms365-pa-projektwochen-mail-v1',
                 'ms365-pa-done-freistellung',
+                'ms365-pa-done-lehrer-freistellung',
                 'ms365-pa-done-termine-sync',
                 'ms365-pa-done-antraege',
                 'ms365-pa-done-seminar',
                 'ms365-pa-done-gast-erinnerung',
                 'ms365-pa-done-diplom-ordner',
                 'ms365-pa-done-schilf',
-                'ms365-srdp-anmeldung-v1'
+                'ms365-srdp-anmeldung-v1',
+                'ms365-lfr-setup-v1',
+                'ms365-lfr-setup-step-v1',
+                'ms365-lfr-perms-v1',
+                'ms365-lfr-planer-role-v1',
+                'ms365-lfr-planer-site-v1',
+                'ms365-lfr-demo-items-v1',
+                'ms365-lfr-outlook-event-v1'
             ]
         },
         {
             label: 'SharePoint / Intranet',
             keys: [
                 'ms365-intranet-starter-v1',
+                'ms365-intranet-list-links-v1',
+                'ms365-intranet-hub-wizard-step-v1',
+                'ms365-sps-wizard-step-v1',
                 'ms365-stammdaten-it-library-v1',
                 'ms365-stammdaten-it-library-by-tenant-v2',
                 'ms365-stammdaten-spo-sync-v1',
@@ -175,6 +194,7 @@
             label: 'Playbooks & Spielwiesen',
             keys: [
                 'ms365-cleanup-playbook-v1',
+                'ms365-playbook-daten-import-verknuepfen-v2',
                 'ms365-playbook-eltern-v1',
                 'ms365-playbook-elternsprechtag-v1',
                 'ms365-playbook-freistellungen-v1',
@@ -194,13 +214,22 @@
             keys: [
                 'ms365-elternsprechtag-bookings-v1',
                 'ms365-datenlandkarte-layout-v1',
+                'ms365-schulgraph-options-v1',
                 'ms365-schulgraph-options-v2',
                 'ms365-schul-baseline-v1',
                 'ms365-student-lifecycle-prev-v1',
+                'ms365-student-lifecycle-sammel-v1',
                 'ms365-lizenzverwaltung-v1',
                 'ms365-tenant-main-active-tab-v1',
                 'ms365-tenant-main-tab-order-v1',
-                'ms365-tenant-main-tab-order-v2'
+                'ms365-tenant-main-tab-order-v2',
+                'ms365-tenant-students-view-v1',
+                'ms365-tenant-school-email-pattern-v1',
+                'ms365-tenant-teachers-email-pattern-v1',
+                'ms365-tenant-v1-mirror-disable',
+                'ms365-admin-active-tab-v1',
+                'ms365-su-wizard-step-v1',
+                'ms365-last-backup-export-at'
             ]
         },
         {
@@ -374,32 +403,15 @@
      */
     function syncStorageBeforeBackup() {
         try {
+            if (typeof window.ms365TenantSettingsFlushPendingSave === 'function') {
+                window.ms365TenantSettingsFlushPendingSave();
+            }
             if (!window.ms365AppDataV2 || typeof window.ms365AppDataV2.getContainer !== 'function') return;
             const c = window.ms365AppDataV2.getContainer();
             if (typeof window.ms365AppDataV2.setContainer === 'function') {
                 window.ms365AppDataV2.setContainer(c);
             }
             const core = c && c.core ? c.core : {};
-            const curYear = c && c.years ? String(c.years.current || '').trim() : '';
-            const bucket =
-                curYear && c.years.byLabel && c.years.byLabel[curYear] ? c.years.byLabel[curYear] : null;
-            if (typeof window.ms365TenantSettingsSave === 'function') {
-                window.ms365TenantSettingsSave({
-                    schoolName: core.schoolName,
-                    domain: core.domain,
-                    subjects: core.subjects,
-                    arges: core.arges,
-                    teachers: core.teachers,
-                    administration: core.administration,
-                    admin: core.admin,
-                    adminRoles: core.adminRoles,
-                    sgaMode: core.sgaMode,
-                    sga: core.sga,
-                    students: bucket && bucket.students ? bucket.students : [],
-                    studentCouncil: bucket && bucket.studentCouncil ? bucket.studentCouncil : [],
-                    classes: bucket && bucket.classes ? bucket.classes : []
-                });
-            }
             if (typeof window.ms365SetSchoolDomainNoAt === 'function' && core.domain) {
                 window.ms365SetSchoolDomainNoAt(core.domain);
             }
@@ -575,7 +587,7 @@
             contentFingerprint: contentFingerprint(storage),
             includesPrefixes: ['ms365-', 'webuntis-'],
             includesNote:
-                'Vollständiges App-Backup: Stammdaten (kanonisch v2), optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, Einrichtung, Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
+                'Vollständiges App-Backup: Stammdaten (kanonisch v2 inkl. Schulprofil, Verwaltungs-Zielgruppen, Einrichtungsstand), optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, Einrichtung, Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
             excludesNote:
                 'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung und kurzlebige Login-Weiterleitungen.',
             legacyMirror: legacyMirror,

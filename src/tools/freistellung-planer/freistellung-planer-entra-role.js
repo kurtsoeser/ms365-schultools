@@ -111,10 +111,41 @@ export function resolveActivePlanerRole(available, opts) {
  * @param {ReturnType<typeof normalizePermissionsConfig>} [config]
  * @returns {string[]}
  */
+function extraGroupIds(list) {
+    return (list || [])
+        .map((g) => g && g.groupId)
+        .map((id) => String(id || '').trim())
+        .filter((id) => GUID_RE.test(id));
+}
+
+export function adminEntraGroupIdsForCheck(config) {
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
+    const ids = [c.groupAdminId, ...extraGroupIds(c.adminGroups)]
+        .map((id) => String(id || '').trim())
+        .filter((id) => GUID_RE.test(id));
+    return [...new Set(ids)];
+}
+
+export function direktionEntraGroupIdsForCheck(config) {
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
+    const ids = [c.groupDirektionId, ...extraGroupIds(c.direktionGroups)]
+        .map((id) => String(id || '').trim())
+        .filter((id) => GUID_RE.test(id));
+    return [...new Set(ids)];
+}
+
+export function kvEntraGroupIdsForCheck(config) {
+    const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
+    const ids = [c.groupKvId, ...extraGroupIds(c.kvGroups)]
+        .map((id) => String(id || '').trim())
+        .filter((id) => GUID_RE.test(id));
+    return [...new Set(ids)];
+}
+
 export function schuelerEntraGroupIdsForCheck(config) {
     const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
     const aud = loadSchoolAudienceGroups();
-    const ids = [c.groupSchuelerId, aud.groupSchuelerId]
+    const ids = [c.groupSchuelerId, aud.groupSchuelerId, ...extraGroupIds(c.schuelerGroups)]
         .map((id) => String(id || '').trim())
         .filter((id) => GUID_RE.test(id));
     return [...new Set(ids)];
@@ -122,7 +153,12 @@ export function schuelerEntraGroupIdsForCheck(config) {
 
 export function planerEntraGroupIds(config) {
     const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
-    const ids = [c.groupDirektionId, c.groupKvId, ...schuelerEntraGroupIdsForCheck(c)]
+    const ids = [
+        ...adminEntraGroupIdsForCheck(c),
+        ...direktionEntraGroupIdsForCheck(c),
+        ...kvEntraGroupIdsForCheck(c),
+        ...schuelerEntraGroupIdsForCheck(c)
+    ]
         .map((id) => String(id || '').trim())
         .filter((id) => GUID_RE.test(id));
     return [...new Set(ids)];
@@ -136,15 +172,19 @@ export function planerEntraGroupIds(config) {
 export function listRolesFromEntraGroups(memberIds, config) {
     const c = normalizePermissionsConfig(config || loadEffectivePermissionsConfig());
     const member = memberIds instanceof Set ? memberIds : new Set((memberIds || []).map((x) => String(x).toLowerCase()));
-    const inGroup = (idKey) => {
-        const id = String(c[idKey] || '').trim().toLowerCase();
-        return id && member.has(id);
-    };
     const roles = [];
-    if (inGroup('groupDirektionId')) roles.push('direktion');
-    if (inGroup('groupKvId')) roles.push('kv');
-    const schuelerIds = schuelerEntraGroupIdsForCheck(c);
-    if (schuelerIds.some((id) => member.has(String(id).toLowerCase()))) roles.push('schueler');
+    if (
+        adminEntraGroupIdsForCheck(c).some((id) => member.has(String(id).toLowerCase())) ||
+        direktionEntraGroupIdsForCheck(c).some((id) => member.has(String(id).toLowerCase()))
+    ) {
+        roles.push('direktion');
+    }
+    if (kvEntraGroupIdsForCheck(c).some((id) => member.has(String(id).toLowerCase()))) {
+        roles.push('kv');
+    }
+    if (schuelerEntraGroupIdsForCheck(c).some((id) => member.has(String(id).toLowerCase()))) {
+        roles.push('schueler');
+    }
     return roles;
 }
 
@@ -360,6 +400,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             applyRolesToState(state, collected.roles, collected.sources, pickOpts);
             applyStudentKlasseFromEntraMembership(state, collected.memberIdSet);
             applyJahrgangScopeToState(state, config, collected.memberIdSet);
+            state.planerAdminAccess = !!collected.planerAdminAccess;
             state.planerAccessDenied = false;
             setPlanerRoleHints(
                 state,
@@ -387,6 +428,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             applyRolesToState(state, collected.roles, collected.sources, pickOpts);
             applyStudentKlasseFromEntraMembership(state, collected.memberIdSet);
             applyJahrgangScopeToState(state, config, collected.memberIdSet);
+            state.planerAdminAccess = !!collected.planerAdminAccess;
             state.planerAccessDenied = false;
             const staffOnly =
                 collected.roles.length > 1
@@ -428,6 +470,7 @@ export async function applyPlanerRoleFromEntra(state, opts) {
             applyRolesToState(state, collected.roles, collected.sources, pickOpts);
             applyStudentKlasseFromEntraMembership(state, collected.memberIdSet);
             applyJahrgangScopeToState(state, config, collected.memberIdSet);
+            state.planerAdminAccess = !!collected.planerAdminAccess;
             state.planerAccessDenied = false;
             setPlanerRoleHints(
                 state,
@@ -471,7 +514,9 @@ async function collectPlanerRolesForUser(scope, config, entra, skipEntraGroups) 
         if (!sources[role]) sources[role] = source;
     };
 
+    let planerAdminAccess = false;
     if (await userIsEntraGlobalAdministrator()) {
+        planerAdminAccess = true;
         add('direktion', 'global-admin');
         add('kv', 'global-admin');
     }
@@ -507,9 +552,20 @@ async function collectPlanerRolesForUser(scope, config, entra, skipEntraGroups) 
         add(r, 'stammdaten');
     });
 
+    if (entra && !skipEntraGroups) {
+        if (adminEntraGroupIdsForCheck(perms).some((id) => memberIdSet.has(String(id).toLowerCase()))) {
+            planerAdminAccess = true;
+        }
+    }
+    if (accountIsPlannerUserInList(scope && scope.accountEmail, perms.adminUsers)) {
+        planerAdminAccess = true;
+        add('direktion', 'admin-user');
+    }
+
     const finalized = finalizePlanerRoles(roles, sources);
     finalized.memberIdSet = memberIdSet;
     finalized.jahrgangeEntra = jahrgangeFromEntraMembership(memberIdSet, perms);
+    finalized.planerAdminAccess = planerAdminAccess;
     return finalized;
 }
 

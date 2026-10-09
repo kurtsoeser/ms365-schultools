@@ -1,0 +1,112 @@
+{
+  "schema": "1.0",
+  "details": {
+    "displayName": "Lehrer-Freistellungen - Workflow-Paket",
+    "description": "Lehrer-Freistellungen: Trigger Liste, eine Genehmigung Direktion, Status/Audit in SharePoint.",
+    "createdTime": "2026-10-07T06:37:57.125Z",
+    "packageTelemetryId": "95050957-e74b-45bb-82bb-bc640ecb9463",
+    "creator": "n/v",
+    "sourceEnvironment": ""
+  },
+  "resources": {
+    "c04304d8-8809-418f-962b-db94c03db5dc": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+      "name": "shared_sharepointonline",
+      "type": "Microsoft.PowerApps/apis",
+      "suggestedCreationType": "Existing",
+      "details": {
+        "displayName": "SharePoint",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1827/1.0.1827.4913/sharepointonline/icon.png"
+      },
+      "configurableBy": "System",
+      "hierarchy": "Child",
+      "dependsOn": []
+    },
+    "33431c00-56f9-4901-8914-f9ac63d3525c": {
+      "type": "Microsoft.PowerApps/apis/connections",
+      "suggestedCreationType": "Existing",
+      "creationType": "Existing",
+      "details": {
+        "displayName": "SharePoint Automate",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1827/1.0.1827.4913/sharepointonline/icon.png"
+      },
+      "configurableBy": "User",
+      "hierarchy": "Child",
+      "dependsOn": [
+        "c04304d8-8809-418f-962b-db94c03db5dc"
+      ]
+    },
+    "a78c7b1c-b62c-42a7-9519-c47c021ff177": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_approvals",
+      "name": "shared_approvals",
+      "type": "Microsoft.PowerApps/apis",
+      "suggestedCreationType": "Existing",
+      "details": {
+        "displayName": "Standardgenehmigungen",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1826/1.0.1826.4893/approvals/icon.png"
+      },
+      "configurableBy": "System",
+      "hierarchy": "Child",
+      "dependsOn": []
+    },
+    "455a544e-4d8b-412a-8521-953e66c97aa4": {
+      "type": "Microsoft.PowerApps/apis/connections",
+      "suggestedCreationType": "Existing",
+      "creationType": "Existing",
+      "details": {
+        "displayName": "Genehmigungen Automate",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1826/1.0.1826.4893/approvals/icon.png"
+      },
+      "configurableBy": "User",
+      "hierarchy": "Child",
+      "dependsOn": [
+        "a78c7b1c-b62c-42a7-9519-c47c021ff177"
+      ]
+    },
+    "78e2cb2d-0683-49c9-9c71-62ddcbf3930d": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_office365",
+      "name": "shared_office365",
+      "type": "Microsoft.PowerApps/apis",
+      "suggestedCreationType": "Existing",
+      "details": {
+        "displayName": "Office 365 Outlook",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1819/1.0.1819.4795/office365/icon.png"
+      },
+      "configurableBy": "System",
+      "hierarchy": "Child",
+      "dependsOn": []
+    },
+    "0d335309-e936-4762-90f4-6a5ce122fbab": {
+      "type": "Microsoft.PowerApps/apis/connections",
+      "suggestedCreationType": "Existing",
+      "creationType": "Existing",
+      "details": {
+        "displayName": "Outlook 365 Automate",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1819/1.0.1819.4795/office365/icon.png"
+      },
+      "configurableBy": "User",
+      "hierarchy": "Child",
+      "dependsOn": [
+        "78e2cb2d-0683-49c9-9c71-62ddcbf3930d"
+      ]
+    },
+    "b8d4e2f1-6a3c-4d5e-8f9a-1b2c3d4e5f6a": {
+      "type": "Microsoft.Flow/flows",
+      "suggestedCreationType": "New",
+      "creationType": "Existing, New, Update",
+      "details": {
+        "displayName": "Lehrer-Freistellungen - Genehmigung Direktion"
+      },
+      "configurableBy": "User",
+      "hierarchy": "Root",
+      "dependsOn": [
+        "c04304d8-8809-418f-962b-db94c03db5dc",
+        "33431c00-56f9-4901-8914-f9ac63d3525c",
+        "a78c7b1c-b62c-42a7-9519-c47c021ff177",
+        "455a544e-4d8b-412a-8521-953e66c97aa4",
+        "78e2cb2d-0683-49c9-9c71-62ddcbf3930d",
+        "0d335309-e936-4762-90f4-6a5ce122fbab"
+      ]
+    }
+  }
+}

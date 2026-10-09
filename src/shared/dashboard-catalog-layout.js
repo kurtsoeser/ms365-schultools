@@ -20,9 +20,9 @@ export const DASHBOARD_CATALOG_TAB_IDS = [
 ];
 
 /** @type {Record<string, string>} */
-const TAB_LABEL_BY_PANEL = {
+export const TAB_LABEL_BY_PANEL = {
     gruppen: '01 Mitgliedschaften',
-    unterricht: '02 Klassen & Kurse',
+    unterricht: '02 Klassen & Unterricht',
     personen: '03 Personen & Gäste',
     schuljahr: '04 Schuljahresstart',
     intranet: '05 Intranet & Schulalltag',
@@ -31,7 +31,7 @@ const TAB_LABEL_BY_PANEL = {
 };
 
 /** @type {Record<string, string>} */
-const TAB_ICON_BY_PANEL = {
+export const TAB_ICON_BY_PANEL = {
     gruppen: 'bi-people',
     unterricht: 'bi-mortarboard',
     personen: 'bi-person-badge',

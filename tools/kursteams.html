@@ -56,6 +56,24 @@
             border-radius: 4px;
         }
 
+        .kt-manual-add-row-wrap {
+            margin-top: 14px;
+        }
+        .kt-manual-add-row-wrap .btn {
+            font-size: 1.02em;
+            padding: 11px 22px;
+            font-weight: 600;
+        }
+
+        .kt-graph-import-table th {
+            background: var(--soft);
+            color: var(--heading);
+        }
+        .kt-graph-import-table td {
+            color: var(--text);
+            background: var(--card);
+        }
+
         /* ── Start-Karten (Schritt 0) ── */
         .kursteam-start-grid {
             display: grid;
@@ -515,8 +533,9 @@
                         <h3><i class="bi bi-cloud-download" style="color:var(--brand1);"></i> Kursteams aus Microsoft 365 importieren</h3>
                         <p style="margin:0 0 12px;font-size:0.9em;color:var(--text-secondary);">
                             Es werden Teams mit Mail-Nickname zum Schuljahr-Präfix geladen (z.&nbsp;B. <code>SJ26-27-jg2031-hakb-BW-FRECH</code>).
-                            Der Anzeigename wird in Klasse, Fach und Lehrkraft-Kürzel zerlegt. Gespeichert wird in der
-                            <strong>Unterrichtsbelegung</strong> des aktuellen Schuljahrs (Browser-Backup / SharePoint).
+                            Der Anzeigename wird in Klasse, Fach und Lehrkraft-Kürzel zerlegt. Nach dem Laden werden die
+                            ausgewählten Teams automatisch in der <strong>Unterrichtsbelegung</strong> des aktuellen Schuljahrs
+                            gespeichert (sichtbar im <strong>Unterrichtsteams-Katalog</strong>). Optional erneut „Auswahl in App speichern“.
                         </p>
                         <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px;">
                             <label style="display:flex;flex-direction:column;gap:4px;font-size:0.88em;">
@@ -739,11 +758,8 @@
                         </div>
                     </div>
                     <div class="alert alert-info">
-                        <strong>ℹ️ Tipp:</strong> Doppelklicken Sie auf eine Zelle, um sie zu bearbeiten. Mit <strong>Enter</strong> speichern, mit <strong>Esc</strong> abbrechen.
+                        <strong>ℹ️ Tipp:</strong> Doppelklicken Sie auf eine Zelle, um sie zu bearbeiten. Mit <strong>Enter</strong> speichern, mit <strong>Esc</strong> abbrechen, mit <strong>Tab</strong> zur nächsten Spalte in derselben Zeile.
                     </div>
-                    <p style="margin-bottom:12px;">
-                        <button type="button" class="btn btn-small" onclick="addManualDataRowInline()"><i class="bi bi-plus-circle"></i>Neue Zeile</button>
-                    </p>
                     <div class="filter-section" style="margin-top:0;">
                         <h3>Filter &amp; Sortierung</h3>
                         <div class="import-paste-file-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 10px;">
@@ -784,6 +800,9 @@
                             </thead>
                             <tbody id="editableDataTableBody"></tbody>
                         </table>
+                    </div>
+                    <div class="kt-manual-add-row-wrap">
+                        <button type="button" class="btn btn-brand" onclick="addManualDataRowInline()"><i class="bi bi-plus-circle"></i>Neue Zeile</button>
                     </div>
                     <div class="filter-section" id="manualTeamsPreviewContainer" style="display:none;margin-top:16px;">
                         <h3>Aktuell generierte Kursteams</h3>

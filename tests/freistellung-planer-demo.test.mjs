@@ -44,7 +44,7 @@ describe('freistellung-planer-demo', () => {
                 }
             ]
         });
-        expect(items[0].beginn).toBe('2026-10-15');
+        expect(items[0].beginn).toBe('2026-10-15T00:00');
         expect(items[0].genehmigtAmKv).toBe('2026-09-08');
     });
 

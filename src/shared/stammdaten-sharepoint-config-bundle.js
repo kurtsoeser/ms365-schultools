@@ -64,8 +64,27 @@ export const CONFIG_BUNDLE_PARTS = [
             'ms365-freistellung-perms-v1',
             'ms365-freistellung-setup-v1',
             'ms365-freistellung-setup-step-v1',
+            'ms365-freistellung-setup-step-v2',
+            'ms365-freistellung-setup-step-v3',
             'ms365-freistellung-kategorien-extra-v1',
-            'ms365-freistellung-planer-site-v1'
+            'ms365-freistellung-planer-role-v1',
+            'ms365-freistellung-planer-site-v1',
+            'ms365-freistellung-planer-demo-klasse-v1',
+            'ms365-freistellung-student-klasse-pick-v1'
+        ]
+    },
+    {
+        id: 'permissions-lehrer-freistellung',
+        fileName: 'permissions-lehrer-freistellung.json',
+        keys: [
+            'ms365-lfr-perms-v1',
+            'ms365-lfr-setup-v1',
+            'ms365-lfr-setup-step-v1',
+            'ms365-lfr-planer-role-v1',
+            'ms365-lfr-planer-site-v1',
+            'ms365-lfr-demo-items-v1',
+            'ms365-lfr-outlook-event-v1',
+            'ms365-pa-done-lehrer-freistellung'
         ]
     }
 ];

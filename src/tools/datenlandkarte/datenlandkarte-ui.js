@@ -75,7 +75,7 @@ export function renderDatenlandkarteApp(state, root) {
   <p class="dl-block__count" title="${escapeAttr(count.hint)}"><span>${escapeHtml(count.text)}</span>${escapeHtml(count.unit || (typeof metrics[b.countKey]?.value === 'number' ? ' Einträge' : ''))}</p>
   <p class="dl-block__desc">${escapeHtml(b.description)}</p>
   <div class="dl-block__actions">
-  ${openHref ? `<a class="dl-block__link dl-block__link--primary" href="${escapeAttr(openHref)}"><i class="bi bi-journal-bookmark"></i>${b.layer === 'sharepoint' ? 'Synchron' : embedded ? 'Zum Tab' : 'Schulregister'}</a>` : ''}
+  ${openHref ? `<a class="dl-block__link dl-block__link--primary" href="${escapeAttr(openHref)}"><i class="bi bi-journal-bookmark"></i>${b.layer === 'sharepoint' ? 'Synchron' : embedded ? 'Zum Tab' : 'Stammdaten'}</a>` : ''}
   ${toolHref ? `<a class="dl-block__link" href="${escapeAttr(toolHref)}"><i class="bi bi-box-arrow-up-right"></i>Tool</a>` : !openHref && b.href ? `<a class="dl-block__link" href="${escapeAttr(resolveDatenlandkarteHref(b.href))}"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>` : ''}
   </div>
 </article>`;
@@ -100,7 +100,7 @@ export function renderDatenlandkarteApp(state, root) {
   <div>
     <p class="tm-hero__kicker">Listen &amp; Datenquellen</p>
     <h2>Datenlandkarte</h2>
-    <p>Blöcke = Listen oder Quellen · Linien = logische Verknüpfung. <strong>Schulregister</strong>-Links führen direkt zu Pflegen, Einspielen oder Synchron. Lokale Zahlen aus diesem Browser; SharePoint mit Graph-<code>$count</code> nach Anmeldung.</p>
+    <p>Blöcke = Listen oder Quellen · Linien = logische Verknüpfung. <strong>Stammdaten</strong>-Links führen direkt zu Pflegen, Einspielen oder Synchron. Lokale Zahlen aus diesem Browser; SharePoint mit Graph-<code>$count</code> nach Anmeldung.</p>
   </div>
   <div class="tm-hero__actions">
     <button type="button" class="btn btn-success" id="dlBtnReload"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
@@ -158,14 +158,14 @@ function renderOverview(layout, metrics, state) {
     const amp = metrics.registerAmpel;
     const ampHref = resolveDatenlandkarteHref('../tenant.html#stammdaten');
     const registerNote = amp
-        ? `<p class="dl-register-strip"><a href="${escapeAttr(ampHref)}" class="dl-register-strip__link"><i class="bi bi-arrow-repeat"></i> Schulregister: ${escapeHtml(String(amp.value))}</a><span class="muted dl-register-strip__hint" title="${escapeAttr(amp.hint || '')}">${escapeHtml(String(amp.hint || '').slice(0, 120))}${String(amp.hint || '').length > 120 ? '…' : ''}</span></p>`
+        ? `<p class="dl-register-strip"><a href="${escapeAttr(ampHref)}" class="dl-register-strip__link"><i class="bi bi-arrow-repeat"></i> Stammdaten: ${escapeHtml(String(amp.value))}</a><span class="muted dl-register-strip__hint" title="${escapeAttr(amp.hint || '')}">${escapeHtml(String(amp.hint || '').slice(0, 120))}${String(amp.hint || '').length > 120 ? '…' : ''}</span></p>`
         : '';
     return `
     <h3>Überblick</h3>
     <p class="muted">${nBlocks} Datenblöcke · ${nLinks} dokumentierte Verknüpfungen</p>
     ${registerNote}
     ${spoNote}
-    <p class="muted">Block-Kopfzeile ziehen · Klick wählt aus · <strong>Schulregister</strong> auf dem Block springt zur passenden Ansicht.</p>`;
+    <p class="muted">Block-Kopfzeile ziehen · Klick wählt aus · <strong>Stammdaten</strong> auf dem Block springt zur passenden Ansicht.</p>`;
 }
 
 function renderSpoStatus(state) {
@@ -204,7 +204,7 @@ function renderBlockDetail(layout, blockId, metrics) {
     const actions = actionsForBlock(b)
         .map(
             (a) =>
-                `<a class="btn btn-sm${a.label.indexOf('Schulregister') >= 0 || a.label.indexOf('Synchron') >= 0 ? ' btn-primary' : ''}" href="${escapeAttr(a.href)}">${escapeHtml(a.label)}</a>`
+                `<a class="btn btn-sm${a.label.indexOf('Stammdaten') >= 0 || a.label.indexOf('Synchron') >= 0 ? ' btn-primary' : ''}" href="${escapeAttr(a.href)}">${escapeHtml(a.label)}</a>`
         )
         .join('');
     const syncLinks = links

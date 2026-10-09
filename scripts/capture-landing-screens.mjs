@@ -10,7 +10,7 @@ import fs from 'node:fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'landing', 'assets', 'screens');
-const base = process.env.MS365_SHOT_BASE || 'http://127.0.0.1:5173';
+const base = process.env.MS365_SHOT_BASE || 'http://localhost:5173';
 
 const VIEWPORT = { width: 1440, height: 900 };
 

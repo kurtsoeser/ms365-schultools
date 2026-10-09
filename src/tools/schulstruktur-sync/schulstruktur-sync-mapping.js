@@ -212,7 +212,9 @@ function catalogGraphId(ref, setup) {
                   ? 'lehrerGroupId'
                   : ref.code === 'verwaltung'
                     ? 'verwaltungGroupId'
-                    : '';
+                    : ref.code === 'schulleitung'
+                      ? 'schulleitungGroupId'
+                      : '';
         const fromMatched = field && matched[field] ? String(matched[field]).trim() : '';
         const link = links.find(function (x) {
             return x && x.kind === 'sammelgruppe' && String(x.code || '') === ref.code;

@@ -56,7 +56,7 @@ export function formatGreetingBandText(snap) {
     } else if (s.hasSchoolData) {
         parts.push('Keine offenen Abweichungen');
     } else {
-        parts.push('Schuldaten einrichten – Playbook oder Schulregister');
+        parts.push('Schuldaten einrichten – Playbook oder Stammdaten');
     }
 
     const steps = String(s.schuljahrSteps || '').trim();
@@ -80,7 +80,7 @@ export function formatGreetingBandHtml(snap) {
     } else if (s.hasSchoolData) {
         chunks.push('Keine offenen Abweichungen');
     } else {
-        chunks.push('Schuldaten einrichten – Playbook oder Schulregister');
+        chunks.push('Schuldaten einrichten – Playbook oder Stammdaten');
     }
 
     const steps = String(s.schuljahrSteps || '').trim();

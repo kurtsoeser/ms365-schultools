@@ -8,10 +8,12 @@ import {
 } from '../../shared/entra-group-picker.js';
 import {
     normalizePermissionsConfig,
+    normalizePlannerExtraEntraGroups,
     savePermissionsConfig,
     loadPermissionsConfig,
     loadEffectivePermissionsConfig,
-    PERMS_STORAGE_KEY
+    PERMS_STORAGE_KEY,
+    plannerGrantRowsForUi
 } from './freistellung-planer-permissions.js';
 import { publishPlannerPermissionsToSite } from './freistellung-planer-remote-config.js';
 import { loadExtraKategorien } from './freistellung-planer-kategorien.js';
@@ -28,14 +30,23 @@ import {
     mergePlannerUser,
     direktionUsersFromTenantStammdaten
 } from './freistellung-planer-direktion-users.js';
+import { kvUsersFromSchoolStammdaten } from './freistellung-planer-list-permissions.js';
 import {
     FR_STAMMDATEN_GROUP_ROLES,
     stripStammdatenGroupFieldsFromPatch,
-    filterEditableGroupFields,
-    fillReadonlyStammdatenGroupField
+    filterEditableGroupFields
 } from '../../shared/planner-stammdaten-audience-ui.js';
-import { pickEntraGroup } from '../../shared/entra-group-picker.js';
+import { loadSchoolAudienceGroups } from '../../shared/school-audience-groups.js';
 import { normalizeAllowedJahrgang, normalizeJahrgangGroups } from './freistellung-planer-jahrgang-scope.js';
+import {
+    migrateLegacyFreistellungPerms,
+    mergeDuplicateGrantRows
+} from './freistellung-planner-grant-matrix.js';
+import {
+    initFreistellungPlannerGrantMatrixUi,
+    readGrantRowsFromDom,
+    appendGrantRow
+} from './freistellung-planner-grant-matrix-ui.js';
 
 export const SETUP_GROUP_FIELDS = [
     {
@@ -64,10 +75,8 @@ export const SETUP_GROUP_FIELDS = [
     }
 ];
 
-/** Nur Direktion/KV – Schüler-Sammelgruppe aus Stammdaten. */
+/** Direktion, KV und Schüler – alle im Setup wählbar. */
 export const FR_EDITABLE_GROUP_FIELDS = filterEditableGroupFields(SETUP_GROUP_FIELDS, FR_STAMMDATEN_GROUP_ROLES);
-
-const FR_SCHUELER_GROUP_FIELD = SETUP_GROUP_FIELDS.find((f) => f.role === 'groupSchueler');
 
 /** @type {Record<string, Array<{ id: string, displayName: string, mail: string }>>} */
 const extraUsersDraft = {
@@ -78,6 +87,37 @@ const extraUsersDraft = {
 
 /** @type {Array<{ jahrgang: string, groupId: string, groupLabel: string }>} */
 let jahrgangGroupsDraft = [];
+
+const EXTRA_ENTRA_GROUP_SPECS = [
+    {
+        configKey: 'direktionGroups',
+        listId: 'frPermDirektionGroups',
+        addBtnId: 'frPermDirektionGroupAdd',
+        primaryIdEl: 'frPermDirektionId',
+        pickTitle: 'Weitere Entra-Gruppe für die Direktion-Ansicht'
+    },
+    {
+        configKey: 'kvGroups',
+        listId: 'frPermKvGroups',
+        addBtnId: 'frPermKvGroupAdd',
+        primaryIdEl: 'frPermKvId',
+        pickTitle: 'Weitere Entra-Gruppe für die KV-Ansicht'
+    },
+    {
+        configKey: 'schuelerGroups',
+        listId: 'frPermSchuelerGroups',
+        addBtnId: 'frPermSchuelerGroupAdd',
+        primaryIdEl: 'frPermSchuelerId',
+        pickTitle: 'Weitere Entra-Gruppe für die Schüler-Ansicht'
+    }
+];
+
+/** @type {Record<'direktionGroups'|'kvGroups'|'schuelerGroups', Array<{ groupId: string, groupLabel: string }>>} */
+const extraEntraGroupsDraft = {
+    direktionGroups: [],
+    kvGroups: [],
+    schuelerGroups: []
+};
 
 function readAllowedJahrgangInput() {
     const el = document.getElementById('frAllowedJahrgang');
@@ -114,6 +154,108 @@ function renderJahrgangGroupsList() {
             persistPickersToStorage(SETUP_GROUP_FIELDS);
         });
     });
+}
+
+function renderExtraEntraGroupsList(spec) {
+    const ul = document.getElementById(spec.listId);
+    if (!ul) return;
+    const key = spec.configKey;
+    extraEntraGroupsDraft[key] = normalizePlannerExtraEntraGroups(extraEntraGroupsDraft[key]);
+    const list = extraEntraGroupsDraft[key];
+    if (!list.length) {
+        ul.innerHTML =
+            '<li class="fr-setup-user-row fr-setup-user-row--empty muted">Noch keine weiteren Gruppen.</li>';
+        return;
+    }
+    ul.innerHTML = list
+        .map(
+            (g, idx) =>
+                `<li class="fr-setup-user-row">` +
+                `<span class="fr-setup-user-row__label">${escapeHtml(g.groupLabel || g.groupId)}</span>` +
+                `<button type="button" class="fr-setup-user-row__rm btn btn-sm alt" data-fr-eg-rm="${key}:${idx}" title="Entfernen" aria-label="Entfernen"><i class="bi bi-x"></i></button>` +
+                `</li>`
+        )
+        .join('');
+    ul.querySelectorAll('[data-fr-eg-rm]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const raw = String(btn.getAttribute('data-fr-eg-rm') || '');
+            const sep = raw.indexOf(':');
+            const cfgKey = raw.slice(0, sep);
+            const i = Number(raw.slice(sep + 1));
+            if (!cfgKey || !extraEntraGroupsDraft[cfgKey]) return;
+            const next = normalizePlannerExtraEntraGroups(extraEntraGroupsDraft[cfgKey]);
+            next.splice(i, 1);
+            extraEntraGroupsDraft[cfgKey] = next;
+            renderExtraEntraGroupsList(spec);
+            persistPickersToStorage(SETUP_GROUP_FIELDS);
+        });
+    });
+}
+
+/**
+ * @param {() => void} [onChange]
+ */
+function wireExtraEntraGroupsUi(onChange) {
+    EXTRA_ENTRA_GROUP_SPECS.forEach((spec) => {
+        renderExtraEntraGroupsList(spec);
+        const addBtn = document.getElementById(spec.addBtnId);
+        if (addBtn && !addBtn.dataset.frEgWired) {
+            addBtn.dataset.frEgWired = '1';
+            addBtn.addEventListener('click', () => {
+                pickEntraGroup({ title: spec.pickTitle })
+                    .then((sel) => {
+                        if (!sel || !sel.id) return;
+                        const primaryId = String(
+                            (document.getElementById(spec.primaryIdEl) || {}).value || ''
+                        ).trim().toLowerCase();
+                        if (primaryId && String(sel.id).toLowerCase() === primaryId) {
+                            if (typeof window.ms365ToastOrAlert === 'function') {
+                                window.ms365ToastOrAlert('Diese Gruppe ist bereits als Hauptgruppe gewählt.');
+                            }
+                            return;
+                        }
+                        const key = spec.configKey;
+                        extraEntraGroupsDraft[key] = normalizePlannerExtraEntraGroups([
+                            ...extraEntraGroupsDraft[key],
+                            {
+                                groupId: sel.id,
+                                groupLabel: sel.label || sel.displayName || sel.id
+                            }
+                        ]);
+                        renderExtraEntraGroupsList(spec);
+                        if (typeof onChange === 'function') onChange();
+                    })
+                    .catch((e) => {
+                        const msg = e && e.message ? e.message : String(e);
+                        if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
+                    });
+            });
+        }
+    });
+    const stammBtn = document.getElementById('frPermSchuelerStammdaten');
+    if (stammBtn && !stammBtn.dataset.frSgWired) {
+        stammBtn.dataset.frSgWired = '1';
+        stammBtn.addEventListener('click', () => {
+            const aud = loadSchoolAudienceGroups();
+            const id = String(aud.groupSchuelerId || '').trim();
+            if (!id) {
+                if (typeof window.ms365ToastOrAlert === 'function') {
+                    window.ms365ToastOrAlert(
+                        'Keine Schüler-Sammelgruppe in den Stammdaten – bitte unter Stammdaten / MS 365-Gruppenverwaltung verknüpfen.'
+                    );
+                }
+                return;
+            }
+            fillGroupPickerField(SETUP_GROUP_FIELDS.find((f) => f.role === 'groupSchueler'), {
+                id,
+                label: aud.groupSchuelerName || id
+            });
+            if (typeof onChange === 'function') onChange();
+            if (typeof window.ms365ToastOrAlert === 'function') {
+                window.ms365ToastOrAlert('Schüler-Sammelgruppe aus Stammdaten übernommen.');
+            }
+        });
+    }
 }
 
 /**
@@ -172,9 +314,10 @@ const EXTRA_USER_UI = [
         configKey: 'kvUsers',
         listId: 'frPermKvUsers',
         addBtnId: 'frPermKvUserAdd',
+        stammdatenBtnId: 'frPermKvStammdaten',
         pickTitle: 'Person als Klassenvorstand',
         pickHint: 'Zusätzlich zur KV-Entra-Gruppe – z. B. Vertretung oder einzelner KV ohne Gruppe.',
-        emptyHint: 'Noch keine Einzelpersonen.'
+        emptyHint: 'Noch keine Einzelpersonen – werden aus Stammdaten (Klassen) vorgefüllt, sobald KV-E-Mails hinterlegt sind.'
     },
     {
         configKey: 'schuelerUsers',
@@ -278,13 +421,19 @@ function wireExtraUsersUi(onChange) {
         }
         if (spec.stammdatenBtnId) {
             const stBtn = document.getElementById(spec.stammdatenBtnId);
-            if (stBtn) {
+            if (stBtn && !stBtn.dataset.frUserWired) {
+                stBtn.dataset.frUserWired = '1';
                 stBtn.addEventListener('click', () => {
-                    const fromStamm = direktionUsersFromTenantStammdaten();
+                    const fromStamm =
+                        spec.configKey === 'kvUsers'
+                            ? kvUsersFromSchoolStammdaten()
+                            : direktionUsersFromTenantStammdaten();
                     if (!fromStamm.length) {
                         if (typeof window.ms365ToastOrAlert === 'function') {
                             window.ms365ToastOrAlert(
-                                'Keine Verwaltungs-Personen in den Stammdaten – bitte unter Stammdaten → Verwaltung pflegen.'
+                                spec.configKey === 'kvUsers'
+                                    ? 'Keine Klassenvorstand-E-Mails in den Stammdaten – bitte unter Stammdaten → Klassen pflegen.'
+                                    : 'Keine Verwaltungs-Personen in den Stammdaten – bitte unter Stammdaten → Verwaltung pflegen.'
                             );
                         }
                         return;
@@ -306,19 +455,12 @@ function wireExtraUsersUi(onChange) {
 /**
  * @param {typeof SETUP_GROUP_FIELDS} fieldDefs
  */
-export function readPermissionsFromPickers(fieldDefs) {
-    const out = {};
-    filterEditableGroupFields(fieldDefs, FR_STAMMDATEN_GROUP_ROLES).forEach((f) => {
-        const r = readGroupPickerField(f);
-        out[f.role] = r.label;
-        out[f.role + 'Id'] = r.id;
-    });
-    out.direktionUsers = normalizePlannerUsers(extraUsersDraft.direktionUsers);
-    out.kvUsers = normalizePlannerUsers(extraUsersDraft.kvUsers);
-    out.schuelerUsers = normalizePlannerUsers(extraUsersDraft.schuelerUsers);
-    out.allowedJahrgang = readAllowedJahrgangInput();
-    out.jahrgangGroups = normalizeJahrgangGroups(jahrgangGroupsDraft);
-    return out;
+export function readPermissionsFromPickers(_fieldDefs) {
+    return {
+        plannerGrantRows: readGrantRowsFromDom('frPermMatrixBody'),
+        allowedJahrgang: readAllowedJahrgangInput(),
+        jahrgangGroups: normalizeJahrgangGroups(jahrgangGroupsDraft)
+    };
 }
 
 /**
@@ -328,10 +470,6 @@ export function readPermissionsFromPickers(fieldDefs) {
 export function fillPermissionsPickers(cfg, fieldDefs) {
     const c = normalizePermissionsConfig(cfg);
     fieldDefs.forEach((f) => {
-        if (FR_STAMMDATEN_GROUP_ROLES.has(f.role)) {
-            fillReadonlyStammdatenGroupField(f);
-            return;
-        }
         fillGroupPickerField(f, {
             id: c[f.role + 'Id'],
             label: c[f.role]
@@ -480,10 +618,9 @@ export function initFreistellungSetupPermissions() {
     }
 }
 
-export function initFreistellungSetupPermissionsCore() {
-    const cfg = loadPermissionsConfig();
-    fillPermissionsPickers(cfg, SETUP_GROUP_FIELDS);
-    if (FR_SCHUELER_GROUP_FIELD) fillReadonlyStammdatenGroupField(FR_SCHUELER_GROUP_FIELD);
+function buildInitialGrantRows(cfg) {
+    let rows = plannerGrantRowsForUi(cfg);
+    if (!rows.length) rows = migrateLegacyFreistellungPerms(cfg);
 
     let explicitlySaved = { direktionUsers: false, kvUsers: false, schuelerUsers: false };
     try {
@@ -495,13 +632,135 @@ export function initFreistellungSetupPermissionsCore() {
         /* ignore */
     }
 
-    let dirUsers = normalizePlannerUsers(cfg.direktionUsers);
-    if (!dirUsers.length && !explicitlySaved.direktionUsers) {
-        dirUsers = direktionUsersFromTenantStammdaten();
+    if (!explicitlySaved.direktionUsers) {
+        direktionUsersFromTenantStammdaten().forEach(function (u) {
+            rows.push({
+                principalType: 'user',
+                groupId: '',
+                groupLabel: '',
+                mail: u.mail,
+                displayName: u.displayName || u.mail,
+                roles: { direktion: true, kv: false, schueler: false }
+            });
+        });
     }
-    setExtraUsersDraft('direktionUsers', dirUsers);
-    setExtraUsersDraft('kvUsers', cfg.kvUsers);
-    setExtraUsersDraft('schuelerUsers', cfg.schuelerUsers);
+    if (!explicitlySaved.kvUsers) {
+        kvUsersFromSchoolStammdaten().forEach(function (u) {
+            rows.push({
+                principalType: 'user',
+                groupId: '',
+                groupLabel: '',
+                mail: u.mail,
+                displayName: u.displayName || u.mail,
+                roles: { direktion: false, kv: true, schueler: false }
+            });
+        });
+    }
+    if (!String(cfg.groupSchuelerId || '').trim()) {
+        const aud = loadSchoolAudienceGroups();
+        if (aud.groupSchuelerId) {
+            rows.push({
+                principalType: 'group',
+                groupId: aud.groupSchuelerId,
+                groupLabel: aud.groupSchuelerName || aud.groupSchuelerId,
+                mail: '',
+                displayName: '',
+                roles: { direktion: false, kv: false, schueler: true }
+            });
+        }
+    }
+    return mergeDuplicateGrantRows(rows);
+}
+
+function wireStammdatenMatrixHelpers(persist) {
+    const dirBtn = document.getElementById('frPermDirektionStammdaten');
+    if (dirBtn && !dirBtn.dataset.frMatrixWired) {
+        dirBtn.dataset.frMatrixWired = '1';
+        dirBtn.addEventListener('click', function () {
+            const fromStamm = direktionUsersFromTenantStammdaten();
+            if (!fromStamm.length) {
+                if (typeof window.ms365ToastOrAlert === 'function') {
+                    window.ms365ToastOrAlert(
+                        'Keine Verwaltungs-Personen in den Stammdaten – bitte unter Stammdaten → Verwaltung pflegen.'
+                    );
+                }
+                return;
+            }
+            const tbody = document.getElementById('frPermMatrixBody');
+            if (!tbody) return;
+            fromStamm.forEach(function (u) {
+                appendGrantRow(tbody, {
+                    principalType: 'user',
+                    mail: u.mail,
+                    displayName: u.displayName || u.mail,
+                    roles: { direktion: true, kv: false, schueler: false }
+                });
+            });
+            persist();
+            if (typeof window.ms365ToastOrAlert === 'function') {
+                window.ms365ToastOrAlert(fromStamm.length + ' Person(en) aus Stammdaten ergänzt.');
+            }
+        });
+    }
+    const kvBtn = document.getElementById('frPermKvStammdaten');
+    if (kvBtn && !kvBtn.dataset.frMatrixWired) {
+        kvBtn.dataset.frMatrixWired = '1';
+        kvBtn.addEventListener('click', function () {
+            const fromStamm = kvUsersFromSchoolStammdaten();
+            if (!fromStamm.length) {
+                if (typeof window.ms365ToastOrAlert === 'function') {
+                    window.ms365ToastOrAlert(
+                        'Keine Klassenvorstand-E-Mails in den Stammdaten – bitte unter Stammdaten → Klassen pflegen.'
+                    );
+                }
+                return;
+            }
+            const tbody = document.getElementById('frPermMatrixBody');
+            if (!tbody) return;
+            fromStamm.forEach(function (u) {
+                appendGrantRow(tbody, {
+                    principalType: 'user',
+                    mail: u.mail,
+                    displayName: u.displayName || u.mail,
+                    roles: { direktion: false, kv: true, schueler: false }
+                });
+            });
+            persist();
+            if (typeof window.ms365ToastOrAlert === 'function') {
+                window.ms365ToastOrAlert(fromStamm.length + ' KV-Person(en) aus Stammdaten ergänzt.');
+            }
+        });
+    }
+    const schBtn = document.getElementById('frPermSchuelerStammdaten');
+    if (schBtn && !schBtn.dataset.frMatrixWired) {
+        schBtn.dataset.frMatrixWired = '1';
+        schBtn.addEventListener('click', function () {
+            const aud = loadSchoolAudienceGroups();
+            if (!aud.groupSchuelerId) {
+                if (typeof window.ms365ToastOrAlert === 'function') {
+                    window.ms365ToastOrAlert('Keine Schüler-Sammelgruppe in den Stammdaten konfiguriert.');
+                }
+                return;
+            }
+            const tbody = document.getElementById('frPermMatrixBody');
+            if (!tbody) return;
+            appendGrantRow(tbody, {
+                principalType: 'group',
+                groupId: aud.groupSchuelerId,
+                groupLabel: aud.groupSchuelerName || aud.groupSchuelerId,
+                roles: { direktion: false, kv: false, schueler: true }
+            });
+            persist();
+            if (typeof window.ms365ToastOrAlert === 'function') {
+                window.ms365ToastOrAlert('Schüler-Sammelgruppe aus Stammdaten ergänzt.');
+            }
+        });
+    }
+}
+
+export function initFreistellungSetupPermissionsCore() {
+    const cfg = loadPermissionsConfig();
+    const initialRows = buildInitialGrantRows(cfg);
 
     jahrgangGroupsDraft = normalizeJahrgangGroups(cfg.jahrgangGroups);
     const allowedEl = document.getElementById('frAllowedJahrgang');
@@ -512,15 +771,11 @@ export function initFreistellungSetupPermissionsCore() {
 
     const skip = document.getElementById('frSkipPerms');
     if (skip) skip.checked = !!cfg.skipPerms;
-    wirePermissionGroupPickers(SETUP_GROUP_FIELDS, () => {
-        persistPickersToStorage(SETUP_GROUP_FIELDS);
-    });
-    wireExtraUsersUi(() => {
-        persistPickersToStorage(SETUP_GROUP_FIELDS);
-    });
-    wireJahrgangScopeUi(() => {
-        persistPickersToStorage(SETUP_GROUP_FIELDS);
-    });
+    const persist = () => persistPickersToStorage(SETUP_GROUP_FIELDS);
+    initFreistellungPlannerGrantMatrixUi('frPermMatrixBody', initialRows, persist);
+    wireStammdatenMatrixHelpers(persist);
+    wireJahrgangScopeUi(persist);
+    persist();
     const btn = document.getElementById('frBtnSavePerms');
     if (btn) {
         btn.addEventListener('click', async () => {
@@ -529,12 +784,6 @@ export function initFreistellungSetupPermissionsCore() {
             if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
         });
     }
-
-    window.addEventListener('storage', (ev) => {
-        if (ev && ev.key === 'ms365-schooltool-data-v2' && FR_SCHUELER_GROUP_FIELD) {
-            fillReadonlyStammdatenGroupField(FR_SCHUELER_GROUP_FIELD);
-        }
-    });
 
     const setupSiteCtx = () => {
         let siteUrl = '';

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
     formatGuidForDebug,
-    formatDiagnosticsReport
+    formatDiagnosticsReport,
+    mergePlannerPermsForDiagnostics,
+    diagnosticsIsStaffContext
 } from '../src/tools/freistellung-planer/freistellung-planer-access-debug.js';
 import { listDescriptionBootstrapMeta } from '../src/tools/freistellung-planer/freistellung-planer-remote-config.js';
 import { isLikelySharePointTenantRoot } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
@@ -26,6 +28,21 @@ describe('freistellung-planer-access-debug', () => {
     it('isLikelySharePointTenantRoot erkennt Stammweb', () => {
         expect(isLikelySharePointTenantRoot('https://kurtrocks.sharepoint.com')).toBe(true);
         expect(isLikelySharePointTenantRoot('https://kurtrocks.sharepoint.com/sites/X')).toBe(false);
+    });
+
+    it('mergePlannerPermsForDiagnostics übernimmt Schüler-ID von der Liste', () => {
+        const m = mergePlannerPermsForDiagnostics(
+            { groupKvId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', groupSchuelerId: '' },
+            { groupSchuelerId: 'f5b9986a-1111-2222-3333-444444444cbf' },
+            null
+        );
+        expect(m.groupSchuelerId).toBe('f5b9986a-1111-2222-3333-444444444cbf');
+    });
+
+    it('diagnosticsIsStaffContext erkennt KV', () => {
+        expect(diagnosticsIsStaffContext({ role: 'kv' }, [])).toBe(true);
+        expect(diagnosticsIsStaffContext({ role: 'schueler' }, ['kv'])).toBe(true);
+        expect(diagnosticsIsStaffContext({ role: 'schueler' }, [])).toBe(false);
     });
 
     it('formatDiagnosticsReport baut Textbericht', () => {

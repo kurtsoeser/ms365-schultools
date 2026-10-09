@@ -26,6 +26,23 @@ describe('kursteam-graph-import-logic', () => {
         const nick = 'SJ26-27-jg2031-hakb-BW-FRECH';
         expect(mailNicknameMatchesKursteamFilter(nick, { yearPrefix: 'SJ26-27' })).toBe(true);
         expect(mailNicknameMatchesKursteamFilter(nick, { yearPrefix: 'SJ25-26' })).toBe(false);
+        expect(
+            mailNicknameMatchesKursteamFilter('demo-sj26-27-jgb-ges-pag', { yearPrefix: 'DEMO SJ26-27' })
+        ).toBe(true);
+    });
+
+    it('erkennt DEMO-Teams auch per Anzeigename', () => {
+        const row = graphGroupToBelegungRow(
+            {
+                id: 'gid-demo',
+                displayName: 'DEMO SJ26-27 | 2B | GES | PAG',
+                mailNickname: 'demo-sj26-27-jgb-ges-pag'
+            },
+            { yearPrefix: 'DEMO SJ26-27' }
+        );
+        expect(row).not.toBeNull();
+        expect(row.graphGroupId).toBe('gid-demo');
+        expect(row.gruppenmail).toBe('demo-sj26-27-jgb-ges-pag');
     });
 
     it('wandelt Graph-Gruppe in Belegungszeile', () => {

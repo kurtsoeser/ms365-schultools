@@ -1,5 +1,5 @@
 /**
- * Subject-PDF im Schulregister: Auswahl-Dialog (nur Fächer, wie WebUntis-Wizard).
+ * Subject-PDF in den Stammdaten: Auswahl-Dialog (nur Fächer, wie WebUntis-Wizard).
  */
 import { escapeHtml } from './utils/strings.js';
 import {

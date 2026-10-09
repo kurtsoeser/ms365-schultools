@@ -1,5 +1,5 @@
 /**
- * Fächer-Tab: Excel-Vorlage und Import-Spalten (Schulregister).
+ * Fächer-Tab: Excel-Vorlage und Import-Spalten (Stammdaten).
  * Eine Quelle für Tab „Fächer“, Gesamt-Vorlage (Blatt Faecher) und Tests.
  */
 import { normStr, normCode, normHeaderKey } from './utils/strings.js';

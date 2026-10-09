@@ -2588,6 +2588,61 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
 .ms365-bcmp-actions .ms365-bcmp-open-page {
     margin-right: auto;
 }
+.ms365-bcmp-landing__title {
+    margin: 0 0 10px;
+    font-size: 1.15rem;
+}
+.ms365-bcmp-landing__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+.ms365-bcmp-coverage {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+.ms365-bcmp-cov-sub {
+    margin: 14px 0 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+.ms365-bcmp-cov-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+}
+.ms365-bcmp-cov-table th,
+.ms365-bcmp-cov-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+.ms365-bcmp-cov-table th {
+    font-weight: 600;
+    width: 34%;
+}
+.ms365-bcmp-cov-row--diff th,
+.ms365-bcmp-cov-row--diff td {
+    background: color-mix(in srgb, var(--warning, #b45309) 12%, transparent);
+}
+.ms365-bcmp-cov-row--ok th,
+.ms365-bcmp-cov-row--ok td {
+    background: color-mix(in srgb, var(--success, #15803d) 8%, transparent);
+}
+.ms365-bcmp-sync-ok {
+    margin: 0 0 12px;
+    color: var(--success, #15803d);
+    font-size: 0.92rem;
+}
+.ms365-bcmp-sync-warn {
+    margin: 0 0 12px;
+    color: var(--warning, #b45309);
+    font-size: 0.92rem;
+}
 
 /* Schritt-Navigation: Zurück links, Weiter rechts (eine Zeile pro Block) */
 .step-nav-row {

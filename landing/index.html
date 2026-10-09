@@ -22,6 +22,7 @@
       <span>MS365-Schul-Tools</span>
     </a>
     <nav class="nav-links" aria-label="Seitennavigation">
+      <a href="#was-ist">Überblick</a>
       <a href="#ablauf">Ablauf</a>
       <a href="#funktionen">Funktionen</a>
       <a href="#einblick">Einblick</a>
@@ -41,7 +42,7 @@
             <span>MS365-Schul-Tools</span>
           </p>
           <h1 id="hero-title">Microsoft 365 als Schulplattform – Alles. Einfach.</h1>
-          <p class="hero-lead">Strukturieren, vernetzen und das Schuljahr begleiten: Klassen, Kursteams, Personen, Planer und Playbooks – direkt im Browser, ohne eigenen App-Server.</p>
+          <p class="hero-lead"><strong>MS365-Schul-Tools</strong> ist eine Browser-App für österreichische Schulen: Stammdaten lokal pflegen, dann mit über 50 Werkzeugen Teams, Gruppen, Intranet-Listen und Schuljahres-Aufgaben in Ihrem Microsoft-365-Mandanten umsetzen – ohne eigenen App-Server.</p>
           <div class="hero-cta">
             <a class="btn btn-primary" href="https://app.ms365.schule/">Zur App</a>
             <a class="btn btn-ghost" href="#funktionen">Funktionen ansehen</a>
@@ -55,7 +56,7 @@
             </div>
             <img
               class="device-shot"
-              src="assets/screens/dashboard.png?v=20251006"
+              src="assets/screens/dashboard.png?v=20251009"
               alt=""
               width="1280"
               height="800"
@@ -80,11 +81,24 @@
       </div>
     </section>
 
+    <section class="section section-audience" id="was-ist" aria-labelledby="was-ist-title">
+      <div class="section-inner narrow">
+        <p class="eyebrow reveal">Überblick</p>
+        <h2 id="was-ist-title" class="reveal" style="--d:1">Was ist MS365-Schul-Tools?</h2>
+        <p class="section-lead reveal" style="--d:2">
+          Kein Ersatz für Sokrates oder WebUntis – sondern die <strong>Schicht darüber</strong>, die aus Ihren Schuldaten
+          konkrete Aktionen in Microsoft 365 macht: Kursteams anlegen, Sammelgruppen synchronisieren, Schularbeiten und
+          Freistellungen planen, Intranet-Listen pflegen und das Schuljahr mit Playbooks strukturiert abarbeiten.
+          Die Oberfläche läuft vollständig im Browser; sensible Listen bleiben auf dem Gerät, bis Sie bewusst sichern oder synchronisieren.
+        </p>
+      </div>
+    </section>
+
     <section class="section section-audience" id="fuer-wen" aria-labelledby="audience-title">
       <div class="section-inner narrow">
         <p class="eyebrow reveal">Für wen</p>
         <h2 id="audience-title" class="reveal" style="--d:1">Gebaut für den Schulalltag in Microsoft 365.</h2>
-        <p class="section-lead reveal" style="--d:2">Ob IT-Administration, Schulleitung oder Verwaltung – die App bündelt wiederkehrende M365-Aufgaben an einem Ort.</p>
+        <p class="section-lead reveal" style="--d:2">Ob IT-Administration, Schulleitung, Verwaltung oder Lehrkräfte mit Planer-Rollen – MS365-Schul-Tools bündelt wiederkehrende M365-Aufgaben an einem Ort.</p>
         <ul class="audience-list">
           <li class="reveal" style="--d:0">
             <strong>IT &amp; Administration</strong>
@@ -97,6 +111,10 @@
           <li class="reveal" style="--d:2">
             <strong>Verwaltung</strong>
             <span>Personen, Gäste, Verteiler und gemeinsame Postfächer im Griff.</span>
+          </li>
+          <li class="reveal" style="--d:3">
+            <strong>Lehrkräfte</strong>
+            <span>Kursteams, Schularbeiten, Freistellungen, Vertretung und Projektwochen – dort, wo der Alltag stattfindet.</span>
           </li>
         </ul>
       </div>
@@ -225,7 +243,7 @@
               <h3>Intranet, Planer &amp; Listen</h3>
               <p>
                 Schul-Intranet und SharePoint-Listen aufsetzen: Lehrerliste, Termine, Schularbeiten,
-                Schulaktivitäten, Freistellungen, Vertretung und Projektwochen – Planung und Genehmigung im Alltag.
+                Schulaktivitäten, Schüler-Freistellungen, Lehrer-Freistellungen, Vertretung und Projektwochen – Planung und Genehmigung im Alltag.
               </p>
               <ul class="feature-tags">
                 <li>Schul-Intranet-Hub</li>
@@ -233,7 +251,8 @@
                 <li>Schultermine</li>
                 <li>Schularbeiten-Planer</li>
                 <li>Schulaktivitäten</li>
-                <li>Freistellungen</li>
+                <li>Freistellungen (Schüler)</li>
+                <li>Lehrer-Freistellungen</li>
                 <li>Vertretung</li>
                 <li>Projektwochen</li>
                 <li>sRDP-Anmeldung</li>
@@ -246,13 +265,14 @@
             <div class="feature-body">
               <h3>Automationen</h3>
               <p>
-                Power Platform erst einrichten, dann fertige Flow-Rezepte nutzen: Freistellungen, Kalender-Sync,
+                Power Platform erst einrichten, dann fertige Flow-Rezepte nutzen: Freistellungen (Schüler und Lehrkräfte), Kalender-Sync,
                 Status-Mails, Forms-Anträge, Seminar/Schilf – parametriert für Ihren Tenant.
               </p>
               <ul class="feature-tags">
                 <li>Power-Platform-Setup</li>
                 <li>Flow-Rezepte</li>
-                <li>Freistellungen-Setup</li>
+                <li>Freistellungen-Setup (Schüler)</li>
+                <li>Lehrer-Freistellung-Setup</li>
                 <li>Termine → Outlook</li>
                 <li>Forms-Anträge</li>
                 <li>Seminar / Schilf</li>
@@ -266,13 +286,14 @@
               <h3>Einstellungen, Hygiene &amp; Übersicht</h3>
               <p>
                 Für die IT: wer darf Teams und Websites anlegen, wie dürfen Dateien geteilt werden,
-                alle Gruppen im Überblick – plus Datenhygiene, Cleanup-Playbook, Schul-Baseline,
+                alle Gruppen im Überblick – plus Datenlandkarte, Datenhygiene, Cleanup-Playbook, Schul-Baseline,
                 leere Gruppen, Datei-Migration, Teams-Archiv und die SharePoint-Stammdaten-Sicherung.
               </p>
               <ul class="feature-tags">
                 <li>Team-Anlege-Richtlinie</li>
                 <li>Website- &amp; Freigabe-Regeln</li>
                 <li>Gruppenverwaltung</li>
+                <li>Datenlandkarte</li>
                 <li>Datenhygiene</li>
                 <li>Cleanup-Playbook</li>
                 <li>Schul-Baseline</li>
@@ -286,7 +307,7 @@
         </div>
 
         <p class="feature-footnote reveal" style="--d:7">
-          Dazu: Schulregister, Datenimport und durchsuchbare Hilfe mit Datenschutzhinweisen –
+          Dazu: Stammdaten, Datenimport und durchsuchbare Hilfe mit Datenschutzhinweisen –
           <a href="https://app.ms365.schule/">direkt in der App</a>.
         </p>
       </div>
@@ -296,7 +317,7 @@
       <div class="section-inner">
         <p class="eyebrow reveal">Einblick</p>
         <h2 id="screens-title" class="reveal" style="--d:1">So sieht die Arbeit in der App aus.</h2>
-        <p class="section-lead reveal" style="--d:2">Dashboard, Werkzeugkatalog, Schulregister, Kursteams, Gruppen, Schularbeiten, Projektwochen und Aufräumen – echte Ansichten aus der App.</p>
+        <p class="section-lead reveal" style="--d:2">Dashboard, Werkzeugkatalog, Stammdaten, Kursteams, Gruppen, Schularbeiten, Projektwochen und Aufräumen – echte Ansichten aus der App.</p>
 
         <div class="screen-showcase reveal" style="--d:3" data-showcase>
           <figure class="screen-main">
@@ -305,36 +326,36 @@
                 <span></span><span></span><span></span>
                 <div class="device-url" id="screen-main-url">Dashboard</div>
               </div>
-              <img id="screen-main-img" src="assets/screens/dashboard.png?v=20251006" alt="Dashboard von MS365-Schul-Tools mit Werkzeugübersicht" width="1280" height="800">
+              <img id="screen-main-img" src="assets/screens/dashboard.png?v=20251009" alt="Dashboard von MS365-Schul-Tools mit Werkzeugübersicht" width="1280" height="800">
             </div>
             <figcaption id="screen-main-cap">Startseite mit Schnellstart und allen Werkzeugen auf einen Blick.</figcaption>
           </figure>
           <div class="screen-thumbs" role="tablist" aria-label="App-Ansichten">
-            <button type="button" class="is-active" role="tab" aria-selected="true" data-src="assets/screens/dashboard.png?v=20251006" data-label="Dashboard" data-url="Dashboard" data-cap="Startseite mit Schnellstart und allen Werkzeugen auf einen Blick.">
+            <button type="button" class="is-active" role="tab" aria-selected="true" data-src="assets/screens/dashboard.png?v=20251009" data-label="Dashboard" data-url="Dashboard" data-cap="Startseite mit Schnellstart und allen Werkzeugen auf einen Blick.">
               <span>Dashboard</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/werkzeuge.png?v=20251006" data-label="Werkzeuge" data-url="Alle Werkzeuge" data-cap="Vollständiger Werkzeugkatalog mit Suche und Themen-Tabs – unabhängig vom Schnellstart.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/werkzeuge.png?v=20251009" data-label="Werkzeuge" data-url="Alle Werkzeuge" data-cap="Vollständiger Werkzeugkatalog mit Suche und Themen-Tabs – unabhängig vom Schnellstart.">
               <span>Werkzeuge</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/einrichtung.png?v=20251006" data-label="Schulregister" data-url="Schulregister" data-cap="Stammdaten Schritt für Schritt: Domain, Listen, Import und Abgleich mit Microsoft 365.">
-              <span>Schulregister</span>
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/einrichtung.png?v=20251009" data-label="Stammdaten" data-url="Stammdaten" data-cap="Stammdaten Schritt für Schritt: Domain, Listen, Import und Abgleich mit Microsoft 365.">
+              <span>Stammdaten</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/kursteams.png?v=20251006" data-label="Kursteams" data-url="Unterrichtsteams" data-cap="Unterrichtsteams aus Exporten vorbereiten und in Microsoft 365 anlegen.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/kursteams.png?v=20251009" data-label="Kursteams" data-url="Unterrichtsteams" data-cap="Unterrichtsteams aus Exporten vorbereiten und in Microsoft 365 anlegen.">
               <span>Kursteams</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/gruppen.png?v=20251006" data-label="Gruppenverwaltung" data-url="MS 365 Gruppenverwaltung" data-cap="Alle Gruppen und Teams einlesen, filtern und live pflegen – inkl. Abgleich und Strukturplan.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/gruppen.png?v=20251009" data-label="Gruppenverwaltung" data-url="MS 365 Gruppenverwaltung" data-cap="Alle Gruppen und Teams einlesen, filtern und live pflegen – inkl. Abgleich.">
               <span>Gruppen</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/schularbeiten.png?v=20251006" data-label="Schularbeiten" data-url="Schularbeiten-Planer" data-cap="Schularbeitstermine beantragen, freigeben und planen – Daten in SharePoint, Regeln nach SchUG/LBVO.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/schularbeiten.png?v=20251009" data-label="Schularbeiten" data-url="Schularbeiten-Planer" data-cap="Schularbeitstermine beantragen, freigeben und planen – Daten in SharePoint, Regeln nach SchUG/LBVO.">
               <span>Schularbeiten</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/projektwochen.png?v=20251006" data-label="Projektwochen" data-url="Projektwochen" data-cap="Angebote, Wochenplan und Freigabe für Projektwochen – mit Filtern, Rollen und SharePoint-Anbindung.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/projektwochen.png?v=20251009" data-label="Projektwochen" data-url="Projektwochen" data-cap="Angebote, Wochenplan und Freigabe für Projektwochen – mit Filtern, Rollen und SharePoint-Anbindung.">
               <span>Projektwochen</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/aufraeumen.png?v=20251006" data-label="Aufräumen" data-url="Schuljahres-Hygiene" data-cap="Cleanup-Playbook: Besitzlosigkeit, leere Gruppen, Archiv, Hygiene und SharePoint-Sicherung in sinnvoller Reihenfolge.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/aufraeumen.png?v=20251009" data-label="Aufräumen" data-url="Schuljahres-Hygiene" data-cap="Cleanup-Playbook: Besitzlosigkeit, leere Gruppen, Archiv, Hygiene und SharePoint-Sicherung in sinnvoller Reihenfolge.">
               <span>Aufräumen</span>
             </button>
-            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/hilfe.png?v=20251006" data-label="Hilfe" data-url="Hilfe & Datenschutz" data-cap="Durchsuchbare Hilfe inklusive Datenschutz und Windows-Hinweisen.">
+            <button type="button" role="tab" aria-selected="false" data-src="assets/screens/hilfe.png?v=20251009" data-label="Hilfe" data-url="Hilfe & Datenschutz" data-cap="Durchsuchbare Hilfe inklusive Datenschutz und Windows-Hinweisen.">
               <span>Hilfe</span>
             </button>
           </div>
@@ -393,7 +414,7 @@
     <section class="section section-cta" aria-labelledby="cta-title">
       <div class="section-inner cta-panel reveal">
         <h2 id="cta-title">Bereit für das nächste Schuljahr in Microsoft 365?</h2>
-        <p>Öffnen Sie die App unter app.ms365.schule und pflegen Sie Ihre Stammdaten im Schulregister.</p>
+        <p>Öffnen Sie die App unter app.ms365.schule – mit Demo-Daten ausprobieren oder Ihre Stammdaten Schritt für Schritt einrichten.</p>
         <a class="btn btn-primary btn-lg" href="https://app.ms365.schule/">App jetzt öffnen</a>
       </div>
     </section>

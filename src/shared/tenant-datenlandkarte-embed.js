@@ -1,5 +1,5 @@
 /**
- * Schulregister: Datenlandkarte als eingebetteter Tab (lazy mount).
+ * Stammdaten: Datenlandkarte als eingebetteter Tab (lazy mount).
  */
 import { mountDatenlandkarte } from '../tools/datenlandkarte/datenlandkarte.js';
 
@@ -17,7 +17,7 @@ function ensureMounted() {
         mountDatenlandkarte(mount, { embedded: true });
         mounted = true;
     } catch (err) {
-        console.error('Datenlandkarte (Schulregister): Mount fehlgeschlagen', err);
+        console.error('Datenlandkarte (Stammdaten): Mount fehlgeschlagen', err);
         mount.innerHTML =
             '<p class="muted" role="alert">Datenlandkarte konnte nicht geladen werden. Bitte Seite neu laden oder <a href="tools/datenlandkarte.html">Vollbild-Ansicht</a> öffnen.</p>';
     }

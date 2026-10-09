@@ -7,6 +7,7 @@ import {
     CURRENT_FILE,
     buildDriveRelativePath,
     encodeDriveRootPath,
+    normalizeDriveListFolder,
     describeRemoteBackup,
     isItLibraryConfigured,
     normalizeItLibraryMeta
@@ -429,14 +430,28 @@ export async function putJsonOnDrive(driveId, relativePath, jsonText, token) {
 
 export async function listDriveFolder(driveId, folder, token) {
     const G = getG();
-    const rel = buildDriveRelativePath(folder, '');
-    const enc = encodeDriveRootPath(rel.replace(/\/$/, '') || DEFAULT_FOLDER);
-    const path =
-        '/drives/' +
-        encodeURIComponent(driveId) +
-        '/' +
-        enc +
-        '/children?$select=id,name,size,lastModifiedDateTime,eTag,cTag,webUrl,file&$orderby=lastModifiedDateTime desc&$top=50';
+    const rel = normalizeDriveListFolder(folder);
+    const select =
+        'id,name,size,lastModifiedDateTime,eTag,cTag,webUrl,file,folder,parentReference';
+    let path;
+    if (!rel) {
+        path =
+            '/drives/' +
+            encodeURIComponent(driveId) +
+            '/root/children?$select=' +
+            select +
+            '&$top=200';
+    } else {
+        const enc = encodeDriveRootPath(rel);
+        path =
+            '/drives/' +
+            encodeURIComponent(driveId) +
+            '/' +
+            enc +
+            '/children?$select=' +
+            select +
+            '&$top=200';
+    }
     try {
         return await G.graphJson('GET', path, token, undefined, 'v1.0');
     } catch (e) {
@@ -444,6 +459,30 @@ export async function listDriveFolder(driveId, folder, token) {
         if (/itemNotFound|404|not found/i.test(msg)) return { value: [] };
         throw e;
     }
+}
+
+/**
+ * @returns {Promise<{ blob: Blob, contentType: string }>}
+ */
+export async function downloadDriveItemBlob(driveId, itemId, token) {
+    const G = getG();
+    const url =
+        G.graphBase('v1.0') +
+        '/drives/' +
+        encodeURIComponent(driveId) +
+        '/items/' +
+        encodeURIComponent(itemId) +
+        '/content';
+    const res = await fetch(url, { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) {
+        const errText = await res.text().catch(function () {
+            return '';
+        });
+        throw new Error('Download fehlgeschlagen: HTTP ' + res.status + (errText ? ' – ' + errText.slice(0, 120) : ''));
+    }
+    const blob = await res.blob();
+    const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
+    return { blob: blob, contentType: contentType };
 }
 
 export async function downloadDriveItem(driveId, itemId, token) {
@@ -626,6 +665,7 @@ export default {
     requireItLibrary,
     putJsonOnDrive,
     listDriveFolder,
+    downloadDriveItemBlob,
     downloadDriveItem,
     uploadCurrentBackup,
     getCurrentBackupRemoteInfo,

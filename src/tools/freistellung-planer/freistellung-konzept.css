@@ -7,6 +7,10 @@
     overflow-x: auto;
 }
 
+.fr-konzept-diagram--tight {
+    margin-top: 4px;
+}
+
 .fr-konzept-diagram .mermaid {
     display: flex;
     justify-content: center;
@@ -63,4 +67,100 @@
     font-size: 0.88rem;
     line-height: 1.5;
     color: var(--text-secondary);
+}
+
+.fr-konzept-duration {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+}
+
+@media (max-width: 800px) {
+    .fr-konzept-duration {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fr-konzept-duration__card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    background: var(--card);
+}
+
+.fr-konzept-duration__card.is-multi {
+    border-color: color-mix(in srgb, var(--brand1) 35%, var(--border));
+    background: color-mix(in srgb, var(--brand1) 6%, var(--card));
+}
+
+.fr-konzept-duration__icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: color-mix(in srgb, var(--brand1) 14%, transparent);
+    color: var(--brand1);
+    font-size: 1.15rem;
+}
+
+.fr-konzept-duration__card h4 {
+    margin: 0 0 6px;
+    font-size: 0.95rem;
+    color: var(--heading);
+}
+
+.fr-konzept-duration__card p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.fr-konzept-setup {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fr-konzept-setup li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+}
+
+.fr-konzept-setup__num {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.fr-konzept-setup strong {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--heading);
+}
+
+.fr-konzept-setup p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--muted);
 }

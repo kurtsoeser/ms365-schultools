@@ -30,6 +30,8 @@ describe('schularbeiten-planer-permissions', () => {
     it('mappt SPO-Rollen-IDs', () => {
         expect(roleDefIdForLevel('read')).toBe(SPO_ROLE.read);
         expect(roleDefIdForLevel('contribute')).toBe(SPO_ROLE.contribute);
+        expect(roleDefIdForLevel('design')).toBe(1073741828);
+        expect(roleDefIdForLevel('edit')).toBe(SPO_ROLE.edit);
         expect(roleDefIdForLevel('fullControl')).toBe(SPO_ROLE.fullControl);
     });
 });

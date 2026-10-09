@@ -2,6 +2,8 @@
  * Graph: Teams-Gruppenchats für Klassen anlegen / Mitglieder & Topic syncen.
  */
 
+import { sanitizeTeamsChatTopic } from './klassenchats-logic.js';
+
 /**
  * @param {object} G window.ms365GraphUnifiedGroups
  * @param {string} token
@@ -11,14 +13,15 @@
 export async function createGroupChat(G, token, topic, userIds) {
     const ids = Array.from(new Set((userIds || []).filter(Boolean)));
     if (ids.length < 2) throw new Error('Mindestens 2 Benutzer für einen Gruppenchat nötig.');
+    const safeTopic = sanitizeTeamsChatTopic(topic);
     const members = ids.map((id) => ({
         '@odata.type': '#microsoft.graph.aadUserConversationMember',
         roles: ['owner'],
-        'kevin.m@example.com': 'https://graph.microsoft.com/v1.0/users(\'' + id + '\')'
+        'user@odata.bind': 'https://graph.microsoft.com/v1.0/users(\'' + id + '\')'
     }));
     const body = {
         chatType: 'group',
-        topic: String(topic || '').trim() || undefined,
+        topic: safeTopic || undefined,
         members
     };
     return G.graphJson('POST', '/chats', token, body);
@@ -28,7 +31,7 @@ export async function patchChatTopic(G, token, chatId, topic) {
     const id = String(chatId || '').trim();
     if (!id) throw new Error('chatId fehlt.');
     return G.graphJson('PATCH', '/chats/' + encodeURIComponent(id), token, {
-        topic: String(topic || '').trim()
+        topic: sanitizeTeamsChatTopic(topic)
     });
 }
 
@@ -57,7 +60,7 @@ export async function addChatMember(G, token, chatId, userId) {
     return G.graphJson('POST', '/chats/' + encodeURIComponent(cid) + '/members', token, {
         '@odata.type': '#microsoft.graph.aadUserConversationMember',
         roles: ['owner'],
-        'kevin.m@example.com': 'https://graph.microsoft.com/v1.0/users(\'' + uid + '\')'
+        'user@odata.bind': 'https://graph.microsoft.com/v1.0/users(\'' + uid + '\')'
     });
 }
 
@@ -117,7 +120,7 @@ export async function provisionClassChat(G, token, plan, meUserId) {
     let topicUpdated = false;
     let added = 0;
     let webUrl = '';
-    const topic = String(plan.topic || '').trim();
+    const topic = sanitizeTeamsChatTopic(plan.topic);
 
     if (!chatId) {
         const chat = await createGroupChat(G, token, topic, userIds);
@@ -127,7 +130,7 @@ export async function provisionClassChat(G, token, plan, meUserId) {
         if (!chatId) throw new Error('Chat angelegt, aber keine ID zurückgegeben.');
     } else {
         // Topic aktualisieren wenn nötig
-        if (topic && plan.existingTopic !== topic) {
+        if (topic && sanitizeTeamsChatTopic(plan.existingTopic) !== topic) {
             await patchChatTopic(G, token, chatId, topic);
             topicUpdated = true;
         }

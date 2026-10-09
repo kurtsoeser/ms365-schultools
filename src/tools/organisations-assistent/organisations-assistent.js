@@ -35,12 +35,6 @@ function getContainer() {
     return api.getContainer();
 }
 
-function getRows() {
-    const c = getContainer();
-    const rows = c && c.structure && Array.isArray(c.structure.rows) ? c.structure.rows : [];
-    return rows;
-}
-
 function getSettings() {
     const c = getContainer();
     const s =
@@ -398,32 +392,10 @@ function firstIncompleteStepId() {
     return defs[0] ? defs[0].id : '';
 }
 
-function renderExpertMeta() {
-    const el = getEl('oaExpertMeta');
-    if (!el) return;
-    const n = getRows().length;
-    const api = appData();
-    let teamsN = 0;
-    if (api && typeof api.getContainer === 'function' && typeof api.normalizeCoreClassTeams === 'function') {
-        teamsN = api.normalizeCoreClassTeams(api.getContainer().core.classTeams || []).length;
-    }
-    if (!n && !teamsN) {
-        el.textContent =
-            'Keine SOLL-Strukturzeilen gespeichert. Der Alltags-Schuljahreswechsel braucht diesen Baum nicht.';
-        return;
-    }
-    el.textContent =
-        String(n) +
-        ' Zeile(n) in der lokalen SOLL-Struktur' +
-        (teamsN ? ', ' + String(teamsN) + ' Klassengruppe(n)' : '') +
-        '. Den Baum nur in der Gruppenverwaltung ändern – hier nicht duplizieren.';
-}
-
 function refreshAll() {
     renderYearCard();
     renderPlaybook();
     renderRunPreview();
-    renderExpertMeta();
     refreshCohortPanel();
 }
 
@@ -526,7 +498,6 @@ function hashToStepId(hash) {
     if (h === '#students' || h === '#schueler') return 'students';
     if (h === '#kursteams') return 'kursteams';
     if (h === '#subjects' || h === '#faecher') return 'subjects';
-    if (h === '#expert' || h === '#struktur') return 'expert';
     return '';
 }
 
@@ -544,7 +515,6 @@ window.addEventListener('ms365-tenant-settings-changed', function () {
     renderYearCard();
     renderPlaybook();
     renderRunPreview();
-    renderExpertMeta();
     refreshCohortPanel();
     if (typeof window.ms365ClassTeamsRolloverRefresh === 'function') {
         window.ms365ClassTeamsRolloverRefresh();

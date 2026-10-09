@@ -150,6 +150,30 @@
             color: var(--text);
             margin-top: 10px;
         }
+        .ih-wizard-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .ih-wizard-glance--nav .tm-glance__card {
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            width: 100%;
+        }
+        .ih-wizard-glance--nav .tm-glance__card:hover {
+            border-color: color-mix(in srgb, var(--brand1) 40%, var(--border));
+        }
+        .ih-wizard-glance--nav .tm-glance__card.is-active {
+            border-color: var(--brand1);
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand1) 35%, transparent);
+        }
+        .ih-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label {
+            color: var(--heading);
+            font-weight: 800;
+        }
+        .ih-wizard-glance--nav .tm-glance__card.is-active i {
+            color: var(--brand1);
+        }
+        @media (max-width: 720px) {
+            .ih-wizard-glance { grid-template-columns: 1fr 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -160,7 +184,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-house-door"></i>SharePoint – Intranet &amp; Hub</span>
             </div>
-            <p>Schulintranet anlegen und als Hub verbinden – in zwei klaren Schritten.</p>
+            <p>Schulintranet anlegen und als Hub verbinden – Schritt für Schritt im Assistenten.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-intranet" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -171,43 +195,39 @@
             <section class="tm-hero" aria-label="Kurzüberblick">
                 <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-building"></i></div>
                 <div>
-                    <p class="tm-hero__kicker">SharePoint</p>
+                    <p class="tm-hero__kicker">4 Schritte · SharePoint · Intranet</p>
                     <h2>Schulwebsite anlegen</h2>
-                    <p>Kommunikationssite, optional Hub, Lehrerliste und Schultermine – ein Startpaket für das Intranet.</p>
+                    <p id="ihPhaseHint">Schritt 1 von 4: Kommunikationssite anlegen</p>
                 </div>
                 <div class="tm-hero__actions">
                     <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites anlegen &amp; Hub-Rechte</span>
                 </div>
             </section>
 
-            <section class="tm-panel">
-                <div class="tm-flow" aria-hidden="true">
-                    <div class="tm-flow__node">
-                        <i class="bi bi-cloud-plus"></i>
-                        <strong>1. Site</strong>
-                        <span>Kommunikationswebsite</span>
-                    </div>
-                    <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
-                    <div class="tm-flow__node">
-                        <i class="bi bi-diagram-3"></i>
-                        <strong>2. Hub</strong>
-                        <span>Als Hub registrieren</span>
-                    </div>
-                    <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
-                    <div class="tm-flow__node">
-                        <i class="bi bi-collection"></i>
-                        <strong>3. Listen</strong>
-                        <span>Lehrer &amp; Termine</span>
-                    </div>
-                    <div class="tm-flow__arrow"><i class="bi bi-arrow-right"></i></div>
-                    <div class="tm-flow__node">
-                        <i class="bi bi-people"></i>
-                        <strong>Fertig</strong>
-                        <span>Navigation für die Schule</span>
-                    </div>
-                </div>
+            <section class="tm-glance tm-glance--compact ih-wizard-glance ih-wizard-glance--nav" id="ihWizardGlance" role="tablist" aria-label="Intranet-Hub Schritte">
+                <button type="button" role="tab" class="tm-glance__card is-active" data-ih-wizard-step="1" aria-selected="true" aria-controls="ihWizardStep1">
+                    <i class="bi bi-cloud-plus" aria-hidden="true"></i>
+                    <span class="tm-glance__label">1 · Site</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-ih-wizard-step="2" aria-controls="ihWizardStep2">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    <span class="tm-glance__label">2 · Hub</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-ih-wizard-step="3" aria-controls="ihWizardStep3">
+                    <i class="bi bi-collection" aria-hidden="true"></i>
+                    <span class="tm-glance__label">3 · Listen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-ih-wizard-step="4" aria-controls="ihWizardStep4">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <span class="tm-glance__label">4 · Fertig</span>
+                </button>
             </section>
 
+            <section class="tm-wizard" aria-label="Intranet- und Hub-Assistent">
+                <div class="tm-wizard__body">
+                    <div id="ihWizardStep1" class="tm-wizard__pane" role="tabpanel">
+                        <h3 class="tm-wizard__pane-title">Kommunikationssite erstellen</h3>
+                        <p class="tm-wizard__pane-lead">Name, Adresse und Besitzer – Vorschau unten. Mit „Site anlegen“ wird die Website in Microsoft 365 erstellt.</p>
             <section class="tm-panel">
                 <div class="tm-panel__head">
                     <i class="bi bi-eye" aria-hidden="true"></i>
@@ -249,13 +269,6 @@
             </section>
 
             <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-cloud-plus" aria-hidden="true"></i>
-                    <div>
-                        <h3>1. Kommunikationssite erstellen</h3>
-                        <p>Name, Adresse und Besitzer – dann anlegen.</p>
-                    </div>
-                </div>
                 <div class="spo-grid">
                     <div class="tm-field" style="grid-column:1/-1;">
                         <label for="fHost">SharePoint-Host</label>
@@ -296,10 +309,8 @@
                         </span>
                     </label>
                 </div>
-                <div class="tm-actions" style="margin-top:14px;">
-                    <button type="button" class="btn" id="btnCreate"><i class="bi bi-plus-circle"></i>Site anlegen</button>
-                </div>
-                <div class="tm-toggle-grid" style="margin-top:12px;">
+                <p class="hint" style="margin:14px 0 8px;">Optional direkt mit anlegen (Details &amp; Nachziehen in Schritt 3):</p>
+                <div class="tm-toggle-grid">
                     <label class="tm-toggle" for="fPackLehrer">
                         <input type="checkbox" id="fPackLehrer" checked>
                         <span class="tm-toggle__icon"><i class="bi bi-people"></i></span>
@@ -341,21 +352,20 @@
                         </span>
                     </label>
                 </div>
-                <p class="hint" style="margin-top:8px;">Nach der Site können Sie die Listen auch später unter Lehrerliste / <a href="sharepoint-liste-stammdaten.html">Stammdaten-Listen</a> / Schultermine / Schularbeiten / Projektwochen nachziehen. Die Site-URL wird lokal gespeichert.</p>
+                <div class="tm-actions" style="margin-top:14px;">
+                    <button type="button" class="btn" id="btnCreate"><i class="bi bi-plus-circle"></i>Site anlegen</button>
+                </div>
                 <details class="tm-tech">
                     <summary>Technische Hinweise</summary>
                     <p class="hint" style="margin-top:10px;">Vorlage Kommunikationssite · Vorgang läuft asynchron (Graph pollt den Status). Berechtigungen: Sites lesen/erstellen.</p>
                 </details>
             </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
-                    <div>
-                        <h3>2. Als Hub-Website registrieren</h3>
-                        <p>Macht die Site zum Navigations-Hub. Im Browser oft blockiert (CORS) – dann PowerShell oder Admin Center.</p>
                     </div>
-                </div>
+
+                    <div id="ihWizardStep2" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Als Hub-Website registrieren</h3>
+                        <p class="tm-wizard__pane-lead">Macht die Site zum Navigations-Hub. Im Browser oft blockiert (CORS) – dann PowerShell oder Admin Center.</p>
+            <section class="tm-panel">
                 <input type="hidden" id="fLastSiteUrl" value="">
                 <div class="tm-field">
                     <label for="fManualUrl">Site-URL (automatisch nach Schritt 1, oder manuell)</label>
@@ -371,26 +381,20 @@
                     (SharePoint-Admin-Recht nötig).
                 </p>
                 <details class="tm-tech" id="ihHubTech" open>
-                    <summary>PowerShell (zuverlässig) &amp; Protokoll</summary>
+                    <summary>PowerShell (zuverlässig)</summary>
                     <p class="hint" style="margin-top:10px;">Skript kopieren, PowerShell als Admin-Benutzer ausführen. Danach ist die Intranet-Site ein Hub.</p>
                     <textarea id="fPsHub" class="spo-ps" readonly aria-label="PowerShell Hub"></textarea>
                     <div class="tm-actions" style="margin-top:10px;">
                         <button type="button" class="btn" id="btnPsCopy"><i class="bi bi-clipboard"></i>Skript kopieren</button>
                     </div>
-                    <div id="fLog" class="tm-log" style="margin-top:12px;">Noch keine Aktion.</div>
-                    <pre id="fHubJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
-                    <pre id="fJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
                 </details>
             </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    <div>
-                        <h3>3. Intranet-Starter (Checkliste)</h3>
-                        <p>Nach Site + Hub: Bibliotheken und Zielgruppen – Haken bleiben in diesem Browser.</p>
                     </div>
-                </div>
+
+                    <div id="ihWizardStep3" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Listen &amp; Startpaket</h3>
+                        <p class="tm-wizard__pane-lead">Prüfen, ob Lehrerliste, Stammdaten und Termine auf der Site stehen – oder mit den Tools nachziehen.</p>
+            <section class="tm-panel">
                 <div class="cp-steps" id="ihStarterSteps" style="display:grid;gap:10px;">
                     <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
                         <input type="checkbox" data-ih-check="lehrer">
@@ -404,6 +408,15 @@
                         <input type="checkbox" data-ih-check="termine">
                         <span><strong>Schultermine</strong> + Sync/CSV<br><a href="sharepoint-liste-schultermine.html">→ Schultermine öffnen</a></span>
                     </label>
+                </div>
+            </section>
+                    </div>
+
+                    <div id="ihWizardStep4" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Intranet fertigstellen</h3>
+                        <p class="tm-wizard__pane-lead">Navigation, Bibliotheken und Stammdaten-Anbindung – Haken bleiben in diesem Browser gespeichert.</p>
+            <section class="tm-panel">
+                <div class="cp-steps" style="display:grid;gap:10px;">
                     <label class="checkbox-label" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
                         <input type="checkbox" data-ih-check="formulare">
                         <span><strong>Bibliothek „Formulare“</strong> in SharePoint anlegen (manuell) und nur Lehrkräfte/Verwaltung freigeben</span>
@@ -422,6 +435,23 @@
                     </label>
                 </div>
                 <p id="ihStarterProgress" class="muted" style="margin:12px 0 0;">0 / 7 erledigt</p>
+                <div class="tm-actions" style="margin-top:16px;">
+                    <a class="btn" href="../index.html"><i class="bi bi-house"></i>Zum Dashboard</a>
+                    <a class="btn" href="playbook-intranet.html"><i class="bi bi-journal-text"></i>Intranet-Playbook</a>
+                </div>
+            </section>
+                    </div>
+                </div>
+                <details class="tm-tech" id="ihSharedLog" style="margin:0 20px 8px;">
+                    <summary>Protokoll &amp; technische Antworten</summary>
+                    <div id="fLog" class="tm-log" style="margin-top:10px;">Noch keine Aktion.</div>
+                    <pre id="fHubJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
+                    <pre id="fJson" class="tm-log" style="margin-top:10px;background:#1e1e1e;color:#d4d4d4;">{}</pre>
+                </details>
+                <footer class="tm-wizard__footer">
+                    <button type="button" class="btn" id="ihWizardBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="btn btn-success" id="ihWizardNext">Weiter</button>
+                </footer>
             </section>
         </div>
     </div>
@@ -441,6 +471,7 @@
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-schularbeiten.js"></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-projektwochen.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-intranet-hub.js" defer></script>
+    <script type="module" src="../src/tools/sharepoint/sharepoint-intranet-hub-page.js"></script>
     <script>
         (function () {
             function syncPreview() {

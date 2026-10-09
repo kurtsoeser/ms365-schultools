@@ -1,5 +1,5 @@
 /**
- * Klassen-zentrierte Gruppierung für das Schulregister (Phase 4).
+ * Klassen-zentrierte Gruppierung für das Stammdaten (Phase 4).
  */
 
 export function normClassKey(code, normCodeFn) {
