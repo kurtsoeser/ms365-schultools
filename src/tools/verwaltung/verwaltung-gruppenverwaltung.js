@@ -1248,6 +1248,15 @@
             toast('Bitte zuerst eine Rolle wählen.');
             return;
         }
+        const api = rolePolicyApi();
+        const people = peopleForRole(role);
+        if (
+            typeof api.canAddPersonToAdminRole === 'function' &&
+            !api.canAddPersonToAdminRole(role.seatMode, people.length)
+        ) {
+            toast('Diese Rolle ist als Einzelbesetzung definiert – höchstens eine Person.');
+            return;
+        }
         listCache.rows.push({
             role: role.name || role.code,
             name: '',
@@ -1739,6 +1748,24 @@
         onClick('vwBtnAddPerson', function () {
             addPersonToActiveRole();
         });
+        onClick('vwBtnPickRoleM365', function () {
+            void pickRoleM365Resource();
+        });
+        onClick('vwBtnClearRoleM365', function () {
+            clearRoleM365Resource();
+        });
+        const seatEl = document.getElementById('vwRoleSeatMode');
+        const kindEl = document.getElementById('vwRoleM365Kind');
+        if (seatEl) {
+            seatEl.addEventListener('change', function () {
+                updateRolePeopleHint();
+            });
+        }
+        if (kindEl) {
+            kindEl.addEventListener('change', function () {
+                updateRoleM365Ui();
+            });
+        }
         document.querySelectorAll('#slgListItems [data-vw-kind="schulleitung"], #slgListItems [data-vw-kind="verwaltung"]').forEach(
             function (btn) {
                 btn.addEventListener('click', function () {
@@ -1813,4 +1840,8 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMCont
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
