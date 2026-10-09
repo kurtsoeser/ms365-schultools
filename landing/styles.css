@@ -1012,6 +1012,24 @@ a {
   color: var(--accent);
 }
 
+.footer-updated {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.footer-updated time {
+  font-weight: 650;
+  color: var(--ink-soft);
+}
+
+.footer-updated__screens,
+.footer-updated__sha {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
 .footer-note a {
   color: inherit;
   font-weight: 600;

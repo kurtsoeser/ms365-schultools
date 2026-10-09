@@ -16,7 +16,8 @@ Wenn der Nutzer **veröffentlichen**, **deployen**, **pushen**, **Release**, **L
    - optional `scripts/sync-release-notes-from-commits.mjs` → `public/release-notes.json`
 2. **Inhalt prüfen**: `landing/index.html` – Marke **MS365-Schul-Tools**, keine veralteten „Schulverwaltung“-Produktnamen auf der Homepage.
 3. **Git**: alle relevanten Änderungen committen (kein `node_modules`, keine Secrets).
-4. **`git push origin main`** – triggert **CI** sowie **Deploy FTP** (`app.ms365.schule`) und **GitHub Pages** (`dist/`, inkl. `landing/`).
+4. **`git push origin main`** – triggert **CI**, **Deploy FTP** (`app.ms365.schule` → `dist/`), **Landing-FTP** (`ms365.schule` → `landing/`, Secret `FTP_LANDING_REMOTE_DIR`) und **GitHub Pages**.
+5. **Live-Check Homepage:** Footer „Homepage zuletzt aktualisiert“ oder `meta name="ms365-landing-build"` auf https://ms365.schule/ – nicht mit `app.ms365.schule/landing/` verwechseln.
 
 ## Deploy-Hinweise
 

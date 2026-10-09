@@ -62,6 +62,7 @@ async function captureScreens() {
       MS365_SHOT_BASE: SHOT_BASE
     });
     await run('node', ['scripts/bump-landing-screen-cache.mjs']);
+    await run('node', ['scripts/write-landing-build-info.mjs']);
   } finally {
     if (vite && !vite.killed) {
       vite.kill('SIGTERM');
@@ -78,6 +79,7 @@ async function main() {
     await captureScreens();
   } else {
     console.log('→ screenshots übersprungen (--no-screens)');
+    await run('node', ['scripts/write-landing-build-info.mjs']);
   }
 
   if (!skipNotes) {

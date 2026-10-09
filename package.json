@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "release:prep": "node scripts/release-publish.mjs",
     "release:screens": "node scripts/capture-landing-screens.mjs",
-    "release:screen-cache": "node scripts/bump-landing-screen-cache.mjs"
+    "release:screen-cache": "node scripts/bump-landing-screen-cache.mjs",
+    "release:landing-stamp": "node scripts/write-landing-build-info.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

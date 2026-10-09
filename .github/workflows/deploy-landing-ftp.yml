@@ -1,0 +1,52 @@
+# Marketing-Homepage https://ms365.schule/ (Ordner landing/ im Repo-Root).
+# Secret FTP_LANDING_REMOTE_DIR z. B. "/" oder "/httpdocs/" (mit abschließendem Slash).
+# Host/User/Passwort wie bei deploy-ftp.yml (FTP_HOST, FTP_USER, FTP_PASS).
+
+name: Deploy ms365.schule landing (FTP)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "landing/**"
+      - ".github/workflows/deploy-landing-ftp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ftp-landing-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Landing-Ziel prüfen
+        env:
+          FTP_LANDING_REMOTE_DIR: ${{ secrets.FTP_LANDING_REMOTE_DIR }}
+        run: |
+          if [ -z "$FTP_LANDING_REMOTE_DIR" ]; then
+            echo "::warning::FTP_LANDING_REMOTE_DIR ist nicht gesetzt – ms365.schule wird nicht per FTP aktualisiert."
+            echo "SKIP_LANDING=1" >> "$GITHUB_ENV"
+          else
+            echo "SKIP_LANDING=0" >> "$GITHUB_ENV"
+            echo "remote_dir_len=${#FTP_LANDING_REMOTE_DIR}"
+          fi
+
+      - name: FTP Upload landing/ → ms365.schule
+        if: env.SKIP_LANDING == '0'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          protocol: ftp
+          local-dir: ./landing/
+          server-dir: ${{ secrets.FTP_LANDING_REMOTE_DIR }}
+          timeout: 120000
+          dangerous-clean-slate: false
