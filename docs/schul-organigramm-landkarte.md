@@ -68,11 +68,22 @@ OrgNode = {
   externalIds?: { bip?: string, sokrates?: string, webuntis?: string, graphGroupId?: string },
   m365?: {
     groupMode: 'none' | 'match' | 'create',
-    groupKind: 'unified' | 'security' | 'mailSecurity' | 'distribution',
+    /** Neu: mehrere Objekttypen parallel (canonical). Legacy-Felder darunter werden gespiegelt. */
+    bindings?: {
+      [kind in 'unified'|'security'|'mailSecurity'|'distribution'|'groupChat'|'mailbox']?: {
+        mode: 'none' | 'match' | 'create',
+        id?: string | null,
+        label?: string | null,
+        mail?: string | null,
+        upn?: string | null,
+        webUrl?: string | null
+      }
+    },
+    groupKind: 'unified' | 'security' | 'mailSecurity' | 'distribution' | 'groupChat',
     groupId: string | null,
     groupLabel?: string | null,
     groupMail?: string | null,
-    mailboxMode: 'none' | 'match',
+    mailboxMode: 'none' | 'match' | 'create',
     mailboxUpn: string | null,
     mailboxLabel?: string | null,
     mailboxId?: string | null

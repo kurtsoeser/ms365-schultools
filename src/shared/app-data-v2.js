@@ -1198,15 +1198,115 @@
                     if (groupKind === 'mesg' || groupKind === 'mail_security') groupKind = 'mailSecurity';
                     if (groupKind === 'dl' || groupKind === 'verteiler') groupKind = 'distribution';
                     if (
+                        groupKind === 'groupchat' ||
+                        groupKind === 'group_chat' ||
+                        groupKind === 'chat' ||
+                        groupKind === 'gruppenchat' ||
+                        groupKind === 'teamschat' ||
+                        groupKind === 'teams_chat'
+                    ) {
+                        groupKind = 'groupChat';
+                    }
+                    if (
                         groupKind !== 'security' &&
                         groupKind !== 'mailSecurity' &&
-                        groupKind !== 'distribution'
+                        groupKind !== 'distribution' &&
+                        groupKind !== 'groupChat'
                     ) {
                         groupKind = 'unified';
                     }
                     const groupMode = gm === 'match' || gm === 'create' ? gm : 'none';
                     const mailboxMode = mm === 'match' || mm === 'create' ? mm : 'none';
+                    /** @type {Record<string, object>} */
+                    const bindings = {};
+                    const srcB =
+                        n.m365.bindings && typeof n.m365.bindings === 'object'
+                            ? n.m365.bindings
+                            : null;
+                    const kindList = [
+                        'unified',
+                        'security',
+                        'mailSecurity',
+                        'distribution',
+                        'groupChat',
+                        'mailbox'
+                    ];
+                    kindList.forEach(function (kind) {
+                        const raw = srcB && srcB[kind] ? srcB[kind] : null;
+                        if (raw && typeof raw === 'object') {
+                            const modeRaw = String(raw.mode || 'none').trim();
+                            const mode =
+                                modeRaw === 'match' || modeRaw === 'create' ? modeRaw : 'none';
+                            bindings[kind] = {
+                                mode: mode,
+                                id: mode === 'none' ? null : raw.id ? String(raw.id).trim() : null,
+                                label:
+                                    mode === 'none'
+                                        ? null
+                                        : raw.label
+                                          ? String(raw.label).trim()
+                                          : null,
+                                mail:
+                                    mode === 'none'
+                                        ? null
+                                        : raw.mail
+                                          ? String(raw.mail).trim().toLowerCase()
+                                          : null,
+                                upn:
+                                    kind === 'mailbox' && mode !== 'none' && raw.upn
+                                        ? String(raw.upn).trim().toLowerCase()
+                                        : null,
+                                webUrl:
+                                    kind === 'groupChat' && mode !== 'none' && raw.webUrl
+                                        ? String(raw.webUrl).trim()
+                                        : null
+                            };
+                        } else {
+                            bindings[kind] = {
+                                mode: 'none',
+                                id: null,
+                                label: null,
+                                mail: null,
+                                upn: null,
+                                webUrl: null
+                            };
+                        }
+                    });
+                    // Legacy → Bindings, falls noch keine gesetzt (mode=none verwirft IDs)
+                    if (!srcB) {
+                        if (groupMode !== 'none') {
+                            bindings[groupKind] = {
+                                mode: groupMode,
+                                id: n.m365.groupId ? String(n.m365.groupId).trim() : null,
+                                label: n.m365.groupLabel
+                                    ? String(n.m365.groupLabel).trim()
+                                    : null,
+                                mail: n.m365.groupMail
+                                    ? String(n.m365.groupMail).trim().toLowerCase()
+                                    : null,
+                                upn: null,
+                                webUrl: null
+                            };
+                        }
+                        if (mailboxMode !== 'none') {
+                            bindings.mailbox = {
+                                mode: mailboxMode,
+                                id: n.m365.mailboxId
+                                    ? String(n.m365.mailboxId).trim()
+                                    : null,
+                                label: n.m365.mailboxLabel
+                                    ? String(n.m365.mailboxLabel).trim()
+                                    : null,
+                                mail: null,
+                                upn: n.m365.mailboxUpn
+                                    ? String(n.m365.mailboxUpn).trim().toLowerCase()
+                                    : null,
+                                webUrl: null
+                            };
+                        }
+                    }
                     node.m365 = {
+                        bindings: bindings,
                         groupMode: groupMode,
                         groupKind: groupKind,
                         groupId:

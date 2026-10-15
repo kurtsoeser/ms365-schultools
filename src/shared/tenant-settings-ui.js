@@ -35,6 +35,7 @@ import {
     normalizeVerwaltungAudienceGroups
 } from './administration-audience-groups.js';
 import { mountTenantAdminAudienceBoard } from './tenant-admin-audience-board-ui.js';
+import { mountVerwaltungStammdatenTree } from './verwaltung-stammdaten-tree-ui.js';
 import { mountTenantSchoolEmailPatternUi } from './tenant-teacher-email-pattern-ui.js';
 import { mountTenantIntranetQuickSync } from './tenant-intranet-quick-sync.js';
 import { mountTenantSchoolProfileUi, reloadTenantSchoolProfileForm } from './tenant-school-profile-ui.js';
@@ -1168,12 +1169,17 @@ import './schul-organigramm-stammdaten-sync.js';
         const btnAdminRolesDefaults = document.getElementById('tenantAdminRolesDefaults');
         const btnVerifyVerwaltungGraph = document.getElementById('tenantBtnVerifyVerwaltungGraph');
         const tenantAdminAudienceBoardHost = document.getElementById('tenantAdminAudienceBoard');
+        const tenantVerwaltungStructureTreeHost = document.getElementById(
+            'tenantVerwaltungStructureTree'
+        );
         let audienceGroupsSnapshot = [];
         /** @type {object[]|null} Verwaltung ohne Textfeld-Bundle */
         let administrationGroupsSnapshot = null;
         let audienceMembershipsSnapshot = [];
         /** @type {{ refresh: () => void } | null} */
         let audienceBoardRef = null;
+        /** @type {{ refresh: () => void }|null} */
+        let verwaltungTreeRef = null;
         const selSgaMode = document.getElementById('tenantSgaMode');
         const taSga = document.getElementById('tenantSgaLines');
         const sgaTbody = document.getElementById('tenantSgaTableBody');
@@ -3317,6 +3323,12 @@ import './schul-organigramm-stammdaten-sync.js';
 
         function refreshAdminAudienceBoardUi() {
             if (audienceBoardRef) audienceBoardRef.refresh();
+            if (verwaltungTreeRef) verwaltungTreeRef.refresh();
+        }
+
+        function openOrganigrammTabFromVerwaltung() {
+            const btn = document.getElementById('tabMainOrganigramm');
+            if (btn) btn.click();
         }
 
         function patchAdministrationDisplayFieldForEmail(emailRaw, field, value, context, meta) {
@@ -3368,7 +3380,46 @@ import './schul-organigramm-stammdaten-sync.js';
 
         syncAdministrationSnapshotFromSettings(load());
         syncAudienceSnapshotsFromSettings(load());
-        if (tenantAdminAudienceBoardHost) {
+        if (tenantVerwaltungStructureTreeHost) {
+            verwaltungTreeRef = mountVerwaltungStammdatenTree({
+                host: tenantVerwaltungStructureTreeHost,
+                getSettings: function () {
+                    const base = load();
+                    return Object.assign({}, base, {
+                        verwaltungAudienceGroups: audienceGroupsSnapshot,
+                        adminAudienceMemberships: audienceMembershipsSnapshot,
+                        schulOrganigramm: base.schulOrganigramm
+                    });
+                },
+                saveSettings: function (next) {
+                    save(next);
+                },
+                onOpenOrganigramm: openOrganigrammTabFromVerwaltung,
+                scheduleAutoSave: scheduleAutoSave,
+                getSchoolName: function () {
+                    return schoolNameInput
+                        ? normStr(schoolNameInput.value || '')
+                        : normStr(load().schoolName || '');
+                },
+                setSummary: setSummary,
+                onAudienceGroupsChanged: function (groups) {
+                    applyAudienceMembershipPatch(groups, audienceMembershipsSnapshot);
+                },
+                onStructureChanged: function () {
+                    syncAudienceSnapshotsFromSettings(load());
+                    syncAdministrationSnapshotFromSettings(load());
+                    refreshAdminAudienceBoardUi();
+                }
+            });
+            const tabVerwaltung = document.getElementById('tabMainVerwaltung');
+            if (tabVerwaltung) {
+                tabVerwaltung.addEventListener('click', function () {
+                    if (verwaltungTreeRef) verwaltungTreeRef.refresh();
+                });
+            }
+        }
+        // Flaches Zielgruppen-Board nur noch als versteckter Legacy-Host (API für Tests/Refresh)
+        if (tenantAdminAudienceBoardHost && !tenantAdminAudienceBoardHost.hidden) {
             audienceBoardRef = mountTenantAdminAudienceBoard({
                 host: tenantAdminAudienceBoardHost,
                 getSettings: function () {
@@ -3395,6 +3446,7 @@ import './schul-organigramm-stammdaten-sync.js';
                 },
                 onDirectoryChanged: function () {
                     if (audienceBoardRef) audienceBoardRef.refresh();
+                    if (verwaltungTreeRef) verwaltungTreeRef.refresh();
                 },
                 getAdminDisplayRows: function () {
                     return groupsToDisplayRows(getAdministrationGroups());

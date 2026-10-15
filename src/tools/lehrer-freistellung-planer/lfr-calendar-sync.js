@@ -7,11 +7,32 @@ import { loadSetupCfg } from './lfr-state.js';
 
 export const LFR_CALENDAR_SCOPES = [
     'https://graph.microsoft.com/User.Read',
-    'https://graph.microsoft.com/Calendars.ReadWrite'
+    'https://graph.microsoft.com/Calendars.ReadWrite',
+    /** Für fremde/freigegebene Postfächer (nicht Global-Admin-Ersatz). */
+    'https://graph.microsoft.com/Calendars.ReadWrite.Shared'
 ];
 
 const EVENT_MAP_LS = 'ms365-lfr-outlook-event-v1';
 const TZ = 'Europe/Vienna';
+
+/**
+ * Delegierter Graph-Zugriff auf fremde Kalender braucht Freigabe + Shared-Scope.
+ * Global Admin allein reicht nicht.
+ * @param {unknown} err
+ * @param {string} [calendarUser]
+ */
+export function formatLfrCalendarAccessError(err, calendarUser) {
+    const raw = err && err.message ? String(err.message) : String(err || '');
+    if (!/ErrorAccessDenied|Access is denied|403/i.test(raw)) return raw;
+    const target = String(calendarUser || '').trim().toLowerCase();
+    return (
+        'Kein Schreibzugriff auf den Kalender' +
+        (target ? ' von ' + target : '') +
+        '. Mit dem angemeldeten Konto geht nur der eigene Kalender – oder ein Kalender, der dir mit Bearbeiten-Recht freigegeben wurde. ' +
+        'Global Admin ersetzt das nicht. Lösung: im IT-Setup deinen UPN als Kalender-Besitzer setzen, oder „In meinen Kalender“ nutzen, ' +
+        'oder den Zielkalender in Outlook für dich freigeben.'
+    );
+}
 
 function graphCalendarWriteHeaders() {
     return {
@@ -116,54 +137,87 @@ export function buildLfrCalendarEvent(it) {
     };
 }
 
-function calendarEventsPath(calendarUser, calendarId) {
-    const user = String(calendarUser || '').trim();
+/**
+ * @param {{ calendarUser?: string, calendarId?: string, signedInEmail?: string, useMe?: boolean }} target
+ */
+export function calendarEventsPath(target) {
+    const t = target || {};
+    const cal = String(t.calendarId || '').trim();
+    const signedIn = String(t.signedInEmail || '')
+        .trim()
+        .toLowerCase();
+    const user = String(t.calendarUser || '')
+        .trim()
+        .toLowerCase();
+    const asMe = t.useMe === true || (!!signedIn && !!user && signedIn === user);
+    if (asMe) {
+        if (cal) return '/me/calendars/' + encodeURIComponent(cal) + '/events';
+        return '/me/calendar/events';
+    }
     if (!user) throw new Error('Kalender-Besitzer (UPN) fehlt – im IT-Setup eintragen.');
     const base = '/users/' + encodeURIComponent(user);
-    const cal = String(calendarId || '').trim();
     if (cal) return base + '/calendars/' + encodeURIComponent(cal) + '/events';
     return base + '/calendar/events';
 }
 
 /**
  * @param {object} it
- * @param {{ calendarUser?: string, calendarId?: string }} [opts]
+ * @param {{ calendarUser?: string, calendarId?: string, signedInEmail?: string, useMe?: boolean }} [opts]
  */
 export async function upsertLfrOutlookEvent(it, opts) {
-    const target = opts || loadCalendarTargetFromSetup();
-    const pathBase = calendarEventsPath(target.calendarUser, target.calendarId);
+    const setup = loadCalendarTargetFromSetup();
+    const target = {
+        calendarUser: (opts && opts.calendarUser) || setup.calendarUser,
+        calendarId: (opts && opts.calendarId) || setup.calendarId,
+        signedInEmail: (opts && opts.signedInEmail) || '',
+        useMe: !!(opts && opts.useMe)
+    };
+    const pathBase = calendarEventsPath(target);
     const body = buildLfrCalendarEvent(it);
     const tok = await getGraphToken(LFR_CALENDAR_SCOPES);
     const antragId = it.antragId || it.itemId;
     let existingId = getOutlookEventId(antragId);
 
-    if (existingId) {
-        try {
-            await graphJson('PATCH', pathBase + '/' + encodeURIComponent(existingId), tok, body, graphCalendarWriteHeaders());
-            return { eventId: existingId, created: false };
-        } catch (err) {
-            const msg = err && err.message ? String(err.message) : String(err);
-            if (!/404|ErrorItemNotFound|not found/i.test(msg)) throw err;
-            existingId = '';
+    try {
+        if (existingId) {
+            try {
+                await graphJson(
+                    'PATCH',
+                    pathBase + '/' + encodeURIComponent(existingId),
+                    tok,
+                    body,
+                    graphCalendarWriteHeaders()
+                );
+                return { eventId: existingId, created: false };
+            } catch (err) {
+                const msg = err && err.message ? String(err.message) : String(err);
+                if (!/404|ErrorItemNotFound|not found/i.test(msg)) throw err;
+                existingId = '';
+            }
         }
-    }
 
-    const created = await graphJson('POST', pathBase, tok, body, graphCalendarWriteHeaders());
-    const eventId = created && created.id != null ? String(created.id) : '';
-    if (!eventId) throw new Error('Graph hat keine Event-ID zurückgegeben.');
-    setOutlookEventId(antragId, eventId);
-    return { eventId, created: true };
+        const created = await graphJson('POST', pathBase, tok, body, graphCalendarWriteHeaders());
+        const eventId = created && created.id != null ? String(created.id) : '';
+        if (!eventId) throw new Error('Graph hat keine Event-ID zurückgegeben.');
+        setOutlookEventId(antragId, eventId);
+        return { eventId, created: true };
+    } catch (e) {
+        throw new Error(formatLfrCalendarAccessError(e, target.useMe ? '' : target.calendarUser));
+    }
 }
 
 /**
  * @param {object[]} items
- * @param {{ calendarUser?: string, calendarId?: string, onlyApproved?: boolean }} [opts]
+ * @param {{ calendarUser?: string, calendarId?: string, signedInEmail?: string, useMe?: boolean, onlyApproved?: boolean }} [opts]
  */
 export async function syncLfrItemsToOutlookCalendar(items, opts) {
     const o = opts || {};
+    const setup = loadCalendarTargetFromSetup();
     const target = {
-        calendarUser: o.calendarUser || loadCalendarTargetFromSetup().calendarUser,
-        calendarId: o.calendarId || loadCalendarTargetFromSetup().calendarId
+        calendarUser: o.calendarUser || setup.calendarUser,
+        calendarId: o.calendarId || setup.calendarId,
+        signedInEmail: o.signedInEmail || '',
+        useMe: !!o.useMe
     };
     const onlyApproved = o.onlyApproved !== false;
     const list = (items || []).filter((it) => {

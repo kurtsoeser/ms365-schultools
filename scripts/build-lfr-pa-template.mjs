@@ -54,14 +54,15 @@ function buildDefinitionInner() {
             }
         },
         actions: {
+            // InitializeVariable MUSS Top-Level sein – Power Automate erlaubt kein Nesting in If/Scope/Foreach.
+            Variable_Kommentare: {
+                type: 'InitializeVariable',
+                inputs: { variables: [{ name: 'AlleKommentareGenehmigung', type: 'Array', value: [] }] },
+                runAfter: {}
+            },
             Nur_bei_Ausstehend: {
                 actions: {
-                    Variable_Kommentare: {
-                        type: 'InitializeVariable',
-                        inputs: { variables: [{ name: 'AlleKommentareGenehmigung', type: 'Array', value: [] }] }
-                    },
                     Nur_Direktion: {
-                        runAfter: { Variable_Kommentare: ['Succeeded'] },
                         type: 'OpenApiConnectionWebhook',
                         inputs: {
                             parameters: {
@@ -207,7 +208,7 @@ function buildDefinitionInner() {
                     }
                 },
                 else: { actions: {} },
-                runAfter: {},
+                runAfter: { Variable_Kommentare: ['Succeeded'] },
                 type: 'If',
                 expression: {
                     equals: ["@coalesce(triggerBody()?['Status/Value'], 'Ausstehend')", 'Ausstehend']

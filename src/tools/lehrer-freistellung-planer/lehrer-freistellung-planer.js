@@ -11,6 +11,7 @@ import {
     persistSetupCfg,
     scopeFromState,
     emptyForm,
+    prefillLehrerFormIdentity,
     loadDemoItems,
     saveDemoItems,
     inferRoleHint,
@@ -60,8 +61,22 @@ function currentAccount() {
     try {
         if (typeof window.ms365AuthGetAccountInfo === 'function') {
             const a = window.ms365AuthGetAccountInfo();
-            if (a) return a;
+            if (a) {
+                return {
+                    email: String(a.username || a.upn || a.mail || a.email || '').trim(),
+                    name: String(a.name || '').trim()
+                };
+            }
         }
+    } catch {
+        /* ignore */
+    }
+    try {
+        const upn =
+            typeof window.ms365AuthGetUserPrincipalName === 'function'
+                ? window.ms365AuthGetUserPrincipalName()
+                : '';
+        if (upn) return { email: String(upn).trim(), name: '' };
     } catch {
         /* ignore */
     }
@@ -70,10 +85,9 @@ function currentAccount() {
 
 function syncAccount() {
     const a = currentAccount();
-    state.accountEmail = String(a.email || a.username || '').trim().toLowerCase();
+    state.accountEmail = String(a.email || '').trim().toLowerCase();
     state.accountName = String(a.name || '').trim();
     state.stammdaten = loadStammdaten();
-    const match = matchTeacherByEmail(state.stammdaten.teachers, state.accountEmail);
     if (!state.demoRoleOverride) {
         const hint = inferRoleHint(state);
         if (hint === 'direktion' || hint === 'lehrer') {
@@ -81,12 +95,7 @@ function syncAccount() {
             persistRole(state.role);
         }
     }
-    if (state.view === 'antrag') {
-        if (!state.form.lehrerEmail && state.accountEmail) state.form.lehrerEmail = state.accountEmail;
-        if (!state.form.lehrerName && (state.accountName || match)) {
-            state.form.lehrerName = state.accountName || (match && match.name) || '';
-        }
-    }
+    prefillLehrerFormIdentity(state);
 }
 
 function findItem(key) {
@@ -136,7 +145,18 @@ async function refreshData() {
 
 async function submitAntrag() {
     syncAccount();
-    const draft = { ...state.form, ...readFormFromDom() };
+    const fromDom = readFormFromDom();
+    const draft = {
+        ...state.form,
+        ...fromDom,
+        lehrerEmail: state.accountEmail || fromDom.lehrerEmail || state.form.lehrerEmail,
+        lehrerName:
+            state.accountName ||
+            fromDom.lehrerName ||
+            state.form.lehrerName ||
+            (matchTeacherByEmail(state.stammdaten.teachers, state.accountEmail) || {}).name ||
+            ''
+    };
     const v = validateAntrag(draft);
     if (!v.ok) {
         toast(v.errors.join('\n'));
@@ -158,9 +178,10 @@ async function submitAntrag() {
             const created = await createItem(state.ctx, row);
             state.items = [created, ...state.items.filter((x) => x.itemId !== created.itemId)];
         }
+        const match = matchTeacherByEmail(state.stammdaten.teachers, state.accountEmail);
         state.form = emptyForm({
             lehrerEmail: state.accountEmail,
-            lehrerName: state.accountName
+            lehrerName: state.accountName || (match && match.name) || ''
         });
         state.view = 'meine';
         state.loading = false;
@@ -216,12 +237,14 @@ function bindStatic() {
             if (!viewsForRole(state.role).some((v) => v.id === state.view)) {
                 state.view = viewsForRole(state.role)[0]?.id || 'dashboard';
             }
+            if (state.view === 'antrag') syncAccount();
             paint();
         });
     });
     root.querySelectorAll('[data-lfr-view-jump]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-lfr-view-jump') || 'dashboard';
+            if (state.view === 'antrag') syncAccount();
             paint();
         });
     });
@@ -242,9 +265,11 @@ function bindStatic() {
     const reset = document.getElementById('lfrFormReset');
     if (reset) {
         reset.addEventListener('click', () => {
+            syncAccount();
+            const match = matchTeacherByEmail(state.stammdaten.teachers, state.accountEmail);
             state.form = emptyForm({
                 lehrerEmail: state.accountEmail,
-                lehrerName: state.accountName
+                lehrerName: state.accountName || (match && match.name) || ''
             });
             paint();
         });
@@ -297,31 +322,62 @@ function bindStatic() {
             downloadIcs(buildIcs(approved), 'lehrer-freistellungen.ics');
         });
     }
+    async function runOutlookSync(opts) {
+        const o = opts || {};
+        const buttons = [
+            document.getElementById('lfrBtnOutlookSync'),
+            document.getElementById('lfrBtnOutlookSyncMe')
+        ].filter(Boolean);
+        buttons.forEach((b) => {
+            b.disabled = true;
+        });
+        try {
+            syncAccount();
+            const target = loadCalendarTargetFromSetup();
+            const res = await syncLfrItemsToOutlookCalendar(state.items, {
+                calendarUser: o.useMe ? state.accountEmail : target.calendarUser,
+                calendarId: o.useMe ? '' : target.calendarId,
+                signedInEmail: state.accountEmail,
+                useMe: !!o.useMe,
+                onlyApproved: true
+            });
+            if (res.fail) {
+                toast('Sync: ' + res.ok + ' ok, ' + res.fail + ' Fehler. ' + (res.errors[0] || ''));
+            } else {
+                toast(
+                    res.ok +
+                        ' Termin(e) im Outlook-Kalender aktualisiert' +
+                        (o.useMe ? ' (dein Kalender).' : '.')
+                );
+            }
+        } catch (e) {
+            toast(e && e.message ? e.message : String(e));
+        } finally {
+            buttons.forEach((b) => {
+                b.disabled = false;
+            });
+            const setupBtn = document.getElementById('lfrBtnOutlookSync');
+            if (setupBtn && !loadCalendarTargetFromSetup().calendarUser) setupBtn.disabled = true;
+        }
+    }
     const outlookBtn = document.getElementById('lfrBtnOutlookSync');
     if (outlookBtn) {
-        outlookBtn.addEventListener('click', async () => {
-            const target = loadCalendarTargetFromSetup();
-            if (!target.calendarUser) {
-                toast('Bitte im IT-Setup (Schritt 4) den Kalender-Besitzer eintragen.');
+        outlookBtn.addEventListener('click', () => {
+            if (!loadCalendarTargetFromSetup().calendarUser) {
+                toast('Bitte im IT-Setup (Schritt 4) den Kalender-Besitzer eintragen – oder „In meinen Kalender“ nutzen.');
                 return;
             }
-            outlookBtn.disabled = true;
-            try {
-                const res = await syncLfrItemsToOutlookCalendar(state.items, {
-                    calendarUser: target.calendarUser,
-                    calendarId: target.calendarId,
-                    onlyApproved: true
-                });
-                if (res.fail) {
-                    toast('Sync: ' + res.ok + ' ok, ' + res.fail + ' Fehler. ' + (res.errors[0] || ''));
-                } else {
-                    toast(res.ok + ' Termin(e) im Outlook-Kalender aktualisiert.');
-                }
-            } catch (e) {
-                toast(e && e.message ? e.message : String(e));
-            } finally {
-                outlookBtn.disabled = false;
+            runOutlookSync({ useMe: false });
+        });
+    }
+    const outlookMeBtn = document.getElementById('lfrBtnOutlookSyncMe');
+    if (outlookMeBtn) {
+        outlookMeBtn.addEventListener('click', () => {
+            if (!state.accountEmail) {
+                toast('Bitte zuerst anmelden.');
+                return;
             }
+            runOutlookSync({ useMe: true });
         });
     }
     const saveSetup = document.getElementById('lfrBtnSaveSetup');

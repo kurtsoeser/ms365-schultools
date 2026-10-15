@@ -28,6 +28,7 @@ import {
     roleLabel,
     scopeFromState,
     canDecide,
+    canDeleteFreistellung,
     resolveStudentKlasseCode,
     isStudentKlasseLocked,
     findClassInStammdaten,
@@ -1010,6 +1011,7 @@ function renderAntrag(state) {
 
 function renderTable(items, state, opts) {
     const o = opts || {};
+    const allowDelete = canDeleteFreistellung(state);
     const rows = items
         .map((it) => {
             const days = inclusiveDayCount(it.beginn, it.ende);
@@ -1018,6 +1020,11 @@ function renderTable(items, state, opts) {
                     ? `<button type="button" class="btn btn-sm" data-fr-approve="${esc(it.itemId)}" title="Status Genehmigt (Fallback)">✓</button>
                        <button type="button" class="btn btn-sm" data-fr-reject="${esc(it.itemId)}" title="Status Abgelehnt (Fallback)">✗</button>`
                     : '';
+            const del = allowDelete
+                ? `<button type="button" class="btn btn-sm fr-btn-delete" data-fr-delete="${esc(
+                      it.itemId
+                  )}" title="Antrag löschen" aria-label="Antrag löschen"><i class="bi bi-trash"></i></button>`
+                : '';
             return `<tr>
           <td><button type="button" class="fr-link" data-fr-detail="${esc(it.itemId)}">${esc(it.schuelerName || it.titel)}</button></td>
           <td>${esc(it.klasse)}</td>
@@ -1029,7 +1036,8 @@ function renderTable(items, state, opts) {
           <td>${esc(it.kategorie)}</td>
           <td>${esc(it.kvName || it.kvEmail || '–')}</td>
           <td class="fr-td-actions">${decide}
-            <button type="button" class="btn btn-sm" data-fr-detail="${esc(it.itemId)}"><i class="bi bi-eye"></i></button>
+            <button type="button" class="btn btn-sm" data-fr-detail="${esc(it.itemId)}" title="Details"><i class="bi bi-eye"></i></button>
+            ${del}
           </td>
         </tr>`;
         })
@@ -1051,6 +1059,7 @@ function renderTable(items, state, opts) {
 function renderDetailModal(state) {
     const it = (state.items || []).find((x) => String(x.itemId) === String(state.detailId));
     if (!it || !itemVisibleForRole(state, it, { scopeAll: state.role === 'direktion' })) return '';
+    const allowDelete = canDeleteFreistellung(state);
     return `
     <div class="fr-modal" role="dialog" aria-modal="true" aria-labelledby="frDetailTitle">
       <div class="fr-modal__card">
@@ -1099,6 +1108,15 @@ function renderDetailModal(state) {
                     : ''
             }
           </dl>
+          ${
+              allowDelete
+                  ? `<div class="fr-actions" style="margin-top:14px">
+            <button type="button" class="btn fr-btn-delete" data-fr-delete="${esc(
+                it.itemId
+            )}"><i class="bi bi-trash"></i>Antrag löschen</button>
+          </div>`
+                  : ''
+          }
         </div>
       </div>
     </div>`;

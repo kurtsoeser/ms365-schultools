@@ -1,17 +1,18 @@
 /**
- * SharePoint-Berechtigungen Lehrer-Freistellungsliste (Entra-Gruppen aus lfr-permissions).
+ * SharePoint-Berechtigungen Lehrer-Freistellungsliste (Gruppen + Einzelpersonen).
  */
 import {
     applyEntraGroupListPermissions,
     acquireSpoContext,
     roleDefIdForLevel
 } from '../schularbeiten-planer/schularbeiten-planer-permissions.js';
-import { loadLfrPermissions, normalizeLfrPermissions } from './lfr-permissions.js';
+import { loadLfrPermissions, normalizeLfrPermissions, lfrPermsStepConfigured } from './lfr-permissions.js';
 
+/** Direktion → Design; Lehrkräfte → Contribute (wie bisher). */
 const LIST_PROFILE = {
-    admin: 'fullControl',
+    admin: 'design',
     lehrer: 'contribute',
-    direktion: 'design'
+    schueler: null
 };
 
 /**
@@ -49,7 +50,7 @@ export async function grantLfrFlowServiceAccountOnList(
         ctx.digest,
         title,
         principal.id,
-        roleDefIdForLevel(LIST_PROFILE.admin)
+        roleDefIdForLevel('fullControl')
     );
     write('Technik-Konto zugewiesen.');
     return { ok: true };
@@ -64,25 +65,44 @@ export async function grantLfrFlowServiceAccountOnList(
 export async function applyLfrListPermissions(siteWebUrl, listTitle, opts, logFn) {
     const write = typeof logFn === 'function' ? logFn : () => {};
     const perms = normalizeLfrPermissions(loadLfrPermissions());
-    const groups = [];
-    if (perms.groupLehrerId) {
-        groups.push({ id: perms.groupLehrerId, name: perms.groupLehrerName, level: LIST_PROFILE.lehrer });
-    }
-    if (perms.groupDirektionId) {
-        groups.push({
-            id: perms.groupDirektionId,
-            name: perms.groupDirektionName,
-            level: LIST_PROFILE.direktion
-        });
-    }
-    if (!groups.length) {
-        write('Keine Entra-Gruppen in Schritt 4 – Berechtigungen übersprungen.');
-        return { skipped: true };
-    }
-    await applyEntraGroupListPermissions(siteWebUrl, listTitle, groups, write);
+    const title = String(listTitle || '').trim() || 'Lehrer-Freistellungen';
     const flowAccount = opts && opts.flowServiceAccount ? String(opts.flowServiceAccount).trim() : '';
+
+    if (!lfrPermsStepConfigured(perms)) {
+        write('Keine Gruppen/Personen in Schritt 4 – nur Technik-Konto falls gesetzt.');
+        if (flowAccount) {
+            await grantLfrFlowServiceAccountOnList(siteWebUrl, title, flowAccount, opts, write);
+        }
+        return { skipped: true, reason: 'no-audience' };
+    }
+
+    const config = {
+        groupAdmin: perms.groupDirektionName,
+        groupAdminId: perms.groupDirektionId,
+        groupLehrer: perms.groupLehrerName,
+        groupLehrerId: perms.groupLehrerId,
+        groupSchueler: '',
+        groupSchuelerId: '',
+        adminUsers: perms.direktionUsers,
+        lehrerUsers: perms.lehrerUsers,
+        schuelerUsers: []
+    };
+
+    write('Berechtigungen auf Liste „' + title + '“ (Gruppen + Einzelpersonen) …');
+    const ctx = await acquireSpoContext(siteWebUrl);
+    await applyEntraGroupListPermissions(
+        ctx.url,
+        ctx.spoToken,
+        ctx.digest,
+        title,
+        ctx.graphToken,
+        config,
+        LIST_PROFILE,
+        write
+    );
+
     if (flowAccount) {
-        await grantLfrFlowServiceAccountOnList(siteWebUrl, listTitle, flowAccount, opts, write);
+        await grantLfrFlowServiceAccountOnList(siteWebUrl, title, flowAccount, opts, write);
     }
     return { ok: true };
 }

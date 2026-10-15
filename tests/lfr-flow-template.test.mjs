@@ -28,6 +28,17 @@ describe('lehrer-freistellung flow template', () => {
         expect(s).not.toContain('KvEmail');
     });
 
+    it('InitializeVariable liegt Top-Level (nicht in If/Scope)', () => {
+        const wrap = JSON.parse(fs.readFileSync(defPath, 'utf8'));
+        const def = wrap.properties?.definition || wrap;
+        const top = def.actions || {};
+        expect(top.Variable_Kommentare?.type).toBe('InitializeVariable');
+        expect(top.Nur_bei_Ausstehend?.type).toBe('If');
+        expect(top.Nur_bei_Ausstehend?.runAfter).toEqual({ Variable_Kommentare: ['Succeeded'] });
+        const nested = JSON.stringify(top.Nur_bei_Ausstehend?.actions || {});
+        expect(nested).not.toContain('"InitializeVariable"');
+    });
+
     it('flows manifest verweist auf LFR asset', () => {
         const manifest = JSON.parse(
             fs.readFileSync(

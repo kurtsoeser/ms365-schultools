@@ -3,7 +3,12 @@
  */
 import { toIsoDateOnly } from './lfr-logic.js';
 import { KATEGORIE_CHOICES } from './lfr-schema.js';
-import { loadLfrPermissions, direktionEmailFromFreistellungSetup } from './lfr-permissions.js';
+import {
+    loadLfrPermissions,
+    resolveLfrApproverEmail,
+    accountIsLfrDirektionAccess,
+    accountIsLfrLehrerAccess
+} from './lfr-permissions.js';
 
 const ROLE_KEY = 'ms365-lfr-planer-role-v1';
 const SITE_KEY = 'ms365-lfr-planer-site-v1';
@@ -79,6 +84,32 @@ export function emptyForm(partial) {
         bemerkungDirektion: '',
         ...(partial || {})
     };
+}
+
+/**
+ * Lehrkraft-Identität aus dem angemeldeten Konto (und Stammdaten-Match) ins Formular.
+ * Felder bleiben readonly – Antragsteller ist immer der eingeloggte User.
+ * @param {object} state
+ * @param {{ force?: boolean }} [opts]
+ */
+export function prefillLehrerFormIdentity(state, opts) {
+    if (!state || !state.form) return state;
+    const force = !!(opts && opts.force);
+    const match = matchTeacherByEmail(
+        (state.stammdaten && state.stammdaten.teachers) || [],
+        state.accountEmail
+    );
+    const email = String(state.accountEmail || '').trim().toLowerCase();
+    const name = String(
+        state.accountName || (match && match.name) || state.form.lehrerName || ''
+    ).trim();
+    if (force || !String(state.form.lehrerEmail || '').trim()) {
+        if (email) state.form.lehrerEmail = email;
+    }
+    if (force || !String(state.form.lehrerName || '').trim()) {
+        if (name) state.form.lehrerName = name;
+    }
+    return state;
 }
 
 /**
@@ -230,9 +261,11 @@ export function saveDemoItems(items) {
  */
 export function inferRoleHint(state) {
     const perms = loadLfrPermissions();
-    const dirMail = perms.emailDirektion || direktionEmailFromFreistellungSetup();
     const em = String(state.accountEmail || '').trim().toLowerCase();
-    if (dirMail && em && dirMail === em) return 'direktion';
+    if (accountIsLfrDirektionAccess(em, perms) || resolveLfrApproverEmail(perms) === em) {
+        return 'direktion';
+    }
+    if (accountIsLfrLehrerAccess(em, perms)) return 'lehrer';
     const match = matchTeacherByEmail(state.stammdaten.teachers, em);
     if (match) return 'lehrer';
     return '';

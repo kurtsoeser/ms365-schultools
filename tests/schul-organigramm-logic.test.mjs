@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
     seedSchulOrganigrammFromStammdaten,
     syncSchulOrganigrammWithStammdaten,
+    rebuildSchulOrganigrammFromStammdaten,
     resolveSchulOrganigrammLayout,
     convertVerwaltungOrganigrammToSchul,
     migrateVerwaltungOrganigrammToSchul,
@@ -18,6 +19,7 @@ import {
     childrenOf,
     audienceSectionId,
     canPlaceSchulOrgNodeInSection,
+    listSchulOrgRoleParentAreas,
     normalizeSchulOrganigramm,
     setSchulOrganigrammView,
     setSchulOrganigrammNodePosition,
@@ -179,7 +181,9 @@ describe('schul-organigramm-logic', () => {
         });
         const board = layout.nodes.find((n) => n.id === SCHUL_ORG_SGA_BOARD_ID);
         expect(board?.type).toBe('area');
-        expect(board?.parentId).toBe('sec_vertretung');
+        expect(board?.label).toBe('SGA');
+        expect(board?.parentId == null || board?.parentId === '').toBe(true);
+        expect(layout.nodes.find((n) => n.id === 'sec_vertretung')).toBeFalsy();
         expect(layout.nodes.find((n) => n.id === 'council_board')).toBeFalsy();
         const svArea = layout.nodes.find((n) => n.id === SCHUL_ORG_SGA_SV_AREA_ID);
         expect(svArea?.label).toBe('Schülervertretung');
@@ -208,17 +212,70 @@ describe('schul-organigramm-logic', () => {
             version: 2,
             nodes: [
                 {
+                    id: 'sec_vertretung',
+                    type: 'area',
+                    label: 'Schülervertretung & SGA',
+                    parentId: null,
+                    tone: 'council'
+                },
+                {
                     id: 'sga_board',
                     type: 'sga',
                     label: 'SGA',
                     parentId: 'sec_vertretung',
                     refKind: 'sga',
                     refKey: '_board'
+                },
+                {
+                    id: 'sga_gruppe_lehrer',
+                    type: 'area',
+                    label: 'Lehrer',
+                    parentId: 'sec_vertretung',
+                    refKind: 'sgaScope',
+                    refKey: 'teacher'
                 }
             ]
         };
         const ensured = ensureSchulOrganigrammSgaStructure(legacy, { sga: [] });
+        expect(ensured.nodes.find((n) => n.id === 'sec_vertretung')).toBeFalsy();
+        const ensuredBoard = ensured.nodes.find((n) => n.id === SCHUL_ORG_SGA_BOARD_ID);
+        expect(ensuredBoard?.parentId == null || ensuredBoard?.parentId === '').toBe(true);
+        expect(ensuredBoard?.label).toBe('SGA');
         expect(ensured.nodes.filter((n) => String(n.id).startsWith('sga_gruppe_'))).toHaveLength(3);
+        expect(ensured.nodes.find((n) => n.id === 'sga_gruppe_lehrer')?.parentId).toBe(
+            SCHUL_ORG_SGA_BOARD_ID
+        );
+    });
+
+    it('SGA-Board behält zugeordnetes M365-Objekt beim Sync', () => {
+        const layout = seedSchulOrganigrammFromStammdaten({
+            adminRoles: [],
+            admin: [],
+            arges: [],
+            classes: [],
+            sga: []
+        });
+        const withM365 = setSchulOrganigrammAreaM365(layout, SCHUL_ORG_SGA_BOARD_ID, {
+            groupMode: 'match',
+            groupKind: 'distribution',
+            groupId: 'gid-sga-dl',
+            groupLabel: 'SGA-Verteiler',
+            groupMail: 'sga@schule.at'
+        });
+        const synced = syncSchulOrganigrammWithStammdaten(withM365, {
+            adminRoles: [],
+            admin: [],
+            arges: [],
+            classes: [],
+            sga: [{ scope: 'teacher', name: 'L1', email: 'l1@schule.at' }]
+        });
+        const board = synced.layout.nodes.find((n) => n.id === SCHUL_ORG_SGA_BOARD_ID);
+        expect(board?.m365).toMatchObject({
+            groupMode: 'match',
+            groupKind: 'distribution',
+            groupId: 'gid-sga-dl',
+            groupLabel: 'SGA-Verteiler'
+        });
     });
 
     it('Standard-Bereiche: Lehrer geschützt, Schulleitung/Verwaltung und Custom löschbar', () => {
@@ -650,6 +707,31 @@ describe('schul-organigramm-logic', () => {
         );
     });
 
+    it('sync behält umbenannten KlassenChats-Bereich', () => {
+        const settings = {
+            adminRoles: [],
+            admin: [],
+            arges: [],
+            classes: [{ code: '1A', name: 'DEMO Klasse 1A' }]
+        };
+        let layout = seedSchulOrganigrammFromStammdaten(settings);
+        const root = layout.nodes.find((n) => n.id === SCHUL_ORG_SEC_KLASSENCHATS);
+        expect(root).toBeTruthy();
+        root.label = 'Lehrer-Chats';
+        const synced = syncSchulOrganigrammWithStammdaten(layout, settings);
+        expect(synced.layout.nodes.find((n) => n.id === SCHUL_ORG_SEC_KLASSENCHATS)?.label).toBe(
+            'Lehrer-Chats'
+        );
+        const resolved = resolveSchulOrganigrammLayout(synced.layout, settings);
+        expect(resolved.layout.nodes.find((n) => n.id === SCHUL_ORG_SEC_KLASSENCHATS)?.label).toBe(
+            'Lehrer-Chats'
+        );
+        const rebuilt = rebuildSchulOrganigrammFromStammdaten(synced.layout, settings);
+        expect(rebuilt.nodes.find((n) => n.id === SCHUL_ORG_SEC_KLASSENCHATS)?.label).toBe(
+            'Lehrer-Chats'
+        );
+    });
+
     it('sync ergänzt fehlende Audience-Sections und aktualisiert Labels', () => {
         const base = seedSchulOrganigrammFromStammdaten({
             adminRoles: [],
@@ -694,7 +776,7 @@ describe('schul-organigramm-logic', () => {
         const customLayout = {
             version: 2,
             nodes: [
-                { id: 'sec_verwaltung', type: 'area', parentId: null },
+                { id: 'sec_verwaltung', type: 'area', parentId: null, label: 'Verwaltung' },
                 { id: 'area_custom', type: 'area', label: 'Extra', parentId: null, refKind: 'none' },
                 { id: 'role_X', type: 'role', refKind: 'adminRole', refKey: 'X', parentId: 'sec_verwaltung' }
             ]
@@ -708,6 +790,9 @@ describe('schul-organigramm-logic', () => {
         ).toBe(true);
         const movedRole = moveSchulOrganigrammNode(customLayout, 'role_X', 'area_custom');
         expect(movedRole.nodes.find((n) => n.id === 'role_X')?.parentId).toBe('area_custom');
+        const parents = listSchulOrgRoleParentAreas(customLayout);
+        expect(parents.map((a) => a.id).sort()).toEqual(['area_custom', 'sec_verwaltung'].sort());
+        expect(parents.some((a) => a.id === 'sec_arge')).toBe(false);
     });
 
     it('zeigt Personen-Chips in Bereichen mit direkten Personen (nicht nur Lehrkräfte)', () => {
@@ -957,6 +1042,54 @@ describe('schul-organigramm-logic', () => {
         const box = map.boxes.find((b) => b.kind === 'area' && b.node.id === kid);
         expect(box?.peoplePreview).toBe(true);
         expect(box?.previewCount).toBe(3);
+    });
+
+    it('Klassen-Bereich: Personen-Vorschau ohne has-leaves trotz ausgeblendeter Kursteams', () => {
+        const layout = seedSchulOrganigrammFromStammdaten({
+            adminRoles: [],
+            admin: [],
+            arges: [],
+            teachers: [{ code: 'PAGE', name: 'Jimmy Page', email: 'page@schule.at' }],
+            classes: [{ code: '4A', name: 'DEMO Klasse 4A', year: '2026', headEmail: 'page@schule.at' }],
+            students: Array.from({ length: 8 }, (_, i) => ({
+                code: 'S' + (i + 1),
+                name: 'Schüler' + (i + 1),
+                email: 's' + (i + 1) + '@schule.at',
+                classCode: '4A'
+            })),
+            unterrichtsbelegung: {
+                rows: [
+                    {
+                        klasse: '4A',
+                        fach: 'MAT',
+                        lehrerEmail: 'page@schule.at',
+                        lehrerCode: 'PAGE'
+                    }
+                ]
+            }
+        });
+        const classNode = layout.nodes.find((n) => isClassNode(n) && n.refKey === '4A');
+        expect(classNode).toBeTruthy();
+        const kurs = layout.nodes.filter(
+            (n) =>
+                String(n.type || '').toLowerCase() === 'kursteam' &&
+                n.parentId === classNode.id
+        );
+        expect(kurs.length).toBeGreaterThanOrEqual(1);
+        const map = computeLandkarteLayout(layout, {
+            peopleCountForArea: function (area) {
+                return area && area.id === classNode.id ? 9 : 0;
+            }
+        });
+        const box = map.boxes.find((b) => b.kind === 'area' && b.node.id === classNode.id);
+        expect(box?.peoplePreview).toBe(true);
+        expect(box?.previewCount).toBe(9);
+        // Kursteams zählen in contentCount, sind in der Übersicht aber nicht sichtbar
+        expect(box?.contentCount).toBeGreaterThanOrEqual(1);
+        expect(box?.visibleInnerCount).toBe(0);
+        // 8 Chips + „+1“-Zeile brauchen ausreichend Höhe unter dem 74px-Kopf
+        expect(box?.previewH).toBeGreaterThanOrEqual(9 * 36 + 16);
+        expect(box?.h).toBeGreaterThanOrEqual(74 + (box?.previewH || 0));
     });
 
     it('klappt Bereiche auf der Landkarte ein und speichert den Zustand', () => {
@@ -1284,7 +1417,7 @@ describe('schul-organigramm-logic', () => {
         let layout = seedSchulOrganigrammFromStammdaten(settings);
         layout = setSchulOrganigrammNodePosition(layout, 'sec_arge', 1600, 120);
         layout = setSchulOrganigrammNodePosition(layout, 'sec_lehrer', 2400, 900);
-        layout = setSchulOrganigrammNodePosition(layout, 'sec_vertretung', 200, 1100);
+        layout = setSchulOrganigrammNodePosition(layout, SCHUL_ORG_SGA_BOARD_ID, 200, 1100);
         layout = setSchulOrganigrammView(layout, { x: 40, y: 20, k: 0.7 });
 
         // null/'' dürfen nicht zu (0,0) werden
@@ -1322,7 +1455,7 @@ describe('schul-organigramm-logic', () => {
         // Enge Nutzer-Anordnung: keine automatische Entflechtung der Root-Positionen
         let packed = setSchulOrganigrammNodePosition(resolved.layout, 'sec_arge', 100, 80);
         packed = setSchulOrganigrammNodePosition(packed, 'sec_lehrer', 140, 120);
-        packed = setSchulOrganigrammNodePosition(packed, 'sec_vertretung', 180, 160);
+        packed = setSchulOrganigrammNodePosition(packed, SCHUL_ORG_SGA_BOARD_ID, 180, 160);
         const packedMap = computeLandkarteLayout(packed);
         expect(packedMap.boxes.find((b) => b.kind === 'area' && b.node.id === 'sec_arge')?.x).toBe(
             100
@@ -1331,11 +1464,11 @@ describe('schul-organigramm-logic', () => {
             120
         );
         expect(
-            packedMap.boxes.find((b) => b.kind === 'area' && b.node.id === 'sec_vertretung')?.x
+            packedMap.boxes.find((b) => b.kind === 'area' && b.node.id === SCHUL_ORG_SGA_BOARD_ID)?.x
         ).toBe(180);
         const packedBack = applyLandkarteRootPositionsFromBoxes(packed, packedMap.boxes);
         expect(packedBack.nodes.find((n) => n.id === 'sec_lehrer')?.x).toBe(140);
-        expect(packedBack.nodes.find((n) => n.id === 'sec_vertretung')?.y).toBe(160);
+        expect(packedBack.nodes.find((n) => n.id === SCHUL_ORG_SGA_BOARD_ID)?.y).toBe(160);
 
         // Speichern hält Root-Orte; Jahrgänge werden nicht als freie Orte persistiert
         const appliedSave = applySchulOrganigrammToStammdaten(
@@ -2007,7 +2140,10 @@ describe('schul-organigramm area people', () => {
     it('Area-M365: groupKind normalisieren, matchen, Labels', () => {
         expect(normalizeSchulOrgGroupKind('mailSecurity')).toBe('mailSecurity');
         expect(normalizeSchulOrgGroupKind('dl')).toBe('distribution');
+        expect(normalizeSchulOrgGroupKind('groupChat')).toBe('groupChat');
+        expect(normalizeSchulOrgGroupKind('teams_chat')).toBe('groupChat');
         expect(schulOrgGroupKindLabel('security')).toBe('Sicherheitsgruppe');
+        expect(schulOrgGroupKindLabel('groupChat')).toBe('Teams-Gruppenchat');
         expect(inferSchulOrgGroupKind({ securityEnabled: true, mailEnabled: true })).toBe(
             'mailSecurity'
         );
@@ -2129,6 +2265,37 @@ describe('schul-organigramm area people', () => {
         );
         expect(kursInFocus).toHaveLength(1);
         expect(kursInFocus[0].node.label).toMatch(/MAT/i);
+
+        // Mit Personen: links KV/Schüler, rechts Unterrichtsteams
+        const focusSplit = computeFocusLayout(
+            layout,
+            classNode,
+            [
+                {
+                    kind: 'head',
+                    seatLabel: 'Klassenvorstand',
+                    name: 'KV Test',
+                    email: 'kv@schule.at'
+                },
+                { kind: 'member', seatLabel: 'Schüler', name: 'SuS', email: 'sus@schule.at' }
+            ],
+            kursKids
+        );
+        const kvChip = focusSplit.boxes.find((b) => b.kind === 'person-chip' && b.leadSeat);
+        const schuelerChip = focusSplit.boxes.find(
+            (b) => b.kind === 'person-chip' && !b.leadSeat
+        );
+        const kursChip = focusSplit.boxes.find(
+            (b) => b.focusChild && b.node && b.node.type === NODE.KURSTEAM
+        );
+        expect(kvChip).toBeTruthy();
+        expect(schuelerChip).toBeTruthy();
+        expect(kursChip).toBeTruthy();
+        expect(schuelerChip.y).toBeGreaterThan(kvChip.y);
+        expect(kursChip.x).toBeGreaterThan(kvChip.x + kvChip.w - 1);
+        expect(kursChip.y).toBeLessThanOrEqual(kvChip.y + 1);
+        // Schüler-Chip so breit wie die linke Spalte (Name/E-Mail sichtbar)
+        expect(schuelerChip.w).toBeGreaterThanOrEqual(kvChip.w - 1);
 
         // Sync entfernt veraltete Kursteams
         const slim = Object.assign({}, settings, {
@@ -2471,7 +2638,7 @@ describe('schul-organigramm save keeps landkarte positions', () => {
         layout = setSchulOrganigrammNodePosition(layout, 'sec_lehrer', 900, 30);
         layout = setSchulOrganigrammNodePosition(layout, 'sec_schueler', 40, 520);
         layout = setSchulOrganigrammNodePosition(layout, 'sec_arge', 1500, 180);
-        layout = setSchulOrganigrammNodePosition(layout, 'sec_vertretung', 700, 520);
+        layout = setSchulOrganigrammNodePosition(layout, SCHUL_ORG_SGA_BOARD_ID, 700, 520);
 
         const map = computeLandkarteLayout(layout);
         layout = applyLandkartePositionsFromBoxes(layout, map.boxes, { rootsOnly: true });
@@ -2481,7 +2648,7 @@ describe('schul-organigramm save keeps landkarte positions', () => {
         expect(merged.nodes.find((n) => n.id === 'sec_arge')?.x).toBe(1500);
         expect(merged.nodes.find((n) => n.id === 'sec_arge')?.y).toBe(180);
         expect(merged.nodes.find((n) => n.id === 'sec_schueler')?.x).toBe(40);
-        expect(merged.nodes.find((n) => n.id === 'sec_vertretung')?.x).toBe(700);
+        expect(merged.nodes.find((n) => n.id === SCHUL_ORG_SGA_BOARD_ID)?.x).toBe(700);
         // ARGEs darf nicht auf dem Default-Slot über Schüler landen
         expect(merged.nodes.find((n) => n.id === 'sec_arge')?.x).toBeGreaterThan(1200);
     });

@@ -703,6 +703,14 @@
     white-space: nowrap;
 }
 
+.fr-btn-delete {
+    color: var(--danger, #b42318);
+}
+
+.fr-btn-delete:hover {
+    background: rgba(180, 35, 24, 0.08);
+}
+
 .btn-sm {
     padding: 2px 8px;
     font-size: 0.8rem;

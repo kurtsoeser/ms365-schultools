@@ -751,6 +751,11 @@
      */
     async function createGroupByKind(token, kind, displayName, mailNickname, description) {
         const k = String(kind || 'unified');
+        if (k === 'groupChat' || k === 'gruppenchat' || k === 'chat') {
+            throw new Error(
+                'Teams-Gruppenchats werden nicht über die Entra-Gruppen-API angelegt (KlassenChats-Werkzeug nutzen).'
+            );
+        }
         if (k === 'security') return createSecurityGroup(token, displayName, mailNickname, description);
         if (k === 'mailSecurity') {
             return createMailEnabledSecurityGroup(token, displayName, mailNickname, description);

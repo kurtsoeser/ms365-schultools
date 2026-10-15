@@ -84,7 +84,7 @@
 
             <div id="frSetupStep2" class="tm-wizard__pane" role="tabpanel" hidden>
                 <h3 class="tm-wizard__pane-title">Konten &amp; Genehmiger</h3>
-                <p class="tm-wizard__pane-lead">Technik-Konto, Direktion (einziger Genehmiger) und Absender der Status-Mails.</p>
+                <p class="tm-wizard__pane-lead">Technik-Konto, <strong>Direktion als Power-Automate-Genehmiger</strong> (eine Person) und Absender der Status-Mails. Listen-/Planer-Zugriff (Gruppen und Personen) folgt in Schritt 4.</p>
                 <section class="tm-panel fr-setup-panel">
                     <div class="tm-field fr-flow-account-field">
                         <label for="frFlowServiceAccount">Technik-Konto für Power Automate</label>
@@ -95,11 +95,12 @@
                         </div>
                     </div>
                     <div class="tm-field">
-                        <label for="frEmailDirektion">Direktion (Genehmiger)</label>
+                        <label for="frEmailDirektion">Direktion (Genehmiger für Approvals)</label>
                         <div class="fr-setup-egp fr-setup-egp--tight">
                             <input type="email" id="frEmailDirektion" placeholder="direktion@schule.at" autocomplete="off">
                             <button type="button" class="btn btn-sm alt" id="frEmailDirektionPick"><i class="bi bi-person-bounding-box"></i>Suchen</button>
                         </div>
+                        <p class="muted" style="font-size:0.85em;margin-top:6px;">Diese Adresse kommt in den Flow als Genehmiger. Zusätzliche Personen mit Planer-Zugriff legst du in Schritt 4 fest.</p>
                     </div>
                     <div class="tm-field">
                         <label for="frEmailMailbox">Absender für Status-Mails</label>
@@ -151,37 +152,78 @@
 
             <div id="frSetupStep4" class="tm-wizard__pane" role="tabpanel" hidden>
                 <h3 class="tm-wizard__pane-title">Berechtigungen &amp; Outlook-Kalender</h3>
-                <p class="tm-wizard__pane-lead">Entra-Gruppen für Planer und Liste; optional Zielkalender für Graph-Sync (genehmigte Termine).</p>
+                <p class="tm-wizard__pane-lead">Zwei getrennte Dinge: <strong>wer genehmigt</strong> (Power Automate) und <strong>wer Zugriff</strong> auf Planer/Liste hat (Gruppen und/oder Einzelpersonen).</p>
                 <section class="tm-panel fr-setup-panel">
+                    <h4 style="margin:0 0 8px;font-size:1.05rem;">1 · Genehmiger (Power Automate)</h4>
+                    <p class="muted" style="margin:0 0 12px;font-size:0.9em;line-height:1.45;">Eine Person erhält den Approvals-Antrag. Wird ins Flow-Paket übernommen (wie Schritt 2 „Direktion“).</p>
+                    <div class="tm-field">
+                        <label for="lfrPermEmailDirektion">Direktion / Genehmiger</label>
+                        <div class="fr-setup-egp fr-setup-egp--tight">
+                            <input type="email" id="lfrPermEmailDirektion" placeholder="direktor@schule.at" autocomplete="off">
+                            <button type="button" class="btn btn-sm alt" id="lfrPermEmailDirektionPick"><i class="bi bi-person-bounding-box"></i>Suchen</button>
+                        </div>
+                    </div>
+
+                    <hr style="margin:18px 0;border:none;border-top:1px solid var(--border-subtle,#ddd);">
+
+                    <h4 style="margin:0 0 8px;font-size:1.05rem;">2 · Zugriff auf Planer &amp; Liste</h4>
+                    <p class="muted" style="margin:0 0 12px;font-size:0.9em;line-height:1.45;">Wer Anträge stellen darf (Lehrkräfte) bzw. Freigabe/Übersicht sieht (Direktion/Verwaltung). Pro Rolle: Entra-Gruppe und/oder einzelne Microsoft-365-Personen.</p>
                     <div class="fr-setup-perm-grid">
                         <article class="fr-setup-perm-card">
-                            <h4>Lehrkräfte</h4>
+                            <div class="fr-setup-perm-card__head">
+                                <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-person-badge"></i></span>
+                                <div>
+                                    <h4>Lehrkräfte</h4>
+                                    <p>Anträge stellen – Gruppe und/oder Einzelpersonen.</p>
+                                </div>
+                            </div>
+                            <p class="fr-setup-perm-sub">Entra-Gruppe (optional)</p>
                             <div class="fr-setup-egp">
                                 <input id="lfrPermLehrer" type="text" readonly placeholder="Gruppe wählen …">
                                 <input id="lfrPermLehrerId" type="hidden">
                                 <button type="button" class="btn btn-sm" id="lfrPermLehrerPick"><i class="bi bi-search"></i>Gruppe</button>
-                                <button type="button" class="btn btn-sm alt" id="lfrPermLehrerClear"><i class="bi bi-x-lg"></i></button>
+                                <button type="button" class="btn btn-sm alt" id="lfrPermLehrerClear" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <p class="fr-setup-perm-sub">Einzelpersonen</p>
+                            <ul id="lfrPermLehrerUsers" class="fr-setup-user-list" aria-label="Lehrkräfte Einzelpersonen"></ul>
+                            <div class="fr-setup-egp fr-setup-egp--tight">
+                                <button type="button" class="btn btn-sm" id="lfrPermLehrerUserAdd"><i class="bi bi-person-plus"></i>Person</button>
                             </div>
                         </article>
                         <article class="fr-setup-perm-card">
-                            <h4>Direktion</h4>
+                            <div class="fr-setup-perm-card__head">
+                                <span class="fr-setup-perm-card__icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+                                <div>
+                                    <h4>Direktion / Verwaltung</h4>
+                                    <p>Freigabe, alle Anträge, Export – Gruppe und/oder Einzelpersonen.</p>
+                                </div>
+                            </div>
+                            <p class="fr-setup-perm-sub">Entra-Gruppe (optional)</p>
                             <div class="fr-setup-egp">
                                 <input id="lfrPermDirektion" type="text" readonly placeholder="Gruppe wählen …">
                                 <input id="lfrPermDirektionId" type="hidden">
                                 <button type="button" class="btn btn-sm" id="lfrPermDirektionPick"><i class="bi bi-search"></i>Gruppe</button>
-                                <button type="button" class="btn btn-sm alt" id="lfrPermDirektionClear"><i class="bi bi-x-lg"></i></button>
+                                <button type="button" class="btn btn-sm alt" id="lfrPermDirektionClear" title="Gruppe löschen"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <p class="fr-setup-perm-sub">Einzelpersonen</p>
+                            <ul id="lfrPermDirektionUsers" class="fr-setup-user-list" aria-label="Direktion Einzelpersonen"></ul>
+                            <div class="fr-setup-egp fr-setup-egp--tight">
+                                <button type="button" class="btn btn-sm" id="lfrPermDirektionUserAdd"><i class="bi bi-person-plus"></i>Person</button>
+                                <button type="button" class="btn btn-sm alt" id="lfrPermDirektionStammdaten" title="Verwaltung aus Stammdaten"><i class="bi bi-journal-text"></i>Aus Stammdaten</button>
                             </div>
                         </article>
                     </div>
-                    <button type="button" class="btn" id="lfrBtnSavePerms"><i class="bi bi-people"></i>Gruppen speichern</button>
+                    <button type="button" class="btn" id="lfrBtnSavePerms" style="margin-top:14px;"><i class="bi bi-people"></i>Zugriff &amp; Genehmiger speichern</button>
+
                     <hr style="margin:18px 0;border:none;border-top:1px solid var(--border-subtle,#ddd);">
+                    <h4 style="margin:0 0 8px;font-size:1.05rem;">3 · Outlook-Kalender (optional)</h4>
                     <div class="tm-field">
                         <label for="lfrOutlookCalUser">Kalender-Besitzer (UPN)</label>
                         <div class="fr-setup-egp fr-setup-egp--tight">
                             <input type="email" id="lfrOutlookCalUser" placeholder="z. B. sekretariat@schule.at" autocomplete="off">
                             <button type="button" class="btn btn-sm alt" id="lfrOutlookCalUserPick"><i class="bi bi-person-bounding-box"></i>Suchen</button>
                         </div>
-                        <p class="muted" style="font-size:0.85em;">Konto mit freigegebenem Kalender; angemeldeter Nutzer beim Sync braucht <code>Calendars.ReadWrite</code> auf diesen Kalender.</p>
+                        <p class="muted" style="font-size:0.85em;">Für den Sync: idealerweise <strong>dein eigenes Konto</strong> (dann reicht <code>Calendars.ReadWrite</code>). Fremdes Postfach nur mit Kalender-Freigabe + <code>Calendars.ReadWrite.Shared</code>. Global Admin allein reicht nicht.</p>
                     </div>
                     <div class="tm-field">
                         <label for="lfrOutlookCalId">Kalender-ID <span class="muted">(optional, sonst Standardkalender)</span></label>

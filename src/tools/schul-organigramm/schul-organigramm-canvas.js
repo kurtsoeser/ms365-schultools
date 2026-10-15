@@ -15,6 +15,8 @@ import {
     isKlassenchatClassNode,
     isArgeAreaNode,
     isArgeLeiterArea,
+    isKlassenvorstandArea,
+    isClassAreaNode,
     isClassNode,
     normalizeSchulOrganigramm,
     sammelgruppeKeyForArea,
@@ -31,11 +33,16 @@ import {
     setSchulOrganigrammAreaCollapsed,
     NODE,
     schulOrgGroupKindLabel,
+    schulOrgGroupKindIcon,
+    schulOrgMailboxIcon,
+    normalizeSchulOrgGroupKind,
     personHasM365UserLink,
-    nodeM365LinkFlags,
-    canPlaceSchulOrgNodeInSection
+    nodeM365LinkFlags
 } from './schul-organigramm-logic.js';
-import { nodeUsesGraphFocusPeople } from './schul-organigramm-focus-people.js';
+import {
+    areaHasLinkedM365Group,
+    nodeUsesGraphFocusPeople
+} from './schul-organigramm-focus-people.js';
 
 /**
  * @param {{
@@ -64,32 +71,75 @@ function normalizePersonFocusOpt(raw) {
 }
 
 /**
- * Kleines M365-Status-Icon für Kacheln.
- * @param {{ hasGroup?: boolean, hasMailbox?: boolean, linked?: boolean }} flags
+ * Typ-spezifische M365-Marken (Chat / Gruppe / Postfach) für die Landkarte.
+ * @param {{
+ *   linked?: boolean,
+ *   hasGroup?: boolean,
+ *   hasMailbox?: boolean,
+ *   hasChat?: boolean,
+ *   displayKind?: string|null,
+ *   groupKind?: string
+ * }|null|undefined} flags
  * @param {string} [extraClass]
  */
 function m365MarkHtml(flags, extraClass) {
-    if (!flags || !flags.linked) return '';
-    const bits = [];
-    if (flags.hasGroup) bits.push('M365-Gruppe verknüpft');
-    if (flags.hasMailbox) bits.push('Postfach verknüpft');
-    const title = bits.join(' · ') || 'Mit Microsoft 365 verknüpft';
-    const icon = flags.hasGroup
-        ? 'bi-microsoft'
-        : 'bi-envelope-at';
-    return (
-        '<span class="schul-org-map__m365-mark' +
-        (flags.hasGroup ? ' is-group' : '') +
-        (flags.hasMailbox ? ' is-mailbox' : '') +
-        (extraClass ? ' ' + extraClass : '') +
-        '" title="' +
-        escapeHtml(title) +
-        '" aria-label="' +
-        escapeHtml(title) +
-        '"><i class="bi ' +
-        icon +
-        '" aria-hidden="true"></i></span>'
-    );
+    if (!flags || !(flags.linked || flags.showChatMark)) return '';
+    /** @type {Array<{ icon: string, title: string, kind: string }>} */
+    let marks = [];
+    if (Array.isArray(flags.marks) && flags.marks.length) {
+        marks = flags.marks.map(function (m) {
+            return {
+                icon: m.icon || schulOrgGroupKindIcon(m.kind),
+                title: m.title || schulOrgGroupKindLabel(m.kind),
+                kind: m.kind === 'groupChat' ? 'chat' : m.kind === 'mailbox' ? 'mailbox' : 'group'
+            };
+        });
+    } else {
+        if (flags.hasChat || flags.showChatMark) {
+            marks.push({
+                icon: schulOrgGroupKindIcon('groupChat'),
+                title: flags.hasChat
+                    ? 'Teams-Gruppenchat verknüpft'
+                    : 'Teams-Gruppenchat (KlassenChat)',
+                kind: 'chat'
+            });
+        }
+        if (flags.hasGroup) {
+            const kind =
+                flags.displayKind && flags.displayKind !== 'groupChat'
+                    ? flags.displayKind
+                    : flags.groupKind || 'unified';
+            marks.push({
+                icon: schulOrgGroupKindIcon(kind),
+                title: schulOrgGroupKindLabel(kind) + ' verknüpft',
+                kind: 'group'
+            });
+        }
+        if (flags.hasMailbox) {
+            marks.push({
+                icon: schulOrgMailboxIcon(),
+                title: 'Freigegebenes Postfach verknüpft',
+                kind: 'mailbox'
+            });
+        }
+    }
+    if (!marks.length) return '';
+    return marks
+        .map(function (m) {
+            return (
+                '<span class="schul-org-map__m365-mark is-' +
+                m.kind +
+                (extraClass ? ' ' + extraClass : '') +
+                '" title="' +
+                escapeHtml(m.title) +
+                '" aria-label="' +
+                escapeHtml(m.title) +
+                '"><i class="bi ' +
+                m.icon +
+                '" aria-hidden="true"></i></span>'
+            );
+        })
+        .join('');
 }
 
 /**
@@ -220,6 +270,7 @@ function areaAllowsPeoplePreview(area) {
     // ARGE-Bereich: Leitung + Fachlehrer
     if (isArgeAreaNode(area)) return true;
     if (isArgeLeiterArea(area)) return true;
+    if (isKlassenvorstandArea(area)) return true;
     // Schülervertretung zeigt die drei Funktions-Karten; Lehrer/Eltern brauchen Chips
     if (isSgaScopeArea(area)) {
         const scope = sgaScopeForArea(area);
@@ -232,13 +283,20 @@ function areaAllowsPeoplePreview(area) {
     return true;
 }
 
+/** Extra Höhe für Leitungs-Band + Mitglieder-Trenner in der Vorschau */
+const PREVIEW_LEAD_EXTRA = 18;
+
 /**
+ * Höhe des Personen-Vorschau-Streifens inkl. optionaler „+N“-Zeile
+ * und etwas Luft für Leitungs-Band / Trenner.
  * @param {number} peopleCount
  */
 function peoplePreviewStripHeight(peopleCount) {
-    const n = Math.min(PREVIEW_CHIP_MAX, Math.max(0, Math.floor(Number(peopleCount) || 0)));
+    const total = Math.max(0, Math.floor(Number(peopleCount) || 0));
+    const n = Math.min(PREVIEW_CHIP_MAX, total);
     if (n <= 0) return 0;
-    return n * (PREVIEW_CHIP_H + PREVIEW_CHIP_GAP) + 16;
+    const moreRow = total > PREVIEW_CHIP_MAX ? 1 : 0;
+    return (n + moreRow) * (PREVIEW_CHIP_H + PREVIEW_CHIP_GAP) + 16 + PREVIEW_LEAD_EXTRA;
 }
 const FOCUS_CHIP_W = 200;
 const FOCUS_CHIP_H = 64;
@@ -575,6 +633,21 @@ function countAreaMapContents(base, areaId) {
  */
 function layoutAreaTree(base, area, absX, absY, parentAreaId, opts) {
     const forceExpand = !!(opts && opts.forceExpand);
+    /** Pfad-Guard gegen parentId-Zyklen / extreme Verschachtelung */
+    /** @type {Set<string>} */
+    const pathGuard =
+        opts && opts._layoutPath instanceof Set ? opts._layoutPath : new Set();
+    const areaId = area && area.id != null ? String(area.id) : '';
+    if (areaId && pathGuard.has(areaId)) {
+        return { boxes: [], w: AREA_W, h: HEAD_H };
+    }
+    if (pathGuard.size >= 32) {
+        return { boxes: [], w: AREA_W, h: HEAD_H };
+    }
+    /** @type {Set<string>} */
+    const nextPath = new Set(pathGuard);
+    if (areaId) nextPath.add(areaId);
+    const treeOptsBase = Object.assign({}, opts || {}, { _layoutPath: nextPath });
     const contentCount = countAreaMapContents(base, area.id);
     const isRoot = parentAreaId == null || parentAreaId === '';
     const userW = parseSchulOrgCanvasCoord(area && area.w);
@@ -604,8 +677,8 @@ function layoutAreaTree(base, area, absX, absY, parentAreaId, opts) {
     const childConstrain = maxW != null ? Math.max(120, maxW - AREA_PAD * 2) : null;
     const childOpts =
         childConstrain != null
-            ? Object.assign({}, opts || {}, { constrainW: childConstrain })
-            : opts;
+            ? Object.assign({}, treeOptsBase, { constrainW: childConstrain })
+            : treeOptsBase;
 
     if (area.collapsed === true && !forceExpand) {
         const w = forcedW != null ? forcedW : maxW != null ? Math.min(AREA_W, maxW) : AREA_W;
@@ -775,6 +848,10 @@ function layoutAreaTree(base, area, absX, absY, parentAreaId, opts) {
         }
     }
 
+    // Sichtbare Innen-Inhalte (nicht: Kursteams, die in der Übersicht ausgeblendet sind).
+    // Steuert CSS has-leaves: absolute Preview nur wenn wirklich Platz für Leaves nötig ist.
+    const visibleInnerCount = nested.length + classNests.length + plainLeaves.length;
+
     childBoxes.forEach(function (b) {
         maxRight = Math.max(maxRight, (b.x || 0) + (b.w || 0) + AREA_PAD);
         maxBottom = Math.max(maxBottom, (b.y || 0) + (b.h || 0) + AREA_PAD);
@@ -814,6 +891,7 @@ function layoutAreaTree(base, area, absX, absY, parentAreaId, opts) {
                 previewCount: previewCount,
                 collapsed: false,
                 contentCount: contentCount,
+                visibleInnerCount: visibleInnerCount,
                 resizable: isRoot,
                 contentH: contentH,
                 widthLocked: widthLocked
@@ -1301,9 +1379,127 @@ export function computeFocusLayout(layout, focusNode, people, childNodes, layout
     /** @type {object} */
     let expandBox;
 
-    // Bereich-Zoom: dieselbe Pack-Struktur wie auf der Landkarte (Nested-Areas + Rollen)
-    // Eingeklappte Bereiche im Fokus immer ausgeklappt zeigen
-    if (isAreaNode(focusNode)) {
+    // Klassen-Zoom: links Klassenvorstand + Schüler, rechts Unterrichtsteams
+    if (isClassNode(focusNode)) {
+        const focusTopPad = 10;
+        const colGap = 18;
+        const hasPeople = !!(leadPeople.length || memberPeople.length);
+        const hasKids = kids.length > 0;
+        const leftPeopleCols =
+            hasPeople && hasKids
+                ? memberPeople.length > 6
+                    ? 2
+                    : 1
+                : peopleCols;
+        const leftInnerW = Math.max(
+            leadPeople.length ? Math.min(leadChipW + 80, 360) : 0,
+            leftPeopleCols > 0
+                ? leftPeopleCols * FOCUS_CHIP_W + (leftPeopleCols - 1) * chipGapX
+                : 0,
+            hasPeople ? 240 : 0
+        );
+        const rightLeafMinW = 300;
+        const contentW =
+            hasPeople && hasKids
+                ? leftInnerW + colGap + rightLeafMinW
+                : Math.max(
+                      leftInnerW,
+                      hasKids ? rightLeafMinW : 0,
+                      isLehrerFocus ? FOCUS_CHIP_W + 40 : 400
+                  );
+        const EXPAND_W = Math.max(EXPAND_MIN_W, contentW + EXPAND_INNER_PAD * 2);
+        const usableInner = EXPAND_W - EXPAND_INNER_PAD * 2;
+        let leftColW = hasPeople ? leftInnerW : 0;
+        let rightColW = 0;
+        if (hasPeople && hasKids) {
+            rightColW = Math.max(rightLeafMinW, usableInner - leftColW - colGap);
+        } else if (hasKids) {
+            rightColW = usableInner;
+        } else {
+            leftColW = usableInner;
+        }
+
+        const leftX = ox + EXPAND_INNER_PAD;
+        const rightX = hasPeople && hasKids ? leftX + leftColW + colGap : leftX;
+        let leftCursorY = oy + HEAD_H + focusTopPad;
+        let rightCursorY = oy + HEAD_H + focusTopPad;
+
+        if (hasPeople) {
+            const leadW = Math.min(leadChipW + 80, leftColW);
+            leadPeople.forEach(function (p, i) {
+                innerBoxes.push({
+                    person: p,
+                    x: leftX,
+                    y: leftCursorY + i * (FOCUS_CHIP_H + chipGapY),
+                    w: leadW,
+                    h: FOCUS_CHIP_H,
+                    kind: 'person-chip',
+                    parentAreaId: focusId,
+                    leadSeat: true
+                });
+            });
+            if (leadPeople.length) {
+                leftCursorY += leadPeople.length * (FOCUS_CHIP_H + chipGapY) + 8;
+            }
+            const memberChipW =
+                leftPeopleCols <= 1
+                    ? leftColW
+                    : Math.max(
+                          FOCUS_CHIP_W,
+                          Math.floor(
+                              (leftColW - (leftPeopleCols - 1) * chipGapX) / leftPeopleCols
+                          )
+                      );
+            memberPeople.forEach(function (p, i) {
+                const col = i % leftPeopleCols;
+                const row = Math.floor(i / leftPeopleCols);
+                innerBoxes.push({
+                    person: p,
+                    x: leftX + col * (memberChipW + chipGapX),
+                    y: leftCursorY + row * (FOCUS_CHIP_H + chipGapY),
+                    w: memberChipW,
+                    h: FOCUS_CHIP_H,
+                    kind: 'person-chip',
+                    parentAreaId: focusId
+                });
+            });
+            if (memberPeople.length) {
+                leftCursorY +=
+                    Math.ceil(memberPeople.length / leftPeopleCols) * (FOCUS_CHIP_H + chipGapY);
+            }
+        }
+
+        if (hasKids) {
+            kids.forEach(function (n, i) {
+                innerBoxes.push({
+                    node: n,
+                    x: rightX,
+                    y: rightCursorY + i * (LEAF_H + childGapY),
+                    w: rightColW,
+                    h: LEAF_H,
+                    kind: isAreaNode(n) ? 'area' : 'leaf',
+                    focusChild: true,
+                    parentAreaId: focusId
+                });
+            });
+            rightCursorY += kids.length * (LEAF_H + childGapY);
+        } else if (!hasPeople) {
+            leftCursorY += 40;
+        }
+
+        const contentBottom = Math.max(leftCursorY, rightCursorY);
+        expandBox = {
+            node: focusNode,
+            x: ox,
+            y: oy,
+            w: EXPAND_W,
+            h: Math.max(160, contentBottom - oy + EXPAND_INNER_PAD),
+            kind: 'expanded',
+            parentAreaId: origin ? origin.parentAreaId : null
+        };
+    } else if (isAreaNode(focusNode)) {
+        // Bereich-Zoom: dieselbe Pack-Struktur wie auf der Landkarte (Nested-Areas + Rollen)
+        // Eingeklappte Bereiche im Fokus immer ausgeklappt zeigen
         const tree = layoutAreaTree(
             overview.layout,
             focusNode,
@@ -2099,15 +2295,52 @@ export function mountSchulOrganigrammLandkarte(opts) {
         return [];
     }
 
+    /**
+     * Personenanzahl für Layout/Vorschau: Graph-Cache (nachgeladen) hat Vorrang.
+     * @param {object} area
+     */
+    function peopleCountForLayout(area) {
+        if (!area) return 0;
+        const cached = focusPeopleCache.get(String(area.id));
+        if (cached && Array.isArray(cached.people) && (cached.fetched || cached.loading)) {
+            return cached.people.filter(function (p) {
+                return !!(p && (p.name || p.email) && !p.vacant);
+            }).length;
+        }
+        if (typeof opts.peopleCountForArea === 'function') {
+            return Math.max(0, Number(opts.peopleCountForArea(area)) || 0);
+        }
+        return 0;
+    }
+
+    /**
+     * Ob für diesen Knoten Graph-Mitglieder nachgeladen werden sollen.
+     * Fokus-Knoten immer; in der Übersicht ARGEs (+ freie Bereiche mit Gruppe).
+     * Klassen nur im Fokus – Stammdaten-Schüler reichen für die Vorschau,
+     * sonst zu viele Graph-Calls.
+     * @param {object} node
+     */
+    function shouldHydrateGraphPeople(node) {
+        if (!node || !nodeUsesGraphFocusPeople(node)) return false;
+        if (typeof opts.fetchFocusPeople !== 'function') return false;
+        const focused = focusNode();
+        if (focused && String(focused.id) === String(node.id)) return true;
+        if (isClassAreaNode(node) || isClassNode(node)) return false;
+        if (isArgeAreaNode(node)) return true;
+        if (node.type === NODE.ARGE || node.type === 'arge') return true;
+        if (areaHasLinkedM365Group(node)) return true;
+        return false;
+    }
+
     function ensureFocusPeopleLoaded(node) {
-        if (!node || !nodeUsesGraphFocusPeople(node)) return;
-        if (typeof opts.fetchFocusPeople !== 'function') return;
+        if (!shouldHydrateGraphPeople(node)) return;
         const id = String(node.id);
         const prev = focusPeopleCache.get(id);
         // Wichtig: auch ohne Graph-Treffer (nur lokale Leitung) als fertig markieren –
         // sonst paint → fetch → paint in Endlosschleife (UI friert ein).
         if (prev && (prev.loading || prev.fetched)) return;
-        const local = peopleFor(node);
+        const local =
+            typeof opts.peopleForNode === 'function' ? opts.peopleForNode(node) || [] : [];
         focusPeopleCache.set(id, { loading: true, fetched: false, people: local });
         Promise.resolve()
             .then(function () {
@@ -2119,7 +2352,9 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     fetched: true,
                     people: Array.isArray(list) ? list : local
                 });
-                if (focusNode() && focusNode().id === id) paint();
+                // Übersicht + nested ARGE-Kacheln brauchen ebenfalls Neuzeichnung
+                // (nicht nur der fokussierte Knoten selbst).
+                paint();
             })
             .catch(function (err) {
                 focusPeopleCache.set(id, {
@@ -2128,8 +2363,21 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     people: local,
                     error: err && err.message ? String(err.message) : 'Graph-Laden fehlgeschlagen'
                 });
-                if (focusNode() && focusNode().id === id) paint();
+                paint();
             });
+    }
+
+    /**
+     * Sichtbare ARGE-/Klassen-/Gruppen-Bereiche: Mitglieder aus Graph nachladen,
+     * damit die Landkarten-Vorschau nicht leer bleibt.
+     * @param {object[]} boxes
+     */
+    function ensureVisibleGraphPeople(boxes) {
+        (Array.isArray(boxes) ? boxes : []).forEach(function (b) {
+            if (!b || !b.node || b.dimmed) return;
+            if (b.kind !== 'area' && b.kind !== 'leaf' && b.kind !== 'expanded') return;
+            ensureFocusPeopleLoaded(b.node);
+        });
     }
 
     function personThumb(email, name) {
@@ -2208,8 +2456,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
      */
     function applyLiveLandkarteGeometry() {
         const layoutOpts = {
-            peopleCountForArea:
-                typeof opts.peopleCountForArea === 'function' ? opts.peopleCountForArea : undefined
+            peopleCountForArea: peopleCountForLayout
         };
         const computed = computeLandkarteLayout(layout, layoutOpts);
         lastOverviewBoxes = computed.boxes.slice();
@@ -2376,8 +2623,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
               })
             : [];
         const layoutOpts = {
-            peopleCountForArea:
-                typeof opts.peopleCountForArea === 'function' ? opts.peopleCountForArea : undefined
+            peopleCountForArea: peopleCountForLayout
         };
         const computed = focused
             ? computeFocusLayout(layout, focused, people, childNodes, layoutOpts)
@@ -2385,6 +2631,8 @@ export function mountSchulOrganigrammLandkarte(opts) {
         lastOverviewBoxes = focused
             ? computeLandkarteLayout(layout, layoutOpts).boxes.slice()
             : computed.boxes.slice();
+        // Nested ARGEs/Klassen mit M365-Gruppe: Mitglieder auch ohne Hineinzoomen laden
+        ensureVisibleGraphPeople(computed.boxes);
 
         const hint =
             focused && focusCache && focusCache.loading
@@ -2480,9 +2728,11 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     (canDragPerson ? ' · ziehen = verschieben' : '') +
                     ' · Stift = bearbeiten';
                 el.innerHTML =
-                    (isLead
-                        ? '<span class="schul-org-map__person-seat">' +
-                          escapeHtml(p.seatLabel || 'Leitung') +
+                    (p.seatLabel || isLead
+                        ? '<span class="schul-org-map__person-seat' +
+                          (isLead ? ' is-lead-seat' : '') +
+                          '">' +
+                          escapeHtml(p.seatLabel || (isLead ? 'Leitung' : '')) +
                           '</span>'
                         : '') +
                     personThumb(p.email, p.name || p.label) +
@@ -2509,7 +2759,15 @@ export function mountSchulOrganigrammLandkarte(opts) {
             if (box.kind === 'expanded' && box.node) {
                 const m365 = box.node.m365 || {};
                 const m365Parts = [];
-                if (m365.groupMode && m365.groupMode !== 'none' && m365.groupId) {
+                if (normStr(box.node.meta && box.node.meta.chatId)) {
+                    m365Parts.push('Teams-Gruppenchat');
+                }
+                if (
+                    m365.groupMode &&
+                    m365.groupMode !== 'none' &&
+                    m365.groupId &&
+                    normalizeSchulOrgGroupKind(m365.groupKind) !== 'groupChat'
+                ) {
                     m365Parts.push(
                         schulOrgGroupKindLabel(m365.groupKind) +
                             (m365.groupLabel ? ': ' + m365.groupLabel : '')
@@ -2572,6 +2830,10 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     typeof box.contentCount === 'number'
                         ? box.contentCount
                         : countAreaMapContents(computed.layout || layout, box.node.id);
+                const visibleInnerCount =
+                    typeof box.visibleInnerCount === 'number'
+                        ? box.visibleInnerCount
+                        : contentCount;
                 const kursCount = classNest
                     ? typeof box.kursCount === 'number'
                         ? box.kursCount
@@ -2580,7 +2842,9 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     : 0;
                 const resolvedGid =
                     typeof opts.resolveGroupId === 'function' ? opts.resolveGroupId(box.node) || '' : '';
-                const m365Flags = nodeM365LinkFlags(box.node, resolvedGid);
+                const resolvedChatId =
+                    typeof opts.resolveChatId === 'function' ? opts.resolveChatId(box.node) || '' : '';
+                const m365Flags = nodeM365LinkFlags(box.node, resolvedGid, resolvedChatId);
                 const canResize =
                     !!box.resizable &&
                     !focused &&
@@ -2592,7 +2856,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     (box.node.tone || box.node.type || 'custom') +
                     (classNest ? ' schul-org-map__area--class-nest' : '') +
                     (isCollapsed ? ' schul-org-map__area--collapsed' : '') +
-                    (contentCount > 0 && !classNest ? ' schul-org-map__area--has-leaves' : '') +
+                    (visibleInnerCount > 0 && !classNest ? ' schul-org-map__area--has-leaves' : '') +
                     (box.peoplePreview ? ' schul-org-map__area--has-preview' : '') +
                     (m365Flags.linked ? ' is-m365-linked' : '') +
                     (box.dimmed ? ' is-dimmed' : '') +
@@ -2613,19 +2877,28 @@ export function mountSchulOrganigrammLandkarte(opts) {
                 el.style.height = box.h + 'px';
                 const m365 = box.node.m365 || {};
                 const m365Parts = [];
-                if (m365Flags.hasGroup) {
-                    m365Parts.push(
-                        m365.groupId
-                            ? schulOrgGroupKindLabel(m365.groupKind)
-                            : 'Gruppe'
-                    );
-                }
-                if (m365Flags.hasMailbox) {
-                    m365Parts.push('Postfach');
+                if (Array.isArray(m365Flags.marks) && m365Flags.marks.length) {
+                    m365Flags.marks.forEach(function (m) {
+                        m365Parts.push(m.title.replace(/\s+verknüpft$/i, '') || m.kind);
+                    });
+                } else {
+                    if (m365Flags.hasChat || m365Flags.showChatMark) {
+                        m365Parts.push('Teams-Gruppenchat');
+                    }
+                    if (m365Flags.hasGroup) {
+                        m365Parts.push(
+                            m365.groupId
+                                ? schulOrgGroupKindLabel(m365.groupKind)
+                                : 'Gruppe'
+                        );
+                    }
+                    if (m365Flags.hasMailbox) {
+                        m365Parts.push('Postfach');
+                    }
                 }
                 let peopleHint = '';
-                if (typeof opts.peopleCountForArea === 'function') {
-                    const pc = opts.peopleCountForArea(box.node) || 0;
+                {
+                    const pc = peopleCountForLayout(box.node);
                     if (pc > 0) peopleHint = pc + (pc === 1 ? ' Person' : ' Personen');
                 }
                 if (classNest) {
@@ -2673,72 +2946,145 @@ export function mountSchulOrganigrammLandkarte(opts) {
                         if (em && onRoles.has(em)) return false;
                         return !!(p && (p.name || p.email) && !p.vacant);
                     });
-                    const shown = allPeople.slice(0, PREVIEW_CHIP_MAX);
-                    const more = Math.max(0, allPeople.length - shown.length);
-                    if (shown.length || more) {
+                    const leadPeople = allPeople.filter(function (p) {
+                        return String(p.kind || '').toLowerCase() === 'head';
+                    });
+                    const memberPeople = allPeople.filter(function (p) {
+                        return String(p.kind || '').toLowerCase() !== 'head';
+                    });
+                    const leadShown = leadPeople.slice(0, 1);
+                    const memberSlots = Math.max(0, PREVIEW_CHIP_MAX - leadShown.length);
+                    const memberShown = memberPeople.slice(0, memberSlots);
+                    const more = Math.max(
+                        0,
+                        allPeople.length - leadShown.length - memberShown.length
+                    );
+
+                    const membersLabel =
+                        leadShown.length && memberShown.length
+                            ? String(
+                                  (memberShown[0] && memberShown[0].seatLabel) || 'Mitglieder'
+                              ).trim() || 'Mitglieder'
+                            : '';
+
+                    /**
+                     * @param {object} p
+                     * @param {{ isLead?: boolean, showSeat?: boolean }} opts
+                     */
+                    function previewChipHtml(p, opts) {
+                        const isLead = !!(opts && opts.isLead);
+                        const showSeat = opts && opts.showSeat !== false;
+                        const pKind = String(p.kind || 'areaPerson').toLowerCase();
+                        const seatLabel = String(p.seatLabel || '').trim();
+                        const seatVisible = showSeat && !!seatLabel;
+                        const canDragPreview =
+                            p.movable !== false &&
+                            (pKind === 'areaperson' ||
+                                pKind === 'admin' ||
+                                pKind === 'person' ||
+                                pKind === 'head');
+                        const userLinked = personHasM365UserLink(p);
+                        const pfHit = personFocusMatchesPerson(p);
+                        return (
+                            '<span class="schul-org-map__preview-chip' +
+                            (isLead ? ' is-lead' : ' is-member') +
+                            (canDragPreview ? ' is-draggable' : '') +
+                            (userLinked ? ' is-m365-user' : '') +
+                            (personFocus
+                                ? pfHit
+                                    ? ' is-person-hit'
+                                    : ' is-person-dimmed'
+                                : '') +
+                            '" ' +
+                            'data-person-email="' +
+                            escapeHtml(p.email || '') +
+                            '" data-person-name="' +
+                            escapeHtml(p.name || p.label || '') +
+                            '" data-person-kind="' +
+                            escapeHtml(p.kind || 'areaPerson') +
+                            '"' +
+                            (seatLabel
+                                ? ' data-seat-label="' + escapeHtml(seatLabel) + '"'
+                                : '') +
+                            ' data-parent-area-id="' +
+                            escapeHtml(box.node.id) +
+                            '"' +
+                            (userLinked ? ' data-m365-user="1"' : '') +
+                            (canDragPreview
+                                ? ' data-person-drag="1" data-source-node-id="' +
+                                  escapeHtml(box.node.id) +
+                                  '" data-source-ref-kind="area" data-source-ref-key="' +
+                                  escapeHtml(box.node.id) +
+                                  '"'
+                                : '') +
+                            ' title="' +
+                            escapeHtml(
+                                (seatLabel ? seatLabel + ': ' : '') +
+                                    (p.name || p.email || '') +
+                                    (userLinked ? ' · M365-Konto' : ' · nur lokal') +
+                                    (canDragPreview
+                                        ? ' · ziehen auf Rolle = zuordnen'
+                                        : '') +
+                                    ' · Stift = bearbeiten'
+                            ) +
+                            '">' +
+                            personThumb(p.email, p.name || p.label) +
+                            '<span class="schul-org-map__preview-chip-text">' +
+                            (seatVisible
+                                ? '<span class="schul-org-map__preview-chip-seat' +
+                                  (isLead ? ' is-lead-seat' : '') +
+                                  '">' +
+                                  escapeHtml(seatLabel) +
+                                  '</span>'
+                                : '') +
+                            '<span class="schul-org-map__preview-chip-name">' +
+                            escapeHtml(p.name || p.email || '?') +
+                            '</span></span>' +
+                            personM365MarkHtml(p) +
+                            '<button type="button" class="schul-org-map__edit schul-org-map__edit--preview" data-edit-person="1" title="Person bearbeiten">' +
+                            '<i class="bi bi-pencil" aria-hidden="true"></i></button>' +
+                            '</span>'
+                        );
+                    }
+
+                    if (leadShown.length || memberShown.length || more) {
                         previewHtml =
-                            '<div class="schul-org-map__people-preview" data-drill-id="' +
+                            '<div class="schul-org-map__people-preview' +
+                            (leadShown.length ? ' has-lead' : '') +
+                            (memberShown.length ? ' has-members' : '') +
+                            '" data-drill-id="' +
                             escapeHtml(box.node.id) +
                             '">' +
-                            shown
-                                .map(function (p) {
-                                    const pKind = String(p.kind || 'areaPerson').toLowerCase();
-                                    const canDragPreview =
-                                        p.movable !== false &&
-                                        (pKind === 'areaperson' ||
-                                            pKind === 'admin' ||
-                                            pKind === 'person' ||
-                                            pKind === 'head');
-                                    const userLinked = personHasM365UserLink(p);
-                                    const pfHit = personFocusMatchesPerson(p);
-                                    return (
-                                        '<span class="schul-org-map__preview-chip' +
-                                        (canDragPreview ? ' is-draggable' : '') +
-                                        (userLinked ? ' is-m365-user' : '') +
-                                        (personFocus
-                                            ? pfHit
-                                                ? ' is-person-hit'
-                                                : ' is-person-dimmed'
-                                            : '') +
-                                        '" ' +
-                                        'data-person-email="' +
-                                        escapeHtml(p.email || '') +
-                                        '" data-person-name="' +
-                                        escapeHtml(p.name || p.label || '') +
-                                        '" data-person-kind="' +
-                                        escapeHtml(p.kind || 'areaPerson') +
-                                        '" data-parent-area-id="' +
-                                        escapeHtml(box.node.id) +
-                                        '"' +
-                                        (userLinked ? ' data-m365-user="1"' : '') +
-                                        (canDragPreview
-                                            ? ' data-person-drag="1" data-source-node-id="' +
-                                              escapeHtml(box.node.id) +
-                                              '" data-source-ref-kind="area" data-source-ref-key="' +
-                                              escapeHtml(box.node.id) +
-                                              '"'
-                                            : '') +
-                                        ' title="' +
-                                        escapeHtml(
-                                            (p.name || p.email || '') +
-                                                (userLinked ? ' · M365-Konto' : ' · nur lokal') +
-                                                (canDragPreview
-                                                    ? ' · ziehen auf Rolle = zuordnen'
-                                                    : '') +
-                                                ' · Stift = bearbeiten'
-                                        ) +
-                                        '">' +
-                                        personThumb(p.email, p.name || p.label) +
-                                        '<span class="schul-org-map__preview-chip-name">' +
-                                        escapeHtml(p.name || p.email || '?') +
-                                        '</span>' +
-                                        personM365MarkHtml(p) +
-                                        '<button type="button" class="schul-org-map__edit schul-org-map__edit--preview" data-edit-person="1" title="Person bearbeiten">' +
-                                        '<i class="bi bi-pencil" aria-hidden="true"></i></button>' +
+                            (leadShown.length
+                                ? '<div class="schul-org-map__preview-lead">' +
+                                  leadShown
+                                      .map(function (p) {
+                                          return previewChipHtml(p, {
+                                              isLead: true,
+                                              showSeat: true
+                                          });
+                                      })
+                                      .join('') +
+                                  '</div>'
+                                : '') +
+                            (memberShown.length
+                                ? '<div class="schul-org-map__preview-members">' +
+                                  (membersLabel
+                                      ? '<span class="schul-org-map__preview-members-label">' +
+                                        escapeHtml(membersLabel) +
                                         '</span>'
-                                    );
-                                })
-                                .join('') +
+                                      : '') +
+                                  memberShown
+                                      .map(function (p) {
+                                          return previewChipHtml(p, {
+                                              isLead: false,
+                                              // Gruppenlabel oben – Seat nicht auf jeder Pille wiederholen
+                                              showSeat: !membersLabel
+                                          });
+                                      })
+                                      .join('') +
+                                  '</div>'
+                                : '') +
                             (more
                                 ? '<span class="schul-org-map__preview-more">+' + more + '</span>'
                                 : '') +
@@ -2749,9 +3095,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                 const peopleCountForCollapse =
                     typeof box.previewCount === 'number'
                         ? box.previewCount
-                        : typeof opts.peopleCountForArea === 'function'
-                          ? Math.max(0, Number(opts.peopleCountForArea(box.node)) || 0)
-                          : 0;
+                        : peopleCountForLayout(box.node);
                 // Auch reine Personen-Bereiche (Lehrkräfte, Kooperationsteam, …) einklappbar
                 const showCollapse =
                     !classNest &&
@@ -2834,7 +3178,9 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     leafType === 'kursteam';
                 const leafGid =
                     typeof opts.resolveGroupId === 'function' ? opts.resolveGroupId(box.node) || '' : '';
-                const leafM365 = nodeM365LinkFlags(box.node, leafGid);
+                const leafChatId =
+                    typeof opts.resolveChatId === 'function' ? opts.resolveChatId(box.node) || '' : '';
+                const leafM365 = nodeM365LinkFlags(box.node, leafGid, leafChatId);
                 el.className =
                     'schul-org-map__leaf schul-org-map__leaf--' +
                     (box.node.tone || box.node.type || 'custom') +
@@ -3217,10 +3563,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                 if (!areaNode) return;
                 pushEdit(areaNode);
                 const contentN = countAreaMapContents(layout, areaNode.id);
-                const peopleN =
-                    typeof opts.peopleCountForArea === 'function'
-                        ? Math.max(0, Number(opts.peopleCountForArea(areaNode)) || 0)
-                        : 0;
+                const peopleN = peopleCountForLayout(areaNode);
                 if (contentN > 0 || peopleN > 0 || areaNode.collapsed === true) {
                     const collapsed = areaNode.collapsed === true;
                     items.push({
@@ -3245,10 +3588,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                         }
                     });
                 }
-                if (
-                    typeof opts.onCreateRole === 'function' &&
-                    canPlaceSchulOrgNodeInSection({ type: NODE.ROLE }, areaNode.id, layout)
-                ) {
+                if (typeof opts.onCreateRole === 'function') {
                     items.push({
                         label: 'Funktion hinzufügen',
                         icon: 'bi-person-vcard',
@@ -3341,10 +3681,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                             }
                         });
                     }
-                    if (
-                        typeof opts.onCreateRole === 'function' &&
-                        canPlaceSchulOrgNodeInSection({ type: NODE.ROLE }, parentArea.id, layout)
-                    ) {
+                    if (typeof opts.onCreateRole === 'function') {
                         items.push({
                             label: 'Funktion hinzufügen',
                             icon: 'bi-person-vcard',
@@ -3382,6 +3719,15 @@ export function mountSchulOrganigrammLandkarte(opts) {
                                 x: Math.round(world.x),
                                 y: Math.round(world.y)
                             });
+                        }
+                    });
+                }
+                if (typeof opts.onCreateRole === 'function') {
+                    items.push({
+                        label: 'Funktion hinzufügen…',
+                        icon: 'bi-person-vcard',
+                        action: function () {
+                            void opts.onCreateRole(null);
                         }
                     });
                 }
@@ -3772,10 +4118,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     clamped.h != null ? clamped.h : session.startH
                 );
                 const snapshot = computeLandkarteLayout(layout, {
-                    peopleCountForArea:
-                        typeof opts.peopleCountForArea === 'function'
-                            ? opts.peopleCountForArea
-                            : undefined
+                    peopleCountForArea: peopleCountForLayout
                 });
                 layout = applyLandkartePositionsFromBoxes(layout, snapshot.boxes, {
                     rootsOnly: true
@@ -4018,10 +4361,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     });
                 } else {
                     const snapshot = computeLandkarteLayout(layout, {
-                        peopleCountForArea:
-                            typeof opts.peopleCountForArea === 'function'
-                                ? opts.peopleCountForArea
-                                : undefined
+                        peopleCountForArea: peopleCountForLayout
                     });
                     layout = applyLandkartePositionsFromBoxes(layout, snapshot.boxes, {
                         rootsOnly: true
@@ -4112,10 +4452,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
             });
         } else {
             const snapshot = computeLandkarteLayout(layout, {
-                peopleCountForArea:
-                    typeof opts.peopleCountForArea === 'function'
-                        ? opts.peopleCountForArea
-                        : undefined
+                peopleCountForArea: peopleCountForLayout
             });
             layout = applyLandkartePositionsFromBoxes(layout, snapshot.boxes, { rootsOnly: true });
         }

@@ -31,7 +31,9 @@ import {
     useKvPlanerChrome,
     useDirektionPlanerChrome,
     useMinimalPlanerChrome,
-    isLikelyFreistellungStaffAccount
+    isLikelyFreistellungStaffAccount,
+    canDeleteFreistellung,
+    itemVisibleForRole
 } from './freistellung-planer-state.js';
 import {
     applyPlanerRoleFromEntra,
@@ -71,6 +73,7 @@ import {
     loadAllFreistellungenForPlaner,
     createFreistellungItem,
     updateFreistellungStatus,
+    deleteFreistellungItem,
     probeFreistellungListRead
 } from './freistellung-planer-graph.js';
 import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
@@ -813,6 +816,45 @@ async function setStatus(itemId, status) {
     }
 }
 
+async function deleteAntrag(itemId) {
+    if (!canDeleteFreistellung(state)) {
+        toast('Löschen nur für Direktion/Admin.');
+        return;
+    }
+    const it = (state.items || []).find((x) => String(x.itemId) === String(itemId));
+    if (!it || !itemVisibleForRole(state, it, { scopeAll: true })) {
+        toast('Antrag nicht gefunden.');
+        return;
+    }
+    const label = String(it.schuelerName || it.titel || 'Antrag').trim() || 'Antrag';
+    const ok = window.confirm(
+        'Antrag „' + label + '“ wirklich löschen?\n\nDas kann nicht rückgängig gemacht werden.'
+    );
+    if (!ok) return;
+
+    if (state.localDemoOnly || !state.ctx) {
+        state.items = state.items.filter((x) => String(x.itemId) !== String(itemId));
+        state.detailId = null;
+        toast('Gelöscht (Demo).');
+        paint();
+        return;
+    }
+
+    state.loading = true;
+    paint();
+    try {
+        await deleteFreistellungItem(state.ctx, itemId);
+        state.detailId = null;
+        toast('Antrag gelöscht.');
+        await refreshData();
+    } catch (e) {
+        state.loading = false;
+        state.error = String((e && e.message) || e);
+        paint();
+        toast(state.error);
+    }
+}
+
 function bindStatic() {
     root.querySelectorAll('[data-fr-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -1038,6 +1080,12 @@ function bindStatic() {
     });
     root.querySelectorAll('[data-fr-reject]').forEach((btn) => {
         btn.addEventListener('click', () => setStatus(btn.getAttribute('data-fr-reject'), 'Abgelehnt'));
+    });
+    root.querySelectorAll('[data-fr-delete]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-fr-delete');
+            deleteAntrag(id).catch((e) => toast(String((e && e.message) || e)));
+        });
     });
 }
 

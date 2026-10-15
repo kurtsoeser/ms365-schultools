@@ -317,7 +317,12 @@ function renderKalender(state) {
 }
 
 function renderAntrag(state) {
-    const f = state.form;
+    const f = state.form || {};
+    const lehrerName = String(f.lehrerName || state.accountName || '').trim();
+    const lehrerEmail = String(f.lehrerEmail || state.accountEmail || '')
+        .trim()
+        .toLowerCase();
+    const lockedStyle = 'background:var(--surface-2,#f4f6f8);';
     const katOpts = KAT.map(
         (k) => `<option value="${esc(k)}"${f.kategorie === k ? ' selected' : ''}>${esc(k)}</option>`
     ).join('');
@@ -326,13 +331,28 @@ function renderAntrag(state) {
       <h2>Freistellung beantragen</h2>
       <p class="muted">Nach dem Speichern startet (mit Flow) die Genehmigung durch die Direktion – Status erscheint hier und in der Liste.</p>
       <div class="fr-form-grid">
-        <label>Titel<input type="text" id="lfrFormTitel" value="${esc(f.titel)}" maxlength="200"></label>
-        <label>Beginn<input type="datetime-local" id="lfrFormBeginn" value="${esc(f.beginn)}"></label>
-        <label>Ende<input type="datetime-local" id="lfrFormEnde" value="${esc(f.ende)}"></label>
-        <label>Kategorie<select id="lfrFormKat">${katOpts}</select></label>
-        <label class="fr-form-span2">Beschreibung<textarea id="lfrFormBesch" rows="4">${esc(f.beschreibung)}</textarea></label>
-        <label>Lehrkraft<input type="text" id="lfrFormName" value="${esc(f.lehrerName)}" readonly></label>
-        <label>E-Mail<input type="email" id="lfrFormMail" value="${esc(f.lehrerEmail)}" readonly></label>
+        <label class="fr-form-span2">Titel *
+          <input type="text" id="lfrFormTitel" value="${esc(f.titel)}" maxlength="200" required placeholder="z. B. Fortbildung HAK OÖ">
+        </label>
+        <label>Beginn *
+          <input type="datetime-local" id="lfrFormBeginn" value="${esc(f.beginn)}" required step="300">
+        </label>
+        <label>Ende *
+          <input type="datetime-local" id="lfrFormEnde" value="${esc(f.ende)}" required step="300">
+        </label>
+        <label class="fr-form-span2">Kategorie *
+          <select id="lfrFormKat" required>${katOpts}</select>
+        </label>
+        <label class="fr-form-span2">Beschreibung
+          <textarea id="lfrFormBesch" rows="4" placeholder="Kurz den Grund beschreiben…">${esc(f.beschreibung)}</textarea>
+        </label>
+        <label>Lehrkraft
+          <input type="text" id="lfrFormName" value="${esc(lehrerName)}" readonly aria-readonly="true" style="${lockedStyle}">
+        </label>
+        <label>E-Mail
+          <input type="text" id="lfrFormMail" value="${esc(lehrerEmail)}" readonly aria-readonly="true" style="${lockedStyle}" autocomplete="off">
+        </label>
+        <p class="muted fr-form-span2" style="margin:0;font-size:0.85em;">Übernommen aus Ihrer Anmeldung – gilt für diesen Antrag.</p>
       </div>
       <div class="fr-actions">
         <button type="button" class="btn btn-success" id="lfrFormSubmit"><i class="bi bi-send"></i>Antrag absenden</button>
@@ -377,21 +397,34 @@ function renderFreigabeTable(items) {
 
 function renderExport(state) {
     const approved = filterItems(state.items, { status: 'Genehmigt' }, { scopeAll: true });
-    const calUser = esc(state.outlookCalendarUser || '');
+    const calUser = String(state.outlookCalendarUser || '')
+        .trim()
+        .toLowerCase();
+    const me = String(state.accountEmail || '')
+        .trim()
+        .toLowerCase();
+    const otherTarget = !!(calUser && me && calUser !== me);
     const calHint = calUser
-        ? `Zielkalender: <code>${calUser}</code>${state.outlookCalendarId ? ' (eigene Kalender-ID)' : ''}`
-        : 'Kalender-Ziel noch nicht konfiguriert – im <a href="lehrer-freistellung-setup.html">IT-Setup</a> Schritt 4.';
+        ? `Setup-Ziel: <code>${esc(calUser)}</code>${state.outlookCalendarId ? ' (eigene Kalender-ID)' : ''}${
+              otherTarget
+                  ? ' – Schreibzugriff nur, wenn dieser Kalender dir freigegeben ist (Global Admin reicht nicht).'
+                  : ''
+          }`
+        : 'Kalender-Ziel noch nicht konfiguriert – im <a href="lehrer-freistellung-setup.html">IT-Setup</a> Schritt 4, oder unten „In meinen Kalender“.';
     return `
     <section class="fr-panel">
       <h2>Kalender-Export</h2>
-      <p class="muted">Genehmigte Freistellungen als Datei oder per Microsoft Graph in einen freigegebenen Outlook-Kalender.</p>
+      <p class="muted">Genehmigte Freistellungen als Datei oder per Microsoft Graph in einen Outlook-Kalender.</p>
       <p><strong>${approved.length}</strong> genehmigte Einträge.</p>
       <div class="fr-actions">
         <button type="button" class="btn btn-success" id="lfrBtnIcs"><i class="bi bi-download"></i>iCal herunterladen</button>
-        <button type="button" class="btn" id="lfrBtnOutlookSync"><i class="bi bi-calendar-plus"></i>In Outlook-Kalender synchronisieren</button>
+        <button type="button" class="btn" id="lfrBtnOutlookSyncMe"><i class="bi bi-person-check"></i>In meinen Kalender</button>
+        <button type="button" class="btn" id="lfrBtnOutlookSync"${calUser ? '' : ' disabled'} title="${
+            calUser ? 'Setup-Zielkalender' : 'Zuerst Kalender-Besitzer im IT-Setup setzen'
+        }"><i class="bi bi-calendar-plus"></i>Setup-Ziel synchronisieren</button>
       </div>
       <p class="muted" style="margin-top:14px;line-height:1.45;">${calHint}</p>
-      <p class="muted" style="font-size:0.9em;">Graph-Berechtigung: Calendars.ReadWrite (angemeldetes Konto mit Zugriff auf den Zielkalender).</p>
+      <p class="muted" style="font-size:0.9em;">Delegiert: eigener Kalender mit <code>Calendars.ReadWrite</code>; fremdes Postfach nur mit Freigabe + <code>Calendars.ReadWrite.Shared</code>.</p>
     </section>`;
 }
 

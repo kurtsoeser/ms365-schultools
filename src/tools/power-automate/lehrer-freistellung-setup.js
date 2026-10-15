@@ -726,7 +726,9 @@
             const p = JSON.parse(localStorage.getItem(PERMS_STORAGE_KEY) || '{}') || {};
             return !!(
                 String(p.groupLehrerId || '').trim() ||
-                String(p.groupDirektionId || '').trim()
+                String(p.groupDirektionId || '').trim() ||
+                (Array.isArray(p.lehrerUsers) && p.lehrerUsers.length) ||
+                (Array.isArray(p.direktionUsers) && p.direktionUsers.length)
             );
         } catch (e) {
             return false;
@@ -954,7 +956,16 @@
         if (btnPkg) btnPkg.addEventListener('click', onBuildPackage);
         if (btnSave) {
             btnSave.addEventListener('click', async function () {
-                persistFromForm();
+                const cfg = persistFromForm();
+                try {
+                    const raw = JSON.parse(localStorage.getItem(PERMS_STORAGE_KEY) || '{}') || {};
+                    raw.emailDirektion = String(cfg.emailDirektion || '').trim().toLowerCase();
+                    localStorage.setItem(PERMS_STORAGE_KEY, JSON.stringify(raw));
+                } catch (e) {
+                    /* ignore */
+                }
+                const mirror = $('lfrPermEmailDirektion');
+                if (mirror && cfg.emailDirektion) mirror.value = cfg.emailDirektion;
                 refreshGlance();
                 toast('Setup-Felder (Site, E-Mails, Liste, Kalender) in diesem Browser gespeichert.');
             });

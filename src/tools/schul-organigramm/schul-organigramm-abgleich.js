@@ -5,12 +5,15 @@
 import {
     isAreaNode,
     isArgeLeiterArea,
+    isKlassenvorstandArea,
     normalizeSchulOrganigramm,
     schulOrgGroupKindLabel,
     suggestSchulOrgMailNickname,
     collectArgeLeiterPeopleFromSettings,
+    collectKlassenvorstandPeopleFromSettings,
     listArgeCatalogGroupRefs,
-    SCHUL_ORG_SEC_ARGE_LEITER
+    SCHUL_ORG_SEC_ARGE_LEITER,
+    SCHUL_ORG_SEC_KLASSENVORSTAND
 } from './schul-organigramm-logic.js';
 import { listM365PeopleForArea } from './schul-organigramm-edit.js';
 import {
@@ -103,6 +106,16 @@ function peopleEmailsForArea(settings, areaNode) {
             })
         );
     }
+    if (isKlassenvorstandArea(areaNode)) {
+        const fromHeads = collectKlassenvorstandPeopleFromSettings(settings).map(function (p) {
+            return p.email;
+        });
+        return emailsFromAreaPeople(
+            fromHeads.map(function (e) {
+                return { email: e };
+            })
+        );
+    }
     return emailsFromAreaPeople(listM365PeopleForArea(settings, areaNode));
 }
 
@@ -165,6 +178,19 @@ export async function resolveArgeLeiterDesiredEmails(settings, deps) {
         }
     }
     return { emails: out, fromHeads: base.length, fromOwners: fromOwners };
+}
+
+/**
+ * Klassenvorstände-Soll: Stammdaten-Köpfe der Klassen (Wahrheit = Klasse → KV).
+ * @param {object} settings
+ */
+export function resolveKlassenvorstandDesiredEmails(settings) {
+    const emails = peopleEmailsForArea(settings, {
+        id: SCHUL_ORG_SEC_KLASSENVORSTAND,
+        type: 'area',
+        refKind: 'klassenvorstand'
+    });
+    return { emails: emails, fromHeads: emails.length };
 }
 
 /**
@@ -467,6 +493,31 @@ export async function enrichSchulOrgM365AbgleichPlan(draft, deps, onProgress) {
                 resolved.fromHeads +
                 (resolved.fromOwners ? ' + Owner +' + resolved.fromOwners : '') +
                 ')';
+        } catch {
+            /* Stammdaten-Köpfe bleiben */
+        }
+    }
+
+    // Klassenvorstände: Soll-Mitglieder = Stammdaten-Köpfe der Klassen
+    for (let k = 0; k < actions.length; k++) {
+        const act = actions[k];
+        if (
+            !act ||
+            (act.type !== 'syncMembers' && act.type !== 'createGroup') ||
+            (act.nodeId !== SCHUL_ORG_SEC_KLASSENVORSTAND &&
+                !/klassen\s*vorst[aä]nde?/i.test(String(act.label || '')))
+        ) {
+            continue;
+        }
+        try {
+            const resolved = resolveKlassenvorstandDesiredEmails(d.settings || {});
+            act.memberEmails = resolved.emails;
+            act.toAdd = resolved.emails.slice();
+            act.detail =
+                (act.label || 'Klassenvorstände') +
+                ' · Soll ' +
+                resolved.emails.length +
+                ' (Klassenvorstände aus Stammdaten)';
         } catch {
             /* Stammdaten-Köpfe bleiben */
         }
@@ -915,6 +966,7 @@ export default {
     emailsFromAreaPeople,
     diffGroupMembers,
     resolveArgeLeiterDesiredEmails,
+    resolveKlassenvorstandDesiredEmails,
     buildSchulOrgM365AbgleichDraft,
     enrichSchulOrgM365AbgleichPlan,
     countAbgleichActions,

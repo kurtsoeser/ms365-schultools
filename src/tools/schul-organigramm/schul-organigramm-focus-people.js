@@ -37,13 +37,42 @@ export function leadSeatLabelForNode(node) {
 }
 
 /**
+ * Mehrfach-Funktion für Gruppenmitglieder (nicht Leitung).
+ * @param {object|null|undefined} node
+ * @returns {string}
+ */
+export function memberSeatLabelForNode(node) {
+    if (!node) return '';
+    if (isArgeNode(node)) return 'ARGE-Mitglieder';
+    if (isClassNode(node)) return 'Schüler';
+    return '';
+}
+
+/**
+ * Bereich mit explizit verknüpfter M365-Gruppe (match/create + groupId).
+ * @param {object|null|undefined} node
+ */
+export function areaHasLinkedM365Group(node) {
+    if (!node || !isAreaNode(node)) return false;
+    const m365 = node.m365 && typeof node.m365 === 'object' ? node.m365 : null;
+    if (!m365) return false;
+    const mode = String(m365.groupMode || '')
+        .trim()
+        .toLowerCase();
+    if (mode === 'none') return false;
+    if (mode !== 'match' && mode !== 'create') return false;
+    return !!String(m365.groupId || '').trim();
+}
+
+/**
  * @param {object|null|undefined} node
  */
 export function nodeUsesGraphFocusPeople(node) {
     if (!node) return false;
-    // ARGE-/Klassen-Bereich: Zoom lädt M365-Mitglieder/Besitzer
+    // ARGE-/Klassen-Bereich: M365-Mitglieder/Besitzer (Übersicht + Zoom)
     if (isArgeAreaNode(node) || isClassAreaNode(node)) return true;
-    if (isAreaNode(node)) return false;
+    // Freier Bereich mit verknüpfter Gruppe → Mitglieder wie bei ARGE darstellen
+    if (isAreaNode(node)) return areaHasLinkedM365Group(node);
     return (
         node.type === NODE.ARGE ||
         node.type === 'arge' ||
@@ -51,6 +80,19 @@ export function nodeUsesGraphFocusPeople(node) {
         node.type === 'class' ||
         isKursteamNode(node)
     );
+}
+
+/**
+ * fetchGroupMembers liefert oft `{ items, truncated }` statt eines Arrays.
+ * @param {unknown} raw
+ * @returns {object[]}
+ */
+export function normalizeGraphMemberList(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object' && Array.isArray(/** @type {{ items?: unknown }} */ (raw).items)) {
+        return /** @type {{ items: object[] }} */ (raw).items;
+    }
+    return [];
 }
 
 /**
@@ -213,6 +255,7 @@ export function mergeGraphFocusPeople(opts) {
     }
 
     const seatLabel = leadSeatLabelForNode(node);
+    const memberSeat = memberSeatLabelForNode(node);
     const teachers = Array.isArray(o.teachers) ? o.teachers : [];
     const teacherByEmail = new Map();
     teachers.forEach(function (t) {
@@ -220,15 +263,18 @@ export function mergeGraphFocusPeople(opts) {
         if (em) teacherByEmail.set(em, t);
     });
 
+    const memberList = normalizeGraphMemberList(o.members);
+    const ownerList = Array.isArray(o.owners) ? o.owners : [];
+
     let leadName = normStr(o.localLead && o.localLead.name);
     let leadEmail = normEmail(o.localLead && o.localLead.email);
-    if (!leadEmail && !leadName && Array.isArray(o.owners) && o.owners.length) {
-        for (let i = 0; i < o.owners.length; i += 1) {
-            const em = normEmail(o.owners[i] && (o.owners[i].mail || o.owners[i].userPrincipalName));
+    if (!leadEmail && !leadName && ownerList.length) {
+        for (let i = 0; i < ownerList.length; i += 1) {
+            const em = normEmail(ownerList[i] && (ownerList[i].mail || ownerList[i].userPrincipalName));
             if (!em) continue;
             const t = teacherByEmail.get(em);
             leadEmail = em;
-            leadName = (t && normStr(t.name)) || normStr(o.owners[i].displayName) || em;
+            leadName = (t && normStr(t.name)) || normStr(ownerList[i].displayName) || em;
             break;
         }
     }
@@ -238,15 +284,29 @@ export function mergeGraphFocusPeople(opts) {
 
     /** @type {object[]} */
     const members = [];
-    (Array.isArray(o.members) ? o.members : []).forEach(function (u) {
-        const p = graphUserToPerson(
-            u,
-            node && (node.type === NODE.CLASS || node.type === 'class') ? 'student' : 'member'
-        );
+    const memberKind =
+        node && (node.type === NODE.CLASS || node.type === 'class' || isClassAreaNode(node))
+            ? 'student'
+            : 'member';
+
+    memberList.forEach(function (u) {
+        const p = graphUserToPerson(u, memberKind);
         if (!p || !p.email || seen.has(p.email)) return;
         seen.add(p.email);
         const t = teacherByEmail.get(p.email);
         if (t && normStr(t.name)) p.name = normStr(t.name);
+        if (memberSeat) p.seatLabel = memberSeat;
+        members.push(p);
+    });
+
+    // Weitere Besitzer (nicht Leitung) auch anzeigen, falls nicht in members
+    ownerList.forEach(function (u) {
+        const p = graphUserToPerson(u, 'member');
+        if (!p || !p.email || seen.has(p.email)) return;
+        seen.add(p.email);
+        const t = teacherByEmail.get(p.email);
+        if (t && normStr(t.name)) p.name = normStr(t.name);
+        p.seatLabel = memberSeat || p.seatLabel || 'Besitzer';
         members.push(p);
     });
 
@@ -257,12 +317,12 @@ export function mergeGraphFocusPeople(opts) {
         const em = normEmail(p.email);
         if (em && seen.has(em)) return;
         if (em) seen.add(em);
-        members.push(
-            Object.assign({}, p, {
-                kind: p.kind || 'member',
-                movable: false
-            })
-        );
+        const next = Object.assign({}, p, {
+            kind: p.kind || 'member',
+            movable: false
+        });
+        if (memberSeat && !normStr(next.seatLabel)) next.seatLabel = memberSeat;
+        members.push(next);
     });
 
     members.sort(function (a, b) {

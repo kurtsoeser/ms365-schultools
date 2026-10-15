@@ -31,7 +31,14 @@ Vorlage: `assets/power-automate/lehrer-freistellung/` (Flow-ID `b8d4e2f1-…`). 
 
 Vorlage neu erzeugen: `node scripts/build-lfr-pa-template.mjs`
 
+## Berechtigungen (Setup Schritt 4)
+
+Zwei getrennte Konzepte in `ms365-lfr-perms-v1` / Setup-Cfg:
+
+1. **Genehmiger (Power Automate):** eine E-Mail `emailDirektion` → Approvals-`assignedTo` im Flow-Paket (auch Schritt 2).
+2. **Zugriff Planer/Liste:** Entra-Gruppe und/oder Einzelpersonen je Rolle (`groupLehrer*` + `lehrerUsers`, `groupDirektion*` + `direktionUsers`). SharePoint-Apply: `lfr-list-permissions.js`.
+
 ## Kalender
 
 - **iCal:** `lfr-export.js` im Planer (Ansicht Kalender-Export).
-- **Graph:** `lfr-calendar-sync.js` – genehmigte Termine in Kalender eines freigegebenen Postfachs (`outlookCalendarUser` / optional `outlookCalendarId` im IT-Setup Schritt 4). Event-IDs werden lokal gemappt (`ms365-lfr-outlook-event-v1`).
+- **Graph:** `lfr-calendar-sync.js` – genehmigte Termine in Outlook. Im Planer: „In meinen Kalender“ (`/me`, Scope `Calendars.ReadWrite`) oder Setup-Ziel (`outlookCalendarUser` / optional `outlookCalendarId`). Fremdes Postfach nur mit Kalender-Freigabe + `Calendars.ReadWrite.Shared` – Global Admin reicht nicht. Event-IDs lokal: `ms365-lfr-outlook-event-v1`.

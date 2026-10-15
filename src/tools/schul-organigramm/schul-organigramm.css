@@ -515,6 +515,12 @@ html[data-theme='dark'] .schul-org__action--success {
     box-shadow: var(--shadow-lg, 0 18px 48px rgba(20, 24, 48, 0.22));
     animation: schulOrgEditIn 0.2s ease-out;
 }
+/* Bereich bearbeiten mit mehreren M365-Objekttypen */
+.schul-org-edit-box.schul-org-edit-box--wide {
+    max-width: min(960px, 97vw);
+    max-height: min(92vh, 960px);
+    margin: 2vh auto;
+}
 @keyframes schulOrgEditIn {
     from {
         opacity: 0;
@@ -1542,14 +1548,15 @@ html[data-theme='dark'] .schul-org__card {
     grid-column: 1 / -1;
 }
 .schul-org__person-focus-result {
-    margin-top: 12px;
+    margin-top: 10px;
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 .schul-org__person-focus-who {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
 }
 .schul-org__person-focus-who strong {
     display: block;
@@ -1573,18 +1580,23 @@ html[data-theme='dark'] .schul-org__card {
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 6px;
-    max-height: 180px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px 8px;
+    max-height: 132px;
     overflow: auto;
 }
+.schul-org__person-focus-list > li {
+    min-width: 0;
+}
 .schul-org__person-focus-hit {
-    display: grid;
-    grid-template-columns: minmax(7rem, auto) 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 10px;
-    row-gap: 1px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     width: 100%;
-    padding: 8px 10px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 7px 10px;
     border-radius: 10px;
     border: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 85%, transparent);
     background: color-mix(in srgb, #fff 92%, var(--card, #fff));
@@ -1599,21 +1611,34 @@ html[data-theme='dark'] .schul-org__card {
     outline: none;
 }
 .schul-org__person-focus-kind {
-    grid-row: 1 / span 2;
-    align-self: center;
-    font-size: 0.68rem;
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.64rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     color: var(--brand1, #0d9488);
+    background: color-mix(in srgb, var(--brand1, #0d9488) 12%, transparent);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .schul-org__person-focus-node {
+    width: 100%;
     font-weight: 650;
-    font-size: 0.86rem;
+    font-size: 0.84rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .schul-org__person-focus-hit .muted {
-    grid-column: 2;
-    font-size: 0.72rem;
+    width: 100%;
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .schul-org__map-host--person-focus {
     min-height: 420px;
@@ -1655,6 +1680,25 @@ html[data-theme='dark'] .schul-org__card {
 .schul-org-area-people__head .schul-org-edit-people-actions {
     margin: 0;
 }
+.schul-org-area-people__role {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text, #1e2440) 78%, transparent);
+}
+.schul-org-area-people__role select,
+#schulOrgAreaPersonRole {
+    min-width: 10.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.28rem 0.5rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 90%, transparent);
+    background: var(--card, #fff);
+    color: inherit;
+}
 .schul-org-area-people__manual {
     display: flex;
     flex-direction: column;
@@ -1692,6 +1736,25 @@ html[data-theme='dark'] .schul-org__card {
     background: var(--card, #fff);
     border: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 85%, transparent);
 }
+.schul-org-area-people__seat {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #0b5cab;
+}
+.schul-org-m365-obj__tool-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 700;
+    color: #0b5cab;
+    text-decoration: none;
+}
+.schul-org-m365-obj__tool-link:hover {
+    text-decoration: underline;
+}
 .schul-org-area-m365 {
     margin: 14px 0 0;
     padding: 12px;
@@ -1726,6 +1789,293 @@ html[data-theme='dark'] .schul-org__card {
         grid-template-columns: 1fr;
     }
 }
+.schul-org-area-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+.schul-org-area-tabs__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 12px;
+    background: color-mix(in srgb, #1e2440 5%, var(--card, #fff));
+    border: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 85%, transparent);
+}
+.schul-org-area-tabs__btn {
+    flex: 1 1 10rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0.55rem 0.85rem;
+    border: 0;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-secondary, #5c6578);
+    background: transparent;
+}
+.schul-org-area-tabs__btn:hover {
+    color: var(--heading, #32325d);
+    background: color-mix(in srgb, #1e2440 6%, transparent);
+}
+.schul-org-area-tabs__btn.is-active {
+    color: #0b5cab;
+    background: var(--card, #fff);
+    box-shadow: 0 1px 3px rgba(20, 24, 48, 0.1);
+}
+.schul-org-area-tabs__btn .bi {
+    font-size: 1.05rem;
+}
+.schul-org-area-tabs__panel {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+}
+.schul-org-area-tabs__panel.is-active {
+    display: flex;
+}
+.schul-org-area-tabs__panel .schul-org-area-m365 {
+    margin-top: 0;
+    border: 0;
+    padding: 0;
+}
+.schul-org-area-tabs .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+.schul-org-m365-objects {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+.schul-org-m365-objects--stack {
+    gap: 8px;
+}
+.schul-org-m365-obj {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 8px 12px;
+    min-height: 0;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 88%, transparent);
+    background: color-mix(in srgb, #1e2440 3%, var(--card, #fff));
+    transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+.schul-org-m365-obj:not(.is-active) {
+    opacity: 0.86;
+}
+.schul-org-m365-obj.is-active {
+    border-color: color-mix(in srgb, #0078d4 42%, var(--border, #e5e7eb));
+    background: color-mix(in srgb, #0078d4 6%, var(--card, #fff));
+    opacity: 1;
+}
+.schul-org-m365-obj.is-chat.is-active {
+    border-color: color-mix(in srgb, #5b5fc7 42%, var(--border, #e5e7eb));
+    background: color-mix(in srgb, #5b5fc7 7%, var(--card, #fff));
+}
+.schul-org-m365-obj__use {
+    position: relative;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    margin: 0;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.schul-org-m365-obj__check {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+.schul-org-m365-obj__check-ui {
+    display: grid;
+    place-items: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 8px;
+    border: 2px solid color-mix(in srgb, #0078d4 55%, var(--border, #cbd5e1));
+    background: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.schul-org-m365-obj__check-ui::after {
+    content: '';
+    width: 0.48rem;
+    height: 0.78rem;
+    border: solid transparent;
+    border-width: 0 2.5px 2.5px 0;
+    transform: rotate(42deg) translate(-1px, -1px);
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+.schul-org-m365-obj__check:focus-visible + .schul-org-m365-obj__check-ui {
+    outline: 2px solid color-mix(in srgb, #0078d4 70%, transparent);
+    outline-offset: 2px;
+}
+.schul-org-m365-obj__check:checked + .schul-org-m365-obj__check-ui {
+    background: #0078d4;
+    border-color: #0078d4;
+    box-shadow: none;
+}
+.schul-org-m365-obj__check:checked + .schul-org-m365-obj__check-ui::after {
+    border-color: #fff;
+    opacity: 1;
+}
+.schul-org-m365-obj.is-chat .schul-org-m365-obj__check-ui {
+    border-color: color-mix(in srgb, #5b5fc7 55%, var(--border, #cbd5e1));
+}
+.schul-org-m365-obj.is-chat .schul-org-m365-obj__check:checked + .schul-org-m365-obj__check-ui {
+    background: #5b5fc7;
+    border-color: #5b5fc7;
+}
+.schul-org-m365-obj__icon {
+    flex: 0 0 auto;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-size: 0.92rem;
+    color: #0b5cab;
+    background: color-mix(in srgb, #0078d4 12%, #fff);
+    border: 1px solid color-mix(in srgb, #0078d4 28%, transparent);
+}
+.schul-org-m365-obj.is-chat .schul-org-m365-obj__icon {
+    color: #5b5fc7;
+    background: color-mix(in srgb, #5b5fc7 14%, #fff);
+    border-color: color-mix(in srgb, #5b5fc7 36%, transparent);
+}
+.schul-org-m365-obj__meta {
+    flex: 1 1 9rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.25;
+}
+.schul-org-m365-obj__name {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--heading, #32325d);
+}
+.schul-org-m365-obj__sum {
+    margin: 0;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.schul-org-m365-obj__mode-wrap {
+    flex: 0 1 13.5rem;
+    min-width: 10.5rem;
+    max-width: 16rem;
+}
+.schul-org-m365-obj__mode-wrap[hidden] {
+    display: none !important;
+}
+.schul-org-m365-obj__mode {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 7px 2rem 7px 12px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, #0078d4 28%, var(--border, #e5e7eb));
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230b5cab' d='M1.1 1.2 6 6.1l4.9-4.9 1.1 1.1L6 8.3.0 2.3z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 10px 7px;
+    color: var(--heading, #32325d);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    box-shadow: 0 1px 2px color-mix(in srgb, #1e2440 6%, transparent);
+}
+.schul-org-m365-obj__mode:focus {
+    outline: 2px solid color-mix(in srgb, #0078d4 45%, transparent);
+    outline-offset: 1px;
+    border-color: #0078d4;
+}
+.schul-org-m365-obj.is-chat .schul-org-m365-obj__mode {
+    border-color: color-mix(in srgb, #5b5fc7 32%, var(--border, #e5e7eb));
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235b5fc7' d='M1.1 1.2 6 6.1l4.9-4.9 1.1 1.1L6 8.3.0 2.3z'/%3E%3C/svg%3E");
+}
+.schul-org-m365-obj__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+.schul-org-m365-obj__actions[hidden] {
+    display: none !important;
+}
+.schul-org-m365-obj__pick {
+    border-radius: 999px !important;
+    padding-inline: 12px !important;
+}
+.schul-org-m365-obj__clear {
+    border-radius: 999px !important;
+    padding-inline: 10px !important;
+}
+.schul-org-m365-obj__hint {
+    margin: 0;
+    margin-left: auto;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+@media (max-width: 720px) {
+    .schul-org-m365-obj {
+        gap: 8px 10px;
+    }
+    .schul-org-m365-obj__mode-wrap {
+        flex: 1 1 100%;
+        max-width: none;
+        order: 5;
+    }
+    .schul-org-m365-obj__actions {
+        margin-left: 0;
+        flex: 1 1 100%;
+        order: 6;
+    }
+    .schul-org-m365-obj__hint {
+        margin-left: 0;
+        flex: 1 1 100%;
+        order: 6;
+        white-space: normal;
+    }
+}
 .schul-org-area-m365__create {
     margin: 4px 0 14px;
     padding: 10px;
@@ -1735,6 +2085,18 @@ html[data-theme='dark'] .schul-org__card {
 }
 .schul-org-area-m365__create .field {
     margin-bottom: 8px;
+}
+.schul-org-area-owner-row {
+    margin-top: 0;
+    align-items: stretch;
+}
+.schul-org-area-owner-row select {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+.schul-org-area-owner-row .btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 /* ——— Schul-Landkarte (Canvas) ——— */
@@ -1858,6 +2220,14 @@ html[data-theme='dark'] .schul-org-map__ctx {
 /* Resize-Griffe dürfen über den Rand ragen */
 .schul-org-map__area.is-resizable {
     overflow: visible;
+}
+/* Bei overflow:visible (Resize-Griffe) müssen Innenflächen die Rundung selbst tragen,
+   sonst wirken die Tone-Einfärbungen eckig trotz abgerundetem Rahmen. */
+.schul-org-map__area.is-resizable .schul-org-map__area-head {
+    border-radius: 13px 13px 0 0;
+}
+.schul-org-map__area.is-resizable.schul-org-map__area--collapsed .schul-org-map__area-head {
+    border-radius: 13px;
 }
 .schul-org-map__area.is-resizable .schul-org-map__area-body,
 .schul-org-map__area.is-resizable .schul-org-map__people-preview {
@@ -2082,11 +2452,35 @@ html[data-theme='dark'] .schul-org-map__ctx {
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: 8px;
     align-items: stretch;
-    padding: 4px 10px 10px;
+    padding: 6px 10px 10px;
     overflow: hidden;
     cursor: zoom-in;
+}
+.schul-org-map__preview-lead {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.schul-org-map__preview-members {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px 0 0 8px;
+    margin: 0;
+    border-top: 1px dashed color-mix(in srgb, var(--border, #e5e7eb) 70%, transparent);
+    border-left: 3px solid color-mix(in srgb, var(--brand1, #0d9488) 28%, var(--border, #e5e7eb));
+}
+.schul-org-map__preview-members-label {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--text-secondary, #5c6578) 90%, var(--heading, #32325d));
+    padding: 0 2px 2px;
+    line-height: 1.2;
 }
 .schul-org-map__preview-chip {
     display: inline-flex;
@@ -2115,12 +2509,58 @@ html[data-theme='dark'] .schul-org-map__ctx {
     background: var(--card, #fff);
     pointer-events: none;
 }
+.schul-org-map__preview-chip-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.15;
+}
+.schul-org-map__preview-chip-seat {
+    font-size: 0.62rem;
+    font-weight: 750;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--text-secondary, #5c6578) 85%, var(--heading, #32325d));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.schul-org-map__preview-chip-seat.is-lead-seat {
+    color: color-mix(in srgb, var(--brand1, #0d9488) 80%, var(--heading, #32325d));
+}
 .schul-org-map__preview-chip-name {
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+/* Leitung: eigenes Band, klar von Mitglieder-Pillen getrennt */
+.schul-org-map__preview-chip.is-lead {
+    border-radius: 12px;
+    padding: 6px 8px 6px 6px;
+    gap: 8px;
+    border: 1px solid color-mix(in srgb, var(--brand1, #0d9488) 42%, var(--border, #e5e7eb));
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--brand1, #0d9488) 14%, #fff),
+        color-mix(in srgb, #fff 92%, var(--card, #fff))
+    );
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--brand1, #0d9488) 12%, transparent);
+}
+.schul-org-map__preview-chip.is-lead .schul-org-map__preview-chip-name {
+    font-size: 0.8rem;
+    font-weight: 750;
+}
+.schul-org-map__preview-chip.is-lead .ms365-user-photo-thumb,
+.schul-org-map__preview-chip.is-lead .schul-org-map__person-avatar {
+    width: 28px;
+    height: 28px;
+}
+.schul-org-map__preview-chip.is-member {
+    opacity: 0.96;
 }
 .schul-org-map__preview-chip .ms365-user-photo-thumb,
 .schul-org-map__preview-chip .schul-org-map__person-avatar {
@@ -2205,7 +2645,9 @@ html[data-theme='dark'] .schul-org-map__ctx {
     max-height: 74px;
     padding: 10px 8px 10px 12px;
     cursor: grab;
-    background: color-mix(in srgb, #1e2440 4%, transparent);
+    /* Gleicher Ton wie der Bereich – deckend, damit Chips nicht durch den Meta-Text scheinen */
+    background: inherit;
+    border-radius: 13px 13px 0 0;
     border-bottom: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 80%, transparent);
     user-select: none;
     position: relative;
@@ -2213,6 +2655,7 @@ html[data-theme='dark'] .schul-org-map__ctx {
 }
 .schul-org-map__area--collapsed .schul-org-map__area-head {
     border-bottom: 0;
+    border-radius: 13px;
 }
 .schul-org-map__area--collapsed {
     overflow: hidden;
@@ -2278,6 +2721,20 @@ html[data-theme='dark'] .schul-org-map__ctx {
 .schul-org-map__area--has-leaves .schul-org-map__area-body {
     /* Platz für absolut positionierte Leaves unter dem Kopf */
     min-height: 48px;
+}
+/* Reine Personen-Bereiche (Klasse, ARGE ohne sichtbare Rollen): Chips im Fluss unter dem Kopf */
+.schul-org-map__area--has-preview:not(.schul-org-map__area--has-leaves) .schul-org-map__area-body {
+    min-height: 0;
+    height: 0;
+    padding-top: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.schul-org-map__area--has-preview:not(.schul-org-map__area--has-leaves) .schul-org-map__people-preview {
+    position: relative;
+    z-index: 1;
+    padding-top: 8px;
+    flex: 0 0 auto;
 }
 .schul-org-map__edit {
     flex: 0 0 auto;
@@ -2395,6 +2852,34 @@ html[data-theme='dark'] .schul-org-map__ctx {
     color: #0b5cab;
     background: color-mix(in srgb, #0078d4 14%, #fff);
     border: 1px solid color-mix(in srgb, #0078d4 32%, transparent);
+}
+.schul-org-map__m365-mark + .schul-org-map__m365-mark {
+    margin-left: 3px;
+}
+.schul-org-map__m365-mark.is-chat {
+    color: #5b5fc7;
+    background: color-mix(in srgb, #5b5fc7 14%, #fff);
+    border-color: color-mix(in srgb, #5b5fc7 36%, transparent);
+}
+.schul-org-map__m365-mark.is-mailbox {
+    color: #0f6cbd;
+    background: color-mix(in srgb, #0f6cbd 12%, #fff);
+}
+.schul-org-area-m365__kind-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-left: 4px;
+    vertical-align: -0.15em;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    color: #0b5cab;
+    background: color-mix(in srgb, #0078d4 12%, #fff);
+    border: 1px solid color-mix(in srgb, #0078d4 28%, transparent);
+}
+.schul-org-area-m365__chat-sum {
+    margin: 0.25rem 0 0.5rem;
 }
 .schul-org-map__m365-mark--inline {
     display: inline-grid;
@@ -2625,6 +3110,7 @@ html[data-theme='dark'] .schul-org-map__ctx {
     border-radius: 12px;
 }
 .schul-org-map__person-text {
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;

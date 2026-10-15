@@ -859,6 +859,11 @@ export function canDecide(state) {
     return state.role === 'kv' || state.role === 'direktion';
 }
 
+/** Anträge/Freistellungen in der Liste löschen – nur Direktion/Admin. */
+export function canDeleteFreistellung(state) {
+    return !!(state && state.role === 'direktion');
+}
+
 export function buildAntragTitle(form) {
     const name = String(form.schuelerName || form.titel || '').trim() || 'Freistellung';
     const klasse = String(form.klasse || '').trim();

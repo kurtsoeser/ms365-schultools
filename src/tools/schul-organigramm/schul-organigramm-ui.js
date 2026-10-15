@@ -22,18 +22,24 @@ import {
     isArgeNode,
     isClassAreaNode,
     isClassNode,
+    applyClassGroupLinksToSchulOrganigramm,
     sammelgruppeKeyForArea,
     isSgaBoardArea,
     isSgaScopeArea,
     isJahrgangArea,
     mergeSchulOrganigrammLivePositions,
     SCHUL_ORG_BOARD_REF,
+    SCHUL_ORG_SGA_BOARD_ID,
     SCHUL_ORG_SEC_LEHRER,
     SCHUL_ORG_SEC_SCHUELER,
     NODE,
     schulOrgGroupKindLabel,
+    schulOrgGroupKindIcon,
+    schulOrgMailboxIcon,
+    normalizeSchulOrgGroupKind,
     personHasM365UserLink,
-    nodeM365LinkFlags
+    nodeM365LinkFlags,
+    resolveClassChatIdForNode
 } from './schul-organigramm-logic.js';
 import {
     createSchulOrganigrammEditor,
@@ -42,7 +48,11 @@ import {
     findClass,
     findArge,
     findAdminRole,
-    listPeopleForSchulOrgNode
+    listPeopleForSchulOrgNode,
+    applyClassHeadFromGraphOwners,
+    applyArgeHeadFromGraphOwners,
+    ensureClassHeadsNamedFromTeachers,
+    healClassHeadsFromAreaPeople
 } from './schul-organigramm-edit.js';
 import { mountSchulOrganigrammLandkarte } from './schul-organigramm-canvas.js';
 import { openSchulOrgProvisionDiffPanel } from './schul-organigramm-provision-ui.js';
@@ -53,7 +63,8 @@ import {
 import {
     mergeGraphFocusPeople,
     nodeUsesGraphFocusPeople,
-    ensureLeadSeat
+    ensureLeadSeat,
+    normalizeGraphMemberList
 } from './schul-organigramm-focus-people.js';
 import { resolveClassGraphGroupId } from '../../shared/membership-hygiene.js';
 import '../../shared/schul-organigramm-stammdaten-sync.js';
@@ -82,9 +93,10 @@ function loadSettings() {
                 settings = Object.assign({}, settings, { unterrichtsbelegung: snap });
             }
         }
-        if (!settings.classChats && api && typeof api.getClassChats === 'function') {
+        if (api && typeof api.getClassChats === 'function') {
             const chats = api.getClassChats();
             if (chats && typeof chats === 'object') {
+                // Immer aus years.* übernehmen (Tenant-Settings haben oft kein classChats)
                 settings = Object.assign({}, settings, { classChats: chats });
             }
         }
@@ -99,6 +111,24 @@ function getAppContainer() {
         return window.ms365AppDataV2.getContainer() || null;
     }
     return null;
+}
+
+/**
+ * Kontext für Klassengruppen-Matches (Werkzeug Klassengruppen + Register-Abgleich).
+ */
+function getClassGroupLinkContext() {
+    const container = getAppContainer();
+    const setup = container && container.setup ? container.setup : {};
+    return {
+        classTeams:
+            container && container.core && Array.isArray(container.core.classTeams)
+                ? container.core.classTeams
+                : [],
+        classGroupMatchByKey:
+            setup.classGroupMatchByKey && typeof setup.classGroupMatchByKey === 'object'
+                ? setup.classGroupMatchByKey
+                : {}
+    };
 }
 
 function personInitials(name, email) {
@@ -155,7 +185,7 @@ async function fetchFocusPeopleForNode(node) {
     }
 
     const token = await acquireOrgGraphToken();
-    const [members, owners] = await Promise.all([
+    const [membersRaw, owners] = await Promise.all([
         gug.fetchGroupMembers(token, gid).catch(function () {
             return [];
         }),
@@ -165,11 +195,35 @@ async function fetchFocusPeopleForNode(node) {
               })
             : Promise.resolve([])
     ]);
+    // fetchGroupMembers liefert { items, truncated } – nicht ein Array
+    const members = normalizeGraphMemberList(membersRaw);
+    const ownerList = Array.isArray(owners)
+        ? owners
+        : owners && Array.isArray(owners.items)
+          ? owners.items
+          : [];
+
+    // Klasse/ARGE: Besitzer dauerhaft als Leitung in Stammdaten übernehmen
+    if (node.refKey && ownerList.length) {
+        try {
+            let applied = null;
+            if (isClassAreaNode(node) || isClassNode(node)) {
+                applied = applyClassHeadFromGraphOwners(settings, node.refKey, ownerList);
+            } else if (isArgeAreaNode(node) || isArgeNode(node)) {
+                applied = applyArgeHeadFromGraphOwners(settings, node.refKey, ownerList);
+            }
+            if (applied && applied.changed && typeof window.ms365TenantSettingsSave === 'function') {
+                window.ms365TenantSettingsSave(applied.settings);
+            }
+        } catch {
+            /* Stammdaten-Sync optional */
+        }
+    }
 
     return mergeGraphFocusPeople({
         localPeople: local,
         members: members,
-        owners: owners,
+        owners: ownerList,
         node: node,
         teachers: Array.isArray(settings.teachers) ? settings.teachers : [],
         localLead: localLead
@@ -222,19 +276,24 @@ function resolveGroupIdForNode(node, settings) {
             if (mode === 'none') return '';
             if (mode === 'match' || mode === 'create') {
                 const ownId = String(m365.groupId || '').trim();
-                // Nur echte Verknüpfung (vorhandene Gruppen-ID) – „anlegen“ ohne ID zählt nicht
-                // Kein Fallthrough auf classTeams/Catalog, sonst bleibt eine gelöste Gruppe sichtbar
-                return ownId;
+                // Echte Gruppen-ID am Knoten hat Vorrang
+                if (ownId) return ownId;
+                // match ohne ID / create ohne ID: Klassengruppe aus Klassengruppen-Werkzeug erben
+                // (explizit gelöste groupMode=none fällt oben schon raus)
+                if (mode === 'create') return '';
             }
         }
         if (isArgeAreaNode(node)) {
             return resolveArgeCatalogGroupId(node);
         }
-        // Schüler-Klassen ohne explizites m365: Klassengruppe aus Stammdaten/Teams
+        // Schüler-Klassen: Klassengruppe aus classTeams / Register-Abgleich
         // (Klassenchats/Eltern-Kacheln nie über classTeams auflösen)
         if (isClassAreaNode(node) && node.refKey) {
-            const cls = findClass(settings, node.refKey);
-            if (!cls) return '';
+            const cls = findClass(settings, node.refKey) || {
+                code: node.refKey,
+                name: node.label,
+                year: node.meta && node.meta.year
+            };
             const classTeams =
                 container && container.core && Array.isArray(container.core.classTeams)
                     ? container.core.classTeams
@@ -258,8 +317,11 @@ function resolveGroupIdForNode(node, settings) {
     }
 
     if (isClassNode(node) && node.refKey) {
-        const cls = findClass(settings, node.refKey);
-        if (!cls) return '';
+        const cls = findClass(settings, node.refKey) || {
+            code: node.refKey,
+            name: node.label,
+            year: node.meta && node.meta.year
+        };
         const classTeams =
             container && container.core && Array.isArray(container.core.classTeams)
                 ? container.core.classTeams
@@ -571,7 +633,11 @@ export function mountSchulOrganigramm(host, opts) {
     let dragKind = '';
     /** @type {object|null} */
     let dragPerson = null;
+    /** Bulk: Gruppen-Besitzer → Klassenvorstand / ARGE-Leitung (einmal pro Mount) */
+    /** @type {'idle'|'running'|'done'} */
+    let areaHeadBulkSyncState = 'idle';
     const editor = createSchulOrganigrammEditor({
+        loadSettings: loadSettings,
         onChanged: function () {
             render();
         }
@@ -583,6 +649,154 @@ export function mountSchulOrganigramm(host, opts) {
             return;
         }
         if (typeof window.ms365Toast === 'function') window.ms365Toast(msg);
+    }
+
+    /**
+     * @param {unknown} raw
+     * @returns {object[]}
+     */
+    function normalizeOwnerList(raw) {
+        if (Array.isArray(raw)) return raw;
+        if (raw && Array.isArray(raw.items)) return raw.items;
+        return [];
+    }
+
+    /**
+     * Verknüpfte Klassen- und ARGE-Gruppen: Besitzer → Stammdaten-Leitung.
+     * @returns {Promise<{ classChanged: number, argeChanged: number, labels: string[] }>}
+     */
+    async function syncAllAreaHeadsFromGroupOwners() {
+        let cur = loadSettings();
+        /** @type {string[]} */
+        const labels = [];
+        let classChanged = 0;
+        let argeChanged = 0;
+
+        // Lokaler Heal: Area-Personen → KV, fehlende headNames aus Lehrerliste
+        try {
+            const healed = healClassHeadsFromAreaPeople(cur);
+            if (healed.changed) {
+                cur = healed.settings;
+                classChanged += healed.changed;
+                labels.push(healed.changed + '× KV aus Bereichspersonen');
+            }
+            const named = ensureClassHeadsNamedFromTeachers(cur);
+            if (named.changed) {
+                cur = named.settings;
+                classChanged += named.changed;
+            }
+            if (healed.changed || named.changed) {
+                if (typeof window.ms365TenantSettingsSave === 'function') {
+                    window.ms365TenantSettingsSave(cur);
+                }
+            }
+        } catch {
+            /* optional */
+        }
+
+        const gug = window.ms365GraphUnifiedGroups;
+        if (!gug || typeof gug.fetchGroupOwners !== 'function') {
+            return { classChanged: classChanged, argeChanged: argeChanged, labels: labels };
+        }
+        let token = '';
+        try {
+            token = (await acquireOrgGraphToken()) || '';
+        } catch {
+            token = '';
+        }
+        if (!token) return { classChanged: classChanged, argeChanged: argeChanged, labels: labels };
+
+        const linkCtx = getClassGroupLinkContext();
+        const linked = applyClassGroupLinksToSchulOrganigramm(
+            cur.schulOrganigramm,
+            cur,
+            linkCtx
+        );
+        const layout = normalizeSchulOrganigramm(linked.layout);
+
+        const targetNodes = layout.nodes.filter(function (n) {
+            return (isClassAreaNode(n) || isArgeAreaNode(n)) && n.refKey;
+        });
+        for (let i = 0; i < targetNodes.length; i += 1) {
+            const node = targetNodes[i];
+            const gid = resolveGroupIdForNode(node, cur);
+            if (!gid) continue;
+            let owners = [];
+            try {
+                owners = normalizeOwnerList(await gug.fetchGroupOwners(token, gid));
+            } catch {
+                owners = [];
+            }
+            if (!owners.length) continue;
+
+            if (isClassAreaNode(node)) {
+                const applied = applyClassHeadFromGraphOwners(cur, node.refKey, owners);
+                if (applied.changed) {
+                    cur = applied.settings;
+                    classChanged += 1;
+                    labels.push(
+                        (node.label || node.refKey) +
+                            ' (KV): ' +
+                            ((applied.head && (applied.head.name || applied.head.email)) || '?')
+                    );
+                }
+            } else if (isArgeAreaNode(node)) {
+                const applied = applyArgeHeadFromGraphOwners(cur, node.refKey, owners);
+                if (applied.changed) {
+                    cur = applied.settings;
+                    argeChanged += 1;
+                    labels.push(
+                        (node.label || node.refKey) +
+                            ' (Leitung): ' +
+                            ((applied.head && (applied.head.name || applied.head.email)) || '?')
+                    );
+                }
+            }
+        }
+
+        if (classChanged + argeChanged > 0) {
+            if (typeof window.ms365TenantSettingsSave === 'function') {
+                window.ms365TenantSettingsSave(cur);
+            }
+        }
+        return { classChanged: classChanged, argeChanged: argeChanged, labels: labels };
+    }
+
+    function scheduleAreaHeadBulkSync() {
+        if (areaHeadBulkSyncState !== 'idle') return;
+        areaHeadBulkSyncState = 'running';
+        void syncAllAreaHeadsFromGroupOwners()
+            .then(function (result) {
+                areaHeadBulkSyncState = 'done';
+                const total =
+                    (result && result.classChanged ? result.classChanged : 0) +
+                    (result && result.argeChanged ? result.argeChanged : 0);
+                if (total > 0) {
+                    const parts = [];
+                    if (result.classChanged) {
+                        parts.push(
+                            result.classChanged === 1
+                                ? '1 Klassenvorstand'
+                                : result.classChanged + ' Klassenvorstände'
+                        );
+                    }
+                    if (result.argeChanged) {
+                        parts.push(
+                            result.argeChanged === 1
+                                ? '1 ARGE-Leitung'
+                                : result.argeChanged + ' ARGE-Leitungen'
+                        );
+                    }
+                    toast(
+                        parts.join(' und ') + ' aus Gruppen-Besitzern gesetzt.',
+                        'success'
+                    );
+                    render();
+                }
+            })
+            .catch(function () {
+                areaHeadBulkSyncState = 'done';
+            });
     }
 
     async function confirmReseed() {
@@ -637,7 +851,14 @@ export function mountSchulOrganigramm(host, opts) {
                 settings
             );
         }
-        if (resolved.dirty || liveMapLayout) {
+        // Klassengruppen-Matches aus dem Werkzeug auf Landkarten-Klassen übernehmen
+        const classLinks = applyClassGroupLinksToSchulOrganigramm(
+            layout,
+            settings,
+            getClassGroupLinkContext()
+        );
+        layout = enrichLayoutMeta(classLinks.layout, settings);
+        if (resolved.dirty || liveMapLayout || classLinks.updated > 0) {
             layout = enrichLayoutMeta(saveLayout(layout), settings);
             if (resolved.migratedFromVerwaltung) {
                 const st = resolved.migrationStats || {};
@@ -801,8 +1022,8 @@ export function mountSchulOrganigramm(host, opts) {
                             ? 'ARGEs'
                             : sec.id === 'sec_klassen'
                               ? 'Klassen'
-                              : sec.id === 'sec_vertretung'
-                                ? 'Vertretung'
+                              : sec.id === SCHUL_ORG_SGA_BOARD_ID || sec.id === 'sec_vertretung'
+                                ? 'SGA'
                                 : sec.label;
                 btn.innerHTML = escapeHtml(short) + ' <em>' + nKids + '</em>';
                 btn.title = sec.label;
@@ -1030,7 +1251,7 @@ export function mountSchulOrganigramm(host, opts) {
             icon: 'bi-person-badge',
             label: 'Funktion',
             title:
-                'Neue Funktion im zuletzt genutzten Bereich anlegen (Rechtsklick → Funktion hinzufügen setzt den Ort)',
+                'Neue Funktion anlegen und einem Bereich auf der Landkarte zuordnen (auch per Rechtsklick)',
             primary: true,
             keepLabel: true,
             onClick: function () {
@@ -1038,11 +1259,13 @@ export function mountSchulOrganigramm(host, opts) {
                     (typeof editor.getLastRoleParent === 'function' &&
                         editor.getLastRoleParent()) ||
                     filterSectionId ||
-                    'sec_verwaltung';
-                void editor.createRoleUnderSection(parentId).then(function () {
-                    filterSectionId = '';
-                    render();
-                });
+                    '';
+                void Promise.resolve(editor.createRoleUnderSection(parentId || null)).then(
+                    function () {
+                        filterSectionId = '';
+                        render();
+                    }
+                );
             }
         });
         addAction({
@@ -1178,6 +1401,8 @@ export function mountSchulOrganigramm(host, opts) {
         }
 
         if (viewMode === 'map') {
+            // Einmalig: M365-Besitzer → Klassenvorstand / ARGE-Leitung in Stammdaten
+            scheduleAreaHeadBulkSync();
             const focusActive = !!(
                 personFocus &&
                 (String(personFocus.email || '').trim() || String(personFocus.name || '').trim())
@@ -1426,15 +1651,34 @@ export function mountSchulOrganigramm(host, opts) {
                                   ? mapApi.getLayout()
                                   : null) || cur.schulOrganigramm
                     );
-                    const moved = moveSchulOrganigrammNode(before, nodeId, newParentId);
                     const nodeBefore = before.nodes.find(function (n) {
                         return n.id === nodeId;
                     });
+                    if (!nodeBefore) {
+                        toast('Hier kann diese Kachel nicht abgelegt werden.', 'warning');
+                        return null;
+                    }
+                    const isRoleLeaf =
+                        String(nodeBefore.type || '').toLowerCase() === NODE.ROLE ||
+                        String(nodeBefore.type || '').toLowerCase() === 'role';
+                    if (isRoleLeaf && typeof editor.moveRoleToArea === 'function') {
+                        const roleMove = editor.moveRoleToArea(nodeId, newParentId, before);
+                        if (!roleMove || !roleMove.ok) {
+                            toast(
+                                (roleMove && roleMove.message) ||
+                                    'Hier kann diese Funktion nicht abgelegt werden.',
+                                'warning'
+                            );
+                            return null;
+                        }
+                        if (roleMove.message) toast(roleMove.message, 'success');
+                        return roleMove.layout || null;
+                    }
+                    const moved = moveSchulOrganigrammNode(before, nodeId, newParentId);
                     const nodeAfter = moved.nodes.find(function (n) {
                         return n.id === nodeId;
                     });
                     if (
-                        !nodeBefore ||
                         !nodeAfter ||
                         String(nodeBefore.parentId || '') === String(nodeAfter.parentId || '')
                     ) {
@@ -1487,7 +1731,7 @@ export function mountSchulOrganigramm(host, opts) {
                     }).length;
                 },
                 peopleForNode: function (node) {
-                    // Übersicht: begrenzte Liste; Fokus/Zoom lädt MS365-Mitglieder nach
+                    // Lokal zuerst; Canvas lädt für ARGEs / M365-Gruppen die Mitglieder nach
                     if (nodeUsesGraphFocusPeople(node)) {
                         const local = listPeopleForSchulOrgNode(loadSettings(), node);
                         const localLead = (local || []).find(function (p) {
@@ -1503,17 +1747,25 @@ export function mountSchulOrganigramm(host, opts) {
                 resolveGroupId: function (node) {
                     return resolveGroupIdForNode(node, loadSettings());
                 },
+                resolveChatId: function (node) {
+                    return resolveClassChatIdForNode(node, loadSettings());
+                },
                 hydratePhotos: hydrateOrgPhotos,
                 onEditNode: function (node) {
                     if (!node) return;
-                    if (isSgaBoardArea(node) || isSgaScopeArea(node) || node.type === NODE.SGA) {
+                    // SGA-Board: Bereichs-Editor inkl. M365-Objekt (wie andere Bereiche)
+                    if (isSgaBoardArea(node)) {
+                        editor.openAreaEditor(node);
+                        return;
+                    }
+                    if (isSgaScopeArea(node) || node.type === NODE.SGA) {
                         editor.openSgaEditor(SCHUL_ORG_BOARD_REF);
                         return;
                     }
-                    if (isArgeAreaNode(node) && node.refKey) editor.openArgeEditor(node.refKey);
-                    else if (isClassAreaNode(node) && node.refKey) editor.openClassEditor(node.refKey);
-                    else if (isAreaNode(node)) editor.openAreaEditor(node);
-                    else if (node.type === NODE.ROLE && node.refKey) editor.openRoleEditor(node.refKey);
+                    // Bereich = M365-Objekt: ARGE-/Klassen-Bereiche wie alle Areas bearbeiten
+                    if (isArgeAreaNode(node) || isClassAreaNode(node) || isAreaNode(node)) {
+                        editor.openAreaEditor(node);
+                    } else if (node.type === NODE.ROLE && node.refKey) editor.openRoleEditor(node.refKey);
                     else if (isArgeNode(node) && node.refKey) editor.openArgeEditor(node.refKey);
                     else if (isClassNode(node) && node.refKey) editor.openClassEditor(node.refKey);
                     else if (node.type === NODE.KURSTEAM) {
@@ -1550,11 +1802,10 @@ export function mountSchulOrganigramm(host, opts) {
                     return editor.openAddCanvasPerson(areaNode);
                 },
                 onCreateRole: function (areaNode) {
-                    if (!areaNode || !areaNode.id) return;
-                    if (typeof editor.rememberRoleParent === 'function') {
+                    if (areaNode && areaNode.id && typeof editor.rememberRoleParent === 'function') {
                         editor.rememberRoleParent(areaNode.id);
                     }
-                    return editor.createRoleUnderSection(areaNode.id);
+                    return editor.createRoleUnderSection(areaNode && areaNode.id ? areaNode.id : null);
                 },
                 onEditPerson: function (person, contextNode) {
                     editor.openEditCanvasPerson(person, contextNode);
@@ -1655,20 +1906,35 @@ export function mountSchulOrganigramm(host, opts) {
             return !isAreaNode(k);
         });
         const nestedAreas = kids.filter(isAreaNode);
-        const sectionGroupId = resolveGroupIdForNode(sec, loadSettings());
-        const sectionM365 = nodeM365LinkFlags(sec, sectionGroupId);
+        const settingsForSec = loadSettings();
+        const sectionGroupId = resolveGroupIdForNode(sec, settingsForSec);
+        const sectionChatId = resolveClassChatIdForNode(sec, settingsForSec);
+        const sectionM365 = nodeM365LinkFlags(sec, sectionGroupId, sectionChatId);
         const sectionIcon = sectionM365.hasGroup
             ? groupThumbHtml(sectionM365.groupId || sectionGroupId, sec.label)
-            : '<i class="bi bi-collection" aria-hidden="true"></i>';
+            : sectionM365.showChatMark || sectionM365.hasChat
+              ? '<i class="bi ' + schulOrgGroupKindIcon('groupChat') + '" aria-hidden="true"></i>'
+              : '<i class="bi bi-collection" aria-hidden="true"></i>';
         const m365Bits = [];
-        if (sectionM365.hasGroup) {
-            m365Bits.push(
-                sec.m365 && sec.m365.groupId
-                    ? schulOrgGroupKindLabel(sec.m365.groupKind)
-                    : 'Gruppe'
-            );
+        const m365Icons = [];
+        if (sectionM365.hasChat || sectionM365.showChatMark) {
+            m365Bits.push('Teams-Gruppenchat');
+            m365Icons.push(schulOrgGroupKindIcon('groupChat'));
         }
-        if (sectionM365.hasMailbox) m365Bits.push('Postfach');
+        if (sectionM365.hasGroup) {
+            const gk =
+                sec.m365 && sec.m365.groupId
+                    ? normalizeSchulOrgGroupKind(sec.m365.groupKind)
+                    : 'unified';
+            m365Bits.push(
+                sec.m365 && sec.m365.groupId ? schulOrgGroupKindLabel(gk) : 'Gruppe'
+            );
+            m365Icons.push(schulOrgGroupKindIcon(gk));
+        }
+        if (sectionM365.hasMailbox) {
+            m365Bits.push('Postfach');
+            m365Icons.push(schulOrgMailboxIcon());
+        }
         const sammelKey = sammelgruppeKeyForArea(sec);
         const sammelPeopleTotal = sammelKey
             ? previewPeopleForSchulOrgNode(loadSettings(), sec, 0).total
@@ -1702,7 +1968,15 @@ export function mountSchulOrganigramm(host, opts) {
             escapeHtml(countLabel) +
             ')</span>' +
             (m365Bits.length
-                ? ' <span class="schul-org__m365-badge" title="M365-Anbindung"><i class="bi bi-microsoft" aria-hidden="true"></i> ' +
+                ? ' <span class="schul-org__m365-badge" title="' +
+                  escapeHtml(m365Bits.join(' · ')) +
+                  '">' +
+                  m365Icons
+                      .map(function (ic) {
+                          return '<i class="bi ' + ic + '" aria-hidden="true"></i>';
+                      })
+                      .join(' ') +
+                  ' ' +
                   escapeHtml(m365Bits.join(' · ')) +
                   '</span>'
                 : '');
@@ -1790,7 +2064,7 @@ export function mountSchulOrganigramm(host, opts) {
             });
             headRow.appendChild(btnAdd);
         }
-        if (sec.id === 'sec_vertretung') {
+        if (sec.id === SCHUL_ORG_SGA_BOARD_ID || sec.id === 'sec_vertretung') {
             const wrap = document.createElement('div');
             wrap.className = 'schul-org__section-add-group';
             const btnCouncil = document.createElement('button');
@@ -1964,14 +2238,33 @@ export function mountSchulOrganigramm(host, opts) {
             if (dragKind !== 'card' || !dragNodeId) return;
             ev.preventDefault();
             const settings = loadSettings();
-            const next = moveSchulOrganigrammNode(
-                settings.schulOrganigramm,
-                dragNodeId,
-                sec.id,
-                ''
-            );
-            dragNodeId = '';
+            const layoutNow = normalizeSchulOrganigramm(settings.schulOrganigramm);
+            const dragNode = layoutNow.nodes.find(function (n) {
+                return n.id === dragNodeId;
+            });
+            const isRoleLeaf =
+                dragNode &&
+                (String(dragNode.type || '').toLowerCase() === NODE.ROLE ||
+                    String(dragNode.type || '').toLowerCase() === 'role');
             dragKind = '';
+            if (isRoleLeaf && typeof editor.moveRoleToArea === 'function') {
+                const roleId = dragNodeId;
+                dragNodeId = '';
+                const roleMove = editor.moveRoleToArea(roleId, sec.id, layoutNow);
+                if (!roleMove || !roleMove.ok) {
+                    toast(
+                        (roleMove && roleMove.message) ||
+                            'Hier kann diese Funktion nicht abgelegt werden.',
+                        'warning'
+                    );
+                    return;
+                }
+                if (roleMove.message) toast(roleMove.message, 'success');
+                render();
+                return;
+            }
+            const next = moveSchulOrganigrammNode(layoutNow, dragNodeId, sec.id, '');
+            dragNodeId = '';
             persistLayout(next);
         });
         if (!leafKids.length) {
@@ -2264,10 +2557,13 @@ export function mountSchulOrganigramm(host, opts) {
         }
 
         const cardGroupId = resolveGroupIdForNode(node, settingsNow);
-        const cardM365 = nodeM365LinkFlags(node, cardGroupId);
+        const cardChatId = resolveClassChatIdForNode(node, settingsNow);
+        const cardM365 = nodeM365LinkFlags(node, cardGroupId, cardChatId);
         const cardIcon = cardGroupId
             ? groupThumbHtml(cardGroupId, node.label)
-            : '<i class="bi ' + cardIconForType(node.type, node) + '" aria-hidden="true"></i>';
+            : cardM365.showChatMark || cardM365.hasChat
+              ? '<i class="bi ' + schulOrgGroupKindIcon('groupChat') + '" aria-hidden="true"></i>'
+              : '<i class="bi ' + cardIconForType(node.type, node) + '" aria-hidden="true"></i>';
         if (cardM365.linked) {
             card.classList.add('is-m365-linked');
             card.dataset.m365Linked = '1';
@@ -2284,13 +2580,32 @@ export function mountSchulOrganigramm(host, opts) {
                 ? ' <span class="schul-org__m365-badge" title="' +
                   escapeHtml(
                       [
-                          cardM365.hasGroup ? 'M365-Gruppe' : '',
+                          cardM365.hasChat || cardM365.showChatMark
+                              ? 'Teams-Gruppenchat'
+                              : '',
+                          cardM365.hasGroup
+                              ? schulOrgGroupKindLabel(cardM365.groupKind || 'unified')
+                              : '',
                           cardM365.hasMailbox ? 'Postfach' : ''
                       ]
                           .filter(Boolean)
                           .join(' · ') || 'M365 verknüpft'
                   ) +
-                  '"><i class="bi bi-microsoft" aria-hidden="true"></i> M365</span>'
+                  '">' +
+                  (cardM365.hasChat || cardM365.showChatMark
+                      ? '<i class="bi ' +
+                        schulOrgGroupKindIcon('groupChat') +
+                        '" aria-hidden="true"></i> '
+                      : '') +
+                  (cardM365.hasGroup
+                      ? '<i class="bi ' +
+                        schulOrgGroupKindIcon(cardM365.groupKind || 'unified') +
+                        '" aria-hidden="true"></i> '
+                      : '') +
+                  (cardM365.hasMailbox
+                      ? '<i class="bi ' + schulOrgMailboxIcon() + '" aria-hidden="true"></i> '
+                      : '') +
+                  'M365</span>'
                 : '') +
             '</div>' +
             '<div class="schul-org__card-desc">' +
@@ -2389,10 +2704,18 @@ export function mountSchulOrganigramm(host, opts) {
         });
 
         if (editableRole) attachEdit(editor.openRoleEditor, 'Rolle bearbeiten');
-        else if (editableArge) attachEdit(editor.openArgeEditor, 'ARGE / Leitung bearbeiten');
+        else if (isArgeAreaNode(node) || isClassAreaNode(node)) {
+            attachEdit(function () {
+                editor.openAreaEditor(node);
+            }, 'Bereich / M365 bearbeiten');
+        } else if (editableArge) attachEdit(editor.openArgeEditor, 'ARGE / Leitung bearbeiten');
         else if (editableClass) attachEdit(editor.openClassEditor, 'Klasse / KV bearbeiten');
         else if (editableCouncil) attachEdit(editor.openCouncilEditor, 'Schülervertretung bearbeiten');
-        else if (editableSga) attachEdit(editor.openSgaEditor, 'SGA bearbeiten');
+        else if (isSgaBoardArea(node)) {
+            attachEdit(function () {
+                editor.openAreaEditor(node);
+            }, 'SGA / M365 bearbeiten');
+        } else if (editableSga) attachEdit(editor.openSgaEditor, 'SGA bearbeiten');
         else card.title = 'Ziehen zum Sortieren';
         return card;
     }

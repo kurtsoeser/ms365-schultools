@@ -1064,7 +1064,10 @@
                                 </table>
                             </div>
 
-                            <div id="tenantAdminAudienceBoard" class="ts-audience-board field" aria-label="Microsoft-365-Zielgruppen der Verwaltung"></div>
+                            <div id="tenantVerwaltungStructureTree" class="ts-vw-tree field" aria-label="Verwaltung: Struktur und Microsoft 365 wie auf der Landkarte"></div>
+
+                            <!-- Legacy-Host: flaches Zielgruppen-Board (ersetzt durch einheitlichen Editor oben) -->
+                            <div id="tenantAdminAudienceBoard" class="ts-audience-board field" hidden aria-hidden="true"></div>
 
                             <div class="settings-actions ts-audience-board__toolbar" style="margin-top:12px;flex-wrap:wrap;">
                                 <button type="button" class="btn" id="tenantAdminRolesDefaults"><i class="bi bi-arrow-counterclockwise"></i>Standardbezeichnungen (Rollen)</button>
@@ -1073,8 +1076,8 @@
                                 </button>
                             </div>
                             <p class="muted" style="margin-top:12px;line-height:1.45;">
-                                Personen pro Zielgruppe im Board pflegen (Bezeichnung/Kürzel aus den Stammdaten-Rollen, sofern vorhanden).
-                                Vollständiger Gruppen-Abgleich im <a href="tools/verwaltung.html">Werkzeug Verwaltung</a>.
+                                Struktur und Microsoft‑365‑Gruppen entsprechen der Landkarte und werden in den Stammdaten inkl. IT-Bibliothek gespeichert.
+                                Vollständiger Sammelgruppen-Abgleich im <a href="tools/verwaltung.html">Werkzeug Verwaltung</a>.
                             </p>
                         </div>
 

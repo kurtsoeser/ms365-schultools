@@ -6,11 +6,12 @@
  * Knoten referenzieren bestehende Listen (refKind + refKey), keine parallele Personenliste.
  *
  * @typedef {'area'|'section'|'role'|'arge'|'class'|'kursteam'|'sga'|'council'|'custom'|'person'} SchulOrgNodeType
- * @typedef {'adminRole'|'arge'|'argeLeiter'|'class'|'kursteam'|'sga'|'studentCouncil'|'audience'|'adminPerson'|'sammelgruppe'|'jahrgang'|'elternJahrgang'|'elternClass'|'klassenchatJahrgang'|'klassenchatClass'|'none'} SchulOrgRefKind
+ * @typedef {'adminRole'|'arge'|'argeLeiter'|'klassenvorstand'|'class'|'kursteam'|'sga'|'studentCouncil'|'audience'|'adminPerson'|'sammelgruppe'|'jahrgang'|'elternJahrgang'|'elternClass'|'klassenchatJahrgang'|'klassenchatClass'|'none'} SchulOrgRefKind
  */
 
 import { normalizeVerwaltungAudienceGroups } from '../../shared/administration-audience-groups.js';
 import { classCodeFromDisplayName } from '../../shared/class-list-enrich.js';
+import { resolveClassGraphGroupId } from '../../shared/membership-hygiene.js';
 import {
     buildKnownClassCodeIndex,
     expandKlasseToKnownCodes
@@ -31,6 +32,8 @@ export const SCHUL_ORG_SEC_KLASSENCHATS = 'sec_klassenchats';
 /** Unter ARGEs: Sammelbereich aller ARGE-Leitungen (Stammdaten + M365-Besitzer). */
 export const SCHUL_ORG_SEC_ARGE = 'sec_arge';
 export const SCHUL_ORG_SEC_ARGE_LEITER = 'sec_arge_leiter';
+/** Root: Sammelbereich aller Klassenvorstände (aus Klassen-Stammdaten / Gruppen-Besitzer). */
+export const SCHUL_ORG_SEC_KLASSENVORSTAND = 'sec_klassenvorstand';
 
 /** Fallback-Jahrgang für Klassen ohne führende Ziffer im Kürzel. */
 export const SCHUL_ORG_JAHRGANG_SONST = 'sonst';
@@ -387,6 +390,17 @@ export function isArgeLeiterArea(areaNode) {
 }
 
 /**
+ * Root-Bereich „Klassenvorstände“ (Sammel aller Klassen-KVs).
+ * @param {object|null|undefined} areaNode
+ */
+export function isKlassenvorstandArea(areaNode) {
+    if (!areaNode) return false;
+    if (normStr(areaNode.id) === SCHUL_ORG_SEC_KLASSENVORSTAND) return true;
+    if (normStr(areaNode.refKind).toLowerCase() === 'klassenvorstand') return true;
+    return false;
+}
+
+/**
  * ARGE-Leitungen aus Stammdaten (eindeutig nach E-Mail).
  * @param {object} settings
  * @returns {Array<{ name: string, email: string, label: string, argeCode: string, argeName: string }>}
@@ -412,6 +426,59 @@ export function collectArgeLeiterPeopleFromSettings(settings) {
     return Array.from(byMail.values()).sort(function (a, b) {
         return String(a.name || a.email).localeCompare(String(b.name || b.email), 'de');
     });
+}
+
+/**
+ * Klassenvorstände aus Stammdaten (eindeutig nach E-Mail; Klassenkürzel als Hinweis).
+ * @param {object} settings
+ * @returns {Array<{ name: string, email: string, label: string, classCode: string, className: string }>}
+ */
+export function collectKlassenvorstandPeopleFromSettings(settings) {
+    const s = settings && typeof settings === 'object' ? settings : {};
+    /** @type {Map<string, { name: string, email: string, label: string, classCode: string, className: string, classLabels: string[] }>} */
+    const byMail = new Map();
+    (Array.isArray(s.classes) ? s.classes : []).forEach(function (c) {
+        const email = normStr(c && c.headEmail).toLowerCase();
+        const name = normStr(c && c.headName);
+        if (!email || email.indexOf('@') === -1) return;
+        const classCode =
+            canonicalSchulOrgClassCode(c && c.code) ||
+            canonicalSchulOrgClassCode(c && c.name) ||
+            normCode(c && c.code);
+        const className = normStr(c && c.name) || classCode;
+        const existing = byMail.get(email);
+        if (existing) {
+            if (className && existing.classLabels.indexOf(className) < 0) {
+                existing.classLabels.push(className);
+            }
+            return;
+        }
+        byMail.set(email, {
+            name: name,
+            email: email,
+            label: name || email,
+            classCode: classCode,
+            className: className,
+            classLabels: className ? [className] : []
+        });
+    });
+    return Array.from(byMail.values())
+        .map(function (p) {
+            const hint =
+                p.classLabels.length > 1
+                    ? p.classLabels.join(', ')
+                    : p.classLabels[0] || p.className;
+            return {
+                name: p.name,
+                email: p.email,
+                label: p.label,
+                classCode: p.classCode,
+                className: hint
+            };
+        })
+        .sort(function (a, b) {
+            return String(a.name || a.email).localeCompare(String(b.name || b.email), 'de');
+        });
 }
 
 /**
@@ -514,6 +581,71 @@ export function ensureSchulOrganigrammArgeLeiterStructure(layout, settings) {
             if (isAreaNode(n) && labelMatch(n) && String(n.parentId || '') === String(secArge.id)) {
                 return false;
             }
+            return true;
+        });
+    }
+
+    return normalizeSchulOrganigramm(base);
+}
+
+/**
+ * Stellt sicher: Root-Bereich „Klassenvorstände“ (außerhalb Schüler/ARGE).
+ * Übernimmt ggf. einen manuell angelegten Bereich gleichen Namens.
+ * @param {unknown} layout
+ * @param {object} [settings]
+ */
+export function ensureSchulOrganigrammKlassenvorstandStructure(layout, settings) {
+    const base = normalizeSchulOrganigramm(layout);
+    void settings;
+    const labelMatch = function (n) {
+        return /^klassen\s*vorst[aä]nde?/i.test(normStr(n && n.label));
+    };
+    let board = base.nodes.find(function (n) {
+        return isKlassenvorstandArea(n);
+    });
+    if (!board) {
+        board = base.nodes.find(function (n) {
+            return isAreaNode(n) && labelMatch(n) && (n.parentId == null || n.parentId === '');
+        });
+    }
+    if (!board) {
+        board = base.nodes.find(function (n) {
+            return isAreaNode(n) && labelMatch(n);
+        });
+    }
+
+    if (!board) {
+        let maxOrder = base.nodes.reduce(function (m, n) {
+            return Math.max(m, typeof n.order === 'number' ? n.order : 0);
+        }, 0);
+        base.nodes.push({
+            id: SCHUL_ORG_SEC_KLASSENVORSTAND,
+            type: NODE.SECTION,
+            label: 'Klassenvorstände',
+            parentId: null,
+            order: maxOrder + 1,
+            tone: 'lehrer',
+            refKind: 'klassenvorstand',
+            refKey: 'klassenvorstand',
+            meta: { klassenvorstandBoard: true, nestPeople: true }
+        });
+    } else {
+        const keepM365 = board.m365;
+        board.id = SCHUL_ORG_SEC_KLASSENVORSTAND;
+        board.type = NODE.SECTION;
+        board.parentId = null;
+        board.tone = board.tone || 'lehrer';
+        board.refKind = 'klassenvorstand';
+        board.refKey = 'klassenvorstand';
+        if (!normStr(board.label) || labelMatch(board)) board.label = 'Klassenvorstände';
+        board.meta = Object.assign({}, board.meta || {}, {
+            klassenvorstandBoard: true,
+            nestPeople: true
+        });
+        if (keepM365) board.m365 = keepM365;
+        base.nodes = base.nodes.filter(function (n) {
+            if (n === board || n.id === SCHUL_ORG_SEC_KLASSENVORSTAND) return true;
+            if (isAreaNode(n) && labelMatch(n)) return false;
             return true;
         });
     }
@@ -965,8 +1097,9 @@ const BUILTIN_AREA_IDS = {
     sec_klassenchats: true,
     sec_arge: true,
     sec_arge_leiter: true,
+    sec_klassenvorstand: true,
     sec_klassen: true,
-    sec_vertretung: true,
+    // Legacy-Wrapper „Schülervertretung & SGA“ – Migration entfernt ihn zugunsten von sga_board
     sga_board: true,
     sga_gruppe_schueler: true,
     sga_gruppe_lehrer: true,
@@ -1159,7 +1292,235 @@ export function personNodeIdFromEmail(email) {
     return 'person_' + slug;
 }
 
-/** @typedef {'unified'|'security'|'mailSecurity'|'distribution'} SchulOrgGroupKind */
+/** @typedef {'unified'|'security'|'mailSecurity'|'distribution'|'groupChat'} SchulOrgGroupKind */
+/** @typedef {'unified'|'security'|'mailSecurity'|'distribution'|'groupChat'|'mailbox'} SchulOrgM365ObjectKind */
+
+/** Alle Microsoft-365-Objekttypen, die einem Bereich zugeordnet werden können. */
+export const SCHUL_ORG_M365_OBJECT_KINDS = [
+    'unified',
+    'security',
+    'mailSecurity',
+    'distribution',
+    'groupChat',
+    'mailbox'
+];
+
+/**
+ * @param {unknown} kind
+ * @returns {SchulOrgM365ObjectKind|''}
+ */
+export function normalizeSchulOrgM365ObjectKind(kind) {
+    const k = normStr(kind).toLowerCase();
+    if (!k) return '';
+    if (k === 'mailbox' || k === 'sharedmailbox' || k === 'shared_mailbox' || k === 'postfach') {
+        return 'mailbox';
+    }
+    if (k === 'security' || k === 'sg') return 'security';
+    if (k === 'mailsecurity' || k === 'mail_security' || k === 'mesg') return 'mailSecurity';
+    if (k === 'distribution' || k === 'dl' || k === 'verteiler') return 'distribution';
+    if (
+        k === 'groupchat' ||
+        k === 'group_chat' ||
+        k === 'chat' ||
+        k === 'gruppenchat' ||
+        k === 'teamschat' ||
+        k === 'teams_chat'
+    ) {
+        return 'groupChat';
+    }
+    if (
+        k === 'unified' ||
+        k === 'm365' ||
+        k === 'microsoft365' ||
+        k === 'gruppe' ||
+        k === 'group'
+    ) {
+        return 'unified';
+    }
+    return 'unified';
+}
+
+/**
+ * @param {unknown} kind
+ */
+export function schulOrgM365ObjectKindLabel(kind) {
+    const k = normalizeSchulOrgM365ObjectKind(kind);
+    if (k === 'mailbox') return 'Freigegebenes Postfach';
+    if (!k) return 'Microsoft 365';
+    return schulOrgGroupKindLabel(k);
+}
+
+/**
+ * @param {unknown} kind
+ */
+export function schulOrgM365ObjectKindIcon(kind) {
+    const k = normalizeSchulOrgM365ObjectKind(kind);
+    if (k === 'mailbox') return schulOrgMailboxIcon();
+    if (!k) return 'bi-microsoft';
+    return schulOrgGroupKindIcon(k);
+}
+
+/**
+ * @returns {Record<SchulOrgM365ObjectKind, { mode: string, id: string|null, label: string|null, mail: string|null, upn: string|null, webUrl: string|null }>}
+ */
+export function emptySchulOrgM365Bindings() {
+    /** @type {Record<string, { mode: string, id: string|null, label: string|null, mail: string|null, upn: string|null, webUrl: string|null }>} */
+    const out = {};
+    SCHUL_ORG_M365_OBJECT_KINDS.forEach(function (kind) {
+        out[kind] = {
+            mode: 'none',
+            id: null,
+            label: null,
+            mail: null,
+            upn: null,
+            webUrl: null
+        };
+    });
+    return /** @type {any} */ (out);
+}
+
+/**
+ * Eine Binding-Zeile normalisieren.
+ * @param {unknown} raw
+ * @param {SchulOrgM365ObjectKind} kind
+ */
+export function normalizeSchulOrgM365Binding(raw, kind) {
+    const k = normalizeSchulOrgM365ObjectKind(kind) || 'unified';
+    const b = raw && typeof raw === 'object' ? raw : {};
+    const modeRaw = normStr(b.mode || b.groupMode || b.mailboxMode).toLowerCase();
+    const mode = modeRaw === 'match' || modeRaw === 'create' ? modeRaw : 'none';
+    const id = mode === 'none' ? null : normStr(b.id || b.groupId || b.chatId || b.mailboxId) || null;
+    const label =
+        mode === 'none' ? null : normStr(b.label || b.groupLabel || b.mailboxLabel) || null;
+    const mail =
+        mode === 'none'
+            ? null
+            : normStr(b.mail || b.groupMail).toLowerCase() || null;
+    const upn =
+        k === 'mailbox' && mode !== 'none'
+            ? normStr(b.upn || b.mailboxUpn).toLowerCase() || null
+            : null;
+    const webUrl = k === 'groupChat' && mode !== 'none' ? normStr(b.webUrl || b.chatWebUrl) || null : null;
+    return {
+        mode: mode,
+        id: id,
+        label: label,
+        mail: mail,
+        upn: upn,
+        webUrl: webUrl
+    };
+}
+
+/**
+ * Legacy groupMode/groupKind/mailbox* → bindings und zurück spiegeln.
+ * @param {unknown} raw
+ */
+export function normalizeSchulOrgM365(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const bindings = emptySchulOrgM365Bindings();
+    const srcBindings = raw.bindings && typeof raw.bindings === 'object' ? raw.bindings : null;
+    if (srcBindings) {
+        SCHUL_ORG_M365_OBJECT_KINDS.forEach(function (kind) {
+            if (srcBindings[kind] != null) {
+                bindings[kind] = normalizeSchulOrgM365Binding(srcBindings[kind], kind);
+            }
+        });
+    } else {
+        // Altformat: ein groupKind + optionales Postfach
+        // groupMode=none / mailboxMode=none gewinnt – verwaiste IDs werden verworfen
+        const gk = normalizeSchulOrgGroupKind(raw.groupKind || 'unified');
+        const gm = normStr(raw.groupMode).toLowerCase();
+        const groupMode = gm === 'match' || gm === 'create' ? gm : 'none';
+        if (groupMode !== 'none') {
+            const slot = gk === 'groupChat' ? 'groupChat' : gk;
+            bindings[slot] = normalizeSchulOrgM365Binding(
+                {
+                    mode: groupMode,
+                    id: raw.groupId,
+                    label: raw.groupLabel,
+                    mail: raw.groupMail,
+                    webUrl: raw.chatWebUrl || raw.webUrl
+                },
+                slot
+            );
+        }
+        const mm = normStr(raw.mailboxMode).toLowerCase();
+        const mailboxMode = mm === 'match' || mm === 'create' ? mm : 'none';
+        if (mailboxMode !== 'none') {
+            bindings.mailbox = normalizeSchulOrgM365Binding(
+                {
+                    mode: mailboxMode,
+                    id: raw.mailboxId,
+                    label: raw.mailboxLabel,
+                    upn: raw.mailboxUpn
+                },
+                'mailbox'
+            );
+        }
+    }
+
+    // Legacy-Spiegel: nur Entra-Gruppe + Postfach (Abgleich/Provision).
+    // Teams-Gruppenchat gehört NICHT in groupMode/groupId – sonst landet die Chat-ID
+    // in Graph-Gruppen-Pfaden und UI-Sync (isChat ↔ groupMode) gerät in Widerspruch.
+    const entraOrder = ['unified', 'security', 'mailSecurity', 'distribution'];
+    let primaryKind = 'unified';
+    let primary = bindings.unified;
+    for (let i = 0; i < entraOrder.length; i++) {
+        const kind = entraOrder[i];
+        const b = bindings[kind];
+        if (b && (b.mode === 'match' || b.mode === 'create' || b.id)) {
+            primaryKind = kind;
+            primary = b;
+            break;
+        }
+    }
+    const mb = bindings.mailbox;
+    return {
+        bindings: bindings,
+        groupMode: primary && primary.mode !== 'none' ? primary.mode : 'none',
+        groupKind: primaryKind,
+        groupId: primary && primary.mode !== 'none' ? primary.id : null,
+        groupLabel: primary && primary.mode !== 'none' ? primary.label : null,
+        groupMail: primary && primary.mode !== 'none' ? primary.mail : null,
+        mailboxMode: mb && mb.mode !== 'none' ? mb.mode : 'none',
+        mailboxUpn: mb && mb.mode !== 'none' ? mb.upn : null,
+        mailboxLabel: mb && mb.mode !== 'none' ? mb.label : null,
+        mailboxId: mb && mb.mode !== 'none' ? mb.id : null
+    };
+}
+
+/**
+ * @param {object|null|undefined} m365
+ * @param {SchulOrgM365ObjectKind} kind
+ */
+export function getSchulOrgM365Binding(m365, kind) {
+    const norm = normalizeSchulOrgM365(m365 || {});
+    const k = normalizeSchulOrgM365ObjectKind(kind);
+    if (!norm || !k) return normalizeSchulOrgM365Binding(null, 'unified');
+    return norm.bindings[k] || normalizeSchulOrgM365Binding(null, k);
+}
+
+/**
+ * @param {object|null|undefined} m365
+ * @param {SchulOrgM365ObjectKind} kind
+ * @param {object|null} patch
+ */
+export function setSchulOrgM365Binding(m365, kind, patch) {
+    const norm = normalizeSchulOrgM365(m365 || {}) || {
+        bindings: emptySchulOrgM365Bindings()
+    };
+    const k = normalizeSchulOrgM365ObjectKind(kind);
+    if (!k) return normalizeSchulOrgM365(norm);
+    if (patch == null) {
+        norm.bindings[k] = normalizeSchulOrgM365Binding(null, k);
+    } else {
+        norm.bindings[k] = normalizeSchulOrgM365Binding(
+            Object.assign({}, norm.bindings[k] || {}, patch),
+            k
+        );
+    }
+    return normalizeSchulOrgM365({ bindings: norm.bindings });
+}
 
 /**
  * @param {unknown} kind
@@ -1170,6 +1531,16 @@ export function normalizeSchulOrgGroupKind(kind) {
     if (k === 'security' || k === 'sg') return 'security';
     if (k === 'mailsecurity' || k === 'mail_security' || k === 'mesg') return 'mailSecurity';
     if (k === 'distribution' || k === 'dl' || k === 'verteiler') return 'distribution';
+    if (
+        k === 'groupchat' ||
+        k === 'group_chat' ||
+        k === 'chat' ||
+        k === 'gruppenchat' ||
+        k === 'teamschat' ||
+        k === 'teams_chat'
+    ) {
+        return 'groupChat';
+    }
     return 'unified';
 }
 
@@ -1181,7 +1552,35 @@ export function schulOrgGroupKindLabel(kind) {
     if (k === 'security') return 'Sicherheitsgruppe';
     if (k === 'mailSecurity') return 'E-Mail-Sicherheitsgruppe';
     if (k === 'distribution') return 'Verteilerliste';
+    if (k === 'groupChat') return 'Teams-Gruppenchat';
     return 'Microsoft 365-Gruppe';
+}
+
+/**
+ * Bootstrap-Icon-Klasse für Entra-/Exchange-/Teams-Objekttypen.
+ * @param {unknown} kind
+ * @returns {string}
+ */
+export function schulOrgGroupKindIcon(kind) {
+    const k = normalizeSchulOrgGroupKind(kind);
+    if (k === 'security') return 'bi-shield-lock';
+    if (k === 'mailSecurity') return 'bi-envelope-paper';
+    if (k === 'distribution') return 'bi-mailbox';
+    if (k === 'groupChat') return 'bi-chat-dots-fill';
+    return 'bi-people-fill';
+}
+
+/** Icon für freigegebenes Postfach (parallel zu groupKind). */
+export function schulOrgMailboxIcon() {
+    return 'bi-envelope-at';
+}
+
+/**
+ * Ob der Objekttyp eine Entra-/Exchange-Gruppe ist (anlegbar via Graph-Gruppen-API).
+ * @param {unknown} kind
+ */
+export function schulOrgGroupKindIsEntraGroup(kind) {
+    return normalizeSchulOrgGroupKind(kind) !== 'groupChat';
 }
 
 /**
@@ -1242,37 +1641,234 @@ export function personHasM365UserLink(person) {
 }
 
 /**
- * Ob ein Knoten bereits mit M365-Gruppe und/oder Postfach verknüpft ist.
- * Icon nur bei echter Bindung (Gruppen-ID / Postfach), nicht bei „Keine Gruppe“ oder Create-ohne-ID.
+ * Chat-ID für KlassenChat-Kachel aus live settings.classChats (oder node.meta).
+ * @param {object|null|undefined} node
+ * @param {object|null|undefined} settings
+ */
+export function resolveClassChatIdForNode(node, settings) {
+    if (!isKlassenchatClassNode(node)) return '';
+    const metaId = normStr(node && node.meta && node.meta.chatId);
+    if (metaId) return metaId;
+    const code =
+        canonicalSchulOrgClassCode(node && node.refKey) ||
+        canonicalSchulOrgClassCode(node && node.label) ||
+        '';
+    if (!code) return '';
+    const hit = classChatMetaByKlasse(settings).get(code);
+    return hit ? normStr(hit.chatId) : '';
+}
+
+/**
+ * Ob ein Knoten mit M365-Gruppe, Postfach und/oder Teams-Gruppenchat verknüpft ist.
  * @param {object|null|undefined} node
  * @param {string} [resolvedGroupId] – nur nutzen, wenn am Knoten nicht explizit groupMode=none
- * @returns {{ hasGroup: boolean, hasMailbox: boolean, groupId: string, linked: boolean }}
+ * @param {string} [resolvedChatId] – live aus classChats
+ * @returns {{
+ *   hasGroup: boolean,
+ *   hasMailbox: boolean,
+ *   hasChat: boolean,
+ *   showChatMark: boolean,
+ *   groupId: string,
+ *   chatId: string,
+ *   groupKind: SchulOrgGroupKind,
+ *   displayKind: SchulOrgGroupKind|null,
+ *   linked: boolean
+ * }}
  */
-export function nodeM365LinkFlags(node, resolvedGroupId) {
+export function nodeM365LinkFlags(node, resolvedGroupId, resolvedChatId) {
     const m365 = node && node.m365 && typeof node.m365 === 'object' ? node.m365 : null;
-    const groupMode = m365 ? normStr(m365.groupMode).toLowerCase() || 'none' : '';
-    const ownGid = m365 ? normStr(m365.groupId) : '';
+    const norm = m365 ? normalizeSchulOrgM365(m365) : null;
+    const bindings = norm ? norm.bindings : emptySchulOrgM365Bindings();
+    const isChatArea = isKlassenchatClassNode(node);
+    const resolved = normStr(resolvedGroupId);
+    const entraKinds = ['unified', 'security', 'mailSecurity', 'distribution'];
+
+    /** @type {Array<{ kind: string, icon: string, title: string }>} */
+    const marks = [];
     let gid = '';
-    if (m365 && groupMode === 'none') {
-        gid = '';
-    } else if (m365 && (groupMode === 'match' || groupMode === 'create')) {
-        // Nur gematchte / bereits angelegte Gruppe – Create ohne ID = noch nicht verknüpft
-        gid = ownGid;
-    } else {
-        // Kein m365-Block: nur echte Auflösung (Sammelgruppe, Klasse, ARGE, …)
-        gid = normStr(resolvedGroupId) || ownGid;
+    let primaryGroupKind = /** @type {SchulOrgGroupKind} */ ('unified');
+
+    entraKinds.forEach(function (kind) {
+        const b = bindings[kind] || normalizeSchulOrgM365Binding(null, kind);
+        let id = '';
+        if (b.mode === 'none') {
+            id = '';
+        } else if (b.mode === 'create') {
+            id = normStr(b.id);
+        } else if (b.mode === 'match') {
+            // Eigene ID, sonst geerbte Auflösung nur für unified (Klassengruppen-Match)
+            id = normStr(b.id) || (kind === 'unified' ? resolved : '');
+        }
+        if (id) {
+            marks.push({
+                kind: kind,
+                icon: schulOrgM365ObjectKindIcon(kind),
+                title: schulOrgM365ObjectKindLabel(kind) + ' verknüpft'
+            });
+            if (!gid) {
+                gid = id;
+                primaryGroupKind = /** @type {SchulOrgGroupKind} */ (kind);
+            }
+        }
+    });
+
+    // Ohne m365-Block: Tenant-/Klassen-Auflösung als unified
+    if (!gid && !m365 && resolved) {
+        gid = resolved;
+        primaryGroupKind = 'unified';
+        marks.push({
+            kind: 'unified',
+            icon: schulOrgM365ObjectKindIcon('unified'),
+            title: schulOrgM365ObjectKindLabel('unified') + ' verknüpft'
+        });
     }
+
     const hasGroup = !!gid;
-    const mailboxMode = m365 ? normStr(m365.mailboxMode).toLowerCase() : '';
+    const mb = bindings.mailbox || normalizeSchulOrgM365Binding(null, 'mailbox');
     const hasMailbox =
-        (mailboxMode === 'match' || mailboxMode === 'create') &&
-        !!(normStr(m365 && m365.mailboxUpn) || normStr(m365 && m365.mailboxId));
+        (mb.mode === 'match' || mb.mode === 'create') && !!(normStr(mb.upn) || normStr(mb.id));
+    if (hasMailbox) {
+        marks.push({
+            kind: 'mailbox',
+            icon: schulOrgM365ObjectKindIcon('mailbox'),
+            title: 'Freigegebenes Postfach verknüpft'
+        });
+    }
+
+    const chatBind = bindings.groupChat || normalizeSchulOrgM365Binding(null, 'groupChat');
+    const metaChatId = normStr(node && node.meta && node.meta.chatId);
+    const chatId =
+        metaChatId ||
+        normStr(chatBind.id) ||
+        normStr(resolvedChatId);
+    const hasChat = !!chatId;
+    const showChatMark =
+        hasChat ||
+        isChatArea ||
+        chatBind.mode === 'match' ||
+        chatBind.mode === 'create';
+    if (showChatMark) {
+        marks.push({
+            kind: 'groupChat',
+            icon: schulOrgM365ObjectKindIcon('groupChat'),
+            title: hasChat
+                ? 'Teams-Gruppenchat verknüpft'
+                : 'Teams-Gruppenchat (KlassenChat)'
+        });
+    }
+
+    let displayKind = /** @type {SchulOrgGroupKind|null} */ (null);
+    if (showChatMark) displayKind = 'groupChat';
+    else if (hasGroup) displayKind = primaryGroupKind;
+
     return {
         hasGroup: hasGroup,
         hasMailbox: hasMailbox,
+        hasChat: hasChat,
+        showChatMark: showChatMark,
         groupId: gid,
-        linked: hasGroup || hasMailbox
+        chatId: chatId,
+        groupKind: primaryGroupKind,
+        displayKind: displayKind,
+        marks: marks,
+        bindings: bindings,
+        linked: hasGroup || hasMailbox || hasChat || showChatMark
     };
+}
+
+/**
+ * Bereiche/Knoten, die dieselbe M365-Gruppe bereits nutzen (Landkarte).
+ * @param {unknown} layout
+ * @param {string} groupId
+ * @param {{ excludeNodeId?: string }} [opts]
+ * @returns {Array<{ id: string, label: string, refKind: string, type: string }>}
+ */
+export function findSchulOrgNodesUsingM365Group(layout, groupId, opts) {
+    const gid = normStr(groupId);
+    if (!gid) return [];
+    const excludeId = normStr(opts && opts.excludeNodeId);
+    const base = normalizeSchulOrganigramm(layout);
+    /** @type {Array<{ id: string, label: string, refKind: string, type: string }>} */
+    const out = [];
+    base.nodes.forEach(function (n) {
+        if (!n || !n.id) return;
+        if (excludeId && String(n.id) === excludeId) return;
+        const m365 = n.m365 && typeof n.m365 === 'object' ? n.m365 : null;
+        let used = '';
+        if (m365) {
+            const norm = normalizeSchulOrgM365(m365);
+            const bindings = norm && norm.bindings ? norm.bindings : {};
+            ['unified', 'security', 'mailSecurity', 'distribution'].forEach(function (kind) {
+                if (used) return;
+                const b = bindings[kind];
+                if (b && b.mode !== 'none' && normStr(b.id) === gid) used = gid;
+            });
+            if (!used) {
+                const mode = normStr(m365.groupMode).toLowerCase() || 'none';
+                if (mode !== 'none') used = normStr(m365.groupId);
+            }
+        }
+        if (!used && n.meta && typeof n.meta === 'object') {
+            used = normStr(n.meta.graphGroupId);
+        }
+        if (!used || used !== gid) return;
+        out.push({
+            id: String(n.id),
+            label: normStr(n.label) || String(n.id),
+            refKind: normStr(n.refKind),
+            type: normStr(n.type)
+        });
+    });
+    return out;
+}
+
+/**
+ * Bereiche, die dasselbe freigegebene Postfach bereits nutzen.
+ * @param {unknown} layout
+ * @param {string} mailboxUpnOrId
+ * @param {{ excludeNodeId?: string }} [opts]
+ * @returns {Array<{ id: string, label: string, refKind: string, type: string }>}
+ */
+export function findSchulOrgNodesUsingM365Mailbox(layout, mailboxUpnOrId, opts) {
+    const key = normStr(mailboxUpnOrId).toLowerCase();
+    if (!key) return [];
+    const excludeId = normStr(opts && opts.excludeNodeId);
+    const base = normalizeSchulOrganigramm(layout);
+    /** @type {Array<{ id: string, label: string, refKind: string, type: string }>} */
+    const out = [];
+    base.nodes.forEach(function (n) {
+        if (!n || !n.id) return;
+        if (excludeId && String(n.id) === excludeId) return;
+        const m365 = n.m365 && typeof n.m365 === 'object' ? n.m365 : null;
+        if (!m365) return;
+        const mode = normStr(m365.mailboxMode).toLowerCase();
+        if (mode === 'none' || !mode) return;
+        const upn = normStr(m365.mailboxUpn).toLowerCase();
+        const mid = normStr(m365.mailboxId);
+        if (upn !== key && mid !== key && mid.toLowerCase() !== key) return;
+        out.push({
+            id: String(n.id),
+            label: normStr(n.label) || String(n.id),
+            refKind: normStr(n.refKind),
+            type: normStr(n.type)
+        });
+    });
+    return out;
+}
+
+/**
+ * Kurzer Anzeigetext für Konflikt-Hinweise (z. B. „KlassenChat ‚1A‘“).
+ * @param {{ label?: string, refKind?: string }} node
+ */
+export function schulOrgM365ConflictLabel(node) {
+    const label = normStr(node && node.label) || 'Bereich';
+    const rk = normStr(node && node.refKind).toLowerCase();
+    if (rk === 'klassenchatclass' || rk === 'klassenchatjahrgang') return 'KlassenChat „' + label + '“';
+    if (rk === 'class' || rk === 'jahrgang') return 'Klasse/Jahrgang „' + label + '“';
+    if (rk === 'arge' || rk === 'argeleiter') return 'ARGE „' + label + '“';
+    if (rk === 'elternclass' || rk === 'elternjahrgang') return 'Eltern „' + label + '“';
+    if (rk === 'sammelgruppe') return 'Sammelbereich „' + label + '“';
+    return 'Bereich „' + label + '“';
 }
 
 /**
@@ -1281,6 +1877,53 @@ export function nodeM365LinkFlags(node, resolvedGroupId) {
  * @param {string} areaId
  * @param {object|null} m365Patch – null = entfernen
  */
+/**
+ * Meta nur als flache, JSON-sichere Felder übernehmen (keine DOM-/Zyklus-Refs).
+ * @param {object} raw
+ * @returns {object}
+ */
+function sanitizeSchulOrgNodeMeta(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    /** @type {Record<string, unknown>} */
+    const out = {};
+    Object.keys(src).forEach(function (key) {
+        const k = String(key || '');
+        if (!k || k.charAt(0) === '_' || k === '__proto__' || k === 'constructor') return;
+        const v = src[k];
+        if (v == null) return;
+        const t = typeof v;
+        if (t === 'string' || t === 'number' || t === 'boolean') {
+            out[k] = v;
+            return;
+        }
+        if (Array.isArray(v)) {
+            const arr = [];
+            for (let i = 0; i < Math.min(v.length, 200); i += 1) {
+                const item = v[i];
+                const it = typeof item;
+                if (it === 'string' || it === 'number' || it === 'boolean') arr.push(item);
+                else if (item && it === 'object') {
+                    try {
+                        arr.push(JSON.parse(JSON.stringify(item)));
+                    } catch {
+                        /* skip non-serializable */
+                    }
+                }
+            }
+            if (arr.length) out[k] = arr;
+            return;
+        }
+        if (t === 'object') {
+            try {
+                out[k] = JSON.parse(JSON.stringify(v));
+            } catch {
+                /* skip */
+            }
+        }
+    });
+    return out;
+}
+
 export function setSchulOrganigrammAreaM365(layout, areaId, m365Patch) {
     const base = normalizeSchulOrganigramm(layout);
     const id = normStr(areaId);
@@ -1293,31 +1936,147 @@ export function setSchulOrganigrammAreaM365(layout, areaId, m365Patch) {
         return normalizeSchulOrganigramm(base);
     }
     const p = m365Patch && typeof m365Patch === 'object' ? m365Patch : {};
-    const groupMode = normStr(p.groupMode) || 'none';
-    const mailboxMode = normStr(p.mailboxMode) || 'none';
-    const groupKind = normalizeSchulOrgGroupKind(p.groupKind || 'unified');
-    node.m365 = {
-        groupMode: groupMode === 'match' || groupMode === 'create' ? groupMode : 'none',
-        groupKind: groupKind,
-        groupId: p.groupId ? normStr(p.groupId) : null,
-        groupLabel: p.groupLabel ? normStr(p.groupLabel) : null,
-        groupMail: p.groupMail ? normStr(p.groupMail).toLowerCase() : null,
-        mailboxMode: mailboxMode === 'match' || mailboxMode === 'create' ? mailboxMode : 'none',
-        mailboxUpn: p.mailboxUpn ? normStr(p.mailboxUpn).toLowerCase() : null,
-        mailboxLabel: p.mailboxLabel ? normStr(p.mailboxLabel) : null,
-        mailboxId: p.mailboxId ? normStr(p.mailboxId) : null
-    };
-    if (node.m365.groupMode === 'none') {
-        node.m365.groupId = null;
-        node.m365.groupLabel = null;
-        node.m365.groupMail = null;
-    }
-    if (node.m365.mailboxMode === 'none') {
-        node.m365.mailboxUpn = null;
-        node.m365.mailboxLabel = null;
-        node.m365.mailboxId = null;
+    if (p.bindings && typeof p.bindings === 'object') {
+        node.m365 = normalizeSchulOrgM365({ bindings: p.bindings });
+    } else {
+        // Legacy-Patch: ein groupKind + Postfach.
+        // Bei explizitem groupKind andere Entra-Slots leeren (sonst bleibt z. B. unified create
+        // aktiv und wird als primaryKind bevorzugt).
+        const merged = normalizeSchulOrgM365(node.m365 || {}) || {
+            bindings: emptySchulOrgM365Bindings()
+        };
+        const groupKind = normalizeSchulOrgGroupKind(p.groupKind || merged.groupKind || 'unified');
+        const groupMode = normStr(p.groupMode) || 'none';
+        const mailboxMode = normStr(p.mailboxMode) || 'none';
+        if (p.groupMode !== undefined || p.groupId !== undefined || p.groupKind !== undefined) {
+            if (p.groupKind !== undefined) {
+                ['unified', 'security', 'mailSecurity', 'distribution', 'groupChat'].forEach(
+                    function (kind) {
+                        if (kind === groupKind) return;
+                        if (!merged.bindings[kind]) return;
+                        merged.bindings[kind] = normalizeSchulOrgM365Binding(null, kind);
+                    }
+                );
+            }
+            merged.bindings[groupKind] = normalizeSchulOrgM365Binding(
+                {
+                    mode: groupMode === 'match' || groupMode === 'create' ? groupMode : 'none',
+                    id: p.groupId,
+                    label: p.groupLabel,
+                    mail: p.groupMail
+                },
+                groupKind
+            );
+        }
+        if (p.mailboxMode !== undefined || p.mailboxUpn !== undefined || p.mailboxId !== undefined) {
+            merged.bindings.mailbox = normalizeSchulOrgM365Binding(
+                {
+                    mode: mailboxMode === 'match' || mailboxMode === 'create' ? mailboxMode : 'none',
+                    id: p.mailboxId,
+                    label: p.mailboxLabel,
+                    upn: p.mailboxUpn
+                },
+                'mailbox'
+            );
+        }
+        node.m365 = normalizeSchulOrgM365({ bindings: merged.bindings });
     }
     return normalizeSchulOrganigramm(base);
+}
+
+/**
+ * Klassengruppen-Matches (Werkzeug Klassengruppen / classTeams + Register-Abgleich)
+ * auf Klassen-Bereiche der Landkarte legen. Explizit gelöste Verknüpfungen
+ * (groupMode=none) bleiben unangetastet.
+ *
+ * @param {unknown} layout
+ * @param {object} settings – Stammdaten mit classes[]
+ * @param {{
+ *   classTeams?: object[],
+ *   classGroupMatchByKey?: Record<string, { groupId?: string, notFound?: boolean, displayName?: string }>
+ * }} [linkCtx]
+ * @returns {{ layout: object, linked: number, updated: number }}
+ */
+export function applyClassGroupLinksToSchulOrganigramm(layout, settings, linkCtx) {
+    const base = normalizeSchulOrganigramm(layout);
+    const s = settings && typeof settings === 'object' ? settings : {};
+    const ctx = linkCtx && typeof linkCtx === 'object' ? linkCtx : {};
+    const classTeams = Array.isArray(ctx.classTeams) ? ctx.classTeams : [];
+    const matchMap =
+        ctx.classGroupMatchByKey && typeof ctx.classGroupMatchByKey === 'object'
+            ? ctx.classGroupMatchByKey
+            : {};
+    const classes = Array.isArray(s.classes) ? s.classes : [];
+    let linked = 0;
+    let updated = 0;
+
+    base.nodes.forEach(function (n) {
+        if (!isClassAreaNode(n) || !cleanRefToken(n.refKey)) return;
+        const mode = n.m365 ? normStr(n.m365.groupMode).toLowerCase() : '';
+        // Nutzer hat die Gruppe bewusst gelöst
+        if (mode === 'none') return;
+
+        const code =
+            canonicalSchulOrgClassCode(n.refKey) ||
+            canonicalSchulOrgClassCode(n.label) ||
+            normCode(n.refKey);
+        if (!code) return;
+        const cls =
+            classes.find(function (c) {
+                const cc =
+                    canonicalSchulOrgClassCode(c && c.code) ||
+                    canonicalSchulOrgClassCode(c && c.name) ||
+                    normCode(c && c.code);
+                return cc === code;
+            }) || {
+                code: code,
+                name: normStr(n.label) || code,
+                year: normStr(n.meta && n.meta.year)
+            };
+        const gid = resolveClassGraphGroupId(cls, classTeams, matchMap);
+        if (!gid) return;
+        linked += 1;
+        const prev = n.m365 && typeof n.m365 === 'object' ? n.m365 : {};
+        const prevGid = normStr(prev.groupId);
+        const team = classTeams.find(function (t) {
+            return normStr(t && t.graphGroupId) === gid;
+        });
+        const matchEntry = matchMap[code] || matchMap[normCode(cls.code)] || matchMap[normCode(cls.name)];
+        const label =
+            normStr(prev.groupLabel) ||
+            normStr(team && team.displayName) ||
+            normStr(matchEntry && matchEntry.displayName) ||
+            'Klassengruppe';
+        if (prevGid === gid && mode === 'match') {
+            if (!normStr(prev.groupLabel) && label) {
+                n.m365 = Object.assign({}, prev, { groupLabel: label });
+                updated += 1;
+            }
+            return;
+        }
+        n.m365 = {
+            groupMode: 'match',
+            groupKind: normalizeSchulOrgGroupKind(prev.groupKind || 'unified'),
+            groupId: gid,
+            groupLabel: label,
+            groupMail: prev.groupMail ? normStr(prev.groupMail).toLowerCase() : null,
+            mailboxMode:
+                normStr(prev.mailboxMode).toLowerCase() === 'match' ||
+                normStr(prev.mailboxMode).toLowerCase() === 'create'
+                    ? normStr(prev.mailboxMode).toLowerCase()
+                    : 'none',
+            mailboxUpn: prev.mailboxUpn ? normStr(prev.mailboxUpn).toLowerCase() : null,
+            mailboxLabel: prev.mailboxLabel ? normStr(prev.mailboxLabel) : null,
+            mailboxId: prev.mailboxId ? normStr(prev.mailboxId) : null
+        };
+        updated += 1;
+    });
+
+    return {
+        layout: normalizeSchulOrganigramm(base),
+        linked: linked,
+        updated: updated
+    };
 }
 
 /**
@@ -1476,47 +2235,7 @@ export function normalizeSchulOrganigramm(raw) {
         }
         if (n.collapsed === true) node.collapsed = true;
         if (n.m365 && typeof n.m365 === 'object') {
-            const gm = normStr(n.m365.groupMode) || 'none';
-            const mm = normStr(n.m365.mailboxMode) || 'none';
-            const groupMode = gm === 'match' || gm === 'create' ? gm : 'none';
-            const mailboxMode = mm === 'match' || mm === 'create' ? mm : 'none';
-            node.m365 = {
-                groupMode: groupMode,
-                groupKind: normalizeSchulOrgGroupKind(n.m365.groupKind || 'unified'),
-                groupId:
-                    groupMode === 'none' ? null : n.m365.groupId ? normStr(n.m365.groupId) : null,
-                groupLabel:
-                    groupMode === 'none'
-                        ? null
-                        : n.m365.groupLabel
-                          ? normStr(n.m365.groupLabel)
-                          : null,
-                groupMail:
-                    groupMode === 'none'
-                        ? null
-                        : n.m365.groupMail
-                          ? normStr(n.m365.groupMail).toLowerCase()
-                          : null,
-                mailboxMode: mailboxMode,
-                mailboxUpn:
-                    mailboxMode === 'none'
-                        ? null
-                        : n.m365.mailboxUpn
-                          ? normStr(n.m365.mailboxUpn).toLowerCase()
-                          : null,
-                mailboxLabel:
-                    mailboxMode === 'none'
-                        ? null
-                        : n.m365.mailboxLabel
-                          ? normStr(n.m365.mailboxLabel)
-                          : null,
-                mailboxId:
-                    mailboxMode === 'none'
-                        ? null
-                        : n.m365.mailboxId
-                          ? normStr(n.m365.mailboxId)
-                          : null
-            };
+            node.m365 = normalizeSchulOrgM365(n.m365);
         }
         if (n.externalIds && typeof n.externalIds === 'object') {
             const ext = {};
@@ -1526,7 +2245,9 @@ export function normalizeSchulOrganigramm(raw) {
             });
             if (Object.keys(ext).length) node.externalIds = ext;
         }
-        if (n.meta && typeof n.meta === 'object') node.meta = n.meta;
+        if (n.meta && typeof n.meta === 'object') {
+            node.meta = sanitizeSchulOrgNodeMeta(n.meta);
+        }
         nodes.push(node);
     });
     nodes.sort(function (a, b) {
@@ -1738,6 +2459,17 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
         refKey: 'argeLeiter',
         meta: { argeLeiterBoard: true, nestPeople: true }
     });
+    nodes.push({
+        id: SCHUL_ORG_SEC_KLASSENVORSTAND,
+        type: NODE.SECTION,
+        label: 'Klassenvorstände',
+        parentId: null,
+        order: order++,
+        tone: 'lehrer',
+        refKind: 'klassenvorstand',
+        refKey: 'klassenvorstand',
+        meta: { klassenvorstandBoard: true, nestPeople: true }
+    });
     // Schüler → Jahrgänge → Klassen
     /** @type {Map<string, string>} */
     const jahrgangParentByStufe = new Map();
@@ -1900,11 +2632,23 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
                 chatId: chatMeta ? chatMeta.chatId : '',
                 chatTopic: chatMeta ? chatMeta.topic : '',
                 chatWebUrl: chatMeta ? chatMeta.webUrl : ''
+            },
+            // Intent: Klassenchat = Teams-Gruppenchat (Chat-ID liegt in meta)
+            m365: {
+                groupMode: 'none',
+                groupKind: 'groupChat',
+                groupId: null,
+                groupLabel: null,
+                groupMail: null,
+                mailboxMode: 'none',
+                mailboxUpn: null,
+                mailboxLabel: null,
+                mailboxId: null
             }
         });
     });
 
-    const secVertretung = pushSection('sec_vertretung', 'Schülervertretung & SGA', 'council');
+    // SGA ist eigener Root-Bereich (kein Wrapper „Schülervertretung & SGA“ mehr)
 
     const roles = Array.isArray(s.adminRoles) ? s.adminRoles : [];
     const admin = Array.isArray(s.admin) ? s.admin : [];
@@ -2028,7 +2772,7 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
         id: SCHUL_ORG_SGA_BOARD_ID,
         type: NODE.AREA,
         label: 'SGA',
-        parentId: secVertretung,
+        parentId: null,
         order: order++,
         tone: 'sga',
         refKind: 'sga',
@@ -2120,7 +2864,7 @@ export function ensureSchulOrganigrammSgaStructure(layout, settings) {
             id: SCHUL_ORG_SGA_BOARD_ID,
             type: NODE.AREA,
             label: 'SGA',
-            parentId: 'sec_vertretung',
+            parentId: null,
             order: 99,
             tone: 'sga',
             refKind: 'sga',
@@ -2130,12 +2874,15 @@ export function ensureSchulOrganigrammSgaStructure(layout, settings) {
         };
         base.nodes.push(board);
     } else {
+        const keepM365 = board.m365;
         board.type = NODE.AREA;
         board.refKind = 'sga';
         board.refKey = SCHUL_ORG_BOARD_REF;
         board.tone = board.tone || 'sga';
-        board.label = board.label || 'SGA';
-        if (board.parentId == null || board.parentId === '') board.parentId = 'sec_vertretung';
+        // Ein Root-Bereich „SGA“ (Stammdaten), kein Nest unter sec_vertretung
+        board.parentId = null;
+        board.label = 'SGA';
+        if (keepM365) board.m365 = keepM365;
     }
     board.meta = Object.assign({}, board.meta || {}, {
         board: true,
@@ -2191,8 +2938,17 @@ export function ensureSchulOrganigrammSgaStructure(layout, settings) {
         }
     });
 
-    // Legacy-Aggregat „Schülervertretung“-Kachel entfernen (sitzt jetzt in SGA)
+    // Legacy-Wrapper „Schülervertretung & SGA“ + alte Aggregat-Kacheln entfernen
+    base.nodes.forEach(function (n) {
+        if (normStr(n.parentId) !== 'sec_vertretung') return;
+        if (isSgaScopeArea(n) || isSvSeatNode(n) || n.id === SCHUL_ORG_SGA_BOARD_ID) {
+            n.parentId = SCHUL_ORG_SGA_BOARD_ID;
+            return;
+        }
+        n.parentId = null;
+    });
     base.nodes = base.nodes.filter(function (n) {
+        if (n.id === 'sec_vertretung') return false;
         if (n.id === 'council_board') return false;
         if (
             normStr(n.type).toLowerCase() === NODE.COUNCIL &&
@@ -2270,7 +3026,8 @@ export function isPhantomSchulOrgClassNode(n, knownCodes) {
         isKlassenchatJahrgangArea(n) ||
         isKlassenchatClassNode(n) ||
         isArgeAreaNode(n) ||
-        isArgeLeiterArea(n)
+        isArgeLeiterArea(n) ||
+        isKlassenvorstandArea(n)
     ) {
         return false;
     }
@@ -2285,6 +3042,7 @@ export function isPhantomSchulOrgClassNode(n, knownCodes) {
         refKind === 'klassenchatclass' ||
         refKind === 'arge' ||
         refKind === 'argeleiter' ||
+        refKind === 'klassenvorstand' ||
         refKind === 'sammelgruppe' ||
         refKind === 'audience'
     ) {
@@ -2850,7 +3608,8 @@ export function ensureSchulOrganigrammKlassenchatsStructure(layout, settings) {
         root.refKind = 'sammelgruppe';
         root.refKey = 'klassenchats';
         root.tone = root.tone || 'lehrer';
-        root.label = root.label || 'KlassenChats';
+        // Nutzer-Umbenennung behalten (wie Eltern/Schüler/Lehrkräfte)
+        if (!normStr(root.label)) root.label = 'KlassenChats';
         root.meta = Object.assign({}, root.meta || {}, {
             board: true,
             sammelgruppe: 'klassenchats',
@@ -2951,6 +3710,17 @@ export function ensureSchulOrganigrammKlassenchatsStructure(layout, settings) {
                     chatId: chatMeta ? chatMeta.chatId : '',
                     chatTopic: chatMeta ? chatMeta.topic : '',
                     chatWebUrl: chatMeta ? chatMeta.webUrl : ''
+                },
+                m365: {
+                    groupMode: 'none',
+                    groupKind: 'groupChat',
+                    groupId: null,
+                    groupLabel: null,
+                    groupMail: null,
+                    mailboxMode: 'none',
+                    mailboxUpn: null,
+                    mailboxLabel: null,
+                    mailboxId: null
                 }
             });
             return;
@@ -2971,6 +3741,20 @@ export function ensureSchulOrganigrammKlassenchatsStructure(layout, settings) {
             chatTopic: chatMeta ? chatMeta.topic : (node.meta && node.meta.chatTopic) || '',
             chatWebUrl: chatMeta ? chatMeta.webUrl : (node.meta && node.meta.chatWebUrl) || ''
         });
+        // Default-Intent Gruppenchat, wenn noch keine M365-Bindung gesetzt ist
+        if (!node.m365 || typeof node.m365 !== 'object') {
+            node.m365 = {
+                groupMode: 'none',
+                groupKind: 'groupChat',
+                groupId: null,
+                groupLabel: null,
+                groupMail: null,
+                mailboxMode: 'none',
+                mailboxUpn: null,
+                mailboxLabel: null,
+                mailboxId: null
+            };
+        }
     });
 
     base.nodes = base.nodes.filter(function (n) {
@@ -3044,6 +3828,18 @@ function repairSchulOrganigrammNode(n) {
             refKind: 'sammelgruppe',
             refKey: 'schueler'
         },
+        sec_eltern: {
+            label: 'Eltern',
+            tone: 'council',
+            refKind: 'sammelgruppe',
+            refKey: 'eltern'
+        },
+        sec_klassenchats: {
+            label: 'KlassenChats',
+            tone: 'lehrer',
+            refKind: 'sammelgruppe',
+            refKey: 'klassenchats'
+        },
         sec_arge: { label: 'ARGEs / Fachschaften', tone: 'arge', refKind: 'none', refKey: '' },
         sec_arge_leiter: {
             label: 'ARGE-Leiter',
@@ -3052,6 +3848,13 @@ function repairSchulOrganigrammNode(n) {
             refKey: 'argeLeiter',
             parentId: SCHUL_ORG_SEC_ARGE
         },
+        sec_klassenvorstand: {
+            label: 'Klassenvorstände',
+            tone: 'lehrer',
+            refKind: 'klassenvorstand',
+            refKey: 'klassenvorstand',
+            parentId: null
+        },
         sec_klassen: {
             label: 'Klassen',
             tone: 'class',
@@ -3059,11 +3862,12 @@ function repairSchulOrganigrammNode(n) {
             refKey: '',
             parentId: SCHUL_ORG_SEC_SCHUELER
         },
-        sec_vertretung: {
-            label: 'Schülervertretung & SGA',
-            tone: 'council',
-            refKind: 'none',
-            refKey: ''
+        sga_board: {
+            label: 'SGA',
+            tone: 'sga',
+            refKind: 'sga',
+            refKey: SCHUL_ORG_BOARD_REF,
+            parentId: null
         }
     };
     if (/^sec_jahrgang_/i.test(id) || refKind === 'jahrgang') {
@@ -3437,7 +4241,7 @@ export function rebuildSchulOrganigrammFromStammdaten(layout, settings) {
             order: place.order
         });
     });
-    // Sammel-/Custom mit Meta aus Altbestand behalten (einmal je Ref/Id)
+    // Sammel-/Custom und verschachtelte Nutzer-Bereiche (z. B. IT-Team) aus Altbestand behalten
     const seen = new Set(
         nodes.map(function (n) {
             return n.refKind && n.refKey
@@ -3447,16 +4251,30 @@ export function rebuildSchulOrganigrammFromStammdaten(layout, settings) {
     );
     prevNodes.forEach(function (raw) {
         const n = repairSchulOrganigrammNode(raw);
-        if (!n || n.type !== NODE.CUSTOM) return;
-        if (!(n.meta && typeof n.meta === 'object')) return;
+        if (!n) return;
         const key =
             n.refKind && n.refKind !== 'none' && cleanRefToken(n.refKey)
                 ? n.refKind + ':' + String(n.refKey).toUpperCase()
                 : 'id:' + n.id;
-        if (seen.has(key)) return;
+        if (seen.has(key) || seen.has('id:' + n.id)) return;
         if (isGarbageSchulOrgRef(n.id) && !cleanRefToken(n.refKey)) return;
-        seen.add(key);
-        nodes.push(n);
+        // Custom mit Meta (Zielgruppen o. Ä.)
+        if (n.type === NODE.CUSTOM && n.meta && typeof n.meta === 'object') {
+            seen.add(key);
+            nodes.push(n);
+            return;
+        }
+        // Freie/verschachtelte Areas, die der Seed nicht kennt (IT-Team, Sekretariat, …)
+        if (
+            isAreaNode(n) &&
+            n.parentId != null &&
+            n.parentId !== '' &&
+            !BUILTIN_AREA_IDS[String(n.id)]
+        ) {
+            seen.add(key);
+            seen.add('id:' + n.id);
+            nodes.push(n);
+        }
     });
     const prevView = layout && typeof layout === 'object' ? layout.view : null;
     /** Area-Positionen / Nesting aus Altbestand behalten */
@@ -3728,8 +4546,8 @@ export function mergeSchulOrganigrammLivePositions(resolvedLayout, liveLayout) {
                 prev.parentId == null || prev.parentId === '' ? null : String(prev.parentId);
         }
         if (isAreaNode(n)) {
-            if (prev.m365) out.m365 = prev.m365;
-            if (normStr(prev.label)) out.label = prev.label;
+            // Kein m365/label aus der Live-Karte: sonst überschreibt Remount nach
+            // „Gruppe lösen“ die gespeicherte Lösung wieder mit dem alten Match.
             if (prev.collapsed === true) out.collapsed = true;
             else if ('collapsed' in prev) delete out.collapsed;
         }
@@ -4000,8 +4818,9 @@ export function syncSchulOrganigrammWithStammdaten(layout, settings) {
         const withEltern = ensureSchulOrganigrammElternStructure(withJahrgang, settings);
         const withChats = ensureSchulOrganigrammKlassenchatsStructure(withEltern, settings);
         const withArges = ensureSchulOrganigrammArgeStructure(withChats, settings);
+        const withKv = ensureSchulOrganigrammKlassenvorstandStructure(withArges, settings);
         return {
-            layout: withArges,
+            layout: withKv,
             added: 0,
             labelsUpdated: 0,
             removed: Math.max(0, beforeCount - withJahrgang.nodes.length),
@@ -4210,9 +5029,10 @@ export function syncSchulOrganigrammWithStammdaten(layout, settings) {
     const withEltern = ensureSchulOrganigrammElternStructure(withJahrgang, settings);
     const withChats = ensureSchulOrganigrammKlassenchatsStructure(withEltern, settings);
     const withArges = ensureSchulOrganigrammArgeStructure(withChats, settings);
+    const withKv = ensureSchulOrganigrammKlassenvorstandStructure(withArges, settings);
 
     return {
-        layout: withArges,
+        layout: withKv,
         added: added,
         labelsUpdated: labelsUpdated,
         removed:
@@ -4526,6 +5346,25 @@ export function schulOrganigrammStats(layout) {
 }
 
 /**
+ * Bereiche, die Funktionen/Rollen aufnehmen dürfen (für Auswahl beim Anlegen / Verschieben).
+ * @param {unknown} layout
+ * @returns {object[]}
+ */
+export function listSchulOrgRoleParentAreas(layout) {
+    const base = normalizeSchulOrganigramm(layout);
+    return base.nodes
+        .filter(function (n) {
+            return (
+                isAreaNode(n) &&
+                canPlaceSchulOrgNodeInSection({ type: NODE.ROLE, refKind: 'adminRole' }, n.id, base)
+            );
+        })
+        .sort(function (a, b) {
+            return String(a.label || a.id).localeCompare(String(b.label || b.id), 'de');
+        });
+}
+
+/**
  * @param {object} node
  * @param {string|null} sectionId
  */
@@ -4568,6 +5407,7 @@ export function canPlaceSchulOrgNodeInSection(node, sectionId, layout) {
                 sid === 'sec_vertretung' ||
                 sid === 'sec_klassen' ||
                 sid === SCHUL_ORG_SGA_BOARD_ID ||
+                sid === SCHUL_ORG_SEC_KLASSENVORSTAND ||
                 /^sga_/i.test(sid) ||
                 /^sec_jahrgang_/i.test(sid) ||
                 /^sec_eltern_jahrgang_/i.test(sid) ||
@@ -4581,6 +5421,7 @@ export function canPlaceSchulOrgNodeInSection(node, sectionId, layout) {
                 !isJahrgangArea(sec) &&
                 !isElternJahrgangArea(sec) &&
                 !isElternClassNode(sec) &&
+                !isKlassenvorstandArea(sec) &&
                 !isKlassenchatJahrgangArea(sec) &&
                 !isKlassenchatClassNode(sec) &&
                 !isSgaBoardArea(sec) &&
@@ -4796,6 +5637,7 @@ const api = {
     SCHUL_ORG_SEC_KLASSENCHATS: SCHUL_ORG_SEC_KLASSENCHATS,
     SCHUL_ORG_SEC_ARGE: SCHUL_ORG_SEC_ARGE,
     SCHUL_ORG_SEC_ARGE_LEITER: SCHUL_ORG_SEC_ARGE_LEITER,
+    SCHUL_ORG_SEC_KLASSENVORSTAND: SCHUL_ORG_SEC_KLASSENVORSTAND,
     SCHUL_ORG_SGA_BOARD_ID: SCHUL_ORG_SGA_BOARD_ID,
     SCHUL_ORG_SGA_SV_AREA_ID: SCHUL_ORG_SGA_SV_AREA_ID,
     SCHUL_ORG_SGA_SCOPE_AREAS: SCHUL_ORG_SGA_SCOPE_AREAS,
@@ -4818,12 +5660,15 @@ const api = {
     ensureSchulOrganigrammElternStructure: ensureSchulOrganigrammElternStructure,
     ensureSchulOrganigrammKlassenchatsStructure: ensureSchulOrganigrammKlassenchatsStructure,
     ensureSchulOrganigrammArgeLeiterStructure: ensureSchulOrganigrammArgeLeiterStructure,
+    ensureSchulOrganigrammKlassenvorstandStructure: ensureSchulOrganigrammKlassenvorstandStructure,
     ensureSchulOrganigrammArgeStructure: ensureSchulOrganigrammArgeStructure,
     isArgeLeiterArea: isArgeLeiterArea,
+    isKlassenvorstandArea: isKlassenvorstandArea,
     isArgeAreaNode: isArgeAreaNode,
     isArgeNode: isArgeNode,
     argeNodeId: argeNodeId,
     collectArgeLeiterPeopleFromSettings: collectArgeLeiterPeopleFromSettings,
+    collectKlassenvorstandPeopleFromSettings: collectKlassenvorstandPeopleFromSettings,
     listArgeCatalogGroupRefs: listArgeCatalogGroupRefs,
     schulstufeFromClassCode: schulstufeFromClassCode,
     jahrgangAreaId: jahrgangAreaId,
@@ -4873,11 +5718,28 @@ const api = {
     SCHUL_ORG_AREA_MAX_H: SCHUL_ORG_AREA_MAX_H,
     setSchulOrganigrammAreaCollapsed: setSchulOrganigrammAreaCollapsed,
     setSchulOrganigrammAreaM365: setSchulOrganigrammAreaM365,
+    findSchulOrgNodesUsingM365Group: findSchulOrgNodesUsingM365Group,
+    findSchulOrgNodesUsingM365Mailbox: findSchulOrgNodesUsingM365Mailbox,
+    schulOrgM365ConflictLabel: schulOrgM365ConflictLabel,
+    applyClassGroupLinksToSchulOrganigramm: applyClassGroupLinksToSchulOrganigramm,
     isSchulOrgLocalPlaceholderEmail: isSchulOrgLocalPlaceholderEmail,
     personHasM365UserLink: personHasM365UserLink,
     nodeM365LinkFlags: nodeM365LinkFlags,
+    resolveClassChatIdForNode: resolveClassChatIdForNode,
     normalizeSchulOrgGroupKind: normalizeSchulOrgGroupKind,
     schulOrgGroupKindLabel: schulOrgGroupKindLabel,
+    schulOrgGroupKindIcon: schulOrgGroupKindIcon,
+    schulOrgMailboxIcon: schulOrgMailboxIcon,
+    schulOrgGroupKindIsEntraGroup: schulOrgGroupKindIsEntraGroup,
+    SCHUL_ORG_M365_OBJECT_KINDS: SCHUL_ORG_M365_OBJECT_KINDS,
+    normalizeSchulOrgM365ObjectKind: normalizeSchulOrgM365ObjectKind,
+    schulOrgM365ObjectKindLabel: schulOrgM365ObjectKindLabel,
+    schulOrgM365ObjectKindIcon: schulOrgM365ObjectKindIcon,
+    emptySchulOrgM365Bindings: emptySchulOrgM365Bindings,
+    normalizeSchulOrgM365Binding: normalizeSchulOrgM365Binding,
+    normalizeSchulOrgM365: normalizeSchulOrgM365,
+    getSchulOrgM365Binding: getSchulOrgM365Binding,
+    setSchulOrgM365Binding: setSchulOrgM365Binding,
     inferSchulOrgGroupKind: inferSchulOrgGroupKind,
     suggestSchulOrgMailNickname: suggestSchulOrgMailNickname,
     upsertSchulOrganigrammAreaPerson: upsertSchulOrganigrammAreaPerson,
@@ -4893,6 +5755,7 @@ const api = {
     resolveSchulOrganigrammLayout: resolveSchulOrganigrammLayout,
     schulOrganigrammStats: schulOrganigrammStats,
     canPlaceSchulOrgNodeInSection: canPlaceSchulOrgNodeInSection,
+    listSchulOrgRoleParentAreas: listSchulOrgRoleParentAreas,
     isRoleCapableSection: isRoleCapableSection,
     audienceSectionId: audienceSectionId,
     audienceIdFromSectionId: audienceIdFromSectionId,

@@ -15,11 +15,13 @@ import {
     listMailboxDelegatePeopleForArea,
     previewPeopleForSchulOrgNode,
     moveSchulOrgPerson,
+    moveSchulOrgRole,
     SCHUL_ORG_PEOPLE_PREVIEW_LIMIT
 } from '../src/tools/schul-organigramm/schul-organigramm-edit.js';
 import {
     seedSchulOrganigrammFromStammdaten,
     SCHUL_ORG_BOARD_REF,
+    audienceSectionId,
     elternClassNodeId,
     klassenchatClassNodeId
 } from '../src/tools/schul-organigramm/schul-organigramm-logic.js';
@@ -294,6 +296,72 @@ describe('schul-organigramm-edit helpers', () => {
         ]);
         expect(dels.find((p) => p.email === 'eva@schule.at')?.source).toBe('nested');
         expect(dels.find((p) => p.email === 'chris@schule.at')?.source).toBe('nested');
+    });
+
+    it('moveSchulOrgRole nimmt Rollen-Personen in den neuen Bereich mit', () => {
+        const audA = audienceSectionId('va-team-a');
+        const audB = audienceSectionId('va-team-b');
+        const layout = {
+            version: 2,
+            nodes: [
+                {
+                    id: audA,
+                    type: 'area',
+                    label: 'Team A',
+                    parentId: null,
+                    refKind: 'audience',
+                    refKey: 'va-team-a'
+                },
+                {
+                    id: audB,
+                    type: 'area',
+                    label: 'Team B',
+                    parentId: null,
+                    refKind: 'audience',
+                    refKey: 'va-team-b'
+                },
+                {
+                    id: 'role_QMS',
+                    type: 'role',
+                    label: 'QMS',
+                    parentId: audA,
+                    refKind: 'adminRole',
+                    refKey: 'QMS'
+                }
+            ]
+        };
+        const base = {
+            adminRoles: [{ code: 'QMS', name: 'QMS', seatMode: 'single', tier: 'verwaltung' }],
+            admin: [{ role: 'QMS', name: 'Clara', email: 'clara@schule.at', defaultKey: 'QMS' }],
+            adminAudienceMemberships: [
+                { groupId: 'va-team-a', email: 'clara@schule.at', name: 'Clara' }
+            ],
+            verwaltungAudienceGroups: [
+                { id: 'va-team-a', label: 'Team A', builtin: false, order: 1 },
+                { id: 'va-team-b', label: 'Team B', builtin: false, order: 2 }
+            ],
+            schulOrganigramm: layout
+        };
+        const result = moveSchulOrgRole(base, 'role_QMS', audB);
+        expect(result.ok).toBe(true);
+        expect(result.layout.nodes.find((n) => n.id === 'role_QMS')?.parentId).toBe(audB);
+        const clara = result.settings.admin.find((p) => p.email === 'clara@schule.at');
+        expect(clara?.role).toBe('QMS');
+        expect(
+            (result.settings.adminAudienceMemberships || []).some(
+                (m) => m.email === 'clara@schule.at' && m.groupId === 'va-team-a'
+            )
+        ).toBe(false);
+        expect(
+            (result.settings.adminAudienceMemberships || []).some(
+                (m) => m.email === 'clara@schule.at' && m.groupId === 'va-team-b'
+            )
+        ).toBe(true);
+        expect(
+            listPeopleForSchulOrgNode(result.settings, { type: 'role', refKind: 'adminRole', refKey: 'QMS' }).map(
+                (p) => p.email
+            )
+        ).toEqual(['clara@schule.at']);
     });
 
     it('moveSchulOrgPerson verschiebt Admin zwischen Rollen', () => {

@@ -11,9 +11,13 @@ import {
     buildAbgleichMailboxLauncher,
     emailsFromAreaPeople,
     resolveArgeLeiterDesiredEmails,
+    resolveKlassenvorstandDesiredEmails,
     summarizeAbgleichCompare
 } from '../src/tools/schul-organigramm/schul-organigramm-abgleich.js';
-import { SCHUL_ORG_SEC_ARGE_LEITER } from '../src/tools/schul-organigramm/schul-organigramm-logic.js';
+import {
+    SCHUL_ORG_SEC_ARGE_LEITER,
+    SCHUL_ORG_SEC_KLASSENVORSTAND
+} from '../src/tools/schul-organigramm/schul-organigramm-logic.js';
 
 describe('schul-organigramm-abgleich', () => {
     it('diffGroupMembers ergänzt nur fehlende', () => {
@@ -380,6 +384,103 @@ describe('schul-organigramm-abgleich', () => {
         });
         expect(enriched.actions[0].desired.sort()).toEqual(['anna@schule.at', 'owner@schule.at']);
         expect(enriched.actions[0].toAdd).toEqual(['owner@schule.at']);
+        expect(enriched.actions[0].status).toBe('pending');
+        expect(enriched.actions[0].detail).toMatch(/fehlt \+1/);
+    });
+
+    it('Klassenvorstände-Draft nutzt Stammdaten-Köpfe der Klassen', () => {
+        const layout = seedSchulOrganigrammFromStammdaten({
+            adminRoles: [],
+            admin: [],
+            arges: [],
+            classes: [
+                {
+                    code: '4A',
+                    name: '4A',
+                    headName: 'Clara',
+                    headEmail: 'clara@schule.at'
+                },
+                {
+                    code: '4B',
+                    name: '4B',
+                    headName: 'Dirk',
+                    headEmail: 'dirk@schule.at'
+                },
+                {
+                    code: '5A',
+                    name: '5A',
+                    headName: 'Clara',
+                    headEmail: 'clara@schule.at'
+                }
+            ]
+        });
+        const withM365 = setSchulOrganigrammAreaM365(layout, SCHUL_ORG_SEC_KLASSENVORSTAND, {
+            groupMode: 'match',
+            groupKind: 'unified',
+            groupId: 'gid-kv',
+            groupLabel: 'Klassenvorstände',
+            mailboxMode: 'none'
+        });
+        const draft = buildSchulOrgM365AbgleichDraft({
+            classes: [
+                { code: '4A', name: '4A', headEmail: 'clara@schule.at', headName: 'Clara' },
+                { code: '4B', name: '4B', headEmail: 'dirk@schule.at', headName: 'Dirk' },
+                { code: '5A', name: '5A', headEmail: 'clara@schule.at', headName: 'Clara' }
+            ],
+            schulOrganigramm: withM365
+        });
+        const sync = draft.actions.find(
+            (a) => a.id === 'syncMembers:' + SCHUL_ORG_SEC_KLASSENVORSTAND
+        );
+        expect(sync).toBeTruthy();
+        expect(sync.memberEmails.sort()).toEqual(['clara@schule.at', 'dirk@schule.at']);
+        expect(sync.needsGraph).toBe(true);
+    });
+
+    it('resolveKlassenvorstandDesiredEmails aus Klassen-Köpfen', () => {
+        const resolved = resolveKlassenvorstandDesiredEmails({
+            classes: [
+                { code: '1A', headEmail: 'kv1@schule.at', headName: 'Eins' },
+                { code: '1B', headEmail: 'kv2@schule.at', headName: 'Zwei' },
+                { code: '2A', headEmail: 'kv1@schule.at', headName: 'Eins' }
+            ]
+        });
+        expect(resolved.fromHeads).toBe(2);
+        expect(resolved.emails.sort()).toEqual(['kv1@schule.at', 'kv2@schule.at']);
+    });
+
+    it('enrich: Klassenvorstände-Soll aus Stammdaten nachziehen', async () => {
+        const draft = {
+            actions: [
+                {
+                    id: 'syncMembers:' + SCHUL_ORG_SEC_KLASSENVORSTAND,
+                    type: 'syncMembers',
+                    channel: 'graph',
+                    nodeId: SCHUL_ORG_SEC_KLASSENVORSTAND,
+                    label: 'Klassenvorstände',
+                    groupId: 'gid-kv',
+                    groupLabel: 'Klassenvorstände',
+                    memberEmails: [],
+                    selected: true,
+                    needsGraph: true,
+                    status: 'needsGraph'
+                }
+            ]
+        };
+        const enriched = await enrichSchulOrgM365AbgleichPlan(draft, {
+            token: 't',
+            settings: {
+                classes: [
+                    { code: '4A', headEmail: 'clara@schule.at' },
+                    { code: '4B', headEmail: 'dirk@schule.at' }
+                ]
+            },
+            fetchGroupMembers: async () => ({
+                items: [{ mail: 'clara@schule.at' }]
+            })
+        });
+        expect(enriched.actions[0].desired.sort()).toEqual(['clara@schule.at', 'dirk@schule.at']);
+        expect(enriched.actions[0].toAdd).toEqual(['dirk@schule.at']);
         expect(enriched.actions[0].status).toBe('pending');
         expect(enriched.actions[0].detail).toMatch(/fehlt \+1/);
     });

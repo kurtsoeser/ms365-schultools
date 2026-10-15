@@ -3,7 +3,8 @@ import {
     viewsForRole,
     useKvPlanerChrome,
     useDirektionPlanerChrome,
-    useStudentPlanerChrome
+    useStudentPlanerChrome,
+    canDeleteFreistellung
 } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
 
 describe('freistellung KV chrome', () => {
@@ -45,5 +46,12 @@ describe('freistellung Direktion chrome', () => {
         const views = viewsForRole('direktion', state);
         expect(views.some((v) => v.id === 'administration')).toBe(true);
         expect(views.some((v) => v.id === 'dashboard')).toBe(true);
+    });
+
+    it('canDeleteFreistellung nur für Direktion/Admin', () => {
+        expect(canDeleteFreistellung({ role: 'direktion' })).toBe(true);
+        expect(canDeleteFreistellung({ role: 'kv' })).toBe(false);
+        expect(canDeleteFreistellung({ role: 'schueler' })).toBe(false);
+        expect(canDeleteFreistellung(null)).toBe(false);
     });
 });

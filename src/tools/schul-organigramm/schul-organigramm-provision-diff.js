@@ -35,6 +35,9 @@ export function areaNeedsM365Provision(node) {
     const m365 = node.m365 && typeof node.m365 === 'object' ? node.m365 : {};
     const mode = normStr(m365.groupMode) || 'none';
     const gid = normStr(m365.groupId);
+    const kind = normalizeSchulOrgGroupKind(m365.groupKind || 'unified');
+    // Teams-Gruppenchats werden nicht über die Entra-Gruppen-Provision angelegt
+    if (kind === 'groupChat') return false;
     if (mode === 'create' && !gid) return true;
     return false;
 }
@@ -126,16 +129,19 @@ export function listOpenSchulOrgProvisions(layout, opts) {
 export function markSchulOrgAreasForProvision(layout, areaIds, groupKind) {
     let base = normalizeSchulOrganigramm(layout);
     const ids = Array.isArray(areaIds) ? areaIds.map(String) : [];
-    const kind = normalizeSchulOrgGroupKind(groupKind || 'unified');
+    let kind = normalizeSchulOrgGroupKind(groupKind || 'unified');
+    if (kind === 'groupChat') kind = 'unified';
     ids.forEach(function (id) {
         const node = base.nodes.find(function (n) {
             return n.id === id && isAreaNode(n);
         });
         if (!node) return;
         const prev = node.m365 && typeof node.m365 === 'object' ? node.m365 : {};
+        let nextKind = normalizeSchulOrgGroupKind(prev.groupKind || kind);
+        if (nextKind === 'groupChat') nextKind = kind;
         base = setSchulOrganigrammAreaM365(base, id, {
             groupMode: 'create',
-            groupKind: normalizeSchulOrgGroupKind(prev.groupKind || kind),
+            groupKind: nextKind,
             groupId: null,
             groupLabel: prev.groupLabel || node.label || null,
             groupMail: prev.groupMail || null,
