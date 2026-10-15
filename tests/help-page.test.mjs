@@ -173,7 +173,9 @@ describe('Hilfe-Seite', () => {
             'unterrichtsteams-katalog': 'tool-unterrichtsteams-katalog',
             'sharepoint-liste-stammdaten': 'tool-stammdaten-listen',
             datenlandkarte: 'tool-datenlandkarte',
-            schulgraph: 'tool-schulgraph'
+            schulgraph: 'tool-schulgraph',
+            schulsprecherwahl: 'tool-schulsprecherwahl',
+            'schul-organigramm': 'tool-schul-organigramm'
         };
         toolIds.forEach(function (id) {
             const anchor = helpAnchors[id];

@@ -44,6 +44,20 @@ describe('tenant-settings adminRoles', () => {
         expect(saved.adminRoles.length).toBe(1);
         expect(saved.adminRoles[0].code).toBe('DIREKTION');
         expect(saved.adminRoles[0].name).toBe('direktion');
+        // Leere Personenzeile (Entwurf „+ Person“) bleibt der Rolle zugeordnet.
+        expect(saved.admin).toHaveLength(1);
+        expect(saved.admin[0]).toMatchObject({ role: 'direktion', name: '', email: '' });
+    });
+
+    it('behält leere Personenzeilen beim Speichern (Verwaltung + Person)', () => {
+        const ctx = loadTenantSettingsCore(store);
+        const saved = ctx.ms365TenantSettingsSave({
+            adminRoles: [{ code: 'FACILITIESORGANISATION', name: 'Facilities/Organisation' }],
+            admin: [{ role: 'Facilities/Organisation', name: '', email: '' }]
+        });
+        expect(saved.admin).toHaveLength(1);
+        expect(saved.admin[0].role).toBe('Facilities/Organisation');
+        expect(saved.administration.find((g) => g.name === 'Facilities/Organisation')?.people).toHaveLength(1);
     });
 
     it('schreibt Stammdaten auch in ms365-tenant-settings-v1 (Komfort-Spiegel)', () => {
@@ -93,6 +107,39 @@ describe('tenant-settings adminRoles', () => {
         );
         expect(out.roles[0].name).toBe('Schulsekretariat');
         expect(out.admin[0].role).toBe('Schulsekretariat');
+    });
+
+    it('persistiert seatMode und Organigramm in Stammdaten', () => {
+        const ctx = loadTenantSettingsCore(store);
+        const saved = ctx.ms365TenantSettingsSave({
+            domain: 'schule.at',
+            adminRoles: [{ code: 'SEK', name: 'Sekretariat', seatMode: 'multi' }],
+            admin: [{ role: 'Sekretariat', name: 'Anna', email: 'a@schule.at' }],
+            verwaltungOrganigramm: {
+                version: 1,
+                nodes: [
+                    { id: 'sec_lead', type: 'group', label: 'Schulleitung', parentId: null, order: 0, tone: 'lead' },
+                    {
+                        id: 'role_sek',
+                        type: 'role',
+                        label: 'Sekretariat',
+                        parentId: 'sec_lead',
+                        order: 1,
+                        roleCode: 'SEK'
+                    }
+                ]
+            }
+        });
+        expect(saved.adminRoles.find((r) => r.code === 'SEK')?.seatMode).toBe('multi');
+        expect(saved.verwaltungOrganigramm.nodes).toHaveLength(2);
+        expect(saved.verwaltungOrganigramm.nodes.find((n) => n.type === 'role')?.roleCode).toBe('SEK');
+
+        const again = ctx.ms365TenantSettingsSave({
+            domain: 'schule.at',
+            teachers: [{ code: 'MU', name: 'Max', email: 'max@schule.at' }]
+        });
+        expect(again.verwaltungOrganigramm.nodes).toHaveLength(2);
+        expect(again.verwaltungOrganigramm.nodes.find((n) => n.roleCode === 'SEK')?.label).toBe('Sekretariat');
     });
 });
 

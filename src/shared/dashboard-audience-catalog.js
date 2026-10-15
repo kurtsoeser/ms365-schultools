@@ -97,6 +97,7 @@ export const DASHBOARD_TOOL_RULES = {
         audience: 'lehrer',
         planner: { app: 'schularbeiten', roles: ['admin', 'lehrer'] }
     },
+    schulsprecherwahl: { audience: 'it' },
     'sharepoint-liste-vertretung': { audience: 'it' },
 
     // —— Automationen ——
@@ -118,6 +119,7 @@ export const DASHBOARD_TOOL_RULES = {
     'schulstruktur-sync': { audience: 'it' },
     datenhygiene: { audience: 'it' },
     datenlandkarte: { audience: 'it' },
+    'schul-organigramm': { audience: 'it' },
     schulgraph: { audience: 'it' },
     'stammdaten-uebergabe': { audience: 'it' },
     'stammdaten-backup-abgleich': { audience: 'it' },
@@ -214,6 +216,7 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'schulaktivitaeten-planer': 'schulapps',
     'freistellung-planer': 'schulapps',
     'lehrer-freistellung-planer': 'schulapps',
+    schulsprecherwahl: 'schulapps',
     'sharepoint-liste-vertretung': 'intranet',
     'pa-erst-setup': 'automationen',
     'power-automate-rezepte': 'automationen',
@@ -231,6 +234,7 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'schul-baseline': 'automationen',
     'schulstruktur-sync': 'hygiene',
     datenlandkarte: 'hygiene',
+    'schul-organigramm': 'hygiene',
     schulgraph: 'hygiene',
     'stammdaten-uebergabe': 'hygiene',
     'stammdaten-backup-abgleich': 'hygiene',
@@ -425,6 +429,7 @@ export const DASHBOARD_TOOL_LABELS = {
     'schulaktivitaeten-planer': 'Schulaktivitäten',
     'freistellung-planer': 'Freistellungen (Schüler)',
     'lehrer-freistellung-planer': 'Freistellungen Lehrkräfte',
+    schulsprecherwahl: 'Schulsprecher:innenwahl',
     'sharepoint-liste-vertretung': 'Vertretungsplan-Liste',
     'pa-erst-setup': 'Power Platform Erst-Setup',
     'power-automate-rezepte': 'Automationen-Übersicht',
@@ -442,6 +447,7 @@ export const DASHBOARD_TOOL_LABELS = {
     'schulstruktur-sync': 'Alle Gruppen und Teams',
     datenhygiene: 'Datenhygiene',
     datenlandkarte: 'Datenlandkarte',
+    'schul-organigramm': 'Schul-Organigramm',
     schulgraph: 'Schuldaten-Karte',
     'stammdaten-uebergabe': 'Stammdaten-Übergabe',
     'stammdaten-backup-abgleich': 'Backup-Abgleich',

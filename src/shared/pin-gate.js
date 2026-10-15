@@ -116,6 +116,11 @@
     injectScript('app-shell-boot.js', 'data-ms365-app-shell-boot', true);
     injectScript('app-paths.js', 'data-ms365-app-paths', true);
     injectScript('app-paths-boot.js', 'data-ms365-app-paths-boot', true);
+    /* Datensicherung Kopfzeile: auf allen Werkzeug-Seiten verfügbar */
+    injectScript('browser-backup.js', 'data-ms365-browser-backup', false);
+    /* Graph-Helfer vor Sync-UI (IT-Bibliothek Sichern/Laden braucht window.ms365SpoGraph) */
+    injectScript('../tools/sharepoint/spo-graph-shared.js', 'data-ms365-spo-graph', false);
+    injectScript('stammdaten-sharepoint-sync-ui.js', 'data-ms365-spo-sync-ui', true);
     injectScript('operator-access.js', 'data-ms365-operator-access', false);
     /* Phase 3: Lizenz-Gate – nicht auf Admin/Setup (dort greift isExemptPath zusätzlich) */
     if (!isAdminPage && !isHelpPage) {

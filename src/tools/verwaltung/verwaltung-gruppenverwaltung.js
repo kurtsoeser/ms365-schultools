@@ -28,19 +28,38 @@
     /** @type {{ schulleitung: string|null, verwaltung: string|null, custom: Record<string, string|null> }} */
     let matchedGroupIds = { schulleitung: null, verwaltung: null, custom: {} };
 
-    /** @type {{ members: string[], direktion: string[], rows: object[], roles: object[], audienceGroups: object[], memberships: object[] }} */
-    let listCache = { members: [], direktion: [], rows: [], roles: [], audienceGroups: [], memberships: [] };
+    /** @type {{ members: string[], direktion: string[], rows: object[], roles: object[], audienceGroups: object[], memberships: object[], organigramm: object|null }} */
+    let listCache = {
+        members: [],
+        direktion: [],
+        rows: [],
+        roles: [],
+        audienceGroups: [],
+        memberships: [],
+        organigramm: null
+    };
+    /** @type {{ mount: function, refresh: function }|null} */
+    let organigrammBuilder = null;
+    /** @type {{ refresh?: function(): void }|null} */
+    let schulOrgMount = null;
 
     /** @type {string} schulleitung | verwaltung | audience:va-* | role */
     let activeView = 'verwaltung';
     /** @type {string} */
     let activeRoleCode = '';
+    /** @type {'list'|'org'} */
+    let layoutMode = 'list';
     let listFilter = '';
     /** @type {Record<string, number>} */
     let graphMemberCounts = {};
     let countsFetchGen = 0;
     /** @type {ReturnType<import('../../shared/membership-review-ui.js').createMembershipReview>|null} */
     let membershipReview = null;
+    /**
+     * Pop-up aus dem Organigramm: Rolle-Panel temporär in Modal gehostet.
+     * @type {{ kind: string, homeParent: Node|null, homeNext: ChildNode|null, panel: HTMLElement|null }|null}
+     */
+    let orgEditPopupState = null;
     /** @type {{ refresh: function, resetPreview?: function }|null} */
     let splitMigrationUi = null;
 
@@ -117,13 +136,36 @@
         const el = document.getElementById('vwRolePeopleHint');
         const role = getActiveRole();
         if (!el || !role) return;
-        const api = rolePolicyApi();
-        const single =
-            typeof api.normalizeAdminRoleSeatMode === 'function' &&
-            api.normalizeAdminRoleSeatMode(role.seatMode, role) === 'single';
-        el.textContent = single
-            ? 'Genau eine Person für diese Rolle. Name und E‑Mail per Doppelklick bearbeiten.'
-            : 'Mehrere Personen möglich (z. B. zwei Sekretariate). Name und E‑Mail per Doppelklick bearbeiten.';
+        const n = peopleForRole(role).filter(function (p) {
+            return !isBlankPersonRow(p);
+        }).length;
+        if (n <= 1) {
+            el.textContent =
+                n === 1
+                    ? 'Aktuell eine Person (Einzelbesetzung). Weitere Personen jederzeit möglich – dann wird es eine Team-Rolle.'
+                    : 'Noch niemand zugeordnet. Eine oder mehrere Personen per Doppelklick oder „Aus Microsoft 365“ hinzufügen.';
+        } else {
+            el.textContent =
+                'Team-Rolle mit ' + n + ' Personen. Per Doppelklick bearbeiten oder weitere aus Microsoft 365 übernehmen.';
+        }
+    }
+
+    /** Sitzplatz-Anzeige anhand der tatsächlichen Besetzung (2+ → multi). */
+    function syncRoleSeatModeFromPeople(role) {
+        if (!role) return;
+        const filled = peopleForRole(role).filter(function (p) {
+            return !isBlankPersonRow(p);
+        }).length;
+        if (filled >= 2) {
+            role.seatMode = 'multi';
+        } else if (filled <= 1 && !role.seatMode) {
+            role.seatMode = 'single';
+        }
+        const seatEl = document.getElementById('vwRoleSeatMode');
+        if (seatEl && getActiveRole() === role) {
+            seatEl.value = filled >= 2 ? 'multi' : seatEl.value || 'single';
+            if (filled >= 2) seatEl.value = 'multi';
+        }
     }
 
     function updateRoleM365Ui() {
@@ -758,6 +800,13 @@
         });
         settings.adminRoles = (listCache.roles || []).map(serializeRoleForSettings);
         settings.administration = administrationGroupsFromLists(listCache.roles || [], listCache.rows || []);
+        const orgLogic = window.ms365VerwaltungOrganigramm;
+        const orgRaw = listCache.organigramm || { version: 1, nodes: [] };
+        settings.verwaltungOrganigramm =
+            orgLogic && typeof orgLogic.normalizeOrganigrammLayout === 'function'
+                ? orgLogic.normalizeOrganigrammLayout(orgRaw)
+                : orgRaw;
+        listCache.organigramm = settings.verwaltungOrganigramm;
         if (typeof window.ms365TenantSettingsSave === 'function') {
             window.ms365TenantSettingsSave(settings);
         }
@@ -850,13 +899,19 @@
             audienceGroups = ensured.groups || [];
             memberships = ensured.memberships || [];
         }
+        const prevOrg = listCache.organigramm;
+        const orgFromData =
+            data && data.verwaltungOrganigramm && typeof data.verwaltungOrganigramm === 'object'
+                ? data.verwaltungOrganigramm
+                : null;
         listCache = {
             members: members,
             direktion: direktion,
             rows: rows,
             roles: roles,
             audienceGroups: audienceGroups,
-            memberships: memberships
+            memberships: memberships,
+            organigramm: orgFromData || prevOrg || { version: 1, nodes: [] }
         };
         renderCustomAudienceSidebar();
     }
@@ -870,8 +925,456 @@
         );
         renderRoleList();
         renderCustomAudienceSidebar();
+        renderOrganigramm();
         updateMismatchUi();
         refreshSplitMigration();
+    }
+
+    function setLayoutMode(mode) {
+        layoutMode = mode === 'org' ? 'org' : 'list';
+        const listLayout = document.getElementById('vwLayoutList');
+        const orgPanel = document.getElementById('vwOrganigrammPanel');
+        const btnList = document.getElementById('vwViewList');
+        const btnOrg = document.getElementById('vwViewOrg');
+        if (listLayout) {
+            listLayout.hidden = layoutMode === 'org';
+            listLayout.setAttribute('aria-hidden', layoutMode === 'org' ? 'true' : 'false');
+        }
+        if (orgPanel) {
+            orgPanel.hidden = layoutMode !== 'org';
+            orgPanel.setAttribute('aria-hidden', layoutMode === 'org' ? 'false' : 'true');
+        }
+        if (btnList) {
+            btnList.classList.toggle('is-active', layoutMode === 'list');
+            btnList.setAttribute('aria-selected', layoutMode === 'list' ? 'true' : 'false');
+            btnList.tabIndex = layoutMode === 'list' ? 0 : -1;
+        }
+        if (btnOrg) {
+            btnOrg.classList.toggle('is-active', layoutMode === 'org');
+            btnOrg.setAttribute('aria-selected', layoutMode === 'org' ? 'true' : 'false');
+            btnOrg.tabIndex = layoutMode === 'org' ? 0 : -1;
+        }
+        try {
+            const url = new URL(window.location.href);
+            if (layoutMode === 'org') url.searchParams.set('view', 'organigramm');
+            else url.searchParams.delete('view');
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        } catch {
+            /* ignore */
+        }
+        if (layoutMode !== 'org') closeOrgEditPopup();
+        if (layoutMode === 'org') renderOrganigramm();
+    }
+
+    function onOrgEditEsc(ev) {
+        if (ev.key === 'Escape') {
+            ev.preventDefault();
+            closeOrgEditPopup();
+        }
+    }
+
+    function syncOrgEditPopupTitle() {
+        const titleEl = document.getElementById('vwOrgEditTitle');
+        const subEl = document.getElementById('vwOrgEditSub');
+        if (!titleEl && !subEl) return;
+        if (orgEditPopupState && orgEditPopupState.kind === 'role') {
+            const role = getActiveRole();
+            if (titleEl) titleEl.textContent = (role && role.name) || 'Rolle';
+            if (subEl) {
+                const bits = ['Personen & Besetzung'];
+                if (role && roleM365Short(role)) bits.push(roleM365Short(role));
+                subEl.textContent = bits.join(' · ');
+            }
+        }
+    }
+
+    function closeOrgEditPopup() {
+        const overlay = document.getElementById('vwOrgEditOverlay');
+        if (!overlay && !orgEditPopupState) return;
+        document.removeEventListener('keydown', onOrgEditEsc, true);
+        if (orgEditPopupState && orgEditPopupState.panel && orgEditPopupState.homeParent) {
+            const panel = orgEditPopupState.panel;
+            const homeParent = orgEditPopupState.homeParent;
+            const homeNext = orgEditPopupState.homeNext;
+            try {
+                if (homeNext && homeNext.parentNode === homeParent) {
+                    homeParent.insertBefore(panel, homeNext);
+                } else {
+                    homeParent.appendChild(panel);
+                }
+            } catch {
+                homeParent.appendChild(panel);
+            }
+            if (layoutMode === 'org' || activeView !== 'role') {
+                panel.style.display = 'none';
+            }
+        }
+        if (overlay) overlay.remove();
+        orgEditPopupState = null;
+        if (layoutMode === 'org') renderOrganigramm();
+    }
+
+    /**
+     * Rolle im Pop-up bearbeiten (bleibt im Organigramm).
+     * @param {string} roleCode
+     */
+    function openRoleEditPopup(roleCode) {
+        const panel = document.getElementById('vwRolePanel');
+        if (!panel) {
+            setLayoutMode('list');
+            setActiveView('role', roleCode);
+            return;
+        }
+        closeOrgEditPopup();
+
+        activeView = 'role';
+        activeRoleCode = String(roleCode || '');
+        const role = getActiveRole();
+        if (!role) {
+            toast('Rolle nicht gefunden.');
+            return;
+        }
+
+        const homeParent = panel.parentNode;
+        const homeNext = panel.nextSibling;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'vwOrgEditOverlay';
+        overlay.className = 'modal-overlay open vw-org-edit-overlay';
+        overlay.innerHTML =
+            '<div class="modal-box vw-org-edit-box" role="dialog" aria-modal="true" aria-labelledby="vwOrgEditTitle" tabindex="-1">' +
+            '<header class="vw-org-edit-head">' +
+            '<div class="vw-org-edit-head-main">' +
+            '<h3 id="vwOrgEditTitle" class="vw-org-edit-title"></h3>' +
+            '<p id="vwOrgEditSub" class="muted vw-org-edit-sub"></p>' +
+            '</div>' +
+            '<button type="button" class="btn btn-sm vw-org-edit-close" data-vw-org-edit-close aria-label="Schließen">' +
+            '<i class="bi bi-x-lg" aria-hidden="true"></i></button>' +
+            '</header>' +
+            '<div class="vw-org-edit-body" data-vw-org-edit-body></div>' +
+            '<footer class="vw-org-edit-foot">' +
+            '<button type="button" class="btn" data-vw-org-edit-close>Schließen</button>' +
+            '</footer></div>';
+
+        const body = overlay.querySelector('[data-vw-org-edit-body]');
+        body.appendChild(panel);
+        panel.style.display = '';
+        document.body.appendChild(overlay);
+        orgEditPopupState = {
+            kind: 'role',
+            homeParent: homeParent,
+            homeNext: homeNext,
+            panel: panel
+        };
+
+        fillRoleForm();
+        renderRolePeopleTable();
+        updateRolePeopleHint();
+        updateRoleM365Ui();
+        syncOrgEditPopupTitle();
+        updateLeftListUi();
+
+        overlay.querySelectorAll('[data-vw-org-edit-close]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                closeOrgEditPopup();
+            });
+        });
+        overlay.addEventListener('click', function (ev) {
+            if (ev.target === overlay) closeOrgEditPopup();
+        });
+        document.addEventListener('keydown', onOrgEditEsc, true);
+        const box = overlay.querySelector('.vw-org-edit-box');
+        if (box) box.focus();
+        const nameInp = document.getElementById('vwRoleName');
+        if (nameInp) nameInp.focus();
+    }
+
+    /**
+     * Person (Name/E-Mail) im Pop-up bearbeiten.
+     * @param {number} globalIdx
+     */
+    function openPersonEditPopup(globalIdx) {
+        const idx = Number(globalIdx);
+        const person = listCache.rows[idx];
+        if (!person) {
+            toast('Person nicht gefunden.');
+            return;
+        }
+        closeOrgEditPopup();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'vwOrgEditOverlay';
+        overlay.className = 'modal-overlay open vw-org-edit-overlay';
+        overlay.innerHTML =
+            '<div class="modal-box vw-org-edit-box vw-org-edit-box--sm" role="dialog" aria-modal="true" aria-labelledby="vwOrgEditTitle" tabindex="-1">' +
+            '<header class="vw-org-edit-head">' +
+            '<div class="vw-org-edit-head-main">' +
+            '<h3 id="vwOrgEditTitle" class="vw-org-edit-title">Person bearbeiten</h3>' +
+            '<p class="muted vw-org-edit-sub">Rolle: ' +
+            escapeHtml(person.role || '–') +
+            '</p></div>' +
+            '<button type="button" class="btn btn-sm vw-org-edit-close" data-vw-org-edit-close aria-label="Schließen">' +
+            '<i class="bi bi-x-lg" aria-hidden="true"></i></button></header>' +
+            '<div class="vw-org-edit-body form-grid">' +
+            '<div class="field"><label for="vwPopupPersonName">Name</label>' +
+            '<input type="text" id="vwPopupPersonName" maxlength="120" autocomplete="name"></div>' +
+            '<div class="field"><label for="vwPopupPersonEmail">E-Mail</label>' +
+            '<input type="email" id="vwPopupPersonEmail" maxlength="160" autocomplete="email"></div>' +
+            '</div>' +
+            '<footer class="vw-org-edit-foot">' +
+            '<button type="button" class="btn btn-danger" data-vw-org-person-del><i class="bi bi-trash" aria-hidden="true"></i> Entfernen</button>' +
+            '<span class="vw-org-edit-foot-spacer"></span>' +
+            '<button type="button" class="btn" data-vw-org-edit-close>Abbrechen</button>' +
+            '<button type="button" class="btn btn-success" data-vw-org-person-save><i class="bi bi-save" aria-hidden="true"></i> Speichern</button>' +
+            '</footer></div>';
+
+        document.body.appendChild(overlay);
+        orgEditPopupState = { kind: 'person', homeParent: null, homeNext: null, panel: null };
+
+        const nameEl = /** @type {HTMLInputElement|null} */ (document.getElementById('vwPopupPersonName'));
+        const mailEl = /** @type {HTMLInputElement|null} */ (document.getElementById('vwPopupPersonEmail'));
+        if (nameEl) nameEl.value = person.name || '';
+        if (mailEl) mailEl.value = person.email || '';
+
+        const save = function () {
+            if (!listCache.rows[idx]) return;
+            listCache.rows[idx].name = nameEl ? normStr(nameEl.value) : '';
+            listCache.rows[idx].email = mailEl ? normEmail(mailEl.value) : '';
+            persistLists();
+            updateLeftListUi();
+            toast('Person gespeichert.');
+            closeOrgEditPopup();
+        };
+        const del = function () {
+            void dlgConfirm('Person wirklich aus der Rolle entfernen?', {
+                title: 'Person entfernen',
+                okText: 'Entfernen',
+                cancelText: 'Abbrechen'
+            }).then(function (ok) {
+                if (!ok) return;
+                listCache.rows.splice(idx, 1);
+                persistLists();
+                updateLeftListUi();
+                toast('Person entfernt.');
+                closeOrgEditPopup();
+            });
+        };
+
+        overlay.querySelectorAll('[data-vw-org-edit-close]').forEach(function (btn) {
+            btn.addEventListener('click', closeOrgEditPopup);
+        });
+        const saveBtn = overlay.querySelector('[data-vw-org-person-save]');
+        if (saveBtn) saveBtn.addEventListener('click', save);
+        const delBtn = overlay.querySelector('[data-vw-org-person-del]');
+        if (delBtn) delBtn.addEventListener('click', del);
+        overlay.addEventListener('click', function (ev) {
+            if (ev.target === overlay) closeOrgEditPopup();
+        });
+        document.addEventListener('keydown', onOrgEditEsc, true);
+        if (nameEl) nameEl.focus();
+    }
+
+    /**
+     * Gruppen-/Sammelknoten im Pop-up umbenennen.
+     * @param {object} node
+     */
+    function openGroupEditPopup(node) {
+        if (!node || !node.id) return;
+        closeOrgEditPopup();
+
+        const isSammel = node.type === 'sammel';
+        const overlay = document.createElement('div');
+        overlay.id = 'vwOrgEditOverlay';
+        overlay.className = 'modal-overlay open vw-org-edit-overlay';
+        overlay.innerHTML =
+            '<div class="modal-box vw-org-edit-box vw-org-edit-box--sm" role="dialog" aria-modal="true" aria-labelledby="vwOrgEditTitle" tabindex="-1">' +
+            '<header class="vw-org-edit-head">' +
+            '<div class="vw-org-edit-head-main">' +
+            '<h3 id="vwOrgEditTitle" class="vw-org-edit-title">' +
+            (isSammel ? 'Sammelgruppe bearbeiten' : 'Gruppe bearbeiten') +
+            '</h3>' +
+            '<p class="muted vw-org-edit-sub">Nur die Anzeige im Organigramm – Stammdaten-Rollen bleiben unberührt.</p>' +
+            '</div>' +
+            '<button type="button" class="btn btn-sm vw-org-edit-close" data-vw-org-edit-close aria-label="Schließen">' +
+            '<i class="bi bi-x-lg" aria-hidden="true"></i></button></header>' +
+            '<div class="vw-org-edit-body form-grid">' +
+            '<div class="field"><label for="vwPopupGroupLabel">Bezeichnung</label>' +
+            '<input type="text" id="vwPopupGroupLabel" maxlength="120" autocomplete="off"></div>' +
+            (isSammel
+                ? '<p class="muted" style="margin:0;font-size:0.9em;">M365: ' +
+                  escapeHtml(node.m365GroupLabel || node.m365GroupMail || node.m365GroupId || 'kein Bezug') +
+                  '</p>'
+                : '') +
+            '</div>' +
+            '<footer class="vw-org-edit-foot">' +
+            '<button type="button" class="btn" data-vw-org-edit-close>Abbrechen</button>' +
+            '<button type="button" class="btn btn-success" data-vw-org-group-save><i class="bi bi-save" aria-hidden="true"></i> Speichern</button>' +
+            '</footer></div>';
+
+        document.body.appendChild(overlay);
+        orgEditPopupState = { kind: 'group', homeParent: null, homeNext: null, panel: null };
+
+        const labelEl = /** @type {HTMLInputElement|null} */ (document.getElementById('vwPopupGroupLabel'));
+        if (labelEl) labelEl.value = node.label || '';
+
+        const save = function () {
+            const label = labelEl ? normStr(labelEl.value) : '';
+            if (!label) {
+                toast('Bitte eine Bezeichnung eingeben.');
+                return;
+            }
+            const builder = ensureOrganigrammBuilder();
+            const layout = builder && typeof builder.getLayout === 'function' ? builder.getLayout() : listCache.organigramm;
+            const logic = window.ms365VerwaltungOrganigramm;
+            let next = layout;
+            if (logic && typeof logic.updateOrgNodeLabel === 'function') {
+                next = logic.updateOrgNodeLabel(layout, node.id, label);
+            } else {
+                const base = layout && Array.isArray(layout.nodes) ? layout : { version: 1, nodes: [] };
+                next = {
+                    version: base.version || 1,
+                    nodes: base.nodes.map(function (n) {
+                        if (n.id !== node.id) return n;
+                        return Object.assign({}, n, { label: label });
+                    })
+                };
+            }
+            listCache.organigramm = next;
+            const settings = loadTenantSettings() || {};
+            settings.verwaltungOrganigramm = next;
+            if (typeof window.ms365TenantSettingsSave === 'function') {
+                window.ms365TenantSettingsSave(settings);
+            }
+            toast('Bereich umbenannt.');
+            closeOrgEditPopup();
+        };
+
+        overlay.querySelectorAll('[data-vw-org-edit-close]').forEach(function (btn) {
+            btn.addEventListener('click', closeOrgEditPopup);
+        });
+        const saveBtn = overlay.querySelector('[data-vw-org-group-save]');
+        if (saveBtn) saveBtn.addEventListener('click', save);
+        overlay.addEventListener('click', function (ev) {
+            if (ev.target === overlay) closeOrgEditPopup();
+        });
+        document.addEventListener('keydown', onOrgEditEsc, true);
+        if (labelEl) {
+            labelEl.focus();
+            labelEl.select();
+        }
+    }
+
+    function ensureOrganigrammBuilder() {
+        if (organigrammBuilder) return organigrammBuilder;
+        const factory =
+            window.ms365VerwaltungOrganigrammBuilder &&
+            window.ms365VerwaltungOrganigrammBuilder.createOrganigrammBuilder;
+        if (typeof factory !== 'function') return null;
+        organigrammBuilder = factory({
+            getRoles: function () {
+                return listCache.roles || [];
+            },
+            getPeopleForRole: peopleForRole,
+            getRows: function () {
+                return listCache.rows || [];
+            },
+            setRows: function (rows) {
+                listCache.rows = Array.isArray(rows) ? rows : [];
+                persistLists();
+            },
+            getLayout: function () {
+                return listCache.organigramm;
+            },
+            setLayout: function (layout) {
+                listCache.organigramm = layout;
+                const settings = loadTenantSettings() || {};
+                settings.verwaltungOrganigramm = layout;
+                if (typeof window.ms365TenantSettingsSave === 'function') {
+                    window.ms365TenantSettingsSave(settings);
+                }
+            },
+            getFilter: function () {
+                return listFilter;
+            },
+            toast: toast,
+            prompt: function (msg, def, opts) {
+                if (typeof window.ms365AppDialogPrompt === 'function') {
+                    return window.ms365AppDialogPrompt(msg, def, opts);
+                }
+                return Promise.resolve(window.prompt(msg, def));
+            },
+            confirm: dlgConfirm,
+            createRole: async function (label) {
+                const exists = (listCache.roles || []).some(function (r) {
+                    return normStr(r.name).toLowerCase() === normStr(label).toLowerCase();
+                });
+                if (exists) {
+                    toast('Diese Rolle gibt es bereits.');
+                    return null;
+                }
+                const code = uniqueRoleCode(
+                    label,
+                    (listCache.roles || []).map(function (r) {
+                        return r.code;
+                    })
+                );
+                const role = applyRolePolicyDefaults({ code: code, name: label });
+                listCache.roles.push(role);
+                persistLists();
+                return role;
+            },
+            addPeopleFromM365: async function (role) {
+                if (!role) return;
+                const prev = activeRoleCode;
+                activeRoleCode = role.code || '';
+                activeView = 'role';
+                try {
+                    await addPeopleFromM365ToActiveRole();
+                } finally {
+                    activeRoleCode = prev;
+                }
+            },
+            pickM365Group: async function (opts) {
+                const mod = await import('../../shared/entra-group-picker.js');
+                return mod.pickEntraGroup(opts || {});
+            },
+            openRole: function (code) {
+                openRoleEditPopup(code);
+            },
+            editPerson: function (globalIdx) {
+                openPersonEditPopup(globalIdx);
+            },
+            editGroup: function (node) {
+                openGroupEditPopup(node);
+            },
+            onMeta: function (text) {
+                const meta = document.getElementById('vwOrgMeta');
+                if (meta) meta.textContent = text || '–';
+            }
+        });
+        return organigrammBuilder;
+    }
+
+    function renderOrganigramm() {
+        const host = document.getElementById('vwOrgChart');
+        const meta = document.getElementById('vwOrgMeta');
+        if (!host) return;
+        const mountFn = window.ms365MountSchulOrganigramm;
+        if (typeof mountFn !== 'function') {
+            host.innerHTML =
+                '<p class="muted">Schul-Organigramm wird geladen … Bitte Seite neu laden. Alternativ: <a href="./schul-organigramm.html">Vollbild</a>.</p>';
+            if (meta) {
+                meta.hidden = false;
+                meta.textContent = 'Schul-Organigramm-Modul noch nicht geladen.';
+            }
+            return;
+        }
+        if (meta) meta.hidden = true;
+        if (schulOrgMount && typeof schulOrgMount.refresh === 'function') {
+            schulOrgMount.refresh();
+            return;
+        }
+        schulOrgMount = mountFn(host, { embedded: true });
     }
 
     function startCellEdit(td, initialValue, onCommit) {
@@ -950,13 +1453,19 @@
             btn.setAttribute('data-vw-role-code', role.code || '');
             const on = activeView === 'role' && normStr(activeRoleCode).toUpperCase() === normStr(role.code).toUpperCase();
             btn.setAttribute('aria-current', on ? 'true' : 'false');
-            const nPeople = people.length;
-            const seat = roleSeatLabel(role);
+            const filledPeople = people.filter(function (p) {
+                return !isBlankPersonRow(p);
+            });
+            const nPeople = filledPeople.length;
             const m365 = roleM365Short(role);
             const seatBadge =
-                seat === '1 Platz'
-                    ? '<span class="vw-role-badge vw-role-badge--single" title="Einzelbesetzung">1×</span>'
-                    : '<span class="vw-role-badge" title="Mehrere Personen">Team</span>';
+                nPeople === 0
+                    ? '<span class="vw-role-badge vw-role-badge--vacant" title="Noch niemand zugeordnet">frei</span>'
+                    : nPeople === 1
+                      ? '<span class="vw-role-badge vw-role-badge--single" title="Einzelrolle · 1 Person">1×</span>'
+                      : '<span class="vw-role-badge vw-role-badge--team" title="Team-Rolle · ' +
+                        nPeople +
+                        ' Personen">Team</span>';
             const m365Badge = m365
                 ? '<span class="vw-role-badge vw-role-badge--m365" title="M365-Bezug">' + escapeHtml(m365) + '</span>'
                 : '';
@@ -1071,7 +1580,7 @@
             const td = document.createElement('td');
             td.colSpan = 3;
             td.style.color = '#6c757d';
-            td.textContent = 'Keine Personen – „+ Person“.';
+            td.textContent = 'Keine Personen – „+ Person“ oder „Aus Microsoft 365“.';
             tr.appendChild(td);
             tbody.appendChild(tr);
             return;
@@ -1214,9 +1723,19 @@
         const still = (listCache.roles || []).find(function (r) {
             return normStr(r.name).toLowerCase() === nextName.toLowerCase();
         });
-        setActiveView('role', still ? still.code : found.code);
-        updateRolePeopleHint();
-        updateRoleM365Ui();
+        activeRoleCode = still ? still.code : found.code;
+        if (orgEditPopupState && orgEditPopupState.kind === 'role') {
+            fillRoleForm();
+            renderRolePeopleTable();
+            updateRolePeopleHint();
+            updateRoleM365Ui();
+            syncOrgEditPopupTitle();
+            updateLeftListUi();
+        } else {
+            setActiveView('role', activeRoleCode);
+            updateRolePeopleHint();
+            updateRoleM365Ui();
+        }
         toast('Rolle gespeichert.');
     }
 
@@ -1238,8 +1757,17 @@
             return normStr(r.code).toUpperCase() !== normStr(role.code).toUpperCase();
         });
         persistLists();
-        setActiveView('verwaltung');
+        if (orgEditPopupState && orgEditPopupState.kind === 'role') {
+            closeOrgEditPopup();
+            if (layoutMode === 'list') setActiveView('verwaltung');
+        } else {
+            setActiveView('verwaltung');
+        }
         toast('Rolle gelöscht.');
+    }
+
+    function isBlankPersonRow(row) {
+        return !normStr(row && row.name) && !normEmail(row && row.email);
     }
 
     function addPersonToActiveRole() {
@@ -1248,25 +1776,125 @@
             toast('Bitte zuerst eine Rolle wählen.');
             return;
         }
-        const api = rolePolicyApi();
-        const people = peopleForRole(role);
-        if (
-            typeof api.canAddPersonToAdminRole === 'function' &&
-            !api.canAddPersonToAdminRole(role.seatMode, people.length)
-        ) {
-            toast('Diese Rolle ist als Einzelbesetzung definiert – höchstens eine Person.');
-            return;
-        }
         listCache.rows.push({
             role: role.name || role.code,
             name: '',
             email: '',
             defaultKey: role.name || ''
         });
+        syncRoleSeatModeFromPeople(role);
         persistLists();
         renderRolePeopleTable();
         updateLeftListUi();
-        toast('Personenzeile hinzugefügt.');
+        updateRolePeopleHint();
+        // Sofort Namen eingeben – sonst wirkt „+ Person“ wie wirkungslos.
+        requestAnimationFrame(function () {
+            const tbody = document.getElementById('vwRolePeopleBody');
+            const nameCell = tbody && tbody.querySelector('tr:last-child td:first-child');
+            if (nameCell) {
+                nameCell.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+            }
+        });
+        toast('Personenzeile hinzugefügt – bitte Name und E‑Mail eintragen.');
+    }
+
+    /**
+     * @param {object} role
+     * @param {Array<{ displayName?: string, mail?: string }>} pickedUsers
+     * @returns {{ added: number, skippedDup: number }}
+     */
+    function applyPickedUsersToRole(role, pickedUsers) {
+        const roleLabel = role.name || role.code;
+        const people = peopleForRole(role);
+        const drafts = people.filter(isBlankPersonRow);
+        const existingMails = new Set(
+            people
+                .map(function (p) {
+                    return normEmail(p.email);
+                })
+                .filter(function (em) {
+                    return em && em.indexOf('@') !== -1;
+                })
+        );
+        let draftIdx = 0;
+        let added = 0;
+        let skippedDup = 0;
+
+        (Array.isArray(pickedUsers) ? pickedUsers : []).forEach(function (u) {
+            const mail = normEmail(u && (u.mail || u.userPrincipalName || u.email));
+            const name = normStr(u && (u.displayName || u.name));
+            if (!mail || mail.indexOf('@') === -1) return;
+            if (existingMails.has(mail)) {
+                skippedDup += 1;
+                return;
+            }
+            const rec = {
+                role: roleLabel,
+                name: name,
+                email: mail,
+                defaultKey: role.name || ''
+            };
+            if (draftIdx < drafts.length) {
+                const globalIdx = listCache.rows.indexOf(drafts[draftIdx]);
+                draftIdx += 1;
+                if (globalIdx >= 0) {
+                    listCache.rows[globalIdx] = rec;
+                    existingMails.add(mail);
+                    added += 1;
+                    return;
+                }
+            }
+            listCache.rows.push(rec);
+            existingMails.add(mail);
+            added += 1;
+        });
+
+        if (added) {
+            syncRoleSeatModeFromPeople(role);
+            persistLists();
+            renderRolePeopleTable();
+            updateLeftListUi();
+            updateRolePeopleHint();
+        }
+        return { added: added, skippedDup: skippedDup };
+    }
+
+    async function addPeopleFromM365ToActiveRole() {
+        const role = getActiveRole();
+        if (!role) {
+            toast('Bitte zuerst eine Rolle wählen.');
+            return;
+        }
+        const btn = document.getElementById('vwBtnAddPersonFromM365');
+        if (btn) {
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+        }
+        try {
+            const mod = await import('../../shared/entra-user-picker.js');
+            const roleTitle = role.name || role.code || 'Rolle';
+            const picked = await mod.pickEntraUsers({
+                title: 'Personen für „' + roleTitle + '“ aus Microsoft 365',
+                hint: 'Eine oder mehrere Personen anhaken und mit „Übernehmen“ zuordnen.'
+            });
+            if (!picked.length) return;
+            const result = applyPickedUsersToRole(role, picked);
+            if (!result.added) {
+                if (result.skippedDup) toast('Bereits zugeordnet – keine neue Person übernommen.');
+                else toast('Keine gültige E‑Mail in der Auswahl.');
+                return;
+            }
+            let msg = result.added + ' Person(en) aus Microsoft 365 übernommen.';
+            if (result.skippedDup) msg += ' ' + result.skippedDup + ' bereits vorhanden.';
+            toast(msg);
+        } catch (e) {
+            toast('M365-Auswahl: ' + (e && e.message ? e.message : String(e)));
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.removeAttribute('aria-busy');
+            }
+        }
     }
 
     function renderOwnerPreview() {
@@ -1748,6 +2376,9 @@
         onClick('vwBtnAddPerson', function () {
             addPersonToActiveRole();
         });
+        onClick('vwBtnAddPersonFromM365', function () {
+            void addPeopleFromM365ToActiveRole();
+        });
         onClick('vwBtnPickRoleM365', function () {
             void pickRoleM365Resource();
         });
@@ -1773,11 +2404,42 @@
                 });
             }
         );
+        function applyListFilter(value, sourceId) {
+            listFilter = value || '';
+            const listEl = document.getElementById('vwListFilter');
+            const orgEl = document.getElementById('vwOrgFilter');
+            if (listEl && sourceId !== 'vwListFilter' && listEl.value !== listFilter) listEl.value = listFilter;
+            if (orgEl && sourceId !== 'vwOrgFilter' && orgEl.value !== listFilter) orgEl.value = listFilter;
+            renderRoleList();
+            renderOrganigramm();
+        }
         const filter = document.getElementById('vwListFilter');
         if (filter) {
             filter.addEventListener('input', function () {
-                listFilter = filter.value || '';
-                renderRoleList();
+                applyListFilter(filter.value || '', 'vwListFilter');
+            });
+        }
+        const orgFilter = document.getElementById('vwOrgFilter');
+        if (orgFilter) {
+            orgFilter.addEventListener('input', function () {
+                applyListFilter(orgFilter.value || '', 'vwOrgFilter');
+            });
+        }
+        onClick('vwViewList', function () {
+            setLayoutMode('list');
+        });
+        onClick('vwViewOrg', function () {
+            setLayoutMode('org');
+        });
+        const tablist = document.querySelector('.vw-view-toggle');
+        if (tablist) {
+            tablist.addEventListener('keydown', function (ev) {
+                if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft' && ev.key !== 'Home' && ev.key !== 'End') {
+                    return;
+                }
+                ev.preventDefault();
+                if (ev.key === 'ArrowRight' || ev.key === 'End') setLayoutMode('org');
+                else setLayoutMode('list');
             });
         }
         onClick('slgBtnSync', function () {
@@ -1814,11 +2476,14 @@
         renderOwnerPreview();
         renderMemberPreview();
         wire();
-        const kindParam = new URLSearchParams(window.location.search).get('kind');
+        const params = new URLSearchParams(window.location.search);
+        const kindParam = params.get('kind');
         let initialView = 'verwaltung';
         if (kindParam && String(kindParam).indexOf('audience:') === 0) initialView = String(kindParam);
         else if (kindParam === 'schulleitung' || kindParam === 'verwaltung') initialView = kindParam;
         setActiveView(initialView);
+        const viewParam = String(params.get('view') || '').toLowerCase();
+        setLayoutMode(viewParam === 'organigramm' || viewParam === 'org' ? 'org' : 'list');
         if (!getActiveMatchedId()) {
             live().setMatchedMode(false);
             applyCreateDefaults();
@@ -1835,6 +2500,17 @@
             if (attempts > 40) return;
             setTimeout(function () {
                 trySplitUi(attempts + 1);
+            }, 50);
+        })(0);
+        (function tryOrgUi(attempts) {
+            if (layoutMode !== 'org') return;
+            if (window.ms365VerwaltungOrganigrammBuilder) {
+                renderOrganigramm();
+                return;
+            }
+            if (attempts > 40) return;
+            setTimeout(function () {
+                tryOrgUi(attempts + 1);
             }, 50);
         })(0);
     }

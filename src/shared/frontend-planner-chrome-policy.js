@@ -60,6 +60,7 @@ export function shouldShowItAppChromeSync() {
 const HEADER_IT_IDS = [
     'dashHeaderSearchSlot',
     'ms365BackupHeader',
+    'ms365HeaderSchulOrganigramm',
     'ms365HeaderSchulregister',
     'dashRegisterToolbar'
 ];

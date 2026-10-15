@@ -38,7 +38,7 @@ export function getLocalBackupSnapshot() {
 /**
  * @param {object} remotePayload SharePoint-Backup-JSON
  * @param {{ remoteLastModified?: string, auto?: boolean }} [ctx]
- * @returns {Promise<'import'|'keep-local'|'push-local'|'skip'>}
+ * @returns {Promise<'import'|'keep-local'|'push-local'|'skip'|{ action: 'import-selective', selectedIds: string[] }>}
  */
 export async function resolveSharePointImportChoice(remotePayload, ctx) {
     const options = ctx || {};
@@ -59,10 +59,16 @@ export async function resolveSharePointImportChoice(remotePayload, ctx) {
             const choice = await promptBackupCompareChoice({
                 compare: cmp,
                 remotePayload: remotePayload,
+                localPayload: local,
                 remoteLastModified: options.remoteLastModified,
                 title: title
             });
-            if (choice === 'import' || choice === 'keep-local' || choice === 'push-local') {
+            if (
+                choice === 'import' ||
+                choice === 'keep-local' ||
+                choice === 'push-local' ||
+                (choice && typeof choice === 'object' && choice.action === 'import-selective')
+            ) {
                 return choice;
             }
         } catch {

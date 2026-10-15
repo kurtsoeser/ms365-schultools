@@ -1,5 +1,6 @@
 // Guard zuerst: setzt window.ms365AssertModules, bevor abhängige Module prüfen.
 import '../../shared/ms365-module-guard.js';
+import '../../shared/schul-organigramm-stammdaten-sync.js';
 import './kursteam-utils.js';
 import './kursteam-step-nav.js';
 import './kursteam-team-names.js';

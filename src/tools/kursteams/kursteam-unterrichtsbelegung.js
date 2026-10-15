@@ -71,7 +71,7 @@ ns.syncUnterrichtsbelegungToApp = function syncUnterrichtsbelegungToApp(options)
                     s.teachers +
                     ' Lehrkräfte' +
                     (s.yearPrefix ? ' (' + s.yearPrefix + ')' : '') +
-                    '.'
+                    ' · Schul-Organigramm aktualisiert.'
             );
         }
         if (typeof ns.updateUnterrichtsbelegungHint === 'function') {

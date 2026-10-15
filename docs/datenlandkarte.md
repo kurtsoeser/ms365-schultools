@@ -2,6 +2,8 @@
 
 **Parallel zur Schuldaten-Karte (Graph):** hier geht es nicht um einzelne Personen, sondern um **Listen und Datenquellen** in der App als **Blöcke** mit **Anzahl** und **Beschreibung**. Linien = dokumentierte **logische Verknüpfung** (Sync, Join über Codes, Felder).
 
+**Nicht verwechseln:** Das [Schul-Organigramm](schul-organigramm.md) / die [Schul-Landkarte](schul-organigramm-landkarte.md) ist der **Pflegeweg** für die Schulstruktur (schreibt Stammdaten). Die Datenlandkarte nur visualisiert Quellen/Sync. Zielbild einer gemeinsamen Kanonik: [schul-struktur-kanon.md](schul-struktur-kanon.md).
+
 ## Öffnen
 
 `tools/datenlandkarte.html` – Dashboard: *Einstellungen & Übersicht → Datenlandkarte*

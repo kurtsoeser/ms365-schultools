@@ -37,7 +37,10 @@ import {
     promptForMissingItLibrary
 } from './stammdaten-sharepoint-it-library-prompt.js';
 import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
-import { applySharePointBackupLocally } from './stammdaten-sharepoint-pull-apply.js';
+import {
+    applySharePointBackupLocally,
+    applySharePointSelectiveImportLocally
+} from './stammdaten-sharepoint-pull-apply.js';
 
 const SESSION_PULL_KEY_PREFIX = 'ms365-spo-auto-pull-done-v1';
 const SESSION_LINK_FAIL_TOAST_PREFIX = 'ms365-spo-link-fail-toast-v1';
@@ -228,6 +231,15 @@ function preferNoReloadOnSpoApply() {
  * Phase 1: SharePoint → lokal (einmal pro Tab-Session).
  * @param {{ force?: boolean, reloadOnApply?: boolean }} [opts]
  */
+function hasUnsyncedLocalChanges() {
+    if (isLocalDirty()) return true;
+    // Fingerprint nur werten, wenn wir schon einmal mit SharePoint abgeglichen haben.
+    // Sonst würde „nie gesynct“ jeden Session-Pull blockieren (leerer Browser käme nie zu SPO).
+    const meta = loadLocalSyncMeta();
+    if (!meta || !String(meta.contentFingerprint || '').trim()) return false;
+    return fingerprintChanged();
+}
+
 export async function runSessionPull(opts) {
     const options = opts || {};
     if (!options.force && sessionPullDone()) return { skipped: true, reason: 'session-done' };
@@ -237,8 +249,18 @@ export async function runSessionPull(opts) {
     pullInFlight = (async function () {
         setLive({ phase: 'pulling', error: '', message: 'Lade Stammdaten von SharePoint …' });
         try {
-            if (isLocalDirty()) {
-                // Lokale Änderungen nicht überschreiben – zuerst pushen.
+            // Push zuerst abwarten – sonst Race (Pull überschreibt, was gerade hochgeladen wird).
+            if (pushInFlight) {
+                try {
+                    await pushInFlight;
+                } catch {
+                    /* Push-Fehler: unten Dirty prüfen */
+                }
+            }
+
+            if (hasUnsyncedLocalChanges()) {
+                // Lokale Änderungen / Drift nicht überschreiben – zuerst pushen.
+                if (!isLocalDirty()) setLocalDirty(true);
                 markSessionPullDone();
                 setLive({ phase: 'idle', message: '' });
                 schedulePush(0);
@@ -368,10 +390,38 @@ export async function runSessionPull(opts) {
 
             if (choice === 'push-local') {
                 suppressPushUntil = Date.now() + 5000;
-                await uploadCurrentBackup({ folder: FOLDER });
+                await uploadCurrentBackup({ folder: FOLDER, force: true, checkConflict: false });
                 setLive({ phase: 'idle', message: 'Lokaler Stand nach SharePoint gesichert.' });
                 toast('Lokaler Stand nach SharePoint gesichert.');
                 return { pushed: true };
+            }
+
+            // Direkt vor dem Überschreiben nochmals prüfen (Edits während Download/Dialog).
+            if (hasUnsyncedLocalChanges()) {
+                if (!isLocalDirty()) setLocalDirty(true);
+                setLive({
+                    phase: 'idle',
+                    message: 'Lokale Änderungen erkannt – SharePoint-Import abgebrochen.'
+                });
+                toast('Lokale Änderungen erkannt – Import abgebrochen, Ihre Daten bleiben erhalten.', {
+                    kind: 'warning'
+                });
+                schedulePush(0);
+                return { skipped: true, reason: 'local-changed-during-pull' };
+            }
+
+            if (choice && typeof choice === 'object' && choice.action === 'import-selective') {
+                suppressPushUntil = Date.now() + 5000;
+                live.lastPullAt = syncMetaFromRemote.at;
+                applySharePointSelectiveImportLocally(
+                    payload,
+                    choice.selectedIds || [],
+                    syncMetaFromRemote,
+                    { reload: options.reloadOnApply !== false }
+                );
+                setLive({ phase: 'idle', error: '', message: 'Auswahl aus SharePoint übernommen' });
+                toast('Auswahl aus SharePoint übernommen.');
+                return { applied: true, selective: true, payload: payload };
             }
 
             suppressPushUntil = Date.now() + 5000;
@@ -421,14 +471,124 @@ export async function runSessionPull(opts) {
     return pullInFlight;
 }
 
+let conflictResolveInFlight = null;
+
+function backupComparePageHref() {
+    try {
+        const p = String((window.location && window.location.pathname) || '');
+        const inTools = /\/tools\//i.test(p) || /\\tools\\/i.test(p);
+        return (inTools ? '' : 'tools/') + 'stammdaten-backup-abgleich.html?run=1';
+    } catch {
+        return 'tools/stammdaten-backup-abgleich.html?run=1';
+    }
+}
+
+/**
+ * Push-Konflikt: Vergleichsdialog – Nutzer wählt Import / lokal behalten / hochladen.
+ * @param {{ remotePayload?: object|null, remoteItem?: object|null }} conflict
+ */
+async function resolvePushConflict(conflict) {
+    if (conflictResolveInFlight) return conflictResolveInFlight;
+    conflictResolveInFlight = (async function () {
+        const info = conflict || {};
+        let payload = info.remotePayload;
+        let item = info.remoteItem || {};
+        if (!payload) {
+            const preview = await downloadCurrentBackup({
+                folder: FOLDER,
+                apply: false,
+                recordMeta: false
+            });
+            payload = preview.payload || {};
+            item = preview.item || item;
+        }
+        setLive({
+            phase: 'idle',
+            message: 'Sync-Konflikt – bitte lokal und SharePoint abgleichen.'
+        });
+        toast('Lokal und SharePoint weichen ab – bitte entscheiden, welcher Stand gilt.', {
+            kind: 'warning'
+        });
+        const choice = await resolveSharePointImportChoice(payload, {
+            auto: false,
+            remoteLastModified: item.lastModifiedDateTime || ''
+        });
+
+        if (choice === 'skip' || choice === 'keep-local') {
+            toast('Lokaler Stand behalten. Hochladen später über Backup-Abgleich möglich.');
+            return { skipped: true, reason: 'conflict-keep-local' };
+        }
+        if (choice === 'push-local') {
+            const result = await uploadCurrentBackup({
+                folder: FOLDER,
+                force: true,
+                checkConflict: false
+            });
+            live.lastPushAt = new Date().toISOString();
+            setLive({ phase: 'idle', error: '', message: 'Lokaler Stand nach SharePoint gesichert.' });
+            toast('Lokaler Stand nach SharePoint gesichert.');
+            return { ok: true, result: result, resolved: 'push-local' };
+        }
+        if (choice && typeof choice === 'object' && choice.action === 'import-selective') {
+            suppressPushUntil = Date.now() + 5000;
+            applySharePointSelectiveImportLocally(payload, choice.selectedIds || [], null, {
+                reload: true
+            });
+            toast('Auswahl aus SharePoint übernommen.');
+            return { applied: true, selective: true, resolved: 'import-selective' };
+        }
+        if (choice === 'import') {
+            suppressPushUntil = Date.now() + 5000;
+            const syncMeta = {
+                at: new Date().toISOString(),
+                direction: 'pull',
+                fileName: (item && item.name) || 'ms365-stammdaten-aktuell.json',
+                folder: FOLDER,
+                webUrl: (item && item.webUrl) || '',
+                remoteETag: (item && (item.eTag || item.cTag)) || '',
+                remoteLastModified: (item && item.lastModifiedDateTime) || '',
+                remoteExportedAt: (payload && payload.exportedAt) || '',
+                contentFingerprint: (payload && payload.contentFingerprint) || '',
+                dirty: false,
+                pendingError: null
+            };
+            applySharePointBackupLocally(payload, syncMeta, { reload: true });
+            toast('SharePoint-Stand übernommen.');
+            return { applied: true, resolved: 'import' };
+        }
+        return { skipped: true, reason: 'conflict-unresolved' };
+    })()
+        .catch(function (e) {
+            const msg = e && e.message ? String(e.message) : String(e);
+            toast(
+                'Abgleich nicht möglich: ' +
+                    msg +
+                    ' – öffne Backup-Abgleich manuell.',
+                { kind: 'warning' }
+            );
+            try {
+                window.location.href = backupComparePageHref();
+            } catch {
+                /* ignore */
+            }
+            return { error: msg, reason: 'conflict-resolve-failed' };
+        })
+        .finally(function () {
+            conflictResolveInFlight = null;
+        });
+    return conflictResolveInFlight;
+}
+
 /**
  * Phase 2: lokal → SharePoint.
- * @param {{ keepDated?: boolean, reason?: string }} [opts]
+ * @param {{ keepDated?: boolean, reason?: string, force?: boolean, checkConflict?: boolean, resolveConflict?: boolean }} [opts]
  */
 export async function runPush(opts) {
     const options = opts || {};
     if (!canRunNetworkSync()) return { skipped: true, reason: 'not-ready' };
     if (Date.now() < suppressPushUntil) return { skipped: true, reason: 'suppressed' };
+    if (pullInFlight) return { skipped: true, reason: 'pull-in-flight' };
+    if (conflictResolveInFlight) return { skipped: true, reason: 'conflict-resolve-in-flight' };
     if (pushInFlight) return pushInFlight;
 
     pushInFlight = (async function () {
@@ -436,13 +596,16 @@ export async function runPush(opts) {
         try {
             const result = await uploadCurrentBackup({
                 folder: FOLDER,
-                keepDated: options.keepDated
+                keepDated: options.keepDated,
+                force: options.force === true,
+                checkConflict: options.checkConflict !== false
             });
             live.lastPushAt = new Date().toISOString();
             setLive({ phase: 'idle', error: '', message: '' });
             return { ok: true, result: result };
         } catch (e) {
             const msg = e && e.message ? String(e.message) : String(e);
+            const isConflict = e && (e.code === 'spo-push-conflict' || /Konflikt/i.test(msg));
             try {
                 const cur = loadLocalSyncMeta();
                 saveLocalSyncMeta(Object.assign({}, cur, { dirty: true, pendingError: msg }));
@@ -450,6 +613,17 @@ export async function runPush(opts) {
                 /* ignore */
             }
             setLive({ phase: 'error', error: msg, message: msg });
+            if (isConflict && options.resolveConflict !== false) {
+                // pushInFlight freigeben, damit Resolve pushen/importieren darf
+                pushInFlight = null;
+                return await resolvePushConflict({
+                    remotePayload: e.remotePayload || null,
+                    remoteItem: e.remoteItem || null
+                });
+            }
+            if (isConflict) {
+                toast(msg + ' Öffne: Backup-Abgleich.', { kind: 'warning' });
+            }
             return { error: msg };
         } finally {
             pushInFlight = null;

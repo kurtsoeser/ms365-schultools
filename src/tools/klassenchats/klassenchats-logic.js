@@ -98,18 +98,41 @@ function normCode(v) {
     return normStr(v).toUpperCase();
 }
 
-function splitKlassenCell(raw) {
+/**
+ * Mehrklassen-Zelle aufteilen: „1AK,1BK“, „1AK/1BK“, „1AK+1BK“, „1AK 1BK“.
+ * @param {string} raw
+ * @returns {string[]}
+ */
+export function splitKlassenCell(raw) {
     const s = normStr(raw);
     if (!s) return [];
-    return s.split(/[,;~]+/).map((c) => c.trim()).filter(Boolean);
+    // Explizite Trenner zuerst
+    if (/[,;~/|+]+/.test(s)) {
+        return s
+            .split(/[,;~/|+]+/)
+            .map((c) => c.trim())
+            .filter(Boolean);
+    }
+    // Zwei oder mehr Kürzel nur durch Leerzeichen: „2HMA 2HMB“
+    const spaceParts = s.split(/\s+/).map((c) => c.trim()).filter(Boolean);
+    if (
+        spaceParts.length >= 2 &&
+        spaceParts.every(function (p) {
+            return /^\d+[A-Za-zÄÖÜäöüß]+$/i.test(p) || /^[A-Za-zÄÖÜäöüß]{2,12}$/i.test(p);
+        })
+    ) {
+        return spaceParts;
+    }
+    return [s];
 }
 
 /** Mehrklassen-Zelle (geteilt oder zusammengezogen wie 1AK1BK). */
 export function isCombinedClassCell(raw) {
     const s = normStr(raw);
     if (!s) return false;
-    if (/[,;~]/.test(s)) return true;
-    return /(?:\d+[A-Za-z]+){2,}/.test(s);
+    if (/[,;~/|+]+/.test(s)) return true;
+    if (/\s+/.test(s) && splitKlassenCell(s).length >= 2) return true;
+    return /(?:\d+[A-Za-z]+){2,}/.test(s.replace(/\s+/g, ''));
 }
 
 /**

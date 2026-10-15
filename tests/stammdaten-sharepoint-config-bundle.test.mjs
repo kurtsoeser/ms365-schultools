@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
     CONFIG_BUNDLE_PARTS,
     CONFIG_MANIFEST_FILE,
+    SCHUL_ORGANIGRAMM_CONFIG_PART_ID,
+    SCHUL_ORGANIGRAMM_CONFIG_FILE,
     buildConfigBundleFromBackup,
+    extractSchulOrganigrammFromStore,
+    mergeSchulOrganigrammIntoSchooltoolContainer,
     isConfigBundleManifest,
     parseConfigBundlePart,
     mergeConfigPartsLocalStorage,
@@ -38,6 +42,42 @@ describe('stammdaten-sharepoint-config-bundle', () => {
         const core = bundle.files.find((f) => f.id === 'stammdaten-core');
         expect(core.body.localStorage['ms365-schooltool-data-v2']).toBe('{"a":1}');
         expect(core.body.localStorage['ms365-unknown-local-only']).toBeUndefined();
+    });
+
+    it('legt Schul-Organigramm als eigene Config-Datei ab', () => {
+        const v2 = {
+            core: {
+                schoolName: 'Demo',
+                schulOrganigramm: {
+                    version: 2,
+                    nodes: [
+                        { id: 'sec_a', type: 'area', label: 'SL' },
+                        { id: 'role_1', type: 'role', label: 'Direktor' }
+                    ]
+                }
+            }
+        };
+        const extracted = extractSchulOrganigrammFromStore({
+            'ms365-schooltool-data-v2': v2
+        });
+        expect(extracted.nodeCount).toBe(2);
+        const bundle = buildConfigBundleFromBackup({
+            schoolName: 'Demo',
+            localStorage: { 'ms365-schooltool-data-v2': v2 }
+        });
+        const orgFile = bundle.files.find((f) => f.id === SCHUL_ORGANIGRAMM_CONFIG_PART_ID);
+        expect(orgFile).toBeTruthy();
+        expect(orgFile.path).toBe('config/' + SCHUL_ORGANIGRAMM_CONFIG_FILE);
+        expect(orgFile.body.nodeCount).toBe(2);
+        expect(orgFile.body.schulOrganigramm.nodes).toHaveLength(2);
+        const parsed = parseConfigBundlePart(orgFile.body, SCHUL_ORGANIGRAMM_CONFIG_PART_ID);
+        expect(parsed.schulOrganigramm.nodes[1].label).toBe('Direktor');
+        const merged = mergeSchulOrganigrammIntoSchooltoolContainer(
+            { core: { schoolName: 'X', schulOrganigramm: { nodes: [] } }, years: {} },
+            parsed.schulOrganigramm
+        );
+        expect(merged.core.schulOrganigramm.nodes).toHaveLength(2);
+        expect(merged.core.schoolName).toBe('X');
     });
 
     it('parst Teil-Datei und merged Patches', () => {

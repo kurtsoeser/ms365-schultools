@@ -5,7 +5,7 @@
 **Stand:** September 2026 (Swagger/OpenAPI ausgewertet)  
 **Zielbild:** Ein Knopf in der App, der Stammdaten (Schule/Klassen, Schüler:innen, Lehrkräfte) mit den führenden Schuldaten abgleicht bzw. importiert.
 
-**Verwandt:** ToDo-Checkliste [`edtech-bmb-einreichung-todo.md`](./edtech-bmb-einreichung-todo.md)
+**Verwandt:** ToDo-Checkliste [`edtech-bmb-einreichung-todo.md`](./edtech-bmb-einreichung-todo.md) · Zielbild Schulstruktur [`schul-struktur-kanon.md`](./schul-struktur-kanon.md) (BIP/WebUntis → Listen → Landkarte → M365)
 
 ---
 

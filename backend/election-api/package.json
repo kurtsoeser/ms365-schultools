@@ -1,0 +1,22 @@
+{
+  "name": "ms365-election-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Azure Functions API – anonyme Schulsprecherwahl (Azure Table Storage)",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "func start",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.3.2",
+    "@azure/functions": "^4.6.0",
+    "jose": "^5.10.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.0"
+  }
+}

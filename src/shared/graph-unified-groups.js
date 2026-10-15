@@ -375,6 +375,35 @@
         return res.blob();
     }
 
+    /**
+     * Profilbild eines Users (klein). 404 → null (kein Foto).
+     * @param {string} token
+     * @param {string} userKey E-Mail / UPN / Object-ID
+     * @param {'48x48'|'64x64'|'96x96'|'120x120'|'240x240'|'360x360'|'432x432'|'504x504'|'648x648'} [size]
+     */
+    async function fetchUserPhotoBlob(token, userKey, size) {
+        const key = encodeURIComponent(normStr(userKey));
+        if (!key) return null;
+        const dim = normStr(size) || '48x48';
+        const path =
+            dim && /^\d+x\d+$/.test(dim)
+                ? '/users/' + key + '/photos/' + dim + '/$value'
+                : '/users/' + key + '/photo/$value';
+        const res = await graphRawRequest('GET', path, token);
+        if (res.status === 404) return null;
+        if (!res.ok) {
+            // Manche Tenants liefern 400 wenn kein Foto – wie 404 behandeln
+            if (res.status === 400 || res.status === 403) return null;
+            const text = await res.text();
+            throw new Error('GET ' + path + ': ' + (text || String(res.status)));
+        }
+        return res.blob();
+    }
+
+    function userPhotoInitials(displayName) {
+        return groupPhotoInitials(displayName);
+    }
+
     async function setGroupPhoto(token, groupId, imageBlob, contentType) {
         const gid = encodeURIComponent(normStr(groupId));
         if (!gid) throw new Error('Gruppen-ID fehlt.');
@@ -635,8 +664,101 @@
         if (isUnifiedGroup(g)) return 'Microsoft 365‑Gruppe';
         if (g && g.securityEnabled && g.mailEnabled) return 'E-Mail-Sicherheitsgruppe';
         if (g && g.securityEnabled && !g.mailEnabled) return 'Sicherheitsgruppe';
-        if (g && g.mailEnabled) return 'Mail-aktivierte Gruppe';
+        if (g && g.mailEnabled) return 'Verteilerliste';
         return '–';
+    }
+
+    /**
+     * Kanonischer Gruppentyp für Organigramm-Anbindung.
+     * @returns {'unified'|'security'|'mailSecurity'|'distribution'|''}
+     */
+    function inferGroupKind(g) {
+        if (!g || typeof g !== 'object') return '';
+        if (isUnifiedGroup(g)) return 'unified';
+        if (g.securityEnabled && g.mailEnabled) return 'mailSecurity';
+        if (g.securityEnabled && !g.mailEnabled) return 'security';
+        if (g.mailEnabled) return 'distribution';
+        return '';
+    }
+
+    async function createSecurityGroup(token, displayName, mailNickname, description) {
+        const nick = sanitizeUnifiedGroupMailNickname(mailNickname);
+        const body = {
+            displayName: String(displayName).trim(),
+            description: description || 'MS365-Schul-Tools – Sicherheitsgruppe',
+            mailNickname: nick,
+            mailEnabled: false,
+            securityEnabled: true,
+            groupTypes: []
+        };
+        const group = await graphJson('POST', '/groups', token, body);
+        noteAction({
+            tool: 'graph',
+            action: 'create-security-group',
+            target: nick,
+            summary: 'Sicherheitsgruppe angelegt: ' + body.displayName
+        });
+        return group;
+    }
+
+    async function createMailEnabledSecurityGroup(token, displayName, mailNickname, description) {
+        const nick = sanitizeUnifiedGroupMailNickname(mailNickname);
+        const body = {
+            displayName: String(displayName).trim(),
+            description: description || 'MS365-Schul-Tools – E-Mail-Sicherheitsgruppe',
+            mailNickname: nick,
+            mailEnabled: true,
+            securityEnabled: true,
+            groupTypes: []
+        };
+        const group = await graphJson('POST', '/groups', token, body);
+        noteAction({
+            tool: 'graph',
+            action: 'create-mail-security-group',
+            target: nick,
+            summary: 'E-Mail-Sicherheitsgruppe angelegt: ' + body.displayName
+        });
+        return group;
+    }
+
+    /** Cloud-Verteiler (mailEnabled, ohne Unified/Team). */
+    async function createDistributionGroup(token, displayName, mailNickname, description) {
+        const nick = sanitizeUnifiedGroupMailNickname(mailNickname);
+        const body = {
+            displayName: String(displayName).trim(),
+            description: description || 'MS365-Schul-Tools – Verteilerliste',
+            mailNickname: nick,
+            mailEnabled: true,
+            securityEnabled: false,
+            groupTypes: []
+        };
+        const group = await graphJson('POST', '/groups', token, body);
+        noteAction({
+            tool: 'graph',
+            action: 'create-distribution-group',
+            target: nick,
+            summary: 'Verteilerliste angelegt: ' + body.displayName
+        });
+        return group;
+    }
+
+    /**
+     * @param {string} token
+     * @param {'unified'|'security'|'mailSecurity'|'distribution'} kind
+     * @param {string} displayName
+     * @param {string} mailNickname
+     * @param {string} [description]
+     */
+    async function createGroupByKind(token, kind, displayName, mailNickname, description) {
+        const k = String(kind || 'unified');
+        if (k === 'security') return createSecurityGroup(token, displayName, mailNickname, description);
+        if (k === 'mailSecurity') {
+            return createMailEnabledSecurityGroup(token, displayName, mailNickname, description);
+        }
+        if (k === 'distribution') {
+            return createDistributionGroup(token, displayName, mailNickname, description);
+        }
+        return createUnifiedGroup(token, displayName, mailNickname, description);
     }
 
     function teamDeepLink(groupId, tenantId) {
@@ -1374,11 +1496,16 @@
         isUnifiedGroup,
         groupHasTeam,
         groupArtLabel,
+        inferGroupKind,
         fetchTeamWebUrl,
         teamDeepLink,
         searchUnifiedGroups,
         fetchGroup,
         createUnifiedGroup,
+        createSecurityGroup,
+        createMailEnabledSecurityGroup,
+        createDistributionGroup,
+        createGroupByKind,
         provisionTeamForGroup,
         graphAddMember,
         addGroupOwner,
@@ -1409,7 +1536,9 @@
         renewGroup,
         GROUP_PHOTO_MAX_BYTES,
         groupPhotoInitials,
+        userPhotoInitials,
         fetchGroupPhotoBlob,
+        fetchUserPhotoBlob,
         setGroupPhoto,
         deleteGroupPhoto,
         setTeamPhoto,

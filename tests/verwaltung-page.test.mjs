@@ -20,5 +20,14 @@ describe('Verwaltungs-Modul Seite', () => {
         expect(html).toContain('id="vwRolePanel"');
         expect(html).toContain('id="vwBtnAddRole"');
         expect(html).toContain('id="vwRolePeopleBody"');
+        expect(html).toContain('id="vwBtnAddPersonFromM365"');
+        expect(html).toContain('id="vwOrganigrammPanel"');
+        expect(html).toContain('id="vwViewList"');
+        expect(html).toContain('id="vwViewOrg"');
+        expect(html).toContain('schul-organigramm.css');
+        expect(html).toContain('schul-organigramm-ui.js');
+        expect(html).toContain('Schul-Organigramm');
+        expect(html).toContain('id="vwLayoutList"');
+        expect(html).toContain('role="tablist"');
     });
 });

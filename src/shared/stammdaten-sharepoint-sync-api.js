@@ -10,10 +10,13 @@ import {
     normalizeDriveListFolder,
     describeRemoteBackup,
     isItLibraryConfigured,
-    normalizeItLibraryMeta
+    normalizeItLibraryMeta,
+    buildBackupPickerEntries
 } from './stammdaten-sharepoint-sync-logic.js';
 import {
     buildConfigBundleFromBackup,
+    mergeSchulOrganigrammIntoSchooltoolContainer,
+    SCHUL_ORGANIGRAMM_CONFIG_PART_ID,
     isConfigBundleManifest,
     parseConfigBundlePart,
     mergeConfigPartsLocalStorage
@@ -332,8 +335,7 @@ export async function uploadConfigBundle(payload, opts) {
 /**
  * @returns {Promise<{ manifest: object|null, parts: object[], manifestPath: string }>}
  */
-export async function downloadConfigBundle(opts) {
-    const options = opts || {};
+export async function downloadConfigBundle(_opts) {
     const it = requireItLibrary();
     const token = await ensureGraphToken();
     const bundle = buildConfigBundleFromBackup({ localStorage: {} });
@@ -367,6 +369,36 @@ export async function applyConfigBundleFromSharePoint(opts) {
         return { applied: false, reason: 'no-manifest' };
     }
     const patch = mergeConfigPartsLocalStorage(downloaded.parts);
+    const orgPart = (downloaded.parts || []).find(function (p) {
+        return (
+            p &&
+            String(p.bundlePart || '') === SCHUL_ORGANIGRAMM_CONFIG_PART_ID &&
+            p.schulOrganigramm &&
+            typeof p.schulOrganigramm === 'object'
+        );
+    });
+    if (orgPart && orgPart.schulOrganigramm) {
+        try {
+            const raw = patch['ms365-schooltool-data-v2'];
+            let container = null;
+            if (raw != null && raw !== '') {
+                container = typeof raw === 'object' ? raw : JSON.parse(String(raw));
+            } else if (typeof localStorage !== 'undefined') {
+                const cur = localStorage.getItem('ms365-schooltool-data-v2');
+                if (cur) container = JSON.parse(cur);
+            }
+            if (container) {
+                const merged = mergeSchulOrganigrammIntoSchooltoolContainer(
+                    container,
+                    orgPart.schulOrganigramm
+                );
+                patch['ms365-schooltool-data-v2'] =
+                    typeof merged === 'string' ? merged : JSON.stringify(merged);
+            }
+        } catch {
+            /* Organigramm-Merge optional */
+        }
+    }
     const bb = window.ms365BrowserBackup;
     if (!bb || typeof bb.mergeLocalStoragePatch !== 'function') {
         throw new Error('Backup-Modul fehlt (mergeLocalStoragePatch).');
@@ -508,8 +540,9 @@ function buildPayloadJson() {
 }
 
 /**
- * @param {{ folder?: string, keepDated?: boolean, siteUrl?: string }} [opts]
+ * @param {{ folder?: string, keepDated?: boolean, siteUrl?: string, force?: boolean, checkConflict?: boolean }} [opts]
  * keepDated: Standard true – zusätzlich zur aktuellen Datei eine datierte Kopie im gleichen Ordner.
+ * checkConflict: bei abweichendem Remote-Stand nicht blind überschreiben (außer force).
  */
 export async function uploadCurrentBackup(opts) {
     const options = opts || {};
@@ -519,6 +552,93 @@ export async function uploadCurrentBackup(opts) {
     const built = buildPayloadJson();
     const token = await ensureGraphToken();
     const currentPath = buildDriveRelativePath(folder, CURRENT_FILE);
+
+    if (options.checkConflict !== false && options.force !== true) {
+        const localMeta = loadLocalSyncMeta();
+        const knownLm = localMeta && String(localMeta.remoteLastModified || '').trim();
+        const knownFp = localMeta && String(localMeta.contentFingerprint || '').trim();
+        if (knownLm) {
+            const remoteInfo = await getCurrentBackupRemoteInfo({ folder: folder });
+            const remoteLm =
+                remoteInfo && remoteInfo.exists ? String(remoteInfo.lastModifiedDateTime || '').trim() : '';
+            if (remoteInfo && remoteInfo.exists && remoteLm && remoteLm !== knownLm) {
+                const localFp = String((built.payload && built.payload.contentFingerprint) || '').trim();
+                // Remote-Zeitstempel weicht ab – Inhalt prüfen, bevor wir blockieren oder überschreiben.
+                if (knownFp && localFp && localFp === knownFp) {
+                    // Lokal unverändert: Remote nicht mit altem Stand überschreiben.
+                    const metaSkip = Object.assign({}, localMeta, {
+                        remoteLastModified: remoteLm,
+                        remoteETag: remoteInfo.eTag || localMeta.remoteETag || '',
+                        dirty: false,
+                        pendingError: null
+                    });
+                    saveLocalSyncMeta(metaSkip);
+                    return {
+                        item: remoteInfo,
+                        meta: metaSkip,
+                        payload: built.payload,
+                        skipped: true,
+                        reason: 'remote-newer'
+                    };
+                }
+                if (knownFp && localFp && localFp !== knownFp) {
+                    let remoteFp = '';
+                    let remotePayload = null;
+                    let remoteItem = remoteInfo;
+                    try {
+                        const preview = await downloadCurrentBackup({
+                            folder: folder,
+                            apply: false,
+                            recordMeta: false
+                        });
+                        remotePayload = preview.payload || null;
+                        remoteItem = preview.item || remoteInfo;
+                        remoteFp = String(
+                            (remotePayload && remotePayload.contentFingerprint) || ''
+                        ).trim();
+                    } catch {
+                        /* Download fehlgeschlagen → vorsichtig Konflikt melden */
+                    }
+                    if (remoteFp && remoteFp === localFp) {
+                        // Gleicher Inhalt, nur Zeitstempel anders → Meta nachziehen, kein Upload nötig.
+                        const metaSame = Object.assign({}, localMeta, {
+                            remoteLastModified:
+                                (remoteItem && remoteItem.lastModifiedDateTime) || remoteLm,
+                            remoteETag:
+                                (remoteItem && (remoteItem.eTag || remoteItem.cTag)) ||
+                                remoteInfo.eTag ||
+                                localMeta.remoteETag ||
+                                '',
+                            remoteExportedAt: (remotePayload && remotePayload.exportedAt) || '',
+                            contentFingerprint: localFp,
+                            dirty: false,
+                            pendingError: null
+                        });
+                        saveLocalSyncMeta(metaSame);
+                        return {
+                            item: remoteItem,
+                            meta: metaSame,
+                            payload: built.payload,
+                            skipped: true,
+                            reason: 'same-content'
+                        };
+                    }
+                    if (remoteFp && remoteFp === knownFp) {
+                        // Remote-Inhalt noch der bekannte Stand; nur lokal geändert → Push ist sicher.
+                    } else {
+                        const err = new Error(
+                            'Konflikt: SharePoint-Sicherung und lokaler Stand wurden beide geändert. Bitte abgleichen – nichts wurde überschrieben.'
+                        );
+                        err.code = 'spo-push-conflict';
+                        err.remotePayload = remotePayload;
+                        err.remoteItem = remoteItem;
+                        throw err;
+                    }
+                }
+            }
+        }
+    }
+
     const item = await putJsonOnDrive(it.driveId, currentPath, built.text, token);
     /** @type {string} */
     let configManifestFingerprint = '';
@@ -613,14 +733,41 @@ export async function findCurrentBackupItem(opts) {
 }
 
 /**
- * @param {{ folder?: string, apply?: boolean }} [opts]
- * apply=false: nur laden/prüfen, nicht importieren.
+ * Listet importierbare Backup-JSON-Dateien im IT-Ordner (Standard: Backups).
+ * @param {{ folder?: string }} [opts]
+ * @returns {Promise<import('./stammdaten-sharepoint-sync-logic.js').BackupPickerEntry[]>}
  */
-export async function downloadCurrentBackup(opts) {
+export async function listImportableBackupFiles(opts) {
     const options = opts || {};
     const it = requireItLibrary();
+    const folder = String(options.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER;
     const token = await ensureGraphToken();
-    const cur = await findCurrentBackupItem(options);
+    const data = await listDriveFolder(it.driveId, folder, token);
+    return buildBackupPickerEntries((data && data.value) || [], { folder: folder });
+}
+
+/**
+ * Lädt ein Backup per Drive-Item-ID (oder die aktuelle Datei, wenn keine ID).
+ * @param {{ folder?: string, apply?: boolean, recordMeta?: boolean, itemId?: string, item?: { id?: string, name?: string, webUrl?: string, lastModifiedDateTime?: string, eTag?: string, cTag?: string }, fileName?: string }} [opts]
+ * apply=false: nur laden/prüfen, nicht importieren.
+ */
+export async function downloadBackupByItem(opts) {
+    const options = opts || {};
+    const it = requireItLibrary();
+    const folder = String(options.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER;
+    const token = await ensureGraphToken();
+    let cur = options.item || null;
+    const itemId = String((cur && cur.id) || options.itemId || '').trim();
+    if (!itemId) {
+        cur = await findCurrentBackupItem({ folder: folder });
+    } else if (!cur || !cur.name) {
+        const listed = await listDriveFolder(it.driveId, folder, token);
+        const items = (listed && listed.value) || [];
+        cur =
+            items.find(function (i) {
+                return i && String(i.id || '') === itemId;
+            }) || { id: itemId, name: options.fileName || CURRENT_FILE };
+    }
     const obj = await downloadDriveItem(it.driveId, cur.id, token);
     const bb = window.ms365BrowserBackup;
     if (!bb || typeof bb.isBackupPayload !== 'function') throw new Error('Backup-Modul fehlt.');
@@ -630,11 +777,12 @@ export async function downloadCurrentBackup(opts) {
     if (options.apply !== false) {
         bb.importPayload(obj);
     }
+    const fileName = String(cur.name || options.fileName || CURRENT_FILE).trim() || CURRENT_FILE;
     const meta = {
         at: new Date().toISOString(),
         direction: 'pull',
-        fileName: CURRENT_FILE,
-        folder: String(options.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER,
+        fileName: fileName,
+        folder: folder,
         webUrl: (cur && cur.webUrl) || it.webUrl || '',
         siteUrl: it.siteUrl || '',
         driveId: it.driveId,
@@ -650,6 +798,14 @@ export async function downloadCurrentBackup(opts) {
         saveLocalSyncMeta(meta);
     }
     return { payload: obj, item: cur, meta: meta };
+}
+
+/**
+ * @param {{ folder?: string, apply?: boolean, recordMeta?: boolean }} [opts]
+ * apply=false: nur laden/prüfen, nicht importieren.
+ */
+export async function downloadCurrentBackup(opts) {
+    return downloadBackupByItem(opts || {});
 }
 
 export default {
@@ -670,6 +826,8 @@ export default {
     uploadCurrentBackup,
     getCurrentBackupRemoteInfo,
     findCurrentBackupItem,
+    listImportableBackupFiles,
+    downloadBackupByItem,
     downloadCurrentBackup,
     getJsonAtDrivePath,
     uploadConfigBundle,

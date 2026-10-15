@@ -1065,8 +1065,8 @@
                 '<div class="ms365-backup-panel__actions">' +
                 '<button type="button" class="ms365-backup-panel__btn" data-ms365-backup="export">' +
                 '<i class="bi bi-upload" aria-hidden="true"></i>Exportieren</button>' +
-                '<label class="ms365-backup-panel__btn" for="ms365BackupPanelImportFile">' +
-                '<i class="bi bi-download" aria-hidden="true"></i>Importieren</label>' +
+                '<button type="button" class="ms365-backup-panel__btn" data-ms365-backup="import">' +
+                '<i class="bi bi-download" aria-hidden="true"></i>Importieren</button>' +
                 '<input type="file" id="ms365BackupPanelImportFile" class="ms365-backup-panel__file" ' +
                 'data-ms365-backup="import-file" accept="application/json,.json" hidden>' +
                 '</div></div>' +
@@ -1099,6 +1099,16 @@
             const compare = wrap.querySelector('a[href*="stammdaten-backup-abgleich"]');
             if (compare) {
                 compare.setAttribute('href', resolveAppRootHref('tools/stammdaten-backup-abgleich.html?run=1'));
+            }
+            // Älteres Markup: Import war <label for=…> – auf Button umstellen
+            const legacyImport = wrap.querySelector('label.ms365-backup-panel__btn[for="ms365BackupPanelImportFile"]');
+            if (legacyImport && !wrap.querySelector('[data-ms365-backup="import"]')) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ms365-backup-panel__btn';
+                btn.setAttribute('data-ms365-backup', 'import');
+                btn.innerHTML = legacyImport.innerHTML;
+                legacyImport.replaceWith(btn);
             }
         }
 
@@ -1153,26 +1163,42 @@
         }
     }
 
+    function resolveSchulOrganigrammHref() {
+        try {
+            const p = String(window.location.pathname || '/').split('?')[0].split('#')[0];
+            const norm = p.replace(/\\/g, '/');
+            const iTools = norm.toLowerCase().indexOf('/tools/');
+            if (iTools !== -1) return norm.slice(0, iTools) + '/tools/schul-organigramm.html';
+            const slash = norm.lastIndexOf('/');
+            const dir = slash >= 0 ? norm.slice(0, slash + 1) : '/';
+            return dir + 'tools/schul-organigramm.html';
+        } catch {
+            return 'tools/schul-organigramm.html';
+        }
+    }
+
     function isOnTenantRegisterPage() {
         return /\/tenant\.html(?:\?|#|$)/i.test(String(window.location.pathname || '').replace(/\\/g, '/'));
     }
 
-    function ensureSchulregisterHeaderLink(container) {
-        if (!container) return null;
-        let link = document.getElementById('ms365HeaderSchulregister');
-        const hide = isOnTenantRegisterPage();
+    function isOnSchulOrganigrammPage() {
+        return /\/schul-organigramm\.html(?:\?|#|$)/i.test(
+            String(window.location.pathname || '').replace(/\\/g, '/')
+        );
+    }
+
+    function ensureHeaderNavLink(container, opts) {
+        if (!container || !opts || !opts.id) return null;
+        let link = document.getElementById(opts.id);
+        const hide = !!opts.hide;
         if (!link) {
             link = document.createElement('a');
-            link.id = 'ms365HeaderSchulregister';
-            link.className = 'ms365-header-schulregister';
-            link.href = resolveTenantPageHref();
-            link.title = 'Stammdaten pflegen';
-            link.innerHTML =
-                '<i class="bi bi-journal-bookmark" aria-hidden="true"></i>' +
-                '<span class="ms365-header-schulregister__label">Stammdaten</span>';
-        } else {
-            link.href = resolveTenantPageHref();
+            link.id = opts.id;
+            link.className = opts.className || 'ms365-header-schulregister';
+            link.innerHTML = opts.innerHTML || '';
         }
+        link.href = opts.href || '#';
+        link.title = opts.title || '';
         link.hidden = hide;
         if (hide) return null;
         if (
@@ -1182,9 +1208,11 @@
         ) {
             link.classList.add('ms365-header-schulregister--dash');
         }
-        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
-            window.ms365SyncFrontendPlannerHeaderChrome();
-        }
+        return link;
+    }
+
+    function placeHeaderLinkBeforeAuth(container, link) {
+        if (!container || !link) return;
         const widget = document.getElementById('ms365AuthWidget');
         const before = widget && widget.parentElement === container ? widget : null;
         if (before) {
@@ -1193,6 +1221,49 @@
             }
         } else if (link.parentElement !== container) {
             container.appendChild(link);
+        }
+    }
+
+    function ensureSchulregisterHeaderLink(container) {
+        if (!container) return null;
+        const link = ensureHeaderNavLink(container, {
+            id: 'ms365HeaderSchulregister',
+            className: 'ms365-header-schulregister',
+            href: resolveTenantPageHref(),
+            title: 'Stammdaten pflegen',
+            hide: isOnTenantRegisterPage(),
+            innerHTML:
+                '<i class="bi bi-journal-bookmark" aria-hidden="true"></i>' +
+                '<span class="ms365-header-schulregister__label">Stammdaten</span>'
+        });
+        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
+            window.ms365SyncFrontendPlannerHeaderChrome();
+        }
+        placeHeaderLinkBeforeAuth(container, link);
+        return link;
+    }
+
+    function ensureSchulOrganigrammHeaderLink(container) {
+        if (!container) return null;
+        const link = ensureHeaderNavLink(container, {
+            id: 'ms365HeaderSchulOrganigramm',
+            className: 'ms365-header-schulregister ms365-header-schul-organigramm',
+            href: resolveSchulOrganigrammHref(),
+            title: 'Schul-Organigramm – Stammdaten visuell pflegen',
+            hide: isOnSchulOrganigrammPage(),
+            innerHTML:
+                '<i class="bi bi-diagram-3" aria-hidden="true"></i>' +
+                '<span class="ms365-header-schulregister__label">Organigramm</span>'
+        });
+        if (!link) return null;
+        // Links von „Stammdaten“ einfügen
+        const stammdaten = document.getElementById('ms365HeaderSchulregister');
+        if (stammdaten && stammdaten.parentElement === container) {
+            if (link.parentElement !== container || link.nextElementSibling !== stammdaten) {
+                container.insertBefore(link, stammdaten);
+            }
+        } else {
+            placeHeaderLinkBeforeAuth(container, link);
         }
         return link;
     }
@@ -1220,6 +1291,7 @@
             wrap.style.flexWrap = 'nowrap';
             if (wrap.parentElement !== adminSlot) adminSlot.appendChild(wrap);
             ensureSchulregisterHeaderLink(adminSlot);
+            ensureSchulOrganigrammHeaderLink(adminSlot);
             ensureBackupHeaderControl(adminSlot);
         } else {
             try {
@@ -1242,6 +1314,7 @@
             wrap.style.flexWrap = 'nowrap';
             if (wrap.parentElement !== cluster) cluster.appendChild(wrap);
             ensureSchulregisterHeaderLink(cluster);
+            ensureSchulOrganigrammHeaderLink(cluster);
             ensureBackupHeaderControl(cluster);
         }
         ensureAuthMenuBindings();
@@ -1597,6 +1670,9 @@
     }
     try {
         window.addEventListener('ms365-spo-sync-status', function () {
+            refreshBackupHeaderStatus();
+        });
+        window.addEventListener('ms365-browser-backup-status', function () {
             refreshBackupHeaderStatus();
         });
         window.addEventListener('ms365-auth-state-changed', function () {

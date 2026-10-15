@@ -288,6 +288,10 @@ export function pickEntraGroup(opts) {
                         id: String(g.id),
                         displayName: String(g.displayName || ''),
                         mail: mail,
+                        mailNickname: String((g && g.mailNickname) || '').trim(),
+                        groupTypes: Array.isArray(g && g.groupTypes) ? g.groupTypes.slice() : [],
+                        securityEnabled: !!(g && g.securityEnabled),
+                        mailEnabled: !!(g && g.mailEnabled),
                         label: formatGroupOptionLabel(g)
                     });
                 });
@@ -589,6 +593,195 @@ export function wireEntraGroupPickerFields(spec) {
             });
         }
     });
+}
+
+/**
+ * Entra-Gruppensuche direkt in einen Host einbetten (kein zweites Modal).
+ *
+ * @param {HTMLElement} host
+ * @param {{
+ *   hint?: string,
+ *   initialQuery?: string,
+ *   onPick?: (group: {
+ *     id: string,
+ *     displayName: string,
+ *     mail: string,
+ *     mailNickname: string,
+ *     groupTypes: string[],
+ *     securityEnabled: boolean,
+ *     mailEnabled: boolean,
+ *     label: string
+ *   }) => void,
+ *   onCancel?: () => void
+ * }} [opts]
+ * @returns {{ destroy: () => void, focus: () => void }}
+ */
+export function mountInlineEntraGroupPicker(host, opts) {
+    const options = opts && typeof opts === 'object' ? opts : {};
+    const hint =
+        options.hint ||
+        'Name, Mail, Alias oder ID suchen und Gruppe übernehmen – ohne Extra-Fenster.';
+    const initialQuery = String(options.initialQuery || '').trim();
+
+    if (!host || !(host instanceof HTMLElement)) {
+        return {
+            destroy: function () {},
+            focus: function () {}
+        };
+    }
+
+    const uid = 'inline-egp-' + String(Date.now() % 1e9);
+    host.hidden = false;
+    host.classList.add('ms365-inline-eup', 'ms365-inline-egp');
+    host.innerHTML =
+        '<div class="ms365-inline-eup__inner">' +
+        '<p class="ms365-inline-eup__hint muted">' +
+        escapeHtml(hint) +
+        '</p>' +
+        '<div class="field ms365-egp-search-wrap">' +
+        '<label for="' +
+        uid +
+        '-search">Suche in Microsoft Entra</label>' +
+        '<div class="ms365-egp-search-row">' +
+        '<i class="bi bi-search ms365-egp-search-icon" aria-hidden="true"></i>' +
+        '<input type="search" id="' +
+        uid +
+        '-search" class="ms365-egp-search" autocomplete="off" placeholder="Name, E-Mail, Alias oder Gruppen-ID …">' +
+        '</div></div>' +
+        '<p class="ms365-egp-status muted" role="status" aria-live="polite"></p>' +
+        '<ul class="ms365-egp-results ms365-inline-eup__results" aria-label="Suchergebnisse"></ul>' +
+        '<div class="ms365-inline-eup__actions">' +
+        '<button type="button" class="btn btn-sm alt ms365-inline-egp-cancel">Schließen</button>' +
+        '</div></div>';
+
+    const searchEl = /** @type {HTMLInputElement|null} */ (host.querySelector('.ms365-egp-search'));
+    const statusEl = host.querySelector('.ms365-egp-status');
+    const listEl = host.querySelector('.ms365-egp-results');
+    const cancelBtn = host.querySelector('.ms365-inline-egp-cancel');
+
+    let debounce = 0;
+    let destroyed = false;
+
+    /**
+     * @param {'cancel'|'done'} [reason]
+     */
+    function destroy(reason) {
+        if (destroyed) return;
+        destroyed = true;
+        clearTimeout(debounce);
+        host.replaceChildren();
+        host.hidden = true;
+        host.classList.remove('ms365-inline-eup', 'ms365-inline-egp');
+        if (reason === 'cancel' && typeof options.onCancel === 'function') options.onCancel();
+    }
+
+    function renderResults(groups) {
+        if (!listEl || destroyed) return;
+        listEl.replaceChildren();
+        if (!groups.length) {
+            const li = document.createElement('li');
+            li.className = 'ms365-egp-empty muted';
+            li.textContent = 'Keine Treffer – Suchbegriff anpassen.';
+            listEl.appendChild(li);
+            return;
+        }
+        groups.forEach(function (g) {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ms365-egp-item';
+            const mail = String((g && g.mail) || (g && g.mailNickname) || '').trim();
+            btn.innerHTML =
+                '<span class="ms365-egp-item__name">' +
+                escapeHtml(String((g && g.displayName) || '')) +
+                '</span>' +
+                '<span class="ms365-egp-item__meta muted">' +
+                escapeHtml(mail || '–') +
+                '</span>' +
+                '<span class="ms365-egp-item__tags muted">' +
+                escapeHtml(formatGroupOptionLabel(g)) +
+                '</span>';
+            btn.addEventListener('click', function () {
+                const pick = {
+                    id: String((g && g.id) || ''),
+                    displayName: String((g && g.displayName) || ''),
+                    mail: mail,
+                    mailNickname: String((g && g.mailNickname) || '').trim(),
+                    groupTypes: Array.isArray(g && g.groupTypes) ? g.groupTypes.slice() : [],
+                    securityEnabled: !!(g && g.securityEnabled),
+                    mailEnabled: !!(g && g.mailEnabled),
+                    label: formatGroupOptionLabel(g)
+                };
+                if (typeof options.onPick === 'function') options.onPick(pick);
+                destroy('done');
+            });
+            li.appendChild(btn);
+            listEl.appendChild(li);
+        });
+    }
+
+    async function runSearch(q) {
+        if (!statusEl || destroyed) return;
+        statusEl.textContent = 'Suche …';
+        try {
+            const list = await searchEntraGroups(q);
+            if (destroyed) return;
+            statusEl.textContent = list.length ? list.length + ' Treffer' : 'Keine Treffer';
+            renderResults(list);
+        } catch (e) {
+            if (destroyed) return;
+            statusEl.textContent = e && e.message ? e.message : String(e);
+            renderResults([]);
+        }
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function () {
+            destroy('cancel');
+        });
+    }
+    if (searchEl) {
+        searchEl.addEventListener('input', function () {
+            const q = String(searchEl.value || '').trim();
+            clearTimeout(debounce);
+            if (q.length < 2) {
+                if (statusEl) statusEl.textContent = 'Mindestens 2 Zeichen eingeben.';
+                if (listEl) listEl.replaceChildren();
+                return;
+            }
+            debounce = window.setTimeout(function () {
+                void runSearch(q);
+            }, 280);
+        });
+        searchEl.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                const q = String(searchEl.value || '').trim();
+                if (q.length >= 2) void runSearch(q);
+            }
+        });
+    }
+
+    setTimeout(function () {
+        if (destroyed || !searchEl) return;
+        searchEl.focus();
+        if (initialQuery.length >= 2) {
+            searchEl.value = initialQuery;
+            void runSearch(initialQuery);
+        } else if (initialQuery) {
+            searchEl.value = initialQuery;
+            if (statusEl) statusEl.textContent = 'Mindestens 2 Zeichen eingeben.';
+        } else if (statusEl) {
+            statusEl.textContent = 'Mindestens 2 Zeichen eingeben.';
+        }
+    }, 30);
+
+    return {
+        destroy: destroy,
+        focus: function () {
+            if (searchEl) searchEl.focus();
+        }
+    };
 }
 
 /**

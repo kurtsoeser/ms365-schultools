@@ -3,7 +3,7 @@
  * (classTeams, classGroupMatchByKey, andere Schuljahre).
  */
 import { normStr, normCode } from './utils/strings.js';
-import { findClassTeamForClass } from './membership-hygiene.js';
+import { findClassTeamForClass, resolveClassGraphGroupId } from './membership-hygiene.js';
 
 export function abschlussjahrFromMailNickname(nickRaw) {
     const n = String(nickRaw || '')
@@ -140,7 +140,8 @@ function pickYearForRow(row, team, groupMatch, prior) {
 }
 
 /**
- * Ersten passenden Gruppenbesitzer als Klassenvorstand / ARGE-Leitung.
+ * Passenden Gruppenbesitzer als Klassenvorstand / ARGE-Leitung.
+ * Bevorzugt Besitzer, die in der Lehrer-Stammliste stehen (oft KV neben Direktion).
  * @param {object[]} owners Graph-Benutzer
  * @param {object[]} [teachers] Stammdaten-Lehrer (optional, für Anzeigenamen)
  * @returns {{ headName: string, headEmail: string }|null}
@@ -151,21 +152,24 @@ export function pickHeadFromGraphGroupOwners(owners, teachers) {
         const em = normStr(t && t.email).toLowerCase();
         if (em && em.indexOf('@') !== -1) teacherByEmail.set(em, t);
     });
-    let picked = null;
+    let firstAny = null;
+    let teacherMatch = null;
     (owners || []).forEach(function (u) {
-        if (picked) return;
         const em = normStr(u && (u.mail || u.userPrincipalName)).toLowerCase();
         if (!em || em.indexOf('@') === -1) return;
+        if (!firstAny) {
+            firstAny = { headName: normStr(u.displayName), headEmail: em };
+        }
+        if (teacherMatch) return;
         const t = teacherByEmail.get(em);
         if (t) {
-            picked = { headName: normStr(t.name) || normStr(u.displayName), headEmail: em };
-            return;
-        }
-        if (!picked) {
-            picked = { headName: normStr(u.displayName), headEmail: em };
+            teacherMatch = {
+                headName: normStr(t.name) || normStr(u.displayName),
+                headEmail: em
+            };
         }
     });
-    return picked;
+    return teacherMatch || firstAny;
 }
 
 /**
@@ -308,15 +312,19 @@ export function enrichClassesFromLinkedGroups(classes, ctx) {
 
 /**
  * Ergänzt KV aus Graph-Gruppenbesitzern (Lehrkraft-E-Mail in Stammdaten).
+ * Gruppen-ID: classTeams oder Register-Abgleich (classGroupMatchByKey).
  * @param {object[]} classes
- * @param {{ classTeams?: object[], teachers?: object[], fetchGroupOwners?: function, getGraphToken?: function }} ctx
+ * @param {{ classTeams?: object[], classGroupMatchByKey?: object, teachers?: object[], fetchGroupOwners?: function, getGraphToken?: function, overwrite?: boolean }} ctx
  */
 export async function enrichClassesKvFromGraphOwners(classes, ctx) {
     const o = ctx && typeof ctx === 'object' ? ctx : {};
     const teams = Array.isArray(o.classTeams) ? o.classTeams : [];
+    const matchMap =
+        o.classGroupMatchByKey && typeof o.classGroupMatchByKey === 'object' ? o.classGroupMatchByKey : {};
     const teachers = Array.isArray(o.teachers) ? o.teachers : [];
     const fetchOwners = o.fetchGroupOwners;
     const getToken = o.getGraphToken;
+    const overwrite = o.overwrite === true;
     if (typeof fetchOwners !== 'function' || typeof getToken !== 'function') {
         return { classes: classes, changed: false, stats: { kvFilled: 0, skipped: 0 } };
     }
@@ -336,16 +344,13 @@ export async function enrichClassesKvFromGraphOwners(classes, ctx) {
     for (let i = 0; i < (classes || []).length; i++) {
         const row = classes[i];
         const next = Object.assign({}, row);
-        const hasKv =
-            normStr(row.headEmail).indexOf('@') !== -1 ||
-            (normStr(row.headName) && normStr(row.headEmail).indexOf('@') !== -1);
-        if (hasKv) {
+        const hasKv = normStr(row.headEmail).indexOf('@') !== -1;
+        if (hasKv && !overwrite) {
             out.push(next);
             continue;
         }
 
-        const team = findClassTeamForClass(row, teams);
-        const gid = team && team.graphGroupId ? String(team.graphGroupId).trim() : '';
+        const gid = resolveClassGraphGroupId(row, teams, matchMap);
         if (!gid) {
             skipped++;
             out.push(next);

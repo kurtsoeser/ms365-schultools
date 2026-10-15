@@ -5,6 +5,7 @@ import {
     classCodeFromDisplayName,
     pickHeadFromGraphGroupOwners,
     enrichClassesFromLinkedGroups,
+    enrichClassesKvFromGraphOwners,
     collectPriorClassFieldsByCode
 } from '../src/shared/class-list-enrich.js';
 
@@ -35,6 +36,17 @@ describe('class-list-enrich', () => {
             [{ name: 'Mustermann Max', email: 'max@schule.at' }]
         );
         expect(head).toEqual({ headName: 'Mustermann Max', headEmail: 'max@schule.at' });
+    });
+
+    it('pickHeadFromGraphGroupOwners bevorzugt Lehrer vor Direktion', () => {
+        const head = pickHeadFromGraphGroupOwners(
+            [
+                { displayName: 'Direktion', mail: 'direktion@schule.at' },
+                { displayName: 'KV Person', mail: 'kv@schule.at' }
+            ],
+            [{ name: 'KV Person', email: 'kv@schule.at' }]
+        );
+        expect(head).toEqual({ headName: 'KV Person', headEmail: 'kv@schule.at' });
     });
 
     it('deriveClassEntryFromGroup: jg-Alias mit Einbuchstaben + DEMO Klasse 3A', () => {
@@ -86,5 +98,28 @@ describe('class-list-enrich', () => {
         expect(result.classes[0].year).toBe('2030');
         expect(result.classes[0].headEmail).toBe('max@schule.at');
         expect(result.classes[0].headName).toBe('Max Lehrer');
+    });
+
+    it('enrichClassesKvFromGraphOwners liest Besitzer über classGroupMatchByKey', async () => {
+        const classes = [{ code: '1HMA', name: 'Klasse 1HMA', year: '2031', headName: '', headEmail: '' }];
+        const ownersByGid = {
+            'gid-1hma': [
+                { displayName: 'Direktion', mail: 'dir@schule.at' },
+                { displayName: 'Anna KV', mail: 'anna.kv@schule.at' }
+            ]
+        };
+        const result = await enrichClassesKvFromGraphOwners(classes, {
+            classTeams: [],
+            classGroupMatchByKey: {
+                '1HMA': { groupId: 'gid-1hma', displayName: 'Klasse 1HMA', notFound: false }
+            },
+            teachers: [{ name: 'KV Anna', email: 'anna.kv@schule.at' }],
+            fetchGroupOwners: async (_token, gid) => ownersByGid[gid] || [],
+            getGraphToken: async () => 'tok'
+        });
+        expect(result.changed).toBe(true);
+        expect(result.stats.kvFilled).toBe(1);
+        expect(result.classes[0].headName).toBe('KV Anna');
+        expect(result.classes[0].headEmail).toBe('anna.kv@schule.at');
     });
 });

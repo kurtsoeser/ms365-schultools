@@ -209,7 +209,7 @@
                 });
             }
             const person = normalizeAdminPersonEntry(row);
-            if (!person.name && !person.email) return;
+            // Leere Zeilen behalten (Entwurf nach „+ Person“ in Verwaltung), solange eine Rolle gesetzt ist.
             groupMap.get(key).people.push(person);
         });
         return Array.from(groupMap.values());
@@ -301,10 +301,12 @@
             );
             (Array.isArray(group && group.people) ? group.people : []).forEach(function (personRow) {
                 const person = normalizeAdminPersonEntry(personRow);
-                if (!person.name && !person.email) return;
                 const personKey = [person.name, person.email].join('\u0001').toLowerCase();
-                if (peopleSeen.has(personKey)) return;
-                peopleSeen.add(personKey);
+                // Mehrere leere Entwurfszeilen: jeweils behalten; sonst Deduplizierung.
+                if (person.name || person.email) {
+                    if (peopleSeen.has(personKey)) return;
+                    peopleSeen.add(personKey);
+                }
                 target.people.push(person);
             });
         });
@@ -644,8 +646,34 @@
 
         const verifiedEmailDomains = parseVerifiedEmailDomainsField(o.verifiedEmailDomains);
 
-        const verwaltungAudienceGroups = Array.isArray(o.verwaltungAudienceGroups) ? o.verwaltungAudienceGroups : [];
-        const adminAudienceMemberships = Array.isArray(o.adminAudienceMemberships) ? o.adminAudienceMemberships : [];
+        const hasAudienceGroups = Object.prototype.hasOwnProperty.call(o, 'verwaltungAudienceGroups');
+        const hasAudienceMemberships = Object.prototype.hasOwnProperty.call(o, 'adminAudienceMemberships');
+        const hasOrganigramm = Object.prototype.hasOwnProperty.call(o, 'verwaltungOrganigramm');
+        const hasSchulOrganigramm = Object.prototype.hasOwnProperty.call(o, 'schulOrganigramm');
+        const previousCore = readPreviousCoreSnapshot();
+
+        const verwaltungAudienceGroups = hasAudienceGroups
+            ? Array.isArray(o.verwaltungAudienceGroups)
+                ? o.verwaltungAudienceGroups
+                : []
+            : Array.isArray(previousCore.verwaltungAudienceGroups)
+              ? previousCore.verwaltungAudienceGroups
+              : [];
+        const adminAudienceMemberships = hasAudienceMemberships
+            ? Array.isArray(o.adminAudienceMemberships)
+                ? o.adminAudienceMemberships
+                : []
+            : Array.isArray(previousCore.adminAudienceMemberships)
+              ? previousCore.adminAudienceMemberships
+              : [];
+        const verwaltungOrganigramm = normalizeVerwaltungOrganigramm(
+            hasOrganigramm ? o.verwaltungOrganigramm : undefined,
+            { preserveIfMissing: !hasOrganigramm, previous: previousCore.verwaltungOrganigramm }
+        );
+        const schulOrganigramm = normalizeSchulOrganigrammField(
+            hasSchulOrganigramm ? o.schulOrganigramm : undefined,
+            { preserveIfMissing: !hasSchulOrganigramm, previous: previousCore.schulOrganigramm }
+        );
 
         return {
             version: CURRENT_VERSION,
@@ -660,6 +688,8 @@
             adminRoles,
             verwaltungAudienceGroups,
             adminAudienceMemberships,
+            verwaltungOrganigramm,
+            schulOrganigramm,
             sgaMode: sgaModeIn === 'distribution' ? 'distribution' : 'group',
             sga,
             students,
@@ -697,12 +727,127 @@
         return normalized;
     }
 
+    /**
+     * Vorheriger Stammdaten-Kern (v2 bevorzugt) – verhindert, dass Teil-Saves
+     * Organigramm / Audience-Snapshots löschen.
+     */
+    function readPreviousCoreSnapshot() {
+        try {
+            if (window.ms365AppDataV2 && typeof window.ms365AppDataV2.getContainer === 'function') {
+                const c = window.ms365AppDataV2.getContainer();
+                if (c && c.core && typeof c.core === 'object') return c.core;
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    /**
+     * Schulweites Organigramm (Stammdaten-Zweitansicht).
+     * @param {unknown} raw
+     * @param {{ preserveIfMissing?: boolean, previous?: unknown }} [opts]
+     */
+    function normalizeSchulOrganigrammField(raw, opts) {
+        const options = opts || {};
+        if (raw === undefined && options.preserveIfMissing) {
+            return normalizeSchulOrganigrammField(options.previous, { preserveIfMissing: false });
+        }
+        if (
+            window.ms365SchulOrganigramm &&
+            typeof window.ms365SchulOrganigramm.normalizeSchulOrganigramm === 'function'
+        ) {
+            try {
+                return window.ms365SchulOrganigramm.normalizeSchulOrganigramm(raw);
+            } catch {
+                /* fallback */
+            }
+        }
+        const o = raw && typeof raw === 'object' ? raw : {};
+        const nodesIn = Array.isArray(o.nodes) ? o.nodes : [];
+        return {
+            version: 1,
+            nodes: nodesIn.filter(function (n) {
+                return n && typeof n === 'object';
+            })
+        };
+    }
+
+    /**
+     * Organigramm-Layout für Stammdaten/Export/IT-Sicherung normalisieren.
+     * @param {unknown} raw
+     * @param {{ preserveIfMissing?: boolean, previous?: unknown }} [opts]
+     */
+    function normalizeVerwaltungOrganigramm(raw, opts) {
+        const options = opts || {};
+        if (raw === undefined && options.preserveIfMissing) {
+            return normalizeVerwaltungOrganigramm(options.previous, { preserveIfMissing: false });
+        }
+        if (
+            window.ms365VerwaltungOrganigramm &&
+            typeof window.ms365VerwaltungOrganigramm.normalizeOrganigrammLayout === 'function'
+        ) {
+            try {
+                return window.ms365VerwaltungOrganigramm.normalizeOrganigrammLayout(raw);
+            } catch {
+                /* fallback unten */
+            }
+        }
+        const o = raw && typeof raw === 'object' ? raw : {};
+        const nodesIn = Array.isArray(o.nodes) ? o.nodes : Array.isArray(o.groups) ? o.groups : [];
+        const nodes = [];
+        const seen = new Set();
+        nodesIn.forEach(function (n, idx) {
+            if (!n || typeof n !== 'object') return;
+            let id = normStr(n.id);
+            if (!id || seen.has(id)) id = 'og_' + String(idx) + '_' + String(Date.now() % 100000);
+            seen.add(id);
+            const typeRaw = normStr(n.type).toLowerCase();
+            const type =
+                typeRaw === 'role' || typeRaw === 'sammel' || typeRaw === 'group' ? typeRaw : 'group';
+            const node = {
+                id: id,
+                type: type,
+                label: normStr(n.label || n.name) || (type === 'role' ? 'Rolle' : 'Gruppe'),
+                parentId: n.parentId == null || n.parentId === '' ? null : normStr(n.parentId),
+                order: typeof n.order === 'number' ? n.order : idx
+            };
+            if (type === 'role') {
+                node.roleCode = normCode(n.roleCode || n.code);
+                if (n.tone) node.tone = normStr(n.tone);
+            }
+            if (type === 'sammel') {
+                if (n.audienceGroupId) node.audienceGroupId = normStr(n.audienceGroupId);
+                if (n.m365GroupId) node.m365GroupId = normStr(n.m365GroupId);
+                if (n.m365GroupLabel) node.m365GroupLabel = normStr(n.m365GroupLabel);
+                if (n.m365GroupMail) node.m365GroupMail = normStr(n.m365GroupMail).toLowerCase();
+                node.tone = normStr(n.tone) || 'sammel';
+            }
+            if (type === 'group') {
+                node.tone = normStr(n.tone) || 'custom';
+            }
+            nodes.push(node);
+        });
+        nodes.sort(function (a, b) {
+            return (a.order || 0) - (b.order || 0);
+        });
+        return { version: 1, nodes: nodes };
+    }
+
     function settingsHasSchoolData(s) {
         if (!s || typeof s !== 'object') return false;
         if (normStr(s.domain) || normStr(s.schoolName)) return true;
         if ((s.classes || []).length || (s.students || []).length) return true;
         if ((s.teachers || []).length || (s.subjects || []).length) return true;
         if ((s.administration || []).length || (s.admin || []).length) return true;
+        if (((s.verwaltungOrganigramm && s.verwaltungOrganigramm.nodes) || []).length) return true;
         return false;
     }
 
@@ -727,6 +872,8 @@
             adminRoles: c.core.adminRoles,
             verwaltungAudienceGroups: c.core.verwaltungAudienceGroups,
             adminAudienceMemberships: c.core.adminAudienceMemberships,
+            verwaltungOrganigramm: c.core.verwaltungOrganigramm,
+            schulOrganigramm: c.core.schulOrganigramm,
             students: (y.students || []).map(function (s) {
                 const row = {
                     id: s.id,
@@ -1062,7 +1209,7 @@
 
     function sgaScopeDisplayLabel(scope) {
         if (scope === 'teacher') return 'Lehrer';
-        if (scope === 'student') return 'Schüler';
+        if (scope === 'student') return 'Schülervertretung';
         if (scope === 'external') return 'Extern (Eltern)';
         return '—';
     }

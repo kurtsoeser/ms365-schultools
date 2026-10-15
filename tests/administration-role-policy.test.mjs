@@ -15,9 +15,9 @@ describe('administration-role-policy', () => {
         expect(inferAdminRoleSeatMode({ name: 'Sekretariat' })).not.toBe(ADMIN_ROLE_SEAT_SINGLE);
     });
 
-    it('begrenzt Einzelrollen auf eine Person', () => {
+    it('erlaubt jederzeit weitere Personen (auch bei Einzelrolle)', () => {
         expect(canAddPersonToAdminRole('single', 0)).toBe(true);
-        expect(canAddPersonToAdminRole('single', 1)).toBe(false);
+        expect(canAddPersonToAdminRole('single', 1)).toBe(true);
         expect(canAddPersonToAdminRole('multi', 3)).toBe(true);
     });
 
@@ -28,8 +28,8 @@ describe('administration-role-policy', () => {
     });
 
     it('liefert lesbare Besetzungs-Kurzlabels', () => {
-        expect(adminRoleSeatModeLabel('single')).toBe('1 Platz');
-        expect(adminRoleSeatModeLabel('multi')).toBe('Team');
+        expect(adminRoleSeatModeLabel('single')).toBe('Einzelrolle');
+        expect(adminRoleSeatModeLabel('multi')).toBe('Team-Rolle');
         expect(normalizeAdminRoleSeatMode('team', null)).toBe('multi');
     });
 });

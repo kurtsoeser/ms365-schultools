@@ -5,7 +5,7 @@ Interaktive **Beziehungsvisualisierung** der lokalen Schul-Stammdaten: zoombarer
 ## Ziele
 
 - Querschnitt über Listen und Relationen, die heute in Einzel-Tools stecken (Stammdaten, Kursteams/Belegung, Einrichtung, Planer).
-- **Erkunden**, nicht bearbeiten – Pflege bleibt in `tenant.html`, Kursteams, SharePoint-Listen usw.
+- **Erkunden**, nicht bearbeiten – Pflege bleibt in `tenant.html`, [Schul-Organigramm](schul-organigramm.md), Kursteams, SharePoint-Listen usw.
 - Datenschutz: bei vielen Schüler:innen wird der Personen-Layer standardmäßig ausgeschaltet; Filter nach Klasse.
 
 ## Architektur

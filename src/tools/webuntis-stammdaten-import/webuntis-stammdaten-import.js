@@ -13,6 +13,7 @@ import { stashWebuntisImportPayload, resolveReturnUrl } from '../../shared/webun
 import { escapeHtml } from '../../shared/utils/strings.js';
 import { showToast } from '../../shared/utils/dom.js';
 import { mountWebuntisSubjectCleanup } from '../../shared/webuntis-subject-cleanup-ui.js';
+import '../../shared/schul-organigramm-stammdaten-sync.js';
 import '../kursteams/kursteam-subject-filter-logic.js';
 
 /** @type {object|null} */

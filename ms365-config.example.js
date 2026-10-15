@@ -69,3 +69,14 @@ window.MS365_LICENSE_API = {
     scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
     functionKey: ''
 };
+
+/**
+ * Schulsprecherwahl-API (Azure Tables, anonym).
+ * Scope Election.Access an der License-Backend-App (siehe backend/election-api/scripts).
+ */
+window.MS365_ELECTION_API = {
+    baseUrl: 'https://func-ms365-election-dev.azurewebsites.net/api/election',
+    scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/Election.Access',
+    fallbackScope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
+    functionKey: ''
+};

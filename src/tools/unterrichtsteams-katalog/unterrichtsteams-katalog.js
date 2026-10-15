@@ -27,6 +27,7 @@ import {
     enrichBelegungRow,
     enrichBelegungRowsInPlace
 } from '../../shared/unterrichtsbelegung-teacher-enrich-logic.js';
+import '../../shared/schul-organigramm-stammdaten-sync.js';
 
 /** @type {object[]} */
 let allRows = [];

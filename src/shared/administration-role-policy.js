@@ -95,13 +95,12 @@ export function adminRolePolicyFromRecord(role) {
 }
 
 /**
- * @param {'single'|'multi'} seatMode
- * @param {number} personCount
+ * Personen hinzufügen ist immer erlaubt; seatMode ist nur Anzeige/Hinweis
+ * (1 Person = Einzelrolle, 2+ = Team-Rolle).
+ * @param {'single'|'multi'} [_seatMode]
+ * @param {number} [_personCount]
  */
-export function canAddPersonToAdminRole(seatMode, personCount) {
-    const mode = normalizeAdminRoleSeatMode(seatMode, null);
-    const n = typeof personCount === 'number' && personCount >= 0 ? personCount : 0;
-    if (mode === ADMIN_ROLE_SEAT_SINGLE) return n < 1;
+export function canAddPersonToAdminRole(_seatMode, _personCount) {
     return true;
 }
 
@@ -109,7 +108,9 @@ export function canAddPersonToAdminRole(seatMode, personCount) {
  * @param {'single'|'multi'} seatMode
  */
 export function adminRoleSeatModeLabel(seatMode) {
-    return normalizeAdminRoleSeatMode(seatMode, null) === ADMIN_ROLE_SEAT_SINGLE ? '1 Platz' : 'Team';
+    return normalizeAdminRoleSeatMode(seatMode, null) === ADMIN_ROLE_SEAT_SINGLE
+        ? 'Einzelrolle'
+        : 'Team-Rolle';
 }
 
 /**

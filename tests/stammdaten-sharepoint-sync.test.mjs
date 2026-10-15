@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import {
     DEFAULT_FOLDER,
@@ -9,6 +12,12 @@ import {
     sortDriveBrowserItems,
     sortDriveBrowserItemsByColumn,
     isLikelyImportableBackupFileName,
+    isCurrentBackupFileName,
+    formatDriveItemSizeDe,
+    formatDriveItemWhenDe,
+    filterImportableBackupDriveItems,
+    sortBackupFilesForPicker,
+    buildBackupPickerEntries,
     CONFIG_FOLDER,
     describeRemoteBackup,
     isBroadSiteAudience,
@@ -32,6 +41,8 @@ import {
     designHintBulletsDe,
     designHintDe
 } from '../src/shared/stammdaten-sharepoint-sync-logic.js';
+
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('stammdaten-sharepoint-sync-logic', () => {
     it('baut Ordner/Datei-Pfad', () => {
@@ -63,6 +74,54 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(isLikelyImportableBackupFileName(CURRENT_FILE, { folder: 'Backups' })).toBe(true);
         expect(isLikelyImportableBackupFileName('manifest.json', { folder: CONFIG_FOLDER })).toBe(false);
         expect(isLikelyImportableBackupFileName('permissions-freistellung.json', { folder: 'config' })).toBe(false);
+    });
+
+    it('baut Picker-Einträge: aktuell zuerst, dann nach Datum', () => {
+        expect(isCurrentBackupFileName(CURRENT_FILE)).toBe(true);
+        expect(formatDriveItemSizeDe(2048)).toBe('2 KB');
+        expect(formatDriveItemWhenDe('2026-03-10T12:30:00.000Z')).toContain('2026-03-10');
+
+        const items = [
+            { id: '1', name: 'notes.txt', file: {}, size: 10, lastModifiedDateTime: '2026-03-12T10:00:00Z' },
+            {
+                id: '2',
+                name: 'ms365-browser-backup-2026-01-01-Schule.json',
+                file: {},
+                size: 5000,
+                lastModifiedDateTime: '2026-01-01T10:00:00Z'
+            },
+            {
+                id: '3',
+                name: CURRENT_FILE,
+                file: {},
+                size: 9000,
+                lastModifiedDateTime: '2026-02-01T10:00:00Z'
+            },
+            {
+                id: '4',
+                name: 'ms365-browser-backup-2026-03-01-Schule.json',
+                file: {},
+                size: 8000,
+                lastModifiedDateTime: '2026-03-01T10:00:00Z'
+            },
+            { id: '5', name: 'Backups', folder: {} }
+        ];
+        const filtered = filterImportableBackupDriveItems(items, { folder: 'Backups' });
+        expect(filtered.map((x) => x.name)).toEqual([
+            'ms365-browser-backup-2026-01-01-Schule.json',
+            CURRENT_FILE,
+            'ms365-browser-backup-2026-03-01-Schule.json'
+        ]);
+        expect(sortBackupFilesForPicker(filtered).map((x) => x.name)).toEqual([
+            CURRENT_FILE,
+            'ms365-browser-backup-2026-03-01-Schule.json',
+            'ms365-browser-backup-2026-01-01-Schule.json'
+        ]);
+        const entries = buildBackupPickerEntries(items, { folder: 'Backups' });
+        expect(entries[0].isCurrent).toBe(true);
+        expect(entries[0].badgeLabel).toBe('aktuell');
+        expect(entries[0].subtitle).toContain('KB');
+        expect(entries).toHaveLength(3);
     });
 
     it('sortiert Browse-Spalten mit Richtung', () => {
@@ -154,8 +213,38 @@ describe('stammdaten-sharepoint-sync-logic', () => {
         expect(
             isLikelyFreshLocalBackup({
                 localStorage: {
+                    'ms365-stammdaten-spo-sync-v1': '{}',
+                    'ms365-stammdaten-it-library-v1': '{"driveId":"x"}'
+                }
+            })
+        ).toBe(true);
+        expect(
+            isLikelyFreshLocalBackup({
+                localStorage: {
                     'ms365-schooltool-data-v2': JSON.stringify({ years: { '2025/26': {} } }),
                     'ms365-tenant-settings-v1': '{}'
+                }
+            })
+        ).toBe(false);
+        // Früherer Bug: leeres schooltool-data trotz vieler Werkzeug-Keys → stiller Import
+        expect(
+            isLikelyFreshLocalBackup({
+                localStorage: {
+                    'ms365-dashboard-favorites-v1': '["a"]',
+                    'ms365-arge-state-v2': '{"items":[1]}',
+                    'ms365-schulstruktur-sync-v1': '{"ok":true}',
+                    'ms365-freistellung-setup-v1': '{"step":2}'
+                }
+            })
+        ).toBe(false);
+        expect(
+            isLikelyFreshLocalBackup({
+                localStorage: {
+                    'ms365-schooltool-data-v2': JSON.stringify({
+                        version: 3,
+                        core: { schulOrganigramm: { nodes: [{ id: '1' }] } },
+                        years: {}
+                    })
                 }
             })
         ).toBe(false);
@@ -229,6 +318,7 @@ describe('stammdaten-sharepoint-sync-logic', () => {
     it('ignoriert Auto-Push-Quellen vom Sync selbst', () => {
         expect(isAutoSyncIgnoredChangeSource('browser-backup-import')).toBe(true);
         expect(isAutoSyncIgnoredChangeSource('spo-auto-pull')).toBe(true);
+        expect(isAutoSyncIgnoredChangeSource('spo-config-bundle-import')).toBe(true);
         expect(isAutoSyncIgnoredChangeSource('render')).toBe(true);
         expect(isAutoSyncIgnoredChangeSource('autosave')).toBe(false);
     });
@@ -249,5 +339,47 @@ describe('stammdaten-sharepoint-sync-logic', () => {
                 lastDirection: 'push'
             })
         ).toMatch(/gesichert/);
+    });
+});
+
+describe('IT-Bibliothek Graph-Helfer Einbindung', () => {
+    it('pin-gate injiziert spo-graph-shared vor der Sync-UI', () => {
+        const pinGate = readFileSync(join(projectRoot, 'src/shared/pin-gate.js'), 'utf8');
+        expect(pinGate).toContain('spo-graph-shared.js');
+        expect(pinGate).toContain('data-ms365-spo-graph');
+        const graphIdx = pinGate.indexOf('spo-graph-shared.js');
+        const syncIdx = pinGate.indexOf('stammdaten-sharepoint-sync-ui.js');
+        expect(graphIdx).toBeGreaterThan(-1);
+        expect(syncIdx).toBeGreaterThan(graphIdx);
+    });
+
+    it('index und tenant binden spo-graph-shared ein', () => {
+        for (const file of ['index.html', 'tenant.html']) {
+            const html = readFileSync(join(projectRoot, file), 'utf8');
+            expect(html, file).toContain('spo-graph-shared.js');
+        }
+    });
+
+    it('Backup-Picker ist in den Lade-/Abgleich-Pfaden verdrahtet', () => {
+        const syncUi = readFileSync(join(projectRoot, 'src/shared/stammdaten-sharepoint-sync-ui.js'), 'utf8');
+        expect(syncUi).toContain('pickAndDownloadSharePointBackup');
+        expect(syncUi).toContain('stammdaten-sharepoint-backup-picker-ui.js');
+
+        const compareUi = readFileSync(
+            join(projectRoot, 'src/shared/stammdaten-sharepoint-backup-compare-ui.js'),
+            'utf8'
+        );
+        expect(compareUi).toContain('pickAndDownloadSharePointBackup');
+        expect(compareUi).toContain('Backup für Abgleich wählen');
+
+        const uebergabe = readFileSync(
+            join(projectRoot, 'src/tools/stammdaten-uebergabe/stammdaten-uebergabe.js'),
+            'utf8'
+        );
+        expect(uebergabe).toContain('pickAndDownloadSharePointBackup');
+
+        const api = readFileSync(join(projectRoot, 'src/shared/stammdaten-sharepoint-sync-api.js'), 'utf8');
+        expect(api).toContain('listImportableBackupFiles');
+        expect(api).toContain('downloadBackupByItem');
     });
 });

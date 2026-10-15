@@ -1072,6 +1072,206 @@
         c.core.classTeams = normalizeCoreClassTeams(teams);
     }
 
+    /**
+     * Verwaltung-Organigramm in core (Stammdaten / Backup / IT-Sicherung).
+     * @param {unknown} raw
+     */
+    function normalizeCoreOrganigramm(raw) {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365VerwaltungOrganigramm &&
+            typeof window.ms365VerwaltungOrganigramm.normalizeOrganigrammLayout === 'function'
+        ) {
+            try {
+                return window.ms365VerwaltungOrganigramm.normalizeOrganigrammLayout(raw);
+            } catch {
+                /* fallback */
+            }
+        }
+        const o = raw && typeof raw === 'object' ? raw : {};
+        const nodesIn = Array.isArray(o.nodes) ? o.nodes : Array.isArray(o.groups) ? o.groups : [];
+        return {
+            version: 1,
+            nodes: nodesIn
+                .filter(function (n) {
+                    return n && typeof n === 'object';
+                })
+                .map(function (n, idx) {
+                    return deepClone(
+                        Object.assign(
+                            {
+                                id: String(n.id || 'og_' + idx),
+                                type: String(n.type || 'group'),
+                                label: String(n.label || n.name || ''),
+                                parentId: n.parentId == null || n.parentId === '' ? null : String(n.parentId),
+                                order: typeof n.order === 'number' ? n.order : idx
+                            },
+                            n.roleCode ? { roleCode: String(n.roleCode) } : {},
+                            n.tone ? { tone: String(n.tone) } : {},
+                            n.m365GroupId ? { m365GroupId: String(n.m365GroupId) } : {},
+                            n.m365GroupLabel ? { m365GroupLabel: String(n.m365GroupLabel) } : {},
+                            n.m365GroupMail ? { m365GroupMail: String(n.m365GroupMail) } : {},
+                            n.audienceGroupId ? { audienceGroupId: String(n.audienceGroupId) } : {}
+                        )
+                    );
+                })
+        };
+    }
+
+    /**
+     * Schul-Organigramm in core – eigene Normalisierung (nicht Verwaltung-group/role/sammel).
+     * Wichtig: refKind/refKey müssen erhalten bleiben, sonst verdoppelt Sync die Knoten.
+     * @param {unknown} raw
+     */
+    function normalizeCoreSchulOrganigramm(raw) {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365SchulOrganigramm &&
+            typeof window.ms365SchulOrganigramm.normalizeSchulOrganigramm === 'function'
+        ) {
+            try {
+                return window.ms365SchulOrganigramm.normalizeSchulOrganigramm(raw);
+            } catch {
+                /* fallback */
+            }
+        }
+        const o = raw && typeof raw === 'object' ? raw : {};
+        const nodesIn = Array.isArray(o.nodes) ? o.nodes : [];
+        const seen = new Set();
+        let rootAreaIndex = 0;
+        const nodes = nodesIn
+            .filter(function (n) {
+                return n && typeof n === 'object';
+            })
+            .map(function (n, idx) {
+                let id = String(n.id || '').trim();
+                if (!id || seen.has(id)) id = 'og_' + idx + '_' + String(Date.now() % 100000);
+                seen.add(id);
+                let type = String(n.type || 'custom').toLowerCase() || 'custom';
+                if (type === 'section') type = 'area';
+                const parentId = n.parentId == null || n.parentId === '' ? null : String(n.parentId);
+                const node = {
+                    id: id,
+                    type: type,
+                    label: String(n.label || n.name || 'Knoten').trim() || 'Knoten',
+                    parentId: parentId,
+                    order: typeof n.order === 'number' ? n.order : idx,
+                    tone: String(n.tone || '').trim(),
+                    refKind: String(n.refKind || 'none').trim() || 'none',
+                    refKey: String(n.refKey || n.roleCode || n.code || '').trim()
+                };
+                // null/'' nicht als 0 werten – sonst landen alle Root-Areas bei (0,0)
+                function parseCoord(v) {
+                    if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v);
+                    if (typeof v === 'string') {
+                        const t = v.trim();
+                        if (!t) return null;
+                        const num = Number(t);
+                        if (Number.isFinite(num)) return Math.round(num);
+                    }
+                    return null;
+                }
+                const cx = parseCoord(n.x);
+                const cy = parseCoord(n.y);
+                if (cx != null && cy != null) {
+                    node.x = cx;
+                    node.y = cy;
+                } else if ((type === 'area' || type === 'section') && parentId == null) {
+                    const col = rootAreaIndex % 3;
+                    const row = Math.floor(rootAreaIndex / 3);
+                    rootAreaIndex += 1;
+                    node.x = 48 + col * 920;
+                    node.y = 48 + row * 720;
+                }
+                const cw = parseCoord(n.w);
+                const ch = parseCoord(n.h);
+                if (cw != null) node.w = cw;
+                if (ch != null) node.h = ch;
+                if (n.collapsed === true) node.collapsed = true;
+                if (n.m365 && typeof n.m365 === 'object') {
+                    const gm = String(n.m365.groupMode || 'none').trim();
+                    const mm = String(n.m365.mailboxMode || 'none').trim();
+                    let groupKind = String(n.m365.groupKind || 'unified')
+                        .trim()
+                        .toLowerCase();
+                    if (groupKind === 'sg') groupKind = 'security';
+                    if (groupKind === 'mesg' || groupKind === 'mail_security') groupKind = 'mailSecurity';
+                    if (groupKind === 'dl' || groupKind === 'verteiler') groupKind = 'distribution';
+                    if (
+                        groupKind !== 'security' &&
+                        groupKind !== 'mailSecurity' &&
+                        groupKind !== 'distribution'
+                    ) {
+                        groupKind = 'unified';
+                    }
+                    const groupMode = gm === 'match' || gm === 'create' ? gm : 'none';
+                    const mailboxMode = mm === 'match' || mm === 'create' ? mm : 'none';
+                    node.m365 = {
+                        groupMode: groupMode,
+                        groupKind: groupKind,
+                        groupId:
+                            groupMode === 'none'
+                                ? null
+                                : n.m365.groupId
+                                  ? String(n.m365.groupId).trim()
+                                  : null,
+                        groupLabel:
+                            groupMode === 'none'
+                                ? null
+                                : n.m365.groupLabel
+                                  ? String(n.m365.groupLabel).trim()
+                                  : null,
+                        groupMail:
+                            groupMode === 'none'
+                                ? null
+                                : n.m365.groupMail
+                                  ? String(n.m365.groupMail).trim().toLowerCase()
+                                  : null,
+                        mailboxMode: mailboxMode,
+                        mailboxUpn:
+                            mailboxMode === 'none'
+                                ? null
+                                : n.m365.mailboxUpn
+                                  ? String(n.m365.mailboxUpn).trim().toLowerCase()
+                                  : null,
+                        mailboxLabel:
+                            mailboxMode === 'none'
+                                ? null
+                                : n.m365.mailboxLabel
+                                  ? String(n.m365.mailboxLabel).trim()
+                                  : null,
+                        mailboxId:
+                            mailboxMode === 'none'
+                                ? null
+                                : n.m365.mailboxId
+                                  ? String(n.m365.mailboxId).trim()
+                                  : null
+                    };
+                }
+                if (n.externalIds && typeof n.externalIds === 'object') {
+                    const ext = {};
+                    ['bip', 'sokrates', 'webuntis', 'graphGroupId'].forEach(function (key) {
+                        const v = String(n.externalIds[key] || '').trim();
+                        if (v) ext[key] = v;
+                    });
+                    if (Object.keys(ext).length) node.externalIds = ext;
+                }
+                if (n.meta && typeof n.meta === 'object') node.meta = deepClone(n.meta);
+                return node;
+            });
+        const viewIn = o.view && typeof o.view === 'object' ? o.view : {};
+        const k = Number(viewIn.k);
+        return {
+            version: 2,
+            view: {
+                x: Number.isFinite(Number(viewIn.x)) ? Number(viewIn.x) : 0,
+                y: Number.isFinite(Number(viewIn.y)) ? Number(viewIn.y) : 0,
+                k: Number.isFinite(k) && k > 0.15 && k < 4 ? k : 1
+            },
+            nodes: nodes
+        };
+    }
+
     function emptyContainer() {
         return {
             version: VERSION,
@@ -1087,6 +1287,8 @@
                 adminRoles: [],
                 verwaltungAudienceGroups: [],
                 adminAudienceMemberships: [],
+                verwaltungOrganigramm: { version: 1, nodes: [] },
+                schulOrganigramm: { version: 2, view: { x: 0, y: 0, k: 1 }, nodes: [] },
                 sgaMode: 'group',
                 sga: [],
                 classTeams: []
@@ -1122,6 +1324,13 @@
 
         out.core = Object.assign({}, base.core, (o.core && typeof o.core === 'object' ? o.core : {}));
         out.core.classTeams = normalizeCoreClassTeams(out.core.classTeams);
+        out.core.verwaltungOrganigramm = normalizeCoreOrganigramm(out.core.verwaltungOrganigramm);
+        out.core.schulOrganigramm = normalizeCoreSchulOrganigramm(out.core.schulOrganigramm);
+        if (!Array.isArray(out.core.adminRoles)) out.core.adminRoles = [];
+        if (!Array.isArray(out.core.admin)) out.core.admin = [];
+        if (!Array.isArray(out.core.administration)) out.core.administration = [];
+        if (!Array.isArray(out.core.verwaltungAudienceGroups)) out.core.verwaltungAudienceGroups = [];
+        if (!Array.isArray(out.core.adminAudienceMemberships)) out.core.adminAudienceMemberships = [];
         out.years = Object.assign({}, base.years, (o.years && typeof o.years === 'object' ? o.years : {}));
         out.years.byLabel = Object.assign({}, base.years.byLabel, (out.years.byLabel && typeof out.years.byLabel === 'object' ? out.years.byLabel : {}));
 
@@ -1211,6 +1420,15 @@
                 out.core.administration = Array.isArray(coreObj.administration) ? deepClone(coreObj.administration) : [];
                 out.core.admin = Array.isArray(coreObj.admin) ? deepClone(coreObj.admin) : [];
                 out.core.adminRoles = Array.isArray(coreObj.adminRoles) ? deepClone(coreObj.adminRoles) : [];
+                if (Array.isArray(coreObj.verwaltungAudienceGroups)) {
+                    out.core.verwaltungAudienceGroups = deepClone(coreObj.verwaltungAudienceGroups);
+                }
+                if (Array.isArray(coreObj.adminAudienceMemberships)) {
+                    out.core.adminAudienceMemberships = deepClone(coreObj.adminAudienceMemberships);
+                }
+                if (coreObj.verwaltungOrganigramm && typeof coreObj.verwaltungOrganigramm === 'object') {
+                    out.core.verwaltungOrganigramm = normalizeCoreOrganigramm(coreObj.verwaltungOrganigramm);
+                }
 
                 const cur = out.years.current;
                 out.years.byLabel[cur] = normalizeYearBucket({
@@ -1326,6 +1544,12 @@
                 ? deepClone(s.adminAudienceMemberships)
                 : [];
         }
+        if (Object.prototype.hasOwnProperty.call(s, 'verwaltungOrganigramm')) {
+            c.core.verwaltungOrganigramm = normalizeCoreOrganigramm(s.verwaltungOrganigramm);
+        }
+        if (Object.prototype.hasOwnProperty.call(s, 'schulOrganigramm')) {
+            c.core.schulOrganigramm = normalizeCoreSchulOrganigramm(s.schulOrganigramm);
+        }
         c.core.sgaMode = String(s.sgaMode || '').trim() === 'distribution' ? 'distribution' : 'group';
         c.core.sga = Array.isArray(s.sga) ? deepClone(s.sga) : [];
         c.core.classTeams = keepClassTeams;
@@ -1334,9 +1558,22 @@
         const merged = mergeStudentsImport(prev, Array.isArray(s.students) ? s.students : []);
         merged.studentCouncil = Array.isArray(s.studentCouncil) ? deepClone(s.studentCouncil) : [];
         merged.classes = Array.isArray(s.classes) ? deepClone(s.classes) : [];
+        if (prev.unterrichtsbelegung) merged.unterrichtsbelegung = prev.unterrichtsbelegung;
+        if (prev.classChats) merged.classChats = prev.classChats;
         c.years.byLabel[cur] = normalizeYearBucket(merged);
         reconcileClassTeamsFromYearClasses(c, cur, c.years.byLabel[cur].classes);
-        return saveV2(c);
+        const saved = saveV2(c);
+        try {
+            if (
+                typeof window.ms365SyncSchulOrganigrammFromAppData === 'function' &&
+                !window.__ms365SchulOrgSyncing
+            ) {
+                window.ms365SyncSchulOrganigrammFromAppData({ reason: 'stammdaten' });
+            }
+        } catch {
+            /* Organigramm-Sync optional */
+        }
+        return saved;
     }
 
     function listYears() {
@@ -1587,6 +1824,19 @@
         cur.core.administration = Array.isArray(o.administration) ? deepClone(o.administration) : [];
         cur.core.admin = Array.isArray(o.admin) ? deepClone(o.admin) : [];
         cur.core.adminRoles = Array.isArray(o.adminRoles) ? deepClone(o.adminRoles) : [];
+        if (Object.prototype.hasOwnProperty.call(o, 'verwaltungAudienceGroups')) {
+            cur.core.verwaltungAudienceGroups = Array.isArray(o.verwaltungAudienceGroups)
+                ? deepClone(o.verwaltungAudienceGroups)
+                : [];
+        }
+        if (Object.prototype.hasOwnProperty.call(o, 'adminAudienceMemberships')) {
+            cur.core.adminAudienceMemberships = Array.isArray(o.adminAudienceMemberships)
+                ? deepClone(o.adminAudienceMemberships)
+                : [];
+        }
+        if (Object.prototype.hasOwnProperty.call(o, 'verwaltungOrganigramm')) {
+            cur.core.verwaltungOrganigramm = normalizeCoreOrganigramm(o.verwaltungOrganigramm);
+        }
         cur.core.sgaMode = String(o.sgaMode || '').trim() === 'distribution' ? 'distribution' : 'group';
         cur.core.sga = Array.isArray(o.sga) ? deepClone(o.sga) : [];
         const y = String(cur.years.current || currentSchoolYearLabel());
@@ -1778,7 +2028,21 @@
         const { year, bucket } = getYearBucket(yearLabel);
         bucket.unterrichtsbelegung = normalizeUnterrichtsbelegung(snapshot);
         saveYearBucket(year, bucket);
-        return bucket.unterrichtsbelegung ? deepClone(bucket.unterrichtsbelegung) : null;
+        const out = bucket.unterrichtsbelegung ? deepClone(bucket.unterrichtsbelegung) : null;
+        try {
+            if (
+                typeof window.ms365SyncSchulOrganigrammFromAppData === 'function' &&
+                !window.__ms365SchulOrgSyncing
+            ) {
+                window.ms365SyncSchulOrganigrammFromAppData({
+                    reason: 'unterrichtsbelegung',
+                    belegung: out
+                });
+            }
+        } catch {
+            /* Organigramm-Sync optional – Belegung ist bereits gespeichert */
+        }
+        return out;
     }
 
     function getClassChats(yearLabel) {

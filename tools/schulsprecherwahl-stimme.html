@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script>
+      // Schüler-App: schmale Login-Scopes
+      window.MS365_AUTH_LOGIN_SCOPES = ['User.Read'];
+    </script>
+    <script src="../access-config.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>Abstimmung – Schulsprecher:innenwahl</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/schulsprecherwahl/schulsprecherwahl.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+      body.ssw-vote-page .container { max-width: 640px; }
+      body.ssw-vote-page .header h1 { font-size: 1.15rem; }
+      body.ssw-vote-page .header-tool-indicator { display: none; }
+    </style>
+</head>
+<body class="app-shell-chrome ssw-vote-page">
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <p>Anonyme Stimmabgabe – Login nur zur Einmal-Prüfung.</p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
+        </div>
+        <div class="content">
+            <div id="sswVoteApp" aria-live="polite"></div>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/election-backend-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script type="module">
+        import { mountVoteApp } from '../src/tools/schulsprecherwahl/schulsprecherwahl-vote-ui.js';
+        function boot() {
+            const host = document.getElementById('sswVoteApp');
+            if (!host) return;
+            const params = new URLSearchParams(window.location.search);
+            const electionId = params.get('wahl') || params.get('e') || '';
+            mountVoteApp(host, { electionId });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot);
+        } else {
+            boot();
+        }
+    </script>
+</body>
+</html>

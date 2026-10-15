@@ -122,11 +122,12 @@ export function normalizeAppHeaderActionsOrder(container) {
     if (!container) return;
     const search = container.querySelector('#dashHeaderSearchSlot');
     const backup = document.getElementById('ms365BackupHeader');
+    const org = document.getElementById('ms365HeaderSchulOrganigramm');
     const reg = document.getElementById('ms365HeaderSchulregister');
     const auth = document.getElementById('ms365AuthWidget');
     const toolbar = document.getElementById('dashRegisterToolbar');
 
-    [search, backup, reg, auth, toolbar].forEach(function (el) {
+    [search, backup, org, reg, auth, toolbar].forEach(function (el) {
         if (el && el.parentElement === container) {
             container.appendChild(el);
         }

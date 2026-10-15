@@ -12,9 +12,11 @@ describe('stammdaten-register-mode', () => {
     it('Tab-Hashes', () => {
         const p = parseRegisterHash('#klassen');
         expect(p.tabBtnId).toBe('tabMainKlassen');
+        expect(parseRegisterHash('#klassenlehrer').tabBtnId).toBe('tabMainKlassenlehrer');
         expect(parseRegisterHash('#werkzeuge').tabBtnId).toBe('tabMainStammdaten');
         expect(parseRegisterHash('#datenlandkarte').tabBtnId).toBe('tabMainDatenlandkarte');
         expect(buildRegisterHash('tabMainDatenlandkarte')).toBe('datenlandkarte');
+        expect(buildRegisterHash('tabMainKlassenlehrer')).toBe('klassenlehrer');
     });
 
     it('buildRegisterHash nur Tab', () => {

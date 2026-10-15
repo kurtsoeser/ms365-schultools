@@ -68,6 +68,17 @@ window.MS365_LICENSE_API = {
     skipOperatorCheck: false
 };
 
+/**
+ * Schulsprecherwahl-API – anonyme Stimmen in Azure Table Storage.
+ * Scope Election.Access (Fallback License.Access) der License-Backend-App.
+ */
+window.MS365_ELECTION_API = {
+    baseUrl: 'https://func-ms365-election-dev.azurewebsites.net/api/election',
+    scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/Election.Access',
+    fallbackScope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
+    functionKey: ''
+};
+
 (function loadMs365LocalConfig() {
     if (typeof XMLHttpRequest === 'undefined' || typeof document === 'undefined') return;
     try {
@@ -117,6 +128,27 @@ window.MS365_LICENSE_API = {
         }
         if (lic && lic.skipOperatorCheck === true) {
             window.MS365_LICENSE_API.skipOperatorCheck = true;
+        }
+        if (!window.MS365_ELECTION_API) {
+            window.MS365_ELECTION_API = {
+                baseUrl: '',
+                scope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/Election.Access',
+                fallbackScope: 'api://12e0cfe2-8337-4b35-93e8-542faf658eb3/License.Access',
+                functionKey: ''
+            };
+        }
+        const elec = local.MS365_ELECTION_API;
+        if (elec && elec.baseUrl) {
+            window.MS365_ELECTION_API.baseUrl = String(elec.baseUrl).trim();
+        }
+        if (elec && elec.scope) {
+            window.MS365_ELECTION_API.scope = String(elec.scope).trim();
+        }
+        if (elec && elec.fallbackScope) {
+            window.MS365_ELECTION_API.fallbackScope = String(elec.fallbackScope).trim();
+        }
+        if (elec && elec.functionKey) {
+            window.MS365_ELECTION_API.functionKey = String(elec.functionKey).trim();
         }
     } catch {
         /* lokale Overrides optional */

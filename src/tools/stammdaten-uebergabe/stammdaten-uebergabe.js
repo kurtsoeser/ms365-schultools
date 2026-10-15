@@ -26,9 +26,14 @@ import {
     downloadDriveItem,
     downloadDriveItemBlob,
     uploadCurrentBackup,
-    downloadCurrentBackup,
     requireItLibrary
 } from '../../shared/stammdaten-sharepoint-sync-api.js';
+import { resolveSharePointImportChoice } from '../../shared/stammdaten-sharepoint-import-prompt.js';
+import {
+    applySharePointBackupLocally,
+    applySharePointSelectiveImportLocally
+} from '../../shared/stammdaten-sharepoint-pull-apply.js';
+import { pickAndDownloadSharePointBackup } from '../../shared/stammdaten-sharepoint-backup-picker-ui.js';
 
 const SCOPES_GRAPH = [
     'https://graph.microsoft.com/User.Read',
@@ -840,11 +845,31 @@ async function runUpload() {
     const folder = getFolder();
     const keepDated = !!($('suKeepDated') && $('suKeepDated').checked);
     log('Baue Browser-Backup und lade hoch …');
-    await uploadCurrentBackup({ folder: folder, keepDated: keepDated, siteUrl: webUrl });
+    // Expliziter Upload-Button → lokaler Stand gewinnt (Konflikt-Dialog sonst blockiert die Sicherung).
+    const uploaded = await uploadCurrentBackup({
+        folder: folder,
+        keepDated: keepDated,
+        siteUrl: webUrl,
+        force: true,
+        checkConflict: false
+    });
     clearPendingAction();
     refreshMetaUi();
-    log('Fertig.');
-    toast('Stammdaten in IT-Bibliothek geschrieben.');
+    const orgN =
+        uploaded &&
+        uploaded.payload &&
+        uploaded.payload.schooltoolSummary &&
+        uploaded.payload.schooltoolSummary.schulOrganigrammNodeCount;
+    log(
+        orgN > 0
+            ? 'Fertig (Schul-Organigramm: ' + orgN + ' Knoten, auch unter config/schul-organigramm.json).'
+            : 'Fertig.'
+    );
+    toast(
+        orgN > 0
+            ? 'Stammdaten inkl. Schul-Organigramm (' + orgN + ' Knoten) in IT-Bibliothek geschrieben.'
+            : 'Stammdaten in IT-Bibliothek geschrieben.'
+    );
     await refreshLibraryBrowse({ silent: true });
 }
 
@@ -1129,6 +1154,36 @@ async function runDownloadFile(itemId, name) {
     toast('Download gestartet.');
 }
 
+async function applyImportedBackupChoice(obj, remoteLastModified) {
+    const choice = await resolveSharePointImportChoice(obj, {
+        auto: false,
+        remoteLastModified: remoteLastModified || ''
+    });
+    if (choice === 'skip') {
+        toast('Keine Änderung – Stand ist identisch.');
+        return;
+    }
+    if (choice === 'keep-local') {
+        toast('Lokaler Stand unverändert.');
+        return;
+    }
+    if (choice === 'push-local') {
+        await uploadCurrentBackup({ folder: getFolder(), force: true, checkConflict: false });
+        toast('Lokaler Stand nach SharePoint gesichert.');
+        return;
+    }
+    if (choice && typeof choice === 'object' && choice.action === 'import-selective') {
+        applySharePointSelectiveImportLocally(obj, choice.selectedIds || [], null, { reload: false });
+        toast('Auswahl übernommen.');
+    } else if (choice === 'import') {
+        applySharePointBackupLocally(obj, null, { reload: false });
+        toast('Backup vollständig übernommen.');
+    } else {
+        return;
+    }
+    if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
+}
+
 async function runDownload(itemId, name) {
     const it = requireDriveId();
     const token = await ensureGraphToken();
@@ -1139,19 +1194,7 @@ async function runDownload(itemId, name) {
     if (!bb.isBackupPayload(obj) && !bb.isLegacyAppDataPayload(obj)) {
         throw new Error('Datei ist kein erkanntes MS365-Browser-Backup.');
     }
-    const summary =
-        (obj.schoolName || obj.domain || name || 'Backup') +
-        (obj.exportedAt ? ' · ' + String(obj.exportedAt).replace('T', ' ').slice(0, 19) : '');
-    if (
-        !window.confirm(
-            'Backup aus IT-Bibliothek übernehmen und lokale Daten ersetzen?\n\n' + summary
-        )
-    ) {
-        return;
-    }
-    bb.importPayload(obj);
-    toast('Backup übernommen.');
-    if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
+    await applyImportedBackupChoice(obj, '');
 }
 
 function fillDesignHintUi() {
@@ -1280,22 +1323,25 @@ function boot() {
             (async function () {
                 clearLog();
                 persistFormDraft({ mergeSetup: true });
-                log('Lade aktuelle Datei …');
-                const preview = await downloadCurrentBackup({ folder: getFolder(), apply: false });
-                const obj = preview.payload || {};
-                const summary =
-                    (obj.schoolName || obj.domain || preview.item.name || 'Backup') +
-                    (obj.exportedAt ? ' · ' + String(obj.exportedAt).replace('T', ' ').slice(0, 19) : '');
-                if (
-                    !window.confirm(
-                        'Backup aus IT-Bibliothek übernehmen und lokale Daten ersetzen?\n\n' + summary
-                    )
-                ) {
+                log('Backup-Datei wählen …');
+                const preview = await pickAndDownloadSharePointBackup({
+                    folder: getFolder(),
+                    apply: false,
+                    title: 'Backup aus IT-Bibliothek laden'
+                });
+                if (!preview) {
+                    log('Abgebrochen.');
+                    toast('Abgebrochen.');
                     return;
                 }
-                window.ms365BrowserBackup.importPayload(obj);
-                toast('Backup übernommen.');
-                if (window.confirm('Seite jetzt neu laden?')) window.location.reload();
+                const name =
+                    (preview.meta && preview.meta.fileName) ||
+                    (preview.item && preview.item.name) ||
+                    '';
+                log('Lade ' + (name || 'Backup') + ' …');
+                const obj = preview.payload || {};
+                const item = preview.item || {};
+                await applyImportedBackupChoice(obj, item.lastModifiedDateTime || '');
             })().catch(handleActionError);
         });
     }

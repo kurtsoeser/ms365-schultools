@@ -3,6 +3,7 @@ dist/
 .vite/
 backend/kursteams-api/local.settings.json
 backend/license-api/local.settings.json
+backend/election-api/local.settings.json
 ms365-config.local.js
 .ftp-credentials.local
 

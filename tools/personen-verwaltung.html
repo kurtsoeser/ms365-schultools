@@ -229,6 +229,24 @@
             position: sticky;
             top: 0;
         }
+        .pv-schulstruktur-cat { margin: 0 0 18px; }
+        .pv-schulstruktur-cat__title {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #32325d;
+        }
+        .pv-schulstruktur-table-wrap { max-height: min(36vh, 280px); }
+        .pv-schulstruktur-detail {
+            font-size: 0.88em;
+            color: #6c757d;
+        }
+        .pv-schulstruktur-empty {
+            border: 1px dashed var(--border, #ced4da);
+            border-radius: 12px;
+            padding: 16px 18px;
+            background: color-mix(in srgb, var(--brand1, #635bff) 4%, transparent);
+        }
         .pv-lic-usage-row,
         .pv-lic-assign-row {
             display: flex;
@@ -642,6 +660,7 @@
                                     <button type="button" class="detail-tab-btn" role="tab" aria-selected="true" aria-controls="pvPanelProfil" id="pvTabProfil" data-pv-tab="profil">Profil</button>
                                     <button type="button" class="detail-tab-btn" role="tab" aria-selected="false" aria-controls="pvPanelLizenzen" id="pvTabLizenzen" data-pv-tab="lizenzen">Lizenzen</button>
                                     <button type="button" class="detail-tab-btn" role="tab" aria-selected="false" aria-controls="pvPanelGruppen" id="pvTabGruppen" data-pv-tab="gruppen">Gruppen</button>
+                                    <button type="button" class="detail-tab-btn" role="tab" aria-selected="false" aria-controls="pvPanelSchulstruktur" id="pvTabSchulstruktur" data-pv-tab="schulstruktur">Schulstruktur</button>
                                 </div>
                             </div>
 
@@ -719,6 +738,17 @@
                                     </table>
                                 </div>
                             </div>
+                            <div id="pvPanelSchulstruktur" class="tab-panel" role="tabpanel" aria-labelledby="pvTabSchulstruktur" aria-hidden="true">
+                                <p class="hint" id="pvSchulstrukturHint" style="margin:0 0 12px;">
+                                    Zuordnungen aus den <strong>Tenant-Stammdaten</strong> und dem <strong>Schul-Organigramm</strong>
+                                    (Funktionen, Bereiche, Leitungen, Klassen/Unterricht). Microsoft-365-Gruppen siehe Tab „Gruppen“.
+                                </p>
+                                <div class="pv-lic-assign-row" style="margin-top:0;margin-bottom:10px;">
+                                    <p id="pvSchulstrukturMeta" class="muted" style="margin:0;font-size:0.9em;flex:1;"></p>
+                                    <button type="button" class="btn small-btn" id="pvSchulstrukturReloadBtn"><i class="bi bi-arrow-clockwise"></i>Neu laden</button>
+                                </div>
+                                <div id="pvSchulstrukturRoot"></div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -735,6 +765,7 @@
                         <strong>Anlegen</strong>, <strong>Profil per PATCH</strong>, <strong>Lizenzen zuweisen/entziehen</strong>,
                         <strong>Gruppenmitgliedschaft</strong>, <strong>Konto beenden</strong> (Standard: deaktivieren).
                         Gruppen: <strong>Group.ReadWrite.All</strong>.
+                        Tab <strong>Schulstruktur</strong>: read-only Zuordnungen aus Tenant-Stammdaten / Organigramm.
                     </p>
                     <p>
                         <strong>Neue Person:</strong> Zuerst Konto anlegen, dann Nutzungsort (Ländercode, z. B. AT),
@@ -863,6 +894,7 @@
 
     <script src="../ms365-config.js"></script>
     <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
     <script type="module" src="../src/shared/graph-licenses.js"></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/tools/personen-verwaltung/personen-verwaltung.js"></script>

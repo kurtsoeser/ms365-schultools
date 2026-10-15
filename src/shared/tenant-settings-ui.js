@@ -53,6 +53,7 @@ import {
     deriveSubjectEntryFromGroup
 } from './subject-list-enrich.js';
 import { pickEntraGroupsMulti } from './entra-group-picker.js';
+import { pickEntraUser } from './entra-user-picker.js';
 import { studentBelongsToClassRow } from './class-student-match.js';
 import {
     summarizeWebuntisMergeResult,
@@ -72,6 +73,9 @@ import {
     formatRegisterLastSavedSuffix
 } from './tenant-register-tab-status.js';
 import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui.js';
+import { summarizeClassTeaching } from './klassenlehrer-stammdaten-logic.js';
+import { mountKlassenlehrerPanel } from './tenant-panel-klassenlehrer-ui.js';
+import './schul-organigramm-stammdaten-sync.js';
 
 (function () {
     'use strict';
@@ -1236,6 +1240,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         const btnVerifyClassesGraph = document.getElementById('tenantBtnVerifyClassesGraph');
         const btnClassesImportM365 = document.getElementById('tenantClassesImportM365');
         const btnEnrichClassesFromGroups = document.getElementById('tenantBtnEnrichClassesFromGroups');
+        let klassenlehrerPanelApi = null;
         const fileSubjects = document.getElementById('tenantSubjectsImportFile');
         const fileArges = document.getElementById('tenantArgesImportFile');
         const btnArgesImportM365 = document.getElementById('tenantArgesImportM365');
@@ -1332,6 +1337,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 typeof window.ms365GetSchoolDomainNoAt === 'function' ? window.ms365GetSchoolDomainNoAt() : '';
             const verifiedEmailDomains = verifiedDomainsInput ? normStr(verifiedDomainsInput.value || '') : '';
             const administration = getAdministrationEntries();
+            const prevSettings = typeof load === 'function' ? load() : {};
             const saved = save({
                 schoolName,
                 domain,
@@ -1344,6 +1350,14 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 adminRoles,
                 verwaltungAudienceGroups: audienceGroupsSnapshot,
                 adminAudienceMemberships: audienceMembershipsSnapshot,
+                verwaltungOrganigramm:
+                    prevSettings && prevSettings.verwaltungOrganigramm
+                        ? prevSettings.verwaltungOrganigramm
+                        : { version: 1, nodes: [] },
+                schulOrganigramm:
+                    prevSettings && prevSettings.schulOrganigramm
+                        ? prevSettings.schulOrganigramm
+                        : { version: 1, nodes: [] },
                 sgaMode,
                 sga,
                 students,
@@ -2140,6 +2154,58 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             }
             const clSt = classMatchTabStatus(clTotal, clMatched, clNotFound, clUnchecked);
             tabStatus.tabMainKlassen = { kind: clSt.kind, icon: clSt.icon, title: clTitle };
+
+            const belegungSnap =
+                window.ms365AppDataV2 && typeof window.ms365AppDataV2.getUnterrichtsbelegung === 'function'
+                    ? window.ms365AppDataV2.getUnterrichtsbelegung()
+                    : null;
+            const teachingSum = summarizeClassTeaching(
+                classRows,
+                belegungSnap && Array.isArray(belegungSnap.rows) ? belegungSnap.rows : []
+            );
+            if (teachingSum.classTotal > 0 || teachingSum.rowCount > 0) {
+                const teachTitle =
+                    teachingSum.withTeachers +
+                    ' von ' +
+                    teachingSum.classTotal +
+                    ' Klassen mit unterrichtenden Lehrkräften (' +
+                    teachingSum.teacherAssignments +
+                    ' Zuordnungen) – Unterrichtsbelegung.';
+                if (teachingSum.withoutTeachers === 0 && teachingSum.classTotal > 0) {
+                    chip(
+                        'bi-person-badge',
+                        'Lehrer je Klasse: ' + teachingSum.withTeachers + '/' + teachingSum.classTotal,
+                        'ok',
+                        teachTitle
+                    );
+                    tabStatus.tabMainKlassenlehrer = {
+                        kind: 'ok',
+                        icon: 'bi-check-circle-fill',
+                        title: teachTitle
+                    };
+                } else {
+                    chip(
+                        'bi-person-badge',
+                        'Lehrer je Klasse: ' + teachingSum.withTeachers + '/' + teachingSum.classTotal,
+                        teachingSum.withTeachers ? 'warn' : 'muted',
+                        teachTitle +
+                            (teachingSum.withoutTeachers
+                                ? ' ' + teachingSum.withoutTeachers + ' ohne Belegung.'
+                                : '')
+                    );
+                    tabStatus.tabMainKlassenlehrer = {
+                        kind: teachingSum.withTeachers ? 'warn' : 'muted',
+                        icon: teachingSum.withTeachers ? 'bi-exclamation-circle' : 'bi-dash',
+                        title: teachTitle
+                    };
+                }
+            } else {
+                tabStatus.tabMainKlassenlehrer = {
+                    kind: 'muted',
+                    icon: 'bi-dash',
+                    title: 'Noch keine Unterrichtsbelegung – Tab „Lehrer je Klasse“ oder Kursteams/Unterrichtsteams.'
+                };
+            }
 
             // Fächer / ARGEs – reine Zahl (kein Gruppen-Match vorhanden)
             let subLinked = 0;
@@ -3145,12 +3211,38 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 .join('\n');
         }
 
+        /**
+         * seatMode / M365-Bezug aus dem strukturierten Snapshot in geparste Gruppen übernehmen
+         * (Textzeilen kennen diese Felder nicht).
+         */
+        function mergeAdminRolePolicyFromSnapshot(groups, snapshot) {
+            const prev = Array.isArray(snapshot) ? snapshot : [];
+            const byKey = new Map();
+            prev.forEach(function (g) {
+                const k = (normStr(g && g.code) || normStr(g && g.name)).toLowerCase();
+                if (k) byKey.set(k, g);
+            });
+            return (Array.isArray(groups) ? groups : []).map(function (group) {
+                const k = (normCode(group && group.code) || normStr(group && group.name)).toLowerCase();
+                const meta = k ? byKey.get(k) : null;
+                if (!meta) return group;
+                const next = Object.assign({}, group);
+                if (meta.seatMode && !next.seatMode) next.seatMode = meta.seatMode;
+                if (meta.m365ResourceType && !next.m365ResourceType) next.m365ResourceType = meta.m365ResourceType;
+                if (meta.m365ResourceId && !next.m365ResourceId) next.m365ResourceId = meta.m365ResourceId;
+                if (meta.m365ResourceEmail && !next.m365ResourceEmail) next.m365ResourceEmail = meta.m365ResourceEmail;
+                if (meta.m365ResourceLabel && !next.m365ResourceLabel) next.m365ResourceLabel = meta.m365ResourceLabel;
+                if (meta.tier && !next.tier) next.tier = meta.tier;
+                return next;
+            });
+        }
+
         function getAdministrationGroups() {
-            if (taAdminBundle && typeof window.ms365TenantSettingsParseAdminGroupsLines === 'function') {
-                return window.ms365TenantSettingsParseAdminGroupsLines(taAdminBundle.value);
-            }
             if (Array.isArray(administrationGroupsSnapshot)) {
                 return administrationGroupsSnapshot;
+            }
+            if (taAdminBundle && typeof window.ms365TenantSettingsParseAdminGroupsLines === 'function') {
+                return window.ms365TenantSettingsParseAdminGroupsLines(taAdminBundle.value);
             }
             const roles =
                 typeof parseLinesToAdminRoles === 'function'
@@ -3172,11 +3264,19 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             }
             if (typeof window.ms365TenantSettingsAdminRolesAndAdminToGroups !== 'function') return;
             const roles = (groups || []).map(function (group) {
-                return {
+                const row = {
                     code: normCode(group && group.code),
                     name: normStr(group && group.name),
                     tier: inferAdminTierForRole(group)
                 };
+                if (group && group.seatMode) row.seatMode = normStr(group.seatMode);
+                if (group && group.m365ResourceType) row.m365ResourceType = normStr(group.m365ResourceType);
+                if (group && group.m365ResourceId) row.m365ResourceId = normStr(group.m365ResourceId);
+                if (group && group.m365ResourceEmail) {
+                    row.m365ResourceEmail = normStr(group.m365ResourceEmail).toLowerCase();
+                }
+                if (group && group.m365ResourceLabel) row.m365ResourceLabel = normStr(group.m365ResourceLabel);
+                return row;
             });
             const admin = [];
             (groups || []).forEach(function (group) {
@@ -3427,11 +3527,19 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
 
         function getAdminRolesFromTextarea() {
             return getAdministrationGroups().map(function (group) {
-                return {
+                const row = {
                     code: normCode(group && group.code),
                     name: normStr(group && group.name),
                     tier: inferAdminTierForRole(group)
                 };
+                if (group && group.seatMode) row.seatMode = normStr(group.seatMode);
+                if (group && group.m365ResourceType) row.m365ResourceType = normStr(group.m365ResourceType);
+                if (group && group.m365ResourceId) row.m365ResourceId = normStr(group.m365ResourceId);
+                if (group && group.m365ResourceEmail) {
+                    row.m365ResourceEmail = normStr(group.m365ResourceEmail).toLowerCase();
+                }
+                if (group && group.m365ResourceLabel) row.m365ResourceLabel = normStr(group.m365ResourceLabel);
+                return row;
             });
         }
 
@@ -3586,6 +3694,66 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             input.addEventListener('blur', () => commit());
         }
 
+        /**
+         * Lehrkraft ohne E-Mail in Entra suchen und E-Mail (+ Match) in die Zeile schreiben.
+         * @param {number} idx
+         * @param {string} nameHint
+         */
+        async function pickTeacherFromEntraByName(idx, nameHint) {
+            const hintName = normStr(nameHint);
+            const nameParts = hintName.split(/\s+/).filter(Boolean);
+            // Nachname zuerst (Graph: startswith displayName/mail) – oft treffsicherer.
+            const searchSeed =
+                nameParts.length > 1 ? nameParts[nameParts.length - 1] : hintName;
+            let picked;
+            try {
+                picked = await pickEntraUser({
+                    title: 'Lehrkraft in Microsoft 365 suchen',
+                    hint:
+                        'Person ohne gespeicherte E‑Mail zuordnen. Treffer übernimmt E‑Mail und M365‑Abgleich' +
+                        (hintName ? ' (Vorschlag: ' + hintName + ')' : '') +
+                        '.',
+                    initialQuery: searchSeed.length >= 2 ? searchSeed : hintName
+                });
+            } catch (e) {
+                setSummary('M365-Suche: ' + (e && e.message ? e.message : String(e)), 'warn');
+                return;
+            }
+            if (!picked) return;
+            const mail = normStr(picked.mail || '').toLowerCase();
+            if (!mail || mail.indexOf('@') === -1) {
+                setSummary('Gewählte Person hat keine E‑Mail/UPN – bitte andere Person wählen.', 'warn');
+                return;
+            }
+            const all = getTeachersFromTextarea();
+            if (!all[idx]) return;
+            all[idx].email = mail;
+            if (!normStr(all[idx].name) && picked.displayName) {
+                all[idx].name = normStr(picked.displayName);
+            }
+            setTeachersTextareaFromRows(all);
+            const iso = new Date().toISOString();
+            patchDirectoryMatchKeys(
+                [mail],
+                directoryMatchUserPayload(
+                    {
+                        id: picked.id,
+                        displayName: picked.displayName,
+                        userPrincipalName: mail
+                    },
+                    iso
+                )
+            );
+            setSummary(
+                'E‑Mail aus Microsoft 365 übernommen: ' +
+                    (picked.displayName || mail) +
+                    ' → ' +
+                    mail,
+                'ok'
+            );
+            scheduleAutoSave();
+        }
+
         function renderTeachersTableFromTextarea() {
             if (!teachersTbody) return;
             const rows = getTeachersFromTextarea();
@@ -3657,7 +3825,26 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 tdAction.style.gap = '6px';
                 tdAction.style.alignItems = 'center';
                 const dir = getDirectoryMatchByEmail(row.email);
-                if (row.email && row.name) {
+                const hasEmail = !!(row.email && String(row.email).includes('@'));
+                // Ohne E-Mail: in M365 nach Name suchen und Adresse übernehmen.
+                if (!hasEmail && row.name) {
+                    const btnSearch = document.createElement('button');
+                    btnSearch.type = 'button';
+                    btnSearch.className = 'mini-btn';
+                    btnSearch.style.background = 'var(--brand1)';
+                    btnSearch.title = 'Person in Microsoft 365 suchen und E‑Mail übernehmen';
+                    btnSearch.innerHTML = '<i class="bi bi-search" aria-hidden="true"></i>';
+                    btnSearch.addEventListener('click', async () => {
+                        btnSearch.disabled = true;
+                        try {
+                            await pickTeacherFromEntraByName(idx, row.name);
+                        } finally {
+                            renderTeachersTableFromTextarea();
+                        }
+                    });
+                    tdAction.appendChild(btnSearch);
+                }
+                if (hasEmail && row.name) {
                     const btnCheck = document.createElement('button');
                     btnCheck.type = 'button';
                     btnCheck.className = 'mini-btn';
@@ -3948,9 +4135,13 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         let sgaBoardOverflowRows = [];
 
         function sgaScopeLabel(scope) {
-            return typeof window.ms365TenantSettingsSgaScopeLabel === 'function'
-                ? window.ms365TenantSettingsSgaScopeLabel(scope)
-                : scope || '—';
+            if (typeof window.ms365TenantSettingsSgaScopeLabel === 'function') {
+                return window.ms365TenantSettingsSgaScopeLabel(scope);
+            }
+            if (scope === 'teacher') return 'Lehrer';
+            if (scope === 'student') return 'Schülervertretung';
+            if (scope === 'external') return 'Extern (Eltern)';
+            return scope || '—';
         }
 
         function partitionSgaForBoard() {
@@ -5994,7 +6185,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
 
         let lastLifecyclePreview = null;
         let pendingSisImport = null;
-        /** @type {{ incoming: object[], result: object, diff: object, routeSuffix?: string }|null} */
+        /** @type {{ incoming: object[], existing: object[], backupLines: string, result: object, diff: object, routeSuffix?: string }|null} */
         let pendingTeachersWuImport = null;
 
         function sisApi() {
@@ -6150,17 +6341,59 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             setSummary('Schülerimport wartet auf Bestätigung – bitte Vorschau prüfen.', 'info');
         }
 
-        function hideTeachersWuDiff() {
+        function hideTeachersWuDiff(opts) {
+            const restore = !opts || opts.restore !== false;
+            if (
+                restore &&
+                pendingTeachersWuImport &&
+                taTeachers &&
+                typeof pendingTeachersWuImport.backupLines === 'string'
+            ) {
+                taTeachers.value = pendingTeachersWuImport.backupLines;
+                teachersSortState.key = null;
+                teachersSortState.dir = 1;
+                renderTeachersTableFromTextarea();
+            }
             pendingTeachersWuImport = null;
             const box = document.getElementById('tenantTeachersWuDiff');
             if (box) box.hidden = true;
         }
 
+        /** Live-Vorschau in Textarea + Haupttabelle (ohne Autosave, bis bestätigt). */
+        function applyTeachersWuPreviewToMain(mode) {
+            const pending = pendingTeachersWuImport;
+            if (!pending || !taTeachers) return;
+            const merged =
+                mode === 'replace'
+                    ? replaceTeachersImportList(pending.incoming)
+                    : mergeTeachersImportLists(pending.existing || [], pending.incoming);
+            const wu = window.ms365WebuntisExportImport;
+            taTeachers.value =
+                wu && typeof wu.teachersToSemicolonLines === 'function'
+                    ? wu.teachersToSemicolonLines(merged)
+                    : teachersToLines(merged);
+            teachersSortState.key = null;
+            teachersSortState.dir = 1;
+            renderTeachersTableFromTextarea();
+        }
+
         function showTeachersWuDiffPreview(existing, result, routeSuffix) {
             const incoming = result && Array.isArray(result.teachers) ? result.teachers : [];
-            const diff = diffTeachersImport(existing || [], incoming);
+            const existingRows = existing || [];
+            const diff = diffTeachersImport(existingRows, incoming);
+            // Leere lokale Liste ohne Konflikte: direkt übernehmen (Tabelle sofort sichtbar).
+            if (
+                !existingRows.length &&
+                incoming.length &&
+                !(diff.conflicts && diff.conflicts.length)
+            ) {
+                applyTeachersWuImportDirect(incoming, result, routeSuffix);
+                return;
+            }
             pendingTeachersWuImport = {
                 incoming: incoming,
+                existing: existingRows,
+                backupLines: taTeachers ? taTeachers.value : '',
                 result: result || {},
                 diff: diff,
                 routeSuffix: routeSuffix || ''
@@ -6243,6 +6476,8 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 tbody.appendChild(tr);
             }
             box.hidden = false;
+            // Haupttabelle sofort mit Merge-Vorschau füllen (Verwerfen stellt den Stand wieder her).
+            applyTeachersWuPreviewToMain('merge');
             try {
                 focusRegisterTabForImportTarget('teachers');
                 box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -6250,9 +6485,15 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 /* ignore */
             }
             if (diff.conflicts && diff.conflicts.length) {
-                setSummary('WebUntis-Lehrer: bitte E-Mail-Konflikte prüfen, dann übernehmen oder verwerfen.', 'warn');
+                setSummary(
+                    'WebUntis-Lehrer: bitte E-Mail-Konflikte prüfen – die Tabelle unten zeigt die Merge-Vorschau.',
+                    'warn'
+                );
             } else {
-                setSummary('WebUntis-Lehrerimport wartet auf Bestätigung – bitte Vorschau prüfen.', 'info');
+                setSummary(
+                    'WebUntis-Lehrerimport: Tabelle unten zeigt die Vorschau – bitte Zusammenführen, Ersetzen oder Verwerfen.',
+                    'info'
+                );
             }
         }
 
@@ -6276,30 +6517,22 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         function applyPendingTeachersWu(mode) {
             const pending = pendingTeachersWuImport;
             if (!pending) return;
-            const existing = getTeachersFromTextarea();
-            const merged =
-                mode === 'replace'
-                    ? replaceTeachersImportList(pending.incoming)
-                    : mergeTeachersImportLists(existing, pending.incoming);
-            hideTeachersWuDiff();
-            if (taTeachers) {
-                const wu = window.ms365WebuntisExportImport;
-                taTeachers.value =
-                    wu && typeof wu.teachersToSemicolonLines === 'function'
-                        ? wu.teachersToSemicolonLines(merged)
-                        : teachersToLines(merged);
+            const existing = pending.existing || [];
+            // Merge-Vorschau liegt bereits in Textarea/Tabelle; bei Ersetzen neu schreiben.
+            if (mode === 'replace') {
+                applyTeachersWuPreviewToMain('replace');
             }
-            teachersSortState.key = null;
-            teachersSortState.dir = 1;
-            renderTeachersTableFromTextarea();
+            const merged = getTeachersFromTextarea();
             const n = pending.incoming.length;
+            const routeSuffix = pending.routeSuffix || '';
+            hideTeachersWuDiff({ restore: false });
             setSummary(
                 'Lehrkräfte übernommen (' +
                     (mode === 'replace' ? 'Liste ersetzt' : 'zusammengeführt') +
                     '): ' +
                     n +
                     ' aus WebUntis' +
-                    (pending.routeSuffix || ''),
+                    routeSuffix,
                 'ok'
             );
             renderTeacherLifecyclePanel(existing, merged);
@@ -7086,6 +7319,9 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                     beginClassTableCellEdit(rowIdx, focus.field);
                 });
             }
+            if (klassenlehrerPanelApi && typeof klassenlehrerPanelApi.refresh === 'function') {
+                klassenlehrerPanelApi.refresh();
+            }
         }
 
         async function importClassesFromM365Groups() {
@@ -7160,19 +7396,45 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                         console.warn('Klassen Besitzer:', headErr && headErr.message ? headErr.message : headErr);
                     }
                 }
+                // Auch bereits verknüpfte Klassen ohne KV: Besitzer aus M365 nachlesen
+                let kvExisting = { kvFilled: 0 };
+                try {
+                    const enrichCtx = buildClassEnrichContext();
+                    const graphKv = await enrichClassesKvFromGraphOwners(next, {
+                        classTeams: enrichCtx.classTeams,
+                        classGroupMatchByKey: enrichCtx.classGroupMatchByKey,
+                        teachers: getTeachersFromTextarea(),
+                        fetchGroupOwners: graphApi().fetchGroupOwners,
+                        getGraphToken: function () {
+                            return graphApi().getGraphToken();
+                        }
+                    });
+                    if (graphKv && Array.isArray(graphKv.classes)) {
+                        next.length = 0;
+                        graphKv.classes.forEach(function (r) {
+                            next.push(r);
+                        });
+                    }
+                    kvExisting = graphKv.stats || { kvFilled: 0 };
+                } catch (kvErr) {
+                    if (typeof console !== 'undefined' && console.warn) {
+                        console.warn('Klassen KV-Enrich:', kvErr && kvErr.message ? kvErr.message : kvErr);
+                    }
+                }
+                const kvTotal = (headFromOwners.kvFilled || 0) + (kvExisting.kvFilled || 0);
                 setClassesTextareaFromRows(next);
                 renderClassesTableFromTextarea();
                 scheduleAutoSave();
                 const parts = [];
                 if (added) parts.push(added + ' neue Klasse(n)');
                 if (linked) parts.push(linked + ' verknüpft');
-                if (headFromOwners.kvFilled) {
-                    parts.push(headFromOwners.kvFilled + ' Klassenvorstand/Vorstände aus Gruppenbesitzer');
+                if (kvTotal) {
+                    parts.push(kvTotal + ' Klassenvorstand/Vorstände aus Gruppenbesitzer');
                 }
                 if (skipped) parts.push(skipped + ' übersprungen (kein Kürzel)');
                 setSummary(
                     'Microsoft 365: ' + (parts.length ? parts.join(' · ') : 'Keine Änderung.'),
-                    added || linked || headFromOwners.kvFilled ? 'ok' : 'warn'
+                    added || linked || kvTotal ? 'ok' : 'warn'
                 );
             } catch (e) {
                 const msg = e && e.message ? e.message : String(e);
@@ -7731,6 +7993,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
             renderTeachersTableFromTextarea();
             setSummary(`Lehrkräfte importiert: ${out.length} (schulweit)`, 'ok');
             renderTeacherLifecyclePanel(prevTeachers, out);
+            scheduleAutoSave();
         }
 
         function importStudentsRows(jsonRows) {
@@ -7896,6 +8159,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 const verifiedEmailDomains = verifiedDomainsInput ? normStr(verifiedDomainsInput.value || '') : '';
                 const arges = typeof parseLinesToArges === 'function' ? parseLinesToArges(taArges ? taArges.value : '') : [];
                 const administration = getAdministrationEntries();
+                const prevSettings = typeof load === 'function' ? load() : {};
                 const saved = save({
                     schoolName,
                     domain,
@@ -7906,6 +8170,16 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                     administration,
                     admin,
                     adminRoles,
+                    verwaltungAudienceGroups: audienceGroupsSnapshot,
+                    adminAudienceMemberships: audienceMembershipsSnapshot,
+                    verwaltungOrganigramm:
+                        prevSettings && prevSettings.verwaltungOrganigramm
+                            ? prevSettings.verwaltungOrganigramm
+                            : { version: 1, nodes: [] },
+                    schulOrganigramm:
+                        prevSettings && prevSettings.schulOrganigramm
+                            ? prevSettings.schulOrganigramm
+                            : { version: 1, nodes: [] },
                     sgaMode,
                     sga,
                     students,
@@ -8133,7 +8407,9 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         const btnTeachersWuCancel = document.getElementById('tenantTeachersWuDiffCancel');
         if (btnTeachersWuMerge) btnTeachersWuMerge.addEventListener('click', () => applyPendingTeachersWu('merge'));
         if (btnTeachersWuReplace) btnTeachersWuReplace.addEventListener('click', () => applyPendingTeachersWu('replace'));
-        if (btnTeachersWuCancel) btnTeachersWuCancel.addEventListener('click', hideTeachersWuDiff);
+        if (btnTeachersWuCancel) {
+            btnTeachersWuCancel.addEventListener('click', () => hideTeachersWuDiff({ restore: true }));
+        }
 
         function renderActionLog() {
             const ul = document.getElementById('tenantActionLogList');
@@ -8605,12 +8881,17 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         }
 
         if (taTeachers) {
-            taTeachers.addEventListener('input', () => {
+            const refreshTeachersTableFromTa = () => {
                 teachersSortState.key = null;
                 teachersSortState.dir = 1;
                 renderTeachersTableFromTextarea();
-            });
+            };
+            taTeachers.addEventListener('input', refreshTeachersTableFromTa);
             taTeachers.addEventListener('input', () => scheduleAutoSave());
+            // Paste löst in manchen Umgebungen verzögert `input` aus – Tabelle trotzdem sofort aktualisieren.
+            taTeachers.addEventListener('paste', () => {
+                requestAnimationFrame(refreshTeachersTableFromTa);
+            });
         }
         if (teachersTable && !teachersTable.dataset.teachersSortBound) {
             teachersTable.dataset.teachersSortBound = '1';
@@ -8695,6 +8976,13 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
         }
         if (taAdminBundle) {
             taAdminBundle.addEventListener('input', () => {
+                if (typeof window.ms365TenantSettingsParseAdminGroupsLines === 'function') {
+                    const parsed = window.ms365TenantSettingsParseAdminGroupsLines(taAdminBundle.value);
+                    administrationGroupsSnapshot = mergeAdminRolePolicyFromSnapshot(
+                        parsed,
+                        administrationGroupsSnapshot
+                    );
+                }
                 renderAdminRolesTableFromTextarea();
                 renderAdminTableFromTextarea();
                 refreshAdminAudienceBoardUi();
@@ -9313,6 +9601,33 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 scheduleAutoSave();
             });
         }
+        klassenlehrerPanelApi = mountKlassenlehrerPanel({
+            getClasses: getClassesFromTextarea,
+            getTeachers: getTeachersFromTextarea,
+            getBelegung: function () {
+                if (
+                    window.ms365AppDataV2 &&
+                    typeof window.ms365AppDataV2.getUnterrichtsbelegung === 'function'
+                ) {
+                    return window.ms365AppDataV2.getUnterrichtsbelegung();
+                }
+                return null;
+            },
+            saveBelegung: function (snapshot) {
+                if (
+                    window.ms365AppDataV2 &&
+                    typeof window.ms365AppDataV2.setUnterrichtsbelegung === 'function'
+                ) {
+                    window.ms365AppDataV2.setUnterrichtsbelegung(snapshot);
+                }
+            },
+            toast: function (msg, kind) {
+                setSummary(msg, kind === 'ok' ? 'ok' : kind === 'warn' ? 'warn' : 'ok');
+            },
+            onChanged: function () {
+                renderStatusOverview();
+            }
+        });
         if (btnAddClassRow) {
             btnAddClassRow.addEventListener('click', () => {
                 const all = getClassesFromTextarea();
@@ -9396,6 +9711,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                     const ctx = buildClassEnrichContext();
                     const graphResult = await enrichClassesKvFromGraphOwners(working, {
                         classTeams: ctx.classTeams,
+                        classGroupMatchByKey: ctx.classGroupMatchByKey,
                         teachers: getTeachersFromTextarea(),
                         fetchGroupOwners: graphApi().fetchGroupOwners,
                         getGraphToken: function () {
@@ -10110,7 +10426,7 @@ import { renderSchoolYearSelect, bindSchoolYearControls } from './school-year-ui
                 summary.textContent =
                     'WebUntis-Import mit bestehenden Stammdaten abgeglichen (kein Doppelimport). ' +
                     detail +
-                    ' – bitte unten „Speichern“ klicken.';
+                    ' – bitte unten „Speichern“ klicken (aktualisiert auch die Schul-Landkarte).';
                 summary.className =
                     merged.studentDiff && merged.studentDiff.conflicts && merged.studentDiff.conflicts.length
                         ? 'summary warn'

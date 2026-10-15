@@ -31,7 +31,8 @@
         {
             label: 'Zentrale Schuldaten',
             keys: [
-                // inkl. years.*.unterrichtsbelegung in schooltool-data-v2
+                // inkl. years.*.unterrichtsbelegung, core.schulOrganigramm,
+                // core.verwaltungOrganigramm (Legacy), core.administration / adminRoles / admin
                 'ms365-schooltool-data-v2',
                 'ms365-tenant-settings-v1',
                 'ms365-school-email-domain-v1',
@@ -398,11 +399,45 @@
     }
 
     /**
+     * Kurzstatistik aus ms365-schooltool-data-v2 für Inventory/Toast.
+     * @param {object} local collectLocalStorage-Ergebnis
+     */
+    function summarizeSchooltoolForBackup(local) {
+        const raw = local && local['ms365-schooltool-data-v2'];
+        if (raw == null || raw === '') return null;
+        try {
+            const v2 = typeof raw === 'object' ? raw : JSON.parse(String(raw));
+            const core = v2 && v2.core && typeof v2.core === 'object' ? v2.core : {};
+            const org = core.schulOrganigramm && typeof core.schulOrganigramm === 'object' ? core.schulOrganigramm : null;
+            const nodes = org && Array.isArray(org.nodes) ? org.nodes : [];
+            const cur = v2 && v2.years ? String(v2.years.current || '').trim() : '';
+            const bucket =
+                cur && v2.years && v2.years.byLabel && v2.years.byLabel[cur] ? v2.years.byLabel[cur] : null;
+            return {
+                schoolName: String(core.schoolName || '').trim(),
+                domain: String(core.domain || '').trim(),
+                teacherCount: Array.isArray(core.teachers) ? core.teachers.length : 0,
+                studentCount: bucket && Array.isArray(bucket.students) ? bucket.students.length : 0,
+                classCount: bucket && Array.isArray(bucket.classes) ? bucket.classes.length : 0,
+                schulOrganigrammNodeCount: nodes.length,
+                schulOrganigrammContentCount: nodes.filter(function (n) {
+                    return n && String(n.type || '').toLowerCase() !== 'section';
+                }).length
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    /**
      * Vor dem Export: offene Änderungen aus app-data-v2 / Stammdaten in localStorage spiegeln,
      * damit das Backup möglichst vollständig und konsistent ist.
      */
     function syncStorageBeforeBackup() {
         try {
+            if (typeof window.ms365FlushSchulOrganigrammBeforeBackup === 'function') {
+                window.ms365FlushSchulOrganigrammBeforeBackup();
+            }
             if (typeof window.ms365TenantSettingsFlushPendingSave === 'function') {
                 window.ms365TenantSettingsFlushPendingSave();
             }
@@ -574,6 +609,7 @@
         const { schoolName, domain } = readSchoolMeta(storage);
         const inventory = buildInventory(local, session);
         const legacyMirror = buildLegacyMirrorMeta(local);
+        const schooltoolSummary = summarizeSchooltoolForBackup(local);
         const payload = {
             kind: KIND,
             version: VERSION,
@@ -584,17 +620,26 @@
             localKeyCount: Object.keys(local).length,
             sessionKeyCount: Object.keys(session).length,
             inventory: inventory,
+            schooltoolSummary: schooltoolSummary,
             contentFingerprint: contentFingerprint(storage),
             includesPrefixes: ['ms365-', 'webuntis-'],
             includesNote:
-                'Vollständiges App-Backup: Stammdaten (kanonisch v2 inkl. Schulprofil, Verwaltungs-Zielgruppen, Einrichtungsstand), optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, Einrichtung, Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
+                'Vollständiges App-Backup: Stammdaten (kanonisch v2 inkl. Schul-Organigramm, Schulprofil, Verwaltungs-Zielgruppen, Einrichtungsstand), optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, Einrichtung, Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
             excludesNote:
                 'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung und kurzlebige Login-Weiterleitungen.',
             legacyMirror: legacyMirror,
             localStorage: local,
             sessionStorage: session
         };
-        payload.inventorySummary = inventorySummaryText(inventory);
+        let summary = inventorySummaryText(inventory);
+        if (schooltoolSummary && schooltoolSummary.schulOrganigrammNodeCount > 0) {
+            const orgBit =
+                'Schul-Organigramm: ' +
+                schooltoolSummary.schulOrganigrammNodeCount +
+                ' Knoten';
+            summary = summary ? summary + ' · ' + orgBit : orgBit;
+        }
+        payload.inventorySummary = summary;
         return payload;
     }
 
@@ -635,19 +680,7 @@
         const skipped = [];
         const errors = [];
 
-        if (replace) {
-            listAppKeys(store).forEach(function (k) {
-                if (!Object.prototype.hasOwnProperty.call(incoming, k)) {
-                    try {
-                        store.removeItem(k);
-                        removed.push(k);
-                    } catch (e) {
-                        errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
-                    }
-                }
-            });
-        }
-
+        // Zuerst schreiben, dann verwaiste Keys löschen – bei Teilfehler bleiben lokale Daten erhalten.
         Object.keys(incoming).forEach(function (k) {
             if (!isAppStorageKey(k)) {
                 skipped.push(k);
@@ -662,24 +695,6 @@
         });
 
         if (sessionStore) {
-            if (replace) {
-                const n = sessionStore.length || 0;
-                const sessionKeys = [];
-                for (let i = 0; i < n; i++) {
-                    const k = sessionStore.key(i);
-                    if (k && isRestorableSessionKey(k)) sessionKeys.push(k);
-                }
-                sessionKeys.forEach(function (k) {
-                    if (!Object.prototype.hasOwnProperty.call(incomingSession, k)) {
-                        try {
-                            sessionStore.removeItem(k);
-                            sessionRemoved.push(k);
-                        } catch (e) {
-                            errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
-                        }
-                    }
-                });
-            }
             Object.keys(incomingSession).forEach(function (k) {
                 if (!isRestorableSessionKey(k)) {
                     skipped.push(k);
@@ -690,6 +705,51 @@
                     sessionWritten.push(k);
                 } catch (e) {
                     errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                }
+            });
+        }
+
+        if (errors.length) {
+            const err = new Error('Backup nur teilweise geschrieben: ' + errors.slice(0, 3).join('; '));
+            err.details = {
+                written: written,
+                removed: removed,
+                sessionWritten: sessionWritten,
+                sessionRemoved: sessionRemoved,
+                skipped: skipped,
+                errors: errors
+            };
+            throw err;
+        }
+
+        if (replace) {
+            listAppKeys(store).forEach(function (k) {
+                if (!Object.prototype.hasOwnProperty.call(incoming, k)) {
+                    try {
+                        store.removeItem(k);
+                        removed.push(k);
+                    } catch (e) {
+                        errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                    }
+                }
+            });
+        }
+
+        if (sessionStore && replace) {
+            const n = sessionStore.length || 0;
+            const sessionKeys = [];
+            for (let i = 0; i < n; i++) {
+                const k = sessionStore.key(i);
+                if (k && isRestorableSessionKey(k)) sessionKeys.push(k);
+            }
+            sessionKeys.forEach(function (k) {
+                if (!Object.prototype.hasOwnProperty.call(incomingSession, k)) {
+                    try {
+                        sessionStore.removeItem(k);
+                        sessionRemoved.push(k);
+                    } catch (e) {
+                        errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                    }
                 }
             });
         }
@@ -748,6 +808,11 @@
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
+        // Programmatischer a.click() bubbelt bis document – sonst schließt der
+        // Datensicherungs-Dismiss-Handler das Panel und der Export wirkt „tot“.
+        a.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+        });
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -778,14 +843,33 @@
     }
 
     function setStatus(text, kind) {
-        const el = document.getElementById('browserBackupStatus');
-        if (!el) return;
-        el.textContent = text || '';
-        el.style.display = text ? 'block' : 'none';
-        el.classList.toggle('ok', kind === 'ok');
-        el.classList.toggle('warn', kind === 'warn');
-        if (kind) el.setAttribute('data-kind', kind);
-        else el.removeAttribute('data-kind');
+        const els = [
+            document.getElementById('browserBackupStatus'),
+            document.getElementById('ms365BackupPanelStatus')
+        ].filter(Boolean);
+        els.forEach(function (el) {
+            el.textContent = text || '';
+            if (el.id === 'browserBackupStatus') {
+                el.style.display = text ? 'block' : 'none';
+            }
+            el.classList.toggle('ok', kind === 'ok');
+            el.classList.toggle('warn', kind === 'warn');
+            if (el.id === 'ms365BackupPanelStatus') {
+                el.classList.toggle('ms365-backup-panel__status--ok', kind === 'ok');
+                el.classList.toggle('ms365-backup-panel__status--warn', kind === 'warn');
+            }
+            if (kind) el.setAttribute('data-kind', kind);
+            else el.removeAttribute('data-kind');
+        });
+        try {
+            window.dispatchEvent(
+                new CustomEvent('ms365-browser-backup-status', {
+                    detail: { text: text || '', kind: kind || '' }
+                })
+            );
+        } catch {
+            /* ignore */
+        }
     }
 
     function confirmImportMessage(obj) {
@@ -947,8 +1031,17 @@
         });
     }
 
-    function onExportClick() {
+    function onExportClick(ev) {
+        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+        if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
         try {
+            if (typeof syncStorageBeforeBackup === 'function') {
+                try {
+                    syncStorageBeforeBackup();
+                } catch {
+                    /* weiter mit aktuellem Storage */
+                }
+            }
             const payload = downloadBackup();
             let meaningful = false;
             try {
@@ -973,6 +1066,11 @@
                 parts[0] = payload.localKeyCount + ' lokal';
                 if (payload.sessionKeyCount) parts.push(payload.sessionKeyCount + ' Sitzung');
             }
+            try {
+                localStorage.setItem('ms365-last-backup-export-at', new Date().toISOString());
+            } catch {
+                /* ignore */
+            }
             let status = 'Backup gespeichert: ' + parts.join(', ') + '.';
             if (payload.inventorySummary) status += ' ' + payload.inventorySummary + '.';
             if (!meaningful) {
@@ -984,7 +1082,9 @@
                 setStatus(status, 'ok');
             }
             try {
-                localStorage.setItem('ms365-last-backup-export-at', new Date().toISOString());
+                window.dispatchEvent(new CustomEvent('ms365-browser-backup-status', {
+                    detail: { text: status, kind: meaningful ? 'ok' : 'warn' }
+                }));
             } catch {
                 /* ignore */
             }
@@ -1053,12 +1153,49 @@
         });
     }
 
+    function resolveImportFileInput(fromEl) {
+        if (!fromEl) return document.getElementById('browserBackupImportFile');
+        const panel = fromEl.closest('#ms365BackupPanel, #ms365BackupHeader');
+        if (panel) {
+            const panelInput = panel.querySelector('[data-ms365-backup="import-file"], #ms365BackupPanelImportFile');
+            if (panelInput) return panelInput;
+        }
+        return (
+            document.getElementById('ms365BackupPanelImportFile') ||
+            document.getElementById('browserBackupImportFile')
+        );
+    }
+
+    function onImportClick(ev) {
+        if (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+        }
+        const input = resolveImportFileInput(ev && ev.currentTarget);
+        if (!input) {
+            setStatus('Import nicht verfügbar (Dateiauswahl fehlt).', 'warn');
+            return;
+        }
+        bindImportInput(input);
+        try {
+            input.click();
+        } catch (e) {
+            setStatus('Import fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
+        }
+    }
+
     function bindUi() {
+        // Direkte Buttons (Stammdaten-Seite u. a.)
         const exportBtns = document.querySelectorAll('#browserBackupExport, [data-ms365-backup="export"]');
         exportBtns.forEach(function (btn) {
             if (!btn || btn.dataset.ms365BackupBound === '1') return;
             btn.dataset.ms365BackupBound = '1';
             btn.addEventListener('click', onExportClick);
+        });
+        document.querySelectorAll('[data-ms365-backup="import"]').forEach(function (btn) {
+            if (!btn || btn.dataset.ms365BackupBound === '1') return;
+            btn.dataset.ms365BackupBound = '1';
+            btn.addEventListener('click', onImportClick);
         });
         const fileImport = document.getElementById('browserBackupImportFile');
         bindImportInput(fileImport);
@@ -1068,6 +1205,38 @@
             btn.dataset.ms365BackupBound = '1';
             btn.addEventListener('click', onResetClick);
         });
+        // Event-Delegation: dynamisch erzeugte Kopfzeilen-Buttons (nach MSAL) immer erreichbar
+        if (!bindUi._delegated) {
+            bindUi._delegated = true;
+            document.addEventListener(
+                'click',
+                function (ev) {
+                    const t = ev.target;
+                    if (!t || typeof t.closest !== 'function') return;
+                    const exportBtn = t.closest('[data-ms365-backup="export"], #browserBackupExport');
+                    if (exportBtn) {
+                        // Schon direkt gebunden → nicht doppelt
+                        if (exportBtn.dataset.ms365BackupBound === '1') return;
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        onExportClick(ev);
+                        return;
+                    }
+                    const importBtn = t.closest('[data-ms365-backup="import"]');
+                    if (importBtn) {
+                        if (importBtn.dataset.ms365BackupBound === '1') return;
+                        onImportClick(ev);
+                        return;
+                    }
+                    const resetBtn = t.closest('[data-ms365-backup="reset"]');
+                    if (resetBtn) {
+                        if (resetBtn.dataset.ms365BackupBound === '1') return;
+                        onResetClick(ev);
+                    }
+                },
+                true
+            );
+        }
         refreshBackupReminder();
     }
 

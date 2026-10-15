@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_CLIENT_ID": "12e0cfe2-8337-4b35-93e8-542faf658eb3",
+    "ELECTION_TOKEN_AUDIENCES": "12e0cfe2-8337-4b35-93e8-542faf658eb3,api://12e0cfe2-8337-4b35-93e8-542faf658eb3",
+    "ELECTION_REQUIRED_SCOPES": "Election.Access,License.Access",
+    "ELECTION_VOTER_PEPPER": "HIER-ZUFALLSSTRING-NICHT-INS-REPO",
+    "ELECTION_STORAGE_CONNECTION": ""
+  }
+}

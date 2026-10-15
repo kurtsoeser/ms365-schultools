@@ -10,6 +10,7 @@
     <title>MS365-Schul-Tools – Verwaltung</title>
     <link rel="stylesheet" href="../app.css?v=14">
     <link rel="stylesheet" href="../src/shared/group-detail/group-detail.css">
+    <link rel="stylesheet" href="../src/tools/schul-organigramm/schul-organigramm.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -32,7 +33,29 @@
 
         <div class="content">
             <div id="vwSplitMigrationBanner" class="vw-split-banner" hidden aria-live="polite"></div>
-            <div class="gd-layout gd-layout--split">
+            <div class="vw-view-toggle" role="tablist" aria-label="Ansicht Verwaltung">
+                <button type="button" class="btn vw-view-toggle__btn is-active" id="vwViewList" role="tab" aria-selected="true" aria-controls="vwLayoutList" tabindex="0"><i class="bi bi-layout-sidebar" aria-hidden="true"></i>Liste &amp; Detail</button>
+                <button type="button" class="btn vw-view-toggle__btn" id="vwViewOrg" role="tab" aria-selected="false" aria-controls="vwOrganigrammPanel" tabindex="-1"><i class="bi bi-diagram-3" aria-hidden="true"></i>Organigramm</button>
+            </div>
+            <section id="vwOrganigrammPanel" class="vw-org panel" hidden role="tabpanel" aria-labelledby="vwViewOrg" aria-hidden="true">
+                <div class="panel-head">
+                    <h2><i class="bi bi-diagram-3" style="margin-right:10px;"></i>Schul-Organigramm</h2>
+                    <p class="muted" style="margin:8px 0 0;line-height:1.45;">
+                        Die Organigramm-Pflege liegt im <strong>Schul-Organigramm</strong> (gesamte Schule inkl. ARGEs und Klassen).
+                        Ein vorhandenes Verwaltungs-Organigramm wird automatisch übernommen und bleibt archiviert.
+                        Rollen &amp; Personen für M365-Gruppen pflegen Sie weiter in der Listenansicht.
+                    </p>
+                    <p class="vw-org-legacy-actions" style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:8px;">
+                        <a class="btn btn-sm btn-primary" href="./schul-organigramm.html"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Vollbild öffnen</a>
+                        <a class="btn btn-sm" href="../tenant.html#organigramm"><i class="bi bi-database" aria-hidden="true"></i> In Stammdaten</a>
+                    </p>
+                </div>
+                <div class="panel-body">
+                    <p id="vwOrgMeta" class="muted vw-org__meta" aria-live="polite" hidden>–</p>
+                    <div id="vwOrgChart" class="vw-org-schul-host schul-org--embedded" aria-label="Schul-Organigramm (eingebettet)"></div>
+                </div>
+            </section>
+            <div id="vwLayoutList" class="gd-layout gd-layout--split" role="tabpanel" aria-labelledby="vwViewList" aria-hidden="false">
                 <section class="panel" aria-label="Gruppen auswählen">
                     <div class="panel-head">
                         <h2><i class="bi bi-list-ul" style="margin-right:10px;"></i>Liste</h2>
@@ -150,11 +173,12 @@
                                     <input type="text" id="vwRoleCode" maxlength="24" autocomplete="off" spellcheck="false" placeholder="z. B. SEKRETARIAT">
                                 </div>
                                 <div class="field">
-                                    <label for="vwRoleSeatMode">Besetzung</label>
+                                    <label for="vwRoleSeatMode">Besetzung (Hinweis)</label>
                                     <select id="vwRoleSeatMode">
-                                        <option value="single">genau eine Person (z. B. Schularzt)</option>
-                                        <option value="multi">mehrere Personen (z. B. Sekretariat, Schulwart)</option>
+                                        <option value="single">Einzelrolle – typisch eine Person (z. B. Schularzt)</option>
+                                        <option value="multi">Team-Rolle – mehrere Personen (z. B. Sekretariat)</option>
                                     </select>
+                                    <p class="muted" style="margin:6px 0 0;font-size:0.85em;">Weitere Personen sind immer möglich; Farbe/Badge richten sich nach der aktuellen Besetzung.</p>
                                 </div>
                                 <div class="field">
                                     <label for="vwRoleM365Kind">Microsoft 365 (optional)</label>
@@ -194,6 +218,7 @@
                             </div>
                             <div class="detail-actions">
                                 <button type="button" class="btn btn-success" id="vwBtnAddPerson"><i class="bi bi-person-plus"></i>Person</button>
+                                <button type="button" class="btn btn-primary" id="vwBtnAddPersonFromM365" title="Person(en) in Microsoft Entra suchen und dieser Rolle zuordnen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365</button>
                             </div>
                         </div>
                 </section>
@@ -231,6 +256,7 @@
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script src="../src/shared/group-photo-thumb.js" defer></script>
+    <script src="../src/shared/user-photo-thumb.js" defer></script>
     <script src="../src/shared/group-detail/group-detail.js" defer></script>
     <script src="../src/tools/schueler-lehrer-gruppen/slg-live-details.js" defer></script>
     <script src="../src/shared/action-log.js" defer></script>
@@ -239,6 +265,9 @@
     <script type="module" src="../src/shared/membership-review-ui.js"></script>
     <script type="module" src="../src/shared/administration-audience-bridge.js"></script>
     <script type="module" src="../src/tools/verwaltung/verwaltung-split-migration-ui.js"></script>
+    <script type="module" src="../src/tools/verwaltung/verwaltung-organigramm-logic.js"></script>
+    <script type="module" src="../src/tools/schul-organigramm/schul-organigramm-logic.js"></script>
+    <script type="module" src="../src/tools/schul-organigramm/schul-organigramm-ui.js"></script>
     <script src="../src/tools/verwaltung/verwaltung-gruppenverwaltung.js" defer></script>
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
 </body>

@@ -30,6 +30,13 @@ const TAB_HASH_TO_BTN = {
     klassen: 'tabMainKlassen',
     classes: 'tabMainKlassen',
     panelclasses: 'tabMainKlassen',
+    klassenlehrer: 'tabMainKlassenlehrer',
+    klassenvorstand: 'tabMainKlassenlehrer',
+    kv: 'tabMainKlassenlehrer',
+    organigramm: 'tabMainOrganigramm',
+    'schul-organigramm': 'tabMainOrganigramm',
+    schulorganigramm: 'tabMainOrganigramm',
+    org: 'tabMainOrganigramm',
     datenlandkarte: 'tabMainDatenlandkarte',
     landkarte: 'tabMainDatenlandkarte',
     'daten-landkarte': 'tabMainDatenlandkarte',
@@ -39,6 +46,7 @@ const TAB_HASH_TO_BTN = {
 
 const BTN_TO_TAB_HASH = {
     tabMainStammdaten: 'stammdaten',
+    tabMainOrganigramm: 'organigramm',
     tabMainSubjects: 'faecher',
     tabMainArges: 'arge',
     tabMainVerwaltung: 'verwaltung',
@@ -47,6 +55,7 @@ const BTN_TO_TAB_HASH = {
     tabMainSchueler: 'schueler',
     tabMainSchuelervertretung: 'schuelervertretung',
     tabMainKlassen: 'klassen',
+    tabMainKlassenlehrer: 'klassenlehrer',
     tabMainDatenlandkarte: 'datenlandkarte'
 };
 

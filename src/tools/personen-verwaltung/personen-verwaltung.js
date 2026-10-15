@@ -40,6 +40,11 @@ import {
     saveProfilePatch,
     resetProfileFromGraph
 } from './personen-verwaltung-profile-ui.js';
+import {
+    init as initSchulstrukturUi,
+    renderSchulstrukturTab,
+    reloadSchulstrukturTab
+} from './personen-verwaltung-schulstruktur-ui.js';
 
 import { pv } from './personen-verwaltung-state.js';
 const USER_LIST_SELECT = pv.USER_LIST_SELECT;
@@ -230,12 +235,14 @@ function updateDetailActionButtons() {
 function setTab(tab) {
     if (tab === 'gruppen') pv.activeTab = 'gruppen';
     else if (tab === 'lizenzen') pv.activeTab = 'lizenzen';
+    else if (tab === 'schulstruktur') pv.activeTab = 'schulstruktur';
     else pv.activeTab = 'profil';
 
     const rows = [
         ['profil', 'pvPanelProfil', 'pvTabProfil'],
         ['lizenzen', 'pvPanelLizenzen', 'pvTabLizenzen'],
-        ['gruppen', 'pvPanelGruppen', 'pvTabGruppen']
+        ['gruppen', 'pvPanelGruppen', 'pvTabGruppen'],
+        ['schulstruktur', 'pvPanelSchulstruktur', 'pvTabSchulstruktur']
     ];
     rows.forEach(function (row) {
         const on = pv.activeTab === row[0];
@@ -255,6 +262,9 @@ function setTab(tab) {
     }
     if (pv.activeTab === 'lizenzen' && pv.selectedUserId) {
         renderLicenseTab();
+    }
+    if (pv.activeTab === 'schulstruktur' && pv.selectedUserId) {
+        renderSchulstrukturTab(getSelectedUser());
     }
 }
 
@@ -534,6 +544,7 @@ function bind() {
         initLicensePanel(api);
         initSearchUi(api);
         initGroupsUi(api);
+        initSchulstrukturUi(api);
 
     const btnLoad = document.getElementById('pvBtnLoad');
     const btnCsv = document.getElementById('pvBtnCsv');
@@ -633,6 +644,9 @@ function bind() {
     document.getElementById('pvGroupsReloadBtn')?.addEventListener('click', function () {
         pv.cachedGroupsForSelection = null;
         loadGroupsForSelected();
+    });
+    document.getElementById('pvSchulstrukturReloadBtn')?.addEventListener('click', function () {
+        reloadSchulstrukturTab();
     });
     const grpPanel = document.getElementById('pvPanelGruppen');
     if (grpPanel) {

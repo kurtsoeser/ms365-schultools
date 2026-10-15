@@ -10,12 +10,15 @@ import {
     setupPageHref,
     loadItMeta,
     loadLocalSyncMeta,
-    uploadCurrentBackup,
-    downloadCurrentBackup
+    uploadCurrentBackup
 } from './stammdaten-sharepoint-sync-api.js';
 import * as autoSync from './stammdaten-sharepoint-auto-sync.js';
 import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
-import { applySharePointBackupLocally } from './stammdaten-sharepoint-pull-apply.js';
+import {
+    applySharePointBackupLocally,
+    applySharePointSelectiveImportLocally
+} from './stammdaten-sharepoint-pull-apply.js';
+import { pickAndDownloadSharePointBackup } from './stammdaten-sharepoint-backup-picker-ui.js';
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -75,7 +78,7 @@ async function runUpload(btns) {
         return;
     }
     const ok = await confirmAsync(
-        'Aktuelle Schul- und App-Daten (vollständiges Browser-Backup inkl. Stammdaten, Power Automate und Werkzeugstände) jetzt in die SharePoint-IT-Bibliothek „' +
+        'Aktuelle Schul- und App-Daten (vollständiges Browser-Backup inkl. Stammdaten, Schul-Organigramm, Power Automate und Werkzeugstände) jetzt in die SharePoint-IT-Bibliothek „' +
             (loadItMeta().listTitle || IT_LIBRARY_TITLE) +
             '“ schreiben?',
         { title: 'Nach SharePoint sichern', confirmLabel: 'Sichern', cancelLabel: 'Abbrechen' }
@@ -83,12 +86,35 @@ async function runUpload(btns) {
     if (!ok) return;
     setBusy(btns, true);
     try {
-        await uploadCurrentBackup({ folder: DEFAULT_FOLDER });
+        const uploaded = await uploadCurrentBackup({
+            folder: DEFAULT_FOLDER,
+            force: true,
+            checkConflict: false
+        });
         refreshStatus();
-        toast('Schul-/App-Daten in SharePoint gesichert.');
+        const orgN =
+            uploaded &&
+            uploaded.payload &&
+            uploaded.payload.schooltoolSummary &&
+            uploaded.payload.schooltoolSummary.schulOrganigrammNodeCount;
+        toast(
+            orgN > 0
+                ? 'Schul-/App-Daten in SharePoint gesichert (inkl. Schul-Organigramm: ' +
+                      orgN +
+                      ' Knoten).'
+                : 'Schul-/App-Daten in SharePoint gesichert.'
+        );
     } catch (e) {
         if (e && e.code === 'IT_LIBRARY_MISSING') {
             goToSetup(e.message);
+            return;
+        }
+        if (e && e.code === 'spo-push-conflict') {
+            toast(
+                (e.message || 'Konflikt') +
+                    ' Bitte Backup-Abgleich öffnen und entscheiden.',
+                { kind: 'warning' }
+            );
             return;
         }
         toast(e && e.message ? e.message : String(e));
@@ -104,7 +130,15 @@ async function runLoad(btns) {
     }
     setBusy(btns, true);
     try {
-        const preview = await downloadCurrentBackup({ folder: DEFAULT_FOLDER, apply: false });
+        const preview = await pickAndDownloadSharePointBackup({
+            folder: DEFAULT_FOLDER,
+            apply: false,
+            title: 'Von SharePoint einlesen'
+        });
+        if (!preview) {
+            toast('Abgebrochen.');
+            return;
+        }
         const obj = preview.payload || {};
         const item = preview.item || {};
         const choice = await resolveSharePointImportChoice(obj, {
@@ -122,7 +156,7 @@ async function runLoad(btns) {
             return;
         }
         if (choice === 'push-local') {
-            await uploadCurrentBackup({ folder: DEFAULT_FOLDER });
+            await uploadCurrentBackup({ folder: DEFAULT_FOLDER, force: true, checkConflict: false });
             toast('Lokaler Stand nach SharePoint gesichert.');
             refreshStatus();
             return;
@@ -134,8 +168,16 @@ async function runLoad(btns) {
                   dirty: false
               })
             : null;
-        applySharePointBackupLocally(obj, syncMeta, { reload: false });
-        toast('Backup übernommen.');
+        if (choice && typeof choice === 'object' && choice.action === 'import-selective') {
+            const applied = applySharePointSelectiveImportLocally(obj, choice.selectedIds || [], syncMeta, {
+                reload: false
+            });
+            const n = applied && applied.writtenKeys ? applied.writtenKeys.length : 0;
+            toast('Auswahl übernommen (' + n + ' Schlüssel).');
+        } else {
+            applySharePointBackupLocally(obj, syncMeta, { reload: false });
+            toast('Backup vollständig übernommen.');
+        }
         const reload = await confirmAsync('Seite jetzt neu laden?', {
             title: 'Neu laden',
             confirmLabel: 'Neu laden',
@@ -190,6 +232,44 @@ function bind() {
             });
         }
     });
+
+    // Delegation für dynamisch erzeugte Kopfzeilen-Buttons
+    if (!bind._delegated) {
+        bind._delegated = true;
+        document.addEventListener(
+            'click',
+            function (ev) {
+                const t = ev.target;
+                if (!t || typeof t.closest !== 'function') return;
+                const upload = t.closest('[data-ms365-spo-sync="upload"]');
+                if (upload) {
+                    if (upload.dataset.spoBound === '1') return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const btns = Array.from(
+                        document.querySelectorAll(
+                            '[data-ms365-spo-sync="upload"], [data-ms365-spo-sync="load"]'
+                        )
+                    );
+                    runUpload(btns);
+                    return;
+                }
+                const load = t.closest('[data-ms365-spo-sync="load"]');
+                if (load) {
+                    if (load.dataset.spoBound === '1') return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const btns = Array.from(
+                        document.querySelectorAll(
+                            '[data-ms365-spo-sync="upload"], [data-ms365-spo-sync="load"]'
+                        )
+                    );
+                    runLoad(btns);
+                }
+            },
+            true
+        );
+    }
 
     refreshStatus();
     try {

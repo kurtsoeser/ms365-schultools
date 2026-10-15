@@ -94,6 +94,111 @@ export function isLikelyImportableBackupFileName(fileName, opts) {
     return false;
 }
 
+/** @param {string} [fileName] */
+export function isCurrentBackupFileName(fileName) {
+    return String(fileName || '').trim().toLowerCase() === CURRENT_FILE.toLowerCase();
+}
+
+/**
+ * @param {number|string|null|undefined} size
+ */
+export function formatDriveItemSizeDe(size) {
+    if (size == null || size === '') return '';
+    const n = Number(size);
+    if (!Number.isFinite(n) || n < 0) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/**
+ * @param {string} [iso]
+ */
+export function formatDriveItemWhenDe(iso) {
+    const s = String(iso || '').trim();
+    if (!s) return '';
+    return s.replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC').replace(/\.\d+Z$/, ' UTC').slice(0, 22);
+}
+
+/**
+ * Dateien aus einem Drive-Listing, die als Import-Backup infrage kommen.
+ * @param {Array<{ id?: string, name?: string, file?: object, folder?: object, size?: number, lastModifiedDateTime?: string, webUrl?: string }>} items
+ * @param {{ folder?: string }} [opts]
+ */
+export function filterImportableBackupDriveItems(items, opts) {
+    return (items || []).filter(function (row) {
+        return !!(row && row.file && row.id && isLikelyImportableBackupFileName(row.name, opts));
+    });
+}
+
+/**
+ * „aktuell“ zuerst, danach neueste Änderung zuerst.
+ * @param {Array<{ name?: string, lastModifiedDateTime?: string }>} items
+ */
+export function sortBackupFilesForPicker(items) {
+    const list = (items || []).slice();
+    list.sort(function (a, b) {
+        const aCur = isCurrentBackupFileName(a && a.name) ? 0 : 1;
+        const bCur = isCurrentBackupFileName(b && b.name) ? 0 : 1;
+        if (aCur !== bCur) return aCur - bCur;
+        const at = Date.parse(String((a && a.lastModifiedDateTime) || '')) || 0;
+        const bt = Date.parse(String((b && b.lastModifiedDateTime) || '')) || 0;
+        if (at !== bt) return bt - at;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''), 'de', {
+            sensitivity: 'base'
+        });
+    });
+    return list;
+}
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   size?: number,
+ *   lastModifiedDateTime?: string,
+ *   webUrl?: string,
+ *   folder?: string,
+ *   isCurrent: boolean,
+ *   sizeLabel: string,
+ *   whenLabel: string,
+ *   badgeLabel: string,
+ *   subtitle: string
+ * }} BackupPickerEntry
+ */
+
+/**
+ * @param {Array<{ id?: string, name?: string, file?: object, size?: number, lastModifiedDateTime?: string, webUrl?: string }>} items
+ * @param {{ folder?: string }} [opts]
+ * @returns {BackupPickerEntry[]}
+ */
+export function buildBackupPickerEntries(items, opts) {
+    const folder = normalizeDriveListFolder(opts && opts.folder) || DEFAULT_FOLDER;
+    const filtered = filterImportableBackupDriveItems(items, { folder: folder });
+    return sortBackupFilesForPicker(filtered).map(function (row) {
+        const name = String(row.name || '').trim();
+        const isCurrent = isCurrentBackupFileName(name);
+        const whenLabel = formatDriveItemWhenDe(row.lastModifiedDateTime);
+        const sizeLabel = formatDriveItemSizeDe(row.size);
+        const bits = [];
+        if (whenLabel) bits.push(whenLabel);
+        if (sizeLabel) bits.push(sizeLabel);
+        return {
+            id: String(row.id),
+            name: name,
+            size: row.size,
+            lastModifiedDateTime: row.lastModifiedDateTime || '',
+            webUrl: row.webUrl || '',
+            folder: folder,
+            isCurrent: isCurrent,
+            sizeLabel: sizeLabel,
+            whenLabel: whenLabel,
+            badgeLabel: isCurrent ? 'aktuell' : '',
+            subtitle: bits.join(' · ')
+        };
+    });
+}
+
 export function sortDriveBrowserItemsByColumn(items, key, dir) {
     const list = (items || []).filter(Boolean);
     const d = dir === -1 ? -1 : 1;
@@ -150,8 +255,8 @@ export function designHintBulletsDe() {
             '“, Datei ' +
             CURRENT_FILE +
             ').',
-        'Zusätzlich aufgeteilte Schul-Konfiguration unter „config/“ (manifest.json, Stammdaten, Dashboard, Berechtigungsdateien inkl. optionaler Jahrgangs-Gruppen).',
-        'Enthalten: Stammdaten, Dashboard-Zugriff, Power Automate/Freistellung und weitere Werkzeugstände im Monolithen.',
+        'Zusätzlich aufgeteilte Schul-Konfiguration unter „config/“ (manifest.json, Stammdaten, Schul-Organigramm, Dashboard, Berechtigungsdateien inkl. optionaler Jahrgangs-Gruppen).',
+        'Enthalten: Stammdaten inkl. Schul-Organigramm, Dashboard-Zugriff, Power Automate/Freistellung und weitere Werkzeugstände im Monolithen.',
         'Rechte: Vererbung gebrochen – nur Site-Besitzer und die gewählte IT-/Verwaltungsgruppe.',
         'Schüler-/Elternlisten sind bewusst keine SharePoint-Listenzeilen.'
     ];
@@ -471,27 +576,69 @@ function formatWhenDe(iso) {
 }
 
 /**
+ * Sync-/Einrichtungs-Keys ohne echten Schulinhalt – zählen nicht als „lokaler Stand“.
+ * Stiller Auto-Import darf nur bei wirklich leerem Browser greifen.
+ */
+const FRESH_LOCAL_IGNORE_KEYS = {
+    'ms365-stammdaten-spo-sync-v1': true,
+    'ms365-stammdaten-spo-sync-by-tenant-v2': true,
+    'ms365-stammdaten-it-library-v1': true,
+    'ms365-stammdaten-it-library-by-tenant-v2': true,
+    'ms365-last-backup-export-at': true,
+    'ms365-demo-mode-v1': true,
+    'ms365-onboarding-welcome-v1': true
+};
+
+function isEmptyStorageValue(v) {
+    if (v == null) return true;
+    if (typeof v === 'string') {
+        const s = v.trim();
+        return !s || s === '{}' || s === '[]' || s === 'null' || s === '""';
+    }
+    if (typeof v === 'object') {
+        try {
+            return !Object.keys(v).length;
+        } catch {
+            return false;
+        }
+    }
+    return false;
+}
+
+/**
+ * Ob lokal praktisch kein Schul-/App-Inhalt liegt (nur dann Silent-Import erlaubt).
+ * Früher: leeres schooltool-data-v2 → „frisch“ trotz vieler Werkzeug-Keys → Datenverlust.
  * @param {object|null|undefined} payload Browser-Backup (buildBackup / SharePoint-JSON)
  */
 export function isLikelyFreshLocalBackup(payload) {
     const loc = payload && payload.localStorage;
     if (!loc || typeof loc !== 'object') return true;
-    const keys = Object.keys(loc).filter(function (k) {
-        return k.indexOf('ms365-') === 0 || k.indexOf('webuntis-') === 0;
-    });
+
     const raw = loc['ms365-schooltool-data-v2'];
     if (raw != null && raw !== '') {
         try {
             const data = typeof raw === 'object' ? raw : JSON.parse(String(raw));
             const years = data.years && typeof data.years === 'object' ? Object.keys(data.years) : [];
             if (years.length) return false;
+            if (data.core && typeof data.core === 'object') {
+                const coreKeys = Object.keys(data.core).filter(function (k) {
+                    return !isEmptyStorageValue(data.core[k]);
+                });
+                if (coreKeys.length) return false;
+            }
         } catch {
-            /* weiter unten */
+            /* nicht parsebar, aber vorhanden → nicht als leer werten */
+            return false;
         }
     }
-    if (keys.length <= 2) return true;
-    if (raw == null || raw === '') return true;
-    return keys.length < 5;
+
+    const meaningful = Object.keys(loc).filter(function (k) {
+        if (k.indexOf('ms365-') !== 0 && k.indexOf('webuntis-') !== 0) return false;
+        if (FRESH_LOCAL_IGNORE_KEYS[k]) return false;
+        if (k.indexOf('ms365-spo-auto-pull-done-v1') === 0) return false;
+        return !isEmptyStorageValue(loc[k]);
+    });
+    return meaningful.length === 0;
 }
 
 /**
@@ -641,6 +788,35 @@ export function summarizeSchooltoolFromBackup(payload) {
         adminAudienceMembershipCount: Array.isArray(core.adminAudienceMemberships)
             ? core.adminAudienceMemberships.length
             : 0,
+        adminRoleCount: Array.isArray(core.adminRoles)
+            ? core.adminRoles.length
+            : Array.isArray(core.administration)
+              ? core.administration.length
+              : 0,
+        adminPeopleCount: Array.isArray(core.admin)
+            ? core.admin.length
+            : Array.isArray(core.administration)
+              ? core.administration.reduce(function (n, g) {
+                    return n + (Array.isArray(g && g.people) ? g.people.length : 0);
+                }, 0)
+              : 0,
+        organigrammNodeCount:
+            core.verwaltungOrganigramm && Array.isArray(core.verwaltungOrganigramm.nodes)
+                ? core.verwaltungOrganigramm.nodes.length
+                : 0,
+        schulOrganigrammNodeCount:
+            core.schulOrganigramm && Array.isArray(core.schulOrganigramm.nodes)
+                ? core.schulOrganigramm.nodes.length
+                : 0,
+        schulOrganigrammContentCount: (function () {
+            const nodes =
+                core.schulOrganigramm && Array.isArray(core.schulOrganigramm.nodes)
+                    ? core.schulOrganigramm.nodes
+                    : [];
+            return nodes.filter(function (n) {
+                return n && String(n.type || '').toLowerCase() !== 'section';
+            }).length;
+        })(),
         hasSchoolProfileLogo: !!String(sp.logoDataUrl || '').trim(),
         schuelerGroupLinked: !!String(matched.schuelerGroupId || '').trim(),
         lehrerGroupLinked: !!String(matched.lehrerGroupId || '').trim(),
@@ -689,6 +865,26 @@ export function compareSchooltoolSummaries(localPayload, remotePayload) {
         'Zielgruppen-Mitgliedschaften',
         local.adminAudienceMembershipCount,
         remote.adminAudienceMembershipCount
+    );
+    row('adminRoles', 'Verwaltungsrollen', local.adminRoleCount, remote.adminRoleCount);
+    row('adminPeople', 'Verwaltungspersonen', local.adminPeopleCount, remote.adminPeopleCount);
+    row(
+        'verwaltungOrganigramm',
+        'Verwaltung-Organigramm (Legacy)',
+        local.organigrammNodeCount,
+        remote.organigrammNodeCount
+    );
+    row(
+        'schulOrganigramm',
+        'Schul-Organigramm (Knoten)',
+        local.schulOrganigrammNodeCount,
+        remote.schulOrganigrammNodeCount
+    );
+    row(
+        'schulOrganigrammContent',
+        'Schul-Organigramm (Einträge ohne Bereiche)',
+        local.schulOrganigrammContentCount,
+        remote.schulOrganigrammContentCount
     );
     row('logo', 'Schullogo gesetzt', local.hasSchoolProfileLogo ? 'ja' : 'nein', remote.hasSchoolProfileLogo ? 'ja' : 'nein');
     row(
@@ -819,6 +1015,8 @@ export function isAutoSyncIgnoredChangeSource(sourceOrReason) {
     return (
         s === 'browser-backup-import' ||
         s === 'spo-backup-import' ||
+        s === 'spo-selective-import' ||
+        s === 'spo-config-bundle-import' ||
         s === 'spo-auto-pull' ||
         s === 'spo-auto-push' ||
         s === 'render' ||
@@ -909,6 +1107,13 @@ export default {
     SPO_ROLE,
     buildDriveRelativePath,
     encodeDriveRootPath,
+    isLikelyImportableBackupFileName,
+    isCurrentBackupFileName,
+    formatDriveItemSizeDe,
+    formatDriveItemWhenDe,
+    filterImportableBackupDriveItems,
+    sortBackupFilesForPicker,
+    buildBackupPickerEntries,
     designHintDe,
     describeRemoteBackup,
     isBroadSiteAudience,

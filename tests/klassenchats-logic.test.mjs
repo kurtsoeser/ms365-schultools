@@ -141,6 +141,11 @@ describe('klassenchats-logic', () => {
         expect(isCombinedClassCell('1AK1BK1CK')).toBe(true);
         expect(expandKlasseToKnownCodes('1AK1BK1CK', stammdaten)).toEqual(['1AK', '1BK', '1CK']);
         expect(expandKlasseToKnownCodes('1AK~1BK', stammdaten)).toEqual(['1AK', '1BK']);
+        expect(isCombinedClassCell('2HMA/2HMB')).toBe(true);
+        expect(expandKlasseToKnownCodes('2HMA/2HMB', [{ code: '2HMA' }, { code: '2HMB' }])).toEqual([
+            '2HMA',
+            '2HMB'
+        ]);
 
         const belegung = {
             rows: [

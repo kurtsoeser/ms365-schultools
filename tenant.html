@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="src/shared/tenant-register-ui.css">
     <link rel="stylesheet" href="src/tools/datenlandkarte/datenlandkarte.css">
+    <link rel="stylesheet" href="src/tools/schul-organigramm/schul-organigramm.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* Layout-Breite ist zentral in app.css definiert (page-card/container) */
@@ -696,7 +697,7 @@
                         <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-cloud" aria-hidden="true"></i>SharePoint (IT)<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                         <div class="ts-register-save-drop__panel" role="menu">
                             <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>
-                            <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Vollbackup laden – überschreibt lokale Daten"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>
+                            <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Backup-Datei wählen – Abgleich mit optionalem selektivem Import"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>
                             <a class="ts-register-save-link" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" role="menuitem"><i class="bi bi-shield-lock" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>
                         </div>
                     </details>
@@ -733,9 +734,11 @@
                             <button type="button" class="tab-btn" id="tabMainArges" role="tab" aria-selected="false" aria-controls="panelMainArges"><i class="bi bi-diagram-3" aria-hidden="true"></i>ARGE</button>
                             <button type="button" class="tab-btn" id="tabMainLehrer" role="tab" aria-selected="false" aria-controls="panelMainLehrer"><i class="bi bi-person-workspace" aria-hidden="true"></i>Lehrer</button>
                             <button type="button" class="tab-btn" id="tabMainKlassen" role="tab" aria-selected="false" aria-controls="panelMainKlassen"><i class="bi bi-mortarboard" aria-hidden="true"></i>Klassen</button>
+                            <button type="button" class="tab-btn" id="tabMainKlassenlehrer" role="tab" aria-selected="false" aria-controls="panelMainKlassenlehrer"><i class="bi bi-person-badge" aria-hidden="true"></i>Lehrer je Klasse</button>
                             <button type="button" class="tab-btn" id="tabMainSchueler" role="tab" aria-selected="false" aria-controls="panelStudentsData"><i class="bi bi-people" aria-hidden="true"></i>Schüler</button>
                             <button type="button" class="tab-btn" id="tabMainSchuelervertretung" role="tab" aria-selected="false" aria-controls="panelStudentCouncilData"><i class="bi bi-megaphone" aria-hidden="true"></i>Schülervertretung</button>
                             <button type="button" class="tab-btn" id="tabMainSga" role="tab" aria-selected="false" aria-controls="panelMainSga"><i class="bi bi-megaphone" aria-hidden="true"></i>SGA</button>
+                            <button type="button" class="tab-btn" id="tabMainOrganigramm" role="tab" aria-selected="false" aria-controls="panelMainOrganigramm"><i class="bi bi-diagram-3" aria-hidden="true"></i>Organigramm</button>
                             <button type="button" class="tab-btn" id="tabMainDatenlandkarte" role="tab" aria-selected="false" aria-controls="panelMainDatenlandkarte"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>Datenlandkarte</button>
                         </div>
                         </div>
@@ -1088,7 +1091,7 @@
                                         <div id="tenantSgaBoardTeachers" class="ts-sga-board__slots"></div>
                                     </div>
                                     <div class="ts-sga-board__col">
-                                        <h4 class="ts-sga-board__heading"><i class="bi bi-mortarboard" aria-hidden="true"></i> Schüler:innen</h4>
+                                        <h4 class="ts-sga-board__heading"><i class="bi bi-mortarboard" aria-hidden="true"></i> Schülervertretung</h4>
                                         <div id="tenantSgaBoardStudents" class="ts-sga-board__slots"></div>
                                     </div>
                                     <div class="ts-sga-board__col">
@@ -1199,7 +1202,7 @@
                                             <div class="ts-list-import-drop__panel" role="menu">
                                                 <label class="ts-register-save-link" for="tenantTeachersImportFile" role="menuitem" title="CSV/Excel inkl. WebUntis Teacher_*.csv – mit Prüfdialog (Kürzel, Name, E-Mail)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / WebUntis)</label>
                                                 <input type="file" id="tenantTeachersImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls">
-                                                <p class="ts-list-import-drop__hint"><code>Teacher_*.csv</code> / <code>TeacherSalary</code> aus WebUntis werden erkannt. Nach dem Upload erscheint eine Vorschau (neu, Änderungen, Konflikte). Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Import</a>.</p>
+                                                <p class="ts-list-import-drop__hint"><code>Teacher_*.csv</code> / <code>TeacherSalary</code> aus WebUntis werden erkannt. Nach dem Upload erscheinen Diff-Vorschau und die Tabelle darunter sofort. Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Import</a>.</p>
                                                 <button type="button" class="ts-register-save-link" id="tenantBtnImportTeachersFromTenant" role="menuitem" title="Bestehende Entra-Konten mit A1/A3/A5 für Lehrpersonal einlesen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen</button>
                                             </div>
                                         </details>
@@ -1228,7 +1231,7 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    <p class="muted" style="margin:10px 0 0;font-size:0.88em;">Nach „Übernehmen“ die Tabelle prüfen und unten <strong>Speichern</strong> klicken.</p>
+                                    <p class="muted" style="margin:10px 0 0;font-size:0.88em;">Die Tabelle darunter zeigt sofort die Merge-Vorschau. Mit Zusammenführen/Ersetzen übernehmen Sie dauerhaft; Verwerfen stellt den vorherigen Stand wieder her.</p>
                                     <div class="settings-actions" style="margin-top:10px;">
                                         <button type="button" class="btn btn-success" id="tenantTeachersWuDiffMerge"><i class="bi bi-intersect"></i>Zusammenführen (nach Kürzel)</button>
                                         <button type="button" class="btn" id="tenantTeachersWuDiffReplace"><i class="bi bi-arrow-repeat"></i>Liste ersetzen</button>
@@ -1672,8 +1675,8 @@
                                             <div class="ts-list-import-drop__panel" role="menu">
                                                 <label class="ts-register-save-link" for="tenantClassesImportFile" role="menuitem" title="CSV, Excel oder WebUntis Klassen-PDF (Class_*.pdf)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / PDF)</label>
                                                 <input type="file" id="tenantClassesImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls,.pdf">
-                                                <button type="button" class="ts-register-save-link" id="tenantClassesImportM365" role="menuitem" title="Entra-Gruppen (z. B. jg-, klasse-) als Klassen mit M365-Verknüpfung"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 übernehmen</button>
-                                                <p class="ts-list-import-drop__hint">WebUntis <code>Class_*.pdf</code>: KV aus der Lehrerliste. Schuljahreswechsel Gruppen: <a href="tools/klassen-umbenennen.html">Schuljahreswechsel</a>.</p>
+                                                <button type="button" class="ts-register-save-link" id="tenantClassesImportM365" role="menuitem" title="Entra-Gruppen (z. B. jg-, klasse-) als Klassen mit M365-Verknüpfung; Klassenvorstand/E-Mail aus Gruppenbesitzer"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 übernehmen</button>
+                                                <p class="ts-list-import-drop__hint">WebUntis <code>Class_*.pdf</code>: KV aus der Lehrerliste. M365: Klassenvorstand und E-Mail aus dem Gruppenbesitzer (auch für bereits verknüpfte Klassen). Schuljahreswechsel: <a href="tools/klassen-umbenennen.html">Schuljahreswechsel</a>.</p>
                                             </div>
                                         </details>
                                         <button type="button" class="ts-register-save-link" id="tenantClassesTemplateXlsx" title="Excel-Vorlage Klassenliste"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
@@ -1713,7 +1716,7 @@
                                         <a class="btn btn-success" id="tenantLinkKlassengruppenVerwalten" href="tools/jahrgangsgruppen.html" title="Klassen matchen, Sammelaktionen, Besitzer und Mitglieder pflegen">
                                             <i class="bi bi-diagram-3" aria-hidden="true"></i> Klassengruppen
                                         </a>
-                                        <button type="button" class="btn" id="tenantBtnEnrichClassesFromGroups" title="Abschlussjahr und Klassenvorstand aus verknüpften Klassengruppen und anderen Schuljahren ergänzen">
+                                        <button type="button" class="btn" id="tenantBtnEnrichClassesFromGroups" title="Abschlussjahr und Klassenvorstand/E-Mail aus verknüpften M365-Gruppenbesitzern und anderen Schuljahren ergänzen">
                                             <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Aus Klassengruppen ergänzen
                                         </button>
                                         <button type="button" class="btn" data-tenant-intranet-sync="klassen" title="Klassen-Liste auf der Intranet-SharePoint-Website anlegen oder abgleichen (optional Schüler als Personenfeld)">
@@ -1723,6 +1726,64 @@
                                 </section>
                             </div>
 
+                        </div>
+
+                        <div id="panelMainKlassenlehrer" class="tab-panel" role="tabpanel" aria-labelledby="tabMainKlassenlehrer">
+                            <div class="field" id="tenantKlassenlehrerHub">
+                                <p class="muted" id="tenantKlassenlehrerLead">
+                                    Welche Lehrkräfte in welcher Klasse unterrichten – aus der <strong>Unterrichtsbelegung</strong>
+                                    (wie bei Klassenchats). Klassenvorstand bleibt im Tab „Klassen“.
+                                </p>
+                                <div class="ts-students-view-bar" role="group" aria-label="Ansicht Lehrer je Klasse" style="margin:8px 0 10px;">
+                                    <button type="button" id="tenantKlassenlehrerViewKlassen" class="is-active"><i class="bi bi-layout-three-columns"></i> Nach Klassen</button>
+                                    <button type="button" id="tenantKlassenlehrerViewListe"><i class="bi bi-table"></i> Gesamtliste</button>
+                                </div>
+                                <div class="ts-list-toolbar ts-list-toolbar--split settings-actions">
+                                    <div class="ts-list-toolbar__start">
+                                        <label class="visually-hidden" for="tenantKlassenlehrerFilter">Filter</label>
+                                        <select id="tenantKlassenlehrerFilter" title="Anzeige filtern">
+                                            <option value="all">Alle Klassen</option>
+                                            <option value="without">Ohne unterrichtende Lehrer</option>
+                                            <option value="with">Mit unterrichtenden Lehrern</option>
+                                        </select>
+                                        <label class="visually-hidden" for="tenantKlassenlehrerSearch">Suche</label>
+                                        <input type="search" id="tenantKlassenlehrerSearch" placeholder="Klasse oder Lehrer suchen…" autocomplete="off" spellcheck="false">
+                                    </div>
+                                    <div class="ts-list-toolbar__end">
+                                        <span class="muted" id="tenantKlassenlehrerSummary" role="status" aria-live="polite"></span>
+                                    </div>
+                                </div>
+                                <div id="tenantKlassenlehrerKlassenWrap" class="ts-klassenlehrer-klassen-wrap" aria-label="Lehrer nach Klassen">
+                                    <div id="tenantKlassenlehrerKlassenMount" class="ts-klassen-hub"></div>
+                                </div>
+                                <div id="tenantKlassenlehrerListeWrap" class="ts-klassenlehrer-liste-wrap" hidden aria-label="Belegung Gesamtliste">
+                                    <div class="teachers-table-wrap">
+                                        <table class="teachers-table" aria-label="Unterrichtsbelegung Gesamtliste">
+                                            <thead>
+                                                <tr>
+                                                    <th>Klasse</th>
+                                                    <th>Name</th>
+                                                    <th>E-Mail</th>
+                                                    <th>Account</th>
+                                                    <th>Fach</th>
+                                                    <th class="action-cell"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tenantKlassenlehrerListeBody">
+                                                <tr><td colspan="6" class="muted">Noch keine Belegung.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <p class="muted" style="margin-top:10px;">
+                                    Quelle/Import auch über <a href="tools/unterrichtsteams-katalog.html">Unterrichtsteams-Katalog</a> und Kursteams.
+                                    Speicherung: Unterrichtsbelegung (Browser-Backup / IT-Bibliothek).
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="panelMainOrganigramm" class="tab-panel" role="tabpanel" aria-labelledby="tabMainOrganigramm">
+                            <div id="tenantSchulOrganigrammApp" class="ts-schul-org-embed" aria-label="Schul-Organigramm – Stammdaten visuell pflegen"></div>
                         </div>
 
                         <div id="panelMainDatenlandkarte" class="tab-panel" role="tabpanel" aria-labelledby="tabMainDatenlandkarte">
@@ -1752,7 +1813,7 @@
                                     <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-cloud" aria-hidden="true"></i>SharePoint (IT)<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                                     <div class="ts-register-save-drop__panel" role="menu">
                                         <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>
-                                        <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Vollbackup laden – überschreibt lokale Daten"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>
+                                        <button type="button" class="ts-register-save-link" data-ms365-spo-sync="load" role="menuitem" title="Backup-Datei wählen – Abgleich mit optionalem selektivem Import"><i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>
                                         <a class="ts-register-save-link" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" role="menuitem"><i class="bi bi-shield-lock" aria-hidden="true"></i>IT-Sicherungsbibliothek einrichten</a>
                                     </div>
                                 </details>
@@ -1795,6 +1856,8 @@
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
     <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script type="module" src="src/shared/graph-unified-groups.js"></script>
+    <script src="src/shared/group-photo-thumb.js" defer></script>
+    <script src="src/shared/user-photo-thumb.js" defer></script>
     <script type="module" src="src/shared/teacher-tenant-import-ui.js"></script>
     <script type="module" src="src/shared/student-class-lifecycle.js"></script>
     <script src="src/shared/empty-state-ui.js" defer></script>
@@ -1955,6 +2018,13 @@
                         klassen: 'tabMainKlassen',
                         classes: 'tabMainKlassen',
                         panelclasses: 'tabMainKlassen',
+                        klassenlehrer: 'tabMainKlassenlehrer',
+                        klassenvorstand: 'tabMainKlassenlehrer',
+                        kv: 'tabMainKlassenlehrer',
+                        organigramm: 'tabMainOrganigramm',
+                        'schul-organigramm': 'tabMainOrganigramm',
+                        schulorganigramm: 'tabMainOrganigramm',
+                        org: 'tabMainOrganigramm',
                         datenlandkarte: 'tabMainDatenlandkarte',
                         landkarte: 'tabMainDatenlandkarte',
                         'daten-landkarte': 'tabMainDatenlandkarte',
@@ -1988,6 +2058,7 @@
             wireTabGroup(
                 [
                     { btn: 'tabMainStammdaten', panel: 'panelMainStammdaten' },
+                    { btn: 'tabMainOrganigramm', panel: 'panelMainOrganigramm' },
                     { btn: 'tabMainVerwaltung', panel: 'panelMainVerwaltung' },
                     { btn: 'tabMainSubjects', panel: 'panelMainSubjects' },
                     { btn: 'tabMainArges', panel: 'panelMainArges' },
@@ -1996,6 +2067,7 @@
                     { btn: 'tabMainSchueler', panel: 'panelStudentsData' },
                     { btn: 'tabMainSchuelervertretung', panel: 'panelStudentCouncilData' },
                     { btn: 'tabMainKlassen', panel: 'panelMainKlassen' },
+                    { btn: 'tabMainKlassenlehrer', panel: 'panelMainKlassenlehrer' },
                     { btn: 'tabMainDatenlandkarte', panel: 'panelMainDatenlandkarte' }
                 ],
                 'tabMainStammdaten',
@@ -2008,10 +2080,12 @@
         import { initTenantKlassenHub } from './src/shared/tenant-panel-klassen.js';
         import { mountTenantSpoPanel } from './src/shared/tenant-panel-spo.js';
         import { initTenantDatenlandkarteEmbed } from './src/shared/tenant-datenlandkarte-embed.js';
+        import { initTenantSchulOrganigrammEmbed } from './src/shared/tenant-schul-organigramm-embed.js';
         window.ms365TenantResolveHashTabId = tenantResolveHashTabId;
         initTenantSchulregister();
         initTenantKlassenHub();
         mountTenantSpoPanel();
+        initTenantSchulOrganigrammEmbed();
         initTenantDatenlandkarteEmbed();
     </script>
 </body>

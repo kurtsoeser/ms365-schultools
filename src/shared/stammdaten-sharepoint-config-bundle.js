@@ -123,6 +123,36 @@ export function configPartRelativePath(folderName, fileName) {
     return folder + '/' + name;
 }
 
+export const SCHUL_ORGANIGRAMM_CONFIG_PART_ID = 'schul-organigramm';
+export const SCHUL_ORGANIGRAMM_CONFIG_FILE = 'schul-organigramm.json';
+
+/**
+ * Schul-Organigramm aus dem Stammdaten-Schlüssel lesen (für eigene Config-Datei).
+ * @param {Record<string, unknown>} store
+ */
+export function extractSchulOrganigrammFromStore(store) {
+    const raw = store && store['ms365-schooltool-data-v2'];
+    if (raw == null || raw === '') return null;
+    try {
+        const v2 = typeof raw === 'object' ? raw : JSON.parse(String(raw));
+        const org =
+            v2 &&
+            v2.core &&
+            v2.core.schulOrganigramm &&
+            typeof v2.core.schulOrganigramm === 'object'
+                ? v2.core.schulOrganigramm
+                : null;
+        if (!org) return null;
+        const nodes = Array.isArray(org.nodes) ? org.nodes : [];
+        return {
+            schulOrganigramm: org,
+            nodeCount: nodes.length
+        };
+    } catch {
+        return null;
+    }
+}
+
 /**
  * @param {object} backupPayload Vollbackup (buildBackup)
  * @param {{ configFolder?: string, monolithPath?: string, tenantId?: string }} [opts]
@@ -163,6 +193,33 @@ export function buildConfigBundleFromBackup(backupPayload, opts) {
             fingerprint: body.fingerprint
         });
     });
+
+    const orgExtract = extractSchulOrganigrammFromStore(store);
+    if (orgExtract && orgExtract.nodeCount > 0) {
+        const orgFp = fingerprintLocalStorageSlice({
+            schulOrganigramm: JSON.stringify(orgExtract.schulOrganigramm)
+        });
+        const orgBody = {
+            schemaVersion: CONFIG_BUNDLE_SCHEMA_VERSION,
+            bundleKind: CONFIG_BUNDLE_KIND,
+            bundlePart: SCHUL_ORGANIGRAMM_CONFIG_PART_ID,
+            exportedAt: payload.exportedAt || new Date().toISOString(),
+            schoolName: payload.schoolName || null,
+            domain: payload.domain || null,
+            keyCount: 1,
+            nodeCount: orgExtract.nodeCount,
+            fingerprint: orgFp,
+            schulOrganigramm: orgExtract.schulOrganigramm,
+            localStorage: {}
+        };
+        files.push({
+            id: SCHUL_ORGANIGRAMM_CONFIG_PART_ID,
+            path: configPartRelativePath(configFolder, SCHUL_ORGANIGRAMM_CONFIG_FILE),
+            body: orgBody,
+            keyCount: 1,
+            fingerprint: orgFp
+        });
+    }
 
     const manifest = {
         schemaVersion: CONFIG_BUNDLE_SCHEMA_VERSION,
@@ -210,12 +267,33 @@ export function parseConfigBundlePart(partBody, expectedPartId) {
     if (!o || o.bundleKind !== CONFIG_BUNDLE_KIND) return null;
     if (expectedPartId && String(o.bundlePart || '') !== String(expectedPartId)) return null;
     const ls = o.localStorage && typeof o.localStorage === 'object' ? o.localStorage : {};
-    return {
+    const out = {
         bundlePart: String(o.bundlePart || expectedPartId || ''),
         exportedAt: String(o.exportedAt || ''),
         fingerprint: String(o.fingerprint || ''),
         localStorage: ls
     };
+    if (o.schulOrganigramm && typeof o.schulOrganigramm === 'object') {
+        out.schulOrganigramm = o.schulOrganigramm;
+        out.nodeCount = Number(o.nodeCount) || (Array.isArray(o.schulOrganigramm.nodes) ? o.schulOrganigramm.nodes.length : 0);
+    }
+    return out;
+}
+
+/**
+ * Schul-Organigramm aus Config-Teil in bestehenden schooltool-v2-Container mergen.
+ * @param {object} container ms365-schooltool-data-v2
+ * @param {object} schulOrganigramm
+ */
+export function mergeSchulOrganigrammIntoSchooltoolContainer(container, schulOrganigramm) {
+    const c = container && typeof container === 'object' ? container : null;
+    const org = schulOrganigramm && typeof schulOrganigramm === 'object' ? schulOrganigramm : null;
+    if (!c || !org) return c;
+    const next = Object.assign({}, c);
+    next.core = Object.assign({}, c.core && typeof c.core === 'object' ? c.core : {}, {
+        schulOrganigramm: org
+    });
+    return next;
 }
 
 /**
