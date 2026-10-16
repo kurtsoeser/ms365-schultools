@@ -2,6 +2,7 @@
 // Gemeinsamer Namespace für den Kursteam-Modus (kein ES-Module/Bundler nötig).
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
+/** UI-/Wizard-Cache – Stammdaten-Wahrheit: years.*.unterrichtsbelegung in v2 (siehe stammdaten-side-state-keys.js). */
 ns.STORAGE_KEY = 'webuntis-teams-creator-state-v1';
 ns.INVALID_CHARS_REPLACE = /[\\%&*+\/=?{}|<>();:,\[\]"öäü]/g;
 ns.INVALID_CHARS_TEST = /[\\%&*+\/=?{}|<>();:,\[\]"öäü]/;

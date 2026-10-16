@@ -3,6 +3,8 @@
 **Status:** Zielbild / Leitplanke (Oktober 2026)  
 **Produktentscheidung:** Die **Schul-Landkarte** ist die visuelle Wahrheit der Schule; die **Listen im v2-Container** bleiben die speicherbare Wahrheit. Beides muss immer zusammenpassen – inkl. Backup, WebUntis und später Bildungsportal.
 
+**Umbau aktiv:** [stammdaten-local-first.md](stammdaten-local-first.md) – SharePoint-IT/Intranet-Export pausiert; Schreibpfad `writeSchoolData` + Materializer (kein Abgleich-Schritt im Alltag).
+
 Verwandt: [schul-organigramm.md](schul-organigramm.md), [schul-organigramm-landkarte.md](schul-organigramm-landkarte.md), [datenlandkarte.md](datenlandkarte.md), [edtech-bildungsportal-stammdatenanbindung.md](edtech-bildungsportal-stammdatenanbindung.md)
 
 ---

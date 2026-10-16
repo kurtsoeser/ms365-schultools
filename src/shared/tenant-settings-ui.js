@@ -39,6 +39,8 @@ import { mountVerwaltungStammdatenTree } from './verwaltung-stammdaten-tree-ui.j
 import { mountTenantSchoolEmailPatternUi } from './tenant-teacher-email-pattern-ui.js';
 import { mountTenantIntranetQuickSync } from './tenant-intranet-quick-sync.js';
 import { mountTenantSchoolProfileUi, reloadTenantSchoolProfileForm } from './tenant-school-profile-ui.js';
+import { writeSchoolData } from './stammdaten-write.js';
+import { isStammdatenLocalFirst, localFirstStatusMessage } from './stammdaten-local-first.js';
 import {
     enrichClassesFromLinkedGroups,
     enrichClassesKvFromGraphOwners,
@@ -1106,6 +1108,13 @@ import './schul-organigramm-stammdaten-sync.js';
         mountTenantSchoolEmailPatternUi();
         mountTenantSchoolProfileUi();
         mountTenantIntranetQuickSync();
+        if (isStammdatenLocalFirst()) {
+            const banner = document.getElementById('tenantLocalFirstBanner');
+            if (banner) {
+                banner.hidden = false;
+                banner.textContent = localFirstStatusMessage();
+            }
+        }
 
         const parseLinesToSubjects = window.ms365TenantSettingsParseSubjectsLines;
         const parseLinesToArges = window.ms365TenantSettingsParseArgesLines;
@@ -1117,7 +1126,9 @@ import './schul-organigramm-stammdaten-sync.js';
         const parseLinesToClasses = window.ms365TenantSettingsParseClassesLines;
         const parseLinesToSga = window.ms365TenantSettingsParseSgaLines;
         const load = window.ms365TenantSettingsLoad;
-        const save = window.ms365TenantSettingsSave;
+        const save = function (settings) {
+            return writeSchoolData(settings, { reason: 'tenant-register' }).settings;
+        };
 
         const taSubjects = document.getElementById('tenantSubjectsLines');
         const subjectsTbody = document.getElementById('tenantSubjectsTableBody');

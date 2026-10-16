@@ -677,7 +677,7 @@
                             <summary class="header-help-link header-info-popover__trigger"><i class="bi bi-info-circle" aria-hidden="true"></i><span class="header-info-popover__label">Was sind die Stammdaten?</span></summary>
                             <div class="header-info-popover__panel ts-register-about__body" role="note">
                                 <p>Die <strong>Stammdaten</strong> sind die zentrale Pflegestelle Ihrer Schule – gespeichert <strong>lokal im Browser</strong>. Schulweit: Domain, Fächer, Lehrkräfte, Verwaltung. Pro <strong>Schuljahr</strong> (Konto-Menü): Schüler:innen und Klassen.</p>
-                                <p>Gemeinsame Basis für Kursteams und Gruppen-Werkzeuge. Optional: Auto-Sync mit der <strong>IT-Bibliothek</strong> und öffentliche <strong>Intranet-Listen</strong> auf SharePoint.</p>
+                                <p>Listen und Schul-Landkarte teilen sich denselben lokalen Speicher. Während des Lokal-First-Umbaus: Speichern hier, Sicherung per <strong>Browser-Backup (JSON)</strong> – SharePoint-IT und Intranet-Export sind pausiert.</p>
                             </div>
                         </details>
                         <a href="hilfe.html#tool-tenant" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe, Datenschutz &amp; Windows-Hinweise</a>
@@ -693,7 +693,7 @@
                             <label class="ts-register-save-link" for="browserBackupImportFile" role="menuitem" title="JSON-Backup aus einem anderen Browser laden"><i class="bi bi-upload" aria-hidden="true"></i>Importieren</label>
                         </div>
                     </details>
-                    <details class="ts-register-save-drop ts-register-save-drop--header">
+                    <details class="ts-register-save-drop ts-register-save-drop--header" id="tenantSpoSaveDrop" data-local-first-hide="spo" hidden>
                         <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-cloud" aria-hidden="true"></i>SharePoint (IT)<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                         <div class="ts-register-save-drop__panel" role="menu">
                             <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>
@@ -706,6 +706,7 @@
         </div>
 
         <div class="content">
+            <p id="tenantLocalFirstBanner" class="ts-local-first-banner" role="status" hidden></p>
             <div id="tenantEmptyStateMount"></div>
             <form id="tenantSettingsForm" class="ts-register-page" onsubmit="return false;" aria-label="Stammdaten pflegen">
                     <div class="ts-register-body">
@@ -902,7 +903,7 @@
                                     </fieldset>
                                 </article>
 
-                                <article class="ts-stammdaten-spo-point" aria-labelledby="tenantSpoPointItTitle">
+                                <article class="ts-stammdaten-spo-point" id="tenantItLibraryPanel" aria-labelledby="tenantSpoPointItTitle">
                                     <div class="ts-stammdaten-spo-point__head">
                                         <span class="ts-stammdaten-spo-point__num" aria-hidden="true">2</span>
                                         <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointItTitle">IT-Sicherungsbibliothek (Vollbackup)</h4>
@@ -1812,7 +1813,7 @@
                                         <input type="file" id="browserBackupImportFile" class="ts-register-save-bar__file" accept="application/json,.json">
                                     </div>
                                 </details>
-                                <details class="ts-register-save-drop">
+                                <details class="ts-register-save-drop" data-local-first-hide="spo" hidden>
                                     <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-cloud" aria-hidden="true"></i>SharePoint (IT)<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                                     <div class="ts-register-save-drop__panel" role="menu">
                                         <button type="button" class="ts-register-save-link" data-ms365-spo-sync="upload" role="menuitem" title="Vollbackup in die IT-Bibliothek"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Sichern</button>

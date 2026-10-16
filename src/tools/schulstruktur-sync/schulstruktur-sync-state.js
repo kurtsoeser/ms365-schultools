@@ -12,6 +12,7 @@
 import { safeJsonParse } from '../../shared/utils/json.js';
 
 /** @internal Storage-Keys (intern, nicht exportiert – Zugriff nur über die Helfer). */
+/** Legacy/Cache – kanonische Struktur liegt in v2.structure (siehe stammdaten-side-state-keys.js). */
 const STORAGE_KEY = 'ms365-schulstruktur-sync-v1';
 const STORAGE_TENANT_CACHE_KEY = 'ms365-schulstruktur-tenant-cache-v1';
 const STORAGE_MATCH_KEY = 'ms365-schulstruktur-match-v1';

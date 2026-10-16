@@ -84,9 +84,12 @@
             label: 'Personen-Verwaltung',
             keys: ['ms365-pv-ad-flags-v1', 'ms365-pv-users-cache-v1']
         },
-        { label: 'Kursteams / WebUntis', keys: ['webuntis-teams-creator-state-v1'] },
         {
-            label: 'Klassen & Jahrgang',
+            label: 'Kursteams / WebUntis (UI-Cache; Belegung in v2)',
+            keys: ['webuntis-teams-creator-state-v1']
+        },
+        {
+            label: 'Klassen & Jahrgang (Graph-Arbeitsstand; Listen in v2)',
             keys: ['ms365-jahrgang-state-v1', 'ms365-class-create-team-v1', 'ms365-klassenvorstaende-v1']
         },
         {
@@ -98,7 +101,7 @@
             ]
         },
         {
-            label: 'Fächer / ARGE / Weitere Teams',
+            label: 'Fächer / ARGE / Weitere Teams (Graph-Arbeitsstand; Stammdaten in v2)',
             keys: [
                 'ms365-arge-state-v1',
                 'ms365-arge-state-v2',

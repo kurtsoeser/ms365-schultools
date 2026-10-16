@@ -1,6 +1,11 @@
 /**
  * Stammdaten: Ampel für Arbeitskopie, IT-Bibliothek, Intranet, Schuljahr.
  */
+import {
+    isStammdatenLocalFirst,
+    localFirstShortLabel,
+    localFirstStatusMessage
+} from './stammdaten-local-first.js';
 import { formatSyncStatusDe, isItLibraryConfigured } from './stammdaten-sharepoint-sync-logic.js';
 import { loadItMeta, loadLocalSyncMeta, isReady } from './stammdaten-sharepoint-sync-api.js';
 
@@ -94,102 +99,120 @@ export function collectRegisterLayerChips() {
 
     chips.push({
         icon: 'bi-laptop',
-        label: 'Arbeitskopie: dieser Browser',
-        kind: 'muted',
-        title:
-            'Hier bearbeiten Sie die Daten. Für einen anderen PC: Browser-Backup oder IT-Bibliothek (Synchron-Modus).'
+        label: isStammdatenLocalFirst() ? localFirstShortLabel() : 'Arbeitskopie: dieser Browser',
+        kind: isStammdatenLocalFirst() ? 'ok' : 'muted',
+        title: isStammdatenLocalFirst()
+            ? localFirstStatusMessage()
+            : 'Hier bearbeiten Sie die Daten. Für einen anderen PC: Browser-Backup oder IT-Bibliothek (Synchron-Modus).'
     });
 
-    let spoReady = false;
-    let spoKind = 'warn';
-    let spoLabel = 'IT-Bibliothek: nicht eingerichtet';
-    let spoTitle =
-        'Vollbackup aller App-Daten in SharePoint – IT-Sicherungsbibliothek unter Synchron oder Stammdaten-Übergabe.';
-    try {
-        spoReady = isReady();
-        const it = loadItMeta();
-        const meta = loadLocalSyncMeta();
-        const st = {
-            ready: spoReady,
-            phase: 'idle',
-            dirty: !!(meta && meta.dirty),
-            lastAt: meta && meta.at,
-            lastDirection: meta && meta.direction,
-            error: meta && meta.pendingError,
-            libraryTitle: (it && it.listTitle) || undefined
-        };
-        if (typeof window !== 'undefined') {
-            try {
-                const auto = window.ms365StammdatenSpoAutoSync;
-                if (auto && typeof auto.getStatus === 'function') {
-                    const live = auto.getStatus();
-                    if (live) {
-                        st.phase = live.phase || st.phase;
-                        st.dirty = live.dirty != null ? live.dirty : st.dirty;
-                        st.lastAt = live.lastAt || st.lastAt;
-                        st.lastDirection = live.lastDirection || st.lastDirection;
-                        st.error = live.error || st.error;
-                    }
-                }
-            } catch {
-                /* ignore */
-            }
-        }
-        spoTitle = formatSyncStatusDe(st);
-        if (!spoReady && !isItLibraryConfigured(it)) {
-            spoKind = 'warn';
-            spoLabel = 'IT-Bibliothek: einrichten';
-        } else if (st.error) {
-            spoKind = 'error';
-            spoLabel = 'IT-Bibliothek: Sync-Fehler';
-        } else if (st.dirty) {
-            spoKind = 'warn';
-            spoLabel = 'IT-Bibliothek: Änderungen offen';
-        } else if (st.lastAt) {
-            spoKind = 'ok';
-            spoLabel = 'IT-Bibliothek: gesichert';
-        } else {
-            spoKind = 'muted';
-            spoLabel = 'IT-Bibliothek: bereit';
-        }
-    } catch {
-        /* defaults */
-    }
-    chips.push({
-        icon: 'bi-shield-lock',
-        label: spoLabel,
-        kind: spoKind,
-        title: spoTitle,
-        href: 'tenant.html#stammdaten'
-    });
-
-    let intranetUrl = '';
-    try {
-        const api = typeof window !== 'undefined' ? window.ms365AppDataV2 : null;
-        const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : {};
-        intranetUrl = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
-    } catch {
-        /* ignore */
-    }
-    if (!intranetUrl) {
+    if (isStammdatenLocalFirst()) {
         chips.push({
-            icon: 'bi-globe2',
-            label: 'Intranet: Site-URL fehlt',
-            kind: 'warn',
-            title:
-                'Öffentliche SharePoint-Listen brauchen die Intranet-Site-URL (Stammdaten oder Synchron-Modus).',
-            href: 'tenant.html#stammdaten'
+            icon: 'bi-cloud-slash',
+            label: 'IT-Bibliothek: Pause (Umbau)',
+            kind: 'muted',
+            title: localFirstStatusMessage(),
+            href: ''
+        });
+        chips.push({
+            icon: 'bi-download',
+            label: 'Sicherung: JSON-Export',
+            kind: 'ok',
+            title: 'Manuelles Browser-Backup im Konto-Menü – ohne SharePoint-Upload.',
+            href: ''
         });
     } else {
+        let spoReady = false;
+        let spoKind = 'warn';
+        let spoLabel = 'IT-Bibliothek: nicht eingerichtet';
+        let spoTitle =
+            'Vollbackup aller App-Daten in SharePoint – IT-Sicherungsbibliothek unter Synchron oder Stammdaten-Übergabe.';
+        try {
+            spoReady = isReady();
+            const it = loadItMeta();
+            const meta = loadLocalSyncMeta();
+            const st = {
+                ready: spoReady,
+                phase: 'idle',
+                dirty: !!(meta && meta.dirty),
+                lastAt: meta && meta.at,
+                lastDirection: meta && meta.direction,
+                error: meta && meta.pendingError,
+                libraryTitle: (it && it.listTitle) || undefined
+            };
+            if (typeof window !== 'undefined') {
+                try {
+                    const auto = window.ms365StammdatenSpoAutoSync;
+                    if (auto && typeof auto.getStatus === 'function') {
+                        const live = auto.getStatus();
+                        if (live) {
+                            st.phase = live.phase || st.phase;
+                            st.dirty = live.dirty != null ? live.dirty : st.dirty;
+                            st.lastAt = live.lastAt || st.lastAt;
+                            st.lastDirection = live.lastDirection || st.lastDirection;
+                            st.error = live.error || st.error;
+                        }
+                    }
+                } catch {
+                    /* ignore */
+                }
+            }
+            spoTitle = formatSyncStatusDe(st);
+            if (!spoReady && !isItLibraryConfigured(it)) {
+                spoKind = 'warn';
+                spoLabel = 'IT-Bibliothek: einrichten';
+            } else if (st.error) {
+                spoKind = 'error';
+                spoLabel = 'IT-Bibliothek: Sync-Fehler';
+            } else if (st.dirty) {
+                spoKind = 'warn';
+                spoLabel = 'IT-Bibliothek: Änderungen offen';
+            } else if (st.lastAt) {
+                spoKind = 'ok';
+                spoLabel = 'IT-Bibliothek: gesichert';
+            } else {
+                spoKind = 'muted';
+                spoLabel = 'IT-Bibliothek: bereit';
+            }
+        } catch {
+            /* defaults */
+        }
         chips.push({
-            icon: 'bi-globe2',
-            label: 'Intranet: Listen aus Stammdaten',
-            kind: 'ok',
-            title:
-                'Nach dem Pflegen: unter Synchron die Stammdaten-Listen auf der Schulwebsite aktualisieren. Site: ' +
-                intranetUrl,
+            icon: 'bi-shield-lock',
+            label: spoLabel,
+            kind: spoKind,
+            title: spoTitle,
             href: 'tenant.html#stammdaten'
         });
+
+        let intranetUrl = '';
+        try {
+            const api = typeof window !== 'undefined' ? window.ms365AppDataV2 : null;
+            const setup = api && typeof api.getSetup === 'function' ? api.getSetup() : {};
+            intranetUrl = setup && setup.intranetSiteUrl ? String(setup.intranetSiteUrl).trim() : '';
+        } catch {
+            /* ignore */
+        }
+        if (!intranetUrl) {
+            chips.push({
+                icon: 'bi-globe2',
+                label: 'Intranet: Site-URL fehlt',
+                kind: 'warn',
+                title:
+                    'Öffentliche SharePoint-Listen brauchen die Intranet-Site-URL (Stammdaten oder Synchron-Modus).',
+                href: 'tenant.html#stammdaten'
+            });
+        } else {
+            chips.push({
+                icon: 'bi-globe2',
+                label: 'Intranet: Listen aus Stammdaten',
+                kind: 'ok',
+                title:
+                    'Nach dem Pflegen: unter Synchron die Stammdaten-Listen auf der Schulwebsite aktualisieren. Site: ' +
+                    intranetUrl,
+                href: 'tenant.html#stammdaten'
+            });
+        }
     }
 
     chips.push({

@@ -9,10 +9,13 @@
 
 `ms365TenantSettingsLoad()` liest **zuerst v2**, sonst einmalige Migration aus v1.
 
-## Schreiben (Stand Epic A)
+## Schreiben (Stand Epic A + Lokal-First)
 
 - `ms365TenantSettingsSave()` schreibt nur noch über **`ms365AppDataV2.setCoreFromTenantSettings`**.
+- Direkter `localStorage.setItem('ms365-tenant-settings-v1', …)` in `tenant-settings-core.js` ist entfernt.
 - `writeTenantSettingsV1Mirror()` ist **hart deaktiviert** (`V1_MIRROR_WRITE_ENABLED = false`).
+- Bevorzugter Einstieg für Tools: `writeSchoolData()` in `stammdaten-write.js` (inkl. Landkarte-Materializer).
+- Siehe [stammdaten-local-first.md](stammdaten-local-first.md).
 
 ## Browser-Backup
 

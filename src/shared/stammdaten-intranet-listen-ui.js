@@ -2,6 +2,7 @@
  * Einbettung: Stammdaten → SharePoint-Intranet-Listen anlegen/abgleichen.
  * Mount: <div data-ms365-intranet-listen-mount data-mount-prefix="tsdSpo"></div>
  */
+import { isIntranetExportAllowed, localFirstStatusMessage } from './stammdaten-local-first.js';
 import {
     applyStammdatenPackagePermissions,
     loadPermissionsConfig
@@ -513,6 +514,10 @@ async function applyPerms(webUrl, p, listOpts, write) {
 }
 
 export async function runQuickIntranetSync(kind, prefix) {
+    if (!isIntranetExportAllowed()) {
+        toast(localFirstStatusMessage());
+        return;
+    }
     const k = String(kind || '').trim();
     if (!INTRANET_KIND_LABELS[k]) {
         throw new Error('Unbekannter Listentyp: ' + k);

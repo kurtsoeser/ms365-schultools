@@ -68,6 +68,11 @@ import {
 } from './schul-organigramm-focus-people.js';
 import { resolveClassGraphGroupId } from '../../shared/membership-hygiene.js';
 import '../../shared/schul-organigramm-stammdaten-sync.js';
+import { writeSchoolData } from '../../shared/stammdaten-write.js';
+import {
+    isStammdatenLocalFirst,
+    localFirstStatusMessage
+} from '../../shared/stammdaten-local-first.js';
 
 const VIEW_MODE_KEY = 'ms365-schul-org-view-mode-v1';
 
@@ -212,8 +217,8 @@ async function fetchFocusPeopleForNode(node) {
             } else if (isArgeAreaNode(node) || isArgeNode(node)) {
                 applied = applyArgeHeadFromGraphOwners(settings, node.refKey, ownerList);
             }
-            if (applied && applied.changed && typeof window.ms365TenantSettingsSave === 'function') {
-                window.ms365TenantSettingsSave(applied.settings);
+            if (applied && applied.changed) {
+                saveSettingsWithMaterialize(applied.settings, 'schul-org-head-from-graph');
             }
         } catch {
             /* Stammdaten-Sync optional */
@@ -439,16 +444,13 @@ function userThumbHtml(email, displayName) {
 function saveLayout(layout) {
     const settings = loadSettings();
     settings.schulOrganigramm = normalizeSchulOrganigramm(layout);
-    // Nur Layout/Orte speichern – Stammdaten→Org-Sync würde die Landkarte unnötig anfassen
-    try {
-        window.__ms365SchulOrgSkipSyncOnce = true;
-    } catch {
-        /* ignore */
-    }
-    if (typeof window.ms365TenantSettingsSave === 'function') {
-        window.ms365TenantSettingsSave(settings);
-    }
+    // Nur Layout/Orte speichern – Materializer einmal überspringen, Orte nicht zerlegen
+    writeSchoolData(settings, { reason: 'schul-org-layout', skipMaterialize: true });
     return settings.schulOrganigramm;
+}
+
+function saveSettingsWithMaterialize(settings, reason) {
+    return writeSchoolData(settings, { reason: reason || 'schul-organigramm' }).settings;
 }
 
 function enrichLayoutMeta(layout, settings) {
@@ -686,9 +688,7 @@ export function mountSchulOrganigramm(host, opts) {
                 classChanged += named.changed;
             }
             if (healed.changed || named.changed) {
-                if (typeof window.ms365TenantSettingsSave === 'function') {
-                    window.ms365TenantSettingsSave(cur);
-                }
+                saveSettingsWithMaterialize(cur, 'schul-org-heal-heads');
             }
         } catch {
             /* optional */
@@ -755,9 +755,7 @@ export function mountSchulOrganigramm(host, opts) {
         }
 
         if (classChanged + argeChanged > 0) {
-            if (typeof window.ms365TenantSettingsSave === 'function') {
-                window.ms365TenantSettingsSave(cur);
-            }
+            saveSettingsWithMaterialize(cur, 'schul-org-bulk-heads');
         }
         return { classChanged: classChanged, argeChanged: argeChanged, labels: labels };
     }
@@ -893,6 +891,17 @@ export function mountSchulOrganigramm(host, opts) {
         host.classList.toggle('schul-org--map', viewMode === 'map');
         host.classList.toggle('schul-org--list', viewMode === 'list');
         if (embedded) host.classList.add('schul-org--embedded');
+
+        if (isStammdatenLocalFirst()) {
+            const lfBanner = document.createElement('p');
+            lfBanner.className = 'schul-org-local-first-banner muted';
+            lfBanner.setAttribute('role', 'status');
+            lfBanner.style.margin = '0 0 12px';
+            lfBanner.style.padding = '8px 12px';
+            lfBanner.style.borderLeft = '3px solid var(--ms365-accent, #0d9488)';
+            lfBanner.textContent = localFirstStatusMessage();
+            host.appendChild(lfBanner);
+        }
 
         const chrome = document.createElement('div');
         chrome.className =
@@ -1099,15 +1108,11 @@ export function mountSchulOrganigramm(host, opts) {
                 applied.settings.schulOrganigramm,
                 positionAnchor
             );
-            // Stammdaten-Sync soll die gerade gespeicherten Orte nicht zerlegen
-            try {
-                window.__ms365SchulOrgSkipSyncOnce = true;
-            } catch {
-                /* ignore */
-            }
-            if (typeof window.ms365TenantSettingsSave === 'function') {
-                window.ms365TenantSettingsSave(applied.settings);
-            }
+            // Materializer überspringen – Orte bleiben, Listen wurden schon aus Landkarte geschrieben
+            writeSchoolData(applied.settings, {
+                reason: 'schul-org-to-stammdaten',
+                skipMaterialize: true
+            });
             // Nach Save nochmals Orte in den Kanon schreiben (falls Sync trotzdem lief)
             try {
                 const api = window.ms365AppDataV2;
@@ -1364,9 +1369,7 @@ export function mountSchulOrganigramm(host, opts) {
                 openSchulOrgProvisionDiffPanel({
                     loadSettings: loadSettings,
                     saveSettings: function (s) {
-                        if (typeof window.ms365TenantSettingsSave === 'function') {
-                            window.ms365TenantSettingsSave(s);
-                        }
+                        saveSettingsWithMaterialize(s, 'schul-org-m365-abgleich');
                     },
                     onChanged: function () {
                         render();
@@ -1686,11 +1689,7 @@ export function mountSchulOrganigramm(host, opts) {
                         return null;
                     }
                     const applied = applySchulOrganigrammToStammdaten(cur, moved);
-                    if (typeof window.ms365TenantSettingsSave === 'function') {
-                        window.ms365TenantSettingsSave(applied.settings);
-                    } else {
-                        saveLayout(moved);
-                    }
+                    saveSettingsWithMaterialize(applied.settings, 'schul-org-dnd');
                     return applied.layout;
                 },
                 onMovePerson: function (person, targetNode) {

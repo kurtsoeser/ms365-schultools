@@ -421,8 +421,8 @@ export function openSchulOrgProvisionDiffPanel(opts) {
             '<div class="schul-org-diff__log" data-diff-log hidden></div>' +
             '</section>' +
             '<section class="schul-org-diff__section">' +
-            '<h3>Struktur (Listen ↔ Landkarte)</h3>' +
-            '<p class="muted">' +
+            '<h3>Struktur-Reparatur (selten nötig)</h3>' +
+            '<p class="muted">Beim Speichern/Import werden Listen und Landkarte automatisch gemeinsam geschrieben. Dieser Knopf heilt nur, wenn etwas auseinandergelaufen ist: ' +
             sd.counts.missingInLayout +
             ' fehlen auf der Landkarte · ' +
             sd.counts.orphanInLayout +

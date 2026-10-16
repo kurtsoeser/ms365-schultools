@@ -27,6 +27,14 @@ function isLoggedIn() {
  */
 export async function waitForStammdatenSpoSessionPull(opts) {
     const options = Object.assign({ reloadOnApply: false, timeoutMs: 25000 }, opts || {});
+    try {
+        const lf = typeof window !== 'undefined' ? window.ms365StammdatenLocalFirst : null;
+        if (lf && typeof lf.isSpoNetworkSyncAllowed === 'function' && !lf.isSpoNetworkSyncAllowed()) {
+            return { skipped: true, reason: 'local-first' };
+        }
+    } catch {
+        /* optional */
+    }
     if (!isLoggedIn()) return { skipped: true, reason: 'not-logged-in' };
     const auto = typeof window !== 'undefined' ? window.ms365StammdatenSpoAutoSync : null;
     if (!auto || typeof auto.runSessionPull !== 'function') {

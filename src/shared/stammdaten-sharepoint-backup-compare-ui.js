@@ -565,11 +565,21 @@ function bindCompareActions(mount, cmp, pageMode, options, onChoice) {
                     title: 'Alles übernehmen',
                     okText: 'Alles ersetzen',
                     cancelText: 'Abbrechen',
-                    kind: 'warning'
+                    kind: 'warning',
+                    danger: true
                 })
-            ).then(function (ok) {
-                if (ok) onChoice('import');
-            });
+            )
+                .then(function (ok) {
+                    if (ok) onChoice('import');
+                })
+                .catch(function (err) {
+                    const m = err && err.message ? err.message : String(err || 'Unbekannter Fehler');
+                    if (typeof window.ms365ToastOrAlert === 'function') {
+                        window.ms365ToastOrAlert('Bestätigung fehlgeschlagen: ' + m);
+                    } else {
+                        window.alert('Bestätigung fehlgeschlagen: ' + m);
+                    }
+                });
             return;
         }
         if (action === 'keep-local' || action === 'push-local') {
@@ -656,10 +666,12 @@ export function promptBackupCompareChoice(opts) {
         }
 
         function onKey(ev) {
-            if (ev.key === 'Escape') {
-                ev.preventDefault();
-                finish('keep-local');
-            }
+            if (ev.key !== 'Escape') return;
+            // Bestätigungsdialog liegt darüber – Escape dort abfangen, Abgleich nicht schließen
+            const appDlg = document.getElementById('ms365AppDialog');
+            if (appDlg && appDlg.classList.contains('open')) return;
+            ev.preventDefault();
+            finish('keep-local');
         }
 
         unbind = bindCompareActions(mount, cmp, false, options, finish);

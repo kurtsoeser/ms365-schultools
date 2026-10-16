@@ -1,5 +1,6 @@
 /**
- * Nach Stammdaten-/WebUntis-/Belegungs-Änderungen: Schul-Organigramm nachziehen.
+ * Materializer: nach Stammdaten-/WebUntis-/Belegungs-Änderungen Landkarte nachziehen.
+ * Kein manueller „Abgleich Listen ↔ Landkarte“ im Alltag – läuft mit jedem Schreibpfad.
  * Kanon: core.schulOrganigramm bleibt mit Listen + unterrichtsbelegung synchron.
  */
 import {
@@ -9,6 +10,9 @@ import {
 } from '../tools/schul-organigramm/schul-organigramm-logic.js';
 
 let syncing = false;
+
+/** @deprecated Name; nutzen materializeSchulOrganigrammFromAppData / syncSchulOrganigrammFromAppData */
+export const MATERIALIZE_ALIAS = 'syncSchulOrganigrammFromAppData';
 
 /**
  * Settings-Objekt für Seed/Sync aus App-Data-v2-Container bauen.
@@ -58,7 +62,7 @@ export function settingsFromAppContainer(container, belegungOverride) {
 }
 
 /**
- * Organigramm mit aktuellen Stammdaten + Belegung abgleichen und speichern.
+ * Organigramm mit aktuellen Stammdaten + Belegung materialisieren und speichern.
  * @param {{ reason?: string, belegung?: object|null, quiet?: boolean }} [opts]
  * @returns {{ ok: boolean, skipped?: boolean, added?: number, removed?: number, healed?: boolean, error?: string }}
  */
@@ -114,14 +118,21 @@ export function syncSchulOrganigrammFromAppData(opts) {
     }
 }
 
+/** Alias für Klarheit im Lokal-First-Modell (Listen → Landkarte). */
+export function materializeSchulOrganigrammFromAppData(opts) {
+    return syncSchulOrganigrammFromAppData(opts);
+}
+
 function installHook() {
     if (typeof window === 'undefined') return;
     window.ms365SyncSchulOrganigrammFromAppData = syncSchulOrganigrammFromAppData;
+    window.ms365MaterializeSchulOrganigrammFromAppData = materializeSchulOrganigrammFromAppData;
 }
 
 installHook();
 
 export default {
     settingsFromAppContainer,
-    syncSchulOrganigrammFromAppData
+    syncSchulOrganigrammFromAppData,
+    materializeSchulOrganigrammFromAppData
 };

@@ -402,6 +402,7 @@ function getDefaultVisibilityPrivate() {
     return el ? !!el.checked : true;
 }
 
+/** Graph-Arbeitsstand – Stammdaten-Wahrheit in v2 (siehe stammdaten-side-state-keys.js). */
 const WTG_STORAGE_KEY = 'ms365-wtg-state-v1';
 
 function saveWtgState() {

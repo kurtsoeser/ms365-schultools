@@ -6,7 +6,15 @@
  * Phase 3: Versionsvergleich (lastModified / exportedAt) + Status-Events
  *
  * Voraussetzung: IT-Bibliothek eingerichtet, User angemeldet.
+ *
+ * Lokal-First-Umbau: bei isSpoNetworkSyncAllowed() === false startet nichts
+ * und Push/Pull sind no-ops (siehe stammdaten-local-first.js).
  */
+import {
+    isSpoNetworkSyncAllowed,
+    localFirstStatusMessage,
+    localFirstShortLabel
+} from './stammdaten-local-first.js';
 import {
     DEFAULT_FOLDER,
     IT_LIBRARY_TITLE,
@@ -186,6 +194,22 @@ function setLive(partial) {
 }
 
 export function getStatus() {
+    if (!isSpoNetworkSyncAllowed()) {
+        return {
+            ready: false,
+            phase: 'local-first',
+            dirty: false,
+            error: '',
+            lastAt: '',
+            lastDirection: '',
+            lastPullAt: '',
+            lastPushAt: '',
+            libraryTitle: IT_LIBRARY_TITLE,
+            localFirst: true,
+            message: localFirstStatusMessage(),
+            shortLabel: localFirstShortLabel()
+        };
+    }
     const meta = loadLocalSyncMeta();
     const it = loadItMeta();
     const ready = isReady();
@@ -202,6 +226,7 @@ export function getStatus() {
         lastPullAt: live.lastPullAt,
         lastPushAt: live.lastPushAt,
         libraryTitle: (it && it.listTitle) || IT_LIBRARY_TITLE,
+        localFirst: false,
         message: live.message || formatSyncStatusDe({
             ready: ready,
             phase: live.phase,
@@ -215,6 +240,7 @@ export function getStatus() {
 }
 
 function canRunNetworkSync() {
+    if (!isSpoNetworkSyncAllowed()) return false;
     return isReady() && isLoggedIn();
 }
 
@@ -242,6 +268,7 @@ function hasUnsyncedLocalChanges() {
 
 export async function runSessionPull(opts) {
     const options = opts || {};
+    if (!isSpoNetworkSyncAllowed()) return { skipped: true, reason: 'local-first' };
     if (!options.force && sessionPullDone()) return { skipped: true, reason: 'session-done' };
     if (!canRunNetworkSync()) return { skipped: true, reason: 'not-ready' };
     if (pullInFlight) return pullInFlight;
@@ -585,6 +612,7 @@ async function resolvePushConflict(conflict) {
  */
 export async function runPush(opts) {
     const options = opts || {};
+    if (!isSpoNetworkSyncAllowed()) return { skipped: true, reason: 'local-first' };
     if (!canRunNetworkSync()) return { skipped: true, reason: 'not-ready' };
     if (Date.now() < suppressPushUntil) return { skipped: true, reason: 'suppressed' };
     if (pullInFlight) return { skipped: true, reason: 'pull-in-flight' };
@@ -762,6 +790,15 @@ function onVisibilityFlush() {
 export function start() {
     if (started) return getStatus();
     started = true;
+
+    if (!isSpoNetworkSyncAllowed()) {
+        setLive({
+            phase: 'local-first',
+            error: '',
+            message: localFirstStatusMessage()
+        });
+        return getStatus();
+    }
 
     window.addEventListener('ms365-tenant-settings-changed', onTenantSettingsChanged);
     window.addEventListener('ms365-local-data-changed', onLocalDataChanged);

@@ -496,6 +496,7 @@ function syncArgeRowsFromInputPreservingOwners() {
     return { ok: true };
 }
 
+/** Graph-Arbeitsstand – ARGE-Stammdaten: core.arges in v2 (siehe stammdaten-side-state-keys.js). */
 const ARGE_STORAGE_KEY = 'ms365-arge-state-v2';
 
 /** Alte Reihenfolge 1=Grundlagen, 2=Liste, 3=Besitzer → neue 1=Liste, 2=Besitzer, 3=Einstellungen */

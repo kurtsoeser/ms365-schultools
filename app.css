@@ -2682,10 +2682,10 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
     white-space: nowrap;
 }
 
-/* Zentrierte App-Dialoge (ms365AppDialog*) */
+/* Zentrierte App-Dialoge (ms365AppDialog*) – über Backup-Abgleich (10060) und Entra-Picker (10100) */
 #ms365AppDialog.modal-overlay,
 .ms365-app-dialog-overlay {
-    z-index: 10050;
+    z-index: 10200;
     backdrop-filter: blur(6px);
     background: rgba(20, 24, 48, 0.48);
 }

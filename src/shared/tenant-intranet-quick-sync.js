@@ -2,6 +2,11 @@
  * Stammdaten: zentrale Intranet-Site-URL (Stammdaten) + Schnell-Buttons in Listen-Tabs.
  */
 import {
+    isIntranetExportAllowed,
+    localFirstStatusMessage,
+    applyLocalFirstIntranetUi
+} from './stammdaten-local-first.js';
+import {
     DEFAULT_INTRANET_LIST_TITLES,
     INTRANET_LIST_KIND_OPTIONS,
     resolveIntranetListTitle
@@ -102,6 +107,10 @@ function bindQuickSyncButtons() {
         if (btn.dataset.intranetSyncBound === '1') return;
         btn.dataset.intranetSyncBound = '1';
         btn.addEventListener('click', function () {
+            if (!isIntranetExportAllowed()) {
+                toast(localFirstStatusMessage());
+                return;
+            }
             const kind = String(btn.getAttribute('data-tenant-intranet-sync') || '').trim();
             const prevLabel = btn.innerHTML;
             btn.disabled = true;
@@ -137,5 +146,27 @@ export function mountTenantIntranetQuickSync() {
     syncIntranetListTitlesToMounts();
     wrapIntranetSyncButtons();
     bindQuickSyncButtons();
-    mountTenantItLibraryEmbeddedUi();
+    applyLocalFirstIntranetUi(document);
+    if (isIntranetExportAllowed()) {
+        mountTenantItLibraryEmbeddedUi();
+        document.querySelectorAll('[data-local-first-hide="spo"]').forEach(function (el) {
+            el.hidden = false;
+        });
+    } else {
+        const itHost = document.getElementById('tenantItLibraryPanel');
+        if (itHost) {
+            itHost.hidden = true;
+            itHost.setAttribute('aria-hidden', 'true');
+        }
+        document.querySelectorAll('[data-local-first-hide="spo"]').forEach(function (el) {
+            el.hidden = true;
+        });
+        const spoStatus = document.getElementById('stammdatenSpoSyncStatus');
+        if (spoStatus) spoStatus.textContent = localFirstStatusMessage();
+        const banner = document.getElementById('tenantLocalFirstBanner');
+        if (banner) {
+            banner.hidden = false;
+            banner.textContent = localFirstStatusMessage();
+        }
+    }
 }

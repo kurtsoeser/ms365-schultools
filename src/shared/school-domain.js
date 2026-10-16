@@ -6,6 +6,7 @@
     const TENANT_KEY = 'ms365-tenant-settings-v1';
     const DEFAULT_DOMAIN_NO_AT = 'ms365.schule';
 
+    // Nebenstates (Domain-Fallback) – kanonische Domain: core.domain in v2
     const KURSTEAMS_KEY = 'webuntis-teams-creator-state-v1';
     const JAHRGANG_KEY = 'ms365-jahrgang-state-v1';
     const ARGE_KEY = 'ms365-arge-state-v1';

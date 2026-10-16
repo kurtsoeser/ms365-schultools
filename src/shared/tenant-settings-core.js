@@ -700,6 +700,8 @@
 
     function save(settings) {
         const normalized = normalizeSettings(settings);
+        // Kanonisch nur v2 (setCoreFromTenantSettings). v1 wird nicht mehr geschrieben
+        // (docs/stammdaten-v1-sunset.md, Lokal-First-Umbau).
         try {
             if (
                 window.ms365TenantStorageMirror &&
@@ -709,8 +711,6 @@
             ) {
                 window.ms365TenantStorageMirror.writeTenantSettingsV1Mirror(normalized);
             }
-            // Komfort-Spiegel für Backup/Export; kanonisch bleibt ms365-schooltool-data-v2 (setCoreFromTenantSettings).
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
         } catch {
             // ignore
         }

@@ -3,7 +3,14 @@
  * data-ms365-spo-sync="upload" | "load" | "setup"
  * Optional: #stammdatenSpoSyncStatus für Kurzstatus.
  * Startet außerdem den Auto-Sync (Pull nach Login, Push nach Änderungen).
+ *
+ * Lokal-First: Upload/Load/Setup deaktiviert; Auto-Sync startet nur als No-Op.
  */
+import {
+    isSpoNetworkSyncAllowed,
+    localFirstStatusMessage,
+    applyLocalFirstSpoUi
+} from './stammdaten-local-first.js';
 import { DEFAULT_FOLDER, IT_LIBRARY_TITLE, formatSyncStatusDe } from './stammdaten-sharepoint-sync-logic.js';
 import {
     isReady,
@@ -50,6 +57,10 @@ function setBusy(btns, busy) {
 function refreshStatus() {
     const el = document.getElementById('stammdatenSpoSyncStatus');
     if (!el) return;
+    if (!isSpoNetworkSyncAllowed()) {
+        el.textContent = localFirstStatusMessage();
+        return;
+    }
     try {
         if (autoSync && typeof autoSync.getStatus === 'function') {
             const st = autoSync.getStatus();
@@ -73,6 +84,10 @@ function refreshStatus() {
 }
 
 async function runUpload(btns) {
+    if (!isSpoNetworkSyncAllowed()) {
+        toast(localFirstStatusMessage());
+        return;
+    }
     if (!isReady()) {
         goToSetup('Zuerst die IT-Sicherungsbibliothek einrichten.');
         return;
@@ -124,6 +139,10 @@ async function runUpload(btns) {
 }
 
 async function runLoad(btns) {
+    if (!isSpoNetworkSyncAllowed()) {
+        toast(localFirstStatusMessage());
+        return;
+    }
     if (!isReady()) {
         goToSetup('Zuerst die IT-Sicherungsbibliothek einrichten.');
         return;
@@ -271,6 +290,7 @@ function bind() {
         );
     }
 
+    applyLocalFirstSpoUi(document);
     refreshStatus();
     try {
         window.addEventListener('ms365-tenant-settings-changed', refreshStatus);
