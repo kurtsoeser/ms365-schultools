@@ -19,7 +19,10 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-bus-front"></i>Schulaktivitäten-Listen</span>
             </div>
-            <p>SharePoint-Paket für Exkursionen und schulische Aktivitäten: Anträge + Regelwerk.</p>
+            <p>
+                SharePoint-Paket für Exkursionen und schulische Aktivitäten: zwei Listen auf der Schulwebsite.
+                Klassen und Lehrkräfte kommen aus den <strong>Stammdaten</strong> – keine doppelten Lookup-Listen.
+            </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schulaktivitaeten-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -28,34 +31,9 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-calendar2-check"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">SharePoint · Intranet</p>
-                    <h2>Schulaktivitäten-Paket einrichten</h2>
-                    <p>
-                        Zwei Listen auf der Schulwebsite. Klassen und Lehrkräfte kommen aus den
-                        <strong>Stammdaten</strong> – keine doppelten Lookup-Listen.
-                    </p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
-                </div>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    <div>
-                        <h3>Was wird angelegt?</h3>
-                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
-                    </div>
-                </div>
-                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li><strong>Aktivitaet-Regelwerk</strong> – Min.-Vorlauf, max. Überlappung pro Klasse (mit Seed)</li>
-                    <li><strong>Schulaktivitaeten</strong> – Anträge (Exkursion / Aktivität / Veranstaltung) mit Status</li>
-                </ul>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+            </div>
 
             <section class="tm-panel">
                 <div class="tm-panel__head">
@@ -79,6 +57,20 @@
                     <summary>Protokoll</summary>
                     <div id="spaktLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
                 </details>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Was wird angelegt?</h3>
+                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
+                    </div>
+                </div>
+                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
+                    <li><strong>Aktivitaet-Regelwerk</strong> – Min.-Vorlauf, max. Überlappung pro Klasse (mit Seed)</li>
+                    <li><strong>Schulaktivitaeten</strong> – Anträge (Exkursion / Aktivität / Veranstaltung) mit Status</li>
+                </ul>
             </section>
         </div>
     </div>

@@ -127,6 +127,317 @@ export function subjectCatalogStatusHint(s, links) {
 }
 
 /**
+ * Klassenkürzel vergleichbar machen (1.A / 1A / 1-A).
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normClassChatKey(raw) {
+    return String(raw || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[\s.\u00A0_\-–—/]+/g, '');
+}
+
+/**
+ * Ob ein classChats-Eintrag eine echte Teams-Ressource hat (Gruppenchat oder privater Kanal).
+ * @param {object|null|undefined} it
+ */
+export function classChatItemHasResource(it) {
+    if (!it || typeof it !== 'object') return false;
+    if (String(it.chatId || '').trim()) return true;
+    if (String(it.channelId || '').trim()) return true;
+    if (String(it.id || '').trim() && String(it.klasse || it.classCode || '').trim()) return true;
+    if (String(it.webUrl || '').trim() && String(it.klasse || it.classCode || '').trim()) return true;
+    return false;
+}
+
+/**
+ * Roh-Snapshot → Item-Liste (unterstützt { items }, { chats }, byKlasse-Map und reines Array).
+ * @param {unknown} snap
+ * @returns {object[]}
+ */
+export function classChatItemsFromSnapshot(snap) {
+    if (!snap) return [];
+    if (Array.isArray(snap)) {
+        return snap
+            .map(function (it) {
+                if (!it || typeof it !== 'object') return it;
+                if (it.klasse) return it;
+                if (it.classCode) return Object.assign({}, it, { klasse: it.classCode });
+                return it;
+            })
+            .filter(classChatItemHasResource);
+    }
+    if (typeof snap !== 'object') return [];
+    let list = Array.isArray(snap.items)
+        ? snap.items
+        : Array.isArray(snap.chats)
+          ? snap.chats
+          : null;
+    if (!list && snap.byKlasse && typeof snap.byKlasse === 'object') {
+        list = Object.keys(snap.byKlasse).map(function (k) {
+            const row = snap.byKlasse[k];
+            if (!row || typeof row !== 'object') return { klasse: k };
+            return Object.assign({}, row, { klasse: row.klasse || row.classCode || k });
+        });
+    }
+    if (!list) {
+        const reserved = {
+            updatedAt: 1,
+            yearPrefix: 1,
+            namePattern: 1,
+            targetKind: 1,
+            lehrerTeamId: 1,
+            lehrerTeamDisplayName: 1,
+            items: 1,
+            chats: 1,
+            byKlasse: 1
+        };
+        const keys = Object.keys(snap).filter(function (k) {
+            return !reserved[k];
+        });
+        const looksLikeMap =
+            keys.length > 0 &&
+            keys.every(function (k) {
+                const v = snap[k];
+                return (
+                    v &&
+                    typeof v === 'object' &&
+                    !Array.isArray(v) &&
+                    (v.chatId || v.channelId || v.webUrl || v.id || v.topic)
+                );
+            });
+        if (looksLikeMap) {
+            list = keys.map(function (k) {
+                const row = snap[k];
+                return Object.assign({}, row, { klasse: row.klasse || row.classCode || k });
+            });
+        } else {
+            list = [];
+        }
+    }
+    return list
+        .map(function (it) {
+            if (!it || typeof it !== 'object') return it;
+            if (it.klasse) return it;
+            if (it.classCode) return Object.assign({}, it, { klasse: it.classCode });
+            return it;
+        })
+        .filter(classChatItemHasResource);
+}
+
+/**
+ * Chat-/Kanal-IDs aus einem Organigramm-Node.
+ * @param {object} n
+ * @returns {{ chatId: string, channelId: string, webUrl: string, kind: string }}
+ */
+function resourceFromOrganigrammNode(n) {
+    const meta = n && n.meta && typeof n.meta === 'object' ? n.meta : {};
+    const bindings =
+        n && n.m365 && n.m365.bindings && typeof n.m365.bindings === 'object' ? n.m365.bindings : {};
+    const groupChat = bindings.groupChat && typeof bindings.groupChat === 'object' ? bindings.groupChat : {};
+    const privateCh =
+        bindings.privateChannel && typeof bindings.privateChannel === 'object'
+            ? bindings.privateChannel
+            : {};
+    const chatId = String(
+        meta.chatId || groupChat.id || groupChat.chatId || ''
+    ).trim();
+    const channelId = String(
+        meta.channelId || privateCh.id || privateCh.channelId || ''
+    ).trim();
+    const webUrl = String(meta.webUrl || meta.chatWebUrl || groupChat.webUrl || privateCh.webUrl || '').trim();
+    const kind = channelId && !chatId ? 'privateChannel' : 'groupChat';
+    return { chatId: chatId, channelId: channelId, webUrl: webUrl, kind: kind };
+}
+
+/**
+ * Chat-IDs aus dem Schul-Organigramm (meta.chatId / channelId an KlassenChat-Knoten).
+ * @param {object|null} container
+ * @param {object|null} [settings]
+ * @returns {object[]}
+ */
+export function collectClassChatItemsFromOrganigramm(container, settings) {
+    /** @type {object[]} */
+    const orgs = [];
+    if (container && container.core && container.core.schulOrganigramm) {
+        orgs.push(container.core.schulOrganigramm);
+    }
+    if (
+        settings &&
+        settings.schulOrganigramm &&
+        (!container ||
+            !container.core ||
+            settings.schulOrganigramm !== container.core.schulOrganigramm)
+    ) {
+        orgs.push(settings.schulOrganigramm);
+    }
+    /** @type {object[]} */
+    const out = [];
+    const seen = new Set();
+    orgs.forEach(function (org) {
+        const nodes = org && Array.isArray(org.nodes) ? org.nodes : [];
+        nodes.forEach(function (n) {
+            if (!n || typeof n !== 'object') return;
+            const refKind = String(n.refKind || '')
+                .trim()
+                .toLowerCase();
+            const klasse = String(n.refKey || (n.meta && n.meta.klasse) || '').trim();
+            if (!klasse) return;
+            if (refKind && refKind !== 'klassenchatclass' && refKind !== 'klassenchat') return;
+            const res = resourceFromOrganigrammNode(n);
+            if (!res.chatId && !res.channelId && !res.webUrl) return;
+            const key = normClassChatKey(klasse) + '|' + res.kind;
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push({
+                klasse: klasse,
+                chatId: res.chatId,
+                channelId: res.channelId,
+                kind: res.kind,
+                topic: String((n.meta && (n.meta.chatTopic || n.meta.topic)) || n.label || '').trim(),
+                webUrl: res.webUrl
+            });
+        });
+    });
+    return out;
+}
+
+/**
+ * classChats-Items aus Year-Buckets, App-Data-API, Settings und Organigramm.
+ * @param {object|null} container
+ * @param {object|null} [settings]
+ * @returns {{ items: object[], yearLabel: string, fromFallback: boolean }}
+ */
+export function collectClassChatItems(container, settings) {
+    const byLabel =
+        container && container.years && container.years.byLabel && typeof container.years.byLabel === 'object'
+            ? container.years.byLabel
+            : {};
+    const current = String((container && container.years && container.years.current) || '').trim();
+
+    function itemsFromBucket(bucket) {
+        return classChatItemsFromSnapshot(bucket && bucket.classChats);
+    }
+
+    /** @type {object[]} */
+    const merged = [];
+    const seen = new Set();
+
+    function pushAll(list) {
+        (Array.isArray(list) ? list : []).forEach(function (it) {
+            if (!classChatItemHasResource(it)) return;
+            const klasse = String((it && (it.klasse || it.classCode)) || '').trim();
+            if (!klasse) return;
+            const kind = String(
+                (it && it.kind) || (it && it.channelId ? 'privateChannel' : 'groupChat')
+            );
+            const key = normClassChatKey(klasse) + '|' + kind;
+            if (seen.has(key)) return;
+            seen.add(key);
+            merged.push(Object.assign({}, it, { klasse: klasse }));
+        });
+    }
+
+    // 1) App-Data-API (gleicher Pfad wie Werkzeug KlassenChats)
+    try {
+        if (
+            typeof window !== 'undefined' &&
+            window.ms365AppDataV2 &&
+            typeof window.ms365AppDataV2.getClassChats === 'function'
+        ) {
+            const labels = Object.keys(byLabel);
+            if (current && labels.indexOf(current) === -1) labels.unshift(current);
+            if (!labels.length) labels.push('');
+            labels.forEach(function (lab) {
+                pushAll(classChatItemsFromSnapshot(window.ms365AppDataV2.getClassChats(lab || undefined)));
+            });
+        }
+    } catch {
+        /* ignore */
+    }
+
+    // 2) Container Year-Buckets
+    if (current && byLabel[current]) pushAll(itemsFromBucket(byLabel[current]));
+    Object.keys(byLabel).forEach(function (label) {
+        if (label === current) return;
+        pushAll(itemsFromBucket(byLabel[label]));
+    });
+
+    // 3) Settings (Tenant-Load / Organigramm reichern settings.classChats an)
+    if (settings && settings.classChats) {
+        pushAll(classChatItemsFromSnapshot(settings.classChats));
+    }
+
+    // 4) Organigramm-Meta (container + settings)
+    pushAll(collectClassChatItemsFromOrganigramm(container, settings));
+
+    // 5) Roh-localStorage (falls In-Memory-Cache und Year-Buckets auseinanderlaufen)
+    if (!merged.length) {
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const raw = localStorage.getItem('ms365-schooltool-data-v2');
+                const parsed = raw ? JSON.parse(raw) : null;
+                const rawBy =
+                    parsed && parsed.years && parsed.years.byLabel && typeof parsed.years.byLabel === 'object'
+                        ? parsed.years.byLabel
+                        : {};
+                Object.keys(rawBy).forEach(function (lab) {
+                    pushAll(itemsFromBucket(rawBy[lab]));
+                });
+                // Separater Klassenchats-Spiegel (überlebt Year-Bucket-Verluste)
+                const mirrorRaw = localStorage.getItem('ms365-class-chats-mirror-v1');
+                const mirror = mirrorRaw ? JSON.parse(mirrorRaw) : null;
+                const mirrorBy =
+                    mirror && mirror.byYear && typeof mirror.byYear === 'object' ? mirror.byYear : {};
+                Object.keys(mirrorBy).forEach(function (lab) {
+                    pushAll(classChatItemsFromSnapshot(mirrorBy[lab]));
+                });
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
+    const fromFallback = merged.length > 0 && !(current && itemsFromBucket(byLabel[current]).length);
+    return {
+        items: merged,
+        yearLabel: current,
+        fromFallback: fromFallback
+    };
+}
+
+/**
+ * @param {object|null} container
+ * @param {object|null} settings
+ * @returns {{ total: number, withChat: number, resourceCount: number, classKeys: number, yearLabel: string, fromFallback: boolean }}
+ */
+export function klassenChatsCoverage(container, settings) {
+    const classes = (settings && settings.classes) || [];
+    const collected = collectClassChatItems(container, settings);
+    const items = collected.items;
+    const chatKeys = new Set();
+    items.forEach(function (it) {
+        const k = normClassChatKey((it && it.klasse) || '');
+        if (k) chatKeys.add(k);
+    });
+    let withChat = 0;
+    classes.forEach(function (cls) {
+        if (!cls) return;
+        const code = normClassChatKey(cls.code || cls.name || '');
+        if (code && chatKeys.has(code)) withChat += 1;
+    });
+    return {
+        total: classes.length,
+        withChat: withChat,
+        resourceCount: items.length,
+        classKeys: chatKeys.size,
+        yearLabel: collected.yearLabel,
+        fromFallback: collected.fromFallback
+    };
+}
+
+/**
  * @param {object|null} container
  * @param {object|null} settings
  * @returns {'ok'|'mismatch'|'unmatched'|null}
@@ -134,32 +445,10 @@ export function subjectCatalogStatusHint(s, links) {
 export function klassenChatsProvisionStatus(container, settings) {
     const classes = (settings && settings.classes) || [];
     if (!classes.length) return null;
-    const current = String((container && container.years && container.years.current) || '').trim();
-    const byLabel =
-        container && container.years && container.years.byLabel && typeof container.years.byLabel === 'object'
-            ? container.years.byLabel
-            : {};
-    const bucket = current && byLabel[current] ? byLabel[current] : null;
-    const items =
-        bucket && bucket.classChats && Array.isArray(bucket.classChats.items) ? bucket.classChats.items : [];
-    const chatKeys = new Set();
-    items.forEach(function (it) {
-        const k = String((it && it.klasse) || '')
-            .trim()
-            .toUpperCase();
-        if (k) chatKeys.add(k);
-    });
-    let withChat = 0;
-    classes.forEach(function (cls) {
-        if (!cls) return;
-        const code = String(cls.code || cls.name || '')
-            .trim()
-            .toUpperCase();
-        if (code && chatKeys.has(code)) withChat += 1;
-    });
-    const total = classes.length;
-    if (withChat >= total) return 'ok';
-    if (withChat === 0) return 'unmatched';
+    const cov = klassenChatsCoverage(container, settings);
+    // Ressourcen vorhanden, aber Klassenkürzel passen nicht → trotzdem nicht „keine Chats“
+    if (cov.resourceCount === 0) return 'unmatched';
+    if (cov.withChat >= cov.total) return 'ok';
     return 'mismatch';
 }
 
@@ -171,34 +460,14 @@ export function klassenChatsProvisionStatus(container, settings) {
 export function klassenChatsStatusHint(container, settings) {
     const classes = (settings && settings.classes) || [];
     if (!classes.length) return 'Zuerst Klassen in den Stammdaten';
+    const cov = klassenChatsCoverage(container, settings);
     const st = klassenChatsProvisionStatus(container, settings);
-    const current = String((container && container.years && container.years.current) || '').trim();
-    const byLabel =
-        container && container.years && container.years.byLabel && typeof container.years.byLabel === 'object'
-            ? container.years.byLabel
-            : {};
-    const bucket = current && byLabel[current] ? byLabel[current] : null;
-    const items =
-        bucket && bucket.classChats && Array.isArray(bucket.classChats.items) ? bucket.classChats.items : [];
-    const chatKeys = new Set();
-    items.forEach(function (it) {
-        const k = String((it && it.klasse) || '')
-            .trim()
-            .toUpperCase();
-        if (k) chatKeys.add(k);
-    });
-    let withChat = 0;
-    classes.forEach(function (cls) {
-        if (!cls) return;
-        const code = String(cls.code || cls.name || '')
-            .trim()
-            .toUpperCase();
-        if (code && chatKeys.has(code)) withChat += 1;
-    });
-    const total = classes.length;
-    if (st === 'ok') return withChat + ' von ' + total + ' Klassen mit Chat';
     if (st === 'unmatched') return 'Noch keine Chats angelegt';
-    return withChat + ' von ' + total + ' Klassen mit Chat';
+    if (cov.withChat === 0 && cov.resourceCount > 0) {
+        const n = cov.classKeys || cov.resourceCount;
+        return n + ' Chat' + (n === 1 ? '' : 's') + ' angelegt';
+    }
+    return cov.withChat + ' von ' + cov.total + ' Klassen mit Chat';
 }
 
 export function scanSummaryHygieneStatus(hygieneApi) {
@@ -402,18 +671,19 @@ export function resolveDashboardToolStatus(toolId, ctx) {
 
     if (id === 'klassenchats') {
         const st = klassenChatsProvisionStatus(container, s);
+        const hint = klassenChatsStatusHint(container, s);
         if (st === 'ok') {
-            return { tone: 'ok', primary: 'Konsistent', secondary: '' };
+            return { tone: 'ok', primary: hint, secondary: '' };
         }
         if (st === 'mismatch') {
             return {
                 tone: 'warn',
-                primary: klassenChatsStatusHint(container, s),
+                primary: hint,
                 secondary: ''
             };
         }
         if (st === 'unmatched') {
-            return { tone: 'unmatched', primary: 'Noch keine Chats', secondary: '' };
+            return { tone: 'unmatched', primary: hint || 'Noch keine Chats angelegt', secondary: '' };
         }
         return null;
     }

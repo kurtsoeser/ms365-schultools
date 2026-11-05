@@ -167,6 +167,7 @@ describe('Hilfe-Seite', () => {
             'playbook-kursteams': 'tool-playbook-kursteams',
             'webuntis-sync-monitor': 'tool-webuntis-sync-monitor',
             'raeume-ressourcen': 'tool-raeume-ressourcen',
+            'kalender-postfaecher': 'tool-kalender-postfaecher',
             'sharepoint-liste-vertretung': 'tool-vertretung',
             'schul-baseline': 'tool-schul-baseline',
             'klassen-umbenennen': 'tool-klassen-umbenennen',

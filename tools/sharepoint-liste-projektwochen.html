@@ -19,7 +19,10 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</span>
             </div>
-            <p>SharePoint-Paket für Projektwochen: PW-Aktionen und PW-Angebote (Anträge → später Bookings).</p>
+            <p>
+                SharePoint-Paket für Projektwochen: zwei Listen auf der Schulwebsite (PW-Aktionen und PW-Angebote).
+                Klassen und Lehrer kommen aus den <strong>Stammdaten</strong>; Buchung später über Microsoft Bookings.
+            </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-projektwochen-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -27,40 +30,9 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-calendar2-heart"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">SharePoint · Intranet · Phase 1</p>
-                    <h2>Projektwochen-Paket einrichten</h2>
-                    <p>
-                        Zwei Listen auf der Schulwebsite. Klassen und Lehrer kommen aus den
-                        <strong>Stammdaten</strong>. Buchung läuft später über Microsoft Bookings (Phase 3).
-                    </p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
-                </div>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    <div>
-                        <h3>Was wird angelegt?</h3>
-                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
-                    </div>
-                </div>
-                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li><strong>PW-Aktionen</strong> – eine Projektwoche (Zeitraum, Standard-Buchungsstart, Bookings-Business)</li>
-                    <li><strong>PW-Angebote</strong> – Anträge mit Status, Kapazität, Preis, <em>BuchungAb</em>, Sync-Felder</li>
-                    <li>Optionaler Seed: Demo-Aktion <code>pw-demo</code>, wenn PW-Aktionen leer ist</li>
-                </ul>
-                <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
-                    Die Website-URL wird lokal gespeichert (auch in den Schul-Grundeinstellungen / Browser-Backup)
-                    und in der <a href="projektwochen.html">Projektwochen-App</a> wiederverwendet.
-                    Planung: <code>docs/projektwochen.md</code>.
-                </p>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+            </div>
 
             <section class="tm-panel">
                 <div class="tm-panel__head">
@@ -84,6 +56,26 @@
                     <summary>Protokoll</summary>
                     <div id="sppwLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
                 </details>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Was wird angelegt?</h3>
+                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
+                    </div>
+                </div>
+                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
+                    <li><strong>PW-Aktionen</strong> – eine Projektwoche (Zeitraum, Standard-Buchungsstart, Bookings-Business)</li>
+                    <li><strong>PW-Angebote</strong> – Anträge mit Status, Kapazität, Preis, <em>BuchungAb</em>, Sync-Felder</li>
+                    <li>Optionaler Seed: Demo-Aktion <code>pw-demo</code>, wenn PW-Aktionen leer ist</li>
+                </ul>
+                <p class="muted" style="margin:12px 0 0;font-size:0.88em;line-height:1.45;">
+                    Die Website-URL wird lokal gespeichert (auch in den Schul-Grundeinstellungen / Browser-Backup)
+                    und in der <a href="projektwochen.html">Projektwochen-App</a> wiederverwendet.
+                    Planung: <code>docs/projektwochen.md</code>.
+                </p>
             </section>
         </div>
     </div>

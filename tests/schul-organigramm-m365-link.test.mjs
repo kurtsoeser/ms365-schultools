@@ -434,4 +434,40 @@ describe('schul-organigramm M365-Link-Flags', () => {
             linked: false
         });
     });
+
+    it('Bereich-Save: tief verschachteltes meta wird bereinigt und bleibt JSON-sicher', () => {
+        let deep = { n: 0 };
+        for (let i = 0; i < 5000; i += 1) deep = { n: i, child: deep };
+        const layout = normalizeSchulOrganigramm({
+            version: 2,
+            nodes: [
+                {
+                    id: 'sec_lehrer',
+                    type: 'area',
+                    label: 'Lehrkräfte',
+                    parentId: null,
+                    refKind: 'sammelgruppe',
+                    refKey: 'lehrer',
+                    meta: { board: true, nest: deep }
+                }
+            ]
+        });
+        expect(() => JSON.stringify(layout)).not.toThrow();
+        const next = setSchulOrganigrammAreaM365(layout, 'sec_lehrer', {
+            bindings: {
+                unified: {
+                    mode: 'match',
+                    id: 'gid-1',
+                    label: 'Lehrer',
+                    mail: null,
+                    upn: null,
+                    webUrl: null
+                }
+            }
+        });
+        expect(() => JSON.stringify(next)).not.toThrow();
+        const node = next.nodes.find((n) => n.id === 'sec_lehrer');
+        expect(node.m365.groupMode).toBe('match');
+        expect(node.m365.groupId).toBe('gid-1');
+    });
 });

@@ -367,6 +367,7 @@
                                 <li><a href="#tool-klassenchats">KlassenChats</a></li>
                                 <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
                                 <li><a href="#tool-postfaecher">Postfächer</a></li>
+                                <li><a href="#tool-kalender-postfaecher">Kalender-Postfächer</a></li>
                                 <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
                                 <li><a href="#tool-eltern-verteiler">Eltern-Verteiler</a></li>
                                 <li><a href="#tool-elternsprechtag-bookings">Elternsprechtag (Bookings)</a></li>
@@ -415,6 +416,7 @@
                                     <li><a href="#tool-klassenchats">KlassenChats</a></li>
                                     <li><a href="#tool-schuljahr">Schuljahr wechseln</a></li>
                                     <li><a href="#tool-postfaecher">Postfächer</a></li>
+                                    <li><a href="#tool-kalender-postfaecher">Kalender-Postfächer</a></li>
                                     <li><a href="#tool-verteilerlisten">E-Mail-Verteiler</a></li>
                                     <li><a href="#tool-eltern-verteiler">Eltern-Verteiler</a></li>
                                     <li><a href="#tool-elternsprechtag-bookings">Elternsprechtag (Bookings)</a></li>
@@ -733,6 +735,7 @@
                             Optional Schüler als Mitglieder (separater Schritt), Format z. B. <code>Klasse;UPN</code>
                             oder <code>Klasse;Gruppe;UPN</code>.
                             Schilf ohne Live-Schüler: <a href="tools/spielwiesen.html">Spielwiesen-Teams</a>.
+                            Bereits vorhandene Teams: Startkarte <strong>Bestehende Teams importieren</strong> (dieselbe Aktion wie im Unterrichtsteams-Katalog).
                         </div>
                         <p class="help-open"><a href="tools/kursteams.html">→ Unterrichtsteams öffnen</a></p>
                     </article>
@@ -825,20 +828,21 @@
                         <p class="help-open"><a href="tools/spielwiesen.html">→ Spielwiesen öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="klassenchat gruppenchat teams lehrer klasse klassenvorstand unterrichtsbelegung schuljahr">
+                    <article class="help-article" data-help-article data-search="klassenchat gruppenchat privater kanal lehrerteam teams lehrer klasse klassenvorstand unterrichtsbelegung schuljahr">
                         <h3 id="tool-klassenchats">KlassenChats <span class="pill">Teams</span></h3>
                         <p>
-                            Pro Klasse einen Teams-<strong>Gruppenchat</strong> für Lehrkräfte –
-                            <strong>automatisch</strong> aus der Unterrichtsbelegung oder <strong>manuell</strong>
-                            (Klasse + Mitglieder aus Stammdaten/E-Mails). Der Klassenvorstand wird ergänzt.
-                            Chat-Namen mit Schuljahr-Bausteinen, Anlage und Sync per Microsoft Graph
-                            (<code>Chat.Create</code>).
+                            Pro Klasse Lehrkräfte vernetzen – als Teams-<strong>Gruppenchat</strong> oder als
+                            <strong>privater Kanal</strong> im Lehrerteam.
+                            Quelle: Unterrichtsbelegung oder manuell; Klassenvorstand wird ergänzt.
+                            Namen mit Schuljahr-Bausteinen. Graph: <code>Chat.Create</code> bzw. für Kanäle
+                            <code>Channel.Create</code> / <code>ChannelMember.ReadWrite.All</code> /
+                            <code>Group.ReadWrite.All</code>.
                         </p>
                         <div class="mini-steps">
                             <ol>
                                 <li>Optional: Unterrichtsteams → Team-Namen generieren (Belegung speichern).</li>
-                                <li>Modus wählen: Belegung oder Manuell (Klasse, Lehrkräfte, optional Tenant-Suche mit Mehrfachauswahl).</li>
-                                <li>Chat-Namen mit SJ/Klasse bauen, Vorschau prüfen, dann anlegen/syncen.</li>
+                                <li>Quelle (Belegung/Manuell) und Ziel (Gruppenchat oder privater Kanal) wählen; bei Kanälen Lehrerteam suchen.</li>
+                                <li>Namen mit SJ/Klasse bauen, Vorschau prüfen, dann anlegen/syncen.</li>
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/klassenchats.html">→ KlassenChats öffnen</a></p>
@@ -1062,6 +1066,24 @@
                             </ol>
                         </div>
                         <p class="help-open"><a href="tools/postfaecher.html">→ Postfächer öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="kalender schulkalender schularbeiten matura shared mailbox ical publish exchange folder permission">
+                        <h3 id="tool-kalender-postfaecher">Kalender-Postfächer <span class="pill">Exchange</span></h3>
+                        <p>
+                            Mehrere schulische Kalender als freigegebene Postfächer anlegen oder Rechte nachziehen:
+                            Schulkalender, Schularbeiten, Matura und eigene Namen. Eintragen (Editor + FullAccess)
+                            und Nur-Lesen (Reviewer) getrennt zuweisen; optional Internet-Publish mit iCal-URL.
+                            Anlegen geschieht per Exchange-Online-PowerShell (Graph kann Shared Mailboxes nicht zuverlässig erstellen).
+                        </p>
+                        <div class="mini-steps">
+                            <ol>
+                                <li>Optional Inventar aus Microsoft&nbsp;365 laden; Vorlagen zur Planung hinzufügen.</li>
+                                <li>Pro Kalender Eintragen-/Lesen-<strong>Benutzer</strong> per Picker wählen (keine M365-Gruppen für Postfachrechte), Publish bei Bedarf aktivieren.</li>
+                                <li><strong>.cmd</strong> oder <strong>.ps1</strong> ausführen, Publish-URLs aus der Ausgabe zurückkopieren.</li>
+                            </ol>
+                        </div>
+                        <p class="help-open"><a href="tools/kalender-postfaecher.html">→ Kalender-Postfächer öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="verteilerliste mail-aktivierte sicherheitsgruppe exchange graph read-only">
@@ -1530,7 +1552,7 @@
                     </article>
                     <article class="help-article" data-help-article data-search="unterrichtsteams katalog kursteam liste filter bearbeiten belegung">
                         <h3 id="tool-unterrichtsteams-katalog">Unterrichtsteams-Katalog <span class="pill">Pflege</span></h3>
-                        <p>Zeigt die <strong>Unterrichtsbelegung</strong> (nach Import aus Kursteams oder M365): filtern nach Klasse, Fach, Lehrkraft; Anzeigenamen und Mail-Nicknames bearbeiten; optional Anzeigenamen in Entra aktualisieren.</p>
+                        <p>Zeigt die <strong>Unterrichtsbelegung</strong> (nach Import aus Kursteams oder M365): filtern nach Klasse, Fach, Lehrkraft; Anzeigenamen und Mail-Nicknames bearbeiten. <strong>Bestehende Teams importieren</strong> (Button oben) lädt Teams aus Microsoft&nbsp;365, verknüpft und ergänzt – dieselbe Aktion wie in Kursteams. Optional Anzeigenamen in Entra aktualisieren.</p>
                         <p class="help-open"><a href="tools/unterrichtsteams-katalog.html">→ Katalog öffnen</a></p>
                     </article>
                     <article class="help-article" data-help-article data-search="räume room places ressourcen">

@@ -1,8 +1,30 @@
+.utk-catalog-panel {
+    margin-top: 4px;
+}
+.utk-filter-bar {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--soft) 70%, var(--card));
+}
+.utk-filter-bar__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.82em;
+    font-weight: 700;
+    color: var(--heading);
+}
+.utk-filter-bar__title i {
+    color: var(--brand1);
+}
 .utk-page .utk-filters {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: minmax(160px, 1.4fr) repeat(3, minmax(110px, 1fr)) auto;
     gap: 10px 12px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     align-items: end;
 }
 .utk-page .utk-filters label {
@@ -20,6 +42,149 @@
     background: var(--input-bg);
     color: var(--text);
     font-size: 0.9em;
+}
+.utk-filter-check {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px !important;
+    padding-bottom: 8px;
+    white-space: nowrap;
+}
+.utk-filter-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.utk-push-m365-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88em;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+}
+.utk-m365-btn-hint {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.78em;
+    font-weight: 700;
+    background: color-mix(in srgb, #856404 16%, transparent);
+    color: var(--heading);
+    vertical-align: middle;
+}
+.utk-m365-btn-hint--ok {
+    background: color-mix(in srgb, #198754 16%, transparent);
+}
+.utk-m365-modal.open {
+    display: flex;
+}
+.utk-m365-modal__box {
+    max-width: min(720px, 96vw);
+    width: 100%;
+    max-height: min(90vh, 900px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background: var(--card);
+    color: var(--text);
+}
+.utk-m365-modal__box h3 {
+    color: var(--heading);
+}
+.utk-m365-modal__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 12px;
+    border-bottom: 1px solid var(--border);
+}
+.utk-m365-modal__title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+.utk-m365-modal__icon {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, #5c2d91, #0078d4);
+    font-size: 1.1rem;
+}
+.utk-m365-modal__head h3 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    color: var(--heading);
+}
+.utk-m365-modal__lead {
+    margin: 0;
+    font-size: 0.88em;
+    line-height: 1.4;
+}
+.utk-m365-modal__close {
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+.utk-m365-modal__body {
+    padding: 16px 20px;
+    overflow: auto;
+    flex: 1 1 auto;
+}
+.utk-m365-modal__prefix {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.82em;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    max-width: 280px;
+}
+.utk-m365-modal__prefix input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 0.9em;
+}
+.utk-m365-modal__summary {
+    margin-top: 0;
+}
+.utk-m365-modal__actions {
+    margin-bottom: 10px;
+}
+.utk-m365-modal__status {
+    font-size: 0.85em;
+    margin: 0 0 8px;
+    min-height: 1.2em;
+}
+.utk-m365-modal__foot {
+    margin: 0;
+    padding: 12px 20px 18px;
+    border-top: 1px solid var(--border);
+}
+@media (max-width: 900px) {
+    .utk-page .utk-filters {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 560px) {
+    .utk-page .utk-filters {
+        grid-template-columns: 1fr;
+    }
 }
 .utk-stats {
     display: flex;

@@ -49,6 +49,21 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #2563eb) 25%, transparent);
 }
 .kc-source-panel { margin-bottom: 8px; }
+.kc-team-panel,
+.kc-extra-panel {
+    margin-top: 4px;
+    padding: 12px;
+    border: 1px dashed var(--input-border);
+    border-radius: 10px;
+}
+.kc-extra-panel {
+    margin-bottom: 14px;
+}
+.kc-team-picked {
+    margin: 10px 0 0;
+    line-height: 1.4;
+}
+.kc-team-picked strong { color: inherit; }
 .kc-teacher-list {
     max-height: 220px;
     overflow: auto;

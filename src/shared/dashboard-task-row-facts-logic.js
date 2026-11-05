@@ -3,6 +3,7 @@
  */
 import { loadPlaybookState } from './playbook-store.js';
 import {
+    klassenChatsCoverage,
     klassenChatsProvisionStatus,
     klassenChatsStatusHint,
     scanSummaryHygieneStatus,
@@ -176,15 +177,21 @@ export function resolveAggregateTaskRowFacts(opts) {
     }
 
     if (o.aggregate === 'klassenchats') {
-        const st = klassenChatsProvisionStatus(container, settings);
         const classes = ((settings && settings.classes) || []).length;
         if (!classes) {
             return { tone: 'pending', chip: '', desc: 'Klassen in den Stammdaten fehlen' };
         }
+        const st = klassenChatsProvisionStatus(container, settings);
+        const cov = klassenChatsCoverage(container, settings);
         const hint = klassenChatsStatusHint(container, settings);
+        let chip = hygieneStateChip(st, hygieneApi);
+        if (st === 'ok') chip = 'Konsistent';
+        else if (st === 'unmatched') chip = 'Offen';
+        else if (cov.withChat > 0) chip = 'Teilweise';
+        else if (cov.resourceCount > 0) chip = 'Vorhanden';
         return {
             tone: toneFromHygieneStatus(st, hygieneApi),
-            chip: hygieneStateChip(st, hygieneApi),
+            chip: chip,
             desc: hint
         };
     }

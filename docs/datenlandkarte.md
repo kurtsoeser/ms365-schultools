@@ -2,7 +2,15 @@
 
 **Parallel zur Schuldaten-Karte (Graph):** hier geht es nicht um einzelne Personen, sondern um **Listen und Datenquellen** in der App als **Blöcke** mit **Anzahl** und **Beschreibung**. Linien = dokumentierte **logische Verknüpfung** (Sync, Join über Codes, Felder).
 
-**Nicht verwechseln:** Das [Schul-Organigramm](schul-organigramm.md) / die [Schul-Landkarte](schul-organigramm-landkarte.md) ist der **Pflegeweg** für die Schulstruktur (schreibt Stammdaten). Die Datenlandkarte nur visualisiert Quellen/Sync. Zielbild einer gemeinsamen Kanonik: [schul-struktur-kanon.md](schul-struktur-kanon.md).
+**Nicht verwechseln:**
+
+| Doc / Tool | Aufgabe |
+|------------|---------|
+| **Diese Datenlandkarte (App)** | Live: Listen-Blöcke, Anzahlen, Sync-Linien |
+| [Daten-Inventar-Landkarte](daten-inventar-landkarte.md) | Doku: **wo** localStorage/SPO/Graph liegen (Wahrheit vs. Cache) |
+| [Schul-Organigramm](schul-organigramm.md) / [Schul-Landkarte](schul-organigramm-landkarte.md) | **Pflege** der Schulstruktur (schreibt Stammdaten) |
+| [schul-struktur-kanon.md](schul-struktur-kanon.md) | Zielbild eine Kanonik |
+| [Lokal-First](stammdaten-local-first.md) | Umbau: SPO pausiert |
 
 ## Öffnen
 

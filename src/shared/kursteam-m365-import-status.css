@@ -1,0 +1,59 @@
+/* Gemeinsame Status-Box: Bestehende Teams importieren */
+.kt-m365-status {
+    padding: 12px 14px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.kt-m365-status__title {
+    margin: 0 0 8px;
+    font-weight: 600;
+    color: var(--heading);
+}
+.kt-m365-status__counts {
+    margin: 0;
+    font-size: 0.88em;
+    color: var(--text-secondary);
+}
+.kt-m365-status__ok {
+    color: #0d8050;
+    font-weight: 600;
+}
+.kt-m365-status__miss {
+    color: #b00020;
+    font-weight: 600;
+}
+.kt-m365-status__extra {
+    color: #856404;
+    font-weight: 600;
+}
+.kt-m365-status__hint {
+    margin: 8px 0 0;
+    font-size: 0.85em;
+}
+.kt-m365-status-details {
+    margin-top: 12px;
+}
+.kt-m365-status-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--heading);
+}
+.kt-m365-status-table-wrap {
+    overflow: auto;
+    max-height: 280px;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.kt-m365-status-table {
+    margin: 0;
+    font-size: 0.85em;
+    width: 100%;
+}
+.kt-m365-status-code {
+    font-size: 0.82em;
+}
+.kt-m365-status-empty {
+    margin: 0;
+}

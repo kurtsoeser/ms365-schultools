@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Kalender-Postfächer</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/kalender-postfaecher/kalender-postfaecher.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-calendar3"></i>Kalender-Postfächer</span>
+            </div>
+            <p>Mehrere schulische Kalender als freigegebene Postfächer: Rechte für Eintragen/Lesen und optional iCal-Publish-Link. Vorlagen wählen, Stellvertreter setzen, Skript ausführen – Graph liest, Exchange schreibt.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-kalender-postfaecher" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="postfaecher.html"><i class="bi bi-inbox"></i>Gemeinsame Postfächer</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <div data-ms365-empty-state data-ms365-empty-message="Kalender-Postfächer werden über Exchange angelegt. Inventar optional aus Microsoft 365 laden."></div>
+
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Aktionen">
+                <button type="button" class="btn" id="kpLoadInventory"><i class="bi bi-cloud-download"></i>Aus Microsoft 365 laden</button>
+            </div>
+
+            <p id="kpStatus" class="muted" role="status">Bereit.</p>
+
+            <div class="kp-meta">
+                <div class="field">
+                    <label>Schuildomain (SMTP-Vorschläge)</label>
+                    <p id="kpDomainDisplay" class="kp-domain-display muted">…</p>
+                    <p class="muted" style="margin:4px 0 0;font-size:0.9em;">
+                        <a href="../tenant.html">In Stammdaten ändern</a>
+                    </p>
+                </div>
+                <div class="field">
+                    <label for="kpAdmin">Exchange-Admin UPN (Vorschlag im Skript)</label>
+                    <input type="text" id="kpAdmin" placeholder="admin@…">
+                </div>
+            </div>
+
+            <div class="kp-layout">
+                <section class="kp-panel" aria-labelledby="kpPlanHead">
+                    <div class="kp-panel-head"><h2 id="kpPlanHead">1–3 · Planen</h2></div>
+                    <div class="kp-panel-body">
+                        <p class="kp-hint">
+                            Der Gruppen-Lehrerkalender bleibt unberührt. Hier entstehen <strong>eigene Shared-Mailbox-Kalender</strong>
+                            (Schulkalender, Schularbeiten, Matura, …) mit sauberen Ordnerrechten.
+                        </p>
+                        <p><strong>Vorlage hinzufügen</strong></p>
+                        <div class="kp-presets" id="kpPresets"></div>
+
+                        <p><strong>Inventar</strong> <span class="muted">(Klick = Rechte/Publish nachziehen)</span></p>
+                        <div id="kpInventory"></div>
+
+                        <p style="margin-top:14px;"><strong>Geplante Kalender</strong></p>
+                        <div id="kpList"></div>
+                        <div class="kp-editor-actions">
+                            <button type="button" class="btn" id="kpClearPlan"><i class="bi bi-eraser"></i>Plan leeren</button>
+                        </div>
+
+                        <p style="margin-top:16px;"><strong>Details</strong></p>
+                        <div id="kpEditor"></div>
+                    </div>
+                </section>
+
+                <section class="kp-panel" aria-labelledby="kpScriptHead">
+                    <div class="kp-panel-head"><h2 id="kpScriptHead">4–5 · Skript &amp; Ergebnis</h2></div>
+                    <div class="kp-panel-body">
+                        <p class="kp-hint">
+                            Skript einmal als Exchange-Admin ausführen. Am Ende stehen Publish-URLs (falls aktiviert) –
+                            in die Detailfelder zurückkopieren. Anschließend: Outlook → Kalender hinzufügen → aus Verzeichnis.
+                        </p>
+                        <label for="kpScript"><strong>Exchange-Online-PowerShell</strong></label>
+                        <textarea id="kpScript" readonly></textarea>
+                        <div class="kp-script-actions">
+                            <button type="button" class="btn btn-success" id="kpCopyScript"><i class="bi bi-clipboard"></i>Skript kopieren</button>
+                            <button type="button" class="btn" id="kpDownloadPs1"><i class="bi bi-download"></i>.ps1</button>
+                            <button type="button" class="btn" id="kpDownloadCmd"><i class="bi bi-filetype-exe"></i>.cmd (Doppelklick)</button>
+                        </div>
+                        <div class="kp-next">
+                            <a class="btn" href="postfaecher.html"><i class="bi bi-inbox"></i>Postfächer</a>
+                            <a class="btn" href="sharepoint-liste-schultermine.html"><i class="bi bi-calendar3"></i>Schultermine-Liste</a>
+                            <a class="btn" href="pa-termine-sync.html"><i class="bi bi-lightning"></i>Termine → Kalender (PA)</a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/shared/school-domain.js" defer></script>
+    <script src="../src/shared/empty-state-ui.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/graph-unified-groups.js" defer></script>
+    <script type="module" src="../src/tools/kalender-postfaecher/kalender-postfaecher.js"></script>
+</body>
+</html>

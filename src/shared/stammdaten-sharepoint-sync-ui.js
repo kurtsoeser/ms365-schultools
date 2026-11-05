@@ -291,6 +291,38 @@ function bind() {
     }
 
     applyLocalFirstSpoUi(document);
+    // Header-Datensicherung (msal-auth-ui) nachziehen – Panel kann vor diesem Modul existieren
+    try {
+        const backup = document.getElementById('ms365BackupHeader');
+        if (backup && isSpoNetworkSyncAllowed() === false) {
+            backup.querySelectorAll('[data-local-first-hide="spo-block"]').forEach(function (el) {
+                el.hidden = true;
+                el.setAttribute('aria-hidden', 'true');
+            });
+            // Fallback: Blöcke ohne data-Attribut (älteres Markup)
+            backup.querySelectorAll('.ms365-backup-panel__block').forEach(function (block) {
+                const label = block.querySelector('.ms365-backup-panel__label');
+                const t = label ? String(label.textContent || '') : '';
+                if (/SharePoint|Abgleich/i.test(t)) {
+                    block.hidden = true;
+                    block.setAttribute('aria-hidden', 'true');
+                }
+            });
+            const setup = backup.querySelector('[data-ms365-spo-sync="setup"]');
+            if (setup) {
+                setup.hidden = true;
+                setup.setAttribute('aria-hidden', 'true');
+            }
+            const note = backup.querySelector('[data-local-first-backup-note]');
+            if (note) {
+                note.hidden = false;
+                note.textContent = localFirstStatusMessage();
+            }
+            applyLocalFirstSpoUi(backup);
+        }
+    } catch {
+        /* optional */
+    }
     refreshStatus();
     try {
         window.addEventListener('ms365-tenant-settings-changed', refreshStatus);

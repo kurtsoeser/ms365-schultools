@@ -304,16 +304,27 @@ export function hygieneStatusForTarget(target, groupCount) {
 }
 
 /**
- * Status pro Hygiene-Ziel für Dashboard-Zeilen (Cache + lokaler Fallback).
+ * Status pro Hygiene-Ziel für Dashboard-Zeilen.
+ * Wenn der Scan-Cache eine Gruppenzahl hat, wird der Status aus der **aktuellen**
+ * Listenlänge und dieser Gruppenzahl neu berechnet (verhindert falsche „Abweichung“,
+ * wenn sich Stammdaten seit dem Scan geändert haben oder der Status-String veraltet ist).
  * @returns {Record<string, ReturnType<typeof hygieneStatusForTarget>>}
  */
 export function hygieneStatusByTargetId(container, settings) {
     const targets = buildHygieneTargets(container, settings);
     const cache = loadHygieneScanCache();
-    const scanById = {};
+    /** @type {Record<string, ReturnType<typeof hygieneStatusForTarget>>} */
+    const cachedStatusById = {};
+    /** @type {Record<string, number>} */
+    const cachedGroupCountById = {};
     if (cache && Array.isArray(cache.rows)) {
         cache.rows.forEach(function (r) {
-            if (r && r.id) scanById[String(r.id)] = r.status;
+            if (!r || !r.id) return;
+            const id = String(r.id);
+            if (r.status) cachedStatusById[id] = r.status;
+            if (typeof r.groupCount === 'number' && r.groupCount >= 0) {
+                cachedGroupCountById[id] = r.groupCount;
+            }
         });
     }
     /** @type {Record<string, ReturnType<typeof hygieneStatusForTarget>>} */
@@ -321,7 +332,11 @@ export function hygieneStatusByTargetId(container, settings) {
     targets.forEach(function (t) {
         const id = String(t.id || '').trim();
         if (!id) return;
-        if (scanById[id]) out[id] = scanById[id];
+        if (Object.prototype.hasOwnProperty.call(cachedGroupCountById, id)) {
+            out[id] = hygieneStatusForTarget(t, cachedGroupCountById[id]);
+            return;
+        }
+        if (cachedStatusById[id]) out[id] = cachedStatusById[id];
         else out[id] = hygieneStatusForTarget(t, null);
     });
     return out;
@@ -445,6 +460,64 @@ export function saveHygieneScanCache(payload) {
 }
 
 /**
+ * Einzelne Gruppenzahl im Scan-Cache aktualisieren (z. B. nach Abgleich im Werkzeug),
+ * damit das Dashboard nicht bei einer veralteten M365-Zahl hängen bleibt.
+ * @param {string} targetIdOrGroupId – Hygiene-Ziel-ID (z. B. klassenvorstaende) oder Graph-Gruppen-ID
+ * @param {number} groupCount
+ * @param {{ listCount?: number }} [opts]
+ * @returns {object|null} aktualisierter Cache oder null
+ */
+export function patchHygieneScanGroupCount(targetIdOrGroupId, groupCount, opts) {
+    const key = String(targetIdOrGroupId || '').trim();
+    const n = typeof groupCount === 'number' ? groupCount : -1;
+    if (!key || n < 0) return null;
+    const cache = loadHygieneScanCache();
+    if (!cache || !Array.isArray(cache.rows) || !cache.rows.length) return null;
+    const o = opts && typeof opts === 'object' ? opts : {};
+    let changed = false;
+    const rows = cache.rows.map(function (r) {
+        if (!r) return r;
+        const id = String(r.id || '').trim();
+        const gid = String(r.groupId || '').trim();
+        if (id !== key && gid !== key) return r;
+        const listN =
+            typeof o.listCount === 'number'
+                ? o.listCount
+                : typeof r.listCount === 'number'
+                  ? r.listCount
+                  : 0;
+        const next = Object.assign({}, r, {
+            listCount: listN,
+            groupCount: n,
+            status: hygieneStatusForTarget(
+                Object.assign({}, r, { listCount: listN, groupId: gid || r.groupId }),
+                n
+            )
+        });
+        changed = true;
+        return next;
+    });
+    if (!changed) return null;
+    const counts = { ok: 0, mismatch: 0, unmatched: 0, unknown: 0, emptyList: 0, matched: 0 };
+    rows.forEach(function (r) {
+        if (!r) return;
+        if (r.groupId) counts.matched += 1;
+        if (r.status === 'ok') counts.ok += 1;
+        else if (r.status === 'mismatch') counts.mismatch += 1;
+        else if (r.status === 'unmatched') counts.unmatched += 1;
+        else if (r.status === 'unknown') counts.unknown += 1;
+        else if (r.status === 'empty-list') counts.emptyList += 1;
+    });
+    const payload = Object.assign({}, cache, {
+        rows: rows,
+        counts: counts,
+        scannedAt: cache.scannedAt || new Date().toISOString()
+    });
+    saveHygieneScanCache(payload);
+    return payload;
+}
+
+/**
  * @param {object} cfg
  * @param {() => object|null} cfg.loadContainer
  * @param {() => object|null} cfg.loadSettings
@@ -504,6 +577,7 @@ const api = {
     summarizeHygieneScan: summarizeHygieneScan,
     loadHygieneScanCache: loadHygieneScanCache,
     saveHygieneScanCache: saveHygieneScanCache,
+    patchHygieneScanGroupCount: patchHygieneScanGroupCount,
     runHygieneScan: runHygieneScan,
     SCAN_STORAGE_KEY: SCAN_STORAGE_KEY
 };

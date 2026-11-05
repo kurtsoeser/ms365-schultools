@@ -24,7 +24,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-door-open"></i>Räume &amp; Ressourcen</span>
             </div>
-            <p>Read-first: Raum-Postfächer und Places aus Microsoft&nbsp;365 – Schreiben bleibt bei Postfächern / Exchange.</p>
+            <p>Read-first: Raum-Postfächer und Places aus Microsoft&nbsp;365 (Graph Places, Place.Read.All) – ohne Schreibzugriff. Schreiben bleibt bei Postfächern / Exchange; bei Fehlern das Postfächer-Tool nutzen.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-raeume-ressourcen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -34,17 +34,9 @@
         <div class="content">
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine Stammdaten in diesem Browser. Räume/Ressourcen kommen aus Microsoft 365 – Einrichtung oder Demo für den Schulkontext."></div>
 
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-building"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">Betrieb · read-only</p>
-                    <h2>Räume sichtbar machen</h2>
-                    <p>Graph Places (Place.Read.All) – ohne Schreibzugriff. Bei Fehlern: Postfächer-Tool nutzen.</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <button type="button" class="btn" id="rrLoad"><i class="bi bi-cloud-download"></i>Räume laden</button>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Aktionen">
+                <button type="button" class="btn" id="rrLoad"><i class="bi bi-cloud-download"></i>Räume laden</button>
+            </div>
             <section class="tm-panel">
                 <p id="rrStatus" class="muted" role="status">Noch nicht geladen.</p>
                 <div style="overflow:auto;margin-top:10px;">

@@ -20,7 +20,11 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-journal-check"></i>Schularbeiten-Listen</span>
             </div>
-            <p>SharePoint-Paket für den Schularbeiten-Planer: Regelwerk, Terminfenster und Schularbeiten-Liste.</p>
+            <p>
+                SharePoint-Paket für den Schularbeiten-Planer: vier Listen auf der gewählten Website
+                (empfohlen: <strong>Administrations-Site</strong>). Bestehende Listen werden erkannt,
+                fehlende Spalten ergänzt; Regelwerk-Seed nur bei leerer Liste. Berechtigungen optional über Entra-Gruppen-Picker.
+            </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schularbeiten-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -29,39 +33,9 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-journal-bookmark"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">SharePoint · Planungs-Site</p>
-                    <h2>Schularbeiten-Paket einrichten</h2>
-                    <p>
-                        Vier Listen auf der gewählten Website (empfohlen:
-                        <strong>Administrations-Site</strong>). Bestehende Listen werden erkannt;
-                        fehlende Spalten ergänzt. Regelwerk-Seed nur bei leerer Liste.
-                        Berechtigungen optional über Entra-Gruppen-Picker.
-                    </p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
-                </div>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    <div>
-                        <h3>Was wird angelegt?</h3>
-                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
-                    </div>
-                </div>
-                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li><strong>SAP-Regelwerk</strong> – max. pro Tag/Woche, Ankündigungsfrist (inkl. Standard-Seed, Schuljahr)</li>
-                    <li><strong>SAP-Terminfenster</strong> – Sperrzeiten je Schuljahr</li>
-                    <li><strong>SAP-Schularbeiten</strong> – Anträge mit Codes und Status</li>
-                    <li><strong>SAP-FachMeta</strong> – optional Farbe, Kontingent, Standarddauer</li>
-                    <li>Bestehende Listen ohne <code>SAP-</code>-Präfix werden beim Setup umbenannt; Spalte <code>Schuljahr</code> wird ergänzt.</li>
-                </ul>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+            </div>
 
             <section class="tm-panel">
                 <div class="tm-panel__head">
@@ -101,6 +75,23 @@
                     (idempotent per ID) – Standard-URL: kurtrocks MS365-Schultools.
                     JSON-Referenz: <code>docs/demo-data/schularbeiten-2026-27.json</code>.
                 </p>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Was wird angelegt?</h3>
+                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
+                    </div>
+                </div>
+                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
+                    <li><strong>SAP-Regelwerk</strong> – max. pro Tag/Woche, Ankündigungsfrist (inkl. Standard-Seed, Schuljahr)</li>
+                    <li><strong>SAP-Terminfenster</strong> – Sperrzeiten je Schuljahr</li>
+                    <li><strong>SAP-Schularbeiten</strong> – Anträge mit Codes und Status</li>
+                    <li><strong>SAP-FachMeta</strong> – optional Farbe, Kontingent, Standarddauer</li>
+                    <li>Bestehende Listen ohne <code>SAP-</code>-Präfix werden beim Setup umbenannt; Spalte <code>Schuljahr</code> wird ergänzt.</li>
+                </ul>
             </section>
         </div>
     </div>

@@ -62,6 +62,7 @@ export const DASHBOARD_TOOL_RULES = {
 
     // —— Kommunikation ——
     postfaecher: { audience: 'it' },
+    'kalender-postfaecher': { audience: 'it' },
     verteilerlisten: { audience: 'it' },
     'eltern-verteiler': { audience: 'it' },
     'elternsprechtag-bookings': { audience: 'lehrer' },
@@ -195,6 +196,7 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'webuntis-stammdaten-import': 'planung',
     'cleanup-playbook-schuljahr': 'planung',
     postfaecher: 'kommunikation',
+    'kalender-postfaecher': 'kommunikation',
     verteilerlisten: 'kommunikation',
     'eltern-verteiler': 'kommunikation',
     'elternsprechtag-bookings': 'kommunikation',
@@ -408,6 +410,7 @@ export const DASHBOARD_TOOL_LABELS = {
     'webuntis-stammdaten-import': 'Daten importieren',
     'cleanup-playbook-schuljahr': 'Cleanup zum Schuljahr',
     postfaecher: 'Gemeinsame Postfächer',
+    'kalender-postfaecher': 'Kalender-Postfächer',
     verteilerlisten: 'E-Mail-Verteiler',
     'eltern-verteiler': 'Eltern-Verteiler',
     'elternsprechtag-bookings': 'Elternsprechtag Bookings',

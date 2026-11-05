@@ -19,6 +19,7 @@
  *    - EduRoster.ReadWrite (wird für POST /education/classes mitangefordert; laut Microsoft oft nur App-Only – dann scheitert Kursteam im Browser, siehe Kursteam-Anlage.cmd)
  *    - User.Read.All
  *    - Place.Read.All (optional, Werkzeug „Freigegebene Postfächer“: Räume aus Places erkennen und von Shared trennen)
+ *    - User.Read.All (auch Werkzeug „Kalender-Postfächer“: Shared-Mailbox-Kandidaten listen; Anlegen/Rechte/Publish nur per Exchange-PowerShell)
  *    - Reports.Read.All (optional, Werkzeug „Freigegebene Postfächer“: Mailbox-Usage-Report mit Recipient Type = Shared; angemeldete Person braucht zusätzlich eine Berichts-/Admin-Rolle)
  *    - User.ReadWrite.All (Schulstruktur-Sync: Benutzer per Graph aus Typ „Person“ anlegen)
  *    - Bookings.Read.All / Bookings.ReadWrite.All / Bookings.Manage.All (Werkzeug „Elternsprechtag (Bookings)“; Liste oft nur mit Suche/ID zuverlässig)

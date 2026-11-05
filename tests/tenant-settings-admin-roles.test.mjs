@@ -60,21 +60,32 @@ describe('tenant-settings adminRoles', () => {
         expect(saved.administration.find((g) => g.name === 'Facilities/Organisation')?.people).toHaveLength(1);
     });
 
-    it('schreibt Stammdaten auch in ms365-tenant-settings-v1 (Komfort-Spiegel)', () => {
+    it('schreibt bei ausgeschaltetem Spiegel nicht mehr nach ms365-tenant-settings-v1', () => {
         const ctx = loadTenantSettingsCore(store);
+        let wroteV2 = false;
         ctx.window.ms365TenantStorageMirror = {
             isV1MirrorWriteEnabled: function () {
                 return false;
+            },
+            writeTenantSettingsV1Mirror: function () {
+                throw new Error('v1-Spiegel sollte nicht aufgerufen werden');
             }
         };
-        ctx.ms365TenantSettingsSave({
+        ctx.window.ms365AppDataV2 = {
+            setCoreFromTenantSettings: function () {
+                wroteV2 = true;
+            },
+            getContainer: function () {
+                return { core: {} };
+            }
+        };
+        const saved = ctx.ms365TenantSettingsSave({
             domain: 'demo.at',
             teachers: [{ code: 'MU', name: 'Max', email: 'max@demo.at' }]
         });
-        const raw = store.get('ms365-tenant-settings-v1');
-        expect(raw).toBeTruthy();
-        const parsed = JSON.parse(raw);
-        expect(parsed.teachers[0].email).toBe('max@demo.at');
+        expect(saved.teachers[0].email).toBe('max@demo.at');
+        expect(wroteV2).toBe(true);
+        expect(store.get('ms365-tenant-settings-v1')).toBeUndefined();
     });
 
     it('parseAdminRolesLines liest Kürzel;Bezeichnung', () => {
@@ -111,6 +122,16 @@ describe('tenant-settings adminRoles', () => {
 
     it('persistiert seatMode und Organigramm in Stammdaten', () => {
         const ctx = loadTenantSettingsCore(store);
+        /** @type {{ core: Record<string, unknown> }} */
+        const v2 = { core: {} };
+        ctx.window.ms365AppDataV2 = {
+            setCoreFromTenantSettings: function (normalized) {
+                v2.core = { ...normalized };
+            },
+            getContainer: function () {
+                return v2;
+            }
+        };
         const saved = ctx.ms365TenantSettingsSave({
             domain: 'schule.at',
             adminRoles: [{ code: 'SEK', name: 'Sekretariat', seatMode: 'multi' }],

@@ -22,8 +22,9 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-chat-dots"></i>KlassenChats</span>
             </div>
             <p>
-                Teams-<strong>Gruppenchats</strong> für Lehrkräfte einer Klasse – aus der Unterrichtsbelegung
-                oder <strong>manuell</strong> (Klasse + Mitglieder). Namen mit Schuljahr-Bausteinen; KV wird ergänzt.
+                Lehrkräfte einer Klasse vernetzen – als Teams-<strong>Gruppenchat</strong> oder als
+                <strong>privater Kanal</strong> im Lehrerteam. Quelle: Unterrichtsbelegung oder manuell;
+                Namen mit Schuljahr-Bausteinen; KV wird ergänzt.
             </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-klassenchats" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
@@ -59,6 +60,61 @@
                         <h4><i class="bi bi-pencil-square"></i> Manuell</h4>
                         <p>Eine Klasse und die Mitglieder selbst wählen – auch ohne Belegung möglich.</p>
                     </button>
+                </div>
+
+                <div class="tm-field" style="margin-top:8px;">
+                    <label>Ziel in Teams</label>
+                </div>
+                <div class="kc-mode-grid" role="group" aria-label="Zieltyp">
+                    <button type="button" class="kc-mode-card is-selected" data-kc-target="groupChat" id="kcTargetChat">
+                        <h4><i class="bi bi-chat-dots"></i> Gruppenchat</h4>
+                        <p>Klassischer Teams-Chat in der Chat-Liste – leicht und schnell.</p>
+                    </button>
+                    <button type="button" class="kc-mode-card" data-kc-target="privateChannel" id="kcTargetChannel">
+                        <h4><i class="bi bi-lock"></i> Privater Kanal</h4>
+                        <p>Im Lehrerteam – mit Dateien und festem Ort pro Klasse.</p>
+                    </button>
+                </div>
+
+                <div id="kcPanelLehrerTeam" class="kc-source-panel kc-team-panel" hidden>
+                    <div class="tm-field">
+                        <label for="kcTeamSearch">Lehrerteam suchen</label>
+                        <div class="kc-search-row">
+                            <input type="search" id="kcTeamSearch" placeholder="Name oder Gruppen-Mail …" autocomplete="off">
+                            <button type="button" class="btn" id="kcBtnTeamSearch"><i class="bi bi-search"></i>Suchen</button>
+                        </div>
+                    </div>
+                    <div id="kcTeamSearchResults" class="kc-user-checklist" role="listbox" aria-label="Team-Treffer" hidden></div>
+                    <p id="kcTeamPicked" class="kc-team-picked muted">Noch kein Lehrerteam gewählt.</p>
+                    <p class="muted" style="line-height:1.45;margin:8px 0 0;">
+                        Alle Klassenchat-Mitglieder müssen im Lehrerteam sein – fehlende werden beim Anlegen ergänzt.
+                        Kanalnamen: max. 50 Zeichen; <code>|</code> wird zu <code>·</code>.
+                    </p>
+                </div>
+
+                <div id="kcPanelExtraMembers" class="kc-source-panel kc-extra-panel">
+                    <div class="tm-field">
+                        <label for="kcExtraEmails">Zusätzlich in allen Klassen (z. B. Direktion)</label>
+                        <textarea id="kcExtraEmails" rows="2" placeholder="eine E-Mail pro Zeile, oder mit Komma – gilt für Gruppenchat und privaten Kanal"></textarea>
+                    </div>
+                    <div class="tm-field" style="margin-top:10px;">
+                        <label for="kcExtraSearch">Im Microsoft&nbsp;365-Tenant suchen</label>
+                        <div class="kc-search-row">
+                            <input type="search" id="kcExtraSearch" placeholder="Name oder E-Mail …" autocomplete="off">
+                            <button type="button" class="btn" id="kcBtnExtraSearch"><i class="bi bi-search"></i>Suchen</button>
+                        </div>
+                    </div>
+                    <div id="kcExtraSearchResults" class="kc-user-checklist" role="group" aria-label="Zusatzpersonen-Treffer" hidden></div>
+                    <div class="kc-nav" style="margin-top:8px;" id="kcExtraApplyRow" hidden>
+                        <button type="button" class="btn btn-small" id="kcBtnExtraApply"><i class="bi bi-check2-square"></i>Zur Zusatzliste übernehmen</button>
+                    </div>
+                    <div id="kcExtraPickedWrap" class="kc-picked-wrap" hidden>
+                        <p class="muted" style="margin:10px 0 6px;">Zusätzlich übernommen:</p>
+                        <div id="kcExtraPicked" class="kc-picked-chips" aria-live="polite"></div>
+                    </div>
+                    <p class="muted" style="line-height:1.45;margin:10px 0 0;">
+                        Diese Personen kommen in <strong>jeden</strong> Klassenchat bzw. privaten Kanal dazu – als Mitglieder (nicht als Owner). Beim privaten Kanal werden sie ggf. ins Lehrerteam aufgenommen.
+                    </p>
                 </div>
 
                 <div id="kcPanelBelegung" class="kc-source-panel">
@@ -124,8 +180,8 @@
                 <div class="tm-panel__head">
                     <i class="bi bi-fonts" aria-hidden="true"></i>
                     <div>
-                        <h3>Chat-Namen</h3>
-                        <p>Schuljahr und Klasse als Bausteine – Standard: <code>SJ26 | 1A | Lehrer</code>.</p>
+                        <h3>Namen</h3>
+                        <p>Schuljahr und Klasse als Bausteine – Standard: <code>SJ26 | 1A | Lehrer</code> (bei Kanälen wird <code>|</code> zu <code>·</code>).</p>
                     </div>
                 </div>
                 <div class="tm-field">
@@ -169,7 +225,7 @@
                     <i class="bi bi-table" aria-hidden="true"></i>
                     <div>
                         <h3>Vorschau</h3>
-                        <p>Pro Klasse ein Gruppenchat. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.</p>
+                        <p id="kcPreviewLead">Pro Klasse ein Ziel. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.</p>
                     </div>
                 </div>
                 <p id="kcPreviewSummary" class="muted"></p>
@@ -178,10 +234,10 @@
                         <thead>
                             <tr>
                                 <th>Klasse</th>
-                                <th>Chat-Name</th>
+                                <th id="kcColName">Name</th>
                                 <th>Mitglieder</th>
                                 <th>Status</th>
-                                <th>Chat-ID</th>
+                                <th id="kcColId">ID</th>
                             </tr>
                         </thead>
                         <tbody id="kcPreviewBody"></tbody>
@@ -198,15 +254,14 @@
                     <i class="bi bi-cloud-upload" aria-hidden="true"></i>
                     <div>
                         <h3>In Teams anlegen</h3>
-                        <p>
-                            Legt Gruppenchats per Microsoft Graph an bzw. syncronisiert Mitglieder und Chat-Namen.
-                            Benötigt die Graph-Berechtigung <code>Chat.Create</code> (Admin-Zustimmung).
+                        <p id="kcRunHint">
+                            Legt Ressourcen per Microsoft Graph an bzw. syncronisiert Mitglieder und Namen.
                         </p>
                     </div>
                 </div>
                 <div class="kc-nav">
                     <button type="button" class="btn" data-kc-prev="3"><i class="bi bi-arrow-left"></i>Zurück</button>
-                    <button type="button" class="btn btn-brand" id="kcBtnRun"><i class="bi bi-chat-dots"></i>Chats anlegen / syncen</button>
+                    <button type="button" class="btn btn-brand" id="kcBtnRun"><i class="bi bi-cloud-upload"></i>Anlegen / syncen</button>
                 </div>
                 <pre class="kc-log" id="kcLog" aria-live="polite"></pre>
             </section>

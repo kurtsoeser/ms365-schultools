@@ -34,17 +34,10 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-person-workspace"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">5 Schritte</p>
-                    <h2>Freistellungen Lehrkräfte</h2>
-                    <p id="frPhaseHint">Schritt 1: Schule vorbereiten (Checkliste).</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites.ReadWrite.All</span>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="frPhaseHint">Schritt 1: Schule vorbereiten (Checkliste).</span></span>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites.ReadWrite.All</span>
+            </div>
 
             <section class="tm-glance tm-glance--compact fr-setup-glance fr-setup-glance--nav" id="frSetupGlance" role="tablist" aria-label="Setup-Schritte">
                 <button type="button" role="tab" class="tm-glance__card is-active" id="frSetupGlanceTab1" data-fr-setup-step="1" data-fr-glance="prep" aria-selected="true" aria-controls="frSetupStep1">

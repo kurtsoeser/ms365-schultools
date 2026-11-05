@@ -64,7 +64,7 @@ export const TOOL_PRACTICE_COPY = {
     },
     'tools/klassenchats.html': {
         title: 'KlassenChats',
-        desc: 'Chats für Klassen anlegen und pflegen'
+        desc: 'Gruppenchats oder private Kanäle im Lehrerteam'
     },
     'tools/arge-fachgruppen.html': {
         title: 'Fächer und Fachgruppen',

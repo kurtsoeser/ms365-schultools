@@ -4473,6 +4473,27 @@ export function mountSchulOrganigrammLandkarte(opts) {
             return setSchulOrganigrammView(layout, view);
         },
         flushLandkartePositions: flushLandkartePositions,
+        /**
+         * Viewport auf Weltkoordinate zentrieren (z. B. neuer Bereich).
+         * @param {number} wx
+         * @param {number} wy
+         * @param {{ w?: number, h?: number }} [size]
+         */
+        focusWorldPoint: function (wx, wy, size) {
+            const mapHost = host.querySelector('#schulOrgMapHost');
+            if (!mapHost) return false;
+            const cwHost = mapHost.clientWidth;
+            const chHost = mapHost.clientHeight;
+            if (cwHost < 80 || chHost < 80) return false;
+            const bw = Math.max(120, Number(size && size.w) || 280);
+            const bh = Math.max(80, Number(size && size.h) || 160);
+            return fitToBox({
+                x: Number(wx) || 0,
+                y: Number(wy) || 0,
+                w: bw,
+                h: bh
+            });
+        },
         getFocusStack: function () {
             return focusStack.slice();
         },

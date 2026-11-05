@@ -63,7 +63,7 @@ OrgNode = {
   w?: number, h?: number,      // optional; Auto-Layout wenn fehlend
   collapsed?: boolean,
   tone?: string,
-  refKind: 'none' | 'adminRole' | 'arge' | 'class' | 'kursteam' | 'studentCouncil' | 'sga' | 'audience' | 'adminPerson' | 'jahrgang' | 'sammelgruppe',
+  refKind: 'none' | 'adminRole' | 'arge' | 'class' | 'kursteam' | 'studentCouncil' | 'sga' | 'audience' | 'adminPerson' | 'jahrgang' | 'sammelgruppe' | 'klassenvorstand' | 'classFunction' | 'argeFunction' | 'argeLeiter',
   refKey: string,
   externalIds?: { bip?: string, sokrates?: string, webuntis?: string, graphGroupId?: string },
   m365?: {

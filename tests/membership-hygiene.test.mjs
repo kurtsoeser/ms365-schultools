@@ -1,14 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
     buildHygieneTargets,
     findClassTeamForClass,
     resolveClassGraphGroupId,
     countLinkedClassTeamsForClasses,
     hygieneStatusForTarget,
+    hygieneStatusByTargetId,
     aggregateHygieneStatuses,
     hygieneStatusDashboardTone,
     hygieneStatusDashboardHint,
-    summarizeHygieneScan
+    summarizeHygieneScan,
+    saveHygieneScanCache,
+    patchHygieneScanGroupCount,
+    loadHygieneScanCache
 } from '../src/shared/membership-hygiene.js';
 
 describe('membership-hygiene', () => {
@@ -183,5 +187,95 @@ describe('membership-hygiene', () => {
         expect(hygieneStatusDashboardTone('mismatch')).toBe('warn');
         expect(hygieneStatusDashboardTone('unknown')).toBe('pending');
         expect(hygieneStatusDashboardHint('ok')).toBe('Konsistent');
+    });
+
+    describe('hygieneStatusByTargetId live', () => {
+        /** @type {Record<string, string>} */
+        let store;
+
+        beforeEach(() => {
+            store = {};
+            vi.stubGlobal('localStorage', {
+                getItem: function (k) {
+                    return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+                },
+                setItem: function (k, v) {
+                    store[k] = String(v);
+                },
+                removeItem: function (k) {
+                    delete store[k];
+                }
+            });
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        it('berechnet Status live aus Cache-Gruppenzahl (kein stale mismatch)', () => {
+            saveHygieneScanCache({
+                scannedAt: new Date().toISOString(),
+                rows: [
+                    {
+                        id: 'slg-lehrer',
+                        status: 'mismatch',
+                        groupCount: 30,
+                        listCount: 29,
+                        groupId: 'g-l'
+                    },
+                    {
+                        id: 'slg-schueler',
+                        status: 'mismatch',
+                        groupCount: 26,
+                        listCount: 27,
+                        groupId: 'g-s'
+                    }
+                ]
+            });
+            const teachers = [];
+            for (let i = 0; i < 30; i++) teachers.push({ email: 't' + i + '@s.at' });
+            const students = [];
+            for (let i = 0; i < 27; i++) students.push({ email: 's' + i + '@s.at', klasse: '1A' });
+            const container = {
+                setup: {
+                    matched: { lehrerGroupId: 'g-l', schuelerGroupId: 'g-s' }
+                },
+                core: { classTeams: [] }
+            };
+            const settings = {
+                teachers: teachers,
+                students: students,
+                classes: [{ code: '1A' }],
+                admin: []
+            };
+            const byId = hygieneStatusByTargetId(container, settings);
+            expect(byId['slg-lehrer']).toBe('ok');
+            expect(byId['slg-schueler']).toBe('mismatch');
+        });
+
+        it('patchHygieneScanGroupCount aktualisiert veraltete Gruppenzahl', () => {
+            saveHygieneScanCache({
+                scannedAt: new Date().toISOString(),
+                rows: [
+                    {
+                        id: 'klassenvorstaende',
+                        status: 'mismatch',
+                        groupCount: 7,
+                        listCount: 6,
+                        groupId: 'g-kv'
+                    }
+                ],
+                counts: { ok: 0, mismatch: 1, unmatched: 0, unknown: 0, emptyList: 0, matched: 1 }
+            });
+            const updated = patchHygieneScanGroupCount('klassenvorstaende', 6, { listCount: 6 });
+            expect(updated).toBeTruthy();
+            expect(updated.rows[0].groupCount).toBe(6);
+            expect(updated.rows[0].status).toBe('ok');
+            expect(updated.counts.ok).toBe(1);
+            expect(updated.counts.mismatch).toBe(0);
+            const again = loadHygieneScanCache();
+            expect(again.rows[0].groupCount).toBe(6);
+            expect(patchHygieneScanGroupCount('g-kv', 6, { listCount: 6 }).rows[0].status).toBe('ok');
+        });
     });
 });

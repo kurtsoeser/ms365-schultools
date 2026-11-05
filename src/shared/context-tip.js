@@ -71,6 +71,8 @@
             'Geführte Checkliste beim Schuljahreswechsel: Schuljahr, Namen, Abschlussjahrgang, Schülerliste, Unterrichtsteams.',
         postfaecher:
             'Gemeinsame Postfächer in Exchange – z. B. sekretariat@… – die mehrere Personen nutzen.',
+        'kalender-postfaecher':
+            'Schulkalender und weitere Kalender als Shared Mailbox: Eintragen/Lesen-Rechte und optional iCal-Publish per Exchange-Skript.',
         verteilerlisten: 'Klassische E-Mail-Verteilerlisten anzeigen und per Skript anlegen oder ändern.',
         'eltern-verteiler':
             'Erziehungsberechtigte den Schülerinnen zuordnen und Klassen-/Jahrgangs-Verteiler erzeugen.',

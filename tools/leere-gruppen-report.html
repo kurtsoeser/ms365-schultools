@@ -290,7 +290,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-ui-checks-grid"></i>Leere Gruppen</span>
             </div>
-            <p>Gruppen ohne Besitzer oder Mitglieder finden – und bei Bedarf aufräumen.</p>
+            <p>Gruppen ohne Besitzer oder Mitglieder finden – Analyse starten, auffällige Zeilen filtern, optional löschen (mit Bestätigung).</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-leere-gruppen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -300,19 +300,11 @@
         <div class="content">
             <div data-ms365-empty-state data-ms365-empty-message="Noch keine lokalen Stammdaten. Der Report lädt Gruppen aus Microsoft 365 – Einrichtung oder Demo für den Kontext."></div>
 
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-search"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">Report</p>
-                    <h2>Wer hat keine Besitzer oder Mitglieder?</h2>
-                    <p>Analyse starten, auffällige Zeilen filtern, optional löschen – mit Bestätigung.</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <button type="button" class="btn" id="lgrBtnRun"><i class="bi bi-play-fill"></i>Analyse starten</button>
-                    <button type="button" class="btn" id="lgrBtnCsv" disabled><i class="bi bi-download"></i>CSV</button>
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Nur Metadaten lesen</span>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Aktionen">
+                <button type="button" class="btn" id="lgrBtnRun"><i class="bi bi-play-fill"></i>Analyse starten</button>
+                <button type="button" class="btn" id="lgrBtnCsv" disabled><i class="bi bi-download"></i>CSV</button>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Nur Metadaten lesen</span>
+            </div>
 
             <section class="tm-panel">
                 <div class="tm-glance" aria-hidden="true">

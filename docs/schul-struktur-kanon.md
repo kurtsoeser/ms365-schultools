@@ -3,7 +3,8 @@
 **Status:** Zielbild / Leitplanke (Oktober 2026)  
 **Produktentscheidung:** Die **Schul-Landkarte** ist die visuelle Wahrheit der Schule; die **Listen im v2-Container** bleiben die speicherbare Wahrheit. Beides muss immer zusammenpassen – inkl. Backup, WebUntis und später Bildungsportal.
 
-**Umbau aktiv:** [stammdaten-local-first.md](stammdaten-local-first.md) – SharePoint-IT/Intranet-Export pausiert; Schreibpfad `writeSchoolData` + Materializer (kein Abgleich-Schritt im Alltag).
+**Umbau aktiv:** [stammdaten-local-first.md](stammdaten-local-first.md) – SharePoint-IT/Intranet-Export pausiert; Schreibpfad `writeSchoolData` + Materializer (kein Abgleich-Schritt im Alltag).  
+**Inventar Speicherorte:** [daten-inventar-landkarte.md](daten-inventar-landkarte.md).
 
 Verwandt: [schul-organigramm.md](schul-organigramm.md), [schul-organigramm-landkarte.md](schul-organigramm-landkarte.md), [datenlandkarte.md](datenlandkarte.md), [edtech-bildungsportal-stammdatenanbindung.md](edtech-bildungsportal-stammdatenanbindung.md)
 
@@ -82,7 +83,43 @@ Pro Person in Listen (bereits teilweise vorhanden):
 | `classes[]` | `code`, optional externes Klassen-ID |
 | Belegung | `klasse` × `fach` × Lehrkraft |
 
-### 3.3 Zuordnungsregeln (Import)
+### 3.3 Funktions-Sammelbereiche (Regel)
+
+**Regel:** Wird dieselbe Funktion in mehreren Gruppen/Teams besetzt (Klasse, ARGE, …), legt die Landkarte **automatisch einen Sammelbereich** an, der alle Inhaber:innen dieser Funktion schulweit bündelt. An diesem Bereich hängen wieder Microsoft-365-Objekte (Gruppenchat, M365-Gruppe, Verteiler, Sicherheitsgruppe, freigegebenes Postfach).
+
+```text
+Funktion in Gruppe A / B / C  →  Stammdaten-Sitz
+                              →  Sammel-Area (View)
+                              →  node.m365 (Chat / Gruppe / Postfach / …)
+```
+
+Bereits umgesetzt (gleiche Mechanik):
+
+| Funktion | Sitz-Wahrheit | Sammelbereich |
+|----------|---------------|---------------|
+| Klassenvorstand | `classes[].headEmail` | Root `sec_klassenvorstand` |
+| ARGE-Leitung | `arges[].headEmail` | unter ARGEs `sec_arge_leiter` |
+| Klassensprecher | `classes[].functions.klassensprecher` | Root `sec_classfn_klassensprecher` |
+
+**Registry** (`listSchulOrgFunctionAggregates`): Builtin + optionale `settings.classFunctions` / `settings.argeFunctions`. Jede neue Funktions-Definition mit `aggregate: true` (Default) erzeugt beim Sync ihren Sammelbereich; M365 bleibt am Knoten (`keepM365`).
+
+Klassenfunktionen (Beispiel):
+
+```text
+years.*.classes[].functions?: {
+  klassensprecher?: { name: string, email: string }
+}
+```
+
+ARGE-Funktionen analog: `core.arges[].functions` + Sammelbereich `sec_argefn_{id}` unter ARGEs.
+
+**Verhalten am Gruppenknoten**
+
+1. Sitz in der Gruppe zuweisen/ändern (z. B. Klasse → Klassensprecher).
+2. Sammelbereich aktualisiert sich automatisch (kein manuelles Kopieren).
+3. Am Sammelbereich: Microsoft-365-Objekte matchen/anlegen wie bei jeder anderen Area.
+
+### 3.4 Zuordnungsregeln (Import)
 
 | Quelle | Ziel |
 |--------|------|

@@ -1977,7 +1977,8 @@ th {
 .ms365-toast-host {
     position: fixed;
     inset: auto 16px 16px auto;
-    z-index: 10060;
+    /* Über Edit-Overlay (12500) und Lizenz-Gate (12000) */
+    z-index: 14000;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -2682,10 +2683,10 @@ html[data-theme='dark'] .admin-lic-badge--unknown {
     white-space: nowrap;
 }
 
-/* Zentrierte App-Dialoge (ms365AppDialog*) – über Backup-Abgleich (10060) und Entra-Picker (10100) */
+/* Zentrierte App-Dialoge (ms365AppDialog*) – über Landkarten-Diff (12000) und Edit-Overlays */
 #ms365AppDialog.modal-overlay,
 .ms365-app-dialog-overlay {
-    z-index: 10200;
+    z-index: 13000;
     backdrop-filter: blur(6px);
     background: rgba(20, 24, 48, 0.48);
 }

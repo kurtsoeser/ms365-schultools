@@ -1,7 +1,7 @@
 /**
  * Status-Zeile auf Werkzeug-Kacheln im Katalog (Alle Werkzeuge).
  */
-import { resolveDashboardToolStatus } from './dashboard-tool-status-logic.js';
+import { resolveDashboardToolStatus } from './dashboard-tool-status-logic.js?v=kc-dash-5';
 
 /**
  * @param {HTMLElement} card

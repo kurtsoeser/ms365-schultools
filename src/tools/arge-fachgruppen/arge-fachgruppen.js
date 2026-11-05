@@ -2,6 +2,12 @@
  * Analyse 02 Phase B – ESM + shared/utils/strings.
  */
 import { normStr, normCode, normEmail } from '../../shared/utils/strings.js';
+import {
+    buildAfgBulkCreateConfirmMessage,
+    buildAfgMailNickname,
+    collectAfgCreateOwners,
+    formatAfgBulkCreatePreviewLines
+} from './arge-fachgruppen-bulk-logic.js';
 
 function gug() {
     const G = window.ms365GraphUnifiedGroups;
@@ -104,17 +110,22 @@ function getActiveGroupId() {
 function mailPrefix(kind) {
     const api = dataV2();
     const su = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
-    const raw = kind === 'arge' ? (su && su.argeGroupMailPrefix) || 'arge-' : (su && su.subjectGroupMailPrefix) || 'fach';
+    const def = kind === 'arge' ? 'arge-' : 'fach';
+    const stored = kind === 'arge' ? su && su.argeGroupMailPrefix : su && su.subjectGroupMailPrefix;
+    // null/undefined → Default; '' bleibt leer (Alias = nur Kürzel).
+    const raw = stored == null ? def : String(stored);
     if (api && typeof api.mailNicknamePrefixSanitize === 'function') {
-        return api.mailNicknamePrefixSanitize(raw, 24) || (kind === 'arge' ? 'arge-' : 'fach');
+        return api.mailNicknamePrefixSanitize(raw, 24);
     }
-    return kind === 'arge' ? 'arge-' : 'fach';
+    return raw
+        .trim()
+        .toLowerCase()
+        .replace(/[@()[\]\\";:<>,\s]/g, '')
+        .slice(0, 24);
 }
 
 function deriveNick(kind, code) {
-    const pre = mailPrefix(kind);
-    const tail = gug().sanitizeMailNickname(String(code || 'x')).slice(0, 40);
-    return gug().sanitizeUnifiedGroupMailNickname(String(pre + tail).toLowerCase()).slice(0, 60);
+    return buildAfgMailNickname(mailPrefix(kind), code);
 }
 
 /** Einmalig alten Default „ag“ (→ agfvv) auf „arge-“ umstellen. */
@@ -145,7 +156,7 @@ function syncMailPrefixUi() {
     const preview = document.getElementById('afgMailPrefixPreview');
     if (inp && document.activeElement !== inp) {
         inp.value = mailPrefix(activeKind);
-        inp.placeholder = activeKind === 'arge' ? 'arge-' : 'fach';
+        inp.placeholder = 'leer = nur Kürzel';
     }
     const sampleCode = activeCode || (activeKind === 'arge' ? 'FVV' : 'M');
     const nick = deriveNick(activeKind, sampleCode);
@@ -158,12 +169,14 @@ function persistMailPrefixFromDom() {
     if (!inp) return;
     const api = dataV2();
     if (!api || typeof api.patchSetup !== 'function') return;
-    const fallback = activeKind === 'arge' ? 'arge-' : 'fach';
     let v = String(inp.value || '').trim();
     if (typeof api.mailNicknamePrefixSanitize === 'function') {
-        v = api.mailNicknamePrefixSanitize(v, 24) || fallback;
+        v = api.mailNicknamePrefixSanitize(v, 24);
     } else {
-        v = v.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 24) || fallback;
+        v = v
+            .toLowerCase()
+            .replace(/[@()[\]\\";:<>,\s]/g, '')
+            .slice(0, 24);
     }
     inp.value = v;
     if (activeKind === 'arge') {
@@ -186,11 +199,11 @@ function updateCatalogNickHint() {
     }
     const codeEl = document.getElementById('afgNewCode');
     const code = normCode(codeEl && codeEl.value);
+    const pre = mailPrefix(activeKind);
     if (!code) {
-        hint.textContent =
-            activeKind === 'arge'
-                ? 'Beim Anlegen der M365‑Gruppe: Präfix „' + mailPrefix('arge') + '“ + Kürzel.'
-                : 'Beim Anlegen der M365‑Gruppe: Präfix „' + mailPrefix('subject') + '“ + Kürzel.';
+        hint.textContent = pre
+            ? 'Beim Anlegen der M365‑Gruppe: Präfix „' + pre + '“ + Kürzel.'
+            : 'Beim Anlegen der M365‑Gruppe: Alias = nur das Kürzel (kein Präfix).';
         return;
     }
     hint.textContent = 'Vorschau Unique ID / Alias: ' + deriveNick(activeKind, code);
@@ -686,7 +699,9 @@ function applyCreateDefaults(forceNick) {
     }
     if (hint) {
         hint.textContent =
-            'Frei editierbar. Standard aus Präfix + Kürzel: ' +
+            'Frei editierbar. Standard' +
+            (mailPrefix(activeKind) ? ' aus Präfix + Kürzel' : ' = Kürzel (kein Präfix)') +
+            ': ' +
             (suggested || '–') +
             '. Leer oder „Standard“ setzt diesen Vorschlag beim Anlegen.';
     }
@@ -872,17 +887,57 @@ function setActiveCode(code) {
     if (getActiveGroupId()) live().loadGroup({ silent: true });
 }
 
-function persistMatch(g, mode) {
-    const row = getActiveRow();
+function persistMatchFor(kind, code, g, mode) {
+    const k = kind === 'arge' ? 'arge' : 'subject';
+    const c = normCode(code);
+    const list = rowsForKind(k);
+    let row = null;
+    for (let i = 0; i < list.length; i++) {
+        if (normCode(list[i].code) === c) {
+            row = list[i];
+            break;
+        }
+    }
     upsertCatalogLink({
-        kind: activeKind,
-        code: activeCode,
+        kind: k,
+        code: c,
         graphGroupId: g && g.id ? String(g.id) : '',
         displayName: (g && g.displayName) || (row && row.name) || '',
         mailNickname: (g && g.mailNickname) || '',
         mode: mode
     });
+}
+
+function persistMatch(g, mode) {
+    persistMatchFor(activeKind, activeCode, g, mode);
     renderLeftList();
+}
+
+function getAfgBulkCreateTeam() {
+    const el = document.getElementById('afgBulkCreateTeam');
+    return !!(el && el.checked);
+}
+
+function ownersForCatalogRow(row) {
+    return collectAfgCreateOwners(row, direktion);
+}
+
+function displayNameForCreate(row, kind) {
+    const code = normCode(row && row.code);
+    const name = normStr(row && row.name) || code;
+    const label = kind === 'arge' ? 'Arbeitsgruppe ' : 'Fach ';
+    return label + (name || code || '');
+}
+
+function descriptionForCreate(row, kind) {
+    const code = normCode(row && row.code);
+    const name = normStr(row && row.name) || code;
+    const label = kind === 'arge' ? 'Arbeitsgruppe ' : 'Fach ';
+    return (
+        label +
+        (name || code || '') +
+        (kind === 'arge' ? ' (MS365-Schul-Tools / ARGE)' : ' (MS365-Schul-Tools / Fachgruppe)')
+    );
 }
 
 function persistUnmatchFor(kind, code) {
@@ -964,6 +1019,33 @@ function collectSelectedMatched() {
             link: link,
             id: id,
             name: normStr(row.name) || normStr(row.code) || id
+        });
+    });
+    return out;
+}
+
+function collectSelectedUnmatched() {
+    pruneSelection();
+    const out = [];
+    const list = rowsForKind(activeKind);
+    selectedKeys().forEach(function (key) {
+        let row = null;
+        for (let i = 0; i < list.length; i++) {
+            if (normCode(list[i].code) === key) {
+                row = list[i];
+                break;
+            }
+        }
+        if (!row) return;
+        const link = getCatalogLink(activeKind, row.code);
+        if (link && link.graphGroupId) return;
+        const nick = deriveNick(activeKind, row.code);
+        out.push({
+            key: key,
+            row: row,
+            code: normCode(row.code),
+            nick: nick,
+            name: normStr(row.name) || normStr(row.code) || key
         });
     });
     return out;
@@ -1160,6 +1242,117 @@ async function runBulkSetOwner() {
     }
 }
 
+async function runBulkCreateAndMatch() {
+    const items = collectSelectedUnmatched();
+    if (!items.length) {
+        toast('Bitte zuerst ungematchte ' + kindLabel(2) + ' ankreuzen (rote Badges).');
+        return;
+    }
+    const createTeam = getAfgBulkCreateTeam();
+    const preview = formatAfgBulkCreatePreviewLines(items, 12);
+    if (
+        !(await dlgConfirm(
+            buildAfgBulkCreateConfirmMessage({
+                kindLabel: kindLabel(items.length),
+                count: items.length,
+                previewLines: preview,
+                createTeam: createTeam
+            }),
+            { title: 'Gruppen anlegen & matchen', okText: 'Anlegen' }
+        ))
+    ) {
+        return;
+    }
+    const btn = document.getElementById('afgBtnBulkCreate');
+    if (btn) btn.disabled = true;
+    let ok = 0;
+    let fail = 0;
+    const lines = [];
+    setBulkStatus('Gruppen werden angelegt …');
+    try {
+        const token = await gug().getGraphToken();
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const nick = it.nick || deriveNick(activeKind, it.code);
+            if (!nick) {
+                fail++;
+                lines.push('Fehler  ' + it.code + ': kein Alias ableitbar (Präfix/Kürzel prüfen).');
+                continue;
+            }
+            const displayName = displayNameForCreate(it.row, activeKind);
+            const desc = descriptionForCreate(it.row, activeKind);
+            try {
+                const g = await gug().createUnifiedGroup(token, displayName, nick, desc);
+                const owners = ownersForCatalogRow(it.row);
+                if (owners.length) {
+                    try {
+                        await gug().ensureOwners(token, g.id, owners);
+                    } catch {
+                        /* optional */
+                    }
+                }
+                if (createTeam && typeof gug().provisionTeamForGroup === 'function') {
+                    try {
+                        await gug().provisionTeamForGroup(token, g.id);
+                    } catch (teamErr) {
+                        const msg = String((teamErr && teamErr.message) || teamErr || '');
+                        if (/\b409\b/.test(msg) || /Conflict|already exists|already provisioned/i.test(msg)) {
+                            /* Team bereits vorhanden */
+                        } else {
+                            lines.push('Team fehlgeschlagen  ' + it.code + ': ' + msg);
+                        }
+                    }
+                }
+                persistMatchFor(activeKind, it.code, g, 'created');
+                selectedKeys().delete(it.key);
+                ok++;
+                lines.push(
+                    'OK  ' + it.code + '  →  ' + nick + (createTeam ? ' (+ Team)' : '')
+                );
+                if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                    window.ms365ActionLog.append({
+                        tool: 'afg',
+                        action: 'createAndMatch',
+                        target: nick,
+                        summary: displayName,
+                        result: 'ok'
+                    });
+                }
+            } catch (e) {
+                fail++;
+                lines.push('Fehler  ' + it.code + ': ' + (e.message || e));
+            }
+            if ((i + 1) % 4 === 0) await sleep(200);
+        }
+        renderLeftList();
+        if (items.some(function (it) {
+            return normCode(it.code) === normCode(activeCode);
+        })) {
+            refreshMatchUi();
+            if (getActiveGroupId()) {
+                try {
+                    live().invalidateMembership();
+                } catch {
+                    /* ignore */
+                }
+                try {
+                    live().loadGroup({ silent: true });
+                } catch {
+                    /* ignore */
+                }
+            }
+        }
+        setBulkStatus(lines.join('\n'));
+        toast('Anlegen: ' + ok + ' OK, ' + fail + ' Fehler.');
+    } catch (e) {
+        renderLeftList();
+        setBulkStatus('Abbruch: ' + (e.message || e));
+        toast('Anlegen: ' + (e.message || e));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function runBulkDelete() {
     const items = collectSelectedMatched();
     if (!items.length) {
@@ -1243,7 +1436,7 @@ function mountDetail() {
         title: 'Fachgruppe',
         searchPlaceholder: 'z. B. ARGE Sprachen oder fach-d',
         unmatchedCreateHint:
-            'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Unique ID / Alias können Sie frei setzen – sonst gilt der Standard aus Präfix + Kürzel. Optional auch als Team bereitstellen.',
+            'Legt eine Microsoft 365‑Gruppe (Unified) an und verknüpft sie mit diesem Katalogeintrag. Unique ID / Alias können Sie frei setzen – sonst gilt Präfix + Kürzel bzw. nur das Kürzel, wenn das Präfix leer ist. Optional auch als Team bereitstellen.',
         membersUnmatchedHint:
             'In den Stammdaten gibt es keine Mitgliederliste für Fach/ARGE. Nach dem Match können Sie Mitglieder live in Graph pflegen.',
         membersUnmatchedTitle: 'Hinweis aus den Stammdaten',
@@ -1292,7 +1485,7 @@ function mountDetail() {
                     : { ok: false, message: 'Bitte zuerst einen Katalogeintrag wählen.' };
             },
             ensureOwners: function (token, gid) {
-                return gug().ensureOwners(token, gid, direktion || []);
+                return gug().ensureOwners(token, gid, ownersForCatalogRow(getActiveRow()));
             }
         },
         onTabUnmatched: function (tab) {
@@ -1379,13 +1572,13 @@ function wire() {
             if (api && typeof api.mailNicknamePrefixSanitize === 'function') {
                 pre = api.mailNicknamePrefixSanitize(pre, 24);
             } else {
-                pre = pre.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 24);
+                pre = pre
+                    .toLowerCase()
+                    .replace(/[@()[\]\\";:<>,\s]/g, '')
+                    .slice(0, 24);
             }
             const sampleCode = activeCode || (activeKind === 'arge' ? 'FVV' : 'M');
-            const tail = gug().sanitizeMailNickname(String(sampleCode || 'x')).slice(0, 40);
-            const nick = gug()
-                .sanitizeUnifiedGroupMailNickname(String((pre || '') + tail).toLowerCase())
-                .slice(0, 60);
+            const nick = buildAfgMailNickname(pre, sampleCode);
             if (preview) preview.textContent = nick || '–';
         });
     }
@@ -1408,6 +1601,9 @@ function wire() {
     onClick('afgBtnSelectUnmatched', selectVisibleUnmatched);
     onClick('afgBtnSelectMatched', selectVisibleMatched);
     onClick('afgBtnSelectNone', clearSelection);
+    onClick('afgBtnBulkCreate', function () {
+        runBulkCreateAndMatch().catch(function () {});
+    });
     onClick('afgBtnBulkOwner', function () {
         if (!collectSelectedMatched().length) {
             toast('Bitte zuerst gematchte ' + kindLabel(2) + ' ankreuzen.');

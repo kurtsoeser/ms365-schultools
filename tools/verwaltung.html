@@ -128,10 +128,10 @@
                                 </div>
                             </div>
                             <p id="slgDeviationSummary" class="muted slg-deviation-panel__summary"></p>
-                            <div id="slgDeviationActions" hidden aria-hidden="true">
-                                <button type="button" class="btn btn-sm btn-success" id="slgMrAddToGroup"><i class="bi bi-cloud-upload"></i>In Gruppe aufnehmen</button>
-                                <button type="button" class="btn btn-sm" id="slgMrImportLocal"><i class="bi bi-box-arrow-in-down"></i>In Schul-Liste importieren…</button>
-                                <button type="button" class="btn btn-sm btn-danger" id="slgMrRemoveFromGroup"><i class="bi bi-person-dash"></i>Aus Gruppe entfernen</button>
+                            <div id="slgDeviationActions" class="slg-deviation-panel__actions" hidden aria-hidden="true">
+                                <button type="button" class="btn btn-sm btn-success" id="slgMrAddToGroup" data-mr-action="add-to-group"><i class="bi bi-cloud-upload"></i>In Gruppe aufnehmen</button>
+                                <button type="button" class="btn btn-sm" id="slgMrImportLocal" data-mr-action="import-local"><i class="bi bi-box-arrow-in-down"></i>In Schul-Liste importieren…</button>
+                                <button type="button" class="btn btn-sm btn-danger" id="slgMrRemoveFromGroup" data-mr-action="remove-from-group"><i class="bi bi-person-dash"></i>Aus Gruppe entfernen</button>
                             </div>
                             <div id="slgDeviationBody" class="slg-deviation-panel__body"></div>
                         </div>

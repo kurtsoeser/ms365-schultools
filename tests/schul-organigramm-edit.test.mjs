@@ -226,10 +226,13 @@ describe('schul-organigramm-edit helpers', () => {
         const classPeople = listPeopleForSchulOrgNode(settings, c1);
         expect(classPeople[0]?.kind).toBe('head');
         expect(classPeople[0]?.seatLabel).toBe('Klassenvorstand');
+        expect(classPeople.some((p) => p.functionId === 'klassensprecher' && p.vacant)).toBe(true);
         expect(classPeople.filter((p) => p.kind === 'student')).toHaveLength(4);
+        // KV + offener Klassensprecher-Sitz + 4 Schüler
+        expect(classPeople).toHaveLength(6);
         const preview = previewPeopleForSchulOrgNode(settings, c1);
         expect(preview.shown).toHaveLength(SCHUL_ORG_PEOPLE_PREVIEW_LIMIT);
-        expect(preview.more).toBe(5 - SCHUL_ORG_PEOPLE_PREVIEW_LIMIT);
+        expect(preview.more).toBe(6 - SCHUL_ORG_PEOPLE_PREVIEW_LIMIT);
     });
 
     it('listM365PeopleForArea: Rollenpersonen unter dem Bereich', () => {

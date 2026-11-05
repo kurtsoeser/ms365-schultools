@@ -1,7 +1,7 @@
 # Stammdaten Lokal-First (Umbau)
 
 **Status:** aktiv (`STAMMDATEN_LOCAL_FIRST = true` in [`src/shared/stammdaten-local-first.js`](../src/shared/stammdaten-local-first.js))  
-**Verwandt:** [schul-struktur-kanon.md](schul-struktur-kanon.md), [stammdaten-v1-sunset.md](stammdaten-v1-sunset.md)
+**Verwandt:** [schul-struktur-kanon.md](schul-struktur-kanon.md), [stammdaten-v1-sunset.md](stammdaten-v1-sunset.md), **[daten-inventar-landkarte.md](daten-inventar-landkarte.md)** (wo welche Daten liegen)
 
 ## Ziel
 

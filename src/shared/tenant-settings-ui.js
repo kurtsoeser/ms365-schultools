@@ -1430,6 +1430,9 @@ import './schul-organigramm-stammdaten-sync.js';
         function subjectGroupMailPrefixForDerive() {
             const api = window.ms365AppDataV2;
             const su = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+            if (su && su.subjectGroupMailPrefix != null && !normStr(su.subjectGroupMailPrefix)) {
+                return '';
+            }
             return normStr(su && su.subjectGroupMailPrefix) || 'fach';
         }
 
@@ -2921,28 +2924,30 @@ import './schul-organigramm-stammdaten-sync.js';
     function argeGroupMailPrefixForDerive() {
         const api = window.ms365AppDataV2;
         const su = api && typeof api.getSetup === 'function' ? api.getSetup() : null;
+        // Explizit leer = kein Präfix (Alias = Kürzel). Sonst Default bzw. mit Bindestrich-Ende.
+        if (su && su.argeGroupMailPrefix != null && !normStr(su.argeGroupMailPrefix)) {
+            return '';
+        }
         const p = normStr(su && su.argeGroupMailPrefix) || 'arge-';
         return p.endsWith('-') || p.endsWith('.') ? p : p + '-';
     }
 
     function argeRowMailNickname(row) {
         const prefix = argeGroupMailPrefixForDerive();
-        const code = normCode(row && row.code);
-        const slug = code
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '');
-        let raw = prefix + (slug || 'arge');
+        const code = normCode(row && row.code) || 'arge';
+        let raw = String(prefix + code).toLowerCase();
         try {
             const api = window.ms365GraphUnifiedGroups;
+            if (api && typeof api.sanitizeUnifiedGroupMailNickname === 'function') {
+                return api.sanitizeUnifiedGroupMailNickname(raw).slice(0, 60);
+            }
             if (api && typeof api.sanitizeMailNickname === 'function') {
                 return api.sanitizeMailNickname(raw);
             }
         } catch {
             /* ignore */
         }
-        return raw.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 64);
+        return raw.replace(/[@()[\]\\";:<>,\s]/g, '').slice(0, 60) || 'arge';
     }
 
     function pickArgeGroupMatchFromSearch(groups, row) {

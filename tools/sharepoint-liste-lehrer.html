@@ -19,7 +19,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-table"></i>Lehrerliste</span>
             </div>
-            <p>Lehrkräfte aus den Stammdaten als SharePoint-Liste auf Ihrer Website.</p>
+            <p>Lehrkräfte aus den Stammdaten als SharePoint-Liste auf Ihrer Website – Name, Kürzel, E-Mail und UPN.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-lehrerliste" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -27,65 +27,10 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-people"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">SharePoint-Liste</p>
-                    <h2>Lehrerliste aus Stammdaten</h2>
-                    <p>Name, Kürzel, E-Mail und UPN – einmal anlegen, fertig zum Nutzen auf der Schulwebsite.</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm" id="splTeacherCount"><i class="bi bi-person-badge"></i>Lehrkräfte werden geladen …</span>
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
-                </div>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-table" aria-hidden="true"></i>
-                    <div>
-                        <h3>Vorschau der Spalten</h3>
-                        <p>So wirkt die Liste in SharePoint – Inhalte kommen aus Ihren Stammdaten.</p>
-                    </div>
-                </div>
-                <div class="tm-list-preview" aria-hidden="true">
-                    <div class="tm-list-preview__bar"><i class="bi bi-list-ul"></i> Lehrerinnen</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Kürzel</th>
-                                <th>E-Mail</th>
-                                <th>UPN</th>
-                                <th>Person</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Müller Anna</td>
-                                <td><span class="pill">MUEL</span></td>
-                                <td>anna.mueller@schule.at</td>
-                                <td>anna.mueller@schule.at</td>
-                                <td><i class="bi bi-person-check" title="M365-Benutzer"></i></td>
-                            </tr>
-                            <tr>
-                                <td>Huber Thomas</td>
-                                <td><span class="pill">HUBT</span></td>
-                                <td>thomas.huber@schule.at</td>
-                                <td>thomas.huber@schule.at</td>
-                                <td><i class="bi bi-person-check"></i></td>
-                            </tr>
-                            <tr>
-                                <td>Leitner Sara</td>
-                                <td><span class="pill">LEIS</span></td>
-                                <td>sara.leitner@schule.at</td>
-                                <td>sara.leitner@schule.at</td>
-                                <td><i class="bi bi-person-check"></i></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm" id="splTeacherCount"><i class="bi bi-person-badge"></i>Lehrkräfte werden geladen …</span>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+            </div>
 
             <section class="tm-panel">
                 <div class="tm-panel__head">
@@ -148,6 +93,35 @@
                     <div id="splLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
                 </details>
             </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-table" aria-hidden="true"></i>
+                    <div>
+                        <h3>Vorschau aus Stammdaten</h3>
+                        <p id="splPreviewHint">So wirkt die Liste in SharePoint – Zeilen aus Ihren Stammdaten.</p>
+                    </div>
+                </div>
+                <div class="tm-list-preview" id="splPreview">
+                    <div class="tm-list-preview__bar" id="splPreviewBar"><i class="bi bi-list-ul"></i> <span id="splPreviewListTitle">Lehrerinnen</span></div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Kürzel</th>
+                                <th>E-Mail</th>
+                                <th>UPN</th>
+                                <th>Person</th>
+                            </tr>
+                        </thead>
+                        <tbody id="splPreviewBody">
+                            <tr>
+                                <td colspan="5" style="color:var(--muted);">Lehrkräfte werden geladen …</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -161,21 +135,105 @@
     <script src="../src/tools/sharepoint/sharepoint-liste-lehrer.js" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            function refreshCount() {
-                var el = document.getElementById('splTeacherCount');
-                if (!el || typeof window.ms365TenantSettingsLoad !== 'function') return;
+            var PREVIEW_MAX = 8;
+
+            function esc(s) {
+                return String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function loadTeachers() {
+                if (typeof window.ms365TenantSettingsLoad !== 'function') return [];
                 try {
                     var s = window.ms365TenantSettingsLoad();
-                    var n = (s && Array.isArray(s.teachers) ? s.teachers : []).filter(function (t) {
+                    return (s && Array.isArray(s.teachers) ? s.teachers : []).filter(function (t) {
                         return t && String(t.code || '').trim();
-                    }).length;
-                    el.innerHTML = '<i class="bi bi-person-badge"></i>' + (n ? n + ' Lehrkräfte in Stammdaten' : 'Keine Lehrkräfte in Stammdaten');
+                    });
                 } catch (e) {
-                    el.innerHTML = '<i class="bi bi-person-badge"></i>Stammdaten prüfen';
+                    return [];
                 }
             }
-            setTimeout(refreshCount, 120);
-            setTimeout(refreshCount, 600);
+
+            function syncPreviewTitle() {
+                var input = document.getElementById('splListName');
+                var titleEl = document.getElementById('splPreviewListTitle');
+                if (!titleEl) return;
+                var name = input && String(input.value || '').trim() ? String(input.value).trim() : 'Lehrerinnen';
+                titleEl.textContent = name;
+            }
+
+            function refreshPreview() {
+                var countEl = document.getElementById('splTeacherCount');
+                var body = document.getElementById('splPreviewBody');
+                var hint = document.getElementById('splPreviewHint');
+                var teachers = loadTeachers();
+                var n = teachers.length;
+
+                if (countEl) {
+                    countEl.innerHTML =
+                        '<i class="bi bi-person-badge"></i>' +
+                        (n ? n + ' Lehrkräfte in Stammdaten' : 'Keine Lehrkräfte in Stammdaten');
+                }
+
+                syncPreviewTitle();
+
+                if (!body) return;
+
+                if (!n) {
+                    body.innerHTML =
+                        '<tr><td colspan="5" style="color:var(--muted);">Noch keine Lehrkräfte in den Stammdaten. ' +
+                        '<a href="../tenant.html#teachers">Stammdaten öffnen</a></td></tr>';
+                    if (hint) hint.textContent = 'Sobald Lehrkräfte in den Stammdaten stehen, erscheinen sie hier.';
+                    return;
+                }
+
+                var shown = teachers.slice(0, PREVIEW_MAX);
+                var rows = shown.map(function (t) {
+                    var name = String(t.name || '').trim() || String(t.code || '').trim();
+                    var code = String(t.code || '').trim();
+                    var email = String(t.email || '').trim();
+                    var personIcon = email
+                        ? '<i class="bi bi-person-check" title="M365-Benutzer über E-Mail"></i>'
+                        : '<i class="bi bi-person" title="Keine E-Mail – Personenfeld leer" style="opacity:0.45;"></i>';
+                    return (
+                        '<tr>' +
+                        '<td>' + esc(name) + '</td>' +
+                        '<td><span class="pill">' + esc(code) + '</span></td>' +
+                        '<td>' + esc(email || '—') + '</td>' +
+                        '<td>' + esc(email || '—') + '</td>' +
+                        '<td>' + personIcon + '</td>' +
+                        '</tr>'
+                    );
+                });
+
+                if (n > PREVIEW_MAX) {
+                    rows.push(
+                        '<tr><td colspan="5" style="color:var(--muted);font-size:0.9em;">… und ' +
+                            (n - PREVIEW_MAX) +
+                            ' weitere aus den Stammdaten</td></tr>'
+                    );
+                }
+
+                body.innerHTML = rows.join('');
+                if (hint) {
+                    hint.textContent =
+                        n === 1
+                            ? '1 Lehrkraft aus Ihren Stammdaten – so wirkt die Liste in SharePoint.'
+                            : n + ' Lehrkräfte aus Ihren Stammdaten – so wirkt die Liste in SharePoint.';
+                }
+            }
+
+            var listName = document.getElementById('splListName');
+            if (listName) {
+                listName.addEventListener('input', syncPreviewTitle);
+                listName.addEventListener('change', syncPreviewTitle);
+            }
+
+            setTimeout(refreshPreview, 120);
+            setTimeout(refreshPreview, 600);
         });
     </script>
 </body>

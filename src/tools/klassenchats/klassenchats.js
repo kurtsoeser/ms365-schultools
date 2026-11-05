@@ -1,6 +1,6 @@
 import { escapeHtml } from '../../shared/utils/strings.js';
 /**
- * KlassenChats-Wizard: Gruppenchats für Lehrkräfte einer Klasse.
+ * KlassenChats-Wizard: Gruppenchats oder private Kanäle für Lehrkräfte einer Klasse.
  */
 import {
     calcYearPrefix,
@@ -8,15 +8,24 @@ import {
     normalizeChatNamePattern,
     chatTokenLabel,
     buildChatTopicFromPattern,
+    displayNameForTarget,
     buildKvByKlasse,
     buildClassChatPlans,
     buildManualClassChatPlan,
     summarizePlans,
     existingByKlasseFromState,
     upsertClassChatItem,
-    normalizeClassChatsState
+    normalizeClassChatsState,
+    normalizeExtraMemberEmails,
+    normalizeTargetKind,
+    parseMemberEmailsText,
+    targetKindLabel
 } from './klassenchats-logic.js';
-import { provisionClassChat } from './klassenchats-graph.js';
+import {
+    formatKlassenchatsGraphError,
+    prepareTeacherTeamForChannels,
+    provisionClassResource
+} from './klassenchats-graph.js';
 
 function $(id) {
     return document.getElementById(id);
@@ -34,16 +43,30 @@ function G() {
     return api;
 }
 
-const SCOPES = [
+const SCOPES_CHAT = [
     'https://graph.microsoft.com/User.Read',
     'https://graph.microsoft.com/User.Read.All',
     'https://graph.microsoft.com/Chat.Create',
     'https://graph.microsoft.com/Chat.ReadWrite'
 ];
 
+const SCOPES_CHANNEL = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/User.Read.All',
+    'https://graph.microsoft.com/Group.ReadWrite.All',
+    'https://graph.microsoft.com/Channel.Create',
+    'https://graph.microsoft.com/Channel.ReadBasic.All',
+    'https://graph.microsoft.com/ChannelSettings.ReadWrite.All',
+    'https://graph.microsoft.com/ChannelMember.ReadWrite.All'
+];
+
+function scopesForTarget() {
+    return targetKind === 'privateChannel' ? SCOPES_CHANNEL : SCOPES_CHAT;
+}
+
 async function getToken() {
     if (typeof window.ms365AuthAcquireTokenPopup === 'function') {
-        return window.ms365AuthAcquireTokenPopup(SCOPES);
+        return window.ms365AuthAcquireTokenPopup(scopesForTarget());
     }
     return G().getGraphToken();
 }
@@ -53,6 +76,10 @@ let namePattern = defaultChatNamePattern();
 let step = 1;
 /** @type {'belegung'|'manual'} */
 let mode = 'belegung';
+/** @type {'groupChat'|'privateChannel'} */
+let targetKind = 'groupChat';
+/** @type {{ id: string, displayName: string, mail: string }|null} */
+let lehrerTeam = null;
 /** @type {ReturnType<typeof buildClassChatPlans>} */
 let plans = [];
 /** Manuelle Warteschlange (mehrere Chats vor dem Anlegen). */
@@ -61,10 +88,19 @@ let manualQueue = [];
 /** Aus Tenant-Suche übernommene Personen: email → { email, label, id } */
 /** @type {Map<string, { email: string, label: string, id: string }>} */
 let tenantPicked = new Map();
+/** Globale Zusatzpersonen (Direktion etc.): email → { email, label, id } */
+/** @type {Map<string, { email: string, label: string, id: string }>} */
+let extraPicked = new Map();
 /** @type {object|null} */
 let belegung = null;
 let yearPrefix = calcYearPrefix();
 let busy = false;
+
+function guidLike(s) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        String(s || '').trim()
+    );
+}
 
 function appData() {
     return window.ms365AppDataV2 || null;
@@ -123,20 +159,164 @@ function loadClassChatsState() {
 function saveClassChatsState(state) {
     const api = appData();
     if (!api || typeof api.setClassChats !== 'function') return null;
-    return api.setClassChats(state);
+    const saved = api.setClassChats(state);
+    const n = saved && Array.isArray(saved.items) ? saved.items.length : 0;
+    const want = state && Array.isArray(state.items) ? state.items.length : 0;
+    if (want > 0 && n === 0) {
+        toast('Warnung: Klassenchats konnten nicht dauerhaft gespeichert werden (Browser-Speicher voll?).');
+    }
+    return saved;
+}
+
+function getExtraMemberEmails() {
+    const fromText = parseMemberEmailsText(($('kcExtraEmails') && $('kcExtraEmails').value) || '');
+    const fromPicked = Array.from(extraPicked.keys());
+    return normalizeExtraMemberEmails(fromText.concat(fromPicked));
+}
+
+function renderExtraPicked() {
+    const wrap = $('kcExtraPickedWrap');
+    const host = $('kcExtraPicked');
+    if (!wrap || !host) return;
+    if (!extraPicked.size) {
+        wrap.hidden = true;
+        host.replaceChildren();
+        return;
+    }
+    wrap.hidden = false;
+    host.replaceChildren();
+    extraPicked.forEach((p) => {
+        const chip = document.createElement('span');
+        chip.className = 'kc-picked-chip';
+        const txt = document.createElement('span');
+        txt.textContent = p.label || p.email;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Entfernen');
+        btn.textContent = '✕';
+        btn.addEventListener('click', () => {
+            extraPicked.delete(p.email);
+            renderExtraPicked();
+            persistPatternMeta(loadClassChatsState());
+            if (step >= 3) renderPreview();
+        });
+        chip.append(txt, btn);
+        host.appendChild(chip);
+    });
+}
+
+function fillExtraSearchChecklist(users) {
+    const host = $('kcExtraSearchResults');
+    const applyRow = $('kcExtraApplyRow');
+    if (!host) return;
+    host.replaceChildren();
+    const list = Array.isArray(users) ? users : [];
+    if (!list.length) {
+        host.hidden = false;
+        const p = document.createElement('div');
+        p.className = 'muted';
+        p.style.padding = '8px';
+        p.textContent = '(keine Treffer)';
+        host.appendChild(p);
+        if (applyRow) applyRow.hidden = true;
+        return;
+    }
+    host.hidden = false;
+    if (applyRow) applyRow.hidden = false;
+    const api = G();
+    list.forEach((u) => {
+        const email = userEmailFromGraph(u);
+        const id = u && u.id ? String(u.id) : '';
+        if (!email && !id) return;
+        const label = document.createElement('label');
+        label.className = 'kc-user-checklist__item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = id;
+        cb.dataset.kcUserEmail = email;
+        cb.dataset.kcUserLabel =
+            typeof api.personLabel === 'function' ? api.personLabel(u) : email || id;
+        if (email && extraPicked.has(email)) {
+            cb.checked = true;
+            label.classList.add('is-checked');
+        }
+        const txt = document.createElement('span');
+        txt.textContent = cb.dataset.kcUserLabel || email || id;
+        label.append(cb, txt);
+        cb.addEventListener('change', () => {
+            label.classList.toggle('is-checked', !!cb.checked);
+        });
+        host.appendChild(label);
+    });
+}
+
+async function runExtraUserSearch() {
+    const inp = $('kcExtraSearch');
+    const q = inp ? String(inp.value || '').trim() : '';
+    if (!q) {
+        toast('Bitte einen Suchbegriff eingeben (Name oder E-Mail).');
+        return;
+    }
+    const btn = $('kcBtnExtraSearch');
+    if (btn) btn.disabled = true;
+    try {
+        const token = await getToken();
+        const users = await G().searchUsers(token, q);
+        fillExtraSearchChecklist(users);
+        toast('Zusatzsuche: ' + users.length + ' Treffer.');
+    } catch (e) {
+        toast('Zusatzsuche: ' + ((e && e.message) || e));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function applyExtraSelection() {
+    const host = $('kcExtraSearchResults');
+    const checked = host
+        ? Array.from(host.querySelectorAll('.kc-user-checklist__item input[type="checkbox"]:checked'))
+        : [];
+    if (!checked.length) {
+        toast('Bitte mindestens einen Treffer auswählen.');
+        return;
+    }
+    let added = 0;
+    checked.forEach((cb) => {
+        const email = String(cb.dataset.kcUserEmail || '')
+            .trim()
+            .toLowerCase();
+        const label = String(cb.dataset.kcUserLabel || email).trim();
+        const id = String(cb.value || '').trim();
+        if (!email || email.indexOf('@') === -1) return;
+        if (!extraPicked.has(email)) added += 1;
+        extraPicked.set(email, { email, label, id });
+    });
+    renderExtraPicked();
+    persistPatternMeta(loadClassChatsState());
+    if (step >= 3) renderPreview();
+    toast(added ? added + ' Zusatzperson(en) übernommen.' : 'Auswahl war bereits in der Zusatzliste.');
 }
 
 function persistPatternMeta(state) {
+    const extras = getExtraMemberEmails();
     const base = normalizeClassChatsState(state) || {
         updatedAt: new Date().toISOString(),
         yearPrefix,
         namePattern,
+        targetKind,
+        lehrerTeamId: lehrerTeam ? lehrerTeam.id : '',
+        lehrerTeamDisplayName: lehrerTeam ? lehrerTeam.displayName : '',
+        extraMemberEmails: extras,
         items: []
     };
     return saveClassChatsState({
         ...base,
         yearPrefix,
         namePattern,
+        targetKind,
+        lehrerTeamId: lehrerTeam ? lehrerTeam.id : '',
+        lehrerTeamDisplayName: lehrerTeam ? lehrerTeam.displayName : '',
+        extraMemberEmails: extras,
         updatedAt: new Date().toISOString()
     });
 }
@@ -155,6 +335,146 @@ function setMode(next) {
         updateManualKvHint();
         updateNamePreview();
     }
+}
+
+function setTargetKind(next) {
+    targetKind = normalizeTargetKind(next);
+    document.querySelectorAll('[data-kc-target]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-kc-target') === targetKind);
+    });
+    const teamPanel = $('kcPanelLehrerTeam');
+    if (teamPanel) teamPanel.hidden = targetKind !== 'privateChannel';
+    updateTargetUiCopy();
+    updateNamePreview();
+    renderLehrerTeamPicked();
+}
+
+function updateTargetUiCopy() {
+    const isChannel = targetKind === 'privateChannel';
+    const lead = $('kcPreviewLead');
+    if (lead) {
+        lead.textContent = isChannel
+            ? 'Pro Klasse ein privater Kanal im Lehrerteam. Klassenvorstand = Kanal-Owner, übrige Lehrkräfte = Mitglieder. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.'
+            : 'Pro Klasse ein Gruppenchat (KV zuerst). Hinweis: Bei Gruppenchats markiert Microsoft alle Teilnehmer technisch als Owner. Klassen mit weniger als zwei Lehrkräften (inkl. KV) werden übersprungen.';
+    }
+    const colName = $('kcColName');
+    if (colName) colName.textContent = isChannel ? 'Kanalname' : 'Chat-Name';
+    const colId = $('kcColId');
+    if (colId) colId.textContent = isChannel ? 'Kanal-ID' : 'Chat-ID';
+    const runHint = $('kcRunHint');
+    if (runHint) {
+        runHint.innerHTML = isChannel
+            ? 'Legt private Kanäle an bzw. syncronisiert sie: <strong>Klassenvorstand = Owner</strong>, andere = Mitglieder. Fehlende Lehrkräfte kommen zuerst ins Team. Der angemeldete IT-Admin erscheint in Teams-Benachrichtigungen als Ausführender und wird danach aus dem Kanal entfernt (außer selbst KV). Braucht u. a. <code>Channel.Create</code>, <code>ChannelMember.ReadWrite.All</code>, <code>Group.ReadWrite.All</code>.'
+            : 'Legt Gruppenchats an bzw. syncronisiert sie. Der IT-Admin wird nach dem Anlegen entfernt, sofern nicht Klassenmitglied. Bei Gruppenchats erlaubt Microsoft nur Owner/Guest-Rollen (alle Lehrkräfte = Owner). Benötigt <code>Chat.Create</code> (Admin-Zustimmung).';
+    }
+    const btnRun = $('kcBtnRun');
+    if (btnRun) {
+        const icon = isChannel ? 'bi-lock' : 'bi-chat-dots';
+        const label = isChannel ? 'Kanäle anlegen / syncen' : 'Chats anlegen / syncen';
+        btnRun.innerHTML = '<i class="bi ' + icon + '"></i>' + label;
+    }
+}
+
+function renderLehrerTeamPicked() {
+    const el = $('kcTeamPicked');
+    if (!el) return;
+    if (!lehrerTeam || !lehrerTeam.id) {
+        el.innerHTML = 'Noch kein Lehrerteam gewählt.';
+        el.classList.add('muted');
+        return;
+    }
+    el.classList.remove('muted');
+    const mail = lehrerTeam.mail ? ' · ' + escapeHtml(lehrerTeam.mail) : '';
+    el.innerHTML =
+        'Gewählt: <strong>' +
+        escapeHtml(lehrerTeam.displayName || lehrerTeam.id) +
+        '</strong>' +
+        mail +
+        ' <button type="button" class="btn btn-small" id="kcBtnClearTeam" style="margin-left:8px;">Entfernen</button>';
+    const btn = $('kcBtnClearTeam');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            lehrerTeam = null;
+            renderLehrerTeamPicked();
+            persistPatternMeta(loadClassChatsState());
+        });
+    }
+}
+
+function pickLehrerTeam(team) {
+    if (!team || !team.id) return;
+    lehrerTeam = {
+        id: String(team.id),
+        displayName: String(team.displayName || ''),
+        mail: String(team.mail || '')
+    };
+    renderLehrerTeamPicked();
+    persistPatternMeta(loadClassChatsState());
+    toast('Lehrerteam „' + (lehrerTeam.displayName || lehrerTeam.id) + '“ gewählt.');
+}
+
+async function runTeamSearch() {
+    const inp = $('kcTeamSearch');
+    const q = inp ? String(inp.value || '').trim() : '';
+    if (!q) {
+        toast('Bitte einen Suchbegriff für das Lehrerteam eingeben.');
+        return;
+    }
+    const btn = $('kcBtnTeamSearch');
+    if (btn) btn.disabled = true;
+    try {
+        const token = await getToken();
+        const api = G();
+        let list = [];
+        if (guidLike(q) && typeof api.fetchGroup === 'function') {
+            const g = await api.fetchGroup(token, q);
+            if (g && g.id) list = [g];
+        } else if (typeof api.searchUnifiedGroups === 'function') {
+            list = (await api.searchUnifiedGroups(token, q)) || [];
+        }
+        fillTeamSearchResults(list);
+        toast('Team-Suche: ' + list.length + ' Treffer.');
+    } catch (e) {
+        toast('Team-Suche: ' + ((e && e.message) || e));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function fillTeamSearchResults(groups) {
+    const host = $('kcTeamSearchResults');
+    if (!host) return;
+    host.replaceChildren();
+    const list = Array.isArray(groups) ? groups : [];
+    if (!list.length) {
+        host.hidden = false;
+        const p = document.createElement('div');
+        p.className = 'muted';
+        p.style.padding = '8px';
+        p.textContent = '(keine Treffer)';
+        host.appendChild(p);
+        return;
+    }
+    host.hidden = false;
+    list.forEach((g) => {
+        if (!g || !g.id) return;
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'kc-user-checklist__item';
+        row.style.cssText =
+            'display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px;cursor:pointer;font:inherit;color:inherit;';
+        const label = (g.displayName || g.mail || g.id) + (g.mail ? ' · ' + g.mail : '');
+        row.textContent = label;
+        row.addEventListener('click', () => {
+            pickLehrerTeam({
+                id: g.id,
+                displayName: g.displayName || '',
+                mail: g.mail || ''
+            });
+            host.hidden = true;
+        });
+        host.appendChild(row);
+    });
 }
 
 function setStep(n) {
@@ -434,16 +754,16 @@ function addCurrentManualToQueue() {
     const includeKv = !$('kcManualIncludeKv') || !!$('kcManualIncludeKv').checked;
     const membersText = ($('kcManualEmails') && $('kcManualEmails').value) || '';
     const emails = selectedTeacherEmails().concat(tenantPickedEmails());
+    yearPrefix = ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || yearPrefix;
+    namePattern = getPatternFromBuilder();
     const plan = buildManualClassChatPlan({
+        ...planOptsBase(),
         klasse,
         memberEmails: emails,
         membersText,
         includeKv,
-        yearPrefix: ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || yearPrefix,
-        namePattern: getPatternFromBuilder(),
         kvByKlasse: buildKvByKlasse(loadTenantClasses()),
-        teacherDirectory: loadTenantTeachers(),
-        existingByKlasse: existingByKlasseFromState(loadClassChatsState())
+        teacherDirectory: loadTenantTeachers()
     });
     if (!plan.klasse) {
         toast('Bitte eine Klasse angeben.');
@@ -465,18 +785,31 @@ function addCurrentManualToQueue() {
     toast('„' + plan.klasse + '“ zur Liste hinzugefügt (' + plan.memberEmails.length + ' Mitglieder).');
 }
 
+function planOptsBase() {
+    const teamId = lehrerTeam && lehrerTeam.id ? lehrerTeam.id : '';
+    return {
+        yearPrefix,
+        namePattern,
+        targetKind,
+        teamId,
+        extraMemberEmails: getExtraMemberEmails(),
+        teacherDirectory: loadTenantTeachers(),
+        existingByKlasse: existingByKlasseFromState(loadClassChatsState(), {
+            targetKind,
+            teamId
+        })
+    };
+}
+
 function buildPlansFromManualFormOrQueue() {
     yearPrefix = ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || calcYearPrefix();
     namePattern = getPatternFromBuilder();
     const kv = buildKvByKlasse(loadTenantClasses());
-    const existing = existingByKlasseFromState(loadClassChatsState());
     const teachers = loadTenantTeachers();
     const optsBase = {
-        yearPrefix,
-        namePattern,
+        ...planOptsBase(),
         kvByKlasse: kv,
-        teacherDirectory: teachers,
-        existingByKlasse: existing
+        teacherDirectory: teachers
     };
 
     if (manualQueue.length) {
@@ -555,12 +888,10 @@ function rebuildPlans() {
     }
     belegung = loadBelegung();
     const kv = buildKvByKlasse(loadTenantClasses());
-    const existing = existingByKlasseFromState(loadClassChatsState());
     plans = buildClassChatPlans(belegung, kv, {
-        yearPrefix,
-        namePattern,
-        existingByKlasse: existing,
-        knownClassCodes: loadTenantClasses()
+        ...planOptsBase(),
+        knownClassCodes: loadTenantClasses(),
+        teacherDirectory: loadTenantTeachers()
     });
     return plans;
 }
@@ -575,18 +906,25 @@ function statusLabel(p) {
 
 function renderPreview() {
     rebuildPlans();
+    updateTargetUiCopy();
     const sum = summarizePlans(plans);
     const sumEl = $('kcPreviewSummary');
+    const noun = targetKind === 'privateChannel' ? 'Kanäle' : 'Chats';
     if (sumEl) {
         sumEl.textContent =
             sum.eligible +
-            ' Chats anlegbar · ' +
+            ' ' +
+            noun +
+            ' anlegbar · ' +
             sum.neu +
             ' neu · ' +
             sum.sync +
             ' mit vorhandener ID · ' +
             sum.skip +
-            ' übersprungen';
+            ' übersprungen' +
+            (targetKind === 'privateChannel'
+                ? ' · Ziel: ' + targetKindLabel(targetKind)
+                : '');
     }
     const tbody = $('kcPreviewBody');
     if (!tbody) return;
@@ -594,7 +932,7 @@ function renderPreview() {
         tbody.innerHTML =
             '<tr><td colspan="5" class="muted">' +
             (mode === 'manual'
-                ? 'Kein manueller Chat – Klasse und mindestens 2 Mitglieder angeben.'
+                ? 'Kein manueller Eintrag – Klasse und mindestens 2 Mitglieder angeben.'
                 : 'Keine Klassen aus der Belegung – bitte Quelle prüfen oder Manuell wählen.') +
             '</td></tr>';
         return;
@@ -603,11 +941,14 @@ function renderPreview() {
         .map((p) => {
             const members = p.members
                 .map((m) => {
-                    const tag = m.role === 'kv' ? ' (KV)' : '';
-                    return escapeHtml((m.code || m.email) + tag);
+                    const tag =
+                        m.role === 'kv' ? ' (KV)' : m.role === 'extra' ? ' (zusätzlich)' : '';
+                    return escapeHtml((m.code || m.name || m.email) + tag);
                 })
                 .join(', ');
             const cls = p.eligible ? '' : ' class="kc-row-skip"';
+            const resourceId =
+                p.kind === 'privateChannel' ? p.channelId || '' : p.chatId || '';
             return (
                 '<tr' +
                 cls +
@@ -628,7 +969,7 @@ function renderPreview() {
                 (p.skipReason ? '<div class="muted">' + escapeHtml(p.skipReason) + '</div>' : '') +
                 '</td>' +
                 '<td class="muted" style="font-size:0.8em;">' +
-                (p.chatId ? escapeHtml(p.chatId.slice(0, 8)) + '…' : '–') +
+                (resourceId ? escapeHtml(resourceId.slice(0, 8)) + '…' : '–') +
                 '</td>' +
                 '</tr>'
             );
@@ -657,11 +998,15 @@ function updateNamePreview() {
     const yp = ($('kcYearPrefix') && $('kcYearPrefix').value.trim()) || yearPrefix || 'SJ26';
     const klassePreview =
         (mode === 'manual' && $('kcManualKlasse') && $('kcManualKlasse').value.trim()) || '1A';
-    const preview = buildChatTopicFromPattern(getPatternFromBuilder(), {
+    const raw = buildChatTopicFromPattern(getPatternFromBuilder(), {
         yearPrefix: yp,
         klasse: klassePreview
     });
-    el.textContent = 'Vorschau: ' + preview;
+    const preview = displayNameForTarget(raw, targetKind);
+    el.textContent =
+        'Vorschau: ' +
+        preview +
+        (targetKind === 'privateChannel' ? ' (Kanal, max. 50 Zeichen)' : '');
 }
 
 function addChip(zone, token) {
@@ -774,9 +1119,17 @@ function log(msg) {
 async function runProvision() {
     if (busy) return;
     rebuildPlans();
+    if (targetKind === 'privateChannel' && !(lehrerTeam && lehrerTeam.id)) {
+        toast('Bitte zuerst ein Lehrerteam wählen (Schritt 1).');
+        return;
+    }
     const eligible = plans.filter((p) => p.eligible);
     if (!eligible.length) {
-        toast('Keine anlegbaren Chats – Belegung, Formular oder Mitglieder prüfen.');
+        toast(
+            targetKind === 'privateChannel'
+                ? 'Keine anlegbaren Kanäle – Team, Belegung oder Mitglieder prüfen.'
+                : 'Keine anlegbaren Chats – Belegung, Formular oder Mitglieder prüfen.'
+        );
         return;
     }
 
@@ -791,40 +1144,101 @@ async function runProvision() {
         const token = await getToken();
         const me = await G().graphJson('GET', '/me?$select=id,mail,userPrincipalName', token, undefined);
         const meId = me && me.id ? String(me.id) : '';
-        log('Angemeldet. ' + eligible.length + ' Chat(s) werden bearbeitet …');
+        const noun = targetKind === 'privateChannel' ? 'Kanal/Kanäle' : 'Chat(s)';
+        log(
+            'Angemeldet · Ziel: ' +
+                targetKindLabel(targetKind) +
+                (lehrerTeam ? ' · Team: ' + lehrerTeam.displayName : '') +
+                '. ' +
+                eligible.length +
+                ' ' +
+                noun +
+                ' werden bearbeitet …'
+        );
 
         let state = loadClassChatsState();
         let ok = 0;
         let fail = 0;
 
+        // Private Kanäle: alle Lehrkräfte einmal ins Lehrerteam, dann kurz warten
+        // (Teams-Roster hinkt der M365-Gruppe hinterher → sonst „parent roster“-Fehler).
+        if (targetKind === 'privateChannel' && lehrerTeam && lehrerTeam.id) {
+            const allEmails = [];
+            eligible.forEach((p) => {
+                (p.memberEmails || []).forEach((em) => allEmails.push(em));
+            });
+            log('Lehrerteam vorbereiten: fehlende Lehrkräfte aufnehmen …');
+            try {
+                const prep = await prepareTeacherTeamForChannels(
+                    G(),
+                    token,
+                    lehrerTeam.id,
+                    allEmails,
+                    meId
+                );
+                if (prep.added) {
+                    log(
+                        '  ' +
+                            prep.added +
+                            ' Person(en) ins Team aufgenommen – warte auf Teams-Sync …'
+                    );
+                } else {
+                    log('  Alle geplanten Personen sind bereits im Team (oder schon bekannt).');
+                }
+                if (prep.missingEmails && prep.missingEmails.length) {
+                    log('  Nicht in Graph gefunden: ' + prep.missingEmails.join(', '));
+                }
+                eligible.forEach((p) => {
+                    p._teamRosterSettled = true;
+                });
+            } catch (e) {
+                log(
+                    '  Hinweis Team-Vorbereitung: ' +
+                        formatKlassenchatsGraphError(e) +
+                        ' – weiter mit Einzelversuchen …'
+                );
+            }
+        }
+
         for (let i = 0; i < eligible.length; i++) {
             const plan = eligible[i];
             log('[' + (i + 1) + '/' + eligible.length + '] ' + plan.klasse + ' → ' + plan.topic);
             try {
-                const res = await provisionClassChat(G(), token, plan, meId);
+                const res = await provisionClassResource(G(), token, plan, meId);
                 state = upsertClassChatItem(state, {
                     klasse: plan.klasse,
+                    kind: res.kind,
                     topic: res.topic,
                     chatId: res.chatId,
+                    channelId: res.channelId,
+                    teamId: res.teamId,
                     memberEmails: res.memberEmails,
                     webUrl: res.webUrl,
                     yearPrefix,
-                    namePattern
+                    namePattern,
+                    targetKind,
+                    lehrerTeamId: lehrerTeam ? lehrerTeam.id : '',
+                    lehrerTeamDisplayName: lehrerTeam ? lehrerTeam.displayName : ''
                 });
                 saveClassChatsState(state);
                 ok += 1;
                 const bits = [];
                 if (res.created) bits.push('angelegt');
                 else bits.push('aktualisiert');
-                if (res.topicUpdated) bits.push('Topic geändert');
+                if (res.topicUpdated) bits.push('Name geändert');
                 if (res.added) bits.push('+' + res.added + ' Mitglied(er)');
+                if (res.teamMembersAdded) bits.push('+' + res.teamMembersAdded + ' ins Team');
+                if (res.kvOwnerOk && res.kvEmail) bits.push('Owner=KV (' + res.kvEmail + ')');
+                else if (res.ownersAligned) bits.push('KV als Owner');
+                if (res.demoted) bits.push(res.demoted + ' auf Mitglied');
+                if (res.adminRemoved) bits.push('Admin entfernt');
                 if (res.missingEmails && res.missingEmails.length) {
                     bits.push('ohne Graph: ' + res.missingEmails.join(', '));
                 }
                 log('  OK – ' + bits.join(', '));
             } catch (e) {
                 fail += 1;
-                log('  Fehler: ' + (e && e.message ? e.message : String(e)));
+                log('  Fehler: ' + formatKlassenchatsGraphError(e));
             }
         }
 
@@ -845,6 +1259,18 @@ function boot() {
     const saved = loadClassChatsState();
     if (saved && saved.namePattern) namePattern = normalizeChatNamePattern(saved.namePattern);
     if (saved && saved.yearPrefix) yearPrefix = saved.yearPrefix;
+    if (saved && saved.targetKind) targetKind = normalizeTargetKind(saved.targetKind);
+    if (saved && saved.lehrerTeamId) {
+        lehrerTeam = {
+            id: String(saved.lehrerTeamId),
+            displayName: String(saved.lehrerTeamDisplayName || ''),
+            mail: ''
+        };
+    }
+    if (saved && Array.isArray(saved.extraMemberEmails) && saved.extraMemberEmails.length) {
+        const ta = $('kcExtraEmails');
+        if (ta) ta.value = saved.extraMemberEmails.join('\n');
+    }
 
     const yp = $('kcYearPrefix');
     if (yp) {
@@ -869,10 +1295,29 @@ function boot() {
     } else {
         setMode('belegung');
     }
+    setTargetKind(targetKind);
 
     document.querySelectorAll('[data-kc-mode]').forEach((btn) => {
         btn.addEventListener('click', () => setMode(btn.getAttribute('data-kc-mode')));
     });
+    document.querySelectorAll('[data-kc-target]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            setTargetKind(btn.getAttribute('data-kc-target'));
+            persistPatternMeta(loadClassChatsState());
+        });
+    });
+
+    const btnTeamSearch = $('kcBtnTeamSearch');
+    if (btnTeamSearch) btnTeamSearch.addEventListener('click', () => runTeamSearch());
+    const teamSearch = $('kcTeamSearch');
+    if (teamSearch) {
+        teamSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runTeamSearch();
+            }
+        });
+    }
 
     const klasseInp = $('kcManualKlasse');
     if (klasseInp) {
@@ -925,6 +1370,28 @@ function boot() {
     if (btnTenantApply) btnTenantApply.addEventListener('click', () => applyTenantSelection());
     renderTenantPicked();
 
+    const btnExtraSearch = $('kcBtnExtraSearch');
+    if (btnExtraSearch) btnExtraSearch.addEventListener('click', () => runExtraUserSearch());
+    const extraSearch = $('kcExtraSearch');
+    if (extraSearch) {
+        extraSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runExtraUserSearch();
+            }
+        });
+    }
+    const btnExtraApply = $('kcBtnExtraApply');
+    if (btnExtraApply) btnExtraApply.addEventListener('click', () => applyExtraSelection());
+    const extraEmails = $('kcExtraEmails');
+    if (extraEmails) {
+        extraEmails.addEventListener('change', () => {
+            persistPatternMeta(loadClassChatsState());
+            if (step >= 3) renderPreview();
+        });
+    }
+    renderExtraPicked();
+
     document.querySelectorAll('[data-kc-goto]').forEach((btn) => {
         btn.addEventListener('click', () => setStep(btn.getAttribute('data-kc-goto')));
     });
@@ -938,6 +1405,10 @@ function boot() {
                     toast('Manuell: Klasse und mind. 2 E-Mails nötig (oder zur Liste hinzufügen).');
                     return;
                 }
+            }
+            if (targetKind === 'privateChannel' && (n === 3 || n === 4) && !(lehrerTeam && lehrerTeam.id)) {
+                toast('Für private Kanäle bitte zuerst ein Lehrerteam wählen.');
+                return;
             }
             if (n >= 2) persistPatternMeta(loadClassChatsState());
             setStep(n);

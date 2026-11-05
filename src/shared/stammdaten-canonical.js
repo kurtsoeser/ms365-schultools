@@ -31,11 +31,34 @@
         return /^[1-5]AHW$/i.test(normCode(code));
     }
 
+    function normalizeClassFunctionsMap(raw) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        Object.keys(raw).forEach(function (id) {
+            const key = String(id || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]+/g, '');
+            if (!key) return;
+            const seat = raw[id];
+            if (!seat || typeof seat !== 'object') return;
+            const name = String(seat.name || '').trim();
+            const email = String(seat.email || '')
+                .trim()
+                .toLowerCase();
+            if (!name && !email) return;
+            out[key] = { name: name, email: email };
+        });
+        return out;
+    }
+
     function normalizeClassRow(r) {
         if (!r || typeof r !== 'object') return null;
         const code = normCode(r.code || r.name);
         if (!code || isLegacyAhw(code)) return null;
-        return {
+        const functions = normalizeClassFunctionsMap(r.functions);
+        /** @type {{ code: string, name: string, year: string, headName: string, headEmail: string, stableMailNickname: string, functions?: Record<string, { name: string, email: string }> }} */
+        const row = {
             code,
             name: String(r.name || code).trim(),
             year: String(r.year || r.abschlussJahr || '').trim(),
@@ -45,6 +68,8 @@
                 .toLowerCase(),
             stableMailNickname: String(r.stableMailNickname || '').trim()
         };
+        if (Object.keys(functions).length) row.functions = functions;
+        return row;
     }
 
     function mergeClassLists() {

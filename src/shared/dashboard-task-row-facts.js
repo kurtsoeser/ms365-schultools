@@ -99,7 +99,15 @@ export function applyAllTaskRowFacts(opts) {
         hygieneById: opts.hygieneById,
         show: !!opts.show
     };
-    root.querySelectorAll('.dash-task-links--stack .dash-task-row').forEach(function (row) {
+    const selector =
+        '.dash-task-links--stack .dash-task-row, ' +
+        '.dash-split-tool-card.dash-task-row, ' +
+        '.dash-task-row[data-dash-hygiene-aggregate], ' +
+        '.dash-task-row[data-dash-hygiene-id]';
+    const seen = new Set();
+    root.querySelectorAll(selector).forEach(function (row) {
+        if (seen.has(row)) return;
+        seen.add(row);
         applyTaskRowFacts(row, ctx);
     });
 }

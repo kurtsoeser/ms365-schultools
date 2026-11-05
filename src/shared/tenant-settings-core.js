@@ -860,7 +860,7 @@
             c.years && c.years.byLabel && cur && c.years.byLabel[cur]
                 ? c.years.byLabel[cur]
                 : { students: [], classes: [] };
-        return normalizeSettings({
+        const normalized = normalizeSettings({
             schoolName: c.core.schoolName,
             domain: c.core.domain,
             verifiedEmailDomains: c.core.verifiedEmailDomains,
@@ -910,6 +910,21 @@
             sga: c.core.sga,
             classes: y.classes
         });
+        // classChats liegen im Year-Bucket (nicht in normalizeSettings) – für Organigramm/Dashboard anreichern
+        try {
+            let chats = null;
+            if (
+                window.ms365AppDataV2 &&
+                typeof window.ms365AppDataV2.getClassChats === 'function'
+            ) {
+                chats = window.ms365AppDataV2.getClassChats(cur || undefined);
+            }
+            if (!chats && y && y.classChats) chats = y.classChats;
+            if (chats) normalized.classChats = chats;
+        } catch {
+            /* ignore */
+        }
+        return normalized;
     }
 
     function migrateV1MirrorIntoV2(normalized) {

@@ -558,6 +558,9 @@ function metaLine(node) {
             const kv = m.headName || m.headEmail;
             bits.push(m.teacherLinked && m.teacherCode ? kv + ' · ' + m.teacherCode : kv);
         }
+        if (m.classRepName || m.classRepEmail) {
+            bits.push('KS: ' + (m.classRepName || m.classRepEmail));
+        }
         return bits.join(' · ') || 'Klassenvorstand offen';
     }
     if (node.type === NODE.KURSTEAM) {
@@ -646,11 +649,66 @@ export function mountSchulOrganigramm(host, opts) {
     });
 
     function toast(msg, kind) {
+        if (typeof window.ms365ShowToast === 'function') {
+            window.ms365ShowToast(msg, { kind: kind || 'info', title: 'Schul-Organigramm' });
+            return;
+        }
+        if (typeof window.ms365ToastOrAlert === 'function') {
+            window.ms365ToastOrAlert(msg, { kind: kind || 'info', title: 'Schul-Organigramm' });
+            return;
+        }
         if (typeof window.ms365AppDialogAlert === 'function') {
             window.ms365AppDialogAlert(msg, { kind: kind || 'info', title: 'Schul-Organigramm' });
             return;
         }
         if (typeof window.ms365Toast === 'function') window.ms365Toast(msg);
+    }
+
+    /**
+     * Nach createAreaAt: Karte weich aktualisieren (ohne flush→Remount, der den neuen Knoten verlieren kann).
+     * @param {{ sectionId: string, layout?: object, x?: number, y?: number }} created
+     */
+    function applyCreatedAreaToMap(created) {
+        if (!created || !created.sectionId) return;
+        const nextLayout = normalizeSchulOrganigramm(
+            created.layout || loadSettings().schulOrganigramm
+        );
+        if (viewMode === 'map' && mapApi && typeof mapApi.setLayout === 'function') {
+            try {
+                mapApi.setLayout(nextLayout);
+                if (
+                    typeof mapApi.focusWorldPoint === 'function' &&
+                    Number.isFinite(Number(created.x)) &&
+                    Number.isFinite(Number(created.y))
+                ) {
+                    mapApi.focusWorldPoint(Number(created.x), Number(created.y));
+                }
+                const meta = host.querySelector('#schulOrgMeta');
+                if (meta) {
+                    const st = schulOrganigrammStats(nextLayout);
+                    meta.innerHTML =
+                        '<span class="schul-org__stat"><strong>' +
+                        st.sections +
+                        '</strong> Bereiche</span>' +
+                        '<span class="schul-org__stat"><strong>' +
+                        st.roles +
+                        '</strong> Rollen</span>' +
+                        '<span class="schul-org__stat"><strong>' +
+                        st.arges +
+                        '</strong> ARGEs</span>' +
+                        '<span class="schul-org__stat"><strong>' +
+                        st.classes +
+                        '</strong> Klassen</span>' +
+                        '<span class="schul-org__stat schul-org__stat--total"><strong>' +
+                        st.total +
+                        '</strong> Knoten</span>';
+                }
+                return;
+            } catch {
+                /* fall through to full remount */
+            }
+        }
+        render();
     }
 
     /**
@@ -1241,15 +1299,23 @@ export function mountSchulOrganigramm(host, opts) {
         addAction({
             icon: 'bi-plus-lg',
             label: 'Bereich',
-            title: 'Neue Verwaltungsgruppe / Bereich (z. B. Erweiterte Schulleitung)',
+            title: 'Neuen freien Bereich auf der Landkarte anlegen (z. B. IT-Team, Sekretariat)',
             primary: true,
             onClick: function () {
-                void editor.createAudienceSection().then(function (created) {
-                    if (created && created.sectionId) {
+                void editor
+                    .createAreaAt({ parentId: null })
+                    .then(function (created) {
+                        if (!created || !created.sectionId) return;
                         filterSectionId = '';
-                        render();
-                    }
-                });
+                        applyCreatedAreaToMap(created);
+                    })
+                    .catch(function (err) {
+                        toast(
+                            'Bereich anlegen fehlgeschlagen: ' +
+                                (err && err.message ? err.message : String(err)),
+                            'error'
+                        );
+                    });
             }
         });
         addAction({
@@ -1785,11 +1851,24 @@ export function mountSchulOrganigramm(host, opts) {
                     if (place && place.parentId && typeof editor.rememberRoleParent === 'function') {
                         editor.rememberRoleParent(place.parentId);
                     }
-                    return editor.createAreaAt({
-                        parentId: place && place.parentId != null ? place.parentId : null,
-                        x: place && place.x,
-                        y: place && place.y
-                    });
+                    return editor
+                        .createAreaAt({
+                            parentId: place && place.parentId != null ? place.parentId : null,
+                            x: place && place.x,
+                            y: place && place.y
+                        })
+                        .then(function (created) {
+                            if (created && created.sectionId) applyCreatedAreaToMap(created);
+                            return created;
+                        })
+                        .catch(function (err) {
+                            toast(
+                                'Bereich anlegen fehlgeschlagen: ' +
+                                    (err && err.message ? err.message : String(err)),
+                                'error'
+                            );
+                            return null;
+                        });
                 },
                 onAddPerson: function (areaNode) {
                     if (areaNode && areaNode.id && typeof editor.rememberRoleParent === 'function') {

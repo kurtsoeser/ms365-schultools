@@ -27,6 +27,11 @@ import {
     enrichBelegungRow,
     enrichBelegungRowsInPlace
 } from '../../shared/unterrichtsbelegung-teacher-enrich-logic.js';
+import {
+    renderKursteamM365ImportStatusHtml,
+    summarizeKursteamM365ImportHint
+} from '../../shared/kursteam-m365-import-status-ui.js';
+import { mergeBelegungWithGraphImport } from '../../shared/kursteam-graph-import-logic.js';
 import '../../shared/schul-organigramm-stammdaten-sync.js';
 
 /** @type {object[]} */
@@ -248,72 +253,61 @@ function yearPrefixForM365() {
     return fromUi || metaYearPrefix || 'SJ26-27';
 }
 
-function renderAbgleichPanel() {
-    const host = $('utkAbgleichHost');
-    const summary = $('utkAbgleichSummary');
-    if (!host) return;
-    if (!lastAbgleichReport) {
-        host.innerHTML =
-            '<p class="muted" style="margin:0;">Nach „Teams aus M365 laden“ sehen Sie hier den Vergleich Katalog ↔ Tenant (wie im Kursteam-Import).</p>';
-        if (summary) summary.textContent = '';
+function updateM365ButtonHint() {
+    const hint = $('utkM365BtnHint');
+    if (!hint) return;
+    const summary = summarizeKursteamM365ImportHint(lastAbgleichReport);
+    if (!summary.text || summary.tone === 'none') {
+        hint.hidden = true;
+        hint.textContent = '';
+        hint.classList.remove('utk-m365-btn-hint--ok');
         return;
     }
-    const c = lastAbgleichReport.counts || {};
-    if (summary) {
-        summary.textContent =
-            (c.planned || 0) +
-            ' im Katalog · ' +
-            (c.m365 || 0) +
-            ' in M365 · ' +
-            (c.matched || 0) +
-            ' passend · ' +
-            (c.missingInM365 || 0) +
-            ' fehlen in M365 · ' +
-            (c.onlyInM365 || 0) +
-            ' nur in M365';
-    }
-    const miss = (lastAbgleichReport.missingInM365 || []).slice(0, 8);
-    const missMore = (lastAbgleichReport.missingInM365 || []).length - miss.length;
-    let missHtml = '';
-    if (miss.length) {
-        missHtml =
-            '<p style="margin:8px 0 4px;font-size:0.85em;"><strong>Ohne M365-Team (Auszug):</strong></p><ul class="utk-abgleich-list">' +
-            miss
-                .map(function (r) {
-                    return (
-                        '<li>' +
-                        escapeHtml([r.klasse, r.fach, r.lehrerCode].filter(Boolean).join(' · ')) +
-                        (r.gruppenmail ? ' <code>' + escapeHtml(r.gruppenmail) + '</code>' : '') +
-                        '</li>'
-                    );
-                })
-                .join('') +
-            (missMore > 0 ? '<li class="muted">… und ' + missMore + ' weitere</li>' : '') +
-            '</ul>';
-    }
-    host.innerHTML =
-        '<div class="utk-abgleich-stats">' +
-        '<span class="utk-abgleich-pill utk-abgleich-pill--ok">' +
-        (c.matched || 0) +
-        ' passend</span>' +
-        '<span class="utk-abgleich-pill utk-abgleich-pill--warn">' +
-        (c.missingInM365 || 0) +
-        ' fehlen in M365</span>' +
-        '<span class="utk-abgleich-pill">' +
-        (c.onlyInM365 || 0) +
-        ' nur in M365</span>' +
-        '</div>' +
-        missHtml;
+    hint.hidden = false;
+    hint.textContent = summary.text;
+    hint.classList.toggle('utk-m365-btn-hint--ok', summary.tone === 'ok');
+}
+
+function isM365ModalOpen() {
+    return !!$('utkM365Modal')?.classList.contains('open');
+}
+
+function openM365Modal() {
+    const modal = $('utkM365Modal');
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    const box = modal.querySelector('.utk-m365-modal__box');
+    if (box && typeof box.focus === 'function') box.focus();
+}
+
+function closeM365Modal() {
+    const modal = $('utkM365Modal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function renderImportStatusPanel() {
+    const host = $('utkImportStatusHost') || $('utkAbgleichHost');
+    if (!host) return;
+    host.innerHTML = renderKursteamM365ImportStatusHtml(lastAbgleichReport, {
+        planLabel: 'Unterrichtsteams-Katalog',
+        emptyHint:
+            'Nach „Teams aus M365 laden“ sehen Sie hier denselben Status wie in Kursteams (passend / fehlen / nur in M365).',
+        noPlanHint: 'Der Katalog ist noch leer – laden Sie Teams aus M365 und ergänzen Sie sie hier.'
+    });
+    updateM365ButtonHint();
 }
 
 function refreshAbgleichFromRows() {
     if (!getCachedM365Rows().length) {
         lastAbgleichReport = null;
-        renderAbgleichPanel();
+        renderImportStatusPanel();
         return;
     }
     lastAbgleichReport = buildAbgleichForRows(allRows);
-    renderAbgleichPanel();
+    renderImportStatusPanel();
 }
 
 async function loadM365Teams() {
@@ -337,6 +331,7 @@ async function loadM365Teams() {
 function linkAllFromAbgleich() {
     if (!getCachedM365Rows().length) {
         toast('Zuerst „Teams aus M365 laden“ (Anmeldung nötig).');
+        openM365Modal();
         return;
     }
     const { rows, linked, report } = autoLinkRows(allRows);
@@ -347,14 +342,62 @@ function linkAllFromAbgleich() {
         const hint = $('utkDirtyHint');
         if (hint) hint.hidden = false;
     }
-    renderAbgleichPanel();
+    renderImportStatusPanel();
     toast(linked ? linked + ' Zeile(n) mit M365 verknüpft – bitte speichern.' : 'Keine neuen Verknüpfungen (bereits verknüpft oder kein Treffer).');
+    render();
+}
+
+function importOnlyInM365Rows() {
+    if (!getCachedM365Rows().length) {
+        toast('Zuerst „Teams aus M365 laden“ (Anmeldung nötig).');
+        openM365Modal();
+        return;
+    }
+    refreshAbgleichFromRows();
+    const only = (lastAbgleichReport && lastAbgleichReport.onlyInM365) || [];
+    if (!only.length) {
+        toast('Keine Teams „nur in M365“ – Katalog und Tenant sind deckungsgleich oder nichts geladen.');
+        return;
+    }
+    const importRows = only.map((r) => ({
+        klasse: r.klasse || '',
+        fach: r.fach || '',
+        lehrerCode: r.lehrerCode || '',
+        gruppe: r.gruppe || '',
+        teamName: r.teamName || '',
+        gruppenmail: r.gruppenmail || '',
+        graphGroupId: r.graphGroupId || '',
+        lehrerEmail: r.lehrerEmail || ''
+    }));
+    const existing = snapshotFromRows(allRows, {
+        yearPrefix: metaYearPrefix || $('utkYearPrefix')?.value || '',
+        source: 'unterrichtsteams-katalog'
+    });
+    const { snapshot, stats } = mergeBelegungWithGraphImport(existing, importRows, {
+        yearPrefix: metaYearPrefix || $('utkYearPrefix')?.value || '',
+        source: 'unterrichtsteams-katalog+m365-import'
+    });
+    allRows = sortUnterrichtsteamRows(snapshot.rows || []);
+    metaYearPrefix = snapshot.yearPrefix || metaYearPrefix;
+    if (stats.added > 0 || stats.updated > 0) {
+        dirty = true;
+        const hint = $('utkDirtyHint');
+        if (hint) hint.hidden = false;
+    }
+    refreshAbgleichFromRows();
+    toast(
+        (stats.added || 0) +
+            ' Team(s) aus M365 ergänzt' +
+            (stats.updated ? ', ' + stats.updated + ' aktualisiert' : '') +
+            ' – bitte speichern.'
+    );
     render();
 }
 
 function linkOneRowByKey(key) {
     if (!getCachedM365Rows().length) {
         toast('Zuerst „Teams aus M365 laden“.');
+        openM365Modal();
         return;
     }
     const row = allRows.find((r) => rowStableKey(r) === key);
@@ -573,8 +616,8 @@ function render() {
             empty.innerHTML =
                 'Noch keine Teams in den App-Daten für das aktuelle Schuljahr.' +
                 otherHint +
-                ' In <a href="kursteams.html">Kursteams</a> Team-Namen generieren oder unter ' +
-                '<a href="kursteams.html#kursteamGraphImportPanel">Aus M365 importieren</a> laden – die Auswahl wird in die App-Daten geschrieben.';
+                ' In <a href="kursteams.html">Kursteams</a> Team-Namen generieren oder ' +
+                '<strong>Bestehende Teams importieren</strong> (Button oben bzw. in Kursteams).';
         }
     }
     const hint = $('utkDirtyHint');
@@ -582,7 +625,7 @@ function render() {
     const yp = $('utkYearPrefix');
     if (yp && metaYearPrefix && !yp.value) yp.value = metaYearPrefix;
     renderTable(filtered);
-    renderAbgleichPanel();
+    renderImportStatusPanel();
 }
 
 function pullFromWizard() {
@@ -641,8 +684,18 @@ function wireUi() {
         render();
     });
     $('utkAddRow')?.addEventListener('click', () => addEmptyRow());
+    $('utkOpenM365Import')?.addEventListener('click', () => openM365Modal());
+    $('utkCloseM365Import')?.addEventListener('click', () => closeM365Modal());
+    $('utkDoneM365Import')?.addEventListener('click', () => closeM365Modal());
+    $('utkM365Modal')?.addEventListener('click', (ev) => {
+        if (ev.target === $('utkM365Modal')) closeM365Modal();
+    });
+    document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && isM365ModalOpen()) closeM365Modal();
+    });
     $('utkM365Load')?.addEventListener('click', () => loadM365Teams());
     $('utkM365LinkAll')?.addEventListener('click', () => linkAllFromAbgleich());
+    $('utkM365ImportOnly')?.addEventListener('click', () => importOnlyInM365Rows());
     ['utkSearch', 'utkFilterKlasse', 'utkFilterFach', 'utkFilterLehrer', 'utkFilterLinked'].forEach((id) => {
         $(id)?.addEventListener('input', () => render());
         $(id)?.addEventListener('change', () => render());

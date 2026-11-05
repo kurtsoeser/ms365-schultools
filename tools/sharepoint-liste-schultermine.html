@@ -19,7 +19,7 @@
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-calendar3"></i>Schultermine-Liste</span>
             </div>
-            <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Ziel Schule / Lehrer / beide).</p>
+            <p>Terminliste mit Beginn, Ende und Kategorie anlegen, Sync prüfen und Termine per CSV importieren (Ziel Schule / Lehrer / beide).</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schultermine" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
@@ -27,53 +27,9 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-calendar-event"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">SharePoint-Liste</p>
-                    <h2>Schulkalender vorbereiten</h2>
-                    <p>Liste mit Beginn, Ende, Kategorie – und CSV-Import für Sekretariat.</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
-                </div>
-            </section>
-
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-eye" aria-hidden="true"></i>
-                    <div>
-                        <h3>So sieht die Liste aus</h3>
-                        <p>Beispielzeilen – nach dem Anlegen können Sie echte Termine eintragen oder synchronisieren.</p>
-                    </div>
-                </div>
-                <div class="tm-cal-preview" aria-hidden="true">
-                    <div class="tm-cal-row">
-                        <div class="tm-cal-row__date"><small>Sep</small>12</div>
-                        <div>
-                            <strong>Schulanfang</strong>
-                            <span>Beginn · Ende · ganztägig</span>
-                        </div>
-                        <span class="pill">Schule</span>
-                    </div>
-                    <div class="tm-cal-row">
-                        <div class="tm-cal-row__date"><small>Okt</small>26</div>
-                        <div>
-                            <strong>Herbstferien</strong>
-                            <span>Zeitraum · Info · Outlook-ID</span>
-                        </div>
-                        <span class="pill">Ferien</span>
-                    </div>
-                    <div class="tm-cal-row">
-                        <div class="tm-cal-row__date"><small>Dez</small>22</div>
-                        <div>
-                            <strong>Weihnachtsfeier</strong>
-                            <span>Kategorie · Titel · Notiz</span>
-                        </div>
-                        <span class="pill">Event</span>
-                    </div>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+            </div>
 
             <section class="tm-panel">
                 <div class="tm-panel__head">
@@ -149,6 +105,42 @@
                 </div>
                 <div class="tm-actions" style="margin-top:12px;">
                     <button type="button" class="btn btn-success" id="sptBtnImport"><i class="bi bi-upload"></i>In Liste schreiben</button>
+                </div>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                    <div>
+                        <h3>So sieht die Liste aus</h3>
+                        <p>Beispielzeilen – nach dem Anlegen können Sie echte Termine eintragen oder synchronisieren.</p>
+                    </div>
+                </div>
+                <div class="tm-cal-preview" aria-hidden="true">
+                    <div class="tm-cal-row">
+                        <div class="tm-cal-row__date"><small>Sep</small>12</div>
+                        <div>
+                            <strong>Schulanfang</strong>
+                            <span>Beginn · Ende · ganztägig</span>
+                        </div>
+                        <span class="pill">Schule</span>
+                    </div>
+                    <div class="tm-cal-row">
+                        <div class="tm-cal-row__date"><small>Okt</small>26</div>
+                        <div>
+                            <strong>Herbstferien</strong>
+                            <span>Zeitraum · Info · Outlook-ID</span>
+                        </div>
+                        <span class="pill">Ferien</span>
+                    </div>
+                    <div class="tm-cal-row">
+                        <div class="tm-cal-row__date"><small>Dez</small>22</div>
+                        <div>
+                            <strong>Weihnachtsfeier</strong>
+                            <span>Kategorie · Titel · Notiz</span>
+                        </div>
+                        <span class="pill">Event</span>
+                    </div>
                 </div>
             </section>
         </div>

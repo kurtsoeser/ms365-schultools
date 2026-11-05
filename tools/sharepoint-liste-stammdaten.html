@@ -170,18 +170,11 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-database"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">5 Schritte · SharePoint · Intranet</p>
-                    <h2>Stammdaten-Listen pflegen</h2>
-                    <p id="spsPhaseHint">Schritt 1 von 5: Website</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <span class="tm-perm" id="spsCounts"><i class="bi bi-bar-chart"></i>Stammdaten werden geladen …</span>
-                    <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="spsPhaseHint">Schritt 1 von 5: Website</span></span>
+                <span class="tm-perm" id="spsCounts"><i class="bi bi-bar-chart"></i>Stammdaten werden geladen …</span>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+            </div>
 
             <section class="tm-glance tm-glance--compact sps-wizard-glance sps-wizard-glance--nav" id="spsWizardGlance" role="tablist" aria-label="Stammdaten-Listen Schritte">
                 <button type="button" role="tab" class="tm-glance__card is-active" data-sps-wizard-step="1" aria-selected="true" aria-controls="spsWizardStep1">

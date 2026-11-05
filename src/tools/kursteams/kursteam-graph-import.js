@@ -17,6 +17,7 @@ import {
     readKursteamStateFromBrowserStorage,
     resolvePlannedRowsForAbgleich
 } from '../../shared/kursteam-belegung-abgleich-logic.js';
+import { renderKursteamM365ImportStatusHtml } from '../../shared/kursteam-m365-import-status-ui.js';
 
 const ns = (window.ms365Kursteam = window.ms365Kursteam || {});
 
@@ -196,125 +197,35 @@ function runAbgleich() {
     return lastAbgleich;
 }
 
-function renderAbgleichSection() {
-    const host = document.getElementById('kursteamGraphAbgleichHost');
+function renderImportStatusSection() {
+    const host =
+        document.getElementById('kursteamGraphImportStatusHost') ||
+        document.getElementById('kursteamGraphAbgleichHost');
     if (!host) return;
 
     const m365Rows = getM365RowsForAbgleich();
     if (!m365Rows.length) {
-        host.innerHTML =
-            '<p class="muted" style="margin:0;">Abgleich: Zuerst <strong>Teams aus M365 laden</strong> (oder importierte Verknüpfungen in der App).</p>';
+        host.innerHTML = renderKursteamM365ImportStatusHtml(null, {
+            emptyHint:
+                'Zuerst „Teams aus M365 laden“ (oder bereits importierte Verknüpfungen in der App nutzen).'
+        });
         return;
     }
 
     const data = lastAbgleich || runAbgleich();
     const rep = data && data.report ? data.report : null;
     if (!rep) {
-        host.innerHTML = '<p class="muted" style="margin:0;">Abgleich konnte nicht berechnet werden.</p>';
+        host.innerHTML = renderKursteamM365ImportStatusHtml(null, {
+            emptyHint: 'Status konnte nicht berechnet werden.'
+        });
         return;
     }
 
-    const c = rep.counts;
-    const planHint = data.label || 'Plan';
-    const noPlan = c.planned === 0;
-
-    function tableSection(title, rows, cols) {
-        if (!rows.length) return '';
-        const head = cols.map((col) => '<th>' + col.label + '</th>').join('');
-        const body = rows
-            .map((row) => {
-                const tds = cols
-                    .map((col) => '<td>' + (col.render ? col.render(row) : escapeHtml(String(row[col.key] || '—'))) + '</td>')
-                    .join('');
-                return '<tr>' + tds + '</tr>';
-            })
-            .join('');
-        return (
-            '<details style="margin-top:12px;"' +
-            (rows.length <= 8 ? ' open' : '') +
-            '>' +
-            '<summary style="cursor:pointer;font-weight:600;">' +
-            escapeHtml(title) +
-            ' (' +
-            rows.length +
-            ')</summary>' +
-            '<div style="overflow:auto;max-height:280px;margin-top:8px;border:1px solid var(--border);border-radius:8px;">' +
-            '<table class="data-table" style="margin:0;font-size:0.85em;"><thead><tr>' +
-            head +
-            '</tr></thead><tbody>' +
-            body +
-            '</tbody></table></div></details>'
-        );
-    }
-
-    host.innerHTML =
-        '<div style="padding:12px 14px;background:var(--soft);border:1px solid var(--border);border-radius:10px;">' +
-        '<p style="margin:0 0 8px;font-weight:600;">Abgleich: ' +
-        escapeHtml(planHint) +
-        ' ↔ Microsoft 365</p>' +
-        '<p style="margin:0;font-size:0.88em;color:var(--text-secondary);">' +
-        '<span style="color:#0d8050;">' +
-        c.matched +
-        ' passend</span> · ' +
-        '<span style="color:#b00020;">' +
-        c.missingInM365 +
-        ' fehlen in M365</span> · ' +
-        '<span style="color:#856404;">' +
-        c.onlyInM365 +
-        ' nur in M365</span>' +
-        (c.mailConflict ? ' · ' + c.mailConflict + ' Mail-Abweichung' : '') +
-        '</p>' +
-        (noPlan
-            ? '<p class="muted" style="margin:8px 0 0;font-size:0.85em;">Kein WebUntis-/Wizard-Stand im Browser – importieren Sie Stundenplan-Daten im Assistenten oder erzeugen Sie die Teamliste, dann Abgleich erneut.</p>'
-            : '') +
-        tableSection('Fehlt in M365 (laut Plan)', rep.missingInM365, [
-            { key: 'klasse', label: 'Klasse' },
-            { key: 'fach', label: 'Fach' },
-            { key: 'lehrerCode', label: 'LK' },
-            {
-                key: 'gruppenmail',
-                label: 'Geplante Mail',
-                render: (r) =>
-                    r.gruppenmail
-                        ? '<code style="font-size:0.82em;">' + escapeHtml(r.gruppenmail) + '</code>'
-                        : '—'
-            }
-        ]) +
-        tableSection('Nur in M365 (nicht im Plan)', rep.onlyInM365, [
-            { key: 'klasse', label: 'Klasse' },
-            { key: 'fach', label: 'Fach' },
-            { key: 'lehrerCode', label: 'LK' },
-            {
-                key: 'gruppenmail',
-                label: 'Mail-Nickname',
-                render: (r) => '<code style="font-size:0.82em;">' + escapeHtml(r.gruppenmail || '') + '</code>'
-            }
-        ]) +
-        tableSection('Passend verknüpft', rep.matched, [
-            { key: 'klasse', label: 'Klasse' },
-            { key: 'fach', label: 'Fach' },
-            { key: 'lehrerCode', label: 'LK' },
-            {
-                key: 'matchBy',
-                label: 'Match',
-                render: (r) => (r.matchBy === 'gruppenmail' ? 'Mail' : 'Unterricht')
-            }
-        ]) +
-        tableSection('Gleicher Unterricht, andere Mail', rep.mailConflict, [
-            { key: 'klasse', label: 'Klasse' },
-            { key: 'fach', label: 'Fach' },
-            {
-                key: 'planMail',
-                label: 'Plan',
-                render: (r) => '<code style="font-size:0.82em;">' + escapeHtml(r.planMail) + '</code>'
-            },
-            {
-                key: 'm365Mail',
-                label: 'M365',
-                render: (r) => '<code style="font-size:0.82em;">' + escapeHtml(r.m365Mail) + '</code>'
-            }
-        ]) +
-        '</div>';
+    host.innerHTML = renderKursteamM365ImportStatusHtml(rep, {
+        planLabel: data.label || 'Katalog/Plan',
+        noPlanHint:
+            'Kein WebUntis-/Wizard-Stand im Browser – Stundenplan-Daten im Assistenten laden oder Teamliste erzeugen, dann Status aktualisieren.'
+    });
 }
 
 function existingLinkedMails() {
@@ -450,7 +361,7 @@ async function loadGraphKursteams() {
         }
         renderImportTable();
         runAbgleich();
-        renderAbgleichSection();
+        renderImportStatusSection();
         const saveBtn = document.getElementById('kursteamGraphImportSave');
         if (saveBtn) saveBtn.disabled = importCandidates.length === 0;
         const selectedCount = importCandidates.filter((c) => c.selected).length;
@@ -499,7 +410,7 @@ function saveSelectedToApp(options) {
     if (typeof ns.updateUnterrichtsbelegungHint === 'function') ns.updateUnterrichtsbelegungHint();
     renderImportTable();
     runAbgleich();
-    renderAbgleichSection();
+    renderImportStatusSection();
     return true;
 }
 
@@ -511,23 +422,25 @@ function showImportPanel() {
         yp.value = getYearPrefixFromUi();
     }
     if (typeof ns.updateUnterrichtsbelegungHint === 'function') ns.updateUnterrichtsbelegungHint();
-    renderAbgleichSection();
+    renderImportStatusSection();
 }
 
 function wireImportUi() {
     const openBtn = document.getElementById('kursteamGraphImportOpen');
     const loadBtn = document.getElementById('kursteamGraphImportLoad');
     const saveBtn = document.getElementById('kursteamGraphImportSave');
-    const abgleichBtn = document.getElementById('kursteamGraphAbgleichRefresh');
+    const statusBtn =
+        document.getElementById('kursteamGraphImportStatusRefresh') ||
+        document.getElementById('kursteamGraphAbgleichRefresh');
     const selAll = document.getElementById('kursteamGraphImportSelectAll');
     const selNone = document.getElementById('kursteamGraphImportSelectNone');
 
     if (openBtn) openBtn.addEventListener('click', showImportPanel);
-    if (abgleichBtn) {
-        abgleichBtn.addEventListener('click', () => {
+    if (statusBtn) {
+        statusBtn.addEventListener('click', () => {
             runAbgleich();
-            renderAbgleichSection();
-            toast('Abgleich aktualisiert.');
+            renderImportStatusSection();
+            toast('Status aktualisiert.');
         });
     }
     if (loadBtn) loadBtn.addEventListener('click', () => loadGraphKursteams());

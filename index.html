@@ -2595,9 +2595,9 @@
                                 <p>Eine Gruppe pro Fach oder Arbeitsgemeinschaft – aus den Listen in den Stammdaten.</p>
                                 <a class="btn" href="tools/arge-fachgruppen.html"><i class="bi bi-collection-fill"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="KlassenChats" data-tool-id="klassenchats" data-cluster="gruppen" data-search="klassenchat gruppenchat teams lehrer klasse klassenvorstand unterrichtsbelegung" draggable="true">
+                            <section class="choice" role="listitem" aria-label="KlassenChats" data-tool-id="klassenchats" data-cluster="gruppen" data-search="klassenchat gruppenchat privater kanal lehrerteam teams lehrer klasse klassenvorstand unterrichtsbelegung" draggable="true">
                                 <h2><i class="bi bi-chat-dots"></i>KlassenChats</h2>
-                                <p>Teams-Gruppenchats für alle Lehrkräfte einer Klasse (aus der Unterrichtsbelegung), inkl. KV – mit Schuljahr im Namen.</p>
+                                <p>Gruppenchats oder private Kanäle im Lehrerteam für alle Lehrkräfte einer Klasse (Belegung), inkl. KV – mit Schuljahr im Namen.</p>
                                 <a class="btn" href="tools/klassenchats.html"><i class="bi bi-chat-dots"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Datenhygiene" data-tool-id="datenhygiene" data-cluster="gruppen" data-search="datenhygiene abgleich microsoft 365 gruppen konsistent mitglieder diff stammliste einstellungen klassenfeld" draggable="true">
@@ -2783,6 +2783,11 @@
                                 <h2><i class="bi bi-inbox"></i>Gemeinsame Postfächer</h2>
                                 <p>Postfächer wie Sekretariat oder Direktion anzeigen, die mehrere Personen gemeinsam nutzen.</p>
                                 <a class="btn" href="tools/postfaecher.html"><i class="bi bi-inbox"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Kalender-Postfächer" data-tool-id="kalender-postfaecher" data-cluster="kommunikation" data-search="kalender schulkalender schularbeiten matura shared mailbox ical publish exchange termine" draggable="true">
+                                <h2><i class="bi bi-calendar3"></i>Kalender-Postfächer</h2>
+                                <p>Schulkalender, Schularbeiten, Matura &amp; Co. als freigegebene Postfächer – Rechte und iCal-Publish-Link.</p>
+                                <a class="btn" href="tools/kalender-postfaecher.html"><i class="bi bi-calendar3"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="E-Mail-Verteiler" data-tool-id="verteilerlisten" data-cluster="kommunikation" data-search="verteilerliste verteiler mail sicherheitsgruppe exchange skript" draggable="true">
                                 <h2><i class="bi bi-envelope-paper"></i>E-Mail-Verteiler</h2>
@@ -3083,6 +3088,7 @@
     <script src="src/tools/sharepoint/spo-graph-shared.js" defer></script>
     <script type="module" src="src/shared/stammdaten-sharepoint-sync-ui.js"></script>
     <script type="module" src="src/shared/membership-hygiene.js"></script>
+    <script type="module" src="src/shared/membership-hygiene-dashboard.js"></script>
     <script type="module" src="src/shared/dashboard-persona-session.js"></script>
     <script type="module" src="src/shared/playbook-schuljahresstart-gates.js"></script>
     <script type="module" src="src/shared/dashboard-main-section.js"></script>
@@ -3101,8 +3107,8 @@
             klassenChatsProvisionStatus,
             klassenChatsStatusHint,
             subjectCatalogStatusHint
-        } from './src/shared/dashboard-tool-status-logic.js';
-        import { applyAllTaskRowFacts } from './src/shared/dashboard-task-row-facts.js';
+        } from './src/shared/dashboard-tool-status-logic.js?v=kc-dash-5';
+        import { applyAllTaskRowFacts } from './src/shared/dashboard-task-row-facts.js?v=kc-dash-5';
 
         window.ms365DashboardTaskStatusHints = {
             klassenChatsProvisionStatus: klassenChatsProvisionStatus,
@@ -3179,6 +3185,7 @@
                 'webuntis-sync-monitor',
                 'cleanup-playbook-schuljahr',
                 'postfaecher',
+                'kalender-postfaecher',
                 'verteilerlisten',
                 'eltern-verteiler',
                 'elternsprechtag-bookings',
@@ -4166,19 +4173,41 @@
                 if (show) updateDashGruppenScanMeta();
             }
 
+            function waitForDashHygieneScanFn(maxMs) {
+                const deadline = Date.now() + (typeof maxMs === 'number' ? maxMs : 4000);
+                return new Promise(function (resolve) {
+                    function tick() {
+                        if (typeof window.ms365RunDashboardHygieneScan === 'function') {
+                            resolve(window.ms365RunDashboardHygieneScan);
+                            return;
+                        }
+                        if (Date.now() >= deadline) {
+                            resolve(null);
+                            return;
+                        }
+                        setTimeout(tick, 120);
+                    }
+                    tick();
+                });
+            }
+
             async function runDashGruppenHygieneScan() {
                 if (gruppenScanBusy) return;
-                const run = window.ms365RunDashboardHygieneScan;
-                if (typeof run !== 'function') {
-                    if (typeof window.ms365ToastOrAlert === 'function') {
-                        window.ms365ToastOrAlert('Abgleich-Modul lädt noch – bitte kurz warten und erneut klicken.');
-                    }
-                    return;
-                }
                 gruppenScanBusy = true;
                 if (elGruppenScanBtn) elGruppenScanBtn.disabled = true;
-                if (elGruppenScanMeta) elGruppenScanMeta.textContent = 'Prüfe Microsoft 365 …';
+                if (elGruppenScanMeta) elGruppenScanMeta.textContent = 'Abgleich-Modul wird geladen …';
                 try {
+                    const run = await waitForDashHygieneScanFn(5000);
+                    if (typeof run !== 'function') {
+                        if (typeof window.ms365ToastOrAlert === 'function') {
+                            window.ms365ToastOrAlert(
+                                'Abgleich-Modul nicht geladen – Seite neu laden und erneut versuchen.'
+                            );
+                        }
+                        updateDashGruppenScanMeta();
+                        return;
+                    }
+                    if (elGruppenScanMeta) elGruppenScanMeta.textContent = 'Prüfe Microsoft 365 …';
                     await run({
                         onStatus: function (msg) {
                             if (elGruppenScanMeta && msg) elGruppenScanMeta.textContent = msg;
@@ -4237,7 +4266,24 @@
                 }
                 syncDashGruppenScanRow(true);
                 const container = readAppContainer();
-                const hygieneById = applyDashTaskRowStatuses(container, s);
+                // classChats liegen im Year-Bucket – für Status-Hints an Settings anreichern
+                let settingsForStatus = s;
+                try {
+                    if (s && s.classChats && Array.isArray(s.classChats.items) && s.classChats.items.length) {
+                        settingsForStatus = s;
+                    } else if (
+                        window.ms365AppDataV2 &&
+                        typeof window.ms365AppDataV2.getClassChats === 'function'
+                    ) {
+                        const chats = window.ms365AppDataV2.getClassChats();
+                        if (chats && Array.isArray(chats.items) && chats.items.length) {
+                            settingsForStatus = Object.assign({}, s, { classChats: chats });
+                        }
+                    }
+                } catch {
+                    /* ignore */
+                }
+                const hygieneById = applyDashTaskRowStatuses(container, settingsForStatus);
                 const classes = (s && s.classes) || [];
                 const classTeams =
                     container && container.core && Array.isArray(container.core.classTeams)
@@ -4318,22 +4364,59 @@
                     if (l && (l.kind === 'subject' || l.kind === 'arge') && l.graphGroupId) subjectLinked += 1;
                 });
                 if (sammel || subjectN) {
-                    const parts = [];
-                    if (sammel) parts.push(sammel + '/' + sammelTargetProg + ' Sammelgruppen');
-                    if (subjectN) parts.push(subjectLinked + '/' + subjectN + ' Fächer/ARGEs');
                     const hygiene = window.ms365MembershipHygiene;
+                    const sammelIds = [
+                        'slg-schueler',
+                        'slg-lehrer',
+                        'verwaltung-schulleitung',
+                        'verwaltung',
+                        'klassenvorstaende'
+                    ];
+                    let sammelOk = 0;
+                    let sammelMismatch = 0;
+                    let sammelOpen = 0;
+                    sammelIds.forEach(function (id) {
+                        const st = hygieneById && hygieneById[id] ? hygieneById[id] : null;
+                        if (st === 'ok') sammelOk += 1;
+                        else if (st === 'mismatch' || st === 'empty-list') sammelMismatch += 1;
+                        else if (st === 'unmatched' || st === 'unknown' || !st) sammelOpen += 1;
+                    });
+                    const parts = [];
+                    if (sammel) {
+                        if (sammelMismatch > 0) {
+                            parts.push(
+                                sammelOk +
+                                    '/' +
+                                    sammelTargetProg +
+                                    ' Sammelgruppen konsistent · ' +
+                                    sammelMismatch +
+                                    ' Abweichung' +
+                                    (sammelMismatch === 1 ? '' : 'en')
+                            );
+                        } else if (sammelOk >= sammel && sammel >= sammelTargetProg) {
+                            parts.push(sammelOk + '/' + sammelTargetProg + ' Sammelgruppen konsistent');
+                        } else {
+                            parts.push(
+                                sammel +
+                                    '/' +
+                                    sammelTargetProg +
+                                    ' Sammelgruppen verknüpft' +
+                                    (sammelOpen ? ' · Abgleich offen' : '')
+                            );
+                        }
+                    }
+                    if (subjectN) parts.push(subjectLinked + '/' + subjectN + ' Fächer/ARGEs');
                     let tone = 'warn';
                     if (hygiene && hygieneById && typeof hygiene.aggregateHygieneStatuses === 'function') {
-                        const sammelAgg = hygiene.aggregateHygieneStatuses([
-                            hygieneById['slg-schueler'],
-                            hygieneById['slg-lehrer'],
-                            hygieneById['verwaltung-schulleitung'],
-                            hygieneById.verwaltung,
-                            hygieneById.klassenvorstaende
-                        ]);
+                        const sammelAgg = hygiene.aggregateHygieneStatuses(
+                            sammelIds.map(function (id) {
+                                return hygieneById[id];
+                            })
+                        );
                         const subjectsOk = !subjectN || subjectLinked >= subjectN;
                         if (sammelAgg === 'ok' && subjectsOk && sammel >= sammelTargetProg) tone = 'ok';
                         else if (sammelAgg === 'unmatched' && !sammel && !subjectN) tone = '';
+                        else if (sammelAgg === 'ok' && !subjectsOk) tone = 'warn';
                     } else if (sammel >= sammelTargetProg && (!subjectN || subjectLinked >= subjectN)) {
                         tone = 'ok';
                     }
@@ -4365,7 +4448,7 @@
                 ) {
                     window.ms365DashboardCatalogStatus.apply({
                         container: container,
-                        settings: s,
+                        settings: settingsForStatus,
                         hygieneById: hygieneById,
                         show: shouldShowTaskProgress(s)
                     });

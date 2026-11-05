@@ -732,6 +732,43 @@ describe('schul-organigramm-logic', () => {
         );
     });
 
+    it('rebuild/resolve behält freien Top-Level-Bereich (refKind none)', () => {
+        const settings = {
+            adminRoles: [{ code: 'DIR', name: 'Direktion' }],
+            admin: [],
+            arges: [],
+            classes: [],
+            teachers: [],
+            verwaltungAudienceGroups: []
+        };
+        let layout = seedSchulOrganigrammFromStammdaten(settings);
+        const freeId = 'area_ittest01';
+        layout = normalizeSchulOrganigramm({
+            version: 2,
+            nodes: layout.nodes.concat([
+                {
+                    id: freeId,
+                    type: 'area',
+                    label: 'IT-Team',
+                    parentId: null,
+                    order: 99,
+                    tone: 'custom',
+                    refKind: 'none',
+                    refKey: '',
+                    x: 120,
+                    y: 80
+                }
+            ])
+        });
+        const rebuilt = rebuildSchulOrganigrammFromStammdaten(layout, settings);
+        expect(rebuilt.nodes.find((n) => n.id === freeId)?.label).toBe('IT-Team');
+        const synced = syncSchulOrganigrammWithStammdaten(layout, settings);
+        expect(synced.layout.nodes.find((n) => n.id === freeId)?.label).toBe('IT-Team');
+        const resolved = resolveSchulOrganigrammLayout(layout, settings);
+        expect(resolved.layout.nodes.find((n) => n.id === freeId)?.label).toBe('IT-Team');
+        expect(resolved.layout.nodes.find((n) => n.id === freeId)?.x).toBe(120);
+    });
+
     it('sync ergänzt fehlende Audience-Sections und aktualisiert Labels', () => {
         const base = seedSchulOrganigrammFromStammdaten({
             adminRoles: [],
@@ -765,6 +802,28 @@ describe('schul-organigramm-logic', () => {
         expect(
             renamed.layout.nodes.find((n) => n.id === audienceSectionId('va-erw'))?.label
         ).toBe('Erw. Schulleitung');
+    });
+
+    it('erlaubt keine Verwaltungsrollen in Funktions-Sammelbereichen (Klassensprecher)', () => {
+        const role = { type: NODE.ROLE, id: 'role_X', refKind: 'adminRole', refKey: 'X' };
+        const layout = {
+            version: 2,
+            nodes: [
+                {
+                    id: 'sec_classfn_klassensprecher',
+                    type: 'area',
+                    label: 'Klassensprecher',
+                    parentId: null,
+                    refKind: 'classFunction',
+                    refKey: 'klassensprecher'
+                },
+                { id: 'sec_verwaltung', type: 'area', label: 'Verwaltung', parentId: null }
+            ]
+        };
+        expect(
+            canPlaceSchulOrgNodeInSection(role, 'sec_classfn_klassensprecher', layout)
+        ).toBe(false);
+        expect(canPlaceSchulOrgNodeInSection(role, 'sec_verwaltung', layout)).toBe(true);
     });
 
     it('erlaubt Rollen in Custom-Audience-Sections', () => {
@@ -2058,11 +2117,16 @@ describe('schul-organigramm area people', () => {
         expect(listPeopleForSchulOrgNode(settings, cls).some((p) => p.email === 'clara@schule.at')).toBe(
             true
         );
-        const blocked = addSchulOrgPersonToArea(settings, lehrer, {
+        const addedLehrer = addSchulOrgPersonToArea(settings, lehrer, {
             email: 'x@schule.at',
             name: 'X'
         });
-        expect(blocked.ok).toBe(false);
+        expect(addedLehrer.ok).toBe(true);
+        const blockedSchueler = addSchulOrgPersonToArea(settings, schueler, {
+            email: 'y@schule.at',
+            name: 'Y'
+        });
+        expect(blockedSchueler.ok).toBe(false);
     });
 
     it('ordnet Personen Audience-Areas über Membership zu', () => {

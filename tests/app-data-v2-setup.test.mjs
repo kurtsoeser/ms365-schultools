@@ -66,6 +66,18 @@ describe('app-data-v2 setup', () => {
         expect(m.argeGroupMailPrefix).toBe('arbeits');
     });
 
+    it('normalizeSetup allows empty group mail prefixes (alias = nur Kürzel)', () => {
+        const ctx = loadAppDataV2(store);
+        const empty = ctx.ms365AppDataV2.normalizeSetup({
+            subjectGroupMailPrefix: '',
+            argeGroupMailPrefix: ''
+        });
+        expect(empty.subjectGroupMailPrefix).toBe('');
+        expect(empty.argeGroupMailPrefix).toBe('');
+        ctx.ms365AppDataV2.patchSetup({ argeGroupMailPrefix: '' });
+        expect(ctx.ms365AppDataV2.getSetup().argeGroupMailPrefix).toBe('');
+    });
+
     it('patchSetup merges directoryMatchByEmail by email key', () => {
         const ctx = loadAppDataV2(store);
         ctx.ms365AppDataV2.patchSetup({
@@ -460,5 +472,62 @@ describe('app-data-v2 setup', () => {
         });
         expect(saved.items).toHaveLength(1);
         expect(ctx.ms365AppDataV2.getClassChats().items[0].chatId).toBe('chat-abc');
+        expect(ctx.ms365AppDataV2.getClassChats().items[0].kind).toBe('groupChat');
+    });
+
+    it('classChats speichert private Kanäle parallel zu Gruppenchats', () => {
+        const ctx = loadAppDataV2(store);
+        const saved = ctx.ms365AppDataV2.setClassChats({
+            yearPrefix: 'SJ26',
+            targetKind: 'privateChannel',
+            lehrerTeamId: 'team-xyz',
+            lehrerTeamDisplayName: 'Lehrkräfte',
+            items: [
+                {
+                    klasse: '1A',
+                    kind: 'groupChat',
+                    chatId: 'chat-abc',
+                    topic: 'SJ26 | 1A | Lehrer'
+                },
+                {
+                    klasse: '1A',
+                    kind: 'privateChannel',
+                    channelId: 'chan-1',
+                    teamId: 'team-xyz',
+                    topic: 'SJ26 · 1A · Lehrer'
+                }
+            ]
+        });
+        expect(saved.items).toHaveLength(2);
+        expect(saved.targetKind).toBe('privateChannel');
+        expect(saved.lehrerTeamId).toBe('team-xyz');
+        const again = ctx.ms365AppDataV2.getClassChats();
+        expect(again.items.find((i) => i.kind === 'privateChannel').channelId).toBe('chan-1');
+    });
+
+    it('classChats: private Kanäle ohne teamId am Item erben lehrerTeamId', () => {
+        const ctx = loadAppDataV2(store);
+        const saved = ctx.ms365AppDataV2.setClassChats({
+            targetKind: 'privateChannel',
+            lehrerTeamId: 'team-fallback',
+            items: [{ klasse: '2B', kind: 'privateChannel', channelId: 'chan-2' }]
+        });
+        expect(saved.items).toHaveLength(1);
+        expect(saved.items[0].teamId).toBe('team-fallback');
+    });
+
+    it('classChats-Spiegel stellt Daten wieder her wenn Year-Bucket leer ist', () => {
+        const ctx = loadAppDataV2(store);
+        ctx.ms365AppDataV2.setClassChats({
+            items: [{ klasse: '1A', chatId: 'chat-mirror', topic: 'T' }]
+        });
+        const c = ctx.ms365AppDataV2.getContainer();
+        const cur = String(c.years.current || '');
+        c.years.byLabel[cur].classChats = null;
+        ctx.ms365AppDataV2.setContainer(c);
+        ctx.ms365AppDataV2.invalidateCache();
+        const restored = ctx.ms365AppDataV2.getClassChats();
+        expect(restored).toBeTruthy();
+        expect(restored.items[0].chatId).toBe('chat-mirror');
     });
 });

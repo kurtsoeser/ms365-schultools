@@ -168,6 +168,16 @@
         graphMemberCounts[id] = count;
         paintCounts();
         updateMismatchUi();
+        try {
+            const h = window.ms365MembershipHygiene;
+            if (h && typeof h.patchHygieneScanGroupCount === 'function') {
+                const listCount = (listCache.emails || []).length;
+                h.patchHygieneScanGroupCount(id, count, { listCount: listCount });
+                h.patchHygieneScanGroupCount('klassenvorstaende', count, { listCount: listCount });
+            }
+        } catch {
+            /* Dashboard-Cache optional */
+        }
     }
 
     function paintCounts() {
@@ -230,9 +240,9 @@
             const token = await getGraphToken();
             if (gen !== countsFetchGen) return;
             const n = await gug().fetchGroupMemberCount(token, gid);
-            if (typeof n === 'number' && n >= 0) graphMemberCounts[gid] = n;
             if (gen !== countsFetchGen) return;
-            updateMismatchUi();
+            if (typeof n === 'number' && n >= 0) rememberGraphMemberCount(gid, n);
+            else updateMismatchUi();
         } catch {
             updateMismatchUi();
         }
@@ -451,11 +461,7 @@
 
         summaryEl.textContent =
             'Markieren Sie Personen und wählen Sie unten in der passenden Spalte die Aktion.';
-        if (actions) {
-            R.collectMembershipReviewActionButtons(actions);
-            actions.hidden = false;
-            actions.setAttribute('aria-hidden', 'false');
-        }
+        if (actions) R.collectMembershipReviewActionButtons(actions);
 
         body.replaceChildren();
         body.appendChild(
@@ -464,10 +470,12 @@
                 graphByEmail: state.graphByEmail,
                 listCount: (listCache.emails || []).length,
                 labels: {
-                    onlyLocalTitle: 'Nur in der KV‑Liste',
-                    onlyLocalHint: 'In den Stammdaten (Klassen → KV), aber nicht in der Microsoft-365-Gruppe.',
+                    onlyLocalTitle: 'Nur in der Schul-Liste',
+                    onlyLocalHint:
+                        'In den Stammdaten (Klassen → Klassenvorstand), aber nicht in der Microsoft-365-Gruppe.',
                     onlyGraphTitle: 'Nur in der Microsoft-365-Gruppe',
-                    onlyGraphHint: 'In der Gruppe online, aber nicht als Klassenvorstand in den Stammdaten.'
+                    onlyGraphHint:
+                        'In der Gruppe online, aber nicht als Klassenvorstand in den Stammdaten.'
                 }
             })
         );

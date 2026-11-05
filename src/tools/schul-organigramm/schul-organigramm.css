@@ -489,9 +489,9 @@ html[data-theme='dark'] .schul-org__action--success {
     margin-left: auto;
 }
 
-/* Edit-Pop-ups – App-Dialog-/Picker-Stil */
+/* Edit-Pop-ups – über Landkarte/Ctx (10050), unter App-Dialog (13000) */
 .schul-org-edit-overlay {
-    z-index: 1100;
+    z-index: 12500;
     padding: 20px 16px;
     align-items: flex-start;
     overflow: auto;

@@ -6,7 +6,7 @@
  * Knoten referenzieren bestehende Listen (refKind + refKey), keine parallele Personenliste.
  *
  * @typedef {'area'|'section'|'role'|'arge'|'class'|'kursteam'|'sga'|'council'|'custom'|'person'} SchulOrgNodeType
- * @typedef {'adminRole'|'arge'|'argeLeiter'|'klassenvorstand'|'class'|'kursteam'|'sga'|'studentCouncil'|'audience'|'adminPerson'|'sammelgruppe'|'jahrgang'|'elternJahrgang'|'elternClass'|'klassenchatJahrgang'|'klassenchatClass'|'none'} SchulOrgRefKind
+ * @typedef {'adminRole'|'arge'|'argeLeiter'|'klassenvorstand'|'classFunction'|'argeFunction'|'class'|'kursteam'|'sga'|'studentCouncil'|'audience'|'adminPerson'|'sammelgruppe'|'jahrgang'|'elternJahrgang'|'elternClass'|'klassenchatJahrgang'|'klassenchatClass'|'none'} SchulOrgRefKind
  */
 
 import { normalizeVerwaltungAudienceGroups } from '../../shared/administration-audience-groups.js';
@@ -34,6 +34,51 @@ export const SCHUL_ORG_SEC_ARGE = 'sec_arge';
 export const SCHUL_ORG_SEC_ARGE_LEITER = 'sec_arge_leiter';
 /** Root: Sammelbereich aller Klassenvorstände (aus Klassen-Stammdaten / Gruppen-Besitzer). */
 export const SCHUL_ORG_SEC_KLASSENVORSTAND = 'sec_klassenvorstand';
+
+/** Prefix Root-Sammelbereiche je Klassenfunktion (z. B. Klassensprecher). */
+export const SCHUL_ORG_CLASS_FN_SEC_PREFIX = 'sec_classfn_';
+
+/** Prefix Sammelbereiche je ARGE-Funktion (unter ARGEs). */
+export const SCHUL_ORG_ARGE_FN_SEC_PREFIX = 'sec_argefn_';
+
+/**
+ * @typedef {'class'|'arge'} SchulOrgFunctionSource
+ * @typedef {'head'|'functionsMap'} SchulOrgFunctionSeat
+ * @typedef {{
+ *   id: string,
+ *   label: string,
+ *   labelPlural: string,
+ *   source: SchulOrgFunctionSource,
+ *   seat: SchulOrgFunctionSeat,
+ *   seatKey?: string,
+ *   personKind: 'teacher'|'student',
+ *   boardId: string,
+ *   boardParent: 'root'|'sec_arge',
+ *   refKind: string,
+ *   tone: string,
+ *   seatLabel: string,
+ *   aggregate: boolean
+ * }} SchulOrgFunctionAggregateDef
+ */
+
+/**
+ * Builtin-Klassenfunktionen (Sitze in der Klasse + Sammelbereich).
+ * @type {{ id: string, label: string, labelPlural: string, personKind: 'student' }[]}
+ */
+export const SCHUL_ORG_DEFAULT_CLASS_FUNCTIONS = [
+    {
+        id: 'klassensprecher',
+        label: 'Klassensprecher',
+        labelPlural: 'Klassensprecher',
+        personKind: 'student'
+    }
+];
+
+/**
+ * Optionale Builtin-ARGE-Funktionen (leer; Erweiterung über settings.argeFunctions).
+ * @type {{ id: string, label: string, labelPlural: string, personKind: 'teacher' }[]}
+ */
+export const SCHUL_ORG_DEFAULT_ARGE_FUNCTIONS = [];
 
 /** Fallback-Jahrgang für Klassen ohne führende Ziffer im Kürzel. */
 export const SCHUL_ORG_JAHRGANG_SONST = 'sonst';
@@ -401,6 +446,450 @@ export function isKlassenvorstandArea(areaNode) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function cleanSchulOrgClassFunctionId(raw) {
+    return normStr(raw)
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '')
+        .slice(0, 40);
+}
+
+/**
+ * @param {string} functionId
+ * @returns {string}
+ */
+export function classFunctionBoardId(functionId) {
+    const id = cleanSchulOrgClassFunctionId(functionId) || 'rolle';
+    return SCHUL_ORG_CLASS_FN_SEC_PREFIX + id;
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, { name: string, email: string }>}
+ */
+export function normalizeClassFunctionsMap(raw) {
+    /** @type {Record<string, { name: string, email: string }>} */
+    const out = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    Object.keys(/** @type {object} */ (raw)).forEach(function (key) {
+        const id = cleanSchulOrgClassFunctionId(key);
+        if (!id) return;
+        const seat = /** @type {object} */ (raw)[key];
+        if (!seat || typeof seat !== 'object') return;
+        const name = normStr(seat.name);
+        const email = normStr(seat.email).toLowerCase();
+        if (!name && !email) return;
+        out[id] = { name: name, email: email };
+    });
+    return out;
+}
+
+/**
+ * Aktive Klassenfunktionen (Builtin + optionale settings.classFunctions).
+ * @param {object} [settings]
+ * @returns {{ id: string, label: string, labelPlural: string, personKind: 'student' }[]}
+ */
+export function listSchulOrgClassFunctions(settings) {
+    const s = settings && typeof settings === 'object' ? settings : {};
+    /** @type {Map<string, { id: string, label: string, labelPlural: string, personKind: 'student' }>} */
+    const byId = new Map();
+    SCHUL_ORG_DEFAULT_CLASS_FUNCTIONS.forEach(function (def) {
+        byId.set(def.id, Object.assign({}, def));
+    });
+    (Array.isArray(s.classFunctions) ? s.classFunctions : []).forEach(function (row) {
+        const id = cleanSchulOrgClassFunctionId(row && row.id);
+        if (!id) return;
+        const label = normStr(row && row.label) || id;
+        const labelPlural = normStr(row && row.labelPlural) || label;
+        byId.set(id, {
+            id: id,
+            label: label,
+            labelPlural: labelPlural,
+            personKind: 'student'
+        });
+    });
+    return Array.from(byId.values());
+}
+
+/**
+ * Aktive ARGE-Funktionen (Builtin + settings.argeFunctions).
+ * @param {object} [settings]
+ * @returns {{ id: string, label: string, labelPlural: string, personKind: 'teacher' }[]}
+ */
+export function listSchulOrgArgeFunctions(settings) {
+    const s = settings && typeof settings === 'object' ? settings : {};
+    /** @type {Map<string, { id: string, label: string, labelPlural: string, personKind: 'teacher' }>} */
+    const byId = new Map();
+    SCHUL_ORG_DEFAULT_ARGE_FUNCTIONS.forEach(function (def) {
+        byId.set(def.id, Object.assign({}, def));
+    });
+    (Array.isArray(s.argeFunctions) ? s.argeFunctions : []).forEach(function (row) {
+        const id = cleanSchulOrgClassFunctionId(row && row.id);
+        if (!id) return;
+        const label = normStr(row && row.label) || id;
+        const labelPlural = normStr(row && row.labelPlural) || label;
+        byId.set(id, {
+            id: id,
+            label: label,
+            labelPlural: labelPlural,
+            personKind: 'teacher'
+        });
+    });
+    return Array.from(byId.values());
+}
+
+/**
+ * @param {string} functionId
+ * @returns {string}
+ */
+export function argeFunctionBoardId(functionId) {
+    const id = cleanSchulOrgClassFunctionId(functionId) || 'rolle';
+    return SCHUL_ORG_ARGE_FN_SEC_PREFIX + id;
+}
+
+/**
+ * Alle Funktions-Sammelbereiche: Leitungssitze + Klassen-/ARGE-Funktionen.
+ * Regel: gleiche Funktion über Gruppen → ein aggregierender Landkarten-Bereich.
+ * @param {object} [settings]
+ * @returns {SchulOrgFunctionAggregateDef[]}
+ */
+export function listSchulOrgFunctionAggregates(settings) {
+    /** @type {SchulOrgFunctionAggregateDef[]} */
+    const out = [
+        {
+            id: 'klassenvorstand',
+            label: 'Klassenvorstand',
+            labelPlural: 'Klassenvorstände',
+            source: 'class',
+            seat: 'head',
+            personKind: 'teacher',
+            boardId: SCHUL_ORG_SEC_KLASSENVORSTAND,
+            boardParent: 'root',
+            refKind: 'klassenvorstand',
+            tone: 'lehrer',
+            seatLabel: 'Klassenvorstand',
+            aggregate: true
+        },
+        {
+            id: 'argeLeiter',
+            label: 'ARGE-Leitung',
+            labelPlural: 'ARGE-Leiter',
+            source: 'arge',
+            seat: 'head',
+            personKind: 'teacher',
+            boardId: SCHUL_ORG_SEC_ARGE_LEITER,
+            boardParent: 'sec_arge',
+            refKind: 'argeLeiter',
+            tone: 'arge',
+            seatLabel: 'ARGE-Leitung',
+            aggregate: true
+        }
+    ];
+    listSchulOrgClassFunctions(settings).forEach(function (def) {
+        out.push({
+            id: def.id,
+            label: def.label,
+            labelPlural: def.labelPlural,
+            source: 'class',
+            seat: 'functionsMap',
+            seatKey: def.id,
+            personKind: 'student',
+            boardId: classFunctionBoardId(def.id),
+            boardParent: 'root',
+            refKind: 'classFunction',
+            tone: 'schueler',
+            seatLabel: def.label,
+            aggregate: true
+        });
+    });
+    listSchulOrgArgeFunctions(settings).forEach(function (def) {
+        out.push({
+            id: 'argefn_' + def.id,
+            label: def.label,
+            labelPlural: def.labelPlural,
+            source: 'arge',
+            seat: 'functionsMap',
+            seatKey: def.id,
+            personKind: 'teacher',
+            boardId: argeFunctionBoardId(def.id),
+            boardParent: 'sec_arge',
+            refKind: 'argeFunction',
+            tone: 'arge',
+            seatLabel: def.label,
+            aggregate: true
+        });
+    });
+    return out;
+}
+
+/**
+ * @param {object|null|undefined} areaNode
+ * @returns {string}
+ */
+export function classFunctionIdForArea(areaNode) {
+    if (!areaNode) return '';
+    if (normStr(areaNode.refKind).toLowerCase() === 'classfunction') {
+        return cleanSchulOrgClassFunctionId(areaNode.refKey);
+    }
+    const id = normStr(areaNode.id);
+    if (id.indexOf(SCHUL_ORG_CLASS_FN_SEC_PREFIX) === 0) {
+        return cleanSchulOrgClassFunctionId(id.slice(SCHUL_ORG_CLASS_FN_SEC_PREFIX.length));
+    }
+    return '';
+}
+
+/**
+ * @param {object|null|undefined} areaNode
+ * @returns {string}
+ */
+export function argeFunctionIdForArea(areaNode) {
+    if (!areaNode) return '';
+    if (normStr(areaNode.refKind).toLowerCase() === 'argefunction') {
+        return cleanSchulOrgClassFunctionId(areaNode.refKey);
+    }
+    const id = normStr(areaNode.id);
+    if (id.indexOf(SCHUL_ORG_ARGE_FN_SEC_PREFIX) === 0) {
+        return cleanSchulOrgClassFunctionId(id.slice(SCHUL_ORG_ARGE_FN_SEC_PREFIX.length));
+    }
+    return '';
+}
+
+/**
+ * Root-Sammelbereich einer Klassenfunktion (z. B. alle Klassensprecher).
+ * @param {object|null|undefined} areaNode
+ */
+export function isClassFunctionArea(areaNode) {
+    return !!classFunctionIdForArea(areaNode);
+}
+
+/**
+ * @param {object|null|undefined} areaNode
+ */
+export function isArgeFunctionArea(areaNode) {
+    return !!argeFunctionIdForArea(areaNode);
+}
+
+/**
+ * Sammelbereich einer schulweiten Funktion (KV, ARGE-Leiter, Klassen-/ARGE-Funktion).
+ * @param {object|null|undefined} areaNode
+ */
+export function isFunctionAggregateArea(areaNode) {
+    return (
+        isKlassenvorstandArea(areaNode) ||
+        isArgeLeiterArea(areaNode) ||
+        isClassFunctionArea(areaNode) ||
+        isArgeFunctionArea(areaNode)
+    );
+}
+
+/**
+ * @param {object|null|undefined} areaNode
+ * @param {object} [settings]
+ * @returns {SchulOrgFunctionAggregateDef|null}
+ */
+export function functionAggregateDefForArea(areaNode, settings) {
+    if (!areaNode) return null;
+    const defs = listSchulOrgFunctionAggregates(settings);
+    const id = normStr(areaNode.id);
+    const refKind = normStr(areaNode.refKind).toLowerCase();
+    const refKey = normStr(areaNode.refKey);
+    return (
+        defs.find(function (d) {
+            if (d.boardId === id) return true;
+            if (normStr(d.refKind).toLowerCase() === refKind) {
+                if (d.seat === 'functionsMap') {
+                    return cleanSchulOrgClassFunctionId(d.seatKey) === cleanSchulOrgClassFunctionId(refKey);
+                }
+                return cleanSchulOrgClassFunctionId(d.id) === cleanSchulOrgClassFunctionId(refKey) || !refKey;
+            }
+            return false;
+        }) || null
+    );
+}
+
+/**
+ * Besetzungen einer Klassenfunktion schulweit (eindeutig nach E-Mail).
+ * @param {object} settings
+ * @param {string} functionId
+ * @returns {Array<{ name: string, email: string, label: string, classCode: string, className: string, functionId: string, functionLabel: string }>}
+ */
+export function collectClassFunctionPeopleFromSettings(settings, functionId) {
+    const s = settings && typeof settings === 'object' ? settings : {};
+    const fnId = cleanSchulOrgClassFunctionId(functionId);
+    if (!fnId) return [];
+    const def = listSchulOrgClassFunctions(s).find(function (d) {
+        return d.id === fnId;
+    });
+    const functionLabel = (def && def.label) || fnId;
+    /** @type {Map<string, { name: string, email: string, label: string, classCode: string, className: string, functionId: string, functionLabel: string, classLabels: string[] }>} */
+    const byMail = new Map();
+    (Array.isArray(s.classes) ? s.classes : []).forEach(function (c) {
+        const seats = normalizeClassFunctionsMap(c && c.functions);
+        const seat = seats[fnId];
+        if (!seat) return;
+        const email = normStr(seat.email).toLowerCase();
+        const name = normStr(seat.name);
+        if (!email || email.indexOf('@') === -1) return;
+        const classCode =
+            canonicalSchulOrgClassCode(c && c.code) ||
+            canonicalSchulOrgClassCode(c && c.name) ||
+            normCode(c && c.code);
+        const className = normStr(c && c.name) || classCode;
+        const existing = byMail.get(email);
+        if (existing) {
+            if (className && existing.classLabels.indexOf(className) < 0) {
+                existing.classLabels.push(className);
+            }
+            return;
+        }
+        byMail.set(email, {
+            name: name,
+            email: email,
+            label: name || email,
+            classCode: classCode,
+            className: className,
+            functionId: fnId,
+            functionLabel: functionLabel,
+            classLabels: className ? [className] : []
+        });
+    });
+    return Array.from(byMail.values())
+        .map(function (p) {
+            const hint =
+                p.classLabels.length > 1
+                    ? p.classLabels.join(', ')
+                    : p.classLabels[0] || p.className || '';
+            return {
+                name: p.name,
+                email: p.email,
+                label: p.label,
+                classCode: p.classCode,
+                className: hint || p.className,
+                functionId: p.functionId,
+                functionLabel: p.functionLabel
+            };
+        })
+        .sort(function (a, b) {
+            return String(a.name || a.email).localeCompare(String(b.name || b.email), 'de');
+        });
+}
+
+/**
+ * Besetzungen einer ARGE-Funktion schulweit.
+ * @param {object} settings
+ * @param {string} functionId
+ */
+export function collectArgeFunctionPeopleFromSettings(settings, functionId) {
+    const s = settings && typeof settings === 'object' ? settings : {};
+    const fnId = cleanSchulOrgClassFunctionId(functionId);
+    if (!fnId) return [];
+    const def = listSchulOrgArgeFunctions(s).find(function (d) {
+        return d.id === fnId;
+    });
+    const functionLabel = (def && def.label) || fnId;
+    /** @type {Map<string, { name: string, email: string, label: string, argeCode: string, argeName: string, functionId: string, functionLabel: string, groupLabels: string[] }>} */
+    const byMail = new Map();
+    (Array.isArray(s.arges) ? s.arges : []).forEach(function (a) {
+        const seats = normalizeClassFunctionsMap(a && a.functions);
+        const seat = seats[fnId];
+        if (!seat) return;
+        const email = normStr(seat.email).toLowerCase();
+        const name = normStr(seat.name);
+        if (!email || email.indexOf('@') === -1) return;
+        const argeCode = normCode(a && a.code);
+        const argeName = normStr(a && a.name) || argeCode;
+        const existing = byMail.get(email);
+        if (existing) {
+            if (argeName && existing.groupLabels.indexOf(argeName) < 0) {
+                existing.groupLabels.push(argeName);
+            }
+            return;
+        }
+        byMail.set(email, {
+            name: name,
+            email: email,
+            label: name || email,
+            argeCode: argeCode,
+            argeName: argeName,
+            functionId: fnId,
+            functionLabel: functionLabel,
+            groupLabels: argeName ? [argeName] : []
+        });
+    });
+    return Array.from(byMail.values())
+        .map(function (p) {
+            const hint =
+                p.groupLabels.length > 1
+                    ? p.groupLabels.join(', ')
+                    : p.groupLabels[0] || p.argeName || '';
+            return {
+                name: p.name,
+                email: p.email,
+                label: p.label,
+                argeCode: p.argeCode,
+                argeName: hint || p.argeName,
+                functionId: p.functionId,
+                functionLabel: p.functionLabel
+            };
+        })
+        .sort(function (a, b) {
+            return String(a.name || a.email).localeCompare(String(b.name || b.email), 'de');
+        });
+}
+
+/**
+ * Personen eines Funktions-Sammelbereichs (Registry).
+ * @param {object} settings
+ * @param {string|SchulOrgFunctionAggregateDef} aggregateOrId
+ */
+export function collectFunctionAggregatePeople(settings, aggregateOrId) {
+    const def =
+        aggregateOrId && typeof aggregateOrId === 'object'
+            ? aggregateOrId
+            : listSchulOrgFunctionAggregates(settings).find(function (d) {
+                  return d.id === aggregateOrId || d.boardId === aggregateOrId;
+              });
+    if (!def || !def.aggregate) return [];
+    if (def.source === 'class' && def.seat === 'head') {
+        return collectKlassenvorstandPeopleFromSettings(settings).map(function (p) {
+            return Object.assign({}, p, {
+                functionId: def.id,
+                functionLabel: def.label,
+                seatLabel: def.seatLabel
+            });
+        });
+    }
+    if (def.source === 'arge' && def.seat === 'head') {
+        return collectArgeLeiterPeopleFromSettings(settings).map(function (p) {
+            return Object.assign({}, p, {
+                functionId: def.id,
+                functionLabel: def.label,
+                seatLabel: def.seatLabel,
+                className: p.argeName,
+                classCode: p.argeCode
+            });
+        });
+    }
+    if (def.source === 'class' && def.seat === 'functionsMap') {
+        return collectClassFunctionPeopleFromSettings(settings, def.seatKey || def.id).map(function (p) {
+            return Object.assign({}, p, { seatLabel: def.seatLabel });
+        });
+    }
+    if (def.source === 'arge' && def.seat === 'functionsMap') {
+        return collectArgeFunctionPeopleFromSettings(settings, def.seatKey || '').map(function (p) {
+            return Object.assign({}, p, {
+                seatLabel: def.seatLabel,
+                className: p.argeName,
+                classCode: p.argeCode
+            });
+        });
+    }
+    return [];
+}
+
+/**
  * ARGE-Leitungen aus Stammdaten (eindeutig nach E-Mail).
  * @param {object} settings
  * @returns {Array<{ name: string, email: string, label: string, argeCode: string, argeName: string }>}
@@ -651,6 +1140,184 @@ export function ensureSchulOrganigrammKlassenvorstandStructure(layout, settings)
     }
 
     return normalizeSchulOrganigramm(base);
+}
+
+/**
+ * @param {unknown} layout
+ * @param {SchulOrgFunctionAggregateDef} def
+ * @param {string|null} parentId
+ */
+function ensureOneFunctionAggregateBoard(layout, def, parentId) {
+    let base = normalizeSchulOrganigramm(layout);
+    const boardId = def.boardId;
+    const wantParent = parentId == null || parentId === '' ? null : String(parentId);
+    const labelMatch = function (n) {
+        const lab = normStr(n && n.label).toLowerCase();
+        return (
+            lab === normStr(def.labelPlural).toLowerCase() ||
+            lab === normStr(def.label).toLowerCase() ||
+            lab === normStr(def.labelPlural).toLowerCase() + 'innen'
+        );
+    };
+    const matchesDef = function (n) {
+        if (!isAreaNode(n)) return false;
+        if (normStr(n.id) === boardId) return true;
+        if (normStr(n.refKind).toLowerCase() === normStr(def.refKind).toLowerCase()) {
+            if (def.seat === 'functionsMap') {
+                return (
+                    cleanSchulOrgClassFunctionId(n.refKey) ===
+                    cleanSchulOrgClassFunctionId(def.seatKey || def.id)
+                );
+            }
+            return true;
+        }
+        return false;
+    };
+    let board = base.nodes.find(matchesDef);
+    if (!board) {
+        board = base.nodes.find(function (n) {
+            return (
+                isAreaNode(n) &&
+                labelMatch(n) &&
+                (wantParent == null
+                    ? n.parentId == null || n.parentId === ''
+                    : String(n.parentId || '') === wantParent)
+            );
+        });
+    }
+    if (!board) {
+        board = base.nodes.find(function (n) {
+            return isAreaNode(n) && labelMatch(n);
+        });
+    }
+    const refKey =
+        def.seat === 'functionsMap'
+            ? cleanSchulOrgClassFunctionId(def.seatKey || def.id)
+            : cleanSchulOrgClassFunctionId(def.id) || def.id;
+    if (!board) {
+        let maxOrder = base.nodes.reduce(function (m, n) {
+            return Math.max(m, typeof n.order === 'number' ? n.order : 0);
+        }, 0);
+        base.nodes.push({
+            id: boardId,
+            type: NODE.SECTION,
+            label: def.labelPlural,
+            parentId: wantParent,
+            order: maxOrder + 1,
+            tone: def.tone,
+            refKind: def.refKind,
+            refKey: refKey,
+            meta: {
+                functionAggregate: true,
+                functionAggregateId: def.id,
+                classFunctionBoard: def.refKind === 'classFunction',
+                argeFunctionBoard: def.refKind === 'argeFunction',
+                klassenvorstandBoard: def.refKind === 'klassenvorstand',
+                argeLeiterBoard: def.refKind === 'argeLeiter',
+                classFunctionId: def.refKind === 'classFunction' ? refKey : undefined,
+                argeFunctionId: def.refKind === 'argeFunction' ? refKey : undefined,
+                nestPeople: true
+            }
+        });
+    } else {
+        const keepM365 = board.m365;
+        board.id = boardId;
+        board.type = NODE.SECTION;
+        board.parentId = wantParent;
+        board.tone = board.tone || def.tone;
+        board.refKind = def.refKind;
+        board.refKey = refKey;
+        if (!normStr(board.label) || labelMatch(board)) board.label = def.labelPlural;
+        board.meta = Object.assign({}, board.meta || {}, {
+            functionAggregate: true,
+            functionAggregateId: def.id,
+            classFunctionBoard: def.refKind === 'classFunction',
+            argeFunctionBoard: def.refKind === 'argeFunction',
+            klassenvorstandBoard: def.refKind === 'klassenvorstand',
+            argeLeiterBoard: def.refKind === 'argeLeiter',
+            classFunctionId: def.refKind === 'classFunction' ? refKey : undefined,
+            argeFunctionId: def.refKind === 'argeFunction' ? refKey : undefined,
+            nestPeople: true
+        });
+        if (keepM365) board.m365 = keepM365;
+        base.nodes = base.nodes.filter(function (n) {
+            if (n === board || n.id === boardId) return true;
+            if (matchesDef(n) && n !== board) return false;
+            if (isAreaNode(n) && labelMatch(n) && n !== board) {
+                const sameParent =
+                    wantParent == null
+                        ? n.parentId == null || n.parentId === ''
+                        : String(n.parentId || '') === wantParent;
+                if (sameParent) return false;
+            }
+            return true;
+        });
+    }
+    return normalizeSchulOrganigramm(base);
+}
+
+/**
+ * Stellt sicher: Root-Sammelbereiche je Klassenfunktion (z. B. Klassensprecher).
+ * @param {unknown} layout
+ * @param {object} [settings]
+ */
+export function ensureSchulOrganigrammClassFunctionStructure(layout, settings) {
+    let base = normalizeSchulOrganigramm(layout);
+    listSchulOrgFunctionAggregates(settings)
+        .filter(function (d) {
+            return d.refKind === 'classFunction' && d.aggregate;
+        })
+        .forEach(function (def) {
+            base = ensureOneFunctionAggregateBoard(base, def, null);
+        });
+    return base;
+}
+
+/**
+ * Stellt sicher: Sammelbereiche je ARGE-Funktion unter ARGEs.
+ * @param {unknown} layout
+ * @param {object} [settings]
+ */
+export function ensureSchulOrganigrammArgeFunctionStructure(layout, settings) {
+    let base = normalizeSchulOrganigramm(layout);
+    let secArge = base.nodes.find(function (n) {
+        return n.id === SCHUL_ORG_SEC_ARGE || n.id === 'sec_arge';
+    });
+    if (!secArge && listSchulOrgArgeFunctions(settings).length) {
+        base.nodes.push({
+            id: SCHUL_ORG_SEC_ARGE,
+            type: NODE.SECTION,
+            label: 'ARGEs / Fachschaften',
+            parentId: null,
+            order: 40,
+            tone: 'arge',
+            refKind: 'none',
+            refKey: ''
+        });
+        secArge = base.nodes[base.nodes.length - 1];
+    }
+    const parentId = secArge ? secArge.id : SCHUL_ORG_SEC_ARGE;
+    listSchulOrgFunctionAggregates(settings)
+        .filter(function (d) {
+            return d.refKind === 'argeFunction' && d.aggregate;
+        })
+        .forEach(function (def) {
+            base = ensureOneFunctionAggregateBoard(base, def, parentId);
+        });
+    return base;
+}
+
+/**
+ * Alle Funktions-Sammelbereiche (KV, ARGE-Leiter, Klassen-/ARGE-Funktionen).
+ * @param {unknown} layout
+ * @param {object} [settings]
+ */
+export function ensureSchulOrganigrammFunctionAggregateStructure(layout, settings) {
+    let base = ensureSchulOrganigrammArgeLeiterStructure(layout, settings);
+    base = ensureSchulOrganigrammKlassenvorstandStructure(base, settings);
+    base = ensureSchulOrganigrammClassFunctionStructure(base, settings);
+    base = ensureSchulOrganigrammArgeFunctionStructure(base, settings);
+    return base;
 }
 
 /**
@@ -1072,17 +1739,23 @@ export function classChatMetaByKlasse(settings) {
     (snap && Array.isArray(snap.items) ? snap.items : []).forEach(function (row) {
         const klasse = canonicalSchulOrgClassCode(row && row.klasse) || normCode(row && row.klasse);
         if (!klasse) return;
+        const kind = normStr(row && row.kind).toLowerCase();
         const chatId = normStr(row && row.chatId);
-        if (!chatId) return;
+        const channelId = normStr(row && row.channelId);
+        // Gruppenchat oder privater Kanal (channelId) zählen als angelegte Ressource
+        const resourceId = chatId || channelId;
+        if (!resourceId) return;
         map.set(klasse, {
-            chatId: chatId,
+            chatId: resourceId,
             topic: normStr(row && row.topic),
             memberEmails: Array.isArray(row.memberEmails)
                 ? row.memberEmails.map(function (e) {
                       return normStr(e).toLowerCase();
                   }).filter(Boolean)
                 : [],
-            webUrl: normStr(row && row.webUrl)
+            webUrl: normStr(row && row.webUrl),
+            kind: kind === 'privatechannel' || (!chatId && channelId) ? 'privateChannel' : 'groupChat',
+            channelId: channelId
         });
     });
     return map;
@@ -1098,6 +1771,7 @@ const BUILTIN_AREA_IDS = {
     sec_arge: true,
     sec_arge_leiter: true,
     sec_klassenvorstand: true,
+    sec_classfn_klassensprecher: true,
     sec_klassen: true,
     // Legacy-Wrapper „Schülervertretung & SGA“ – Migration entfernt ihn zugunsten von sga_board
     sga_board: true,
@@ -1217,6 +1891,7 @@ export function isBuiltinSchulOrganigrammArea(areaNode) {
     if (isSammelgruppeArea(areaNode)) return true;
     if (isJahrgangArea(areaNode)) return true;
     if (isSgaBoardArea(areaNode) || isSgaScopeArea(areaNode)) return true;
+    if (isFunctionAggregateArea(areaNode)) return true;
     const aud = audienceIdForArea(areaNode);
     if (aud === 'schulleitung' || aud === 'verwaltung') return true;
     return false;
@@ -2470,6 +3145,42 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
         refKey: 'klassenvorstand',
         meta: { klassenvorstandBoard: true, nestPeople: true }
     });
+    listSchulOrgClassFunctions(s).forEach(function (def) {
+        nodes.push({
+            id: classFunctionBoardId(def.id),
+            type: NODE.SECTION,
+            label: def.labelPlural,
+            parentId: null,
+            order: order++,
+            tone: 'schueler',
+            refKind: 'classFunction',
+            refKey: def.id,
+            meta: {
+                functionAggregate: true,
+                classFunctionBoard: true,
+                classFunctionId: def.id,
+                nestPeople: true
+            }
+        });
+    });
+    listSchulOrgArgeFunctions(s).forEach(function (def) {
+        nodes.push({
+            id: argeFunctionBoardId(def.id),
+            type: NODE.SECTION,
+            label: def.labelPlural,
+            parentId: secArge,
+            order: order++,
+            tone: 'arge',
+            refKind: 'argeFunction',
+            refKey: def.id,
+            meta: {
+                functionAggregate: true,
+                argeFunctionBoard: true,
+                argeFunctionId: def.id,
+                nestPeople: true
+            }
+        });
+    });
     // Schüler → Jahrgänge → Klassen
     /** @type {Map<string, string>} */
     const jahrgangParentByStufe = new Map();
@@ -2724,6 +3435,8 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
                       return normStr(t && t.email).toLowerCase() === headEmail;
                   })
                 : null;
+        const fnSeats = normalizeClassFunctionsMap(c && c.functions);
+        const classRep = fnSeats.klassensprecher || null;
         nodes.push({
             id: 'class_' + code,
             type: NODE.SECTION,
@@ -2741,7 +3454,9 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
                 headName: normStr(c && c.headName),
                 headEmail: headEmail,
                 teacherLinked: !!teacher,
-                teacherCode: teacher ? normCode(teacher.code) : ''
+                teacherCode: teacher ? normCode(teacher.code) : '',
+                classRepName: classRep ? normStr(classRep.name) : '',
+                classRepEmail: classRep ? normStr(classRep.email).toLowerCase() : ''
             }
         });
     });
@@ -3027,7 +3742,8 @@ export function isPhantomSchulOrgClassNode(n, knownCodes) {
         isKlassenchatClassNode(n) ||
         isArgeAreaNode(n) ||
         isArgeLeiterArea(n) ||
-        isKlassenvorstandArea(n)
+        isKlassenvorstandArea(n) ||
+        isFunctionAggregateArea(n)
     ) {
         return false;
     }
@@ -3043,6 +3759,8 @@ export function isPhantomSchulOrgClassNode(n, knownCodes) {
         refKind === 'arge' ||
         refKind === 'argeleiter' ||
         refKind === 'klassenvorstand' ||
+        refKind === 'classfunction' ||
+        refKind === 'argefunction' ||
         refKind === 'sammelgruppe' ||
         refKind === 'audience'
     ) {
@@ -3855,6 +4573,13 @@ function repairSchulOrganigrammNode(n) {
             refKey: 'klassenvorstand',
             parentId: null
         },
+        sec_classfn_klassensprecher: {
+            label: 'Klassensprecher',
+            tone: 'schueler',
+            refKind: 'classFunction',
+            refKey: 'klassensprecher',
+            parentId: null
+        },
         sec_klassen: {
             label: 'Klassen',
             tone: 'class',
@@ -4264,16 +4989,22 @@ export function rebuildSchulOrganigrammFromStammdaten(layout, settings) {
             nodes.push(n);
             return;
         }
-        // Freie/verschachtelte Areas, die der Seed nicht kennt (IT-Team, Sekretariat, …)
-        if (
-            isAreaNode(n) &&
-            n.parentId != null &&
-            n.parentId !== '' &&
-            !BUILTIN_AREA_IDS[String(n.id)]
-        ) {
-            seen.add(key);
-            seen.add('id:' + n.id);
-            nodes.push(n);
+        // Freie Areas, die der Seed nicht kennt (auch Top-Level: IT-Team, Sekretariat, …)
+        if (isAreaNode(n) && !BUILTIN_AREA_IDS[String(n.id)]) {
+            const rk = normStr(n.refKind).toLowerCase();
+            const idStr = String(n.id || '');
+            const isFree =
+                !rk ||
+                rk === 'none' ||
+                idStr.indexOf('area_') === 0 ||
+                // Custom-Verwaltungsgruppe, falls Gruppenliste kurzzeitig fehlte
+                (rk === 'audience' && idStr.indexOf('sec_aud_') === 0);
+            const isNested = n.parentId != null && n.parentId !== '';
+            if (isFree || isNested) {
+                seen.add(key);
+                seen.add('id:' + n.id);
+                nodes.push(n);
+            }
         }
     });
     const prevView = layout && typeof layout === 'object' ? layout.view : null;
@@ -4818,9 +5549,9 @@ export function syncSchulOrganigrammWithStammdaten(layout, settings) {
         const withEltern = ensureSchulOrganigrammElternStructure(withJahrgang, settings);
         const withChats = ensureSchulOrganigrammKlassenchatsStructure(withEltern, settings);
         const withArges = ensureSchulOrganigrammArgeStructure(withChats, settings);
-        const withKv = ensureSchulOrganigrammKlassenvorstandStructure(withArges, settings);
+        const withFnAgg = ensureSchulOrganigrammFunctionAggregateStructure(withArges, settings);
         return {
-            layout: withKv,
+            layout: withFnAgg,
             added: 0,
             labelsUpdated: 0,
             removed: Math.max(0, beforeCount - withJahrgang.nodes.length),
@@ -5029,10 +5760,10 @@ export function syncSchulOrganigrammWithStammdaten(layout, settings) {
     const withEltern = ensureSchulOrganigrammElternStructure(withJahrgang, settings);
     const withChats = ensureSchulOrganigrammKlassenchatsStructure(withEltern, settings);
     const withArges = ensureSchulOrganigrammArgeStructure(withChats, settings);
-    const withKv = ensureSchulOrganigrammKlassenvorstandStructure(withArges, settings);
+    const withFnAgg = ensureSchulOrganigrammFunctionAggregateStructure(withArges, settings);
 
     return {
-        layout: withKv,
+        layout: withFnAgg,
         added: added,
         labelsUpdated: labelsUpdated,
         removed:
@@ -5397,6 +6128,7 @@ export function canPlaceSchulOrgNodeInSection(node, sectionId, layout) {
                     }) || null;
             }
             // Freie / Custom-Areas: Rollen erlaubt – nicht in ARGE/Lehrer/Schüler/SGA/Jahrgang/Klasse
+            // und nicht in Funktions-Sammelbereichen (Klassensprecher, KV, ARGE-Leiter, …)
             const rk = normStr(sec.refKind).toLowerCase();
             const forbiddenId =
                 sid === 'sec_arge' ||
@@ -5414,10 +6146,13 @@ export function canPlaceSchulOrgNodeInSection(node, sectionId, layout) {
                 /^sec_klassenchat_jahrgang_/i.test(sid) ||
                 /^class_/i.test(sid) ||
                 /^eltern_class_/i.test(sid) ||
-                /^klassenchat_class_/i.test(sid);
+                /^klassenchat_class_/i.test(sid) ||
+                /^sec_classfn_/i.test(sid) ||
+                /^sec_argefn_/i.test(sid);
             if (
                 !forbiddenId &&
                 !isSammelgruppeArea(sec) &&
+                !isFunctionAggregateArea(sec) &&
                 !isJahrgangArea(sec) &&
                 !isElternJahrgangArea(sec) &&
                 !isElternClassNode(sec) &&
@@ -5435,6 +6170,10 @@ export function canPlaceSchulOrgNodeInSection(node, sectionId, layout) {
                 rk !== 'sammelgruppe' &&
                 rk !== 'arge' &&
                 rk !== 'sga' &&
+                rk !== 'classfunction' &&
+                rk !== 'argefunction' &&
+                rk !== 'klassenvorstand' &&
+                rk !== 'argeleiter' &&
                 normStr(sec.type).toLowerCase() !== NODE.CLASS &&
                 normStr(sec.type).toLowerCase() !== NODE.ARGE
             ) {
@@ -5661,6 +6400,29 @@ const api = {
     ensureSchulOrganigrammKlassenchatsStructure: ensureSchulOrganigrammKlassenchatsStructure,
     ensureSchulOrganigrammArgeLeiterStructure: ensureSchulOrganigrammArgeLeiterStructure,
     ensureSchulOrganigrammKlassenvorstandStructure: ensureSchulOrganigrammKlassenvorstandStructure,
+    ensureSchulOrganigrammClassFunctionStructure: ensureSchulOrganigrammClassFunctionStructure,
+    ensureSchulOrganigrammArgeFunctionStructure: ensureSchulOrganigrammArgeFunctionStructure,
+    ensureSchulOrganigrammFunctionAggregateStructure: ensureSchulOrganigrammFunctionAggregateStructure,
+    SCHUL_ORG_CLASS_FN_SEC_PREFIX: SCHUL_ORG_CLASS_FN_SEC_PREFIX,
+    SCHUL_ORG_ARGE_FN_SEC_PREFIX: SCHUL_ORG_ARGE_FN_SEC_PREFIX,
+    SCHUL_ORG_DEFAULT_CLASS_FUNCTIONS: SCHUL_ORG_DEFAULT_CLASS_FUNCTIONS,
+    SCHUL_ORG_DEFAULT_ARGE_FUNCTIONS: SCHUL_ORG_DEFAULT_ARGE_FUNCTIONS,
+    cleanSchulOrgClassFunctionId: cleanSchulOrgClassFunctionId,
+    classFunctionBoardId: classFunctionBoardId,
+    argeFunctionBoardId: argeFunctionBoardId,
+    normalizeClassFunctionsMap: normalizeClassFunctionsMap,
+    listSchulOrgClassFunctions: listSchulOrgClassFunctions,
+    listSchulOrgArgeFunctions: listSchulOrgArgeFunctions,
+    listSchulOrgFunctionAggregates: listSchulOrgFunctionAggregates,
+    classFunctionIdForArea: classFunctionIdForArea,
+    argeFunctionIdForArea: argeFunctionIdForArea,
+    isClassFunctionArea: isClassFunctionArea,
+    isArgeFunctionArea: isArgeFunctionArea,
+    isFunctionAggregateArea: isFunctionAggregateArea,
+    functionAggregateDefForArea: functionAggregateDefForArea,
+    collectClassFunctionPeopleFromSettings: collectClassFunctionPeopleFromSettings,
+    collectArgeFunctionPeopleFromSettings: collectArgeFunctionPeopleFromSettings,
+    collectFunctionAggregatePeople: collectFunctionAggregatePeople,
     ensureSchulOrganigrammArgeStructure: ensureSchulOrganigrammArgeStructure,
     isArgeLeiterArea: isArgeLeiterArea,
     isKlassenvorstandArea: isKlassenvorstandArea,

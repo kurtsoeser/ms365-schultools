@@ -32,18 +32,13 @@
         </div>
 
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">2 Schritte · IT-only</p>
-                    <h2>Stammdaten in die IT-Bibliothek</h2>
-                    <p id="suPhaseHint" class="tm-hero__lead">Schritt 1: IT-Bibliothek einrichten.</p>
-                    <details class="tm-tech tm-hero__more">
-                        <summary>Inhalt, Ordner und Rechte</summary>
-                        <ul id="suDesignHintList" class="tm-hero__detail-list"></ul>
-                    </details>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="suPhaseHint">Schritt 1: IT-Bibliothek einrichten.</span></span>
+            </div>
+            <details class="tm-tech" style="margin:0 0 14px;">
+                <summary>Inhalt, Ordner und Rechte</summary>
+                <ul id="suDesignHintList" class="tm-hero__detail-list"></ul>
+            </details>
 
             <section class="tm-glance tm-glance--compact su-wizard-glance su-wizard-glance--nav" id="suWizardGlance" role="tablist" aria-label="Übergabe-Schritte">
                 <button type="button" role="tab" class="tm-glance__card is-active" id="suWizardTab1" data-su-wizard-step="1" aria-selected="true" aria-controls="suWizardStep1">

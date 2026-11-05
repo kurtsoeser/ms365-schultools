@@ -2,6 +2,8 @@
     'use strict';
 
     const STORAGE_KEY_V2 = 'ms365-schooltool-data-v2';
+    /** Spiegel für Klassenchats – überlebt Year-Bucket-Verluste / fehlgeschlagene Teil-Saves */
+    const CLASS_CHATS_MIRROR_KEY = 'ms365-class-chats-mirror-v1';
     /** Schema 4: years.*.guardians…; unterrichtsbelegung; classChats (Teams-Gruppenchats) */
     const VERSION = 4;
     const SLG_LEGACY_KEY = 'ms365-schueler-lehrer-gruppen-v2';
@@ -15,10 +17,12 @@
     }
 
     function deepClone(obj) {
+        if (obj == null || typeof obj !== 'object') return obj;
         try {
             return JSON.parse(JSON.stringify(obj));
         } catch {
-            return obj;
+            // Nie das Original mit möglichen Zyklen zurückgeben (sonst stack overflow später)
+            return Array.isArray(obj) ? [] : {};
         }
     }
 
@@ -265,7 +269,7 @@
             parentLists: [],
             /** Kanonische Belegung aus Kursteams (Klasse × Lehrkraft × Fach). */
             unterrichtsbelegung: null,
-            /** Teams-Gruppenchats pro Klasse (Klassenlehrer-Chat). */
+            /** Klassenlehrer-Chats: Gruppenchats und/oder private Kanäle im Lehrerteam. */
             classChats: null
         };
     }
@@ -337,11 +341,42 @@
         };
     }
 
-    function normalizeClassChatItem(row) {
+    function normalizeClassChatTargetKind(raw) {
+        const k = String(raw || '')
+            .trim()
+            .toLowerCase();
+        if (
+            k === 'privatechannel' ||
+            k === 'private_channel' ||
+            k === 'private-channel' ||
+            k === 'channel' ||
+            k === 'privaterkanal'
+        ) {
+            return 'privateChannel';
+        }
+        return 'groupChat';
+    }
+
+    function normalizeClassChatItem(row, defaults) {
         const r = row && typeof row === 'object' ? row : {};
-        const klasse = String(r.klasse || '').trim();
-        const chatId = String(r.chatId || '').trim();
-        if (!klasse || !chatId) return null;
+        const d = defaults && typeof defaults === 'object' ? defaults : {};
+        const klasse = String(r.klasse || r.classCode || '').trim();
+        if (!klasse) return null;
+        const channelHint = String(r.channelId || '').trim();
+        const kind = normalizeClassChatTargetKind(
+            r.kind || (channelHint ? 'privateChannel' : 'groupChat')
+        );
+        const chatId = kind === 'groupChat' ? String(r.chatId || '').trim() : '';
+        const channelId =
+            kind === 'privateChannel' ? String(r.channelId || r.chatId || '').trim() : '';
+        let teamId = kind === 'privateChannel' ? String(r.teamId || '').trim() : '';
+        // Team-ID oft nur am Snapshot (lehrerTeamId) – sonst gingen private Kanäle beim Normalisieren verloren
+        if (kind === 'privateChannel' && !teamId && d.lehrerTeamId) {
+            teamId = String(d.lehrerTeamId || '').trim();
+        }
+        if (kind === 'groupChat' && !chatId) return null;
+        if (kind === 'privateChannel' && !channelId) return null;
+        if (kind === 'privateChannel' && !teamId) return null;
         const memberEmails = [];
         const seen = new Set();
         (Array.isArray(r.memberEmails) ? r.memberEmails : []).forEach(function (em) {
@@ -352,8 +387,11 @@
         });
         return {
             klasse: klasse,
+            kind: kind,
             topic: String(r.topic || '').trim(),
             chatId: chatId,
+            channelId: channelId,
+            teamId: teamId,
             memberEmails: memberEmails,
             webUrl: String(r.webUrl || '').trim(),
             createdAt: String(r.createdAt || '').trim(),
@@ -362,23 +400,60 @@
     }
 
     function normalizeClassChats(raw) {
-        if (!raw || typeof raw !== 'object') return null;
+        if (!raw) return null;
+        // Historisch: manchmal nur ein Array von Items statt { items: [...] }
+        const rawObj = Array.isArray(raw) ? { items: raw } : raw;
+        if (!rawObj || typeof rawObj !== 'object') return null;
         const items = [];
         const seen = new Set();
-        (Array.isArray(raw.items) ? raw.items : []).forEach(function (row) {
-            const n = normalizeClassChatItem(row);
+        const lehrerTeamId = String(rawObj.lehrerTeamId || '').trim();
+        const lehrerTeamDisplayName = String(rawObj.lehrerTeamDisplayName || '').trim();
+        const itemDefaults = { lehrerTeamId: lehrerTeamId };
+        const rawItems = Array.isArray(rawObj.items)
+            ? rawObj.items
+            : Array.isArray(rawObj.chats)
+              ? rawObj.chats
+              : [];
+        rawItems.forEach(function (row) {
+            const n = normalizeClassChatItem(row, itemDefaults);
             if (!n) return;
-            const key = n.klasse.toUpperCase();
+            const key = n.klasse.toUpperCase() + '|' + n.kind;
             if (seen.has(key)) return;
             seen.add(key);
             items.push(n);
         });
-        if (!items.length && !String(raw.updatedAt || '').trim() && !String(raw.yearPrefix || '').trim()) {
+        const extraMemberEmails = [];
+        const extraSeen = Object.create(null);
+        const pushExtra = function (em) {
+            const e = String(em || '')
+                .trim()
+                .toLowerCase();
+            if (!e || e.indexOf('@') === -1 || extraSeen[e]) return;
+            extraSeen[e] = true;
+            extraMemberEmails.push(e);
+        };
+        if (Array.isArray(rawObj.extraMemberEmails)) {
+            rawObj.extraMemberEmails.forEach(function (row) {
+                if (typeof row === 'string') pushExtra(row);
+                else if (row && typeof row === 'object') pushExtra(row.email);
+            });
+        } else if (typeof rawObj.extraMemberEmails === 'string') {
+            String(rawObj.extraMemberEmails)
+                .split(/[\s,;]+/)
+                .forEach(pushExtra);
+        }
+        if (
+            !items.length &&
+            !String(rawObj.updatedAt || '').trim() &&
+            !String(rawObj.yearPrefix || '').trim() &&
+            !lehrerTeamId &&
+            !extraMemberEmails.length
+        ) {
             return null;
         }
         let namePattern = null;
-        if (Array.isArray(raw.namePattern)) {
-            namePattern = raw.namePattern
+        if (Array.isArray(rawObj.namePattern)) {
+            namePattern = rawObj.namePattern
                 .map(function (p) {
                     if (!p || typeof p !== 'object') return null;
                     const type = String(p.type || '').trim();
@@ -390,9 +465,13 @@
             if (!namePattern.length) namePattern = null;
         }
         return {
-            updatedAt: String(raw.updatedAt || '').trim() || new Date().toISOString(),
-            yearPrefix: String(raw.yearPrefix || '').trim(),
+            updatedAt: String(rawObj.updatedAt || '').trim() || new Date().toISOString(),
+            yearPrefix: String(rawObj.yearPrefix || '').trim(),
             namePattern: namePattern,
+            targetKind: normalizeClassChatTargetKind(rawObj.targetKind),
+            lehrerTeamId: lehrerTeamId,
+            lehrerTeamDisplayName: lehrerTeamDisplayName,
+            extraMemberEmails: extraMemberEmails,
             items: items
         };
     }
@@ -846,8 +925,15 @@
             svNewDisplayName: String(scd.svNewDisplayName != null ? scd.svNewDisplayName : ''),
             svNewMailNick: String(scd.svNewMailNick != null ? scd.svNewMailNick : '')
         };
-        d.subjectGroupMailPrefix = mailNicknamePrefixSanitize(x.subjectGroupMailPrefix, 24) || 'fach';
-        d.argeGroupMailPrefix = mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24) || 'arge-';
+        // Leer = bewusst kein Präfix (Alias = nur Kürzel). Fehlt der Key → Default.
+        d.subjectGroupMailPrefix =
+            x.subjectGroupMailPrefix == null
+                ? 'fach'
+                : mailNicknamePrefixSanitize(x.subjectGroupMailPrefix, 24);
+        d.argeGroupMailPrefix =
+            x.argeGroupMailPrefix == null
+                ? 'arge-'
+                : mailNicknamePrefixSanitize(x.argeGroupMailPrefix, 24);
         const def = defaultSetup();
         d.elternClassAliasPattern = normalizeElternNamePattern(x.elternClassAliasPattern, def.elternClassAliasPattern);
         d.elternClassDisplayPattern = normalizeElternNamePattern(x.elternClassDisplayPattern, def.elternClassDisplayPattern);
@@ -1473,9 +1559,24 @@
         const normalized = normalizeContainer(container);
         try {
             localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(normalized));
-        } catch {
-            // ignore
+        } catch (err) {
+            try {
+                if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                    window.dispatchEvent(
+                        new CustomEvent('ms365-storage-write-failed', {
+                            detail: {
+                                key: STORAGE_KEY_V2,
+                                source: 'app-data-v2',
+                                message: err && err.message ? String(err.message) : String(err || 'Quota/Write')
+                            }
+                        })
+                    );
+                }
+            } catch {
+                /* ignore */
+            }
         }
+        // Session-Cache immer setzen (bei Write-Fehler bis Reload sichtbar, danach weg)
         containerCache = normalized;
         return normalized;
     }
@@ -2145,15 +2246,119 @@
         return out;
     }
 
+    function readClassChatsMirror(yearLabel) {
+        try {
+            const raw = localStorage.getItem(CLASS_CHATS_MIRROR_KEY);
+            if (!raw) return null;
+            const mirror = JSON.parse(raw);
+            if (!mirror || typeof mirror !== 'object') return null;
+            const byYear = mirror.byYear && typeof mirror.byYear === 'object' ? mirror.byYear : {};
+            const y = String(yearLabel || '').trim();
+            if (y && byYear[y]) return deepClone(byYear[y]);
+            const labels = Object.keys(byYear);
+            if (!labels.length) return null;
+            if (labels.length === 1) return deepClone(byYear[labels[0]]);
+            // Alle Jahre zusammenführen (Items deduplizieren)
+            const merged = { items: [], updatedAt: mirror.updatedAt || '' };
+            const seen = new Set();
+            labels.forEach(function (lab) {
+                const snap = normalizeClassChats(byYear[lab]);
+                if (!snap) return;
+                if (!merged.lehrerTeamId && snap.lehrerTeamId) {
+                    merged.lehrerTeamId = snap.lehrerTeamId;
+                    merged.lehrerTeamDisplayName = snap.lehrerTeamDisplayName;
+                    merged.targetKind = snap.targetKind;
+                    merged.yearPrefix = snap.yearPrefix;
+                    merged.namePattern = snap.namePattern;
+                }
+                (snap.items || []).forEach(function (it) {
+                    const key = String(it.klasse || '').toUpperCase() + '|' + String(it.kind || '');
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    merged.items.push(it);
+                });
+            });
+            return merged.items.length ? normalizeClassChats(merged) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function writeClassChatsMirror(yearLabel, snap) {
+        try {
+            let mirror = { byYear: {}, updatedAt: new Date().toISOString() };
+            try {
+                const raw = localStorage.getItem(CLASS_CHATS_MIRROR_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === 'object') {
+                        mirror.byYear =
+                            parsed.byYear && typeof parsed.byYear === 'object' ? parsed.byYear : {};
+                    }
+                }
+            } catch {
+                /* ignore */
+            }
+            const y = String(yearLabel || '').trim() || 'default';
+            if (snap) mirror.byYear[y] = deepClone(snap);
+            else delete mirror.byYear[y];
+            mirror.updatedAt = new Date().toISOString();
+            localStorage.setItem(CLASS_CHATS_MIRROR_KEY, JSON.stringify(mirror));
+        } catch {
+            /* Quota – Year-Bucket bleibt Primärquelle */
+        }
+    }
+
     function getClassChats(yearLabel) {
-        const { bucket } = getYearBucket(yearLabel);
-        return bucket.classChats ? deepClone(bucket.classChats) : null;
+        const { year, bucket } = getYearBucket(yearLabel);
+        const cur = bucket.classChats ? deepClone(bucket.classChats) : null;
+        if (cur && Array.isArray(cur.items) && cur.items.length) return cur;
+        const mirrored = readClassChatsMirror(year);
+        if (mirrored && Array.isArray(mirrored.items) && mirrored.items.length) {
+            // Year-Bucket heilen, damit Dashboard/Organigramm denselben Stand sehen
+            bucket.classChats = normalizeClassChats(mirrored);
+            if (bucket.classChats) {
+                try {
+                    saveYearBucket(year, bucket);
+                } catch {
+                    /* ignore */
+                }
+                return deepClone(bucket.classChats);
+            }
+            return deepClone(mirrored);
+        }
+        return cur;
     }
 
     function setClassChats(snapshot, yearLabel) {
         const { year, bucket } = getYearBucket(yearLabel);
         bucket.classChats = normalizeClassChats(snapshot);
         saveYearBucket(year, bucket);
+        writeClassChatsMirror(year, bucket.classChats);
+        try {
+            if (
+                typeof window.ms365SyncSchulOrganigrammFromAppData === 'function' &&
+                !window.__ms365SchulOrgSyncing
+            ) {
+                window.ms365SyncSchulOrganigrammFromAppData({
+                    reason: 'classChats',
+                    classChats: bucket.classChats ? deepClone(bucket.classChats) : null
+                });
+            }
+        } catch {
+            /* Organigramm-Sync optional */
+        }
+        try {
+            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent('ms365-local-data-changed', {
+                        detail: { source: 'app-data-v2', at: new Date().toISOString() }
+                    })
+                );
+            }
+        } catch {
+            /* ignore */
+        }
         return bucket.classChats ? deepClone(bucket.classChats) : null;
     }
 
@@ -2356,6 +2561,7 @@
         getClassChats,
         setClassChats,
         normalizeClassChats,
+        CLASS_CHATS_MIRROR_KEY,
         upsertGuardian,
         removeGuardian,
         pruneUnlinkedGuardians,

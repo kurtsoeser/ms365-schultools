@@ -528,9 +528,12 @@
         const actions = document.getElementById('slgMismatchActions');
         if (!bar || !actions) return;
 
+        // Nur relevante Arten: bei ?kind=lehrer / Lehrer-Sammelgruppe keine Schüler-Warnung.
         const kinds = [];
-        if (kindHasMismatch('schueler')) kinds.push('schueler');
-        if (kindHasMismatch('lehrer')) kinds.push('lehrer');
+        const considerSchueler = !fixedKind || fixedKind === 'schueler';
+        const considerLehrer = !fixedKind || fixedKind === 'lehrer';
+        if (considerSchueler && kindHasMismatch('schueler')) kinds.push('schueler');
+        if (considerLehrer && kindHasMismatch('lehrer')) kinds.push('lehrer');
 
         if (!kinds.length) {
             bar.hidden = true;
@@ -620,6 +623,25 @@
         if (n < 0) return;
         graphMemberCounts[id] = n;
         updateLeftListUi();
+        try {
+            const h = window.ms365MembershipHygiene;
+            if (h && typeof h.patchHygieneScanGroupCount === 'function') {
+                const isLehrer = id === String(matched.lehrerGroupId || '').trim();
+                const isSchueler = id === String(matched.schuelerGroupId || '').trim();
+                const listCount = isLehrer
+                    ? (listCache.teachers || []).length
+                    : isSchueler
+                      ? (listCache.students || []).length
+                      : undefined;
+                const patchOpts =
+                    typeof listCount === 'number' ? { listCount: listCount } : undefined;
+                h.patchHygieneScanGroupCount(id, n, patchOpts);
+                if (isLehrer) h.patchHygieneScanGroupCount('slg-lehrer', n, patchOpts);
+                if (isSchueler) h.patchHygieneScanGroupCount('slg-schueler', n, patchOpts);
+            }
+        } catch {
+            /* Dashboard-Cache optional */
+        }
     }
 
     async function refreshGraphMemberCounts() {
@@ -638,7 +660,7 @@
                 ids.map(async function (id) {
                     try {
                         const n = await gug().fetchGroupMemberCount(token, id);
-                        if (typeof n === 'number' && n >= 0) graphMemberCounts[id] = n;
+                        if (typeof n === 'number' && n >= 0) rememberGraphMemberCount(id, n);
                     } catch {
                         /* Zahl bleibt unbekannt */
                     }

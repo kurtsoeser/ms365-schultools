@@ -36,17 +36,10 @@
             </div>
         </div>
         <div class="content">
-            <section class="tm-hero" aria-label="Kurzüberblick">
-                <div class="tm-hero__icon" aria-hidden="true"><i class="bi bi-graph-up"></i></div>
-                <div>
-                    <p class="tm-hero__kicker">Unterricht · Gesundheit</p>
-                    <h2>Sync auf einen Blick</h2>
-                    <p id="wsmMeta">Stand wird gelesen …</p>
-                </div>
-                <div class="tm-hero__actions">
-                    <button type="button" class="btn" id="wsmRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
-                </div>
-            </section>
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Aktionen">
+                <span class="tm-perm"><i class="bi bi-graph-up"></i><span id="wsmMeta">Stand wird gelesen …</span></span>
+                <button type="button" class="btn" id="wsmRefresh"><i class="bi bi-arrow-clockwise"></i>Aktualisieren</button>
+            </div>
 
             <section class="tm-panel">
                 <div class="wsm-stats" id="wsmStats" aria-label="Kennzahlen"></div>

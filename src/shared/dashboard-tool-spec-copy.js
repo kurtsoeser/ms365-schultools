@@ -11,7 +11,8 @@ export const DASHBOARD_SPEC_TOOL_DESCRIPTIONS = {
         'Schulleitung und Verwaltung (Personal): zwei Sammelgruppen matchen, anlegen und je Zielgruppe abgleichen.',
     klassenvorstaende:
         'Sammelgruppe oder Verteiler aller Klassenvorstände automatisch befüllen.',
-    klassenchats: 'Teams-Gruppenchats für alle Lehrkräfte einer Klasse – inkl. Klassenvorstand.',
+    klassenchats:
+        'Gruppenchats oder private Kanäle im Lehrerteam für alle Lehrkräfte einer Klasse – inkl. Klassenvorstand.',
     'arge-fachgruppen':
         'Eine Gruppe pro Fach oder Arbeitsgemeinschaft – aus den Listen in den Stammdaten.',
     'weitere-teams-gruppen': 'Sonderfälle und zusätzliche Teams oder Gruppen anlegen und pflegen.',

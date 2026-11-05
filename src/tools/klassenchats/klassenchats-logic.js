@@ -4,10 +4,11 @@
 
 /**
  * @typedef {{ type: string, value?: string }} NameToken
+ * @typedef {'groupChat'|'privateChannel'} ClassChatTargetKind
  * @typedef {{
  *   email: string,
  *   code: string,
- *   role: 'lehrer'|'kv',
+ *   role: 'lehrer'|'kv'|'extra',
  *   name?: string
  * }} ChatMember
  * @typedef {{
@@ -17,11 +18,110 @@
  *   memberEmails: string[],
  *   eligible: boolean,
  *   skipReason: string,
+ *   kind: ClassChatTargetKind,
  *   chatId: string,
+ *   channelId: string,
+ *   teamId: string,
  *   existingTopic: string,
  *   status: 'neu'|'sync'|'ok'|'skip'
  * }} ClassChatPlan
  */
+
+/** @param {unknown} raw */
+export function normalizeTargetKind(raw) {
+    const k = String(raw || '')
+        .trim()
+        .toLowerCase();
+    if (
+        k === 'privatechannel' ||
+        k === 'private_channel' ||
+        k === 'private-channel' ||
+        k === 'channel' ||
+        k === 'privaterkanal'
+    ) {
+        return 'privateChannel';
+    }
+    return 'groupChat';
+}
+
+export function targetKindLabel(kind) {
+    return normalizeTargetKind(kind) === 'privateChannel'
+        ? 'Privater Kanal'
+        : 'Gruppenchat';
+}
+
+/**
+ * E-Mail des Klassenvorstands aus Plan-Mitgliedern (role === 'kv').
+ * @param {{ members?: Array<{ email?: string, role?: string }> }|null|undefined} plan
+ * @returns {string}
+ */
+export function kvEmailFromPlan(plan) {
+    const members = plan && Array.isArray(plan.members) ? plan.members : [];
+    for (let i = 0; i < members.length; i++) {
+        const m = members[i];
+        if (m && String(m.role || '').toLowerCase() === 'kv') {
+            const em = String(m.email || '')
+                .trim()
+                .toLowerCase();
+            if (em) return em;
+        }
+    }
+    return '';
+}
+
+/**
+ * Globale Zusatzpersonen (z. B. Direktion) – normalisierte E-Mails.
+ * @param {unknown} raw
+ * @returns {string[]}
+ */
+export function normalizeExtraMemberEmails(raw) {
+    if (typeof raw === 'string') return parseMemberEmailsText(raw);
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    /** @type {string[]} */
+    const out = [];
+    raw.forEach((item) => {
+        const em =
+            typeof item === 'string'
+                ? normEmail(item)
+                : item && typeof item === 'object'
+                  ? normEmail(item.email)
+                  : '';
+        if (!em || em.indexOf('@') === -1 || seen.has(em)) return;
+        seen.add(em);
+        out.push(em);
+    });
+    return out;
+}
+
+/**
+ * Zusatzpersonen in eine Member-Map mergen (role: extra). Bestehende Rollen bleiben.
+ * @param {Map<string, ChatMember>} byEmail
+ * @param {unknown} extraEmails
+ * @param {Array<{ email?: string, name?: string, code?: string }>} [directory]
+ */
+export function mergeExtraMembersIntoMap(byEmail, extraEmails, directory) {
+    const map = byEmail instanceof Map ? byEmail : new Map();
+    const dir = Array.isArray(directory) ? directory : [];
+    const nameByEmail = new Map();
+    const codeByEmail = new Map();
+    dir.forEach((t) => {
+        const em = normEmail(t && t.email);
+        if (!em) return;
+        if (t.name) nameByEmail.set(em, normStr(t.name));
+        if (t.code) codeByEmail.set(em, normCode(t.code));
+    });
+    normalizeExtraMemberEmails(extraEmails).forEach((email) => {
+        if (map.has(email)) return;
+        map.set(email, {
+            email,
+            code: codeByEmail.get(email) || '',
+            role: 'extra',
+            name: nameByEmail.get(email) || ''
+        });
+    });
+    return map;
+}
 
 export function defaultChatNamePattern() {
     return [
@@ -55,6 +155,35 @@ export function sanitizeTeamsChatTopic(topic) {
     s = s.replace(/:/g, '·');
     if (s.length > 250) s = s.slice(0, 250);
     return s;
+}
+
+/**
+ * Teams-Kanal displayName: max. 50 Zeichen; verbotene Sonderzeichen
+ * (# % & * { } / \ : < > ? + | ' ") und kein führendes _/. bzw. abschließender Punkt.
+ */
+export function sanitizeTeamsChannelDisplayName(name) {
+    let s = String(name ?? '').trim();
+    if (!s) return '';
+    s = s.replace(/[#%&*{}+/\\:<>?|'"]/g, '·');
+    s = s.replace(/\s*·\s*/g, ' · ');
+    s = s.replace(/\s+/g, ' ').trim();
+    s = s.replace(/^[_.]+/, '');
+    s = s.replace(/\.+$/, '');
+    if (s.length > 50) s = s.slice(0, 50).trim();
+    s = s.replace(/[·.\s]+$/g, '').trim();
+    return s;
+}
+
+/**
+ * Anzeigename für Zieltyp (Chat-Topic bzw. Kanalname).
+ * @param {string} topic
+ * @param {ClassChatTargetKind|string} [kind]
+ */
+export function displayNameForTarget(topic, kind) {
+    if (normalizeTargetKind(kind) === 'privateChannel') {
+        return sanitizeTeamsChannelDisplayName(topic);
+    }
+    return sanitizeTeamsChatTopic(topic);
 }
 
 export function chatTokenLabel(t) {
@@ -250,7 +379,7 @@ export function buildKvByKlasse(classes) {
 /**
  * @param {object|null} belegung – Snapshot aus getUnterrichtsbelegung()
  * @param {Map<string, { email: string, name: string }>} kvByKlasse
- * @param {{ yearPrefix?: string, namePattern?: NameToken[], existingByKlasse?: Map<string, { chatId?: string, topic?: string }>, knownClassCodes?: Array<{ code?: string }> }} [opts]
+ * @param {{ yearPrefix?: string, namePattern?: NameToken[], existingByKlasse?: Map<string, { chatId?: string, channelId?: string, teamId?: string, topic?: string, kind?: string }>, knownClassCodes?: Array<{ code?: string }>, targetKind?: ClassChatTargetKind|string, teamId?: string, extraMemberEmails?: string[]|string, teacherDirectory?: Array<{ code?: string, email?: string, name?: string }> }} [opts]
  * @returns {ClassChatPlan[]}
  */
 export function buildClassChatPlans(belegung, kvByKlasse, opts) {
@@ -259,6 +388,10 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
     const pattern = normalizeChatNamePattern(o.namePattern);
     const existingByKlasse = o.existingByKlasse instanceof Map ? o.existingByKlasse : new Map();
     const classIndex = buildKnownClassCodeIndex(o.knownClassCodes || []);
+    const targetKind = normalizeTargetKind(o.targetKind);
+    const defaultTeamId = normStr(o.teamId);
+    const extraEmails = normalizeExtraMemberEmails(o.extraMemberEmails);
+    const teacherDirectory = Array.isArray(o.teacherDirectory) ? o.teacherDirectory : [];
 
     /** @type {Map<string, Map<string, ChatMember>>} */
     const byKlasse = new Map();
@@ -310,6 +443,12 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
         });
     });
 
+    if (extraEmails.length) {
+        byKlasse.forEach((members) => {
+            mergeExtraMembersIntoMap(members, extraEmails, teacherDirectory);
+        });
+    }
+
     // Klassen nur mit KV, ohne Belegungszeilen: trotzdem aufnehmen, wenn KV existiert
     // (meist <2 → skip). Nur wenn Belegung Klassen liefert oder wir explizit nur Belegung nutzen.
     // Aktuell: nur Klassen aus Belegung – KV wird ergänzt.
@@ -321,14 +460,30 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
     }
     klassen.sort((a, b) => a.localeCompare(b, 'de'));
     klassen.forEach((klasse) => {
-        const members = Array.from(byKlasse.get(klasse).values()).sort((a, b) =>
-            a.email.localeCompare(b.email, 'de')
-        );
+        const members = Array.from(byKlasse.get(klasse).values()).sort((a, b) => {
+            const rank = (r) => (r === 'kv' ? 0 : r === 'extra' ? 2 : 1);
+            const d = rank(a.role) - rank(b.role);
+            if (d) return d;
+            return a.email.localeCompare(b.email, 'de');
+        });
         const memberEmails = members.map((m) => m.email);
-        const topic = buildChatTopicFromPattern(pattern, { yearPrefix, klasse });
+        const topic = displayNameForTarget(
+            buildChatTopicFromPattern(pattern, { yearPrefix, klasse }),
+            targetKind
+        );
         const existing = existingByKlasse.get(klasse) || existingByKlasse.get(klasse.toUpperCase()) || null;
-        const chatId = existing && existing.chatId ? String(existing.chatId) : '';
+        const chatId =
+            targetKind === 'groupChat' && existing && existing.chatId ? String(existing.chatId) : '';
+        const channelId =
+            targetKind === 'privateChannel' && existing && existing.channelId
+                ? String(existing.channelId)
+                : '';
+        const teamId =
+            targetKind === 'privateChannel'
+                ? normStr((existing && existing.teamId) || defaultTeamId)
+                : '';
         const existingTopic = existing && existing.topic ? String(existing.topic) : '';
+        const hasResource = targetKind === 'privateChannel' ? !!channelId : !!chatId;
 
         let eligible = true;
         let skipReason = '';
@@ -337,14 +492,21 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
             skipReason = 'Weniger als 2 Lehrkräfte mit E-Mail';
         } else if (!topic) {
             eligible = false;
-            skipReason = 'Leerer Chat-Name (Pattern prüfen)';
+            skipReason =
+                targetKind === 'privateChannel'
+                    ? 'Leerer Kanalname (Pattern prüfen; max. 50 Zeichen)'
+                    : 'Leerer Chat-Name (Pattern prüfen)';
+        } else if (targetKind === 'privateChannel' && !teamId && !channelId) {
+            eligible = false;
+            skipReason = 'Lehrerteam fehlt – bitte Team wählen';
         }
 
         let status = 'neu';
         if (!eligible) status = 'skip';
-        else if (chatId) {
+        else if (hasResource) {
             status =
-                existingTopic && sanitizeTeamsChatTopic(existingTopic) !== sanitizeTeamsChatTopic(topic)
+                existingTopic &&
+                displayNameForTarget(existingTopic, targetKind) !== displayNameForTarget(topic, targetKind)
                     ? 'sync'
                     : 'ok';
         }
@@ -356,7 +518,10 @@ export function buildClassChatPlans(belegung, kvByKlasse, opts) {
             memberEmails,
             eligible,
             skipReason,
+            kind: targetKind,
             chatId,
+            channelId,
+            teamId,
             existingTopic,
             status
         });
@@ -378,48 +543,103 @@ export function summarizePlans(plans) {
 }
 
 /**
+ * Ein classChats-Item ist gültig als Gruppenchat (chatId) oder privater Kanal (channelId+teamId).
+ * @param {object|null|undefined} it
+ */
+export function normalizeClassChatItem(it, defaults) {
+    if (!it || typeof it !== 'object') return null;
+    const d = defaults && typeof defaults === 'object' ? defaults : {};
+    const klasse = normStr(it.klasse || it.classCode);
+    if (!klasse) return null;
+    const kind = normalizeTargetKind(it.kind || (normStr(it.channelId) ? 'privateChannel' : 'groupChat'));
+    const chatId = kind === 'groupChat' ? normStr(it.chatId) : '';
+    const channelId = kind === 'privateChannel' ? normStr(it.channelId || it.chatId) : '';
+    let teamId = kind === 'privateChannel' ? normStr(it.teamId) : '';
+    if (kind === 'privateChannel' && !teamId) teamId = normStr(d.lehrerTeamId || d.teamId);
+    if (kind === 'groupChat' && !chatId) return null;
+    if (kind === 'privateChannel' && !channelId) return null;
+    if (kind === 'privateChannel' && !teamId) return null;
+    return {
+        klasse,
+        kind,
+        topic: normStr(it.topic),
+        chatId,
+        channelId,
+        teamId,
+        memberEmails: Array.isArray(it.memberEmails)
+            ? it.memberEmails.map(normEmail).filter(Boolean)
+            : [],
+        webUrl: normStr(it.webUrl),
+        createdAt: normStr(it.createdAt),
+        lastSyncAt: normStr(it.lastSyncAt)
+    };
+}
+
+/**
  * @param {object|null} raw
  */
 export function normalizeClassChatsState(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const items = [];
     const seen = new Set();
+    const targetKind = normalizeTargetKind(raw.targetKind);
+    const lehrerTeamId = normStr(raw.lehrerTeamId);
+    const lehrerTeamDisplayName = normStr(raw.lehrerTeamDisplayName);
+    const itemDefaults = { lehrerTeamId, teamId: lehrerTeamId };
     (Array.isArray(raw.items) ? raw.items : []).forEach((it) => {
-        if (!it || typeof it !== 'object') return;
-        const klasse = normStr(it.klasse);
-        const chatId = normStr(it.chatId);
-        if (!klasse || !chatId) return;
-        const key = klasse.toUpperCase();
+        const n = normalizeClassChatItem(it, itemDefaults);
+        if (!n) return;
+        // Pro Klasse + Zieltyp ein Eintrag (Gruppenchat und Kanal parallel möglich)
+        const key = n.klasse.toUpperCase() + '|' + n.kind;
         if (seen.has(key)) return;
         seen.add(key);
-        items.push({
-            klasse,
-            topic: normStr(it.topic),
-            chatId,
-            memberEmails: Array.isArray(it.memberEmails)
-                ? it.memberEmails.map(normEmail).filter(Boolean)
-                : [],
-            webUrl: normStr(it.webUrl),
-            createdAt: normStr(it.createdAt),
-            lastSyncAt: normStr(it.lastSyncAt)
-        });
+        items.push(n);
     });
-    if (!items.length && !normStr(raw.updatedAt) && !normStr(raw.yearPrefix)) return null;
+    const extraMemberEmails = normalizeExtraMemberEmails(raw.extraMemberEmails);
+    if (
+        !items.length &&
+        !normStr(raw.updatedAt) &&
+        !normStr(raw.yearPrefix) &&
+        !lehrerTeamId &&
+        !extraMemberEmails.length
+    ) {
+        return null;
+    }
     return {
         updatedAt: normStr(raw.updatedAt) || new Date().toISOString(),
         yearPrefix: normStr(raw.yearPrefix),
         namePattern: normalizeChatNamePattern(raw.namePattern),
+        targetKind,
+        lehrerTeamId,
+        lehrerTeamDisplayName,
+        extraMemberEmails,
         items
     };
 }
 
-export function existingByKlasseFromState(state) {
+/**
+ * @param {object|null} state
+ * @param {{ targetKind?: ClassChatTargetKind|string, teamId?: string }} [opts]
+ */
+export function existingByKlasseFromState(state, opts) {
     const map = new Map();
     const s = normalizeClassChatsState(state);
     if (!s) return map;
+    const o = opts && typeof opts === 'object' ? opts : {};
+    const wantKind = normalizeTargetKind(o.targetKind || s.targetKind || 'groupChat');
+    const wantTeam = normStr(o.teamId);
     s.items.forEach((it) => {
-        map.set(it.klasse, { chatId: it.chatId, topic: it.topic });
-        map.set(it.klasse.toUpperCase(), { chatId: it.chatId, topic: it.topic });
+        if (normalizeTargetKind(it.kind) !== wantKind) return;
+        if (wantKind === 'privateChannel' && wantTeam && it.teamId && it.teamId !== wantTeam) return;
+        const row = {
+            kind: it.kind,
+            chatId: it.chatId,
+            channelId: it.channelId,
+            teamId: it.teamId,
+            topic: it.topic
+        };
+        map.set(it.klasse, row);
+        map.set(it.klasse.toUpperCase(), row);
     });
     return map;
 }
@@ -452,9 +672,12 @@ export function parseMemberEmailsText(text) {
  *   includeKv?: boolean,
  *   yearPrefix?: string,
  *   namePattern?: NameToken[],
- *   existingByKlasse?: Map<string, { chatId?: string, topic?: string }>,
+ *   existingByKlasse?: Map<string, { chatId?: string, channelId?: string, teamId?: string, topic?: string, kind?: string }>,
  *   kvByKlasse?: Map<string, { email: string, name: string }>,
- *   teacherDirectory?: Array<{ code?: string, email?: string, name?: string }>
+ *   teacherDirectory?: Array<{ code?: string, email?: string, name?: string }>,
+ *   targetKind?: ClassChatTargetKind|string,
+ *   teamId?: string,
+ *   extraMemberEmails?: string[]|string
  * }} input
  * @returns {ClassChatPlan}
  */
@@ -466,6 +689,9 @@ export function buildManualClassChatPlan(input) {
     const existingByKlasse = o.existingByKlasse instanceof Map ? o.existingByKlasse : new Map();
     const kvMap = o.kvByKlasse instanceof Map ? o.kvByKlasse : new Map();
     const includeKv = o.includeKv !== false;
+    const targetKind = normalizeTargetKind(o.targetKind);
+    const defaultTeamId = normStr(o.teamId);
+    const extraEmails = normalizeExtraMemberEmails(o.extraMemberEmails);
 
     /** @type {Map<string, ChatMember>} */
     const byEmail = new Map();
@@ -516,14 +742,35 @@ export function buildManualClassChatPlan(input) {
         }
     }
 
-    const members = Array.from(byEmail.values()).sort((a, b) => a.email.localeCompare(b.email, 'de'));
+    if (extraEmails.length) {
+        mergeExtraMembersIntoMap(byEmail, extraEmails, dir);
+    }
+
+    const members = Array.from(byEmail.values()).sort((a, b) => {
+        const rank = (r) => (r === 'kv' ? 0 : r === 'extra' ? 2 : 1);
+        const d = rank(a.role) - rank(b.role);
+        if (d) return d;
+        return a.email.localeCompare(b.email, 'de');
+    });
     const memberEmails = members.map((m) => m.email);
-    const topic = klasse ? buildChatTopicFromPattern(pattern, { yearPrefix, klasse }) : '';
+    const topic = klasse
+        ? displayNameForTarget(buildChatTopicFromPattern(pattern, { yearPrefix, klasse }), targetKind)
+        : '';
     const existing = klasse
         ? existingByKlasse.get(klasse) || existingByKlasse.get(klasse.toUpperCase()) || null
         : null;
-    const chatId = existing && existing.chatId ? String(existing.chatId) : '';
+    const chatId =
+        targetKind === 'groupChat' && existing && existing.chatId ? String(existing.chatId) : '';
+    const channelId =
+        targetKind === 'privateChannel' && existing && existing.channelId
+            ? String(existing.channelId)
+            : '';
+    const teamId =
+        targetKind === 'privateChannel'
+            ? normStr((existing && existing.teamId) || defaultTeamId)
+            : '';
     const existingTopic = existing && existing.topic ? String(existing.topic) : '';
+    const hasResource = targetKind === 'privateChannel' ? !!channelId : !!chatId;
 
     let eligible = true;
     let skipReason = '';
@@ -535,14 +782,21 @@ export function buildManualClassChatPlan(input) {
         skipReason = 'Weniger als 2 Lehrkräfte mit E-Mail';
     } else if (!topic) {
         eligible = false;
-        skipReason = 'Leerer Chat-Name (Pattern prüfen)';
+        skipReason =
+            targetKind === 'privateChannel'
+                ? 'Leerer Kanalname (Pattern prüfen; max. 50 Zeichen)'
+                : 'Leerer Chat-Name (Pattern prüfen)';
+    } else if (targetKind === 'privateChannel' && !teamId && !channelId) {
+        eligible = false;
+        skipReason = 'Lehrerteam fehlt – bitte Team wählen';
     }
 
     let status = 'neu';
     if (!eligible) status = 'skip';
-    else if (chatId) {
+    else if (hasResource) {
         status =
-            existingTopic && sanitizeTeamsChatTopic(existingTopic) !== sanitizeTeamsChatTopic(topic)
+            existingTopic &&
+            displayNameForTarget(existingTopic, targetKind) !== displayNameForTarget(topic, targetKind)
                 ? 'sync'
                 : 'ok';
     }
@@ -554,7 +808,10 @@ export function buildManualClassChatPlan(input) {
         memberEmails,
         eligible,
         skipReason,
+        kind: targetKind,
         chatId,
+        channelId,
+        teamId,
         existingTopic,
         status,
         source: 'manual'
@@ -562,40 +819,49 @@ export function buildManualClassChatPlan(input) {
 }
 
 /**
- * Upsert eines Chat-Eintrags in den classChats-State.
+ * Upsert eines Chat-/Kanal-Eintrags in den classChats-State.
+ * Gruppenchat und privater Kanal zur selben Klasse können parallel existieren.
  */
 export function upsertClassChatItem(state, item) {
     const base = normalizeClassChatsState(state) || {
         updatedAt: new Date().toISOString(),
         yearPrefix: '',
         namePattern: defaultChatNamePattern(),
+        targetKind: 'groupChat',
+        lehrerTeamId: '',
+        lehrerTeamDisplayName: '',
+        extraMemberEmails: [],
         items: []
     };
-    const klasse = normStr(item && item.klasse);
-    const chatId = normStr(item && item.chatId);
-    if (!klasse || !chatId) return base;
-    const next = {
-        klasse,
-        topic: normStr(item.topic),
-        chatId,
-        memberEmails: Array.isArray(item.memberEmails)
-            ? item.memberEmails.map(normEmail).filter(Boolean)
-            : [],
-        webUrl: normStr(item.webUrl),
-        createdAt: normStr(item.createdAt) || new Date().toISOString(),
-        lastSyncAt: normStr(item.lastSyncAt) || new Date().toISOString()
-    };
+    const nextItem = normalizeClassChatItem({
+        ...item,
+        createdAt: normStr(item && item.createdAt) || new Date().toISOString(),
+        lastSyncAt: normStr(item && item.lastSyncAt) || new Date().toISOString()
+    });
+    if (!nextItem) return base;
     const items = base.items.slice();
-    const idx = items.findIndex((x) => x.klasse.toUpperCase() === klasse.toUpperCase());
+    const idx = items.findIndex(
+        (x) =>
+            x.klasse.toUpperCase() === nextItem.klasse.toUpperCase() &&
+            normalizeTargetKind(x.kind) === nextItem.kind
+    );
     if (idx >= 0) {
-        next.createdAt = items[idx].createdAt || next.createdAt;
-        items[idx] = next;
-    } else items.push(next);
-    return normalizeClassChatsState({
+        nextItem.createdAt = items[idx].createdAt || nextItem.createdAt;
+        items[idx] = nextItem;
+    } else items.push(nextItem);
+    const patch = {
         ...base,
         updatedAt: new Date().toISOString(),
-        yearPrefix: normStr(item.yearPrefix) || base.yearPrefix,
-        namePattern: item.namePattern || base.namePattern,
+        yearPrefix: normStr(item && item.yearPrefix) || base.yearPrefix,
+        namePattern: (item && item.namePattern) || base.namePattern,
         items
-    });
+    };
+    if (item && item.targetKind) patch.targetKind = normalizeTargetKind(item.targetKind);
+    if (item && Object.prototype.hasOwnProperty.call(item, 'lehrerTeamId')) {
+        patch.lehrerTeamId = normStr(item.lehrerTeamId);
+    }
+    if (item && Object.prototype.hasOwnProperty.call(item, 'lehrerTeamDisplayName')) {
+        patch.lehrerTeamDisplayName = normStr(item.lehrerTeamDisplayName);
+    }
+    return normalizeClassChatsState(patch);
 }

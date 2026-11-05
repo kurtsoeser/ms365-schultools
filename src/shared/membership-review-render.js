@@ -15,10 +15,21 @@ const SECTION_META = {
     }
 };
 
-const ACTION_BUTTON_IDS = {
-    onlyLocal: ['slgMrAddToGroup'],
-    onlyGraph: ['slgMrImportLocal', 'slgMrRemoveFromGroup']
+/** Aktionsschlüssel → Spalte (unabhängig von Element-IDs wie kvMr* / slgMr*). */
+const ACTION_KEYS = {
+    onlyLocal: ['add-to-group'],
+    onlyGraph: ['import-local', 'remove-from-group']
 };
+
+const ALL_ACTION_KEYS = ['add-to-group', 'import-local', 'remove-from-group'];
+
+/**
+ * @param {string} action
+ * @returns {HTMLElement|null}
+ */
+function findActionButton(action) {
+    return document.querySelector('[data-mr-action="' + action + '"]');
+}
 
 /**
  * Buttons vor body.replaceChildren() zurück in den Staging-Container legen.
@@ -26,10 +37,12 @@ const ACTION_BUTTON_IDS = {
  */
 export function collectMembershipReviewActionButtons(stagingEl) {
     if (!stagingEl) return;
-    ['slgMrAddToGroup', 'slgMrImportLocal', 'slgMrRemoveFromGroup'].forEach(function (id) {
-        const btn = document.getElementById(id);
+    ALL_ACTION_KEYS.forEach(function (action) {
+        const btn = findActionButton(action);
         if (btn && btn.parentElement !== stagingEl) stagingEl.appendChild(btn);
     });
+    stagingEl.hidden = true;
+    stagingEl.setAttribute('aria-hidden', 'true');
 }
 
 /**
@@ -41,7 +54,7 @@ export function attachMembershipReviewSectionActions(body, counts) {
     if (!body) return;
     const c = counts && typeof counts === 'object' ? counts : {};
 
-    function mountFooter(sectionKey, buttonIds, count) {
+    function mountFooter(sectionKey, actionKeys, count) {
         const section = body.querySelector('[data-mr-section-panel="' + sectionKey + '"]');
         if (!section) return;
         let footer = section.querySelector('.mr-section-actions');
@@ -51,16 +64,16 @@ export function attachMembershipReviewSectionActions(body, counts) {
             section.appendChild(footer);
         }
         footer.replaceChildren();
-        buttonIds.forEach(function (id) {
-            const btn = document.getElementById(id);
+        actionKeys.forEach(function (action) {
+            const btn = findActionButton(action);
             if (!btn) return;
             btn.disabled = !count;
             footer.appendChild(btn);
         });
     }
 
-    mountFooter('onlyLocal', ACTION_BUTTON_IDS.onlyLocal, c.onlyLocal || 0);
-    mountFooter('onlyGraph', ACTION_BUTTON_IDS.onlyGraph, c.onlyGraph || 0);
+    mountFooter('onlyLocal', ACTION_KEYS.onlyLocal, c.onlyLocal || 0);
+    mountFooter('onlyGraph', ACTION_KEYS.onlyGraph, c.onlyGraph || 0);
 }
 
 export function renderMembershipReviewLegend() {

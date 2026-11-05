@@ -305,7 +305,10 @@
         wrap.classList.toggle('is-open', open);
         trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
         panel.hidden = !open;
-        if (open) refreshBackupHeaderStatus();
+        if (open) {
+            applyLocalFirstBackupPanel(wrap);
+            refreshBackupHeaderStatus();
+        }
     }
 
     const MENU_BRANDS = ['teal', 'classic', 'wine'];
@@ -981,6 +984,60 @@
         return '';
     }
 
+    function isStammdatenLocalFirstRebuild() {
+        try {
+            const lf = window.ms365StammdatenLocalFirst;
+            if (lf && typeof lf.isStammdatenLocalFirst === 'function') {
+                return !!lf.isStammdatenLocalFirst();
+            }
+        } catch {
+            /* ignore */
+        }
+        return false;
+    }
+
+    function localFirstBackupHint() {
+        try {
+            const lf = window.ms365StammdatenLocalFirst;
+            if (lf && typeof lf.localFirstStatusMessage === 'function') {
+                return lf.localFirstStatusMessage();
+            }
+        } catch {
+            /* ignore */
+        }
+        return 'Lokal-First: nur Browser-Backup (JSON). SharePoint-IT ist pausiert.';
+    }
+
+    /**
+     * Während Lokal-First: SharePoint-/Abgleich-Blöcke im Header-Menü ausblenden.
+     * @param {HTMLElement|null|undefined} wrap
+     */
+    function applyLocalFirstBackupPanel(wrap) {
+        if (!wrap || !isStammdatenLocalFirstRebuild()) return;
+        wrap.querySelectorAll('[data-local-first-hide="spo-block"]').forEach(function (el) {
+            el.hidden = true;
+            el.setAttribute('aria-hidden', 'true');
+        });
+        const setup = wrap.querySelector('[data-ms365-spo-sync="setup"]');
+        if (setup) {
+            setup.hidden = true;
+            setup.setAttribute('aria-hidden', 'true');
+        }
+        try {
+            const lf = window.ms365StammdatenLocalFirst;
+            if (lf && typeof lf.applyLocalFirstSpoUi === 'function') {
+                lf.applyLocalFirstSpoUi(wrap);
+            }
+        } catch {
+            /* ignore */
+        }
+        const note = wrap.querySelector('[data-local-first-backup-note]');
+        if (note) {
+            note.hidden = false;
+            note.textContent = localFirstBackupHint();
+        }
+    }
+
     function refreshBackupHeaderStatus() {
         const statusEl = document.getElementById('ms365BackupPanelStatus');
         const trigger = document.getElementById('ms365BackupHeaderBtn');
@@ -989,8 +1046,17 @@
         const ageHours = !isNaN(ts) ? (Date.now() - ts) / (1000 * 3600) : Infinity;
         const fresh = ageHours < 24;
         const aging = ageHours >= 24 && ageHours < 72;
+        const localFirst = isStammdatenLocalFirstRebuild();
         if (statusEl) {
-            if (!last || isNaN(ts)) {
+            if (localFirst) {
+                const when = last && !isNaN(ts) ? formatBackupWhenDe(last) : '';
+                statusEl.textContent = when
+                    ? 'Lokal-First · Browser-Backup zuletzt: ' + when
+                    : 'Lokal-First · bitte Browser-Backup exportieren';
+                statusEl.className =
+                    'ms365-backup-panel__status' +
+                    (fresh ? ' ms365-backup-panel__status--ok' : ' ms365-backup-panel__status--warn');
+            } else if (!last || isNaN(ts)) {
                 statusEl.textContent = 'Noch nicht gesichert';
                 statusEl.className = 'ms365-backup-panel__status ms365-backup-panel__status--warn';
             } else {
@@ -1070,7 +1136,8 @@
                 '<input type="file" id="ms365BackupPanelImportFile" class="ms365-backup-panel__file" ' +
                 'data-ms365-backup="import-file" accept="application/json,.json" hidden>' +
                 '</div></div>' +
-                '<div class="ms365-backup-panel__block">' +
+                '<p class="ms365-backup-panel__note muted" data-local-first-backup-note hidden></p>' +
+                '<div class="ms365-backup-panel__block" data-local-first-hide="spo-block">' +
                 '<div class="ms365-backup-panel__label">SharePoint (IT)</div>' +
                 '<div class="ms365-backup-panel__actions">' +
                 '<button type="button" class="ms365-backup-panel__btn" data-ms365-spo-sync="upload">' +
@@ -1078,7 +1145,7 @@
                 '<button type="button" class="ms365-backup-panel__btn" data-ms365-spo-sync="load">' +
                 '<i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>' +
                 '</div></div>' +
-                '<div class="ms365-backup-panel__block">' +
+                '<div class="ms365-backup-panel__block" data-local-first-hide="spo-block">' +
                 '<div class="ms365-backup-panel__label">Abgleich</div>' +
                 '<div class="ms365-backup-panel__actions">' +
                 '<a class="ms365-backup-panel__btn" href="' +
@@ -1099,6 +1166,24 @@
             const compare = wrap.querySelector('a[href*="stammdaten-backup-abgleich"]');
             if (compare) {
                 compare.setAttribute('href', resolveAppRootHref('tools/stammdaten-backup-abgleich.html?run=1'));
+            }
+            // Bestehende Panels ohne data-Attribute nachrüsten (Lokal-First-Hide)
+            wrap.querySelectorAll('.ms365-backup-panel__block').forEach(function (block) {
+                const label = block.querySelector('.ms365-backup-panel__label');
+                const t = label ? String(label.textContent || '') : '';
+                if (/SharePoint|Abgleich/i.test(t)) {
+                    block.setAttribute('data-local-first-hide', 'spo-block');
+                }
+            });
+            if (!wrap.querySelector('[data-local-first-backup-note]')) {
+                const note = document.createElement('p');
+                note.className = 'ms365-backup-panel__note muted';
+                note.setAttribute('data-local-first-backup-note', '');
+                note.hidden = true;
+                const firstBlock = wrap.querySelector('.ms365-backup-panel__block');
+                if (firstBlock && firstBlock.parentNode) {
+                    firstBlock.parentNode.insertBefore(note, firstBlock.nextSibling);
+                }
             }
             // Älteres Markup: Import war <label for=…> – auf Button umstellen
             const legacyImport = wrap.querySelector('label.ms365-backup-panel__btn[for="ms365BackupPanelImportFile"]');
@@ -1145,6 +1230,7 @@
             });
         }
         bindAuthMenuDismiss();
+        applyLocalFirstBackupPanel(wrap);
         bindBackupPanelActions();
         return wrap;
     }
