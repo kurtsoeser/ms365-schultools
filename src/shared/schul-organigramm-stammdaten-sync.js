@@ -15,6 +15,42 @@ let syncing = false;
 export const MATERIALIZE_ALIAS = 'syncSchulOrganigrammFromAppData';
 
 /**
+ * parentPairs aus kanonischen guardians[] / guardianIds projizieren (UI-/Org-Komfort).
+ * Bestehende parentPairs bleiben erhalten, fehlende werden nachgezogen.
+ * @param {object[]} students
+ * @param {object[]} guardians
+ * @returns {object[]}
+ */
+export function projectStudentParentPairs(students, guardians) {
+    const list = Array.isArray(students) ? students : [];
+    const guardiansList = Array.isArray(guardians) ? guardians : [];
+    if (!guardiansList.length) {
+        return list.map(function (s) {
+            return s && typeof s === 'object' ? Object.assign({}, s) : s;
+        });
+    }
+    const byId = new Map();
+    guardiansList.forEach(function (g) {
+        const id = String(g && g.id || '').trim();
+        if (id) byId.set(id, g);
+    });
+    return list.map(function (s) {
+        if (!s || typeof s !== 'object') return s;
+        const row = Object.assign({}, s);
+        const ids = Array.isArray(row.guardianIds) ? row.guardianIds : [];
+        if (!ids.length) return row;
+        if (Array.isArray(row.parentPairs) && row.parentPairs.length) return row;
+        row.parentPairs = ids
+            .map(function (gid) {
+                const g = byId.get(String(gid || '').trim());
+                return g ? { name: String(g.name || '').trim(), email: String(g.email || '').trim() } : null;
+            })
+            .filter(Boolean);
+        return row;
+    });
+}
+
+/**
  * Settings-Objekt für Seed/Sync aus App-Data-v2-Container bauen.
  * @param {object} container
  * @param {object|null|undefined} [belegungOverride]
@@ -36,6 +72,8 @@ export function settingsFromAppContainer(container, belegungOverride) {
             : bucket.unterrichtsbelegung != null
               ? bucket.unterrichtsbelegung
               : null;
+    const guardians = Array.isArray(bucket.guardians) ? bucket.guardians : [];
+    const studentsRaw = Array.isArray(bucket.students) ? bucket.students : [];
     return {
         schoolName: core.schoolName || '',
         domain: core.domain || '',
@@ -54,8 +92,10 @@ export function settingsFromAppContainer(container, belegungOverride) {
         sga: Array.isArray(core.sga) ? core.sga : [],
         sgaMode: core.sgaMode || 'group',
         classes: Array.isArray(bucket.classes) ? bucket.classes : [],
-        students: Array.isArray(bucket.students) ? bucket.students : [],
+        students: projectStudentParentPairs(studentsRaw, guardians),
+        guardians: guardians,
         studentCouncil: Array.isArray(bucket.studentCouncil) ? bucket.studentCouncil : [],
+        classChats: bucket.classChats != null ? bucket.classChats : null,
         unterrichtsbelegung: belegung,
         schulOrganigramm: core.schulOrganigramm || { version: 2, nodes: [] }
     };
@@ -132,6 +172,7 @@ function installHook() {
 installHook();
 
 export default {
+    projectStudentParentPairs,
     settingsFromAppContainer,
     syncSchulOrganigrammFromAppData,
     materializeSchulOrganigrammFromAppData

@@ -182,6 +182,28 @@ Verwandt (Legacy-Logik bleibt für Tests/Archiv):
 - Live-Graph-Mitgliedschaften im Zoom (Fokus) sind Anzeige; kanonische Pflege bleibt Listen + Area-Editor.
 - Roadmap BIP/WebUntis-Zuordnung: [schul-struktur-kanon.md](schul-struktur-kanon.md).
 
+### 8.1 Sync-Semantik (asymmetrisch, bewusst)
+
+Kein klassischer Zwei-Wege-Realtime-Sync. Stattdessen:
+
+| Richtung | Was passiert |
+|----------|----------------|
+| **Listen → Landkarte** | Materializer (`syncSchulOrganigrammFromAppData` / `writeSchoolData`) ergänzt Knoten, Labels, Eltern-/Chat-Bäume; Canvas-Orte bleiben |
+| **Organigramm → Listen** | Nur über **explizite Editor-Commands** (Klasse, KV, ARGE, Rolle, …) |
+| **Layout speichern** | `writeSchulOrganigramm` schreibt `core.schulOrganigramm`; Listen bleiben unverändert |
+
+**Dual-Pflege:** Stammdaten-Tabs und Organigramm sind zwei Sichten derselben Entitäten. Tabs besitzen Listenfelder; Organigramm besitzt Hierarchie, Nesting, Canvas und M365-Bindings. Event `ms365-school-data-written` + `ms365-school-year-changed` refreshen die Organigramm-UI.
+
+**Löschen / Umbenennen (P3 – destruktive Policies):**
+
+| Aktion | Verhalten |
+|--------|-----------|
+| Klasse/ARGE im Editor oder als Entity-Kachel löschen | **Listen + Landkarte** (inkl. Eltern-/Chat-Spiegel, Kursteams unter der Klasse). Schüler bleiben erhalten und behalten die alte Kennung (Hinweis im Dialog). |
+| Eltern-/KlassenChat-/Kursteam-Kachel „löschen“ | **Blockiert** – abgeleitete Spiegel, Sync legt sie neu an. |
+| Custom-Area / optionaler Builtin von der Landkarte | Nur Layout (`removedAreaIds`); keine Listen-Entität. |
+| Klasse in Tabs löschen | Materializer entfernt Phantom-Knoten aus der Landkarte. |
+| Klassenkürzel umbenennen (Editor) | Propagiert auf `students.klasse`, `studentCouncil`, `classChats`, exakte Belegungszeilen und alle Klassen-Refs/IDs in der Landkarte. |
+
 ---
 
 ## 9. Phase-1-Abnahme

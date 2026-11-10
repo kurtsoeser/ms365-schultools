@@ -508,6 +508,47 @@ describe('schul-organigramm-edit helpers', () => {
         ]);
     });
 
+    it('guardiansForClass löst kanonische guardianIds→guardians[] auf', () => {
+        const canon = {
+            classes: [{ code: '1A', name: '1A' }],
+            students: [
+                {
+                    id: 's1',
+                    klasse: '1A',
+                    name: 'Lea',
+                    email: 'lea@schule.at',
+                    guardianIds: ['g1', 'g2']
+                },
+                {
+                    id: 's2',
+                    klasse: '1A',
+                    name: 'Max',
+                    email: 'max@schule.at',
+                    guardianIds: ['g3']
+                }
+            ],
+            guardians: [
+                { id: 'g1', name: 'Eltern Lea', email: 'eltern.lea@familie.at' },
+                { id: 'g2', name: 'Vater Lea', email: 'vater.lea@familie.at' },
+                { id: 'g3', name: 'Eltern Max', email: 'eltern.max@familie.at' }
+            ]
+        };
+        expect(guardiansForClass(canon, '1A').map((g) => g.email).sort()).toEqual([
+            'eltern.lea@familie.at',
+            'eltern.max@familie.at',
+            'vater.lea@familie.at'
+        ]);
+        const people = listPeopleForSchulOrgNode(
+            canon,
+            { id: elternClassNodeId('1A'), type: 'area', refKind: 'elternClass', refKey: '1A' }
+        );
+        expect(people.map((p) => p.email).sort()).toEqual([
+            'eltern.lea@familie.at',
+            'eltern.max@familie.at',
+            'vater.lea@familie.at'
+        ]);
+    });
+
     it('KlassenChat-Kachel zeigt Lehrkräfte aus Belegung inkl. KV', () => {
         const members = teachersForClassChat(settings, '1A');
         expect(members.map((m) => m.email).sort()).toEqual([
@@ -520,12 +561,38 @@ describe('schul-organigramm-edit helpers', () => {
         expect(chat1a?.refKind).toBe('klassenchatClass');
         expect(chat1a?.parentId).toMatch(/sec_klassenchat_jahrgang_/);
         expect(chat1a?.meta?.chatId).toBe('chat-1a');
+        expect(chat1a?.meta?.chatKind).toBe('groupChat');
         const people = listPeopleForSchulOrgNode(settings, chat1a);
         expect(people.map((p) => p.email).sort()).toEqual([
             'mueller@schule.at',
             'schmidt@schule.at'
         ]);
         expect(people.find((p) => p.email === 'schmidt@schule.at')?.kind).toBe('head');
+    });
+
+    it('KlassenChat-Kachel spiegelt privateChannel (teamId+channelId) in meta', () => {
+        const withChannel = Object.assign({}, settings, {
+            classChats: {
+                version: 1,
+                items: [
+                    {
+                        klasse: '1A',
+                        kind: 'privateChannel',
+                        channelId: 'chan-1a',
+                        teamId: 'team-lehrer',
+                        topic: '1A Kanal',
+                        webUrl: 'https://teams.microsoft.com/l/channel/chan-1a'
+                    }
+                ]
+            }
+        });
+        const layout = seedSchulOrganigrammFromStammdaten(withChannel);
+        const chat1a = layout.nodes.find((n) => n.id === klassenchatClassNodeId('1A'));
+        expect(chat1a?.meta?.chatKind).toBe('privateChannel');
+        expect(chat1a?.meta?.channelId).toBe('chan-1a');
+        expect(chat1a?.meta?.teamId).toBe('team-lehrer');
+        expect(chat1a?.meta?.chatId).toBe('chan-1a');
+        expect(chat1a?.meta?.chatTopic).toBe('1A Kanal');
     });
 
     it('moveSchulOrgPerson verschiebt ARGE-Leitung', () => {

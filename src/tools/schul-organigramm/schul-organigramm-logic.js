@@ -1608,21 +1608,334 @@ export function isElternClassNode(node) {
 }
 
 /**
- * Anzahl eindeutiger Elternmails aus Schüler-parentPairs (Stammdaten).
+ * Ob ein Landkarten-Bereich eine Listen-Entität ist (nicht nur Layout).
+ * @param {object|null|undefined} node
+ * @returns {'class'|'arge'|'elternClass'|'klassenchatClass'|'kursteam'|''}
+ */
+export function schulOrgEntityKindForNode(node) {
+    if (!node) return '';
+    if (isClassNode(node)) return 'class';
+    if (isArgeNode(node)) return 'arge';
+    if (isElternClassNode(node)) return 'elternClass';
+    if (isKlassenchatClassNode(node)) return 'klassenchatClass';
+    if (normStr(node.type).toLowerCase() === NODE.KURSTEAM || normStr(node.refKind).toLowerCase() === 'kursteam') {
+        return 'kursteam';
+    }
+    return '';
+}
+
+/**
+ * @param {string} oldCode
+ * @param {string} newCode
+ * @param {string} id
+ */
+function rewriteSchulOrgClassTokenInId(oldCode, newCode, id) {
+    const raw = normStr(id);
+    const o = canonicalSchulOrgClassCode(oldCode) || normCode(oldCode);
+    const n = canonicalSchulOrgClassCode(newCode) || normCode(newCode);
+    if (!raw || !o || !n || o === n) return raw;
+    const patterns = [
+        { re: new RegExp('^class_' + o + '$', 'i'), next: 'class_' + n },
+        { re: new RegExp('^eltern_class_' + o + '$', 'i'), next: 'eltern_class_' + n },
+        { re: new RegExp('^klassenchat_class_' + o + '$', 'i'), next: 'klassenchat_class_' + n }
+    ];
+    for (let i = 0; i < patterns.length; i++) {
+        if (patterns[i].re.test(raw)) return patterns[i].next;
+    }
+    // Kursteam-Platzierung: stable@CLASS
+    if (raw.toLowerCase().endsWith('@' + o.toLowerCase())) {
+        return raw.slice(0, raw.length - o.length) + n;
+    }
+    return raw;
+}
+
+/**
+ * @param {object|null|undefined} node
+ * @param {string} code
+ */
+function schulOrgNodeMatchesClassCode(node, code) {
+    const want = canonicalSchulOrgClassCode(code) || normCode(code);
+    if (!want || !node) return false;
+    const ref = canonicalSchulOrgClassCode(node.refKey) || normCode(node.refKey);
+    if (ref === want) {
+        const kind = schulOrgEntityKindForNode(node);
+        if (kind === 'class' || kind === 'elternClass' || kind === 'klassenchatClass') return true;
+    }
+    const id = normStr(node.id);
+    if (id.toLowerCase() === ('class_' + want).toLowerCase()) return true;
+    if (id.toLowerCase() === ('eltern_class_' + want).toLowerCase()) return true;
+    if (id.toLowerCase() === ('klassenchat_class_' + want).toLowerCase()) return true;
+    if (
+        (normStr(node.type).toLowerCase() === NODE.KURSTEAM ||
+            normStr(node.refKind).toLowerCase() === 'kursteam') &&
+        (normStr(node.parentId).toLowerCase() === ('class_' + want).toLowerCase() ||
+            normStr(node.meta && node.meta.placementClass).toUpperCase() === want)
+    ) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Alle Klassen-bezogenen Landkartenknoten entfernen (Schüler/Eltern/Chat/Kursteams).
+ * @param {object} layout
+ * @param {string} classCode
+ */
+export function stripSchulOrganigrammClassEntity(layout, classCode) {
+    const base = normalizeSchulOrganigramm(layout);
+    const code = canonicalSchulOrgClassCode(classCode) || normCode(classCode);
+    if (!code) return base;
+    const dropIds = new Set();
+    base.nodes.forEach(function (n) {
+        if (schulOrgNodeMatchesClassCode(n, code)) dropIds.add(normStr(n.id));
+    });
+    // Kinder unter entfernten Klassen-Knoten mitnehmen
+    base.nodes.forEach(function (n) {
+        if (dropIds.has(normStr(n.parentId))) dropIds.add(normStr(n.id));
+    });
+    base.nodes = base.nodes.filter(function (n) {
+        return !dropIds.has(normStr(n.id));
+    });
+    return base;
+}
+
+/**
+ * Klassenkürzel in der Landkarte umbenennen (IDs, refKeys, Labels, Parent-Refs).
+ * @param {object} layout
+ * @param {string} oldCode
+ * @param {string} newCode
+ * @param {string} [nextLabel]
+ */
+export function renameSchulOrganigrammClassEntity(layout, oldCode, newCode, nextLabel) {
+    const base = normalizeSchulOrganigramm(layout);
+    const from = canonicalSchulOrgClassCode(oldCode) || normCode(oldCode);
+    const to = canonicalSchulOrgClassCode(newCode) || normCode(newCode);
+    if (!from || !to || from === to) {
+        if (nextLabel) {
+            base.nodes = base.nodes.map(function (n) {
+                if (!schulOrgNodeMatchesClassCode(n, from || oldCode)) return n;
+                if (schulOrgEntityKindForNode(n) === 'class') {
+                    return Object.assign({}, n, { label: nextLabel || n.label });
+                }
+                return n;
+            });
+        }
+        return base;
+    }
+    const label = normStr(nextLabel);
+    base.nodes = base.nodes.map(function (n) {
+        const next = Object.assign({}, n);
+        const matched = schulOrgNodeMatchesClassCode(n, from);
+        next.id = rewriteSchulOrgClassTokenInId(from, to, n.id);
+        next.parentId =
+            n.parentId == null || n.parentId === ''
+                ? n.parentId
+                : rewriteSchulOrgClassTokenInId(from, to, String(n.parentId));
+        if (matched) {
+            const kind = schulOrgEntityKindForNode(n);
+            if (kind === 'class' || kind === 'elternClass' || kind === 'klassenchatClass') {
+                next.refKey = to;
+            }
+            if (kind === 'class' && label) next.label = label;
+            else if ((kind === 'elternClass' || kind === 'klassenchatClass') && label) {
+                next.label = label;
+            }
+            if (next.meta && typeof next.meta === 'object') {
+                next.meta = Object.assign({}, next.meta);
+                if (normStr(next.meta.placementClass).toUpperCase() === from) {
+                    next.meta.placementClass = to;
+                }
+            }
+        } else if (next.meta && typeof next.meta === 'object') {
+            const place = normStr(next.meta.placementClass).toUpperCase();
+            if (place === from) {
+                next.meta = Object.assign({}, next.meta, { placementClass: to });
+            }
+        }
+        if (normStr(next.refKind).toLowerCase() === 'kursteam' && normStr(next.refKey)) {
+            next.refKey = rewriteSchulOrgClassTokenInId(from, to, next.refKey);
+        }
+        return next;
+    });
+    return base;
+}
+
+/**
+ * Klasse aus Listen + Landkarte entfernen (Schüler bleiben, Klassenkennung behalten).
+ * @param {object} settings
+ * @param {string} classCode
+ * @returns {{ settings: object, studentCount: number, removedChat: boolean }}
+ */
+export function removeClassEntityFromSettings(settings, classCode) {
+    const s = settings && typeof settings === 'object' ? Object.assign({}, settings) : {};
+    const code = canonicalSchulOrgClassCode(classCode) || normCode(classCode);
+    let studentCount = 0;
+    (Array.isArray(s.students) ? s.students : []).forEach(function (st) {
+        const k = canonicalSchulOrgClassCode(st && st.klasse) || normCode(st && st.klasse);
+        if (k === code) studentCount += 1;
+    });
+    s.classes = (Array.isArray(s.classes) ? s.classes : []).filter(function (c) {
+        return classCodeFromSettingsRow(c) !== code;
+    });
+    let removedChat = false;
+    if (s.classChats && typeof s.classChats === 'object' && Array.isArray(s.classChats.items)) {
+        const before = s.classChats.items.length;
+        s.classChats = Object.assign({}, s.classChats, {
+            items: s.classChats.items.filter(function (row) {
+                const k = canonicalSchulOrgClassCode(row && row.klasse) || normCode(row && row.klasse);
+                return k !== code;
+            })
+        });
+        removedChat = s.classChats.items.length < before;
+    }
+    if (s.unterrichtsbelegung && Array.isArray(s.unterrichtsbelegung.rows)) {
+        s.unterrichtsbelegung = Object.assign({}, s.unterrichtsbelegung, {
+            rows: s.unterrichtsbelegung.rows.filter(function (row) {
+                const k = canonicalSchulOrgClassCode(row && row.klasse) || normCode(row && row.klasse);
+                // Geteilte Codes (1A1B) nicht blind löschen – nur exakte Klassenzeilen
+                return k !== code;
+            })
+        });
+    }
+    s.schulOrganigramm = stripSchulOrganigrammClassEntity(s.schulOrganigramm, code);
+    return { settings: s, studentCount: studentCount, removedChat: removedChat };
+}
+
+/**
+ * Klassenkürzel in Listen + Landkarte umbenennen.
+ * @param {object} settings
+ * @param {string} oldCode
+ * @param {string} newCode
+ * @param {{ name?: string }} [opts]
+ * @returns {{ settings: object, renamedStudents: number, renamedCouncil: number, renamedChats: number, renamedBelegung: number }}
+ */
+export function renameClassEntityInSettings(settings, oldCode, newCode, opts) {
+    const s = settings && typeof settings === 'object' ? Object.assign({}, settings) : {};
+    const o = opts && typeof opts === 'object' ? opts : {};
+    const from = canonicalSchulOrgClassCode(oldCode) || normCode(oldCode);
+    const to = canonicalSchulOrgClassCode(newCode) || normCode(newCode);
+    const nextName = normStr(o.name);
+    let renamedStudents = 0;
+    let renamedCouncil = 0;
+    let renamedChats = 0;
+    let renamedBelegung = 0;
+    if (!from || !to) {
+        return {
+            settings: s,
+            renamedStudents: 0,
+            renamedCouncil: 0,
+            renamedChats: 0,
+            renamedBelegung: 0
+        };
+    }
+
+    s.classes = (Array.isArray(s.classes) ? s.classes : []).map(function (c) {
+        if (classCodeFromSettingsRow(c) !== from) return c;
+        return Object.assign({}, c, {
+            code: to,
+            name: nextName || c.name || to
+        });
+    });
+
+    if (from !== to) {
+        s.students = (Array.isArray(s.students) ? s.students : []).map(function (st) {
+            const k = canonicalSchulOrgClassCode(st && st.klasse) || normCode(st && st.klasse);
+            if (k !== from) return st;
+            renamedStudents += 1;
+            return Object.assign({}, st, { klasse: to });
+        });
+        s.studentCouncil = (Array.isArray(s.studentCouncil) ? s.studentCouncil : []).map(function (st) {
+            const k = canonicalSchulOrgClassCode(st && st.klasse) || normCode(st && st.klasse);
+            if (k !== from) return st;
+            renamedCouncil += 1;
+            return Object.assign({}, st, { klasse: to });
+        });
+        if (s.classChats && typeof s.classChats === 'object' && Array.isArray(s.classChats.items)) {
+            s.classChats = Object.assign({}, s.classChats, {
+                items: s.classChats.items.map(function (row) {
+                    const k = canonicalSchulOrgClassCode(row && row.klasse) || normCode(row && row.klasse);
+                    if (k !== from) return row;
+                    renamedChats += 1;
+                    return Object.assign({}, row, { klasse: to });
+                })
+            });
+        }
+        if (s.unterrichtsbelegung && Array.isArray(s.unterrichtsbelegung.rows)) {
+            s.unterrichtsbelegung = Object.assign({}, s.unterrichtsbelegung, {
+                rows: s.unterrichtsbelegung.rows.map(function (row) {
+                    const k = canonicalSchulOrgClassCode(row && row.klasse) || normCode(row && row.klasse);
+                    if (k !== from) return row;
+                    renamedBelegung += 1;
+                    return Object.assign({}, row, { klasse: to });
+                })
+            });
+        }
+    }
+
+    const classRow = (s.classes || []).find(function (c) {
+        return classCodeFromSettingsRow(c) === to;
+    });
+    s.schulOrganigramm = renameSchulOrganigrammClassEntity(
+        s.schulOrganigramm,
+        from,
+        to,
+        nextName || (classRow && classRow.name) || to
+    );
+
+    return {
+        settings: s,
+        renamedStudents: renamedStudents,
+        renamedCouncil: renamedCouncil,
+        renamedChats: renamedChats,
+        renamedBelegung: renamedBelegung
+    };
+}
+
+/**
+ * ARGE aus Listen + Landkarte entfernen.
+ * @param {object} settings
+ * @param {string} argeCode
+ */
+export function removeArgeEntityFromSettings(settings, argeCode) {
+    const s = settings && typeof settings === 'object' ? Object.assign({}, settings) : {};
+    const code = normCode(argeCode);
+    s.arges = (Array.isArray(s.arges) ? s.arges : []).filter(function (a) {
+        return normCode(a && a.code) !== code;
+    });
+    const layout = normalizeSchulOrganigramm(s.schulOrganigramm);
+    layout.nodes = layout.nodes.filter(function (n) {
+        if (!(isArgeNode(n) && normCode(n.refKey) === code)) return true;
+        return false;
+    });
+    s.schulOrganigramm = layout;
+    return s;
+}
+
+/**
+ * Anzahl eindeutiger Elternmails aus guardianIds→guardians[] (+ parentPairs).
  * @param {object} settings
  */
 export function countUniqueGuardiansInSettings(settings) {
     const s = settings && typeof settings === 'object' ? settings : {};
     const seen = new Set();
-    (Array.isArray(s.students) ? s.students : []).forEach(function (st) {
-        (Array.isArray(st && st.parentPairs) ? st.parentPairs : []).forEach(function (p) {
-            const em = normStr(p && p.email).toLowerCase();
-            if (em && em.indexOf('@') !== -1) seen.add(em);
-        });
-    });
-    (Array.isArray(s.guardians) ? s.guardians : []).forEach(function (g) {
-        const em = normStr(g && g.email).toLowerCase();
+    const addEmail = function (raw) {
+        const em = normStr(raw).toLowerCase();
         if (em && em.indexOf('@') !== -1) seen.add(em);
+    };
+    const guardiansById = new Map();
+    (Array.isArray(s.guardians) ? s.guardians : []).forEach(function (g) {
+        const id = normStr(g && g.id);
+        if (id) guardiansById.set(id, g);
+        addEmail(g && g.email);
+    });
+    (Array.isArray(s.students) ? s.students : []).forEach(function (st) {
+        (Array.isArray(st && st.guardianIds) ? st.guardianIds : []).forEach(function (gid) {
+            const g = guardiansById.get(normStr(gid));
+            if (g) addEmail(g.email);
+        });
+        (Array.isArray(st && st.parentPairs) ? st.parentPairs : []).forEach(function (p) {
+            addEmail(p && p.email);
+        });
     });
     return seen.size;
 }
@@ -1729,21 +2042,26 @@ export function isArgeNode(node) {
 /**
  * Vorhandene Teams-Chat-Metadaten pro Klasse aus years.*.classChats.
  * @param {object} settings
- * @returns {Map<string, { chatId: string, topic: string, memberEmails: string[], webUrl: string }>}
+ * @returns {Map<string, { chatId: string, topic: string, memberEmails: string[], webUrl: string, kind: 'groupChat'|'privateChannel', channelId: string, teamId: string }>}
  */
 export function classChatMetaByKlasse(settings) {
-    /** @type {Map<string, { chatId: string, topic: string, memberEmails: string[], webUrl: string }>} */
+    /** @type {Map<string, { chatId: string, topic: string, memberEmails: string[], webUrl: string, kind: 'groupChat'|'privateChannel', channelId: string, teamId: string }>} */
     const map = new Map();
     const s = settings && typeof settings === 'object' ? settings : {};
     const snap = s.classChats && typeof s.classChats === 'object' ? s.classChats : null;
     (snap && Array.isArray(snap.items) ? snap.items : []).forEach(function (row) {
         const klasse = canonicalSchulOrgClassCode(row && row.klasse) || normCode(row && row.klasse);
         if (!klasse) return;
-        const kind = normStr(row && row.kind).toLowerCase();
+        const kindRaw = normStr(row && row.kind).toLowerCase();
         const chatId = normStr(row && row.chatId);
         const channelId = normStr(row && row.channelId);
+        const teamId = normStr(row && (row.teamId || row.lehrerTeamId));
+        const kind =
+            kindRaw === 'privatechannel' || kindRaw === 'private_channel' || (!chatId && channelId)
+                ? 'privateChannel'
+                : 'groupChat';
         // Gruppenchat oder privater Kanal (channelId) zählen als angelegte Ressource
-        const resourceId = chatId || channelId;
+        const resourceId = kind === 'privateChannel' ? channelId || chatId : chatId || channelId;
         if (!resourceId) return;
         map.set(klasse, {
             chatId: resourceId,
@@ -1754,11 +2072,38 @@ export function classChatMetaByKlasse(settings) {
                   }).filter(Boolean)
                 : [],
             webUrl: normStr(row && row.webUrl),
-            kind: kind === 'privatechannel' || (!chatId && channelId) ? 'privateChannel' : 'groupChat',
-            channelId: channelId
+            kind: kind,
+            channelId: kind === 'privateChannel' ? channelId || resourceId : '',
+            teamId: kind === 'privateChannel' ? teamId : ''
         });
     });
     return map;
+}
+
+/**
+ * Meta-Felder für eine KlassenChat-Klassenkachel aus classChats-Meta.
+ * @param {object|null|undefined} chatMeta
+ * @param {object} [base]
+ */
+export function klassenchatClassMetaFromChat(chatMeta, base) {
+    const out = Object.assign({}, base && typeof base === 'object' ? base : {});
+    const kind =
+        chatMeta && chatMeta.kind === 'privateChannel' ? 'privateChannel' : 'groupChat';
+    out.audience = 'klassenchats';
+    out.nestPeople = true;
+    out.chatKind = kind;
+    out.chatId = chatMeta ? normStr(chatMeta.chatId) : normStr(out.chatId);
+    out.chatTopic = chatMeta ? normStr(chatMeta.topic) : normStr(out.chatTopic);
+    out.chatWebUrl = chatMeta ? normStr(chatMeta.webUrl) : normStr(out.chatWebUrl);
+    out.channelId =
+        kind === 'privateChannel'
+            ? normStr(chatMeta && (chatMeta.channelId || chatMeta.chatId)) || normStr(out.channelId)
+            : '';
+    out.teamId =
+        kind === 'privateChannel'
+            ? normStr(chatMeta && chatMeta.teamId) || normStr(out.teamId)
+            : '';
+    return out;
 }
 
 const BUILTIN_AREA_IDS = {
@@ -2423,12 +2768,22 @@ export function nodeM365LinkFlags(node, resolvedGroupId, resolvedChatId) {
         chatBind.mode === 'match' ||
         chatBind.mode === 'create';
     if (showChatMark) {
+        const chatKind =
+            normStr(node && node.meta && node.meta.chatKind) === 'privateChannel'
+                ? 'privateChannel'
+                : 'groupChat';
+        const chatTitle =
+            chatKind === 'privateChannel'
+                ? hasChat
+                    ? 'Privater Kanal (Lehrerteam) verknüpft'
+                    : 'Privater Kanal im Lehrerteam (KlassenChat)'
+                : hasChat
+                  ? 'Teams-Gruppenchat verknüpft'
+                  : 'Teams-Gruppenchat (KlassenChat)';
         marks.push({
             kind: 'groupChat',
             icon: schulOrgM365ObjectKindIcon('groupChat'),
-            title: hasChat
-                ? 'Teams-Gruppenchat verknüpft'
-                : 'Teams-Gruppenchat (KlassenChat)'
+            title: chatTitle
         });
     }
 
@@ -3335,16 +3690,11 @@ export function seedSchulOrganigrammFromStammdaten(settings) {
             tone: 'lehrer',
             refKind: 'klassenchatClass',
             refKey: code,
-            meta: {
+            meta: klassenchatClassMetaFromChat(chatMeta, {
                 year: normStr(c && c.year),
-                jahrgang: stufe,
-                audience: 'klassenchats',
-                nestPeople: true,
-                chatId: chatMeta ? chatMeta.chatId : '',
-                chatTopic: chatMeta ? chatMeta.topic : '',
-                chatWebUrl: chatMeta ? chatMeta.webUrl : ''
-            },
-            // Intent: Klassenchat = Teams-Gruppenchat (Chat-ID liegt in meta)
+                jahrgang: stufe
+            }),
+            // Intent: Chat-artig (groupChat oder privateChannel – Detail in meta.chatKind)
             m365: {
                 groupMode: 'none',
                 groupKind: 'groupChat',
@@ -4420,15 +4770,10 @@ export function ensureSchulOrganigrammKlassenchatsStructure(layout, settings) {
                 tone: 'lehrer',
                 refKind: 'klassenchatClass',
                 refKey: code,
-                meta: {
+                meta: klassenchatClassMetaFromChat(chatMeta, {
                     year: normStr(c && c.year),
-                    jahrgang: stufe,
-                    audience: 'klassenchats',
-                    nestPeople: true,
-                    chatId: chatMeta ? chatMeta.chatId : '',
-                    chatTopic: chatMeta ? chatMeta.topic : '',
-                    chatWebUrl: chatMeta ? chatMeta.webUrl : ''
-                },
+                    jahrgang: stufe
+                }),
                 m365: {
                     groupMode: 'none',
                     groupKind: 'groupChat',
@@ -4450,16 +4795,18 @@ export function ensureSchulOrganigrammKlassenchatsStructure(layout, settings) {
         node.parentId = wantParent;
         node.tone = node.tone || 'lehrer';
         if (!normStr(node.label)) node.label = normStr(c && c.name) || 'Klasse ' + code;
-        node.meta = Object.assign({}, node.meta || {}, {
+        node.meta = klassenchatClassMetaFromChat(chatMeta || {
+            chatId: (node.meta && node.meta.chatId) || '',
+            topic: (node.meta && node.meta.chatTopic) || '',
+            webUrl: (node.meta && node.meta.chatWebUrl) || '',
+            kind: (node.meta && node.meta.chatKind) || 'groupChat',
+            channelId: (node.meta && node.meta.channelId) || '',
+            teamId: (node.meta && node.meta.teamId) || ''
+        }, {
             year: normStr(c && c.year) || (node.meta && node.meta.year) || '',
-            jahrgang: stufe,
-            audience: 'klassenchats',
-            nestPeople: true,
-            chatId: chatMeta ? chatMeta.chatId : (node.meta && node.meta.chatId) || '',
-            chatTopic: chatMeta ? chatMeta.topic : (node.meta && node.meta.chatTopic) || '',
-            chatWebUrl: chatMeta ? chatMeta.webUrl : (node.meta && node.meta.chatWebUrl) || ''
+            jahrgang: stufe
         });
-        // Default-Intent Gruppenchat, wenn noch keine M365-Bindung gesetzt ist
+        // Default-Intent Chat-artig, wenn noch keine M365-Bindung gesetzt ist
         if (!node.m365 || typeof node.m365 !== 'object') {
             node.m365 = {
                 groupMode: 'none',
@@ -6442,6 +6789,12 @@ const api = {
     isElternJahrgangArea: isElternJahrgangArea,
     elternClassNodeId: elternClassNodeId,
     isElternClassNode: isElternClassNode,
+    schulOrgEntityKindForNode: schulOrgEntityKindForNode,
+    stripSchulOrganigrammClassEntity: stripSchulOrganigrammClassEntity,
+    renameSchulOrganigrammClassEntity: renameSchulOrganigrammClassEntity,
+    removeClassEntityFromSettings: removeClassEntityFromSettings,
+    renameClassEntityInSettings: renameClassEntityInSettings,
+    removeArgeEntityFromSettings: removeArgeEntityFromSettings,
     countUniqueGuardiansInSettings: countUniqueGuardiansInSettings,
     klassenchatJahrgangAreaId: klassenchatJahrgangAreaId,
     klassenchatJahrgangKeyForArea: klassenchatJahrgangKeyForArea,
@@ -6449,6 +6802,7 @@ const api = {
     klassenchatClassNodeId: klassenchatClassNodeId,
     isKlassenchatClassNode: isKlassenchatClassNode,
     classChatMetaByKlasse: classChatMetaByKlasse,
+    klassenchatClassMetaFromChat: klassenchatClassMetaFromChat,
     isClassAreaNode: isClassAreaNode,
     isClassNode: isClassNode,
     SCHUL_ORG_JAHRGANG_SONST: SCHUL_ORG_JAHRGANG_SONST,

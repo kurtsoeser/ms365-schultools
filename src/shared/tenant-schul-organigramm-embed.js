@@ -1,5 +1,6 @@
 /**
  * Stammdaten: Schul-Organigramm als eingebetteter Tab (lazy mount).
+ * Live-Refresh läuft im Mount (ms365-school-data-written / ms365-school-year-changed).
  */
 import { mountSchulOrganigramm } from '../tools/schul-organigramm/schul-organigramm-ui.js';
 

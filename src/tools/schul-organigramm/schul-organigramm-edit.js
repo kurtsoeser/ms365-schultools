@@ -49,6 +49,10 @@ import {
     isArgeAreaNode,
     isClassNode,
     isClassAreaNode,
+    schulOrgEntityKindForNode,
+    removeClassEntityFromSettings,
+    renameClassEntityInSettings,
+    removeArgeEntityFromSettings,
     canonicalSchulOrgClassCode,
     listArgeCatalogGroupRefs,
     ensureSchulOrganigrammSgaStructure,
@@ -631,7 +635,8 @@ export function studentsForClass(settings, cls) {
 }
 
 /**
- * Erziehungsberechtigte einer Klasse aus Schüler-parentPairs (und optional guardians[]).
+ * Erziehungsberechtigte einer Klasse aus kanonischen guardianIds→guardians[]
+ * (+ parentPairs als Fallback/Komfort-Projektion).
  * @param {object} settings
  * @param {string|{ code?: string, name?: string }} classRef
  * @returns {{ name: string, email: string }[]}
@@ -656,13 +661,28 @@ export function guardiansForClass(settings, classRef) {
         }
         byEmail.set(em, { name: normStr(p && p.name) || em, email: em });
     };
-    (Array.isArray(settings.students) ? settings.students : []).forEach(function (s) {
+    const guardiansById = new Map();
+    (Array.isArray(settings && settings.guardians) ? settings.guardians : []).forEach(function (g) {
+        const id = normStr(g && g.id);
+        if (id) guardiansById.set(id, g);
+    });
+    (Array.isArray(settings && settings.students) ? settings.students : []).forEach(function (s) {
         const k = normStr(s && s.klasse).toUpperCase();
         const kL = normStr(s && s.klasse).toLowerCase();
         if (!((code && k === code) || (nameL && kL === nameL))) return;
-        (Array.isArray(s && s.parentPairs) ? s.parentPairs : []).forEach(pushPair);
+        const ids = Array.isArray(s && s.guardianIds) ? s.guardianIds : [];
+        let resolved = 0;
+        ids.forEach(function (gid) {
+            const g = guardiansById.get(normStr(gid));
+            if (!g) return;
+            pushPair(g);
+            resolved += 1;
+        });
+        // parentPairs: Fallback wenn keine/ungueltige guardianIds, sonst Komfort-Ergaenzung
+        if (!resolved || Array.isArray(s && s.parentPairs)) {
+            (Array.isArray(s && s.parentPairs) ? s.parentPairs : []).forEach(pushPair);
+        }
     });
-    // Fallback: globale guardians-Liste ohne Klassenbezug nicht zuordnen
     return Array.from(byEmail.values()).sort(function (a, b) {
         return (a.name || a.email).localeCompare(b.name || b.email, 'de');
     });
@@ -2410,24 +2430,74 @@ function patchSchulOrganigrammRefLabel(settings, type, oldRefKey, nextLabel, nex
     const layout = settings.schulOrganigramm;
     if (!layout || !Array.isArray(layout.nodes)) return;
     const oldKey = normStr(oldRefKey).toLowerCase();
+    const nextKey =
+        nextRefKey != null && String(nextRefKey) !== '' ? normStr(nextRefKey) : '';
+    // Klassen: volle Entity-Umbenennung (IDs, Spiegelbäume, Parent-Refs)
+    if (type === 'class' && nextKey && nextKey.toUpperCase() !== normStr(oldRefKey).toUpperCase()) {
+        const renamed = renameClassEntityInSettings(settings, oldRefKey, nextKey, {
+            name: nextLabel
+        });
+        Object.keys(renamed.settings).forEach(function (k) {
+            settings[k] = renamed.settings[k];
+        });
+        return;
+    }
+    if (type === 'class' && nextKey && nextKey.toUpperCase() === normStr(oldRefKey).toUpperCase()) {
+        const renamed = renameClassEntityInSettings(settings, oldRefKey, nextKey, {
+            name: nextLabel
+        });
+        Object.keys(renamed.settings).forEach(function (k) {
+            settings[k] = renamed.settings[k];
+        });
+        return;
+    }
     layout.nodes = layout.nodes.map(function (n) {
-        if (n.type !== type) return n;
+        const t = normStr(n.type).toLowerCase();
+        const rk = normStr(n.refKind).toLowerCase();
+        const matchType =
+            t === type ||
+            (type === 'class' && (rk === 'class' || isClassNode(n))) ||
+            (type === 'arge' && (rk === 'arge' || isArgeNode(n))) ||
+            (type === 'role' && (t === 'role' || rk === 'adminrole'));
+        if (!matchType) return n;
         if (normStr(n.refKey).toLowerCase() !== oldKey) return n;
         const next = Object.assign({}, n, { label: nextLabel || n.label });
-        if (nextRefKey != null && String(nextRefKey) !== '') next.refKey = normStr(nextRefKey);
+        if (nextKey) next.refKey = nextKey;
         return next;
     });
     settings.schulOrganigramm = layout;
 }
 
 function removeSchulOrganigrammByRef(settings, type, refKey) {
+    if (type === 'class') {
+        const removed = removeClassEntityFromSettings(settings, refKey);
+        Object.keys(removed.settings).forEach(function (k) {
+            settings[k] = removed.settings[k];
+        });
+        return;
+    }
+    if (type === 'arge') {
+        const next = removeArgeEntityFromSettings(settings, refKey);
+        Object.keys(next).forEach(function (k) {
+            settings[k] = next[k];
+        });
+        return;
+    }
     const layout = settings.schulOrganigramm;
     if (!layout || !Array.isArray(layout.nodes)) return;
     const key = normStr(refKey).toLowerCase();
     settings.schulOrganigramm = {
-        version: 1,
+        version: layout.version || 2,
+        view: layout.view,
+        removedAreaIds: layout.removedAreaIds,
         nodes: layout.nodes.filter(function (n) {
-            return !(n.type === type && normStr(n.refKey).toLowerCase() === key);
+            const t = normStr(n.type).toLowerCase();
+            const rk = normStr(n.refKind).toLowerCase();
+            const matchType =
+                t === type ||
+                (type === 'role' && (t === 'role' || rk === 'adminrole'));
+            if (!matchType) return true;
+            return normStr(n.refKey).toLowerCase() !== key;
         })
     };
 }
@@ -3760,26 +3830,21 @@ export function createSchulOrganigrammEditor(deps) {
             });
         });
         overlay.querySelector('[data-schul-org-del-arge]').addEventListener('click', function () {
-            void confirmDlg('ARGE „' + (arge.name || arge.code) + '“ wirklich löschen?', {
-                title: 'ARGE löschen',
-                okText: 'Löschen',
-                cancelText: 'Abbrechen'
-            }).then(function (ok) {
+            void confirmDlg(
+                'ARGE „' + (arge.name || arge.code) + '“ aus Stammdaten und Landkarte löschen?',
+                {
+                    title: 'ARGE löschen',
+                    okText: 'Löschen',
+                    cancelText: 'Abbrechen'
+                }
+            ).then(function (ok) {
                 if (!ok) return;
                 const cur = loadSettings();
                 const code = normStr(arge.code).toUpperCase();
-                cur.arges = (cur.arges || []).filter(function (a) {
-                    return normStr(a.code).toUpperCase() !== code;
+                const next = removeArgeEntityFromSettings(cur, code);
+                Object.keys(next).forEach(function (k) {
+                    cur[k] = next[k];
                 });
-                if (cur.schulOrganigramm && Array.isArray(cur.schulOrganigramm.nodes)) {
-                    cur.schulOrganigramm = {
-                        version: 1,
-                        nodes: cur.schulOrganigramm.nodes.filter(function (n) {
-                            if (!(isArgeNode(n) && normStr(n.refKey).toUpperCase() === code)) return true;
-                            return false;
-                        })
-                    };
-                }
                 saveSettings(cur);
                 toast('ARGE gelöscht.', 'success');
                 closeOverlay();
@@ -3981,7 +4046,7 @@ export function createSchulOrganigrammEditor(deps) {
             }
             if (!found) {
                 found = {
-                    code: nextCode,
+                    code: oldCode || nextCode,
                     name: nextName || nextCode,
                     year: nextYear,
                     headName: '',
@@ -3989,24 +4054,33 @@ export function createSchulOrganigrammEditor(deps) {
                     stableMailNickname: ''
                 };
                 classes.push(found);
-            } else {
-                found.code = nextCode;
-                found.name = nextName || nextCode;
-                found.year = nextYear;
+                cur.classes = classes;
             }
+            // Rename propagiert Schüler/Council/Chats/Belegung + Landkarte
+            const renamed = renameClassEntityInSettings(cur, oldCode || nextCode, nextCode, {
+                name: nextName || nextCode
+            });
+            Object.keys(renamed.settings).forEach(function (k) {
+                cur[k] = renamed.settings[k];
+            });
+            const nextClasses = Array.isArray(cur.classes) ? cur.classes : [];
+            found =
+                nextClasses.find(function (c) {
+                    return normStr(c.code).toUpperCase() === nextCode;
+                }) || found;
+            found.year = nextYear;
             found.headName = normStr(headNameEl.value);
             found.headEmail = normEmail(headEmailEl.value);
-            cur.classes = classes;
-            patchSchulOrganigrammRefLabel(
-                cur,
-                'class',
-                oldCode || refKey,
-                found.name || found.code,
-                found.code
-            );
+            cur.classes = nextClasses.map(function (c) {
+                return normStr(c.code).toUpperCase() === nextCode ? found : c;
+            });
             saveSettings(cur);
             cls = Object.assign({}, found);
-            toast('Klasse gespeichert.', 'success');
+            const extra =
+                renamed.renamedStudents > 0
+                    ? ' · ' + renamed.renamedStudents + ' Schüler:innen umgehängt'
+                    : '';
+            toast('Klasse gespeichert.' + extra, 'success');
             notify();
             if (closeAfter) closeOverlay();
             else {
@@ -4057,18 +4131,33 @@ export function createSchulOrganigrammEditor(deps) {
             });
         });
         overlay.querySelector('[data-schul-org-del-class]').addEventListener('click', function () {
-            void confirmDlg('Klasse „' + (cls.name || cls.code) + '“ wirklich löschen?', {
-                title: 'Klasse löschen',
-                okText: 'Löschen',
-                cancelText: 'Abbrechen'
-            }).then(function (ok) {
+            const code = normStr(cls.code).toUpperCase();
+            const preview = removeClassEntityFromSettings(loadSettings(), code);
+            const studentHint =
+                preview.studentCount > 0
+                    ? ' ' +
+                      preview.studentCount +
+                      ' Schüler:innen behalten die Kennung „' +
+                      code +
+                      '“ (werden nicht gelöscht).'
+                    : '';
+            void confirmDlg(
+                'Klasse „' +
+                    (cls.name || cls.code) +
+                    '“ aus Stammdaten und Landkarte löschen?' +
+                    studentHint,
+                {
+                    title: 'Klasse löschen',
+                    okText: 'Löschen',
+                    cancelText: 'Abbrechen'
+                }
+            ).then(function (ok) {
                 if (!ok) return;
                 const cur = loadSettings();
-                const code = normStr(cls.code).toUpperCase();
-                cur.classes = (cur.classes || []).filter(function (c) {
-                    return normStr(c.code).toUpperCase() !== code;
+                const removed = removeClassEntityFromSettings(cur, code);
+                Object.keys(removed.settings).forEach(function (k) {
+                    cur[k] = removed.settings[k];
                 });
-                removeSchulOrganigrammByRef(cur, 'class', code);
                 saveSettings(cur);
                 toast('Klasse gelöscht.', 'success');
                 closeOverlay();
@@ -5537,9 +5626,68 @@ export function createSchulOrganigrammEditor(deps) {
         const area = layout.nodes.find(function (n) {
             return n.id === areaId && isAreaNode(n);
         });
-        if (!area || !canDeleteSchulOrganigrammArea(area)) {
+        if (!area) {
+            toast('Bereich nicht gefunden.', 'warning');
+            return false;
+        }
+        const entityKind = schulOrgEntityKindForNode(area);
+        // Spiegel-/abgeleitete Knoten: Sync legt sie neu an – kein reines Layout-Löschen
+        if (entityKind === 'elternClass' || entityKind === 'klassenchatClass' || entityKind === 'kursteam') {
             toast(
-                'Dieser Standard-Bereich (z. B. Lehrer, Schüler, ARGE) kann nicht gelöscht werden.',
+                'Dieser Bereich wird aus den Stammdaten abgeleitet und erscheint beim nächsten Sync wieder. Bitte die Klasse in den Stammdaten bzw. im Klassen-Editor ändern.',
+                'warning'
+            );
+            return false;
+        }
+        // Klasse/ARGE: Entity-Löschen (Listen + Landkarte), kein Layout-only
+        if (entityKind === 'class' || entityKind === 'arge') {
+            const code = normStr(area.refKey).toUpperCase() || normStr(area.label).toUpperCase();
+            if (entityKind === 'class') {
+                const preview = removeClassEntityFromSettings(settings, code);
+                const studentHint =
+                    preview.studentCount > 0
+                        ? ' ' +
+                          preview.studentCount +
+                          ' Schüler:innen behalten die Kennung „' +
+                          code +
+                          '“.'
+                        : '';
+                const okClass = await confirmDlg(
+                    'Klasse „' +
+                        (area.label || code) +
+                        '“ aus Stammdaten und Landkarte löschen?' +
+                        studentHint,
+                    { title: 'Klasse löschen', okText: 'Löschen', cancelText: 'Abbrechen' }
+                );
+                if (!okClass) return false;
+                const cur = loadSettings();
+                const removed = removeClassEntityFromSettings(cur, code);
+                Object.keys(removed.settings).forEach(function (k) {
+                    cur[k] = removed.settings[k];
+                });
+                saveSettings(cur);
+                toast('Klasse gelöscht.', 'success');
+                notify();
+                return true;
+            }
+            const okArge = await confirmDlg(
+                'ARGE „' + (area.label || code) + '“ aus Stammdaten und Landkarte löschen?',
+                { title: 'ARGE löschen', okText: 'Löschen', cancelText: 'Abbrechen' }
+            );
+            if (!okArge) return false;
+            const curArge = loadSettings();
+            const nextArge = removeArgeEntityFromSettings(curArge, code);
+            Object.keys(nextArge).forEach(function (k) {
+                curArge[k] = nextArge[k];
+            });
+            saveSettings(curArge);
+            toast('ARGE gelöscht.', 'success');
+            notify();
+            return true;
+        }
+        if (!canDeleteSchulOrganigrammArea(area)) {
+            toast(
+                'Dieser Standard-Bereich (z. B. Lehrer, Schüler, ARGEs) kann nicht gelöscht werden.',
                 'warning'
             );
             return false;

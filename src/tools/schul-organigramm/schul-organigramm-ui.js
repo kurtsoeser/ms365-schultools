@@ -89,7 +89,7 @@ function loadSettings() {
     if (typeof window.ms365TenantSettingsLoad === 'function') {
         settings = window.ms365TenantSettingsLoad() || {};
     }
-    // Kursteams / KlassenChats liegen in years.* (App-Data v2)
+    // Kursteams / KlassenChats / Guardians liegen in years.* (App-Data v2)
     try {
         const api = window.ms365AppDataV2;
         if (!settings.unterrichtsbelegung && api && typeof api.getUnterrichtsbelegung === 'function') {
@@ -103,6 +103,22 @@ function loadSettings() {
             if (chats && typeof chats === 'object') {
                 // Immer aus years.* übernehmen (Tenant-Settings haben oft kein classChats)
                 settings = Object.assign({}, settings, { classChats: chats });
+            }
+        }
+        if (
+            (!Array.isArray(settings.guardians) || !settings.guardians.length) &&
+            api &&
+            typeof api.getContainer === 'function'
+        ) {
+            const c = api.getContainer();
+            const years = c && c.years && typeof c.years === 'object' ? c.years : null;
+            const cur = years ? String(years.current || '').trim() : '';
+            const bucket =
+                cur && years.byLabel && years.byLabel[cur]
+                    ? years.byLabel[cur]
+                    : null;
+            if (bucket && Array.isArray(bucket.guardians) && bucket.guardians.length) {
+                settings = Object.assign({}, settings, { guardians: bucket.guardians });
             }
         }
     } catch {
@@ -2823,9 +2839,72 @@ export function mountSchulOrganigramm(host, opts) {
         /* ignore */
     }
 
+    /** Live-Refresh nach Stammdaten-/Schuljahr-Änderungen (ohne eigenen Org-Save zu verdoppeln). */
+    let externalRefreshTimer = 0;
+    function scheduleExternalRefresh() {
+        if (externalRefreshTimer) {
+            try {
+                clearTimeout(externalRefreshTimer);
+            } catch {
+                /* ignore */
+            }
+        }
+        externalRefreshTimer = setTimeout(function () {
+            externalRefreshTimer = 0;
+            if (!host.isConnected) return;
+            render();
+        }, 80);
+    }
+    function onSchoolDataWritten(ev) {
+        const reason = String((ev && ev.detail && ev.detail.reason) || '').trim().toLowerCase();
+        if (
+            reason.indexOf('schul-organigramm') === 0 ||
+            reason.indexOf('schulorganigramm') === 0 ||
+            reason === 'writeschulorganigramm'
+        ) {
+            return;
+        }
+        scheduleExternalRefresh();
+    }
+    function onSchoolYearChanged() {
+        scheduleExternalRefresh();
+    }
+    try {
+        window.addEventListener('ms365-school-data-written', onSchoolDataWritten);
+        window.addEventListener('ms365-school-year-changed', onSchoolYearChanged);
+    } catch {
+        /* ignore */
+    }
+
+    function destroy() {
+        try {
+            window.removeEventListener('ms365-school-data-written', onSchoolDataWritten);
+            window.removeEventListener('ms365-school-year-changed', onSchoolYearChanged);
+        } catch {
+            /* ignore */
+        }
+        if (externalRefreshTimer) {
+            try {
+                clearTimeout(externalRefreshTimer);
+            } catch {
+                /* ignore */
+            }
+            externalRefreshTimer = 0;
+        }
+        if (mapApi && typeof mapApi.destroy === 'function') {
+            try {
+                mapApi.destroy();
+            } catch {
+                /* ignore */
+            }
+            mapApi = null;
+        }
+    }
+
     render();
     return {
         refresh: render,
+        destroy: destroy,
         getLayout: function () {
             const settings = loadSettings();
             return enrichLayoutMeta(

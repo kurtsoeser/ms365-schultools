@@ -12,7 +12,9 @@ Eine Schreibwahrheit lokal im Browser, ohne Sync-Chaos:
 | **Listen** (`core.*`, `years.*`) | Lehrer, ARGEs, Klassen, Schüler, Belegung, … |
 | **Landkarte** (`core.schulOrganigramm`) | Hierarchie, Position, Referenzen, M365-Bindung |
 
-Jeder Speichern-/Import-Pfad schreibt beides über [`stammdaten-write.js`](../src/shared/stammdaten-write.js) (`writeSchoolData`) und den Materializer – **kein** manueller Abgleich Listen ↔ Landkarte im Alltag.
+Jeder Speichern-/Import-Pfad schreibt Listen über [`stammdaten-write.js`](../src/shared/stammdaten-write.js) (`writeSchoolData`) und materialisiert die Landkarte – **kein** manueller Abgleich Listen ↔ Landkarte im Alltag.
+
+**Semantik:** Listen = Entitäten-Wahrheit; Landkarte = Struktur-/Layout-/M365-Wahrheit. Organigramm-Editoren schreiben Listen nur punktuell zurück (kein voller Reverse-Materializer). Details: [schul-organigramm.md §8.1](schul-organigramm.md), [schul-struktur-kanon.md](schul-struktur-kanon.md).
 
 ## Was während des Umbaus aus ist
 

@@ -48,6 +48,30 @@ Bildungsportal (Personen/Klassen)     WebUntis (Unterricht/Kursteams)
 
 **Regel:** Kein Organigramm-only-Zustand ohne Listen-Abbildung. Knoten **referenzieren** Listen (`refKind` + `refKey`). M365-Bindung liegt am Knoten (`m365`), nicht doppelt in den Personenlisten.
 
+### 2.1 Dual-Pflege (Tabs + Organigramm)
+
+| Oberfläche | Besitzt | Schreibt |
+|------------|---------|----------|
+| Stammdaten-Tabs | Listenfelder (Namen, Codes, Guardians, Belegung) | `writeSchoolData` → Materializer |
+| Organigramm | Hierarchie, Canvas, `m365`, Funktionen am Knoten | Editor → Listen; Layout → `writeSchulOrganigramm` |
+| Fachtools (KlassenChats, Kursteams) | operative IDs / Target-Kind | `years.*` + Meta am Org-Knoten |
+
+### 2.2 Mitgliedschafts-Matrix (Struktur ≠ Mitglieder)
+
+Dieselbe „Klasse 3B“ meint je nach Fläche etwas anderes:
+
+| Fläche | Typische Mitglieder | Typisches M365-Objekt |
+|--------|---------------------|------------------------|
+| Klassenknoten (Schüler) | Stammschüler der Klasse | Unified Group / Team der Klasse |
+| Eltern-Spiegel (`elternClass`) | Guardians der Schüler (`guardianIds`→`guardians[]`) | Eltern-Verteiler / Listen (Fachtool) |
+| KlassenChat (`klassenchatClass`) | Lehrkräfte der Klasse (+ KV) | `groupChat` **oder** `privateChannel` im Lehrerteam |
+| Kursteam unter Klasse | Lehrkraft + Schüler des Kurses | Unterrichtsteam aus Belegung |
+| Funktions-Sammelbereich (z. B. KV) | alle Inhaber:innen der Funktion | Chat / Gruppe / Verteiler am Sammelknoten |
+
+Eltern sind externe Identitäten; Schüler-/Lehrerkonten sind Tenant-AAD. Späteres **Personen-Stammblatt** ist eine dritte Sicht auf dieselben Listen – keine zweite Datenbank und keine volle schulrechtliche Akte.
+
+**Destruktive Ops:** Klasse/ARGE-Löschen aus dem Organigramm = Listen + Landkarte. Klassen-Rename propagiert Kennungen in abhängige Listen. Abgeleitete Spiegel (Eltern/Chat/Kursteam) sind nicht layout-only löschbar. Details: [schul-organigramm.md §8.1](schul-organigramm.md).
+
 ---
 
 ## 3. Datenmodell (Erweiterung)

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    projectStudentParentPairs,
     settingsFromAppContainer,
     syncSchulOrganigrammFromAppData
 } from '../src/shared/schul-organigramm-stammdaten-sync.js';
@@ -42,6 +43,116 @@ describe('schul-organigramm-stammdaten-sync', () => {
         expect(settings.teachers[0].code).toBe('MUEL');
         expect(settings.unterrichtsbelegung.rows).toHaveLength(1);
         expect(settings.arges[0].code).toBe('MATHE');
+    });
+
+    it('settingsFromAppContainer liefert guardians, classChats und parentPairs-Projektion', () => {
+        const settings = settingsFromAppContainer({
+            core: { teachers: [], arges: [], schulOrganigramm: { version: 2, nodes: [] } },
+            years: {
+                current: '2025/26',
+                byLabel: {
+                    '2025/26': {
+                        classes: [{ code: '1A', name: '1A' }],
+                        students: [
+                            {
+                                id: 's1',
+                                klasse: '1A',
+                                name: 'Lea',
+                                email: 'lea@schule.at',
+                                guardianIds: ['g1', 'g2']
+                            }
+                        ],
+                        guardians: [
+                            { id: 'g1', name: 'Eltern Lea', email: 'eltern.lea@familie.at' },
+                            { id: 'g2', name: 'Vater Lea', email: 'vater.lea@familie.at' }
+                        ],
+                        classChats: {
+                            version: 1,
+                            items: [{ klasse: '1A', kind: 'groupChat', chatId: 'chat-1' }]
+                        }
+                    }
+                }
+            }
+        });
+        expect(settings.guardians).toHaveLength(2);
+        expect(settings.classChats?.items?.[0]?.chatId).toBe('chat-1');
+        expect(settings.students[0].parentPairs).toEqual([
+            { name: 'Eltern Lea', email: 'eltern.lea@familie.at' },
+            { name: 'Vater Lea', email: 'vater.lea@familie.at' }
+        ]);
+    });
+
+    it('projectStudentParentPairs belässt vorhandene parentPairs', () => {
+        const out = projectStudentParentPairs(
+            [
+                {
+                    id: 's1',
+                    klasse: '1A',
+                    guardianIds: ['g1'],
+                    parentPairs: [{ name: 'Alt', email: 'alt@familie.at' }]
+                }
+            ],
+            [{ id: 'g1', name: 'Neu', email: 'neu@familie.at' }]
+        );
+        expect(out[0].parentPairs).toEqual([{ name: 'Alt', email: 'alt@familie.at' }]);
+    });
+
+    it('Materializer schreibt privateChannel-Meta an KlassenChat-Knoten', () => {
+        const container = {
+            version: 4,
+            core: {
+                schoolName: 'Test',
+                domain: 'schule.at',
+                subjects: [],
+                arges: [],
+                teachers: [],
+                admin: [],
+                adminRoles: [],
+                sga: [],
+                schulOrganigramm: { version: 2, nodes: [] }
+            },
+            years: {
+                current: '2025/26',
+                byLabel: {
+                    '2025/26': {
+                        classes: [{ code: '2B', name: '2B' }],
+                        students: [],
+                        studentCouncil: [],
+                        classChats: {
+                            version: 1,
+                            items: [
+                                {
+                                    klasse: '2B',
+                                    kind: 'privateChannel',
+                                    channelId: 'ch-2b',
+                                    teamId: 'team-x',
+                                    topic: '2B'
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            setup: {}
+        };
+        let saved = null;
+        globalThis.window = {
+            ms365AppDataV2: {
+                getContainer: () => container,
+                setContainer: (c) => {
+                    saved = c;
+                    return c;
+                }
+            }
+        };
+        const result = syncSchulOrganigrammFromAppData({ reason: 'classChats' });
+        expect(result.ok).toBe(true);
+        const chat = saved.core.schulOrganigramm.nodes.find(
+            (n) => n.refKind === 'klassenchatClass' && n.refKey === '2B'
+        );
+        expect(chat?.meta?.chatKind).toBe('privateChannel');
+        expect(chat?.meta?.channelId).toBe('ch-2b');
+        expect(chat?.meta?.teamId).toBe('team-x');
     });
 
     it('syncSchulOrganigrammFromAppData schreibt Kursteams ins Organigramm', () => {
