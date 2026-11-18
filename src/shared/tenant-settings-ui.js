@@ -8748,7 +8748,6 @@ import './schul-organigramm-stammdaten-sync.js';
                 if (typeof renderStudentsTableFromTextarea === 'function') {
                     renderStudentsTableFromTextarea();
                 }
-                if (typeof markDirty === 'function') markDirty();
                 const changed = (result.enriched || 0) + (result.repaired || 0);
                 const msg = force
                     ? result.enriched +

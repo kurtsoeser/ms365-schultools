@@ -199,6 +199,10 @@ describe('Hilfe-Seite', () => {
             'sharepoint-liste-raumplan': 'tool-raumplan',
             'teams-antrag': 'tool-teams-antrag',
             'sharepoint-liste-teams-antrag': 'tool-teams-antrag',
+            'teams-kanaele-bulk': 'tool-teams-kanaele-bulk',
+            'srdp-anmeldung': 'tool-srdp-anmeldung',
+            'srdp-mail-setup': 'tool-srdp-anmeldung',
+            'wahlfach-anmeldung': 'tool-wahlfach-zuteilung',
             'schueler-stammdaten-portal': 'tool-schueler-stammdaten-portal',
             'schul-organigramm': 'tool-schul-organigramm'
         };

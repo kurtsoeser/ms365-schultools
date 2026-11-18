@@ -109,7 +109,7 @@ export function upsertMeldung(draft, opts = {}) {
     });
     if (!v.ok) return { ok: false, errors: v.errors, warnings: v.warnings || [], item: null, state: loadState(), duplicate: null };
     const state = loadState();
-    const item = normalizeMeldung(draft);
+    let item = normalizeMeldung(draft);
     const dup = opts.allowDuplicate
         ? null
         : findDuplicate(item, state.meldungen, item.id);

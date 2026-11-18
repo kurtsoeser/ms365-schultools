@@ -237,7 +237,6 @@ export function createElection(partial) {
     const electionKind = normalizeElectionKind(partial && (partial.electionKind || partial.kind));
     const kindDef = getElectionKindDef(electionKind);
     return normalizeElection({
-        electionKind,
         title: kindDef.defaultTitle,
         scopeLabel: 'Schulweit',
         status: ELECTION_STATUS.draft,

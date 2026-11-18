@@ -55,10 +55,8 @@ export function resolvePublicKlassen(search) {
     const q = new URLSearchParams(
         String(search != null ? search : typeof location !== 'undefined' ? location.search : '')
     );
-    fromUrl: {
-        const fromParam = parseKlassenList(q.get('klassen') || q.get('klassenCodes') || '');
-        if (fromParam.length) return fromParam;
-    }
+    const fromParam = parseKlassenList(q.get('klassen') || q.get('klassenCodes') || '');
+    if (fromParam.length) return fromParam;
     const fromSettings = parseKlassenList(loadKrankmeldungSettings().publicKlassen || '');
     if (fromSettings.length) return fromSettings;
     return loadStammdatenKlassen().map((c) => c.code);
