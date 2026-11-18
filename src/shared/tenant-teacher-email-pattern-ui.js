@@ -19,6 +19,55 @@ function normStr(v) {
     return String(v ?? '').trim();
 }
 
+/** @returns {'first'|'all'} */
+function resolveFirstNameMode(raw) {
+    const api = typeof window !== 'undefined' ? window.ms365PersonEmailFromName : null;
+    if (api && typeof api.resolveFirstNameMode === 'function') {
+        return api.resolveFirstNameMode(raw);
+    }
+    const s = String(raw || '').trim().toLowerCase();
+    return s === 'all' || s === 'alle' ? 'all' : 'first';
+}
+
+/**
+ * Legacy: reiner Pattern-String. Neu: { patternId, firstNameMode }.
+ * @returns {{ patternId: string, firstNameMode: 'first'|'all' }}
+ */
+function readStoredEmailPattern() {
+    let raw = '';
+    try {
+        raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY_LEGACY_TEACHERS) || '';
+    } catch {
+        raw = '';
+    }
+    if (!raw) return { patternId: 'vorname.nachname', firstNameMode: 'first' };
+    try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+            return {
+                patternId: String(obj.patternId || obj.pattern || 'vorname.nachname'),
+                firstNameMode: resolveFirstNameMode(obj.firstNameMode)
+            };
+        }
+    } catch {
+        /* Legacy-String */
+    }
+    return { patternId: String(raw), firstNameMode: 'first' };
+}
+
+function writeStoredEmailPattern(patternId, firstNameMode) {
+    const payload = {
+        patternId: String(patternId || 'vorname.nachname'),
+        firstNameMode: resolveFirstNameMode(firstNameMode)
+    };
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+        /* ignore */
+    }
+    return payload;
+}
+
 function getDomainSample() {
     if (typeof window.ms365GetSchoolDomainNoAt === 'function') {
         return normStr(window.ms365GetSchoolDomainNoAt()).replace(/^@+/, '');
@@ -55,20 +104,16 @@ export function mountTenantSchoolEmailPatternUi(opts) {
 
     function firstNameMode() {
         const raw = givenSel ? String(givenSel.value || 'first') : 'first';
-        const api = window.ms365PersonEmailFromName;
-        if (api && typeof api.resolveFirstNameMode === 'function') {
-            return api.resolveFirstNameMode(raw);
-        }
-        return raw === 'all' ? 'all' : 'first';
+        return resolveFirstNameMode(raw);
+    }
+
+    function persistPatternState() {
+        writeStoredEmailPattern(patternInput.value, firstNameMode());
     }
 
     function setPatternId(id) {
         patternInput.value = String(id || 'vorname.nachname');
-        try {
-            localStorage.setItem(STORAGE_KEY, patternInput.value);
-        } catch {
-            /* ignore */
-        }
+        persistPatternState();
         syncUiFromPatternId();
         updatePreview();
     }
@@ -213,13 +258,9 @@ export function mountTenantSchoolEmailPatternUi(opts) {
         });
     }
 
-    try {
-        let stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) stored = localStorage.getItem(STORAGE_KEY_LEGACY_TEACHERS);
-        if (stored) patternInput.value = stored;
-    } catch {
-        /* ignore */
-    }
+    const stored = readStoredEmailPattern();
+    patternInput.value = stored.patternId;
+    if (givenSel) givenSel.value = stored.firstNameMode === 'all' ? 'all' : 'first';
 
     EMAIL_PATTERN_PRESETS.forEach(function (p) {
         const btn = card.querySelector('[data-email-preset="' + p.id + '"]');
@@ -258,7 +299,12 @@ export function mountTenantSchoolEmailPatternUi(opts) {
         });
     });
 
-    if (givenSel) givenSel.addEventListener('change', updatePreview);
+    if (givenSel) {
+        givenSel.addEventListener('change', function () {
+            persistPatternState();
+            updatePreview();
+        });
+    }
     ['tenantTeachersLines', 'tenantStudentsLines', 'tenantAdminBundleLines', 'tenantSgaLines'].forEach(function (id) {
         const ta = document.getElementById(id);
         if (ta) ta.addEventListener('input', updatePreview);
@@ -272,8 +318,15 @@ export function mountTenantSchoolEmailPatternUi(opts) {
     }
     updatePreview();
 
-    return { setPatternId, getPatternId, updatePreview };
+    return { setPatternId, getPatternId, updatePreview, firstNameMode, persistPatternState };
 }
+
+export {
+    STORAGE_KEY as SCHOOL_EMAIL_PATTERN_STORAGE_KEY,
+    readStoredEmailPattern,
+    writeStoredEmailPattern,
+    resolveFirstNameMode as resolveEmailPatternFirstNameMode
+};
 
 /** @deprecated Alias – bitte mountTenantSchoolEmailPatternUi verwenden */
 export function mountTenantTeacherEmailPatternUi(opts) {

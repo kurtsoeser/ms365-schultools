@@ -514,6 +514,7 @@ const STORAGE_KEY_LABELS = {
     'ms365-dashboard-recent-tools-v1': 'Dashboard zuletzt verwendet',
     'ms365-dashboard-audience-groups-v1': 'Dashboard Entra-Gruppen (Personas)',
     'ms365-dashboard-tool-access-v1': 'Dashboard Werkzeug-Zugriff (Matrix)',
+    'ms365-dashboard-portal-defaults-v1': 'Portal gestalten (Schul-Pins)',
     'ms365-dashboard-order-catalog-v1': 'Dashboard Katalog-Reihenfolge',
     'ms365-dash-catalog-fold-v1': 'Dashboard Katalog aufgeklappt',
     'webuntis-teams-creator-state-v1': 'Kursteams / WebUntis',
@@ -719,6 +720,7 @@ export function compareBackupPayloads(local, remote) {
 export const BACKUP_COVERAGE_SPOTLIGHT_KEYS = [
     'ms365-schooltool-data-v2',
     'ms365-dashboard-tool-access-v1',
+    'ms365-dashboard-portal-defaults-v1',
     'ms365-dashboard-audience-groups-v1',
     'ms365-freistellung-setup-v1',
     'ms365-freistellung-perms-v1',
@@ -731,7 +733,23 @@ export const BACKUP_COVERAGE_SPOTLIGHT_KEYS = [
     'ms365-schulstruktur-sync-v1',
     'ms365-schulstruktur-match-v1',
     'webuntis-teams-creator-state-v1',
-    'ms365-power-automate-recipes-v1'
+    'ms365-power-automate-recipes-v1',
+    'ms365-intranet-list-links-v1',
+    'ms365-tenant-school-email-pattern-v1',
+    'ms365-einsammler-settings-v1',
+    'ms365-elternbrief-settings-v1',
+    'ms365-krankmeldung-settings-v1',
+    'ms365-kollegium-umfragen-settings-v1',
+    'ms365-ausgaben-settings-v1',
+    'ms365-wahlfach-zuteilung-settings-v1',
+    'ms365-schulsprecherwahl-v1',
+    'ms365-teams-antrag-settings-v1',
+    'ms365-diplomarbeiten-settings-v1',
+    'ms365-termine-hub-settings-v1',
+    'ms365-kalender-postfaecher-v1',
+    'ms365-schueler-stammdaten-portal-v1',
+    'ms365-akt-setup-v1',
+    'ms365-akt-planer-site-v1'
 ];
 
 function localStorageSliceFromBackupPayload(payload) {
@@ -773,11 +791,13 @@ export function summarizeSchooltoolFromBackup(payload) {
     const bucket = currentYearBucket(v2);
     const setup = v2.setup && typeof v2.setup === 'object' ? v2.setup : {};
     const matched = setup.matched && typeof setup.matched === 'object' ? setup.matched : {};
-    const sp = core.schoolProfile && typeof core.schoolProfile === 'object' ? core.schoolProfile : {};
+    // Schulprofil inkl. Logo liegt unter setup.schoolProfile (nicht core).
+    const sp = setup.schoolProfile && typeof setup.schoolProfile === 'object' ? setup.schoolProfile : {};
     return {
         present: true,
         schoolName: String(core.schoolName || '').trim(),
         domain: String(core.domain || '').trim(),
+        schoolCode: String(sp.schoolCode || '').trim(),
         teacherCount: Array.isArray(core.teachers) ? core.teachers.length : 0,
         subjectCount: Array.isArray(core.subjects) ? core.subjects.length : 0,
         studentCount: bucket && Array.isArray(bucket.students) ? bucket.students.length : 0,
@@ -817,7 +837,8 @@ export function summarizeSchooltoolFromBackup(payload) {
                 return n && String(n.type || '').toLowerCase() !== 'section';
             }).length;
         })(),
-        hasSchoolProfileLogo: !!String(sp.logoDataUrl || '').trim(),
+        hasSchoolProfileLogo:
+            !!String(sp.logoUrl || '').trim() || !!String(sp.logoDataUrl || '').trim(),
         schuelerGroupLinked: !!String(matched.schuelerGroupId || '').trim(),
         lehrerGroupLinked: !!String(matched.lehrerGroupId || '').trim(),
         schoolYear: String(v2.years && v2.years.current ? v2.years.current : '').trim()
@@ -849,6 +870,7 @@ export function compareSchooltoolSummaries(localPayload, remotePayload) {
     }
     row('schoolName', 'Schulname', local.schoolName, remote.schoolName);
     row('domain', 'Domain', local.domain, remote.domain);
+    row('schoolCode', 'Schulkennzahl / SKZ', local.schoolCode, remote.schoolCode);
     row('schoolYear', 'Aktuelles Schuljahr', local.schoolYear, remote.schoolYear);
     row('teachers', 'Lehrer (Anzahl)', local.teacherCount, remote.teacherCount);
     row('subjects', 'Fächer (Anzahl)', local.subjectCount, remote.subjectCount);
@@ -1082,7 +1104,20 @@ export function formatSyncStatusDe(state) {
     if (phase === 'pulling') bits.push('Lade von SharePoint …');
     else if (phase === 'pushing') bits.push('Sichere nach SharePoint …');
     else if (phase === 'error' && s.error) bits.push('Sync-Fehler: ' + s.error);
-    else if (s.dirty) bits.push('Änderungen ausstehend (Auto-Sync)');
+    else if (phase === 'manual') {
+        if (s.lastAt) {
+            const when = String(s.lastAt).replace('T', ' ').replace(/\.\d+Z$/, '');
+            const dir =
+                s.lastDirection === 'pull'
+                    ? 'Zuletzt manuell geladen'
+                    : s.lastDirection === 'push'
+                      ? 'Zuletzt manuell gesichert'
+                      : 'Zuletzt manuell';
+            bits.push(dir + ': ' + when);
+        } else {
+            bits.push('Manuelles Sichern/Laden – kein Auto-Abgleich');
+        }
+    } else if (s.dirty) bits.push('Änderungen ausstehend (Auto-Sync)');
     else if (s.lastAt) {
         const when = String(s.lastAt).replace('T', ' ').replace(/\.\d+Z$/, '');
         const dir =

@@ -10,6 +10,12 @@ import {
     itemCoversDay,
     normalizeStatus
 } from './lfr-logic.js';
+import {
+    LFR_ROLE_ORDER,
+    canUseLfrRoleSwitcher,
+    isLfrDemoRoleUiEnabled,
+    sortLfrRoles
+} from './lfr-entra-role.js';
 
 function esc(s) {
     return String(s == null ? '' : s)
@@ -38,22 +44,49 @@ function topTitle(state) {
 }
 
 function renderNavSession(state) {
+    const demoRoleUi = isLfrDemoRoleUiEnabled(state.entraGroupsConfigured, state.demoRoleOverride);
+    const switchable = demoRoleUi
+        ? LFR_ROLE_ORDER
+        : sortLfrRoles(state.planerRoles || []);
+    const showRoleSwitcher = canUseLfrRoleSwitcher(state.planerRoles || [], demoRoleUi);
+    const roleBlock = showRoleSwitcher
+        ? `<div class="fr-nav__role-btns" role="group" aria-label="Rolle wählen">
+            ${switchable
+                .map(
+                    (r) =>
+                        `<button type="button" class="fr-chip${state.role === r ? ' is-active' : ''}" data-lfr-role="${esc(
+                            r
+                        )}">${r === 'direktion' ? 'Direktion' : 'Lehrkraft'}</button>`
+                )
+                .join('')}
+          </div>`
+        : `<p class="fr-nav__role-fixed"><span class="fr-badge fr-badge--info">${
+              state.role === 'direktion' ? 'Direktion' : 'Lehrkraft'
+          }</span></p>`;
     return `
         <div class="fr-nav__session" aria-label="Anmeldung und Rolle">
           <span class="fr-nav__role-label">Anmeldung</span>
           ${
-              state.accountEmail
-                  ? `<p class="fr-nav__account-name">${esc(state.accountName || state.accountEmail)}</p>`
+              state.accountEmail || state.accountName ||
+              (typeof window !== 'undefined' &&
+                  typeof window.ms365AuthIsLoggedIn === 'function' &&
+                  window.ms365AuthIsLoggedIn())
+                  ? `<p class="fr-nav__account-name">${esc(state.accountName || state.accountEmail || 'Angemeldet')}</p>`
                   : '<p class="fr-nav__hint">Mit Schul-Konto anmelden (Menü oben rechts).</p>'
           }
           <div class="fr-nav__session-role">
-            <span class="fr-nav__session-role-label">Rolle wählen</span>
-            <div class="fr-nav__role-btns" role="group" aria-label="Rolle wählen">
-              <button type="button" class="fr-chip${state.role === 'lehrer' ? ' is-active' : ''}" data-lfr-role="lehrer">Lehrkraft</button>
-              <button type="button" class="fr-chip${state.role === 'direktion' ? ' is-active' : ''}" data-lfr-role="direktion">Direktion</button>
-            </div>
+            <span class="fr-nav__session-role-label">Rolle${showRoleSwitcher ? ' wählen' : ''}</span>
+            ${roleBlock}
           </div>
-          <p class="fr-nav__hint">Genehmigung über Microsoft Approvals (Power Automate).</p>
+          ${
+              state.planerAccessDenied
+                  ? `<p class="fr-nav__hint">${esc(state.roleHint || 'Kein Zugang.')}</p>`
+                  : demoRoleUi
+                    ? '<p class="fr-nav__hint">IT-Vorschau (?demoRole=1).</p>'
+                    : showRoleSwitcher
+                      ? '<p class="fr-nav__hint">Mehrere Berechtigungen – hier umschalten.</p>'
+                      : '<p class="fr-nav__hint">Genehmigung über Microsoft Approvals (Power Automate).</p>'
+          }
         </div>`;
 }
 

@@ -50,6 +50,17 @@
     overflow: clip;
 }
 
+/* Organigramm nur über Header-Umschalter – Tab in der Stammdaten-Leiste nie zeigen */
+#tenantMainTabs #tabMainOrganigramm,
+#tenantMainTabs .tab-btn--header-route {
+    display: none !important;
+}
+
+/* Organigramm-Ansicht: gesamte Listen-Tabbar ausblenden */
+body.tenant-mode-organigramm .ts-register-shell__tabs-wrap {
+    display: none;
+}
+
 .ts-register-shell__tabs-wrap {
     padding: 10px 12px 0;
     background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 70%, var(--card));
@@ -586,51 +597,139 @@ label.ts-register-save-link {
     display: none !important;
 }
 
-.ts-stammdaten-core-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px 22px;
-    align-items: start;
-    margin-bottom: 22px;
-}
-.ts-stammdaten-core-grid .field {
-    margin: 0;
-}
 .ts-stammdaten-core-hint {
     color: var(--muted);
     display: block;
-    margin-top: 8px;
-    font-size: 0.88em;
-    line-height: 1.45;
+    margin-top: 4px;
+    font-size: 0.8em;
+    line-height: 1.4;
+    font-weight: 400;
 }
-.ts-stammdaten-core-grid__mail.ts-mail-pattern-card {
+
+/* Stammdaten-Kern: Sidebar + Pane */
+.ts-stammdaten-setup {
+    display: grid;
+    grid-template-columns: minmax(11.5rem, 13.5rem) minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    overflow: clip;
+    min-width: 0;
+}
+.ts-stammdaten-setup__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 10px;
+    background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 78%, var(--card));
+    border-right: 1px solid var(--border);
+    min-width: 0;
+}
+.ts-stammdaten-setup__nav-group {
+    margin: 12px 8px 4px;
+    padding: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ts-stammdaten-setup__nav-group:first-child {
     margin-top: 0;
 }
-.ts-stammdaten-core-grid__profile {
-    grid-column: 1 / -1;
+.ts-stammdaten-setup__nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    line-height: 1.25;
 }
-.ts-school-profile-card {
-    padding: 16px 18px;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 35%, var(--card));
+.ts-stammdaten-setup__nav-btn i {
+    flex: 0 0 auto;
+    opacity: 0.85;
 }
-.ts-school-profile-card__title {
-    margin: 0 0 6px;
-    font-size: 1.05em;
+.ts-stammdaten-setup__nav-btn span {
+    min-width: 0;
+}
+.ts-stammdaten-setup__nav-btn--sub {
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding-left: 12px;
+}
+.ts-stammdaten-setup__nav-btn:hover,
+.ts-stammdaten-setup__nav-btn:focus-visible {
+    background: color-mix(in srgb, var(--card) 70%, transparent);
+    outline: none;
+}
+.ts-stammdaten-setup__nav-btn.is-active {
+    background: var(--card);
+    border-color: color-mix(in srgb, var(--brand1, #0d6efd) 28%, var(--border));
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent);
+    color: color-mix(in srgb, var(--brand1, #0d6efd) 55%, var(--text));
+}
+.ts-stammdaten-setup__nav-btn[hidden] {
+    display: none !important;
+}
+.ts-stammdaten-setup__panes {
+    min-width: 0;
+    padding: 16px 18px 18px;
+}
+.ts-stammdaten-setup__pane {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    max-width: 42rem;
+}
+.ts-stammdaten-setup__pane[hidden] {
+    display: none !important;
+}
+.ts-stammdaten-setup__pane-head {
+    margin-bottom: 12px;
+}
+.ts-stammdaten-setup__form-compact {
+    display: grid;
+    gap: 8px;
+}
+
+.ts-school-profile-card__title,
+.ts-mail-pattern-card__title,
+.ts-stammdaten-spo-point__title {
+    margin: 0 0 4px;
+    font-size: 1.02rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 8px;
 }
-.ts-school-profile-card__lead {
-    margin: 0 0 14px;
-    font-size: 0.9em;
-    line-height: 1.45;
+.ts-school-profile-card__lead,
+.ts-mail-pattern-card__lead,
+.ts-stammdaten-spo-point__lead {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.4;
 }
 .ts-school-profile-card__layout {
     display: grid;
-    grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
-    gap: 20px 24px;
+    grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+    gap: 14px 18px;
     align-items: start;
 }
 @media (max-width: 720px) {
@@ -641,20 +740,20 @@ label.ts-register-save-link {
 .ts-school-profile-card__logo-label {
     display: block;
     font-weight: 700;
-    font-size: 0.88em;
+    font-size: 0.8em;
     color: var(--muted);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 .ts-school-profile-card__logo-frame {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100px;
+    min-height: 84px;
     border: 1px dashed color-mix(in srgb, var(--border) 80%, var(--muted));
-    border-radius: 12px;
-    background: var(--card);
-    font-size: 0.88em;
-    margin-bottom: 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 40%, var(--card));
+    font-size: 0.82em;
+    margin-bottom: 6px;
 }
 .ts-school-profile-card__logo-frame[hidden] {
     display: none !important;
@@ -662,54 +761,62 @@ label.ts-register-save-link {
 .ts-school-profile-card__logo-img {
     display: block;
     max-width: 100%;
-    max-height: 120px;
-    margin-bottom: 8px;
+    max-height: 96px;
+    margin-bottom: 6px;
     border-radius: 8px;
     object-fit: contain;
 }
 .ts-school-profile-card__logo-name {
-    margin: 0 0 8px;
-    font-size: 0.82em;
+    margin: 0 0 6px;
+    font-size: 0.78em;
     min-height: 1.2em;
 }
 .ts-school-profile-card__logo-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-.ts-school-profile-card__field .ts-stammdaten-core-hint {
-    margin-top: 6px;
-    font-weight: 400;
+    gap: 6px;
+    margin-bottom: 4px;
 }
 .ts-school-profile-card__fields {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 .ts-school-profile-card__row2 {
     display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 10px 14px;
+    grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr);
+    gap: 8px 10px;
 }
-@media (max-width: 520px) {
-    .ts-school-profile-card__row2 {
+.ts-school-profile-card__row2--equal {
+    grid-template-columns: 1fr 1fr;
+}
+.ts-school-profile-card__row3 {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 8px 10px;
+}
+@media (max-width: 560px) {
+    .ts-school-profile-card__row2,
+    .ts-school-profile-card__row2--equal,
+    .ts-school-profile-card__row3 {
         grid-template-columns: 1fr;
     }
 }
 .ts-school-profile-card__field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 0.88em;
+    gap: 3px;
+    font-size: 0.8em;
     font-weight: 600;
     color: var(--muted);
+    min-width: 0;
 }
-.ts-school-profile-card__field input {
+.ts-school-profile-card__field input,
+.ts-stammdaten-setup__form-compact .ts-school-profile-card__field input {
     font: inherit;
     font-weight: 400;
     color: inherit;
-    padding: 8px 10px;
-    border-radius: 8px;
+    padding: 6px 9px;
+    border-radius: 7px;
     border: 1px solid #ced4da;
     width: 100%;
     box-sizing: border-box;
@@ -717,59 +824,10 @@ label.ts-register-save-link {
 .ts-school-profile-card__field--wide {
     grid-column: 1 / -1;
 }
-.ts-stammdaten-spo-cluster {
-    padding: 18px 20px 16px;
-    border-radius: 16px;
-    border: 1px solid var(--border);
-    background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 40%, var(--card));
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent);
+.ts-school-profile-card__field--plz {
+    max-width: none;
 }
-.ts-stammdaten-spo-cluster__head {
-    margin-bottom: 6px;
-}
-.ts-stammdaten-spo-cluster__title {
-    margin: 0 0 6px;
-    font-size: 1.12em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.ts-stammdaten-spo-cluster__lead {
-    margin: 0;
-    font-size: 0.92em;
-    line-height: 1.45;
-}
-.ts-stammdaten-spo-point {
-    padding: 16px 0 14px;
-    border-top: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-}
-.ts-stammdaten-spo-point:first-of-type {
-    border-top: none;
-    padding-top: 12px;
-}
-.ts-stammdaten-spo-point__head {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 6px;
-}
-.ts-stammdaten-spo-point__num {
-    flex: 0 0 auto;
-    font-weight: 800;
-    font-size: 0.95em;
-    color: var(--brand1, #0d6efd);
-    line-height: 1.2;
-}
-.ts-stammdaten-spo-point__title {
-    margin: 0;
-    font-size: 1em;
-    font-weight: 700;
-}
-.ts-stammdaten-spo-point__lead {
-    margin: 0 0 10px;
-    font-size: 0.88em;
-    line-height: 1.45;
-}
+
 .ts-stammdaten-spo-point__link {
     margin: 10px 0 0;
     text-decoration: none;
@@ -777,27 +835,23 @@ label.ts-register-save-link {
     align-items: center;
     gap: 6px;
 }
-@media (max-width: 960px) {
-    .ts-stammdaten-core-grid {
-        grid-template-columns: 1fr;
-    }
-}
 .ts-intranet-site-card__label {
     display: block;
     font-weight: 700;
-    font-size: 0.92em;
-    margin-bottom: 6px;
+    font-size: 0.82em;
+    color: var(--muted);
+    margin: 4px 0 4px;
 }
 .ts-intranet-site-card__url-row,
 .ts-stammdaten-spo-point .ts-intranet-site-card__url-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 10px;
+    gap: 6px 8px;
     align-items: center;
     max-width: 100%;
 }
 .ts-intranet-site-card__url-row .ts-intranet-site-card__input {
-    flex: 1 1 16rem;
+    flex: 1 1 14rem;
     min-width: 0;
 }
 .ts-intranet-site-card__url-row .btn {
@@ -809,16 +863,16 @@ label.ts-register-save-link {
     width: 100%;
     max-width: none;
     box-sizing: border-box;
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     font: inherit;
 }
 .ts-intranet-site-card__status {
-    margin: 10px 0 0;
-    font-size: 0.9em;
-    line-height: 1.45;
-    min-height: 1.25em;
+    margin: 6px 0 0;
+    font-size: 0.84em;
+    line-height: 1.4;
+    min-height: 1.1em;
 }
 .ts-intranet-site-card__status:empty {
     display: none;
@@ -838,10 +892,297 @@ label.ts-register-save-link {
 .ts-intranet-site-card__status[data-tone='pending'] {
     color: var(--muted);
 }
-.ts-it-library-embed {
-    margin-top: 16px;
-    padding: 12px 14px;
+.ts-planer-apps-pane {
+    max-width: 46rem;
+}
+.ts-planer-apps-stack {
+    display: grid;
+    gap: 14px;
+}
+.ts-planer-apps-block {
+    margin: 0;
+    padding: 14px 16px;
     border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--brand1, #0d6efd) 14%, var(--border));
+    background: color-mix(in srgb, var(--card) 88%, var(--surface-muted, #f4f5f8));
+    display: grid;
+    gap: 10px;
+}
+.ts-planer-apps-block--status {
+    background: color-mix(in srgb, var(--card) 96%, #e8f5ef);
+    border-color: color-mix(in srgb, #1a7f4b 18%, var(--border));
+}
+.ts-planer-apps-block__head {
+    display: grid;
+    gap: 2px;
+}
+.ts-planer-apps-block__head--row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 8px 12px;
+}
+.ts-planer-apps-block__title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ts-planer-apps-block__lead,
+.ts-planer-apps-block__meta {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+.ts-planer-apps-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.ts-planer-apps-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: inherit;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1.2;
+}
+.ts-planer-apps-action:hover,
+.ts-planer-apps-action:focus-visible {
+    border-color: color-mix(in srgb, var(--brand1, #0d6efd) 40%, var(--border));
+    outline: none;
+}
+.ts-planer-apps-action--accent {
+    border-color: color-mix(in srgb, var(--brand1, #0d6efd) 35%, var(--border));
+    background: color-mix(in srgb, var(--brand1, #0d6efd) 10%, var(--card));
+    color: color-mix(in srgb, var(--brand1, #0d6efd) 55%, var(--text));
+}
+.ts-planer-apps-status {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+.ts-planer-apps-status__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px 10px;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+.ts-planer-apps-status__icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--brand1, #0d6efd) 12%, var(--card));
+    color: color-mix(in srgb, var(--brand1, #0d6efd) 50%, var(--text));
+    font-size: 0.95rem;
+}
+.ts-planer-apps-status__icon.is-ok {
+    background: color-mix(in srgb, #1a7f4b 14%, var(--card));
+    color: #1a7f4b;
+}
+.ts-planer-apps-status__icon.is-empty {
+    background: color-mix(in srgb, var(--muted) 12%, var(--card));
+    color: var(--muted);
+}
+.ts-planer-apps-status__body {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+}
+.ts-planer-apps-status__name {
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+.ts-planer-apps-status__site {
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ts-planer-apps-status__tag {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 80%, var(--card));
+    color: var(--muted);
+}
+.ts-planer-apps-status__tag.is-primary {
+    background: color-mix(in srgb, #1a7f4b 12%, var(--card));
+    color: #1a7f4b;
+}
+.ts-planer-apps-status__tag.is-override {
+    background: color-mix(in srgb, var(--brand1, #0d6efd) 12%, var(--card));
+    color: color-mix(in srgb, var(--brand1, #0d6efd) 55%, var(--text));
+}
+.ts-planer-apps-overrides {
+    padding: 0;
+    overflow: hidden;
+}
+.ts-planer-apps-overrides__summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+.ts-planer-apps-overrides__summary::-webkit-details-marker {
+    display: none;
+}
+.ts-planer-apps-overrides__summary > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.ts-planer-apps-overrides__hint {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.ts-planer-apps-overrides[open] .ts-planer-apps-overrides__summary {
+    border-bottom: 1px solid var(--border);
+}
+.ts-planer-apps-overrides__lead {
+    margin: 0;
+    padding: 10px 16px 0;
+    font-size: 0.84rem;
+}
+.ts-planer-apps-overrides__grid {
+    display: grid;
+    gap: 8px;
+    padding: 10px 16px 14px;
+}
+.ts-planer-apps-overrides__row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: center;
+    margin: 0;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+.ts-planer-apps-overrides__row input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 500;
+    background: var(--card);
+}
+.ts-planer-apps-mailbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.ts-planer-apps-mailbox {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+.ts-planer-apps-mailbox__label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+.ts-planer-apps-mailbox__badge {
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #1a7f4b 12%, var(--card));
+    color: #1a7f4b;
+}
+.ts-planer-apps-mailbox__field {
+    margin: 0;
+    display: block;
+}
+.ts-planer-apps-mailbox__field input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    background: color-mix(in srgb, var(--surface-muted, #f4f5f8) 35%, var(--card));
+}
+.ts-planer-apps-mailbox__foot {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+.ts-planer-apps-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    padding: 2px 2px 0;
+}
+.ts-planer-apps-footer__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: color-mix(in srgb, var(--brand1, #0d6efd) 45%, var(--text));
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ts-planer-apps-footer__link:hover,
+.ts-planer-apps-footer__link:focus-visible {
+    text-decoration: underline;
+    outline: none;
+}
+@media (max-width: 720px) {
+    .ts-planer-apps-mailbox-grid {
+        grid-template-columns: 1fr;
+    }
+    .ts-planer-apps-overrides__row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+    .ts-planer-apps-block__head--row {
+        grid-template-columns: 1fr;
+    }
+}
+.ts-it-library-embed {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
     border: 1px solid color-mix(in srgb, var(--brand1, #0d6efd) 18%, var(--border));
     background: color-mix(in srgb, var(--card) 92%, var(--surface-muted, #f4f5f8));
 }
@@ -857,21 +1198,21 @@ label.ts-register-save-link {
     display: none;
 }
 .ts-it-library-embed__body {
-    margin-top: 12px;
+    margin-top: 10px;
     display: grid;
     gap: 8px;
 }
 .ts-it-library-embed__lead {
     margin: 0 0 4px;
-    font-size: 0.9em;
-    line-height: 1.45;
+    font-size: 0.86em;
+    line-height: 1.4;
 }
 .ts-it-library-embed__actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 .ts-it-library-embed__actions .btn {
     margin: 0;
@@ -881,33 +1222,14 @@ label.ts-register-save-link {
     gap: 6px;
 }
 .ts-it-library-embed__log-wrap {
-    margin-top: 8px;
-    font-size: 0.88em;
+    margin-top: 6px;
+    font-size: 0.84em;
 }
 .ts-it-library-embed__log {
-    margin-top: 8px;
+    margin-top: 6px;
     max-height: 140px;
     overflow: auto;
-    font-size: 0.82em;
-}
-.ts-mail-pattern-card {
-    margin: 14px 0 4px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    background: var(--card);
-}
-.ts-mail-pattern-card__title {
-    margin: 0 0 6px;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.ts-mail-pattern-card__lead {
-    margin: 0 0 12px;
-    font-size: 0.9rem;
-    line-height: 1.45;
+    font-size: 0.8em;
 }
 .ts-mail-pattern-card__row {
     display: flex;
@@ -918,24 +1240,25 @@ label.ts-register-save-link {
 }
 .ts-mail-pattern-card__label {
     font-weight: 700;
+    font-size: 0.86rem;
 }
 .ts-mail-pattern-card__select {
-    padding: 8px 10px;
-    border-radius: 10px;
+    padding: 6px 9px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     font: inherit;
-    min-width: 12rem;
+    min-width: 11rem;
 }
 .ts-mail-pattern-card__presets-label {
     margin: 0 0 6px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--muted);
 }
 .ts-mail-pattern-card__presets {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 8px;
 }
 .ts-mail-pattern-card__presets .btn.is-active {
@@ -944,14 +1267,46 @@ label.ts-register-save-link {
 }
 .ts-mail-pattern-card__mode-hint {
     margin: 0 0 8px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 .ts-mail-pattern-card__custom {
     margin-top: 8px;
 }
 .ts-mail-pattern-card__preview {
-    margin: 12px 0 0;
-    font-size: 0.92rem;
+    margin: 10px 0 0;
+    font-size: 0.88rem;
+}
+
+@media (max-width: 860px) {
+    .ts-stammdaten-setup {
+        grid-template-columns: 1fr;
+    }
+    .ts-stammdaten-setup__nav {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 4px;
+        padding: 10px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        -webkit-overflow-scrolling: touch;
+    }
+    .ts-stammdaten-setup__nav-group {
+        display: none;
+    }
+    .ts-stammdaten-setup__nav-btn {
+        flex: 0 0 auto;
+        width: auto;
+        white-space: nowrap;
+        padding: 7px 10px;
+        font-size: 0.84rem;
+    }
+    .ts-stammdaten-setup__nav-btn--sub {
+        padding-left: 10px;
+    }
+    .ts-stammdaten-setup__panes {
+        padding: 14px 14px 16px;
+    }
 }
 .ts-email-pattern-builder {
     display: flex;
@@ -1096,31 +1451,42 @@ label.ts-register-save-link {
     color: var(--muted);
 }
 
+.ts-intranet-list-names {
+    margin: 10px 0 0;
+    padding: 0;
+    border: none;
+    min-width: 0;
+}
 .ts-intranet-list-names__hint {
-    margin: 0 0 12px;
-    font-size: 0.88em;
-    line-height: 1.45;
+    margin: 0 0 8px;
+    font-size: 0.8em;
+    line-height: 1.4;
 }
 .ts-intranet-list-names__grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
     max-width: 36rem;
+}
+@media (max-width: 560px) {
+    .ts-intranet-list-names__grid {
+        grid-template-columns: 1fr;
+    }
 }
 .ts-intranet-list-names__row {
     display: grid;
-    grid-template-columns: minmax(7.5rem, 9.5rem) minmax(0, 1fr);
-    gap: 8px 14px;
+    grid-template-columns: minmax(5.5rem, 7.25rem) minmax(0, 1fr);
+    gap: 4px 8px;
     align-items: center;
 }
-@media (max-width: 520px) {
+@media (max-width: 420px) {
     .ts-intranet-list-names__row {
         grid-template-columns: 1fr;
-        gap: 4px;
+        gap: 3px;
     }
 }
 .ts-intranet-list-names__type {
-    font-size: 0.92em;
+    font-size: 0.82em;
     font-weight: 600;
     color: var(--text, inherit);
     margin: 0;
@@ -1129,23 +1495,106 @@ label.ts-register-save-link {
     width: 100%;
     box-sizing: border-box;
     font: inherit;
-    padding: 8px 10px;
-    border-radius: 8px;
+    padding: 6px 8px;
+    border-radius: 7px;
     border: 1px solid #ced4da;
 }
 .ts-sv-pick-board {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    background: color-mix(in srgb, var(--surface) 92%, #fff);
-    max-width: 42rem;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    max-width: none;
+}
+.ts-sv-pick-board__slots {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+}
+@media (max-width: 960px) {
+    .ts-sv-pick-board__slots {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 640px) {
+    .ts-sv-pick-board__slots {
+        grid-template-columns: 1fr;
+    }
 }
 .ts-sv-pick-board__slots .ts-sga-board__slot {
-    border-top: 1px solid var(--border);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 92%, #fff);
+    min-width: 0;
 }
-.ts-sv-pick-board__slots .ts-sga-board__slot:first-child {
-    border-top: none;
-    padding-top: 0;
+.ts-sv-pick-board__slots .ts-sga-board__slot:first-child,
+.ts-sv-pick-board__slots .ts-sga-board__slot:first-of-type {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+}
+.ts-sv-pick-board__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 1.7rem;
+}
+.ts-sv-pick-board__slots .ts-sga-board__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brand1, #5e72e4) 14%, transparent);
+    color: var(--brand1, #5e72e4);
+    font-size: 0.82rem;
+    line-height: 1;
+}
+.ts-sv-pick-board__slots .ts-sga-board__pick,
+.ts-sv-pick-board__slots .ts-sga-board__preview {
+    grid-column: auto;
+    width: 100%;
+    min-width: 0;
+}
+.ts-sv-pick-board__slots .ts-sga-board__preview {
+    word-break: break-word;
+}
+.ts-sv-pick-board__clear {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted, #6c757d);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+.ts-sv-pick-board__clear .bi {
+    font-size: 0.78rem;
+}
+.ts-sv-pick-board__clear:hover {
+    background: color-mix(in srgb, #dc3545 12%, transparent);
+    color: #b02a37;
+}
+.ts-sv-pick-board__clear:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--brand1, #5e72e4) 55%, transparent);
+    outline-offset: 2px;
 }
 
 .ts-register-m365-block {

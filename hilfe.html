@@ -808,13 +808,28 @@
                     </article>
 
                     <article class="help-article" data-help-article data-search="diplomarbeit dipl naming betreuung gruppe team">
-                        <h3 id="tool-diplomarbeiten">Diplomarbeiten <span class="pill">Standard</span></h3>
+                        <h3 id="tool-diplomarbeiten">Diplomarbeiten / VWA <span class="pill">Unterricht</span></h3>
                         <p>
-                            Einheitliches Naming: Anzeigename <code>Diplomarbeit {Jahr} – Thema</code>,
-                            Alias <code>dipl-{jahr}-{slug}</code>. Bestehende Diplom-Gruppen lassen sich im Tenant filtern.
-                            Freigaben und Mails sollen über die Gruppe laufen – nicht über persönliche Postfächer.
+                            Abschlussarbeiten koordiniert: <strong>Standard</strong> ist ein Dach-Team
+                            <strong>pro Maturajahrgang</strong> mit privaten Kanälen je Arbeit (Betreuung + Schüler:innen).
+                            <strong>Legacy</strong>: eigene Gruppen/Teams mit Naming
+                            <code>Diplomarbeit {Jahr} – Thema</code> / <code>dipl-{jahr}-{slug}</code>
+                            (bei AHS: VWA / <code>vwa-</code>). Details: <code>docs/diplomarbeiten.md</code>.
                         </p>
-                        <p class="help-open"><a href="tools/diplomarbeiten.html">→ Diplomarbeiten öffnen</a></p>
+                        <p class="help-open"><a href="tools/diplomarbeiten.html">→ Diplomarbeiten / VWA öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="teams antrag beantragen freigabe it nomenklatur schüler graph">
+                        <h3 id="tool-teams-antrag">Teams-Antrag <span class="pill">Core &amp; Ablauf</span></h3>
+                        <p>
+                            Lehrkräfte und Schüler:innen beantragen ein Team über die schulische Entra-ID.
+                            Freigeben dürfen Mitglieder der <strong>Sicherheitsgruppe „Wer darf Teams anlegen?“</strong>
+                            (reine Security-Group / Group.Unified), optional Extra-Mails und die Schul-IT.
+                            In den Einstellungen Gruppe übernehmen oder suchen; Bulk parallel über
+                            <a href="tools/weitere-teams-gruppen.html">Weitere Teams &amp; Gruppen</a>.
+                            Details: <code>docs/teams-antrag.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/teams-antrag.html">→ Teams-Antrag öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="spielwiese demo schilf notebook klassennotizbuch lehrer demo-schueler wizard">
@@ -1244,16 +1259,21 @@
                         <p class="help-open"><a href="tools/projektwochen.html">→ Projektwochen öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang seminar wahlfach">
-                        <h3 id="tool-srdp-anmeldung">sRDP-Anmeldung <span class="pill">SharePoint</span></h3>
+                    <article class="help-article" data-help-article data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang seminar wahlfach schüler lehrer auswertung">
+                        <h3 id="tool-srdp-anmeldung">sRDP-Anmeldung <span class="pill">Planung</span></h3>
                         <p>
-                            Richtet pro Schulform und Terminjahr eine Liste ein (HAK, HTL, HLW, BAFEB, AHS),
-                            inkl. SharePoint-Listenformular (Header mit Prüfplan, Seminar nur bei Wahlfach Seminar),
-                            farbigen Spalten, Ansichten nach Klasse und Variante sowie Gruppenrechten.
-                            Klassen und Lehrer aus den Stammdaten; LFS, Wahlfach und Seminar im Setup-Wizard.
+                            Online-Anmeldung zur sRDP/Matura mit linker Navigation (wie Schulaktivitäten):
+                            Schüler:innen füllen ein Formular und sehen sofort die Zusammenfassung;
+                            Lehrkräfte sehen „Meine Prüfungen“ und ggf. die KV-Klasse;
+                            Admin/Sekretariat: Übersicht und Auswertung.
+                            Einrichtung (Liste pro Jahr &amp; Schulform, LFS/Wahlfach/Seminar, Rechte) bleibt im Setup-Wizard.
                             Planung: <code>docs/srdp-anmeldung.md</code>.
                         </p>
-                        <p class="help-open"><a href="tools/sharepoint-liste-srdp.html">→ sRDP-Anmeldung öffnen</a></p>
+                        <p class="help-open">
+                            <a href="tools/srdp-anmeldung.html">→ sRDP-Anmeldung öffnen</a>
+                            · <a href="tools/sharepoint-liste-srdp.html">Liste einrichten</a>
+                            · <a href="tools/srdp-mail-setup.html">Bestätigungsmail-Flow</a>
+                        </p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="schularbeiten planer kalender antrag fixieren export ics admin lbvo">
@@ -1266,29 +1286,198 @@
                         <p class="help-open"><a href="tools/schularbeiten-planer.html">→ Planer öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="schulsprecher schulsprecherwahl stichwahl wahl stimme schülervertretung stv qr anonym wahlpunkte">
-                        <h3 id="tool-schulsprecherwahl">Schulsprecher:innenwahl <span class="pill">Wahl</span></h3>
+                    <article class="help-article" data-help-article data-search="schulsprecher schulsprecherwahl sga lehrervertretung stichwahl wahl stimme schülervertretung stv qr anonym wahlpunkte schulwahl">
+                        <h3 id="tool-schulsprecherwahl">Schulwahlen <span class="pill">Wahl</span></h3>
                         <p>
-                            Online-Wahl nach der österreichischen Schülervertretungs-Verordnung: Wahlpunkte 6/5/4,
-                            Zeitfenster, QR-Link für die Abstimmung, Stichwahl und Auswertung.
-                            Stimmen liegen bewusst <strong>nicht</strong> in SharePoint (Anonymität).
-                            Admin: <a href="tools/schulsprecherwahl.html">Schulsprecher:innenwahl</a>;
+                            Ein Tool für Schulsprecher:innenwahl (BGBl. 388/1993, Punkte 6/5/4, ggf. Stichwahl,
+                            optional SGA-Schüler-STV 3/2/1) und SGA-Lehrervertretung (BGBl. 389/1993, Punkte 6…1,
+                            Top&nbsp;3 + 3&nbsp;STV).
+                            Zeitfenster, QR-Link, anonyme Stimmen – bewusst <strong>nicht</strong> in SharePoint.
+                            Admin: <a href="tools/schulsprecherwahl.html">Schulwahlen</a>;
                             Abstimmseite: <code>tools/schulsprecherwahl-stimme.html</code>.
                             Details: <code>docs/schulsprecherwahl.md</code>.
                         </p>
-                        <p class="help-open"><a href="tools/schulsprecherwahl.html">→ Wahl öffnen</a></p>
+                        <p class="help-open"><a href="tools/schulsprecherwahl.html">→ Schulwahlen öffnen</a></p>
                     </article>
 
-                    <article class="help-article" data-help-article data-search="exkursion schulaktivität aktivität antrag genehmigung kalender liste ics export direktion">
+                    <article class="help-article" data-help-article data-search="wahlfach schwerpunkt seminar zuteilung priorität überbuchung angebot schuljahr auhof access csv">
+                        <h3 id="tool-wahlfach-zuteilung">Wahlfach-Zuteilung <span class="pill">Zuteilung</span></h3>
+                        <p>
+                            Priorisierte Wahlfach-/Schwerpunkt-Wünsche, manuelle Zuteilung durch die Schulleitung,
+                            Schüler-Formular und CSV-Export (Vorbereitung Access-Schülerakte).
+                            SharePoint ist System of Record:
+                            <a href="tools/sharepoint-liste-wahlfach.html">Wahlfach-Listen</a> (vier Listen per Mausklick).
+                            Admin: <a href="tools/wahlfach-zuteilung.html">Wahlfach-Zuteilung</a>;
+                            Anmeldung: <a href="tools/wahlfach-anmeldung.html">Wahlfach anmelden</a>.
+                            Details: <code>docs/wahlfach-zuteilung.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/wahlfach-zuteilung.html">→ Wahlfach-Zuteilung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="ausgaben schlüssel raumkarte schrankenkarte parkplatz inventar ausgeben retour zugang vorlage">
+                        <h3 id="tool-ausgaben">Ausgabenverwaltung <span class="pill">Ausgaben &amp; Zugang</span></h3>
+                        <p>
+                            Einheitliches Inventar: Schlüssel, Raum-/Schrankenkarten, Parkplatz/Zufahrt und
+                            <strong>eigene Typen</strong> (Vorlagen nur als Start). Ausgeben, Zurücknehmen,
+                            überfällige Vorgänge, CSV-Import und Übergabeprotokoll – alles im Schultool.
+                            SharePoint-Paket legt Inventar- und Vorgangslisten an (Typ als Textfeld, nicht starr).
+                            Tool: <a href="tools/ausgaben.html">Ausgabenverwaltung</a>;
+                            Listen: <a href="tools/sharepoint-liste-ausgaben.html">SharePoint</a>.
+                            Details: <code>docs/ausgaben.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/ausgaben.html">→ Ausgabenverwaltung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="kalender und termine termine hub kalender outlook abwesenheit schultermine lehrerkalender schuelerkalender schulkalender woche monat betrieb portal">
+                        <h3 id="tool-termine-hub">Kalender und Termine <span class="pill">Betrieb &amp; Portal</span></h3>
+                        <p>
+                            Zeigt und pflegt die echten Outlook-Kalender der Schule (Schulkalender, Lehrerkalender, Schülerkalender, eigener Kalender) –
+                            Wochen- und Monatsansicht, Termine anlegen und löschen. Kein Parallel-Kalender.
+                            <strong>Kalender-Quellen</strong> (UPNs) legt nur die IT fest – Lehrkräfte sehen u. a. den Lehrerkalender,
+                            Schüler/innen den Schülerkalender; UPNs stammen aus
+                            <a href="tools/kalender-postfaecher.html">Kalender-Postfächer</a>.
+                            Abwesenheiten laufen über die Freistellungs-Tools.
+                            Tool: <a href="tools/termine-hub.html">Kalender und Termine</a>.
+                        </p>
+                        <p class="help-open"><a href="tools/termine-hub.html">→ Kalender und Termine öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="aufgaben zuweisung rolle priorität frist status kollegium inbox betrieb sharepoint">
+                        <h3 id="tool-aufgaben">Aufgaben <span class="pill">Betrieb &amp; Portal</span></h3>
+                        <p>
+                            Interne Aufgaben an Personen oder Rollen zuweisen, priorisieren und abhaken
+                            (Status offen → in Arbeit → erledigt). Scope: mir / von mir; Admin optional alle.
+                            Vorlagen, Stammdaten-/Entra-Picker, SharePoint-Sync und mailto/PA-Mail.
+                            Demo nur mit <code>?demo=1</code> oder System-Button; Listen-Setup nur IT.
+                            Tool: <a href="tools/aufgaben.html">Aufgaben</a>;
+                            Liste: <a href="tools/sharepoint-liste-aufgaben.html">SharePoint</a>.
+                            Docs: <a href="docs/aufgaben.md">aufgaben.md</a>.
+                        </p>
+                        <p class="help-open"><a href="tools/aufgaben.html">→ Aufgaben öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="technik meldungen ticket beamer pc raum defekt it support priorität status betrieb sharepoint">
+                        <h3 id="tool-technik-meldungen">Technik-Meldungen <span class="pill">Betrieb &amp; Portal</span></h3>
+                        <p>
+                            Lehrkräfte und Schüler melden defekte oder problematische Technik;
+                            IT/Admin bearbeitet Status (offen → in Arbeit → erledigt). Keine Passwort-Datenbank.
+                            Tool: <a href="tools/technik-meldungen.html">Technik-Meldungen</a>;
+                            Liste: <a href="tools/sharepoint-liste-technik-meldungen.html">SharePoint</a>.
+                        </p>
+                        <p class="help-open"><a href="tools/technik-meldungen.html">→ Technik-Meldungen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="raumplan räume gebäude stockwerk csv plan viewer technik betrieb sharepoint">
+                        <h3 id="tool-raumplan">Raumplan <span class="pill">Betrieb &amp; Portal</span></h3>
+                        <p>
+                            Raumliste pflegen, CSV importieren, Plan als Bild anzeigen und Technik-Meldungen
+                            mit Raum-Code verknüpfen. Plan-Bild bleibt lokal; Raumstammdaten optional in SharePoint.
+                            Tool: <a href="tools/raumplan.html">Raumplan</a>;
+                            Liste: <a href="tools/sharepoint-liste-raumplan.html">SharePoint</a>.
+                        </p>
+                        <p class="help-open"><a href="tools/raumplan.html">→ Raumplan öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="kollegium umfrage lehrkraft kv schilf stundenplan vorlage auswertung msal sharepoint ablauf">
+                        <h3 id="tool-kollegium-umfragen">Kollegiumsumfragen <span class="pill">Eltern &amp; Ablauf</span></h3>
+                        <p>
+                            Umfragen nur für angemeldete Lehrkräfte (MSAL): Vorlagen (Ja/Nein, Klassenwunsch, SCHILF, Stundenplan, KV),
+                            Zielgruppen (Kollegium, Klassenvorstände, Abteilung, manuelle Liste), Auswertung und CSV im Tool.
+                            Datenbasis bewusst SharePoint (Listen-Paket) – nicht Microsoft Forms, damit Schulen die Struktur anpassen
+                            und aus dem Schultool heraus verwalten können.
+                            Admin: <a href="tools/kollegium-umfragen.html">Kollegiumsumfragen</a>;
+                            Antworten: <a href="tools/kollegium-umfragen-antwort.html">Antwort-Seite</a>;
+                            Listen: <a href="tools/sharepoint-liste-kollegium-umfragen.html">SharePoint</a>.
+                            Details: <code>docs/kollegium-umfragen.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/kollegium-umfragen.html">→ Kollegiumsumfragen öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="krankmeldung entschuldigung abwesenheit eltern inbox sekretariat tag woche klasse ablauf">
+                        <h3 id="tool-krankmeldung">Krankmeldung <span class="pill">Eltern &amp; Ablauf</span></h3>
+                        <p>
+                            Einfache Krankmeldung durch Erziehungsberechtigte über ein öffentliches Formular
+                            (ohne Microsoft-Konto) mit <strong>Klassenauswahl</strong>. Klassen vorher unter
+                            Einstellungen aus Stammdaten übernehmen und den Formular-Link teilen
+                            (<code>?klassen=…</code>). Sekretariat/KV sieht eine Inbox nach Tag, Woche und Klasse
+                            und markiert Meldungen „zur Kenntnis“ oder archiviert sie – bewusst schlank neben
+                            WebUntis-Entschuldigungen, ideal für kleinere Schulen.
+                            Admin: <a href="tools/krankmeldung.html">Krankmeldung</a>;
+                            Formular: <a href="tools/krankmeldung-formular.html">krankmeldung-formular.html</a>;
+                            Liste: <a href="tools/sharepoint-liste-krankmeldung.html">SharePoint</a>.
+                            Details: <code>docs/krankmeldung.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/krankmeldung.html">→ Krankmeldung öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="einsammler einwilligung lesebestätigung foto exkursion wandertag abgabe ablauf antworten">
+                        <h3 id="tool-einsammler">Einsammler <span class="pill">Eltern &amp; Ablauf</span></h3>
+                        <p>
+                            Digitale Einwilligungen, Lesebestätigungen und <strong>Datei-/Bildabgaben</strong>: Vorgang anlegen,
+                            <strong>Klassen aus Stammdaten</strong> wählen, Empfänger übernehmen, aktivieren und
+                            <strong>persönliche Eltern-Links</strong> teilen (Magic-Link, ohne Microsoft-Konto).
+                            Eltern können zustimmen und optional/pflichtig Dateien hochladen. Status manuell nur als Fallback.
+                            Noch kein automatischer Mailversand – „Mail vorbereiten“ öffnet das lokale Mailprogramm.
+                            Elternseite: <a href="tools/einsammler-antwort.html">einsammler-antwort.html</a>;
+                            Listen: <a href="tools/sharepoint-liste-einsammler.html">Einsammler-Listen</a>.
+                            Details: <code>docs/einsammler.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/einsammler.html">→ Einsammler öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="elternbrief vorlage brief information lesebestätigung anhang klasse absender postfach ablauf">
+                        <h3 id="tool-elternbrief">Elternbrief <span class="pill">Eltern &amp; Ablauf</span></h3>
+                        <p>
+                            Eigenes Tool für digitale Elternbriefe: <strong>Vorlagen</strong>, Text-Editor, optionaler
+                            <strong>Anhang</strong>, Klassen aus Stammdaten, Absender (eigenes Konto oder zentrales Postfach)
+                            und <strong>persönliche Leselinks</strong> mit Lesebestätigung. Kein Papier, kein reiner
+                            Einsammler-Modus – Überblick über alle Briefe und wer schon gelesen hat.
+                            Noch kein automatischer Serienversand – Links teilen oder „Mail vorbereiten“.
+                            Leseseite: <a href="tools/elternbrief-lesen.html">elternbrief-lesen.html</a>;
+                            Listen: <a href="tools/sharepoint-liste-elternbrief.html">Elternbrief-Listen</a>.
+                            Details: <code>docs/elternbrief.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/elternbrief.html">→ Elternbrief öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="stammdaten einschreibung anmeldung eltern sokrates svnr pin guid formular portal">
+                        <h3 id="tool-schueler-stammdaten-portal">Schüler-Stammdaten-Portal <span class="pill">Einschreibung</span></h3>
+                        <p>
+                            Erziehungsberechtigte pflegen Schüler-Stammdaten über einen persönlichen Link
+                            (<code>?id=GUID&amp;mode=remote</code>) und einen getrennten PIN – ohne Microsoft-Konto.
+                            Speicherung live in SharePoint-Liste <code>SchuelerAnmeldungen</code> (Gateway
+                            <code>func-ms365-ssp-dev</code>). Sekretariat legt Datensätze an, exportiert
+                            Sokrates-Einschreiber-XLSX und konfiguriert das Feldprofil.
+                            Admin: <a href="tools/schueler-stammdaten-portal.html">Portal</a>;
+                            Elternseite: <code>tools/schueler-stammdaten-formular.html</code>.
+                            Details: <code>docs/schueler-stammdaten-portal.md</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/schueler-stammdaten-portal.html">→ Portal öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="exkursion schulaktivität aktivität antrag genehmigung kalender liste ics export direktion approvals">
                         <h3 id="tool-schulaktivitaeten-planer">Schulaktivitäten <span class="pill">Planung</span></h3>
                         <p>
-                            Exkursionen und schulische Aktivitäten beantragen (Typ, Klasse, Ort, Zeitraum, Begleitung),
-                            in Liste und Kalender führen, durch Direktion/Admin genehmigen oder ablehnen, als
-                            <strong>ICS</strong> exportieren. Daten in SharePoint. Listen zuerst mit
-                            <a href="tools/sharepoint-liste-schulaktivitaeten.html">Schulaktivitäten-Listen</a> anlegen.
+                            Exkursionen und schulische Aktivitäten beantragen (Typ, Klasse/Gruppe, Ort, Zeitraum, Begleitung),
+                            in Liste und Kalender führen, genehmigen oder ablehnen, als <strong>ICS</strong> herunterladen
+                            oder als abonnierbaren <strong>ICS-Feed</strong> (nur genehmigte Termine mit Klasse, Verantwortlich, Begleitung …) auf der Site veröffentlichen.
+                            Daten in SharePoint. Listen mit
+                            <a href="tools/sharepoint-liste-schulaktivitaeten.html">Schulaktivitäten-Listen</a> anlegen;
+                            Microsoft Approvals über
+                            <a href="tools/schulaktivitaeten-setup.html">Schulaktivitäten Setup</a> (Flow-Paket).
                             Planung: <code>docs/schulaktivitaeten-planer.md</code>.
                         </p>
                         <p class="help-open"><a href="tools/schulaktivitaeten-planer.html">→ Schulaktivitäten öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="schulaktivität setup power automate approvals direktion flow paket sharepoint">
+                        <h3 id="tool-schulaktivitaeten-setup">Schulaktivitäten Setup <span class="pill">SharePoint + Flow</span></h3>
+                        <p>
+                            Fünf Schritte: Vorbereitung, Konten (Technik + Direktion als Approver), SharePoint-Liste,
+                            Rollen-Hinweis, Flow-Paket herunterladen und in Power Automate als Package (Legacy) importieren.
+                            Eine Microsoft-Approval an die Direktion; Status-Mail an die Lehrkraft. Untis-Erledigung bleibt im Planer.
+                        </p>
+                        <p class="help-open"><a href="tools/schulaktivitaeten-setup.html">→ Schulaktivitäten Setup öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="power automate schularbeiten status mail fixiert abgelehnt">
@@ -1622,6 +1811,35 @@
                             Chat, Planner und Aufgaben werden nicht übernommen.
                         </p>
                         <p class="help-open"><a href="tools/datei-migration.html">→ Datei-Migration öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="nextcloud webdav teams fachschaft kanal umzug intranet migration zip">
+                        <h3 id="tool-nextcloud-teams-migrate">Nextcloud → Teams <span class="pill">ZIP</span> <span class="pill">Graph</span></h3>
+                        <p>
+                            <strong>Empfohlen:</strong> Lokalen Helfer starten
+                            (<code>scripts/nextcloud-teams-migrate/Start-Helfer.cmd</code>), in der App
+                            „Lokaler Helfer → Verbinden“, Ordnerstruktur browsen und auswählen.
+                            Login steckt in <code>.env.local</code> (App-Passwort). Optional nummerierte Ordner
+                            (<code>01 Fachkonferenz</code> …) als Kanäle, dann Dry-Run und Übertragen.
+                        </p>
+                        <p>
+                            Fallback ohne Helfer: ZIP aus Nextcloud oder Ordner vom PC.
+                            Sehr große Mengen ggf. über das CLI unter
+                            <code>scripts/nextcloud-teams-migrate/</code>.
+                        </p>
+                        <p class="help-open"><a href="tools/nextcloud-teams-migrate.html">→ Nextcloud → Teams öffnen</a></p>
+                    </article>
+
+                    <article class="help-article" data-help-article data-search="kanal kanäle bulk fachschaft arge fachkonferenz curriculum material verschiedenes empfehlen kanalliste isFavoriteByDefault">
+                        <h3 id="tool-teams-kanaele-bulk">Kanäle bulk anlegen <span class="pill">Graph</span></h3>
+                        <p>
+                            Für Fachschaften und ARGEs oft dieselben Standard-Kanäle:
+                            <code>01-Fachkonferenz</code>, <code>02-Curriculum</code>, <code>03-Material</code>, <code>04-Verschiedenes</code>.
+                            Teams per Suchbegriff auswählen, Vorlage laden oder anpassen, Dry-Run prüfen und in einem Schritt anlegen.
+                            Vorhandene Kanalnamen werden übersprungen. Optional die Teams-Option
+                            „Empfehlen, dass andere diesen Kanal in ihren Kanallisten anzeigen“.
+                        </p>
+                        <p class="help-open"><a href="tools/teams-kanaele-bulk.html">→ Kanäle bulk anlegen öffnen</a></p>
                     </article>
 
                     <article class="help-article" data-help-article data-search="teams archivieren unarchive sharepoint kursteams schuljahreswechsel sammel-archivierung">

@@ -22,6 +22,7 @@ import {
     classTeamLinksFromAppData
 } from './freistellung-planer-class-context.js';
 import { loadEffectivePermissionsConfig } from './freistellung-planer-permissions.js';
+import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
 
 export { filterFreistellungen as filterItems };
 
@@ -36,28 +37,120 @@ const STUDENT_KLASSE_PICK_KEY = 'ms365-freistellung-student-klasse-pick-v1';
 export const VIEWS = [
     { id: 'dashboard', label: 'Übersicht', icon: 'bi-speedometer2', roles: ['kv', 'direktion'] },
     { id: 'liste', label: 'Liste', icon: 'bi-list-ul', roles: ['kv', 'direktion'] },
-    { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', roles: ['kv', 'direktion'] },
+    { id: 'kalender', label: 'Kalender', icon: 'bi-calendar3', roles: ['kv', 'direktion', 'schueler'] },
     { id: 'meine', label: 'Meine Anträge', icon: 'bi-person', roles: ['schueler'] },
     { id: 'antrag', label: 'Antrag stellen', icon: 'bi-plus-circle', roles: ['kv', 'direktion', 'schueler'] },
-    { id: 'freigabe', label: 'Offene Genehmigungen', icon: 'bi-check2-square', roles: ['kv', 'direktion'] },
+    { id: 'freigabe', label: 'Entscheidungen', icon: 'bi-check2-square', roles: ['kv', 'direktion'] },
     { id: 'bericht', label: 'Berichte', icon: 'bi-bar-chart', roles: ['kv', 'direktion'] },
-    { id: 'administration', label: 'Administration', icon: 'bi-gear-wide-connected', roles: ['direktion'] }
+    { id: 'administration', label: 'Systemadministration', icon: 'bi-gear-wide-connected', roles: ['direktion'] }
 ];
 
+/** @param {string} id */
+function viewById(id) {
+    return VIEWS.find((v) => v.id === id) || null;
+}
+
 /**
+ * Gruppierte Navigation nach Rolle.
+ * - Schüler: flach (Meine · Kalender · Antrag)
+ * - KV: flach (Übersicht · Liste · Kalender · Entscheidungen · Antrag) – KV = Capability, kein Dauer-Modus
+ * - Direktion: Arbeit · Auswertung · System
+ *
  * @param {FrRole|string} role
- * @param {object} [state]
+ * @param {string[]|null|undefined} [availableRoles]
+ * @param {{ planerAdminAccess?: boolean, kvKlassen?: string[] }|null} [opts]
+ * @returns {{ id: string, label: string, items: typeof VIEWS }[]}
  */
-export function viewsForRole(role, state) {
-    const r = role === 'kv' || role === 'direktion' ? role : 'schueler';
-    if (state && useKvPlanerChrome(state)) {
-        return VIEWS.filter((v) => v.id === 'dashboard' || v.id === 'kalender');
+export function navSectionsForRole(role, availableRoles, opts) {
+    const r = role === 'direktion' ? 'direktion' : role === 'kv' ? 'kv' : 'schueler';
+    const o = opts || {};
+
+    if (r === 'direktion') {
+        const showAdmin = o.planerAdminAccess !== false;
+        return [
+            {
+                id: 'arbeit',
+                label: 'Arbeit',
+                items: [
+                    viewById('dashboard'),
+                    viewById('freigabe'),
+                    { ...viewById('liste'), label: 'Alle Anträge' },
+                    viewById('kalender')
+                ].filter(Boolean)
+            },
+            {
+                id: 'auswertung',
+                label: 'Auswertung',
+                items: [viewById('bericht')].filter(Boolean)
+            },
+            {
+                id: 'system',
+                label: 'System',
+                items: showAdmin ? [viewById('administration')].filter(Boolean) : []
+            }
+        ].filter((s) => (s.items || []).length);
     }
-    let views = VIEWS.filter((v) => v.roles.includes(r));
-    if (r === 'direktion' && state && !state.planerAdminAccess) {
-        views = views.filter((v) => v.id !== 'administration');
+
+    if (r === 'kv') {
+        return [
+            {
+                id: 'arbeit',
+                label: '',
+                items: [
+                    viewById('dashboard'),
+                    viewById('liste'),
+                    viewById('kalender'),
+                    viewById('freigabe'),
+                    viewById('antrag')
+                ].filter(Boolean)
+            }
+        ];
     }
-    return views;
+
+    return [
+        {
+            id: 'arbeit',
+            label: '',
+            items: [viewById('meine'), viewById('kalender'), viewById('antrag')].filter(Boolean)
+        }
+    ];
+}
+
+/**
+ * Flache View-Liste (Allowed-Checks / Tests).
+ * @param {FrRole|string} role
+ * @param {object|string[]|null|undefined} [stateOrRoles]
+ * @param {{ planerAdminAccess?: boolean, kvKlassen?: string[] }|null} [opts]
+ */
+export function viewsForRole(role, stateOrRoles, opts) {
+    // Legacy: viewsForRole(role, state) – state hat planerAdminAccess / role
+    if (stateOrRoles && typeof stateOrRoles === 'object' && !Array.isArray(stateOrRoles)) {
+        const state = stateOrRoles;
+        return navSectionsForRole(role, state.planerRoles, {
+            planerAdminAccess: state.planerAdminAccess !== false,
+            ...(opts || {})
+        }).flatMap((s) => s.items || []);
+    }
+    return navSectionsForRole(role, stateOrRoles, opts).flatMap((s) => s.items || []);
+}
+
+/**
+ * Klassenvorstand-Fähigkeit über Stammdaten – nicht als App-Modus.
+ * @param {object} state
+ */
+export function hasFrKvCapability(state) {
+    if (!state) return false;
+    if (state.role === 'direktion' && !state.demoPersonaEmail) return true;
+    if (state.role === 'kv') return true;
+    if (state.kvMatch) return true;
+    return (state.planerRoles || []).map((r) => String(r || '').toLowerCase()).includes('kv');
+}
+
+/** Effektive E-Mail (Demo-Persona überschreibt für Filter/Scope). */
+export function effectiveAccountEmail(state) {
+    return String((state && (state.demoPersonaEmail || state.accountEmail)) || '')
+        .trim()
+        .toLowerCase();
 }
 
 /**
@@ -89,10 +182,12 @@ export function useStudentPlanerChrome(state) {
 }
 
 /**
- * Klassenvorstand ohne IT-Leiste (SharePoint-URL, Setup, CSV) – nur Schüler-Übersicht.
+ * Klassenvorstand ohne IT-Leiste (SharePoint-URL, Setup, CSV).
+ * Navigation bleibt vollständig (Capability) – nur Chrome/IT ausgeblendet.
  */
 export function useKvPlanerChrome(state) {
     if (!state || state.demoRoleOverride) return false;
+    if (state.demoPersonaEmail) return true;
     if (state.role !== 'kv') return false;
     try {
         const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search || '' : '');
@@ -127,6 +222,14 @@ export function useMinimalPlanerChrome(state) {
 
 export function createInitialState() {
     const setup = loadSetupCfg();
+    const now = new Date();
+    const weekAnchor = (() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        const day = (d.getDay() + 6) % 7;
+        d.setDate(d.getDate() - day);
+        return d.toISOString();
+    })();
     return {
         role: resolveRole(),
         view: 'meine',
@@ -141,8 +244,20 @@ export function createInitialState() {
         accountName: '',
         items: [],
         stammdaten: { classes: [], teachers: [] },
+        /** Live-Hydrate-Meta (Klassen/Lehrer aus SharePoint) */
+        stammdatenLive: {
+            ok: false,
+            error: '',
+            classCount: 0,
+            teacherCount: 0,
+            missing: /** @type {string[]} */ ([]),
+            source: ''
+        },
         filters: { klasse: '', status: '', kategorie: '', multiDay: '', q: '' },
+        filterMultiOpen: { klasse: false, status: false, kategorie: false },
+        filterMultiQuery: { klasse: '', status: '', kategorie: '' },
         form: emptyForm(),
+        formStep: 1,
         editingItemId: null,
         detailId: null,
         ctx: null,
@@ -150,6 +265,9 @@ export function createInitialState() {
         entraGroupsConfigured: false,
         planerAdminAccess: false,
         demoRoleOverride: false,
+        /** Lokale Demo: Filter/KV als diese Persona, obwohl IT angemeldet bleibt */
+        demoPersonaEmail: '',
+        demoPersonaName: '',
         planerRoles: [],
         planerRoleSources: {},
         planerAccessDenied: false,
@@ -161,9 +279,13 @@ export function createInitialState() {
         kvMatch: null,
         direktionMatch: false,
         demoKlasseCode: '',
+        demoSeedTag: '',
         kategorieChoices: mergeKategorieChoices(loadExtraKategorien()),
-        calYear: new Date().getFullYear(),
-        calMonth: new Date().getMonth() + 1,
+        calYear: now.getFullYear(),
+        calMonth: now.getMonth() + 1,
+        /** @type {'agenda'|'week'|'month'} */
+        calMode: 'month',
+        calWeekAnchor: weekAnchor,
         /** Aus SharePoint-Liste „Freistellungen“, Spalte Klasse (Choice). */
         klasseColumnChoices: []
     };
@@ -244,6 +366,12 @@ export function isLikelySharePointTenantRoot(url) {
 export function loadSavedSiteUrl(setup) {
     const cfg = setup || loadSetupCfg();
     try {
+        const via = resolveSchoolToolSiteUrl('freistellung');
+        if (via && !isLikelySharePointTenantRoot(via)) return via;
+    } catch {
+        /* ignore */
+    }
+    try {
         const local = String(localStorage.getItem(SITE_KEY) || '').trim();
         if (local && !isLikelySharePointTenantRoot(local)) return local;
         if (local && isLikelySharePointTenantRoot(local)) {
@@ -253,15 +381,6 @@ export function loadSavedSiteUrl(setup) {
         /* ignore */
     }
     if (cfg && cfg.siteUrl) return String(cfg.siteUrl).trim();
-    try {
-        const s =
-            window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
-                ? window.ms365AppDataV2.getSetup()
-                : null;
-        if (s && s.intranetSiteUrl) return String(s.intranetSiteUrl).trim();
-    } catch {
-        /* ignore */
-    }
     return '';
 }
 
@@ -803,7 +922,7 @@ export function formatDeDateTime(iso) {
 export function scopeFromState(state, opts) {
     const o = opts || {};
     const role = state.role;
-    const base = { accountEmail: state.accountEmail };
+    const base = { accountEmail: effectiveAccountEmail(state) || state.accountEmail };
     const jahrgCodes =
         state.jahrgangScope && state.jahrgangScope.classCodes && state.jahrgangScope.classCodes.size
             ? state.jahrgangScope.classCodes

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { appBuildInfoPlugin } from './scripts/app-build-info.mjs';
 
@@ -68,13 +68,58 @@ function serveLandingPlugin() {
   };
 }
 
+/** Nur Dev: Admin-Key aus gitignored Datei für Pilot-Verdrahtung. */
+function serveSspDevAdminKeyPlugin() {
+  const keyPath = resolve(__dirname, 'backend/stammdaten-portal-api/.admin-key.local.txt');
+  return {
+    name: 'ssp-dev-admin-key',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const raw = (req.url || '').split('?')[0];
+        if (raw !== '/__ssp-dev-admin-key') return next();
+        if (!existsSync(keyPath)) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'no local admin key file' }));
+          return;
+        }
+        const key = readFileSync(keyPath, 'utf8').trim();
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(JSON.stringify({ adminKey: key }));
+      });
+    }
+  };
+}
+
 export default defineConfig(() => {
   // For GitHub Pages Project Pages set VITE_BASE="/<repo-name>/"
   const base = withTrailingSlash(process.env.VITE_BASE || '/');
 
   return {
     base,
-    plugins: [appBuildInfoPlugin(), serveLandingPlugin()],
+    plugins: [appBuildInfoPlugin(), serveLandingPlugin(), serveSspDevAdminKeyPlugin()],
+    server: {
+      // Stammdaten-Portal-Gateway: lokaler Proxy → kein Browser-CORS gegen Azure
+      proxy: {
+        '/__ssp-gw': {
+          target: 'https://func-ms365-ssp-dev.azurewebsites.net',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/__ssp-gw/, '')
+        }
+      }
+    },
+    preview: {
+      proxy: {
+        '/__ssp-gw': {
+          target: 'https://func-ms365-ssp-dev.azurewebsites.net',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/__ssp-gw/, '')
+        }
+      }
+    },
     build: {
       outDir: 'dist',
       emptyOutDir: true,

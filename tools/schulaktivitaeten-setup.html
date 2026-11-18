@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Schulaktivitäten Setup</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/power-automate/freistellung-setup.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-bus-front"></i>Schulaktivitäten Setup</span>
+            </div>
+            <p>Fünf Schritte: vorbereiten → Konten → Liste → Rollen → Flow-Paket.
+                Anträge: <a href="schulaktivitaeten-planer.html">Schulaktivitäten-Planer</a>.
+                Listen: <a href="sharepoint-liste-schulaktivitaeten.html">Listen-Tool</a>.</p>
+            <p class="header-help-row"><a href="../hilfe.html" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot" style="margin:10px 0 4px;"></div>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="schulaktivitaeten-planer.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-calendar2-check"></i>Planer</a>
+                <a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a>
+                <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="aktPhaseHint">Schritt 1: Schule vorbereiten (Checkliste).</span></span>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Sites.ReadWrite.All</span>
+            </div>
+
+            <section class="tm-glance tm-glance--compact fr-setup-glance fr-setup-glance--nav" id="aktSetupGlance" role="tablist" aria-label="Setup-Schritte">
+                <button type="button" role="tab" class="tm-glance__card is-active" data-akt-setup-step="1" data-akt-glance="prep" aria-selected="true" aria-controls="aktSetupStep1">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <span class="tm-glance__label">1 · Vorbereitung</span>
+                    <span class="tm-glance__value" data-akt-glance-value>Offen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card is-warn" data-akt-setup-step="2" data-akt-glance="emails" aria-controls="aktSetupStep2">
+                    <i class="bi bi-envelope-check" aria-hidden="true"></i>
+                    <span class="tm-glance__label">2 · Konten</span>
+                    <span class="tm-glance__value" data-akt-glance-value>Offen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card is-warn" data-akt-setup-step="3" data-akt-glance="list" aria-controls="aktSetupStep3">
+                    <i class="bi bi-list-ul" aria-hidden="true"></i>
+                    <span class="tm-glance__label">3 · Liste</span>
+                    <span class="tm-glance__value" data-akt-glance-value>Offen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card is-warn" data-akt-setup-step="4" data-akt-glance="roles" aria-controls="aktSetupStep4">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <span class="tm-glance__label">4 · Rollen</span>
+                    <span class="tm-glance__value" data-akt-glance-value>Offen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card is-warn" data-akt-setup-step="5" data-akt-glance="flow" aria-controls="aktSetupStep5">
+                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                    <span class="tm-glance__label">5 · Flow</span>
+                    <span class="tm-glance__value" data-akt-glance-value>Offen</span>
+                </button>
+            </section>
+
+            <section class="tm-wizard" aria-label="Schulaktivitäten einrichten">
+                <div class="tm-wizard__body">
+            <div id="aktSetupStep1" class="tm-wizard__pane" role="tabpanel">
+                <h3 class="tm-wizard__pane-title">Schule vorbereiten</h3>
+                <p class="tm-wizard__pane-lead">Environment &amp; Rechte in Power Automate / Entra. <a href="pa-erst-setup.html">Große Ansicht</a></p>
+                <div id="paOnboardingHost"></div>
+            </div>
+
+            <div id="aktSetupStep2" class="tm-wizard__pane" role="tabpanel" hidden>
+                <h3 class="tm-wizard__pane-title">Konten &amp; Genehmiger</h3>
+                <p class="tm-wizard__pane-lead">Technik-Konto, <strong>eine Direktion als Microsoft-Approvals-Genehmiger</strong> und Absender der Status-Mails. Einfacher als Schüler-Freistellungen (kein Klassenvorstand).</p>
+                <section class="tm-panel fr-setup-panel">
+                    <div class="tm-field fr-flow-account-field">
+                        <label for="aktFlowServiceAccount">Technik-Konto für Power Automate</label>
+                        <div class="fr-setup-egp fr-setup-egp--tight">
+                            <input type="email" id="aktFlowServiceAccount" placeholder="automate@schule.at" autocomplete="off">
+                            <button type="button" class="btn btn-sm alt" id="aktFlowAccountUseMailbox"><i class="bi bi-arrow-down-up"></i>Wie Absender</button>
+                        </div>
+                    </div>
+                    <div class="tm-field">
+                        <label for="aktEmailDirektion">Direktion (Genehmiger für Approvals)</label>
+                        <input type="email" id="aktEmailDirektion" placeholder="direktion@schule.at" autocomplete="off">
+                        <p class="muted" style="font-size:0.85em;margin-top:6px;">Diese Adresse wird in den Flow als einziger Approver geschrieben.</p>
+                    </div>
+                    <div class="tm-field">
+                        <label for="aktEmailMailbox">Absender für Status-Mails</label>
+                        <input type="email" id="aktEmailMailbox" placeholder="automate@schule.at" autocomplete="off">
+                        <label class="checkbox-label" style="display:block;margin-top:8px;font-size:0.9em;">
+                            <input type="checkbox" id="aktMailAsTechnikUser" checked>
+                            E-Mail als angemeldetes Technik-Konto senden (empfohlen)
+                        </label>
+                    </div>
+                    <div class="tm-field">
+                        <label for="aktFlowName">Flow-Anzeigename</label>
+                        <input type="text" id="aktFlowName" value="Schulaktivitäten - Genehmigung Direktion" maxlength="200">
+                    </div>
+                </section>
+                <div class="tm-actions fr-setup-actions">
+                    <button type="button" class="btn" id="aktBtnSave"><i class="bi bi-save"></i>Konten speichern</button>
+                </div>
+            </div>
+
+            <div id="aktSetupStep3" class="tm-wizard__pane" role="tabpanel" hidden>
+                <h3 class="tm-wizard__pane-title">SharePoint-Liste</h3>
+                <p class="tm-wizard__pane-lead">Liste <strong>Schulaktivitaeten</strong> (und Regelwerk) mit aktuellem Schema – inkl. Status <code>nachforderung</code>, Teilnahme- und Untis-Felder.</p>
+                <section class="tm-panel fr-setup-panel">
+                    <div class="tm-field">
+                        <label for="aktSiteUrl">SharePoint-Website</label>
+                        <input type="url" id="aktSiteUrl" placeholder="https://…sharepoint.com/sites/…" autocomplete="off">
+                    </div>
+                    <div class="tm-field">
+                        <label for="aktListName">Listenname</label>
+                        <input type="text" id="aktListName" value="Schulaktivitaeten" maxlength="200">
+                    </div>
+                    <div class="tm-field">
+                        <label for="aktListId">Listen-ID <span class="muted">(optional)</span></label>
+                        <input type="text" id="aktListId" placeholder="nach Anlegen befüllt" autocomplete="off">
+                    </div>
+                </section>
+                <div class="tm-actions fr-setup-actions">
+                    <button type="button" class="btn btn-success" id="aktBtnList"><i class="bi bi-list-ul"></i>Liste anlegen / prüfen</button>
+                    <a class="btn" href="sharepoint-liste-schulaktivitaeten.html" style="text-decoration:none;"><i class="bi bi-box-arrow-up-right"></i>Listen-Tool</a>
+                </div>
+                <details class="tm-tech">
+                    <summary>Protokoll</summary>
+                    <div id="aktLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+            </div>
+
+            <div id="aktSetupStep4" class="tm-wizard__pane" role="tabpanel" hidden>
+                <h3 class="tm-wizard__pane-title">Rollen &amp; Ablauf</h3>
+                <p class="tm-wizard__pane-lead">Wer genehmigt im Flow, wer arbeitet im Planer.</p>
+                <section class="tm-panel fr-setup-panel">
+                    <ul style="margin:0;padding-left:1.2em;line-height:1.55;">
+                        <li><strong>Approvals:</strong> nur die Direktion aus Schritt 2 (eine Person, Basic Approval).</li>
+                        <li><strong>Lehrkräfte:</strong> stellen Anträge im <a href="schulaktivitaeten-planer.html">Planer</a>; Status-Mail geht an <code>LehrerEmail</code>.</li>
+                        <li><strong>Administration:</strong> markiert nach Genehmigung „In Untis verarbeitet“ im Planer (nicht im Flow).</li>
+                        <li><strong>Nachforderung / Revision:</strong> im Planer; der Flow startet bei <em>neuen</em> Anträgen mit Status <code>beantragt</code>.</li>
+                    </ul>
+                </section>
+            </div>
+
+            <div id="aktSetupStep5" class="tm-wizard__pane" role="tabpanel" hidden>
+                <h3 class="tm-wizard__pane-title">Flow-Paket &amp; Import</h3>
+                <p class="tm-wizard__pane-lead">Parametrierte ZIP herunterladen und mit dem Technik-Konto als <strong>Package (Legacy)</strong> importieren – wie bei Freistellungen.</p>
+                <div class="tm-actions" style="margin-bottom:14px;">
+                    <button type="button" class="btn btn-success" id="aktBtnPackage"><i class="bi bi-download"></i>Flow-Paket herunterladen</button>
+                    <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate</a>
+                </div>
+                <p class="muted">Technik-Konto: <strong id="aktImportAccountHint">…</strong></p>
+                <label class="checkbox-label" style="display:block;margin-top:14px;">
+                    <input type="checkbox" id="aktDone"> Flow in unserer Schule aktiv / importiert
+                </label>
+                <details class="tm-tech" style="margin-top:18px;">
+                    <summary>Was der Flow macht</summary>
+                    <ul style="margin:10px 0 0;padding-left:1.2em;line-height:1.55;">
+                        <li>Trigger: neues Element in der Liste Schulaktivitaeten.</li>
+                        <li>Nur wenn Status <code>beantragt</code>: Microsoft Approval an die Direktion.</li>
+                        <li>Bei Genehmigung/Ablehnung: Status, Audit und Mail an die Lehrkraft.</li>
+                        <li>Untis-Erledigung bleibt bewusst im Planer (Admin).</li>
+                    </ul>
+                </details>
+                <p class="muted" style="margin-top:12px;font-size:0.88em;">Import: Power Automate → Meine Flows → Importieren → <em>Package (Legacy)</em>. Screenshot-Hinweis wie bei Freistellungen.</p>
+            </div>
+                </div>
+                <footer class="tm-wizard__footer">
+                    <button type="button" class="btn" id="aktSetupBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="btn btn-success" id="aktSetupNext">Weiter</button>
+                </footer>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="../src/shared/browser-backup.js" defer></script>
+    <script src="../src/tools/power-automate/pa-school-onboarding.js"></script>
+    <script type="module" src="../src/tools/power-automate/schulaktivitaeten-setup.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.ms365PaOnboarding) return;
+            function onOnboardingChange() {
+                if (window.ms365AktSetup && typeof window.ms365AktSetup.refreshGlance === 'function') {
+                    window.ms365AktSetup.refreshGlance();
+                }
+                var step = window.ms365AktSetup && window.ms365AktSetup.loadSetupStep
+                    ? window.ms365AktSetup.loadSetupStep() : 1;
+                if (window.ms365AktSetup && window.ms365AktSetup.showSetupStep) {
+                    window.ms365AktSetup.showSetupStep(step);
+                }
+            }
+            window.ms365PaOnboarding.mount('#paOnboardingHost', { compact: true, onChange: onOnboardingChange });
+            onOnboardingChange();
+        });
+    </script>
+</body>
+</html>

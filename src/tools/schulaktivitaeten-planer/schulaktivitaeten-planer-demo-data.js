@@ -7,6 +7,17 @@ export const DEMO_SITE_DEFAULT = 'https://kurtrocks.sharepoint.com/sites/MS365-S
 export const DEMO_SCHOOL_YEAR = '2026/27';
 export const DEMO_SEED_TAG = 'akt-demo-2026-27';
 
+/**
+ * Standard-Demo-Lehrkraft für lokale IT-Vorschau (Kurt bleibt angemeldet).
+ * Dave Grohl = Lehrer + Klassenvorstand 2AK.
+ */
+export const DEMO_TEACHER_PERSONA = {
+    code: 'GRO',
+    name: 'Dave Grohl',
+    email: 'dave.grohl@kurtrocks.onmicrosoft.com',
+    kvKlasse: '2AK'
+};
+
 /** Stammdaten wie Schularbeiten-/Projektwochen-Demo (gleiche Codes/E-Mails). */
 export const DEMO_STAMMDATEN = {
     schoolName: 'Demo-HAK Kurtrocks',
@@ -14,11 +25,23 @@ export const DEMO_STAMMDATEN = {
     classes: [
         { code: '1AK', name: '1AK', year: 1 },
         { code: '1BK', name: '1BK', year: 1 },
-        { code: '2AK', name: '2AK', year: 2 },
+        {
+            code: '2AK',
+            name: '2AK',
+            year: 2,
+            headEmail: DEMO_TEACHER_PERSONA.email,
+            kvEmail: DEMO_TEACHER_PERSONA.email
+        },
         { code: '2BK', name: '2BK', year: 2 },
         { code: '3AK', name: '3AK', year: 3 },
         { code: '3BK', name: '3BK', year: 3 },
-        { code: '4AK', name: '4AK', year: 4 },
+        {
+            code: '4AK',
+            name: '4AK',
+            year: 4,
+            headEmail: DEMO_TEACHER_PERSONA.email,
+            kvEmail: DEMO_TEACHER_PERSONA.email
+        },
         { code: '4BK', name: '4BK', year: 4 },
         { code: '5AK', name: '5AK', year: 5 },
         { code: '5BK', name: '5BK', year: 5 }
@@ -31,16 +54,23 @@ export const DEMO_STAMMDATEN = {
         { code: 'WEI', name: 'Mag. Eva Weiss', email: 'eva.weiss@kurtrocks.onmicrosoft.com' },
         { code: 'GRA', name: 'Mag. Peter Gruber', email: 'peter.gruber@kurtrocks.onmicrosoft.com' },
         { code: 'KIN', name: 'Mag. Sarah Binder', email: 'sarah.binder@kurtrocks.onmicrosoft.com' },
-        { code: 'LEH', name: 'Mag. Christoph Lehmann', email: 'christoph.lehmann@kurtrocks.onmicrosoft.com' }
+        { code: 'LEH', name: 'Mag. Christoph Lehmann', email: 'christoph.lehmann@kurtrocks.onmicrosoft.com' },
+        {
+            code: DEMO_TEACHER_PERSONA.code,
+            name: DEMO_TEACHER_PERSONA.name,
+            email: DEMO_TEACHER_PERSONA.email
+        }
     ]
 };
 
-/** @type {{ Title: string, RegelwerkId: string, MinVorlaufTage: number, MaxGleichzeitigProKlasse: number, Aktiv: boolean }} */
+/** @type {{ Title: string, RegelwerkId: string, MinVorlaufTage: number, MaxGleichzeitigProKlasse: number, GenehmigungPfad?: string, Aktiv: boolean }} */
 export const DEMO_REGELWERK = {
     Title: 'Standard Schulaktivitäten 2026/27',
     RegelwerkId: 'akt-rw-demo-2627',
     MinVorlaufTage: 7,
     MaxGleichzeitigProKlasse: 1,
+    // Freitag-Workshop: direkter Direktion-Pfad (kein KV-Zwischenschritt im Demo-Seed)
+    GenehmigungPfad: 'direktion',
     Aktiv: true
 };
 
@@ -58,28 +88,59 @@ function akt(p) {
     const end = p.end || start;
     const status = String(p.status || 'beantragt').toLowerCase();
     const decided = status === 'genehmigt' || status === 'abgelehnt';
+    const klasseCodes = String(p.klasseCodes || p.klasse || '')
+        .split(/[;,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
     const fields = {
         Title: p.title,
         AktivitaetId: p.id,
         Typ: p.typ || 'Exkursion',
-        KlasseCode: p.klasse,
+        KlasseCode: klasseCodes[0] || p.klasse || '',
+        KlasseCodes: klasseCodes.join('; '),
+        TeilnahmeModus: p.teilnahmeModus || (klasseCodes.length > 1 ? 'klassen' : 'klasse'),
+        GruppenText: p.gruppe || '',
+        TeilnehmendeText: p.teilnehmende || '',
+        NichtTeilnehmende: p.nichtTeilnehmende || '',
         LehrerCode: p.lehrer,
         LehrerEmail: teacherEmail(p.lehrer),
         Begleitung: p.begleitung || '',
+        BegleitungCodes: p.begleitung || '',
+        ExterneVortragende: p.externe || '',
         Ort: p.ort || '',
+        Ablauf: p.ablauf || '',
+        Unterrichtsbezug: p.unterrichtsbezug || '',
         Startdatum: start,
         Enddatum: end,
+        StartUe: p.startUe || '',
+        EndUe: p.endUe || '',
         StartZeit: p.startZeit || '',
         EndZeit: p.endZeit || '',
         Status: status,
         Notiz: (p.notiz ? p.notiz + ' · ' : '') + DEMO_SEED_TAG + ' · SJ ' + DEMO_SCHOOL_YEAR,
         AblehnungsGrund: p.ablehnung || '',
+        RueckfrageText: p.rueckfrage || '',
+        AenderungsLog: p.aenderungsLog || '',
         BeantragtVon: teacherEmail(p.lehrer),
         GenehmigtVon: decided ? 'admin@kurtrocks.onmicrosoft.com' : '',
+        UntisErledigt: false,
+        UntisErledigtVon: '',
         Verkehrsmittel: p.verkehr || '',
         KostenHinweis: p.kosten || ''
     };
     if (decided) fields.GenehmigtAm = start + 'T10:00:00Z';
+    // Genehmigt → Untis standardmäßig erledigt; nur explizit offen gelassen für Demo-Nacharbeit.
+    const untisDone =
+        status === 'genehmigt'
+            ? Object.prototype.hasOwnProperty.call(p, 'untisErledigt')
+                ? !!p.untisErledigt
+                : true
+            : false;
+    fields.UntisErledigt = untisDone;
+    if (untisDone) {
+        fields.UntisErledigtVon = 'admin@kurtrocks.onmicrosoft.com';
+        fields.UntisErledigtAm = start + 'T11:00:00Z';
+    }
     return fields;
 }
 
@@ -88,7 +149,105 @@ function akt(p) {
  * @returns {object[]}
  */
 export function buildDemoAktivitaeten() {
+    const today = new Date();
+    const isoAdd = (days) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + days);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
     return [
+        // ——— Showcase Dave Grohl (Lehrer + KV 2AK/4AK) ———
+        akt({
+            id: 'akt-demo-gro-own',
+            title: 'Technisches Museum Wien',
+            typ: 'Exkursion',
+            klasse: '2AK',
+            lehrer: 'GRO',
+            begleitung: 'MAY',
+            ort: 'Wien, Technisches Museum',
+            start: isoAdd(7),
+            startUe: 1,
+            endUe: 6,
+            startZeit: '08:00',
+            endZeit: '14:00',
+            verkehr: 'Bahn',
+            kosten: 'ca. 15 €',
+            status: 'genehmigt',
+            untisErledigt: false,
+            notiz: 'Showcase: Von Dave eingereicht / verantwortlich'
+        }),
+        akt({
+            id: 'akt-demo-gro-begleitung',
+            title: 'BWL-Fallstudie bei Spar AG',
+            typ: 'Exkursion',
+            klasse: '3BK',
+            lehrer: 'MAY',
+            begleitung: 'GRO',
+            ort: 'St. Pölten',
+            start: isoAdd(14),
+            startZeit: '09:00',
+            endZeit: '13:00',
+            status: 'genehmigt',
+            notiz: 'Showcase: Dave begleitet (nicht Organisator)'
+        }),
+        akt({
+            id: 'akt-demo-gro-klasse',
+            title: 'Christkindlmarkt Steyr',
+            typ: 'Schulaktivitaet',
+            klasse: '2AK',
+            teilnahmeModus: 'gruppe',
+            gruppe: 'alle Mädels 2AK',
+            lehrer: 'WEI',
+            begleitung: 'KIN',
+            ort: 'Steyr Christkindlmarkt',
+            start: isoAdd(10),
+            startUe: 3,
+            endUe: 6,
+            startZeit: '09:45',
+            endZeit: '13:30',
+            status: 'kv_stellungnahme',
+            notiz: 'Showcase: Meine Klasse – Dave nicht persönlich beteiligt, KV-Stellungnahme offen'
+        }),
+        akt({
+            id: 'akt-demo-gro-draft',
+            title: 'Probenbesuch Landestheater',
+            typ: 'Exkursion',
+            klasse: '4AK',
+            lehrer: 'GRO',
+            ort: 'Linz',
+            start: isoAdd(21),
+            startZeit: '10:00',
+            endZeit: '13:00',
+            status: 'entwurf',
+            notiz: 'Showcase: Entwurf von Dave'
+        }),
+        // ——— Feedback-Szenario: Gruppe + Nichtteilnehmer + Nachforderung/Revision ———
+        akt({
+            id: 'akt-demo-szenario',
+            title: 'Religions-Exkursion Stephansdom (Demo-Szenario)',
+            typ: 'Exkursion',
+            klasse: '3AK',
+            klasseCodes: '3AK; 3BK',
+            teilnahmeModus: 'gruppe',
+            gruppe: 'kath. Religion 3AK/3BK',
+            nichtTeilnehmende: 'Max Muster (3AK); Eva Beispiel (3BK)',
+            lehrer: 'MAY',
+            begleitung: 'KIN; WEI',
+            ort: 'Wien, Stephansdom',
+            unterrichtsbezug: 'Religion',
+            ablauf: 'Abfahrt Bahnhof → Domführung → Rückkehr vor 6. Stunde',
+            start: '2026-11-18',
+            startUe: 1,
+            endUe: 6,
+            startZeit: '07:45',
+            endZeit: '13:30',
+            verkehr: 'Bahn ÖBB',
+            kosten: 'ca. 12 € / Schüler',
+            status: 'nachforderung',
+            rueckfrage: 'Bitte Begleitung WEI bestätigen und Ablaufzeiten ergänzen.',
+            aenderungsLog: '2026-11-01 09:10 · Zur Ergänzung / Revision: Bitte Begleitung WEI bestätigen und Ablaufzeiten ergänzen.',
+            notiz: 'Klassenübergreifende Gruppe – Demo für Feedback-Phase 1'
+        }),
         // ——— Herbst 2026 ———
         akt({
             id: 'akt-demo-01',
@@ -118,7 +277,8 @@ export function buildDemoAktivitaeten() {
             endZeit: '12:30',
             verkehr: 'Bus',
             kosten: 'kostenlos',
-            status: 'genehmigt'
+            status: 'genehmigt',
+            untisErledigt: false
         }),
         akt({
             id: 'akt-demo-03',
@@ -221,7 +381,8 @@ export function buildDemoAktivitaeten() {
             endZeit: '13:00',
             verkehr: 'Bahn',
             kosten: 'kostenlos',
-            status: 'genehmigt'
+            status: 'genehmigt',
+            untisErledigt: false
         }),
         akt({
             id: 'akt-demo-10',
@@ -657,6 +818,7 @@ export function getDemoSeedPackage() {
             classes: DEMO_STAMMDATEN.classes.length,
             genehmigt: aktivitaeten.filter((a) => a.Status === 'genehmigt').length,
             beantragt: aktivitaeten.filter((a) => a.Status === 'beantragt').length,
+            nachforderung: aktivitaeten.filter((a) => a.Status === 'nachforderung').length,
             abgelehnt: aktivitaeten.filter((a) => a.Status === 'abgelehnt').length
         }
     };
@@ -677,20 +839,36 @@ export function buildLocalDemoState(pack) {
             titel: String(f.Title || ''),
             typ: String(f.Typ || 'Exkursion'),
             klasseCode: String(f.KlasseCode || ''),
+            klasseCodes: String(f.KlasseCodes || f.KlasseCode || ''),
+            teilnahmeModus: String(f.TeilnahmeModus || 'klasse'),
+            gruppenText: String(f.GruppenText || ''),
+            teilnehmendeText: String(f.TeilnehmendeText || ''),
+            nichtTeilnehmende: String(f.NichtTeilnehmende || ''),
             lehrerCode: String(f.LehrerCode || ''),
             lehrerEmail: String(f.LehrerEmail || '').toLowerCase(),
             begleitung: String(f.Begleitung || ''),
+            begleitungCodes: String(f.BegleitungCodes || f.Begleitung || ''),
+            externeVortragende: String(f.ExterneVortragende || ''),
             ort: String(f.Ort || ''),
+            ablauf: String(f.Ablauf || ''),
+            unterrichtsbezug: String(f.Unterrichtsbezug || ''),
             startdatum: start,
             enddatum: String(f.Enddatum || start).slice(0, 10),
+            startUe: f.StartUe === '' || f.StartUe == null ? '' : Number(f.StartUe) || '',
+            endUe: f.EndUe === '' || f.EndUe == null ? '' : Number(f.EndUe) || '',
             startZeit: String(f.StartZeit || ''),
             endZeit: String(f.EndZeit || ''),
             status: String(f.Status || 'beantragt').toLowerCase(),
             notiz: String(f.Notiz || ''),
             ablehnungsGrund: String(f.AblehnungsGrund || ''),
+            rueckfrageText: String(f.RueckfrageText || ''),
+            aenderungsLog: String(f.AenderungsLog || ''),
             beantragtVon: String(f.BeantragtVon || ''),
             genehmigtVon: String(f.GenehmigtVon || ''),
             genehmigtAm: f.GenehmigtAm ? String(f.GenehmigtAm) : '',
+            untisErledigt: f.UntisErledigt === true || f.UntisErledigt === 'true',
+            untisErledigtVon: String(f.UntisErledigtVon || ''),
+            untisErledigtAm: f.UntisErledigtAm ? String(f.UntisErledigtAm) : '',
             verkehrsmittel: String(f.Verkehrsmittel || ''),
             kostenHinweis: String(f.KostenHinweis || ''),
             schulterminKey: String(f.SchulterminKey || ''),
@@ -704,6 +882,9 @@ export function buildLocalDemoState(pack) {
         regelwerkId: String(rw.RegelwerkId || 'akt-rw-demo'),
         minVorlaufTage: Number(rw.MinVorlaufTage) || 7,
         maxGleichzeitigProKlasse: Number(rw.MaxGleichzeitigProKlasse) || 1,
+        genehmigungPfad: String(rw.GenehmigungPfad || rw.genehmigungPfad || 'kv_dann_direktion'),
+        vorlaufModus: String(rw.VorlaufModus || rw.vorlaufModus || 'sperre'),
+        kostenLimits: Array.isArray(rw.kostenLimits) ? rw.kostenLimits : [],
         aktiv: rw.Aktiv !== false
     };
     return {

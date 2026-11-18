@@ -1,0 +1,765 @@
+/**
+ * Gemeinsame Kalender-Shell: Agenda | Woche | Monat (.ms365-*)
+ * Einbinden in Tool-HTML; Termine-Hub & Schulaktivitäten nutzen dieselben Klassen.
+ */
+
+/* —— Kalender-Shell —— */
+
+.ms365-cal {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.ms365-cal__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border, #d8dee6);
+}
+
+.ms365-cal__title-block {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.ms365-cal__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--text, #0f172a);
+}
+
+.ms365-cal__seg {
+    display: inline-flex;
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--card, #fff);
+}
+
+.ms365-cal__seg-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted, #64748b);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.ms365-cal__seg-btn + .ms365-cal__seg-btn {
+    border-left: 1px solid var(--border, #d8dee6);
+}
+
+.ms365-cal__seg-btn.is-active {
+    background: #f1f5f9;
+    color: var(--text, #0f172a);
+}
+
+.ms365-cal__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ms365-cal__iconbtn,
+.ms365-cal__textbtn {
+    appearance: none;
+    border: 1px solid var(--border, #d8dee6);
+    background: var(--card, #fff);
+    color: var(--text, #0f172a);
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 550;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+.ms365-cal__iconbtn {
+    min-width: 34px;
+    padding-left: 0;
+    padding-right: 0;
+    font-size: 1.1rem;
+}
+
+.ms365-cal__iconbtn,
+.ms365-cal__textbtn,
+.ms365-cal__seg-btn {
+    background: #f8fafc;
+}
+
+.ms365-cal__textbtn--primary {
+    background: var(--brand1, #0f766e);
+    border-color: var(--brand1, #0f766e);
+    color: #fff;
+}
+
+.ms365-cal__textbtn--primary {
+    filter: brightness(0.96);
+    background: var(--brand1, #0f766e);
+}
+
+.ms365-cal__textbtn {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.ms365-cal__hint {
+    margin: 4px 0 0;
+    font-size: 0.82rem;
+    color: var(--muted, #64748b);
+}
+
+/* Kalender-Layer ein-/ausblenden */
+
+.ms365-layers {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+}
+
+.ms365-layers__label {
+    font-size: 0.75rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted, #64748b);
+    margin-right: 2px;
+}
+
+.ms365-layer {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--border, #d8dee6);
+    background: var(--card, #fff);
+    color: var(--muted, #64748b);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 550;
+    border-radius: 6px;
+    padding: 5px 9px 5px 7px;
+    cursor: pointer;
+    opacity: 0.55;
+}
+
+.ms365-layer.is-on {
+    opacity: 1;
+    color: var(--text, #0f172a);
+    background: #f8fafc;
+}
+
+.ms365-layer__swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--th-ev, #64748b);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--th-ev, #64748b) 35%, #000);
+}
+
+.ms365-layer--schul {
+    --th-ev: #2563eb;
+}
+
+.ms365-layer--lehrer {
+    --th-ev: #0f766e;
+}
+
+.ms365-layer--me {
+    --th-ev: #475569;
+}
+
+.ms365-layer--schueler {
+    --th-ev: #c2410c;
+}
+
+.ms365-layer--group {
+    --th-ev: #7c3aed;
+}
+
+.ms365-layer--add {
+    opacity: 1;
+    border-style: dashed;
+    color: var(--muted, #64748b);
+}
+
+.ms365-layer--add:hover {
+    color: var(--text, #0f172a);
+    border-color: color-mix(in srgb, #7c3aed 35%, var(--border, #d8dee6));
+}
+
+.ms365-layer.is-on.ms365-layer--schul {
+    border-color: color-mix(in srgb, #2563eb 35%, var(--border, #d8dee6));
+}
+
+.ms365-layer.is-on.ms365-layer--lehrer {
+    border-color: color-mix(in srgb, #0f766e 35%, var(--border, #d8dee6));
+}
+
+.ms365-layer.is-on.ms365-layer--me {
+    border-color: color-mix(in srgb, #475569 35%, var(--border, #d8dee6));
+}
+
+.ms365-layer__count {
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted, #64748b);
+    background: #eef2f6;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-weight: 600;
+}
+
+.ms365-layer:not(.is-on) .ms365-layer__swatch {
+    background: #cbd5e1;
+    box-shadow: none;
+}
+
+/* Event-Farben: linker Akzent, kein Bonbon */
+
+.ms365-ev--schul {
+    --th-ev: #2563eb;
+    --th-ev-bg: #eff6ff;
+}
+
+.ms365-ev--lehrer {
+    --th-ev: #0f766e;
+    --th-ev-bg: #ecfdf8;
+}
+
+.ms365-ev--me {
+    --th-ev: #475569;
+    --th-ev-bg: #f1f5f9;
+}
+
+.ms365-ev--schueler {
+    --th-ev: #c2410c;
+    --th-ev-bg: #fff7ed;
+}
+
+.ms365-ev--group {
+    --th-ev: #7c3aed;
+    --th-ev-bg: #f5f3ff;
+}
+
+.ms365-source-pill--group {
+    border-left: 3px solid #7c3aed;
+}
+
+.ms365-group-picker {
+    margin: 8px 0 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 8px;
+    background: #fafbfc;
+    max-width: 640px;
+}
+
+.ms365-group-picker__head {
+    margin-bottom: 10px;
+}
+
+.ms365-group-picker__head strong {
+    display: block;
+}
+
+.ms365-group-picker__head span {
+    font-size: 0.84rem;
+    color: var(--muted, #64748b);
+}
+
+.ms365-group-picker__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 240px;
+    overflow: auto;
+    margin-bottom: 10px;
+}
+
+.ag-form .ms365-group-picker__opt,
+.ms365-group-picker__opt {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 4px 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ms365-group-picker__opt input {
+    margin-top: 3px;
+}
+
+.ms365-group-picker__opt strong {
+    display: block;
+}
+
+.ms365-group-picker__opt small {
+    color: var(--muted, #64748b);
+    font-weight: 400;
+}
+
+.ms365-group-picker__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* —— Wochenansicht mit Zeitraster —— */
+
+.ms365-week {
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 8px;
+    background: var(--card, #fff);
+    overflow: hidden;
+}
+
+.ms365-week__head,
+.ms365-week__allday,
+.ms365-week__body {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+}
+
+.ms365-week__gutter {
+    border-right: 1px solid var(--border, #d8dee6);
+    background: #fafbfc;
+    color: var(--muted, #64748b);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.ms365-week__allday .ms365-week__gutter {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 6px 8px 6px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.62rem;
+}
+
+.ms365-week__head {
+    border-bottom: 1px solid var(--border, #d8dee6);
+    background: #fafbfc;
+}
+
+.ms365-week__days,
+.ms365-week__cols {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    min-width: 0;
+}
+
+.ms365-week__dayhead {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 4px 8px;
+    border-left: 1px solid var(--border, #e8edf2);
+    min-width: 0;
+}
+
+.ms365-week__dayhead.is-today .ms365-week__dn {
+    background: var(--brand1, #0f766e);
+    color: #fff;
+}
+
+.ms365-week__wd {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted, #64748b);
+}
+
+.ms365-week__dn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 650;
+}
+
+.ms365-week__allday {
+    border-bottom: 1px solid var(--border, #d8dee6);
+    min-height: 42px;
+}
+
+.ms365-week__allday-col {
+    border-left: 1px solid var(--border, #e8edf2);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.ms365-week__allday-ev {
+    appearance: none;
+    border: 0;
+    border-left: 3px solid var(--th-ev, #64748b);
+    background: var(--th-ev-bg, #f1f5f9);
+    color: #0f172a;
+    text-align: left;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 550;
+    padding: 3px 6px;
+    border-radius: 2px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ms365-week__more,
+.ms365-month__more {
+    font-size: 0.7rem;
+    color: var(--muted, #64748b);
+    padding: 0 2px;
+}
+
+.ms365-week__body {
+    min-height: 520px;
+}
+
+.ms365-week__gutter--times {
+    position: relative;
+}
+
+.ms365-week__hourlabel {
+    position: absolute;
+    right: 8px;
+    transform: translateY(-50%);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.ms365-week__cols {
+    position: relative;
+    min-height: 520px;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(100% / 13 - 1px),
+        #e8edf2 calc(100% / 13 - 1px),
+        #e8edf2 calc(100% / 13)
+    );
+}
+
+.ms365-week__col {
+    position: relative;
+    border-left: 1px solid var(--border, #e8edf2);
+    min-width: 0;
+    min-height: 520px;
+}
+
+.ms365-week__col.is-today {
+    background: color-mix(in srgb, var(--brand1, #0f766e) 4%, transparent);
+}
+
+.ms365-week__event {
+    position: absolute;
+    z-index: 1;
+    appearance: none;
+    border: 0;
+    border-left: 3px solid var(--th-ev, #64748b);
+    background: var(--th-ev-bg, #f1f5f9);
+    color: #0f172a;
+    text-align: left;
+    font: inherit;
+    padding: 3px 5px;
+    border-radius: 2px;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--th-ev, #64748b) 18%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-height: 18px;
+}
+
+.ms365-week__event:hover {
+    filter: brightness(0.98);
+    z-index: 2;
+}
+
+.ms365-week__event-time {
+    font-size: 0.65rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: color-mix(in srgb, var(--th-ev, #475569) 80%, #0f172a);
+    line-height: 1.1;
+}
+
+.ms365-week__event-title {
+    font-size: 0.72rem;
+    font-weight: 550;
+    line-height: 1.2;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+/* —— Monatsansicht —— */
+
+.ms365-month {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card, #fff);
+}
+
+.ms365-month__head {
+    padding: 8px 6px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+    color: var(--muted, #64748b);
+    background: #fafbfc;
+    border-bottom: 1px solid var(--border, #d8dee6);
+    border-left: 1px solid var(--border, #e8edf2);
+}
+
+.ms365-month__head:first-child {
+    border-left: 0;
+}
+
+.ms365-month__cell {
+    min-height: 96px;
+    padding: 6px;
+    border-top: 1px solid var(--border, #e8edf2);
+    border-left: 1px solid var(--border, #e8edf2);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #fff;
+}
+
+.ms365-month__cell:nth-child(7n + 1) {
+    border-left: 0;
+}
+
+.ms365-month__cell.is-out {
+    background: #f8fafc;
+    color: #94a3b8;
+}
+
+.ms365-month__cell.is-today {
+    background: color-mix(in srgb, var(--brand1, #0f766e) 5%, #fff);
+}
+
+.ms365-month__cell.is-today .ms365-month__day {
+    background: var(--brand1, #0f766e);
+    color: #fff;
+}
+
+.ms365-month__day {
+    align-self: flex-end;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 650;
+}
+
+.ms365-month__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ms365-month__ev {
+    appearance: none;
+    border: 0;
+    border-left: 3px solid var(--th-ev, #64748b);
+    background: transparent;
+    color: #0f172a;
+    text-align: left;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 1px 4px;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    border-radius: 0;
+}
+
+.ms365-month__ev:hover {
+    background: var(--th-ev-bg, #f1f5f9);
+}
+
+@media (max-width: 900px) {
+    .ms365-week__body {
+        min-height: 420px;
+    }
+    .ms365-week__cols {
+        min-height: 420px;
+    }
+    .ms365-week__event-title {
+        -webkit-line-clamp: 2;
+    }
+    .ms365-month__cell {
+        min-height: 72px;
+    }
+}
+
+@media (max-width: 720px) {
+    .ms365-week__gutter,
+    .ms365-week {
+        font-size: 0.9rem;
+    }
+    .ms365-week__head,
+    .ms365-week__allday,
+    .ms365-week__body {
+        grid-template-columns: 44px 1fr;
+    }
+    .ms365-month__ev {
+        display: none;
+    }
+    .ms365-month__more {
+        display: none;
+    }
+    .ms365-month__cell {
+        min-height: 48px;
+        align-items: center;
+    }
+
+    .ms365-drawer {
+        width: 100%;
+        max-width: none;
+        border-radius: 0;
+    }
+
+    .ms365-cal__toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ms365-cal__actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+}
+
+/* —— Agenda —— */
+
+.ms365-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.ms365-agenda__heading {
+    margin: 0 0 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted, #64748b);
+}
+
+.ms365-agenda__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card, #fff);
+}
+
+.ms365-agenda__row {
+    appearance: none;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 10px;
+    align-items: start;
+    text-align: left;
+    border: 0;
+    border-left: 3px solid var(--th-ev, #64748b);
+    border-bottom: 1px solid var(--border, #e8edf2);
+    background: transparent;
+    padding: 10px 12px;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+
+.ms365-agenda__list li:last-child .ms365-agenda__row {
+    border-bottom: 0;
+}
+
+.ms365-agenda__row:hover {
+    background: var(--th-ev-bg, #f8fafc);
+}
+
+.ms365-agenda__time {
+    font-size: 0.82rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    color: color-mix(in srgb, var(--th-ev, #475569) 75%, #0f172a);
+}
+
+.ms365-agenda__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ms365-agenda__title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.ms365-agenda__source {
+    font-size: 0.78rem;
+    color: var(--muted, #64748b);
+}
+
+
+/* Status-Töne Schulaktivitäten */
+.ms365-ev--genehmigt { --th-ev: #16a34a; --th-ev-bg: #f0fdf4; }
+.ms365-ev--beantragt { --th-ev: #d97706; --th-ev-bg: #fffbeb; }
+.ms365-ev--nachforderung { --th-ev: #0284c7; --th-ev-bg: #f0f9ff; }
+.ms365-ev--kv_stellungnahme { --th-ev: #7c3aed; --th-ev-bg: #f5f3ff; }
+.ms365-ev--abgelehnt { --th-ev: #dc2626; --th-ev-bg: #fef2f2; }
+.ms365-ev--akt { --th-ev: #0f766e; --th-ev-bg: #ecfdf8; }

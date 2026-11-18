@@ -76,6 +76,33 @@ const shots = [
     }
   },
   {
+    file: 'freistellung.png',
+    url: '/tools/freistellung-planer.html',
+    prepare: async (page) => {
+      await enableDemo(page);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+    }
+  },
+  {
+    file: 'elternbrief.png',
+    url: '/tools/elternbrief.html',
+    prepare: async (page) => {
+      await enableDemo(page);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+    }
+  },
+  {
+    file: 'schulaktivitaeten.png',
+    url: '/tools/schulaktivitaeten-planer.html',
+    prepare: async (page) => {
+      await enableDemo(page);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+    }
+  },
+  {
     file: 'projektwochen.png',
     url: '/tools/projektwochen.html',
     prepare: async (page) => {

@@ -32,7 +32,7 @@ function renderToolRow(id, cfg) {
     const flags = getToolAccessFlags(id, cfg);
     return `
             <tr data-dash-access-row="${escapeHtml(id)}">
-                <th scope="row">${escapeHtml(toolLabel(id))}${plannerBadge(id)}</th>
+                <td class="dash-access-matrix__tool" scope="row">${escapeHtml(toolLabel(id))}${plannerBadge(id)}</td>
                 <td class="dash-access-matrix__cell">
                     <input type="checkbox" data-dash-access-lehrer="${escapeHtml(id)}" ${flags.lehrer ? 'checked' : ''} aria-label="Lehrkraft: ${escapeHtml(toolLabel(id))}" />
                 </td>
@@ -50,12 +50,12 @@ function renderTable(root) {
             const toolRows = cluster.toolIds.map((id) => renderToolRow(id, cfg)).join('');
             return `
             <tr class="dash-access-matrix__cluster">
-                <th colspan="3" scope="colgroup">
+                <td colspan="3">
                     <span class="dash-access-matrix__cluster-label">
                         <i class="bi ${escapeHtml(cluster.icon)}" aria-hidden="true"></i>
                         ${escapeHtml(cluster.label)}
                     </span>
-                </th>
+                </td>
             </tr>
             ${toolRows}`;
         })
@@ -65,11 +65,10 @@ function renderTable(root) {
         <section class="dash-access-matrix" aria-labelledby="dashAccessMatrixTitle">
             <div class="dash-access-matrix__head">
                 <div>
-                    <h3 id="dashAccessMatrixTitle">Dashboard: Werkzeug-Zugriff</h3>
+                    <h3 id="dashAccessMatrixTitle">Wer sieht welche Apps?</h3>
                     <p class="dash-access-matrix__lead">
-                        Legt fest, welche Kacheln Lehrkräfte bzw. Schülerinnen/Schüler auf dem Start-Dashboard sehen
-                        (Standard-Gruppen aus den <strong>Stammdaten</strong>). Schul-IT sieht den vollen Katalog.
-                        Schularbeiten- und Freistellungs-Planer haben zusätzlich eigene Berechtigungen im jeweiligen Tool.
+                        Häkchen = die App erscheint im Portal für Lehrkraft bzw. Schüler/in.
+                        Schul-IT sieht immer den vollen Katalog. Home-Pins legst du oben unter <strong>Portal gestalten</strong> fest.
                     </p>
                 </div>
                 <button type="button" class="btn btn-sm" id="dashAccessResetDefaults">Standard wiederherstellen</button>
@@ -86,7 +85,7 @@ function renderTable(root) {
                     <tbody>${rows}</tbody>
                 </table>
             </div>
-            <p class="dash-access-matrix__note">Änderungen werden lokal gespeichert (<code>ms365-dashboard-tool-access-v1</code>) und mit dem Browser-Backup / SharePoint-Sicherung mitgesichert.</p>
+            <p class="dash-access-matrix__note">Lokal + Backup / SharePoint: <code>ms365-dashboard-tool-access-v1</code></p>
         </section>`;
 
     root.querySelector('#dashAccessResetDefaults')?.addEventListener('click', () => {

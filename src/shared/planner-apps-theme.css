@@ -1,21 +1,174 @@
 /**
- * Planer-Apps: Schularbeiten, Freistellungen, Projektwochen, Schulaktivitäten
- * Hell/Dunkel + Marke (teal | classic | wine) über app.css-Tokens.
+ * Planer- & Schultool-Apps: Shell/Sidebar an app.css-Tokens
+ * (Hell/Dunkel × Marke teal | classic | wine).
+ *
+ * Prefixes: sa, pw, akt, fr, lfr, ku, eb, km, ein, ag, srdp
  */
 
 .sa-page .content,
 .pw-page .content,
 .akt-page .content,
 .fr-page .content,
-.lfr-page .content {
+.lfr-page .content,
+.ku-page .content,
+.eb-page .content,
+.km-page .content,
+.ein-page .content,
+.ag-page .content,
+.srdp-page .content {
     color: var(--text);
 }
 
 .sa-shell,
 .pw-shell,
 .akt-shell,
-.fr-shell {
+.fr-shell,
+.ku-shell,
+.eb-shell,
+.km-shell,
+.ein-shell,
+.ag-shell,
+.srdp-shell {
     border-color: var(--border);
+    background: var(--card);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+/* Einheitliche Sidebar – folgt --planner-nav-* aus app.css */
+.sa-nav,
+.pw-nav,
+.akt-nav,
+.fr-nav,
+.ku-nav,
+.eb-nav,
+.km-nav,
+.ein-nav,
+.ag-nav,
+.srdp-nav {
+    background: var(--planner-nav-bg);
+    color: var(--planner-nav-fg);
+}
+
+.sa-nav__brand,
+.pw-nav__brand,
+.akt-nav__brand,
+.fr-nav__brand,
+.ku-nav__brand,
+.eb-nav__brand,
+.km-nav__brand,
+.ein-nav__brand,
+.ag-nav__brand,
+.srdp-nav__brand {
+    border-bottom-color: var(--planner-nav-border);
+}
+
+.sa-nav__brand i,
+.pw-nav__brand i,
+.akt-nav__brand i,
+.fr-nav__brand i,
+.ku-nav__brand i,
+.eb-nav__brand i,
+.km-nav__brand i,
+.ein-nav__brand i,
+.ag-nav__brand i,
+.srdp-nav__brand i {
+    color: var(--planner-nav-icon);
+    opacity: 1;
+}
+
+.sa-nav__brand span,
+.pw-nav__brand span,
+.akt-nav__brand span,
+.fr-nav__brand span,
+.ku-nav__brand span,
+.eb-nav__brand span,
+.km-nav__brand span,
+.ein-nav__brand span,
+.ag-nav__brand span,
+.srdp-nav__brand span,
+.sa-nav__hint,
+.pw-nav__hint,
+.akt-nav__hint,
+.fr-nav__hint,
+.ku-nav__hint,
+.eb-nav__hint,
+.km-nav__hint,
+.ein-nav__hint,
+.ag-nav__hint,
+.srdp-nav__hint {
+    color: var(--planner-nav-muted);
+    opacity: 1;
+}
+
+.sa-nav__btn:hover,
+.pw-nav__btn:hover,
+.akt-nav__btn:hover,
+.fr-nav__btn:hover,
+.ku-nav__btn:hover,
+.eb-nav__btn:hover,
+.km-nav__btn:hover,
+.ein-nav__btn:hover,
+.ag-nav__btn:hover,
+.srdp-nav__btn:hover {
+    background: var(--planner-nav-hover);
+}
+
+.sa-nav__btn.is-active,
+.pw-nav__btn.is-active,
+.akt-nav__btn.is-active,
+.fr-nav__btn.is-active,
+.ku-nav__btn.is-active,
+.eb-nav__btn.is-active,
+.km-nav__btn.is-active,
+.ein-nav__btn.is-active,
+.ag-nav__btn.is-active,
+.srdp-nav__btn.is-active,
+.sa-chip.is-active,
+.akt-chip.is-active,
+.fr-chip.is-active,
+.pw-chip.is-active,
+.srdp-chip.is-active {
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
+    font-weight: 650;
+    border-color: transparent;
+}
+
+.sa-badge--nav {
+    background: var(--planner-nav-active-bg);
+    color: var(--planner-nav-active-fg);
+    font-weight: 650;
+}
+
+.ku-nav__links a,
+.eb-nav__links a,
+.km-nav__links a,
+.ein-nav__links a,
+.ag-nav__links a {
+    color: var(--planner-nav-link);
+}
+
+.ku-nav__links a:hover,
+.eb-nav__links a:hover,
+.km-nav__links a:hover,
+.ein-nav__links a:hover,
+.ag-nav__links a:hover {
+    color: #fff;
+}
+
+.sa-main,
+.pw-main,
+.akt-main,
+.fr-main,
+.ku-main,
+.eb-main,
+.km-main,
+.ein-main,
+.ag-main,
+.srdp-main {
+    background: var(--soft);
+    color: var(--text);
 }
 
 /* Kalender / Wochenplan – Kopfzeilen lesbar */
@@ -165,7 +318,12 @@ html[data-theme='light'] .pw-badge--abgesagt {
 .sa-page .tm-panel,
 .pw-page .tm-panel,
 .akt-page .tm-panel,
-.fr-page .tm-panel {
+.fr-page .tm-panel,
+.ku-page .tm-panel,
+.eb-page .tm-panel,
+.km-page .tm-panel,
+.ein-page .tm-panel,
+.ag-page .tm-panel {
     background: var(--card);
     border-color: var(--border);
     color: var(--text);
@@ -195,4 +353,40 @@ html[data-theme='dark'] .pw-conn--demo {
 
 html[data-theme='dark'] .pw-conn--wait {
     color: #fcd34d;
+}
+
+/* Schultool-Karten / Fokus / Primär-Akzente an Marke */
+.ku-card,
+.eb-card,
+.km-card,
+.ein-card,
+.ag-card,
+.ku-cards > *,
+.eb-cards > *,
+.km-cards > *,
+.ein-cards > *,
+.ag-cards > * {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.ku-form input:focus,
+.ku-form select:focus,
+.ku-form textarea:focus,
+.eb-form input:focus,
+.eb-form select:focus,
+.eb-form textarea:focus,
+.km-form input:focus,
+.km-form select:focus,
+.km-form textarea:focus,
+.ein-form input:focus,
+.ein-form select:focus,
+.ein-form textarea:focus,
+.ag-form input:focus,
+.ag-form select:focus,
+.ag-form textarea:focus {
+    border-color: var(--brand1);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand1) 18%, transparent);
 }

@@ -17,6 +17,20 @@ Eigenes Werkzeug neben dem **Schüler-Freistellungs-Planer** (`freistellung-plan
 | IT-Setup | `tools/lehrer-freistellung-setup.html` |
 | Setup (Browser) | `localStorage` `ms365-lfr-setup-v1`, `ms365-lfr-perms-v1` |
 | SharePoint-Liste | Standardtitel `Lehrer-Freistellungen` (Schema in `lfr-schema.js`) |
+| Site-Kind | `lehrerFreistellung` in `school-tool-sites.js` (`ms365-lfr-planer-site-v1`) |
+
+### SPO Live Sync (System of Record)
+
+Die **SharePoint-Liste** ist die Wahrheit für produktive Anträge (`docs/spo-live-sync.md`).
+
+| Schicht | Rolle |
+|---------|--------|
+| SharePoint-Liste `Lehrer-Freistellungen` | **System of Record** |
+| App (`lfr-graph.js` + Entry) | Formular, Rollen-UI, Pull beim Start, Push bei Antrag/Freigabe |
+| localStorage | Cache / Demo (`localDemoOnly`, `ms365-lfr-demo-items-v1`) – Demo wird **nicht** nach SPO gepusht |
+| Fehler/403 | ruhiger Hinweis, **kein Wipe** von Demo/Cache |
+
+Kein Listen-`deleteItem`: Status-Pipeline (`Ausstehend` → `Genehmigt`/`Abgelehnt`); Löschen bewusst nicht Teil des Lehrer-Alltags.
 
 Ohne konfigurierte Site läuft ein **Demo-Modus** (lokale Beispieldaten).
 

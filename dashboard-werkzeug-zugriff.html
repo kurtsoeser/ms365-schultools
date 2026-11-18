@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de">
 <head>
     <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
@@ -7,7 +7,7 @@
     <script src="src/shared/pin-gate.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
-    <title>MS365-Schul-Tools – Dashboard-Werkzeug-Zugriff</title>
+    <title>MS365-Schul-Tools â€“ Dashboard-Werkzeug-Zugriff</title>
     <link rel="stylesheet" href="app.css?v=13">
     <link rel="stylesheet" href="src/shared/tool-modern.css">
     <link rel="stylesheet" href="src/shared/planner-entra-perms.css">
@@ -34,9 +34,10 @@
             color: var(--muted);
             line-height: 1.4;
         }
+        /* â€”â€” Werkzeug-Matrix: globale th { color:white } Ã¼berschreiben â€”â€” */
         #dashWerkzeugZugriffRoot .dash-access-matrix {
-            margin-top: 8px;
-            padding: 16px;
+            margin-top: 20px;
+            padding: 18px;
             border: 1px solid var(--border);
             border-radius: 14px;
             background: var(--card);
@@ -63,49 +64,62 @@
         }
         .dash-access-matrix__scroll {
             overflow: auto;
-            max-height: min(62vh, 520px);
+            max-height: min(52vh, 420px);
             border: 1px solid var(--border);
             border-radius: 10px;
+            background: var(--card);
         }
         .dash-access-matrix__table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
+            margin: 0;
+            color: var(--text, #1f2937);
+            background: var(--card);
         }
         .dash-access-matrix__table th,
         .dash-access-matrix__table td {
-            padding: 8px 12px;
+            padding: 9px 12px;
             border-bottom: 1px solid var(--border);
             text-align: left;
+            vertical-align: middle;
+            color: var(--text, #1f2937);
+            background: var(--card);
         }
         .dash-access-matrix__table thead th {
             position: sticky;
             top: 0;
-            background: var(--soft, #f8f9fa);
-            z-index: 2;
+            z-index: 3;
+            background: var(--soft, #f3f4f6) !important;
+            color: var(--heading) !important;
+            font-weight: 700;
+        }
+        .dash-access-matrix__tool {
+            font-weight: 600;
+            color: var(--heading) !important;
+            background: var(--card) !important;
         }
         .dash-access-matrix__cell {
             text-align: center;
-            width: 6rem;
+            width: 6.5rem;
         }
-        .dash-access-matrix__cluster th {
+        .dash-access-matrix__cluster td {
             position: sticky;
-            top: 2.35rem;
-            z-index: 1;
-            background: color-mix(in srgb, var(--brand1, #6366f1) 10%, var(--card));
-            border-bottom: 1px solid var(--border);
-            padding: 10px 12px;
-            font-size: 0.88em;
+            top: 2.45rem;
+            z-index: 2;
+            background: color-mix(in srgb, var(--brand1, #0d9488) 12%, var(--card)) !important;
+            color: var(--heading) !important;
             font-weight: 700;
-            color: var(--heading);
+            border-bottom: 1px solid var(--border);
         }
         .dash-access-matrix__cluster-label {
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            color: var(--heading);
         }
         .dash-access-matrix__cluster-label .bi {
-            color: var(--brand1, #6366f1);
+            color: var(--brand1, #0d9488);
         }
         .dash-access-planner {
             display: inline-block;
@@ -114,8 +128,8 @@
             border-radius: 999px;
             font-size: 0.72em;
             font-weight: 700;
-            background: color-mix(in srgb, var(--brand1, #6366f1) 12%, transparent);
-            color: var(--brand1, #6366f1);
+            background: color-mix(in srgb, var(--brand1, #0d9488) 14%, transparent);
+            color: var(--brand1, #0d9488);
             vertical-align: middle;
         }
         .dash-access-matrix__note {
@@ -123,19 +137,452 @@
             font-size: 0.82em;
             color: var(--muted);
         }
+        html[data-theme="dark"] .dash-access-matrix__table,
+        html[data-theme="dark"] .dash-access-matrix__table th,
+        html[data-theme="dark"] .dash-access-matrix__table td,
+        html[data-theme="dark"] .dash-access-matrix__tool {
+            color: var(--text, #e5e7eb) !important;
+            background: var(--card) !important;
+        }
+        html[data-theme="dark"] .dash-access-matrix__table thead th {
+            background: color-mix(in srgb, var(--soft, #1f2937) 80%, #000) !important;
+            color: var(--heading, #f9fafb) !important;
+        }
+        html[data-theme="dark"] .dash-access-matrix__cluster td {
+            background: color-mix(in srgb, var(--brand1, #0d9488) 22%, var(--card)) !important;
+            color: var(--heading, #f9fafb) !important;
+        }
+
+        /* â€”â€” Portal gestalten â€”â€” */
+        .dash-pg-section {
+            margin-top: 8px;
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--card);
+        }
+        .dash-pg-section__head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .dash-pg-section__head h3 {
+            margin: 0 0 6px;
+            font-size: 1.12em;
+            color: var(--heading);
+        }
+        .dash-pg-section__lead {
+            margin: 0;
+            max-width: 48em;
+            font-size: 0.92em;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+        .dash-school-setup__status {
+            align-self: flex-start;
+            font-size: 0.78em;
+            font-weight: 700;
+            color: var(--brand1, #0d9488);
+            background: color-mix(in srgb, var(--brand1, #0d9488) 12%, transparent);
+            border-radius: 999px;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+        .dash-school-setup__grid {
+            display: grid;
+            grid-template-columns: minmax(180px, 220px) 1fr;
+            gap: 1.25rem 1.5rem;
+            align-items: start;
+        }
+        @media (max-width: 720px) {
+            .dash-school-setup__grid { grid-template-columns: 1fr; }
+        }
+        .dash-school-setup__logo-frame,
+        .dash-school-setup__logo-img {
+            width: 72px;
+            height: 72px;
+            border-radius: 14px;
+            object-fit: contain;
+            border: 1px solid color-mix(in srgb, var(--border, #d0d7de) 80%, transparent);
+            background: #fff;
+        }
+        .dash-school-setup__logo-frame {
+            display: grid;
+            place-items: center;
+            gap: 2px;
+            color: var(--muted);
+            font-size: 0.72em;
+            text-align: center;
+            background: color-mix(in srgb, var(--muted, #64748b) 8%, transparent);
+        }
+        .dash-school-setup__logo-frame .bi { font-size: 1.35rem; }
+        .dash-school-setup__logo-meta { margin: 0.35rem 0 0; min-height: 1.1em; font-size: 0.78em; }
+        .dash-school-setup__logo-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin: 0.55rem 0 0.65rem;
+        }
+        .dash-school-setup__field {
+            display: grid;
+            gap: 0.28rem;
+            margin: 0 0 0.7rem;
+            font-size: 0.86em;
+            font-weight: 650;
+            color: var(--heading);
+        }
+        .dash-school-setup__field input {
+            font: inherit;
+            font-weight: 500;
+            padding: 0.45rem 0.6rem;
+            border-radius: 8px;
+            border: 1px solid var(--border, #d0d7de);
+            background: var(--card, #fff);
+            color: var(--text);
+        }
+        .dash-school-setup__row {
+            display: grid;
+            grid-template-columns: 6.5rem 1fr;
+            gap: 0.65rem;
+        }
+        .dash-school-setup__field--grow { min-width: 0; }
+        .dash-pg-section__note {
+            margin: 14px 0 0;
+            font-size: 0.8em;
+            color: var(--muted);
+        }
+        .dash-portal-defaults__tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .dash-portal-defaults__tabs .btn.is-active {
+            background: color-mix(in srgb, var(--brand1, #0d9488) 16%, var(--card));
+            border-color: color-mix(in srgb, var(--brand1, #0d9488) 45%, var(--border));
+            font-weight: 700;
+            color: var(--heading);
+        }
+        .dash-pg__layout {
+            display: grid;
+            grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.15fr);
+            gap: 18px;
+            align-items: start;
+        }
+        @media (max-width: 1100px) {
+            .dash-pg__layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .dash-pg__controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 0;
+        }
+        .dash-pg__panel {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: color-mix(in srgb, var(--soft, #f8fafc) 70%, var(--card));
+        }
+        .dash-pg__panel--pick {
+            max-height: 280px;
+            overflow: auto;
+        }
+        .dash-pg__panel-title {
+            margin: 0 0 4px;
+            font-size: 0.95em;
+            color: var(--heading);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dash-pg__count {
+            font-size: 0.78em;
+            font-weight: 700;
+            color: var(--brand1, #0d9488);
+            background: color-mix(in srgb, var(--brand1, #0d9488) 12%, transparent);
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+        .dash-pg__panel-lead {
+            margin: 0 0 10px;
+            font-size: 0.82em;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+        .dash-pg__empty {
+            margin: 0;
+            padding: 8px 2px;
+            font-size: 0.86em;
+            color: var(--muted);
+        }
+        .dash-pg-pin-list,
+        .dash-pg-sec-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .dash-pg-pin-row,
+        .dash-pg-sec-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 4px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text, #1f2937);
+        }
+        .dash-pg-pin-row:last-child,
+        .dash-pg-sec-row:last-child {
+            border-bottom: 0;
+        }
+        .dash-pg-pin-row__rank {
+            width: 1.4rem;
+            height: 1.4rem;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            font-weight: 700;
+            background: var(--brand1, #0d9488);
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .dash-pg-pin-row__icon,
+        .dash-pg-sec-row__label .bi {
+            color: var(--brand1, #0d9488);
+        }
+        .dash-pg-pin-row__label,
+        .dash-pg-sec-row__label {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.88em;
+            font-weight: 600;
+            color: var(--heading);
+        }
+        .dash-pg-sec-row__label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dash-pg-pin-row__actions {
+            display: inline-flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .dash-pg-pick-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .dash-pg-pick {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+            cursor: pointer;
+            color: var(--text, #1f2937);
+        }
+        .dash-pg-pick.is-on {
+            border-color: color-mix(in srgb, var(--brand1, #0d9488) 45%, var(--border));
+            background: color-mix(in srgb, var(--brand1, #0d9488) 8%, var(--card));
+        }
+        .dash-pg-pick.is-disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        .dash-pg-pick input {
+            margin-top: 3px;
+            flex-shrink: 0;
+        }
+        .dash-pg-pick__icon {
+            color: var(--brand1, #0d9488);
+            font-size: 1.1em;
+            margin-top: 1px;
+        }
+        .dash-pg-pick__text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .dash-pg-pick__title {
+            font-size: 0.88em;
+            font-weight: 700;
+            color: var(--heading);
+        }
+        .dash-pg-pick__hint {
+            font-size: 0.76em;
+            color: var(--muted);
+            line-height: 1.35;
+        }
+        .dash-pg__preview-wrap {
+            min-width: 0;
+            position: sticky;
+            top: 12px;
+        }
+        .dash-pg__preview-head {
+            margin-bottom: 10px;
+        }
+        .dash-pg-shell {
+            display: grid;
+            grid-template-columns: 148px minmax(0, 1fr);
+            gap: 0;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(160deg, color-mix(in srgb, var(--brand1, #0d9488) 8%, #fff) 0%, var(--card) 45%);
+            min-height: 420px;
+            box-shadow: 0 10px 28px color-mix(in srgb, #0f172a 8%, transparent);
+        }
+        html[data-theme="dark"] .dash-pg-shell {
+            background: linear-gradient(160deg, color-mix(in srgb, var(--brand1, #0d9488) 18%, var(--card)) 0%, var(--card) 50%);
+        }
+        @media (max-width: 720px) {
+            .dash-pg-shell {
+                grid-template-columns: 1fr;
+            }
+        }
+        .dash-pg-shell__nav {
+            padding: 14px 10px;
+            background: color-mix(in srgb, var(--card) 88%, #fff);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        html[data-theme="dark"] .dash-pg-shell__nav {
+            background: color-mix(in srgb, var(--card) 90%, #000);
+        }
+        .dash-pg-shell__nav-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 0.78em;
+            font-weight: 600;
+            color: var(--heading);
+        }
+        .dash-pg-shell__nav-item .bi {
+            color: var(--brand1, #0d9488);
+        }
+        .dash-pg-shell__nav-item.is-active {
+            background: color-mix(in srgb, var(--brand1, #0d9488) 14%, transparent);
+            box-shadow: 0 1px 0 color-mix(in srgb, var(--brand1, #0d9488) 20%, transparent);
+        }
+        .dash-pg-shell__main {
+            padding: 16px 16px 18px;
+            min-width: 0;
+        }
+        .dash-pg-shell__eyebrow {
+            margin: 0;
+            font-size: 0.72em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--brand1, #0d9488);
+        }
+        .dash-pg-shell__hello {
+            margin: 4px 0 2px;
+            font-size: 1.35em;
+            font-weight: 800;
+            color: var(--heading);
+        }
+        .dash-pg-shell__lead {
+            margin: 0 0 14px;
+            font-size: 0.84em;
+            color: var(--muted);
+        }
+        .dash-pg-shell__apps-title {
+            margin: 0 0 10px;
+            font-size: 0.92em;
+            color: var(--heading);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dash-pg-shell__grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        @media (min-width: 1200px) {
+            .dash-pg-shell__grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        .dash-pg-preview-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: var(--card);
+            color: var(--text, #1f2937);
+            min-height: 118px;
+        }
+        .dash-pg-preview-card.is-pinned {
+            border-color: color-mix(in srgb, var(--brand1, #0d9488) 40%, var(--border));
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand1, #0d9488) 18%, transparent);
+        }
+        .dash-pg-preview-card__top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .dash-pg-preview-card__icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: color-mix(in srgb, var(--brand1, #0d9488) 14%, transparent);
+            color: var(--brand1, #0d9488);
+            font-size: 1.05em;
+        }
+        .dash-pg-preview-card__badge {
+            font-size: 0.68em;
+            font-weight: 800;
+            color: #fff;
+            background: var(--brand1, #0d9488);
+            padding: 2px 7px;
+            border-radius: 999px;
+        }
+        .dash-pg-preview-card__title {
+            margin: 0 0 4px;
+            font-size: 0.88em;
+            font-weight: 750;
+            color: var(--heading);
+            line-height: 1.25;
+        }
+        .dash-pg-preview-card__desc {
+            margin: 0;
+            font-size: 0.74em;
+            color: var(--muted);
+            line-height: 1.35;
+        }
     </style>
 </head>
 <body>
     <div class="container page-card">
         <div class="header">
             <h1>MS365-Schul-Tools</h1>
-            <p><i class="bi bi-sliders2-vertical" aria-hidden="true"></i> Dashboard-Werkzeug-Zugriff</p>
-            <p class="header-help-row">Für <strong>Schul-IT</strong> (Global Administrator, eingetragener IT-Kontakt oder Betreiber): Werkzeug-Kacheln für Lehrkräfte und Schülerinnen/Schüler. Standard-Gruppen kommen aus den Stammdaten.</p>
+            <p><i class="bi bi-sliders2-vertical" aria-hidden="true"></i> Portal vorbereiten</p>
+            <p class="header-help-row">FÃ¼r <strong>Schul-IT</strong>: zuerst Schule im Portal (Logo/Adresse), dann Home-Pins + Vorschau, darunter wer welche Apps sieht. Standard-Gruppen kommen aus den Stammdaten.</p>
             <div class="toolbar">
                 <a class="btn" href="index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
                 <a class="btn" href="tenant.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
                 <button type="button" class="btn btn-success" data-ms365-spo-sync="upload" title="Lokale App-Daten (inkl. Dashboard-Gruppen und Werkzeug-Matrix) in die SharePoint-IT-Bibliothek sichern"><i class="bi bi-cloud-arrow-up"></i>In SharePoint sichern</button>
-                <button type="button" class="btn" data-ms365-spo-sync="load" title="Backup aus der SharePoint-IT-Bibliothek wählen und einlesen"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint einlesen</button>
+                <button type="button" class="btn" data-ms365-spo-sync="load" title="Backup aus der SharePoint-IT-Bibliothek wÃ¤hlen und einlesen"><i class="bi bi-cloud-arrow-down"></i>Von SharePoint einlesen</button>
                 <a class="btn" href="tools/stammdaten-uebergabe.html#setup" data-ms365-spo-sync="setup" title="IT-Sicherungsbibliothek einrichten oder Details"><i class="bi bi-shield-lock"></i>Sicherungsbibliothek</a>
             </div>
             <p id="stammdatenSpoSyncStatus" class="dash-wz-spo-status" role="status" aria-live="polite"></p>
@@ -144,6 +591,8 @@
     </div>
 
     <script src="ms365-config.js"></script>
+    <script src="src/shared/app-data-v2.js" defer></script>
+    <script src="src/shared/tenant-settings-core.js" defer></script>
     <script src="src/shared/browser-backup.js" defer></script>
     <script src="src/tools/sharepoint/spo-graph-shared.js"></script>
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
@@ -159,3 +608,4 @@
     </script>
 </body>
 </html>
+

@@ -103,16 +103,17 @@ html[data-theme='dark'] {
     grid-column: 3;
 }
 
-.dash-compact-header__actions .ms365-header-schulregister {
-    background: var(--color-accent-gold) !important;
-    color: var(--color-white) !important;
-    border: none !important;
-    box-shadow: none !important;
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister.is-active {
+    background: color-mix(in srgb, var(--brand1, #5b4bdb) 88%, #1e2440) !important;
+    color: #fff !important;
 }
 
-.dash-compact-header__actions .ms365-header-schulregister:hover {
-    background: #d97706 !important;
-    color: var(--color-white) !important;
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister:hover {
+    color: #1e2440 !important;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister.is-active:hover {
+    color: #fff !important;
 }
 
 /* —— Status-Banner (unter Header) —— */

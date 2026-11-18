@@ -42,12 +42,19 @@ describe('sharepoint-liste-stammdaten-wizard', () => {
             siteUrl: 'https://schule.sharepoint.com/sites/intranet',
             syncMode: true,
             removeOrphans: true,
-            lists: { schueler: true, faecher: true },
-            listTitles: { schueler: 'Schülerinnen', faecher: 'Fächer' },
+            lists: { schueler: true, faecher: true, klassen: true, lehrer: true },
+            listTitles: {
+                schueler: 'Schülerinnen',
+                faecher: 'Fächer',
+                klassen: 'Klassen',
+                lehrer: 'Lehrerinnen'
+            },
             skipPerms: true
         });
         expect(s.site).toContain('intranet');
         expect(s.listsText).toMatch(/Schülerinnen/);
+        expect(s.listsText).toMatch(/Klassen/);
+        expect(s.listsText).toMatch(/Lehrerinnen/);
         expect(s.perms).toMatch(/überspringen/);
     });
 });

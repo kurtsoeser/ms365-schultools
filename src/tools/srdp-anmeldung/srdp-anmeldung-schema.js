@@ -325,6 +325,16 @@ export function buildAnmeldungColumns(opts) {
             boolean: {}
         },
         {
+            name: 'SchuelerEmail',
+            displayName: 'Schüler-E-Mail',
+            text: { allowMultipleLines: false, maxLength: 254 }
+        },
+        {
+            name: 'NacharbeitErledigt',
+            displayName: 'Prüfungsliste erledigt',
+            boolean: {}
+        },
+        {
             name: 'Schulform',
             displayName: 'Schulform',
             choice: { allowTextEntry: false, choices: [profile.label] }

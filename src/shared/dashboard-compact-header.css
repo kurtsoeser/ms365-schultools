@@ -130,26 +130,89 @@ body.app-shell-chrome .container.page-card {
     display: none !important;
 }
 
-.dash-compact-header__actions .ms365-header-schulregister {
-    background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    color: #1c1408 !important;
+/* Stammdaten | Organigramm: invers (weiß/dunkel), ohne Orange */
+.dash-compact-header__actions .ms365-header-school-switch {
+    display: inline-flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
+    background: #fff;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister {
+    background: #fff;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #1e2440 !important;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 7px 12px;
+    margin: 0 !important;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister + .ms365-header-schulregister {
+    border-left: 1px solid #d7dbe6 !important;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister .bi {
+    color: #3a4158;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister:hover {
+    background: #f3f5fa;
+    color: #1e2440 !important;
+    filter: none;
+    transform: none;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister.is-active {
+    background: color-mix(in srgb, var(--brand1, #5b4bdb) 88%, #1e2440);
+    color: #fff !important;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister.is-active .bi {
+    color: #fff;
+}
+
+.dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister.is-active:hover {
+    background: color-mix(in srgb, var(--brand1, #5b4bdb) 78%, #1e2440);
+    color: #fff !important;
+}
+
+/* Fallback, falls Switcher noch nicht gebaut */
+.dash-compact-header__actions > .ms365-header-schulregister {
+    background: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    color: #1e2440 !important;
     font-size: 0.78rem;
     font-weight: 800;
     padding: 7px 12px;
     border-radius: 999px;
-    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
     flex-shrink: 0;
 }
 
-.dash-compact-header__actions .ms365-header-schulregister .bi {
-    color: #fffbeb;
+.dash-compact-header__actions > .ms365-header-schulregister .bi {
+    color: #3a4158;
 }
 
-.dash-compact-header__actions .ms365-header-schulregister:hover {
-    filter: brightness(1.05);
-    color: #1c1408 !important;
+.dash-compact-header__actions > .ms365-header-schulregister:hover {
+    background: #f3f5fa;
+    color: #1e2440 !important;
     transform: none;
+}
+
+.dash-compact-header__actions > .ms365-header-schulregister.is-active {
+    background: color-mix(in srgb, var(--brand1, #5b4bdb) 88%, #1e2440);
+    color: #fff !important;
+}
+
+.dash-compact-header__actions > .ms365-header-schulregister.is-active .bi {
+    color: #fff;
 }
 
 .dash-compact-header__actions #ms365AuthWidget,
@@ -277,8 +340,17 @@ html[data-theme="dark"] .header.dash-compact-header {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
-html[data-theme="dark"] .dash-compact-header__actions .ms365-header-schulregister {
-    color: #1c1408 !important;
+html[data-theme="dark"] .dash-compact-header__actions .ms365-header-school-switch {
+    background: #f8fafc;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+html[data-theme="dark"] .dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister {
+    color: #1e2440 !important;
+}
+
+html[data-theme="dark"] .dash-compact-header__actions .ms365-header-school-switch .ms365-header-schulregister.is-active {
+    color: #fff !important;
 }
 
 body.app-shell-chrome .container > .header.app-tool-subheader:not(.app-tool-chrome) {

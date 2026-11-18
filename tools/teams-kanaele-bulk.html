@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Kanäle bulk anlegen</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/teams-kanaele-bulk/teams-kanaele-bulk.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-list-columns-reverse"></i>Kanäle bulk anlegen</span>
+            </div>
+            <p>
+                Dieselben Standard-Kanäle in vielen Teams – typisch für Fachschaften und ARGEs.
+                Vorhandene Kanäle bleiben unverändert.
+            </p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-teams-kanaele-bulk" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <a class="btn" href="../index.html" style="text-decoration:none;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                        <a class="btn" href="arge-fachgruppen.html" style="text-decoration:none;"><i class="bi bi-collection"></i>Fächer und ARGEs</a>
+                    </div>
+                    <button type="button" class="btn" id="tkbBtnLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="tm-hero__actions" style="margin:0;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="tkbPhaseHint">Schritt 1: Teams auswählen.</span></span>
+            </div>
+
+            <section class="tm-glance tm-glance--compact su-wizard-glance--nav tkb-wizard-glance" id="tkbWizardGlance" role="tablist" aria-label="Schritte">
+                <button type="button" role="tab" class="tm-glance__card is-active" id="tkbTab1" data-tkb-step="1" aria-selected="true" aria-controls="tkbStep1">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <span class="tm-glance__label">1 · Teams</span>
+                    <span class="tm-glance__value" id="tkbGlance1">Auswählen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" id="tkbTab2" data-tkb-step="2" aria-selected="false" aria-controls="tkbStep2">
+                    <i class="bi bi-layout-text-window" aria-hidden="true"></i>
+                    <span class="tm-glance__label">2 · Kanäle</span>
+                    <span class="tm-glance__value" id="tkbGlance2">Festlegen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" id="tkbTab3" data-tkb-step="3" aria-selected="false" aria-controls="tkbStep3">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                    <span class="tm-glance__label">3 · Vorschau</span>
+                    <span class="tm-glance__value" id="tkbGlance3">Prüfen</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" id="tkbTab4" data-tkb-step="4" aria-selected="false" aria-controls="tkbStep4">
+                    <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                    <span class="tm-glance__label">4 · Ergebnis</span>
+                    <span class="tm-glance__value" id="tkbGlance4">Offen</span>
+                </button>
+            </section>
+
+            <section class="tm-wizard" aria-label="Kanäle bulk anlegen">
+                <div class="tm-wizard__body">
+                    <!-- 1 Teams -->
+                    <div id="tkbStep1" class="tm-wizard__pane" role="tabpanel" aria-labelledby="tkbTab1">
+                        <h3 class="tm-wizard__pane-title">Teams auswählen</h3>
+                        <p class="tm-wizard__pane-lead">
+                            Nach Name oder Gruppenmail suchen – z.&nbsp;B. <strong>Fachschaft</strong>, <strong>ARGE</strong> oder ein Fach.
+                            Dann die gewünschten Teams anhaken.
+                        </p>
+
+                        <div class="tkb-search-row">
+                            <div class="tm-field">
+                                <label for="tkbBulkPrefix">Suchbegriff</label>
+                                <input type="text" id="tkbBulkPrefix" autocomplete="off" spellcheck="false"
+                                    placeholder="z. B. Fachschaft, ARGE, Physik">
+                            </div>
+                            <div class="tm-actions" style="margin:0;">
+                                <button type="button" class="btn btn-success" id="tkbBulkSearch"><i class="bi bi-search"></i>Teams suchen</button>
+                            </div>
+                        </div>
+
+                        <div id="tkbBulkResultsWrap" hidden>
+                            <div class="tkb-team-toolbar">
+                                <p class="tkb-team-toolbar__meta" id="tkbBulkResultsSummary"></p>
+                                <div class="tm-actions" style="margin:0;">
+                                    <button type="button" class="btn btn-small" id="tkbBulkSelectAll">Alle</button>
+                                    <button type="button" class="btn btn-small" id="tkbBulkSelectNone">Keine</button>
+                                </div>
+                            </div>
+                            <div class="tkb-team-list" id="tkbBulkResultsBody" role="list"></div>
+                        </div>
+                        <p class="tkb-empty" id="tkbTeamsEmpty">Noch keine Suche – Suchbegriff eintragen und Teams suchen.</p>
+                    </div>
+
+                    <!-- 2 Kanäle -->
+                    <div id="tkbStep2" class="tm-wizard__pane" role="tabpanel" aria-labelledby="tkbTab2" hidden>
+                        <h3 class="tm-wizard__pane-title">Kanalnamen festlegen</h3>
+                        <p class="tm-wizard__pane-lead">
+                            Fachschafts-Vorlage laden oder Namen anpassen. Nummerierung und Beschreibung gelten für die Vorlage.
+                        </p>
+
+                        <p class="tm-field" style="margin-bottom:8px;"><label>Nummerierung</label></p>
+                        <div class="tm-choice-grid" style="margin-bottom:14px;" role="group" aria-label="Nummerierung">
+                            <button type="button" class="tm-choice is-active" id="tkbStyleHyphen" data-tkb-style="hyphen">
+                                <span class="tm-choice__icon"><i class="bi bi-dash-lg"></i></span>
+                                <span class="tm-choice__title">01-Fachkonferenz</span>
+                                <span class="tm-choice__desc">Bindestrich – wie in vielen Fachschafts-Teams</span>
+                            </button>
+                            <button type="button" class="tm-choice" id="tkbStyleSpace" data-tkb-style="space">
+                                <span class="tm-choice__icon"><i class="bi bi-distribute-horizontal"></i></span>
+                                <span class="tm-choice__title">01 Fachkonferenz</span>
+                                <span class="tm-choice__desc">Leerzeichen – wie bei Nextcloud-Ordnern</span>
+                            </button>
+                        </div>
+                        <input type="hidden" id="tkbNamingStyle" value="hyphen">
+
+                        <div class="tm-field">
+                            <label for="tkbDescription">Beschreibung (für Vorlage / neue Zeilen)</label>
+                            <input type="text" id="tkbDescription" autocomplete="off" placeholder="optional, z. B. Fachschafts-Standard">
+                        </div>
+
+                        <label class="tm-toggle" for="tkbRecommend" style="margin-bottom:14px;">
+                            <input type="checkbox" id="tkbRecommend" checked>
+                            <span class="tm-toggle__icon"><i class="bi bi-star"></i></span>
+                            <span>
+                                <span class="tm-toggle__title">In Kanalliste empfehlen</span>
+                                <span class="tm-toggle__desc">Entspricht der Teams-Option „Empfehlen, dass andere diesen Kanal in ihren Kanallisten anzeigen“.</span>
+                            </span>
+                        </label>
+
+                        <div class="tm-actions" style="margin-bottom:12px;">
+                            <button type="button" class="btn" id="tkbBtnPreset"><i class="bi bi-arrow-clockwise"></i>Fachschafts-Vorlage laden</button>
+                            <button type="button" class="btn" id="tkbBtnAddChannel"><i class="bi bi-plus-lg"></i>Kanal hinzufügen</button>
+                        </div>
+
+                        <div class="tkb-channel-list" id="tkbChannelBody"></div>
+                        <p class="muted" id="tkbChannelPreview" style="margin:12px 0 0;font-size:0.9rem;"></p>
+                    </div>
+
+                    <!-- 3 Vorschau -->
+                    <div id="tkbStep3" class="tm-wizard__pane" role="tabpanel" aria-labelledby="tkbTab3" hidden>
+                        <h3 class="tm-wizard__pane-title">Vorschau</h3>
+                        <p class="tm-wizard__pane-lead">
+                            Prüfen Sie Auswahl und Kanalnamen. Vorhandene Kanäle werden übersprungen.
+                        </p>
+
+                        <div class="tkb-preview-grid">
+                            <div class="tkb-preview-card">
+                                <span class="tkb-preview-card__label">Teams</span>
+                                <span class="tkb-preview-card__value" id="tkbPreviewTeamCount">0</span>
+                                <span class="tkb-preview-card__hint" id="tkbPreviewTeamHint">noch keine Auswahl</span>
+                            </div>
+                            <div class="tkb-preview-card">
+                                <span class="tkb-preview-card__label">Kanäle</span>
+                                <span class="tkb-preview-card__value" id="tkbPreviewChannelCount">0</span>
+                                <span class="tkb-preview-card__hint" id="tkbPreviewRecommendHint">Empfehlung: an</span>
+                            </div>
+                        </div>
+
+                        <div class="tm-panel" style="box-shadow:none;padding:14px 16px;">
+                            <div class="tm-panel__head" style="margin-bottom:10px;">
+                                <i class="bi bi-hash"></i>
+                                <div>
+                                    <h3>Kanalnamen</h3>
+                                    <p>Diese Namen werden je Team angelegt (falls noch nicht vorhanden).</p>
+                                </div>
+                            </div>
+                            <ul class="tkb-chip-list" id="tkbPreviewChannelChips"></ul>
+                        </div>
+
+                        <div class="tm-panel" style="box-shadow:none;padding:14px 16px;margin-top:12px;">
+                            <div class="tm-panel__head" style="margin-bottom:10px;">
+                                <i class="bi bi-people"></i>
+                                <div>
+                                    <h3>Ausgewählte Teams</h3>
+                                    <p id="tkbPreviewTeamListHint">—</p>
+                                </div>
+                            </div>
+                            <ul class="tkb-chip-list" id="tkbPreviewTeamChips"></ul>
+                        </div>
+
+                        <div class="tm-actions" style="margin-top:16px;">
+                            <button type="button" class="btn" id="tkbBulkDryRun"><i class="bi bi-eye"></i>Nur prüfen (Dry-Run)</button>
+                            <button type="button" class="btn btn-success" id="tkbBulkCreate"><i class="bi bi-plus-square"></i>Jetzt anlegen</button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Ergebnis -->
+                    <div id="tkbStep4" class="tm-wizard__pane" role="tabpanel" aria-labelledby="tkbTab4" hidden>
+                        <h3 class="tm-wizard__pane-title">Ergebnis</h3>
+                        <p class="tm-wizard__pane-lead" id="tkbResultLead">Noch kein Lauf – nach der Vorschau „Jetzt anlegen“ oder Dry-Run starten.</p>
+
+                        <div class="tkb-result-summary" id="tkbResultSummary" hidden>
+                            <div class="tkb-result-stat is-ok">
+                                <strong id="tkbStatCreated">0</strong>
+                                <span>Neu angelegt</span>
+                            </div>
+                            <div class="tkb-result-stat is-warn">
+                                <strong id="tkbStatExisted">0</strong>
+                                <span>Bereits vorhanden</span>
+                            </div>
+                            <div class="tkb-result-stat is-danger">
+                                <strong id="tkbStatFail">0</strong>
+                                <span>Fehler</span>
+                            </div>
+                        </div>
+
+                        <pre id="tkbLog" class="tm-log" aria-label="Protokoll"></pre>
+                    </div>
+                </div>
+
+                <footer class="tm-wizard__footer">
+                    <button type="button" class="btn" id="tkbWizardBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="btn btn-success" id="tkbWizardNext">Weiter zu Kanälen</button>
+                </footer>
+            </section>
+
+            <details class="tm-tech">
+                <summary>Entra-Berechtigungen</summary>
+                <p class="muted" style="margin:10px 0 0;font-size:0.88em;line-height:1.45;">
+                    Delegiert: <code>Channel.Create</code>, <code>Channel.ReadBasic.All</code>,
+                    <code>ChannelSettings.ReadWrite.All</code>, <code>Group.Read.All</code>.
+                    Admin-Zustimmung kann nötig sein.
+                </p>
+            </details>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script src="../ms365-config.js"></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/tools/teams-kanaele-bulk/teams-kanaele-bulk-logic.js" defer></script>
+    <script src="../src/tools/teams-kanaele-bulk/teams-kanaele-bulk.js" defer></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+</body>
+</html>

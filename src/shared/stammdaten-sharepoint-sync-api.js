@@ -532,10 +532,13 @@ export async function downloadDriveItem(driveId, itemId, token) {
     return JSON.parse(text);
 }
 
-function buildPayloadJson() {
+async function buildPayloadJson() {
     const bb = window.ms365BrowserBackup;
-    if (!bb || typeof bb.buildBackup !== 'function') throw new Error('Browser-Backup-Modul fehlt.');
-    const payload = bb.buildBackup();
+    if (!bb || (typeof bb.buildBackupAsync !== 'function' && typeof bb.buildBackup !== 'function')) {
+        throw new Error('Browser-Backup-Modul fehlt.');
+    }
+    const payload =
+        typeof bb.buildBackupAsync === 'function' ? await bb.buildBackupAsync() : bb.buildBackup();
     return { payload: payload, text: JSON.stringify(payload, null, 2) };
 }
 
@@ -549,7 +552,7 @@ export async function uploadCurrentBackup(opts) {
     const it = requireItLibrary();
     const folder = String(options.folder || DEFAULT_FOLDER).trim() || DEFAULT_FOLDER;
     const keepDated = options.keepDated !== false;
-    const built = buildPayloadJson();
+    const built = await buildPayloadJson();
     const token = await ensureGraphToken();
     const currentPath = buildDriveRelativePath(folder, CURRENT_FILE);
 
@@ -656,8 +659,9 @@ export async function uploadCurrentBackup(opts) {
             console.warn('Config-Bundle Upload:', e && e.message ? e.message : e);
         }
     }
+    let datedName = '';
     if (keepDated && window.ms365BrowserBackup && typeof window.ms365BrowserBackup.backupFilename === 'function') {
-        const datedName = window.ms365BrowserBackup.backupFilename(new Date());
+        datedName = window.ms365BrowserBackup.backupFilename(new Date());
         await putJsonOnDrive(it.driveId, buildDriveRelativePath(folder, datedName), built.text, token);
     }
     const webUrl = (item && item.webUrl) || it.webUrl || '';
@@ -684,7 +688,7 @@ export async function uploadCurrentBackup(opts) {
     } catch {
         /* ignore */
     }
-    return { item: item, meta: meta, payload: built.payload };
+    return { item: item, meta: meta, payload: built.payload, datedName: datedName || '' };
 }
 
 /**
@@ -775,7 +779,13 @@ export async function downloadBackupByItem(opts) {
         throw new Error('Datei ist kein erkanntes MS365-Browser-Backup.');
     }
     if (options.apply !== false) {
-        bb.importPayload(obj);
+        if (typeof bb.importPayload === 'function') {
+            await bb.importPayload(obj);
+        } else if (typeof bb.applyBackupAsync === 'function') {
+            await bb.applyBackupAsync(obj);
+        } else {
+            bb.applyBackup(obj);
+        }
     }
     const fileName = String(cur.name || options.fileName || CURRENT_FILE).trim() || CURRENT_FILE;
     const meta = {

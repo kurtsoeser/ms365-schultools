@@ -96,7 +96,7 @@ export async function loadSubscribedSkus(token) {
     try {
         const data = await graphJson(
             'GET',
-            '/pv.subscribedSkus?$select=' +
+            '/subscribedSkus?$select=' +
                 encodeURIComponent('skuId,skuPartNumber,prepaidUnits,consumedUnits,capabilityStatus'),
             token
         );

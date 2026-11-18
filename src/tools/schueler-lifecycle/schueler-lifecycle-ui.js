@@ -93,6 +93,20 @@ function savePrevSnapshot(students, label) {
     }
 }
 
+/** WebUntis-CSV ist oft tab-getrennt; sonst ; oder , (wie Stammdaten-Import). */
+function detectCsvSeparator(headerLine) {
+    const line = String(headerLine || '');
+    const candidates = [
+        { sep: '\t', n: (line.match(/\t/g) || []).length },
+        { sep: ';', n: (line.match(/;/g) || []).length },
+        { sep: ',', n: (line.match(/,/g) || []).length }
+    ];
+    candidates.sort(function (a, b) {
+        return b.n - a.n;
+    });
+    return candidates[0].n > 0 ? candidates[0].sep : ';';
+}
+
 function parseCsvStudents(text) {
     const lines = String(text || '')
         .replace(/^\uFEFF/, '')
@@ -102,7 +116,7 @@ function parseCsvStudents(text) {
         })
         .filter(Boolean);
     if (!lines.length) return [];
-    const sep = lines[0].indexOf(';') >= 0 ? ';' : ',';
+    const sep = detectCsvSeparator(lines[0]);
     const headers = lines[0].split(sep).map(function (h) {
         return h.trim().toLowerCase();
     });
@@ -375,7 +389,7 @@ function readImportFile(file) {
                 setStatus('Datei ist leer.', true);
                 return;
             }
-            const sep = lines[0].indexOf(';') >= 0 ? ';' : ',';
+            const sep = detectCsvSeparator(lines[0]);
             const aoa = lines.map(function (line) {
                 return line.split(sep);
             });

@@ -22,43 +22,105 @@ import {
     createElection
 } from './schulsprecherwahl-store.js';
 import { evaluateElection, ROUND_MAIN, ROUND_RUNOFF, normId } from './schulsprecherwahl-logic.js';
+import {
+    ELECTION_KIND_SGA_LEHRER,
+    normalizeElectionKind,
+    resolveElectionBallotSchema
+} from './schulsprecherwahl-kinds.js';
 import { ELECTION_STATUS, normalizeElection, newId } from './schulsprecherwahl-model.js';
+import { classifyElectionError } from './schulsprecherwahl-errors.js';
+import { wantsElectionDemo } from './schulsprecherwahl-phase.js';
 
-export function isRemoteMode() {
-    return electionApiConfigured();
+/** Opt-in Demo: ?demo=1 oder expliziter Button – nie still in Remote-Prod. */
+let localDemoOnly = false;
+
+/**
+ * @returns {boolean}
+ */
+export function isLocalDemoOnly() {
+    return localDemoOnly || wantsElectionDemo();
 }
 
+/**
+ * Schaltet Client auf lokalen Demo-Store (Remote-Daten bleiben unangetastet).
+ */
+export function enableLocalDemoMode() {
+    localDemoOnly = true;
+}
+
+export { wantsElectionDemo };
+
+/**
+ * @returns {boolean}
+ */
+export function isRemoteMode() {
+    return electionApiConfigured() && !isLocalDemoOnly();
+}
+
+/**
+ * @returns {string}
+ */
 export function storageModeLabel() {
+    if (isLocalDemoOnly()) return 'Demo lokal (dieser Browser)';
     return isRemoteMode()
         ? 'Azure Table Storage (anonym, mandantenweit)'
         : 'Lokaler Demo-Store (dieser Browser)';
 }
 
 /**
- * @returns {Promise<ReturnType<typeof normalizeElection>[]>}
+ * @param {unknown} raw
+ * @param {boolean} [isAdmin]
+ */
+function withAdminFlag(raw, isAdmin) {
+    const election = normalizeElection(raw);
+    return Object.assign(election, { isAdmin: !!isAdmin });
+}
+
+/**
+ * @returns {Promise<(ReturnType<typeof normalizeElection> & { isAdmin?: boolean })[]>}
  */
 export async function listElections() {
-    if (!isRemoteMode()) return loadStore().elections;
+    if (!isRemoteMode()) {
+        return loadStore().elections.map((e) => withAdminFlag(e, true));
+    }
     const data = await apiListElections();
-    return (data.elections || []).map((e) => normalizeElection(e));
+    return (data.elections || []).map((e) => withAdminFlag(e, !!e.isAdmin));
+}
+
+/**
+ * Soft list: bei Auth/Netz nie Wipe – leere Liste + Fehlerobjekt.
+ * @returns {Promise<{ elections: (ReturnType<typeof normalizeElection> & { isAdmin?: boolean })[], error: ReturnType<typeof classifyElectionError>|null }>}
+ */
+export async function listElectionsSoft() {
+    try {
+        const elections = await listElections();
+        return { elections, error: null };
+    } catch (err) {
+        return { elections: [], error: classifyElectionError(err) };
+    }
 }
 
 /**
  * @param {string} electionId
+ * @returns {Promise<(ReturnType<typeof normalizeElection> & { isAdmin?: boolean })|null>}
  */
 export async function getElectionAsync(electionId) {
-    if (!isRemoteMode()) return localGet(electionId);
+    if (!isRemoteMode()) {
+        const e = localGet(electionId);
+        return e ? withAdminFlag(e, true) : null;
+    }
     const data = await apiGetElection(electionId);
-    return data.election ? normalizeElection(data.election) : null;
+    if (!data.election) return null;
+    return withAdminFlag(data.election, !!data.isAdmin);
 }
 
 /**
  * @param {ReturnType<typeof normalizeElection>} election
  */
 export async function upsertElectionAsync(election) {
-    if (!isRemoteMode()) return localUpsert(election);
+    if (!isRemoteMode()) return withAdminFlag(localUpsert(election), true);
     const data = await apiUpsertElection(normalizeElection(election));
-    return normalizeElection(data.election);
+    return withAdminFlag(data.election, true);
 }
 
 /**
@@ -142,14 +204,32 @@ export async function evaluateElectionAsync(electionId) {
         ? await ballotsForRoundAsync(election.id, runoffRound.id)
         : [];
     return evaluateElection({
+        electionKind: election.electionKind,
+        includeSgaDeputies: !!election.includeSgaDeputies,
         mainBallots,
         candidateIds: election.candidates.map((c) => c.id),
         runoffBallots,
         runoffCandidateIds: runoffRound ? runoffRound.candidateIds : [],
         lotSchulsprecherId: election.lot && election.lot.schulsprecherId,
         lotStv1Id: election.lot && election.lot.stv1Id,
-        lotStv2Id: election.lot && election.lot.stv2Id
+        lotStv2Id: election.lot && election.lot.stv2Id,
+        lot: election.lot || {}
     });
+}
+
+/**
+ * @param {object} election
+ * @param {ReturnType<typeof evaluateElection>} evaled
+ */
+function applySgaLehrerOffices(election, evaled) {
+    const o = evaled.offices || {};
+    election.offices.member1Id = o.member1Id || null;
+    election.offices.member2Id = o.member2Id || null;
+    election.offices.member3Id = o.member3Id || null;
+    election.offices.deputy1Id = o.deputy1Id || null;
+    election.offices.deputy2Id = o.deputy2Id || null;
+    election.offices.deputy3Id = o.deputy3Id || null;
+    election.offices.decidedAfter = 'main';
 }
 
 /**
@@ -159,8 +239,15 @@ export async function openElectionAsync(electionId) {
     if (!isRemoteMode()) return localOpen(electionId);
     const election = await getElectionAsync(electionId);
     if (!election) throw new Error('Wahl nicht gefunden.');
-    if (election.candidates.length < 3) {
-        throw new Error('Mindestens drei Kandidaturen nötig (6 / 5 / 4 Punkte).');
+    const schema = resolveElectionBallotSchema(election);
+    if (election.candidates.length < schema.rankingCount) {
+        throw new Error(
+            'Mindestens ' +
+                schema.rankingCount +
+                ' Kandidaturen nötig (' +
+                schema.points.join(' / ') +
+                ' Punkte).'
+        );
     }
     const main = election.rounds.find((r) => r.kind === ROUND_MAIN) || election.rounds[0];
     main.status = 'open';
@@ -188,14 +275,26 @@ export async function closeAndCountMainAsync(electionId) {
         invalid: evaled.main.invalid,
         eligible: election.eligibleCount || 0
     };
+    if (normalizeElectionKind(election.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+        applySgaLehrerOffices(election, evaled);
+        election.status = ELECTION_STATUS.finalized;
+        election.publishedResults = false;
+        return upsertElectionAsync(election);
+    }
+
     election.offices.stv1Id = evaled.offices.stv1Id;
     election.offices.stv2Id = evaled.offices.stv2Id;
+    if (election.includeSgaDeputies) {
+        election.offices.sgaDeputy1Id = evaled.offices.sgaDeputy1Id || null;
+        election.offices.sgaDeputy2Id = evaled.offices.sgaDeputy2Id || null;
+        election.offices.sgaDeputy3Id = evaled.offices.sgaDeputy3Id || null;
+    }
 
     if (evaled.offices.schulsprecherId && evaled.offices.decidedAfter === 'main') {
         election.offices.schulsprecherId = evaled.offices.schulsprecherId;
         election.offices.decidedAfter = 'main';
         election.status = ELECTION_STATUS.finalized;
-        election.publishedResults = true;
+        election.publishedResults = false;
     } else if (evaled.needsRunoff || evaled.runoffCandidateIds.length >= 2) {
         let runoff = election.rounds.find((r) => r.kind === ROUND_RUNOFF);
         if (!runoff) {
@@ -229,6 +328,9 @@ export async function openRunoffAsync(electionId, window) {
     if (!isRemoteMode()) return localOpenRunoff(electionId, window);
     const election = await getElectionAsync(electionId);
     if (!election) throw new Error('Wahl nicht gefunden.');
+    if (normalizeElectionKind(election.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+        throw new Error('Für die SGA-Lehrerwahl gibt es keine Stichwahl.');
+    }
     const runoff = election.rounds.find((r) => r.kind === ROUND_RUNOFF);
     if (!runoff || runoff.candidateIds.length < 2) {
         throw new Error('Keine Stichwahl-Kandidaten vorhanden.');
@@ -279,15 +381,39 @@ export async function closeAndCountRunoffAsync(electionId) {
     election.offices.schulsprecherId = evaled.offices.schulsprecherId;
     election.offices.stv1Id = evaled.offices.stv1Id;
     election.offices.stv2Id = evaled.offices.stv2Id;
+    if (election.includeSgaDeputies) {
+        election.offices.sgaDeputy1Id = evaled.offices.sgaDeputy1Id || null;
+        election.offices.sgaDeputy2Id = evaled.offices.sgaDeputy2Id || null;
+        election.offices.sgaDeputy3Id = evaled.offices.sgaDeputy3Id || null;
+    }
     election.offices.decidedAfter = 'runoff';
     election.status = ELECTION_STATUS.finalized;
+    election.publishedResults = false;
+    return upsertElectionAsync(election);
+}
+
+/**
+ * Kundmachung freigeben (Meta-Flag; keine Ballots).
+ * @param {string} electionId
+ */
+export async function publishResultsAsync(electionId) {
+    if (!isRemoteMode()) {
+        const { publishResults } = await import('./schulsprecherwahl-store.js');
+        return withAdminFlag(publishResults(electionId), true);
+    }
+    const election = await getElectionAsync(electionId);
+    if (!election) throw new Error('Wahl nicht gefunden.');
+    if (election.status !== ELECTION_STATUS.finalized) {
+        throw new Error('Erst auszählen – dann kundmachen.');
+    }
     election.publishedResults = true;
     return upsertElectionAsync(election);
 }
 
 export async function seedDemoElectionAsync() {
-    // Demo bleibt immer lokal (Screenshot-Auswertung ohne Backend)
-    return localSeed();
+    // Demo opt-in: lokal, Remote-API bleibt unangetastet
+    enableLocalDemoMode();
+    return withAdminFlag(localSeed(), true);
 }
 
 export { createElection, ELECTION_STATUS, normalizeElection };

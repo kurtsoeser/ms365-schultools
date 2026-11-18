@@ -17,11 +17,10 @@ function licenseTokenFromRequest(request) {
 }
 
 /**
- * Serverseitig: Tenant muss laut License-API freigeschaltet sein.
- * @param {{ tid: string }} caller
+ * /license/me abfragen.
  * @param {string} licenseAccessToken
  */
-async function assertTenantLicenseAllowed(caller, licenseAccessToken) {
+async function fetchLicenseMe(licenseAccessToken) {
     const cfg = getConfig();
     const base = String(cfg.licenseApiBaseUrl || '')
         .trim()
@@ -74,6 +73,39 @@ async function assertTenantLicenseAllowed(caller, licenseAccessToken) {
         throw err;
     }
 
+    return data;
+}
+
+/**
+ * Feature-Freigabe aus /license/me-Payload.
+ * Ohne entitlements (Legacy-API) → erlaubt.
+ * @param {object|null|undefined} data
+ * @param {string} featureId
+ */
+function licenseMeAllowsFeature(data, featureId) {
+    const id = String(featureId || '').trim();
+    if (!id) return true;
+    if (!data || data.allowed !== true) return false;
+    const ent = data.entitlements;
+    if (!ent || typeof ent !== 'object') return true;
+    const features = Array.isArray(ent.features) ? ent.features.map(String) : null;
+    if (!features) return true;
+    if (features.indexOf(id) >= 0) return true;
+    const denied = Array.isArray(ent.denied) ? ent.denied.map(String) : [];
+    if (denied.indexOf(id) >= 0) return false;
+    return true;
+}
+
+/**
+ * Serverseitig: Tenant muss laut License-API freigeschaltet sein.
+ * Optional: bestimmtes Modul (Feature) erforderlich.
+ * @param {{ tid: string }} caller
+ * @param {string} licenseAccessToken
+ * @param {{ feature?: string }} [opts]
+ */
+async function assertTenantLicenseAllowed(caller, licenseAccessToken, opts) {
+    const data = await fetchLicenseMe(licenseAccessToken);
+
     const tid = String((data && data.tenantId) || '')
         .trim()
         .toLowerCase();
@@ -92,6 +124,23 @@ async function assertTenantLicenseAllowed(caller, licenseAccessToken) {
         err.status = 403;
         throw err;
     }
+
+    const feature = opts && opts.feature ? String(opts.feature).trim() : '';
+    if (feature && !licenseMeAllowsFeature(data, feature)) {
+        const err = new Error(
+            'Modul „' + feature + '“ ist für diesen Mandanten nicht freigeschaltet.'
+        );
+        err.status = 403;
+        err.code = 'feature_not_licensed';
+        throw err;
+    }
+
+    return data;
 }
 
-module.exports = { assertTenantLicenseAllowed, licenseTokenFromRequest };
+module.exports = {
+    assertTenantLicenseAllowed,
+    licenseTokenFromRequest,
+    licenseMeAllowsFeature,
+    fetchLicenseMe
+};

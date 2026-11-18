@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
     viewsForRole,
+    navSectionsForRole,
     useKvPlanerChrome,
     useDirektionPlanerChrome,
     useStudentPlanerChrome,
-    canDeleteFreistellung
+    canDeleteFreistellung,
+    hasFrKvCapability
 } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
 
 describe('freistellung KV chrome', () => {
@@ -15,22 +17,34 @@ describe('freistellung KV chrome', () => {
         expect(useStudentPlanerChrome({ role: 'kv', demoRoleOverride: false })).toBe(false);
     });
 
-    it('viewsForRole für KV-Chrome nur Übersicht', () => {
+    it('viewsForRole für KV bleibt flach und vollständig (Capability, kein Dauer-Modus)', () => {
         const state = { role: 'kv', demoRoleOverride: false, entraGroupsConfigured: true };
         const views = viewsForRole('kv', state);
-        expect(views.map((v) => v.id)).toEqual(['dashboard', 'kalender']);
+        expect(views.map((v) => v.id)).toEqual([
+            'dashboard',
+            'liste',
+            'kalender',
+            'freigabe',
+            'antrag'
+        ]);
     });
 
-    it('viewsForRole für KV im Demo-Modus behält Staff-Navigation', () => {
+    it('viewsForRole für KV im Demo-Modus behält Arbeits-Navigation', () => {
         const state = { role: 'kv', demoRoleOverride: true };
         const views = viewsForRole('kv', state);
         expect(views.some((v) => v.id === 'liste')).toBe(true);
-        expect(views.some((v) => v.id === 'bericht')).toBe(true);
+        expect(views.some((v) => v.id === 'freigabe')).toBe(true);
     });
 
-    it('viewsForRole für Schüler: Meine Anträge und Antrag stellen', () => {
+    it('viewsForRole für Schüler: Meine Anträge, Kalender und Antrag stellen', () => {
         const views = viewsForRole('schueler', { role: 'schueler' });
-        expect(views.map((v) => v.id)).toEqual(['meine', 'antrag']);
+        expect(views.map((v) => v.id)).toEqual(['meine', 'kalender', 'antrag']);
+    });
+
+    it('hasFrKvCapability erkennt Stammdaten-KV ohne App-Modus', () => {
+        expect(hasFrKvCapability({ role: 'schueler', kvMatch: { classCode: '1AK' } })).toBe(true);
+        expect(hasFrKvCapability({ role: 'schueler', planerRoles: ['kv'] })).toBe(true);
+        expect(hasFrKvCapability({ role: 'schueler', planerRoles: [] })).toBe(false);
     });
 });
 
@@ -39,6 +53,16 @@ describe('freistellung Direktion chrome', () => {
         expect(useDirektionPlanerChrome({ role: 'direktion', demoRoleOverride: false })).toBe(true);
         expect(useDirektionPlanerChrome({ role: 'direktion', demoRoleOverride: true })).toBe(false);
         expect(useDirektionPlanerChrome({ role: 'kv', demoRoleOverride: false })).toBe(false);
+    });
+
+    it('navSectionsForRole für Direktion sektioniert Arbeit/Auswertung/System', () => {
+        const sections = navSectionsForRole('direktion', ['direktion'], { planerAdminAccess: true });
+        expect(sections.map((s) => s.id)).toEqual(['arbeit', 'auswertung', 'system']);
+        const flat = sections.flatMap((s) => s.items || []).map((v) => v.id);
+        expect(flat).toContain('dashboard');
+        expect(flat).toContain('freigabe');
+        expect(flat).toContain('bericht');
+        expect(flat).toContain('administration');
     });
 
     it('viewsForRole für Direktion enthält Administration', () => {

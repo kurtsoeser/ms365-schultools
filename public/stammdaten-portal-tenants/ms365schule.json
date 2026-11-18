@@ -1,0 +1,9 @@
+{
+  "schoolName": "MS365 Schule",
+  "schoolSlug": "ms365schule",
+  "mode": "remote",
+  "apiBaseUrl": "https://func-ms365-ssp-dev.azurewebsites.net/api",
+  "presetId": "kern",
+  "fieldOverrides": {},
+  "privacyUrl": ""
+}

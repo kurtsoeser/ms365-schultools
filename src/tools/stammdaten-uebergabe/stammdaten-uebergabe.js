@@ -1176,7 +1176,7 @@ async function applyImportedBackupChoice(obj, remoteLastModified) {
         applySharePointSelectiveImportLocally(obj, choice.selectedIds || [], null, { reload: false });
         toast('Auswahl übernommen.');
     } else if (choice === 'import') {
-        applySharePointBackupLocally(obj, null, { reload: false });
+        await applySharePointBackupLocally(obj, null, { reload: false });
         toast('Backup vollständig übernommen.');
     } else {
         return;

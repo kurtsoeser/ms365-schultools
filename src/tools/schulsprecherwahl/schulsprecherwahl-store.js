@@ -20,6 +20,11 @@ import {
     validateRunoffBallot,
     normId
 } from './schulsprecherwahl-logic.js';
+import {
+    ELECTION_KIND_SGA_LEHRER,
+    normalizeElectionKind,
+    resolveElectionBallotSchema
+} from './schulsprecherwahl-kinds.js';
 
 /**
  * @returns {ReturnType<typeof normalizeStore>}
@@ -129,9 +134,12 @@ export async function castVote(args) {
     );
 
     if (phase.roundKind === ROUND_MAIN) {
-        const check = validateMainBallot(args.ballot, allow);
+        const check = validateMainBallot(args.ballot, allow, election);
         if (!check.ok) throw new Error(check.reason);
     } else {
+        if (normalizeElectionKind(election.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+            throw new Error('Für die SGA-Lehrerwahl gibt es keine Stichwahl.');
+        }
         const check = validateRunoffBallot(args.ballot, allow);
         if (!check.ok) throw new Error(check.reason);
     }
@@ -151,7 +159,9 @@ export async function castVote(args) {
         at
     };
     if (phase.roundKind === ROUND_MAIN) {
-        ballotRow.rankings = /** @type {string[]} */ (validateMainBallot(args.ballot, allow).rankings);
+        ballotRow.rankings = /** @type {string[]} */ (
+            validateMainBallot(args.ballot, allow, election).rankings
+        );
     } else {
         ballotRow.choice = /** @type {string} */ (validateRunoffBallot(args.ballot, allow).choice);
     }
@@ -190,14 +200,32 @@ export function evaluateStoredElection(electionId) {
     const runoffBallots = runoffRound ? ballotsForRound(election.id, runoffRound.id) : [];
 
     return evaluateElection({
+        electionKind: election.electionKind,
+        includeSgaDeputies: !!election.includeSgaDeputies,
         mainBallots,
         candidateIds: election.candidates.map((c) => c.id),
         runoffBallots,
         runoffCandidateIds: runoffRound ? runoffRound.candidateIds : [],
-        lotSchulsprecherId: election.lot.schulsprecherId,
-        lotStv1Id: election.lot.stv1Id,
-        lotStv2Id: election.lot.stv2Id
+        lotSchulsprecherId: election.lot && election.lot.schulsprecherId,
+        lotStv1Id: election.lot && election.lot.stv1Id,
+        lotStv2Id: election.lot && election.lot.stv2Id,
+        lot: election.lot || {}
     });
+}
+
+/**
+ * @param {ReturnType<typeof normalizeElection>} election
+ * @param {ReturnType<typeof evaluateElection>} evaled
+ */
+function applySgaLehrerOffices(election, evaled) {
+    const o = evaled.offices || {};
+    election.offices.member1Id = o.member1Id || null;
+    election.offices.member2Id = o.member2Id || null;
+    election.offices.member3Id = o.member3Id || null;
+    election.offices.deputy1Id = o.deputy1Id || null;
+    election.offices.deputy2Id = o.deputy2Id || null;
+    election.offices.deputy3Id = o.deputy3Id || null;
+    election.offices.decidedAfter = 'main';
 }
 
 /**
@@ -220,14 +248,26 @@ export function closeAndCountMain(electionId) {
         eligible: election.eligibleCount || 0
     };
 
+    if (normalizeElectionKind(election.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+        applySgaLehrerOffices(election, evaled);
+        election.status = ELECTION_STATUS.finalized;
+        election.publishedResults = false;
+        return upsertElection(election);
+    }
+
     election.offices.stv1Id = evaled.offices.stv1Id;
     election.offices.stv2Id = evaled.offices.stv2Id;
+    if (election.includeSgaDeputies) {
+        election.offices.sgaDeputy1Id = evaled.offices.sgaDeputy1Id || null;
+        election.offices.sgaDeputy2Id = evaled.offices.sgaDeputy2Id || null;
+        election.offices.sgaDeputy3Id = evaled.offices.sgaDeputy3Id || null;
+    }
 
     if (evaled.offices.schulsprecherId && evaled.offices.decidedAfter === 'main') {
         election.offices.schulsprecherId = evaled.offices.schulsprecherId;
         election.offices.decidedAfter = 'main';
         election.status = ELECTION_STATUS.finalized;
-        election.publishedResults = true;
+        election.publishedResults = false;
     } else if (evaled.needsRunoff || evaled.runoffCandidateIds.length >= 2) {
         let runoff = election.rounds.find((r) => r.kind === ROUND_RUNOFF);
         if (!runoff) {
@@ -262,6 +302,9 @@ export function closeAndCountMain(electionId) {
 export function openRunoff(electionId, window) {
     const election = getElection(electionId);
     if (!election) throw new Error('Wahl nicht gefunden.');
+    if (normalizeElectionKind(election.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+        throw new Error('Für die SGA-Lehrerwahl gibt es keine Stichwahl.');
+    }
     const runoff = election.rounds.find((r) => r.kind === ROUND_RUNOFF);
     if (!runoff || runoff.candidateIds.length < 2) {
         throw new Error('Keine Stichwahl-Kandidaten vorhanden. Zuerst 1. Wahlgang auszählen.');
@@ -315,8 +358,27 @@ export function closeAndCountRunoff(electionId) {
     election.offices.schulsprecherId = evaled.offices.schulsprecherId;
     election.offices.stv1Id = evaled.offices.stv1Id;
     election.offices.stv2Id = evaled.offices.stv2Id;
+    if (election.includeSgaDeputies) {
+        election.offices.sgaDeputy1Id = evaled.offices.sgaDeputy1Id || null;
+        election.offices.sgaDeputy2Id = evaled.offices.sgaDeputy2Id || null;
+        election.offices.sgaDeputy3Id = evaled.offices.sgaDeputy3Id || null;
+    }
     election.offices.decidedAfter = 'runoff';
     election.status = ELECTION_STATUS.finalized;
+    election.publishedResults = false;
+    return upsertElection(election);
+}
+
+/**
+ * Kundmachung: Ergebnis freigeben (ohne Rohstimmen zu teilen).
+ * @param {string} electionId
+ */
+export function publishResults(electionId) {
+    const election = getElection(electionId);
+    if (!election) throw new Error('Wahl nicht gefunden.');
+    if (election.status !== ELECTION_STATUS.finalized) {
+        throw new Error('Erst auszählen – dann kundmachen.');
+    }
     election.publishedResults = true;
     return upsertElection(election);
 }
@@ -328,8 +390,15 @@ export function closeAndCountRunoff(electionId) {
 export function openElection(electionId) {
     const election = getElection(electionId);
     if (!election) throw new Error('Wahl nicht gefunden.');
-    if (election.candidates.length < 3) {
-        throw new Error('Mindestens drei Kandidaturen nötig (6 / 5 / 4 Punkte).');
+    const schema = resolveElectionBallotSchema(election);
+    if (election.candidates.length < schema.rankingCount) {
+        throw new Error(
+            'Mindestens ' +
+                schema.rankingCount +
+                ' Kandidaturen nötig (' +
+                schema.points.join(' / ') +
+                ' Punkte).'
+        );
     }
     const main = election.rounds.find((r) => r.kind === ROUND_MAIN) || election.rounds[0];
     main.status = 'open';
@@ -339,7 +408,7 @@ export function openElection(electionId) {
 }
 
 /**
- * Demo-Wahl mit Beispielauszählung (ähnlich Screenshot).
+ * Demo-Wahl mit fiktiven Personen (keine Realnamen).
  */
 export function seedDemoElection() {
     const election = createElection({
@@ -350,11 +419,36 @@ export function seedDemoElection() {
         eligibleCount: 673,
         publishedResults: true,
         candidates: [
-            { id: 'emin', name: 'Emin Can Acikyürek', className: '4EK', email: 'emin.demo@schule.at' },
-            { id: 'matthias', name: 'Matthias Königsleher', className: '4AK', email: 'matthias.demo@schule.at' },
-            { id: 'laya', name: 'Laya Mohammadi', className: '2EK', email: 'laya.demo@schule.at' },
-            { id: 'sara', name: 'Sara Huber', className: '3BK', email: 'sara.demo@schule.at' },
-            { id: 'jonas', name: 'Jonas Leitner', className: '5AK', email: 'jonas.demo@schule.at' }
+            {
+                id: 'demo_lena',
+                name: 'Lena Bergmann',
+                className: '5AHW',
+                email: 'lena.bergmann.demo@schule.example'
+            },
+            {
+                id: 'demo_felix',
+                name: 'Felix Ortner',
+                className: '4AIT',
+                email: 'felix.ortner.demo@schule.example'
+            },
+            {
+                id: 'demo_mira',
+                name: 'Mira Brandstetter',
+                className: '3BHM',
+                email: 'mira.brandstetter.demo@schule.example'
+            },
+            {
+                id: 'demo_noah',
+                name: 'Noah Weiss',
+                className: '2CHW',
+                email: 'noah.weiss.demo@schule.example'
+            },
+            {
+                id: 'demo_ida',
+                name: 'Ida Sommer',
+                className: '5BIT',
+                email: 'ida.sommer.demo@schule.example'
+            }
         ],
         window: {
             start: '2026-10-01T07:00:00.000Z',
@@ -365,9 +459,9 @@ export function seedDemoElection() {
             end: '2026-10-09T16:00:00.000Z'
         },
         offices: {
-            schulsprecherId: 'emin',
-            stv1Id: 'matthias',
-            stv2Id: 'laya',
+            schulsprecherId: 'demo_lena',
+            stv1Id: 'demo_felix',
+            stv2Id: 'demo_mira',
             decidedAfter: 'runoff'
         },
         rounds: [
@@ -375,7 +469,7 @@ export function seedDemoElection() {
                 id: 'main_demo',
                 kind: ROUND_MAIN,
                 status: 'counted',
-                candidateIds: ['emin', 'matthias', 'laya', 'sara', 'jonas'],
+                candidateIds: ['demo_lena', 'demo_felix', 'demo_mira', 'demo_noah', 'demo_ida'],
                 countedAt: '2026-10-08T16:30:00.000Z',
                 stats: { cast: 612, valid: 610, invalid: 2, eligible: 673 }
             },
@@ -383,7 +477,7 @@ export function seedDemoElection() {
                 id: 'runoff_demo',
                 kind: ROUND_RUNOFF,
                 status: 'counted',
-                candidateIds: ['emin', 'matthias'],
+                candidateIds: ['demo_lena', 'demo_felix'],
                 countedAt: '2026-10-09T16:30:00.000Z',
                 stats: { cast: 587, valid: 587, invalid: 0, eligible: 673 },
                 window: {
@@ -405,12 +499,12 @@ export function seedDemoElection() {
     store.voters = store.voters.filter((v) => v.electionId !== election.id);
 
     const mainBallots = [];
-    // grob: emin oft vorne, aber keine absolute Mehrheit → Stichwahl; STV-Punkte für matthias/laya
-    for (let i = 0; i < 280; i++) mainBallots.push({ rankings: ['emin', 'matthias', 'laya'] });
-    for (let i = 0; i < 250; i++) mainBallots.push({ rankings: ['matthias', 'emin', 'laya'] });
-    for (let i = 0; i < 50; i++) mainBallots.push({ rankings: ['laya', 'emin', 'matthias'] });
-    for (let i = 0; i < 20; i++) mainBallots.push({ rankings: ['sara', 'emin', 'laya'] });
-    for (let i = 0; i < 10; i++) mainBallots.push({ rankings: ['jonas', 'laya', 'matthias'] });
+    // Lena oft vorne, aber keine absolute Mehrheit → Stichwahl; STV-Punkte für Felix/Mira
+    for (let i = 0; i < 280; i++) mainBallots.push({ rankings: ['demo_lena', 'demo_felix', 'demo_mira'] });
+    for (let i = 0; i < 250; i++) mainBallots.push({ rankings: ['demo_felix', 'demo_lena', 'demo_mira'] });
+    for (let i = 0; i < 50; i++) mainBallots.push({ rankings: ['demo_mira', 'demo_lena', 'demo_felix'] });
+    for (let i = 0; i < 20; i++) mainBallots.push({ rankings: ['demo_noah', 'demo_lena', 'demo_mira'] });
+    for (let i = 0; i < 10; i++) mainBallots.push({ rankings: ['demo_ida', 'demo_mira', 'demo_felix'] });
 
     for (const rankings of mainBallots) {
         store.ballots.push({
@@ -427,7 +521,7 @@ export function seedDemoElection() {
             id: newId('ballot'),
             electionId: election.id,
             roundId: 'runoff_demo',
-            choice: 'emin',
+            choice: 'demo_lena',
             at: '2026-10-09T12:00:00.000Z'
         });
     }
@@ -436,7 +530,7 @@ export function seedDemoElection() {
             id: newId('ballot'),
             electionId: election.id,
             roundId: 'runoff_demo',
-            choice: 'matthias',
+            choice: 'demo_felix',
             at: '2026-10-09T12:00:00.000Z'
         });
     }

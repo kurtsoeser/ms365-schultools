@@ -3,7 +3,7 @@
  */
 import {
     VIEWS,
-    viewsForRole,
+    navSectionsForRole,
     filterAngebote,
     scopeFromState,
     canEditAngebot,
@@ -12,8 +12,15 @@ import {
     emptyForm
 } from './projektwochen-state.js';
 import {
+    PW_ROLE_ORDER,
+    canUsePwRoleSwitcher,
+    isPwDemoRoleUiEnabled,
+    sortPwRoles
+} from './projektwochen-entra-role.js';
+import {
     validateAngebot,
     computeDashboardKpis,
+    computePwAttention,
     buildWeekPlan,
     buildWeekPlanDisplayRows,
     buildMonthCells,
@@ -27,6 +34,8 @@ import {
     TAGE,
     KATEGORIEN
 } from './projektwochen-logic.js';
+import { countPendingBookingsSync } from './projektwochen-bookings-logic.js';
+import { formatPwSpoSyncLine } from './projektwochen-sync.js';
 
 function occupancyLabel(state, angebot) {
     const sid = String((angebot && angebot.bookingsServiceId) || '').trim();
@@ -171,45 +180,133 @@ function filterBar(state) {
     );
 }
 
-function renderNav(state) {
-    const views = viewsForRole(state.role);
-    const buttons = views
-        .map((v) => {
-            return (
-                '<button type="button" class="pw-nav__btn' +
-                (state.view === v.id ? ' is-active' : '') +
-                '" data-pw-view="' +
-                esc(v.id) +
-                '"><i class="bi ' +
-                esc(v.icon) +
-                '"></i>' +
-                esc(v.label) +
-                '</button>'
-            );
-        })
-        .join('');
-    const roles = ['lehrer', 'admin', 'schueler']
-        .map((r) => {
-            return (
-                '<button type="button" class="pw-chip' +
-                (state.role === r ? ' is-active' : '') +
-                '" data-pw-role="' +
-                r +
-                '">' +
-                (r === 'lehrer' ? 'Lehrer' : r === 'admin' ? 'Admin' : 'Schüler') +
-                '</button>'
-            );
-        })
-        .join('');
+function quietEmpty(title, hint, ctaHtml) {
     return (
-        '<aside class="pw-nav">' +
-        '<div class="pw-nav__brand"><i class="bi bi-calendar2-week"></i><div><strong>Projektwochen</strong><span>Angebote &amp; Plan</span></div></div>' +
-        '<div class="pw-nav__list">' +
-        buttons +
-        '</div>' +
-        '<div class="pw-nav__roles"><span class="pw-nav__roles-label">Demo-Rolle</span><div class="pw-chips">' +
-        roles +
+        '<div class="pw-quiet-empty" role="status">' +
+        '<strong>' +
+        esc(title) +
+        '</strong>' +
+        (hint ? '<p>' + esc(hint) + '</p>' : '') +
+        (ctaHtml || '') +
+        '</div>'
+    );
+}
+
+function calmBanner(eyebrow, bodyHtml, opts) {
+    const o = opts || {};
+    const tone = o.tone === 'ops' ? 'ops' : 'action';
+    const jump = o.jumpView
+        ? '<button type="button" class="btn btn-sm" data-pw-view="' +
+          esc(o.jumpView) +
+          '">' +
+          esc(o.jumpLabel || 'Öffnen') +
+          '</button>'
+        : '';
+    return (
+        '<section class="pw-calm-banner pw-calm-banner--' +
+        tone +
+        '" role="status">' +
+        (o.icon
+            ? '<div class="pw-calm-banner__icon" aria-hidden="true"><i class="bi ' +
+              esc(o.icon) +
+              '"></i></div>'
+            : '') +
+        '<div class="pw-calm-banner__text">' +
+        '<p class="pw-calm-banner__eyebrow">' +
+        esc(eyebrow) +
+        '</p>' +
+        '<div>' +
+        bodyHtml +
         '</div></div>' +
+        jump +
+        '</section>'
+    );
+}
+
+function renderNav(state) {
+    const sections = navSectionsForRole(state.role);
+    const pendingSync = state.role === 'admin' ? countPendingBookingsSync(state.items) : 0;
+    const openQueue =
+        state.role === 'admin'
+            ? (state.items || []).filter((a) => a && a.status === 'beantragt').length
+            : 0;
+    const navHtml = sections
+        .map((sec) => {
+            const label = sec.label
+                ? '<span class="pw-nav__section-label">' + esc(sec.label) + '</span>'
+                : '';
+            const btns = (sec.items || [])
+                .map((v) => {
+                    let badge = '';
+                    if (v.id === 'admin' && openQueue) {
+                        badge = '<span class="pw-nav__badge">' + openQueue + '</span>';
+                    } else if (v.id === 'bookings' && pendingSync) {
+                        badge = '<span class="pw-nav__badge">' + pendingSync + '</span>';
+                    }
+                    return (
+                        '<button type="button" class="pw-nav__btn' +
+                        (state.view === v.id ? ' is-active' : '') +
+                        (v.id === 'neu' ? ' pw-nav__btn--cta' : '') +
+                        '" data-pw-view="' +
+                        esc(v.id) +
+                        '"><i class="bi ' +
+                        esc(v.icon) +
+                        '" aria-hidden="true"></i><span class="pw-nav__btn-label">' +
+                        esc(v.label) +
+                        '</span>' +
+                        badge +
+                        '</button>'
+                    );
+                })
+                .join('');
+            return '<div class="pw-nav__section">' + label + btns + '</div>';
+        })
+        .join('');
+    const demoRoleUi = isPwDemoRoleUiEnabled(state.entraGroupsConfigured, state.demoRoleOverride);
+    const switchable = demoRoleUi ? PW_ROLE_ORDER : sortPwRoles(state.planerRoles || []);
+    const showRoleSwitcher = canUsePwRoleSwitcher(state.planerRoles || [], demoRoleUi);
+    const roleLabels = { lehrer: 'Lehrer', admin: 'Admin', schueler: 'Schüler' };
+    const brandSub =
+        state.role === 'admin'
+            ? 'Freigabe &amp; Bookings'
+            : state.role === 'schueler'
+              ? 'Plan lesen'
+              : 'Angebote planen';
+    const rolesHtml = showRoleSwitcher
+        ? '<span class="pw-nav__roles-label">Rolle' +
+          (demoRoleUi ? ' (Vorschau)' : '') +
+          '</span><div class="pw-chips">' +
+          switchable
+              .map((r) => {
+                  return (
+                      '<button type="button" class="pw-chip' +
+                      (state.role === r ? ' is-active' : '') +
+                      '" data-pw-role="' +
+                      r +
+                      '">' +
+                      (roleLabels[r] || r) +
+                      '</button>'
+                  );
+              })
+              .join('') +
+          '</div>'
+        : '<span class="pw-nav__roles-label">Rolle</span><p class="pw-nav__hint"><span class="pw-chip is-active">' +
+          (roleLabels[state.role] || state.role) +
+          '</span></p>' +
+          (state.planerAccessDenied
+              ? '<p class="pw-nav__hint">' + esc(String(state.roleHint || 'Kein Zugang.')) + '</p>'
+              : '');
+    return (
+        '<aside class="pw-nav" aria-label="Navigation">' +
+        '<div class="pw-nav__brand"><i class="bi bi-calendar2-week" aria-hidden="true"></i><div><strong>Projektwochen</strong><span>' +
+        brandSub +
+        '</span></div></div>' +
+        '<nav class="pw-nav__list">' +
+        navHtml +
+        '</nav>' +
+        '<div class="pw-nav__roles">' +
+        rolesHtml +
+        '</div>' +
         '</aside>'
     );
 }
@@ -242,11 +339,12 @@ function renderTop(state) {
                   .join('') +
               '</select></label>'
             : '';
+    const syncSrc = state.spoSync && state.spoSync.source;
     const conn =
-        state.localDemoOnly
+        state.localDemoOnly || syncSrc === 'demo'
             ? '<span class="pw-conn pw-conn--demo">Demo lokal</span>'
-            : state.ctx
-              ? '<span class="pw-conn pw-conn--ok">Verbunden</span>'
+            : state.ctx || syncSrc === 'live'
+              ? '<span class="pw-conn pw-conn--ok">SPO live</span>'
               : state.siteUrl
                 ? '<span class="pw-conn pw-conn--wait">Site hinterlegt</span>'
                 : '<span class="pw-conn">Nicht verbunden</span>';
@@ -274,24 +372,103 @@ function renderTop(state) {
               (state.accountEmail ? ' · ' + esc(state.accountEmail) : '') +
               '</div>'
             : '') +
-        (state.roleHint ? '<div class="pw-alert pw-alert--warn">' + esc(state.roleHint) + '</div>' : '') +
-        (state.localDemoOnly
-            ? '<div class="pw-alert pw-alert--info">Lokaler Demo-Modus – Schreibzugriffe nur lokal, bis SharePoint geladen ist.</div>'
+        (state.roleHint && state.view === 'einstellungen'
+            ? '<div class="pw-alert pw-alert--warn">' + esc(state.roleHint) + '</div>'
+            : '') +
+        (state.localDemoOnly && state.view === 'einstellungen'
+            ? '<div class="pw-alert pw-alert--info">Lokaler Demo-Modus – Anzeige ohne SharePoint.</div>'
             : '') +
         (state.error ? '<div class="pw-alert pw-alert--err">' + esc(state.error) + '</div>' : '') +
         '</div></div>'
     );
 }
 
+function renderDashboardAttention(state) {
+    const att = computePwAttention(state);
+    const parts = [];
+    if (state.role === 'admin' && att.beantragt > 0) {
+        parts.push(
+            calmBanner(
+                'Was braucht Aufmerksamkeit?',
+                '<p><strong>' +
+                    att.beantragt +
+                    '</strong> Angebot/Angebote warten auf Freigabe.</p>',
+                { jumpView: 'admin', jumpLabel: 'Zur Freigabe', icon: 'bi-hourglass-split' }
+            )
+        );
+    }
+    if (state.role === 'admin' && att.pendingSync > 0) {
+        parts.push(
+            calmBanner(
+                'Bookings-Sync',
+                '<p><strong>' +
+                    att.pendingSync +
+                    '</strong> freigegebene Angebot/Angebote noch nicht in Microsoft Bookings.</p>',
+                { tone: 'ops', jumpView: 'bookings', jumpLabel: 'Sync öffnen', icon: 'bi-cloud-upload' }
+            )
+        );
+    }
+    if (state.role === 'lehrer' && !att.myCount && state.bootstrapped) {
+        parts.push(
+            calmBanner(
+                'Loslegen',
+                '<p>Noch kein eigenes Angebot – reichen Sie eines für die Projektwoche ein.</p>',
+                { jumpView: 'neu', jumpLabel: 'Neues Angebot', icon: 'bi-plus-circle' }
+            )
+        );
+    }
+    if (state.role === 'schueler') {
+        parts.push(
+            calmBanner(
+                'Buchung',
+                '<p>Angebote hier lesen; buchen Sie in der <strong>Microsoft Bookings</strong>-App (Link nach Freigabe/Sync).</p>',
+                { icon: 'bi-info-circle' }
+            )
+        );
+    }
+    if (!state.bootstrapped && !state.localDemoOnly) {
+        if (state.role === 'admin') {
+            parts.push(
+                calmBanner(
+                    'Setup',
+                    '<p>SharePoint verbinden oder Demo laden – unter System.</p>',
+                    { jumpView: 'einstellungen', jumpLabel: 'System', icon: 'bi-gear' }
+                )
+            );
+        } else {
+            parts.push(
+                quietEmpty(
+                    'Noch keine Daten',
+                    'Bitte warten Sie auf die Freischaltung durch die Administration.'
+                )
+            );
+        }
+    }
+    return parts.join('');
+}
+
 function renderDashboard(state) {
     const items = scopedItems(state);
     const kpis = computeDashboardKpis(items, state.aktion);
+    const emptyBody =
+        state.bootstrapped && !items.length
+            ? quietEmpty(
+                  'Keine Angebote in dieser Sicht',
+                  state.role === 'lehrer'
+                      ? 'Filter zurücksetzen oder neues Angebot anlegen.'
+                      : 'Filter zurücksetzen oder warten, bis Angebote freigegeben sind.',
+                  state.role === 'lehrer'
+                      ? '<button type="button" class="btn btn-sm" data-pw-view="neu"><i class="bi bi-plus-circle"></i>Neues Angebot</button>'
+                      : ''
+              )
+            : '';
     return (
         '<section class="pw-view">' +
         '<header class="pw-view__head">' +
         '<div><h2>Dashboard</h2>' +
         '<p class="pw-view__sub">Überblick zur aktiven Projektwoche – filtern, dann Plan oder Liste öffnen.</p></div>' +
         '</header>' +
+        renderDashboardAttention(state) +
         filterBar(state) +
         '<div class="pw-kpi-grid">' +
         kpiCard('Angebote', kpis.total, 'bi-collection', '') +
@@ -302,13 +479,12 @@ function renderDashboard(state) {
         kpiCard('Buchung offen', kpis.buchungOffen, 'bi-unlock', 'ok') +
         kpiCard('Buchung gesperrt', kpis.buchungGesperrt, 'bi-lock', '') +
         '</div>' +
-        (state.bootstrapped
+        emptyBody +
+        (state.bootstrapped && items.length
             ? '<p class="pw-view__meta"><i class="bi bi-funnel" aria-hidden="true"></i> Gefilterte Sicht: <strong>' +
               items.length +
               '</strong> Angebot/Angebote</p>'
-            : state.role === 'admin'
-              ? '<p class="muted">Noch keine Daten – unter <strong>Einstellungen</strong> SharePoint verbinden oder Demo laden.</p>'
-              : '<p class="muted">Noch keine Daten geladen. Bitte Admin: Verbindung unter Einstellungen prüfen.</p>') +
+            : '') +
         '</section>'
     );
 }
@@ -878,9 +1054,16 @@ function renderMeine(state) {
         .join('');
     return (
         '<section class="pw-view"><h2>Meine Angebote</h2>' +
-        '<div class="pw-table-wrap"><table class="pw-table"><thead><tr><th>Titel</th><th>Datum</th><th>Status</th><th></th></tr></thead><tbody>' +
-        (rows || '<tr><td colspan="4" class="muted">Keine eigenen Angebote</td></tr>') +
-        '</tbody></table></div></section>'
+        (rows
+            ? '<div class="pw-table-wrap"><table class="pw-table"><thead><tr><th>Titel</th><th>Datum</th><th>Status</th><th></th></tr></thead><tbody>' +
+              rows +
+              '</tbody></table></div>'
+            : quietEmpty(
+                  'Noch keine eigenen Angebote',
+                  'Legen Sie ein Angebot an – bis zur Freigabe können Sie es bearbeiten.',
+                  '<button type="button" class="btn btn-sm" data-pw-view="neu"><i class="bi bi-plus-circle"></i>Neues Angebot</button>'
+              )) +
+        '</section>'
     );
 }
 
@@ -986,17 +1169,16 @@ function renderEinstellungen(state) {
             return '';
         }
     })();
+    const stammLive = state.stammdatenLive || {};
     return (
-        '<section class="pw-view"><h2>Einstellungen</h2>' +
+        '<section class="pw-view"><h2>System</h2>' +
         '<p class="muted" style="max-width:42rem;line-height:1.45;margin:0 0 1rem">' +
-        'SharePoint-Adresse und Listen sind Admin-Sache. Lehrkräfte und Schüler sehen nur die Angebote – ' +
-        'nicht die Website-URL. Manchmal ist der <strong>Projektwochen-Admin</strong> dieselbe Person wie der ' +
-        '<strong>MS365-/SharePoint-Admin</strong>, manchmal nicht: URL hier hinterlegen kann der PW-Admin; ' +
-        'Listen anlegen braucht Schreibrechte auf der Site.' +
+        'SharePoint und Listen sind Admin-/IT-Sache – nicht Teil der Lehrer-Navigation. ' +
+        'Lehrkräfte sehen nur Planung und eigene Angebote.' +
         '</p>' +
-        '<div class="tm-panel" style="margin-bottom:1rem">' +
+        '<div class="pw-panel pw-panel--calm" style="margin-bottom:1rem">' +
         '<div class="tm-panel__head"><i class="bi bi-link-45deg"></i><div><h3>SharePoint-Verbindung</h3>' +
-        '<p>Intranet- oder Schultools-Website, auf der PW-Aktionen / PW-Angebote liegen.</p></div></div>' +
+        '<p>Intranet- oder Schultools-Website (PW-Aktionen / PW-Angebote). Leer → Lizenz-Bootstrap.</p></div></div>' +
         '<div class="tm-field">' +
         '<label for="pwSiteUrl">SharePoint-Website</label>' +
         '<input type="url" id="pwSiteUrl" value="' +
@@ -1006,22 +1188,44 @@ function renderEinstellungen(state) {
         (siteHost
             ? '<p class="muted" style="font-size:0.85em;margin:0 0 10px">Aktuell: ' + esc(siteHost) + '</p>'
             : '') +
+        '<p class="muted" style="font-size:0.85em;margin:0 0 10px">Stammdaten: ' +
+        esc(String(stammLive.source || 'local')) +
+        ' · ' +
+        esc(String(stammLive.teacherCount || 0)) +
+        ' Lehrkräfte / ' +
+        esc(String(stammLive.classCount || 0)) +
+        ' Klassen' +
+        (stammLive.error ? ' · ' + esc(stammLive.error) : '') +
+        '</p>' +
+        '<p class="muted" style="font-size:0.85em;margin:0 0 10px">SPO Live Sync: ' +
+        esc(formatPwSpoSyncLine(state.spoSync)) +
+        ' · Angebote: ' +
+        esc(String((state.items || []).length)) +
+        ' · mit SPO-ID: ' +
+        esc(
+            String(
+                (state.items || []).filter((a) => a && a.itemId && String(a.itemId).indexOf('local-') !== 0)
+                    .length
+            )
+        ) +
+        '</p>' +
         '<div class="tm-actions" style="display:flex;flex-wrap:wrap;gap:8px">' +
         '<button type="button" class="btn btn-success" id="pwBtnLoad"><i class="bi bi-cloud-download"></i>Speichern &amp; laden</button>' +
         '<button type="button" class="btn" id="pwBtnListsHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>' +
         '</div></div>' +
-        '<div class="tm-panel" style="margin-bottom:1rem">' +
-        '<div class="tm-panel__head"><i class="bi bi-list-ul"></i><div><h3>Umgebung / Listen</h3>' +
-        '<p>PW-Aktionen und PW-Angebote anlegen oder fehlende Spalten ergänzen (idempotent).</p></div></div>' +
+        '<div class="pw-panel pw-panel--it" style="margin-bottom:1rem">' +
+        '<div class="tm-panel__head"><i class="bi bi-list-ul"></i><div><h3>IT · Listen</h3>' +
+        '<p>PW-Aktionen und PW-Angebote anlegen oder Spalten ergänzen. Ausführlich: Listen-Assistent.</p></div></div>' +
         '<div class="tm-actions" style="display:flex;flex-wrap:wrap;gap:8px">' +
         '<button type="button" class="btn btn-success" id="pwBtnListsCreate"><i class="bi bi-plus-square"></i>Listen anlegen / aktualisieren</button>' +
-        '<a class="btn" href="sharepoint-liste-projektwochen.html" style="text-decoration:none"><i class="bi bi-box-arrow-up-right"></i>Eigenes Setup-Tool</a>' +
+        '<a class="btn" href="sharepoint-liste-projektwochen.html" style="text-decoration:none"><i class="bi bi-box-arrow-up-right"></i>Listen-Assistent</a>' +
         '</div>' +
         '<pre class="pw-setup-log" id="pwSetupLog" hidden></pre>' +
         '</div>' +
-        '<div class="tm-panel">' +
-        '<div class="tm-panel__head"><i class="bi bi-database"></i><div><h3>Demo-Daten (Tenant)</h3>' +
-        '<p>JSON für euren Tenant – lokal + optional auf SharePoint; Stammdaten landen im Browser-Backup.</p></div></div>' +
+        '<div class="pw-panel pw-panel--it">' +
+        '<div class="tm-panel__head"><i class="bi bi-database"></i><div><h3>Demo (Opt-in)</h3>' +
+        '<p>Nur mit Button oder <code>?demo=1</code>. Lokal first – <strong>nicht</strong> automatisch nach SPO. ' +
+        'Schreiben nach SharePoint nur nach ausdrücklicher Bestätigung. Rollen: <code>?demoRole=1</code>.</p></div></div>' +
         '<div class="tm-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
         '<button type="button" class="btn" id="pwBtnDemo"><i class="bi bi-database"></i>Demo laden</button>' +
         '<label class="btn" for="pwImportJsonAdmin"><i class="bi bi-upload"></i>JSON-Datei wählen</label>' +
@@ -1071,15 +1275,52 @@ function renderBookings(state) {
         })
         .join('');
 
+    const pending = countPendingBookingsSync(state.items);
+    const summary = state.bookingsSyncSummary;
+    const summaryBanner =
+        summary && summary.headline
+            ? calmBanner(
+                  summary.tone === 'warn' ? 'Sync mit Fehlern' : 'Sync-Ergebnis',
+                  '<p><strong>' +
+                      esc(summary.headline) +
+                      '</strong>' +
+                      (summary.detail ? '<br>' + esc(summary.detail) : '') +
+                      '</p>',
+                  {
+                      tone: summary.tone === 'ok' ? 'action' : 'ops',
+                      icon: summary.tone === 'warn' ? 'bi-exclamation-triangle' : 'bi-check2-circle'
+                  }
+              )
+            : pending
+              ? calmBanner(
+                    'Nächster Schritt',
+                    '<p><strong>' +
+                        pending +
+                        '</strong> freigegebene Angebot/Angebote brauchen einen Sync nach Microsoft Bookings.</p>',
+                    { tone: 'ops', icon: 'bi-cloud-upload' }
+                )
+              : '';
+    const failHints = freigegeben
+        .filter((a) => String(a.syncStatus || '').toLowerCase() === 'fehler' && a.syncFehler)
+        .slice(0, 3)
+        .map(
+            (a) =>
+                '<li><strong>' +
+                esc(a.title) +
+                ':</strong> ' +
+                esc(a.syncFehler) +
+                '</li>'
+        )
+        .join('');
     return (
         '<section class="pw-view"><h2>Microsoft Bookings</h2>' +
-        '<p class="muted">1 Projektwoche = 1 Bookings-Business, freigegebene Angebote = Dienste. Sync nur per Button (nicht automatisch bei Freigabe).</p>' +
+        '<p class="pw-view__sub">Klarer Export-Schritt: 1 Projektwoche = 1 Business, freigegebene Angebote = Dienste. Sync nur per Button.</p>' +
+        summaryBanner +
         (aktion
             ? '<div class="pw-alert pw-alert--info">Aktion: <strong>' +
               esc(aktion.title) +
-              '</strong><br>Business-ID: ' +
-              esc(aktion.bookingsBusinessId || '(noch nicht angelegt)') +
-              (aktion.bookingsBusinessName ? ' · ' + esc(aktion.bookingsBusinessName) : '') +
+              '</strong><br>Business: ' +
+              esc(aktion.bookingsBusinessName || aktion.bookingsBusinessId || '(noch nicht angelegt)') +
               '</div>'
             : '<div class="pw-alert pw-alert--warn">Keine aktive Aktion.</div>') +
         '<div class="pw-form__actions" style="margin-bottom:12px">' +
@@ -1100,16 +1341,29 @@ function renderBookings(state) {
         '</div>' +
         '<p class="muted">Freigegeben: ' +
         freigegeben.length +
-        ' · mit Service-ID: ' +
+        ' · mit Service: ' +
         synced.length +
-        (state.localDemoOnly ? ' · <strong>Demo-Modus:</strong> Sync simuliert lokal' : '') +
+        ' · Sync ausstehend: ' +
+        pending +
+        (state.localDemoOnly ? ' · Demo: Sync lokal simuliert' : '') +
         '</p>' +
-        '<div class="pw-table-wrap"><table class="pw-table"><thead><tr>' +
-        '<th>Angebot</th><th>Datum</th><th>Sync</th><th>Service</th><th>URL</th><th></th>' +
-        '</tr></thead><tbody>' +
-        (rows || '<tr><td colspan="6" class="muted">Keine freigegebenen Angebote</td></tr>') +
-        '</tbody></table></div>' +
-        '<details class="pw-tech" open style="margin-top:12px"><summary>Protokoll</summary>' +
+        (failHints
+            ? '<div class="pw-alert pw-alert--warn"><p>Letzte Sync-Fehler:</p><ul>' +
+              failHints +
+              '</ul></div>'
+            : '') +
+        (rows
+            ? '<div class="pw-table-wrap"><table class="pw-table"><thead><tr>' +
+              '<th>Angebot</th><th>Datum</th><th>Sync</th><th>Service</th><th>URL</th><th></th>' +
+              '</tr></thead><tbody>' +
+              rows +
+              '</tbody></table></div>'
+            : quietEmpty(
+                  'Keine freigegebenen Angebote',
+                  'Zuerst unter Freigabe Angebote freigeben, dann hier nach Bookings syncen.',
+                  '<button type="button" class="btn btn-sm" data-pw-view="admin">Zur Freigabe</button>'
+              )) +
+        '<details class="pw-tech" style="margin-top:12px"><summary>Technisches Protokoll</summary>' +
         '<pre class="pw-log" id="pwBookingsLog">' +
         esc(state.bookingsLog || 'Noch keine Bookings-Aktion.') +
         '</pre></details>' +
@@ -1523,8 +1777,16 @@ export function renderApp(state, root) {
             '<div class="pw-shell"><div class="pw-loading">Lade Daten …</div></div>';
         return;
     }
+    const roleMod =
+        state.role === 'admin'
+            ? ' pw-shell--admin'
+            : state.role === 'schueler'
+              ? ' pw-shell--schueler'
+              : ' pw-shell--lehrer';
     root.innerHTML =
-        '<div class="pw-shell">' +
+        '<div class="pw-shell' +
+        roleMod +
+        '">' +
         renderNav(state) +
         '<div class="pw-main">' +
         renderTop(state) +

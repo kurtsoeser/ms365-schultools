@@ -460,7 +460,8 @@ function userThumbHtml(email, displayName) {
 function saveLayout(layout) {
     const settings = loadSettings();
     settings.schulOrganigramm = normalizeSchulOrganigramm(layout);
-    // Nur Layout/Orte speichern – Materializer einmal überspringen, Orte nicht zerlegen
+    // Nur Layout/Orte speichern – Materializer einmal überspringen, Orte nicht zerlegen.
+    // reason schul-org-* muss vom Live-Refresh ignoriert werden (sonst Remount-Schleife).
     writeSchoolData(settings, { reason: 'schul-org-layout', skipMaterialize: true });
     return settings.schulOrganigramm;
 }
@@ -657,6 +658,13 @@ export function mountSchulOrganigramm(host, opts) {
     /** Bulk: Gruppen-Besitzer → Klassenvorstand / ARGE-Leitung (einmal pro Mount) */
     /** @type {'idle'|'running'|'done'} */
     let areaHeadBulkSyncState = 'idle';
+    /** Live-Refresh-Guards (vor erstem render initialisieren). */
+    let externalRefreshTimer = 0;
+    let suppressExternalRefreshUntil = 0;
+    let renderDepth = 0;
+    function bumpOrgWriteSuppress() {
+        suppressExternalRefreshUntil = Date.now() + 400;
+    }
     const editor = createSchulOrganigrammEditor({
         loadSettings: loadSettings,
         onChanged: function () {
@@ -896,6 +904,17 @@ export function mountSchulOrganigramm(host, opts) {
     }
 
     function render() {
+        renderDepth += 1;
+        bumpOrgWriteSuppress();
+        try {
+            renderInner();
+        } finally {
+            renderDepth = Math.max(0, renderDepth - 1);
+            bumpOrgWriteSuppress();
+        }
+    }
+
+    function renderInner() {
         // Live-Kartenpositionen vor Remount sichern (Speichern/Notify darf Orte nicht verwerfen)
         let liveMapLayout = null;
         if (mapApi) {
@@ -1464,14 +1483,7 @@ export function mountSchulOrganigramm(host, opts) {
             addAction({
                 icon: 'bi-database',
                 label: 'Stammdaten',
-                href: '../tenant.html#verwaltung',
-                primary: true
-            });
-        } else {
-            addAction({
-                icon: 'bi-arrows-fullscreen',
-                label: 'Vollbild',
-                href: 'tools/schul-organigramm.html',
+                href: '../tenant.html',
                 primary: true
             });
         }
@@ -2839,9 +2851,13 @@ export function mountSchulOrganigramm(host, opts) {
         /* ignore */
     }
 
-    /** Live-Refresh nach Stammdaten-/Schuljahr-Änderungen (ohne eigenen Org-Save zu verdoppeln). */
-    let externalRefreshTimer = 0;
+    /**
+     * Live-Refresh nach *fremden* Stammdaten-/Schuljahr-Änderungen.
+     * Wichtig: eigene Saves (schul-org-layout, schul-org-dnd, …) dürfen KEIN Remount
+     * auslösen – sonst render→saveLayout→Event→render-Schleife (UI tot).
+     */
     function scheduleExternalRefresh() {
+        if (renderDepth > 0 || Date.now() < suppressExternalRefreshUntil) return;
         if (externalRefreshTimer) {
             try {
                 clearTimeout(externalRefreshTimer);
@@ -2852,16 +2868,25 @@ export function mountSchulOrganigramm(host, opts) {
         externalRefreshTimer = setTimeout(function () {
             externalRefreshTimer = 0;
             if (!host.isConnected) return;
+            if (renderDepth > 0 || Date.now() < suppressExternalRefreshUntil) return;
             render();
-        }, 80);
+        }, 120);
+    }
+    function isSelfSchulOrgWriteReason(reason) {
+        const r = String(reason || '')
+            .trim()
+            .toLowerCase();
+        if (!r) return false;
+        if (r === 'writeschulorganigramm') return true;
+        // schul-org-*, schul-organigramm*, schulorganigramm*
+        if (r.indexOf('schul-org') === 0) return true;
+        if (r.indexOf('schulorganigramm') === 0) return true;
+        return false;
     }
     function onSchoolDataWritten(ev) {
-        const reason = String((ev && ev.detail && ev.detail.reason) || '').trim().toLowerCase();
-        if (
-            reason.indexOf('schul-organigramm') === 0 ||
-            reason.indexOf('schulorganigramm') === 0 ||
-            reason === 'writeschulorganigramm'
-        ) {
+        const reason = String((ev && ev.detail && ev.detail.reason) || '');
+        if (isSelfSchulOrgWriteReason(reason)) {
+            bumpOrgWriteSuppress();
             return;
         }
         scheduleExternalRefresh();
@@ -2901,9 +2926,33 @@ export function mountSchulOrganigramm(host, opts) {
         }
     }
 
+    /**
+     * Soft-Wiederanzeige (Tab/Header): kein Full-Remount.
+     * Nur Layout nach display:none → visible nachziehen.
+     */
+    function resume() {
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                try {
+                    window.dispatchEvent(new Event('resize'));
+                } catch {
+                    /* ignore */
+                }
+                if (mapApi && typeof mapApi.relayout === 'function') {
+                    try {
+                        mapApi.relayout();
+                    } catch {
+                        /* ignore */
+                    }
+                }
+            });
+        });
+    }
+
     render();
     return {
         refresh: render,
+        resume: resume,
         destroy: destroy,
         getLayout: function () {
             const settings = loadSettings();

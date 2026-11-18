@@ -45,7 +45,9 @@ app.http('httpCreateJob', {
             }
 
             await assertCallerMayCreateTeams(caller);
-            await assertTenantLicenseAllowed(caller, licenseTokenFromRequest(request));
+            await assertTenantLicenseAllowed(caller, licenseTokenFromRequest(request), {
+                feature: 'kursteams'
+            });
 
             const job = await createJob({
                 tenantId: caller.tid,

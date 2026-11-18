@@ -18,8 +18,15 @@ const {
     deleteLicense,
     listExtraColumns,
     createExtraColumn,
-    deleteExtraColumn
+    deleteExtraColumn,
+    migrateSchoolEntitlements,
+    ensureEntitlementsColumn,
+    ensureLicenseListSchema,
+    resolveSiteId,
+    resolveListId
 } = require('../lib/sharepoint-license');
+const { getOperatorGraphToken } = require('../lib/msal-app-only');
+const { getFeatureCatalogPayload } = require('../lib/feature-catalog');
 
 app.http('httpLicenseAdminMeOptions', {
     methods: ['OPTIONS'],
@@ -151,6 +158,90 @@ app.http('httpLicenseAdminSchoolsDelete', {
             return jsonResponse(200, result);
         } catch (e) {
             return errorJsonResponse(context, 'license/admin/schools DELETE:', e);
+        }
+    }
+});
+
+app.http('httpLicenseAdminEnsureSchemaOptions', {
+    methods: ['OPTIONS'],
+    authLevel: 'anonymous',
+    route: 'license/admin/ensure-schema',
+    handler: async () => corsPreflightResponse()
+});
+
+app.http('httpLicenseAdminEnsureSchema', {
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'license/admin/ensure-schema',
+    handler: async (request, context) => {
+        try {
+            await requireOperatorCaller(bearerTokenFromRequest(request));
+            const cfg = getConfig();
+            const token = await getOperatorGraphToken();
+            const site = await resolveSiteId(cfg.siteWebUrl, token);
+            const list = await resolveListId(site.id, cfg.listDisplayName, token);
+            const schema = await ensureLicenseListSchema(site.id, list.id, token);
+            return jsonResponse(200, {
+                ok: true,
+                siteWebUrl: cfg.siteWebUrl,
+                listDisplayName: cfg.listDisplayName,
+                entitlementsColumn: schema.entitlementsColumn,
+                itContactsColumn: schema.itContactsColumn,
+                toolSiteUrlColumn: schema.toolSiteUrlColumn,
+                stammdaten: schema.stammdaten
+            });
+        } catch (e) {
+            return errorJsonResponse(context, 'license/admin/ensure-schema POST:', e);
+        }
+    }
+});
+
+app.http('httpLicenseAdminMigrateEntitlementsOptions', {
+    methods: ['OPTIONS'],
+    authLevel: 'anonymous',
+    route: 'license/admin/schools/migrate-entitlements',
+    handler: async () => corsPreflightResponse()
+});
+
+app.http('httpLicenseAdminMigrateEntitlements', {
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'license/admin/schools/migrate-entitlements',
+    handler: async (request, context) => {
+        try {
+            await requireOperatorCaller(bearerTokenFromRequest(request));
+            const body = await readJsonBody(request);
+            const result = await migrateSchoolEntitlements({
+                mode: body && body.mode,
+                dryRun: !!(body && body.dryRun)
+            });
+            return jsonResponse(200, result);
+        } catch (e) {
+            return errorJsonResponse(context, 'license/admin/schools/migrate-entitlements POST:', e);
+        }
+    }
+});
+
+app.http('httpLicenseAdminFeatureCatalogOptions', {
+    methods: ['OPTIONS'],
+    authLevel: 'anonymous',
+    route: 'license/admin/feature-catalog',
+    handler: async () => corsPreflightResponse()
+});
+
+app.http('httpLicenseAdminFeatureCatalog', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'license/admin/feature-catalog',
+    handler: async (request, context) => {
+        try {
+            await requireOperatorCaller(bearerTokenFromRequest(request));
+            return jsonResponse(200, getFeatureCatalogPayload());
+        } catch (e) {
+            return errorJsonResponse(context, 'license/admin/feature-catalog GET:', e, {
+                packages: [],
+                defaultNewSchoolPackages: []
+            });
         }
     }
 });

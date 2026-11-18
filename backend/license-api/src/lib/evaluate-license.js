@@ -1,5 +1,10 @@
 'use strict';
 
+const {
+    parseEntitlementsRaw,
+    resolveFeatureEntitlements
+} = require('./feature-catalog');
+
 /**
  * Domains/URLs aus Listenzeile normalisieren (eine pro Zeile, Komma oder Semikolon).
  * @param {unknown} primary
@@ -93,6 +98,16 @@ function evaluateLicense(input) {
     const now = input.now instanceof Date ? input.now : new Date();
     const fields = input.fields && typeof input.fields === 'object' ? input.fields : null;
 
+    const emptyEntitlements = {
+        packages: [],
+        toolsInclude: [],
+        toolsExclude: [],
+        features: [],
+        denied: [],
+        featureCount: 0,
+        legacyFullAccess: false
+    };
+
     const empty = {
         allowed: false,
         reason: 'missing_tenant',
@@ -103,7 +118,9 @@ function evaluateLicense(input) {
         primaryDomain: null,
         domains: [],
         contactEmail: null,
-        contactEmails: []
+        contactEmails: [],
+        toolSiteUrl: null,
+        entitlements: emptyEntitlements
     };
 
     if (!tenantId) {
@@ -133,6 +150,30 @@ function evaluateLicense(input) {
         }
     }
 
+    const entitlementDoc = parseEntitlementsRaw(
+        fields.LicenseEntitlements != null ? fields.LicenseEntitlements : fields.licenseEntitlements
+    );
+    const entitlements = resolveFeatureEntitlements(entitlementDoc, { legacyFullAccess: true });
+
+    // SharePoint kann ToolSiteUrl0 o. Ä. erzeugen – nicht nur exakt ToolSiteUrl
+    let toolSiteUrl = '';
+    const toolKeys = Object.keys(fields || {});
+    for (let ti = 0; ti < toolKeys.length; ti++) {
+        const tk = toolKeys[ti];
+        if (!/tool.?site.?url/i.test(tk) && !/tool_x002d_site/i.test(tk)) continue;
+        const raw = fields[tk];
+        if (raw && typeof raw === 'object' && (raw.Url || raw.url)) {
+            toolSiteUrl = String(raw.Url || raw.url || '').trim();
+        } else {
+            toolSiteUrl = String(raw == null ? '' : raw).trim();
+        }
+        if (toolSiteUrl) break;
+    }
+    if (!toolSiteUrl) {
+        toolSiteUrl = String(fields.ToolSiteUrl || fields.toolSiteUrl || '').trim();
+    }
+    toolSiteUrl = toolSiteUrl || null;
+
     const base = {
         schoolName,
         status,
@@ -140,7 +181,9 @@ function evaluateLicense(input) {
         primaryDomain,
         domains,
         contactEmail,
-        contactEmails
+        contactEmails,
+        toolSiteUrl,
+        entitlements
     };
 
     if (status === 'blocked') {

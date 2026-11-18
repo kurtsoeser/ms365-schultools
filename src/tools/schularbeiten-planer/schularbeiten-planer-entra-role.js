@@ -3,6 +3,12 @@
  */
 import { getGraphToken, graphJson, fetchAllPages } from '../../shared/graph-client.js';
 import {
+    isDemoRoleUiEnabled,
+    readDemoRoleOverrideFromUrl as readDemoRoleOverrideFromUrlShared,
+    canUseAppRoleSwitcher,
+    canShowPrivilegedAppToolbar
+} from '../../shared/app-role-switcher-policy.js';
+import {
     loadPermissionsConfig,
     loadEffectivePermissionsConfig,
     normalizePermissionsConfig
@@ -229,7 +235,7 @@ export function roleSourceLabel(source) {
     const s = String(source || '');
     if (s === 'entra') return 'Entra-Gruppe';
     if (s === 'global-admin') return 'Globaler Administrator';
-    if (s === 'admin-schueler') return 'Schüler-Ansicht (Admin)';
+    if (s === 'admin-schueler') return 'Vorschau (Verwaltung)';
     if (s === 'stammdaten') return 'Stammdaten';
     if (s === 'admin-user') return 'Verwaltung (Einzelperson)';
     if (s === 'lehrer-user') return 'Lehrkraft (Einzelperson)';
@@ -365,10 +371,12 @@ function applyRolesToState(state, roles, sources, opts) {
 }
 
 /**
- * Rollen-Umschalter nur für IT-Vorschau (?demoRole=1), nicht wenn Entra fehlt.
+ * Rollen-Umschalter nur für IT-Vorschau (?demoRole=1).
+ * @param {boolean} [_entraConfigured]
+ * @param {boolean} [demoRoleOverride]
  */
 export function isPlanerDemoRoleUiEnabled(_entraConfigured, demoRoleOverride) {
-    return !!demoRoleOverride;
+    return isDemoRoleUiEnabled(demoRoleOverride);
 }
 
 /**
@@ -377,28 +385,22 @@ export function isPlanerDemoRoleUiEnabled(_entraConfigured, demoRoleOverride) {
  * @param {boolean} demoRoleUi
  */
 export function canUsePlanerRoleSwitcher(planerRoles, demoRoleUi) {
-    if (demoRoleUi) return true;
-    const roles = sortPlanerRoles(planerRoles || []);
-    return roles.includes('admin') && roles.length > 1;
+    return canUseAppRoleSwitcher(planerRoles, {
+        demoRoleUi,
+        privilegedRoles: ['admin']
+    });
 }
 
 /** Stammdaten / Listen einrichten – nur echte Planer-Verwaltung in Admin-Rolle. */
 export function canShowPlanerItToolbar(planerRoles, activeRole) {
-    const roles = sortPlanerRoles(planerRoles || []);
-    return roles.includes('admin') && activeRole === 'admin';
+    return canShowPrivilegedAppToolbar(planerRoles, activeRole, 'admin');
 }
 
 /**
  * @param {boolean} [demoRoleOverride]
  */
 export function readDemoRoleOverrideFromUrl(demoRoleOverride) {
-    if (demoRoleOverride) return true;
-    try {
-        const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search || '' : '');
-        return p.get('demoRole') === '1';
-    } catch {
-        return false;
-    }
+    return readDemoRoleOverrideFromUrlShared(demoRoleOverride);
 }
 
 function isLoggedIn() {

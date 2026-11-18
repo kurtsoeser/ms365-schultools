@@ -4,6 +4,9 @@ import {
     teachersWithSubjectsByKlasse,
     listClassTeachingBoards,
     summarizeClassTeaching,
+    teachingTeacherEmailsByKlasse,
+    teachingEmailsForClassRow,
+    belegungRowsForSpoSync,
     addTeacherToClassBelegung,
     removeTeacherFromClassBelegung,
     listBelegungRowsForKlasse,
@@ -91,6 +94,42 @@ describe('klassenlehrer-stammdaten-logic (Unterrichtsbelegung)', () => {
             teacherAssignments: 3,
             rowCount: 4
         });
+    });
+
+    it('teachingTeacherEmailsByKlasse löst E-Mails und Stammdaten-Kürzel', () => {
+        const rows = belegungRows.concat([
+            {
+                klasse: '1B',
+                lehrerCode: 'NEU',
+                lehrerEmail: '',
+                lehrerName: 'Neu',
+                fach: 'INF',
+                gruppe: '',
+                teamName: '',
+                gruppenmail: ''
+            }
+        ]);
+        const map = teachingTeacherEmailsByKlasse(rows, [
+            { code: 'NEU', email: 'neu@schule.at' },
+            { code: 'MUEL', email: 'ignored@schule.at' }
+        ]);
+        expect(map.get('1A').slice().sort()).toEqual(['anna@schule.at', 'mueller@schule.at']);
+        expect(teachingEmailsForClassRow(map, { code: '1B' })).toEqual(['neu@schule.at']);
+        expect(teachingEmailsForClassRow(map, { code: '1A' })).toHaveLength(2);
+        expect(teachingEmailsForClassRow(map, { code: '2A' })).toEqual(['bert@schule.at']);
+    });
+
+    it('belegungRowsForSpoSync baut Sync-Schlüssel und Title', () => {
+        const rows = belegungRowsForSpoSync(belegungRows, [
+            { code: 'MUEL', email: 'mueller@schule.at', name: 'Müller' }
+        ]);
+        expect(rows.length).toBe(4);
+        const one = rows.find((r) => r.syncKey === '1a|mueller@schule.at|m');
+        expect(one).toBeTruthy();
+        expect(one.klasse).toBe('1A');
+        expect(one.fach).toBe('M');
+        expect(one.title).toContain('1A');
+        expect(one.title).toContain('M');
     });
 
     it('add/removeTeacherToClassBelegung', () => {

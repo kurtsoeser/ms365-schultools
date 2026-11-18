@@ -153,7 +153,7 @@ function renderOverview(layout, metrics, state) {
             : spo === 'ok'
               ? '<p class="muted"><i class="bi bi-check2-circle"></i> SharePoint-Zähler aktualisiert.</p>'
               : spo === 'partial' || spo === 'error'
-                ? '<p class="muted"><i class="bi bi-exclamation-triangle"></i> SharePoint teilweise – Details oben.</p>'
+                ? '<p class="muted"><i class="bi bi-info-circle"></i> SharePoint: einzelne Listen ohne Zeilenzahl (Liste trotzdem gefunden) – Details oben.</p>'
                 : '';
     const amp = metrics.registerAmpel;
     const ampHref = resolveDatenlandkarteHref('../tenant.html#stammdaten');

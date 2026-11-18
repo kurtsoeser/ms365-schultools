@@ -8,7 +8,13 @@ import {
     filterAbschlussklassen,
     suggestLfsChoices,
     teacherChoiceLabels,
-    parseChoiceLines
+    parseChoiceLines,
+    teacherRolesOnItem,
+    filterItemsForTeacher,
+    computeAnmeldungStats,
+    buildAnmeldungSummary,
+    isSrdpAnmeldeFensterOffen,
+    findAnmeldungBySchuelerEmail
 } from '../src/tools/srdp-anmeldung/srdp-anmeldung-logic.js';
 import { listTitleForYear, buildAnmeldungColumns, HAK_VARIANTS, PROFILE_IDS, getProfile } from '../src/tools/srdp-anmeldung/srdp-anmeldung-schema.js';
 
@@ -34,6 +40,27 @@ describe('srdp-anmeldung-logic', () => {
         expect(isSeminarWahlfach('Seminar')).toBe(true);
         expect(isSeminarWahlfach('Seminar DIGBIZ')).toBe(true);
         expect(isSeminarWahlfach('Recht')).toBe(false);
+    });
+
+    it('isSrdpAnmeldeFensterOffen und findAnmeldungBySchuelerEmail', () => {
+        expect(isSrdpAnmeldeFensterOffen({})).toBe(true);
+        expect(isSrdpAnmeldeFensterOffen({ anmeldeFrist: '2099-12-31' }, '2026-11-18')).toBe(true);
+        expect(isSrdpAnmeldeFensterOffen({ anmeldeFrist: '2020-01-01' }, '2026-11-18')).toBe(false);
+        expect(
+            isSrdpAnmeldeFensterOffen(
+                { anmeldeVon: '2026-11-20', anmeldeFrist: '2026-12-01' },
+                '2026-11-18'
+            )
+        ).toBe(false);
+        const hit = findAnmeldungBySchuelerEmail(
+            [
+                { itemId: '1', schuelerEmail: 'a@schule.at' },
+                { itemId: '2', beantragtVon: 'b@schule.at' }
+            ],
+            'b@schule.at'
+        );
+        expect(hit && hit.itemId).toBe('2');
+        expect(findAnmeldungBySchuelerEmail([], 'x@y.at')).toBe(null);
     });
 
     it('validateAnmeldungDraft', () => {
@@ -86,6 +113,26 @@ describe('srdp-anmeldung-logic', () => {
 
     it('parseChoiceLines', () => {
         expect(parseChoiceLines('Recht\n# Kommentar\nSeminar\nRecht')).toEqual(['Recht', 'Seminar']);
+    });
+
+    it('teacherRolesOnItem und Stats', () => {
+        const item = {
+            klasse: '5AHAK',
+            variante: 'Variante 1',
+            nachname: 'Huber',
+            vorname: 'Anna',
+            betreuungslehrerDA: 'Mag. Müller',
+            lehrerLFS: 'Mag. Schmidt',
+            lehrerBKO: 'Mag. Hofer',
+            wahlfachMuendlich: 'Recht',
+            lehrerWahlfach: 'Mag. Müller'
+        };
+        expect(teacherRolesOnItem(item, 'Mag. Müller').map((r) => r.role)).toEqual(['da', 'wahlfach']);
+        expect(filterItemsForTeacher([item], 'Mag. Schmidt')).toHaveLength(1);
+        const stats = computeAnmeldungStats([item, { ...item, klasse: '5BHAK', variante: 'Variante 2' }]);
+        expect(stats.total).toBe(2);
+        expect(stats.byKlasse).toHaveLength(2);
+        expect(buildAnmeldungSummary(item).rows.some((r) => r.label === 'Name')).toBe(true);
     });
 });
 

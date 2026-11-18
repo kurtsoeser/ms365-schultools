@@ -234,7 +234,7 @@ app.http('httpElectionVote', {
             /** @type {{ rankings?: string[], choice?: string }} */
             let ballotPayload;
             if (phase.roundKind === 'main') {
-                const check = validateMainBallot(body, allow);
+                const check = validateMainBallot(body, allow, election);
                 if (!check.ok) {
                     const err = new Error(check.reason);
                     err.status = 400;

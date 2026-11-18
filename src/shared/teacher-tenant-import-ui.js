@@ -9,12 +9,13 @@ import {
     buildStudentImportPreview,
     buildTeacherImportPreview,
     facultyUserPlanSkuIds,
+    metaLooksLikeTeacherRole,
     normalizeImportMergeOpts,
     studentUserPlanSkuIds
 } from './graph-licenses.js';
 import { escapeHtml, normStr } from './utils/strings.js';
 
-/** Textfilter: alle Wörter müssen in Name, E-Mail, Kürzel/Klasse oder Lizenz vorkommen. */
+/** Textfilter: alle Wörter müssen in Name, E-Mail, Kürzel/Klasse, Lizenz oder Metadaten vorkommen. */
 export function rowMatchesTextFilter(row, query, colKey) {
     const tokens = String(query || '')
         .trim()
@@ -30,7 +31,10 @@ export function rowMatchesTextFilter(row, query, colKey) {
         row && row.localName,
         row && row.localEmail,
         row && row.localKlasse,
-        row && row.matchKind
+        row && row.matchKind,
+        row && row.department,
+        row && row.officeLocation,
+        row && row.jobTitle
     ]
         .map(function (v) {
             return String(v || '').toLowerCase();
@@ -39,6 +43,46 @@ export function rowMatchesTextFilter(row, query, colKey) {
     return tokens.every(function (t) {
         return hay.includes(t);
     });
+}
+
+/** Exakter Metadaten-Filter (Abteilung / Büro / Position). */
+export function rowMatchesMetaFilters(row, filters) {
+    const f = filters && typeof filters === 'object' ? filters : {};
+    const dept = String(f.department || '').trim().toLowerCase();
+    const office = String(f.officeLocation || '').trim().toLowerCase();
+    const job = String(f.jobTitle || '').trim().toLowerCase();
+    if (dept && String((row && row.department) || '').trim().toLowerCase() !== dept) return false;
+    if (office && String((row && row.officeLocation) || '').trim().toLowerCase() !== office) return false;
+    if (job && String((row && row.jobTitle) || '').trim().toLowerCase() !== job) return false;
+    if (f.teacherHintOnly && !metaLooksLikeTeacherRole(row)) return false;
+    return true;
+}
+
+export function collectMetaFilterOptions(rows) {
+    const departments = new Set();
+    const offices = new Set();
+    const jobs = new Set();
+    let teacherHintCount = 0;
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+        const d = normStr(row && row.department);
+        const o = normStr(row && row.officeLocation);
+        const j = normStr(row && row.jobTitle);
+        if (d) departments.add(d);
+        if (o) offices.add(o);
+        if (j) jobs.add(j);
+        if (metaLooksLikeTeacherRole(row)) teacherHintCount++;
+    });
+    function sorted(set) {
+        return Array.from(set).sort(function (a, b) {
+            return a.localeCompare(b, 'de', { sensitivity: 'base' });
+        });
+    }
+    return {
+        departments: sorted(departments),
+        offices: sorted(offices),
+        jobs: sorted(jobs),
+        teacherHintCount: teacherHintCount
+    };
 }
 
 function el(id) {
@@ -175,6 +219,18 @@ function bindLicenseTenantImport(cfg) {
         return inp ? inp.value : '';
     }
 
+    function metaFiltersFromUi() {
+        const deptEl = cfg.departmentFilterId ? el(cfg.departmentFilterId) : null;
+        const officeEl = cfg.officeFilterId ? el(cfg.officeFilterId) : null;
+        const jobEl = cfg.jobTitleFilterId ? el(cfg.jobTitleFilterId) : null;
+        return {
+            department: deptEl ? deptEl.value : '',
+            officeLocation: officeEl ? officeEl.value : '',
+            jobTitle: jobEl ? jobEl.value : '',
+            teacherHintOnly: checked(cfg.teacherMetaHintId, false)
+        };
+    }
+
     function mergeOptsFromUi() {
         const overwrite = checked(cfg.overwriteKlasseId, false);
         return normalizeImportMergeOpts({
@@ -198,9 +254,59 @@ function bindLicenseTenantImport(cfg) {
     }
 
     function visibleRows() {
+        const meta = metaFiltersFromUi();
         return state.preview.filter(function (row) {
-            return rowMatchesViewFilter(row) && rowMatchesTextFilter(row, filterQuery(), spec.colKey);
+            return (
+                rowMatchesViewFilter(row) &&
+                rowMatchesTextFilter(row, filterQuery(), spec.colKey) &&
+                rowMatchesMetaFilters(row, meta)
+            );
         });
+    }
+
+    function fillMetaSelect(selectEl, values, current) {
+        if (!selectEl) return;
+        const keep = String(current || selectEl.value || '');
+        selectEl.replaceChildren();
+        const all = document.createElement('option');
+        all.value = '';
+        all.textContent = 'Alle';
+        selectEl.appendChild(all);
+        (values || []).forEach(function (v) {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            selectEl.appendChild(opt);
+        });
+        if (keep && values.indexOf(keep) >= 0) selectEl.value = keep;
+        else selectEl.value = '';
+        selectEl.disabled = !(values && values.length);
+    }
+
+    function renderMetaFilters() {
+        const opts = collectMetaFilterOptions(state.preview);
+        fillMetaSelect(cfg.departmentFilterId ? el(cfg.departmentFilterId) : null, opts.departments);
+        fillMetaSelect(cfg.officeFilterId ? el(cfg.officeFilterId) : null, opts.offices);
+        fillMetaSelect(cfg.jobTitleFilterId ? el(cfg.jobTitleFilterId) : null, opts.jobs);
+        const hint = cfg.teacherMetaHintId ? el(cfg.teacherMetaHintId) : null;
+        const hintLab = hint && hint.closest ? hint.closest('label') : null;
+        if (hint) {
+            hint.disabled = !state.preview.length || opts.teacherHintCount === 0;
+            if (!opts.teacherHintCount) hint.checked = false;
+        }
+        if (hintLab) {
+            hintLab.title =
+                opts.teacherHintCount > 0
+                    ? opts.teacherHintCount + ' Konten mit Lehrkraft-Hinweis in Abteilung/Büro/Position'
+                    : 'Keine Treffer für typische Lehrkraft-Metadaten';
+            hintLab.hidden = !state.preview.length;
+        }
+        const bar = cfg.metaFilterBarId ? el(cfg.metaFilterBarId) : null;
+        if (bar) {
+            const hasAny = opts.departments.length || opts.offices.length || opts.jobs.length;
+            bar.hidden = !state.preview.length;
+            bar.classList.toggle('is-empty', !hasAny);
+        }
     }
 
     function rebuildPreview() {
@@ -244,24 +350,112 @@ function bindLicenseTenantImport(cfg) {
         if (!host) return;
         host.replaceChildren();
         const fams = [
-            { key: 'a1', label: 'A1 für ' + spec.familyWho },
-            { key: 'a3', label: 'A3 für ' + spec.familyWho },
-            { key: 'a5', label: 'A5 für ' + spec.familyWho }
+            { key: 'a1', short: 'A1', label: 'A1 für ' + spec.familyWho },
+            { key: 'a3', short: 'A3', label: 'A3 für ' + spec.familyWho },
+            { key: 'a5', short: 'A5', label: 'A5 für ' + spec.familyWho }
         ];
         fams.forEach(function (f) {
             const lab = document.createElement('label');
-            lab.className = 'sw-lic-chip';
+            lab.className = 'sw-lic-seg-item' + (state.families[f.key] ? ' is-on' : '');
+            lab.title = f.label;
             const inp = document.createElement('input');
             inp.type = 'checkbox';
+            inp.className = 'sr-only';
             inp.checked = !!state.families[f.key];
+            inp.setAttribute('aria-label', f.label);
             inp.addEventListener('change', function () {
                 state.families[f.key] = inp.checked;
+                lab.classList.toggle('is-on', inp.checked);
                 rebuildPreview();
             });
+            const span = document.createElement('span');
+            span.textContent = f.short;
             lab.appendChild(inp);
-            lab.appendChild(document.createTextNode(' ' + f.label));
+            lab.appendChild(span);
             host.appendChild(lab);
         });
+    }
+
+    function setViewFilter(value) {
+        const next = String(value || 'all');
+        state.viewFilter = next;
+        const viewFilter = cfg.viewFilterId ? el(cfg.viewFilterId) : null;
+        if (viewFilter && viewFilter.value !== next) viewFilter.value = next;
+        if (state.users.length) renderPanel();
+    }
+
+    function renderSelectedCount(selected) {
+        const host = cfg.selectedCountId ? el(cfg.selectedCountId) : null;
+        if (!host) return;
+        host.textContent = selected + ' ausgewählt';
+        host.classList.toggle('is-active', selected > 0);
+    }
+
+    function renderStats(status, rows, visible, neu, vorh, review, q) {
+        if (!status) return;
+        if (!state.users.length) {
+            status.replaceChildren();
+            return;
+        }
+        const filtered = String(q).trim() || state.viewFilter !== 'all';
+        const active = state.viewFilter || 'all';
+        const items = [
+            {
+                view: 'all',
+                n: rows.length,
+                label: 'gesamt',
+                cls: '',
+                title: spec.personWord + ' mit gewählter Lizenz – alle anzeigen'
+            },
+            {
+                view: 'new',
+                n: neu,
+                label: 'neu',
+                cls: 'sw-lic-stat--new',
+                title: 'Noch nicht in der lokalen Liste'
+            },
+            {
+                view: 'matched',
+                n: vorh,
+                label: 'zugeordnet',
+                cls: 'sw-lic-stat--matched',
+                title: 'Bereits in der lokalen Liste gefunden'
+            },
+            {
+                view: 'review',
+                n: review,
+                label: 'prüfen',
+                cls: 'sw-lic-stat--review',
+                title: 'Namens-Treffer oder Abweichungen'
+            }
+        ];
+        status.replaceChildren();
+        items.forEach(function (item) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.view = item.view;
+            btn.className =
+                'sw-lic-stat' +
+                (item.cls ? ' ' + item.cls : '') +
+                (active === item.view ? ' is-active' : '');
+            btn.title = item.title;
+            btn.setAttribute('aria-pressed', active === item.view ? 'true' : 'false');
+            const n = document.createElement('span');
+            n.className = 'sw-lic-stat-n';
+            n.textContent = String(item.n);
+            const l = document.createElement('span');
+            l.className = 'sw-lic-stat-l';
+            l.textContent = item.label;
+            btn.appendChild(n);
+            btn.appendChild(l);
+            status.appendChild(btn);
+        });
+        if (filtered) {
+            const hint = document.createElement('p');
+            hint.className = 'sw-lic-stats-hint muted';
+            hint.textContent = visible.length + ' in der aktuellen Ansicht angezeigt';
+            status.appendChild(hint);
+        }
     }
 
     function renderPanel() {
@@ -281,29 +475,9 @@ function bindLicenseTenantImport(cfg) {
         const selected = rows.filter(function (r) {
             return r.selected;
         }).length;
-        if (status) {
-            if (!state.users.length) {
-                status.textContent = '';
-            } else {
-                let text =
-                    rows.length +
-                    ' ' +
-                    spec.personWord +
-                    ' mit gewählter Lizenz · ' +
-                    neu +
-                    ' neu · ' +
-                    vorh +
-                    ' zugeordnet · ' +
-                    review +
-                    ' prüfen · ' +
-                    selected +
-                    ' ausgewählt';
-                if (String(q).trim() || state.viewFilter !== 'all') {
-                    text += ' · ' + visible.length + ' angezeigt';
-                }
-                status.textContent = text;
-            }
-        }
+        renderStats(status, rows, visible, neu, vorh, review, q);
+        renderSelectedCount(selected);
+        renderMetaFilters();
         if (!tbody) return;
         tbody.replaceChildren();
         if (!rows.length || !visible.length) {
@@ -352,10 +526,21 @@ function bindLicenseTenantImport(cfg) {
             tdEdit.appendChild(editInp);
 
             const tdName = document.createElement('td');
-            tdName.textContent = row.name || '';
+            const nameMain = document.createElement('span');
+            nameMain.textContent = row.name || '';
+            tdName.appendChild(nameMain);
+            const metaBits = [row.department, row.officeLocation, row.jobTitle].filter(Boolean);
+            if (metaBits.length) {
+                const meta = document.createElement('span');
+                meta.className = 'sw-lic-meta-hints';
+                meta.textContent = metaBits.join(' · ');
+                tdName.appendChild(meta);
+            }
             if (row.nameDiffers && row.localName) {
                 tdName.title = 'Lokal: ' + row.localName;
                 tdName.classList.add('sw-lic-cell-diff');
+            } else if (metaBits.length) {
+                tdName.title = metaBits.join(' · ');
             }
 
             const tdEmail = document.createElement('td');
@@ -391,8 +576,23 @@ function bindLicenseTenantImport(cfg) {
             btn.disabled = true;
             btn.setAttribute('aria-busy', 'true');
         }
-        if (panel) panel.hidden = false;
-        if (status) status.textContent = 'Lese Lizenzen und Benutzer aus Microsoft 365 …';
+        if (panel) {
+            panel.hidden = false;
+            try {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch {
+                /* ignore */
+            }
+        }
+        if (status) {
+            status.replaceChildren();
+            const loading = document.createElement('p');
+            loading.className = 'sw-lic-stats-loading muted';
+            loading.style.margin = '0';
+            loading.style.gridColumn = '1 / -1';
+            loading.textContent = 'Lese Lizenzen und Benutzer aus Microsoft 365 …';
+            status.appendChild(loading);
+        }
         try {
             const G = graphApi();
             const token = await G.getGraphToken();
@@ -541,6 +741,19 @@ function bindLicenseTenantImport(cfg) {
             if (state.users.length) renderPanel();
         });
     }
+    [cfg.departmentFilterId, cfg.officeFilterId, cfg.jobTitleFilterId].forEach(function (id) {
+        const box = id ? el(id) : null;
+        if (!box) return;
+        box.addEventListener('change', function () {
+            if (state.users.length) renderPanel();
+        });
+    });
+    const teacherMetaHint = cfg.teacherMetaHintId ? el(cfg.teacherMetaHintId) : null;
+    if (teacherMetaHint) {
+        teacherMetaHint.addEventListener('change', function () {
+            if (state.users.length) renderPanel();
+        });
+    }
     const activeBox = cfg.activeOnlyId ? el(cfg.activeOnlyId) : null;
     if (activeBox) {
         activeBox.addEventListener('change', function () {
@@ -566,8 +779,15 @@ function bindLicenseTenantImport(cfg) {
     const viewFilter = cfg.viewFilterId ? el(cfg.viewFilterId) : null;
     if (viewFilter) {
         viewFilter.addEventListener('change', function () {
-            state.viewFilter = String(viewFilter.value || 'all');
-            if (state.users.length) renderPanel();
+            setViewFilter(viewFilter.value || 'all');
+        });
+    }
+    const statusHost = cfg.statusId ? el(cfg.statusId) : null;
+    if (statusHost) {
+        statusHost.addEventListener('click', function (ev) {
+            const btn = ev.target && ev.target.closest ? ev.target.closest('button.sw-lic-stat[data-view]') : null;
+            if (!btn || !statusHost.contains(btn)) return;
+            setViewFilter(btn.getAttribute('data-view') || 'all');
         });
     }
     renderSkuFilters();
@@ -689,6 +909,12 @@ function autoBind() {
             updateEmailId: 'tenantTeacherTenantUpdateEmail',
             selectDiffsId: 'tenantTeacherTenantSelectDiffsOpt',
             viewFilterId: 'tenantTeacherTenantViewFilter',
+            selectedCountId: 'tenantTeacherTenantSelectedCount',
+            metaFilterBarId: 'tenantTeacherTenantMetaFilters',
+            departmentFilterId: 'tenantTeacherTenantDepartmentFilter',
+            officeFilterId: 'tenantTeacherTenantOfficeFilter',
+            jobTitleFilterId: 'tenantTeacherTenantJobTitleFilter',
+            teacherMetaHintId: 'tenantTeacherTenantTeacherMetaHint',
             getExistingTeachers: function () {
                 const ta = el('tenantTeachersLines');
                 if (!ta || typeof window.ms365TenantSettingsParseTeachersLines !== 'function') return [];
@@ -776,6 +1002,11 @@ function autoBind() {
             updateEmailId: 'tenantStudentTenantUpdateEmail',
             selectDiffsId: 'tenantStudentTenantSelectDiffsOpt',
             viewFilterId: 'tenantStudentTenantViewFilter',
+            selectedCountId: 'tenantStudentTenantSelectedCount',
+            metaFilterBarId: 'tenantStudentTenantMetaFilters',
+            departmentFilterId: 'tenantStudentTenantDepartmentFilter',
+            officeFilterId: 'tenantStudentTenantOfficeFilter',
+            jobTitleFilterId: 'tenantStudentTenantJobTitleFilter',
             getExistingStudents: function () {
                 const ta = el('tenantStudentsLines');
                 if (!ta || typeof window.ms365TenantSettingsParseStudentsLines !== 'function') return [];

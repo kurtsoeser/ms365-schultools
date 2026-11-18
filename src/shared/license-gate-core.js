@@ -1,15 +1,22 @@
 /**
- * Phase 3 – Lizenz-Gate Kernlogik (ohne DOM).
+ * Lizenz-Gate Kernlogik (ohne DOM).
  *
- * Das Overlay ist nur UX. Werkzeuge mit Graph im Namen des Users bleiben an Entra
- * gebunden. App-Only-Aktionen (Kursteams-Backend) prüfen die Lizenz serverseitig.
+ * Overlay = UX. App-Only-Aktionen prüfen die Lizenz serverseitig.
+ * Entitlements steuern Modul-Sichtbarkeit (Dashboard + Tool-Seiten).
  */
 (function (global) {
     'use strict';
 
-    var CACHE_KEY = 'ms365-license-me-v1';
+    var CACHE_KEY = 'ms365-license-me-v2';
     /** Kurz halten – Cache ist nur Komfort, nicht Vertrauensgrenze. */
     var TTL_MS = 10 * 60 * 1000;
+
+    /** HTML-Dateiname (ohne .html) → data-tool-id, wenn abweichend */
+    var PATH_ALIASES = {
+        jahrgangsgruppen: 'jahrgang',
+        'schueler-sammelgruppe': 'slg-schueler',
+        'lehrer-sammelgruppe': 'slg-lehrer'
+    };
 
     function isExemptPath(pathname) {
         var p = String(pathname || '');
@@ -20,6 +27,76 @@
             /\/admin\.html(?:\?|#|$)/i.test(p) ||
             /\/tools\/license-backend-setup\.html(?:\?|#|$)/i.test(p)
         );
+    }
+
+    /**
+     * Tool-ID aus URL, z. B. /tools/kursteams.html → kursteams
+     * @param {string} [pathname]
+     * @returns {string|null}
+     */
+    function toolIdFromPathname(pathname) {
+        var p = String(pathname || '')
+            .replace(/\\/g, '/')
+            .split('?')[0]
+            .split('#')[0];
+        var m = p.match(/\/tools\/([^/]+?)\.html$/i);
+        if (!m) return null;
+        var base = String(m[1] || '')
+            .trim()
+            .toLowerCase();
+        if (!base) return null;
+        if (PATH_ALIASES[base]) return PATH_ALIASES[base];
+        return base;
+    }
+
+    /**
+     * @param {unknown} entitlements
+     * @returns {{ packages: string[], features: string[], denied: string[] }|null}
+     */
+    function normalizeEntitlements(entitlements) {
+        if (!entitlements || typeof entitlements !== 'object') return null;
+        var features = Array.isArray(entitlements.features)
+            ? entitlements.features.map(function (x) {
+                  return String(x || '').trim();
+              }).filter(Boolean)
+            : null;
+        if (!features) return null;
+        return {
+            packages: Array.isArray(entitlements.packages)
+                ? entitlements.packages.map(function (x) {
+                      return String(x || '').trim();
+                  }).filter(Boolean)
+                : [],
+            features: features,
+            denied: Array.isArray(entitlements.denied)
+                ? entitlements.denied.map(function (x) {
+                      return String(x || '').trim();
+                  }).filter(Boolean)
+                : []
+        };
+    }
+
+    /**
+     * Modul freigeschaltet?
+     * Ohne License-API / ohne Cache / ohne Entitlements → erlaubt (Dev + Legacy).
+     * Unbekannte Tool-IDs (nicht in features und nicht in denied) → erlaubt.
+     * @param {string} featureId
+     * @param {object|null} [cacheOrResult]
+     */
+    function hasFeature(featureId, cacheOrResult) {
+        var id = String(featureId || '').trim();
+        if (!id) return true;
+        if (!isLicenseApiConfigured()) return true;
+        var data = cacheOrResult != null ? cacheOrResult : readCache();
+        /* Noch keine Prüfung → nicht vorschnell ausblenden */
+        if (!data) return true;
+        if (data.allowed !== true) return false;
+        var ent = normalizeEntitlements(data.entitlements);
+        if (!ent) return true;
+        if (ent.features.indexOf(id) >= 0) return true;
+        if (ent.denied.indexOf(id) >= 0) return false;
+        /* Tool nicht im Katalog → nicht sperren */
+        return true;
     }
 
     function isLicenseApiConfigured() {
@@ -61,6 +138,7 @@
                     message: result && result.message ? String(result.message) : '',
                     tenantId: tid,
                     license: (result && result.license) || null,
+                    entitlements: normalizeEntitlements(result && result.entitlements),
                     user: (result && result.user) || null,
                     isDesignatedSchoolIt: !!(result && result.isDesignatedSchoolIt),
                     accountKey: key,
@@ -117,8 +195,12 @@
     global.ms365LicenseGateCore = {
         CACHE_KEY: CACHE_KEY,
         TTL_MS: TTL_MS,
+        PATH_ALIASES: PATH_ALIASES,
         isExemptPath: isExemptPath,
         isLicenseApiConfigured: isLicenseApiConfigured,
+        toolIdFromPathname: toolIdFromPathname,
+        normalizeEntitlements: normalizeEntitlements,
+        hasFeature: hasFeature,
         readCache: readCache,
         writeCache: writeCache,
         clearCache: clearCache,

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Datenschutzerklärung – MS365-Schul-Tools | ms365.schule</title>
-  <meta name="description" content="Datenschutzerklärung zur Browser-App MS365-Schul-Tools: lokale Stammdaten, Microsoft 365 / Graph, optionale SharePoint-Sicherung – ohne App-Server für Schul-Listen.">
+  <meta name="description" content="Datenschutzerklärung MS365-Schul-Tools: Stammdaten lokal, Fachdaten in Ihrem Microsoft-365-Tenant, schlanke Betreiber-Dienste nur für Lizenz und optionale Portale.">
   <meta name="robots" content="index,follow">
   <link rel="icon" href="assets/schooltool.png" type="image/png">
   <link rel="stylesheet" href="styles.css">
@@ -37,7 +37,7 @@
         von Microsoft&nbsp;365, ersetzt sie aber nicht.
       </p>
       <p class="legal-note">
-        Stand: September&nbsp;2026. Bei wesentlichen Änderungen der App wird diese Seite angepasst.
+        Stand: November&nbsp;2026. Bei wesentlichen Änderungen der App wird diese Seite angepasst.
       </p>
 
       <section class="legal-block" aria-labelledby="controller">
@@ -84,25 +84,33 @@
           für Microsoft&nbsp;365.
         </p>
         <p>
-          Die MS365-Schul-Tools ist ein <strong>lokales Hilfsmittel</strong> ohne eigenen
-          Backend-Server für Ihre Stammdaten-Listen: sie speichert nichts „in der Cloud beim
-          Software-Betreiber“, sondern im Browser der bedienenden Person und – wenn Sie Aktionen
-          ausführen oder die optionale SharePoint-Sicherung nutzen – im
+          Die MS365-Schul-Tools ist primär ein <strong>Browser-Hilfsmittel</strong>: Stammdaten-Listen
+          werden nicht als Produkt-Datenbank beim Software-Betreiber geführt, sondern im Browser
+          der bedienenden Person und – wenn Sie Aktionen ausführen, SharePoint-Listen nutzen oder
+          die optionale SharePoint-Sicherung aktivieren – im
           <strong>Microsoft-Mandanten Ihrer Schule</strong>.
+        </p>
+        <p>
+          Zusätzlich gibt es <strong>schlanke Betreiber-Dienste</strong> (Azure Functions) für
+          Lizenzfreischaltung und ausgewählte optionale Funktionen (siehe Abschnitt&nbsp;8).
+          Diese Dienste sind nicht dazu da, Ihren gesamten Schülerstamm als Betreiber-Datenbank
+          zu spiegeln.
         </p>
       </section>
 
       <section class="legal-block" aria-labelledby="no-backend">
-        <h2 id="no-backend">3. Keine App-Server, keine App-Analytik</h2>
+        <h2 id="no-backend">3. Keine Produkt-Datenbank für Schul-Listen, keine App-Analytik</h2>
         <p>
-          Es gibt keinen Anwendungsserver dieser Software, der Klassen-, Schüler- oder Lehrerlisten
-          entgegennimmt, speichert oder auswertet. Importierte Dateien und Einstellungen werden
-          <strong>in diesem Browser</strong> verarbeitet.
+          Importierte Klassen-, Schüler- und Lehrerlisten werden
+          <strong>in diesem Browser</strong> verarbeitet und – bei Online-Aktionen – in Ihrem
+          Microsoft-365-Tenant (Graph / SharePoint) gespeichert. Es gibt keinen zentralen
+          „Schuldaten-Server“ des Betreibers, der Ihren gesamten Stamm dauerhaft als
+          Produkt-Datenbank führt.
         </p>
         <p>
-          Die Website und die App-Dateien können von einem statischen Host ausgeliefert werden
-          (z. B. Webspace / CDN). Das Hosting kann übliche Zugriffsprotokolle des Webservers
-          führen (IP-Adresse, Zeitpunkt, angeforderte Datei) – nicht jedoch Ihre Stammdaten-Listen.
+          Die Website und die App-Dateien werden typischerweise von einem statischen Host
+          ausgeliefert (Webspace / CDN). Das Hosting kann übliche Zugriffsprotokolle führen
+          (IP-Adresse, Zeitpunkt, angeforderte Datei) – nicht jedoch Ihre Stammdaten-Listen.
           Von dieser App werden keine Tracking-Pixel, Werbenetze oder Analyse-Dienste eingebunden.
         </p>
       </section>
@@ -191,13 +199,37 @@
       </section>
 
       <section class="legal-block" aria-labelledby="license">
-        <h2 id="license">8. Lizenz- / Mandantenprüfung (falls aktiv)</h2>
+        <h2 id="license">8. Betreiber-Dienste (Lizenz, Portale, optionale APIs)</h2>
         <p>
-          Sofern für den Zugang zur App eine Tenant-/Lizenzprüfung genutzt wird, kann die App
-          nach der Microsoft-Anmeldung technische Angaben zum Mandanten (z. B. Tenant-ID) an
-          einen vom Betreiber betriebenen Prüf-Endpunkt übermitteln – ausschließlich zur
-          Freischaltung bzw. Ablehnung des Zugangs. Es werden dabei keine Klassen- oder
-          Schülerlisten übertragen.
+          Je nach freigeschaltetem Modul kann die App nach der Microsoft-Anmeldung mit vom
+          Betreiber betriebenen Azure-Functions sprechen. Typische Zwecke:
+        </p>
+        <ul class="legal-list">
+          <li>
+            <strong>Lizenz-API:</strong> Tenant-ID und technische Freischaltungsdaten
+            (Module/Pakete), optional Kontaktdaten der Schule aus der Betreiber-Lizenzliste;
+            optional Feedback-Texte an den Betreiber. Keine Klassen- oder Schülerlisten.
+          </li>
+          <li>
+            <strong>Schulsprecherwahl (election-api):</strong> Wahldaten (Meta, Wahlberechtigte,
+            Stimmzettel) in Azure Tables – bewusst <em>nicht</em> als SharePoint-Listenzeilen,
+            damit Graph-Autorenfelder die Anonymität der Stimmabgabe nicht unterlaufen.
+          </li>
+          <li>
+            <strong>Eltern-/Ablauf-Links (z. B. Einsammler):</strong> optionale Remote-API für
+            Magic-Link-Antworten; Fachdaten der Vorgänge liegen primär in SharePoint Ihrer Schule
+            bzw. lokal im Absender-Browser.
+          </li>
+          <li>
+            <strong>Schüler-Stammdaten-Portal (optional):</strong> Gateway für Einschreibe-/
+            Elternformulare; Verarbeitung und Ablage nach Konfiguration der Schule
+            (typisch SharePoint im Schul-Tenant). Zugang über Tenant-Schlüssel / Session,
+            nicht über Microsoft-Login der Eltern.
+          </li>
+        </ul>
+        <p>
+          Ohne Anmeldung bzw. ohne Nutzung dieser Module findet keine solche Übertragung statt.
+          Details zu Listen und Sync-Pfaden stehen in der App-Hilfe und den Tool-Dokumenten.
         </p>
       </section>
 
@@ -219,6 +251,11 @@
           <li>
             <strong>Host-Zugriffsprotokolle / E-Mail-Anfragen:</strong> nach betrieblicher
             Notwendigkeit bzw. gesetzlichen Fristen
+          </li>
+          <li>
+            <strong>Betreiber-Dienste (Lizenz, Wahl, optionale Portale):</strong> so lange wie
+            für Freischaltung, Support und den jeweiligen Schulprozess nötig; Wahldaten nach
+            Ende des Wahlzyklus bzw. nach Löschung durch die Schule/IT
           </li>
         </ul>
       </section>
@@ -260,10 +297,11 @@
       <section class="legal-block" aria-labelledby="summary">
         <h2 id="summary">12. Kurzfassung</h2>
         <p>
-          Die App schickt Ihre Listen nicht an einen eigenen Server des Software-Betreibers.
-          Was in Microsoft&nbsp;365 landet – inklusive optionaler Backup-Datei auf Ihrer
-          SharePoint-Site – landet dort, weil Sie eine Aktion ausgelöst haben, mit dem Konto,
-          mit dem Sie angemeldet sind.
+          Stammdaten- und Planer-Listen werden nicht als zentrale Produkt-Datenbank beim
+          Software-Betreiber geführt. Was in Microsoft&nbsp;365 landet – inklusive SharePoint-Listen
+          und optionaler Backup-Datei – landet dort, weil Sie (oder freigeschaltete Automationen)
+          eine Aktion ausgelöst haben. Schlanke Betreiber-APIs dienen Lizenz, optionalen Portalen
+          und Sonderfällen wie anonymer Wahl – nicht dem Spiegeln Ihrer gesamten Klassenlisten.
         </p>
       </section>
 
@@ -289,7 +327,7 @@
         <a href="datenschutz.html" aria-current="page">Datenschutz</a>
         <a href="impressum.html">Impressum</a>
       </div>
-      <p class="footer-updated" id="landing-last-updated"><span class="footer-updated__label">Homepage zuletzt aktualisiert:</span> <time datetime="2026-11-05T19:22:45.525Z">05.11.2026, 20:22</time> <span class="footer-updated__screens">· Screens v20261105</span> <span class="footer-updated__sha">· Build e36f2c0</span></p>
+      <p class="footer-updated" id="landing-last-updated"><span class="footer-updated__label">Homepage zuletzt aktualisiert:</span> <time datetime="2026-11-18T18:41:55.154Z">18.11.2026, 19:41</time> <span class="footer-updated__screens">· Screens v20261118</span> <span class="footer-updated__sha">· Build 8222126</span></p>
       <p class="footer-note">© <span data-year></span> Kurt Söser · ms365.schule</p>
     </div>
   </footer>

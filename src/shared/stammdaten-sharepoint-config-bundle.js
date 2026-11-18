@@ -38,6 +38,7 @@ export const CONFIG_BUNDLE_PARTS = [
         keys: [
             'ms365-dashboard-audience-groups-v1',
             'ms365-dashboard-tool-access-v1',
+            'ms365-dashboard-portal-defaults-v1',
             'ms365-dashboard-favorites-v1',
             'ms365-dashboard-recent-tools-v1',
             'ms365-dashboard-order-catalog-v1',
@@ -49,7 +50,8 @@ export const CONFIG_BUNDLE_PARTS = [
             'ms365-dashboard-expert-open-v1',
             'ms365-dashboard-view-v1',
             'ms365-dashboard-it-preview-v1',
-            'ms365-dashboard-setup-dismissed-v1'
+            'ms365-dashboard-setup-dismissed-v1',
+            'ms365-portal-quick-links-v1'
         ]
     },
     {
@@ -85,6 +87,51 @@ export const CONFIG_BUNDLE_PARTS = [
             'ms365-lfr-demo-items-v1',
             'ms365-lfr-outlook-event-v1',
             'ms365-pa-done-lehrer-freistellung'
+        ]
+    },
+    {
+        id: 'school-apps-settings',
+        fileName: 'school-apps-settings.json',
+        keys: [
+            'ms365-einsammler-v1',
+            'ms365-einsammler-settings-v1',
+            'ms365-einsammler-sp-settings-v1',
+            'ms365-elternbrief-v1',
+            'ms365-elternbrief-settings-v1',
+            'ms365-elternbrief-sp-settings-v1',
+            'ms365-krankmeldung-v1',
+            'ms365-krankmeldung-settings-v1',
+            'ms365-krankmeldung-sp-settings-v1',
+            'ms365-kollegium-umfragen-v1',
+            'ms365-kollegium-umfragen-settings-v1',
+            'ms365-kollegium-umfragen-sp-settings-v1',
+            'ms365-ausgaben-v1',
+            'ms365-ausgaben-settings-v1',
+            'ms365-ausgaben-sp-settings-v1',
+            'ms365-wahlfach-zuteilung-v1',
+            'ms365-wahlfach-zuteilung-settings-v1',
+            'ms365-schulsprecherwahl-v1',
+            'ms365-teams-antrag-v1',
+            'ms365-teams-antrag-settings-v1',
+            'ms365-teams-antrag-sp-settings-v1',
+            'ms365-diplomarbeiten-state-v1',
+            'ms365-diplomarbeiten-settings-v1',
+            'ms365-raumplan-v1',
+            'ms365-raumplan-sp-settings-v1',
+            'ms365-aufgaben-v1',
+            'ms365-aufgaben-sp-settings-v1',
+            'ms365-technik-meldungen-v1',
+            'ms365-technik-meldungen-sp-settings-v1',
+            'ms365-termine-hub-v1',
+            'ms365-termine-hub-settings-v1',
+            'ms365-kalender-postfaecher-v1',
+            'ms365-schueler-stammdaten-portal-v1',
+            'ms365-akt-setup-v1',
+            'ms365-akt-planer-site-v1',
+            'ms365-sa-site-url',
+            'ms365-pw-site-url',
+            'ms365-tenant-school-email-pattern-v1',
+            'ms365-intranet-list-links-v1'
         ]
     }
 ];

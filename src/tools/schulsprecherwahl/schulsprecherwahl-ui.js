@@ -1,15 +1,23 @@
 /**
  * Admin-Backend: Wahl anlegen, Kandidaturen, Zeitfenster, QR, Auszählung.
+ * Familie wahl-portal – Calm Phasen/Action-Banner, Ownership Meta, soft Errors.
  */
 
 import { mountResults } from './schulsprecherwahl-results-ui.js';
-import { searchStudentPool, loadStudentPool } from './schulsprecherwahl-students.js';
 import { statusLabel, newId } from './schulsprecherwahl-model.js';
+import {
+    ELECTION_KIND_SCHULSPRECHER,
+    ELECTION_KIND_SGA_LEHRER,
+    ELECTION_KINDS,
+    getElectionKindDef,
+    normalizeElectionKind,
+    resolveElectionBallotSchema
+} from './schulsprecherwahl-kinds.js';
 import {
     createElection,
     normalizeElection,
     ELECTION_STATUS,
-    listElections,
+    listElectionsSoft,
     getElectionAsync,
     upsertElectionAsync,
     deleteElectionAsync,
@@ -19,9 +27,27 @@ import {
     closeAndCountRunoffAsync,
     seedDemoElectionAsync,
     evaluateElectionAsync,
+    publishResultsAsync,
     storageModeLabel,
-    isRemoteMode
+    isRemoteMode,
+    isLocalDemoOnly,
+    enableLocalDemoMode,
+    wantsElectionDemo
 } from './schulsprecherwahl-service.js';
+import { softElectionMessage } from './schulsprecherwahl-errors.js';
+import {
+    electionPhaseSteps,
+    electionQuorumInfo,
+    nextAdminAction
+} from './schulsprecherwahl-phase.js';
+import {
+    hydrateSchulsprecherwahlStammdaten,
+    getSchulsprecherwahlStammdatenMeta,
+    loadStudentPoolEffective,
+    loadTeacherPoolEffective,
+    searchStudentPoolEffective,
+    searchTeacherPoolEffective
+} from './schulsprecherwahl-stammdaten.js';
 
 /**
  * @param {string} s
@@ -73,6 +99,128 @@ function qrImgUrl(url) {
 }
 
 /**
+ * @param {ReturnType<typeof normalizeElection>} election
+ * @param {Awaited<ReturnType<typeof evaluateElectionAsync>>} ev
+ */
+function formatEvalHint(election, ev) {
+    const kind = normalizeElectionKind(election.electionKind);
+    if (kind === ELECTION_KIND_SGA_LEHRER) {
+        const ids = [
+            ev.offices.member1Id,
+            ev.offices.member2Id,
+            ev.offices.member3Id,
+            ev.offices.deputy1Id,
+            ev.offices.deputy2Id,
+            ev.offices.deputy3Id
+        ].filter(Boolean);
+        if (!ids.length) return '';
+        const names = ids.map((id) => {
+            const c = election.candidates.find((x) => x.id === id);
+            return c ? c.name : id;
+        });
+        return (
+            'SGA Lehrer: ' +
+            names.slice(0, 3).join(', ') +
+            (names.length > 3 ? ' · STV: ' + names.slice(3).join(', ') : '')
+        );
+    }
+    if (ev.needsRunoff) {
+        return (
+            'Stichwahl nötig zwischen: ' +
+            ev.runoffCandidateIds
+                .map((id) => {
+                    const c = election.candidates.find((x) => x.id === id);
+                    return c ? c.name : id;
+                })
+                .join(' · ')
+        );
+    }
+    if (ev.offices.schulsprecherId) {
+        const c = election.candidates.find((x) => x.id === ev.offices.schulsprecherId);
+        return 'Schulsprecher:in: ' + (c ? c.name : ev.offices.schulsprecherId);
+    }
+    return '';
+}
+
+/**
+ * @param {ReturnType<typeof normalizeElection>} election
+ */
+function isElectionAdmin(election) {
+    if (!isRemoteMode()) return true;
+    return !!(election && /** @type {{ isAdmin?: boolean }} */ (election).isAdmin);
+}
+
+/**
+ * @param {ReturnType<typeof electionPhaseSteps>} steps
+ */
+function renderPhaseSteps(steps) {
+    return `<ol class="ssw-phases" aria-label="Wahlphasen">
+      ${steps
+          .map(
+              (s) =>
+                  `<li class="ssw-phases__step ssw-phases__step--${esc(s.state)}"><span>${esc(
+                      s.label
+                  )}</span></li>`
+          )
+          .join('')}
+    </ol>`;
+}
+
+/**
+ * @param {ReturnType<typeof nextAdminAction>} action
+ * @param {boolean} canAdmin
+ */
+function renderActionBanner(action, canAdmin) {
+    if (!action || !canAdmin) return '';
+    const cta =
+        action.ctaAction && action.ctaLabel
+            ? `<button type="button" class="btn btn-primary" data-ssw-action="${esc(
+                  action.ctaAction
+              )}">${esc(action.ctaLabel)}</button>`
+            : '';
+    return `<section class="ssw-calm-banner ssw-calm-banner--action" role="status">
+      <div class="ssw-calm-banner__text">
+        <p class="ssw-calm-banner__eyebrow">${esc(action.eyebrow)}</p>
+        <p><strong>${esc(action.title)}</strong> – ${esc(action.hint)}</p>
+      </div>
+      ${cta}
+    </section>`;
+}
+
+/**
+ * @param {ReturnType<typeof electionQuorumInfo>} info
+ */
+function renderQuorumBanner(info) {
+    if (!info) return '';
+    const tone =
+        info.tone === 'ok' ? 'ssw-calm-banner--ok' : info.tone === 'warn' ? 'ssw-calm-banner--warn' : '';
+    return `<section class="ssw-calm-banner ${tone}" role="status">
+      <div class="ssw-calm-banner__text">
+        <p class="ssw-calm-banner__eyebrow">${esc(info.eyebrow)}</p>
+        <p><strong>${esc(info.title)}</strong> – ${esc(info.hint)}</p>
+      </div>
+    </section>`;
+}
+
+/**
+ * Deep-Link zur Auswertung (Kundmachung / Teilen).
+ * @param {string} electionId
+ */
+function resultsUrl(electionId) {
+    const u = new URL('schulsprecherwahl.html', window.location.href);
+    u.searchParams.set('wahl', electionId);
+    u.searchParams.set('view', 'results');
+    return u.href;
+}
+
+/**
+ * @param {string} html
+ */
+function quietEmpty(html) {
+    return `<div class="ssw-quiet-empty" role="status">${html}</div>`;
+}
+
+/**
  * @param {HTMLElement} host
  */
 export function mountSchulsprecherwahlAdmin(host) {
@@ -80,27 +228,82 @@ export function mountSchulsprecherwahlAdmin(host) {
     let view = 'list';
     /** @type {string|null} */
     let editId = null;
-    let studentQuery = '';
+    let candidateQuery = '';
     let flash = '';
+    /** @type {'ok'|'warn'|''} */
+    let flashTone = '';
+    let stammdatenReady = false;
 
-    const refresh = () => paint();
+    const setFlash = (msg, tone) => {
+        flash = msg || '';
+        flashTone = tone || '';
+    };
+
+    const ensureStammdaten = async () => {
+        if (stammdatenReady) return;
+        try {
+            await hydrateSchulsprecherwahlStammdaten();
+        } catch {
+            /* soft – lokale Pools bleiben */
+        }
+        stammdatenReady = true;
+    };
 
     const paint = async () => {
         if (view === 'results' && editId) {
             host.innerHTML = `<p class="ssw-meta">Laden …</p>`;
-            const election = await getElectionAsync(editId);
+            let election = null;
+            try {
+                election = await getElectionAsync(editId);
+            } catch (err) {
+                setFlash(softElectionMessage(err), 'warn');
+                view = 'list';
+                return paint();
+            }
             if (!election) {
                 view = 'list';
                 return paint();
             }
+            const adminFromApi = !!(/** @type {{ isAdmin?: boolean }} */ (election).isAdmin);
+            election = Object.assign(normalizeElection(election), {
+                isAdmin: !isRemoteMode() || adminFromApi
+            });
+            const canAdmin = isElectionAdmin(election);
+            const action = nextAdminAction(election);
+            const quorum = electionQuorumInfo(election);
             host.innerHTML = `<div class="ssw-wrap">
         <div class="ssw-toolbar">
           <button type="button" class="btn" data-ssw-nav="list"><i class="bi bi-arrow-left"></i> Übersicht</button>
           <button type="button" class="btn" data-ssw-nav="edit"><i class="bi bi-pencil"></i> Verwaltung</button>
         </div>
+        ${renderPhaseSteps(electionPhaseSteps(election))}
+        ${
+            flash
+                ? `<p class="ssw-badge${flashTone === 'warn' ? ' ssw-badge--warn' : ''}">${esc(
+                      flash
+                  )}</p>`
+                : ''
+        }
+        ${renderActionBanner(action, canAdmin)}
+        ${renderQuorumBanner(quorum)}
+        <div class="ssw-share-bar" role="region" aria-label="Kundmachung">
+          <span class="ssw-share-bar__label">${
+              election.publishedResults
+                  ? 'Ergebnis freigegeben – Link teilen'
+                  : 'Noch nicht kundgemacht'
+          }</span>
+          ${
+              canAdmin && !election.publishedResults && election.status === ELECTION_STATUS.finalized
+                  ? `<button type="button" class="btn btn-primary" data-ssw-action="publish">Jetzt kundmachen</button>`
+                  : ''
+          }
+          <button type="button" class="btn" data-ssw-action="copy_results">Link kopieren</button>
+        </div>
         <div id="sswResultsHost"></div>
       </div>`;
+            setFlash('', '');
             bindNav(host);
+            bindAdminActions(host, election, canAdmin);
             await mountResults(
                 /** @type {HTMLElement} */ (host.querySelector('#sswResultsHost')),
                 election
@@ -130,85 +333,207 @@ export function mountSchulsprecherwahlAdmin(host) {
         });
     };
 
+    /**
+     * 1-Klick-CTAs aus Action-Banner / Kundmachung.
+     * @param {ParentNode} root
+     * @param {ReturnType<typeof normalizeElection> & { isAdmin?: boolean }} election
+     * @param {boolean} canAdmin
+     */
+    const bindAdminActions = (root, election, canAdmin) => {
+        root.querySelectorAll('[data-ssw-action]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const action = btn.getAttribute('data-ssw-action') || '';
+                if (action === 'copy_results') {
+                    const link = resultsUrl(election.id);
+                    try {
+                        await navigator.clipboard.writeText(link);
+                        setFlash('Auswertungs-Link kopiert.', 'ok');
+                    } catch {
+                        setFlash(link, 'ok');
+                    }
+                    paint();
+                    return;
+                }
+                if (!canAdmin) {
+                    setFlash('Keine Berechtigung für diese Aktion.', 'warn');
+                    paint();
+                    return;
+                }
+                try {
+                    if (action === 'open') {
+                        await openElectionAsync(election.id);
+                        setFlash('Wahlgang ist offen – QR-Code teilen.', 'ok');
+                    } else if (action === 'count') {
+                        const next = await closeAndCountMainAsync(election.id);
+                        if (normalizeElectionKind(next.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+                            setFlash('Ausgezählt – jetzt kundmachen.', 'ok');
+                            view = 'results';
+                        } else if (next.status === ELECTION_STATUS.finalized) {
+                            setFlash('Ausgezählt – jetzt kundmachen.', 'ok');
+                            view = 'results';
+                        } else {
+                            setFlash('Ausgezählt – Stichwahl vorbereiten.', 'ok');
+                        }
+                    } else if (action === 'runoff') {
+                        const now = new Date();
+                        const end = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+                        await openRunoffAsync(election.id, {
+                            start: now.toISOString(),
+                            end: end.toISOString()
+                        });
+                        setFlash('Stichwahl eröffnet.', 'ok');
+                    } else if (action === 'count_runoff') {
+                        await closeAndCountRunoffAsync(election.id);
+                        setFlash('Stichwahl ausgezählt – jetzt kundmachen.', 'ok');
+                        view = 'results';
+                    } else if (action === 'publish') {
+                        await publishResultsAsync(election.id);
+                        setFlash('Ergebnis kundgemacht – Link teilen.', 'ok');
+                        view = 'results';
+                    } else if (action === 'results') {
+                        view = 'results';
+                    }
+                } catch (err) {
+                    setFlash(softElectionMessage(err), 'warn');
+                }
+                paint();
+            });
+        });
+    };
+
+    /**
+     * @param {string} kind
+     */
+    const createNewElection = async (kind) => {
+        await ensureStammdaten();
+        const kindDef = getElectionKindDef(kind);
+        const pool =
+            kindDef.candidatePool === 'teachers'
+                ? loadTeacherPoolEffective()
+                : loadStudentPoolEffective();
+        const e = createElection({
+            electionKind: kindDef.id,
+            eligibleCount: pool.length,
+            schoolYear: ''
+        });
+        try {
+            await upsertElectionAsync(e);
+            editId = e.id;
+            view = 'edit';
+            setFlash(kindDef.label + ' angelegt.', 'ok');
+        } catch (err) {
+            setFlash(softElectionMessage(err), 'warn');
+        }
+        paint();
+    };
+
     const paintList = async () => {
         host.innerHTML = `<p class="ssw-meta">Wahlen werden geladen …</p>`;
-        let elections = [];
-        try {
-            elections = await listElections();
-        } catch (err) {
-            flash = err && err.message ? String(err.message) : String(err);
-        }
+        await ensureStammdaten();
+        const { elections, error } = await listElectionsSoft();
+        if (error) setFlash(error.message, 'warn');
+
+        const stamm = getSchulsprecherwahlStammdatenMeta();
         const rows = elections
             .map((e) => {
+                const kindDef = getElectionKindDef(e.electionKind);
+                const sgaBadge = e.includeSgaDeputies
+                    ? ' <span class="ssw-badge ssw-badge--muted">+ SGA-STV</span>'
+                    : '';
+                const admin = isElectionAdmin(e);
                 return `<article class="ssw-card-row">
           <div>
             <h4>${esc(e.title)}</h4>
-            <p class="ssw-meta">${esc(statusLabel(e))} · ${e.candidates.length} Kandidaturen · ${
-                e.eligibleCount || '–'
-            } Wahlberechtigte</p>
+            <p class="ssw-meta"><span class="ssw-badge ssw-badge--muted">${esc(kindDef.shortLabel)}</span>${sgaBadge}
+              ${esc(statusLabel(e))} · ${e.candidates.length} Kandidaturen · ${
+                    e.eligibleCount || '–'
+                } Wahlberechtigte</p>
+            ${renderPhaseSteps(electionPhaseSteps(e))}
           </div>
           <div class="ssw-toolbar">
-            <button type="button" class="btn" data-open="${esc(e.id)}">Verwalten</button>
+            <button type="button" class="btn" data-open="${esc(e.id)}">${
+                    admin ? 'Verwalten' : 'Ansehen'
+                }</button>
             <button type="button" class="btn" data-results="${esc(e.id)}">Auswertung</button>
           </div>
         </article>`;
             })
             .join('');
 
+        const emptyBlock = elections.length
+            ? ''
+            : quietEmpty(
+                  error
+                      ? '<strong>Keine Wahlen geladen.</strong> Anmeldung prüfen – lokale Demo mit ?demo=1 möglich.'
+                      : '<strong>Noch keine Wahl.</strong> Schulsprecher:innenwahl oder SGA Lehrervertretung anlegen.'
+              );
+
+        const listBanner =
+            !elections.length && !error
+                ? `<section class="ssw-calm-banner ssw-calm-banner--action" role="status">
+            <div class="ssw-calm-banner__text">
+              <p class="ssw-calm-banner__eyebrow">Was jetzt?</p>
+              <p><strong>Erste Wahl anlegen</strong> – Kandidaturen aus Stammdaten, Zeitfenster, dann QR teilen.</p>
+            </div>
+          </section>`
+                : '';
+
         host.innerHTML = `<div class="ssw-wrap">
       <header class="ssw-hero">
         <div>
-          <h2>Schulsprecher:innenwahl</h2>
-          <p class="ssw-meta">Online-Wahl nach österreichischem Wahlpunktesystem (6 / 5 / 4), mit Zeitfenster, QR-Link und Stichwahl.</p>
+          <h2>Schulwahlen</h2>
+          <p class="ssw-meta">Schulsprecher:innenwahl und SGA-Lehrervertretung – anonym, mit Zeitfenster, QR-Link und Auswertung.</p>
         </div>
         <span class="ssw-badge ssw-badge--muted">${esc(storageModeLabel())}</span>
       </header>
-      ${flash ? `<p class="ssw-badge">${esc(flash)}</p>` : ''}
+      ${
+          flash
+              ? `<p class="ssw-badge${flashTone === 'warn' ? ' ssw-badge--warn' : ''}">${esc(
+                    flash
+                )}</p>`
+              : ''
+      }
+      ${listBanner}
       <div class="ssw-toolbar">
-        <button type="button" class="btn btn-primary" id="sswNew"><i class="bi bi-plus-lg"></i> Neue Wahl</button>
-        ${
-            isRemoteMode()
-                ? ''
-                : `<button type="button" class="btn" id="sswDemo"><i class="bi bi-stars"></i> Demo-Auswertung laden</button>`
-        }
+        <button type="button" class="btn btn-primary" data-new-kind="${ELECTION_KIND_SCHULSPRECHER}"><i class="bi bi-plus-lg"></i> Schulsprecher:innenwahl</button>
+        <button type="button" class="btn btn-primary" data-new-kind="${ELECTION_KIND_SGA_LEHRER}"><i class="bi bi-plus-lg"></i> SGA Lehrervertretung</button>
+        <button type="button" class="btn" id="sswDemo"><i class="bi bi-stars"></i> Demo-Auswertung</button>
       </div>
       <section class="ssw-panel">
         <h3>Wahlen</h3>
-        <div class="ssw-list">${rows || '<p class="ssw-empty">Noch keine Wahl angelegt.</p>'}</div>
+        <div class="ssw-list">${rows || emptyBlock}</div>
       </section>
-      <section class="ssw-panel">
-        <h3>So funktioniert’s</h3>
-        <ol style="margin:0;padding-left:1.2rem;line-height:1.55">
-          <li>Kandidaturen aus dem Schüler-Pool wählen und Zeitfenster setzen.</li>
-          <li>Wahl eröffnen – QR-Code / Link an die Schülerschaft.</li>
-          <li>Schüler:innen melden sich mit Schul-Konto an und reihen 3 Personen (6/5/4).</li>
-          <li>Auszählen: absolute Mehrheit → fertig; sonst Stichwahl, STV bleiben aus dem 1. Gang.</li>
-        </ol>
+      <section class="ssw-panel ssw-panel--system">
+        <h3>Setup &amp; Speicher</h3>
+        <p class="ssw-meta">Stimmen liegen <strong>nicht</strong> im Schul-SharePoint (Anonymität). Meta/Voters/Ballots: Azure Tables bzw. Demo localStorage.</p>
+        <p class="ssw-meta">Personenpools: ${esc(String(stamm.studentCount))} Schüler:innen · ${esc(
+            String(stamm.teacherCount)
+        )} Lehrer:innen · Quelle ${esc(stamm.source)}${
+            stamm.error ? ' – ' + esc(stamm.error) : ''
+        }</p>
         <p class="ssw-foot-note">${
             isRemoteMode()
-                ? 'Produktion: Stimmen liegen anonym in Azure Table Storage (Wähler-Hash getrennt vom Stimmzettel) – nicht im Schul-SharePoint.'
-                : 'Demo: lokaler Browser-Store. Für echte schulweite Anonymität MS365_ELECTION_API.baseUrl setzen (election-api).'
+                ? 'Produktion: election-api (MS365_ELECTION_API.baseUrl). Site-URL nur für Stammdaten-Hydrate, nie für Stimmzettel.'
+                : isLocalDemoOnly()
+                  ? 'Demo lokal aktiv (?demo=1 oder Button). Remote-API bleibt unangetastet.'
+                  : 'Kein Remote-Backend – lokaler Browser-Store. Für schulweite Anonymität MS365_ELECTION_API.baseUrl setzen.'
         }</p>
       </section>
     </div>`;
 
-        flash = '';
-        host.querySelector('#sswNew')?.addEventListener('click', async () => {
-            const pool = loadStudentPool();
-            const e = createElection({
-                eligibleCount: pool.length,
-                schoolYear: ''
+        setFlash('', '');
+        host.querySelectorAll('[data-new-kind]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const kind = btn.getAttribute('data-new-kind') || ELECTION_KIND_SCHULSPRECHER;
+                createNewElection(kind);
             });
-            await upsertElectionAsync(e);
-            editId = e.id;
-            view = 'edit';
-            paint();
         });
         host.querySelector('#sswDemo')?.addEventListener('click', async () => {
+            enableLocalDemoMode();
             const e = await seedDemoElectionAsync();
             editId = e.id;
             view = 'results';
-            flash = 'Demo-Auswertung geladen.';
+            setFlash('Demo-Auswertung geladen (lokal).', 'ok');
             paint();
         });
         host.querySelectorAll('[data-open]').forEach((btn) => {
@@ -229,75 +554,140 @@ export function mountSchulsprecherwahlAdmin(host) {
 
     const paintEdit = async () => {
         host.innerHTML = `<p class="ssw-meta">Laden …</p>`;
-        let election = editId ? await getElectionAsync(editId) : null;
+        await ensureStammdaten();
+        let election = null;
+        try {
+            election = editId ? await getElectionAsync(editId) : null;
+        } catch (err) {
+            setFlash(softElectionMessage(err), 'warn');
+            view = 'list';
+            return paint();
+        }
         if (!election) {
             view = 'list';
             return paint();
         }
-        election = normalizeElection(election);
+        const adminFromApi = !!(/** @type {{ isAdmin?: boolean }} */ (election).isAdmin);
+        election = Object.assign(normalizeElection(election), {
+            isAdmin: !isRemoteMode() || adminFromApi
+        });
+        const canAdmin = isElectionAdmin(election);
+        const kindDef = getElectionKindDef(election.electionKind);
+        const ballotSchema = resolveElectionBallotSchema(election);
+        const isSgaLehrer = kindDef.id === ELECTION_KIND_SGA_LEHRER;
+        const isSchulsprecher = kindDef.id === ELECTION_KIND_SCHULSPRECHER;
         const url = voteUrl(election.id);
-        const hits = searchStudentPool(studentQuery, 50);
+        const hits =
+            kindDef.candidatePool === 'teachers'
+                ? searchTeacherPoolEffective(candidateQuery, 50)
+                : searchStudentPoolEffective(candidateQuery, 50);
+        const poolLabel =
+            kindDef.candidatePool === 'teachers' ? 'Lehrer:innen-Pool' : 'Schüler-Pool';
+        const searchPlaceholder =
+            kindDef.candidatePool === 'teachers'
+                ? 'Name, Kürzel oder E-Mail'
+                : 'Name, Klasse oder E-Mail';
+        const emptyHits =
+            kindDef.candidatePool === 'teachers'
+                ? 'Keine Treffer. Stammdaten unter Tenant → Lehrer:innen pflegen.'
+                : 'Keine Treffer. Stammdaten unter Tenant → Schüler:innen pflegen.';
+        const voterHint = isSgaLehrer
+            ? 'Lehrer:innen scannen den Code und melden sich mit dem Schul-Konto an.'
+            : 'Schüler:innen scannen den Code und melden sich mit dem Schul-Konto an.';
+        const action = nextAdminAction(election);
+        const quorum = electionQuorumInfo(election);
+        const readOnlyAttr = canAdmin ? '' : 'disabled';
 
         let evalHint = '';
         try {
             if (election.status !== ELECTION_STATUS.draft && election.status !== ELECTION_STATUS.open) {
                 const ev = await evaluateElectionAsync(election.id);
-                if (ev.needsRunoff) {
-                    evalHint = `Stichwahl nötig zwischen: ${ev.runoffCandidateIds
-                        .map((id) => {
-                            const c = election.candidates.find((x) => x.id === id);
-                            return c ? c.name : id;
-                        })
-                        .join(' · ')}`;
-                } else if (ev.offices.schulsprecherId) {
-                    const c = election.candidates.find((x) => x.id === ev.offices.schulsprecherId);
-                    evalHint = `Schulsprecher:in: ${c ? c.name : ev.offices.schulsprecherId}`;
-                }
+                evalHint = formatEvalHint(election, ev);
             }
         } catch {
-            /* ignore */
+            /* ignore – Auszählung optional */
         }
 
         host.innerHTML = `<div class="ssw-wrap">
       <div class="ssw-toolbar">
         <button type="button" class="btn" data-ssw-nav="list"><i class="bi bi-arrow-left"></i> Übersicht</button>
         <button type="button" class="btn" data-ssw-nav="results"><i class="bi bi-bar-chart"></i> Auswertung</button>
+        <span class="ssw-badge ssw-badge--muted">${esc(kindDef.shortLabel)}</span>
         <span class="ssw-badge ssw-badge--muted">${esc(statusLabel(election))}</span>
+        ${
+            election.publishedResults
+                ? '<span class="ssw-badge">Kundgemacht</span>'
+                : ''
+        }
+        ${canAdmin ? '' : '<span class="ssw-badge ssw-badge--warn">Nur Lesen</span>'}
       </div>
-      ${flash ? `<p class="ssw-badge">${esc(flash)}</p>` : ''}
+      ${renderPhaseSteps(electionPhaseSteps(election))}
+      ${
+          flash
+              ? `<p class="ssw-badge${flashTone === 'warn' ? ' ssw-badge--warn' : ''}">${esc(
+                    flash
+                )}</p>`
+              : ''
+      }
+      ${renderActionBanner(action, canAdmin)}
+      ${renderQuorumBanner(quorum)}
 
       <section class="ssw-panel">
         <h3>Wahl-Einstellungen</h3>
+        <p class="ssw-meta">${esc(kindDef.legalHint)}</p>
         <div class="ssw-form-grid">
-          <label>Titel<input id="sswTitle" value="${esc(election.title)}" /></label>
-          <label>Kennzeichnung<input id="sswScope" value="${esc(election.scopeLabel)}" placeholder="Schulweit" /></label>
-          <label>Wahlbeginn<input id="sswStart" type="datetime-local" value="${esc(toLocalInput(election.window.start))}" /></label>
-          <label>Wahlende<input id="sswEnd" type="datetime-local" value="${esc(toLocalInput(election.window.end))}" /></label>
-          <label>Wahlberechtigte (Anzahl)<input id="sswEligible" type="number" min="0" value="${election.eligibleCount || 0}" /></label>
-          <label>Schuljahr<input id="sswYear" value="${esc(election.schoolYear)}" placeholder="2026/27" /></label>
+          <label>Titel<input id="sswTitle" value="${esc(election.title)}" ${readOnlyAttr} /></label>
+          <label>Kennzeichnung<input id="sswScope" value="${esc(election.scopeLabel)}" placeholder="Schulweit" ${readOnlyAttr} /></label>
+          <label>Wahlbeginn<input id="sswStart" type="datetime-local" value="${esc(toLocalInput(election.window.start))}" ${readOnlyAttr} /></label>
+          <label>Wahlende<input id="sswEnd" type="datetime-local" value="${esc(toLocalInput(election.window.end))}" ${readOnlyAttr} /></label>
+          <label>Wahlberechtigte (Anzahl)<input id="sswEligible" type="number" min="0" value="${election.eligibleCount || 0}" ${readOnlyAttr} /></label>
+          <label>Schuljahr<input id="sswYear" value="${esc(election.schoolYear)}" placeholder="2026/27" ${readOnlyAttr} /></label>
         </div>
-        <p style="margin-top:.85rem" class="ssw-toolbar">
+        ${
+            isSchulsprecher
+                ? `<p style="margin-top:.85rem">
+          <label class="ssw-check">
+            <input type="checkbox" id="sswIncludeSga" ${election.includeSgaDeputies ? 'checked' : ''} ${
+                      election.status === ELECTION_STATUS.draft && canAdmin ? '' : 'disabled'
+                  } />
+            Auch SGA-Schüler-Stellvertreter:innen wählen (3 / 2 / 1 Punkte am selben Stimmzettel)
+          </label>
+          <span class="ssw-meta" style="display:block;margin-top:.35rem">Nur im Entwurf änderbar. Bei aktivierter Option mind. 6 Kandidaturen und sechs Reihungen (6…1).</span>
+        </p>`
+                : ''
+        }
+        ${
+            canAdmin
+                ? `<p style="margin-top:.85rem" class="ssw-toolbar">
           <button type="button" class="btn btn-primary" id="sswSave">Speichern</button>
           <button type="button" class="btn" id="sswFillEligible">Anzahl aus Stammdaten</button>
-        </p>
+        </p>`
+                : ''
+        }
       </section>
 
       <section class="ssw-panel">
-        <h3>Kandidaturen (${election.candidates.length})</h3>
+        <h3>Kandidaturen (${election.candidates.length}) · ${esc(poolLabel)}</h3>
         <div class="ssw-selected" id="sswSelected">
           ${
               election.candidates.length
                   ? election.candidates
                         .map(
                             (c) => `<span class="ssw-chip">${esc(c.name)} <span class="ssw-cand__class">${esc(c.className)}</span>
-              <button type="button" data-remove="${esc(c.id)}" aria-label="Entfernen">×</button></span>`
+              ${
+                  canAdmin && election.status === ELECTION_STATUS.draft
+                      ? `<button type="button" data-remove="${esc(c.id)}" aria-label="Entfernen">×</button>`
+                      : ''
+              }</span>`
                         )
                         .join('')
-                  : '<span class="ssw-meta">Noch keine Kandidaturen – aus dem Schüler-Pool wählen.</span>'
+                  : `<span class="ssw-meta">Noch keine Kandidaturen – aus dem ${esc(poolLabel)} wählen (mind. ${ballotSchema.rankingCount}).</span>`
           }
         </div>
-        <div class="ssw-cand-pick" style="margin-top:.75rem">
-          <label>Schüler:in suchen<input id="sswSearch" value="${esc(studentQuery)}" placeholder="Name, Klasse oder E-Mail" /></label>
+        ${
+            canAdmin && election.status === ELECTION_STATUS.draft
+                ? `<div class="ssw-cand-pick" style="margin-top:.75rem">
+          <label>Suchen<input id="sswSearch" value="${esc(candidateQuery)}" placeholder="${esc(searchPlaceholder)}" /></label>
           <div class="ssw-cand-pick__list">
             ${
                 hits.length
@@ -309,10 +699,12 @@ export function mountSchulsprecherwahlAdmin(host) {
                 </button>`;
                           })
                           .join('')
-                    : '<p class="ssw-empty">Keine Treffer. Stammdaten unter Tenant → Schüler:innen pflegen.</p>'
+                    : quietEmpty(esc(emptyHits))
             }
           </div>
-        </div>
+        </div>`
+                : ''
+        }
       </section>
 
       <section class="ssw-panel">
@@ -320,7 +712,7 @@ export function mountSchulsprecherwahlAdmin(host) {
         <div class="ssw-qr">
           <img alt="QR-Code zur Abstimmung" width="180" height="180" src="${esc(qrImgUrl(url))}" />
           <div>
-            <p>Schüler:innen scannen den Code und melden sich mit dem Schul-Konto an.</p>
+            <p>${esc(voterHint)}</p>
             <code>${esc(url)}</code>
             <p class="ssw-toolbar" style="margin-top:.65rem">
               <button type="button" class="btn" id="sswCopy">Link kopieren</button>
@@ -333,27 +725,43 @@ export function mountSchulsprecherwahlAdmin(host) {
       <section class="ssw-panel">
         <h3>Ablauf steuern</h3>
         ${evalHint ? `<p class="ssw-meta">${esc(evalHint)}</p>` : ''}
-        <div class="ssw-toolbar">
+        ${
+            canAdmin
+                ? `<div class="ssw-toolbar">
           <button type="button" class="btn btn-primary" id="sswOpen" ${
               election.status === ELECTION_STATUS.draft ? '' : 'disabled'
-          }>1. Wahlgang eröffnen</button>
+          }>Wahlgang eröffnen</button>
           <button type="button" class="btn" id="sswCountMain" ${
               election.status === ELECTION_STATUS.open ? '' : 'disabled'
-          }>1. Wahlgang auszählen</button>
-          <button type="button" class="btn" id="sswOpenRunoff" ${
-              election.status === ELECTION_STATUS.closed ? '' : 'disabled'
-          }>Stichwahl eröffnen</button>
+          }>Auszählen</button>
+          ${
+              isSgaLehrer
+                  ? ''
+                  : `<button type="button" class="btn" id="sswOpenRunoff" ${
+                        election.status === ELECTION_STATUS.closed ? '' : 'disabled'
+                    }>Stichwahl eröffnen</button>
           <button type="button" class="btn" id="sswCountRunoff" ${
               election.status === ELECTION_STATUS.runoff_open ? '' : 'disabled'
-          }>Stichwahl auszählen</button>
+          }>Stichwahl auszählen</button>`
+          }
+          <button type="button" class="btn btn-primary" id="sswPublish" ${
+              election.status === ELECTION_STATUS.finalized && !election.publishedResults
+                  ? ''
+                  : 'disabled'
+          }>Kundmachen</button>
           <button type="button" class="btn" id="sswDelete" style="margin-left:auto">Wahl löschen</button>
-        </div>
-        <p class="ssw-foot-note">Rechtliche Basis: VO über die Wahl der Schülervertreter – Wahlpunkte 6/5/4; Schulsprecher:in mit absoluter Mehrheit der Erstgereihten, sonst Stichwahl; Stellvertretungen nach Punktezahl des 1. Wahlgangs.</p>
+        </div>`
+                : `<p class="ssw-meta">Sie können diese Wahl einsehen, aber nicht bearbeiten (Ownership).</p>`
+        }
+        <p class="ssw-foot-note">${esc(kindDef.legalHint)}</p>
       </section>
     </div>`;
 
-        flash = '';
+        setFlash('', '');
         bindNav(host);
+        bindAdminActions(host, election, canAdmin);
+
+        if (!canAdmin) return;
 
         const readFormInto = async () => {
             const cur = await getElectionAsync(election.id);
@@ -369,60 +777,83 @@ export function mountSchulsprecherwahlAdmin(host) {
                 ),
                 end: fromLocalInput(/** @type {HTMLInputElement} */ (host.querySelector('#sswEnd')).value)
             };
+            const sgaBox = /** @type {HTMLInputElement|null} */ (host.querySelector('#sswIncludeSga'));
+            if (sgaBox && cur.status === ELECTION_STATUS.draft) {
+                cur.includeSgaDeputies = !!sgaBox.checked;
+            }
             return upsertElectionAsync(cur);
         };
 
         host.querySelector('#sswSave')?.addEventListener('click', async () => {
-            await readFormInto();
-            flash = 'Gespeichert.';
+            try {
+                await readFormInto();
+                setFlash('Gespeichert.', 'ok');
+            } catch (err) {
+                setFlash(softElectionMessage(err), 'warn');
+            }
             paint();
         });
         host.querySelector('#sswFillEligible')?.addEventListener('click', async () => {
-            const cur = await readFormInto();
-            if (!cur) return;
-            cur.eligibleCount = loadStudentPool().length;
-            await upsertElectionAsync(cur);
-            flash = `Wahlberechtigte: ${cur.eligibleCount}`;
+            try {
+                const cur = await readFormInto();
+                if (!cur) return;
+                cur.eligibleCount =
+                    kindDef.candidatePool === 'teachers'
+                        ? loadTeacherPoolEffective().length
+                        : loadStudentPoolEffective().length;
+                await upsertElectionAsync(cur);
+                setFlash(`Wahlberechtigte: ${cur.eligibleCount}`, 'ok');
+            } catch (err) {
+                setFlash(softElectionMessage(err), 'warn');
+            }
             paint();
         });
         host.querySelector('#sswSearch')?.addEventListener('input', (ev) => {
-            studentQuery = /** @type {HTMLInputElement} */ (ev.target).value;
+            candidateQuery = /** @type {HTMLInputElement} */ (ev.target).value;
             paint();
         });
         host.querySelectorAll('[data-add-email]').forEach((btn) => {
             btn.addEventListener('click', async () => {
-                const cur = await readFormInto();
-                if (!cur) return;
-                const email = btn.getAttribute('data-add-email') || '';
-                if (cur.candidates.some((c) => c.email === email)) return;
-                cur.candidates.push({
-                    id: newId('cand'),
-                    name: btn.getAttribute('data-add-name') || email,
-                    className: btn.getAttribute('data-add-class') || '',
-                    email,
-                    entraId: null
-                });
-                await upsertElectionAsync(cur);
+                try {
+                    const cur = await readFormInto();
+                    if (!cur) return;
+                    const email = btn.getAttribute('data-add-email') || '';
+                    if (cur.candidates.some((c) => c.email === email)) return;
+                    cur.candidates.push({
+                        id: newId('cand'),
+                        name: btn.getAttribute('data-add-name') || email,
+                        className: btn.getAttribute('data-add-class') || '',
+                        email,
+                        entraId: null
+                    });
+                    await upsertElectionAsync(cur);
+                } catch (err) {
+                    setFlash(softElectionMessage(err), 'warn');
+                }
                 paint();
             });
         });
         host.querySelectorAll('[data-remove]').forEach((btn) => {
             btn.addEventListener('click', async () => {
-                const cur = await readFormInto();
-                if (!cur) return;
-                const id = btn.getAttribute('data-remove');
-                cur.candidates = cur.candidates.filter((c) => c.id !== id);
-                await upsertElectionAsync(cur);
+                try {
+                    const cur = await readFormInto();
+                    if (!cur) return;
+                    const id = btn.getAttribute('data-remove');
+                    cur.candidates = cur.candidates.filter((c) => c.id !== id);
+                    await upsertElectionAsync(cur);
+                } catch (err) {
+                    setFlash(softElectionMessage(err), 'warn');
+                }
                 paint();
             });
         });
         host.querySelector('#sswCopy')?.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(url);
-                flash = 'Link kopiert.';
+                setFlash('Link kopiert.', 'ok');
                 paint();
             } catch {
-                flash = url;
+                setFlash(url, 'ok');
                 paint();
             }
         });
@@ -430,23 +861,28 @@ export function mountSchulsprecherwahlAdmin(host) {
             try {
                 await readFormInto();
                 await openElectionAsync(election.id);
-                flash = 'Wahlgang ist offen – QR-Code teilen.';
+                setFlash('Wahlgang ist offen – QR-Code teilen.', 'ok');
                 paint();
             } catch (err) {
-                flash = err && err.message ? String(err.message) : String(err);
+                setFlash(softElectionMessage(err), 'warn');
                 paint();
             }
         });
         host.querySelector('#sswCountMain')?.addEventListener('click', async () => {
             try {
                 const next = await closeAndCountMainAsync(election.id);
-                flash =
-                    next.status === ELECTION_STATUS.finalized
-                        ? 'Ausgezählt – im 1. Wahlgang entschieden.'
-                        : 'Ausgezählt – Stichwahl vorbereiten.';
+                if (normalizeElectionKind(next.electionKind) === ELECTION_KIND_SGA_LEHRER) {
+                    setFlash('Ausgezählt – jetzt kundmachen.', 'ok');
+                    view = 'results';
+                } else if (next.status === ELECTION_STATUS.finalized) {
+                    setFlash('Ausgezählt – jetzt kundmachen.', 'ok');
+                    view = 'results';
+                } else {
+                    setFlash('Ausgezählt – Stichwahl vorbereiten.', 'ok');
+                }
                 paint();
             } catch (err) {
-                flash = err && err.message ? String(err.message) : String(err);
+                setFlash(softElectionMessage(err), 'warn');
                 paint();
             }
         });
@@ -458,34 +894,79 @@ export function mountSchulsprecherwahlAdmin(host) {
                     start: now.toISOString(),
                     end: end.toISOString()
                 });
-                flash = 'Stichwahl eröffnet.';
+                setFlash('Stichwahl eröffnet.', 'ok');
                 paint();
             } catch (err) {
-                flash = err && err.message ? String(err.message) : String(err);
+                setFlash(softElectionMessage(err), 'warn');
                 paint();
             }
         });
         host.querySelector('#sswCountRunoff')?.addEventListener('click', async () => {
             try {
                 await closeAndCountRunoffAsync(election.id);
-                flash = 'Stichwahl ausgezählt – Ämter besetzt.';
+                setFlash('Stichwahl ausgezählt – jetzt kundmachen.', 'ok');
                 view = 'results';
                 paint();
             } catch (err) {
-                flash = err && err.message ? String(err.message) : String(err);
+                setFlash(softElectionMessage(err), 'warn');
+                paint();
+            }
+        });
+        host.querySelector('#sswPublish')?.addEventListener('click', async () => {
+            try {
+                await publishResultsAsync(election.id);
+                setFlash('Ergebnis kundgemacht – Link teilen.', 'ok');
+                view = 'results';
+                paint();
+            } catch (err) {
+                setFlash(softElectionMessage(err), 'warn');
                 paint();
             }
         });
         host.querySelector('#sswDelete')?.addEventListener('click', async () => {
             if (!confirm('Diese Wahl inkl. Stimmen wirklich löschen?')) return;
-            await deleteElectionAsync(election.id);
-            editId = null;
-            view = 'list';
-            flash = 'Wahl gelöscht.';
+            try {
+                await deleteElectionAsync(election.id);
+                editId = null;
+                view = 'list';
+                setFlash('Wahl gelöscht.', 'ok');
+            } catch (err) {
+                setFlash(softElectionMessage(err), 'warn');
+            }
             paint();
         });
     };
 
+    // Deep-Link ?wahl=&view=results|edit
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const deepId = String(params.get('wahl') || params.get('e') || '').trim();
+        const deepView = String(params.get('view') || '').trim();
+        if (deepId) {
+            editId = deepId;
+            view = deepView === 'edit' ? 'edit' : deepView === 'results' ? 'results' : 'edit';
+        }
+    } catch {
+        /* ignore */
+    }
+
+    // ?demo=1 → lokal seeden, wenn noch keine Demo-Wahl
+    if (wantsElectionDemo()) {
+        enableLocalDemoMode();
+        void seedDemoElectionAsync().then((e) => {
+            if (e && !editId) {
+                editId = e.id;
+                view = 'results';
+                setFlash('Demo geladen (?demo=1).', 'ok');
+            }
+            paint();
+        });
+        return { refresh: paint };
+    }
+
     paint();
-    return { refresh };
+    return { refresh: paint };
 }
+
+// re-export for tests / tooling
+export { ELECTION_KINDS };

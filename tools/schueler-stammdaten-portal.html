@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script type="module" src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>Schüler-Stammdaten-Portal – Admin</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/planner-apps-theme.css">
+    <link rel="stylesheet" href="../src/tools/freistellung-planer/freistellung-planer.css">
+    <link rel="stylesheet" href="../src/tools/schueler-stammdaten-portal/stammdaten-portal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class="app-shell-chrome ssp-admin-page">
+    <div class="container page-card tm-page fr-page ssp-fr-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-person-vcard"></i>Schüler-Stammdaten-Portal</span>
+            </div>
+            <p>Sekretariat / IT – Anmeldungen, PIN-Links, Sokrates-Export</p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
+        </div>
+        <div class="content">
+            <div id="sspAdminApp"></div>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script type="module">
+        import { mountAdminApp } from '../src/tools/schueler-stammdaten-portal/stammdaten-portal-admin-ui.js';
+        function boot() {
+            mountAdminApp(document.getElementById('sspAdminApp'));
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+        else boot();
+    </script>
+</body>
+</html>

@@ -7,6 +7,7 @@ import {
     resolveIntranetListTitle
 } from '../../shared/intranet-list-title-logic.js';
 import { readIntranetListLinks } from '../../shared/tenant-intranet-list-links.js';
+import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
 import { LIST_TITLES as SA_LIST_TITLES } from '../schularbeiten-planer/schularbeiten-planer-schema.js';
 
 const SCOPES = [
@@ -146,12 +147,13 @@ export function resolveSpoProbeListTitle(probe, setup) {
  */
 export function resolveSiteUrls(setup) {
     const intranet = String(setup?.intranetSiteUrl || '').trim();
+    const planerDefault = String(setup?.planerDefaultSiteUrl || '').trim() || intranet;
     return {
         intranet,
-        schularbeiten: localStorageTrim('ms365-sa-site-url') || intranet,
-        projektwochen: localStorageTrim('ms365-pw-site-url') || intranet,
-        freistellung: localStorageTrim('ms365-freistellung-planer-site-v1') || intranet,
-        aktivitaeten: localStorageTrim('ms365-akt-planer-site-v1') || intranet
+        schularbeiten: resolveSchoolToolSiteUrl('schularbeiten', setup) || planerDefault,
+        projektwochen: resolveSchoolToolSiteUrl('projektwochen', setup) || planerDefault,
+        freistellung: resolveSchoolToolSiteUrl('freistellung', setup) || planerDefault,
+        aktivitaeten: resolveSchoolToolSiteUrl('aktivitaeten', setup) || planerDefault
     };
 }
 
@@ -254,41 +256,86 @@ export async function findGraphListOnSite(token, siteId, listTitle) {
     return null;
 }
 
+function parseODataCount(payload) {
+    if (!payload || typeof payload !== 'object') return NaN;
+    const c = payload['@odata.count'];
+    return typeof c === 'number' ? c : parseInt(String(c), 10);
+}
+
+function graphErrorText(raw, fallback) {
+    if (raw && raw.data && raw.data.error && raw.data.error.message) {
+        return String(raw.data.error.message);
+    }
+    if (raw && raw.text) return String(raw.text).slice(0, 200);
+    if (raw && raw.status) return String(raw.status);
+    return fallback || 'Zähler fehlgeschlagen';
+}
+
 /**
+ * Zeilen zählen: $count → @odata.count → Seitenweise ids (wenn Advanced Queries/ $count blockiert).
  * @param {string} token
  * @param {string} siteId
  * @param {string} listId
+ * @returns {Promise<{ ok: boolean, count: number, via?: string, truncated?: boolean, error?: string }>}
  */
 export async function fetchListItemCount(token, siteId, listId) {
     const G = spoGraph();
     const id = String(listId || '').trim();
     if (!id) return { ok: false, count: -1, error: 'listId fehlt' };
 
-    const countPath = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(id) + '/items/$count';
-    const raw = await graphGet(token, countPath, 'v1.0');
-    if (raw.ok) {
-        const n = parseInt(String(raw.text || '').trim(), 10);
+    const base = G.graphPathSite(siteId) + '/lists/' + encodeURIComponent(id) + '/items';
+    const errors = [];
+
+    // 1) Dedizierter $count-Endpunkt (braucht ConsistencyLevel: eventual)
+    const rawCount = await graphGet(token, base + '/$count', 'v1.0');
+    if (rawCount.ok) {
+        const n = parseInt(String(rawCount.text || '').trim(), 10);
         if (Number.isFinite(n) && n >= 0) return { ok: true, count: n, via: '$count' };
+    } else {
+        errors.push(graphErrorText(rawCount, '$count'));
     }
 
-    const odataPath =
-        G.graphPathSite(siteId) +
-        '/lists/' +
-        encodeURIComponent(id) +
-        '/items?$select=id&$top=0&$count=true';
+    // 2) @odata.count – $top=0 wird von manchen Tenants abgelehnt → $top=1
+    const odataPath = base + '?$select=id&$top=1&$count=true';
     const odata = await graphGet(token, odataPath, 'v1.0');
-    if (odata.ok && odata.data && typeof odata.data === 'object') {
-        const c = odata.data['@odata.count'];
-        const n = typeof c === 'number' ? c : parseInt(String(c), 10);
+    if (odata.ok) {
+        const n = parseODataCount(odata.data);
         if (Number.isFinite(n) && n >= 0) return { ok: true, count: n, via: '@odata.count' };
+    } else {
+        errors.push(graphErrorText(odata, '@odata.count'));
     }
 
-    const err =
-        (odata.data && odata.data.error && odata.data.error.message) ||
-        (raw.data && raw.data.error && raw.data.error.message) ||
-        raw.text ||
-        String(raw.status || odata.status || '');
-    return { ok: false, count: -1, error: err };
+    // 3) Fallback: sichtbare Items seitenweise zählen (ohne Advanced Queries)
+    const PAGE = 200;
+    const MAX = 5000;
+    let total = 0;
+    let path = base + '?$select=id&$top=' + PAGE;
+    let pageOk = false;
+    while (path && total < MAX) {
+        const page = await graphGet(token, path.indexOf('http') === 0 ? path : path, 'v1.0');
+        if (!page.ok) {
+            errors.push(graphErrorText(page, 'paging'));
+            break;
+        }
+        pageOk = true;
+        const batch = (page.data && page.data.value) || [];
+        total += batch.length;
+        if (batch.length < PAGE) {
+            return { ok: true, count: total, via: 'page' };
+        }
+        path = page.data && page.data['@odata.nextLink'] ? page.data['@odata.nextLink'] : '';
+        if (!path) {
+            return { ok: true, count: total, via: 'page' };
+        }
+    }
+    if (pageOk && total >= MAX) {
+        return { ok: true, count: MAX, via: 'page', truncated: true };
+    }
+    if (pageOk) {
+        return { ok: true, count: total, via: 'page' };
+    }
+
+    return { ok: false, count: -1, error: errors.filter(Boolean)[0] || 'Zähler fehlgeschlagen' };
 }
 
 /**
@@ -374,26 +421,35 @@ export async function fetchSharePointListMetrics(setup) {
             }
             const cnt = await fetchListItemCount(token, siteId, list.id);
             if (!cnt.ok || cnt.count < 0) {
+                // Liste ist da – kein „?“ (wirkt wie Fehler). Cache oder ✓ nutzen.
                 const cached = cachedIntranetMetric(probe.countKey);
-                if (cached && typeof cached.value === 'number') {
+                if (cached && (typeof cached.value === 'number' || cached.value === '✓')) {
                     metrics[probe.countKey] = {
                         value: cached.value,
-                        hint: `Zähler per Graph nicht lesbar · ${cached.hint || ''}`
+                        hint:
+                            (typeof cached.value === 'number'
+                                ? 'Zeilenzahl aus letztem Sync (Graph-Zähler gesperrt)'
+                                : 'Liste gefunden, Zeilenzahl nicht lesbar') +
+                            (cached.hint ? ' · ' + cached.hint : '')
                     };
                 } else {
                     metrics[probe.countKey] = {
-                        value: '?',
+                        value: '✓',
                         hint:
-                            'Zähler nicht lesbar (Berechtigung Sites.Read.All oder Listenrechte). ' +
-                            (cnt.error ? String(cnt.error).slice(0, 120) : '')
+                            'Liste „' +
+                            (list.displayName || listTitle) +
+                            '“ vorhanden – Zeilenzahl nicht lesbar' +
+                            (cnt.error ? ' (' + String(cnt.error).slice(0, 100) + ')' : '')
                     };
-                    errors.push(`${listTitle}: ${cnt.error || 'Zähler fehlgeschlagen'}`);
                 }
                 continue;
             }
+            const label = list.displayName || listTitle;
             metrics[probe.countKey] = {
                 value: cnt.count,
-                hint: `SharePoint · „${list.displayName || listTitle}"`
+                hint: cnt.truncated
+                    ? `SharePoint · „${label}" (≥${cnt.count}, Zähler gekappt)`
+                    : `SharePoint · „${label}"` + (cnt.via && cnt.via !== '$count' ? ` · via ${cnt.via}` : '')
             };
         } catch (e) {
             metrics[probe.countKey] = { value: '—', hint: 'Fehler beim Lesen' };

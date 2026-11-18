@@ -24,6 +24,13 @@ export const CALENDAR_PRESETS = [
         publishDefault: false
     },
     {
+        id: 'schuelerkalender',
+        label: 'Schülerkalender (Postfach)',
+        aliasHint: 'schuelerkalender',
+        description: 'Allgemeine Schülertermine (Schulfeste, Infos, Fristen für Schüler/innen).',
+        publishDefault: false
+    },
+    {
         id: 'schularbeiten',
         label: 'Schularbeitenkalender',
         aliasHint: 'schularbeiten-kalender',

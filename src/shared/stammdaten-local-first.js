@@ -1,20 +1,31 @@
 /**
- * Stammdaten Lokal-First (Umbau): kein SharePoint-/IT-Bibliothek-Sync,
- * kein Intranet-Listen-Export – nur lokaler v2-Speicher + manueller JSON-Export.
+ * Stammdaten Lokal-First (Umbau): kanonisch lokal im Browser.
  *
- * Flag auf false setzen, wenn Phase 4 (manuelle IT-Bib) wieder freigeschaltet wird.
+ * Phase 4: manuelle IT-Sicherungsbibliothek (Einrichten + Sichern + Laden)
+ * ist wieder erlaubt. Auto-Sync/Abgleich und Intranet-Listen-Export bleiben aus.
+ *
  * Siehe docs/stammdaten-local-first.md
  */
 export const STAMMDATEN_LOCAL_FIRST = true;
 
-export const LOCAL_FIRST_BANNER =
-    'Lokal-First-Umbau: Speichern nur in diesem Browser. SharePoint-IT-Bibliothek und Intranet-Listen-Export sind deaktiviert. Sicherung: manuelles Browser-Backup (JSON).';
+/** Manuelles Einrichten/Sichern/Laden in die IT-Bibliothek (ohne Auto-Sync). */
+export const STAMMDATEN_IT_MANUAL_BACKUP = true;
+
+export const LOCAL_FIRST_BANNER = STAMMDATEN_IT_MANUAL_BACKUP
+    ? 'Lokal-First: Speichern in diesem Browser. IT-Sicherungsbibliothek: manuell sichern und laden (mit Versionierung). Kein Auto-Abgleich. Intranet-Listen-Export pausiert.'
+    : 'Lokal-First-Umbau: Speichern nur in diesem Browser. SharePoint-IT-Bibliothek und Intranet-Listen-Export sind deaktiviert. Sicherung: manuelles Browser-Backup (JSON).';
 
 export function isStammdatenLocalFirst() {
     return STAMMDATEN_LOCAL_FIRST === true;
 }
 
-/** Netzwerk-Sync IT-Bibliothek (Auto + manuell Upload/Load). */
+/** Manuelles Upload/Load/Setup der IT-Sicherungsbibliothek. */
+export function isSpoManualBackupAllowed() {
+    if (STAMMDATEN_IT_MANUAL_BACKUP === true) return true;
+    return !isStammdatenLocalFirst();
+}
+
+/** Auto-Push/Pull und Konflikt-/Abgleich-Logik. */
 export function isSpoNetworkSyncAllowed() {
     return !isStammdatenLocalFirst();
 }
@@ -29,15 +40,17 @@ export function localFirstStatusMessage() {
 }
 
 export function localFirstShortLabel() {
-    return 'Lokal-First: nur Browser';
+    return STAMMDATEN_IT_MANUAL_BACKUP
+        ? 'Lokal-First · IT manuell'
+        : 'Lokal-First: nur Browser';
 }
 
 /**
- * UI-Elemente für SPO-Sync / IT-Bib deaktivieren und beschriften.
+ * UI für manuelle SPO-Aktionen nur sperren, wenn Phase-4-Manual aus ist.
  * @param {ParentNode|Document|null|undefined} [root]
  */
 export function applyLocalFirstSpoUi(root) {
-    if (!isStammdatenLocalFirst()) return;
+    if (isSpoManualBackupAllowed()) return;
     const doc = root && root.querySelectorAll ? root : typeof document !== 'undefined' ? document : null;
     if (!doc) return;
     const nodes = doc.querySelectorAll(
@@ -71,6 +84,29 @@ export function applyLocalFirstSpoUi(root) {
 }
 
 /**
+ * Abgleich-/Auto-Sync-UI während Lokal-First ausblenden.
+ * @param {ParentNode|Document|null|undefined} [root]
+ */
+export function applyLocalFirstCompareUi(root) {
+    if (!isStammdatenLocalFirst()) return;
+    const doc = root && root.querySelectorAll ? root : typeof document !== 'undefined' ? document : null;
+    if (!doc) return;
+    doc.querySelectorAll('[data-local-first-hide="spo-compare"]').forEach(function (el) {
+        el.hidden = true;
+        el.setAttribute('aria-hidden', 'true');
+    });
+    // Fallback: Abgleich-Blöcke ohne data-Attribut
+    doc.querySelectorAll('.ms365-backup-panel__block').forEach(function (block) {
+        const label = block.querySelector('.ms365-backup-panel__label');
+        const t = label ? String(label.textContent || '') : '';
+        if (/Abgleich/i.test(t)) {
+            block.hidden = true;
+            block.setAttribute('aria-hidden', 'true');
+        }
+    });
+}
+
+/**
  * Intranet-Sync-Buttons deaktivieren.
  * @param {ParentNode|Document|null|undefined} [root]
  */
@@ -90,25 +126,31 @@ export function applyLocalFirstIntranetUi(root) {
 if (typeof window !== 'undefined') {
     window.ms365StammdatenLocalFirst = {
         STAMMDATEN_LOCAL_FIRST,
+        STAMMDATEN_IT_MANUAL_BACKUP,
         LOCAL_FIRST_BANNER,
         isStammdatenLocalFirst,
+        isSpoManualBackupAllowed,
         isSpoNetworkSyncAllowed,
         isIntranetExportAllowed,
         localFirstStatusMessage,
         localFirstShortLabel,
         applyLocalFirstSpoUi,
+        applyLocalFirstCompareUi,
         applyLocalFirstIntranetUi
     };
 }
 
 export default {
     STAMMDATEN_LOCAL_FIRST,
+    STAMMDATEN_IT_MANUAL_BACKUP,
     LOCAL_FIRST_BANNER,
     isStammdatenLocalFirst,
+    isSpoManualBackupAllowed,
     isSpoNetworkSyncAllowed,
     isIntranetExportAllowed,
     localFirstStatusMessage,
     localFirstShortLabel,
     applyLocalFirstSpoUi,
+    applyLocalFirstCompareUi,
     applyLocalFirstIntranetUi
 };

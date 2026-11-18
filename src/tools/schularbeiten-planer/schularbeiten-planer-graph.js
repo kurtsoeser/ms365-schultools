@@ -22,6 +22,14 @@ const SCOPES = [
     'https://graph.microsoft.com/Sites.ReadWrite.All'
 ];
 
+/** 403/Forbidden – lokale Demo/Cache nicht wipen. */
+export function isSaAccessDeniedError(err) {
+    const msg = String((err && err.message) || err || '');
+    return /403|Forbidden|Zugriff verweigert|accessDenied|Authorization_RequestDenied|access denied/i.test(
+        msg
+    );
+}
+
 function G() {
     const api = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
     if (!api) throw new Error('SharePoint-Graph-Hilfen nicht geladen (spo-graph-shared).');

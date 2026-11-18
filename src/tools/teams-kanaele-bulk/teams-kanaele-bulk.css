@@ -1,0 +1,301 @@
+/* Kanäle bulk – Wizard-Ergänzungen */
+
+.tkb-wizard-glance {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+    .tkb-wizard-glance {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.tkb-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.tkb-search-row .tm-field {
+    flex: 1 1 220px;
+    margin-bottom: 0;
+}
+
+.tkb-team-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0 10px;
+}
+
+.tkb-team-toolbar__meta {
+    margin: 0;
+    font-weight: 700;
+    color: var(--heading);
+    font-size: 0.92rem;
+}
+
+.tkb-team-list {
+    display: grid;
+    gap: 8px;
+    max-height: 380px;
+    overflow: auto;
+    padding: 2px;
+}
+
+.tkb-team-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    width: 100%;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tkb-team-card:hover {
+    border-color: color-mix(in srgb, var(--brand1) 40%, var(--border));
+}
+
+.tkb-team-card.is-on {
+    border-color: color-mix(in srgb, var(--brand1) 75%, transparent);
+    background: color-mix(in srgb, var(--brand1) 8%, var(--card));
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--brand1) 12%, transparent);
+}
+
+.tkb-team-card__check {
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+}
+
+.tkb-team-card__name {
+    display: block;
+    font-weight: 800;
+    color: var(--heading);
+    line-height: 1.3;
+}
+
+.tkb-team-card__mail {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    word-break: break-word;
+}
+
+.tkb-empty {
+    margin: 0;
+    padding: 18px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    background: var(--soft);
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.tkb-channel-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.tkb-channel-card {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--brand1) 5%, var(--card)), var(--card));
+}
+
+.tkb-channel-card__num {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--brand1) 28%, transparent);
+}
+
+.tkb-channel-card__fields {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.tkb-channel-card__fields label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.tkb-channel-card__fields input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    background: var(--input-bg);
+    color: var(--text);
+    font: inherit;
+}
+
+.tkb-channel-card__remove {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font: inherit;
+}
+
+.tkb-channel-card__remove:hover {
+    color: var(--danger1, #b00020);
+    border-color: color-mix(in srgb, var(--danger1, #b00020) 35%, var(--border));
+}
+
+.tkb-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.tkb-preview-card {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: var(--soft);
+}
+
+.tkb-preview-card__label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.tkb-preview-card__value {
+    display: block;
+    font-weight: 800;
+    font-size: 1.35rem;
+    color: var(--heading);
+    line-height: 1.2;
+}
+
+.tkb-preview-card__hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.tkb-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tkb-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brand1) 10%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--brand1) 22%, var(--border));
+    color: var(--heading);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.tkb-chip i {
+    color: var(--brand1);
+}
+
+.tkb-result-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.tkb-result-stat {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: var(--card);
+}
+
+.tkb-result-stat strong {
+    display: block;
+    font-size: 1.4rem;
+    color: var(--heading);
+    line-height: 1.1;
+}
+
+.tkb-result-stat span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.tkb-result-stat.is-ok {
+    border-color: color-mix(in srgb, var(--ok1) 45%, var(--border));
+    background: color-mix(in srgb, var(--ok1) 10%, var(--card));
+}
+
+.tkb-result-stat.is-warn {
+    border-color: color-mix(in srgb, #fab005 50%, var(--border));
+    background: color-mix(in srgb, #fab005 12%, var(--card));
+}
+
+.tkb-result-stat.is-danger {
+    border-color: color-mix(in srgb, var(--danger1) 40%, var(--border));
+    background: color-mix(in srgb, var(--danger1) 10%, var(--card));
+}
+
+@media (max-width: 640px) {
+    .tkb-channel-card {
+        grid-template-columns: 40px 1fr;
+    }
+    .tkb-channel-card__remove {
+        grid-column: 2;
+        justify-self: end;
+    }
+}

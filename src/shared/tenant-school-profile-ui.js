@@ -1,9 +1,11 @@
 /**
- * Stammdaten Stammdaten: Logo, Adresse, Kontakt (setup.schoolProfile).
+ * Stammdaten: Logo (Upload oder HTTPS-URL), Adresse, Kontakt (setup.schoolProfile).
  */
 import {
     emptySchoolProfile,
+    normalizeSchoolLogoUrl,
     normalizeSchoolProfile,
+    resolveSchoolLogoSrc,
     SCHOOL_LOGO_MAX_BYTES
 } from './school-profile-logic.js';
 import { notifyAppLocalDataChanged } from './app-local-data-notify.js';
@@ -90,20 +92,27 @@ function bindTextField(id, key, debounceMs) {
 function updateLogoPreview(profile) {
     const img = document.getElementById('tenantSchoolLogoPreview');
     const placeholder = document.getElementById('tenantSchoolLogoPlaceholder');
-    const url = profile && profile.logoDataUrl ? String(profile.logoDataUrl) : '';
+    const urlEl = document.getElementById('tenantSchoolLogoUrl');
+    const src = resolveSchoolLogoSrc(profile);
     if (img) {
-        if (url) {
-            img.src = url;
+        if (src) {
+            img.src = src;
             img.hidden = false;
         } else {
             img.removeAttribute('src');
             img.hidden = true;
         }
     }
-    if (placeholder) placeholder.hidden = !!url;
+    if (placeholder) placeholder.hidden = !!src;
     const nameEl = document.getElementById('tenantSchoolLogoFileName');
     if (nameEl) {
-        nameEl.textContent = profile && profile.logoFileName ? profile.logoFileName : '';
+        if (profile && profile.logoUrl) nameEl.textContent = 'HTTPS-URL';
+        else if (profile && profile.logoFileName) nameEl.textContent = profile.logoFileName;
+        else if (profile && profile.logoDataUrl) nameEl.textContent = 'Hochgeladenes Logo';
+        else nameEl.textContent = '';
+    }
+    if (urlEl && document.activeElement !== urlEl) {
+        urlEl.value = profile && profile.logoUrl ? String(profile.logoUrl) : '';
     }
 }
 
@@ -134,6 +143,31 @@ function loadSchoolProfileIntoForm() {
     updateLogoPreview(p);
 }
 
+function bindLogoUrl() {
+    const urlEl = document.getElementById('tenantSchoolLogoUrl');
+    if (!urlEl || urlEl.dataset.schoolProfileBound === '1') return;
+    urlEl.dataset.schoolProfileBound = '1';
+    function apply() {
+        const raw = String(urlEl.value || '').trim();
+        if (!raw) {
+            patchSchoolProfile({ logoUrl: '' });
+            updateLogoPreview(readSchoolProfileFromSetup());
+            return;
+        }
+        const normalized = normalizeSchoolLogoUrl(raw);
+        if (!normalized) {
+            toast('Bitte eine öffentliche HTTPS-URL angeben (z. B. https://schule.at/logo.png).');
+            urlEl.value = readSchoolProfileFromSetup().logoUrl || '';
+            return;
+        }
+        urlEl.value = normalized;
+        patchSchoolProfile({ logoUrl: normalized, logoDataUrl: '', logoFileName: '' });
+        updateLogoPreview(readSchoolProfileFromSetup());
+    }
+    urlEl.addEventListener('change', apply);
+    urlEl.addEventListener('blur', apply);
+}
+
 function bindLogoUpload() {
     const fileInput = document.getElementById('tenantSchoolLogoFile');
     const btnRemove = document.getElementById('tenantSchoolLogoRemove');
@@ -149,7 +183,7 @@ function bindLogoUpload() {
             return;
         }
         if (file.size > SCHOOL_LOGO_MAX_BYTES) {
-            toast('Das Logo ist zu groß (max. ca. 400 KB). Bitte verkleinern oder komprimieren.');
+            toast('Das Logo ist zu groß (max. ca. 400 KB). Besser: öffentliche HTTPS-URL nutzen.');
             return;
         }
         const reader = new FileReader();
@@ -157,7 +191,8 @@ function bindLogoUpload() {
             const dataUrl = String(reader.result || '');
             patchSchoolProfile({
                 logoDataUrl: dataUrl,
-                logoFileName: file.name || 'logo'
+                logoFileName: file.name || 'logo',
+                logoUrl: ''
             });
             updateLogoPreview(readSchoolProfileFromSetup());
         };
@@ -170,7 +205,7 @@ function bindLogoUpload() {
     if (btnRemove && btnRemove.dataset.schoolProfileBound !== '1') {
         btnRemove.dataset.schoolProfileBound = '1';
         btnRemove.addEventListener('click', function () {
-            patchSchoolProfile({ logoDataUrl: '', logoFileName: '' });
+            patchSchoolProfile({ logoDataUrl: '', logoFileName: '', logoUrl: '' });
             updateLogoPreview(emptySchoolProfile());
         });
     }
@@ -180,6 +215,7 @@ export function mountTenantSchoolProfileUi() {
     if (!document.getElementById('tenantSchoolProfileCard')) return;
     loadSchoolProfileIntoForm();
     bindLogoUpload();
+    bindLogoUrl();
     bindTextField('tenantSchoolCode', 'schoolCode');
     bindTextField('tenantSchoolStreet', 'street');
     bindTextField('tenantSchoolPostalCode', 'postalCode');

@@ -8,25 +8,71 @@ function normId(value) {
     return String(value == null ? '' : value).trim();
 }
 
+const KIND_SCHULSPRECHER = 'schulsprecher';
+const KIND_SGA_LEHRER = 'sga_lehrer';
+
+/**
+ * @param {unknown} value
+ */
+function normalizeElectionKind(value) {
+    const v = String(value || '')
+        .trim()
+        .toLowerCase();
+    if (v === KIND_SGA_LEHRER || v === 'sga-lehrer' || v === 'lehrer_sga') {
+        return KIND_SGA_LEHRER;
+    }
+    return KIND_SCHULSPRECHER;
+}
+
+/**
+ * @param {object|null|undefined} election
+ * @param {unknown} [kindOverride]
+ */
+function ballotSchemaForElection(election, kindOverride) {
+    const kind = normalizeElectionKind(
+        kindOverride != null ? kindOverride : election && (election.electionKind || election.kind)
+    );
+    const includeSga =
+        kind === KIND_SCHULSPRECHER &&
+        !!(election && (election.includeSgaDeputies || election.includeSgaSchuelerStv));
+    if (kind === KIND_SGA_LEHRER || includeSga) {
+        return { kind, rankingCount: 6, points: [6, 5, 4, 3, 2, 1], includeSgaDeputies: includeSga };
+    }
+    return { kind, rankingCount: 3, points: [6, 5, 4], includeSgaDeputies: false };
+}
+
 /**
  * @param {unknown} ballot
  * @param {Iterable<string>} allowedIds
+ * @param {object|null|undefined} [electionOrKind]
  */
-function validateMainBallot(ballot, allowedIds) {
+function validateMainBallot(ballot, allowedIds, electionOrKind) {
+    const schema =
+        electionOrKind && typeof electionOrKind === 'object' && !Array.isArray(electionOrKind)
+            ? ballotSchemaForElection(electionOrKind)
+            : ballotSchemaForElection(null, electionOrKind);
+
     const rankings = Array.isArray(ballot && ballot.rankings)
         ? ballot.rankings.map(normId).filter(Boolean)
         : [];
-    if (rankings.length !== 3) {
-        return { ok: false, reason: 'Genau drei Reihungen (6 / 5 / 4 Punkte) nötig.' };
+    if (rankings.length !== schema.rankingCount) {
+        const pts = schema.points.join(' / ');
+        return {
+            ok: false,
+            reason:
+                schema.rankingCount === 3
+                    ? 'Genau drei Reihungen (6 / 5 / 4 Punkte) nötig.'
+                    : 'Genau ' + schema.rankingCount + ' Reihungen (' + pts + ' Punkte) nötig.'
+        };
     }
-    if (new Set(rankings).size !== 3) {
+    if (new Set(rankings).size !== schema.rankingCount) {
         return { ok: false, reason: 'Jeder Kandidat darf nur einmal gereiht werden.' };
     }
     const allow = new Set([...allowedIds].map(normId).filter(Boolean));
     for (const id of rankings) {
         if (!allow.has(id)) return { ok: false, reason: 'Unbekannte Kandidatur.' };
     }
-    return { ok: true, rankings };
+    return { ok: true, rankings, kind: schema.kind };
 }
 
 /**
@@ -47,6 +93,7 @@ function validateRunoffBallot(ballot, allowedIds) {
  */
 function votingPhase(election, now = new Date()) {
     const status = String((election && election.status) || '');
+    const kind = normalizeElectionKind(election && (election.electionKind || election.kind));
     const within = (win) => {
         if (!win) return true;
         const t = now.getTime();
@@ -73,6 +120,14 @@ function votingPhase(election, now = new Date()) {
         };
     }
     if (status === 'runoff_open') {
+        if (kind === KIND_SGA_LEHRER) {
+            return {
+                canVote: false,
+                roundKind: null,
+                round: null,
+                reason: 'Für die SGA-Lehrerwahl gibt es keine Stichwahl.'
+            };
+        }
         const round = rounds.find((r) => r.kind === 'runoff');
         const win =
             election.runoffWindow && (election.runoffWindow.start || election.runoffWindow.end)
@@ -106,6 +161,8 @@ function publicElectionView(election) {
     if (!election) return null;
     return {
         id: election.id,
+        electionKind: normalizeElectionKind(election.electionKind || election.kind),
+        includeSgaDeputies: !!(election.includeSgaDeputies || election.includeSgaSchuelerStv),
         title: election.title,
         scopeLabel: election.scopeLabel,
         schoolYear: election.schoolYear,
@@ -131,6 +188,8 @@ function publicElectionView(election) {
 
 module.exports = {
     normId,
+    normalizeElectionKind,
+    ballotSchemaForElection,
     validateMainBallot,
     validateRunoffBallot,
     votingPhase,

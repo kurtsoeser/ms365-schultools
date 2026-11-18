@@ -16,7 +16,7 @@
 
     const PERSON_SELECT = 'id,displayName,mail,userPrincipalName,otherMails,mailNickname';
     const USER_LICENSE_SELECT =
-        'id,displayName,givenName,surname,mail,userPrincipalName,accountEnabled,userType,jobTitle,department,assignedLicenses,otherMails,mailNickname';
+        'id,displayName,givenName,surname,mail,userPrincipalName,accountEnabled,userType,jobTitle,department,officeLocation,assignedLicenses,otherMails,mailNickname';
 
     let msalMod = null;
     let pca = null;

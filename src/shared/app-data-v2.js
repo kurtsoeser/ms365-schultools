@@ -138,6 +138,8 @@
             /** Klassen-Abkürzung (Großbuchstaben) → M365-Gruppeninfo (Einrichtungsassistent, optional) */
             classGroupMatchByKey: {},
             catalogLinks: [],
+            /** Schnellzugriff-Links Lehrer-Portal (WebUntis, Sokrates, …) */
+            portalQuickLinks: [],
             actionLog: [],
             intranetSiteUrl: '',
             /** SharePoint-Listentitel je Stammdaten-Typ (leer = Standard im UI) */
@@ -147,11 +149,31 @@
                 fachgruppen: '',
                 arges: '',
                 klassen: '',
-                lehrer: ''
+                lehrer: '',
+                lehrerJeKlasse: ''
             },
             /** Öffentliche Schul-Intranet-Website (Hub), ggf. ≠ Site für Stammdaten-Listen */
             schoolIntranetSiteUrl: '',
             intranetHubAt: null,
+            /**
+             * Gemeinsame SharePoint-Site für Planer & Apps (Fallback nach Tool-Override).
+             * Oft = intranetSiteUrl.
+             */
+            planerDefaultSiteUrl: '',
+            /** Optionale Abweichungen je Tool (leer = planerDefaultSiteUrl / Intranet) */
+            planerSiteUrls: {
+                schularbeiten: '',
+                projektwochen: '',
+                freistellung: '',
+                aktivitaeten: '',
+                wahlfach: ''
+            },
+            /** Zentrale Postfächer (Kommunikation) */
+            schoolMailboxes: {
+                elternbriefZentral: '',
+                elternbriefName: 'Elternbrief Schule',
+                schulkalender: ''
+            },
             stammdatenItLibrary: null,
             sisImportHistory: [],
             elternSetup: { completedSteps: [], lastDiagnoseAt: null },
@@ -160,6 +182,7 @@
                 schoolCode: '',
                 logoDataUrl: '',
                 logoFileName: '',
+                logoUrl: '',
                 street: '',
                 postalCode: '',
                 city: '',
@@ -963,6 +986,21 @@
         const filled = fillSammelgruppeGaps(d.matched, d.catalogLinks);
         d.matched = filled.matched;
         d.catalogLinks = filled.catalogLinks;
+        d.portalQuickLinks = [];
+        (Array.isArray(x.portalQuickLinks) ? x.portalQuickLinks : []).forEach(function (row) {
+            if (!row || typeof row !== 'object') return;
+            const id = String(row.id || '')
+                .trim()
+                .toLowerCase();
+            if (!id) return;
+            d.portalQuickLinks.push({
+                id: id,
+                label: String(row.label != null ? row.label : '').trim(),
+                url: String(row.url != null ? row.url : '').trim(),
+                icon: String(row.icon != null ? row.icon : '').trim(),
+                external: row.external !== false
+            });
+        });
         d.intranetSiteUrl = x.intranetSiteUrl ? String(x.intranetSiteUrl).trim() : '';
         const ilt = x.intranetListTitles && typeof x.intranetListTitles === 'object' ? x.intranetListTitles : {};
         d.intranetListTitles = {
@@ -971,7 +1009,8 @@
             fachgruppen: String(ilt.fachgruppen != null ? ilt.fachgruppen : '').trim(),
             arges: String(ilt.arges != null ? ilt.arges : '').trim(),
             klassen: String(ilt.klassen != null ? ilt.klassen : '').trim(),
-            lehrer: String(ilt.lehrer != null ? ilt.lehrer : '').trim()
+            lehrer: String(ilt.lehrer != null ? ilt.lehrer : '').trim(),
+            lehrerJeKlasse: String(ilt.lehrerJeKlasse != null ? ilt.lehrerJeKlasse : '').trim()
         };
         d.schoolIntranetSiteUrl = x.schoolIntranetSiteUrl
             ? String(x.schoolIntranetSiteUrl).trim()
@@ -979,6 +1018,29 @@
               ? String(x.intranetSiteUrl).trim()
               : '';
         d.intranetHubAt = x.intranetHubAt != null && x.intranetHubAt !== '' ? String(x.intranetHubAt) : null;
+        d.planerDefaultSiteUrl = x.planerDefaultSiteUrl
+            ? String(x.planerDefaultSiteUrl).trim()
+            : '';
+        const psu = x.planerSiteUrls && typeof x.planerSiteUrls === 'object' ? x.planerSiteUrls : {};
+        d.planerSiteUrls = {
+            schularbeiten: String(psu.schularbeiten != null ? psu.schularbeiten : '').trim(),
+            projektwochen: String(psu.projektwochen != null ? psu.projektwochen : '').trim(),
+            freistellung: String(psu.freistellung != null ? psu.freistellung : '').trim(),
+            aktivitaeten: String(psu.aktivitaeten != null ? psu.aktivitaeten : '').trim(),
+            wahlfach: String(psu.wahlfach != null ? psu.wahlfach : '').trim()
+        };
+        const smb = x.schoolMailboxes && typeof x.schoolMailboxes === 'object' ? x.schoolMailboxes : {};
+        d.schoolMailboxes = {
+            elternbriefZentral: String(smb.elternbriefZentral != null ? smb.elternbriefZentral : '')
+                .trim()
+                .toLowerCase(),
+            elternbriefName:
+                String(smb.elternbriefName != null ? smb.elternbriefName : 'Elternbrief Schule').trim() ||
+                'Elternbrief Schule',
+            schulkalender: String(smb.schulkalender != null ? smb.schulkalender : '')
+                .trim()
+                .toLowerCase()
+        };
         const itLib = x.stammdatenItLibrary && typeof x.stammdatenItLibrary === 'object' ? x.stammdatenItLibrary : null;
         d.stammdatenItLibrary = itLib
             ? {
@@ -1005,10 +1067,21 @@
             logoData = '';
         }
         if (logoData.length > 600000) logoData = '';
+        let logoUrl = String(sp.logoUrl != null ? sp.logoUrl : '').trim();
+        if (logoUrl) {
+            try {
+                const u = new URL(logoUrl);
+                logoUrl = u.protocol === 'https:' && u.hostname ? u.toString() : '';
+            } catch {
+                logoUrl = '';
+            }
+        }
+        if (logoUrl.length > 2000) logoUrl = '';
         d.schoolProfile = {
             schoolCode: String(sp.schoolCode != null ? sp.schoolCode : '').trim(),
             logoDataUrl: logoData,
             logoFileName: String(sp.logoFileName != null ? sp.logoFileName : '').trim(),
+            logoUrl: logoUrl,
             street: String(sp.street != null ? sp.street : '').trim(),
             postalCode: String(sp.postalCode != null ? sp.postalCode : '').trim(),
             city: String(sp.city != null ? sp.city : '').trim(),

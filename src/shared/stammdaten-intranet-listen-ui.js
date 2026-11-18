@@ -53,18 +53,21 @@ function readRunOpts(p) {
 
 function collectListOpts(p) {
     return buildListOptsForKinds(
-        ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen', 'lehrer'].filter(function (kind) {
-            const map = {
-                schueler: 'WantSchueler',
-                faecher: 'WantFaecher',
-                fachgruppen: 'WantFachgruppen',
-                arges: 'WantArge',
-                klassen: 'WantKlassen',
-                lehrer: 'WantLehrer'
-            };
-            const id = map[kind];
-            return el(p + id) && el(p + id).checked;
-        }),
+        ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen', 'lehrer', 'lehrerJeKlasse'].filter(
+            function (kind) {
+                const map = {
+                    schueler: 'WantSchueler',
+                    faecher: 'WantFaecher',
+                    fachgruppen: 'WantFachgruppen',
+                    arges: 'WantArge',
+                    klassen: 'WantKlassen',
+                    lehrer: 'WantLehrer',
+                    lehrerJeKlasse: 'WantLehrerJeKlasse'
+                };
+                const id = map[kind];
+                return el(p + id) && el(p + id).checked;
+            }
+        ),
         p
     );
 }
@@ -79,7 +82,15 @@ function logTo(p, msg) {
 export const DEFAULT_LIST_TITLES = DEFAULT_INTRANET_LIST_TITLES;
 export { resolveIntranetListTitle };
 
-const INTRANET_LIST_KINDS = ['schueler', 'faecher', 'fachgruppen', 'arges', 'klassen', 'lehrer'];
+const INTRANET_LIST_KINDS = [
+    'schueler',
+    'faecher',
+    'fachgruppen',
+    'arges',
+    'klassen',
+    'lehrer',
+    'lehrerJeKlasse'
+];
 
 const INTRANET_LIST_TITLE_SUFFIX = {
     schueler: 'SchuelerName',
@@ -87,7 +98,8 @@ const INTRANET_LIST_TITLE_SUFFIX = {
     fachgruppen: 'FachgruppenName',
     arges: 'ArgeName',
     klassen: 'KlassenName',
-    lehrer: 'LehrerName'
+    lehrer: 'LehrerName',
+    lehrerJeKlasse: 'LehrerJeKlasseName'
 };
 
 const TENANT_INTRANET_LIST_INPUT_IDS = {
@@ -96,7 +108,8 @@ const TENANT_INTRANET_LIST_INPUT_IDS = {
     fachgruppen: 'tenantIntranetListFachgruppen',
     arges: 'tenantIntranetListArges',
     klassen: 'tenantIntranetListKlassen',
-    lehrer: 'tenantIntranetListLehrer'
+    lehrer: 'tenantIntranetListLehrer',
+    lehrerJeKlasse: 'tenantIntranetListLehrerJeKlasse'
 };
 
 function readIntranetListTitlesFromSetup() {
@@ -303,12 +316,18 @@ export function buildListOptsForKinds(kinds, prefix) {
         arges: set.has('arges'),
         klassen: set.has('klassen'),
         lehrer: set.has('lehrer'),
+        lehrerJeKlasse: set.has('lehrerJeKlasse'),
         schuelerTitle: readListTitle(p, 'SchuelerName', DEFAULT_LIST_TITLES.schueler),
         faecherTitle: readListTitle(p, 'FaecherName', DEFAULT_LIST_TITLES.faecher),
         fachgruppenTitle: readListTitle(p, 'FachgruppenName', DEFAULT_LIST_TITLES.fachgruppen),
         argesTitle: readListTitle(p, 'ArgeName', DEFAULT_LIST_TITLES.arges),
         klassenTitle: readListTitle(p, 'KlassenName', DEFAULT_LIST_TITLES.klassen),
-        lehrerTitle: readListTitle(p, 'LehrerName', DEFAULT_LIST_TITLES.lehrer)
+        lehrerTitle: readListTitle(p, 'LehrerName', DEFAULT_LIST_TITLES.lehrer),
+        lehrerJeKlasseTitle: readListTitle(
+            p,
+            'LehrerJeKlasseName',
+            DEFAULT_LIST_TITLES.lehrerJeKlasse
+        )
     };
 }
 
@@ -355,7 +374,8 @@ function renderPanel(mount) {
         checkbox(p, 'WantArge', 'ARGEs', true) +
         checkbox(p, 'WantKlassen', 'Klassen', true) +
         checkbox(p, 'WantLehrer', 'Lehrerinnen', true) +
-        checkbox(p, 'KlassenPersonen', 'Klassen: Schüler als Personenfeld (M365)', true) +
+        checkbox(p, 'WantLehrerJeKlasse', 'Lehrer je Klasse (Lookups)', true) +
+        checkbox(p, 'KlassenPersonen', 'Klassen: Personenfelder Schülerinnen + Lehrkräfte + KV (M365)', true) +
         checkbox(p, 'LehrerPersonen', 'Lehrer: Personenfeld Lehrkraft (M365)', true) +
         '</div>' +
         (compact
@@ -367,6 +387,7 @@ function renderPanel(mount) {
               nameField(p, 'ArgeName', 'ARGEs') +
               nameField(p, 'KlassenName', 'Klassen') +
               nameField(p, 'LehrerName', 'Lehrerinnen') +
+              nameField(p, 'LehrerJeKlasseName', 'Lehrer je Klasse') +
               '</details>') +
         // Abgleich/Berechtigungen bewusst nicht im Register-Stammdaten-Tab; siehe docs/intranet-stammdaten-listen-notizen.md
         '<details style="margin:8px 0;"><summary style="cursor:pointer;font-weight:700;">Abgleich &amp; Berechtigungen</summary>' +

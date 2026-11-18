@@ -3,6 +3,7 @@
  */
 import {
     isIntranetExportAllowed,
+    isSpoManualBackupAllowed,
     localFirstStatusMessage,
     applyLocalFirstIntranetUi
 } from './stammdaten-local-first.js';
@@ -26,6 +27,7 @@ import {
     showIntranetSyncToast,
     wrapIntranetSyncButtons
 } from './tenant-intranet-list-links.js';
+import { refreshStammdatenSetupNavAvailability } from './tenant-stammdaten-setup-nav.js';
 
 function toast(m) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
@@ -61,7 +63,8 @@ const KIND_TO_INPUT_ID = {
     fachgruppen: 'tenantIntranetListFachgruppen',
     arges: 'tenantIntranetListArges',
     klassen: 'tenantIntranetListKlassen',
-    lehrer: 'tenantIntranetListLehrer'
+    lehrer: 'tenantIntranetListLehrer',
+    lehrerJeKlasse: 'tenantIntranetListLehrerJeKlasse'
 };
 
 function inputForKind(kind) {
@@ -147,22 +150,39 @@ export function mountTenantIntranetQuickSync() {
     wrapIntranetSyncButtons();
     bindQuickSyncButtons();
     applyLocalFirstIntranetUi(document);
-    if (isIntranetExportAllowed()) {
+
+    const itManual = isSpoManualBackupAllowed();
+    const intranetOk = isIntranetExportAllowed();
+    const itHost = document.getElementById('tenantItLibraryPanel');
+    const setup = document.getElementById('tenantStammdatenSetup');
+    const activePane = setup ? String(setup.getAttribute('data-active-pane') || '') : '';
+
+    if (itManual) {
         mountTenantItLibraryEmbeddedUi();
         document.querySelectorAll('[data-local-first-hide="spo"]').forEach(function (el) {
             el.hidden = false;
+            el.removeAttribute('aria-hidden');
         });
+        // Pane-Switcher steuert Sichtbarkeit – IT-Panel nur zeigen, wenn aktiv.
+        if (itHost && activePane !== 'spo-it') {
+            itHost.hidden = true;
+            itHost.setAttribute('aria-hidden', 'true');
+        }
     } else {
-        const itHost = document.getElementById('tenantItLibraryPanel');
+        document.querySelectorAll('[data-local-first-hide="spo"]').forEach(function (el) {
+            el.hidden = true;
+            el.setAttribute('aria-hidden', 'true');
+        });
         if (itHost) {
             itHost.hidden = true;
             itHost.setAttribute('aria-hidden', 'true');
         }
-        document.querySelectorAll('[data-local-first-hide="spo"]').forEach(function (el) {
-            el.hidden = true;
-        });
+    }
+    refreshStammdatenSetupNavAvailability();
+
+    if (!intranetOk) {
         const spoStatus = document.getElementById('stammdatenSpoSyncStatus');
-        if (spoStatus) spoStatus.textContent = localFirstStatusMessage();
+        if (spoStatus && !itManual) spoStatus.textContent = localFirstStatusMessage();
         const banner = document.getElementById('tenantLocalFirstBanner');
         if (banner) {
             banner.hidden = false;

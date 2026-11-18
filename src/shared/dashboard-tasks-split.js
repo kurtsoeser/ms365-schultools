@@ -171,6 +171,24 @@ const NAV_LABELS = {
     dashTaskOrdnung: 'Aufräumen'
 };
 
+/** Wenn schon Schuldaten im Browser liegen: Einstieg als „Stammdaten“ statt nur Import. */
+function hasMeaningfulStammdaten() {
+    try {
+        const settings =
+            typeof window.ms365TenantSettingsLoad === 'function' ? window.ms365TenantSettingsLoad() : null;
+        if (!settings || typeof settings !== 'object') return false;
+        const domain = String(settings.domain || '').trim();
+        const schoolName = String(settings.schoolName || '').trim();
+        const subjects = Array.isArray(settings.subjects) ? settings.subjects.length : 0;
+        const teachers = Array.isArray(settings.teachers) ? settings.teachers.length : 0;
+        const students = Array.isArray(settings.students) ? settings.students.length : 0;
+        const classes = Array.isArray(settings.classes) ? settings.classes.length : 0;
+        return !!(domain || schoolName || subjects || teachers || students || classes);
+    } catch {
+        return false;
+    }
+}
+
 const PROGRESS_BY_TASK = {
     dashTaskGruppen: 'dashProgGruppen',
     dashTaskUnterricht: 'dashProgUnterricht',
@@ -223,11 +241,86 @@ function writeStoredTaskId(taskId) {
 /** @param {HTMLElement} task */
 function navLabelForTask(task) {
     const id = task.id || '';
+    if (id === 'dashTaskImportVerknuepfen' && hasMeaningfulStammdaten()) return 'Stammdaten';
     if (NAV_LABELS[id]) return NAV_LABELS[id];
     const custom = task.getAttribute('data-dash-nav-label');
     if (custom) return custom.trim();
     const h3 = task.querySelector('h3');
     return h3 ? String(h3.textContent || '').trim() : 'Bereich';
+}
+
+/**
+ * Import-Bereich: ohne Daten = Einstieg „importieren“, mit Daten = „Stammdaten“.
+ * @param {HTMLElement} task
+ * @param {HTMLButtonElement} [btn]
+ */
+function applyImportTaskPersona(task, btn) {
+    if (!task || task.id !== 'dashTaskImportVerknuepfen') return;
+    const hasData = hasMeaningfulStammdaten();
+    task.classList.toggle('dash-task--has-stammdaten', hasData);
+    const h3 = task.querySelector('h3');
+    const lead = task.querySelector(':scope > p, .dash-split-section--intro p');
+    const iconWrap = task.querySelector('.dash-task-icon i');
+    const indexEl = task.querySelector('.dash-task-index');
+    if (h3) {
+        h3.textContent = hasData ? 'Stammdaten pflegen & importieren' : 'Daten importieren & verknüpfen';
+    }
+    if (lead) {
+        lead.textContent = hasData
+            ? 'Listen prüfen, bei Bedarf neu importieren und Microsoft 365-Gruppen zuordnen.'
+            : 'Export einlesen, in den Stammdaten prüfen und Microsoft 365-Gruppen Schritt für Schritt zuordnen.';
+    }
+    if (iconWrap) {
+        iconWrap.className = hasData ? 'bi bi-database' : 'bi bi-box-arrow-in-down';
+    }
+    if (indexEl) {
+        if (hasData) {
+            indexEl.textContent = '';
+            indexEl.hidden = true;
+        } else {
+            indexEl.textContent = 'Start';
+            indexEl.hidden = false;
+        }
+    }
+    const stack = task.querySelector('.dash-task-links--stack');
+    if (stack) {
+        let stammdatenRow = null;
+        stack.querySelectorAll('a.dash-task-row[href*="tenant.html"]').forEach(function (a) {
+            const href = String(a.getAttribute('href') || '');
+            if (/organigramm/i.test(href)) return;
+            if (!stammdatenRow) stammdatenRow = a;
+        });
+        if (stammdatenRow) {
+            const label = stammdatenRow.querySelector('.dash-task-row__label');
+            if (label) {
+                label.innerHTML = hasData
+                    ? '<i class="bi bi-database" aria-hidden="true"></i>Stammdaten öffnen'
+                    : '<i class="bi bi-database" aria-hidden="true"></i>Stammdaten';
+            }
+            if (hasData) {
+                stammdatenRow.classList.add('dash-task-row--primary');
+                stack.insertBefore(stammdatenRow, stack.firstChild);
+            }
+        }
+    }
+    if (btn) {
+        const navIcon = btn.querySelector('.dash-tasks-split__nav-icon i');
+        if (navIcon) navIcon.className = hasData ? 'bi bi-database' : 'bi bi-box-arrow-in-down';
+        const navLabel = btn.querySelector('.dash-tasks-split__nav-label');
+        if (navLabel) navLabel.textContent = navLabelForTask(task);
+        const navIndex = btn.querySelector('.dash-tasks-split__nav-index');
+        if (navIndex) {
+            if (hasData) {
+                navIndex.textContent = '';
+                navIndex.hidden = true;
+            } else {
+                navIndex.textContent = 'Start';
+                navIndex.hidden = false;
+            }
+        }
+        btn.classList.toggle('dash-tasks-split__nav-item--start', !hasData);
+        btn.classList.toggle('dash-tasks-split__nav-item--stammdaten', hasData);
+    }
 }
 
 /** @param {HTMLElement} task */
@@ -567,6 +660,7 @@ export function mountDashboardTasksSplit() {
         }
         btn.querySelector('.dash-tasks-split__nav-label').textContent = navLabelForTask(task);
         paintNavBadge(btn, task.id);
+        if (task.id === 'dashTaskImportVerknuepfen') applyImportTaskPersona(task, btn);
 
         btn.addEventListener('click', function () {
             selectTask(task.id);
@@ -633,6 +727,9 @@ export function mountDashboardTasksSplit() {
         navButtons.forEach(function (item) {
             paintNavBadge(item.btn, item.task.id);
             ensureAlertSection(item.task);
+            if (item.task.id === 'dashTaskImportVerknuepfen') {
+                applyImportTaskPersona(item.task, item.btn);
+            }
         });
     }
 
@@ -712,6 +809,18 @@ export function mountDashboardTasksSplit() {
     window.ms365DashTasksSplit = api;
     window.__ms365DashTasksSplitRefreshBadges = refreshNavBadges;
     window.__ms365DashTasksSplitRefreshToolCards = refreshToolCards;
+
+    ['ms365-school-data-written', 'ms365-browser-backup-status', 'ms365-auth-state-changed'].forEach(
+        function (evName) {
+            try {
+                window.addEventListener(evName, function () {
+                    refreshNavBadges();
+                });
+            } catch {
+                /* ignore */
+            }
+        }
+    );
 
     return api;
 }

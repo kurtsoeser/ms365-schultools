@@ -61,11 +61,11 @@
                                 <div class="cp-step__n">1</div>
                                 <div>
                                     <h3>Stammdaten vorbereiten</h3>
-                                    <p>Schulname, E-Mail-Domain und aktives Schuljahr – ohne diese Basis stimmen Import und Verknüpfung nicht.</p>
+                                    <p>Schulname, <strong>Schuldomain</strong>, E-Mail-Muster und aktives Schuljahr – ohne Domain bleiben WebUntis-Schülermails oft leer.</p>
                                     <label class="cp-check"><input type="checkbox" data-cp-check="register"> Erledigt</label>
                                 </div>
                                 <div class="cp-step__actions">
-                                    <a class="btn" href="../tenant.html#stammdaten"><i class="bi bi-journal-bookmark"></i>Stammdaten</a>
+                                    <a class="btn btn-primary" href="../tenant.html#stammdaten"><i class="bi bi-journal-bookmark"></i>Stammdaten</a>
                                 </div>
                             </article>
                         </div>
@@ -77,7 +77,7 @@
                                 <div class="cp-step__n">2</div>
                                 <div>
                                     <h3>Datenquelle wählen</h3>
-                                    <p>Entscheiden: <strong>Datei-Export</strong> (WebUntis, Sokrates, …) – heute Standard – oder perspektivisch <strong>Bildungsportal</strong> ohne manuellen Export.</p>
+                                    <p><strong>Empfohlen: WebUntis-Gesamtpaket.</strong> Alternative: Sokrates/Excel über Stammdaten → Schüler. Bildungsportal noch nicht produktiv.</p>
                                     <label class="cp-check"><input type="checkbox" data-cp-check="quelle"> Erledigt</label>
                                 </div>
                                 <div class="cp-step__actions">
@@ -88,16 +88,15 @@
                                 <div class="cp-step__n">3</div>
                                 <div>
                                     <h3>Dateien hochladen &amp; übernehmen</h3>
-                                    <p>Im Import-Assistenten:</p>
-                                    <ul>
-                                        <li>Exporte auswählen oder ablegen (WebUntis CSV/PDF, Sokrates XLSX, …)</li>
-                                        <li>„Auswerten &amp; prüfen“ – Bereiche einzeln durchgehen</li>
-                                        <li>Markierte Datensätze in die Stammdaten übernehmen</li>
-                                    </ul>
+                                    <p><strong>WebUntis (empfohlen):</strong> Assistent öffnen, <code>Student_*</code> + <code>LegalGuardian_*</code> + <code>Teacher_*</code> ablegen, auswerten, markieren, übernehmen.</p>
+                                    <p style="margin-top:.5em"><strong>Lehrer schon in M365?</strong> Stammdaten → Tab Lehrer → <strong>Aus Microsoft&nbsp;365 einlesen</strong> (A1/A3/A5 Lehrpersonal).</p>
+                                    <p style="margin-top:.5em"><strong>Sokrates / Vorlage:</strong> Stammdaten → Tab Schüler (nicht den WebUntis-Assistenten).</p>
                                     <label class="cp-check"><input type="checkbox" data-cp-check="import-datei"> Erledigt</label>
                                 </div>
                                 <div class="cp-step__actions">
-                                    <a class="btn btn-primary" href="webuntis-stammdaten-import.html?from=playbook-daten-import"><i class="bi bi-cloud-upload"></i>Import-Assistent</a>
+                                    <a class="btn btn-primary" href="webuntis-stammdaten-import.html?from=playbook-daten-import"><i class="bi bi-cloud-upload"></i>WebUntis-Assistent</a>
+                                    <a class="btn" href="../tenant.html#lehrer"><i class="bi bi-microsoft"></i>Lehrer aus M365</a>
+                                    <a class="btn" href="../tenant.html#schueler"><i class="bi bi-people"></i>Sokrates / Vorlage</a>
                                 </div>
                             </article>
                             <article class="cp-step cp-step--optional">

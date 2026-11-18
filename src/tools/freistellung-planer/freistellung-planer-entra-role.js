@@ -2,6 +2,11 @@
  * Planer-Rolle aus Microsoft Entra-Gruppen, Stammdaten und Setup (Direktion-E-Mail).
  */
 import { getGraphToken, graphJson, fetchAllPages } from '../../shared/graph-client.js';
+import {
+    isDemoRoleUiEnabled,
+    readDemoRoleOverrideFromUrl as readDemoRoleOverrideFromUrlShared,
+    canUseAppRoleSwitcher
+} from '../../shared/app-role-switcher-policy.js';
 import { userIsEntraGlobalAdministrator } from '../schularbeiten-planer/schularbeiten-planer-entra-role.js';
 import {
     loadPermissionsConfig,
@@ -208,7 +213,7 @@ export function roleSourceLabel(source) {
     const s = String(source || '');
     if (s === 'entra') return 'Entra-Gruppe';
     if (s === 'global-admin') return 'Globaler Administrator';
-    if (s === 'direktion-schueler') return 'Schüler-Ansicht (Direktion)';
+    if (s === 'direktion-schueler') return 'Vorschau (Direktion)';
     if (s === 'stammdaten') return 'Stammdaten';
     if (s === 'setup-direktion') return 'Setup (Direktion-E-Mail)';
     if (s === 'direktion-user') return 'Verwaltung (Einzelperson)';
@@ -266,20 +271,31 @@ function applyRolesToState(state, roles, sources, opts) {
 }
 
 /**
- * Rollen-Umschalter nur für IT-Vorschau (?demoRole=1), nicht wenn Entra fehlt.
+ * Rollen-Umschalter nur für IT-Vorschau (?demoRole=1).
+ * @param {boolean} [_entraConfigured]
+ * @param {boolean} [demoRoleOverride]
  */
 export function isPlanerDemoRoleUiEnabled(_entraConfigured, demoRoleOverride) {
-    return !!demoRoleOverride;
+    return isDemoRoleUiEnabled(demoRoleOverride);
 }
 
+/**
+ * @param {boolean} [demoRoleOverride]
+ */
 export function readDemoRoleOverrideFromUrl(demoRoleOverride) {
-    if (demoRoleOverride) return true;
-    try {
-        const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search || '' : '');
-        return p.get('demoRole') === '1';
-    } catch {
-        return false;
-    }
+    return readDemoRoleOverrideFromUrlShared(demoRoleOverride);
+}
+
+/**
+ * Nur Direktion mit mehreren Rollen oder Demo-Vorschau (wie SA-Admin).
+ * @param {FrPlanerRole[]} planerRoles
+ * @param {boolean} demoRoleUi
+ */
+export function canUsePlanerRoleSwitcher(planerRoles, demoRoleUi) {
+    return canUseAppRoleSwitcher(planerRoles, {
+        demoRoleUi,
+        privilegedRoles: ['direktion']
+    });
 }
 
 function isLoggedIn() {

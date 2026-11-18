@@ -26,11 +26,7 @@ describe('user-photo-thumb', () => {
     });
 
     it('Organigramm-Seiten laden User- und Gruppenfotos', () => {
-        for (const html of [
-            'tools/schul-organigramm.html',
-            'tools/verwaltung.html',
-            'tenant.html'
-        ]) {
+        for (const html of ['tools/verwaltung.html', 'tenant.html']) {
             const src = read(html);
             expect(src, html).toContain('user-photo-thumb.js');
             expect(src, html).toContain('group-photo-thumb.js');

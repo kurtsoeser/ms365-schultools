@@ -1,0 +1,35 @@
+---
+description: >-
+  Schul-Apps upgraden oder UX/Setup-Verbesserungen übertragen – familienbewusst
+  (Planer, Schularbeiten Read/Write, Projektwochen/Bookings, Einsammler/Elternbrief,
+  Wahlen, Betrieb, IT-Setup). Skill schulplaner-tool-upgrade + docs/tool-upgrade-vorlage.md
+  + docs/rollen-vertrag.md.
+globs: tools/**/*.html,src/tools/**/*,docs/*planer*.md,docs/einsammler.md,docs/elternbrief.md,docs/krankmeldung.md,docs/projektwochen.md,docs/schularbeiten*.md,docs/schulsprecherwahl.md,docs/wahlfach*.md,docs/tool-upgrade-vorlage.md
+alwaysApply: false
+---
+
+# Schul-Tool-Upgrade (familienbewusst)
+
+Referenz-UI: **Schulaktivitäten-Planer**. Domäne je Tool aus `docs/<tool>.md`.
+
+## Vor dem Umbau
+
+1. `.cursor/skills/schulplaner-tool-upgrade/SKILL.md`
+2. `docs/tool-upgrade-vorlage.md` (Familien + Übertragung)
+3. `docs/rollen-vertrag.md`
+4. Checkliste: `.cursor/skills/schulplaner-tool-upgrade/checklist.md`
+
+## Pflicht
+
+- **Familie zuerst** (`approval-planer` | `register-planer` | `projekt-buchung` | `ablauf-kommunikation` | `wahl-portal` | `betrieb` | `it-setup`).
+- Lizenz ≠ Portal-Persona ≠ App-Rolle.
+- Shared Quality Bar: Site, Stammdaten local-first, Calm Tokens, kein 403-Wipe, **SPO Live Sync (SoR)**.
+- Shared-Module reuse; Domäne nicht umbiegen (kein Fake-Genehmigungsfluss, Schüler-Read respektieren, Bookings nur wo sinnvoll).
+- Verbesserungen: Shared-first, dann gleiche Familie, dann nahe Tools.
+- Wellen A→B→C; SPO-only: S0→S3 (`docs/spo-live-sync.md`); Smoke je App-Rolle + Item in SPO.
+
+## Prompt-Shortcuts
+
+- Upgrade: `Upgrade <Tool> – Familie <…> – Skill schulplaner-tool-upgrade`
+- Übertragung: `Propagiere „<Fix>“ von <Quelle> auf <Familie/Ziele> – Shared-first`
+- SPO Live: `Propagiere „SPO Live Sync (SoR)“ von Technik-Meldungen auf <Ziel> – docs/spo-live-sync.md`

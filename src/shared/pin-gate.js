@@ -77,6 +77,7 @@
         injectScript('operator-access.js', 'data-ms365-operator-access', false);
         injectScript('license-api-client.js', 'data-ms365-license-api', false);
         injectScript('operator-admin-boot.js', 'data-ms365-operator-admin-boot', false);
+        injectScript('feedback-ui.js', 'data-ms365-feedback-ui', false);
         injectContextBar();
         injectPublishedStamp();
         injectScript('app-shell-boot.js', 'data-ms365-app-shell-boot', true);
@@ -127,5 +128,9 @@
         injectScript('license-api-client.js', 'data-ms365-license-api', false);
         injectScript('license-gate-core.js', 'data-ms365-license-gate-core', false);
         injectScript('license-gate.js', 'data-ms365-license-gate', false);
+        injectScript('feedback-ui.js', 'data-ms365-feedback-ui', false);
+    } else if (isHelpPage) {
+        injectScript('license-api-client.js', 'data-ms365-license-api', false);
+        injectScript('feedback-ui.js', 'data-ms365-feedback-ui', false);
     }
 })();

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Schüler-Stammdaten – Eingabe</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/schueler-stammdaten-portal/stammdaten-portal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+      body.ssp-form-page .container { max-width: 800px; }
+      body.ssp-form-page .header-tool-indicator { display: none; }
+    </style>
+</head>
+<body class="app-shell-chrome ssp-form-page">
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>Schüler-Stammdaten</h1>
+            <p>Geschützte Eingabe für Erziehungsberechtigte – kein Microsoft-Konto nötig.</p>
+        </div>
+        <div class="content">
+            <div id="sspFormApp" aria-live="polite"></div>
+        </div>
+    </div>
+    <script type="module">
+        import { mountParentForm } from '../src/tools/schueler-stammdaten-portal/stammdaten-portal-form-ui.js';
+        function boot() {
+            mountParentForm(document.getElementById('sspFormApp'));
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+        else boot();
+    </script>
+</body>
+</html>

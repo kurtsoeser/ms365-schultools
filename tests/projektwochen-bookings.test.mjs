@@ -7,7 +7,10 @@ import {
     enrichAttendeesWithKlasse,
     attendeesToCsv,
     bookingOpenDateFromBuchungAb,
-    defaultBusinessName
+    defaultBusinessName,
+    friendlyBookingsError,
+    summarizePwSyncBatch,
+    countPendingBookingsSync
 } from '../src/tools/projektwochen/projektwochen-bookings-logic.js';
 
 describe('projektwochen-bookings-logic', () => {
@@ -84,5 +87,25 @@ describe('projektwochen-bookings-logic', () => {
     it('defaultBusinessName', () => {
         expect(defaultBusinessName({ title: 'Projektwoche 27' })).toBe('Projektwoche 27');
         expect(defaultBusinessName({ aktionId: 'pw-1' })).toContain('pw-1');
+    });
+
+    it('friendlyBookingsError und Sync-Zusammenfassung', () => {
+        expect(friendlyBookingsError('403 Forbidden')).toMatch(/Bookings-Recht/i);
+        const sum = summarizePwSyncBatch({
+            ok: 2,
+            fail: 1,
+            skipped: 0,
+            errors: ['403 Forbidden']
+        });
+        expect(sum.tone).toBe('warn');
+        expect(sum.headline).toMatch(/2 ok/);
+        expect(sum.detail).toMatch(/Bookings-Recht/i);
+        expect(
+            countPendingBookingsSync([
+                { status: 'freigegeben', bookingsServiceId: '' },
+                { status: 'freigegeben', bookingsServiceId: 'x', syncStatus: 'fehler' },
+                { status: 'beantragt' }
+            ])
+        ).toBe(2);
     });
 });

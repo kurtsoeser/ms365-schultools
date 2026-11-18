@@ -1,22 +1,28 @@
 /**
- * Schüler-Abstimmungsformular (einfach, QR-Zielseite).
+ * Abstimmungsformular (QR-Zielseite) – Schulsprecher oder SGA Lehrer.
+ * Schlank, Trust/Privacy, soft Auth-Fehler – kein IT-Setup.
  */
 
+import { ROUND_RUNOFF } from './schulsprecherwahl-logic.js';
+import { votingPhase, normalizeElection, statusLabel } from './schulsprecherwahl-model.js';
 import {
-    POINTS_SCHULSPRECHER,
-    POINTS_STV1,
-    POINTS_STV2,
-    ROUND_RUNOFF
-} from './schulsprecherwahl-logic.js';
-import { votingPhase, normalizeElection } from './schulsprecherwahl-model.js';
+    getElectionKindDef,
+    ELECTION_KIND_SGA_LEHRER,
+    rankingStepLabelsForElection,
+    resolveElectionBallotSchema
+} from './schulsprecherwahl-kinds.js';
 import {
     castVoteAsync,
     getElectionAsync,
     hasVotedAsync,
     isRemoteMode
 } from './schulsprecherwahl-service.js';
-import { findStudentByEmail } from './schulsprecherwahl-students.js';
+import {
+    findStudentByEmailEffective,
+    findTeacherByEmailEffective
+} from './schulsprecherwahl-stammdaten.js';
 import { voterKeyFor, hasVoted as localHasVoted } from './schulsprecherwahl-store.js';
+import { softElectionMessage, classifyElectionError } from './schulsprecherwahl-errors.js';
 
 /**
  * @param {string} s
@@ -66,12 +72,56 @@ function currentAccount() {
 
 /**
  * @param {HTMLElement} host
+ * @param {string} title
+ * @param {string} body
+ * @param {{ login?: boolean }} [opts]
+ */
+function renderSoftState(host, title, body, opts) {
+    host.innerHTML = `<div class="ssw-vote ssw-panel">
+      <h2>${esc(title)}</h2>
+      <p>${esc(body)}</p>
+      ${
+          opts && opts.login
+              ? `<p style="margin-top:1rem"><button type="button" class="btn btn-primary" id="sswLoginBtn"><i class="bi bi-box-arrow-in-right"></i> Anmelden</button></p>`
+              : ''
+      }
+    </div>`;
+    host.querySelector('#sswLoginBtn')?.addEventListener('click', () => {
+        if (typeof window.ms365AuthLogin === 'function') window.ms365AuthLogin();
+        else if (typeof window.ms365AuthLoginRedirect === 'function') window.ms365AuthLoginRedirect();
+    });
+}
+
+/**
+ * @param {HTMLElement} host
  * @param {{ electionId: string }} opts
  */
 export async function mountVoteApp(host, opts) {
     const electionId = String(opts.electionId || '').trim();
     host.innerHTML = `<p class="ssw-meta">Laden …</p>`;
-    let election = await getElectionAsync(electionId);
+
+    if (!electionId) {
+        renderSoftState(
+            host,
+            'Kein Wahl-Link',
+            'Bitte den QR-Code bzw. Link Ihrer Schule verwenden (?wahl=…).'
+        );
+        return;
+    }
+
+    let election = null;
+    try {
+        election = await getElectionAsync(electionId);
+    } catch (err) {
+        const soft = classifyElectionError(err);
+        renderSoftState(
+            host,
+            soft.code === 'auth_required' ? 'Anmeldung nötig' : 'Wahl nicht geladen',
+            soft.message,
+            soft.code === 'auth_required' ? { login: true } : undefined
+        );
+        return;
+    }
 
     if (!election) {
         host.innerHTML = `<div class="ssw-empty"><p>Wahl nicht gefunden. Bitte den QR-Code bzw. Link der Schule verwenden${
@@ -81,15 +131,19 @@ export async function mountVoteApp(host, opts) {
     }
 
     election = normalizeElection(election);
+    const kindDef = getElectionKindDef(election.electionKind);
+    const ballotSchema = resolveElectionBallotSchema(election);
     const account = currentAccount();
     const loggedIn =
         typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn();
+    const phaseBadge = `<span class="ssw-badge ssw-badge--muted">${esc(statusLabel(election))}</span>`;
 
     if (!loggedIn || !account) {
         host.innerHTML = `<div class="ssw-vote ssw-panel">
       <h2>${esc(election.title)}</h2>
+      <p class="ssw-meta">${phaseBadge} · ${esc(kindDef.shortLabel)}</p>
       <p>Bitte mit dem <strong>Schul-Konto</strong> (Microsoft 365) anmelden, um anonym abzustimmen.</p>
-      <p class="ssw-meta">Es wird nur geprüft, ob Sie wahlberechtigt sind und noch nicht abgestimmt haben – Ihre Stimme wird getrennt gespeichert.</p>
+      <p class="ssw-meta">Es wird nur geprüft, ob Sie noch nicht abgestimmt haben – Ihre Stimme wird getrennt gespeichert.</p>
       <p style="margin-top:1rem"><button type="button" class="btn btn-primary" id="sswLoginBtn"><i class="bi bi-box-arrow-in-right"></i> Anmelden</button></p>
     </div>`;
         host.querySelector('#sswLoginBtn')?.addEventListener('click', () => {
@@ -100,12 +154,16 @@ export async function mountVoteApp(host, opts) {
     }
 
     const identity = account.oid || account.email;
-    const student = findStudentByEmail(account.email);
+    const person =
+        kindDef.candidatePool === 'teachers'
+            ? findTeacherByEmailEffective(account.email)
+            : findStudentByEmailEffective(account.email);
     const phase = votingPhase(election);
 
     if (!phase.canVote || !phase.round) {
         host.innerHTML = `<div class="ssw-vote ssw-panel">
       <h2>${esc(election.title)}</h2>
+      <p class="ssw-meta">${phaseBadge}</p>
       <p>${esc(phase.reason || 'Derzeit keine Stimmabgabe möglich.')}</p>
       <p class="ssw-meta">Angemeldet als ${esc(account.name || account.email)}</p>
     </div>`;
@@ -113,12 +171,20 @@ export async function mountVoteApp(host, opts) {
     }
 
     let already = false;
-    if (isRemoteMode()) {
-        already = await hasVotedAsync(election.id, identity);
-    } else {
-        const voterKey = await voterKeyFor(election.id, phase.round.id, identity);
-        already = localHasVoted(election.id, phase.round.id, voterKey);
+    try {
+        if (isRemoteMode()) {
+            already = await hasVotedAsync(election.id, identity);
+        } else {
+            const voterKey = await voterKeyFor(election.id, phase.round.id, identity);
+            already = localHasVoted(election.id, phase.round.id, voterKey);
+        }
+    } catch (err) {
+        renderSoftState(host, election.title, softElectionMessage(err), {
+            login: classifyElectionError(err).code === 'auth_required'
+        });
+        return;
     }
+
     if (already) {
         host.innerHTML = `<div class="ssw-vote ssw-panel">
       <h2>${esc(election.title)}</h2>
@@ -141,17 +207,19 @@ export async function mountVoteApp(host, opts) {
     let runoffChoice = null;
     let busy = false;
     let error = '';
+    const needRankings = ballotSchema.rankingCount;
+    const stepLabels = rankingStepLabelsForElection(election);
 
     const paint = () => {
-        const greet = student
-            ? `${student.name} · ${student.className}`
+        const greet = person
+            ? `${person.name}${person.className ? ' · ' + person.className : ''}`
             : account.name || account.email;
 
         if (phase.roundKind === ROUND_RUNOFF) {
             host.innerHTML = `<div class="ssw-vote">
         <div class="ssw-panel">
           <h2>${esc(election.title)}</h2>
-          <p class="ssw-meta">Stichwahl · angemeldet als ${esc(greet)}</p>
+          <p class="ssw-meta">${phaseBadge} · Stichwahl · angemeldet als ${esc(greet)}</p>
           <p>Bitte <strong>eine Person</strong> als Schulsprecher:in wählen.</p>
           <div class="ssw-vote-step">
             ${candidates
@@ -172,20 +240,21 @@ export async function mountVoteApp(host, opts) {
         </div>
       </div>`;
         } else {
-            const labels = [
-                { pts: POINTS_SCHULSPRECHER, label: 'Schulsprecher:in (6 Punkte)' },
-                { pts: POINTS_STV1, label: '1. Stellvertretung (5 Punkte)' },
-                { pts: POINTS_STV2, label: '2. Stellvertretung (4 Punkte)' }
-            ];
             const step = rankings.length;
-            const stepMeta = labels[step] || null;
+            const stepMeta = stepLabels[step] || null;
             const taken = new Set(rankings);
+            const intro =
+                kindDef.id === ELECTION_KIND_SGA_LEHRER
+                    ? 'Reihen Sie sechs unterschiedliche Kandidaturen (6 bis 1 Punkte) – Top 3 werden Mitglieder, Platz 4–6 Stellvertretung.'
+                    : ballotSchema.includeSgaDeputies
+                      ? 'Reihen Sie sechs unterschiedliche Kandidaturen: 6/5/4 für Schulsprecher:in und Stellvertretungen, 3/2/1 für SGA-Stellvertreter:innen.'
+                      : 'Reihen Sie drei unterschiedliche Kandidaturen. Das entspricht dem amtlichen Stimmzettel mit Wahlpunkten.';
 
             host.innerHTML = `<div class="ssw-vote">
         <div class="ssw-panel">
           <h2>${esc(election.title)}</h2>
-          <p class="ssw-meta">1. Wahlgang · angemeldet als ${esc(greet)}</p>
-          <p>Reihen Sie drei unterschiedliche Kandidaturen. Das entspricht dem amtlichen Stimmzettel mit Wahlpunkten.</p>
+          <p class="ssw-meta">${phaseBadge} · ${esc(kindDef.shortLabel)} · angemeldet als ${esc(greet)}</p>
+          <p>${esc(intro)}</p>
           ${
               stepMeta
                   ? `<p><span class="ssw-points">${stepMeta.pts}</span> &nbsp;<strong>${esc(stepMeta.label)}</strong></p>
@@ -205,7 +274,7 @@ export async function mountVoteApp(host, opts) {
               ${rankings
                   .map((id, i) => {
                       const c = candidates.find((x) => x.id === id);
-                      const pts = [POINTS_SCHULSPRECHER, POINTS_STV1, POINTS_STV2][i];
+                      const pts = ballotSchema.points[i];
                       return `<div><span class="ssw-points">${pts}</span> ${esc(c ? c.name : id)} <span class="ssw-cand__class">${esc(c ? c.className : '')}</span></div>`;
                   })
                   .join('')}
@@ -220,7 +289,7 @@ export async function mountVoteApp(host, opts) {
                     : ''
             }
             ${
-                rankings.length === 3
+                rankings.length === needRankings
                     ? `<button type="button" class="btn btn-primary" id="sswSubmit" ${busy ? 'disabled' : ''}>Stimme abgeben</button>`
                     : ''
             }
@@ -271,7 +340,7 @@ export async function mountVoteApp(host, opts) {
           <p>Ihre Stimme wurde gezählt. Sie können dieses Fenster schließen.</p>
         </div>`;
             } catch (err) {
-                error = err && err.message ? String(err.message) : String(err);
+                error = softElectionMessage(err);
                 busy = false;
                 paint();
             }

@@ -2,6 +2,14 @@
  * Werkzeug-Subheader – einheitlich unter dem App-Sticky-Header (Zone D).
  */
 
+/* Portal-first: Organigramm/Stammdaten erst im bewussten IT-Bereich */
+html:not([data-dash-it-shell]):not([data-frontend-planner-it]) #ms365HeaderSchoolSwitch,
+html:not([data-dash-it-shell]):not([data-frontend-planner-it]) #ms365HeaderSchulOrganigramm,
+html:not([data-dash-it-shell]):not([data-frontend-planner-it]) #ms365HeaderSchulregister,
+html:not([data-dash-it-shell]):not([data-frontend-planner-it]) body.app-shell-chrome:not(.page-dashboard) #ms365BackupHeader {
+    display: none !important;
+}
+
 body.app-shell-chrome .container > .header.app-tool-chrome {
     padding: 16px 18px 14px;
     text-align: center;

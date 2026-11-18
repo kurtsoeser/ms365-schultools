@@ -2,6 +2,8 @@
  * State, Filter, Rollen für Projektwochen.
  */
 import { toIsoDateOnly, effectiveBuchungAb, isBookingOpen } from './projektwochen-logic.js';
+import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
+import { emptyPwSpoSyncMeta } from './projektwochen-sync.js';
 
 export const ROLE_STORAGE_KEY = 'ms365-pw-demo-role';
 export const SITE_STORAGE_KEY = 'ms365-pw-site-url';
@@ -15,25 +17,96 @@ export const VIEWS = [
     { id: 'liste', label: 'Liste', icon: 'bi-table', adminOnly: false, staffOnly: false },
     { id: 'neu', label: 'Neues Angebot', icon: 'bi-plus-circle', adminOnly: false, staffOnly: true },
     { id: 'meine', label: 'Meine Angebote', icon: 'bi-card-checklist', adminOnly: false, staffOnly: true },
-    { id: 'admin', label: 'Administration', icon: 'bi-shield-check', adminOnly: true, staffOnly: true },
-    { id: 'einstellungen', label: 'Einstellungen', icon: 'bi-gear', adminOnly: true, staffOnly: true },
-    { id: 'bookings', label: 'Bookings', icon: 'bi-box-arrow-up-right', adminOnly: true, staffOnly: true },
+    { id: 'admin', label: 'Freigabe', icon: 'bi-shield-check', adminOnly: true, staffOnly: true },
+    { id: 'bookings', label: 'Bookings-Sync', icon: 'bi-box-arrow-up-right', adminOnly: true, staffOnly: true },
     { id: 'teilnehmer', label: 'Teilnehmer', icon: 'bi-people', adminOnly: false, staffOnly: true },
-    { id: 'export', label: 'Export', icon: 'bi-download', adminOnly: false, staffOnly: false }
+    { id: 'export', label: 'Export', icon: 'bi-download', adminOnly: false, staffOnly: false },
+    { id: 'einstellungen', label: 'System', icon: 'bi-gear-wide-connected', adminOnly: true, staffOnly: true }
 ];
 
+/** @param {string} id */
+function viewById(id) {
+    return VIEWS.find((v) => v.id === id) || null;
+}
+
 /**
+ * Gruppierte Navigation nach App-Rolle (Familie projekt-buchung).
+ * - Lehrer/Schüler: flach (kein IT-Setup)
+ * - Admin: Arbeit · Bookings · System
+ *
+ * @param {PwRole|string} role
+ * @returns {{ id: string, label: string, items: typeof VIEWS }[]}
+ */
+export function navSectionsForRole(role) {
+    const r = String(role || 'lehrer');
+    if (r === 'admin') {
+        return [
+            {
+                id: 'arbeit',
+                label: 'Arbeit',
+                items: [
+                    viewById('dashboard'),
+                    viewById('plan'),
+                    viewById('kalender'),
+                    viewById('liste'),
+                    viewById('neu'),
+                    viewById('meine'),
+                    viewById('admin'),
+                    viewById('teilnehmer'),
+                    viewById('export')
+                ].filter(Boolean)
+            },
+            {
+                id: 'bookings',
+                label: 'Bookings',
+                items: [viewById('bookings')].filter(Boolean)
+            },
+            {
+                id: 'system',
+                label: 'System',
+                items: [viewById('einstellungen')].filter(Boolean)
+            }
+        ].filter((s) => (s.items || []).length);
+    }
+    if (r === 'schueler') {
+        return [
+            {
+                id: 'arbeit',
+                label: '',
+                items: [
+                    viewById('dashboard'),
+                    viewById('plan'),
+                    viewById('kalender'),
+                    viewById('liste'),
+                    viewById('export')
+                ].filter(Boolean)
+            }
+        ];
+    }
+    return [
+        {
+            id: 'arbeit',
+            label: '',
+            items: [
+                viewById('dashboard'),
+                viewById('plan'),
+                viewById('kalender'),
+                viewById('liste'),
+                viewById('neu'),
+                viewById('meine'),
+                viewById('teilnehmer'),
+                viewById('export')
+            ].filter(Boolean)
+        }
+    ];
+}
+
+/**
+ * Flache View-Liste (Allowed-Checks / Tests).
  * @param {PwRole|string} role
  */
 export function viewsForRole(role) {
-    const r = String(role || 'lehrer');
-    const isAdmin = r === 'admin';
-    const isSchueler = r === 'schueler';
-    return VIEWS.filter((v) => {
-        if (v.adminOnly && !isAdmin) return false;
-        if (v.staffOnly && isSchueler) return false;
-        return true;
-    });
+    return navSectionsForRole(role).flatMap((s) => s.items || []);
 }
 
 export function createInitialState() {
@@ -45,6 +118,16 @@ export function createInitialState() {
         role: loadRole(),
         filters: { status: '', kategorie: '', tag: '', lehrer: '', klasse: '', q: '', buchung: '' },
         stammdaten: { classes: [], teachers: [], students: [] },
+        /** Live-Hydrate Meta (local-first) */
+        stammdatenLive: {
+            ok: false,
+            error: '',
+            classCount: 0,
+            teacherCount: 0,
+            missing: [],
+            source: 'local',
+            siteUrl: ''
+        },
         aktionen: [],
         /** aktive Aktion (offen bevorzugt) */
         aktion: null,
@@ -52,11 +135,17 @@ export function createInitialState() {
         loading: false,
         bootstrapped: false,
         localDemoOnly: false,
+        /** SPO Live Sync Meta (SoR = SharePoint; Demo/local = Cache) */
+        spoSync: emptyPwSpoSyncMeta(),
         error: '',
         roleHint: '',
         accountEmail: '',
         accountName: '',
         teacherMatch: null,
+        demoRoleOverride: false,
+        entraGroupsConfigured: false,
+        planerRoles: /** @type {import('./projektwochen-entra-role.js').PwRole[]} */ ([]),
+        planerAccessDenied: false,
         calYear: now.getFullYear(),
         calMonth: now.getMonth(),
         form: emptyForm(),
@@ -66,6 +155,8 @@ export function createInitialState() {
         /** Bookings Phase 3 */
         bookingsLog: '',
         bookingsBusy: false,
+        /** letzter Sync-Zusammenfassungstext für Calm-Feedback */
+        bookingsSyncSummary: null,
         attendeeRows: [],
         occupancy: {},
         attendeeFilter: { q: '', angebotId: '', klasse: '' },
@@ -135,21 +226,7 @@ export function persistRole(role) {
 }
 
 export function loadSavedSiteUrl() {
-    try {
-        const u = localStorage.getItem(SITE_STORAGE_KEY);
-        if (u) return u;
-    } catch {
-        /* ignore */
-    }
-    try {
-        if (typeof window !== 'undefined' && window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function') {
-            const setup = window.ms365AppDataV2.getSetup();
-            if (setup && setup.intranetSiteUrl) return String(setup.intranetSiteUrl).trim();
-        }
-    } catch {
-        /* ignore */
-    }
-    return '';
+    return resolveSchoolToolSiteUrl('projektwochen') || '';
 }
 
 export function persistSiteUrl(url) {

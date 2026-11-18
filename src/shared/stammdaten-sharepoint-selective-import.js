@@ -13,8 +13,8 @@ const SCHOOLTOOL_KEY = 'ms365-schooltool-data-v2';
  *   id: string,
  *   label: string,
  *   hint: string,
- *   kind: 'year-fields'|'core-fields'|'root-field',
- *   fields: string[],
+ *   kind: 'year-fields'|'core-fields'|'root-field'|'school-meta',
+ *   fields?: string[],
  *   group: string
  * }>}
  */
@@ -78,9 +78,8 @@ export const SCHOOLTOOL_SELECTIVE_SECTIONS = [
     {
         id: 'schoolMeta',
         label: 'Schule & Profil',
-        hint: 'Schulname, Domain, Schullogo/Profil',
-        kind: 'core-fields',
-        fields: ['schoolName', 'domain', 'schoolProfile'],
+        hint: 'Schulname, Domain, weitere Domains, Schullogo und Adresse/Kontakt (setup.schoolProfile)',
+        kind: 'school-meta',
         group: 'stammdaten'
     },
     {
@@ -123,6 +122,7 @@ export const STORAGE_SELECTIVE_BUNDLES = [
         label: 'Dashboard & Werkzeugzugriff',
         keys: [
             'ms365-dashboard-tool-access-v1',
+            'ms365-dashboard-portal-defaults-v1',
             'ms365-dashboard-audience-groups-v1',
             'ms365-stammdaten-listen-perms-v1'
         ]
@@ -334,6 +334,78 @@ function pickRootFieldSummary(container, fields) {
     };
 }
 
+/** Schulname/Domain in core, Logo+Adresse/Kontakt in setup.schoolProfile. */
+function pickSchoolMetaSummary(container) {
+    const core = container && container.core && typeof container.core === 'object' ? container.core : {};
+    const setup = container && container.setup && typeof container.setup === 'object' ? container.setup : {};
+    const profile =
+        setup.schoolProfile && typeof setup.schoolProfile === 'object' ? setup.schoolProfile : {};
+    const schoolName = String(core.schoolName || '').trim();
+    const domain = String(core.domain || '').trim();
+    const verified = Array.isArray(core.verifiedEmailDomains)
+        ? core.verifiedEmailDomains.map(function (d) {
+              return String(d || '').trim();
+          }).filter(Boolean)
+        : [];
+    const schoolCode = String(profile.schoolCode || '').trim();
+    const hasLogo =
+        !!String(profile.logoUrl || '').trim() || !!String(profile.logoDataUrl || '').trim();
+    const addressBits = [profile.street, profile.postalCode, profile.city, profile.phone, profile.email, profile.website]
+        .map(function (x) {
+            return String(x || '').trim();
+        })
+        .filter(Boolean);
+    let total = 0;
+    if (schoolName) total += 1;
+    if (domain) total += 1;
+    total += verified.length;
+    if (schoolCode) total += 1;
+    if (hasLogo) total += 1;
+    total += addressBits.length;
+    const parts = {
+        schoolName: schoolName || '–',
+        domain: domain || '–',
+        verifiedEmailDomains: verified.length ? verified.length + ' Domain(s)' : '–',
+        schoolCode: schoolCode || '–',
+        logo: hasLogo ? 'ja' : 'nein',
+        contact: addressBits.length ? addressBits.length + ' Feld(er)' : '–'
+    };
+    const samples = [schoolName, domain, schoolCode].filter(Boolean);
+    return {
+        present: true,
+        total: total,
+        parts: parts,
+        samples: samples,
+        summaryText:
+            (schoolName || 'ohne Name') +
+            (domain ? ' · ' + domain : '') +
+            (schoolCode ? ' · SKZ ' + schoolCode : '') +
+            (hasLogo ? ' · Logo' : '')
+    };
+}
+
+function extractSchoolMetaValue(container) {
+    const core = container && container.core && typeof container.core === 'object' ? container.core : {};
+    const setup = container && container.setup && typeof container.setup === 'object' ? container.setup : {};
+    return {
+        schoolName: deepClone(core.schoolName),
+        domain: deepClone(core.domain),
+        verifiedEmailDomains: deepClone(core.verifiedEmailDomains),
+        schoolProfile: deepClone(setup.schoolProfile)
+    };
+}
+
+function applySchoolMetaValue(base, remote) {
+    const remCore = remote && remote.core && typeof remote.core === 'object' ? remote.core : {};
+    const remSetup = remote && remote.setup && typeof remote.setup === 'object' ? remote.setup : {};
+    if (!base.core || typeof base.core !== 'object') base.core = {};
+    if (!base.setup || typeof base.setup !== 'object') base.setup = {};
+    base.core.schoolName = deepClone(remCore.schoolName);
+    base.core.domain = deepClone(remCore.domain);
+    base.core.verifiedEmailDomains = deepClone(remCore.verifiedEmailDomains);
+    base.setup.schoolProfile = deepClone(remSetup.schoolProfile);
+}
+
 function extractSectionValue(container, section) {
     if (!container) return null;
     if (section.kind === 'year-fields') {
@@ -356,6 +428,9 @@ function extractSectionValue(container, section) {
         });
         return out;
     }
+    if (section.kind === 'school-meta') {
+        return extractSchoolMetaValue(container);
+    }
     if (section.kind === 'root-field') {
         const out = {};
         section.fields.forEach(function (f) {
@@ -377,6 +452,7 @@ function summarizeSection(container, section) {
     }
     if (section.kind === 'year-fields') return pickYearFieldSummary(container, section.fields);
     if (section.kind === 'core-fields') return pickCoreFieldSummary(container, section.fields);
+    if (section.kind === 'school-meta') return pickSchoolMetaSummary(container);
     return pickRootFieldSummary(container, section.fields);
 }
 
@@ -622,6 +698,8 @@ export function mergeSchooltoolSelective(localV2, remoteV2, selectedIds) {
             def.fields.forEach(function (f) {
                 base.core[f] = deepClone(remote.core[f]);
             });
+        } else if (def.kind === 'school-meta') {
+            applySchoolMetaValue(base, remote);
         } else if (def.kind === 'root-field') {
             def.fields.forEach(function (f) {
                 base[f] = deepClone(remote[f]);

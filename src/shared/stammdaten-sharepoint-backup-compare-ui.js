@@ -824,7 +824,7 @@ async function runPageChoice(choice, session) {
         }
         try {
             const { applySharePointBackupLocally } = await import('./stammdaten-sharepoint-pull-apply.js');
-            applySharePointBackupLocally(session.remotePayload, null, { reload: true });
+            await applySharePointBackupLocally(session.remotePayload, null, { reload: true });
         } catch (e) {
             toast(e && e.message ? e.message : String(e));
         }

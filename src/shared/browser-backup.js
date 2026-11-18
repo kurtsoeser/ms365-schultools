@@ -8,13 +8,28 @@
     'use strict';
 
     const KIND = 'ms365-browser-backup-v1';
-    const VERSION = 5;
+    const VERSION = 7;
     const SESSION_SKIP_KEYS = {
         'ms365-access-granted-v1': true,
         'ms365-admin-access-granted-v1': true,
         'ms365-post-login-url': true,
         'ms365-spo-compare-session-v1': true
     };
+
+    /**
+     * IndexedDB-Anhänge der Schul-Apps (liegen nicht in localStorage).
+     * Werden in Backup-Version ≥ 7 unter payload.indexedDB mitgesichert.
+     */
+    const INDEXED_DB_CATALOG = [
+        { name: 'ms365-einsammler-attachments', stores: ['files'], label: 'Einsammler-Anhänge' },
+        { name: 'ms365-elternbrief-attachments', stores: ['files'], label: 'Elternbrief-Anhänge' },
+        { name: 'ms365-krankmeldung-attachments', stores: ['files'], label: 'Krankmeldung-Anhänge' },
+        {
+            name: 'ms365-kollegium-umfragen-attachments',
+            stores: ['files'],
+            label: 'Kollegium-Umfragen-Anhänge'
+        }
+    ];
 
     /** Keys, die den Inhalts-Fingerprint nicht beeinflussen (Sync-Meta selbst). */
     const FINGERPRINT_SKIP_KEYS = {
@@ -48,6 +63,7 @@
             keys: [
                 'ms365-dashboard-audience-groups-v1',
                 'ms365-dashboard-tool-access-v1',
+                'ms365-dashboard-portal-defaults-v1',
                 'ms365-dashboard-favorites-v1',
                 'ms365-dashboard-recent-tools-v1',
                 'ms365-dashboard-order-catalog-v1',
@@ -60,6 +76,7 @@
                 'ms365-dashboard-view-v1',
                 'ms365-dashboard-it-preview-v1',
                 'ms365-dashboard-setup-dismissed-v1',
+                'ms365-portal-quick-links-v1',
                 'ms365-dash-main-section-v1',
                 'ms365-dash-it-focus-v1',
                 'ms365-dash-tasks-split-v1',
@@ -145,7 +162,10 @@
                 'ms365-lfr-planer-role-v1',
                 'ms365-lfr-planer-site-v1',
                 'ms365-lfr-demo-items-v1',
-                'ms365-lfr-outlook-event-v1'
+                'ms365-lfr-outlook-event-v1',
+                'ms365-akt-setup-v1',
+                'ms365-akt-setup-step-v1',
+                'ms365-pa-done-schulaktivitaeten'
             ]
         },
         {
@@ -160,6 +180,7 @@
                 'ms365-stammdaten-spo-sync-v1',
                 'ms365-stammdaten-spo-sync-by-tenant-v2',
                 'ms365-stammdaten-listen-perms-v1',
+                'ms365-it-library-prompt-done-v1',
                 'ms365-su-form-draft-v1',
                 'ms365-su-pending-action-v1',
                 'ms365-pw-site-url',
@@ -176,9 +197,52 @@
                 'ms365-schularbeiten-perms-v1',
                 'ms365-akt-planer-role-v1',
                 'ms365-akt-planer-site-v1',
+                'ms365-akt-ics-feed-v1',
+                'ms365-akt-personal-cal-v1',
                 'ms365-freistellung-planer-role-v1',
                 'ms365-freistellung-planer-site-v1',
                 'ms365-freistellung-planer-demo-klasse-v1'
+            ]
+        },
+        {
+            label: 'Schul-Apps (Einstellungen & Stand)',
+            keys: [
+                'ms365-einsammler-v1',
+                'ms365-einsammler-settings-v1',
+                'ms365-einsammler-sp-settings-v1',
+                'ms365-einsammler-inbox-v1',
+                'ms365-elternbrief-v1',
+                'ms365-elternbrief-settings-v1',
+                'ms365-elternbrief-sp-settings-v1',
+                'ms365-elternbrief-inbox-v1',
+                'ms365-krankmeldung-v1',
+                'ms365-krankmeldung-settings-v1',
+                'ms365-krankmeldung-sp-settings-v1',
+                'ms365-kollegium-umfragen-v1',
+                'ms365-kollegium-umfragen-settings-v1',
+                'ms365-kollegium-umfragen-sp-settings-v1',
+                'ms365-ausgaben-v1',
+                'ms365-ausgaben-settings-v1',
+                'ms365-ausgaben-sp-settings-v1',
+                'ms365-wahlfach-zuteilung-v1',
+                'ms365-wahlfach-zuteilung-settings-v1',
+                'ms365-schulsprecherwahl-v1',
+                'ms365-teams-antrag-v1',
+                'ms365-teams-antrag-settings-v1',
+                'ms365-teams-antrag-sp-settings-v1',
+                'ms365-diplomarbeiten-state-v1',
+                'ms365-diplomarbeiten-settings-v1',
+                'ms365-raumplan-v1',
+                'ms365-raumplan-sp-settings-v1',
+                'ms365-aufgaben-v1',
+                'ms365-aufgaben-sp-settings-v1',
+                'ms365-technik-meldungen-v1',
+                'ms365-technik-meldungen-sp-settings-v1',
+                'ms365-termine-hub-v1',
+                'ms365-termine-hub-settings-v1',
+                'ms365-kalender-postfaecher-v1',
+                'ms365-schueler-stammdaten-portal-v1',
+                'ms365-schueler-stammdaten-sessions-v1'
             ]
         },
         {
@@ -192,7 +256,13 @@
         },
         {
             label: 'Verteiler, Postfächer & Caches',
-            keys: ['ms365-verteilerlisten-cache-v1', 'ms365-postfaecher-cache-v1']
+            keys: [
+                'ms365-verteilerlisten-cache-v1',
+                'ms365-postfaecher-cache-v1',
+                'ms365-class-chats-mirror-v1',
+                'ms365-arge-export-v1',
+                'ms365-wtg-export-v1'
+            ]
         },
         {
             label: 'Playbooks & Spielwiesen',
@@ -206,6 +276,8 @@
                 'ms365-playbook-kursteams-v1',
                 'ms365-playbook-schularbeiten-v1',
                 'ms365-playbook-schuljahresstart-v1',
+                'ms365-dash-playbooks-category-v1',
+                'ms365-dash-playbooks-split-nav-width-v1',
                 'ms365-spielwiesen-notebook-v1',
                 'ms365-spielwiesen-demo-pool-v1',
                 'ms365-spielwiesen-name-pattern-v1',
@@ -221,6 +293,8 @@
                 'ms365-schulgraph-options-v1',
                 'ms365-schulgraph-options-v2',
                 'ms365-schul-baseline-v1',
+                'ms365-schul-org-view-mode-v1',
+                'ms365-schul-org-last-role-parent-v1',
                 'ms365-student-lifecycle-prev-v1',
                 'ms365-student-lifecycle-sammel-v1',
                 'ms365-lizenzverwaltung-v1',
@@ -228,11 +302,13 @@
                 'ms365-tenant-main-tab-order-v1',
                 'ms365-tenant-main-tab-order-v2',
                 'ms365-tenant-students-view-v1',
+                'ms365-tenant-klassenlehrer-view-v1',
                 'ms365-tenant-school-email-pattern-v1',
                 'ms365-tenant-teachers-email-pattern-v1',
                 'ms365-tenant-v1-mirror-disable',
                 'ms365-admin-active-tab-v1',
                 'ms365-su-wizard-step-v1',
+                'ms365-dash-catalog-split-nav-width-v1',
                 'ms365-last-backup-export-at'
             ]
         },
@@ -244,7 +320,10 @@
                 'ms365-ss-graph-collapsed-v1',
                 'ms365-schooltool-access-override-v1',
                 'ms365-schooltool-release-notes-v1',
-                'ms365-schooltool-release-notes-last-seen-at-v1'
+                'ms365-schooltool-release-notes-last-seen-at-v1',
+                'ms365-license-me-v1',
+                'ms365-license-me-v2',
+                'ms365-admin-operator-cache-v1'
             ]
         }
     ];
@@ -267,6 +346,218 @@
             /* ignore */
         }
         return null;
+    }
+
+    function openIndexedDb(name, storeNames) {
+        return new Promise(function (resolve, reject) {
+            if (typeof indexedDB === 'undefined') {
+                resolve(null);
+                return;
+            }
+            const req = indexedDB.open(String(name || ''), 1);
+            req.onupgradeneeded = function () {
+                const db = req.result;
+                (storeNames || []).forEach(function (storeName) {
+                    if (storeName && !db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName);
+                    }
+                });
+            };
+            req.onsuccess = function () {
+                resolve(req.result);
+            };
+            req.onerror = function () {
+                reject(req.error || new Error('IndexedDB konnte nicht geöffnet werden.'));
+            };
+        });
+    }
+
+    function readObjectStoreRecords(db, storeName) {
+        return new Promise(function (resolve, reject) {
+            if (!db || !storeName || !db.objectStoreNames.contains(storeName)) {
+                resolve([]);
+                return;
+            }
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const rows = [];
+            const req = store.openCursor();
+            req.onsuccess = function () {
+                const cursor = req.result;
+                if (!cursor) {
+                    resolve(rows);
+                    return;
+                }
+                rows.push({ key: cursor.key, value: cursor.value });
+                cursor.continue();
+            };
+            req.onerror = function () {
+                reject(req.error || new Error('IndexedDB lesen fehlgeschlagen.'));
+            };
+        });
+    }
+
+    function writeObjectStoreRecords(db, storeName, rows) {
+        return new Promise(function (resolve, reject) {
+            if (!db || !storeName) {
+                resolve(0);
+                return;
+            }
+            if (!db.objectStoreNames.contains(storeName)) {
+                resolve(0);
+                return;
+            }
+            const list = Array.isArray(rows) ? rows : [];
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            store.clear();
+            let written = 0;
+            list.forEach(function (row) {
+                if (!row || row.key == null) return;
+                store.put(row.value, row.key);
+                written += 1;
+            });
+            tx.oncomplete = function () {
+                resolve(written);
+            };
+            tx.onerror = function () {
+                reject(tx.error || new Error('IndexedDB schreiben fehlgeschlagen.'));
+            };
+        });
+    }
+
+    function deleteIndexedDb(name) {
+        return new Promise(function (resolve) {
+            if (typeof indexedDB === 'undefined' || !name) {
+                resolve(false);
+                return;
+            }
+            const req = indexedDB.deleteDatabase(String(name));
+            req.onsuccess = function () {
+                resolve(true);
+            };
+            req.onerror = function () {
+                resolve(false);
+            };
+            req.onblocked = function () {
+                resolve(false);
+            };
+        });
+    }
+
+    /**
+     * Liest alle bekannten App-IndexedDBs (Anhänge).
+     * @returns {Promise<Record<string, { stores: Record<string, Array<{key:*, value:*}>>, recordCount: number }>>}
+     */
+    async function collectIndexedDb() {
+        const out = {};
+        for (let i = 0; i < INDEXED_DB_CATALOG.length; i++) {
+            const entry = INDEXED_DB_CATALOG[i];
+            try {
+                const db = await openIndexedDb(entry.name, entry.stores);
+                if (!db) continue;
+                const stores = {};
+                let recordCount = 0;
+                for (let s = 0; s < entry.stores.length; s++) {
+                    const storeName = entry.stores[s];
+                    const rows = await readObjectStoreRecords(db, storeName);
+                    stores[storeName] = rows;
+                    recordCount += rows.length;
+                }
+                try {
+                    db.close();
+                } catch {
+                    /* ignore */
+                }
+                if (recordCount > 0) {
+                    out[entry.name] = {
+                        label: entry.label,
+                        stores: stores,
+                        recordCount: recordCount
+                    };
+                }
+            } catch {
+                /* einzelne DB-Fehler sollen Export nicht stoppen */
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Stellt IndexedDB-Anhänge aus einem Backup wieder her.
+     * @param {object} indexed
+     * @param {{ replace?: boolean }} [opts]
+     */
+    async function applyIndexedDb(indexed, opts) {
+        const replace = !opts || opts.replace !== false;
+        const incoming = indexed && typeof indexed === 'object' && !Array.isArray(indexed) ? indexed : {};
+        const written = [];
+        const cleared = [];
+        const errors = [];
+        const knownNames = INDEXED_DB_CATALOG.map(function (e) {
+            return e.name;
+        });
+
+        for (let i = 0; i < INDEXED_DB_CATALOG.length; i++) {
+            const entry = INDEXED_DB_CATALOG[i];
+            const dump = Object.prototype.hasOwnProperty.call(incoming, entry.name) ? incoming[entry.name] : null;
+            if (!dump) {
+                if (replace) {
+                    const ok = await deleteIndexedDb(entry.name);
+                    if (ok) cleared.push(entry.name);
+                }
+                continue;
+            }
+            try {
+                const db = await openIndexedDb(entry.name, entry.stores);
+                if (!db) continue;
+                const stores = dump.stores && typeof dump.stores === 'object' ? dump.stores : {};
+                let n = 0;
+                for (let s = 0; s < entry.stores.length; s++) {
+                    const storeName = entry.stores[s];
+                    n += await writeObjectStoreRecords(db, storeName, stores[storeName] || []);
+                }
+                try {
+                    db.close();
+                } catch {
+                    /* ignore */
+                }
+                written.push(entry.name + ':' + n);
+            } catch (e) {
+                errors.push(entry.name + ': ' + (e && e.message ? e.message : String(e)));
+            }
+        }
+
+        if (replace) {
+            Object.keys(incoming).forEach(function (name) {
+                if (knownNames.indexOf(name) >= 0) return;
+                /* Unbekannte IDBs aus älteren/neuen Backups: best-effort anlegen */
+            });
+        }
+
+        return { written: written, cleared: cleared, errors: errors };
+    }
+
+    async function clearIndexedDbCatalog() {
+        const cleared = [];
+        for (let i = 0; i < INDEXED_DB_CATALOG.length; i++) {
+            const ok = await deleteIndexedDb(INDEXED_DB_CATALOG[i].name);
+            if (ok) cleared.push(INDEXED_DB_CATALOG[i].name);
+        }
+        return cleared;
+    }
+
+    function indexedDbSummary(indexed) {
+        const obj = indexed && typeof indexed === 'object' ? indexed : {};
+        const names = Object.keys(obj);
+        if (!names.length) return '';
+        const bits = names.map(function (name) {
+            const row = obj[name] || {};
+            const label = row.label || name;
+            const n = Number(row.recordCount) || 0;
+            return label + (n ? ' (' + n + ')' : '');
+        });
+        return 'IndexedDB: ' + bits.join(', ');
     }
 
     function isAuthKey(key) {
@@ -375,6 +666,13 @@
         return y + '-' + m + '-' + day;
     }
 
+    function localDateTimeStamp(d) {
+        const x = asDate(d);
+        const hh = String(x.getHours()).padStart(2, '0');
+        const mm = String(x.getMinutes()).padStart(2, '0');
+        return localDateStamp(x) + '_' + hh + mm;
+    }
+
     function sanitizeForFilename(raw) {
         return String(raw || '')
             .trim()
@@ -416,12 +714,33 @@
             const cur = v2 && v2.years ? String(v2.years.current || '').trim() : '';
             const bucket =
                 cur && v2.years && v2.years.byLabel && v2.years.byLabel[cur] ? v2.years.byLabel[cur] : null;
+            const setup = v2 && v2.setup && typeof v2.setup === 'object' ? v2.setup : {};
+            const profile =
+                setup.schoolProfile && typeof setup.schoolProfile === 'object' ? setup.schoolProfile : {};
+            const listTitles =
+                setup.intranetListTitles && typeof setup.intranetListTitles === 'object'
+                    ? setup.intranetListTitles
+                    : {};
+            const logoDataUrl = String(profile.logoDataUrl || '').trim();
+            const logoUrl = String(profile.logoUrl || '').trim();
             return {
                 schoolName: String(core.schoolName || '').trim(),
                 domain: String(core.domain || '').trim(),
+                schoolCode: String(profile.schoolCode || '').trim(),
+                hasSchoolProfileLogo: !!(logoUrl || logoDataUrl),
+                schoolProfileStreet: String(profile.street || '').trim(),
+                schoolProfileCity: String(profile.city || '').trim(),
+                schoolProfileEmail: String(profile.email || '').trim(),
+                schoolProfileWebsite: String(profile.website || '').trim(),
                 teacherCount: Array.isArray(core.teachers) ? core.teachers.length : 0,
                 studentCount: bucket && Array.isArray(bucket.students) ? bucket.students.length : 0,
                 classCount: bucket && Array.isArray(bucket.classes) ? bucket.classes.length : 0,
+                subjectCount: Array.isArray(core.subjects) ? core.subjects.length : 0,
+                argeCount: Array.isArray(core.arges) ? core.arges.length : 0,
+                intranetSiteUrl: String(setup.intranetSiteUrl || '').trim(),
+                intranetListTitleCount: Object.keys(listTitles).filter(function (k) {
+                    return String(listTitles[k] || '').trim();
+                }).length,
                 schulOrganigrammNodeCount: nodes.length,
                 schulOrganigrammContentCount: nodes.filter(function (n) {
                     return n && String(n.type || '').toLowerCase() !== 'section';
@@ -436,8 +755,108 @@
      * Vor dem Export: offene Änderungen aus app-data-v2 / Stammdaten in localStorage spiegeln,
      * damit das Backup möglichst vollständig und konsistent ist.
      */
+    /**
+     * Stichprobe: welche Demo-kritischen Blöcke sind im Export wirklich enthalten?
+     * @param {object} local
+     */
+    function buildCriticalCoverage(local, indexed) {
+        const has = function (k) {
+            return !!(local && Object.prototype.hasOwnProperty.call(local, k) && local[k] != null && local[k] !== '');
+        };
+        const schoolApps = [
+            { id: 'schularbeiten', label: 'Schularbeiten', keys: ['ms365-sa-site-url', 'ms365-sa-settings-v1'] },
+            { id: 'projektwochen', label: 'Projektwochen', keys: ['ms365-pw-site-url', 'ms365-projektwochen-demo-v1'] },
+            { id: 'schulaktivitaeten', label: 'Schulaktivitäten', keys: ['ms365-akt-planer-site-v1', 'ms365-akt-setup-v1'] },
+            { id: 'freistellung', label: 'Freistellung', keys: ['ms365-freistellung-setup-v1', 'ms365-freistellung-planer-site-v1'] },
+            { id: 'lehrer-freistellung', label: 'Lehrer-Freistellung', keys: ['ms365-lfr-setup-v1', 'ms365-lfr-planer-site-v1'] },
+            { id: 'einsammler', label: 'Einsammler', keys: ['ms365-einsammler-v1', 'ms365-einsammler-settings-v1', 'ms365-einsammler-sp-settings-v1'] },
+            { id: 'elternbrief', label: 'Elternbrief', keys: ['ms365-elternbrief-v1', 'ms365-elternbrief-settings-v1', 'ms365-elternbrief-sp-settings-v1'] },
+            { id: 'krankmeldung', label: 'Krankmeldung', keys: ['ms365-krankmeldung-v1', 'ms365-krankmeldung-settings-v1', 'ms365-krankmeldung-sp-settings-v1'] },
+            { id: 'kollegium-umfragen', label: 'Kollegium-Umfragen', keys: ['ms365-kollegium-umfragen-v1', 'ms365-kollegium-umfragen-settings-v1'] },
+            { id: 'ausgaben', label: 'Ausgaben', keys: ['ms365-ausgaben-v1', 'ms365-ausgaben-settings-v1', 'ms365-ausgaben-sp-settings-v1'] },
+            { id: 'wahlfach', label: 'Wahlfach-Zuteilung', keys: ['ms365-wahlfach-zuteilung-v1', 'ms365-wahlfach-zuteilung-settings-v1'] },
+            { id: 'schulsprecherwahl', label: 'Schulsprecherwahl', keys: ['ms365-schulsprecherwahl-v1'] },
+            { id: 'teams-antrag', label: 'Teams-Antrag', keys: ['ms365-teams-antrag-v1', 'ms365-teams-antrag-settings-v1'] },
+            { id: 'diplomarbeiten', label: 'Diplomarbeiten', keys: ['ms365-diplomarbeiten-state-v1', 'ms365-diplomarbeiten-settings-v1'] },
+            { id: 'raumplan', label: 'Raumplan', keys: ['ms365-raumplan-v1', 'ms365-raumplan-sp-settings-v1'] },
+            { id: 'aufgaben', label: 'Aufgaben', keys: ['ms365-aufgaben-v1', 'ms365-aufgaben-sp-settings-v1'] },
+            { id: 'technik-meldungen', label: 'Technik-Meldungen', keys: ['ms365-technik-meldungen-v1', 'ms365-technik-meldungen-sp-settings-v1'] },
+            { id: 'termine-hub', label: 'Termine-Hub', keys: ['ms365-termine-hub-v1', 'ms365-termine-hub-settings-v1', 'ms365-kalender-postfaecher-v1'] },
+            { id: 'stammdaten-portal', label: 'Schüler-Stammdaten-Portal', keys: ['ms365-schueler-stammdaten-portal-v1'] }
+        ].map(function (app) {
+            const presentKeys = app.keys.filter(has);
+            return {
+                id: app.id,
+                label: app.label,
+                present: presentKeys.length > 0,
+                keys: presentKeys
+            };
+        });
+        const indexedObj = indexed && typeof indexed === 'object' ? indexed : {};
+        const indexedPresent = Object.keys(indexedObj).filter(function (name) {
+            const row = indexedObj[name];
+            return row && (Number(row.recordCount) > 0 || (row.stores && Object.keys(row.stores).length));
+        });
+        const checks = [
+            { id: 'stammdaten', label: 'Stammdaten (v2)', ok: has('ms365-schooltool-data-v2') },
+            { id: 'emailPattern', label: 'E-Mail-Muster', ok: has('ms365-tenant-school-email-pattern-v1') || has('ms365-tenant-teachers-email-pattern-v1') },
+            { id: 'intranetLinks', label: 'Intranet-Listen-Links', ok: has('ms365-intranet-list-links-v1') },
+            { id: 'dashboardAccess', label: 'Dashboard-Zugriff', ok: has('ms365-dashboard-tool-access-v1') },
+            {
+                id: 'schoolApps',
+                label: 'Schul-Apps (mind. eine Site/Einstellung)',
+                ok: schoolApps.some(function (a) {
+                    return a.present;
+                })
+            },
+            {
+                id: 'attachments',
+                label: 'Anhänge (IndexedDB)',
+                ok: indexedPresent.length > 0,
+                optional: true
+            }
+        ];
+        const missing = checks.filter(function (c) {
+            return !c.ok && !c.optional;
+        });
+        return {
+            checks: checks,
+            schoolApps: schoolApps,
+            indexedDbNames: indexedPresent,
+            missingIds: missing.map(function (c) {
+                return c.id;
+            }),
+            readyForDemoTransfer: checks[0].ok
+        };
+    }
+
+    function criticalCoverageSummaryText(coverage) {
+        if (!coverage || !coverage.checks) return '';
+        const bits = coverage.checks
+            .filter(function (c) {
+                return !c.optional || c.ok;
+            })
+            .map(function (c) {
+                return c.label + (c.ok ? ' ✓' : ' –');
+            });
+        const apps = (coverage.schoolApps || [])
+            .filter(function (a) {
+                return a.present;
+            })
+            .map(function (a) {
+                return a.label;
+            });
+        if (apps.length) bits.push('Schul-Apps: ' + apps.join(', '));
+        return bits.join(' · ');
+    }
+
     function syncStorageBeforeBackup() {
         try {
+            try {
+                window.dispatchEvent(new CustomEvent('ms365-before-browser-backup', { detail: { at: new Date().toISOString() } }));
+            } catch {
+                /* ignore */
+            }
             if (typeof window.ms365FlushSchulOrganigrammBeforeBackup === 'function') {
                 window.ms365FlushSchulOrganigrammBeforeBackup();
             }
@@ -458,9 +877,11 @@
         }
     }
 
-    function buildInventory(local, session) {
+    function buildInventory(local, session, indexed) {
         const localKeys = Object.keys(local || {});
         const sessionKeys = Object.keys(session || {});
+        const indexedObj = indexed && typeof indexed === 'object' ? indexed : {};
+        const indexedNames = Object.keys(indexedObj);
         const known = new Set();
         STORAGE_CATALOG.forEach(function (cat) {
             cat.keys.forEach(function (k) {
@@ -498,11 +919,19 @@
                 count: otherSession.length
             });
         }
+        if (indexedNames.length) {
+            categories.push({
+                label: 'Anhänge (IndexedDB)',
+                keys: indexedNames.sort(),
+                count: indexedNames.length
+            });
+        }
 
         return {
             categories: categories,
             localKeyCount: localKeys.length,
-            sessionKeyCount: sessionKeys.length
+            sessionKeyCount: sessionKeys.length,
+            indexedDbCount: indexedNames.length
         };
     }
 
@@ -539,7 +968,7 @@
         const { schoolName, domain } = readSchoolMeta(storage);
         const school = sanitizeForFilename(schoolName || domain);
         const suffix = school ? '-' + school : '';
-        return 'ms365-browser-backup-' + localDateStamp(d) + suffix + '.json';
+        return 'ms365-browser-backup-' + localDateTimeStamp(d) + suffix + '.json';
     }
 
     /**
@@ -604,46 +1033,93 @@
         };
     }
 
-    function buildBackup(storage, now, sessionStorageArg) {
-        syncStorageBeforeBackup();
-        const local = collectLocalStorage(storage);
-        const session = collectSessionStorage(sessionStorageArg);
-        const when = asDate(now);
+    function finalizeBackupPayload(local, session, indexed, storage, when) {
         const { schoolName, domain } = readSchoolMeta(storage);
-        const inventory = buildInventory(local, session);
+        const inventory = buildInventory(local, session, indexed);
         const legacyMirror = buildLegacyMirrorMeta(local);
         const schooltoolSummary = summarizeSchooltoolForBackup(local);
+        const criticalCoverage = buildCriticalCoverage(local, indexed);
+        const indexedKeyCount = Object.keys(indexed || {}).length;
         const payload = {
             kind: KIND,
             version: VERSION,
             exportedAt: when.toISOString(),
             schoolName: schoolName,
             domain: domain,
-            keyCount: Object.keys(local).length + Object.keys(session).length,
+            keyCount: Object.keys(local).length + Object.keys(session).length + indexedKeyCount,
             localKeyCount: Object.keys(local).length,
             sessionKeyCount: Object.keys(session).length,
+            indexedDbCount: indexedKeyCount,
             inventory: inventory,
             schooltoolSummary: schooltoolSummary,
+            criticalCoverage: criticalCoverage,
             contentFingerprint: contentFingerprint(storage),
             includesPrefixes: ['ms365-', 'webuntis-'],
+            includesIndexedDb: INDEXED_DB_CATALOG.map(function (e) {
+                return e.name;
+            }),
             includesNote:
-                'Vollständiges App-Backup: Stammdaten (kanonisch v2 inkl. Schul-Organigramm, Schulprofil, Verwaltungs-Zielgruppen, Einrichtungsstand), optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, Einrichtung, Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration und weitere ms365-/webuntis-Schlüssel.',
+                'Vollständiges App-Backup: Stammdaten (kanonisch v2 inkl. Schul-Organigramm, Schulprofil/Schulkennzahl, Verwaltungs-Zielgruppen, Intranet-Listen-Titel, Einrichtungsstand), E-Mail-Muster, optionaler v1-Spiegel (legacyMirror), Dashboard-Zugriff, alle Schul-Apps-Einstellungen (Sites/Rollen/Listen-Titel), Werkzeugstände, Planer, Power-Automate-/Freistellungs-Konfiguration, Anhänge in IndexedDB sowie alle weiteren ms365-/webuntis-Schlüssel im Browser.',
             excludesNote:
-                'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung und kurzlebige Login-Weiterleitungen.',
+                'Nicht enthalten: Microsoft-Anmeldung (MSAL), PIN-/Admin-Freischaltung in dieser Sitzung, kurzlebige Login-Weiterleitungen sowie die eigentlichen Einträge in SharePoint-Listen (die liegen im Tenant, nicht im Browser).',
             legacyMirror: legacyMirror,
             localStorage: local,
-            sessionStorage: session
+            sessionStorage: session,
+            indexedDB: indexed || {}
         };
         let summary = inventorySummaryText(inventory);
-        if (schooltoolSummary && schooltoolSummary.schulOrganigrammNodeCount > 0) {
-            const orgBit =
-                'Schul-Organigramm: ' +
-                schooltoolSummary.schulOrganigrammNodeCount +
-                ' Knoten';
-            summary = summary ? summary + ' · ' + orgBit : orgBit;
+        if (schooltoolSummary) {
+            const stammdatenBits = [];
+            if (schooltoolSummary.schoolCode) stammdatenBits.push('Kennzahl ' + schooltoolSummary.schoolCode);
+            if (schooltoolSummary.hasSchoolProfileLogo) stammdatenBits.push('Schullogo');
+            if (schooltoolSummary.teacherCount) stammdatenBits.push(schooltoolSummary.teacherCount + ' Lehrkräfte');
+            if (schooltoolSummary.classCount) stammdatenBits.push(schooltoolSummary.classCount + ' Klassen');
+            if (schooltoolSummary.studentCount) stammdatenBits.push(schooltoolSummary.studentCount + ' Schüler');
+            if (schooltoolSummary.subjectCount) stammdatenBits.push(schooltoolSummary.subjectCount + ' Fächer');
+            if (stammdatenBits.length) {
+                summary = summary
+                    ? summary + ' · Stammdaten: ' + stammdatenBits.join(', ')
+                    : 'Stammdaten: ' + stammdatenBits.join(', ');
+            }
+            if (schooltoolSummary.schulOrganigrammNodeCount > 0) {
+                const orgBit =
+                    'Schul-Organigramm: ' + schooltoolSummary.schulOrganigrammNodeCount + ' Knoten';
+                summary = summary ? summary + ' · ' + orgBit : orgBit;
+            }
         }
+        const idbText = indexedDbSummary(indexed);
+        if (idbText) summary = summary ? summary + ' · ' + idbText : idbText;
+        const covText = criticalCoverageSummaryText(criticalCoverage);
+        if (covText) summary = summary ? summary + ' · ' + covText : covText;
         payload.inventorySummary = summary;
         return payload;
+    }
+
+    /**
+     * Synchrones Backup (localStorage + sessionStorage). IndexedDB bleibt leer –
+     * für den vollständigen Export bitte buildBackupAsync / downloadBackup nutzen.
+     */
+    function buildBackup(storage, now, sessionStorageArg) {
+        syncStorageBeforeBackup();
+        const local = collectLocalStorage(storage);
+        const session = collectSessionStorage(sessionStorageArg);
+        return finalizeBackupPayload(local, session, {}, storage, asDate(now));
+    }
+
+    /**
+     * Vollständiges Backup inkl. bekannter IndexedDB-Anhänge der Schul-Apps.
+     */
+    async function buildBackupAsync(storage, now, sessionStorageArg) {
+        syncStorageBeforeBackup();
+        const local = collectLocalStorage(storage);
+        const session = collectSessionStorage(sessionStorageArg);
+        let indexed = {};
+        try {
+            indexed = await collectIndexedDb();
+        } catch {
+            indexed = {};
+        }
+        return finalizeBackupPayload(local, session, indexed, storage, asDate(now));
     }
 
     function isBackupPayload(obj) {
@@ -693,7 +1169,10 @@
                 store.setItem(k, decodeValue(incoming[k]));
                 written.push(k);
             } catch (e) {
-                errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                const msg = e && e.message ? e.message : String(e);
+                const quota =
+                    (e && e.name === 'QuotaExceededError') || /quota|speicher|exceeded/i.test(msg);
+                errors.push(k + ': ' + (quota ? 'Speicherplatz im Browser voll (QuotaExceeded)' : msg));
             }
         });
 
@@ -707,13 +1186,20 @@
                     sessionStore.setItem(k, decodeValue(incomingSession[k]));
                     sessionWritten.push(k);
                 } catch (e) {
-                    errors.push(k + ': ' + (e && e.message ? e.message : String(e)));
+                    const msg = e && e.message ? e.message : String(e);
+                    const quota =
+                        (e && e.name === 'QuotaExceededError') || /quota|speicher|exceeded/i.test(msg);
+                    errors.push(k + ': ' + (quota ? 'Speicherplatz im Browser voll (QuotaExceeded)' : msg));
                 }
             });
         }
 
         if (errors.length) {
-            const err = new Error('Backup nur teilweise geschrieben: ' + errors.slice(0, 3).join('; '));
+            const err = new Error(
+                'Backup nur teilweise geschrieben: ' +
+                    errors.slice(0, 3).join('; ') +
+                    '. Tipp: Schul-Logo verkleinern oder in einem leeren Browser-Profil importieren.'
+            );
             err.details = {
                 written: written,
                 removed: removed,
@@ -758,7 +1244,11 @@
         }
 
         if (errors.length) {
-            const err = new Error('Backup nur teilweise geschrieben: ' + errors.slice(0, 3).join('; '));
+            const err = new Error(
+                'Backup nur teilweise geschrieben: ' +
+                    errors.slice(0, 3).join('; ') +
+                    '. Tipp: Schul-Logo verkleinern oder in einem leeren Browser-Profil importieren.'
+            );
             err.details = {
                 written: written,
                 removed: removed,
@@ -776,14 +1266,46 @@
             sessionWritten: sessionWritten,
             sessionRemoved: sessionRemoved,
             skipped: skipped,
-            errors: errors
+            errors: errors,
+            indexedDbWritten: [],
+            indexedDbCleared: []
         };
     }
 
-    function importPayload(obj, storage) {
+    /**
+     * Wie applyBackup, zusätzlich IndexedDB-Anhänge (Version ≥ 7).
+     */
+    async function applyBackupAsync(payload, storage, opts) {
+        const result = applyBackup(payload, storage, opts);
+        const replace = !opts || opts.replace !== false;
+        try {
+            const idbResult = await applyIndexedDb(payload && payload.indexedDB, { replace: replace });
+            result.indexedDbWritten = idbResult.written || [];
+            result.indexedDbCleared = idbResult.cleared || [];
+            if (idbResult.errors && idbResult.errors.length) {
+                result.errors = (result.errors || []).concat(idbResult.errors);
+            }
+        } catch (e) {
+            result.errors = (result.errors || []).concat([
+                'indexedDB: ' + (e && e.message ? e.message : String(e))
+            ]);
+        }
+        if (result.errors && result.errors.length) {
+            const err = new Error(
+                'Backup nur teilweise geschrieben: ' +
+                    result.errors.slice(0, 3).join('; ') +
+                    '. Tipp: Schul-Logo verkleinern oder in einem leeren Browser-Profil importieren.'
+            );
+            err.details = result;
+            throw err;
+        }
+        return result;
+    }
+
+    async function importPayload(obj, storage) {
         if (!obj || typeof obj !== 'object') throw new Error('Keine gültige JSON-Datei.');
         if (isBackupPayload(obj)) {
-            return { mode: 'backup', result: applyBackup(obj, storage) };
+            return { mode: 'backup', result: await applyBackupAsync(obj, storage) };
         }
         if (isLegacyAppDataPayload(obj) && window.ms365AppDataV2 && typeof window.ms365AppDataV2.importJson === 'function') {
             window.ms365AppDataV2.importJson(obj);
@@ -824,8 +1346,8 @@
         }, 250);
     }
 
-    function downloadBackup(storage, now) {
-        const payload = buildBackup(storage, now);
+    async function downloadBackup(storage, now) {
+        const payload = await buildBackupAsync(storage, now);
         downloadJson(backupFilename(now, storage), payload);
         return payload;
     }
@@ -887,12 +1409,14 @@
                     obj.inventory ||
                         buildInventory(obj.localStorage || {}, obj.sessionStorage || {})
                 );
+            const idb = Object.keys(obj.indexedDB || {}).length;
             let msg =
                 'Dieses Browser-Backup enthält ' +
                 n +
                 ' lokale und ' +
                 s +
                 ' Sitzungs-Einträge' +
+                (idb ? ' sowie ' + idb + ' Anhang-Datenbanken' : '') +
                 (when ? ' (Stand: ' + when + ')' : '') +
                 (school ? ' für „' + school + '“' : '') +
                 '.\n\n';
@@ -900,14 +1424,17 @@
                 msg += 'Enthalten u. a.: ' + summary + '.\n\n';
             }
             msg +=
-                'Alle lokalen Schuldaten und Werkzeug-Zwischenstände in diesem Browser werden ersetzt. ' +
+                'Alle lokalen Schuldaten, Werkzeug-Zwischenstände und Anhänge in diesem Browser werden ersetzt. ' +
                 'Gruppen und Benutzer in Microsoft 365 bleiben unverändert. ' +
                 'Microsoft-Anmeldung und PIN-Freischaltung bleiben unberührt. Fortfahren?';
             return subjectCatalogShrinkAppend(obj, msg);
         }
         return subjectCatalogShrinkAppend(
             obj,
-            'Diese JSON-Datei enthält Schuldaten (kein vollständiges Browser-Backup). Vorhandene Stammdaten in diesem Browser werden überschrieben. Fortfahren?'
+            'Diese JSON-Datei enthält nur Schul-/Stammdaten – kein vollständiges Browser-Backup.\n\n' +
+                'Nicht übernommen werden dabei u. a.: E-Mail-Muster, Schul-Apps-Einstellungen (Schularbeiten, Projektwochen, Freistellung, Einsammler, Elternbrief, …), Dashboard-Zugriff, Power-Automate-Konfiguration, Anhänge und Werkzeug-Zwischenstände.\n\n' +
+                'Für die Übergabe an einen anderen PC bitte oben „Browser-Backup“ / Datensicherung exportieren (kind: ms365-browser-backup-v1).\n\n' +
+                'Vorhandene Stammdaten in diesem Browser werden überschrieben. Fortfahren?'
         );
     }
 
@@ -949,7 +1476,7 @@
             danger: true
         });
         if (!ok) return { cancelled: true };
-        const imported = importPayload(obj);
+        const imported = await importPayload(obj);
         if (reload) {
             location.reload();
         }
@@ -978,9 +1505,9 @@
     }
 
     /**
-     * Löscht alle lokalen App-Daten (ms365-* / webuntis-*), nicht die Microsoft-Anmeldung (MSAL).
+     * Löscht alle lokalen App-Daten (ms365-* / webuntis-* + bekannte IndexedDBs), nicht MSAL.
      */
-    function clearAllAppData(opts) {
+    async function clearAllAppData(opts) {
         const store = getStore(opts && opts.storage);
         if (!store) throw new Error('localStorage ist nicht verfügbar.');
         const removed = [];
@@ -994,20 +1521,27 @@
             }
         });
         const sessionRemoved = clearRestorableSessionKeys(opts && opts.sessionStorage);
+        let indexedDbCleared = [];
+        try {
+            indexedDbCleared = await clearIndexedDbCatalog();
+        } catch (e) {
+            errors.push('indexedDB: ' + (e && e.message ? e.message : String(e)));
+        }
         if (errors.length) {
             throw new Error(errors.slice(0, 3).join('; '));
         }
         return {
             removed: removed.length,
             keys: removed,
-            sessionRemoved: sessionRemoved.length
+            sessionRemoved: sessionRemoved.length,
+            indexedDbCleared: indexedDbCleared
         };
     }
 
     async function resetAllAppData(reload) {
         const ok = await dlgConfirm(
             'Alle lokalen App-Daten in diesem Browser löschen?\n\n' +
-                'Entfernt werden: Stammdaten, Einrichtungsstand, Werkzeug-Zwischenstände und Favoriten. ' +
+                'Entfernt werden: Stammdaten, Einrichtungsstand, Werkzeug-Zwischenstände, Anhänge und Favoriten. ' +
                 'Nicht gelöscht: Ihre Microsoft-Anmeldung (oben rechts) und der PIN-Zugang dieser Seite.\n\n' +
                 'Tipp: Vorher „Browser-Backup“ exportieren, falls Sie Daten behalten möchten.',
             {
@@ -1018,7 +1552,7 @@
             }
         );
         if (!ok) return { cancelled: true };
-        const result = clearAllAppData();
+        const result = await clearAllAppData();
         if (reload !== false) {
             location.reload();
         }
@@ -1037,63 +1571,75 @@
     function onExportClick(ev) {
         if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
         if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
-        try {
-            if (typeof syncStorageBeforeBackup === 'function') {
+        Promise.resolve()
+            .then(function () {
+                if (typeof syncStorageBeforeBackup === 'function') {
+                    try {
+                        syncStorageBeforeBackup();
+                    } catch {
+                        /* weiter mit aktuellem Storage */
+                    }
+                }
+                return downloadBackup();
+            })
+            .then(function (payload) {
+                let meaningful = false;
                 try {
-                    syncStorageBeforeBackup();
+                    if (
+                        window.ms365EmptyStateUi &&
+                        typeof window.ms365EmptyStateUi.hasMeaningfulTenantData === 'function' &&
+                        typeof window.ms365TenantSettingsLoad === 'function'
+                    ) {
+                        meaningful = window.ms365EmptyStateUi.hasMeaningfulTenantData(
+                            window.ms365TenantSettingsLoad()
+                        );
+                    } else if (payload.schoolName || payload.domain) {
+                        meaningful = true;
+                    } else if (payload.inventorySummary) {
+                        meaningful = /Stammdaten|Lehrer|Schüler|Klassen/i.test(String(payload.inventorySummary));
+                    }
                 } catch {
-                    /* weiter mit aktuellem Storage */
+                    meaningful = !!(payload.schoolName || payload.domain);
                 }
-            }
-            const payload = downloadBackup();
-            let meaningful = false;
-            try {
-                if (
-                    window.ms365EmptyStateUi &&
-                    typeof window.ms365EmptyStateUi.hasMeaningfulTenantData === 'function' &&
-                    typeof window.ms365TenantSettingsLoad === 'function'
-                ) {
-                    meaningful = window.ms365EmptyStateUi.hasMeaningfulTenantData(
-                        window.ms365TenantSettingsLoad()
+                const parts = [payload.keyCount + ' Einträge'];
+                if (payload.localKeyCount != null) {
+                    parts[0] = payload.localKeyCount + ' lokal';
+                    if (payload.sessionKeyCount) parts.push(payload.sessionKeyCount + ' Sitzung');
+                    if (payload.indexedDbCount) parts.push(payload.indexedDbCount + ' IndexedDB');
+                }
+                try {
+                    localStorage.setItem('ms365-last-backup-export-at', new Date().toISOString());
+                } catch {
+                    /* ignore */
+                }
+                let status = 'Vollständiges Browser-Backup gespeichert: ' + parts.join(', ') + '.';
+                if (payload.inventorySummary) status += ' ' + payload.inventorySummary + '.';
+                if (payload.criticalCoverage && !payload.criticalCoverage.readyForDemoTransfer) {
+                    status +=
+                        ' Achtung: Stammdaten (ms365-schooltool-data-v2) fehlen – Demo-Übergabe wäre unvollständig.';
+                    setStatus(status, 'warn');
+                } else if (!meaningful) {
+                    status +=
+                        ' Hinweis: Kaum Stammdaten enthalten – für die Übergabe an einen anderen Browser zuerst Einrichtung oder Import.';
+                    setStatus(status, 'warn');
+                } else {
+                    status +=
+                        ' Datei sicher ablegen. Morgen: dieselbe Datei importieren, dann neu bei Microsoft anmelden.';
+                    setStatus(status, 'ok');
+                }
+                try {
+                    window.dispatchEvent(
+                        new CustomEvent('ms365-browser-backup-status', {
+                            detail: { text: status, kind: meaningful ? 'ok' : 'warn' }
+                        })
                     );
-                } else if (payload.schoolName || payload.domain) {
-                    meaningful = true;
-                } else if (payload.inventorySummary) {
-                    meaningful = /Stammdaten|Lehrer|Schüler|Klassen/i.test(String(payload.inventorySummary));
+                } catch {
+                    /* ignore */
                 }
-            } catch {
-                meaningful = !!(payload.schoolName || payload.domain);
-            }
-            const parts = [payload.keyCount + ' Einträge'];
-            if (payload.localKeyCount != null) {
-                parts[0] = payload.localKeyCount + ' lokal';
-                if (payload.sessionKeyCount) parts.push(payload.sessionKeyCount + ' Sitzung');
-            }
-            try {
-                localStorage.setItem('ms365-last-backup-export-at', new Date().toISOString());
-            } catch {
-                /* ignore */
-            }
-            let status = 'Backup gespeichert: ' + parts.join(', ') + '.';
-            if (payload.inventorySummary) status += ' ' + payload.inventorySummary + '.';
-            if (!meaningful) {
-                status +=
-                    ' Hinweis: Kaum Stammdaten enthalten – für die Übergabe an einen anderen Browser zuerst Einrichtung oder Import.';
-                setStatus(status, 'warn');
-            } else {
-                status += ' Tipp: Datei sicher ablegen (nicht nur Downloads).';
-                setStatus(status, 'ok');
-            }
-            try {
-                window.dispatchEvent(new CustomEvent('ms365-browser-backup-status', {
-                    detail: { text: status, kind: meaningful ? 'ok' : 'warn' }
-                }));
-            } catch {
-                /* ignore */
-            }
-        } catch (e) {
-            setStatus('Export fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
-        }
+            })
+            .catch(function (e) {
+                setStatus('Export fehlgeschlagen: ' + (e && e.message ? e.message : String(e)), 'warn');
+            });
     }
 
     function refreshBackupReminder() {
@@ -1261,6 +1807,7 @@
         KIND: KIND,
         VERSION: VERSION,
         STORAGE_CATALOG: STORAGE_CATALOG,
+        INDEXED_DB_CATALOG: INDEXED_DB_CATALOG,
         isAuthKey: isAuthKey,
         isAppStorageKey: isAppStorageKey,
         isBackupPayload: isBackupPayload,
@@ -1268,13 +1815,18 @@
         listAppKeys: listAppKeys,
         collectLocalStorage: collectLocalStorage,
         collectSessionStorage: collectSessionStorage,
+        collectIndexedDb: collectIndexedDb,
         contentFingerprint: contentFingerprint,
         notifyLocalDataChanged: notifyLocalDataChanged,
         buildBackup: buildBackup,
+        buildBackupAsync: buildBackupAsync,
         syncStorageBeforeBackup: syncStorageBeforeBackup,
         buildInventory: buildInventory,
+        buildCriticalCoverage: buildCriticalCoverage,
         postImportNormalize: postImportNormalize,
         applyBackup: applyBackup,
+        applyBackupAsync: applyBackupAsync,
+        applyIndexedDb: applyIndexedDb,
         importPayload: importPayload,
         mergeLocalStoragePatch: mergeLocalStoragePatch,
         backupFilename: backupFilename,

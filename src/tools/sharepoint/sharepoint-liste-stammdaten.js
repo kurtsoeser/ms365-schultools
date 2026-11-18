@@ -37,7 +37,8 @@
         return {
             syncMode: syncMode,
             removeOrphans: !$('spsRemoveOrphans') || $('spsRemoveOrphans').checked,
-            klassenPersonen: !$('spsKlassenPersonen') || $('spsKlassenPersonen').checked
+            klassenPersonen: !$('spsKlassenPersonen') || $('spsKlassenPersonen').checked,
+            lehrerPersonen: !$('spsLehrerPersonen') || $('spsLehrerPersonen').checked
         };
     }
 
@@ -316,7 +317,27 @@
         { name: 'KlassenCode', displayName: 'Kürzel', text: { allowMultipleLines: false, maxLength: 40 } },
         { name: 'Abschlussjahr', displayName: 'Abschlussjahr', text: { allowMultipleLines: false, maxLength: 4 } },
         { name: 'KVName', displayName: 'Klassenvorstand', text: { allowMultipleLines: false, maxLength: 120 } },
-        { name: 'KVEmail', displayName: 'KV E-Mail', text: { allowMultipleLines: false, maxLength: 255 } }
+        { name: 'KVEmail', displayName: 'KV E-Mail', text: { allowMultipleLines: false, maxLength: 255 } },
+        {
+            name: 'M365GroupId',
+            displayName: 'M365-Gruppen-ID',
+            text: { allowMultipleLines: false, maxLength: 80 }
+        },
+        {
+            name: 'M365GroupMail',
+            displayName: 'M365-Gruppen-E-Mail',
+            text: { allowMultipleLines: false, maxLength: 255 }
+        },
+        {
+            name: 'M365GroupName',
+            displayName: 'M365-Gruppenname',
+            text: { allowMultipleLines: false, maxLength: 200 }
+        },
+        {
+            name: 'M365Gruppe',
+            displayName: 'M365-Gruppe (Team)',
+            personOrGroup: { allowMultipleSelection: false, chooseFromType: 'peopleAndGroups' }
+        }
     ];
 
     const COL_KLASSE_PERSON = COL_KLASSE.concat([
@@ -326,11 +347,125 @@
             personOrGroup: { allowMultipleSelection: true, chooseFromType: 'peopleOnly' }
         },
         {
+            name: 'Lehrkraefte',
+            displayName: 'Lehrkräfte (unterrichtend)',
+            personOrGroup: { allowMultipleSelection: true, chooseFromType: 'peopleOnly' }
+        },
+        {
             name: 'Klassenvorstand',
             displayName: 'KV (Person)',
             personOrGroup: { allowMultipleSelection: false, chooseFromType: 'peopleOnly' }
         }
     ]);
+
+    function loadUnterrichtsbelegungRows() {
+        try {
+            const api = window.ms365AppDataV2;
+            if (api && typeof api.getUnterrichtsbelegung === 'function') {
+                const snap = api.getUnterrichtsbelegung();
+                if (snap && Array.isArray(snap.rows)) return snap.rows;
+            }
+        } catch {
+            /* ignore */
+        }
+        try {
+            const s = loadSettings();
+            if (s && s.unterrichtsbelegung && Array.isArray(s.unterrichtsbelegung.rows)) {
+                return s.unterrichtsbelegung.rows;
+            }
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    function normTeachingEmail(v) {
+        return String(v || '')
+            .trim()
+            .toLowerCase();
+    }
+
+    function normTeachingCode(v) {
+        return String(v || '')
+            .trim()
+            .toUpperCase();
+    }
+
+    function classKeyForTeaching(rowOrCode) {
+        if (rowOrCode && typeof rowOrCode === 'object') {
+            return normTeachingCode(rowOrCode.code) || String(rowOrCode.name || '').trim().toUpperCase();
+        }
+        return normTeachingCode(rowOrCode) || String(rowOrCode || '').trim().toUpperCase();
+    }
+
+    /**
+     * Fallback, falls die ES-Modul-Bridge noch nicht geladen ist (z. B. Intranet-Einbettung).
+     * @param {Array<object>|null} belegungRows
+     * @param {Array<object>} teachers
+     * @returns {Map<string, string[]>|null}
+     */
+    function buildTeachingEmailsByKlasseFallback(belegungRows, teachers) {
+        if (!Array.isArray(belegungRows)) return null;
+        /** @type {Map<string, string>} */
+        const emailByCode = new Map();
+        (Array.isArray(teachers) ? teachers : []).forEach(function (t) {
+            const code = normTeachingCode(t && t.code);
+            const email = normTeachingEmail(t && t.email);
+            if (!code || !email || email.indexOf('@') === -1) return;
+            if (!emailByCode.has(code)) emailByCode.set(code, email);
+        });
+        /** @type {Map<string, Map<string, string>>} */
+        const byClass = new Map();
+        belegungRows.forEach(function (r) {
+            const klasse = classKeyForTeaching(r && r.klasse) || String(r && r.klasse || '').trim().toUpperCase();
+            if (!klasse) return;
+            let email = normTeachingEmail(r && r.lehrerEmail);
+            const code = normTeachingCode(r && r.lehrerCode);
+            if ((!email || email.indexOf('@') === -1) && code) {
+                email = emailByCode.get(code) || '';
+            }
+            if (!email || email.indexOf('@') === -1) return;
+            if (!byClass.has(klasse)) byClass.set(klasse, new Map());
+            byClass.get(klasse).set(email, email);
+        });
+        /** @type {Map<string, string[]>} */
+        const out = new Map();
+        byClass.forEach(function (map, klasse) {
+            out.set(klasse, Array.from(map.keys()).sort());
+        });
+        return out;
+    }
+
+    /**
+     * @param {Array<object>|null} belegungRows
+     * @param {Array<object>} teachers
+     * @returns {Map<string, string[]>|null}
+     */
+    function buildTeachingEmailsByKlasse(belegungRows, teachers) {
+        const logic = window.ms365KlassenlehrerLogic;
+        if (logic && typeof logic.teachingTeacherEmailsByKlasse === 'function' && Array.isArray(belegungRows)) {
+            return logic.teachingTeacherEmailsByKlasse(belegungRows, teachers);
+        }
+        return buildTeachingEmailsByKlasseFallback(belegungRows, teachers);
+    }
+
+    /**
+     * @param {Map<string, string[]>|null} emailsByKlasse
+     * @param {object} classRow
+     * @returns {string[]}
+     */
+    function emailsForClassTeaching(emailsByKlasse, classRow) {
+        const logic = window.ms365KlassenlehrerLogic;
+        if (logic && typeof logic.teachingEmailsForClassRow === 'function') {
+            return logic.teachingEmailsForClassRow(emailsByKlasse, classRow) || [];
+        }
+        if (!emailsByKlasse || typeof emailsByKlasse.get !== 'function') return [];
+        const key = classKeyForTeaching(classRow);
+        if (key && emailsByKlasse.has(key)) return emailsByKlasse.get(key) || [];
+        const nameKey = normTeachingCode(classRow && classRow.name);
+        if (nameKey && emailsByKlasse.has(nameKey)) return emailsByKlasse.get(nameKey) || [];
+        return [];
+    }
 
     function studentBelongsToClass(st, c) {
         const sk = String(st && st.klasse || '').trim().toLowerCase();
@@ -627,11 +762,32 @@
         const students = (Array.isArray(s.students) ? s.students : []).filter(function (st) {
             return st && String(st.email || '').trim();
         });
+        const teachers = Array.isArray(s.teachers) ? s.teachers : [];
+        const belegungRows = withPersons ? loadUnterrichtsbelegungRows() : null;
+        const teachingEmailsByKlasse = withPersons
+            ? buildTeachingEmailsByKlasse(belegungRows, teachers)
+            : null;
+        let teachingEmailCount = 0;
+        if (teachingEmailsByKlasse) {
+            teachingEmailsByKlasse.forEach(function (emails) {
+                teachingEmailCount += Array.isArray(emails) ? emails.length : 0;
+            });
+        }
 
         write(
             'Klassen: ' +
                 classes.length +
-                (withPersons ? ' (mit Personenfeld Schülerinnen, ' + students.length + ' Schüler mit E-Mail)' : '')
+                (withPersons
+                    ? ' (Schülerinnen-Personenfeld, ' +
+                      students.length +
+                      ' Schüler mit E-Mail' +
+                      (teachingEmailsByKlasse
+                          ? '; Lehrkräfte aus Belegung, ' + teachingEmailCount + ' Zuordnungen'
+                          : belegungRows === null
+                            ? '; keine Unterrichtsbelegung – Lehrkräfte-Personenfeld bleibt unverändert'
+                            : '; Lehrkräfte-Logik nicht geladen') +
+                      ')'
+                    : '')
         );
         const token = await ensureToken();
         const siteId = await resolveSite(url, token, write);
@@ -651,11 +807,109 @@
             write('Hinweis: Personen-Hilfen fehlen – nur Textfelder werden gesetzt.');
         }
 
-        const compareKeys = ['Title', 'KlassenCode', 'Abschlussjahr', 'KVName', 'KVEmail'];
+        const compareKeys = [
+            'Title',
+            'KlassenCode',
+            'Abschlussjahr',
+            'KVName',
+            'KVEmail',
+            'M365GroupId',
+            'M365GroupMail',
+            'M365GroupName'
+        ];
+
+        function classTeamLink(klasseCode) {
+            const code = String(klasseCode || '').trim();
+            if (!code) return null;
+            const want = code.toUpperCase();
+            const api = window.ms365AppDataV2;
+            if (!api || typeof api.getContainer !== 'function') return null;
+            const container = api.getContainer();
+            const teams =
+                typeof api.normalizeCoreClassTeams === 'function'
+                    ? api.normalizeCoreClassTeams((container.core && container.core.classTeams) || [])
+                    : (container.core && container.core.classTeams) || [];
+            for (let i = 0; i < teams.length; i++) {
+                const t = teams[i];
+                if (!t) continue;
+                const cc = String(t.classCode || '')
+                    .trim()
+                    .toUpperCase();
+                const dn = String(t.displayName || '').trim();
+                if ((dn && code === dn) || (cc && want === cc)) {
+                    return {
+                        groupId: String(t.graphGroupId || '').trim(),
+                        mail: String(t.mail || '').trim().toLowerCase(),
+                        name: dn || code
+                    };
+                }
+            }
+            const setup = typeof api.getSetup === 'function' ? api.getSetup() : null;
+            const map = (setup && setup.classGroupMatchByKey) || {};
+            const entry = map[want] || map[code] || null;
+            if (!entry || typeof entry !== 'object') return null;
+            return {
+                groupId: String(entry.groupId || entry.graphGroupId || '').trim(),
+                mail: String(entry.mail || entry.email || '')
+                    .trim()
+                    .toLowerCase(),
+                name: String(entry.displayName || entry.name || code).trim()
+            };
+        }
+
+        async function ensureGroupLookupId(groupId) {
+            const gid = String(groupId || '').trim();
+            if (!gid || typeof G.spoEnsureUser !== 'function') return 0;
+            const logon = 'c:0o.c|federateddirectoryclaimprovider|' + gid;
+            try {
+                let host = '';
+                try {
+                    host = new URL(url).hostname;
+                } catch {
+                    host = '';
+                }
+                if (!host) return 0;
+                const spoToken = await G.getGraphToken(['https://' + host + '/AllSites.Write']);
+                const digest = await G.getSpoRequestDigest(url, spoToken);
+                const principal = await G.spoEnsureUser(url, spoToken, digest, logon);
+                return principal && principal.id ? Number(principal.id) : 0;
+            } catch (e) {
+                write(
+                    'M365-Gruppe ' +
+                        gid.slice(0, 8) +
+                        '…: ' +
+                        (e && e.message ? e.message : e)
+                );
+                return 0;
+            }
+        }
 
         async function fieldsForClass(c) {
             const code = String(c.code || '').trim();
             const name = String(c.name || '').trim() || code;
+            const link = classTeamLink(code);
+            let groupId = String((c && c.m365GroupId) || (link && link.groupId) || '').trim();
+            let groupMail = String((c && c.m365GroupMail) || (link && link.mail) || '')
+                .trim()
+                .toLowerCase();
+            let groupName = String((c && c.m365GroupName) || (link && link.name) || '').trim();
+            if (groupId && !groupMail) {
+                try {
+                    const g = await G.graphJson(
+                        'GET',
+                        '/groups/' + encodeURIComponent(groupId) + '?$select=mail,displayName',
+                        token,
+                        undefined,
+                        'v1.0'
+                    );
+                    groupMail = String((g && g.mail) || '')
+                        .trim()
+                        .toLowerCase();
+                    if (!groupName) groupName = String((g && g.displayName) || '').trim();
+                } catch {
+                    /* ignore */
+                }
+            }
             const fields = {
                 Title: name,
                 KlassenCode: code,
@@ -663,6 +917,15 @@
                 KVName: String(c.headName || '').trim(),
                 KVEmail: String(c.headEmail || '').trim()
             };
+            if (groupId) fields.M365GroupId = groupId;
+            if (groupMail) fields.M365GroupMail = groupMail;
+            if (groupName) fields.M365GroupName = groupName;
+
+            if (groupId) {
+                const gLookup = await ensureGroupLookupId(groupId);
+                if (gLookup) G.applySinglePersonLookupField(fields, 'M365Gruppe', gLookup);
+            }
+
             if (!withPersons || !resolver) return fields;
 
             const lookupIds = [];
@@ -687,6 +950,28 @@
             }
             G.applyMultiPersonLookupFields(fields, 'Schuelerinnen', lookupIds);
 
+            if (teachingEmailsByKlasse) {
+                const teacherEmails = emailsForClassTeaching(teachingEmailsByKlasse, c);
+                const teacherIds = [];
+                let teacherMiss = 0;
+                for (let ti = 0; ti < teacherEmails.length; ti++) {
+                    const tem = teacherEmails[ti];
+                    const tid = await resolver.lookupIdForEmail(tem);
+                    if (tid) teacherIds.push(tid);
+                    else teacherMiss++;
+                }
+                if (teacherMiss) {
+                    write(
+                        'Klasse ' +
+                            (code || name) +
+                            ': ' +
+                            teacherMiss +
+                            ' Lehrkräfte mit E-Mail konnten auf der Site nicht verknüpft werden (ensureUser/Rechte?).'
+                    );
+                }
+                G.applyMultiPersonLookupFields(fields, 'Lehrkraefte', teacherIds);
+            }
+
             const kvEm = String(c.headEmail || '').trim();
             if (kvEm) {
                 const kvId = await resolver.lookupIdForEmail(kvEm);
@@ -700,10 +985,21 @@
                 const k = compareKeys[i];
                 if (String(prev[k] || '') !== String(next[k] || '')) return false;
             }
+            if (
+                personLookupFingerprint(prev, 'M365Gruppe') !==
+                personLookupFingerprint(next, 'M365Gruppe')
+            )
+                return false;
             if (!withPersons) return true;
             if (
                 personLookupFingerprint(prev, 'Schuelerinnen') !==
                 personLookupFingerprint(next, 'Schuelerinnen')
+            )
+                return false;
+            if (
+                teachingEmailsByKlasse &&
+                personLookupFingerprint(prev, 'Lehrkraefte') !==
+                    personLookupFingerprint(next, 'Lehrkraefte')
             )
                 return false;
             if (
@@ -763,7 +1059,15 @@
                 tool: 'sharepoint',
                 action: 'sync-klassen-list',
                 target: url,
-                summary: 'Klassenliste „' + title + '“' + (withPersons ? ' inkl. Personenfeld' : '')
+                summary:
+                    'Klassenliste „' +
+                    title +
+                    '“' +
+                    (withPersons
+                        ? ' inkl. Personenfelder (Schülerinnen' +
+                          (teachingEmailsByKlasse ? ', Lehrkräfte' : '') +
+                          ', KV)'
+                        : '')
             });
         }
         return { listId: listMeta.listId, webUrl: listMeta.webUrl, count: classes.length };
@@ -820,6 +1124,380 @@
         return await syncKlassenList(webUrl, listTitle, logFn, readRunOpts());
     }
 
+    function loadBelegungRowsForSpo(teachers) {
+        const rows = loadUnterrichtsbelegungRows();
+        if (!Array.isArray(rows)) return [];
+        const logic = window.ms365KlassenlehrerLogic;
+        if (logic && typeof logic.belegungRowsForSpoSync === 'function') {
+            return logic.belegungRowsForSpoSync(rows, teachers) || [];
+        }
+        // Minimal-Fallback ohne Modul-Bridge
+        /** @type {Map<string, object>} */
+        const byKey = new Map();
+        rows.forEach(function (r) {
+            const klasse = String(r && r.klasse || '')
+                .trim()
+                .toUpperCase();
+            if (!klasse) return;
+            const email = String(r && r.lehrerEmail || '')
+                .trim()
+                .toLowerCase();
+            const code = String(r && r.lehrerCode || '')
+                .trim()
+                .toUpperCase();
+            const fach = String(r && r.fach || '').trim();
+            const teacherPart = email || code;
+            if (!teacherPart) return;
+            const syncKey = klasse.toLowerCase() + '|' + teacherPart + '|' + fach.toLowerCase();
+            if (byKey.has(syncKey)) return;
+            byKey.set(syncKey, {
+                syncKey: syncKey,
+                title: [klasse, code || email, fach].filter(Boolean).join(' · '),
+                klasse: klasse,
+                lehrerCode: code,
+                lehrerEmail: email,
+                lehrerName: String(r && r.lehrerName || '').trim(),
+                fach: fach
+            });
+        });
+        return Array.from(byKey.values());
+    }
+
+    /**
+     * Index: KlassenCode/Title → Listenelement-ID (für Lookup).
+     */
+    function buildKlassenLookupIndex(items) {
+        /** @type {Map<string, string>} */
+        const byCode = new Map();
+        (Array.isArray(items) ? items : []).forEach(function (it) {
+            const id = it && it.id != null ? String(it.id) : '';
+            if (!id) return;
+            const f = (it && it.fields) || {};
+            const code = String(f.KlassenCode || '')
+                .trim()
+                .toLowerCase();
+            const title = String(f.Title || '')
+                .trim()
+                .toLowerCase();
+            if (code && !byCode.has(code)) byCode.set(code, id);
+            if (title && !byCode.has(title)) byCode.set(title, id);
+        });
+        return byCode;
+    }
+
+    /**
+     * Index: LehrerCode / E-Mail → Listenelement-ID.
+     */
+    function buildLehrerLookupIndex(items) {
+        /** @type {{ byCode: Map<string, string>, byEmail: Map<string, string> }} */
+        const out = { byCode: new Map(), byEmail: new Map() };
+        (Array.isArray(items) ? items : []).forEach(function (it) {
+            const id = it && it.id != null ? String(it.id) : '';
+            if (!id) return;
+            const f = (it && it.fields) || {};
+            const code = String(f.LehrerCode || '')
+                .trim()
+                .toLowerCase();
+            const email = String(f.EMail || f.Email || f.UPN || '')
+                .trim()
+                .toLowerCase();
+            if (code && !out.byCode.has(code)) out.byCode.set(code, id);
+            if (email && email.indexOf('@') !== -1 && !out.byEmail.has(email)) out.byEmail.set(email, id);
+        });
+        return out;
+    }
+
+    function buildFaecherLookupIndex(items) {
+        /** @type {Map<string, string>} */
+        const byCode = new Map();
+        (Array.isArray(items) ? items : []).forEach(function (it) {
+            const id = it && it.id != null ? String(it.id) : '';
+            if (!id) return;
+            const f = (it && it.fields) || {};
+            const code = String(f.FachCode || '')
+                .trim()
+                .toLowerCase();
+            const title = String(f.Title || '')
+                .trim()
+                .toLowerCase();
+            if (code && !byCode.has(code)) byCode.set(code, id);
+            if (title && !byCode.has(title)) byCode.set(title, id);
+        });
+        return byCode;
+    }
+
+    /**
+     * Eigene Liste Klasse × Lehrkraft × Fach mit echten SharePoint-Lookups.
+     *
+     * @param {string} webUrl
+     * @param {string} listTitle
+     * @param {function} [logFn]
+     * @param {object} [runOpts]
+     * @param {{ klassenTitle?: string, lehrerTitle?: string, faecherTitle?: string }} [deps]
+     */
+    async function syncLehrerJeKlasseList(webUrl, listTitle, logFn, runOpts, deps) {
+        const write = typeof logFn === 'function' ? logFn : log;
+        const url = String(webUrl || '').trim();
+        const title = String(listTitle || '').trim() || 'Lehrer je Klasse';
+        if (!url) throw new Error('Bitte die Adresse der SharePoint-Website eintragen.');
+
+        const ro = runOpts && typeof runOpts === 'object' ? runOpts : readRunOpts();
+        const d = deps && typeof deps === 'object' ? deps : {};
+        const klassenTitle = String(d.klassenTitle || 'Klassen').trim() || 'Klassen';
+        const lehrerTitle = String(d.lehrerTitle || 'Lehrerinnen').trim() || 'Lehrerinnen';
+        const faecherTitle = String(d.faecherTitle || 'Fächer').trim() || 'Fächer';
+
+        const s = loadSettings();
+        const teachers = Array.isArray(s.teachers) ? s.teachers : [];
+        const rows = loadBelegungRowsForSpo(teachers);
+        if (!rows.length) {
+            throw new Error(
+                'Keine Unterrichtsbelegung („Lehrer je Klasse“) in den Stammdaten – zuerst dort pflegen.'
+            );
+        }
+
+        write('Belegung: ' + rows.length + ' Zeilen (Klasse × Lehrkraft × Fach)');
+        const token = await ensureToken();
+        const siteId = await resolveSite(url, token, write);
+        const syncMode = ro.syncMode !== false;
+        const removeOrphans = ro.removeOrphans !== false;
+
+        const klassenList = await findListByDisplayName(token, siteId, klassenTitle);
+        if (!klassenList || !klassenList.id) {
+            throw new Error(
+                'Lookup-Ziel „' +
+                    klassenTitle +
+                    '“ fehlt – bitte Klassenliste zuerst anlegen/abgleichen.'
+            );
+        }
+        const lehrerList = await findListByDisplayName(token, siteId, lehrerTitle);
+        if (!lehrerList || !lehrerList.id) {
+            throw new Error(
+                'Lookup-Ziel „' +
+                    lehrerTitle +
+                    '“ fehlt – bitte Lehrerinnenliste zuerst anlegen/abgleichen.'
+            );
+        }
+
+        write('Lade Lookup-Ziele …');
+        const klassenItems = await fetchAllListItems(token, siteId, String(klassenList.id));
+        const lehrerItems = await fetchAllListItems(token, siteId, String(lehrerList.id));
+        const klassenIdx = buildKlassenLookupIndex(klassenItems);
+        const lehrerIdx = buildLehrerLookupIndex(lehrerItems);
+        write(
+            'Lookup-Index: ' +
+                klassenIdx.size +
+                ' Klassen, ' +
+                (lehrerIdx.byCode.size + lehrerIdx.byEmail.size) +
+                ' Lehrkraft-Schlüssel'
+        );
+
+        let faecherIdx = null;
+        const faecherList = await findListByDisplayName(token, siteId, faecherTitle);
+        if (faecherList && faecherList.id) {
+            const faecherItems = await fetchAllListItems(token, siteId, String(faecherList.id));
+            faecherIdx = buildFaecherLookupIndex(faecherItems);
+            write('Optional: Fächer-Lookup (' + faecherIdx.size + ' Einträge)');
+        }
+
+        const listMeta = await ensureOrCreateList(siteId, title, token, write, syncMode);
+        const textCols = [
+            {
+                name: 'KlassenCode',
+                displayName: 'Klassenkürzel',
+                text: { allowMultipleLines: false, maxLength: 40 }
+            },
+            {
+                name: 'LehrerCode',
+                displayName: 'Lehrkraft-Kürzel',
+                text: { allowMultipleLines: false, maxLength: 40 }
+            },
+            {
+                name: 'LehrerEmail',
+                displayName: 'Lehrkraft E-Mail',
+                text: { allowMultipleLines: false, maxLength: 255 }
+            },
+            {
+                name: 'Fach',
+                displayName: 'Fach',
+                text: { allowMultipleLines: false, maxLength: 80 }
+            },
+            {
+                name: 'SyncKey',
+                displayName: 'Sync-Schlüssel',
+                text: { allowMultipleLines: false, maxLength: 200 }
+            }
+        ];
+        const lookupCols = [
+            {
+                name: 'Klasse',
+                displayName: 'Klasse (Lookup)',
+                lookup: {
+                    listId: String(klassenList.id),
+                    columnName: 'Title',
+                    allowMultipleValues: false
+                }
+            },
+            {
+                name: 'Lehrkraft',
+                displayName: 'Lehrkraft (Lookup)',
+                lookup: {
+                    listId: String(lehrerList.id),
+                    columnName: 'Title',
+                    allowMultipleValues: false
+                }
+            }
+        ];
+        if (faecherList && faecherList.id) {
+            lookupCols.push({
+                name: 'Unterrichtsfach',
+                displayName: 'Fach (Lookup)',
+                lookup: {
+                    listId: String(faecherList.id),
+                    columnName: 'Title',
+                    allowMultipleValues: false
+                }
+            });
+        }
+        write('Prüfe Spalten (Text + Lookups) …');
+        await addMissingColumns(siteId, listMeta.listId, token, textCols.concat(lookupCols));
+
+        function resolveLehrerItemId(row) {
+            const email = String(row.lehrerEmail || '')
+                .trim()
+                .toLowerCase();
+            const code = String(row.lehrerCode || '')
+                .trim()
+                .toLowerCase();
+            if (email && lehrerIdx.byEmail.has(email)) return lehrerIdx.byEmail.get(email);
+            if (code && lehrerIdx.byCode.has(code)) return lehrerIdx.byCode.get(code);
+            return '';
+        }
+
+        function fieldsFromBelegung(row) {
+            const klasse = String(row.klasse || '')
+                .trim()
+                .toUpperCase();
+            const fields = {
+                Title: String(row.title || '').trim() || klasse,
+                KlassenCode: klasse,
+                LehrerCode: String(row.lehrerCode || '').trim(),
+                LehrerEmail: String(row.lehrerEmail || '').trim().toLowerCase(),
+                Fach: String(row.fach || '').trim(),
+                SyncKey: String(row.syncKey || '').trim()
+            };
+            const kId = klassenIdx.get(klasse.toLowerCase()) || '';
+            if (kId) fields.KlasseLookupId = Number(kId) || kId;
+            const lId = resolveLehrerItemId(row);
+            if (lId) fields.LehrkraftLookupId = Number(lId) || lId;
+            if (faecherIdx && fields.Fach) {
+                const fId = faecherIdx.get(fields.Fach.toLowerCase()) || '';
+                if (fId) fields.UnterrichtsfachLookupId = Number(fId) || fId;
+            }
+            return fields;
+        }
+
+        function fieldsEqualBelegung(prev, next) {
+            const keys = ['Title', 'KlassenCode', 'LehrerCode', 'LehrerEmail', 'Fach', 'SyncKey'];
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                if (String(prev[k] || '') !== String(next[k] || '')) return false;
+            }
+            if (personLookupFingerprint(prev, 'Klasse') !== personLookupFingerprint(next, 'Klasse')) {
+                return false;
+            }
+            if (
+                personLookupFingerprint(prev, 'Lehrkraft') !== personLookupFingerprint(next, 'Lehrkraft')
+            ) {
+                return false;
+            }
+            if (
+                faecherIdx &&
+                personLookupFingerprint(prev, 'Unterrichtsfach') !==
+                    personLookupFingerprint(next, 'Unterrichtsfach')
+            ) {
+                return false;
+            }
+            return true;
+        }
+
+        let missKlasse = 0;
+        let missLehrer = 0;
+        rows.forEach(function (row) {
+            const klasse = String(row.klasse || '')
+                .trim()
+                .toLowerCase();
+            if (!klassenIdx.has(klasse)) missKlasse++;
+            if (!resolveLehrerItemId(row)) missLehrer++;
+        });
+        if (missKlasse) {
+            write(
+                'Hinweis: ' +
+                    missKlasse +
+                    ' Zeilen ohne Klassen-Lookup (Kürzel nicht in „' +
+                    klassenTitle +
+                    '“).'
+            );
+        }
+        if (missLehrer) {
+            write(
+                'Hinweis: ' +
+                    missLehrer +
+                    ' Zeilen ohne Lehrkraft-Lookup (nicht in „' +
+                    lehrerTitle +
+                    '“).'
+            );
+        }
+
+        if (syncMode) {
+            await syncRowsToList({
+                siteId: siteId,
+                listId: listMeta.listId,
+                token: token,
+                rows: rows,
+                keyFromRow: function (row) {
+                    return String(row.syncKey || '').trim().toLowerCase();
+                },
+                keyFromItem: function (f) {
+                    const sk = String(f.SyncKey || '').trim().toLowerCase();
+                    if (sk) return sk;
+                    const k = String(f.KlassenCode || '').trim().toLowerCase();
+                    const em = String(f.LehrerEmail || '').trim().toLowerCase();
+                    const code = String(f.LehrerCode || '').trim().toLowerCase();
+                    const fach = String(f.Fach || '').trim().toLowerCase();
+                    return k + '|' + (em || code) + '|' + fach;
+                },
+                fieldsFromRow: fieldsFromBelegung,
+                fieldsEqual: fieldsEqualBelegung,
+                compareKeys: ['Title', 'KlassenCode', 'LehrerCode', 'LehrerEmail', 'Fach', 'SyncKey'],
+                removeOrphans: removeOrphans,
+                write: write,
+                label: 'Lehrer je Klasse'
+            });
+        } else {
+            await postAllRows(
+                siteId,
+                listMeta.listId,
+                token,
+                rows,
+                fieldsFromBelegung,
+                write,
+                'Lehrer-je-Klasse'
+            );
+        }
+
+        if (listMeta.webUrl) write('Liste im Browser: ' + listMeta.webUrl);
+        if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+            window.ms365ActionLog.append({
+                tool: 'sharepoint',
+                action: 'sync-lehrer-je-klasse-list',
+                target: url,
+                summary: 'Lehrer je Klasse „' + title + '“ (' + rows.length + ' Zeilen, Lookups)'
+            });
+        }
+        return { listId: listMeta.listId, webUrl: listMeta.webUrl, count: rows.length };
+    }
+
     /**
      * @param {string} webUrl
      * @param {object} opts
@@ -850,6 +1528,18 @@
         if (o.klassen) {
             write('—— Klassen ——');
             results.klassen = await syncKlassenList(webUrl, o.klassenTitle || 'Klassen', write, ro);
+        } else if (o.lehrerJeKlasse) {
+            const tokenProbe = await ensureToken();
+            const siteProbe = await G.resolveSiteFromWebUrl(tokenProbe, String(webUrl || '').trim());
+            const siteIdProbe = siteProbe && siteProbe.id ? String(siteProbe.id) : '';
+            const kTitle = o.klassenTitle || 'Klassen';
+            const existingK = siteIdProbe
+                ? await findListByDisplayName(tokenProbe, siteIdProbe, kTitle)
+                : null;
+            if (!(existingK && existingK.id)) {
+                write('—— Klassen (Voraussetzung für Lookups) ——');
+                results.klassen = await syncKlassenList(webUrl, kTitle, write, ro);
+            }
         }
         if (o.lehrer) {
             write('—— Lehrerinnen ——');
@@ -869,8 +1559,51 @@
                 write,
                 lehrerRun
             );
+        } else if (o.lehrerJeKlasse) {
+            const tokenProbe = await ensureToken();
+            const siteProbe = await G.resolveSiteFromWebUrl(tokenProbe, String(webUrl || '').trim());
+            const siteIdProbe = siteProbe && siteProbe.id ? String(siteProbe.id) : '';
+            const lTitle = o.lehrerTitle || 'Lehrerinnen';
+            const existingL = siteIdProbe
+                ? await findListByDisplayName(tokenProbe, siteIdProbe, lTitle)
+                : null;
+            if (!(existingL && existingL.id)) {
+                write('—— Lehrerinnen (Voraussetzung für Lookups) ——');
+                const lehrerApi = window.ms365SpoLehrerListe;
+                if (!lehrerApi || typeof lehrerApi.createList !== 'function') {
+                    throw new Error('Lehrerlisten-Sync nicht geladen (sharepoint-liste-lehrer.js).');
+                }
+                results.lehrer = await lehrerApi.createList(webUrl, lTitle, write, {
+                    syncMode: ro.syncMode,
+                    removeOrphans: ro.removeOrphans,
+                    personField: ro.lehrerPersonen !== false,
+                    clearListFirst: false
+                });
+            }
         }
-        if (!o.schueler && !o.faecher && !o.fachgruppen && !o.arges && !o.klassen && !o.lehrer) {
+        if (o.lehrerJeKlasse) {
+            write('—— Lehrer je Klasse (Lookups) ——');
+            results.lehrerJeKlasse = await syncLehrerJeKlasseList(
+                webUrl,
+                o.lehrerJeKlasseTitle || 'Lehrer je Klasse',
+                write,
+                ro,
+                {
+                    klassenTitle: o.klassenTitle || 'Klassen',
+                    lehrerTitle: o.lehrerTitle || 'Lehrerinnen',
+                    faecherTitle: o.faecherTitle || 'Fächer'
+                }
+            );
+        }
+        if (
+            !o.schueler &&
+            !o.faecher &&
+            !o.fachgruppen &&
+            !o.arges &&
+            !o.klassen &&
+            !o.lehrer &&
+            !o.lehrerJeKlasse
+        ) {
             throw new Error('Mindestens eine Liste auswählen.');
         }
         return results;
@@ -887,11 +1620,17 @@
             fachgruppen: $('spsWantFachgruppen') && $('spsWantFachgruppen').checked,
             arges: $('spsWantArge') && $('spsWantArge').checked,
             klassen: $('spsWantKlassen') && $('spsWantKlassen').checked,
+            lehrer: $('spsWantLehrer') && $('spsWantLehrer').checked,
+            lehrerJeKlasse: $('spsWantLehrerJeKlasse') && $('spsWantLehrerJeKlasse').checked,
             schuelerTitle: String($('spsSchuelerName') && $('spsSchuelerName').value || '').trim(),
             faecherTitle: String($('spsFaecherName') && $('spsFaecherName').value || '').trim(),
             fachgruppenTitle: String($('spsFachgruppenName') && $('spsFachgruppenName').value || '').trim(),
             argesTitle: String($('spsArgeName') && $('spsArgeName').value || '').trim(),
-            klassenTitle: String($('spsKlassenName') && $('spsKlassenName').value || '').trim()
+            klassenTitle: String($('spsKlassenName') && $('spsKlassenName').value || '').trim(),
+            lehrerTitle: String($('spsLehrerName') && $('spsLehrerName').value || '').trim(),
+            lehrerJeKlasseTitle: String(
+                $('spsLehrerJeKlasseName') && $('spsLehrerJeKlasseName').value || ''
+            ).trim()
         };
     }
 
@@ -921,6 +1660,7 @@
         syncFachgruppenList: syncFachgruppenList,
         syncKlassenList: syncKlassenList,
         syncArgeList: syncArgeList,
+        syncLehrerJeKlasseList: syncLehrerJeKlasseList,
         syncSelectedLists: syncSelectedLists,
         createSchuelerList: createSchuelerList,
         createFaecherList: createFaecherList,

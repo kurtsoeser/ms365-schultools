@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Nextcloud → Teams</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/nextcloud-teams-migrate/nextcloud-teams-migrate.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-cloud-arrow-down"></i>Nextcloud → Teams</span>
+            </div>
+            <p>Nextcloud-Ordner live browsen (lokaler Helfer), Dry-Run, optional Kanäle – und ins Fachschafts-Team übertragen.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-nextcloud-teams-migrate" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="datei-migration.html"><i class="bi bi-files"></i>Datei-Migration</a>
+                <a class="btn" href="schulstruktur-sync.html"><i class="bi bi-diagram-2"></i>Alle Gruppen</a>
+            </div>
+        </div>
+        <div class="content">
+            <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
+                <span class="tm-perm"><i class="bi bi-cloud"></i><span id="ncHint">…</span></span>
+            </div>
+
+            <ol class="nc-callout nc-steps">
+                <li>Im Projektordner <code>scripts\nextcloud-teams-migrate\Start-Helfer.cmd</code> <strong>doppelklicken</strong> (Fenster offen lassen).</li>
+                <li>Hier <strong>Lokaler Helfer → Verbinden</strong> – dann Nextcloud-Struktur browsen und anhaken.</li>
+                <li>Ziel-Team suchen → Dry-Run → Übertragen.</li>
+            </ol>
+
+            <section class="tm-panel">
+                <div class="nc-grid">
+                    <div class="nc-side">
+                        <h3><i class="bi bi-folder2-open"></i> Quelle</h3>
+
+                        <div class="nc-mode-tabs" role="tablist" aria-label="Quellenart">
+                            <button type="button" class="nc-mode-tab is-active" data-mode="helper" id="ncModeHelper">1. Lokaler Helfer</button>
+                            <button type="button" class="nc-mode-tab" data-mode="zip" id="ncModeZip">2. ZIP-Datei</button>
+                            <button type="button" class="nc-mode-tab" data-mode="folder" id="ncModeFolder">3. Ordner vom PC</button>
+                        </div>
+
+                        <div id="ncPaneHelper" class="nc-mode-pane">
+                            <p class="muted" style="margin:0 0 8px;font-size:0.9em;">
+                                Login kommt aus <code>.env.local</code> auf deinem PC (nicht aus dem Browser).
+                                Helfer-Adresse meist <code>http://127.0.0.1:3791</code>.
+                            </p>
+                            <div class="nc-conn-row">
+                                <input id="ncHelperUrl" type="url" value="http://127.0.0.1:3791" style="flex:1;min-width:160px;">
+                                <button type="button" class="btn" id="ncBtnHelperConnect"><i class="bi bi-plug"></i>Verbinden</button>
+                            </div>
+                            <p id="ncHelperStatus" class="muted" style="margin:8px 0 0;font-size:0.88em;">Helfer noch nicht geprüft.</p>
+                        </div>
+                        <div id="ncPaneZip" class="nc-mode-pane" hidden>
+                            <p class="muted" style="margin:0 0 8px;font-size:0.9em;">ZIP aus Nextcloud-Download hier öffnen (Dateiauswahl ist in der App standardmäßig versteckt – bitte den Button nutzen).</p>
+                            <input type="file" id="ncZipFile" accept=".zip,application/zip">
+                            <div class="nc-conn-row">
+                                <label class="btn" for="ncZipFile"><i class="bi bi-file-earmark-zip"></i>ZIP-Datei auswählen…</label>
+                                <span id="ncZipName" class="muted" style="font-size:0.9em;">Noch keine Datei gewählt.</span>
+                            </div>
+                        </div>
+                        <div id="ncPaneFolder" class="nc-mode-pane" hidden>
+                            <p class="muted" style="margin:0 0 8px;font-size:0.9em;">Falls der Ordner schon auf dem PC liegt.</p>
+                            <input type="file" id="ncFolderInput" webkitdirectory multiple>
+                            <div class="nc-conn-row">
+                                <label class="btn" for="ncFolderInput"><i class="bi bi-folder2-open"></i>Ordner auswählen…</label>
+                                <span id="ncFolderName" class="muted" style="font-size:0.9em;">Noch kein Ordner gewählt.</span>
+                            </div>
+                        </div>
+
+                        <!-- WebDAV-Felder bleiben im LocalStorage-Kontext für den Helfer/.env, UI ausgeblendet -->
+                        <input id="ncUrl" type="hidden" value="https://www.dsrom-intranet.de">
+                        <input id="ncUser" type="hidden" value="">
+                        <input id="ncPass" type="hidden" value="">
+                        <input id="ncProxy" type="hidden" value="">
+
+                        <div class="nc-crumb" id="ncCrumb"></div>
+                        <div class="nc-actions" style="margin:0 0 8px;">
+                            <button type="button" class="btn btn-ghost" id="ncBtnSelectVisible"><i class="bi bi-check2-square"></i>Sichtbare auswählen</button>
+                            <button type="button" class="btn btn-ghost" id="ncBtnClearSel"><i class="bi bi-x-lg"></i>Auswahl leeren</button>
+                        </div>
+                        <div class="nc-browser">
+                            <table class="dash-hygiene-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:2.2em;"></th>
+                                        <th>Name</th>
+                                        <th>Art</th>
+                                        <th>Pfad</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ncSourceBody">
+                                    <tr><td colspan="4" class="muted">Helfer starten und verbinden – dann erscheint die Struktur.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:10px;font-size:0.9em;">
+                            <strong>Auswahl:</strong> <span id="ncSelCount" class="muted">0</span>
+                            <ul id="ncSelList" style="margin:6px 0 0;padding-left:1.2em;max-height:120px;overflow:auto;"></ul>
+                        </div>
+                    </div>
+
+                    <div class="nc-side">
+                        <h3><i class="bi bi-people"></i> Ziel-Team</h3>
+                        <div class="nc-conn-row" style="margin-bottom:8px;">
+                            <input type="search" id="ncDestQuery" placeholder="z. B. Physik …" autocomplete="off">
+                            <button type="button" class="btn" id="ncBtnSearchDest"><i class="bi bi-search"></i>Suchen</button>
+                        </div>
+                        <ul class="nc-hits" id="ncDestHits" hidden></ul>
+                        <p id="ncDestPicked" class="muted">Noch kein Ziel-Team gewählt.</p>
+
+                        <label for="ncDestRoot" style="display:block;margin:12px 0 4px;">Stamm-Ordner (ohne Kanal)</label>
+                        <input id="ncDestRoot" type="text" value="Import aus Nextcloud" style="width:100%;">
+
+                        <label style="display:flex;gap:8px;align-items:center;margin:14px 0 8px;">
+                            <input type="checkbox" id="ncMapChannels" checked>
+                            Ausgewählte nummerierte Ordner als <strong>Teams-Kanäle</strong>
+                        </label>
+                        <p class="muted" style="font-size:0.88em;margin:0 0 8px;">
+                            Nur die anhakten Ordner (z.&nbsp;B. <code>1. Fachkonferenz</code>) werden Kanäle.
+                            Deren Unterordner (<code>21_22</code> …) bleiben <strong>Ordner im Kanal</strong>, keine eigenen Kanäle.
+                        </p>
+                        <div class="nc-actions" style="margin:0 0 8px;">
+                            <button type="button" class="btn btn-ghost" id="ncBtnRefreshMaps"><i class="bi bi-arrow-repeat"></i>Vorschläge aktualisieren</button>
+                        </div>
+                        <div style="max-height:220px;overflow:auto;border:1px solid var(--input-border);border-radius:8px;">
+                            <table class="nc-map-table">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>Ordner</th>
+                                        <th>Kanalname</th>
+                                        <th>Nr.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ncMapBody">
+                                    <tr><td colspan="4" class="muted">Auswahl treffen, dann Vorschläge laden.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p id="ncPlanSummary" class="muted" style="margin:12px 0 0;">Noch kein Dry-Run.</p>
+                        <div class="nc-progress" aria-hidden="true"><span id="ncProgressBar"></span></div>
+                        <p id="ncProgressLabel" class="muted" style="font-size:0.88em;margin:4px 0 0;">—</p>
+                    </div>
+                </div>
+
+                <div class="nc-actions">
+                    <label class="muted" style="display:flex;gap:6px;align-items:center;">
+                        Test: nur so viele Dateien
+                        <input id="ncLimit" type="number" min="0" step="1" placeholder="leer = alle" style="width:5.5rem;">
+                    </label>
+                    <button type="button" class="btn" id="ncBtnDryRun"><i class="bi bi-list-check"></i>Dry-Run</button>
+                    <button type="button" class="btn btn-success" id="ncBtnMigrate"><i class="bi bi-cloud-upload"></i>Übertragen</button>
+                    <button type="button" class="btn btn-ghost" id="ncBtnAbort"><i class="bi bi-stop-circle"></i>Abbruch</button>
+                </div>
+                <details class="tm-tech" style="margin-top:12px;"><summary>Protokoll</summary><pre id="ncLog" class="tm-log" style="white-space:pre-wrap;"></pre></details>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script type="module" src="../src/tools/nextcloud-teams-migrate/nextcloud-teams-migrate.js"></script>
+</body>
+</html>

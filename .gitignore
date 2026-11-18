@@ -4,8 +4,15 @@ dist/
 backend/kursteams-api/local.settings.json
 backend/license-api/local.settings.json
 backend/election-api/local.settings.json
+backend/einsammler-api/local.settings.json
 ms365-config.local.js
 .ftp-credentials.local
+
+# Nextcloud → Teams Migration (lokale Secrets / Resume-State)
+scripts/nextcloud-teams-migrate/.env
+scripts/nextcloud-teams-migrate/.env.local
+scripts/nextcloud-teams-migrate/.state/
+scripts/nextcloud-teams-migrate/mapping.physik.json
 
 # Vertragsentwürfe / ausgefüllte BMB-Dokumente (nur lokal, nicht versionieren)
 docs/edtech-vertragsentwurf/
@@ -14,3 +21,6 @@ docs/edtech-vertragsentwurf/
 .DS_Store
 Thumbs.db
 
+
+backend/stammdaten-portal-api/local.settings.json
+backend/stammdaten-portal-api/.admin-key.local.txt

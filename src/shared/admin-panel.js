@@ -284,6 +284,11 @@ const ADMIN_TAB_META = {
         title: 'Schulen & Lizenzen',
         subtitle: 'Freischaltungen direkt in der Tabelle verwalten.'
     },
+    modules: {
+        eyebrow: 'Produkt',
+        title: 'Module & Pakete',
+        subtitle: 'Paket wählen und Werkzeuge zuordnen – Schulen schalten Pakete unter Lizenzen frei.'
+    },
     access: {
         eyebrow: 'Zugang',
         title: 'User-Zugänge',
@@ -303,14 +308,24 @@ const ADMIN_TAB_META = {
         eyebrow: 'Kommunikation',
         title: 'Neuigkeiten',
         subtitle: 'Release-Notes mit Editor und Screenshots – auch automatisch aus GitHub-Commits.'
+    },
+    feedback: {
+        eyebrow: 'Support',
+        title: 'Feedback',
+        subtitle: 'Inbox mit Screenshots – Status führen, optional per Mail antworten.'
     }
 };
 
 const ADMIN_TAB_STORAGE_KEY = 'ms365-admin-active-tab-v1';
 
-function setAdminTab(tabId) {
+/**
+ * @param {string} tabId
+ * @param {{ resetNested?: boolean }} [opts] resetNested: Nested-Hash (#licenses/school/…) auf Tab-Wurzel
+ */
+function setAdminTab(tabId, opts) {
     const id = ADMIN_TAB_META[tabId] ? tabId : 'licenses';
     const meta = ADMIN_TAB_META[id];
+    const resetNested = !!(opts && opts.resetNested);
 
     document.querySelectorAll('.admin-app__nav-btn[data-admin-tab]').forEach((btn) => {
         const selected = btn.getAttribute('data-admin-tab') === id;
@@ -337,8 +352,36 @@ function setAdminTab(tabId) {
         // ignore
     }
 
+    if (id === 'feedback') {
+        try {
+            if (
+                window.ms365AdminFeedback &&
+                typeof window.ms365AdminFeedback.onTabActivated === 'function'
+            ) {
+                window.ms365AdminFeedback.onTabActivated();
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     try {
-        if (location.hash.replace(/^#/, '') !== id) {
+        const cur = String(location.hash || '')
+            .replace(/^#/, '')
+            .trim()
+            .toLowerCase();
+        const root = cur.split('/')[0] || '';
+        const nested = cur.indexOf('/') >= 0;
+        if (root !== id) {
+            history.replaceState(null, '', '#' + id);
+        } else if (resetNested && nested) {
+            history.replaceState(null, '', '#' + id);
+            try {
+                window.dispatchEvent(new HashChangeEvent('hashchange'));
+            } catch {
+                window.dispatchEvent(new Event('hashchange'));
+            }
+        } else if (!cur) {
             history.replaceState(null, '', '#' + id);
         }
     } catch {
@@ -352,7 +395,11 @@ function tabFromLocation() {
             .replace(/^#/, '')
             .trim()
             .toLowerCase();
-        if (hash && ADMIN_TAB_META[hash]) return hash;
+        if (hash) {
+            const root = hash.split('/')[0];
+            if (root && ADMIN_TAB_META[root]) return root;
+            if (ADMIN_TAB_META[hash]) return hash;
+        }
         const q = new URLSearchParams(location.search).get('tab');
         if (q && ADMIN_TAB_META[q]) return q;
     } catch {
@@ -368,7 +415,7 @@ function initAdminTabs() {
     nav.addEventListener('click', (ev) => {
         const btn = ev.target && ev.target.closest ? ev.target.closest('.admin-app__nav-btn[data-admin-tab]') : null;
         if (!btn || !nav.contains(btn)) return;
-        setAdminTab(btn.getAttribute('data-admin-tab'));
+        setAdminTab(btn.getAttribute('data-admin-tab'), { resetNested: true });
     });
 
     nav.addEventListener('keydown', (ev) => {
@@ -384,7 +431,7 @@ function initAdminTabs() {
         if (next < 0) return;
         ev.preventDefault();
         buttons[next].focus();
-        setAdminTab(buttons[next].getAttribute('data-admin-tab'));
+        setAdminTab(buttons[next].getAttribute('data-admin-tab'), { resetNested: true });
     });
 
     window.addEventListener('hashchange', () => {

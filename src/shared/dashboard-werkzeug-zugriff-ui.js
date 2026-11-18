@@ -3,6 +3,8 @@
  */
 import { loadSchoolAudienceGroups } from './school-audience-groups.js';
 import { mountDashboardAudienceAdmin } from './dashboard-audience-admin-ui.js';
+import { mountDashboardPortalDefaultsAdmin } from './dashboard-portal-defaults-admin-ui.js';
+import { mountDashboardSchoolProfileSetup } from './dashboard-school-profile-setup-ui.js';
 import { clearDashboardPersonaCache } from './dashboard-persona-session.js';
 
 function escapeHtml(s) {
@@ -46,6 +48,8 @@ export function mountDashboardWerkzeugZugriffPage() {
     if (!root) return;
 
     root.innerHTML = `
+        <div data-ms365-dashboard-school-profile-mount></div>
+        <div data-ms365-dashboard-portal-defaults-mount></div>
         <section class="dash-access-groups tile" aria-labelledby="dashAudGroupsTitle">
             <div class="tile-head">
                 <h2 id="dashAudGroupsTitle">Standard-Gruppen (Stammdaten)</h2>
@@ -75,5 +79,7 @@ export function mountDashboardWerkzeugZugriffPage() {
         if (ev && ev.key === 'ms365-schooltool-data-v2') refresh();
     });
 
+    mountDashboardSchoolProfileSetup('[data-ms365-dashboard-school-profile-mount]');
+    mountDashboardPortalDefaultsAdmin('[data-ms365-dashboard-portal-defaults-mount]');
     mountDashboardAudienceAdmin('[data-ms365-dashboard-access-mount]');
 }

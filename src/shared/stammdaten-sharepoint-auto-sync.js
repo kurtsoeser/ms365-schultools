@@ -15,6 +15,7 @@ import {
     localFirstStatusMessage,
     localFirstShortLabel
 } from './stammdaten-local-first.js';
+import { bootstrapSchoolSiteFromLicense } from './tenant-school-site-bootstrap.js';
 import {
     DEFAULT_FOLDER,
     IT_LIBRARY_TITLE,
@@ -478,7 +479,7 @@ export async function runSessionPull(opts) {
             }
 
             if (!bundleApplied) {
-                applySharePointBackupLocally(payload, syncMetaFromRemote, {
+                await applySharePointBackupLocally(payload, syncMetaFromRemote, {
                     reload: options.reloadOnApply !== false
                 });
             }
@@ -579,7 +580,7 @@ async function resolvePushConflict(conflict) {
                 dirty: false,
                 pendingError: null
             };
-            applySharePointBackupLocally(payload, syncMeta, { reload: true });
+            await applySharePointBackupLocally(payload, syncMeta, { reload: true });
             toast('SharePoint-Stand übernommen.');
             return { applied: true, resolved: 'import' };
         }
@@ -784,12 +785,43 @@ function onVisibilityFlush() {
     }
 }
 
+function onLicenseChanged(ev) {
+    const detail = (ev && ev.detail) || {};
+    if (!detail.allowed) return;
+    const result = detail.result || null;
+    bootstrapSchoolSiteFromLicense(result)
+        .then(function (r) {
+            if (r && r.ok) {
+                toast('Stammdaten von der Schul-SharePoint geladen.', {
+                    kind: 'ok',
+                    title: 'Schul-Site'
+                });
+                setLive({
+                    phase: 'idle',
+                    message: 'Bootstrap von Schul-Site OK'
+                });
+            } else if (r && r.reason === 'it-library-not-ready' && r.url) {
+                setLive({
+                    phase: 'idle',
+                    message:
+                        'Site-Zeiger gesetzt. IT-Bibliothek (MS365-IT-Stammdaten) noch einrichten.'
+                });
+            }
+        })
+        .catch(function () {
+            /* still */
+        });
+}
+
 /**
  * Listener + einmaliger Session-Pull starten (idempotent).
  */
 export function start() {
     if (started) return getStatus();
     started = true;
+
+    // Immer: Lizenz → Site-Zeiger + Bootstrap-Pull bei leerem Browser
+    window.addEventListener('ms365-license-changed', onLicenseChanged);
 
     if (!isSpoNetworkSyncAllowed()) {
         setLive({
@@ -845,5 +877,6 @@ window.ms365StammdatenSpoAutoSync = {
     runSessionPull: runSessionPull,
     runPush: runPush,
     schedulePush: schedulePush,
-    flushPush: flushPush
+    flushPush: flushPush,
+    bootstrapSchoolSiteFromLicense: bootstrapSchoolSiteFromLicense
 };

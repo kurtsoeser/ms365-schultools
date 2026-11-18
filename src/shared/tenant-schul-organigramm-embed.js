@@ -1,6 +1,7 @@
 /**
  * Stammdaten: Schul-Organigramm als eingebetteter Tab (lazy mount).
  * Live-Refresh läuft im Mount (ms365-school-data-written / ms365-school-year-changed).
+ * Anzeigen = nur Panel wechseln – kein blindes Full-Refresh (sonst wirkt die UI träge).
  */
 import { mountSchulOrganigramm } from '../tools/schul-organigramm/schul-organigramm-ui.js';
 
@@ -10,11 +11,22 @@ const MOUNT_ID = 'tenantSchulOrganigrammApp';
 
 let api = null;
 
-function ensureMounted() {
+/**
+ * @param {{ refresh?: boolean }} [opts]
+ */
+function ensureMounted(opts) {
     const mount = document.getElementById(MOUNT_ID);
     if (!mount) return;
-    if (api && typeof api.refresh === 'function') {
-        api.refresh();
+    const forceRefresh = !!(opts && opts.refresh);
+    if (api) {
+        if (forceRefresh && typeof api.refresh === 'function') {
+            api.refresh();
+            return;
+        }
+        if (typeof api.resume === 'function') {
+            api.resume();
+            return;
+        }
         return;
     }
     try {
@@ -22,12 +34,13 @@ function ensureMounted() {
     } catch (err) {
         console.error('Schul-Organigramm (Stammdaten): Mount fehlgeschlagen', err);
         mount.innerHTML =
-            '<p class="muted" role="alert">Organigramm konnte nicht geladen werden. Bitte Seite neu laden oder <a href="tools/schul-organigramm.html">Vollbild-Ansicht</a> öffnen.</p>';
+            '<p class="muted" role="alert">Organigramm konnte nicht geladen werden. Bitte Seite neu laden.</p>';
     }
 }
 
 function afterShow() {
-    ensureMounted();
+    // Einmal mounten; wiederholte Tab-/Header-Wechsel nur soft fortsetzen.
+    ensureMounted({ refresh: false });
 }
 
 function isOrganigrammHash() {

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – sRDP Bestätigungsmail</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/power-automate/freistellung-setup.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-envelope-check"></i>sRDP Bestätigungsmail</span>
+            </div>
+            <p>
+                Power Automate: Bei neuer Matura-/sRDP-Anmeldung geht automatisch eine
+                <strong>Zusammenfassung</strong> aus dem freigegebenen Postfach an die Schüler:in
+                (wie in euren bestehenden Schul-Flows). App:
+                <a href="srdp-anmeldung.html">sRDP-Anmeldung</a> · Liste:
+                <a href="sharepoint-liste-srdp.html">einrichten</a>.
+            </p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-srdp-anmeldung" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot" style="margin:10px 0 4px;"></div>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="srdp-anmeldung.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-mortarboard"></i>Anmeldung</a>
+                <a class="btn" href="pa-erst-setup.html"><i class="bi bi-signpost-2"></i>Erst-Setup</a>
+                <a class="btn" href="https://make.powerautomate.com/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Power Automate</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-signpost-2" aria-hidden="true"></i>
+                    <div>
+                        <h3>Voraussetzungen</h3>
+                        <p>Environment &amp; Maker-Rechte · freigegebenes Postfach mit „Senden als“ für das Technik-Konto.</p>
+                    </div>
+                </div>
+                <ul style="margin:0;padding-left:1.2rem;line-height:1.55;font-size:0.92em;">
+                    <li>Liste <code>sRDP-Anmeldungen …</code> existiert (Setup-Wizard).</li>
+                    <li>Technik-Konto (z. B. <code>automate@schule.at</code>) darf Flows importieren.</li>
+                    <li>Absender z. B. <code>matura@</code> oder <code>verwaltung@</code> – freigegebenes Postfach.</li>
+                    <li>Empfänger = Autor:in des Listeneintrags (Schüler:in meldet sich selbst an).</li>
+                </ul>
+                <details style="margin-top:12px;">
+                    <summary>Erst-Setup einblenden</summary>
+                    <div id="paOnboardingHost" style="margin-top:12px;"></div>
+                </details>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                    <div>
+                        <h3>Einstellungen</h3>
+                        <p>Werte aus dem sRDP-Wizard werden vorbefüllt, wenn vorhanden.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="srdpMailSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="srdpMailSiteUrl" placeholder="https://schule.sharepoint.com/sites/Intranet" autocomplete="off">
+                </div>
+                <div class="tm-field">
+                    <label for="srdpMailListName">Listenname</label>
+                    <input type="text" id="srdpMailListName" placeholder="sRDP-Anmeldungen HAK 2026" autocomplete="off">
+                </div>
+                <div class="tm-field">
+                    <label for="srdpMailListId">Listen-ID (optional)</label>
+                    <input type="text" id="srdpMailListId" placeholder="wird beim Auflösen befüllt" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="srdpMailMailbox">Freigegebenes Postfach (Absender)</label>
+                    <input type="email" id="srdpMailMailbox" placeholder="matura@schule.at" autocomplete="off">
+                </div>
+                <div class="tm-field">
+                    <label for="srdpMailBcc">BCC Verwaltung (optional)</label>
+                    <input type="email" id="srdpMailBcc" placeholder="verwaltung@schule.at" autocomplete="off">
+                </div>
+                <div class="tm-field fr-flow-account-field">
+                    <label for="srdpMailFlowAccount">Technik-Konto (Import / Connection)</label>
+                    <div class="fr-setup-egp fr-setup-egp--tight">
+                        <input type="email" id="srdpMailFlowAccount" placeholder="automate@schule.at" autocomplete="off">
+                        <button type="button" class="btn btn-sm alt" id="srdpMailAccountUseMailbox"><i class="bi bi-arrow-down-up"></i>Wie Absender</button>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="srdpMailFlowName">Flow-Anzeigename</label>
+                    <input type="text" id="srdpMailFlowName" value="sRDP-Anmeldung - Bestätigungsmail" autocomplete="off">
+                </div>
+                <label class="checkbox-label" style="display:block;margin:8px 0 0;font-size:0.9em;">
+                    <input type="checkbox" id="srdpMailAsTechnik">
+                    Stattdessen als Technik-Konto senden (kein Shared-Mailbox-Action)
+                </label>
+                <div class="tm-actions" style="margin-top:14px;">
+                    <button type="button" class="btn" id="srdpMailBtnSave"><i class="bi bi-save"></i>Speichern</button>
+                    <button type="button" class="btn" id="srdpMailBtnResolve"><i class="bi bi-search"></i>Liste auflösen</button>
+                    <button type="button" class="btn btn-success" id="srdpMailBtnZip"><i class="bi bi-download"></i>Flow-Paket (ZIP)</button>
+                </div>
+                <details class="tm-tech" style="margin-top:14px;">
+                    <summary>Protokoll</summary>
+                    <div id="srdpMailLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+            </section>
+
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Nach dem Import</h3>
+                        <p>Kurzcheck in Power Automate.</p>
+                    </div>
+                </div>
+                <ol style="margin:0;padding-left:1.2rem;line-height:1.55;font-size:0.92em;">
+                    <li>Package (Legacy) importieren, Connections SharePoint + Outlook zuweisen.</li>
+                    <li>Flow einschalten.</li>
+                    <li>Testanmeldung in der <a href="srdp-anmeldung.html">App</a> absenden.</li>
+                    <li>Mail: Variante, Prüfplan, Betreuung, LFS/BKO/Wahlfach prüfen.</li>
+                </ol>
+                <label class="checkbox-label" style="display:block;margin-top:14px;">
+                    <input type="checkbox" id="srdpMailDone"> Flow in unserer Schule aktiv
+                </label>
+            </section>
+        </div>
+    </div>
+
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="../src/tools/power-automate/pa-school-onboarding.js"></script>
+    <script type="module" src="../src/tools/power-automate/srdp-mail-setup.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.ms365PaSchoolOnboarding && typeof window.ms365PaSchoolOnboarding.mount === 'function') {
+                window.ms365PaSchoolOnboarding.mount(document.getElementById('paOnboardingHost'));
+            }
+        });
+    </script>
+</body>
+</html>

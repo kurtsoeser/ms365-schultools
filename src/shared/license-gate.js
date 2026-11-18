@@ -71,6 +71,28 @@
             if (opts.metaHtml) {
                 meta.innerHTML = opts.metaHtml;
                 meta.hidden = false;
+                var copyBtn = document.getElementById('ms365LicenseGateCopyTenant');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', function () {
+                        var code = document.getElementById('ms365LicenseGateTenantId');
+                        var tid = code ? String(code.textContent || '').trim() : '';
+                        if (!tid) return;
+                        var done = function () {
+                            if (typeof window.ms365ToastOrAlert === 'function') {
+                                window.ms365ToastOrAlert('Tenant-ID kopiert');
+                            } else {
+                                window.alert('Tenant-ID kopiert');
+                            }
+                        };
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(tid).then(done).catch(function () {
+                                window.prompt('Tenant-ID kopieren:', tid);
+                            });
+                        } else {
+                            window.prompt('Tenant-ID kopieren:', tid);
+                        }
+                    });
+                }
             } else {
                 meta.innerHTML = '';
                 meta.hidden = true;
@@ -101,7 +123,16 @@
             );
         }
         if (result && result.tenantId) {
-            parts.push('<div><strong>Tenant-ID:</strong> <code>' + escapeHtml(result.tenantId) + '</code></div>');
+            parts.push(
+                '<div class="ms365-license-gate__tenant">' +
+                    '<strong>Tenant-ID:</strong> <code id="ms365LicenseGateTenantId">' +
+                    escapeHtml(result.tenantId) +
+                    '</code> ' +
+                    '<button type="button" class="btn alt ms365-license-gate__copy" id="ms365LicenseGateCopyTenant" title="Tenant-ID kopieren">' +
+                    '<i class="bi bi-clipboard"></i> Kopieren</button>' +
+                    '</div>' +
+                    '<div class="ms365-license-gate__hint">Bitte diese Tenant-ID an den Betreiber weitergeben, damit die Schule freigeschaltet werden kann.</div>'
+            );
         }
         if (lic.contactEmail) {
             parts.push(
@@ -147,12 +178,18 @@
     }
 
     function showDenied(result) {
+        var reason = result && result.reason ? String(result.reason) : '';
+        var deniedText =
+            (result && result.message) ||
+            'Dieser Mandant ist nicht für die MS365-Schultools freigeschaltet.';
+        if (reason === 'not_registered') {
+            deniedText =
+                'Dieser Mandant ist noch nicht freigeschaltet. Bitte die Tenant-ID unten kopieren und an den Betreiber senden – danach kann die Schule zugeordnet werden.';
+        }
         showOverlay({
             mode: 'denied',
             title: 'Kein Zugang',
-            text:
-                (result && result.message) ||
-                'Dieser Mandant ist nicht für die MS365-Schultools freigeschaltet.',
+            text: deniedText,
             metaHtml: metaFromResult(result),
             actions: [
                 {
@@ -219,12 +256,74 @@
         return Promise.reject(new Error('MSAL / License-API-Client nicht verfügbar.'));
     }
 
+    function showFeatureDenied(result, toolId) {
+        showOverlay({
+            mode: 'feature-denied',
+            title: 'Modul nicht freigeschaltet',
+            text:
+                'Dieses Werkzeug („' +
+                String(toolId || '') +
+                '“) ist für Ihre Schule derzeit nicht in der Lizenz enthalten. Bitte die Schul-IT bzw. den Betreiber kontaktieren.',
+            metaHtml: metaFromResult(result),
+            actions: [
+                {
+                    primary: true,
+                    html: '<i class="bi bi-house"></i> Zum Dashboard',
+                    onClick: function () {
+                        try {
+                            var p = String(location.pathname || '').replace(/\\/g, '/');
+                            var i = p.toLowerCase().indexOf('/tools/');
+                            location.href = i >= 0 ? p.slice(0, i) + '/index.html' : 'index.html';
+                        } catch (e) {
+                            location.href = 'index.html';
+                        }
+                    }
+                },
+                {
+                    html: '<i class="bi bi-arrow-clockwise"></i> Erneut prüfen',
+                    onClick: function () {
+                        core.clearCache();
+                        runCheck({ force: true });
+                    }
+                }
+            ]
+        });
+    }
+
+    function enforceToolFeature(result) {
+        var toolId = core.toolIdFromPathname(location.pathname);
+        if (!toolId) return true;
+        if (core.hasFeature(toolId, result)) return true;
+        showFeatureDenied(result || {}, toolId);
+        return false;
+    }
+
     function applyAllowed(result) {
+        if (!enforceToolFeature(result)) {
+            try {
+                window.dispatchEvent(
+                    new CustomEvent('ms365-license-changed', {
+                        detail: {
+                            allowed: true,
+                            featureAllowed: false,
+                            result: result || null
+                        }
+                    })
+                );
+            } catch (e) {
+                /* ignore */
+            }
+            return;
+        }
         hideOverlay();
         try {
             window.dispatchEvent(
                 new CustomEvent('ms365-license-changed', {
-                    detail: { allowed: true, result: result || null }
+                    detail: {
+                        allowed: true,
+                        featureAllowed: true,
+                        result: result || null
+                    }
                 })
             );
         } catch (e) {
@@ -237,7 +336,7 @@
         try {
             window.dispatchEvent(
                 new CustomEvent('ms365-license-changed', {
-                    detail: { allowed: false, result: result || null }
+                    detail: { allowed: false, featureAllowed: false, result: result || null }
                 })
             );
         } catch (e) {
@@ -336,6 +435,13 @@
     };
     window.ms365LicenseGateClear = function () {
         core.clearCache();
+    };
+    window.ms365LicenseHasFeature = function (featureId) {
+        return core.hasFeature(featureId);
+    };
+    window.ms365LicenseGetEntitlements = function () {
+        var cached = core.readCache();
+        return (cached && cached.entitlements) || null;
     };
 
     if (document.readyState === 'loading') {

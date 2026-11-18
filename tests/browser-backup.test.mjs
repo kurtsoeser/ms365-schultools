@@ -129,7 +129,7 @@ describe('browser-backup', () => {
         const payload = apiWithSchool.buildBackup(storeWithSchool, now);
         expect(apiWithSchool.isBackupPayload(payload)).toBe(true);
         expect(payload.kind).toBe('ms365-browser-backup-v1');
-        expect(payload.version).toBe(5);
+        expect(payload.version).toBe(7);
         expect(payload.exportedAt).toBe(now.toISOString());
         expect(payload.schoolName).toBe('BRG Muster');
         expect(payload.domain).toBe('brg-muster.at');
@@ -144,7 +144,9 @@ describe('browser-backup', () => {
             'ms365-gaeste-verwalten-active-tab-v1',
             'ms365-gast-zugaenge-snapshot-v1'
         ]);
-        expect(apiWithSchool.backupFilename(now, storeWithSchool)).toBe('ms365-browser-backup-2026-08-17-BRG_Muster.json');
+        expect(apiWithSchool.backupFilename(now, storeWithSchool)).toBe(
+            'ms365-browser-backup-2026-08-17_1500-BRG_Muster.json'
+        );
     });
 
     it('syncStorageBeforeBackup behält Verwaltungs-Zielgruppen in v2', () => {
@@ -252,20 +254,157 @@ describe('browser-backup', () => {
         expect(result.skipped).toContain('msal.token.keys.abc');
     });
 
-    it('erkennt Legacy-Schuldaten und lehnt unbekanntes JSON ab', () => {
+    it('erkennt Legacy-Schuldaten und lehnt unbekanntes JSON ab', async () => {
         expect(api.isLegacyAppDataPayload({ version: 3, core: {}, structure: {}, match: {} })).toBe(true);
         expect(api.isBackupPayload({ version: 3, core: {}, structure: {}, match: {} })).toBe(false);
-        expect(() => api.importPayload({ foo: 1 }, store)).toThrow(/Unbekanntes JSON-Format/);
+        await expect(api.importPayload({ foo: 1 }, store)).rejects.toThrow(/Unbekanntes JSON-Format/);
         expect(() => api.applyBackup({ kind: 'nope', localStorage: {} }, store)).toThrow(/Kein gültiges Browser-Backup/);
     });
 
-    it('importPayload spielt ein Backup auf den übergebenen Store', () => {
+    it('importPayload spielt ein Backup auf den übergebenen Store', async () => {
         const payload = api.buildBackup(store);
         const target = createMemoryStorage({ 'ms365-arge-state-v2': '{}' });
-        const imported = api.importPayload(payload, target);
+        const imported = await api.importPayload(payload, target);
         expect(imported.mode).toBe('backup');
         expect(target.getItem('ms365-arge-state-v2')).toBeNull();
         expect(target.getItem('ms365-dashboard-favorites-v1')).toContain('kursteams');
+    });
+
+    it('deckt Stammdaten, E-Mail-Muster und Schul-Apps in criticalCoverage ab', () => {
+        const demoStore = createMemoryStorage({
+            'ms365-schooltool-data-v2': JSON.stringify({
+                version: 4,
+                core: {
+                    schoolName: 'Demo',
+                    domain: 'demo.at',
+                    teachers: [{ name: 'A' }],
+                    subjects: [{ code: 'D' }],
+                    arges: [{ code: 'AG' }]
+                },
+                years: {
+                    current: '2025/26',
+                    byLabel: { '2025/26': { students: [{ name: 'S' }], classes: [{ name: '1A' }] } }
+                },
+                setup: {
+                    schoolProfile: {
+                        schoolCode: '302123',
+                        logoDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+                        logoFileName: 'logo.png',
+                        street: 'Schulweg 1',
+                        postalCode: '1010',
+                        city: 'Wien',
+                        country: 'Österreich',
+                        phone: '+43 1 234',
+                        email: 'office@demo.at',
+                        website: 'https://demo.at'
+                    },
+                    intranetSiteUrl: 'https://schule.sharepoint.com/sites/Intranet',
+                    intranetListTitles: { lehrer: 'Lehrer' }
+                }
+            }),
+            'ms365-tenant-school-email-pattern-v1': JSON.stringify({
+                patternId: 'vorname.nachname',
+                firstNameMode: 'all'
+            }),
+            'ms365-sa-site-url': 'https://schule.sharepoint.com/sites/Schularbeiten',
+            'ms365-sa-settings-v1': JSON.stringify({ foo: 1 }),
+            'ms365-pw-site-url': 'https://schule.sharepoint.com/sites/Projektwochen',
+            'ms365-intranet-list-links-v1': JSON.stringify({ lehrer: 'https://...' }),
+            'ms365-dashboard-tool-access-v1': JSON.stringify({ tools: {} }),
+            'ms365-einsammler-settings-v1': JSON.stringify({ siteUrl: 'https://schule.sharepoint.com/sites/Intranet' }),
+            'ms365-elternbrief-sp-settings-v1': JSON.stringify({ listTitle: 'Elternbriefe' }),
+            'ms365-schueler-stammdaten-portal-v1': JSON.stringify({ tenants: {} })
+        });
+        const demoApi = loadBackup(demoStore, sessionStore).ms365BrowserBackup;
+        const payload = demoApi.buildBackup(demoStore);
+        expect(payload.schooltoolSummary.schoolCode).toBe('302123');
+        expect(payload.schooltoolSummary.hasSchoolProfileLogo).toBe(true);
+        expect(payload.schooltoolSummary.schoolProfileCity).toBe('Wien');
+        expect(payload.schooltoolSummary.teacherCount).toBe(1);
+        expect(payload.schooltoolSummary.intranetListTitleCount).toBe(1);
+        expect(payload.criticalCoverage.readyForDemoTransfer).toBe(true);
+        expect(payload.criticalCoverage.missingIds).toEqual([]);
+        const apps = payload.criticalCoverage.schoolApps.filter((a) => a.present).map((a) => a.id);
+        expect(apps).toContain('schularbeiten');
+        expect(apps).toContain('projektwochen');
+        expect(apps).toContain('einsammler');
+        expect(apps).toContain('elternbrief');
+        expect(apps).toContain('stammdaten-portal');
+        expect(payload.indexedDB).toEqual({});
+        expect(Array.isArray(payload.includesIndexedDb)).toBe(true);
+        // Volles Schulprofil inkl. Logo muss im kanonischen v2-Block stecken.
+        const v2Export = payload.localStorage['ms365-schooltool-data-v2'];
+        expect(v2Export.setup.schoolProfile.logoDataUrl).toContain('data:image/png;base64,');
+        expect(v2Export.setup.schoolProfile.street).toBe('Schulweg 1');
+        expect(v2Export.setup.schoolProfile.email).toBe('office@demo.at');
+        const target = createMemoryStorage();
+        demoApi.applyBackup(payload, target);
+        expect(JSON.parse(target.getItem('ms365-tenant-school-email-pattern-v1')).firstNameMode).toBe('all');
+        expect(target.getItem('ms365-sa-site-url')).toContain('Schularbeiten');
+        expect(target.getItem('ms365-pw-site-url')).toContain('Projektwochen');
+        expect(target.getItem('ms365-einsammler-settings-v1')).toContain('Intranet');
+        expect(target.getItem('ms365-schueler-stammdaten-portal-v1')).toContain('tenants');
+        const restored = JSON.parse(target.getItem('ms365-schooltool-data-v2'));
+        expect(restored.setup.schoolProfile.logoDataUrl).toContain('data:image/png;base64,');
+        expect(restored.setup.schoolProfile.logoFileName).toBe('logo.png');
+        expect(restored.setup.schoolProfile.city).toBe('Wien');
+        expect(restored.setup.schoolProfile.website).toBe('https://demo.at');
+    });
+
+    it('nimmt alle Schul-App-Keys per Präfix mit und listet sie im Katalog', () => {
+        const schoolAppKeys = [
+            'ms365-einsammler-v1',
+            'ms365-elternbrief-settings-v1',
+            'ms365-krankmeldung-sp-settings-v1',
+            'ms365-kollegium-umfragen-v1',
+            'ms365-ausgaben-settings-v1',
+            'ms365-wahlfach-zuteilung-v1',
+            'ms365-schulsprecherwahl-v1',
+            'ms365-teams-antrag-settings-v1',
+            'ms365-diplomarbeiten-state-v1',
+            'ms365-raumplan-v1',
+            'ms365-aufgaben-sp-settings-v1',
+            'ms365-technik-meldungen-v1',
+            'ms365-termine-hub-settings-v1',
+            'ms365-kalender-postfaecher-v1',
+            'ms365-akt-ics-feed-v1',
+            'ms365-class-chats-mirror-v1'
+        ];
+        const init = { 'ms365-schooltool-data-v2': JSON.stringify({ version: 4, core: { domain: 't.at' } }) };
+        schoolAppKeys.forEach((k) => {
+            init[k] = JSON.stringify({ ok: k });
+        });
+        const fullStore = createMemoryStorage(init);
+        const fullApi = loadBackup(fullStore, sessionStore).ms365BrowserBackup;
+        const payload = fullApi.buildBackup(fullStore);
+        schoolAppKeys.forEach((k) => {
+            expect(payload.localStorage[k]).toEqual({ ok: k });
+        });
+        const catalogKeys = new Set();
+        fullApi.STORAGE_CATALOG.forEach((cat) => cat.keys.forEach((k) => catalogKeys.add(k)));
+        schoolAppKeys.forEach((k) => {
+            expect(catalogKeys.has(k)).toBe(true);
+        });
+        expect(fullApi.INDEXED_DB_CATALOG.map((e) => e.name)).toEqual(
+            expect.arrayContaining([
+                'ms365-einsammler-attachments',
+                'ms365-elternbrief-attachments',
+                'ms365-krankmeldung-attachments',
+                'ms365-kollegium-umfragen-attachments'
+            ])
+        );
+        const target = createMemoryStorage();
+        fullApi.applyBackup(payload, target);
+        schoolAppKeys.forEach((k) => {
+            expect(JSON.parse(target.getItem(k)).ok).toBe(k);
+        });
+    });
+
+    it('buildBackupAsync liefert indexedDB-Feld auch ohne IndexedDB-Runtime', async () => {
+        const payload = await api.buildBackupAsync(store);
+        expect(payload.version).toBe(7);
+        expect(payload.indexedDB).toEqual({});
+        expect(payload.indexedDbCount).toBe(0);
     });
 
     it('lässt SharePoint-Session-Pull-Marker nicht ins Backup importieren', () => {

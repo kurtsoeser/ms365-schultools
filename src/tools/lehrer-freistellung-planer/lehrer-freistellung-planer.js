@@ -14,7 +14,6 @@ import {
     prefillLehrerFormIdentity,
     loadDemoItems,
     saveDemoItems,
-    inferRoleHint,
     viewsForRole
 } from './lfr-state.js';
 import { validateAntrag, normalizeStatus, toIsoDateOnly } from './lfr-logic.js';
@@ -35,6 +34,11 @@ import {
 } from './lfr-ui.js';
 import { buildIcs, downloadIcs } from './lfr-export.js';
 import { syncLfrItemsToOutlookCalendar, loadCalendarTargetFromSetup } from './lfr-calendar-sync.js';
+import {
+    applyLfrRoleFromEntra,
+    isLfrDemoRoleUiEnabled,
+    readDemoRoleOverrideFromUrl
+} from './lfr-entra-role.js';
 
 const state = createInitialState();
 let root = null;
@@ -88,12 +92,17 @@ function syncAccount() {
     state.accountEmail = String(a.email || '').trim().toLowerCase();
     state.accountName = String(a.name || '').trim();
     state.stammdaten = loadStammdaten();
-    if (!state.demoRoleOverride) {
-        const hint = inferRoleHint(state);
-        if (hint === 'direktion' || hint === 'lehrer') {
-            state.role = hint;
-            persistRole(state.role);
-        }
+    prefillLehrerFormIdentity(state);
+}
+
+async function syncAccountAndRole() {
+    syncAccount();
+    await applyLfrRoleFromEntra(state, {
+        demoRoleOverride: state.demoRoleOverride,
+        preferredActiveRole: state.role
+    });
+    if (!viewsForRole(state.role).some((v) => v.id === state.view)) {
+        state.view = viewsForRole(state.role)[0]?.id || 'dashboard';
     }
     prefillLehrerFormIdentity(state);
 }
@@ -107,7 +116,7 @@ async function refreshData() {
     state.loading = true;
     state.error = '';
     paint();
-    syncAccount();
+    await syncAccountAndRole();
     try {
         if (!state.siteUrl) {
             state.items = loadDemoItems().length
@@ -250,9 +259,16 @@ function bindStatic() {
     });
     root.querySelectorAll('[data-lfr-role]').forEach((btn) => {
         btn.addEventListener('click', () => {
+            const demoUi = isLfrDemoRoleUiEnabled(
+                state.entraGroupsConfigured,
+                state.demoRoleOverride
+            );
+            if (!demoUi && !(state.planerRoles || []).includes(btn.getAttribute('data-lfr-role') || '')) {
+                return;
+            }
             const r = btn.getAttribute('data-lfr-role');
             state.role = r === 'direktion' ? 'direktion' : 'lehrer';
-            state.demoRoleOverride = true;
+            if (demoUi) state.demoRoleOverride = true;
             persistRole(state.role);
             if (!viewsForRole(state.role).some((v) => v.id === state.view)) {
                 state.view = viewsForRole(state.role)[0]?.id || 'dashboard';
@@ -427,14 +443,13 @@ function bindStatic() {
 function boot() {
     root = document.getElementById('lfrApp');
     if (!root) return;
+    state.demoRoleOverride = readDemoRoleOverrideFromUrl(false);
     state.role = resolveRole();
     state.form = emptyForm();
-    syncAccount();
     window.addEventListener('ms365-auth-state-changed', () => {
-        syncAccount();
-        paint();
+        void syncAccountAndRole().then(() => paint());
     });
-    refreshData();
+    void refreshData();
 }
 
 if (document.readyState === 'loading') {

@@ -3,10 +3,16 @@
  */
 import { normStr, normCode, normEmail } from '../../shared/utils/strings.js';
 import {
+    afgNeedsDisplayNameCleanup,
     buildAfgBulkCreateConfirmMessage,
+    buildAfgBulkMatchExistingConfirmMessage,
+    buildAfgBulkRenameConfirmMessage,
     buildAfgMailNickname,
     collectAfgCreateOwners,
-    formatAfgBulkCreatePreviewLines
+    displayNameForAfgCreate,
+    formatAfgBulkCreatePreviewLines,
+    pickAfgGroupByNickname,
+    stripAfgDisplayNamePrefix
 } from './arge-fachgruppen-bulk-logic.js';
 
 function gug() {
@@ -690,9 +696,9 @@ function applyCreateDefaults(forceNick) {
     const nn = document.getElementById('slgNewMailNick');
     const desc = document.getElementById('slgNewDescription');
     const hint = document.getElementById('slgNewMailNickHint');
-    const label = activeKind === 'arge' ? 'Arbeitsgruppe ' : 'Fach ';
     const suggested = deriveNick(activeKind, code);
-    if (dn) dn.value = label + (name || code || '');
+    const titleName = name || code || '';
+    if (dn) dn.value = titleName;
     if (nn && (forceNick || !createNickDirty)) {
         nn.value = suggested;
         createNickDirty = false;
@@ -707,8 +713,7 @@ function applyCreateDefaults(forceNick) {
     }
     if (desc) {
         desc.value =
-            label +
-            (name || code || '') +
+            titleName +
             (activeKind === 'arge' ? ' (MS365-Schul-Tools / ARGE)' : ' (MS365-Schul-Tools / Fachgruppe)');
     }
     const search = document.getElementById('slgGroupSearch');
@@ -923,21 +928,13 @@ function ownersForCatalogRow(row) {
 }
 
 function displayNameForCreate(row, kind) {
-    const code = normCode(row && row.code);
-    const name = normStr(row && row.name) || code;
-    const label = kind === 'arge' ? 'Arbeitsgruppe ' : 'Fach ';
-    return label + (name || code || '');
+    void kind;
+    return displayNameForAfgCreate(row);
 }
 
 function descriptionForCreate(row, kind) {
-    const code = normCode(row && row.code);
-    const name = normStr(row && row.name) || code;
-    const label = kind === 'arge' ? 'Arbeitsgruppe ' : 'Fach ';
-    return (
-        label +
-        (name || code || '') +
-        (kind === 'arge' ? ' (MS365-Schul-Tools / ARGE)' : ' (MS365-Schul-Tools / Fachgruppe)')
-    );
+    const title = displayNameForAfgCreate(row);
+    return title + (kind === 'arge' ? ' (MS365-Schul-Tools / ARGE)' : ' (MS365-Schul-Tools / Fachgruppe)');
 }
 
 function persistUnmatchFor(kind, code) {
@@ -1353,6 +1350,238 @@ async function runBulkCreateAndMatch() {
     }
 }
 
+async function runBulkMatchExisting() {
+    const items = collectSelectedUnmatched();
+    if (!items.length) {
+        toast('Bitte zuerst ungematchte ' + kindLabel(2) + ' ankreuzen (rote Badges).');
+        return;
+    }
+    const preview = formatAfgBulkCreatePreviewLines(items, 12);
+    if (
+        !(await dlgConfirm(
+            buildAfgBulkMatchExistingConfirmMessage({
+                kindLabel: kindLabel(items.length),
+                count: items.length,
+                previewLines: preview
+            }),
+            { title: 'Bestehende matchen', okText: 'Abgleichen' }
+        ))
+    ) {
+        return;
+    }
+    const btn = document.getElementById('afgBtnBulkMatchExisting');
+    if (btn) btn.disabled = true;
+    let ok = 0;
+    let miss = 0;
+    let fail = 0;
+    const lines = [];
+    setBulkStatus('Bestehende Gruppen werden gesucht …');
+    try {
+        const token = await gug().getGraphToken();
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const nick = it.nick || deriveNick(activeKind, it.code);
+            if (!nick) {
+                fail++;
+                lines.push('Fehler  ' + it.code + ': kein Alias ableitbar (Präfix/Kürzel prüfen).');
+                continue;
+            }
+            try {
+                const list = await gug().searchUnifiedGroups(token, nick);
+                const g = pickAfgGroupByNickname(list, nick);
+                if (!g || !g.id) {
+                    miss++;
+                    lines.push('kein Treffer  ' + it.code + '  →  ' + nick);
+                    continue;
+                }
+                persistMatchFor(activeKind, it.code, g, 'matched');
+                selectedKeys().delete(it.key);
+                ok++;
+                lines.push(
+                    'OK  ' +
+                        it.code +
+                        '  →  ' +
+                        (normStr(g.displayName) || nick) +
+                        ' (' +
+                        nick +
+                        ')'
+                );
+                if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                    window.ms365ActionLog.append({
+                        tool: 'afg',
+                        action: 'matchExisting',
+                        target: nick,
+                        summary: normStr(g.displayName) || nick,
+                        result: 'ok'
+                    });
+                }
+            } catch (e) {
+                fail++;
+                lines.push('Fehler  ' + it.code + ': ' + (e.message || e));
+            }
+            if ((i + 1) % 4 === 0) await sleep(200);
+        }
+        renderLeftList();
+        if (
+            items.some(function (it) {
+                return normCode(it.code) === normCode(activeCode);
+            })
+        ) {
+            refreshMatchUi();
+            if (getActiveGroupId()) {
+                try {
+                    live().invalidateMembership();
+                } catch {
+                    /* ignore */
+                }
+                try {
+                    live().loadGroup({ silent: true });
+                } catch {
+                    /* ignore */
+                }
+            }
+        }
+        setBulkStatus(lines.join('\n'));
+        toast('Abgleich: ' + ok + ' gematcht, ' + miss + ' ohne Treffer, ' + fail + ' Fehler.');
+    } catch (e) {
+        renderLeftList();
+        setBulkStatus('Abbruch: ' + (e.message || e));
+        toast('Abgleich: ' + (e.message || e));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function runBulkStripDisplayPrefix() {
+    const items = collectSelectedMatched();
+    if (!items.length) {
+        toast('Bitte zuerst gematchte ' + kindLabel(2) + ' ankreuzen.');
+        return;
+    }
+    const btn = document.getElementById('afgBtnBulkRename');
+    if (btn) btn.disabled = true;
+    let plan = [];
+    let skip = 0;
+    let fail = 0;
+    const lines = [];
+    setBulkStatus('Anzeigenamen werden geprüft …');
+    try {
+        const token = await gug().getGraphToken();
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            try {
+                const g = await gug().fetchGroup(token, it.id);
+                const rawDn = normStr(g && g.displayName);
+                const rawDesc = normStr(g && g.description);
+                const nextDn = stripAfgDisplayNamePrefix(rawDn);
+                const nextDesc = afgNeedsDisplayNameCleanup(rawDesc)
+                    ? stripAfgDisplayNamePrefix(rawDesc)
+                    : rawDesc;
+                if (!afgNeedsDisplayNameCleanup(rawDn) && nextDesc === rawDesc) {
+                    skip++;
+                    lines.push('bereits ok  ' + (rawDn || it.name));
+                    continue;
+                }
+                plan.push({
+                    key: it.key,
+                    id: it.id,
+                    from: rawDn,
+                    to: nextDn || rawDn,
+                    description: nextDesc !== rawDesc ? nextDesc : undefined,
+                    code: it.key
+                });
+            } catch (e) {
+                fail++;
+                lines.push('Fehler  ' + it.name + ': ' + (e.message || e));
+            }
+            if ((i + 1) % 6 === 0) await sleep(120);
+        }
+        if (!plan.length) {
+            setBulkStatus(lines.join('\n') || 'Keine Namen mit Präfix „Arbeitsgruppe “ / „Fach “ gefunden.');
+            toast(
+                fail
+                    ? 'Namen prüfen: nichts zu ändern, ' + fail + ' Fehler.'
+                    : 'Keine Anzeigenamen mit „Arbeitsgruppe “ / „Fach “ – nichts zu tun.'
+            );
+            return;
+        }
+        const preview =
+            plan
+                .slice(0, 12)
+                .map(function (p) {
+                    return p.from + '  →  ' + p.to;
+                })
+                .join('\n') + (plan.length > 12 ? '\n…' : '');
+        if (
+            !(await dlgConfirm(
+                buildAfgBulkRenameConfirmMessage({
+                    count: plan.length,
+                    previewLines: preview
+                }),
+                { title: 'Namen bereinigen', okText: 'Umbenennen' }
+            ))
+        ) {
+            setBulkStatus(lines.concat(['Abbruch vor dem Umbenennen.']).join('\n'));
+            return;
+        }
+        setBulkStatus('Anzeigenamen werden aktualisiert …');
+        let ok = 0;
+        for (let i = 0; i < plan.length; i++) {
+            const p = plan[i];
+            try {
+                if (typeof gug().patchGroupDisplayName !== 'function') {
+                    throw new Error('patchGroupDisplayName fehlt.');
+                }
+                await gug().patchGroupDisplayName(token, p.id, p.to, p.description);
+                const link = getCatalogLink(activeKind, p.code);
+                if (link) {
+                    persistMatchFor(activeKind, p.code, {
+                        id: p.id,
+                        displayName: p.to,
+                        mailNickname: link.mailNickname || ''
+                    }, link.mode || 'matched');
+                }
+                ok++;
+                lines.push('OK  ' + p.from + '  →  ' + p.to);
+                if (window.ms365ActionLog && typeof window.ms365ActionLog.append === 'function') {
+                    window.ms365ActionLog.append({
+                        tool: 'afg',
+                        action: 'stripDisplayPrefix',
+                        target: p.id,
+                        summary: p.from + ' → ' + p.to,
+                        result: 'ok'
+                    });
+                }
+            } catch (e) {
+                fail++;
+                lines.push('Fehler  ' + p.from + ': ' + (e.message || e));
+            }
+            if ((i + 1) % 4 === 0) await sleep(200);
+        }
+        renderLeftList();
+        if (plan.some(function (p) {
+            return normCode(p.code) === normCode(activeCode);
+        })) {
+            refreshMatchUi();
+            if (getActiveGroupId()) {
+                try {
+                    live().loadGroup({ silent: true });
+                } catch {
+                    /* ignore */
+                }
+            }
+        }
+        setBulkStatus(lines.join('\n'));
+        toast('Namen: ' + ok + ' geändert, ' + skip + ' bereits ok, ' + fail + ' Fehler.');
+    } catch (e) {
+        renderLeftList();
+        setBulkStatus('Abbruch: ' + (e.message || e));
+        toast('Namen bereinigen: ' + (e.message || e));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function runBulkDelete() {
     const items = collectSelectedMatched();
     if (!items.length) {
@@ -1603,6 +1832,12 @@ function wire() {
     onClick('afgBtnSelectNone', clearSelection);
     onClick('afgBtnBulkCreate', function () {
         runBulkCreateAndMatch().catch(function () {});
+    });
+    onClick('afgBtnBulkMatchExisting', function () {
+        runBulkMatchExisting().catch(function () {});
+    });
+    onClick('afgBtnBulkRename', function () {
+        runBulkStripDisplayPrefix().catch(function () {});
     });
     onClick('afgBtnBulkOwner', function () {
         if (!collectSelectedMatched().length) {

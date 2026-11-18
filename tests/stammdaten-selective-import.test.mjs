@@ -83,6 +83,44 @@ describe('stammdaten-selective-import', () => {
         expect(students.remote.samples.length).toBeGreaterThan(0);
     });
 
+    it('übernimmt Schulprofil inkl. Logo aus setup.schoolProfile', () => {
+        const localV2 = v2({
+            setup: {
+                matched: { schuelerGroupId: 'local-g' },
+                schoolProfile: { schoolCode: '111', logoDataUrl: '', city: 'Graz' }
+            }
+        });
+        const remoteV2 = v2({
+            core: {
+                schoolName: 'Remote Schule',
+                domain: 'remote.at',
+                verifiedEmailDomains: ['alt.remote.at'],
+                teachers: [{ name: 'Lehrer R' }],
+                subjects: [{ code: 'D' }]
+            },
+            setup: {
+                matched: { schuelerGroupId: 'remote-g' },
+                schoolProfile: {
+                    schoolCode: '999',
+                    logoDataUrl: 'data:image/png;base64,remoteLogo',
+                    logoFileName: 'remote.png',
+                    city: 'Linz',
+                    street: 'Hauptplatz 1'
+                }
+            }
+        });
+        const merged = mergeSchooltoolSelective(localV2, remoteV2, ['schoolMeta']);
+        expect(merged.core.schoolName).toBe('Remote Schule');
+        expect(merged.core.domain).toBe('remote.at');
+        expect(merged.core.verifiedEmailDomains).toEqual(['alt.remote.at']);
+        expect(merged.setup.schoolProfile.logoDataUrl).toContain('remoteLogo');
+        expect(merged.setup.schoolProfile.city).toBe('Linz');
+        expect(merged.setup.schoolProfile.schoolCode).toBe('999');
+        // matched Groups bleiben lokal, weil nur schoolMeta gewählt wurde
+        expect(merged.setup.matched.schuelerGroupId).toBe('local-g');
+        expect(merged.core.teachers[0].name).toBe('Lehrer L');
+    });
+
     it('merged nur Schüler und lässt Lehrer lokal', () => {
         const localV2 = v2({
             years: {

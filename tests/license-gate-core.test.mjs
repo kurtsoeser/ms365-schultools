@@ -8,7 +8,7 @@ import vm from 'node:vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dirname, '../src/shared/license-gate-core.js'), 'utf8');
 
-function loadCore(sessionStore) {
+function loadCore(sessionStore, opts) {
     const storage = {
         _data: { ...(sessionStore || {}) },
         getItem(k) {
@@ -24,12 +24,13 @@ function loadCore(sessionStore) {
     const sandbox = {
         window: {},
         sessionStorage: storage,
-        location: { pathname: '/index.html' }
+        location: { pathname: '/index.html' },
+        MS365_LICENSE_API: (opts && opts.licenseApi) || { baseUrl: '' }
     };
     sandbox.globalThis = sandbox;
     sandbox.window = sandbox;
     vm.runInNewContext(src, sandbox);
-    return { core: sandbox.ms365LicenseGateCore, storage };
+    return { core: sandbox.ms365LicenseGateCore, storage, sandbox };
 }
 
 describe('license-gate-core', () => {
@@ -40,6 +41,45 @@ describe('license-gate-core', () => {
         expect(core.isExemptPath('/welcome.html')).toBe(true);
         expect(core.isExemptPath('/index.html')).toBe(false);
         expect(core.isExemptPath('/tools/kursteams.html')).toBe(false);
+    });
+
+    it('mappt Tool-Pfade und Aliase', () => {
+        const { core } = loadCore();
+        expect(core.toolIdFromPathname('/tools/kursteams.html')).toBe('kursteams');
+        expect(core.toolIdFromPathname('/tools/jahrgangsgruppen.html')).toBe('jahrgang');
+        expect(core.toolIdFromPathname('/index.html')).toBe(null);
+    });
+
+    it('cached Entitlements und prüft Features', () => {
+        const { core, storage } = loadCore(null, {
+            licenseApi: { baseUrl: 'https://license.test/api/license' }
+        });
+        core.writeCache(
+            {
+                allowed: true,
+                reason: 'ok',
+                message: 'ok',
+                tenantId: 't1',
+                license: { schoolName: 'A' },
+                entitlements: {
+                    packages: ['core'],
+                    features: ['datenhygiene', 'verwaltung'],
+                    denied: ['kursteams']
+                }
+            },
+            'oid1|t1',
+            storage
+        );
+        const cached = core.readCache(storage);
+        expect(cached.allowed).toBe(true);
+        expect(cached.entitlements.features).toContain('datenhygiene');
+        expect(core.hasFeature('datenhygiene', cached)).toBe(true);
+        expect(core.hasFeature('kursteams', cached)).toBe(false);
+        expect(core.hasFeature('unknown-tool-xyz', cached)).toBe(true);
+        expect(core.cacheMatchesAccount(cached, 'oid1|t1')).toBe(true);
+        expect(core.cacheMatchesAccount(cached, 'oid2|t1')).toBe(false);
+        core.clearCache(storage);
+        expect(core.readCache(storage)).toBe(null);
     });
 
     it('cached und matched Account', () => {

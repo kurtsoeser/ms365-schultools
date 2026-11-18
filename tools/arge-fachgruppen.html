@@ -307,7 +307,7 @@
                                 </div>
                                 <span class="afg-bulk-count" id="afgBulkCount"><i class="bi bi-check2-square" aria-hidden="true"></i>0 Gruppen ausgewählt</span>
                             </div>
-                            <p class="afg-bulk-hint muted">Einträge links ankreuzen oder unten gesammelt auswählen. <strong>Anlegen &amp; matchen</strong> gilt für ungematchte Einträge (Alias = Präfix + Kürzel). <strong>Besitzer setzen</strong> und <strong>Löschen</strong> gelten nur für bereits gematchte Microsoft‑365‑Gruppen. Mitglieder pflegen Sie nach dem Match in den Tabs.</p>
+                            <p class="afg-bulk-hint muted">Einträge links ankreuzen oder unten gesammelt auswählen. <strong>Bestehende matchen</strong> verknüpft ungematchte Katalogeinträge mit schon vorhandenen M365‑Gruppen (exakter Alias). <strong>Anlegen &amp; matchen</strong> legt fehlende Gruppen neu an. <strong>Namen bereinigen</strong> entfernt „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen. <strong>Besitzer setzen</strong> und <strong>Löschen</strong> gelten nur für bereits gematchte Gruppen.</p>
                             <div class="afg-bulk-group" role="group" aria-label="Microsoft Teams">
                                 <div class="afg-bulk-group-label">Microsoft Teams</div>
                                 <label class="checkbox-label" style="margin:0;">
@@ -327,9 +327,17 @@
                             <div class="afg-bulk-group" role="group" aria-label="Aktionen">
                                 <div class="afg-bulk-group-label">Aktionen</div>
                                 <div class="afg-bulk-actions">
+                                    <button type="button" class="btn btn-success afg-bulk-tile" id="afgBtnBulkMatchExisting" title="Angekreuzte ungematchte Einträge mit bestehenden M365-Gruppen per Alias (mailNickname/SMTP) verknüpfen – ohne neu anzulegen">
+                                        <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                                        <span class="afg-bulk-tile-label">Bestehende matchen<small>Alias-Abgleich</small></span>
+                                    </button>
                                     <button type="button" class="btn btn-success afg-bulk-tile" id="afgBtnBulkCreate" title="Für angekreuzte ungematchte Einträge je eine Microsoft‑365‑Gruppe anlegen und direkt matchen (Vorschau: Kürzel → Alias)">
                                         <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
                                         <span class="afg-bulk-tile-label">Anlegen &amp; matchen<small>ungematchte Einträge</small></span>
+                                    </button>
+                                    <button type="button" class="btn afg-bulk-tile" id="afgBtnBulkRename" title="Bei angekreuzten gematchten Gruppen „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen entfernen">
+                                        <i class="bi bi-input-cursor-text" aria-hidden="true"></i>
+                                        <span class="afg-bulk-tile-label">Namen bereinigen<small>Arbeitsgruppe entfernen</small></span>
                                     </button>
                                     <button type="button" class="btn afg-bulk-tile" id="afgBtnBulkOwner" title="Eine Person als Besitzer zu den angekreuzten Gruppen hinzufügen">
                                         <i class="bi bi-person-plus" aria-hidden="true"></i>
@@ -378,8 +386,11 @@
                         Neue Einträge über <strong>Neu</strong> werden dort ebenfalls gespeichert.
                         Der <strong>Mail‑Alias‑Präfix</strong> steuert die Unique ID neuer M365‑Gruppen (Standard ARGE: <code>arge-</code>; leer = nur Kürzel, z. B. <code>fsgs_daf</code>).
                         Besitzer beim Anlegen: ARGE‑Leitung (falls E‑Mail gesetzt) sowie Direktion aus der Verwaltungsliste.
-                        <strong>Anlegen &amp; matchen</strong> (Sammelaktion) zeigt zuvor die Liste Kürzel → geplanter Alias.
+                        <strong>Bestehende matchen</strong> sucht je Alias (Präfix + Kürzel) eine vorhandene Unified‑Gruppe und verknüpft sie.
+                        <strong>Anlegen &amp; matchen</strong> legt fehlende Gruppen neu an (Vorschau Kürzel → Alias).
+                        <strong>Namen bereinigen</strong> entfernt das Präfix „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen gematchter Gruppen.
                         Besitzer setzen und Gruppen löschen gelten nur für angekreuzte, bereits gematchte Gruppen.
+                        Neue Gruppen bekommen den Katalognamen ohne „Arbeitsgruppe “-Präfix.
                     </p>
                     <p>
                         <strong>Microsoft Graph:</strong> Delegierte Berechtigungen z. B. <strong>Group.ReadWrite.All</strong>, <strong>User.Read.All</strong> – Administratorzustimmung.

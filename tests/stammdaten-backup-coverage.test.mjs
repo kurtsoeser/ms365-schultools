@@ -17,6 +17,18 @@ function v2Payload(overrides) {
         },
         overrides && overrides.core ? overrides.core : {}
     );
+    const setup = Object.assign(
+        {
+            matched: { schuelerGroupId: 'g1' },
+            schoolProfile: {
+                schoolCode: '302123',
+                logoDataUrl: 'data:image/png;base64,abc',
+                street: 'Schulweg 1',
+                city: 'Wien'
+            }
+        },
+        overrides && overrides.setup ? overrides.setup : {}
+    );
     return {
         kind: 'ms365-browser-backup-v1',
         exportedAt: '2026-01-01T12:00:00.000Z',
@@ -33,7 +45,7 @@ function v2Payload(overrides) {
                         }
                     }
                 },
-                setup: { matched: { schuelerGroupId: 'g1' } }
+                setup: setup
             },
             'ms365-dashboard-tool-access-v1': { tools: {} }
         }
@@ -45,10 +57,28 @@ describe('stammdaten-backup-coverage', () => {
         const s = summarizeSchooltoolFromBackup(v2Payload());
         expect(s.present).toBe(true);
         expect(s.schoolName).toBe('Demo');
+        expect(s.schoolCode).toBe('302123');
+        expect(s.hasSchoolProfileLogo).toBe(true);
         expect(s.teacherCount).toBe(1);
         expect(s.studentCount).toBe(1);
         expect(s.verwaltungAudienceGroupCount).toBe(1);
         expect(s.schuelerGroupLinked).toBe(true);
+    });
+
+    it('erkennt Schullogo aus setup.schoolProfile (nicht core)', () => {
+        const withLogo = v2Payload();
+        const withoutLogo = v2Payload({
+            setup: {
+                matched: { schuelerGroupId: 'g1' },
+                schoolProfile: { schoolCode: '302123', logoDataUrl: '' }
+            }
+        });
+        const rows = compareSchooltoolSummaries(withLogo, withoutLogo);
+        const logoRow = rows.find((r) => r.id === 'logo');
+        expect(logoRow).toBeTruthy();
+        expect(logoRow.local).toBe('ja');
+        expect(logoRow.remote).toBe('nein');
+        expect(logoRow.match).toBe(false);
     });
 
     it('erkennt Abweichungen in der Stichprobe', () => {

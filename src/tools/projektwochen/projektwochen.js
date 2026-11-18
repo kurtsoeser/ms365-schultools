@@ -24,7 +24,19 @@ import {
     deleteAngebotItem,
     updateAktionItem
 } from './projektwochen-graph.js';
-import { validateAngebot, weekdayLabelDeFromIso } from './projektwochen-logic.js';
+import {
+    validateAngebot,
+    weekdayLabelDeFromIso,
+    resolvePwOwnership,
+    assertPwOwnership,
+    isPwAccessDeniedError,
+    friendlyPwSpoError
+} from './projektwochen-logic.js';
+import {
+    isPwLocalOnlyItem,
+    mergePwSpoSyncMeta,
+    shouldSkipPwSpoPush
+} from './projektwochen-sync.js';
 import { renderApp, readFormFromDom, readFiltersFromDom } from './projektwochen-ui.js';
 import { buildLocalDemoState, getDemoSeedPackage, DEMO_SITE_DEFAULT } from './projektwochen-demo-data.js';
 import {
@@ -42,6 +54,10 @@ import {
     loadBookingsAttendees
 } from './projektwochen-bookings.js';
 import {
+    friendlyBookingsError,
+    summarizePwSyncBatch
+} from './projektwochen-bookings-logic.js';
+import {
     downloadAttendeesCsv,
     downloadAngeboteCsv,
     buildAngeboteIcs,
@@ -51,6 +67,26 @@ import {
     openPrintWindow
 } from './projektwochen-export.js';
 import { newEntityId } from './projektwochen-schema.js';
+import {
+    applyPwRoleFromEntra,
+    isPwDemoRoleUiEnabled,
+    readDemoRoleOverrideFromUrl
+} from './projektwochen-entra-role.js';
+import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import {
+    toolSiteUrlFromLicenseResult,
+    applyToolSiteUrlLocally,
+    bootstrapSchoolSiteFromLicense
+} from '../../shared/tenant-school-site-bootstrap.js';
+
+const STAMM_READ_SCOPES = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/Sites.Read.All'
+];
+const STAMM_RW_SCOPES = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/Sites.ReadWrite.All'
+];
 
 const state = createInitialState();
 let root = null;
@@ -84,9 +120,15 @@ function bindStatic() {
 
     root.querySelectorAll('[data-pw-role]').forEach((btn) => {
         btn.addEventListener('click', () => {
+            const demoUi = isPwDemoRoleUiEnabled(
+                state.entraGroupsConfigured,
+                state.demoRoleOverride
+            );
             const raw = btn.getAttribute('data-pw-role') || 'lehrer';
+            if (!demoUi && !(state.planerRoles || []).includes(raw)) return;
             const role = raw === 'admin' ? 'admin' : raw === 'schueler' ? 'schueler' : 'lehrer';
             state.role = role;
+            if (demoUi) state.demoRoleOverride = true;
             persistRole(role);
             state.roleHint = '';
             const allowed = viewsForRole(role).map((v) => v.id);
@@ -493,6 +535,15 @@ function applyLocalDemo(pack) {
     state.bootstrapped = true;
     state.ctx = null;
     state.error = '';
+    state.spoSync = mergePwSpoSyncMeta(state.spoSync, {
+        ok: true,
+        source: 'demo',
+        connected: false,
+        error: '',
+        siteUrl: String(state.siteUrl || ''),
+        lists: '',
+        lastPullAt: ''
+    });
     if (state.aktion && state.aktion.startdatum) {
         const d = new Date(state.aktion.startdatum + 'T12:00:00');
         if (!Number.isNaN(d.getTime())) {
@@ -502,6 +553,39 @@ function applyLocalDemo(pack) {
     }
     state.form = emptyForm(prefillTeacher());
     paint();
+}
+
+function markPwPullLive(ctx) {
+    state.spoSync = mergePwSpoSyncMeta(state.spoSync, {
+        ok: true,
+        source: 'live',
+        connected: true,
+        error: '',
+        siteUrl: String((ctx && ctx.webUrl) || state.siteUrl || ''),
+        lists: 'PW-Aktionen, PW-Angebote',
+        lastPullAt: new Date().toISOString()
+    });
+}
+
+function markPwPushLive() {
+    state.spoSync = mergePwSpoSyncMeta(state.spoSync, {
+        ok: true,
+        source: 'live',
+        connected: true,
+        error: '',
+        lastPushAt: new Date().toISOString()
+    });
+}
+
+function markPwSyncSoftFail(msg, opts) {
+    const keepDemo = !!(opts && opts.keepDemo);
+    state.spoSync = mergePwSpoSyncMeta(state.spoSync, {
+        ok: false,
+        source: keepDemo || state.localDemoOnly ? 'demo' : 'local',
+        connected: false,
+        error: friendlyPwSpoError(msg),
+        siteUrl: String(state.siteUrl || '')
+    });
 }
 
 async function runListsCreate() {
@@ -603,9 +687,128 @@ async function runDemoImport(pack) {
     } catch (e) {
         state.localDemoOnly = true;
         state.loading = false;
-        state.error = String((e && e.message) || e);
+        // Roh-403 nicht in Banner – Demo bleibt nutzbar
+        state.error = '';
         paint();
-        toast('SharePoint-Schreiben fehlgeschlagen – lokal bleibt Demo aktiv: ' + state.error);
+        toast('Demo bleibt lokal (SharePoint-Schreiben nicht möglich). Für die Vorführung reicht das.');
+        console.warn('[pw-demo] SharePoint seed failed', e);
+    }
+}
+
+/**
+ * @param {{ getGraphToken: Function }} api
+ */
+async function acquireStammdatenReadToken(api) {
+    if (typeof window.ms365AuthAcquireTokenSilent === 'function') {
+        try {
+            return await window.ms365AuthAcquireTokenSilent(STAMM_READ_SCOPES);
+        } catch {
+            /* weiter */
+        }
+        try {
+            return await window.ms365AuthAcquireTokenSilent(STAMM_RW_SCOPES);
+        } catch {
+            /* weiter */
+        }
+    }
+    try {
+        return await api.getGraphToken(STAMM_READ_SCOPES);
+    } catch {
+        return await api.getGraphToken(STAMM_RW_SCOPES);
+    }
+}
+
+/**
+ * Lehrer/Klassen live hydratisieren; bei Fehler lokalen Stand behalten.
+ * @param {string} siteId
+ */
+async function hydrateLiveStammdaten(siteId) {
+    const local = loadStammdaten();
+    if (state.localDemoOnly || !siteId) {
+        state.stammdaten = state.stammdaten && (state.stammdaten.teachers || []).length ? state.stammdaten : local;
+        state.stammdatenLive = {
+            ok: false,
+            error: siteId ? '' : 'Keine Site-URL',
+            classCount: (state.stammdaten.classes || []).length,
+            teacherCount: (state.stammdaten.teachers || []).length,
+            missing: [],
+            source: 'local',
+            siteUrl: String(state.siteUrl || '')
+        };
+        return;
+    }
+    const api = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
+    if (!api || typeof api.getGraphToken !== 'function') {
+        state.stammdaten = local;
+        state.stammdatenLive = {
+            ok: false,
+            error: '',
+            classCount: (local.classes || []).length,
+            teacherCount: (local.teachers || []).length,
+            missing: [],
+            source: 'local',
+            siteUrl: String(state.siteUrl || '')
+        };
+        return;
+    }
+    try {
+        const tok = await acquireStammdatenReadToken(api);
+        const result = await hydrateStammdatenFromLiveSite({
+            token: tok,
+            siteId: String(siteId),
+            siteWebUrl: String(state.siteUrl || '').trim(),
+            graph: api,
+            local
+        });
+        const liveClasses = (result.live && result.live.classes) || [];
+        const liveTeachers = (result.live && result.live.teachers) || [];
+        const missing = (result.live && result.live.missing) || [];
+        const usedLive = !!(liveClasses.length || liveTeachers.length);
+        // Nie leeren Stand übernehmen, wenn lokal schon Daten da waren
+        if (
+            (result.stammdaten &&
+                ((result.stammdaten.classes || []).length || (result.stammdaten.teachers || []).length)) ||
+            (local.classes || []).length ||
+            (local.teachers || []).length
+        ) {
+            state.stammdaten = result.stammdaten || local;
+            if (!(state.stammdaten.classes || []).length && (local.classes || []).length) {
+                state.stammdaten = { ...state.stammdaten, classes: local.classes };
+            }
+            if (!(state.stammdaten.teachers || []).length && (local.teachers || []).length) {
+                state.stammdaten = { ...state.stammdaten, teachers: local.teachers };
+            }
+        } else {
+            state.stammdaten = local;
+        }
+        const liveSource = (result.live && result.live.source) || '';
+        let err = '';
+        if (!usedLive && result.error) err = friendlyPwSpoError(result.error);
+        state.stammdatenLive = {
+            ok: usedLive,
+            error: err,
+            classCount: (state.stammdaten.classes || []).length,
+            teacherCount: (state.stammdaten.teachers || []).length,
+            missing,
+            source: usedLive
+                ? liveSource === 'spo-rest'
+                    ? 'sharepoint-spo'
+                    : 'sharepoint'
+                : 'local-fallback',
+            siteUrl: String(state.siteUrl || '')
+        };
+    } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        state.stammdaten = local;
+        state.stammdatenLive = {
+            ok: (local.classes || []).length > 0,
+            error: friendlyPwSpoError(msg),
+            classCount: (local.classes || []).length,
+            teacherCount: (local.teachers || []).length,
+            missing: [],
+            source: 'local-fallback',
+            siteUrl: String(state.siteUrl || '')
+        };
     }
 }
 
@@ -621,40 +824,142 @@ async function syncAccount() {
     } catch {
         /* ignore */
     }
-    state.stammdaten = loadStammdaten();
+    if (!state.stammdaten || (!(state.stammdaten.teachers || []).length && !(state.stammdaten.classes || []).length)) {
+        state.stammdaten = loadStammdaten();
+    }
     state.teacherMatch = matchTeacherByEmail(state.accountEmail, state.stammdaten.teachers);
-    if (state.role === 'lehrer' && !state.teacherMatch && state.bootstrapped && !state.localDemoOnly) {
-        /* soft hint only */
+    await applyPwRoleFromEntra(state, {
+        demoRoleOverride: state.demoRoleOverride,
+        preferredActiveRole: state.role
+    });
+    const allowed = viewsForRole(state.role).map((v) => v.id);
+    if (!allowed.includes(state.view)) state.view = 'dashboard';
+}
+
+/**
+ * Lehrer-Browser oft ohne lokale IT-Einrichtung: Site-URL aus Lizenz.
+ * @returns {Promise<string>}
+ */
+async function ensurePwSiteFromLicense() {
+    const local = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
+    if (local) {
+        state.siteUrl = local;
+        return local;
+    }
+    try {
+        const api = window.ms365LicenseApi;
+        if (!api || typeof api.fetchLicenseMe !== 'function') return '';
+        let token = '';
+        if (typeof api.acquireLicenseToken === 'function') {
+            token = await api.acquireLicenseToken();
+        } else if (typeof window.ms365AuthAcquireIdToken === 'function') {
+            token = await window.ms365AuthAcquireIdToken();
+        }
+        if (!token) return '';
+        const result = await api.fetchLicenseMe(token);
+        if (!result || result.allowed !== true) return '';
+        const url = toolSiteUrlFromLicenseResult(result);
+        if (!url) {
+            state.roleHint =
+                'Keine Schul-Site in der Lizenz. IT: unter Admin → Schule die SharePoint-URL setzen.';
+            return '';
+        }
+        applyToolSiteUrlLocally(url);
+        try {
+            await bootstrapSchoolSiteFromLicense(result, { force: false });
+        } catch {
+            /* optional */
+        }
+        state.siteUrl = url;
+        persistSiteUrl(url);
+        return url;
+    } catch {
+        return '';
     }
 }
 
+/** @returns {Promise<string>} */
+async function ensurePwSiteUrl() {
+    let url = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
+    if (url) {
+        state.siteUrl = url;
+        return url;
+    }
+    url = await ensurePwSiteFromLicense();
+    if (url) return url;
+    url = loadSavedSiteUrl();
+    if (url) {
+        state.siteUrl = url;
+        return url;
+    }
+    return '';
+}
+
 async function refreshData() {
+    const hadLocalDemo = !!(state.localDemoOnly && (state.items || []).length);
+    const keepItems = hadLocalDemo ? state.items.slice() : null;
+    const keepAktionen = hadLocalDemo ? (state.aktionen || []).slice() : null;
+    const keepAktion = hadLocalDemo ? state.aktion : null;
+
     state.loading = true;
     state.error = '';
     paint();
-    await syncAccount();
-    const ctx = await resolvePwContext(state.siteUrl);
-    state.ctx = ctx;
-    const data = await loadAllPwData(ctx);
-    state.aktionen = data.aktionen;
-    state.aktion = pickActiveAktion(data.aktionen, data.angebote);
-    state.items = data.angebote;
-    state.localDemoOnly = false;
-    state.bootstrapped = true;
-    state.loading = false;
-    if (state.aktion && state.aktion.startdatum) {
-        const d = new Date(state.aktion.startdatum + 'T12:00:00');
-        if (!Number.isNaN(d.getTime())) {
-            state.calYear = d.getFullYear();
-            state.calMonth = d.getMonth();
+    try {
+        await syncAccount();
+        const siteUrl = await ensurePwSiteUrl();
+        if (!siteUrl) {
+            throw new Error('Keine SharePoint-Website hinterlegt.');
         }
+        state.siteUrl = siteUrl;
+        const ctx = await resolvePwContext(siteUrl);
+        state.ctx = ctx;
+        await hydrateLiveStammdaten(ctx.siteId);
+        state.teacherMatch = matchTeacherByEmail(state.accountEmail, state.stammdaten.teachers);
+        const data = await loadAllPwData(ctx);
+        state.aktionen = data.aktionen;
+        state.aktion = pickActiveAktion(data.aktionen, data.angebote);
+        state.items = data.angebote;
+        state.localDemoOnly = false;
+        state.bootstrapped = true;
+        state.loading = false;
+        markPwPullLive(ctx);
+        if (state.aktion && state.aktion.startdatum) {
+            const d = new Date(state.aktion.startdatum + 'T12:00:00');
+            if (!Number.isNaN(d.getTime())) {
+                state.calYear = d.getFullYear();
+                state.calMonth = d.getMonth();
+            }
+        }
+        if (!state.aktion) {
+            state.roleHint = 'Keine PW-Aktion gefunden – bitte System/Setup prüfen.';
+        }
+        state.form = emptyForm(prefillTeacher());
+        paint();
+        toast('Projektwochen geladen (' + state.items.length + ' Angebote).');
+    } catch (e) {
+        state.loading = false;
+        const msg = e && e.message ? e.message : String(e);
+        if (hadLocalDemo && keepItems) {
+            state.items = keepItems;
+            state.aktionen = keepAktionen || [];
+            state.aktion = keepAktion;
+            state.localDemoOnly = true;
+            state.bootstrapped = true;
+            state.error = '';
+            markPwSyncSoftFail(msg, { keepDemo: true });
+            console.warn('[pw] refresh skipped – local demo kept', e);
+            toast('SharePoint nicht erreichbar – Demo bleibt lokal.');
+        } else if (isPwAccessDeniedError(msg)) {
+            state.error = '';
+            markPwSyncSoftFail(msg, { keepDemo: !!state.localDemoOnly });
+            toast(friendlyPwSpoError(msg));
+            console.warn('[pw] soft 403', e);
+        } else {
+            markPwSyncSoftFail(msg, { keepDemo: !!state.localDemoOnly });
+            state.error = friendlyPwSpoError(msg);
+        }
+        paint();
     }
-    if (!state.aktion) {
-        state.roleHint = 'Keine PW-Aktion gefunden – bitte Setup/Seed prüfen.';
-    }
-    state.form = emptyForm(prefillTeacher());
-    paint();
-    toast('Projektwochen geladen (' + state.items.length + ' Angebote).');
 }
 
 async function saveForm() {
@@ -678,11 +983,27 @@ async function saveForm() {
         return;
     }
 
+    const ownership = resolvePwOwnership(
+        {
+            ...form,
+            beantragtVon: state.accountEmail || form.lehrerEmail || ''
+        },
+        {
+            accountEmail: state.accountEmail,
+            teachers: (state.stammdaten && state.stammdaten.teachers) || []
+        }
+    );
+    try {
+        assertPwOwnership(ownership);
+    } catch (e) {
+        toast(e && e.message ? e.message : String(e));
+        return;
+    }
     const payload = {
         ...form,
+        ...ownership,
         angebotId: form.angebotId || newEntityId('ang'),
         aktionId: (state.aktion && state.aktion.aktionId) || '',
-        beantragtVon: state.accountEmail || form.lehrerEmail || '',
         buchungAb: form.buchungAb || (state.aktion && state.aktion.buchungAbDefault) || ''
     };
     const existingEdit = state.editingItemId
@@ -695,7 +1016,7 @@ async function saveForm() {
     }
     const stayDetail = state.view === 'detail';
 
-    if (state.localDemoOnly || !state.ctx) {
+    if (shouldSkipPwSpoPush(state)) {
         if (state.editingItemId) {
             state.items = state.items.map((it) =>
                 it.itemId === state.editingItemId ? { ...it, ...payload, itemId: state.editingItemId } : it
@@ -719,7 +1040,8 @@ async function saveForm() {
         return;
     }
 
-    if (state.editingItemId) {
+    // local-* nie per PATCH – bei Context als Create nach SPO promoten
+    if (state.editingItemId && !isPwLocalOnlyItem(state.editingItemId)) {
         const existing = state.items.find((i) => i.itemId === state.editingItemId);
         await updateAngebotItem(state.ctx, state.editingItemId, {
             ...existing,
@@ -732,10 +1054,16 @@ async function saveForm() {
     } else {
         await createAngebotItem(state.ctx, payload);
     }
+    markPwPushLive();
     const keepId = state.editingItemId || state.detailId;
+    const keepAngebotId = payload.angebotId;
     await refreshData();
-    if (stayDetail && keepId) {
-        const again = state.items.find((a) => a.itemId === keepId || a.angebotId === keepId);
+    if (stayDetail && (keepId || keepAngebotId)) {
+        const again = state.items.find(
+            (a) =>
+                (keepId && !isPwLocalOnlyItem(keepId) && a.itemId === keepId) ||
+                (keepAngebotId && a.angebotId === keepAngebotId)
+        );
         state.view = 'detail';
         state.detailId = again ? again.itemId : keepId;
         if (again && canEditAngebot(again, scopeFromState(state))) {
@@ -758,14 +1086,15 @@ async function deleteAngebot(itemId) {
         toast('Löschen nicht erlaubt.');
         return;
     }
-    if (state.localDemoOnly || !state.ctx) {
+    if (shouldSkipPwSpoPush(state) || isPwLocalOnlyItem(itemId)) {
         state.items = state.items.filter((a) => a.itemId !== itemId);
         if (state.view === 'detail') closeDetail();
         else paint();
-        toast('Gelöscht (Demo).');
+        toast(shouldSkipPwSpoPush(state) ? 'Gelöscht (Demo).' : 'Lokal gelöscht.');
         return;
     }
     await deleteAngebotItem(state.ctx, itemId);
+    markPwPushLive();
     await refreshData();
     if (state.view === 'detail') closeDetail();
     else paint();
@@ -784,7 +1113,7 @@ async function decide(itemId, status, reason) {
         freigegebenAm: status === 'freigegeben' ? new Date().toISOString() : item.freigegebenAm,
         buchungAb: item.buchungAb || (state.aktion && state.aktion.buchungAbDefault) || ''
     };
-    if (state.localDemoOnly || !state.ctx) {
+    if (shouldSkipPwSpoPush(state) || isPwLocalOnlyItem(itemId)) {
         state.items = state.items.map((a) => (a.itemId === itemId ? patch : a));
         if (stayDetail) {
             state.detailId = itemId;
@@ -800,6 +1129,7 @@ async function decide(itemId, status, reason) {
         return;
     }
     await updateAngebotItem(state.ctx, itemId, patch);
+    markPwPushLive();
     await refreshData();
     if (stayDetail) {
         const again = state.items.find((a) => a.itemId === itemId);
@@ -820,13 +1150,14 @@ async function saveBuchungAb(itemId, buchungAb) {
     const item = state.items.find((a) => a.itemId === itemId);
     if (!item) return;
     const patch = { ...item, buchungAb };
-    if (state.localDemoOnly || !state.ctx) {
+    if (shouldSkipPwSpoPush(state) || isPwLocalOnlyItem(itemId)) {
         state.items = state.items.map((a) => (a.itemId === itemId ? patch : a));
         paint();
         toast('Buchungsstart gespeichert (Demo).');
         return;
     }
     await updateAngebotItem(state.ctx, itemId, patch);
+    markPwPushLive();
     await refreshData();
     toast('Buchungsstart gespeichert.');
 }
@@ -836,7 +1167,7 @@ async function saveAktionDefault() {
     const el = document.getElementById('pwAktionBuchungDefault');
     const buchungAbDefault = el ? String(el.value || '').trim() : '';
     const patch = { ...state.aktion, buchungAbDefault };
-    if (state.localDemoOnly || !state.ctx) {
+    if (shouldSkipPwSpoPush(state) || isPwLocalOnlyItem(state.aktion.itemId)) {
         state.aktion = patch;
         state.aktionen = state.aktionen.map((a) => (a.itemId === patch.itemId ? patch : a));
         paint();
@@ -844,6 +1175,7 @@ async function saveAktionDefault() {
         return;
     }
     await updateAktionItem(state.ctx, state.aktion.itemId, patch);
+    markPwPushLive();
     await refreshData();
     toast('Aktion gespeichert.');
 }
@@ -937,12 +1269,16 @@ async function runSyncAngebote(itemIds) {
 
         let ok = 0;
         let fail = 0;
+        let skipped = 0;
+        /** @type {string[]} */
+        const errors = [];
         for (let i = 0; i < ids.length; i++) {
             const item = state.items.find((a) => a.itemId === ids[i]);
             if (!item) continue;
             log('— Sync: ' + item.title);
             try {
                 if (item.status !== 'freigegeben') {
+                    skipped++;
                     log('  übersprungen (nicht freigegeben)');
                     continue;
                 }
@@ -965,16 +1301,19 @@ async function runSyncAngebote(itemIds) {
                     syncFehler: '',
                     syncAm: new Date().toISOString()
                 };
-                if (state.localDemoOnly || !state.ctx) {
+                if (shouldSkipPwSpoPush(state) || isPwLocalOnlyItem(item.itemId)) {
                     state.items = state.items.map((a) => (a.itemId === item.itemId ? patched : a));
                 } else {
                     await updateAngebotItem(state.ctx, item.itemId, patched);
+                    markPwPushLive();
                     state.items = state.items.map((a) => (a.itemId === item.itemId ? patched : a));
                 }
                 ok++;
             } catch (e) {
                 fail++;
-                const msg = e && e.message ? e.message : String(e);
+                const raw = e && e.message ? e.message : String(e);
+                const msg = friendlyBookingsError(raw);
+                errors.push(msg);
                 log('  FEHLER: ' + msg);
                 const patched = {
                     ...item,
@@ -982,11 +1321,12 @@ async function runSyncAngebote(itemIds) {
                     syncFehler: msg,
                     syncAm: new Date().toISOString()
                 };
-                if (state.localDemoOnly || !state.ctx) {
+                if (shouldSkipPwSpoPush(state) || isPwLocalOnlyItem(item.itemId)) {
                     state.items = state.items.map((a) => (a.itemId === item.itemId ? patched : a));
                 } else {
                     try {
                         await updateAngebotItem(state.ctx, item.itemId, patched);
+                        markPwPushLive();
                     } catch {
                         /* ignore secondary */
                     }
@@ -994,7 +1334,9 @@ async function runSyncAngebote(itemIds) {
                 }
             }
         }
-        toast('Sync fertig: ' + ok + ' ok, ' + fail + ' Fehler.');
+        const summary = summarizePwSyncBatch({ ok, fail, skipped, errors });
+        state.bookingsSyncSummary = summary;
+        toast(summary.headline + (summary.detail ? ' – ' + summary.detail : ''));
     } finally {
         state.bookingsBusy = false;
         paint();
@@ -1071,12 +1413,21 @@ function bootFromQuery() {
         const q = new URLSearchParams(window.location.search);
         const view = q.get('view');
         const role = q.get('role');
-        if (role === 'admin' || role === 'lehrer' || role === 'schueler') {
+        state.demoRoleOverride = readDemoRoleOverrideFromUrl(false);
+        // ?role= nur in IT-Vorschau
+        if (
+            state.demoRoleOverride &&
+            (role === 'admin' || role === 'lehrer' || role === 'schueler')
+        ) {
             state.role = role;
             persistRole(role);
         }
         const allowed = viewsForRole(state.role).map((v) => v.id);
         if (view && allowed.includes(view)) state.view = view;
+        // Demo-Daten nur per ?demo=1 (Opt-in)
+        if (q.get('demo') === '1') {
+            state._bootDemo = true;
+        }
     } catch {
         /* ignore */
     }
@@ -1089,14 +1440,16 @@ async function init() {
     state.siteUrl = loadSavedSiteUrl();
     await syncAccount();
     state.form = emptyForm(prefillTeacher());
+    if (state._bootDemo) {
+        delete state._bootDemo;
+        applyLocalDemo(getDemoSeedPackage());
+        toast('Demo lokal geladen (?demo=1).');
+        return;
+    }
     paint();
-    // Gespeicherte Site: Daten laden, ohne die URL allen Rollen zu zeigen
-    if (state.siteUrl && !state.localDemoOnly) {
-        refreshData().catch((e) => {
-            state.error = e && e.message ? e.message : String(e);
-            state.loading = false;
-            paint();
-        });
+    const url = await ensurePwSiteUrl();
+    if (url && !state.localDemoOnly) {
+        await refreshData();
     }
 }
 

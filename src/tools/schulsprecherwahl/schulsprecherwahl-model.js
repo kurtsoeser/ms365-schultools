@@ -1,8 +1,18 @@
 /**
- * Datenmodell & Normalisierung für Schulsprecherwahl.
+ * Datenmodell & Normalisierung für Schulwahlen (Schulsprecher / SGA Lehrer).
  */
 
 import { ROUND_MAIN, ROUND_RUNOFF, normId } from './schulsprecherwahl-logic.js';
+import {
+    ELECTION_KIND_SCHULSPRECHER,
+    ELECTION_KIND_SGA_LEHRER,
+    emptyLotForKind,
+    emptyOfficesForKind,
+    electionIncludesSgaDeputies,
+    getElectionKindDef,
+    normalizeElectionKind,
+    resolveElectionBallotSchema
+} from './schulsprecherwahl-kinds.js';
 
 export const STORAGE_KEY = 'ms365-schulsprecherwahl-v1';
 export const ELECTION_STATUS = {
@@ -12,6 +22,15 @@ export const ELECTION_STATUS = {
     runoff_open: 'runoff_open',
     runoff_closed: 'runoff_closed',
     finalized: 'finalized'
+};
+
+export {
+    ELECTION_KIND_SCHULSPRECHER,
+    ELECTION_KIND_SGA_LEHRER,
+    normalizeElectionKind,
+    getElectionKindDef,
+    electionIncludesSgaDeputies,
+    resolveElectionBallotSchema
 };
 
 /**
@@ -77,9 +96,97 @@ export function normalizeRound(raw) {
 
 /**
  * @param {unknown} raw
+ * @param {{ electionKind: string, includeSgaDeputies?: boolean }} electionMeta
+ */
+function normalizeOffices(raw, electionMeta) {
+    const o = raw && typeof raw === 'object' ? raw : {};
+    const base = emptyOfficesForKind(electionMeta);
+    const decidedAfter =
+        o.decidedAfter === 'runoff' ? 'runoff' : o.decidedAfter === 'main' ? 'main' : null;
+    if (electionMeta.electionKind === ELECTION_KIND_SGA_LEHRER) {
+        return {
+            ...base,
+            member1Id: normId(o.member1Id) || null,
+            member2Id: normId(o.member2Id) || null,
+            member3Id: normId(o.member3Id) || null,
+            deputy1Id: normId(o.deputy1Id) || null,
+            deputy2Id: normId(o.deputy2Id) || null,
+            deputy3Id: normId(o.deputy3Id) || null,
+            decidedAfter
+        };
+    }
+    /** @type {Record<string, string|null>} */
+    const out = {
+        ...base,
+        schulsprecherId: normId(o.schulsprecherId) || null,
+        stv1Id: normId(o.stv1Id) || null,
+        stv2Id: normId(o.stv2Id) || null,
+        decidedAfter
+    };
+    if (electionMeta.includeSgaDeputies) {
+        out.sgaDeputy1Id = normId(o.sgaDeputy1Id) || null;
+        out.sgaDeputy2Id = normId(o.sgaDeputy2Id) || null;
+        out.sgaDeputy3Id = normId(o.sgaDeputy3Id) || null;
+    }
+    return out;
+}
+
+/**
+ * @param {unknown} raw
+ * @param {{ electionKind: string, includeSgaDeputies?: boolean }} electionMeta
+ */
+function normalizeLot(raw, electionMeta) {
+    const o = raw && typeof raw === 'object' ? raw : {};
+    const base = emptyLotForKind(electionMeta);
+    if (electionMeta.electionKind === ELECTION_KIND_SGA_LEHRER) {
+        return {
+            ...base,
+            member1Id: normId(o.member1Id) || null,
+            member2Id: normId(o.member2Id) || null,
+            member3Id: normId(o.member3Id) || null,
+            deputy1Id: normId(o.deputy1Id) || null,
+            deputy2Id: normId(o.deputy2Id) || null,
+            deputy3Id: normId(o.deputy3Id) || null
+        };
+    }
+    /** @type {Record<string, string|null>} */
+    const out = {
+        ...base,
+        schulsprecherId: normId(o.schulsprecherId) || null,
+        stv1Id: normId(o.stv1Id) || null,
+        stv2Id: normId(o.stv2Id) || null
+    };
+    if (electionMeta.includeSgaDeputies) {
+        out.sgaDeputy1Id = normId(o.sgaDeputy1Id) || null;
+        out.sgaDeputy2Id = normId(o.sgaDeputy2Id) || null;
+        out.sgaDeputy3Id = normId(o.sgaDeputy3Id) || null;
+    }
+    return out;
+}
+
+/**
+ * @param {unknown} mode
+ * @param {string} kind
+ */
+function normalizeEligibleMode(mode, kind) {
+    const m = String(mode || '').trim().toLowerCase();
+    if (m === 'manual') return 'manual';
+    if (m === 'teachers') return 'teachers';
+    if (m === 'students') return 'students';
+    return getElectionKindDef(kind).eligibleModeDefault;
+}
+
+/**
+ * @param {unknown} raw
  */
 export function normalizeElection(raw) {
     const o = raw && typeof raw === 'object' ? raw : {};
+    const electionKind = normalizeElectionKind(o.electionKind || o.kind);
+    const kindDef = getElectionKindDef(electionKind);
+    const includeSgaDeputies =
+        electionKind === ELECTION_KIND_SCHULSPRECHER &&
+        !!(o.includeSgaDeputies || o.includeSgaSchuelerStv);
+    const electionMeta = { electionKind, includeSgaDeputies };
     const candidates = (Array.isArray(o.candidates) ? o.candidates : []).map(normalizeCandidate);
     let rounds = (Array.isArray(o.rounds) ? o.rounds : []).map(normalizeRound);
     if (!rounds.length) {
@@ -92,10 +199,17 @@ export function normalizeElection(raw) {
             })
         ];
     }
+    // SGA Lehrer: keine Stichwahl-Runden speichern/behalten
+    if (electionKind === ELECTION_KIND_SGA_LEHRER) {
+        rounds = rounds.filter((r) => r.kind !== ROUND_RUNOFF);
+    }
     const status = Object.values(ELECTION_STATUS).includes(o.status) ? o.status : ELECTION_STATUS.draft;
+    const defaultTitle = kindDef.defaultTitle;
     return {
         id: normId(o.id) || newId('wahl'),
-        title: String(o.title || 'Schulsprecher:innenwahl').trim() || 'Schulsprecher:innenwahl',
+        electionKind,
+        includeSgaDeputies,
+        title: String(o.title || defaultTitle).trim() || defaultTitle,
         scopeLabel: String(o.scopeLabel || 'Schulweit').trim() || 'Schulweit',
         schoolYear: String(o.schoolYear || '').trim(),
         status,
@@ -103,19 +217,10 @@ export function normalizeElection(raw) {
         runoffWindow: normalizeWindow(o.runoffWindow),
         candidates,
         eligibleCount: Math.max(0, Number(o.eligibleCount) || 0),
-        eligibleMode: o.eligibleMode === 'manual' ? 'manual' : 'students',
+        eligibleMode: normalizeEligibleMode(o.eligibleMode, electionKind),
         rounds,
-        offices: {
-            schulsprecherId: normId(o.offices && o.offices.schulsprecherId) || null,
-            stv1Id: normId(o.offices && o.offices.stv1Id) || null,
-            stv2Id: normId(o.offices && o.offices.stv2Id) || null,
-            decidedAfter: o.offices && o.offices.decidedAfter === 'runoff' ? 'runoff' : o.offices && o.offices.decidedAfter === 'main' ? 'main' : null
-        },
-        lot: {
-            schulsprecherId: normId(o.lot && o.lot.schulsprecherId) || null,
-            stv1Id: normId(o.lot && o.lot.stv1Id) || null,
-            stv2Id: normId(o.lot && o.lot.stv2Id) || null
-        },
+        offices: normalizeOffices(o.offices, electionMeta),
+        lot: normalizeLot(o.lot, electionMeta),
         createdAt: o.createdAt ? String(o.createdAt) : new Date().toISOString(),
         updatedAt: o.updatedAt ? String(o.updatedAt) : new Date().toISOString(),
         publishedResults: !!o.publishedResults
@@ -129,13 +234,17 @@ export function createElection(partial) {
     const now = new Date();
     const start = new Date(now.getTime());
     const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const electionKind = normalizeElectionKind(partial && (partial.electionKind || partial.kind));
+    const kindDef = getElectionKindDef(electionKind);
     return normalizeElection({
-        title: 'Schulsprecher:innenwahl',
+        electionKind,
+        title: kindDef.defaultTitle,
         scopeLabel: 'Schulweit',
         status: ELECTION_STATUS.draft,
         window: { start: start.toISOString(), end: end.toISOString() },
-        eligibleMode: 'students',
-        ...partial
+        eligibleMode: kindDef.eligibleModeDefault,
+        ...partial,
+        electionKind
     });
 }
 
@@ -174,6 +283,14 @@ export function votingPhase(election, now = new Date()) {
         };
     }
     if (e.status === ELECTION_STATUS.runoff_open) {
+        if (e.electionKind === ELECTION_KIND_SGA_LEHRER) {
+            return {
+                canVote: false,
+                roundKind: null,
+                round: null,
+                reason: 'Für die SGA-Lehrerwahl gibt es keine Stichwahl.'
+            };
+        }
         const round = e.rounds.find((r) => r.kind === ROUND_RUNOFF);
         const win = e.runoffWindow && (e.runoffWindow.start || e.runoffWindow.end) ? e.runoffWindow : e.window;
         const open = isWithinWindow(win, now) || (!win.start && !win.end);

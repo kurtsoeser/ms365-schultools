@@ -418,6 +418,59 @@
             doneLabel: 'Status-Mail-Flow aktiv'
         },
         {
+            id: 'aufgaben-mail',
+            toolId: 'pa-aufgaben-mail',
+            title: 'Aufgaben Status-Mail',
+            icon: 'bi-envelope-check',
+            kicker: 'Power Automate',
+            summary:
+                'Bei neuer Zuweisung oder Status „erledigt“/„abgelehnt“ in der Liste „Aufgaben“ eine E-Mail an Zuweisung bzw. Ersteller senden.',
+            helpId: 'tool-pa-aufgaben-mail',
+            storageKey: 'ms365-pa-aufgaben-mail-v1',
+            related: [
+                { href: 'aufgaben.html', label: 'Aufgaben', icon: 'bi-clipboard-check' },
+                { href: 'sharepoint-liste-aufgaben.html', label: 'Aufgaben-Liste', icon: 'bi-list-ul' },
+                {
+                    href: 'https://make.powerautomate.com/',
+                    label: 'Power Automate',
+                    icon: 'bi-box-arrow-up-right',
+                    external: true
+                }
+            ],
+            fields: [
+                {
+                    id: 'siteUrl',
+                    label: 'SharePoint-Website (mit Aufgaben-Liste)',
+                    type: 'url',
+                    placeholder: 'https://schule.sharepoint.com/sites/Intranet'
+                },
+                {
+                    id: 'listName',
+                    label: 'Listenname',
+                    type: 'text',
+                    defaultValue: 'Aufgaben'
+                },
+                {
+                    id: 'fromMailbox',
+                    label: 'Absender-Mailbox (optional, freigegeben)',
+                    type: 'email',
+                    placeholder: 'sekretariat@schule.at'
+                }
+            ],
+            list: null,
+            listHint:
+                'Liste zuerst mit dem Aufgaben-Listen-Assistenten anlegen. Empfänger = ZuweisungEmail (neu) bzw. ErstelltVonEmail (erledigt/abgelehnt).',
+            listActionLabel: null,
+            steps: [
+                'Trigger: Wenn ein Element erstellt oder geändert wird (SharePoint → Liste „Aufgaben“).',
+                'Zweig A (neu/offen): E-Mail an ZuweisungEmail – Betreff „Aufgabe zugewiesen: [Title]“.',
+                'Zweig B (Status erledigt/abgelehnt): E-Mail an ErstelltVonEmail – Betreff „Aufgabe [Status]: [Title]“.',
+                'Text: Beschreibung, Frist, Priorität, Kommentar, Link zum Tool Aufgaben.',
+                'Optional: nur bei geändertem Status (Get changes / Version vergleichen).'
+            ],
+            doneLabel: 'Aufgaben-Mail-Flow aktiv'
+        },
+        {
             id: 'projektwochen-mail',
             toolId: 'pa-projektwochen-mail',
             title: 'Projektwochen Status-Mail',
@@ -473,18 +526,52 @@
         }
     ];
 
-    const HUB_EXTRA = {
-        id: 'freistellung',
-        title: 'Freistellungen (KV + Direktion)',
-        href: 'freistellung-setup.html',
-        icon: 'bi-person-check',
-        summary: 'Liste + Flow-Paket. Ablauf erklärt: freistellung-konzept.html'
-    };
+    const HUB_EXTRAS = [
+        {
+            id: 'freistellung',
+            title: 'Freistellungen (KV + Direktion)',
+            href: 'freistellung-setup.html',
+            icon: 'bi-person-check',
+            summary: 'Liste + Flow-Paket. Ablauf erklärt: freistellung-konzept.html',
+            doneKey: 'ms365-pa-done-freistellung'
+        },
+        {
+            id: 'lehrer-freistellung',
+            title: 'Lehrer-Freistellungen (Direktion)',
+            href: 'lehrer-freistellung-setup.html',
+            icon: 'bi-person-workspace',
+            summary: 'Liste + Flow-Paket mit Microsoft Approvals (eine Person).',
+            doneKey: 'ms365-pa-done-lehrer-freistellung'
+        },
+        {
+            id: 'schulaktivitaeten',
+            title: 'Schulaktivitäten (Direktion)',
+            href: 'schulaktivitaeten-setup.html',
+            icon: 'bi-bus-front',
+            summary: 'Liste + Flow-Paket: Approvals an die Direktion, Status-Mail an die Lehrkraft.',
+            doneKey: 'ms365-pa-done-schulaktivitaeten'
+        },
+        {
+            id: 'srdp-mail',
+            title: 'sRDP / Matura Bestätigungsmail',
+            href: 'srdp-mail-setup.html',
+            icon: 'bi-mortarboard',
+            summary:
+                'Bei neuer Anmeldung: Zusammenfassung (Variante, Prüfplan, Lehrer) aus freigegebenem Postfach.',
+            doneKey: 'ms365-pa-done-srdp-mail'
+        }
+    ];
+
+    /** @deprecated use hubExtras – Einzelobjekt bleibt für ältere Hub-Seiten */
+    const HUB_EXTRA = HUB_EXTRAS[0];
 
     function getById(id) {
         const key = String(id || '').trim();
         for (let i = 0; i < RECIPES.length; i++) {
             if (RECIPES[i].id === key || RECIPES[i].toolId === key) return RECIPES[i];
+        }
+        for (let j = 0; j < HUB_EXTRAS.length; j++) {
+            if (HUB_EXTRAS[j].id === key) return HUB_EXTRAS[j];
         }
         return null;
     }
@@ -492,6 +579,7 @@
     global.ms365PaRecipes = {
         list: RECIPES,
         hubExtra: HUB_EXTRA,
+        hubExtras: HUB_EXTRAS,
         getById: getById
     };
 })(window);

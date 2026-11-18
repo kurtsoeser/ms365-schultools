@@ -8,6 +8,7 @@ import {
     matchesSchuljahrFilter,
     collectSchoolYears
 } from './schularbeiten-planer-schuljahr.js';
+import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
 
 export const ROLE_STORAGE_KEY = 'ms365-sa-demo-role';
 export const SITE_STORAGE_KEY = 'ms365-sa-site-url';
@@ -70,6 +71,17 @@ export function createInitialState() {
         loading: false,
         bootstrapped: false,
         error: '',
+        /** Ruhiger Hinweis (z. B. 403) – kein Wipe von Demo/Cache */
+        softError: '',
+        /** Demo local-first: Anzeige ohne SharePoint-Push */
+        localDemoOnly: false,
+        /** SPO Live Sync Meta (Admin/IT) */
+        syncMeta: {
+            source: 'none',
+            lastPullAt: '',
+            connected: false,
+            listTitle: ''
+        },
         accountEmail: '',
         accountName: '',
         teacherMatch: null,
@@ -305,24 +317,7 @@ export function persistRole(role) {
 }
 
 export function loadSavedSiteUrl() {
-    try {
-        const local = String(localStorage.getItem(SITE_STORAGE_KEY) || '').trim();
-        if (local) return local;
-    } catch {
-        /* ignore */
-    }
-    try {
-        const setup =
-            typeof window !== 'undefined' &&
-            window.ms365AppDataV2 &&
-            typeof window.ms365AppDataV2.getSetup === 'function'
-                ? window.ms365AppDataV2.getSetup()
-                : null;
-        if (setup && setup.intranetSiteUrl) return String(setup.intranetSiteUrl).trim();
-    } catch {
-        /* ignore */
-    }
-    return '';
+    return resolveSchoolToolSiteUrl('schularbeiten') || '';
 }
 
 export function persistSiteUrl(url) {

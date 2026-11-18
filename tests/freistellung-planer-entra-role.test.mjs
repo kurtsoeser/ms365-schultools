@@ -9,7 +9,8 @@ import {
     schuelerEntraGroupIdsForCheck,
     direktionEntraGroupIdsForCheck,
     kvEntraGroupIdsForCheck,
-    isPlanerDemoRoleUiEnabled
+    isPlanerDemoRoleUiEnabled,
+    canUsePlanerRoleSwitcher
 } from '../src/tools/freistellung-planer/freistellung-planer-entra-role.js';
 import { matchKvByClassHeadEmail } from '../src/tools/freistellung-planer/freistellung-planer-state.js';
 
@@ -31,6 +32,13 @@ describe('freistellung-planer-entra-role', () => {
         expect(isPlanerDemoRoleUiEnabled(false, false)).toBe(false);
         expect(isPlanerDemoRoleUiEnabled(false, true)).toBe(true);
         expect(isPlanerDemoRoleUiEnabled(true, false)).toBe(false);
+    });
+
+    it('canUsePlanerRoleSwitcher nur Direktion+Mehrfach oder Demo', () => {
+        expect(canUsePlanerRoleSwitcher(['kv', 'schueler'], false)).toBe(false);
+        expect(canUsePlanerRoleSwitcher(['direktion', 'schueler'], false)).toBe(true);
+        expect(canUsePlanerRoleSwitcher(['direktion'], false)).toBe(false);
+        expect(canUsePlanerRoleSwitcher(['schueler'], true)).toBe(true);
     });
 
     it('entraGroupsConfigured', () => {

@@ -264,6 +264,71 @@ export function attendeesToCsv(rows) {
     return lines.join('\r\n');
 }
 
+/**
+ * Roh-Graph-/Bookings-Fehler → kurze Admin-Meldung.
+ * @param {unknown} msg
+ */
+export function friendlyBookingsError(msg) {
+    const s = String(msg || '');
+    if (/403|accessdenied|forbidden/i.test(s)) {
+        return 'Kein Bookings-Recht (403). IT: Bookings.ReadWrite.All / Bookings.Manage.All prüfen.';
+    }
+    if (/401|unauthorized|unauthenticated/i.test(s)) {
+        return 'Anmeldung abgelaufen – bitte neu anmelden und Sync erneut starten.';
+    }
+    if (/not found|404|does not exist/i.test(s)) {
+        return 'Business oder Dienst nicht gefunden – Business anlegen/binden und erneut syncen.';
+    }
+    if (/throttl|429|timeout|network|failed to fetch/i.test(s)) {
+        return 'Bookings vorübergehend nicht erreichbar – kurz warten und erneut syncen.';
+    }
+    if (/scheduling|maximumAdvance|availability/i.test(s)) {
+        return 'Terminzeiten/BuchungAb ungültig – Datum, Start/Ende und Buchungsstart prüfen.';
+    }
+    return s.length > 180 ? s.slice(0, 177) + '…' : s || 'Unbekannter Sync-Fehler';
+}
+
+/**
+ * Zusammenfassung nach Batch-Sync (Toast + Banner).
+ * @param {{ ok?: number, fail?: number, skipped?: number, errors?: string[] }} result
+ */
+export function summarizePwSyncBatch(result) {
+    const ok = Number((result && result.ok) || 0);
+    const fail = Number((result && result.fail) || 0);
+    const skipped = Number((result && result.skipped) || 0);
+    const errors = Array.isArray(result && result.errors) ? result.errors : [];
+    const tone = fail > 0 ? 'warn' : ok > 0 ? 'ok' : 'info';
+    let headline = 'Keine Angebote synchronisiert.';
+    if (ok || fail) {
+        headline = 'Sync: ' + ok + ' ok' + (fail ? ', ' + fail + ' Fehler' : '');
+        if (skipped) headline += ', ' + skipped + ' übersprungen';
+    } else if (skipped) {
+        headline = skipped + ' Angebot/Angebote übersprungen (nicht freigegeben).';
+    }
+    const detail = fail
+        ? friendlyBookingsError(errors[0] || '')
+        : ok
+          ? 'Dienste in Microsoft Bookings aktualisiert. Schüler buchen in der Bookings-App.'
+          : '';
+    return { tone, headline, detail, ok, fail, skipped };
+}
+
+/**
+ * Freigegebene Angebote ohne erfolgreichen Sync.
+ * @param {object[]} items
+ */
+export function countPendingBookingsSync(items) {
+    const list = Array.isArray(items) ? items : [];
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+        const a = list[i];
+        if (!a || a.status !== 'freigegeben') continue;
+        const st = String(a.syncStatus || '').toLowerCase();
+        if (st === 'fehler' || !String(a.bookingsServiceId || '').trim()) n += 1;
+    }
+    return n;
+}
+
 export {
     weekdayFromIsoDate,
     toBookingsTime,

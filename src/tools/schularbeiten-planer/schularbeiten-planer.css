@@ -17,12 +17,8 @@
 }
 
 .sa-nav {
-    background: linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--brand1) 88%, var(--bg2)),
-        color-mix(in srgb, var(--brand2) 62%, var(--bg1))
-    );
-    color: #f8fafc;
+    background: var(--planner-nav-bg);
+    color: var(--planner-nav-fg);
     padding: 16px 12px;
     display: flex;
     flex-direction: column;

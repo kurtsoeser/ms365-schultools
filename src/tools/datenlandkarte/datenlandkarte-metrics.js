@@ -3,6 +3,7 @@
  */
 import { SPO_LIST_PROBES } from './datenlandkarte-spo-metrics.js';
 import { collectRegisterLayerChips } from '../../shared/stammdaten-register-status.js';
+import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
 
 function loadSettings() {
     try {
@@ -38,14 +39,6 @@ function loadYearBucket() {
     return {};
 }
 
-function localStorageTrim(key) {
-    try {
-        return String(localStorage.getItem(key) || '').trim();
-    } catch {
-        return '';
-    }
-}
-
 /**
  * @returns {Record<string, { value: number|string, hint?: string }>}
  */
@@ -64,10 +57,11 @@ export function collectDatenMetrics() {
         : 0;
     const links = Array.isArray(setup.catalogLinks) ? setup.catalogLinks.length : 0;
     const intranet = String(setup.intranetSiteUrl || '').trim();
-    const saSite = localStorageTrim('ms365-sa-site-url') || intranet;
-    const pwSite = localStorageTrim('ms365-pw-site-url') || intranet;
-    const frSite = localStorageTrim('ms365-freistellung-planer-site-v1') || intranet;
-    const aktSite = localStorageTrim('ms365-akt-planer-site-v1') || intranet;
+    const planerDefault = String(setup.planerDefaultSiteUrl || '').trim() || intranet;
+    const saSite = resolveSchoolToolSiteUrl('schularbeiten', setup) || planerDefault;
+    const pwSite = resolveSchoolToolSiteUrl('projektwochen', setup) || planerDefault;
+    const frSite = resolveSchoolToolSiteUrl('freistellung', setup) || planerDefault;
+    const aktSite = resolveSchoolToolSiteUrl('aktivitaeten', setup) || planerDefault;
     const sisImports = Array.isArray(setup.sisImportHistory) ? setup.sisImportHistory.length : 0;
 
     const stammSum = classes + teachers + subjects + arges;

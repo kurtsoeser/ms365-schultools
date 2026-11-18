@@ -3,10 +3,16 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+    afgNeedsDisplayNameCleanup,
     buildAfgBulkCreateConfirmMessage,
+    buildAfgBulkMatchExistingConfirmMessage,
+    buildAfgBulkRenameConfirmMessage,
     buildAfgMailNickname,
     collectAfgCreateOwners,
-    formatAfgBulkCreatePreviewLines
+    displayNameForAfgCreate,
+    formatAfgBulkCreatePreviewLines,
+    pickAfgGroupByNickname,
+    stripAfgDisplayNamePrefix
 } from '../src/tools/arge-fachgruppen/arge-fachgruppen-bulk-logic.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -59,26 +65,75 @@ describe('ARGE & Fachgruppen Bulk-Logik', () => {
         expect(msg).toContain('FSGS_DAF → arge-fsgsdaf');
         expect(msg).toContain('Microsoft Team bereitgestellt');
     });
+
+    it('entfernt Anzeigename-Präfixe Arbeitsgruppe/Fach', () => {
+        expect(stripAfgDisplayNamePrefix('Arbeitsgruppe FS GS Deutsch/DaF')).toBe('FS GS Deutsch/DaF');
+        expect(stripAfgDisplayNamePrefix('Fach Mathematik')).toBe('Mathematik');
+        expect(stripAfgDisplayNamePrefix('FS GYM Biologie')).toBe('FS GYM Biologie');
+        expect(afgNeedsDisplayNameCleanup('Arbeitsgruppe FS GS Englisch')).toBe(true);
+        expect(afgNeedsDisplayNameCleanup('FS GS Englisch')).toBe(false);
+        expect(displayNameForAfgCreate({ code: 'FSGS_E', name: 'FS GS Englisch' })).toBe('FS GS Englisch');
+    });
+
+    it('wählt Gruppe exakt per Alias oder SMTP-Lokalteil', () => {
+        const g = pickAfgGroupByNickname(
+            [
+                { id: '1', mailNickname: 'other', mail: 'other@dsrom.de' },
+                { id: '2', mailNickname: 'fsgs_daf', mail: 'fsgs_daf@dsrom.de', displayName: 'Arbeitsgruppe FS GS Deutsch/DaF' }
+            ],
+            'fsgs_daf'
+        );
+        expect(g && g.id).toBe('2');
+        expect(pickAfgGroupByNickname([{ id: '1', mail: 'fsgs_e@dsrom.de' }], 'fsgs_e')?.id).toBe('1');
+        expect(pickAfgGroupByNickname([{ id: '1', mailNickname: 'fsgs_e' }], 'fsgs_daf')).toBeNull();
+    });
+
+    it('baut Bestätigungen für Abgleich und Namensbereinigung', () => {
+        const matchMsg = buildAfgBulkMatchExistingConfirmMessage({
+            kindLabel: 'ARGEs',
+            count: 2,
+            previewLines: 'FSGS_DAF → fsgs_daf'
+        });
+        expect(matchMsg).toContain('bestehenden Microsoft');
+        expect(matchMsg).toContain('exakt gleichem Alias');
+        const renameMsg = buildAfgBulkRenameConfirmMessage({
+            count: 1,
+            previewLines: 'Arbeitsgruppe FS GS Englisch  →  FS GS Englisch'
+        });
+        expect(renameMsg).toContain('Arbeitsgruppe');
+        expect(renameMsg).toContain('Anzeigenamen');
+    });
 });
 
 describe('ARGE & Fachgruppen Seite – Bulk anlegen', () => {
     it('hängt Anlegen & matchen inkl. Alias-Vorschau-Hinweis ein', () => {
         const html = readFileSync(join(projectRoot, 'tools/arge-fachgruppen.html'), 'utf8');
         expect(html).toContain('id="afgBtnBulkCreate"');
+        expect(html).toContain('id="afgBtnBulkMatchExisting"');
+        expect(html).toContain('id="afgBtnBulkRename"');
         expect(html).toContain('id="afgBtnSelectUnmatched"');
         expect(html).toContain('id="afgBulkCreateTeam"');
         expect(html).toContain('Anlegen &amp; matchen');
-        expect(html).toContain('Kürzel → geplanter Alias');
+        expect(html).toContain('Bestehende matchen');
+        expect(html).toContain('Namen bereinigen');
+        expect(html).toContain('Kürzel → Alias');
         expect(html).toContain('Leer lassen');
         expect(html).toContain('leer = nur Kürzel');
 
         const js = readFileSync(join(projectRoot, 'src/tools/arge-fachgruppen/arge-fachgruppen.js'), 'utf8');
         expect(js).toContain('runBulkCreateAndMatch');
+        expect(js).toContain('runBulkMatchExisting');
+        expect(js).toContain('runBulkStripDisplayPrefix');
         expect(js).toContain('collectSelectedUnmatched');
         expect(js).toContain('formatAfgBulkCreatePreviewLines');
         expect(js).toContain('buildAfgMailNickname');
+        expect(js).toContain('pickAfgGroupByNickname');
+        expect(js).toContain('stripAfgDisplayNamePrefix');
         expect(js).toContain('afgBtnBulkCreate');
+        expect(js).toContain('afgBtnBulkMatchExisting');
+        expect(js).toContain('afgBtnBulkRename');
         expect(js).toContain('arge-fachgruppen-bulk-logic.js');
         expect(js).toContain("stored == null ? def");
+        expect(js).not.toContain("kind === 'arge' ? 'Arbeitsgruppe '");
     });
 });

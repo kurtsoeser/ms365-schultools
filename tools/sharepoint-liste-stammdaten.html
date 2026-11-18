@@ -270,9 +270,9 @@
                                 </article>
                                 <article class="sps-list-row">
                                     <label class="sps-list-row__pick" for="spsWantKlassen">
-                                        <input type="checkbox" id="spsWantKlassen" data-sps-list-toggle="spsKlassenName">
+                                        <input type="checkbox" id="spsWantKlassen" checked data-sps-list-toggle="spsKlassenName">
                                         <span class="sps-list-row__title"><i class="bi bi-grid-3x3-gap"></i> Klassenliste</span>
-                                        <span class="sps-list-row__desc">Kürzel, Abschlussjahr, Klassenvorstand.</span>
+                                        <span class="sps-list-row__desc">Kürzel, Abschlussjahr, Klassenvorstand, M365-Klassengruppe (Team).</span>
                                     </label>
                                     <div class="tm-field sps-list-row__name">
                                         <label class="visually-hidden" for="spsKlassenName">Listenname auf SharePoint</label>
@@ -282,9 +282,38 @@
                                 <article class="sps-list-row sps-list-row--sub">
                                     <label class="sps-list-row__pick" for="spsKlassenPersonen">
                                         <input type="checkbox" id="spsKlassenPersonen" checked>
-                                        <span class="sps-list-row__title"><i class="bi bi-person-check"></i> Klassenliste: Schülerinnen als Personenfeld</span>
-                                        <span class="sps-list-row__desc">Nur wenn Klassenliste aktiv – Mehrfach-Personenfeld pro Klasse; KV optional als Person.</span>
+                                        <span class="sps-list-row__title"><i class="bi bi-person-check"></i> Klassenliste: Personenfelder</span>
+                                        <span class="sps-list-row__desc">Nur wenn Klassenliste aktiv – Schülerinnen, unterrichtende Lehrkräfte (aus „Lehrer je Klasse“) und KV als Personen; M365-Gruppe aus den Klassen-Teams.</span>
                                     </label>
+                                </article>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantLehrer">
+                                        <input type="checkbox" id="spsWantLehrer" checked data-sps-list-toggle="spsLehrerName">
+                                        <span class="sps-list-row__title"><i class="bi bi-person-badge"></i> Lehrerinnenliste</span>
+                                        <span class="sps-list-row__desc">Kürzel, Name, E-Mail – Betriebs-Wahrheit für Planer und Portale.</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsLehrerName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsLehrerName" value="Lehrerinnen" maxlength="200" spellcheck="false">
+                                    </div>
+                                </article>
+                                <article class="sps-list-row sps-list-row--sub">
+                                    <label class="sps-list-row__pick" for="spsLehrerPersonen">
+                                        <input type="checkbox" id="spsLehrerPersonen" checked>
+                                        <span class="sps-list-row__title"><i class="bi bi-person-check"></i> Lehrerinnenliste: Lehrkraft als Personenfeld</span>
+                                        <span class="sps-list-row__desc">Nur wenn Lehrerinnenliste aktiv – M365-Benutzer per ensureUser verknüpfen.</span>
+                                    </label>
+                                </article>
+                                <article class="sps-list-row">
+                                    <label class="sps-list-row__pick" for="spsWantLehrerJeKlasse">
+                                        <input type="checkbox" id="spsWantLehrerJeKlasse" checked data-sps-list-toggle="spsLehrerJeKlasseName">
+                                        <span class="sps-list-row__title"><i class="bi bi-diagram-3"></i> Lehrer je Klasse</span>
+                                        <span class="sps-list-row__desc">Klasse × Lehrkraft × Fach – echte SharePoint-Lookups auf Klassen- und Lehrerinnenliste (optional Fach).</span>
+                                    </label>
+                                    <div class="tm-field sps-list-row__name">
+                                        <label class="visually-hidden" for="spsLehrerJeKlasseName">Listenname auf SharePoint</label>
+                                        <input type="text" id="spsLehrerJeKlasseName" value="Lehrer je Klasse" maxlength="200" spellcheck="false">
+                                    </div>
                                 </article>
                             </div>
                             <p class="hint" style="margin:12px 0 0;">Benutzer müssen im Tenant existieren (<code>ensureUser</code> bei Schreibrecht auf der Site).</p>
@@ -368,6 +397,7 @@
     <script src="../src/shared/app-data-v2.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script src="../src/tools/sharepoint/sharepoint-liste-lehrer.js" defer></script>
     <script src="../src/tools/sharepoint/sharepoint-liste-stammdaten.js" defer></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-stammdaten-page.js"></script>
     <script>

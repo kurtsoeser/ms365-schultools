@@ -10,23 +10,21 @@
     <title>MS365-Schul-Tools – Schulaktivitäten</title>
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/ms365-calendar-shell.css">
     <link rel="stylesheet" href="../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
     <div class="container page-card tm-page akt-page">
-        <div class="header">
+        <div class="header akt-page-header">
             <h1>MS365-Schul-Tools</h1>
             <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
                 <span class="header-tool-indicator__label">Werkzeug:</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-bus-front"></i>Schulaktivitäten</span>
             </div>
-            <p>Exkursionen und schulische Aktivitäten beantragen, freigeben, in Liste/Kalender führen – Daten in SharePoint, Export als ICS.</p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schulaktivitaeten-planer" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
                 <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
-                <a class="btn" href="../tenant.html" data-ms365-frontend-it-only style="text-decoration:none;display:inline-block;"><i class="bi bi-gear"></i>Stammdaten</a>
-                <a class="btn" href="sharepoint-liste-schulaktivitaeten.html" data-ms365-frontend-it-only style="text-decoration:none;display:inline-block;"><i class="bi bi-list-ul"></i>Listen einrichten</a>
             </div>
         </div>
         <div class="content">
@@ -42,6 +40,7 @@
     <script src="../src/shared/action-log.js" defer></script>
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
     <script type="module" src="../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer.js"></script>
 </body>
 </html>

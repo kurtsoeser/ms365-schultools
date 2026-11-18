@@ -29,6 +29,8 @@ describe('Eine globale Menüleiste', () => {
         const auth = read('src/shared/msal-auth-ui.js');
         expect(auth).toContain('placeAuthWidgetInMenuHeader');
         expect(auth).toContain('ensureSchulregisterHeaderLink');
+        expect(auth).toContain('isOperatorAdminPortal');
+        expect(auth).toContain('admin-app-page');
         expect(auth).toContain('ms365HeaderRightCluster');
         expect(auth).toContain('ms365-auth-menu');
         expect(auth).toContain('ms365AuthDropdown');

@@ -1362,7 +1362,7 @@
         const mountFn = window.ms365MountSchulOrganigramm;
         if (typeof mountFn !== 'function') {
             host.innerHTML =
-                '<p class="muted">Schul-Organigramm wird geladen … Bitte Seite neu laden. Alternativ: <a href="./schul-organigramm.html">Vollbild</a>.</p>';
+                '<p class="muted">Schul-Organigramm wird geladen … Bitte Seite neu laden. Alternativ: <a href="../tenant.html#organigramm">In Stammdaten öffnen</a>.</p>';
             if (meta) {
                 meta.hidden = false;
                 meta.textContent = 'Schul-Organigramm-Modul noch nicht geladen.';

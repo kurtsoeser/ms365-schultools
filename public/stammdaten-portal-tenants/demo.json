@@ -1,0 +1,9 @@
+{
+  "schoolName": "MS365-Schul-Tools Demo",
+  "schoolSlug": "demo",
+  "mode": "local",
+  "apiBaseUrl": "",
+  "presetId": "kern",
+  "fieldOverrides": {},
+  "privacyUrl": ""
+}

@@ -1,13 +1,14 @@
 # Projektwochen – Umsetzungsplan
 
-**Stand:** 2026-09-24  
-**Status:** Phase 4 erledigt – Export/Druck, PA Status-Mail; MVP komplett  
+**Stand:** 2026-11-18  
+**Status:** MVP (Phasen 1–4) + Qualitäts-Upgrade auf Shared Bar (Familie `projekt-buchung`)  
 **Name (UI):** Projektwochen  
 **URL / mode:** `projektwochen` (Alias optional: `angebote`)  
+**Familie:** `projekt-buchung` (Planung + Bookings-Export – **kein** Genehmigungs-Planer wie Schulaktivitäten)  
 **Zielgruppe:** HAK / berufsbildende Schulen – Projektwoche / Schlusstage mit Wahlangeboten  
-**UI:** Vanilla JS/ESM, Look an `app.css` – analog Schularbeiten-Planer; **Admin-Oberfläche erstklassig** (Listen, Kalender, Filter)
+**UI:** Vanilla JS/ESM, `planner-apps-theme` + Calm Patterns; Admin: Freigabe + klarer Bookings-Sync-Schritt  
 
-Verwandt: Schularbeiten-Planer, Elternsprechtag-Bookings (`maximumAdvance` / Buchungsfenster), sRDP-Anmeldung, Stammdaten, `src/shared/ARCHITECTURE.md`.
+Verwandt: Schularbeiten-Planer, Elternsprechtag-Bookings (`maximumAdvance` / Buchungsfenster), sRDP-Anmeldung, Stammdaten, [`tool-upgrade-vorlage.md`](./tool-upgrade-vorlage.md), [`rollen-vertrag.md`](./rollen-vertrag.md).
 
 ---
 
@@ -212,7 +213,8 @@ src/tools/projektwochen/
   projektwochen-ui.js
   projektwochen-state.js
   projektwochen-logic.js
-  projektwochen-graph.js
+  projektwochen-graph.js         ← SPO CRUD (SoR)
+  projektwochen-sync.js          ← Live-Sync Meta / Local-Guards (kein Bookings)
   projektwochen-bookings.js      ← Sync-Button Write + Appointments Read
   projektwochen-schema.js
   projektwochen-export.js
@@ -278,7 +280,31 @@ tests/projektwochen-bookings.test.mjs
 
 ### Phase 5 – Später
 
-- Warteliste, Entra-Rollen, TN-Archiv-Snapshot
+- Warteliste, TN-Archiv-Snapshot
+
+### Qualitäts-Upgrade 2026-11-18 (Shared Bar + Familie)
+
+- [x] Site via `school-tool-sites` + Lizenz-Bootstrap  
+- [x] Stammdaten live hydrate + local-first (403 wipe’t nicht)  
+- [x] Ownership `resolvePwOwnership` / `assertPwOwnership` beim Speichern  
+- [x] Soft 403 / ruhige Fehler; Demo bleibt lokal  
+- [x] Rollen-Nav: Lehrer flach; Admin Arbeit · Bookings · System (IT-Setup nicht in Lehrer-Nav)  
+- [x] Calm: Action-Banner, Quiet Empty; dashed nur System/IT  
+- [x] Bookings-Sync sichtbar + verständliches Sync-Feedback  
+- [x] Demo Opt-in: Button / `?demo=1`; Role-Chips nur `?demoRole=1`  
+
+### SPO Live Sync (SoR) – Ist bestätigt / Lücken geschlossen
+
+**Familie:** `projekt-buchung` · SoR = SharePoint (`PW-Aktionen` / `PW-Angebote`) · Bookings = Export, kein zweites SoR.
+
+| Welle | Status |
+|-------|--------|
+| **S0** | Ist-Scan: `projektwochen-graph.js` + Live-CRUD schon vorhanden – kein Doppelbau |
+| **S1** | Pull Start/`refreshData`; Push Create/Update/Delete; `itemId` = SPO-ID; Guard `local-*` / Demo; 403 wipe’t nicht |
+| **S2** | System: `spoSync`-Meta (Quelle, Pull/Push, Listen); Demo nur Opt-in, SPO-Schreiben nur nach Confirm |
+| **S3** | Tests Mapping + Sync-Meta (`tests/projektwochen-sync.test.mjs`); Smoke unten |
+
+Module: `projektwochen-graph.js` (CRUD) · `projektwochen-sync.js` (Meta/Guards) · `projektwochen-bookings.js` (separat).
 
 ---
 
@@ -308,6 +334,16 @@ tests/projektwochen-bookings.test.mjs
 
 ---
 
-## 12. Nächster Schritt
+## 12. Smoke (App-Rollen)
 
-MVP (Phasen 1–4) ist fertig. Optional später Phase 5: Warteliste, Entra-Rollen, TN-Archiv.
+| Rolle | Check |
+|-------|--------|
+| **Lehrer** | Nav ohne System/Bookings; „Neues Angebot“; Ownership gesetzt; Quiet Empty bei 0 eigenen; Speichern → Item in **PW-Angebote** |
+| **Admin** | Freigabe-Queue-Banner; Bookings-Sektion mit Sync-Button; Sync-Fehler lokal verständlich; System dashed; SPO Live Sync-Zeile (Quelle live) |
+| **Schüler** | Read-only (kein Neu); Hinweis Bookings-App; nur freigegebene Angebote |
+| **IT** | `sharepoint-liste-projektwochen.html` getrennt; Lehrer sieht Listen-Assistent nicht in Primär-Nav; Listen-Check OK |
+| **Demo** | `?demo=1` lokal; SPO-Fehler → Demo bleibt; Demo **nicht** auto-push; Confirm für SPO-Seed; `?demoRole=1` für Role-Chips |
+
+## 13. Nächster Schritt
+
+Optional Phase 5: Warteliste, TN-Archiv. Domäne nicht zu approval-planer umbiegen.

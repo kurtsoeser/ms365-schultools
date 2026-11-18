@@ -259,6 +259,11 @@ describe('webuntis-export-import', () => {
             'max.mustermann@hak-steyr.at'
         );
         expect(wu.sanitizeStudentEmailFromWebuntis('privat@web.de', '')).toBe('');
+        // Ohne Domain: Schul-UPN behalten, Consumer-Mail verwerfen
+        expect(wu.sanitizeStudentEmailFromWebuntis('max.mustermann@hak-steyr.at', '')).toBe(
+            'max.mustermann@hak-steyr.at'
+        );
+        expect(wu.sanitizeStudentEmailFromWebuntis('max@gmail.com', '')).toBe('');
     });
 
     it('Diff matcht über externalId und behält Mail beim Merge', () => {

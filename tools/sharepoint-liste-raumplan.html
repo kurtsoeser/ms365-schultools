@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS365-Schul-Tools – Raumplan-Liste</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <div class="container page-card tm-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-map"></i>Raumplan-Liste</span>
+            </div>
+            <p>SharePoint-Liste <strong>Raeume</strong> (Code, Gebäude, Stockwerk, Kapazität, Typ) für den Raumplan anlegen. Plan-Bild bleibt lokal im Tool.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-raumplan" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div class="toolbar">
+                <a class="btn" href="../index.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-arrow-left"></i>Dashboard</a>
+                <a class="btn" href="raumplan.html" style="text-decoration:none;display:inline-block;"><i class="bi bi-map"></i>Zum Tool</a>
+            </div>
+        </div>
+        <div class="content">
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <div>
+                        <h3>Ziel-Site &amp; Listenname</h3>
+                        <p>Einmal festlegen – „Liste anlegen“ erzeugt die Spalten per Mausklick.</p>
+                    </div>
+                </div>
+                <div class="tm-field">
+                    <label for="sprpSiteUrl">SharePoint-Website</label>
+                    <input type="url" id="sprpSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="tm-field">
+                    <label for="sprpListName">Listenname</label>
+                    <input type="text" id="sprpListName" value="Raeume">
+                </div>
+                <div class="tm-actions">
+                    <button type="button" class="btn" id="sprpBtnSaveSettings"><i class="bi bi-check2"></i>Einstellungen speichern</button>
+                    <button type="button" class="btn" id="sprpBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                    <button type="button" class="btn btn-success" id="sprpBtnRun"><i class="bi bi-list-ul"></i>Liste anlegen</button>
+                </div>
+                <details class="tm-tech">
+                    <summary>Protokoll</summary>
+                    <div id="sprpLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                </details>
+            </section>
+            <section class="tm-panel">
+                <div class="tm-panel__head">
+                    <i class="bi bi-list-check" aria-hidden="true"></i>
+                    <div>
+                        <h3>Was wird angelegt?</h3>
+                        <p>Idempotent: vorhandene Liste wird erkannt, fehlende Spalten ergänzt.</p>
+                    </div>
+                </div>
+                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
+                    <li><strong>Raeume</strong> – Code, Name, Gebäude, Stockwerk, Kapazität, Typ, Notiz</li>
+                </ul>
+            </section>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
+    <script type="module" src="../src/tools/sharepoint/sharepoint-liste-raumplan.js"></script>
+</body>
+</html>

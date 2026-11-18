@@ -101,3 +101,108 @@ export function buildAfgBulkCreateConfirmMessage(opts) {
     }
     return msg;
 }
+
+/**
+ * Anzeigename ohne „Arbeitsgruppe “ / „Fach “ – Katalogname bzw. Kürzel.
+ * @param {{ code?: string, name?: string }|null|undefined} row
+ * @returns {string}
+ */
+export function displayNameForAfgCreate(row) {
+    const code = String((row && row.code) || '').trim();
+    const name = String((row && row.name) || '').trim();
+    return name || code || '';
+}
+
+/**
+ * Entfernt führendes „Arbeitsgruppe “ oder „Fach “ (einmalig).
+ * @param {string} displayName
+ * @returns {string}
+ */
+export function stripAfgDisplayNamePrefix(displayName) {
+    let s = String(displayName ?? '').trim();
+    const prefixes = ['Arbeitsgruppe ', 'Fach '];
+    for (let i = 0; i < prefixes.length; i++) {
+        const p = prefixes[i];
+        if (s.length >= p.length && s.slice(0, p.length).toLowerCase() === p.toLowerCase()) {
+            s = s.slice(p.length).trim();
+            break;
+        }
+    }
+    return s;
+}
+
+/**
+ * @param {string} displayName
+ * @returns {boolean}
+ */
+export function afgNeedsDisplayNameCleanup(displayName) {
+    const raw = String(displayName ?? '').trim();
+    if (!raw) return false;
+    return stripAfgDisplayNamePrefix(raw) !== raw;
+}
+
+/**
+ * Exakter Treffer über mailNickname oder SMTP-Lokalteil (ohne Domain).
+ * @param {Array<{ id?: string, mailNickname?: string, mail?: string, displayName?: string }>} candidates
+ * @param {string} nick
+ * @returns {{ id?: string, mailNickname?: string, mail?: string, displayName?: string }|null}
+ */
+export function pickAfgGroupByNickname(candidates, nick) {
+    const want = String(nick || '')
+        .trim()
+        .toLowerCase();
+    if (!want) return null;
+    const list = Array.isArray(candidates) ? candidates : [];
+    for (let i = 0; i < list.length; i++) {
+        const g = list[i];
+        if (!g || !g.id) continue;
+        const mn = String(g.mailNickname || '')
+            .trim()
+            .toLowerCase();
+        if (mn && mn === want) return g;
+        const mail = String(g.mail || '')
+            .trim()
+            .toLowerCase();
+        const at = mail.indexOf('@');
+        const local = at > 0 ? mail.slice(0, at) : mail;
+        if (local && local === want) return g;
+    }
+    return null;
+}
+
+/**
+ * @param {{ kindLabel: string, count: number, previewLines: string }} opts
+ * @returns {string}
+ */
+export function buildAfgBulkMatchExistingConfirmMessage(opts) {
+    const o = opts || {};
+    const n = Number(o.count) || 0;
+    const label = String(o.kindLabel || 'Einträge').trim() || 'Einträge';
+    const preview = String(o.previewLines || '').trim();
+    return (
+        String(n) +
+        ' ungematchte ' +
+        label +
+        ' mit bestehenden Microsoft‑365‑Gruppen per Alias abgleichen?\n\n' +
+        'Kürzel → gesuchter Alias:\n' +
+        (preview || '–') +
+        '\n\nEs werden keine neuen Gruppen angelegt – nur Treffer mit exakt gleichem Alias/SMTP werden gematcht.'
+    );
+}
+
+/**
+ * @param {{ count: number, previewLines: string }} opts
+ * @returns {string}
+ */
+export function buildAfgBulkRenameConfirmMessage(opts) {
+    const o = opts || {};
+    const n = Number(o.count) || 0;
+    const preview = String(o.previewLines || '').trim();
+    return (
+        'Bei ' +
+        String(n) +
+        ' Gruppe(n) das Präfix „Arbeitsgruppe “ / „Fach “ aus dem Anzeigenamen entfernen?\n\n' +
+        (preview || '–') +
+        '\n\nNur der Anzeigename (und ggf. die Beschreibung) wird geändert – Alias/E‑Mail bleiben gleich.'
+    );
+}

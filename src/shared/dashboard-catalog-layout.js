@@ -106,14 +106,27 @@ function gridForTool(catalog, toolId, clusterId) {
     }
 
     if (clusterId === 'schulapps') {
-        const nutzenIds = [
-            'projektwochen',
-            'schularbeiten-planer',
-            'schulaktivitaeten-planer',
-            'freistellung-planer',
-            'lehrer-freistellung-planer'
-        ];
-        const gridKey = nutzenIds.indexOf(toolId) >= 0 ? 'schulapps-nutzen' : 'schulapps';
+        /** @type {Record<string, string>} */
+        const gridByTool = {
+            'schularbeiten-planer': 'schulapps-planen',
+            'schulaktivitaeten-planer': 'schulapps-planen',
+            projektwochen: 'schulapps-planen',
+            'freistellung-planer': 'schulapps-freistellungen',
+            'lehrer-freistellung-planer': 'schulapps-freistellungen',
+            einsammler: 'schulapps-eltern',
+            elternbrief: 'schulapps-eltern',
+            krankmeldung: 'schulapps-eltern',
+            schulsprecherwahl: 'schulapps-organisation',
+            'schueler-stammdaten-portal': 'schulapps-organisation',
+            'wahlfach-zuteilung': 'schulapps-organisation',
+            'kollegium-umfragen': 'schulapps-organisation',
+            ausgaben: 'schulapps-organisation',
+            'termine-hub': 'schulapps-planen',
+            aufgaben: 'schulapps-organisation',
+            'technik-meldungen': 'schulapps-organisation',
+            raumplan: 'schulapps-organisation'
+        };
+        const gridKey = gridByTool[toolId] || 'schulapps';
         const card = catalog.querySelector('.choice[data-tool-id="' + toolId + '"]');
         const existing = card ? card.closest('[data-cluster-grid^="schulapps"]') : null;
         if (existing && panel.contains(existing)) return existing;

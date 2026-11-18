@@ -32,7 +32,7 @@ export const DASHBOARD_TOOL_RULES = {
     'kursteam-templates': { audience: 'it' },
     'onenote-verteilung': { audience: 'lehrer' },
     'arge-fachgruppen': { audience: 'it' },
-    diplomarbeiten: { audience: 'it' },
+    diplomarbeiten: { audience: 'lehrer' },
     'pa-diplom-ordner': { audience: 'it' },
     spielwiesen: { audience: 'it' },
     klassenchats: { audience: 'lehrer' },
@@ -49,6 +49,8 @@ export const DASHBOARD_TOOL_RULES = {
     verwaltung: { audience: 'it' },
     klassenvorstaende: { audience: 'it' },
     'weitere-teams-gruppen': { audience: 'it' },
+    'teams-antrag': { audience: 'all' },
+    'sharepoint-liste-teams-antrag': { audience: 'it' },
 
     // —— Schuljahr ——
     'playbook-schuljahresstart': { audience: 'it' },
@@ -82,13 +84,17 @@ export const DASHBOARD_TOOL_RULES = {
     'sharepoint-liste-projektwochen': { audience: 'it' },
     projektwochen: { audience: 'lehrer' },
     'sharepoint-liste-srdp': { audience: 'it' },
+    'srdp-anmeldung': {
+        audience: ['lehrer', 'schueler'],
+        planner: { app: 'srdp', roles: ['admin', 'lehrer', 'schueler'] }
+    },
     'schularbeiten-planer': {
         audience: ['lehrer', 'schueler'],
         planner: { app: 'schularbeiten', roles: ['admin', 'lehrer', 'schueler'] }
     },
     'schulaktivitaeten-planer': {
         audience: 'lehrer',
-        planner: { app: 'schularbeiten', roles: ['admin', 'lehrer'] }
+        planner: { app: 'schularbeiten', roles: ['admin', 'lehrer', 'kv'] }
     },
     'freistellung-planer': {
         audience: ['lehrer', 'schueler'],
@@ -98,13 +104,36 @@ export const DASHBOARD_TOOL_RULES = {
         audience: 'lehrer',
         planner: { app: 'schularbeiten', roles: ['admin', 'lehrer'] }
     },
-    schulsprecherwahl: { audience: 'it' },
+    schulsprecherwahl: { audience: ['lehrer', 'schueler'] },
+    'wahlfach-zuteilung': { audience: 'lehrer' },
+    'wahlfach-anmeldung': { audience: 'schueler' },
+    'sharepoint-liste-wahlfach': { audience: 'it' },
+    'schueler-stammdaten-portal': { audience: 'it' },
+    einsammler: { audience: 'lehrer' },
+    'sharepoint-liste-einsammler': { audience: 'it' },
+    elternbrief: { audience: 'lehrer' },
+    'sharepoint-liste-elternbrief': { audience: 'it' },
+    krankmeldung: { audience: 'lehrer' },
+    'sharepoint-liste-krankmeldung': { audience: 'it' },
+    'kollegium-umfragen': { audience: 'lehrer' },
+    'sharepoint-liste-kollegium-umfragen': { audience: 'it' },
+    ausgaben: { audience: 'lehrer' },
+    'sharepoint-liste-ausgaben': { audience: 'it' },
+    'sharepoint-liste-aufgaben': { audience: 'it' },
+    'sharepoint-liste-technik-meldungen': { audience: 'it' },
+    'sharepoint-liste-raumplan': { audience: 'it' },
     'sharepoint-liste-vertretung': { audience: 'it' },
+    'termine-hub': { audience: ['lehrer', 'schueler'] },
+    aufgaben: { audience: 'lehrer' },
+    'technik-meldungen': { audience: ['lehrer', 'schueler'] },
+    raumplan: { audience: 'lehrer' },
 
     // —— Automationen ——
     'pa-erst-setup': { audience: 'it' },
     'power-automate-rezepte': { audience: 'it' },
     'freistellung-setup': { audience: 'it' },
+    'schulaktivitaeten-setup': { audience: 'it' },
+    'srdp-mail-setup': { audience: 'it' },
     'playbook-freistellungen': { audience: 'it' },
     'pa-termine-sync': { audience: 'it' },
     'pa-schularbeiten-mail': { audience: 'it' },
@@ -127,8 +156,10 @@ export const DASHBOARD_TOOL_RULES = {
     'cleanup-playbook': { audience: 'it' },
     'schul-baseline': { audience: 'it' },
     'datei-migration': { audience: 'it' },
+    'nextcloud-teams-migrate': { audience: 'it' },
     'leere-gruppen-report': { audience: 'it' },
-    'teams-archiv': { audience: 'it' }
+    'teams-archiv': { audience: 'it' },
+    'teams-kanaele-bulk': { audience: 'it' }
 };
 
 /**
@@ -181,6 +212,8 @@ export const DASHBOARD_TOOL_CLUSTER = {
     verwaltung: 'gruppen',
     klassenvorstaende: 'gruppen',
     'weitere-teams-gruppen': 'gruppen',
+    'teams-antrag': 'gruppen',
+    'sharepoint-liste-teams-antrag': 'gruppen',
     lizenzverwaltung: 'personen',
     'personen-verwaltung': 'personen',
     'namenskonvention-audit': 'personen',
@@ -214,15 +247,39 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'sharepoint-liste-projektwochen': 'schulapps',
     projektwochen: 'schulapps',
     'sharepoint-liste-srdp': 'intranet',
+    'srdp-anmeldung': 'intranet',
     'schularbeiten-planer': 'schulapps',
     'schulaktivitaeten-planer': 'schulapps',
     'freistellung-planer': 'schulapps',
     'lehrer-freistellung-planer': 'schulapps',
     schulsprecherwahl: 'schulapps',
+    'wahlfach-zuteilung': 'schulapps',
+    'wahlfach-anmeldung': 'schulapps',
+    'sharepoint-liste-wahlfach': 'intranet',
+    'schueler-stammdaten-portal': 'schulapps',
+    einsammler: 'schulapps',
+    'sharepoint-liste-einsammler': 'schulapps',
+    elternbrief: 'schulapps',
+    'sharepoint-liste-elternbrief': 'schulapps',
+    krankmeldung: 'schulapps',
+    'sharepoint-liste-krankmeldung': 'schulapps',
+    'kollegium-umfragen': 'schulapps',
+    'sharepoint-liste-kollegium-umfragen': 'schulapps',
+    ausgaben: 'schulapps',
+    'sharepoint-liste-ausgaben': 'schulapps',
+    'sharepoint-liste-aufgaben': 'schulapps',
+    'sharepoint-liste-technik-meldungen': 'schulapps',
+    'sharepoint-liste-raumplan': 'schulapps',
     'sharepoint-liste-vertretung': 'intranet',
+    'termine-hub': 'schulapps',
+    aufgaben: 'schulapps',
+    'technik-meldungen': 'schulapps',
+    raumplan: 'schulapps',
     'pa-erst-setup': 'automationen',
     'power-automate-rezepte': 'automationen',
     'freistellung-setup': 'automationen',
+    'schulaktivitaeten-setup': 'automationen',
+    'srdp-mail-setup': 'automationen',
     'playbook-freistellungen': 'automationen',
     'pa-termine-sync': 'automationen',
     'pa-schularbeiten-mail': 'automationen',
@@ -242,8 +299,10 @@ export const DASHBOARD_TOOL_CLUSTER = {
     'stammdaten-backup-abgleich': 'hygiene',
     'cleanup-playbook': 'hygiene',
     'datei-migration': 'hygiene',
+    'nextcloud-teams-migrate': 'hygiene',
     'leere-gruppen-report': 'hygiene',
-    'teams-archiv': 'hygiene'
+    'teams-archiv': 'hygiene',
+    'teams-kanaele-bulk': 'gruppen'
 };
 
 /**
@@ -297,18 +356,134 @@ export function normalizeAudiences(rule) {
  * @param {DashboardView} view
  * @param {DashboardToolRule} [ruleOverride]
  */
-/** Nur diese zwei Apps im Dashboard für Lehrkraft und Schüler/in */
-export const DASHBOARD_LEHRER_SCHUELER_APPS = ['schularbeiten-planer', 'freistellung-planer'];
+/**
+ * Portal-fähige Alltags-Apps (nicht IT-Setup/Hygiene).
+ * Whitelist = darf überhaupt ins Lehrer-/Schüler-Portal;
+ * effektive Audience (Default + IT-Matrix) entscheidet die Persona-Sichtbarkeit.
+ * Siehe docs/lehrer-portal-roadmap.md Phase P0 / Iteration Portal-Katalog.
+ */
+export const DASHBOARD_LEHRER_SCHUELER_APPS = [
+    'schularbeiten-planer',
+    'freistellung-planer',
+    'lehrer-freistellung-planer',
+    'schulaktivitaeten-planer',
+    'projektwochen',
+    'termine-hub',
+    'aufgaben',
+    'technik-meldungen',
+    'raumplan',
+    'elternbrief',
+    'einsammler',
+    'krankmeldung',
+    'kollegium-umfragen',
+    'teams-antrag',
+    'diplomarbeiten',
+    'ausgaben',
+    'srdp-anmeldung',
+    'kursteams',
+    'unterrichtsteams-katalog',
+    'kursteam-einzeln',
+    'onenote-verteilung',
+    'elternsprechtag-bookings',
+    'sharepoint-intranet-hub',
+    'klassenchats',
+    'schulsprecherwahl',
+    'wahlfach-zuteilung',
+    'wahlfach-anmeldung'
+];
+
+/**
+ * Gruppierung im Lehrer-/Schüler-Portal (Apps-only-Ansicht).
+ * @type {Record<'lehrer'|'schueler', Array<{ id: string, label: string, icon: string, toolIds: string[] }>>}
+ */
+export const DASHBOARD_PORTAL_SECTIONS_BY_VIEW = {
+    lehrer: [
+        {
+            id: 'unterricht',
+            label: 'Unterricht',
+            icon: 'bi-mortarboard',
+            toolIds: [
+                'schularbeiten-planer',
+                'freistellung-planer',
+                'lehrer-freistellung-planer',
+                'diplomarbeiten',
+                'kursteams',
+                'unterrichtsteams-katalog',
+                'kursteam-einzeln',
+                'onenote-verteilung',
+                'srdp-anmeldung',
+                'wahlfach-zuteilung'
+            ]
+        },
+        {
+            id: 'schulalltag',
+            label: 'Schulalltag',
+            icon: 'bi-building',
+            toolIds: [
+                'termine-hub',
+                'schulaktivitaeten-planer',
+                'projektwochen',
+                'aufgaben',
+                'schulsprecherwahl'
+            ]
+        },
+        {
+            id: 'betrieb',
+            label: 'Betrieb & Technik',
+            icon: 'bi-wrench',
+            toolIds: ['technik-meldungen', 'raumplan', 'ausgaben']
+        },
+        {
+            id: 'eltern',
+            label: 'Eltern & Ablauf',
+            icon: 'bi-mailbox',
+            toolIds: ['elternbrief', 'einsammler', 'krankmeldung', 'elternsprechtag-bookings']
+        },
+        {
+            id: 'kollegium',
+            label: 'Kollegium',
+            icon: 'bi-people',
+            toolIds: ['kollegium-umfragen', 'teams-antrag', 'klassenchats']
+        },
+        {
+            id: 'intranet',
+            label: 'Intranet',
+            icon: 'bi-house-door',
+            toolIds: ['sharepoint-intranet-hub']
+        }
+    ],
+    schueler: [
+        {
+            id: 'meine',
+            label: 'Meine Apps',
+            icon: 'bi-grid',
+            toolIds: [
+                'termine-hub',
+                'schularbeiten-planer',
+                'freistellung-planer',
+                'srdp-anmeldung',
+                'schulsprecherwahl',
+                'wahlfach-anmeldung',
+                'technik-meldungen',
+                'teams-antrag',
+                'sharepoint-intranet-hub'
+            ]
+        }
+    ]
+};
 
 export function isToolVisibleForView(toolId, ctx, view, ruleOverride) {
     if (view === 'it') return true;
 
-    if (view === 'lehrer' || view === 'schueler') {
-        return DASHBOARD_LEHRER_SCHUELER_APPS.includes(toolId);
-    }
-
     const rule = ruleOverride || DASHBOARD_TOOL_RULES[toolId];
     const audiences = normalizeAudiences(rule);
+
+    if (view === 'lehrer' || view === 'schueler') {
+        // Whitelist = portal-fähig; Audience (Default + IT-Matrix-Override) entscheidet.
+        if (!DASHBOARD_LEHRER_SCHUELER_APPS.includes(toolId)) return false;
+        if (audiences.includes('all')) return true;
+        return audiences.includes(view);
+    }
 
     if (audiences.includes('all')) {
         return passesPlannerGate(rule, ctx);
@@ -386,8 +561,11 @@ export const DASHBOARD_TOOL_LABELS = {
     'kursteam-templates': 'Kursteam-Vorlagen',
     'onenote-verteilung': 'OneNote-Inhalte verteilen',
     'arge-fachgruppen': 'Fächer und ARGEs',
-    diplomarbeiten: 'Diplomarbeiten',
+    'teams-kanaele-bulk': 'Kanäle bulk anlegen',
+    diplomarbeiten: 'Diplomarbeiten / VWA',
     'pa-diplom-ordner': 'Diplom-Ordner Flow',
+    'teams-antrag': 'Teams-Antrag',
+    'sharepoint-liste-teams-antrag': 'Teams-Antrag-Liste',
     spielwiesen: 'Spielwiesen-Teams',
     klassenchats: 'KlassenChats',
     lizenzverwaltung: 'Lizenzverwaltung',
@@ -427,16 +605,40 @@ export const DASHBOARD_TOOL_LABELS = {
     'sharepoint-liste-schulaktivitaeten': 'Schulaktivitäten-Listen',
     'sharepoint-liste-projektwochen': 'Projektwochen-Listen',
     projektwochen: 'Projektwochen',
-    'sharepoint-liste-srdp': 'sRDP-Anmeldung',
+    'sharepoint-liste-srdp': 'sRDP-Liste einrichten',
+    'srdp-anmeldung': 'Maturaanmeldung (sRDP)',
     'schularbeiten-planer': 'Schularbeiten-Planer',
     'schulaktivitaeten-planer': 'Schulaktivitäten',
     'freistellung-planer': 'Freistellungen (Schüler)',
     'lehrer-freistellung-planer': 'Freistellungen Lehrkräfte',
-    schulsprecherwahl: 'Schulsprecher:innenwahl',
+    schulsprecherwahl: 'Schulwahlen',
+    'wahlfach-zuteilung': 'Wahlfach-Zuteilung',
+    'wahlfach-anmeldung': 'Wahlfach anmelden',
+    'sharepoint-liste-wahlfach': 'Wahlfach-Listen',
+    'schueler-stammdaten-portal': 'Schüler-Stammdaten-Portal',
+    einsammler: 'Einsammler',
+    'sharepoint-liste-einsammler': 'Einsammler-Listen',
+    elternbrief: 'Elternbrief',
+    'sharepoint-liste-elternbrief': 'Elternbrief-Listen',
+    krankmeldung: 'Krankmeldung',
+    'sharepoint-liste-krankmeldung': 'Krankmeldungen-Liste',
+    'kollegium-umfragen': 'Kollegiumsumfragen',
+    'sharepoint-liste-kollegium-umfragen': 'Kollegiumsumfragen-Listen',
+    ausgaben: 'Ausgabenverwaltung',
+    'sharepoint-liste-ausgaben': 'Ausgaben-Listen',
+    'sharepoint-liste-aufgaben': 'Aufgaben-Liste',
+    'sharepoint-liste-technik-meldungen': 'Technik-Meldungen-Liste',
+    'sharepoint-liste-raumplan': 'Raumplan-Liste',
     'sharepoint-liste-vertretung': 'Vertretungsplan-Liste',
+    'termine-hub': 'Kalender und Termine',
+    aufgaben: 'Aufgaben',
+    'technik-meldungen': 'Technik-Meldungen',
+    raumplan: 'Raumplan',
     'pa-erst-setup': 'Power Platform Erst-Setup',
     'power-automate-rezepte': 'Automationen-Übersicht',
     'freistellung-setup': 'Freistellungen Setup',
+    'schulaktivitaeten-setup': 'Schulaktivitäten Setup',
+    'srdp-mail-setup': 'sRDP Bestätigungsmail',
     'playbook-freistellungen': 'Playbook Freistellungen',
     'pa-termine-sync': 'Termine → Kalender',
     'pa-schularbeiten-mail': 'Schularbeiten-Mail Flow',
@@ -457,14 +659,49 @@ export const DASHBOARD_TOOL_LABELS = {
     'cleanup-playbook': 'Cleanup-Playbook',
     'schul-baseline': 'Schul-Baseline',
     'datei-migration': 'Datei-Migration',
+    'nextcloud-teams-migrate': 'Nextcloud → Teams',
     'leere-gruppen-report': 'Leere Gruppen finden',
     'teams-archiv': 'Teams archivieren'
 };
 
 /** Standard-Schnellstart (sichtbare Tools in Reihenfolge) */
 export const DASHBOARD_QUICKSTART_BY_VIEW = {
-    schueler: ['schularbeiten-planer', 'freistellung-planer'],
-    lehrer: ['schularbeiten-planer', 'freistellung-planer', 'lehrer-freistellung-planer']
+    schueler: [
+        'termine-hub',
+        'schularbeiten-planer',
+        'freistellung-planer',
+        'technik-meldungen',
+        'srdp-anmeldung',
+        'schulsprecherwahl',
+        'teams-antrag',
+        'sharepoint-intranet-hub'
+    ],
+    lehrer: [
+        'termine-hub',
+        'schularbeiten-planer',
+        'schulaktivitaeten-planer',
+        'freistellung-planer',
+        'lehrer-freistellung-planer',
+        'srdp-anmeldung',
+        'kursteams',
+        'aufgaben',
+        'technik-meldungen',
+        'raumplan',
+        'elternbrief',
+        'einsammler',
+        'krankmeldung',
+        'kollegium-umfragen',
+        'teams-antrag',
+        'diplomarbeiten',
+        'wahlfach-zuteilung',
+        'wahlfach-anmeldung',
+        'schulsprecherwahl',
+        'ausgaben',
+        'onenote-verteilung',
+        'elternsprechtag-bookings',
+        'klassenchats',
+        'sharepoint-intranet-hub'
+    ]
 };
 
 /** @typedef {import('./dashboard-audience-catalog.js').DashboardView} DashboardView */
@@ -472,20 +709,94 @@ export const DASHBOARD_QUICKSTART_BY_VIEW = {
 export const DASHBOARD_TOOL_LINKS = {
     'schularbeiten-planer': 'tools/schularbeiten-planer.html',
     'freistellung-planer': 'tools/freistellung-planer.html',
-    'lehrer-freistellung-planer': 'tools/lehrer-freistellung-planer.html'
+    'lehrer-freistellung-planer': 'tools/lehrer-freistellung-planer.html',
+    'schulaktivitaeten-planer': 'tools/schulaktivitaeten-planer.html',
+    'termine-hub': 'tools/termine-hub.html',
+    aufgaben: 'tools/aufgaben.html',
+    'technik-meldungen': 'tools/technik-meldungen.html',
+    raumplan: 'tools/raumplan.html',
+    elternbrief: 'tools/elternbrief.html',
+    einsammler: 'tools/einsammler.html',
+    krankmeldung: 'tools/krankmeldung.html',
+    'kollegium-umfragen': 'tools/kollegium-umfragen.html',
+    'teams-antrag': 'tools/teams-antrag.html',
+    diplomarbeiten: 'tools/diplomarbeiten.html',
+    'srdp-anmeldung': 'tools/srdp-anmeldung.html',
+    kursteams: 'tools/kursteams.html',
+    'unterrichtsteams-katalog': 'tools/unterrichtsteams-katalog.html',
+    'kursteam-einzeln': 'tools/kursteams.html?mode=single',
+    'onenote-verteilung': 'tools/onenote-verteilung.html',
+    'elternsprechtag-bookings': 'tools/elternsprechtag-bookings.html',
+    'sharepoint-intranet-hub': 'tools/sharepoint-intranet-hub.html',
+    klassenchats: 'tools/klassenchats.html',
+    schulsprecherwahl: 'tools/schulsprecherwahl.html',
+    'wahlfach-zuteilung': 'tools/wahlfach-zuteilung.html',
+    'wahlfach-anmeldung': 'tools/wahlfach-anmeldung.html',
+    ausgaben: 'tools/ausgaben.html',
+    projektwochen: 'tools/projektwochen.html'
 };
 
 export const DASHBOARD_TOOL_ICONS = {
     'schularbeiten-planer': 'bi-journal-check',
     'freistellung-planer': 'bi-calendar2-check',
-    'lehrer-freistellung-planer': 'bi-briefcase'
+    'lehrer-freistellung-planer': 'bi-briefcase',
+    'schulaktivitaeten-planer': 'bi-geo-alt',
+    'termine-hub': 'bi-calendar-event',
+    aufgaben: 'bi-check2-square',
+    'technik-meldungen': 'bi-wrench-adjustable',
+    raumplan: 'bi-map',
+    elternbrief: 'bi-envelope-paper',
+    einsammler: 'bi-ui-checks',
+    krankmeldung: 'bi-thermometer-half',
+    'kollegium-umfragen': 'bi-clipboard2-check',
+    'teams-antrag': 'bi-people-fill',
+    diplomarbeiten: 'bi-mortarboard',
+    'srdp-anmeldung': 'bi-award',
+    kursteams: 'bi-collection',
+    'unterrichtsteams-katalog': 'bi-grid-3x3-gap',
+    'kursteam-einzeln': 'bi-bounding-box',
+    'onenote-verteilung': 'bi-journal-richtext',
+    'elternsprechtag-bookings': 'bi-calendar2-week',
+    'sharepoint-intranet-hub': 'bi-house-door',
+    klassenchats: 'bi-chat-dots',
+    schulsprecherwahl: 'bi-ui-checks-grid',
+    'wahlfach-zuteilung': 'bi-diagram-3',
+    'wahlfach-anmeldung': 'bi-pencil-square',
+    ausgaben: 'bi-key',
+    projektwochen: 'bi-calendar-range'
 };
 
 export const DASHBOARD_TOOL_BLURBS = {
     'schularbeiten-planer': 'Termine, Anträge und Kalender für Ihre Klasse.',
     'freistellung-planer': 'Freistellungen beantragen und Status verfolgen (Schüler/KV).',
     'lehrer-freistellung-planer':
-        'Freistellungen für Lehrkräfte – Direktion genehmigt, Kalender und iCal.'
+        'Freistellungen für Lehrkräfte – Direktion genehmigt, Kalender und iCal.',
+    'schulaktivitaeten-planer': 'Exkursionen und Schulaktivitäten beantragen und verfolgen.',
+    'termine-hub':
+        'Schul-, Lehrer- und Schülerkalender aus Outlook – rollenbasiert, Woche/Monat, anlegen und pflegen.',
+    aufgaben: 'Aufgaben an Personen oder Rollen zuweisen und abhaken.',
+    'technik-meldungen':
+        'Defekte oder problematische Technik melden – Lehrkräfte und Schüler; IT bearbeitet die Inbox.',
+    raumplan: 'Räume suchen, Plan ansehen, CSV importieren.',
+    elternbrief: 'Briefe an Eltern mit Lesebestätigung.',
+    einsammler: 'Einwilligungen und Rückläufe digital einsammeln.',
+    krankmeldung: 'Krankmeldungen der Klasse einsehen und bearbeiten.',
+    'kollegium-umfragen': 'Umfragen nur für Lehrkräfte – Antworten und Auswertung.',
+    'teams-antrag': 'Neues Team beantragen – IT prüft und legt es an.',
+    diplomarbeiten: 'Abschlussarbeiten: Jahrgangs-Team und private Kanäle.',
+    'srdp-anmeldung': 'Matura-/Diplomprüfungsanmeldung (sRDP) für Abschlussjahrgänge.',
+    kursteams: 'Unterrichtsteams anlegen und Mitglieder steuern.',
+    'unterrichtsteams-katalog': 'Übersicht aller Unterrichtsteams der Schule.',
+    'kursteam-einzeln': 'Einzelnes Unterrichtsteam anlegen oder nachziehen.',
+    'onenote-verteilung': 'OneNote-Inhalte an Klassen und Kurse verteilen.',
+    'elternsprechtag-bookings': 'Elternsprechtag mit Bookings organisieren.',
+    'sharepoint-intranet-hub': 'Schul-Intranet öffnen und Navigation nutzen.',
+    klassenchats: 'KlassenChats für den Alltag anlegen und pflegen.',
+    schulsprecherwahl: 'Schulwahlen digital durchführen und auswerten.',
+    'wahlfach-zuteilung': 'Wahlfächer erfassen, zuteilen und Übersicht behalten.',
+    'wahlfach-anmeldung': '1.–3. Wunsch für Wahlfächer eintragen.',
+    ausgaben: 'Schlüssel, Karten und Zugänge verwalten.',
+    projektwochen: 'Projektwochen planen, Gruppen und Termine steuern.'
 };
 
 /**

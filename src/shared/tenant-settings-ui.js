@@ -7,6 +7,12 @@
     downloadClassesCsv
 } from './tenant-settings-ui-classes.js';
 import { studentsToLines as studentsToLinesPure } from './tenant-settings-ui-students.js';
+import { enrichStudentLinesWithDemoParents } from './demo-eltern-enrich.js';
+import {
+    resolveStudentRepSyncSource,
+    sgaStudentsFromStudentCouncil,
+    studentCouncilFromSgaStudents
+} from './sga-student-council-sync.js';
 import {
     SUBJECT_LIST_SHEET_NAME,
     SUBJECT_LIST_XLSX_FILENAME,
@@ -39,6 +45,8 @@ import { mountVerwaltungStammdatenTree } from './verwaltung-stammdaten-tree-ui.j
 import { mountTenantSchoolEmailPatternUi } from './tenant-teacher-email-pattern-ui.js';
 import { mountTenantIntranetQuickSync } from './tenant-intranet-quick-sync.js';
 import { mountTenantSchoolProfileUi, reloadTenantSchoolProfileForm } from './tenant-school-profile-ui.js';
+import { mountTenantStammdatenSetupNav } from './tenant-stammdaten-setup-nav.js';
+import { mountTenantPlanerSitesUi } from './tenant-planer-sites-ui.js';
 import { writeSchoolData } from './stammdaten-write.js';
 import { isStammdatenLocalFirst, localFirstStatusMessage } from './stammdaten-local-first.js';
 import {
@@ -439,6 +447,41 @@ import './schul-organigramm-stammdaten-sync.js';
         return fb === 'all' ? 'all' : 'first';
     }
 
+    function emailPatternFromLocalStorageFallback() {
+        try {
+            const raw =
+                localStorage.getItem('ms365-tenant-school-email-pattern-v1') ||
+                localStorage.getItem('ms365-tenant-teachers-email-pattern-v1') ||
+                '';
+            if (!raw) return '';
+            try {
+                const obj = JSON.parse(raw);
+                if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                    return String(obj.patternId || obj.pattern || '').trim();
+                }
+            } catch {
+                /* Legacy-String */
+            }
+            return String(raw).trim();
+        } catch {
+            return '';
+        }
+    }
+
+    function emailFirstNameModeFromLocalStorageFallback() {
+        try {
+            const raw = localStorage.getItem('ms365-tenant-school-email-pattern-v1') || '';
+            if (!raw) return '';
+            const obj = JSON.parse(raw);
+            if (obj && typeof obj === 'object' && !Array.isArray(obj) && obj.firstNameMode != null) {
+                return emailFirstNameModeFromSelect('', String(obj.firstNameMode));
+            }
+        } catch {
+            /* ignore */
+        }
+        return '';
+    }
+
     /** Schulweites E-Mail-Muster (Stammdaten-Tab), mit Fallback für ältere UI-IDs. */
     function tenantSchoolEmailPatternId() {
         return emailPatternFromSelect(
@@ -449,7 +492,10 @@ import './schul-organigramm-stammdaten-sync.js';
                     'tenantStudentsEmailPattern',
                     emailPatternFromSelect(
                         'swTeachersEmailPattern',
-                        emailPatternFromSelect('swStudentsEmailPattern', emailPatternFromSelect('evImportEmailPattern'))
+                        emailPatternFromSelect(
+                            'swStudentsEmailPattern',
+                            emailPatternFromSelect('evImportEmailPattern', emailPatternFromLocalStorageFallback() || 'vorname.nachname')
+                        )
                     )
                 )
             )
@@ -465,7 +511,10 @@ import './schul-organigramm-stammdaten-sync.js';
                     'tenantStudentsEmailGivenNames',
                     emailFirstNameModeFromSelect(
                         'swTeachersEmailGivenNames',
-                        emailFirstNameModeFromSelect('swStudentsEmailGivenNames', 'first')
+                        emailFirstNameModeFromSelect(
+                            'swStudentsEmailGivenNames',
+                            emailFirstNameModeFromLocalStorageFallback() || 'first'
+                        )
                     )
                 )
             )
@@ -548,7 +597,19 @@ import './schul-organigramm-stammdaten-sync.js';
                 }
                 if (!domain) {
                     result.meta = result.meta || {};
-                    result.meta.emailHint = 'Schuldomain in den Stammdaten setzen, um fehlende Schüler-Mails vorzuschlagen.';
+                    result.meta.emailHint =
+                        'Keine Schuldomain gesetzt: private Kontaktmails (Gmail/GMX/…) werden verworfen, Schul-Mails bleiben. Domain setzen, um fehlende Mails zu erzeugen.';
+                } else if (result.meta && result.meta.privateStudentEmailsIgnored > 0) {
+                    result.meta.emailHint =
+                        result.meta.privateStudentEmailsIgnored +
+                        ' private Schüler-Kontaktmail(s) verworfen (nicht @' +
+                        domain +
+                        ').';
+                }
+                if (result.meta && result.meta.emptyKlasse > 0) {
+                    result.meta.classHint =
+                        result.meta.emptyKlasse +
+                        ' ohne Klasse in WebUntis – lokale Klasse bleibt beim Zusammenführen erhalten.';
                 }
                 return result;
             }
@@ -1107,7 +1168,10 @@ import './schul-organigramm-stammdaten-sync.js';
 
         mountTenantSchoolEmailPatternUi();
         mountTenantSchoolProfileUi();
+        // IT-Nav-Sichtbarkeit zuerst, dann Pane-Switcher (merkt sich z. B. Sicherungsbibliothek).
         mountTenantIntranetQuickSync();
+        mountTenantStammdatenSetupNav();
+        mountTenantPlanerSitesUi();
         if (isStammdatenLocalFirst()) {
             const banner = document.getElementById('tenantLocalFirstBanner');
             if (banner) {
@@ -1268,6 +1332,7 @@ import './schul-organigramm-stammdaten-sync.js';
         const btnArgesTpl = document.getElementById('tenantArgesTemplateXlsx');
         const btnTeachersTpl = document.getElementById('tenantTeachersTemplateXlsx');
         const btnStudentsTpl = document.getElementById('tenantStudentsTemplateXlsx');
+        const btnStudentsFillDemoParents = document.getElementById('tenantStudentsFillDemoParents');
         const btnClassesTpl = document.getElementById('tenantClassesTemplateXlsx');
         const btnClassesExportCsv = document.getElementById('tenantClassesExportCsv');
         const btnClassesExportXlsx = document.getElementById('tenantClassesExportXlsx');
@@ -4217,12 +4282,80 @@ import './schul-organigramm-stammdaten-sync.js';
             return typeof fn === 'function' ? fn(getSgaFromTextarea()) : { board: { teachers: [], students: [], externals: [] }, overflow: [] };
         }
 
+        /** Verhindert Ping-Pong zwischen SGA-Schülerplätzen und Schülervertretung. */
+        let sgaStudentCouncilSyncLock = false;
+
+        function sgaStudentSlotCount() {
+            return typeof window.ms365TenantSettingsSgaBoardSlots === 'number'
+                ? window.ms365TenantSettingsSgaBoardSlots
+                : 3;
+        }
+
+        function pushSgaStudentsFromCouncilRows(councilRows) {
+            if (sgaStudentCouncilSyncLock) return;
+            const fn = window.ms365TenantSettingsSgaRowsFromBoard;
+            if (typeof fn !== 'function') return;
+            sgaStudentCouncilSyncLock = true;
+            try {
+                const part = partitionSgaForBoard();
+                const b = part.board || { teachers: [], students: [], externals: [] };
+                b.students = sgaStudentsFromStudentCouncil(councilRows, sgaStudentSlotCount());
+                sgaBoardOverflowRows = part.overflow || [];
+                setSgaTextareaFromRows(fn(b, sgaBoardOverflowRows));
+                renderSgaTableFromTextarea();
+                if (typeof renderSgaBoard === 'function') renderSgaBoard();
+            } finally {
+                sgaStudentCouncilSyncLock = false;
+            }
+        }
+
+        function pushStudentCouncilFromSgaBoard(board) {
+            if (!taStudentCouncil) return;
+            const slotN = sgaStudentSlotCount();
+            const next = studentCouncilFromSgaStudents(
+                (board && board.students) || [],
+                getStudentsFromTextarea(),
+                getStudentCouncilFromTextarea(),
+                slotN
+            );
+            sgaStudentCouncilSyncLock = true;
+            try {
+                setStudentCouncilTextareaFromRows(next);
+                if (typeof renderStudentCouncilTableFromTextarea === 'function') {
+                    renderStudentCouncilTableFromTextarea();
+                }
+                if (typeof renderStudentCouncilPickBoard === 'function') {
+                    renderStudentCouncilPickBoard();
+                }
+            } finally {
+                sgaStudentCouncilSyncLock = false;
+            }
+        }
+
+        function reconcileSgaAndStudentCouncil() {
+            if (sgaStudentCouncilSyncLock) return;
+            const part = partitionSgaForBoard();
+            const board = part.board || { teachers: [], students: [], externals: [] };
+            const council = getStudentCouncilFromTextarea();
+            const source = resolveStudentRepSyncSource(
+                board.students,
+                council,
+                sgaStudentSlotCount()
+            );
+            if (source === 'none') return;
+            if (source === 'sga') pushStudentCouncilFromSgaBoard(board);
+            else if (source === 'council') pushSgaStudentsFromCouncilRows(council);
+        }
+
         function commitSgaBoard(board, overflow) {
             const fn = window.ms365TenantSettingsSgaRowsFromBoard;
             if (typeof fn !== 'function') return;
             sgaBoardOverflowRows = Array.isArray(overflow) ? overflow : [];
             setSgaTextareaFromRows(fn(board, sgaBoardOverflowRows));
             renderSgaTableFromTextarea();
+            if (!sgaStudentCouncilSyncLock) {
+                pushStudentCouncilFromSgaBoard(board);
+            }
             scheduleAutoSave();
         }
 
@@ -4559,6 +4692,9 @@ import './schul-organigramm-stammdaten-sync.js';
         function setStudentCouncilTextareaFromRows(rows) {
             if (!taStudentCouncil) return;
             taStudentCouncil.value = studentCouncilToLines(rows);
+            if (!sgaStudentCouncilSyncLock) {
+                pushSgaStudentsFromCouncilRows(rows);
+            }
         }
 
         function studentCouncilPickSlotCount(rows) {
@@ -4604,10 +4740,35 @@ import './schul-organigramm-stammdaten-sync.js';
                 const wrap = document.createElement('div');
                 wrap.className = 'ts-sga-board__slot';
 
+                const head = document.createElement('div');
+                head.className = 'ts-sv-pick-board__head';
+
                 const num = document.createElement('span');
                 num.className = 'ts-sga-board__num';
                 num.textContent = String(i + 1);
-                wrap.appendChild(num);
+                head.appendChild(num);
+
+                if (slotN > STUDENT_COUNCIL_PICK_MIN_SLOTS || em) {
+                    const btnRm = document.createElement('button');
+                    btnRm.type = 'button';
+                    btnRm.className = 'ts-sv-pick-board__clear';
+                    btnRm.title = 'Platz entfernen';
+                    btnRm.setAttribute('aria-label', 'Platz entfernen');
+                    btnRm.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+                    btnRm.addEventListener('click', function () {
+                        const current = getStudentCouncilFromTextarea();
+                        const slotNNow = studentCouncilPickSlotCount(current);
+                        const next = [];
+                        for (let j = 0; j < slotNNow; j++) {
+                            if (j !== i) next.push(current[j] ? Object.assign({}, current[j]) : { klasse: '', name: '', email: '' });
+                        }
+                        commitStudentCouncilPickRows(next);
+                        renderStudentCouncilPickBoard();
+                    });
+                    head.appendChild(btnRm);
+                }
+
+                wrap.appendChild(head);
 
                 const sel = document.createElement('select');
                 sel.className = 'ts-sga-board__pick';
@@ -4652,27 +4813,6 @@ import './schul-organigramm-stammdaten-sync.js';
                         : 'Schülerliste ist leer – zuerst im Tab Schüler pflegen.';
                 }
                 wrap.appendChild(preview);
-
-                if (slotN > STUDENT_COUNCIL_PICK_MIN_SLOTS || em) {
-                    const btnRm = document.createElement('button');
-                    btnRm.type = 'button';
-                    btnRm.className = 'mini-btn';
-                    btnRm.style.gridColumn = '2';
-                    btnRm.style.justifySelf = 'start';
-                    btnRm.title = 'Platz entfernen';
-                    btnRm.textContent = '✕';
-                    btnRm.addEventListener('click', function () {
-                        const current = getStudentCouncilFromTextarea();
-                        const slotNNow = studentCouncilPickSlotCount(current);
-                        const next = [];
-                        for (let j = 0; j < slotNNow; j++) {
-                            if (j !== i) next.push(current[j] ? Object.assign({}, current[j]) : { klasse: '', name: '', email: '' });
-                        }
-                        commitStudentCouncilPickRows(next);
-                        renderStudentCouncilPickBoard();
-                    });
-                    wrap.appendChild(btnRm);
-                }
 
                 studentCouncilPickSlotsHost.appendChild(wrap);
             }
@@ -7704,7 +7844,14 @@ import './schul-organigramm-stammdaten-sync.js';
             if (taStudents) {
                 taStudents.value = studentsToLines(s.students || []);
             }
-            if (taStudentCouncil) taStudentCouncil.value = studentCouncilToLines(s.studentCouncil || []);
+            if (taStudentCouncil) {
+                sgaStudentCouncilSyncLock = true;
+                try {
+                    taStudentCouncil.value = studentCouncilToLines(s.studentCouncil || []);
+                } finally {
+                    sgaStudentCouncilSyncLock = false;
+                }
+            }
             if (taClasses) {
                 taClasses.value = (s.classes || [])
                     .map((x) => `${x.code || ''};${x.year || ''};${x.name || ''};${x.headName || ''};${x.headEmail || ''}`.trim())
@@ -7716,8 +7863,9 @@ import './schul-organigramm-stammdaten-sync.js';
             renderAdminRolesTableFromTextarea();
             renderAdminTableFromTextarea();
             renderSgaTableFromTextarea();
-            renderSgaBoard();
             renderStudentsTableFromTextarea();
+            reconcileSgaAndStudentCouncil();
+            renderSgaBoard();
             renderStudentCouncilTableFromTextarea();
             renderStudentCouncilPickBoard();
             renderClassesTableFromTextarea();
@@ -7921,6 +8069,7 @@ import './schul-organigramm-stammdaten-sync.js';
                     if (meta.emailsGenerated) bits.push(meta.emailsGenerated + ' Mails vorgeschlagen');
                     if (meta.unmatchedGuardians) bits.push(meta.unmatchedGuardians + ' Eltern ohne Zuordnung');
                     if (meta.emailHint) bits.push(meta.emailHint);
+                    if (meta.classHint) bits.push(meta.classHint);
                     if (bits.length) setSummary('WebUntis/SIS: ' + bits.join(' · '), 'ok');
                 },
                 (msg) => setSummary(msg, 'warn'),
@@ -8585,6 +8734,47 @@ import './schul-organigramm-stammdaten-sync.js';
                 if (!ok) setSummary('Vorlage: Excel-Bibliothek nicht geladen – Seite neu laden.', 'warn');
             });
         }
+        if (btnStudentsFillDemoParents) {
+            btnStudentsFillDemoParents.addEventListener('click', (ev) => {
+                if (!taStudents) return;
+                const before = String(taStudents.value || '');
+                if (!before.trim()) {
+                    setSummary('Schülerliste ist leer – zuerst Schüler:innen eintragen oder aus M365 einlesen.', 'warn');
+                    return;
+                }
+                const force = !!(ev && (ev.shiftKey || ev.altKey));
+                const result = enrichStudentLinesWithDemoParents(before, { force: force });
+                taStudents.value = result.text;
+                if (typeof renderStudentsTableFromTextarea === 'function') {
+                    renderStudentsTableFromTextarea();
+                }
+                if (typeof markDirty === 'function') markDirty();
+                const changed = (result.enriched || 0) + (result.repaired || 0);
+                const msg = force
+                    ? result.enriched +
+                      ' Zeile(n) mit Demo-Eltern neu gesetzt (Shift/Alt = überschreiben). Bitte Speichern.'
+                    : changed
+                      ? [
+                            result.enriched
+                                ? result.enriched + ' Zeile(n) um Demo-Eltern ergänzt'
+                                : '',
+                            result.repaired
+                                ? result.repaired + ' fehlerhafte Namen repariert'
+                                : '',
+                            result.skipped
+                                ? result.skipped + ' bereits mit Eltern übersprungen'
+                                : ''
+                        ]
+                            .filter(Boolean)
+                            .join(', ') + '. Bitte Speichern.'
+                      : result.skipped
+                        ? 'Alle ' +
+                          result.skipped +
+                          ' Zeilen haben bereits Eltern. Mit Shift+Klick überschreiben.'
+                        : 'Keine Schülerzeilen gefunden.';
+                setSummary(msg, changed ? 'ok' : 'warn');
+            });
+        }
         if (btnClassesTpl) {
             btnClassesTpl.addEventListener('click', () => {
                 const ok =
@@ -8755,12 +8945,34 @@ import './schul-organigramm-stammdaten-sync.js';
                             danger: true
                         });
                         if (!ok) return;
-                        window.ms365BrowserBackup.applyBackup(obj);
+                        if (typeof window.ms365BrowserBackup.applyBackupAsync === 'function') {
+                            await window.ms365BrowserBackup.applyBackupAsync(obj);
+                        } else {
+                            window.ms365BrowserBackup.applyBackup(obj);
+                        }
                         location.reload();
                         return;
                     }
                     const isV2 =
                         obj.version >= 2 && obj.core && obj.structure && obj.match;
+                    const partialWarn =
+                        'Diese Datei ist kein vollständiges Browser-Backup.\n\n' +
+                        'Übernommen werden nur Stammdaten' +
+                        (isV2 ? ' (Schuldaten v2)' : '') +
+                        '.\n' +
+                        'Nicht übernommen: E-Mail-Muster, Schul-Apps-Einstellungen, Dashboard, Power Automate und Werkzeugstände.\n\n' +
+                        'Für die Demo auf einem anderen PC bitte „Browser-Backup“ aus der Datensicherung verwenden.\n\n' +
+                        'Trotzdem nur Stammdaten importieren?';
+                    const okPartial = await dlgConfirm(partialWarn, {
+                        title: isV2 ? 'Nur Stammdaten (v2)' : 'Nur Stammdaten',
+                        okText: 'Nur Stammdaten',
+                        cancelText: 'Abbrechen',
+                        danger: true
+                    });
+                    if (!okPartial) {
+                        setSummary('Import abgebrochen – bitte vollständiges Browser-Backup verwenden.', 'warn');
+                        return;
+                    }
                     const importSubjects = subjectsFromImportPayload(obj);
                     if (importSubjects.length) {
                         const okSub = await confirmSubjectCatalogIfShrinks(
@@ -9121,6 +9333,10 @@ import './schul-organigramm-stammdaten-sync.js';
                 renderSgaBoard();
                 scheduleAutoSave();
             });
+            taSga.addEventListener('change', () => {
+                const part = partitionSgaForBoard();
+                pushStudentCouncilFromSgaBoard(part.board);
+            });
         }
         if (tabMainSga && !tabMainSga.dataset.tenantSgaBoardRefreshBound) {
             tabMainSga.dataset.tenantSgaBoardRefreshBound = '1';
@@ -9248,6 +9464,9 @@ import './schul-organigramm-stammdaten-sync.js';
                 renderStudentCouncilTableFromTextarea();
                 renderStudentCouncilPickBoard();
                 scheduleAutoSave();
+            });
+            taStudentCouncil.addEventListener('change', () => {
+                pushSgaStudentsFromCouncilRows(getStudentCouncilFromTextarea());
             });
         }
         if (btnStudentCouncilAddPickSlot && !btnStudentCouncilAddPickSlot.dataset.tenantSvPickBound) {

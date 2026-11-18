@@ -99,12 +99,21 @@ function renderNavSession(state, ctx) {
             ? `<p class="sa-nav__account-hint muted">Keine Planer-Rolle zugewiesen.</p>`
             : '';
 
+    const sessionLabel = String(state.accountName || state.accountEmail || '').trim();
+    const sessionLoggedIn = !!(
+        state.accountEmail ||
+        state.accountName ||
+        (typeof window !== 'undefined' &&
+            typeof window.ms365AuthIsLoggedIn === 'function' &&
+            window.ms365AuthIsLoggedIn())
+    );
+
     return `
         <div class="sa-nav__session" aria-label="Anmeldung und Rolle">
           <span class="sa-nav__role-label">Anmeldung</span>
           ${
-              state.accountEmail
-                  ? `<p class="sa-nav__account-name">${esc(state.accountName || state.accountEmail)}</p>`
+              sessionLoggedIn
+                  ? `<p class="sa-nav__account-name">${esc(sessionLabel || 'Angemeldet')}</p>`
                   : '<p class="sa-nav__account-hint">Mit Schul-Konto anmelden:</p>'
           }
           ${
@@ -208,7 +217,17 @@ export function renderApp(state, root) {
         </div>
       </aside>
       <div class="sa-main">
-        ${state.error ? `<div class="sa-alert sa-alert--bad" role="alert">${esc(state.error)}</div>` : ''}
+        ${
+            state.error &&
+            !(state.localDemoOnly && /403|Zugriff|Forbidden/i.test(String(state.error)))
+                ? `<div class="sa-alert sa-alert--bad" role="alert">${esc(state.error)}</div>`
+                : ''
+        }
+        ${
+            state.softError
+                ? `<div class="sa-alert sa-alert--info" role="status">${esc(state.softError)}</div>`
+                : ''
+        }
         ${
             state.roleHint
                 ? `<div class="sa-alert sa-alert--info" role="status">${esc(state.roleHint)}
@@ -493,7 +512,7 @@ function renderListe(state) {
     if (state.role === 'schueler') {
         const klasseCode = resolveStudentKlasseCode(state);
         if (!klasseCode) {
-            return `<section class="tm-panel"><p class="muted">Bitte Klasse wählen (Demo) oder Stammdaten mit Schüler-E-Mail.</p></section>`;
+            return `<section class="tm-panel"><p class="muted">Bitte Klasse wählen oder Stammdaten mit Schüler-E-Mail.</p></section>`;
         }
     }
     const items =
@@ -1142,13 +1161,34 @@ function renderAdminListResetPanel(state) {
     </section>`;
 }
 
+function formatSyncPullAt(iso) {
+    const s = String(iso || '').trim();
+    if (!s) return '';
+    try {
+        return new Date(s).toLocaleString('de-AT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch {
+        return s;
+    }
+}
+
 function renderAdminSitePanel(state) {
-    const connected = !!(state.bootstrapped && state.ctx);
+    const connected = !!(state.bootstrapped && state.ctx && !state.localDemoOnly);
+    const sync = state.syncMeta || {};
+    const syncSource = state.localDemoOnly
+        ? 'demo'
+        : sync.source || (sync.connected ? 'sharepoint' : 'none');
+    const withItemId = (state.items || []).filter((it) => String(it.itemId || '').trim()).length;
     return `
     <section class="tm-panel sa-admin-site">
       <div class="tm-panel__head"><i class="bi bi-cloud-arrow-up"></i>
         <div><h3>SharePoint-Verbindung</h3>
-        <p>Datenquelle für Lehrer:innen und Schüler:innen (URL wird lokal im Browser gespeichert).</p></div>
+        <p>System of Record: SharePoint-Listen (Lehrer schreibt, Schüler liest). URL lokal im Browser.</p></div>
       </div>
       <div class="sa-admin-site__row">
         <div class="tm-field sa-admin-site__url">
@@ -1167,9 +1207,16 @@ function renderAdminSitePanel(state) {
               ? `<p class="sa-admin-site__status ok"><i class="bi bi-check-circle"></i> Verbunden: <code>${esc(state.siteUrl)}</code></p>`
               : '<p class="sa-admin-site__status muted">Noch nicht geladen – bitte URL prüfen und „Laden“ wählen.</p>'
       }
+      <p class="muted sa-sync-meta" style="margin:8px 0 0;font-size:0.88em;">Sync: <strong>${esc(
+          syncSource
+      )}</strong>${sync.listTitle ? ' · Liste „' + esc(sync.listTitle) + '“' : ''}${
+          sync.lastPullAt ? ' · zuletzt ' + esc(formatSyncPullAt(sync.lastPullAt)) : ''
+      }${sync.connected ? ' · verbunden' : ' · nicht verbunden'}${
+          state.localDemoOnly ? ' · Demo local-first' : ''
+      } · ${withItemId}/${(state.items || []).length} mit itemId</p>
       ${
           state.localDemoOnly
-              ? '<p class="sa-import-hint">Lokaler Demo-Import aktiv – Anzeige ohne SharePoint. Zum Schreiben: Site laden + erneut importieren und „Auf SharePoint schreiben“ wählen.</p>'
+              ? '<p class="sa-import-hint">Lokaler Demo-Import aktiv – Anzeige ohne SharePoint-Push. Zum Schreiben: Site laden + erneut importieren und „Auf SharePoint schreiben“ wählen.</p>'
               : ''
       }
     </section>`;

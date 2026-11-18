@@ -99,7 +99,33 @@
                 name: 'Notes',
                 displayName: 'Notizen',
                 text: { allowMultipleLines: true }
-            }
+            },
+            {
+                name: 'ItContacts',
+                displayName: 'IT-Kontakte',
+                text: { allowMultipleLines: true }
+            },
+            {
+                name: 'LicenseEntitlements',
+                displayName: 'Lizenz-Module (JSON)',
+                text: { allowMultipleLines: true }
+            },
+            { name: 'Standort', displayName: 'Standort', text: { allowMultipleLines: false, maxLength: 255 } },
+            { name: 'Strasse', displayName: 'Straße', text: { allowMultipleLines: false, maxLength: 255 } },
+            { name: 'PLZ', displayName: 'PLZ', text: { allowMultipleLines: false, maxLength: 32 } },
+            { name: 'Ort', displayName: 'Ort', text: { allowMultipleLines: false, maxLength: 255 } },
+            { name: 'Direktion', displayName: 'Direktion', text: { allowMultipleLines: false, maxLength: 255 } },
+            { name: 'Schuladministration', displayName: 'Schuladministration', text: { allowMultipleLines: true } },
+            { name: 'ItM365Admin', displayName: 'IT-/M365-Administration', text: { allowMultipleLines: true } },
+            { name: 'WeitereKontakte', displayName: 'Weitere Kontakte / Rollen', text: { allowMultipleLines: true } },
+            { name: 'Telefon', displayName: 'Telefon', text: { allowMultipleLines: false, maxLength: 64 } },
+            { name: 'Schulnummer', displayName: 'Schulnummer', text: { allowMultipleLines: false, maxLength: 255 } },
+            { name: 'DomainHinweis', displayName: 'Domain-Hinweis', text: { allowMultipleLines: true } },
+            { name: 'Datenstatus', displayName: 'Datenstatus', text: { allowMultipleLines: false, maxLength: 255 } },
+            { name: 'WorkshopTeilnehmende', displayName: 'Workshop-Teilnehmende', text: { allowMultipleLines: true } },
+            { name: 'WorkshopQuelle', displayName: 'Workshop-Quelle', text: { allowMultipleLines: true } },
+            { name: 'OeffentlicheQuellen', displayName: 'Öffentliche Quellen', text: { allowMultipleLines: true } },
+            { name: 'OffenePunkte', displayName: 'Offene Punkte', text: { allowMultipleLines: true } }
         ];
 
         for (let i = 0; i < defs.length; i++) {

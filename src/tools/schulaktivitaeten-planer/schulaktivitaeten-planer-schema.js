@@ -1,6 +1,14 @@
 /**
  * SharePoint-Listen-Schema: Schulaktivitäten / Exkursionen.
- * Stammdaten (Klassen, Lehrer) aus tenant-settings – keine Lookup-Listen.
+ * Stammdaten (Klassen, Lehrer): Zielbild SharePoint-Listen der Schule
+ * (siehe school-stammdaten-spo-lists.js); Browser-Cache/tenant-settings als Arbeitskopie.
+ *
+ * Personenbeziehungen (kein zweites Listenobjekt):
+ * - BeantragtVon      → Antragsteller (E-Mail)
+ * - LehrerCode/Email  → verantwortliche Lehrkraft
+ * - BegleitungCodes   → Begleitpersonen (Kürzel, ;-getrennt)
+ * - Begleitung        → Anzeigenamen der Begleitung (lesbar in SharePoint)
+ * KV-Zuordnung Person↔Klasse liegt in den Stammdaten (headEmail), nicht hier.
  */
 
 /** @typedef {{ name: string, displayName: string, [k: string]: unknown }} GraphColumnDef */
@@ -10,8 +18,41 @@ export const LIST_TITLES = {
     regelwerk: 'Aktivitaet-Regelwerk'
 };
 
-export const TYP_CHOICES = ['Exkursion', 'Schulaktivitaet', 'Veranstaltung', 'Sonstiges'];
-export const STATUS_CHOICES = ['beantragt', 'genehmigt', 'abgelehnt'];
+export const TYP_CHOICES = [
+    'Exkursion',
+    'Schulaktivitaet',
+    'Veranstaltung',
+    'Klassenabwesenheit',
+    'Sonstiges'
+];
+
+/**
+ * Fachliche Statuscodes (SharePoint Choice).
+ * Anzeige-Labels: siehe statusLabel() – ruhige Lehrkraftsprache.
+ * entwurf: lokal / noch nicht eingereicht
+ * beantragt: eingereicht, wartet auf Direktion
+ * kv_stellungnahme: in Prüfung beim KV
+ * nachforderung: Ergänzung erforderlich
+ * abgesagt: zurückgezogen nach Genehmigung / Planung
+ */
+export const STATUS_CHOICES = [
+    'entwurf',
+    'beantragt',
+    'kv_stellungnahme',
+    'nachforderung',
+    'genehmigt',
+    'abgelehnt',
+    'abgesagt'
+];
+
+/** Genehmigungspfad je Schule (Regelwerk). */
+export const GENEHMIGUNG_PFAD_CHOICES = ['direktion', 'kv_dann_direktion'];
+
+/** Vorlauf-Enforcement: sperre | warnung | ausnahme (Begründung). */
+export const VORLAUF_MODUS_CHOICES = ['sperre', 'warnung', 'ausnahme'];
+
+/** Wie Teilnehmer:innen ausgewählt werden. */
+export const TEILNAHME_MODUS_CHOICES = ['klasse', 'klassen', 'gruppe', 'schueler'];
 
 /** @type {GraphColumnDef[]} */
 export const AKTIVITAETEN_COLUMNS = [
@@ -31,6 +72,31 @@ export const AKTIVITAETEN_COLUMNS = [
         text: { allowMultipleLines: false, maxLength: 40 }
     },
     {
+        name: 'KlasseCodes',
+        displayName: 'Klassen-Codes',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'TeilnahmeModus',
+        displayName: 'Teilnahme-Modus',
+        choice: { allowTextEntry: false, choices: [...TEILNAHME_MODUS_CHOICES] }
+    },
+    {
+        name: 'GruppenText',
+        displayName: 'Unterrichtsgruppe',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'TeilnehmendeText',
+        displayName: 'Teilnehmende',
+        text: { allowMultipleLines: true, maxLength: 4000 }
+    },
+    {
+        name: 'NichtTeilnehmende',
+        displayName: 'Nicht teilnehmend',
+        text: { allowMultipleLines: true, maxLength: 4000 }
+    },
+    {
         name: 'LehrerCode',
         displayName: 'Lehrer-Kürzel',
         text: { allowMultipleLines: false, maxLength: 40 }
@@ -46,8 +112,28 @@ export const AKTIVITAETEN_COLUMNS = [
         text: { allowMultipleLines: true, maxLength: 4000 }
     },
     {
+        name: 'BegleitungCodes',
+        displayName: 'Begleitung-Codes',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'ExterneVortragende',
+        displayName: 'Externe Vortragende',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
         name: 'Ort',
         displayName: 'Ort / Ziel',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'Ablauf',
+        displayName: 'Ablaufbeschreibung',
+        text: { allowMultipleLines: true, maxLength: 4000 }
+    },
+    {
+        name: 'Unterrichtsbezug',
+        displayName: 'Unterrichtsbezug',
         text: { allowMultipleLines: false, maxLength: 255 }
     },
     {
@@ -59,6 +145,16 @@ export const AKTIVITAETEN_COLUMNS = [
         name: 'Enddatum',
         displayName: 'Enddatum',
         dateTime: { displayAs: 'default', format: 'dateOnly' }
+    },
+    {
+        name: 'StartUe',
+        displayName: 'Start-UE',
+        number: {}
+    },
+    {
+        name: 'EndUe',
+        displayName: 'End-UE',
+        number: {}
     },
     {
         name: 'StartZeit',
@@ -86,6 +182,31 @@ export const AKTIVITAETEN_COLUMNS = [
         text: { allowMultipleLines: true, maxLength: 4000 }
     },
     {
+        name: 'RueckfrageText',
+        displayName: 'Rückfrage / Nachforderung',
+        text: { allowMultipleLines: true, maxLength: 4000 }
+    },
+    {
+        name: 'KvStellungnahme',
+        displayName: 'KV-Stellungnahme',
+        text: { allowMultipleLines: true, maxLength: 4000 }
+    },
+    {
+        name: 'KvStellungnahmeVon',
+        displayName: 'KV-Stellungnahme von',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'KvStellungnahmeAm',
+        displayName: 'KV-Stellungnahme am',
+        dateTime: { displayAs: 'default', format: 'dateTime' }
+    },
+    {
+        name: 'AenderungsLog',
+        displayName: 'Änderungsprotokoll',
+        text: { allowMultipleLines: true, maxLength: 4000 }
+    },
+    {
         name: 'BeantragtVon',
         displayName: 'Beantragt von',
         text: { allowMultipleLines: false, maxLength: 255 }
@@ -98,6 +219,21 @@ export const AKTIVITAETEN_COLUMNS = [
     {
         name: 'GenehmigtAm',
         displayName: 'Genehmigt am',
+        dateTime: { displayAs: 'default', format: 'dateTime' }
+    },
+    {
+        name: 'UntisErledigt',
+        displayName: 'In Untis verarbeitet',
+        boolean: {}
+    },
+    {
+        name: 'UntisErledigtVon',
+        displayName: 'Untis erledigt von',
+        text: { allowMultipleLines: false, maxLength: 255 }
+    },
+    {
+        name: 'UntisErledigtAm',
+        displayName: 'Untis erledigt am',
         dateTime: { displayAs: 'default', format: 'dateTime' }
     },
     {
@@ -135,9 +271,24 @@ export const REGELWERK_COLUMNS = [
         number: {}
     },
     {
+        name: 'GenehmigungPfad',
+        displayName: 'Genehmigungspfad',
+        choice: { allowTextEntry: false, choices: [...GENEHMIGUNG_PFAD_CHOICES] }
+    },
+    {
+        name: 'VorlaufModus',
+        displayName: 'Vorlauf-Modus',
+        choice: { allowTextEntry: false, choices: [...VORLAUF_MODUS_CHOICES] }
+    },
+    {
         name: 'Aktiv',
         displayName: 'Aktiv',
         boolean: {}
+    },
+    {
+        name: 'KostenLimitsJson',
+        displayName: 'Kostenlimits (JSON)',
+        text: { allowMultipleLines: true, maxLength: 8000 }
     }
 ];
 
@@ -151,6 +302,8 @@ export const DEFAULT_REGELWERK_FIELDS = {
     RegelwerkId: 'akt-rw-1',
     MinVorlaufTage: 7,
     MaxGleichzeitigProKlasse: 1,
+    GenehmigungPfad: 'direktion',
+    VorlaufModus: 'sperre',
     Aktiv: true
 };
 

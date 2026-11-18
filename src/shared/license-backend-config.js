@@ -12,6 +12,8 @@
         siteWebUrl: 'https://kurtrocks.sharepoint.com/sites/MS365-Schultools',
         /** Anzeigename der Liste */
         listDisplayName: 'MS365-Schultools-Lizenzen',
+        /** Feedback / Bug-Reports (nur Betreiber) */
+        feedbackListDisplayName: 'MS365schule-Feedback',
         /** Status-Werte (Choice) */
         statusChoices: ['trial', 'active', 'expired', 'blocked'],
         /** Erlaubte Status für Tool-Zugang (Phase 3) */

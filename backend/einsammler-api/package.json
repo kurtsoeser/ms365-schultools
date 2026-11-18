@@ -1,0 +1,17 @@
+{
+  "name": "ms365-einsammler-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Azure Functions API – Einsammler Public Magic-Link (Publish / View / Respond)",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "func start",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.0"
+  }
+}

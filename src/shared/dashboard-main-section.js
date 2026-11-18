@@ -61,7 +61,19 @@ export function applyMainSectionDom(section) {
 
 function itChromeVisible() {
     try {
+        if (document.documentElement.hasAttribute('data-dash-app-only')) return false;
         const api = window.ms365DashboardAudience;
+        if (api && typeof api.getLayoutMode === 'function') {
+            const mode = api.getLayoutMode();
+            if (
+                mode === 'apps-lehrer' ||
+                mode === 'apps-schueler' ||
+                mode === 'preview-lehrer' ||
+                mode === 'preview-schueler'
+            ) {
+                return false;
+            }
+        }
         const personas = api && typeof api.getPersonas === 'function' ? api.getPersonas() : null;
         if (personas && personas.loggedIn && personas.isIt) return true;
     } catch {
@@ -246,6 +258,7 @@ export function mountDashboardMainSection() {
     window.addEventListener('ms365-dashboard-persona-ready', refresh);
     window.addEventListener('ms365-auth-state-changed', refresh);
     window.addEventListener('ms365-dash-main-section-changed', refresh);
+    window.addEventListener('ms365-dash-app-only-changed', refresh);
 
     window.ms365DashMainSection = {
         read: readMainSection,

@@ -1,0 +1,32 @@
+# Demo-Schüler:innen ms365.schule inkl. fiktiver Erziehungsberechtigter
+# Format: Klasse;Name;E-Mail;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail
+# Eltern-Mails bewusst @example.com (kein echtes M365) – reichen für Elternbrief/Einsammler-Tests.
+#
+# Tipp in den Stammdaten: Button „Demo-Eltern ergänzen“ (Shift+Klick überschreibt bestehende).
+# Kaputte Namen mit „undefined“ werden beim normalen Klick automatisch repariert.
+
+1A;Schüler01 DEMO;schueler01.demo@ms365.schule;Petra Leitner;eltern.schueler01.demo.a@example.com;Thomas Huber;eltern.schueler01.demo.b@example.com
+1A;Schüler02 DEMO;schueler02.demo@ms365.schule;Lisa Schulz;eltern.schueler02.demo.a@example.com;Michael Wagner;eltern.schueler02.demo.b@example.com
+1A;Schüler03 DEMO;schueler03.demo@ms365.schule;Anna Gruber;eltern.schueler03.demo.a@example.com;Andreas Moser;eltern.schueler03.demo.b@example.com
+1A;Schüler04 DEMO;schueler04.demo@ms365.schule;Sarah Bauer;eltern.schueler04.demo.a@example.com;Stefan Steiner;eltern.schueler04.demo.b@example.com
+1A;Schüler05 DEMO;schueler05.demo@ms365.schule;Julia Hofer;eltern.schueler05.demo.a@example.com
+1A;Schüler06 DEMO;schueler06.demo@ms365.schule;Claudia Berger;eltern.schueler06.demo.a@example.com;Christian Fuchs;eltern.schueler06.demo.b@example.com
+1B;Schüler07 DEMO;schueler07.demo@ms365.schule;Christine Eder;eltern.schueler07.demo.a@example.com;Martin Fischer;eltern.schueler07.demo.b@example.com
+1B;Schüler08 DEMO;schueler08.demo@ms365.schule;Elisabeth Schmid;eltern.schueler08.demo.a@example.com;Wolfgang Winkler;eltern.schueler08.demo.b@example.com
+1B;Schüler09 DEMO;schueler09.demo@ms365.schule;Susanne Weber;eltern.schueler09.demo.a@example.com
+2A;Schüler10 DEMO;schueler10.demo@ms365.schule;Birgit Schwarz;eltern.schueler10.demo.a@example.com;Peter Maier;eltern.schueler10.demo.b@example.com
+2A;Schüler11 DEMO;schueler11.demo@ms365.schule;Katharina Lehner;eltern.schueler11.demo.a@example.com;Daniel Gruber;eltern.schueler11.demo.b@example.com
+2A;Schüler12 DEMO;schueler12.demo@ms365.schule;Barbara Huber;eltern.schueler12.demo.a@example.com
+2B;Schüler13 DEMO;schueler13.demo@ms365.schule;Sabine Bauer;eltern.schueler13.demo.a@example.com;Josef Wagner;eltern.schueler13.demo.b@example.com
+2B;Schüler14 DEMO;schueler14.demo@ms365.schule;Andrea Müller;eltern.schueler14.demo.a@example.com;Franz Steiner;eltern.schueler14.demo.b@example.com
+2C;Schüler15 DEMO;schueler15.demo@ms365.schule;Martina Moser;eltern.schueler15.demo.a@example.com;Georg Meier;eltern.schueler15.demo.b@example.com
+2C;Schüler16 DEMO;schueler16.demo@ms365.schule;Nicole Hofer;eltern.schueler16.demo.a@example.com
+3A;Schüler17 DEMO;schueler17.demo@ms365.schule;Stefanie Leitner;eltern.schueler17.demo.a@example.com;Bernhard Berger;eltern.schueler17.demo.b@example.com
+3A;Schüler18 DEMO;schueler18.demo@ms365.schule;Maria Fuchs;eltern.schueler18.demo.a@example.com;Werner Eder;eltern.schueler18.demo.b@example.com
+4A;Schüler19 DEMO;schueler19.demo@ms365.schule;Eva Fischer;eltern.schueler19.demo.a@example.com
+4A;Schüler20 DEMO;schueler20.demo@ms365.schule;Lisa Schmid;eltern.schueler20.demo.a@example.com;Alexander Winkler;eltern.schueler20.demo.b@example.com
+4A;Schüler21 DEMO;schueler21.demo@ms365.schule;Julia Weber;eltern.schueler21.demo.a@example.com;David Schwarz;eltern.schueler21.demo.b@example.com
+4A;Schüler22 DEMO;schueler22.demo@ms365.schule;Petra Maier;eltern.schueler22.demo.a@example.com;Patrick Lehner;eltern.schueler22.demo.b@example.com
+4A;Schüler23 DEMO;schueler23.demo@ms365.schule;Monika Gruber;eltern.schueler23.demo.a@example.com
+4A;Schüler24 DEMO;schueler24.demo@ms365.schule;Claudia Huber;eltern.schueler24.demo.a@example.com;Florian Bauer;eltern.schueler24.demo.b@example.com
+4A;Schüler25 DEMO;schueler25.demo@ms365.schule;Anna Wagner;eltern.schueler25.demo.a@example.com;Manuel Müller;eltern.schueler25.demo.b@example.com

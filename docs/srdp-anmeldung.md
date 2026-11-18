@@ -1,32 +1,37 @@
 # sRDP-Anmeldung – Umsetzungsplan
 
-**Stand:** 2026-09-23  
-**Status:** Planung (noch kein Code)  
-**Zielgruppe MVP:** HAK (Tagesform / AUL analog, soweit gleiche Varianten)  
-**UI:** Vanilla JS/ESM, Look an `app.css` – Setup-Wizard + SharePoint-Listenformular  
+**Stand:** 2026-11-18  
+**Status:** Familie `wahl-portal` – Shared Quality Bar + Calm UX; **Anmeldephase offen/geschlossen**, Doppelanmeldung gesperrt, Frist in Systemadmin editierbar  
+**Zielgruppe MVP:** HAK (+ Profile HTL/HLW/BAFEB/AHS im Setup)  
+**UI:** Vanilla JS/ESM – **Online-App** mit linker Nav + Guided Wizard  
+**Freitag-Workshop:** Tool C – Matura/sRDP live (Demo lokal / Setup + Testanmeldung + Rollenansichten)  
+**Demo laden:** Systemadministration → „Demo lokal“ (oder `?demo=1`); Role-Chips nur mit `?demoRole=1`
 
-Verwandt: Schularbeiten-Listen-Setup, Intranet-Hub, Stammdaten (`tenant-settings` / `app-data-v2`), PA-Rezept-Muster nur als Referenz (hier **kein** Microsoft Forms).
+Verwandt: [`schulaktivitaeten-planer.md`](./schulaktivitaeten-planer.md), Stammdaten, SharePoint-Listen.
 
-Quellen Varianten-Logik: [hak.cc – RDP](https://www.hak.cc/pruefungen-abschluss/rdp), BMB sRDP BHS, Schüler:innen-Infos HAK; srdp.at deckt vor allem die **zentralen** Klausurfächer (D, LFS, AM) ab, nicht die HAK-Variantenmatrix.
+Quellen Varianten-Logik: [hak.cc – RDP](https://www.hak.cc/pruefungen-abschluss/rdp), BMB sRDP BHS; srdp.at = zentrale Klausuren, nicht Variantenmatrix.
 
 ---
 
-## 1. Zielbild
-
-Admin richtet **pro Haupttermin / Jahr** eine SharePoint-Liste ein. Schüler:innen melden sich über das **native SharePoint-Listenformular** an. Direktion / Verwaltung arbeitet mit vorbereiteten **Ansichten** (nach Klasse, nach Variante, …).
+## 1. Zielbild (Phase 4)
 
 ```text
-Admin ──MSAL──► sRDP-Anmeldung Setup (ms365-schultools)
-                      │ Graph Sites.ReadWrite.All
-                      ▼
-             SharePoint Intranet-Site
-             └─ sRDP-Anmeldungen {Jahr}
-                      │
-Schüler:innen ───────► Listenformular (Neues Element)
-Verwaltung ───────────► Ansichten (Klasse / Variante / …)
+Schüler / Lehrer / Admin ──MSAL──► sRDP-Anmeldung App (linke Nav)
+                                      │ Graph Sites.ReadWrite.All
+                                      ▼
+                             SharePoint: sRDP-Anmeldungen {Jahr}
+IT / Admin ──────────────────────────► Einrichtung (bisheriger Wizard)
 ```
 
-**System of Record:** eine neue Liste pro Terminjahr (archivierbar, kein Vermischen der Jahrgänge).
+| Rolle | Was sie sieht |
+|-------|----------------|
+| **Schüler** | Sauberes Anmeldeformular → sofortige **Zusammenfassung** der Wahl |
+| **Lehrer** | **Meine Prüfungen** (wo ich DA/LFS/BKO/Wahlfach bin) + ggf. **Meine Klasse** (KV) |
+| **Admin / Sekretariat** | Gesamtübersicht, Auswertung nach Klasse/Variante/Wahlfach |
+| **IT** | Einrichtung: Site, Jahr, Klassen, LFS/Wahlfach/Seminar, Rechte, Liste anlegen |
+
+**System of Record:** SharePoint-Liste pro Terminjahr (unverändert). Die App ist die bevorzugte Oberfläche; das SPO-Listenformular bleibt Fallback.  
+**SPO Live Sync:** Pull beim Start/Reload · Create pusht Anmeldung · Admin-Nacharbeit (`NacharbeitErledigt`) pusht per PATCH · Demo-Seeds/`localDemoOnly` nicht nach SPO · 403 wipe’t Cache/Demo nicht · Sync-Meta in Systemadministration.
 
 ---
 
@@ -204,13 +209,13 @@ Wizard-Schritt „Gruppen“: vorhandene Gruppen wählen oder Namen vorgeben; Se
 
 ## 9. Abgrenzung
 
-| Drin (MVP) | Nicht im MVP |
-|------------|--------------|
-| Listen-Provisioning HAK | Microsoft Forms / Power Automate |
-| Wizard Stammdaten + manuelle Choices | Eigene Anmelde-UI in den Schultools |
-| Varianten-Infos + Seminar-Bedingung | Kompensationsprüfungen, Terminplanung Klausuren |
-| Ansichten Klasse + Variante | HTL/andere Profile (nur Hook) |
-| Jahresweise neue Liste + Gruppenrechte | Mehrjährige Sammelliste |
+| Drin (MVP / Phase 4) | Nicht Freitag / später |
+|----------------------|------------------------|
+| Listen-Provisioning + Wizard | Microsoft Forms |
+| **App** Schüler/Lehrer/Admin | Kompensationsprüfungen, Klausurtermine |
+| Varianten + Seminar-Bedingung | srdp.at-Anbindung |
+| Profile HAK (+ weitere im Setup) | Mehrjährige Sammelliste |
+| Jahresweise Liste + Gruppenrechte | |
 
 ---
 
@@ -248,6 +253,24 @@ Wizard-Schritt „Gruppen“: vorhandene Gruppen wählen oder Namen vorgeben; Se
 - [x] Wizard-Schulformwahl + Listenname mit Code  
 - [x] Spalten/Formular/Prüfplan pro Profil  
 - [x] Tests für alle Profile  
+
+### Phase 4 – Online-App (wie Schulaktivitäten) – Freitag-P0
+
+- [x] `tools/srdp-anmeldung.html` + Shell (`srdp-shell` / linke Nav, Theme wie AKT)  
+- [x] Rollen: Schüler · Lehrer · Admin (Demo-Umschalter `?demoRole=1`)  
+- [x] Schüler: Formular + Validierung + Zusammenfassung nach Submit  
+- [x] Lehrer: Meine Prüfungen + Meine Klasse (KV aus Stammdaten)  
+- [x] Admin: Dashboard-KPIs, Liste, Auswertung  
+- [x] Graph-CRUD auf bestehender Jahresliste + lokaler Demo-Modus  
+- [x] Dashboard-Kachel → App; Setup bleibt unter „Einrichtung“ / `sharepoint-liste-srdp.html`  
+- [x] Docs + Hilfe + Workshop-Script Tool C anpassen  
+- [x] Bestätigungsmail-Flow (Shared Mailbox) + Setup-ZIP `srdp-mail-setup.html`  
+
+**Feinschliff danach:** Entra-Gruppen strikt, HTL/AHS-Formularfelder in der App, CSV-Export, Landing-Screenshot, SchülerEmail-Spalte falls Admin für Schüler einträgt.
+
+**Power Automate (Bestätigungsmail):** `tools/srdp-mail-setup.html` + Vorlage `assets/power-automate/srdp-anmeldung/` – Trigger neue Anmeldung → Mail aus freigegebenem Postfach mit Zusammenfassung (Variante, Prüfplan, Betreuung, LFS/BKO/Wahlfach). Optional BCC Verwaltung.
+
+**Nicht Freitag:** Klausurplanung, srdp.at-Anbindung, Mehrjahres-Sammelliste.
 
 ---
 

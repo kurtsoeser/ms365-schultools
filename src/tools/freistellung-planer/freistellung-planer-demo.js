@@ -14,6 +14,17 @@ export const DEMO_SITE_DEFAULT = 'https://kurtrocks.sharepoint.com/sites/MS365-S
 export const DEMO_SCHOOL_YEAR = '2026/27';
 export const DEMO_SEED_TAG = 'fr-demo-2026-27';
 
+/**
+ * Standard-Demo-KV für lokale IT-Vorschau (angemeldetes Konto bleibt IT).
+ * Sarah Binder = Klassenvorstand 1AK / 5AK.
+ */
+export const DEMO_KV_PERSONA = {
+    code: 'KIN',
+    name: 'Mag. Sarah Binder',
+    email: 'sarah.binder@kurtrocks.onmicrosoft.com',
+    kvKlasse: '1AK'
+};
+
 /** Stammdaten kompatibel zu Schulaktivitäten-Demo; Klassen mit KV-E-Mail. */
 export const DEMO_STAMMDATEN = {
     schoolName: 'Demo-HAK Kurtrocks',

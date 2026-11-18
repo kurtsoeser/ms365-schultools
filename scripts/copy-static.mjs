@@ -71,6 +71,16 @@ async function main() {
   await copyFileToDist('ms365-config.local.js');
 
   await copyDirToDist('src');
+  await copyDirToDist('assets/sokrates');
+  // Vite legt public/ bereits nach dist/; Tenant-Configs sicherstellen
+  {
+    const src = path.resolve(projectRoot, 'public/stammdaten-portal-tenants');
+    const dst = path.resolve(distRoot, 'stammdaten-portal-tenants');
+    if (await exists(src)) {
+      await fs.mkdir(path.dirname(dst), { recursive: true });
+      await fs.cp(src, dst, { recursive: true });
+    }
+  }
   // Marketing-Landing parallel zur App erreichbar (Fußzeilen-Link)
   await copyDirToDist('landing');
   await writeAppBuildInfo(distRoot);

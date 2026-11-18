@@ -24,9 +24,39 @@
         return em.slice(em.lastIndexOf('@') + 1) === dom;
     }
 
+    /** Bekannte Privat-/Consumer-Domains in WebUntis-Kontaktdaten (keine Schul-UPN). */
+    var PRIVATE_STUDENT_MAIL_HOSTS = {
+        'gmail.com': 1,
+        'googlemail.com': 1,
+        'gmx.at': 1,
+        'gmx.net': 1,
+        'gmx.de': 1,
+        'web.de': 1,
+        'outlook.com': 1,
+        'hotmail.com': 1,
+        'hotmail.at': 1,
+        'live.com': 1,
+        'msn.com': 1,
+        'yahoo.com': 1,
+        'yahoo.de': 1,
+        'icloud.com': 1,
+        'me.com': 1,
+        'mac.com': 1,
+        'aon.at': 1,
+        'chello.at': 1,
+        'inode.at': 1,
+        'telekom.at': 1,
+        'magenta.at': 1
+    };
+
+    function isLikelyPrivateStudentMailHost(host) {
+        return !!PRIVATE_STUDENT_MAIL_HOSTS[normalizeSchoolDomain(host)];
+    }
+
     /**
      * WebUntis „address.email“ ist oft eine private Kontaktadresse – keine Schüler-UPN.
-     * Nur Adressen der konfigurierten Schuldomain bleiben; sonst leer (später Schul-Mail erzeugen).
+     * Mit Schuldomain: nur Adressen dieser Domain behalten (sonst leer → später erzeugen).
+     * Ohne Schuldomain: Consumer-Mails (Gmail/GMX/…) verwerfen, übrige (vermutlich Schul-UPN) behalten.
      * @param {string} email
      * @param {string} [schoolDomain]
      * @returns {string}
@@ -35,8 +65,10 @@
         const em = normEmail(email);
         if (!em || em.indexOf('@') < 0) return '';
         const dom = normalizeSchoolDomain(schoolDomain);
-        if (!dom) return '';
-        return isEmailOnSchoolDomain(em, dom) ? em : '';
+        if (dom) return isEmailOnSchoolDomain(em, dom) ? em : '';
+        const host = em.slice(em.lastIndexOf('@') + 1);
+        if (isLikelyPrivateStudentMailHost(host)) return '';
+        return em;
     }
 
     function resolveSchoolDomainForImport(inputDomain) {
@@ -553,6 +585,12 @@
         const withParents = records.filter(function (r) {
             return (r.parentPairs || []).length > 0;
         }).length;
+        const emptyKlasse = records.filter(function (r) {
+            return !normStr(r && r.klasse);
+        }).length;
+        const emptyEmail = records.filter(function (r) {
+            return !normEmail(r && r.email);
+        }).length;
 
         let lines = '';
         if (window.ms365SchoolSisImport && typeof window.ms365SchoolSisImport.recordsToSemicolonLines === 'function') {
@@ -575,7 +613,10 @@
                 unmatchedGuardians: (joined.unmatchedGuardians || []).length,
                 emailsGenerated: emailMeta.generated,
                 emailConflicts: emailMeta.conflicts,
-                privateStudentEmailsIgnored: stripped.ignored
+                privateStudentEmailsIgnored: stripped.ignored,
+                emptyKlasse: emptyKlasse,
+                emptyEmail: emptyEmail,
+                schoolDomain: schoolDomain || ''
             }
         };
     }

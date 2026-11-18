@@ -685,6 +685,23 @@ export function buildWizardPreview(input, deps) {
     if (studentResult && studentResult.meta && studentResult.meta.error) {
         warnings.push(String(studentResult.meta.error));
     }
+    if (classified.studentAoa && !normStr(emailOpts.domain)) {
+        warnings.push(
+            'Keine Schuldomain gesetzt: private Kontaktmails (Gmail/GMX/…) werden verworfen, Schul-Mails bleiben. Domain in den Stammdaten setzen, um fehlende Mails zu erzeugen.'
+        );
+    }
+    if (studentResult && studentResult.meta && studentResult.meta.privateStudentEmailsIgnored > 0) {
+        warnings.push(
+            studentResult.meta.privateStudentEmailsIgnored +
+                ' private Schüler-Kontaktmail(s) verworfen (nicht Schuldomain).'
+        );
+    }
+    if (studentResult && studentResult.meta && studentResult.meta.emptyKlasse > 0) {
+        warnings.push(
+            studentResult.meta.emptyKlasse +
+                ' Schüler:in(nen) ohne Klasse in WebUntis – bestehende lokale Klasse bleibt beim Zusammenführen erhalten.'
+        );
+    }
     if ((input.classPdfImports || []).length && !classes.length) {
         warnings.push(
             'Klassen-PDF: keine Klassen mit Klassenlehrkraft erkannt – Teacher-CSV mitladen oder PDF prüfen.'

@@ -9,19 +9,40 @@ import {
 import { parseDemoImportJson } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-demo-seed.js';
 
 describe('schulaktivitaeten-planer-demo', () => {
-    it('builds 30–40 activities for 2026/27', () => {
+    it('builds curated activities for 2026/27', () => {
         const rows = buildDemoAktivitaeten();
         expect(rows.length).toBeGreaterThanOrEqual(30);
-        expect(rows.length).toBeLessThanOrEqual(40);
+        expect(rows.length).toBeLessThanOrEqual(50);
         const ids = new Set(rows.map((r) => r.AktivitaetId));
         expect(ids.size).toBe(rows.length);
+        const allowedStatus = new Set([
+            'beantragt',
+            'nachforderung',
+            'genehmigt',
+            'abgelehnt',
+            'kv_stellungnahme',
+            'entwurf',
+            'abgesagt'
+        ]);
+        const allowedTyp = new Set([
+            'Exkursion',
+            'Schulaktivitaet',
+            'Veranstaltung',
+            'Klassenabwesenheit',
+            'Sonstiges'
+        ]);
         rows.forEach((r) => {
             expect(r.AktivitaetId).toMatch(/^akt-demo-/);
             expect(r.Notiz).toContain(DEMO_SEED_TAG);
             expect(r.Startdatum).toMatch(/^202[67]-/);
-            expect(['Exkursion', 'Schulaktivitaet', 'Veranstaltung', 'Sonstiges']).toContain(r.Typ);
-            expect(['beantragt', 'genehmigt', 'abgelehnt']).toContain(r.Status);
+            expect(allowedTyp.has(r.Typ)).toBe(true);
+            expect(allowedStatus.has(r.Status)).toBe(true);
         });
+        const genehmigt = rows.filter((r) => r.Status === 'genehmigt');
+        const untisOffen = genehmigt.filter((r) => !r.UntisErledigt);
+        expect(untisOffen.length).toBeGreaterThan(0);
+        expect(untisOffen.length).toBeLessThanOrEqual(5);
+        expect(genehmigt.length - untisOffen.length).toBeGreaterThan(untisOffen.length);
     });
 
     it('getDemoSeedPackage has counts and stammdaten', () => {
@@ -31,7 +52,7 @@ describe('schulaktivitaeten-planer-demo', () => {
         expect(pack.counts.beantragt).toBeGreaterThan(0);
         expect(pack.counts.genehmigt).toBeGreaterThan(0);
         expect(pack.stammdaten.classes.length).toBe(10);
-        expect(pack.stammdaten.teachers.length).toBe(8);
+        expect(pack.stammdaten.teachers.length).toBe(9);
     });
 
     it('buildLocalDemoState maps fields', () => {

@@ -29,9 +29,9 @@
 | Quelle | Anzeige |
 |--------|---------|
 | Browser (`tenant-settings`, `app-data-v2`, Import-Historie) | **Einträge** |
-| SharePoint (Microsoft Graph `items/$count`, ConsistencyLevel eventual) | **Zeilen** – nach Anmeldung (Sites.Read.All) |
+| SharePoint (Graph `$count` → `@odata.count` → Seitenweise; sonst **✓** wenn Liste gefunden) | **Zeilen** bzw. vorhanden – nach Anmeldung (Sites.Read.All) |
 
-Site-URLs: Intranet aus Einrichtung; Planer-Sites aus localStorage (`ms365-sa-site-url`, `ms365-pw-site-url`, `ms365-freistellung-planer-site-v1`, `ms365-akt-planer-site-v1`) mit Fallback auf Intranet.
+Site-URLs: Intranet aus Einrichtung; Planer-Sites über Stammdaten **Planer & Apps** (`planerDefaultSiteUrl` / Overrides) bzw. Tool-localStorage, Fallback Intranet.
 
 **Aktualisieren** lädt lokale Metriken sofort und SharePoint-Zähler asynchron. Fehler erscheinen als Statuszeile (z. B. fehlende Site, Liste nicht gefunden).
 

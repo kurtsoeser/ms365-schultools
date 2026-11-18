@@ -316,3 +316,173 @@ export function buildMonthCells(year, month, angebote) {
     while (cells.length % 7) cells.push({ iso: null, day: null, items: [] });
     return cells;
 }
+
+/**
+ * Kürzel aus E-Mail ableiten, wenn Stammdaten kein Match liefern.
+ * @param {string} email
+ */
+export function deriveLehrerCodeFromEmail(email) {
+    const local = String(email || '')
+        .trim()
+        .toLowerCase()
+        .split('@')[0] || '';
+    const cleaned = local.replace(/[^a-z0-9]/gi, '');
+    if (!cleaned) return 'LEHR';
+    return cleaned.slice(0, 12).toUpperCase();
+}
+
+/**
+ * Ownership für SharePoint erzwingen (BeantragtVon / LehrerEmail / LehrerCode).
+ * Ohne diese Felder bleibt „Meine Angebote“ leer.
+ *
+ * @param {object} angebot
+ * @param {{ accountEmail?: string, teachers?: Array<{ code?: string, email?: string, upn?: string }> }} [ctx]
+ * @returns {{ beantragtVon: string, lehrerEmail: string, lehrerCode: string }}
+ */
+export function resolvePwOwnership(angebot, ctx) {
+    const a = angebot && typeof angebot === 'object' ? angebot : {};
+    const teachers = Array.isArray(ctx && ctx.teachers) ? ctx.teachers : [];
+    const account = String((ctx && ctx.accountEmail) || '')
+        .trim()
+        .toLowerCase();
+
+    let beantragtVon = String(a.beantragtVon || '')
+        .trim()
+        .toLowerCase();
+    let lehrerEmail = String(a.lehrerEmail || '')
+        .trim()
+        .toLowerCase();
+    let lehrerCode = String(a.lehrerCode || '').trim();
+
+    if (!beantragtVon) beantragtVon = account || lehrerEmail;
+    if (!lehrerEmail) lehrerEmail = account || beantragtVon;
+
+    const byEmail =
+        lehrerEmail &&
+        teachers.find((t) => {
+            const em = String((t && t.email) || '')
+                .trim()
+                .toLowerCase();
+            const upn = String((t && t.upn) || '')
+                .trim()
+                .toLowerCase();
+            return em === lehrerEmail || upn === lehrerEmail;
+        });
+    const byCode =
+        lehrerCode &&
+        teachers.find(
+            (t) =>
+                String((t && t.code) || '')
+                    .trim()
+                    .toUpperCase() === lehrerCode.toUpperCase()
+        );
+
+    if (!lehrerCode && byEmail && byEmail.code) {
+        lehrerCode = String(byEmail.code).trim();
+    }
+    if (byCode && byCode.email && !String(a.lehrerEmail || '').trim()) {
+        lehrerEmail = String(byCode.email).trim().toLowerCase();
+    }
+    if (!lehrerCode && lehrerEmail) {
+        lehrerCode = deriveLehrerCodeFromEmail(lehrerEmail);
+    }
+    if (!beantragtVon) beantragtVon = lehrerEmail;
+    if (!lehrerEmail) lehrerEmail = beantragtVon;
+
+    return {
+        beantragtVon: beantragtVon || '',
+        lehrerEmail: lehrerEmail || '',
+        lehrerCode: lehrerCode || ''
+    };
+}
+
+/**
+ * @param {{ beantragtVon?: string, lehrerEmail?: string, lehrerCode?: string }} ownership
+ */
+export function assertPwOwnership(ownership) {
+    const email = String((ownership && (ownership.lehrerEmail || ownership.beantragtVon)) || '')
+        .trim()
+        .toLowerCase();
+    if (!email || email.indexOf('@') < 0) {
+        throw new Error(
+            'Lehrer-E-Mail fehlt im Angebot (Anmeldung nicht erkannt). Bitte Seite neu laden oder ab-/anmelden und erneut speichern.'
+        );
+    }
+    if (!String((ownership && ownership.beantragtVon) || '').trim()) {
+        throw new Error('Feld „Beantragt von“ fehlt – bitte erneut speichern.');
+    }
+    if (!String((ownership && ownership.lehrerCode) || '').trim()) {
+        throw new Error('Lehrer-Kürzel fehlt – bitte erneut speichern.');
+    }
+}
+
+/**
+ * @param {unknown} msg
+ */
+export function isPwAccessDeniedError(msg) {
+    return /403|accessdenied|forbidden/i.test(String(msg || ''));
+}
+
+/**
+ * Endnutzer-freundliche SPO-/Graph-Meldung (kein Roh-403).
+ * @param {unknown} msg
+ */
+export function friendlyPwSpoError(msg) {
+    const s = String(msg || '');
+    if (isPwAccessDeniedError(s)) {
+        return 'Kein SharePoint-Zugriff – lokale bzw. Demo-Daten bleiben erhalten. IT: Listenrechte prüfen.';
+    }
+    if (/nicht angemeldet|anmelden|login|interaction_required/i.test(s)) {
+        return 'Bitte anmelden und erneut laden.';
+    }
+    if (/site|website|not found|404/i.test(s) && /site|liste|list/i.test(s)) {
+        return 'Site oder Listen nicht gefunden – IT: SharePoint-URL und PW-Listen prüfen.';
+    }
+    return s.length > 220 ? s.slice(0, 217) + '…' : s;
+}
+
+/**
+ * Aufmerksamkeit für Calm Action-Banner (ohne Domäne zu verbiegen).
+ * @param {{ role?: string, items?: object[], accountEmail?: string, teacherMatch?: { code?: string }|null }} stateLike
+ */
+export function computePwAttention(stateLike) {
+    const role = String((stateLike && stateLike.role) || 'lehrer');
+    const items = Array.isArray(stateLike && stateLike.items) ? stateLike.items : [];
+    const em = String((stateLike && stateLike.accountEmail) || '')
+        .trim()
+        .toLowerCase();
+    const code = String((stateLike && stateLike.teacherMatch && stateLike.teacherMatch.code) || '')
+        .trim()
+        .toLowerCase();
+
+    const beantragt = items.filter((a) => a && a.status === 'beantragt').length;
+    const freigegeben = items.filter((a) => a && a.status === 'freigegeben');
+    const pendingSync = freigegeben.filter((a) => {
+        const st = String(a.syncStatus || '').toLowerCase();
+        if (st === 'fehler') return true;
+        return !String(a.bookingsServiceId || '').trim();
+    }).length;
+    const mine = items.filter((a) => {
+        if (!a) return false;
+        if (code && String(a.lehrerCode || '').toLowerCase() === code) return true;
+        if (
+            em &&
+            (String(a.lehrerEmail || '').toLowerCase() === em ||
+                String(a.beantragtVon || '').toLowerCase() === em)
+        ) {
+            return true;
+        }
+        return false;
+    });
+    const myOpen = mine.filter((a) => a.status === 'entwurf' || a.status === 'beantragt').length;
+
+    return {
+        role,
+        beantragt,
+        freigegeben: freigegeben.length,
+        pendingSync,
+        myCount: mine.length,
+        myOpen,
+        empty: items.length === 0
+    };
+}

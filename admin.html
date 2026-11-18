@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin – MS365-Schul-Tools</title>
-    <link rel="stylesheet" href="app.css?v=13">
+    <link rel="stylesheet" href="app.css?v=20">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <script src="access-config.js"></script>
@@ -29,6 +29,10 @@
                     <i class="bi bi-building-check" aria-hidden="true"></i>
                     <span>Lizenzen</span>
                 </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabModules" aria-selected="false" aria-controls="adminPanelModules" data-admin-tab="modules">
+                    <i class="bi bi-boxes" aria-hidden="true"></i>
+                    <span>Module</span>
+                </button>
                 <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabAccess" aria-selected="false" aria-controls="adminPanelAccess" data-admin-tab="access">
                     <i class="bi bi-key" aria-hidden="true"></i>
                     <span>Zugänge</span>
@@ -44,6 +48,10 @@
                 <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabNotes" aria-selected="false" aria-controls="adminPanelNotes" data-admin-tab="notes">
                     <i class="bi bi-megaphone" aria-hidden="true"></i>
                     <span>Neuigkeiten</span>
+                </button>
+                <button type="button" class="admin-app__nav-btn" role="tab" id="adminTabFeedback" aria-selected="false" aria-controls="adminPanelFeedback" data-admin-tab="feedback">
+                    <i class="bi bi-chat-heart" aria-hidden="true"></i>
+                    <span>Feedback</span>
                 </button>
             </nav>
 
@@ -64,7 +72,7 @@
                 <div class="admin-app__top-text">
                     <p class="admin-app__eyebrow" id="adminAppEyebrow">Betreiber</p>
                     <h1 class="admin-app__title" id="adminAppTitle">Schulen &amp; Lizenzen</h1>
-                    <p class="admin-app__subtitle" id="adminAppSubtitle">Freischaltungen direkt in der Tabelle verwalten.</p>
+                    <p class="admin-app__subtitle" id="adminAppSubtitle">Schulen finden, öffnen und freischalten.</p>
                 </div>
                 <div class="admin-app__top-actions" id="adminAppTopActions" hidden></div>
             </header>
@@ -72,68 +80,270 @@
             <div class="admin-app__body">
                 <!-- Lizenzen -->
                 <section class="admin-app__panel active" id="adminPanelLicenses" role="tabpanel" aria-labelledby="adminTabLicenses" data-admin-panel="licenses">
-                    <div class="admin-app__toolbar">
-                        <div class="admin-app__toolbar-meta">
-                            <span class="admin-app__pill" id="adminLicStatus">–</span>
-                            <span class="admin-app__hint">Betreiber-Zugang über License-API</span>
-                        </div>
-                        <div class="admin-app__toolbar-actions">
-                            <button type="button" class="btn alt" id="adminLicColumnsBtn" title="Extra-Spalten in SharePoint">
-                                <i class="bi bi-layout-three-columns"></i>Spalten
-                            </button>
-                            <button type="button" class="btn alt" id="adminLicReloadBtn">
-                                <i class="bi bi-arrow-clockwise"></i>Aktualisieren
-                            </button>
-                            <button type="button" class="btn btn-success" id="adminLicAddBtn" title="Neue Schule">
-                                <i class="bi bi-plus-lg"></i>Neue Schule
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="admin-lic-cols admin-app__surface" id="adminLicColumnsPanel" hidden>
-                        <div class="admin-lic-cols__head">
-                            <div>
-                                <h2 class="admin-lic-cols__title">Extra-Spalten</h2>
-                                <p class="admin-lic-cols__hint">Wird als Spalte in der SharePoint-Lizenzliste angelegt und in der Tabelle bearbeitbar.</p>
+                    <div id="adminLicListView">
+                        <div class="admin-app__toolbar">
+                            <div class="admin-app__toolbar-meta">
+                                <span class="admin-app__pill" id="adminLicStatus">–</span>
+                                <span class="admin-app__hint">Betreiber-Zugang über License-API</span>
                             </div>
-                            <button type="button" class="btn btn-sm alt" id="adminLicColumnsCloseBtn" title="Schließen">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
+                            <div class="admin-app__toolbar-actions">
+                                <button type="button" class="btn alt" id="adminLicColumnsBtn" title="Extra-Spalten in SharePoint">
+                                    <i class="bi bi-layout-three-columns"></i>Spalten
+                                </button>
+                                <button type="button" class="btn alt" id="adminLicMigrateBtn" title="Schulen ohne Modul-JSON auf alle Pakete setzen">
+                                    <i class="bi bi-database-up"></i>Legacy-Module
+                                </button>
+                                <button type="button" class="btn alt" id="adminLicReloadBtn">
+                                    <i class="bi bi-arrow-clockwise"></i>Aktualisieren
+                                </button>
+                                <button type="button" class="btn btn-success" id="adminLicAddBtn" title="Neue Schule">
+                                    <i class="bi bi-plus-lg"></i>Neue Schule
+                                </button>
+                            </div>
                         </div>
-                        <form class="admin-lic-cols__form" id="adminLicColumnForm">
-                            <label class="admin-lic-cols__field">
-                                <span>Name</span>
-                                <input class="admin-lic-input" id="adminLicColDisplayName" type="text" maxlength="64" placeholder="z. B. Schulnummer" required>
+
+                        <div class="admin-lic-filter admin-app__surface" id="adminLicFilterBar">
+                            <label class="admin-lic-filter__search">
+                                <span class="visually-hidden">Schulen suchen</span>
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <input type="search" id="adminLicSearch" class="admin-lic-input" placeholder="Suche Name, Domain, Ort, Schulnummer …" autocomplete="off">
                             </label>
-                            <label class="admin-lic-cols__field">
-                                <span>Typ</span>
-                                <select class="admin-lic-input" id="adminLicColType">
-                                    <option value="text">Text</option>
-                                    <option value="multiline">Mehrzeilig</option>
-                                    <option value="number">Zahl</option>
-                                    <option value="date">Datum</option>
-                                    <option value="boolean">Ja/Nein</option>
-                                    <option value="choice">Auswahl</option>
+                            <div class="admin-lic-filter__chips" id="adminLicQuickFilters" role="group" aria-label="Schnellfilter">
+                                <button type="button" class="admin-lic-chip-btn is-active" data-quick-filter="all">Alle</button>
+                                <button type="button" class="admin-lic-chip-btn" data-quick-filter="pending">Tenant offen <span data-qf-count="pending">0</span></button>
+                                <button type="button" class="admin-lic-chip-btn" data-quick-filter="trial">Trial <span data-qf-count="trial">0</span></button>
+                                <button type="button" class="admin-lic-chip-btn" data-quick-filter="active">Active <span data-qf-count="active">0</span></button>
+                            </div>
+                            <label class="admin-lic-filter__field">
+                                <span class="visually-hidden">Status</span>
+                                <select id="adminLicStatusFilter" class="admin-lic-input" aria-label="Status filtern">
+                                    <option value="">Status: alle</option>
+                                    <option value="trial">trial</option>
+                                    <option value="active">active</option>
+                                    <option value="expired">expired</option>
+                                    <option value="blocked">blocked</option>
                                 </select>
                             </label>
-                            <label class="admin-lic-cols__field admin-lic-cols__field--grow" id="adminLicColChoicesWrap" hidden>
-                                <span>Optionen (eine pro Zeile)</span>
-                                <textarea class="admin-lic-input admin-lic-input--area" id="adminLicColChoices" rows="2" placeholder="Option A&#10;Option B"></textarea>
+                            <label class="admin-lic-filter__field">
+                                <span class="visually-hidden">Tenant</span>
+                                <select id="adminLicTenantFilter" class="admin-lic-input" aria-label="Tenant filtern">
+                                    <option value="">Tenant: alle</option>
+                                    <option value="pending">nur offen</option>
+                                    <option value="set">nur gesetzt</option>
+                                </select>
                             </label>
-                            <button type="submit" class="btn btn-sm btn-success" id="adminLicColAddBtn">
-                                <i class="bi bi-plus-lg"></i>Spalte anlegen
+                            <button type="button" class="btn btn-sm alt" id="adminLicFilterReset" title="Filter zurücksetzen">
+                                Zurücksetzen
                             </button>
-                        </form>
-                        <ul class="admin-lic-cols__list" id="adminLicColumnsList"></ul>
+                            <span class="admin-lic-filter__meta" id="adminLicFilterMeta"></span>
+                        </div>
+
+                        <div class="admin-lic-cols admin-app__surface" id="adminLicColumnsPanel" hidden>
+                            <div class="admin-lic-cols__head">
+                                <div>
+                                    <h2 class="admin-lic-cols__title">Extra-Spalten &amp; Stammdaten</h2>
+                                    <p class="admin-lic-cols__hint">Kuratierte Stammdaten-Spalten plus eigene Extras. Schema legt fehlende SharePoint-Spalten an.</p>
+                                </div>
+                                <div class="admin-lic-cols__head-actions">
+                                    <button type="button" class="btn btn-sm alt" id="adminLicEnsureSchemaBtn" title="Stammdaten- und Modul-Spalten in SharePoint sicherstellen">
+                                        <i class="bi bi-cloud-check"></i>Schema aktualisieren
+                                    </button>
+                                    <button type="button" class="btn btn-sm alt" id="adminLicColumnsCloseBtn" title="Schließen">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <form class="admin-lic-cols__form" id="adminLicColumnForm">
+                                <label class="admin-lic-cols__field">
+                                    <span>Name</span>
+                                    <input class="admin-lic-input" id="adminLicColDisplayName" type="text" maxlength="64" placeholder="z. B. Schulnummer" required>
+                                </label>
+                                <label class="admin-lic-cols__field">
+                                    <span>Typ</span>
+                                    <select class="admin-lic-input" id="adminLicColType">
+                                        <option value="text">Text</option>
+                                        <option value="multiline">Mehrzeilig</option>
+                                        <option value="number">Zahl</option>
+                                        <option value="date">Datum</option>
+                                        <option value="boolean">Ja/Nein</option>
+                                        <option value="choice">Auswahl</option>
+                                    </select>
+                                </label>
+                                <label class="admin-lic-cols__field admin-lic-cols__field--grow" id="adminLicColChoicesWrap" hidden>
+                                    <span>Optionen (eine pro Zeile)</span>
+                                    <textarea class="admin-lic-input admin-lic-input--area" id="adminLicColChoices" rows="2" placeholder="Option A&#10;Option B"></textarea>
+                                </label>
+                                <button type="submit" class="btn btn-sm btn-success" id="adminLicColAddBtn">
+                                    <i class="bi bi-plus-lg"></i>Spalte anlegen
+                                </button>
+                            </form>
+                            <ul class="admin-lic-cols__list" id="adminLicColumnsList"></ul>
+                        </div>
+
+                        <div class="admin-lic__table-wrap admin-app__surface">
+                            <table class="admin-lic-table">
+                                <thead>
+                                    <tr id="adminLicTableHead"></tr>
+                                </thead>
+                                <tbody id="adminLicTableBody"></tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    <div class="admin-lic__table-wrap admin-app__surface">
-                        <table class="admin-lic-table">
-                            <thead>
-                                <tr id="adminLicTableHead"></tr>
-                            </thead>
-                            <tbody id="adminLicTableBody"></tbody>
-                        </table>
+                    <div id="adminLicDetailView" class="admin-lic-detail" hidden>
+                        <div class="admin-lic-detail__toolbar">
+                            <button type="button" class="btn alt" id="adminLicDetailBack">
+                                <i class="bi bi-arrow-left"></i>Alle Schulen
+                            </button>
+                            <div class="admin-lic-detail__toolbar-actions">
+                                <button type="button" class="btn btn-success" id="adminLicDetailSave">
+                                    <i class="bi bi-check-lg"></i>Speichern
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-lic-detail__hero admin-app__surface" id="adminLicDetailHero">
+                            <div class="admin-lic-detail__hero-text">
+                                <p class="admin-lic-detail__eyebrow">Schullizenz</p>
+                                <h2 class="admin-lic-detail__school" id="adminLicDetailSchoolName">–</h2>
+                                <p class="admin-lic-detail__lead" id="adminLicDetailLead">Stammdaten und Module</p>
+                            </div>
+                            <div id="adminLicDetailStats" class="admin-lic-detail__stats"></div>
+                        </div>
+
+                        <div class="admin-lic-detail__tabs admin-app__surface" role="tablist" aria-label="Schildetail">
+                            <button type="button" class="admin-lic-detail__tab is-active" role="tab" aria-selected="true" data-lic-detail-tab="stammdaten" id="adminLicTabStammdaten">
+                                Stammdaten
+                            </button>
+                            <button type="button" class="admin-lic-detail__tab" role="tab" aria-selected="false" data-lic-detail-tab="lizenz" id="adminLicTabLizenz">
+                                Lizenz
+                            </button>
+                            <button type="button" class="admin-lic-detail__tab" role="tab" aria-selected="false" data-lic-detail-tab="module" id="adminLicTabModule">
+                                Module
+                            </button>
+                            <button type="button" class="admin-lic-detail__tab" role="tab" aria-selected="false" data-lic-detail-tab="quellen" id="adminLicTabQuellen">
+                                Quellen
+                            </button>
+                        </div>
+
+                        <div class="admin-lic-detail__panels">
+                            <section class="admin-app__surface admin-lic-detail__card admin-lic-detail__panel" data-lic-detail-panel="stammdaten" id="adminLicPanelStammdaten" role="tabpanel" aria-labelledby="adminLicTabStammdaten">
+                                <div class="admin-lic-detail__card-head">
+                                    <h3 class="admin-lic-detail__title">Stammdaten</h3>
+                                    <p class="admin-lic-detail__lead">Adresse, Rollen, Telefon und Schulkennzahl.</p>
+                                </div>
+                                <div class="admin-lic-detail__form" id="adminLicDetailFormStammdaten"></div>
+                            </section>
+
+                            <section class="admin-app__surface admin-lic-detail__card admin-lic-detail__panel" data-lic-detail-panel="lizenz" id="adminLicPanelLizenz" role="tabpanel" aria-labelledby="adminLicTabLizenz" hidden>
+                                <div class="admin-lic-detail__card-head">
+                                    <h3 class="admin-lic-detail__title">Lizenz</h3>
+                                    <p class="admin-lic-detail__lead">Tenant, Status, Domains, IT-Kontakte und Notizen.</p>
+                                </div>
+                                <div class="admin-lic-detail__form" id="adminLicDetailFormLizenz"></div>
+                            </section>
+
+                            <section class="admin-app__surface admin-lic-detail__card admin-lic-detail__card--modules admin-lic-detail__panel" data-lic-detail-panel="module" id="adminLicPanelModule" role="tabpanel" aria-labelledby="adminLicTabModule" hidden>
+                                <div class="admin-lic-detail__modules-head">
+                                    <div>
+                                        <h3 class="admin-lic-detail__title" id="adminLicDetailModulesTitle">Module &amp; Verkauf</h3>
+                                        <p class="admin-lic-detail__lead" id="adminLicDetailModulesHint">Pakete für diese Schule aktivieren</p>
+                                    </div>
+                                </div>
+                                <div id="adminLicDetailSalesBundles" class="admin-lic-detail__sales" aria-label="Verkaufsbündel"></div>
+                                <div class="admin-lic-detail__view-switch admin-catalog__subtabs" role="tablist" aria-label="Modulansicht">
+                                    <button type="button" class="is-active" role="tab" aria-selected="true" data-lic-entitlement-view="packages" id="adminLicDetailViewPackages">
+                                        <i class="bi bi-box-seam" aria-hidden="true"></i>Pakete
+                                    </button>
+                                    <button type="button" role="tab" aria-selected="false" data-lic-entitlement-view="tools" id="adminLicDetailViewTools">
+                                        <i class="bi bi-tools" aria-hidden="true"></i>Werkzeuge
+                                    </button>
+                                </div>
+                                <div class="admin-mod-grid" id="adminLicDetailPackages"></div>
+                                <div class="admin-lic-tools" id="adminLicDetailTools" hidden>
+                                    <div class="admin-lic-tools__bar">
+                                        <label class="admin-lic-tools__search admin-mod-detail__search">
+                                            <span class="visually-hidden">Werkzeuge suchen</span>
+                                            <i class="bi bi-search" aria-hidden="true"></i>
+                                            <input type="search" id="adminLicDetailToolsSearch" placeholder="Werkzeug suchen …" autocomplete="off">
+                                        </label>
+                                        <p class="admin-lic-tools__hint" id="adminLicDetailToolsHint">Paket-Schalter für alle Werkzeuge, darunter einzeln nachjustieren.</p>
+                                    </div>
+                                    <div class="admin-lic-tools__list" id="adminLicDetailToolsList"></div>
+                                </div>
+                            </section>
+
+                            <section class="admin-app__surface admin-lic-detail__card admin-lic-detail__panel" data-lic-detail-panel="quellen" id="adminLicPanelQuellen" role="tabpanel" aria-labelledby="adminLicTabQuellen" hidden>
+                                <div class="admin-lic-detail__card-head">
+                                    <h3 class="admin-lic-detail__title">Quellen &amp; offene Punkte</h3>
+                                    <p class="admin-lic-detail__lead">Workshop-Metadaten und Prüfbedarf.</p>
+                                </div>
+                                <div class="admin-lic-detail__form" id="adminLicDetailFormQuellen"></div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Modul-Katalog -->
+                <section class="admin-app__panel" id="adminPanelModules" role="tabpanel" aria-labelledby="adminTabModules" data-admin-panel="modules" hidden>
+                    <div class="admin-mod-catalog">
+                        <div class="admin-mod-catalog__intro admin-app__surface">
+                            <div class="admin-mod-catalog__intro-text">
+                                <h2 class="admin-lic-detail__title">Modul-Katalog</h2>
+                                <p class="admin-lic-detail__lead">
+                                    Links Paket wählen, rechts Werkzeuge zuordnen und Abhängigkeiten setzen.
+                                    Schulen schalten Pakete und einzelne Werkzeuge unter
+                                    <strong>Lizenzen</strong> frei.
+                                </p>
+                            </div>
+                            <div class="admin-mod-catalog__intro-actions">
+                                <span class="admin-app__pill" id="adminModDirtyBadge" hidden>Ungespeicherte Änderungen</span>
+                                <div id="adminModCatalogStats" class="admin-lic-detail__stats"></div>
+                            </div>
+                        </div>
+                        <div id="adminModSalesBundles" class="admin-app__surface admin-mod-sales-host" aria-label="Verkaufsbündel Referenz"></div>
+
+                        <div class="admin-mod-workspace">
+                            <aside class="admin-mod-rail admin-app__surface" aria-label="Pakete">
+                                <div class="admin-mod-rail__head">
+                                    <strong>Pakete</strong>
+                                    <span>10 Module</span>
+                                </div>
+                                <nav class="admin-mod-rail__list" id="adminModPackageList"></nav>
+                            </aside>
+
+                            <div class="admin-mod-detail admin-app__surface">
+                                <div id="adminModDetailEmpty" class="admin-mod-detail__empty">
+                                    <i class="bi bi-box-seam" aria-hidden="true"></i>
+                                    <p>Paket links auswählen, um Werkzeuge zuzuordnen.</p>
+                                </div>
+                                <div id="adminModDetailBody" hidden>
+                                    <header class="admin-mod-detail__header">
+                                        <div>
+                                            <h3 class="admin-mod-detail__title" id="adminModDetailTitle">–</h3>
+                                            <p class="admin-mod-detail__desc" id="adminModDetailDesc"></p>
+                                            <p class="admin-mod-detail__price" id="adminModDetailPrice" hidden></p>
+                                            <p class="admin-mod-detail__req" id="adminModDetailReq" hidden></p>
+                                        </div>
+                                        <div class="admin-mod-detail__actions">
+                                            <button type="button" class="btn alt" id="adminModResetBtn" title="Standard-Katalog">
+                                                <i class="bi bi-arrow-counterclockwise"></i>Standard
+                                            </button>
+                                            <button type="button" class="btn btn-success" id="adminModSaveBtn" disabled>
+                                                <i class="bi bi-check-lg"></i>Zuordnung speichern
+                                            </button>
+                                        </div>
+                                    </header>
+                                    <div class="admin-mod-detail__toolbar">
+                                        <label class="admin-mod-detail__search">
+                                            <i class="bi bi-search" aria-hidden="true"></i>
+                                            <input type="search" id="adminModToolSearch" placeholder="Werkzeug suchen (Name oder ID)…" autocomplete="off">
+                                        </label>
+                                        <span class="admin-mod-detail__count" id="adminModDetailCount">–</span>
+                                    </div>
+                                    <div class="admin-mod-assign" id="adminModToolAssign" role="list"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -238,7 +448,7 @@
                                 <div class="admin-app__card-icon" aria-hidden="true"><i class="bi bi-table"></i></div>
                                 <div>
                                     <h2>SharePoint-Liste</h2>
-                                    <p>Einmalig: Liste anlegen und fehlende Spalten ergänzen (z.&nbsp;B. <code>AdditionalDomains</code>). Braucht Graph-Recht <strong>Sites.Manage.All</strong> (nicht nur ReadWrite).</p>
+                                    <p>Einmalig: Liste anlegen und fehlende Spalten ergänzen (<code>LicenseEntitlements</code>, Domains, IT-Kontakte, …). Braucht Graph-Recht <strong>Sites.Manage.All</strong> (nicht nur ReadWrite).</p>
                                 </div>
                             </div>
                             <div class="field">
@@ -514,6 +724,50 @@
                         </article>
                     </div>
                 </section>
+
+                <section class="admin-app__panel" id="adminPanelFeedback" role="tabpanel" aria-labelledby="adminTabFeedback" data-admin-panel="feedback" hidden>
+                    <div class="admin-app__toolbar">
+                        <div class="admin-app__toolbar-meta">
+                            <span class="admin-app__pill" id="adminFeedbackCount">–</span>
+                            <span class="admin-app__hint">Inbox aus SharePoint · Status nur für dich</span>
+                        </div>
+                        <div class="admin-app__toolbar-actions">
+                            <button type="button" class="btn alt" id="adminFeedbackEnsureBtn" title="Liste und Spalten auf kurtrocks anlegen">
+                                <i class="bi bi-database-add"></i>Liste sicherstellen
+                            </button>
+                            <button type="button" class="btn alt" id="adminFeedbackReloadBtn">
+                                <i class="bi bi-arrow-clockwise"></i>Aktualisieren
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="admin-catalog__banner" id="adminFeedbackBanner" hidden></p>
+
+                    <div class="admin-fb__stats" id="adminFeedbackStats" aria-label="Übersicht"></div>
+
+                    <div class="admin-lic-filter admin-app__surface" id="adminFeedbackFilterBar">
+                        <label class="admin-lic-filter__search">
+                            <span class="visually-hidden">Feedback suchen</span>
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" id="adminFeedbackSearch" class="admin-lic-input" placeholder="Suche Titel, Person, Schule …" autocomplete="off">
+                        </label>
+                        <label class="admin-lic-filter__field">
+                            <span class="visually-hidden">Status</span>
+                            <select id="adminFeedbackStatusFilter" class="admin-lic-input" aria-label="Status filtern">
+                                <option value="">Status: alle</option>
+                                <option value="Neu">Neu</option>
+                                <option value="In Bearbeitung">In Prüfung</option>
+                                <option value="Erledigt">Erledigt</option>
+                                <option value="Abgelehnt">Ablage</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="admin-fb__layout">
+                        <div id="adminFeedbackList" class="admin-fb__list" aria-live="polite"></div>
+                        <div id="adminFeedbackDetail" class="admin-fb__detail-pane" aria-live="polite"></div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
@@ -522,14 +776,17 @@
     <script type="module" src="src/shared/msal-auth-ui.js"></script>
     <script src="src/shared/license-backend-config.js"></script>
     <script src="src/shared/license-api-client.js"></script>
+    <script src="src/shared/feedback-ui.js"></script>
     <script src="src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="src/tools/license/license-list-setup.js" defer></script>
     <script src="src/shared/release-notes-ui.js"></script>
-    <script src="src/shared/admin-licenses.js" defer></script>
+    <script type="module" src="src/shared/admin-licenses.js"></script>
+    <script type="module" src="src/shared/admin-modules.js"></script>
     <script src="src/shared/admin-setup.js" defer></script>
     <script type="module" src="src/shared/admin-panel.js"></script>
     <script type="module" src="src/shared/admin-catalog.js"></script>
     <script type="module" src="src/shared/admin-catalog-materials.js"></script>
+    <script src="src/shared/admin-feedback-ui.js" defer></script>
     <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
 </body>

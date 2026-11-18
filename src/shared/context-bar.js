@@ -5,6 +5,29 @@
     if (/\/welcome\.html(?:\?|#|$)/i.test(path)) return;
     if (/\/ms365-schooltool\.html(?:\?|#|$)/i.test(path)) return;
 
+    function domainFromSignedInEmail() {
+        try {
+            var info =
+                typeof window.ms365AuthGetAccountInfo === 'function'
+                    ? window.ms365AuthGetAccountInfo()
+                    : null;
+            var mail = String(
+                (info && (info.upn || info.username)) ||
+                    (typeof window.ms365AuthGetUserPrincipalName === 'function'
+                        ? window.ms365AuthGetUserPrincipalName()
+                        : '') ||
+                    ''
+            )
+                .trim()
+                .toLowerCase();
+            var at = mail.lastIndexOf('@');
+            if (at < 0) return '';
+            return mail.slice(at + 1).replace(/^@+/, '');
+        } catch {
+            return '';
+        }
+    }
+
     function readContext() {
         var year = '';
         var domain = '';
@@ -64,6 +87,10 @@
             } catch {
                 /* ignore */
             }
+        }
+        // Frischer Lehrer-Browser: Domain aus der Anmeldung (z. B. ms365.schule)
+        if (!domain) {
+            domain = domainFromSignedInEmail();
         }
         return { year: year, domain: domain };
     }

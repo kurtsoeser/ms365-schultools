@@ -18,7 +18,8 @@ export const STAMMDATEN_PERM_MATRIX_COLS = [
     { key: 'fachgruppen', label: 'Fachgruppen' },
     { key: 'arges', label: 'ARGEs' },
     { key: 'klassen', label: 'Klassen' },
-    { key: 'lehrer', label: 'Lehrerinnen' }
+    { key: 'lehrer', label: 'Lehrerinnen' },
+    { key: 'lehrerJeKlasse', label: 'Lehrer je Klasse' }
 ];
 
 /** @deprecated Nur Migration / Tests – altes Layout Listen×Rollen */

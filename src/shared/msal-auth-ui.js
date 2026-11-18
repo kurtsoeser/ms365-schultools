@@ -755,14 +755,28 @@
             '</div></div>' +
             '<div class="ms365-auth-menu__ctx-row"><span class="ms365-auth-menu__ctx-k">Domain</span>' +
             '<span class="ms365-auth-menu__ctx-v" id="ms365AuthCtxDomain">–</span></div>' +
+            '<div class="ms365-auth-menu__ctx-row ms365-auth-menu__ctx-row--tenant" hidden>' +
+            '<span class="ms365-auth-menu__ctx-k">Tenant-ID</span>' +
+            '<span class="ms365-auth-menu__ctx-v ms365-auth-menu__tenant">' +
+            '<code id="ms365AuthCtxTenant">–</code>' +
+            '<button type="button" class="ms365-auth-menu__copy" id="ms365AuthTenantCopyBtn" title="Tenant-ID kopieren" aria-label="Tenant-ID kopieren">' +
+            '<i class="bi bi-clipboard" aria-hidden="true"></i></button>' +
+            '</span></div>' +
             '</div></div>' +
-            '<div class="ms365-auth-menu__section" id="ms365AuthDashViewSection" role="group" aria-label="Ansicht (Rollen-Vorschau)" hidden>' +
-            '<div class="ms365-auth-menu__section-label" id="ms365AuthDashViewLabel">Ansicht (Rollen-Vorschau)</div>' +
+            '<div class="ms365-auth-menu__section" id="ms365AuthPersonaSection" hidden>' +
+            '<div class="ms365-auth-menu__section-label">Portal-Rolle</div>' +
+            '<div class="ms365-auth-menu__persona-row">' +
+            '<span class="ms365-auth-menu__persona-value" id="ms365AuthPersonaValue">–</span>' +
+            '</div>' +
+            '<p class="ms365-auth-menu__dash-hint" id="ms365AuthPersonaHint" hidden></p>' +
+            '</div>' +
+            '<div class="ms365-auth-menu__section" id="ms365AuthDashViewSection" role="group" aria-label="Bereich" hidden>' +
+            '<div class="ms365-auth-menu__section-label" id="ms365AuthDashViewLabel">Bereich</div>' +
             '<div class="ms365-auth-menu__dash-seg" role="group" aria-labelledby="ms365AuthDashViewLabel">' +
-            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="full" aria-checked="false" title="Vollzugriff (Schul-IT)" aria-label="Vollzugriff Schul-IT">' +
+            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="preview-lehrer" aria-checked="false" title="Portal" aria-label="Portal">' +
+            '<i class="bi bi-grid" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">Portal</span></button>' +
+            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="full" aria-checked="false" title="IT-Backend" aria-label="IT-Backend">' +
             '<i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">IT</span></button>' +
-            '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="preview-lehrer" aria-checked="false" title="Vorschau Lehrkraft" aria-label="Vorschau Lehrkraft">' +
-            '<i class="bi bi-person-badge" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">Lehrer</span></button>' +
             '<button type="button" class="ms365-auth-menu__dash-seg-btn" role="menuitemradio" data-dash-layout="preview-schueler" aria-checked="false" title="Vorschau Schüler/in" aria-label="Vorschau Schüler/in">' +
             '<i class="bi bi-mortarboard" aria-hidden="true"></i><span class="ms365-auth-menu__dash-seg-k">Schüler</span></button>' +
             '</div>' +
@@ -845,6 +859,29 @@
             logoutBtn.addEventListener('click', function () {
                 closeAuthMenu();
                 logout().catch(function () {});
+            });
+        }
+        const tenantCopyBtn = document.getElementById('ms365AuthTenantCopyBtn');
+        if (tenantCopyBtn && !tenantCopyBtn.dataset.bound) {
+            tenantCopyBtn.dataset.bound = '1';
+            tenantCopyBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const el = document.getElementById('ms365AuthCtxTenant');
+                const tid = el ? String(el.textContent || '').trim() : '';
+                if (!tid || tid === '–') return;
+                const done = function () {
+                    if (typeof window.ms365ToastOrAlert === 'function') {
+                        window.ms365ToastOrAlert('Tenant-ID kopiert');
+                    }
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(tid).then(done).catch(function () {
+                        window.prompt('Tenant-ID kopieren:', tid);
+                    });
+                } else {
+                    window.prompt('Tenant-ID kopieren:', tid);
+                }
             });
         }
         const themeBtn = document.querySelector('#ms365AuthDropdown [data-ms365-auth-theme-toggle]');
@@ -996,6 +1033,18 @@
         return false;
     }
 
+    function isSpoManualBackupAllowedUi() {
+        try {
+            const lf = window.ms365StammdatenLocalFirst;
+            if (lf && typeof lf.isSpoManualBackupAllowed === 'function') {
+                return !!lf.isSpoManualBackupAllowed();
+            }
+        } catch {
+            /* ignore */
+        }
+        return !isStammdatenLocalFirstRebuild();
+    }
+
     function localFirstBackupHint() {
         try {
             const lf = window.ms365StammdatenLocalFirst;
@@ -1005,36 +1054,62 @@
         } catch {
             /* ignore */
         }
-        return 'Lokal-First: nur Browser-Backup (JSON). SharePoint-IT ist pausiert.';
+        return 'Lokal-First: Browser-Backup und manuelle IT-Bibliothek. Kein Auto-Abgleich.';
     }
 
     /**
-     * Während Lokal-First: SharePoint-/Abgleich-Blöcke im Header-Menü ausblenden.
+     * Lokal-First: Abgleich ausblenden. Manuelle IT-Bib (Phase 4) wieder zeigen.
      * @param {HTMLElement|null|undefined} wrap
      */
     function applyLocalFirstBackupPanel(wrap) {
         if (!wrap || !isStammdatenLocalFirstRebuild()) return;
+        const manualOk = isSpoManualBackupAllowedUi();
         wrap.querySelectorAll('[data-local-first-hide="spo-block"]').forEach(function (el) {
+            const label = el.querySelector('.ms365-backup-panel__label');
+            const t = label ? String(label.textContent || '') : '';
+            if (/Abgleich/i.test(t) || el.getAttribute('data-local-first-hide') === 'spo-compare') {
+                el.hidden = true;
+                el.setAttribute('aria-hidden', 'true');
+                return;
+            }
+            if (manualOk) {
+                el.hidden = false;
+                el.removeAttribute('aria-hidden');
+            } else {
+                el.hidden = true;
+                el.setAttribute('aria-hidden', 'true');
+            }
+        });
+        wrap.querySelectorAll('[data-local-first-hide="spo-compare"]').forEach(function (el) {
             el.hidden = true;
             el.setAttribute('aria-hidden', 'true');
         });
         const setup = wrap.querySelector('[data-ms365-spo-sync="setup"]');
         if (setup) {
-            setup.hidden = true;
-            setup.setAttribute('aria-hidden', 'true');
+            if (manualOk) {
+                setup.hidden = false;
+                setup.removeAttribute('aria-hidden');
+            } else {
+                setup.hidden = true;
+                setup.setAttribute('aria-hidden', 'true');
+            }
         }
         try {
             const lf = window.ms365StammdatenLocalFirst;
-            if (lf && typeof lf.applyLocalFirstSpoUi === 'function') {
-                lf.applyLocalFirstSpoUi(wrap);
-            }
+            if (lf && typeof lf.applyLocalFirstSpoUi === 'function') lf.applyLocalFirstSpoUi(wrap);
+            if (lf && typeof lf.applyLocalFirstCompareUi === 'function') lf.applyLocalFirstCompareUi(wrap);
         } catch {
             /* ignore */
         }
         const note = wrap.querySelector('[data-local-first-backup-note]');
         if (note) {
-            note.hidden = false;
-            note.textContent = localFirstBackupHint();
+            if (manualOk) {
+                note.hidden = true;
+                note.textContent = '';
+            } else {
+                note.hidden = false;
+                note.textContent = localFirstBackupHint();
+            }
         }
     }
 
@@ -1050,9 +1125,12 @@
         if (statusEl) {
             if (localFirst) {
                 const when = last && !isNaN(ts) ? formatBackupWhenDe(last) : '';
+                const manual = isSpoManualBackupAllowedUi();
                 statusEl.textContent = when
-                    ? 'Lokal-First · Browser-Backup zuletzt: ' + when
-                    : 'Lokal-First · bitte Browser-Backup exportieren';
+                    ? (manual ? 'Zuletzt gesichert: ' : 'Lokal-First · Backup zuletzt: ') + when
+                    : manual
+                      ? 'Noch nicht gesichert – Browser oder IT-Bibliothek'
+                      : 'Lokal-First · bitte Browser-Backup exportieren';
                 statusEl.className =
                     'ms365-backup-panel__status' +
                     (fresh ? ' ms365-backup-panel__status--ok' : ' ms365-backup-panel__status--warn');
@@ -1145,7 +1223,7 @@
                 '<button type="button" class="ms365-backup-panel__btn" data-ms365-spo-sync="load">' +
                 '<i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>Laden</button>' +
                 '</div></div>' +
-                '<div class="ms365-backup-panel__block" data-local-first-hide="spo-block">' +
+                '<div class="ms365-backup-panel__block" data-local-first-hide="spo-compare" hidden>' +
                 '<div class="ms365-backup-panel__label">Abgleich</div>' +
                 '<div class="ms365-backup-panel__actions">' +
                 '<a class="ms365-backup-panel__btn" href="' +
@@ -1171,7 +1249,10 @@
             wrap.querySelectorAll('.ms365-backup-panel__block').forEach(function (block) {
                 const label = block.querySelector('.ms365-backup-panel__label');
                 const t = label ? String(label.textContent || '') : '';
-                if (/SharePoint|Abgleich/i.test(t)) {
+                if (/Abgleich/i.test(t)) {
+                    block.setAttribute('data-local-first-hide', 'spo-compare');
+                    block.hidden = true;
+                } else if (/SharePoint/i.test(t)) {
                     block.setAttribute('data-local-first-hide', 'spo-block');
                 }
             });
@@ -1251,15 +1332,10 @@
 
     function resolveSchulOrganigrammHref() {
         try {
-            const p = String(window.location.pathname || '/').split('?')[0].split('#')[0];
-            const norm = p.replace(/\\/g, '/');
-            const iTools = norm.toLowerCase().indexOf('/tools/');
-            if (iTools !== -1) return norm.slice(0, iTools) + '/tools/schul-organigramm.html';
-            const slash = norm.lastIndexOf('/');
-            const dir = slash >= 0 ? norm.slice(0, slash + 1) : '/';
-            return dir + 'tools/schul-organigramm.html';
+            const base = resolveTenantPageHref().replace(/#.*$/, '');
+            return base + '#organigramm';
         } catch {
-            return 'tools/schul-organigramm.html';
+            return 'tenant.html#organigramm';
         }
     }
 
@@ -1267,10 +1343,48 @@
         return /\/tenant\.html(?:\?|#|$)/i.test(String(window.location.pathname || '').replace(/\\/g, '/'));
     }
 
-    function isOnSchulOrganigrammPage() {
-        return /\/schul-organigramm\.html(?:\?|#|$)/i.test(
-            String(window.location.pathname || '').replace(/\\/g, '/')
+    function isOrganigrammHash() {
+        const raw = String(window.location.hash || '')
+            .replace(/^#/, '')
+            .trim()
+            .toLowerCase();
+        return (
+            raw === 'organigramm' ||
+            raw === 'schul-organigramm' ||
+            raw === 'schulorganigramm' ||
+            raw === 'org'
         );
+    }
+
+    function isOnSchulOrganigrammPage() {
+        const path = String(window.location.pathname || '').replace(/\\/g, '/');
+        if (/\/schul-organigramm\.html(?:\?|#|$)/i.test(path)) return true;
+        return isOnTenantRegisterPage() && isOrganigrammHash();
+    }
+
+    function isOnStammdatenListsView() {
+        return isOnTenantRegisterPage() && !isOrganigrammHash();
+    }
+
+    function syncSchoolContextHeaderActive() {
+        const stammdaten = document.getElementById('ms365HeaderSchulregister');
+        const organigramm = document.getElementById('ms365HeaderSchulOrganigramm');
+        const onOrg = isOnSchulOrganigrammPage();
+        const onLists = isOnStammdatenListsView();
+        if (stammdaten) {
+            stammdaten.classList.toggle('is-active', onLists);
+            if (onLists) stammdaten.setAttribute('aria-current', 'page');
+            else stammdaten.removeAttribute('aria-current');
+            stammdaten.hidden = false;
+        }
+        if (organigramm) {
+            organigramm.classList.toggle('is-active', onOrg);
+            if (onOrg) organigramm.setAttribute('aria-current', 'page');
+            else organigramm.removeAttribute('aria-current');
+            organigramm.hidden = false;
+            organigramm.href = resolveSchulOrganigrammHref();
+        }
+        if (stammdaten) stammdaten.href = resolveTenantPageHref().replace(/#.*$/, '');
     }
 
     function ensureHeaderNavLink(container, opts) {
@@ -1310,48 +1424,109 @@
         }
     }
 
-    function ensureSchulregisterHeaderLink(container) {
+    function ensureSchoolContextSwitch(container) {
         if (!container) return null;
-        const link = ensureHeaderNavLink(container, {
-            id: 'ms365HeaderSchulregister',
-            className: 'ms365-header-schulregister',
-            href: resolveTenantPageHref(),
-            title: 'Stammdaten pflegen',
-            hide: isOnTenantRegisterPage(),
-            innerHTML:
-                '<i class="bi bi-journal-bookmark" aria-hidden="true"></i>' +
-                '<span class="ms365-header-schulregister__label">Stammdaten</span>'
-        });
-        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
-            window.ms365SyncFrontendPlannerHeaderChrome();
+        let switcher = document.getElementById('ms365HeaderSchoolSwitch');
+        if (!switcher) {
+            switcher = document.createElement('div');
+            switcher.id = 'ms365HeaderSchoolSwitch';
+            switcher.className = 'ms365-header-school-switch';
+            switcher.setAttribute('role', 'navigation');
+            switcher.setAttribute('aria-label', 'Schule: Stammdaten oder Organigramm');
         }
-        placeHeaderLinkBeforeAuth(container, link);
-        return link;
-    }
+        placeHeaderLinkBeforeAuth(container, switcher);
 
-    function ensureSchulOrganigrammHeaderLink(container) {
-        if (!container) return null;
-        const link = ensureHeaderNavLink(container, {
+        const orgLink = ensureHeaderNavLink(switcher, {
             id: 'ms365HeaderSchulOrganigramm',
             className: 'ms365-header-schulregister ms365-header-schul-organigramm',
             href: resolveSchulOrganigrammHref(),
-            title: 'Schul-Organigramm – Stammdaten visuell pflegen',
-            hide: isOnSchulOrganigrammPage(),
+            title: 'Schul-Organigramm',
+            hide: false,
             innerHTML:
                 '<i class="bi bi-diagram-3" aria-hidden="true"></i>' +
                 '<span class="ms365-header-schulregister__label">Organigramm</span>'
         });
-        if (!link) return null;
-        // Links von „Stammdaten“ einfügen
-        const stammdaten = document.getElementById('ms365HeaderSchulregister');
-        if (stammdaten && stammdaten.parentElement === container) {
-            if (link.parentElement !== container || link.nextElementSibling !== stammdaten) {
-                container.insertBefore(link, stammdaten);
-            }
-        } else {
-            placeHeaderLinkBeforeAuth(container, link);
+        const stammdatenLink = ensureHeaderNavLink(switcher, {
+            id: 'ms365HeaderSchulregister',
+            className: 'ms365-header-schulregister',
+            href: resolveTenantPageHref().replace(/#.*$/, ''),
+            title: 'Stammdaten pflegen',
+            hide: false,
+            innerHTML:
+                '<i class="bi bi-journal-bookmark" aria-hidden="true"></i>' +
+                '<span class="ms365-header-schulregister__label">Stammdaten</span>'
+        });
+        if (orgLink && orgLink.parentElement !== switcher) switcher.appendChild(orgLink);
+        if (stammdatenLink && stammdatenLink.parentElement !== switcher) switcher.appendChild(stammdatenLink);
+        // Reihenfolge: Stammdaten | Organigramm
+        if (stammdatenLink && orgLink && stammdatenLink.nextElementSibling !== orgLink) {
+            switcher.insertBefore(stammdatenLink, orgLink);
         }
-        return link;
+        wireSchoolContextSwitchClicks(stammdatenLink, orgLink);
+        if (typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function') {
+            window.ms365SyncFrontendPlannerHeaderChrome();
+        }
+        syncSchoolContextHeaderActive();
+        return switcher;
+    }
+
+    /**
+     * Auf tenant.html: Umschalten ohne Navigation/Reload (sonst wirkt der Wechsel „ewig“).
+     * Von anderen Seiten bleiben die Links normale Navigation.
+     */
+    function wireSchoolContextSwitchClicks(stammdatenLink, orgLink) {
+        function lastNonOrganigrammTabId() {
+            try {
+                const stored = localStorage.getItem('ms365-tenant-main-active-tab-v1') || '';
+                if (stored && stored !== 'tabMainOrganigramm') return stored;
+            } catch {
+                /* ignore */
+            }
+            return 'tabMainStammdaten';
+        }
+
+        function activateTenantTab(tabId) {
+            if (typeof window.ms365TenantTabActivate === 'function') {
+                window.ms365TenantTabActivate(tabId);
+                return;
+            }
+            try {
+                window.dispatchEvent(
+                    new CustomEvent('ms365-register-tab-request', {
+                        detail: { tabBtnId: tabId }
+                    })
+                );
+            } catch {
+                /* ignore */
+            }
+        }
+
+        if (orgLink && !orgLink.dataset.schoolSwitchBound) {
+            orgLink.dataset.schoolSwitchBound = '1';
+            orgLink.addEventListener('click', function (ev) {
+                if (!isOnTenantRegisterPage()) return;
+                ev.preventDefault();
+                activateTenantTab('tabMainOrganigramm');
+                syncSchoolContextHeaderActive();
+            });
+        }
+        if (stammdatenLink && !stammdatenLink.dataset.schoolSwitchBound) {
+            stammdatenLink.dataset.schoolSwitchBound = '1';
+            stammdatenLink.addEventListener('click', function (ev) {
+                if (!isOnTenantRegisterPage()) return;
+                ev.preventDefault();
+                activateTenantTab(lastNonOrganigrammTabId());
+                syncSchoolContextHeaderActive();
+            });
+        }
+    }
+
+    function ensureSchulregisterHeaderLink(container) {
+        return ensureSchoolContextSwitch(container);
+    }
+
+    function ensureSchulOrganigrammHeaderLink(container) {
+        return ensureSchoolContextSwitch(container);
     }
 
     function placeAuthWidgetInMenuHeader() {
@@ -1376,9 +1551,61 @@
             wrap.style.marginLeft = '0';
             wrap.style.flexWrap = 'nowrap';
             if (wrap.parentElement !== adminSlot) adminSlot.appendChild(wrap);
-            ensureSchulregisterHeaderLink(adminSlot);
-            ensureSchulOrganigrammHeaderLink(adminSlot);
-            ensureBackupHeaderControl(adminSlot);
+            /* Betreiber-Admin: nur Konto – keine Schul-Stammdaten-/Backup-Chrome */
+            const isOperatorAdminPortal =
+                !!(document.body && document.body.classList.contains('admin-app-page'));
+            if (isOperatorAdminPortal) {
+                [
+                    'ms365BackupHeader',
+                    'ms365HeaderSchulOrganigramm',
+                    'ms365HeaderSchulregister'
+                ].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el && el.parentElement === adminSlot) el.remove();
+                });
+            } else {
+                ensureSchulregisterHeaderLink(adminSlot);
+                ensureSchulOrganigrammHeaderLink(adminSlot);
+                ensureBackupHeaderControl(adminSlot);
+                /* Portal / Tool ohne IT-Shell: Organigramm & Stammdaten ausblenden */
+                try {
+                    var hideItHeader = false;
+                    if (document.documentElement.hasAttribute('data-dash-app-only')) {
+                        hideItHeader = true;
+                    } else if (
+                        document.body &&
+                        document.body.classList.contains('page-dashboard') &&
+                        window.ms365DashboardAudience &&
+                        typeof window.ms365DashboardAudience.getLayoutMode === 'function' &&
+                        /^(apps|preview)-/.test(
+                            String(window.ms365DashboardAudience.getLayoutMode() || '')
+                        )
+                    ) {
+                        hideItHeader = true;
+                    } else if (
+                        typeof window.ms365SyncFrontendPlannerHeaderChrome === 'function'
+                    ) {
+                        window.ms365SyncFrontendPlannerHeaderChrome();
+                    }
+                    if (hideItHeader) {
+                        [
+                            'ms365BackupHeader',
+                            'ms365HeaderSchoolSwitch',
+                            'ms365HeaderSchulOrganigramm',
+                            'ms365HeaderSchulregister',
+                            'dashHeaderSearchSlot'
+                        ].forEach(function (id) {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                el.hidden = true;
+                                el.setAttribute('aria-hidden', 'true');
+                            }
+                        });
+                    }
+                } catch (e) {
+                    /* ignore */
+                }
+            }
         } else {
             try {
                 header.style.position = header.style.position || 'relative';
@@ -1490,6 +1717,19 @@
         if (menuMeta) menuMeta.hidden = !a;
         if (switchBtn) switchBtn.hidden = !a;
         if (logoutBtn) logoutBtn.hidden = !a;
+        const tenantEl = document.getElementById('ms365AuthCtxTenant');
+        if (tenantEl) {
+            let tid = '';
+            try {
+                if (a) {
+                    const claims = a.idTokenClaims || {};
+                    tid = String(a.tenantId || claims.tid || '').trim();
+                }
+            } catch {
+                tid = '';
+            }
+            tenantEl.textContent = tid || '–';
+        }
         const adminLink = document.getElementById('ms365AuthAdminLink');
         const applyAdminLink = function () {
             if (!adminLink) return;
@@ -1740,9 +1980,17 @@
             return '';
         }
     };
+    window.ms365SyncSchoolContextHeader = syncSchoolContextHeaderActive;
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
+    try {
+        window.addEventListener('hashchange', function () {
+            syncSchoolContextHeaderActive();
+        });
+    } catch {
+        /* ignore */
+    }
     try {
         window.addEventListener('ms365-menu-header-ready', function () {
             // Nur platzieren, nicht erneut voll initialisieren (vermeidet Event-Schleifen)

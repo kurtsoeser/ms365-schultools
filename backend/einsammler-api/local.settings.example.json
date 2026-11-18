@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "EINSAMMLER_ADMIN_KEY": "dev-admin-key-change-me",
+    "EINSAMMLER_CORS_ORIGINS": "*"
+  }
+}

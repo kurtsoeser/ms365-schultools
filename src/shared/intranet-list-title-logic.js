@@ -4,7 +4,8 @@ export const DEFAULT_INTRANET_LIST_TITLES = {
     fachgruppen: 'Fachgruppen',
     arges: 'ARGEs',
     klassen: 'Klassen',
-    lehrer: 'Lehrerinnen'
+    lehrer: 'Lehrerinnen',
+    lehrerJeKlasse: 'Lehrer je Klasse'
 };
 
 /** UI: Zeilen „Listen-Typ + Name“ in den Stammdaten (Stammdaten → SharePoint) */
@@ -14,7 +15,8 @@ export const INTRANET_LIST_KIND_OPTIONS = [
     { kind: 'fachgruppen', label: 'Fachgruppen' },
     { kind: 'arges', label: 'ARGEs' },
     { kind: 'klassen', label: 'Klassen' },
-    { kind: 'lehrer', label: 'Lehrer:innen' }
+    { kind: 'lehrer', label: 'Lehrer:innen' },
+    { kind: 'lehrerJeKlasse', label: 'Lehrer je Klasse' }
 ];
 
 export function resolveIntranetListTitle(kind, storedTitle) {

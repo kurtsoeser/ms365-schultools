@@ -23,6 +23,7 @@ import {
     scopeFromState,
     canEditSchularbeit,
     canDeleteSchularbeit,
+    canAdminDecide,
     persistCalShowSettings,
     persistCalModeSettings
 } from './schularbeiten-planer-state.js';
@@ -38,7 +39,8 @@ import {
     createFachMetaItem,
     updateFachMetaItem,
     deleteFachMetaItem,
-    emptyPlanerLists
+    emptyPlanerLists,
+    isSaAccessDeniedError
 } from './schularbeiten-planer-graph.js';
 import { upsertSchulterminFromSchularbeit } from './schularbeiten-planer-sync.js';
 import {
@@ -103,6 +105,27 @@ const fachMetaSaveTimers = new Map();
 function toast(msg) {
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(msg);
     else window.alert(msg);
+}
+
+function friendlySaSpoError(err) {
+    const msg = String((err && err.message) || err || '');
+    if (isSaAccessDeniedError(err)) {
+        return 'Kein SharePoint-Zugriff – Site in der Administration prüfen oder Demo lokal laden.';
+    }
+    return msg || 'SharePoint nicht erreichbar.';
+}
+
+/**
+ * Lokaler Upsert (Demo local-first, kein SPO-Push).
+ * @param {object} row
+ */
+function upsertLocalSchularbeit(row) {
+    const id = String((row && row.itemId) || '');
+    const list = Array.isArray(state.items) ? state.items.slice() : [];
+    const idx = list.findIndex((x) => String(x.itemId || '') === id);
+    if (idx >= 0) list[idx] = { ...list[idx], ...row };
+    else list.push(row);
+    state.items = list;
 }
 
 function graphMapOpts() {
@@ -171,8 +194,7 @@ function bindStatic() {
             const input = document.getElementById('saSiteUrl');
             state.siteUrl = input ? String(input.value || '').trim() : state.siteUrl;
             persistSiteUrl(state.siteUrl);
-            refreshData().catch((e) => {
-                state.error = e && e.message ? e.message : String(e);
+            refreshData({ force: true }).catch(() => {
                 state.loading = false;
                 paint();
             });
@@ -183,8 +205,11 @@ function bindStatic() {
     if (schuljahrEl) {
         schuljahrEl.addEventListener('change', () => {
             state.schuljahr = persistSchuljahr(schuljahrEl.value);
-            refreshData({ silent: true }).catch((e) => {
-                state.error = e && e.message ? e.message : String(e);
+            if (state.localDemoOnly) {
+                paint();
+                return;
+            }
+            refreshData({ silent: true }).catch(() => {
                 paint();
             });
         });
@@ -326,12 +351,20 @@ function defaultTeacherForm() {
 }
 
 async function submitForm() {
-    if (!state.ctx) throw new Error('Bitte zuerst Daten laden.');
+    if (state.role === 'schueler') {
+        throw new Error('Schüler:innen können Schularbeiten nur lesen.');
+    }
+    const localOnly = !!(state.localDemoOnly || !state.ctx);
+    if (!state.ctx && !state.localDemoOnly) throw new Error('Bitte zuerst Daten laden.');
     const form = readFormFromDom();
     const teacher = state.stammdaten.teachers.find((t) => t.code === form.lehrerCode);
     form.lehrerEmail = (teacher && teacher.email) || state.accountEmail || '';
     const prev =
         state.editingItemId ? state.items.find((x) => x.itemId === state.editingItemId) : null;
+    const scope = scopeFromState(state);
+    if (prev && !canEditSchularbeit(prev, scope)) {
+        throw new Error('Keine Berechtigung zum Bearbeiten.');
+    }
     const prevStatus = prev ? String(prev.status || '').toLowerCase() : '';
     const keepStatus =
         prev &&
@@ -377,7 +410,22 @@ async function submitForm() {
     paint();
     const mapOpts = graphMapOpts();
     try {
-        if (state.editingItemId) {
+        if (localOnly) {
+            if (state.editingItemId) {
+                const payload = prev ? { ...prev, ...draft, itemId: prev.itemId } : draft;
+                upsertLocalSchularbeit(payload);
+                toast(
+                    (keepStatus === 'fixiert' ? 'Termin aktualisiert' : 'Antrag aktualisiert') +
+                        ' (lokal).'
+                );
+            } else {
+                upsertLocalSchularbeit({
+                    ...draft,
+                    itemId: 'local-' + draft.schularbeitId
+                });
+                toast('Antrag lokal gespeichert (Demo).');
+            }
+        } else if (state.editingItemId) {
             const payload = prev ? { ...prev, ...draft, itemId: prev.itemId } : draft;
             await updateSchularbeitItem(state.ctx, state.editingItemId, payload, mapOpts);
             if (String(payload.status || '').toLowerCase() === 'fixiert') {
@@ -386,7 +434,8 @@ async function submitForm() {
             }
             toast(keepStatus === 'fixiert' ? 'Termin aktualisiert.' : 'Antrag aktualisiert.');
         } else {
-            await createSchularbeitItem(state.ctx, draft, mapOpts);
+            const created = await createSchularbeitItem(state.ctx, draft, mapOpts);
+            if (created && created.itemId) upsertLocalSchularbeit(created);
             toast('Antrag eingereicht.');
         }
         const returnView = state.editReturnView || (state.role === 'admin' ? 'liste' : 'meine');
@@ -394,7 +443,7 @@ async function submitForm() {
         state.editReturnView = '';
         state.form = emptyForm(defaultTeacherForm());
         state.view = returnView;
-        await refreshData({ silent: true });
+        if (!localOnly) await refreshData({ silent: true });
     } finally {
         state.loading = false;
         paint();
@@ -434,11 +483,18 @@ function bindMeineActions() {
             const id = btn.getAttribute('data-sa-del');
             const sa = state.items.find((x) => x.itemId === id);
             const scope = scopeFromState(state);
-            if (!id || !state.ctx || !sa || !canDeleteSchularbeit(sa, scope)) return;
+            if (!id || !sa || !canDeleteSchularbeit(sa, scope)) return;
+            if (!state.ctx && !state.localDemoOnly) return;
             const label =
                 String(sa.status || '').toLowerCase() === 'fixiert' ? 'Fixierten Termin' : 'Antrag';
             if (!window.confirm(label + ' wirklich löschen?')) return;
             state.detailId = null;
+            if (state.localDemoOnly || !state.ctx) {
+                state.items = (state.items || []).filter((x) => x.itemId !== id);
+                paint();
+                toast('Gelöscht (lokal).');
+                return;
+            }
             maybeRemoveClassCalendar(sa)
                 .then(() => deleteSchularbeitItem(state.ctx, id))
                 .then(() => refreshData({ silent: true }))
@@ -454,7 +510,8 @@ function bindAdminActions() {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-sa-fix');
             const sa = state.items.find((x) => x.itemId === id);
-            if (!sa || !state.ctx) return;
+            const scope = scopeFromState(state);
+            if (!sa || (!state.ctx && !state.localDemoOnly) || !canAdminDecide(sa, scope)) return;
             const patch = {
                 ...sa,
                 status: 'fixiert',
@@ -463,6 +520,12 @@ function bindAdminActions() {
                 fixiertAm: new Date().toISOString()
             };
             state.detailId = null;
+            if (state.localDemoOnly || !state.ctx) {
+                upsertLocalSchularbeit(patch);
+                paint();
+                toast('Fixiert (lokal).');
+                return;
+            }
             updateSchularbeitItem(state.ctx, id, patch, graphMapOpts())
                 .then(() => maybeSyncSchultermin(patch))
                 .then((syncResult) =>
@@ -485,7 +548,8 @@ function bindAdminActions() {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-sa-reject');
             const sa = state.items.find((x) => x.itemId === id);
-            if (!sa || !state.ctx) return;
+            const scope = scopeFromState(state);
+            if (!sa || (!state.ctx && !state.localDemoOnly) || !canAdminDecide(sa, scope)) return;
             const reason = window.prompt('Ablehnungsgrund (optional):', '') || '';
             const patch = {
                 ...sa,
@@ -495,6 +559,12 @@ function bindAdminActions() {
                 fixiertAm: new Date().toISOString()
             };
             state.detailId = null;
+            if (state.localDemoOnly || !state.ctx) {
+                upsertLocalSchularbeit({ ...patch, teamsCalendarEventId: '' });
+                paint();
+                toast('Abgelehnt (lokal).');
+                return;
+            }
             maybeRemoveClassCalendar(sa)
                 .then(() => {
                     patch.teamsCalendarEventId = '';
@@ -509,6 +579,10 @@ function bindAdminActions() {
     const addTf = document.getElementById('saBtnAddFenster');
     if (addTf) {
         addTf.addEventListener('click', () => {
+            if (state.role !== 'admin') {
+                toast('Nur Administrator:innen dürfen Terminfenster anlegen.');
+                return;
+            }
             const win = readFensterForm();
             if (!win.titel || !win.startdatum || !win.enddatum) {
                 toast('Titel, Von und Bis sind Pflicht.');
@@ -536,6 +610,10 @@ function bindAdminActions() {
     const saveRw = document.getElementById('saBtnSaveRules');
     if (saveRw) {
         saveRw.addEventListener('click', () => {
+            if (state.role !== 'admin') {
+                toast('Nur Administrator:innen dürfen das Regelwerk speichern.');
+                return;
+            }
             if (!state.ctx || !state.rules.itemId) {
                 toast('Kein Regelwerk-Eintrag geladen.');
                 return;
@@ -1451,14 +1529,23 @@ async function importDemoJsonText(text) {
         persistSiteUrl(state.siteUrl);
     }
 
-    // Immer lokal anzeigen
+    // Immer lokal anzeigen (Demo nicht blind nach SPO pushen)
     state.items = local.items;
     state.windows = local.windows;
+    state.windowsAll = local.windows || [];
     state.fachMeta = local.fachMeta;
+    state.fachMetaAll = local.fachMeta || [];
     state.rules = local.rules;
     state.bootstrapped = true;
     state.error = '';
+    state.softError = '';
     state.localDemoOnly = true;
+    state.syncMeta = {
+        source: 'demo',
+        lastPullAt: '',
+        connected: false,
+        listTitle: LIST_TITLES.schularbeiten || 'SAP-Schularbeiten'
+    };
     state.view = 'dashboard';
     paint();
 
@@ -1472,7 +1559,9 @@ async function importDemoJsonText(text) {
     );
 
     const writeSp = window.confirm(
-        'Demo lokal geladen.\n\nJetzt auch auf SharePoint schreiben?\n\nSite: ' +
+        'Demo lokal geladen (local-first).\n\n' +
+            'Abbrechen = nur Browser-Anzeige, kein SharePoint-Schreiben.\n' +
+            'OK = optional auch auf SharePoint schreiben.\n\nSite: ' +
             (state.siteUrl || DEMO_SITE_DEFAULT) +
             '\n\n(Listen müssen existieren – sonst zuerst „Listen“ → Paket anlegen.)'
     );
@@ -1487,14 +1576,16 @@ async function importDemoJsonText(text) {
     try {
         await seedDemoSchularbeiten(webUrl, (msg) => console.log('[sa-demo]', msg), { pack: local.pack });
         state.localDemoOnly = false;
-        await refreshData({ silent: true });
+        await refreshData({ silent: true, force: true });
         toast('Demo auf SharePoint geschrieben und neu geladen.');
     } catch (e) {
         state.localDemoOnly = true;
-        state.error =
-            'Lokal geladen, SharePoint-Schreiben fehlgeschlagen: ' +
-            (e && e.message ? e.message : String(e));
-        toast(state.error);
+        state.error = '';
+        state.softError = isSaAccessDeniedError(e)
+            ? 'Demo bleibt lokal (SharePoint-Schreiben nicht möglich). Für die Vorführung reicht das.'
+            : 'Lokal geladen, SharePoint-Schreiben fehlgeschlagen: ' +
+              (e && e.message ? e.message : String(e));
+        toast(state.softError);
         paint();
     } finally {
         state.loading = false;
@@ -1533,7 +1624,9 @@ function syncAccount() {
             typeof window.ms365AuthGetUserPrincipalName === 'function'
                 ? window.ms365AuthGetUserPrincipalName()
                 : '';
-        state.accountEmail = String((info && (info.username || info.mail)) || upn || '')
+        state.accountEmail = String(
+            (info && (info.username || info.mail || info.upn)) || upn || ''
+        )
             .trim()
             .toLowerCase();
         state.accountName = String((info && info.name) || '').trim();
@@ -1546,6 +1639,17 @@ function syncAccount() {
     if (!state.form.lehrerCode && state.teacherMatch) {
         state.form = emptyForm(defaultTeacherForm());
     }
+}
+
+function resyncAccountAndPaint() {
+    resolvePlanerRole()
+        .then(() => {
+            paint();
+        })
+        .catch(() => {
+            syncAccount();
+            paint();
+        });
 }
 
 async function ensurePlannerPermissionsConfig() {
@@ -1606,9 +1710,24 @@ async function resolvePlanerRole() {
     if (!allowed.includes(state.view)) state.view = 'dashboard';
 }
 
+/**
+ * Pull von SharePoint. Demo local-first: ohne force kein Überschreiben.
+ * 403/Fehler wipe’t Demo/Cache nicht.
+ * @param {{ silent?: boolean, force?: boolean }} [opts]
+ */
 async function refreshData(opts) {
     const silent = opts && opts.silent;
+    const force = opts && opts.force;
     state.error = '';
+    state.softError = '';
+    if (state.localDemoOnly && !force && (state.items || []).length) {
+        state.syncMeta = Object.assign({}, state.syncMeta, {
+            source: 'demo',
+            connected: false
+        });
+        if (!silent) paint();
+        return;
+    }
     if (!silent) {
         state.loading = true;
         paint();
@@ -1633,6 +1752,13 @@ async function refreshData(opts) {
         if (data.rules) state.rules = data.rules;
         state.bootstrapped = true;
         state.localDemoOnly = false;
+        state.softError = '';
+        state.syncMeta = {
+            source: 'sharepoint',
+            lastPullAt: new Date().toISOString(),
+            connected: true,
+            listTitle: LIST_TITLES.schularbeiten || 'SAP-Schularbeiten'
+        };
         syncAccount();
         const entraMode = entraGroupsConfigured(loadEffectivePermissionsConfig());
         // Demo/IT ohne Entra-Gruppen: Lehrer-Filter leer → Hinweis (kein Auto-Admin bei Entra)
@@ -1664,7 +1790,7 @@ async function refreshData(opts) {
             const klasseOk = !!(state.studentMatch || state.demoKlasseCode);
             state.roleHint = klasseOk
                 ? ''
-                : 'Schüler-Ansicht: bitte Klasse wählen (Demo) oder E-Mail in den Stammdaten (students) hinterlegen.';
+                : 'Schüler-Ansicht: bitte Klasse wählen oder E-Mail in den Stammdaten (students) hinterlegen.';
         } else {
             state.roleHint = '';
         }
@@ -1677,7 +1803,45 @@ async function refreshData(opts) {
             });
         }
     } catch (e) {
-        state.error = e && e.message ? e.message : String(e);
+        const denied = isSaAccessDeniedError(e);
+        const hasItems = (state.items || []).length > 0;
+        // Lokale Demo / Cache nicht mit SharePoint-403 übermalen
+        if (state.localDemoOnly && hasItems) {
+            state.error = '';
+            state.softError = denied
+                ? 'SharePoint-Zugriff eingeschränkt – lokale Demo bleibt erhalten.'
+                : 'SharePoint nicht erreichbar – lokale Demo bleibt erhalten.';
+            state.syncMeta = Object.assign({}, state.syncMeta, {
+                source: 'demo',
+                connected: false
+            });
+            console.warn('[sa] refresh skipped – local demo kept', e);
+            return;
+        }
+        if (hasItems && (denied || !force)) {
+            state.error = '';
+            state.softError = denied
+                ? 'SharePoint-Zugriff eingeschränkt – zuletzt geladene Daten bleiben sichtbar.'
+                : 'SharePoint nicht erreichbar – zuletzt geladene Daten bleiben sichtbar.';
+            state.syncMeta = Object.assign({}, state.syncMeta, {
+                source: 'cache',
+                connected: false
+            });
+            console.warn('[sa] refresh skipped – cache kept', e);
+            return;
+        }
+        if (denied) {
+            state.error = '';
+            state.softError = friendlySaSpoError(e);
+            state.syncMeta = Object.assign({}, state.syncMeta, {
+                source:
+                    state.syncMeta && state.syncMeta.source === 'sharepoint' ? 'cache' : 'none',
+                connected: false
+            });
+            return;
+        }
+        state.error = friendlySaSpoError(e);
+        state.syncMeta = Object.assign({}, state.syncMeta, { connected: false });
         throw e;
     } finally {
         state.loading = false;
@@ -1728,16 +1892,37 @@ function boot() {
     window.addEventListener('ms365-auth-state-changed', () => {
         resolvePlanerRole()
             .then(() => {
-                if (state.bootstrapped && state.siteUrl) {
+                if (state.bootstrapped && state.siteUrl && !state.localDemoOnly) {
                     return refreshData({ silent: true });
                 }
                 paint();
             })
             .catch((e) => {
-                state.error = e && e.message ? e.message : String(e);
+                if (state.localDemoOnly && (state.items || []).length) {
+                    state.softError = isSaAccessDeniedError(e)
+                        ? 'SharePoint-Zugriff eingeschränkt – lokale Demo bleibt erhalten.'
+                        : state.softError;
+                    state.error = '';
+                } else {
+                    state.error = friendlySaSpoError(e);
+                }
                 paint();
             });
     });
+    window.addEventListener('ms365-auth-widget-ready', resyncAccountAndPaint);
+
+    // Auth kann vor dem Listener fertig sein – einmal nachziehen
+    if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
+        resyncAccountAndPaint();
+    } else {
+        window.setTimeout(() => {
+            syncAccount();
+            if (state.accountEmail || state.accountName) paint();
+            else if (typeof window.ms365AuthIsLoggedIn === 'function' && window.ms365AuthIsLoggedIn()) {
+                resyncAccountAndPaint();
+            }
+        }, 400);
+    }
 
     if (state.siteUrl) {
         refreshData().catch(() => {

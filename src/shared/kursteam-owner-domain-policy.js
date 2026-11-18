@@ -1,6 +1,6 @@
 /**
  * Erlaubte Besitzer-E-Mail-Domains für Kursteams (Backend / Graph).
- * Mehrere verifizierte Domains im selben Mandanten (z. B. Login @kurtsoeser.at, Lehrer @kurtrocks.com).
+ * Mehrere verifizierte Domains im selben Mandanten (z. B. Login @verwaltung.at, Lehrer @schule.at).
  */
 
 export function emailDomainFromAddress(addr) {

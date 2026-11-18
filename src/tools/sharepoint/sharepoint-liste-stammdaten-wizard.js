@@ -49,7 +49,13 @@ export function saveWizardStep(n) {
 export function validateListSelection(lists) {
     const o = lists || {};
     const any =
-        o.schueler || o.faecher || o.fachgruppen || o.arges || o.klassen || o.lehrer;
+        o.schueler ||
+        o.faecher ||
+        o.fachgruppen ||
+        o.arges ||
+        o.klassen ||
+        o.lehrer ||
+        o.lehrerJeKlasse;
     if (!any) return 'Bitte mindestens eine Liste auswählen.';
     return null;
 }
@@ -75,7 +81,9 @@ export function validateWizardStep(step, ctx) {
             ['faecher', 'Fächerliste'],
             ['fachgruppen', 'Fachgruppenliste'],
             ['arges', 'ARGE-Liste'],
-            ['klassen', 'Klassenliste']
+            ['klassen', 'Klassenliste'],
+            ['lehrer', 'Lehrerinnenliste'],
+            ['lehrerJeKlasse', 'Lehrer je Klasse']
         ];
         for (let i = 0; i < keys.length; i++) {
             const k = keys[i][0];
@@ -112,6 +120,10 @@ export function buildWizardSummary(ctx) {
     if (lists.fachgruppen) picked.push('Fachgruppen („' + (titles.fachgruppen || 'Fachgruppen') + '“)');
     if (lists.arges) picked.push('ARGEs („' + (titles.arges || 'ARGEs') + '“)');
     if (lists.klassen) picked.push('Klassen („' + (titles.klassen || 'Klassen') + '“)');
+    if (lists.lehrer) picked.push('Lehrerinnen („' + (titles.lehrer || 'Lehrerinnen') + '“)');
+    if (lists.lehrerJeKlasse) {
+        picked.push('Lehrer je Klasse („' + (titles.lehrerJeKlasse || 'Lehrer je Klasse') + '“)');
+    }
     const perms = ctx.skipPerms ? 'Berechtigungen überspringen' : 'Berechtigungen nach Abgleich anwenden';
     return {
         site,

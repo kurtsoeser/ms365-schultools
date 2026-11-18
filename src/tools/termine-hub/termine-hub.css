@@ -1,0 +1,476 @@
+/* Kalender und Termine – ruhige Outlook-ähnliche Kalenderansicht */
+
+.th-link-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--card, #fff);
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.th-link-card:hover {
+    border-color: color-mix(in srgb, var(--brand1, #0f766e) 55%, var(--border, #d8dee6));
+}
+
+.th-link-card strong {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.th-link-card span {
+    font-size: 0.85rem;
+    color: var(--muted, #64748b);
+}
+
+.th-link-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.ag-pill--pending {
+    background: #f5f0e6;
+    color: #6b5424;
+}
+
+.ag-pill--synced {
+    background: #e7f2ee;
+    color: #1f5c4a;
+}
+
+.th-source-pill--schul,
+.th-source-pill--lehrer,
+.th-source-pill--me,
+.th-source-pill--schueler {
+    background: #eef1f4;
+    color: #334155;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.th-source-pill--schul {
+    border-left: 3px solid #2563eb;
+}
+
+.th-source-pill--lehrer {
+    border-left: 3px solid #0f766e;
+}
+
+.th-source-pill--me {
+    border-left: 3px solid #475569;
+}
+
+.th-source-pill--schueler {
+    border-left: 3px solid #c2410c;
+}
+
+.th-errors {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #fbf7f0;
+    border: 1px solid #ead9b8;
+    color: #6b5424;
+    font-size: 0.88rem;
+}
+
+.th-errors ul {
+    margin: 6px 0 0;
+    padding-left: 1.2em;
+}
+
+.th-check {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 10px;
+    margin: 0 0 8px;
+    font-weight: 600;
+}
+
+.th-check span {
+    font-weight: 400;
+    color: var(--muted, #64748b);
+    font-size: 0.88rem;
+}
+
+.th-focus {
+    margin-top: 14px;
+}
+
+/* Kalender-Shell: siehe ms365-calendar-shell.css (HTML-Link) */
+
+.th-empty {
+    margin: 8px 0 0;
+    padding: 14px 16px;
+    border: 1px dashed var(--border, #d8dee6);
+    border-radius: 8px;
+    color: var(--muted, #64748b);
+    background: #fafbfc;
+}
+
+.th-textlink {
+    appearance: none;
+    border: 0;
+    background: none;
+    color: var(--brand1, #0f766e);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.th-nav-section {
+    margin-top: 12px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.7rem !important;
+    font-weight: 700;
+}
+
+/* —— Drawer —— */
+
+.th-drawer-root {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.th-drawer__backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: color-mix(in srgb, #0f172a 28%, transparent);
+    cursor: pointer;
+}
+
+.th-drawer {
+    position: relative;
+    z-index: 1;
+    width: clamp(320px, 40vw, 520px);
+    max-width: 100%;
+    height: 100%;
+    background: var(--card, #fff);
+    box-shadow: -12px 0 40px color-mix(in srgb, #0f172a 18%, transparent);
+    display: flex;
+    flex-direction: column;
+    animation: th-drawer-in 180ms ease-out;
+}
+
+@keyframes th-drawer-in {
+    from {
+        transform: translateX(18px);
+        opacity: 0.6;
+    }
+    to {
+        transform: none;
+        opacity: 1;
+    }
+}
+
+.th-drawer__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid var(--border, #d8dee6);
+}
+
+.th-drawer__title {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    line-height: 1.25;
+}
+
+.th-drawer__sub {
+    margin: 0;
+}
+
+.th-drawer__close {
+    flex: 0 0 auto;
+}
+
+.th-drawer__core {
+    padding: 12px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--th-ev-bg, #f8fafc);
+    border-bottom: 1px solid var(--border, #d8dee6);
+    border-left: 4px solid var(--th-ev, #64748b);
+}
+
+.th-drawer__when {
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.92rem;
+}
+
+.th-drawer__when i {
+    margin-top: 2px;
+    color: var(--muted, #64748b);
+}
+
+.th-drawer__body {
+    padding: 14px 18px;
+    overflow: auto;
+    flex: 1;
+}
+
+.th-drawer__section {
+    margin: 0 0 14px;
+}
+
+.th-drawer__section h4 {
+    margin: 0 0 4px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted, #64748b);
+}
+
+.th-drawer__section p {
+    margin: 0;
+    font-size: 0.92rem;
+}
+
+.th-drawer__more {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border, #e8edf2);
+}
+
+.th-drawer__foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border, #d8dee6);
+}
+
+.th-btn-danger {
+    color: #991b1b !important;
+    border-color: #fecaca !important;
+    background: #fef2f2 !important;
+}
+
+/* —— Create / Success / Absence / IT —— */
+
+.th-target {
+    border: 0;
+    margin: 0 0 14px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-inline-size: 0;
+}
+
+.th-target legend {
+    padding: 0;
+    margin: 0 0 4px;
+    font-weight: 650;
+}
+
+.ag-form .th-target__opt {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 2px 0;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.ag-form .th-target__opt input[type='checkbox'] {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    padding: 0;
+    appearance: auto;
+}
+
+.th-target__hint {
+    color: var(--muted, #64748b);
+    font-weight: 400;
+    font-size: 0.86rem;
+}
+
+.th-allday {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.th-success {
+    max-width: 520px;
+    padding: 8px 0 20px;
+}
+
+.th-success__check {
+    margin: 0 0 8px;
+    font-size: 1.6rem;
+    color: var(--brand1, #0f766e);
+}
+
+.th-success h2 {
+    margin: 0 0 8px;
+    font-size: 1.2rem;
+}
+
+.th-absence__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 640px;
+}
+
+.th-absence__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    padding: 12px 14px;
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 8px;
+    background: var(--card, #fff);
+}
+
+.th-absence__row:hover {
+    border-color: color-mix(in srgb, var(--brand1, #0f766e) 45%, var(--border, #d8dee6));
+}
+
+.th-absence__row strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.th-absence__row span {
+    color: var(--muted, #64748b);
+    font-size: 0.86rem;
+}
+
+.th-absence__cta {
+    flex: 0 0 auto;
+    font-weight: 650;
+    color: var(--brand1, #0f766e) !important;
+    font-size: 0.88rem !important;
+}
+
+.th-source-card {
+    border: 1px solid var(--border, #d8dee6);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 0 0 12px;
+    border-left: 4px solid var(--th-ev, #64748b);
+    background: var(--card, #fff);
+}
+
+.th-source-card--me {
+    --th-ev: #475569;
+}
+
+.th-source-card--schul {
+    --th-ev: #2563eb;
+}
+
+.th-source-card--lehrer {
+    --th-ev: #0f766e;
+}
+
+.th-source-card--schueler {
+    --th-ev: #c2410c;
+}
+
+.th-source-card__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.th-source-card__top strong {
+    display: block;
+}
+
+.th-source-card__top span {
+    color: var(--muted, #64748b);
+    font-size: 0.84rem;
+}
+
+.th-source-card__status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.th-source-card__msg {
+    font-size: 0.82rem;
+    color: var(--muted, #64748b);
+}
+
+.th-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.th-switch__text {
+    color: var(--muted, #64748b);
+    font-weight: 550;
+}
+
+.th-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 650;
+    border-radius: 999px;
+    padding: 3px 8px;
+}
+
+.th-status--ok {
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.th-status--bad {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.th-status--muted {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.th-errors__label {
+    margin: 0 0 4px;
+    font-weight: 650;
+}
+
+.th-layer__count {
+    display: none;
+}

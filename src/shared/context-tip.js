@@ -43,7 +43,9 @@
         'arge-fachgruppen':
             'Eine Gruppe pro Fach oder Arbeitsgemeinschaft (ARGE). Voraussetzung: Fächer und ARGEs in den Stammdaten gepflegt.',
         diplomarbeiten:
-            'Diplomarbeit-Gruppen mit festem Naming dipl-{jahr}-… anlegen und im Tenant finden – Freigaben über die Gruppe.',
+            'Abschlussarbeiten: Dach-Team pro Maturajahrgang + private Kanäle (Standard) oder Legacy eigene Teams (dipl-/vwa-).',
+        'teams-antrag':
+            'Team beantragen (Lehrkraft/Schüler) – IT genehmigt mit Nomenklatur und legt per Graph an.',
         'kursteam-templates':
             'Kanal-Vorlagen für Unterrichtsteams pflegen und anwenden – getrennt von OneNote-Inhalten.',
         'onenote-verteilung':
@@ -84,7 +86,9 @@
         'sharepoint-liste-schultermine':
             'Terminliste anlegen, Sync-Health prüfen und Termine per CSV importieren (Ziel Schule/Lehrer/beide).',
         'sharepoint-liste-srdp':
-            'sRDP-Anmeldeliste pro Jahr: Formular, HAK-Varianten, Ansichten, Gruppenrechte – Wahlfach/Seminar im Wizard.',
+            'IT-Setup: sRDP-Liste pro Jahr anlegen (Spalten, Ansichten, Rechte).',
+        'srdp-anmeldung':
+            'Matura-Anmeldung: Schüler-Formular + Zusammenfassung, Lehrer-Prüfungen, Admin-Auswertung – Setup unter „Liste einrichten“.',
         'pa-erst-setup':
             'Hinweis: Postfächer sind pro Workflow (nicht eins für die ganze Schule). Environment, Maker-Rechte, dann jeweiliges Automations-Tool.',
         'freistellung-setup':
@@ -113,6 +117,8 @@
             'Eigene IT-Bibliothek MS365-IT-Stammdaten: Vererbung gebrochen, nur Besitzer + IT-/Verwaltungsgruppe. Browser-Backup als JSON – keine Schülerliste.',
         'datei-migration':
             'Dateien aus einem alten/archivierten Team in ein neues Team kopieren – Chat und Aufgaben bleiben zurück.',
+        'nextcloud-teams-migrate':
+            'Lokalen Helfer starten, Nextcloud browsen, Dry-Run, optional 01/02 als Kanäle – Dateien ins Fachschafts-Team.',
         'leere-gruppen-report':
             'Gruppen ohne Besitzer oder ohne Mitglieder finden – zum Aufräumen und für die IT-Hygiene.'
     };

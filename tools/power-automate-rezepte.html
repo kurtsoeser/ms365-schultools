@@ -102,13 +102,17 @@
                 var done = 0;
                 var total = 0;
 
-                // Freistellung (eigenes Tool)
-                var extra = cat.hubExtra;
-                if (extra) {
+                // Setup-Pakete (Freistellung, Lehrer-Freistellung, Schulaktivitäten, …)
+                var extras = Array.isArray(cat.hubExtras)
+                    ? cat.hubExtras
+                    : cat.hubExtra
+                      ? [cat.hubExtra]
+                      : [];
+                extras.forEach(function (extra) {
                     total++;
                     var frDone = false;
-                    try { frDone = localStorage.getItem('ms365-pa-done-freistellung') === '1'; } catch (e) {}
-                    // also check freistellung setup storage as soft signal – only explicit done
+                    var doneKey = extra.doneKey || ('ms365-pa-done-' + extra.id);
+                    try { frDone = localStorage.getItem(doneKey) === '1'; } catch (e) {}
                     if (frDone) done++;
                     cards.push(
                         '<article class="pa-card">' +
@@ -118,7 +122,7 @@
                         '<a class="btn btn-sm" href="' + escapeHtml(extra.href) + '">Öffnen</a>' +
                         '</article>'
                     );
-                }
+                });
 
                 cat.list.forEach(function (r) {
                     total++;

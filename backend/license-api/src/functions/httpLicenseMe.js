@@ -61,7 +61,19 @@ app.http('httpLicenseMe', {
                     primaryDomain: result.primaryDomain,
                     domains: result.domains || [],
                     contactEmail: result.contactEmail,
-                    contactEmails
+                    contactEmails,
+                    /** Nur URL-Zeiger auf Schul-SharePoint – keine Stammdaten-Inhalte. */
+                    toolSiteUrl: result.toolSiteUrl || null
+                },
+                /** Explizit für Clients: wo die Schule ihre Tool-/Stammdaten-Site hat. */
+                sites: {
+                    toolSiteUrl: result.toolSiteUrl || null
+                },
+                entitlements: result.entitlements || {
+                    packages: [],
+                    features: [],
+                    denied: [],
+                    featureCount: 0
                 }
             });
         } catch (e) {

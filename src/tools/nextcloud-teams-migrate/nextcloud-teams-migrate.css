@@ -1,0 +1,190 @@
+.nc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+}
+@media (max-width: 1100px) {
+    .nc-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.nc-side {
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    padding: 14px;
+    background: var(--card);
+}
+.nc-side h3 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.nc-conn {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.nc-conn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.nc-conn-row input {
+    flex: 1;
+    min-width: 140px;
+}
+.nc-crumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
+    font-size: 0.88em;
+    margin: 0 0 8px;
+    min-height: 1.6em;
+}
+.nc-crumb button {
+    border: 0;
+    background: transparent;
+    color: var(--accent, #2563eb);
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+}
+.nc-crumb span.sep {
+    opacity: 0.5;
+}
+.nc-browser {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+.nc-browser table {
+    margin: 0;
+    width: 100%;
+    font-size: 0.92em;
+}
+.nc-open {
+    border: 0;
+    background: transparent;
+    color: var(--accent, #2563eb);
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+}
+.nc-hits {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+    max-height: 160px;
+    overflow: auto;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+.nc-hits:empty,
+.nc-hits[hidden] {
+    display: none;
+}
+.nc-hits li {
+    margin: 0;
+    border-bottom: 1px solid var(--input-border);
+}
+.nc-hits li:last-child {
+    border-bottom: none;
+}
+.nc-hits button {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 8px 10px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+}
+.nc-hits button:hover {
+    background: color-mix(in srgb, var(--accent, #2563eb) 12%, transparent);
+}
+.nc-map-table {
+    width: 100%;
+    font-size: 0.9em;
+    border-collapse: collapse;
+}
+.nc-map-table th,
+.nc-map-table td {
+    border-bottom: 1px solid var(--input-border);
+    padding: 6px 4px;
+    text-align: left;
+    vertical-align: middle;
+}
+.nc-map-table input[type='text'] {
+    width: 100%;
+    min-width: 8rem;
+}
+.nc-progress {
+    margin-top: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--input-border) 80%, transparent);
+    overflow: hidden;
+}
+.nc-progress > span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent, #2563eb);
+    transition: width 0.15s ease;
+}
+.nc-callout {
+    border-left: 3px solid var(--accent, #2563eb);
+    padding: 8px 10px;
+    margin: 0 0 12px;
+    font-size: 0.9em;
+    line-height: 1.45;
+    background: color-mix(in srgb, var(--accent, #2563eb) 8%, transparent);
+    border-radius: 0 8px 8px 0;
+}
+.nc-steps {
+    margin: 0 0 14px;
+    padding-left: 1.4em;
+}
+.nc-steps li {
+    margin: 0.35em 0;
+}
+.nc-mode-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 12px;
+}
+.nc-mode-tab {
+    border: 1px solid var(--input-border);
+    background: transparent;
+    color: inherit;
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.9em;
+}
+.nc-mode-tab.is-active {
+    border-color: var(--accent, #2563eb);
+    background: color-mix(in srgb, var(--accent, #2563eb) 14%, transparent);
+    font-weight: 600;
+}
+.nc-mode-pane {
+    margin-bottom: 12px;
+}
+.nc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    align-items: center;
+}

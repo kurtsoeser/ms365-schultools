@@ -120,15 +120,40 @@
     /**
      * Domain ohne führendes @ (für Vorschauen, Exchange, Graph).
      */
+    function domainFromSignedInEmail() {
+        try {
+            const info =
+                typeof window.ms365AuthGetAccountInfo === 'function'
+                    ? window.ms365AuthGetAccountInfo()
+                    : null;
+            const mail = String(
+                (info && (info.upn || info.username)) ||
+                    (typeof window.ms365AuthGetUserPrincipalName === 'function'
+                        ? window.ms365AuthGetUserPrincipalName()
+                        : '') ||
+                    ''
+            )
+                .trim()
+                .toLowerCase();
+            const at = mail.lastIndexOf('@');
+            if (at < 0) return '';
+            return normalizeNoAt(mail.slice(at + 1));
+        } catch {
+            return '';
+        }
+    }
+
     function getSchoolDomainNoAt() {
         const el = getInputEl();
-        if (el) return normalizeNoAt(el.value);
+        if (el && normalizeNoAt(el.value)) return normalizeNoAt(el.value);
         try {
             const v = localStorage.getItem(STORAGE_KEY);
             if (v !== null && v !== '') return normalizeNoAt(v);
         } catch {
             // ignore
         }
+        const fromAuth = domainFromSignedInEmail();
+        if (fromAuth) return fromAuth;
         return normalizeNoAt(resolveInitialDomain());
     }
 

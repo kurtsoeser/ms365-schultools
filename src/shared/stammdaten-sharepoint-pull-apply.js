@@ -19,13 +19,13 @@ function saveSyncMetaClean(syncMeta) {
  * @param {object} syncMeta Sync-Metadaten für localStorage
  * @param {{ reload?: boolean }} [opts]
  */
-export function applySharePointBackupLocally(payload, syncMeta, opts) {
+export async function applySharePointBackupLocally(payload, syncMeta, opts) {
     const options = opts || {};
     const bb = window.ms365BrowserBackup;
     if (!bb || typeof bb.importPayload !== 'function') {
         throw new Error('Backup-Modul fehlt.');
     }
-    bb.importPayload(payload);
+    await bb.importPayload(payload);
     saveSyncMetaClean(syncMeta);
     try {
         window.dispatchEvent(

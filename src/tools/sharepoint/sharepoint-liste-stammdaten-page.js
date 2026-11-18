@@ -18,6 +18,17 @@ import {
 } from './sharepoint-liste-stammdaten-wizard.js';
 import { resolveIntranetListTitle } from '../../shared/intranet-list-title-logic.js';
 import { readGrantRowsFromDom } from './stammdaten-perm-matrix-ui.js';
+import {
+    teachingTeacherEmailsByKlasse,
+    teachingEmailsForClassRow,
+    belegungRowsForSpoSync
+} from '../../shared/klassenlehrer-stammdaten-logic.js';
+
+window.ms365KlassenlehrerLogic = {
+    teachingTeacherEmailsByKlasse: teachingTeacherEmailsByKlasse,
+    teachingEmailsForClassRow: teachingEmailsForClassRow,
+    belegungRowsForSpoSync: belegungRowsForSpoSync
+};
 
 function $(id) {
     return document.getElementById(id);
@@ -50,11 +61,17 @@ export function collectListOptsFromForm() {
         fachgruppen: $('spsWantFachgruppen') && $('spsWantFachgruppen').checked,
         arges: $('spsWantArge') && $('spsWantArge').checked,
         klassen: $('spsWantKlassen') && $('spsWantKlassen').checked,
+        lehrer: $('spsWantLehrer') && $('spsWantLehrer').checked,
+        lehrerJeKlasse: $('spsWantLehrerJeKlasse') && $('spsWantLehrerJeKlasse').checked,
         schuelerTitle: String($('spsSchuelerName') && $('spsSchuelerName').value || '').trim(),
         faecherTitle: String($('spsFaecherName') && $('spsFaecherName').value || '').trim(),
         fachgruppenTitle: String($('spsFachgruppenName') && $('spsFachgruppenName').value || '').trim(),
         argesTitle: String($('spsArgeName') && $('spsArgeName').value || '').trim(),
-        klassenTitle: String($('spsKlassenName') && $('spsKlassenName').value || '').trim()
+        klassenTitle: String($('spsKlassenName') && $('spsKlassenName').value || '').trim(),
+        lehrerTitle: String($('spsLehrerName') && $('spsLehrerName').value || '').trim(),
+        lehrerJeKlasseTitle: String(
+            $('spsLehrerJeKlasseName') && $('spsLehrerJeKlasseName').value || ''
+        ).trim()
     };
 }
 
@@ -70,14 +87,18 @@ function wizardContextFromDom() {
             faecher: lists.faecher,
             fachgruppen: lists.fachgruppen,
             arges: lists.arges,
-            klassen: lists.klassen
+            klassen: lists.klassen,
+            lehrer: lists.lehrer,
+            lehrerJeKlasse: lists.lehrerJeKlasse
         },
         listTitles: {
             schueler: lists.schuelerTitle,
             faecher: lists.faecherTitle,
             fachgruppen: lists.fachgruppenTitle,
             arges: lists.argesTitle,
-            klassen: lists.klassenTitle
+            klassen: lists.klassenTitle,
+            lehrer: lists.lehrerTitle,
+            lehrerJeKlasse: lists.lehrerJeKlasseTitle
         },
         skipPerms: $('spsSkipPerms') && $('spsSkipPerms').checked
     };
@@ -221,7 +242,9 @@ function prefillFromSetup() {
             ['spsFaecherName', 'faecher'],
             ['spsFachgruppenName', 'fachgruppen'],
             ['spsArgeName', 'arges'],
-            ['spsKlassenName', 'klassen']
+            ['spsKlassenName', 'klassen'],
+            ['spsLehrerName', 'lehrer'],
+            ['spsLehrerJeKlasseName', 'lehrerJeKlasse']
         ];
         map.forEach(function (pair) {
             const el = $(pair[0]);
@@ -247,6 +270,22 @@ window.ms365SpoStammdatenApplyPermissions = async function (webUrl, listOpts, lo
     );
 };
 
+function syncSubOption(wantEl, subEl, preferCheckedWhenOn) {
+    if (!subEl || !wantEl) return;
+    const on = !!wantEl.checked;
+    subEl.disabled = !on;
+    const row = subEl.closest('.sps-list-row');
+    if (row) row.classList.toggle('sps-list-row--off', !on);
+    if (!on) {
+        subEl.checked = false;
+        delete subEl.dataset.spsUserTouched;
+        return;
+    }
+    if (preferCheckedWhenOn && !subEl.dataset.spsUserTouched) {
+        subEl.checked = true;
+    }
+}
+
 function syncListNameFieldsDisabled() {
     document.querySelectorAll('[data-sps-list-toggle]').forEach(function (cb) {
         const id = cb.getAttribute('data-sps-list-toggle');
@@ -257,20 +296,23 @@ function syncListNameFieldsDisabled() {
         const row = cb.closest('.sps-list-row');
         if (row) row.classList.toggle('sps-list-row--off', !on);
     });
-    const wantKlassen = $('spsWantKlassen');
-    const klassenPersonen = $('spsKlassenPersonen');
-    if (klassenPersonen && wantKlassen) {
-        klassenPersonen.disabled = !wantKlassen.checked;
-        if (!wantKlassen.checked) klassenPersonen.checked = false;
-    }
+    syncSubOption($('spsWantKlassen'), $('spsKlassenPersonen'), true);
+    syncSubOption($('spsWantLehrer'), $('spsLehrerPersonen'), true);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     initStammdatenPermissionsUi();
     prefillFromSetup();
     syncListNameFieldsDisabled();
-    document.querySelectorAll('[data-sps-list-toggle], #spsWantKlassen').forEach(function (el) {
+    document.querySelectorAll('[data-sps-list-toggle]').forEach(function (el) {
         el.addEventListener('change', syncListNameFieldsDisabled);
+    });
+    ['spsKlassenPersonen', 'spsLehrerPersonen'].forEach(function (id) {
+        const el = $(id);
+        if (!el) return;
+        el.addEventListener('change', function () {
+            el.dataset.spsUserTouched = '1';
+        });
     });
     wireWizard();
 

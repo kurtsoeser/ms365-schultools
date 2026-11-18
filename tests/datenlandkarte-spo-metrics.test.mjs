@@ -82,7 +82,7 @@ describe('datenlandkarte-spo-metrics', () => {
             return {
                 ok: true,
                 status: 200,
-                text: async () => JSON.stringify({ '@odata.count': 17, value: [] })
+                text: async () => JSON.stringify({ '@odata.count': 17, value: [{ id: '1' }] })
             };
         };
         try {
@@ -90,6 +90,45 @@ describe('datenlandkarte-spo-metrics', () => {
             expect(r.ok).toBe(true);
             expect(r.count).toBe(17);
             expect(r.via).toBe('@odata.count');
+        } finally {
+            globalThis.fetch = prevFetch;
+            globalThis.window = prev;
+        }
+    });
+
+    it('fetchListItemCount zählt seitenweise wenn $count blockiert ist', async () => {
+        const prev = globalThis.window;
+        const prevFetch = globalThis.fetch;
+        globalThis.window = {
+            ms365SpoGraph: {
+                graphPathSite: (id) => '/sites/' + id
+            }
+        };
+        globalThis.fetch = async (url) => {
+            const u = String(url);
+            if (u.indexOf('/$count') >= 0 || u.indexOf('$count=true') >= 0) {
+                return {
+                    ok: false,
+                    status: 400,
+                    text: async () =>
+                        JSON.stringify({ error: { message: 'Advanced query required' } })
+                };
+            }
+            if (u.indexOf('$select=id') >= 0) {
+                return {
+                    ok: true,
+                    status: 200,
+                    text: async () =>
+                        JSON.stringify({ value: [{ id: '1' }, { id: '2' }, { id: '3' }] })
+                };
+            }
+            return { ok: false, status: 500, text: async () => 'nope' };
+        };
+        try {
+            const r = await fetchListItemCount('tok', 'site', 'list-id');
+            expect(r.ok).toBe(true);
+            expect(r.count).toBe(3);
+            expect(r.via).toBe('page');
         } finally {
             globalThis.fetch = prevFetch;
             globalThis.window = prev;

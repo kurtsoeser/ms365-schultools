@@ -259,6 +259,66 @@ export function validateFreistellung(opts) {
 }
 
 /**
+ * Semikolon-/Komma-getrennte Codes (Mehrfachfilter).
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+export function parseCodeList(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((x) => String(x || '').trim())
+            .filter(Boolean);
+    }
+    return String(value || '')
+        .split(/[;|,]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function joinCodeList(value) {
+    return parseCodeList(value).join('; ');
+}
+
+/**
+ * Ownership beim Speichern: Antragsteller-E-Mail setzen (CreatedBy bleibt SPO-seitig).
+ * @param {object} draft
+ * @param {{ accountEmail?: string, accountName?: string }} ctx
+ */
+export function resolveFrOwnership(draft, ctx) {
+    const d = draft && typeof draft === 'object' ? { ...draft } : {};
+    const account = String((ctx && ctx.accountEmail) || '')
+        .trim()
+        .toLowerCase();
+    let beantragtVon = String(d.beantragtVon || d.authorEmail || '')
+        .trim()
+        .toLowerCase();
+    if (!beantragtVon) beantragtVon = account;
+    d.beantragtVon = beantragtVon;
+    d.authorEmail = beantragtVon || account;
+    if (!(d.authorName || '').trim() && ctx && ctx.accountName) {
+        d.authorName = String(ctx.accountName).trim();
+    }
+    return d;
+}
+
+/**
+ * @param {object} draft
+ * @param {{ accountEmail?: string }} ctx
+ */
+export function assertFrOwnership(draft, ctx) {
+    const owned = resolveFrOwnership(draft, ctx);
+    const em = String(owned.authorEmail || owned.beantragtVon || '').trim();
+    if (!em || !em.includes('@')) {
+        return { ok: false, error: 'Antragsteller (E-Mail) fehlt – bitte anmelden und erneut speichern.' };
+    }
+    return { ok: true, draft: owned };
+}
+
+/**
  * @param {Array<{ status?: string, beginn?: string, ende?: string }>} items
  * @param {string} [today]
  */
@@ -443,9 +503,27 @@ export function filterFreistellungen(items, filters, scope) {
         } else if (sc.jahrgangClassCodes && sc.jahrgangClassCodes.size) {
             if (!itemMatchesJahrgangClassCodes(sc.jahrgangClassCodes, it.klasse)) return false;
         }
-        if (f.klasse && String(it.klasse || '') !== String(f.klasse)) return false;
-        if (f.status && String(it.status || '') !== String(f.status)) return false;
-        if (f.kategorie && String(it.kategorie || '') !== String(f.kategorie)) return false;
+        const wantKlassen = parseCodeList(f.klasse).map((c) => String(c).trim().toLowerCase());
+        if (wantKlassen.length) {
+            const k = String(it.klasse || '')
+                .trim()
+                .toLowerCase();
+            if (!wantKlassen.includes(k)) return false;
+        }
+        const wantStatus = parseCodeList(f.status).map((s) => String(s).trim().toLowerCase());
+        if (wantStatus.length) {
+            const st = String(it.status || '')
+                .trim()
+                .toLowerCase();
+            if (!wantStatus.includes(st)) return false;
+        }
+        const wantKat = parseCodeList(f.kategorie).map((s) => String(s).trim().toLowerCase());
+        if (wantKat.length) {
+            const kat = String(it.kategorie || '')
+                .trim()
+                .toLowerCase();
+            if (!wantKat.includes(kat)) return false;
+        }
         if (f.multiDay === '1' && !isMultiDay(it.beginn, it.ende)) return false;
         if (f.multiDay === '0' && isMultiDay(it.beginn, it.ende)) return false;
         if (f.q) {

@@ -3,6 +3,7 @@
  */
 import {
     isStammdatenLocalFirst,
+    isSpoManualBackupAllowed,
     localFirstShortLabel,
     localFirstStatusMessage
 } from './stammdaten-local-first.js';
@@ -107,18 +108,36 @@ export function collectRegisterLayerChips() {
     });
 
     if (isStammdatenLocalFirst()) {
-        chips.push({
-            icon: 'bi-cloud-slash',
-            label: 'IT-Bibliothek: Pause (Umbau)',
-            kind: 'muted',
-            title: localFirstStatusMessage(),
-            href: ''
-        });
+        if (isSpoManualBackupAllowed()) {
+            let spoReady = false;
+            try {
+                spoReady = isReady();
+            } catch {
+                /* ignore */
+            }
+            chips.push({
+                icon: spoReady ? 'bi-cloud-check' : 'bi-cloud',
+                label: spoReady ? 'IT-Bibliothek: manuell' : 'IT-Bibliothek: einrichten',
+                kind: spoReady ? 'ok' : 'warn',
+                title: spoReady
+                    ? 'Manuelles Sichern/Laden in die IT-Sicherungsbibliothek (kein Auto-Abgleich).'
+                    : 'IT-Sicherungsbibliothek noch nicht verknüpft – unter Stammdaten oder Datensicherung einrichten.',
+                href: 'tools/stammdaten-uebergabe.html#setup'
+            });
+        } else {
+            chips.push({
+                icon: 'bi-cloud-slash',
+                label: 'IT-Bibliothek: Pause (Umbau)',
+                kind: 'muted',
+                title: localFirstStatusMessage(),
+                href: ''
+            });
+        }
         chips.push({
             icon: 'bi-download',
-            label: 'Sicherung: JSON-Export',
+            label: 'Sicherung: JSON / IT manuell',
             kind: 'ok',
-            title: 'Manuelles Browser-Backup im Konto-Menü – ohne SharePoint-Upload.',
+            title: 'Browser-Backup und optional manuelles Sichern in die IT-Bibliothek – ohne Auto-Abgleich.',
             href: ''
         });
     } else {

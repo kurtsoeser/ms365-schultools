@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <script src="../access-config.js"></script>
+    <script src="../src/shared/pin-gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
+    <title>MS365-Schul-Tools – Kalender und Termine</title>
+    <link rel="stylesheet" href="../app.css?v=13">
+    <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/tools/ausgaben/ausgaben.css">
+    <link rel="stylesheet" href="../src/shared/ms365-calendar-shell.css">
+    <link rel="stylesheet" href="../src/tools/termine-hub/termine-hub.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class="app-shell-chrome">
+    <div class="container page-card tm-page ag-page">
+        <div class="header">
+            <h1>MS365-Schul-Tools</h1>
+            <div class="header-tool-indicator" aria-label="Aktuelles Werkzeug">
+                <span class="header-tool-indicator__label">Werkzeug:</span>
+                <span class="header-tool-indicator__name"><i class="bi bi-calendar-event"></i>Kalender und Termine</span>
+            </div>
+            <p>Deine Termine und die relevanten Schulkalender an einem Ort. Outlook bleibt führend – Quellen legt die IT fest.</p>
+            <p class="header-help-row"><a href="../hilfe.html#tool-termine-hub" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
+            <div id="ms365AuthWidget" class="header-auth-slot"></div>
+            <div class="toolbar">
+                <a class="btn" href="../index.html"><i class="bi bi-arrow-left"></i>Dashboard</a>
+            </div>
+        </div>
+        <div class="content">
+            <div id="thApp" aria-live="polite"></div>
+        </div>
+    </div>
+    <script src="../ms365-config.js"></script>
+    <script type="module" src="../src/shared/msal-auth-ui.js"></script>
+    <script type="module" src="../src/shared/graph-unified-groups.js"></script>
+    <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/app-dialog.js" defer></script>
+    <script type="module">
+        import { mountApp } from '../src/tools/termine-hub/termine-hub-ui.js';
+        function boot() {
+            const host = document.getElementById('thApp');
+            if (!host) return;
+            mountApp(host);
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+        else boot();
+    </script>
+</body>
+</html>

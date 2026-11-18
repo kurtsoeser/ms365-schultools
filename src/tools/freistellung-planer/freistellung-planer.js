@@ -33,8 +33,16 @@ import {
     useMinimalPlanerChrome,
     isLikelyFreistellungStaffAccount,
     canDeleteFreistellung,
-    itemVisibleForRole
+    itemVisibleForRole,
+    effectiveAccountEmail
 } from './freistellung-planer-state.js';
+import { hydrateStammdatenFromLiveSite } from '../../shared/school-stammdaten-spo-lists.js';
+import {
+    toolSiteUrlFromLicenseResult,
+    applyToolSiteUrlLocally,
+    bootstrapSchoolSiteFromLicense
+} from '../../shared/tenant-school-site-bootstrap.js';
+import { startOfWeekMonday } from '../../shared/ms365-calendar-shell.js';
 import {
     applyPlanerRoleFromEntra,
     isPlanerDemoRoleUiEnabled,
@@ -79,7 +87,8 @@ import {
 import { LIST_TITLE_DEFAULT } from './freistellung-planer-schema.js';
 import {
     validateFreistellung,
-    deriveKvClassCodesFromFreistellungItems
+    deriveKvClassCodesFromFreistellungItems,
+    assertFrOwnership
 } from './freistellung-planer-logic.js';
 import {
     renderApp,
@@ -96,7 +105,8 @@ import {
     parseDemoImportJson,
     itemsFromDemoPack,
     DEMO_SITE_DEFAULT,
-    DEMO_SEED_TAG
+    DEMO_SEED_TAG,
+    DEMO_KV_PERSONA
 } from './freistellung-planer-demo.js';
 import {
     applyDemoStammdatenLocal,
@@ -445,6 +455,200 @@ async function resolvePlanerRole(listIdHint) {
     if (!allowed.includes(state.view)) state.view = allowed[0] || 'meine';
 }
 
+const STAMM_READ_SCOPES = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/Sites.Read.All'
+];
+const STAMM_RW_SCOPES = [
+    'https://graph.microsoft.com/User.Read',
+    'https://graph.microsoft.com/Sites.ReadWrite.All'
+];
+
+/**
+ * @param {{ getGraphToken: Function }} api
+ */
+async function acquireStammdatenReadToken(api) {
+    if (typeof window.ms365AuthAcquireTokenSilent === 'function') {
+        try {
+            return await window.ms365AuthAcquireTokenSilent(STAMM_READ_SCOPES);
+        } catch {
+            /* weiter */
+        }
+        try {
+            return await window.ms365AuthAcquireTokenSilent(STAMM_RW_SCOPES);
+        } catch {
+            /* weiter */
+        }
+    }
+    try {
+        return await api.getGraphToken(STAMM_READ_SCOPES);
+    } catch {
+        return await api.getGraphToken(STAMM_RW_SCOPES);
+    }
+}
+
+/**
+ * Klassen/Lehrer aus SharePoint-Live-Listen (Fallback: lokaler Cache).
+ * @param {string} siteId
+ */
+async function hydrateLiveStammdaten(siteId) {
+    if (state.localDemoOnly || !siteId) {
+        state.stammdatenLive = {
+            ok: false,
+            error: siteId ? '' : 'Keine Site-URL',
+            classCount: (state.stammdaten.classes || []).length,
+            teacherCount: (state.stammdaten.teachers || []).length,
+            missing: [],
+            source: 'local'
+        };
+        return;
+    }
+    const api = typeof window !== 'undefined' ? window.ms365SpoGraph : null;
+    if (!api || typeof api.getGraphToken !== 'function') {
+        state.stammdatenLive = {
+            ok: false,
+            error: 'SharePoint-Graph nicht geladen',
+            classCount: (state.stammdaten.classes || []).length,
+            teacherCount: (state.stammdaten.teachers || []).length,
+            missing: [],
+            source: 'local'
+        };
+        return;
+    }
+    try {
+        const tok = await acquireStammdatenReadToken(api);
+        const local = loadStammdaten();
+        const result = await hydrateStammdatenFromLiveSite({
+            token: tok,
+            siteId: String(siteId),
+            siteWebUrl: String(state.siteUrl || '').trim(),
+            graph: api,
+            local
+        });
+        state.stammdaten = {
+            classes: (result.stammdaten && result.stammdaten.classes) || local.classes || [],
+            teachers: (result.stammdaten && result.stammdaten.teachers) || local.teachers || [],
+            students: (result.stammdaten && result.stammdaten.students) || local.students || []
+        };
+        const liveClasses = (result.live && result.live.classes) || [];
+        const liveTeachers = (result.live && result.live.teachers) || [];
+        const missing = (result.live && result.live.missing) || [];
+        const usedLive = !!(liveClasses.length || liveTeachers.length);
+        let err = '';
+        if (!result.ok && !liveClasses.length) err = result.error || 'Live-Laden fehlgeschlagen';
+        else if (missing.length && !liveClasses.length) err = 'Listen fehlen: ' + missing.join(', ');
+        state.stammdatenLive = {
+            ok: liveClasses.length > 0,
+            error: err,
+            classCount: liveClasses.length,
+            teacherCount: liveTeachers.length,
+            missing,
+            siteUrl: String(state.siteUrl || '').trim(),
+            source: usedLive ? 'sharepoint' : result.ok ? 'local-fallback' : 'error'
+        };
+    } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        state.stammdatenLive = {
+            ok: false,
+            error: /nicht angemeldet|anmelden/i.test(msg)
+                ? 'Bitte anmelden und danach neu laden – sonst bleiben die Listen leer.'
+                : msg,
+            classCount: (state.stammdaten.classes || []).length,
+            teacherCount: (state.stammdaten.teachers || []).length,
+            missing: [],
+            source: 'error'
+        };
+    }
+}
+
+async function ensureFrSiteFromLicense() {
+    const local = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
+    if (local) {
+        state.siteUrl = local;
+        return local;
+    }
+    try {
+        const api = window.ms365LicenseApi;
+        if (!api || typeof api.fetchLicenseMe !== 'function') return '';
+        let token = '';
+        if (typeof api.acquireLicenseToken === 'function') {
+            token = await api.acquireLicenseToken();
+        } else if (typeof window.ms365AuthAcquireIdToken === 'function') {
+            token = await window.ms365AuthAcquireIdToken();
+        }
+        if (!token) return '';
+        const result = await api.fetchLicenseMe(token);
+        if (!result || result.allowed !== true) return '';
+        const url = toolSiteUrlFromLicenseResult(result);
+        if (!url) {
+            state.roleHint =
+                'Keine Schul-Site in der Lizenz (Tool-Site-URL). IT: unter Admin → Schule die SharePoint-URL setzen.';
+            return '';
+        }
+        applyToolSiteUrlLocally(url);
+        try {
+            await bootstrapSchoolSiteFromLicense(result, { force: false });
+        } catch {
+            /* optional */
+        }
+        state.siteUrl = url;
+        persistSiteUrl(url);
+        return url;
+    } catch {
+        return '';
+    }
+}
+
+/** @returns {Promise<string>} */
+async function ensureFrSiteUrl() {
+    let url = String(state.siteUrl || '').trim() || loadSavedSiteUrl();
+    if (url) {
+        state.siteUrl = url;
+        return url;
+    }
+    url = await ensureFrSiteFromLicense();
+    if (url) return url;
+    url = loadSavedSiteUrl();
+    if (url) {
+        state.siteUrl = url;
+        return url;
+    }
+    return '';
+}
+
+function applyDemoKvPersona() {
+    if (!state.demoPersonaEmail) return;
+    const email = String(state.demoPersonaEmail).trim().toLowerCase();
+    state.kvMatch = matchKvByClassHeadEmail(email, classRowsForKvScope(state));
+    if (!state.demoRoleOverride) {
+        state.role = 'kv';
+        state.planerRoles = ['kv', 'schueler'];
+        state.planerAccessDenied = false;
+    }
+}
+
+function ensureDemoPersonaInStammdaten() {
+    const teachers = Array.isArray(state.stammdaten.teachers) ? state.stammdaten.teachers : [];
+    if (!teachers.some((t) => String(t.email || '').toLowerCase() === DEMO_KV_PERSONA.email)) {
+        state.stammdaten.teachers = [
+            ...teachers,
+            {
+                code: DEMO_KV_PERSONA.code,
+                name: DEMO_KV_PERSONA.name,
+                email: DEMO_KV_PERSONA.email
+            }
+        ];
+    }
+}
+
+function alignCalendarToToday() {
+    const now = new Date();
+    state.calYear = now.getFullYear();
+    state.calMonth = now.getMonth() + 1;
+    state.calWeekAnchor = startOfWeekMonday(now).toISOString();
+    state.calMode = state.calMode || 'month';
+}
+
 async function refreshData() {
     state.loading = true;
     state.error = '';
@@ -453,9 +657,12 @@ async function refreshData() {
     try {
         syncAccount();
         if (!String(state.siteUrl || '').trim()) {
-            const setup = loadSetupCfg();
-            const fallback = loadSavedSiteUrl(setup);
-            if (fallback) state.siteUrl = fallback;
+            const viaLicense = await ensureFrSiteUrl();
+            if (!viaLicense) {
+                const setup = loadSetupCfg();
+                const fallback = loadSavedSiteUrl(setup);
+                if (fallback) state.siteUrl = fallback;
+            }
         }
         const setup = loadSetupCfg();
         if (setup.listName) state.listName = setup.listName;
@@ -471,12 +678,16 @@ async function refreshData() {
                 if (ctxEarly && ctxEarly.list && ctxEarly.list.id) {
                     state.listId = String(ctxEarly.list.id);
                 }
+                if (ctxEarly && ctxEarly.siteId) {
+                    await hydrateLiveStammdaten(ctxEarly.siteId);
+                }
             } catch {
                 /* Liste erst nach Rollen-Sync / ohne Rechte */
             }
         }
 
         await resolvePlanerRole(state.listId);
+        applyDemoKvPersona();
         refreshKategorieChoicesState();
 
         if (state.planerAccessDenied) {
@@ -489,7 +700,9 @@ async function refreshData() {
 
         if (state.planerAccessDenied) {
             state.ctx = null;
-            state.items = [];
+            if (!(state.localDemoOnly && (state.items || []).length)) {
+                state.items = [];
+            }
             return;
         }
 
@@ -506,15 +719,19 @@ async function refreshData() {
                 preferredDemoRole: state.demoRoleOverride ? state.role : null,
                 preferredActiveRole: state.role
             });
+            applyDemoKvPersona();
             const allowed = viewsForRole(state.role, state).map((v) => v.id);
             if (!allowed.includes(state.view)) state.view = allowed[0] || 'meine';
             if (state.planerAccessDenied) {
                 state.ctx = null;
-                state.items = [];
+                if (!(state.localDemoOnly && (state.items || []).length)) {
+                    state.items = [];
+                }
                 return;
             }
         }
         state.ctx = ctx;
+        if (ctx && ctx.siteId) await hydrateLiveStammdaten(ctx.siteId);
         try {
             state.klasseColumnChoices = await fetchFreistellungKlasseColumnChoices(ctx);
         } catch {
@@ -522,13 +739,14 @@ async function refreshData() {
         }
         state.localDemoOnly = false;
         state.items = await loadAllFreistellungenForPlaner(ctx, state);
-        if (state.role === 'kv') {
+        const scopeEmail = effectiveAccountEmail(state) || state.accountEmail;
+        if (state.role === 'kv' || state.demoPersonaEmail) {
             state.kvClassCodesFromItems = deriveKvClassCodesFromFreistellungItems(
                 state.items,
-                state.accountEmail,
-                state.accountName
+                scopeEmail,
+                state.demoPersonaName || state.accountName
             );
-            state.kvMatch = matchKvByClassHeadEmail(state.accountEmail, classRowsForKvScope(state));
+            state.kvMatch = matchKvByClassHeadEmail(scopeEmail, classRowsForKvScope(state));
         }
         if (!useMinimalPlanerChrome(state)) {
             state.info =
@@ -539,8 +757,15 @@ async function refreshData() {
                 ' Einträge';
         }
     } catch (e) {
-        state.error = friendlySpoError(e) || 'Laden fehlgeschlagen';
-        state.ctx = null;
+        state.loading = false;
+        // Lokale Demo nicht mit SharePoint-403 übermalen
+        if (state.localDemoOnly && (state.items || []).length) {
+            state.error = '';
+            console.warn('[fr] refresh skipped – local demo kept', e);
+        } else {
+            state.error = friendlySpoError(e) || 'Laden fehlgeschlagen';
+            state.ctx = null;
+        }
     } finally {
         state.loading = false;
         paint();
@@ -558,21 +783,32 @@ function applyLocalDemo(pack) {
     syncAccount();
     const stamOk = applyDemoStammdatenLocal(pack.stammdaten);
     if (stamOk) state.stammdaten = loadStammdaten();
+    ensureDemoPersonaInStammdaten();
     state.localDemoOnly = true;
     state.ctx = null;
     state.error = '';
+    state.demoPersonaEmail = DEMO_KV_PERSONA.email;
+    state.demoPersonaName = DEMO_KV_PERSONA.name;
+    state.demoRoleOverride = state.demoRoleOverride || false;
+    applyDemoKvPersona();
     const usePackRows = pack && Array.isArray(pack.freistellungen) && pack.freistellungen.length;
     state.items = usePackRows
         ? itemsFromDemoPack(pack, {
-              accountEmail: state.accountEmail,
-              accountName: state.accountName
+              accountEmail: DEMO_KV_PERSONA.email,
+              accountName: DEMO_KV_PERSONA.name
           })
         : buildLocalDemoItems({
-              accountEmail: state.accountEmail,
-              accountName: state.accountName,
+              accountEmail: DEMO_KV_PERSONA.email,
+              accountName: DEMO_KV_PERSONA.name,
               classes: state.stammdaten.classes
           });
     state.demoSeedTag = (pack && pack.seedTag) || DEMO_SEED_TAG;
+    state.view = 'dashboard';
+    alignCalendarToToday();
+    if (!state.siteUrl && (pack.siteUrl || pack.siteDefault || DEMO_SITE_DEFAULT)) {
+        state.siteUrl = String(pack.siteUrl || pack.siteDefault || DEMO_SITE_DEFAULT).trim();
+        persistSiteUrl(state.siteUrl);
+    }
     const c = pack.counts || {};
     const label = (pack && pack.title) || 'Demo SJ ' + (pack.schoolYear || '2026/27');
     state.info =
@@ -634,9 +870,11 @@ async function runPackImport(pack) {
     } catch (e) {
         state.localDemoOnly = true;
         state.loading = false;
-        state.error = String((e && e.message) || e);
+        // Roh-403 nicht in die Banner-Zeile – lokal bleibt die Demo voll nutzbar.
+        state.error = '';
         paint();
-        toast('SharePoint-Seed fehlgeschlagen – lokale Ansicht bleibt: ' + state.error);
+        toast('Demo bleibt lokal (SharePoint-Schreiben nicht möglich). Für die Vorführung reicht das.');
+        console.warn('[fr-demo] SharePoint seed failed', e);
     }
 }
 
@@ -669,6 +907,8 @@ async function runDemoReset() {
     if (localOnly) {
         state.items = [];
         state.localDemoOnly = false;
+        state.demoPersonaEmail = '';
+        state.demoPersonaName = '';
         state.info = 'Lokale Demo geleert.';
         paint();
         toast('Lokale Demo geleert.');
@@ -720,6 +960,15 @@ async function submitAntrag() {
         toast(e && e.message ? e.message : String(e));
         return;
     }
+    const ownership = assertFrOwnership(
+        { ...state.form, _allowedKategorien: state.kategorieChoices },
+        { accountEmail: state.accountEmail, accountName: state.accountName }
+    );
+    if (!ownership.ok) {
+        toast(ownership.error || 'Antragsteller fehlt.');
+        return;
+    }
+    state.form = { ...state.form, ...ownership.draft };
     const check = validateFreistellung({
         draft: { ...state.form, _allowedKategorien: state.kategorieChoices }
     });
@@ -730,6 +979,7 @@ async function submitAntrag() {
     if (state.localDemoOnly || !state.ctx) {
         const id = 'demo-' + Date.now();
         const demoNachweise = pendingFiles.map((f) => ({ name: f.name, url: '' }));
+        const ownerEmail = ownership.draft.authorEmail || state.accountEmail;
         state.items = [
             {
                 itemId: id,
@@ -744,8 +994,9 @@ async function submitAntrag() {
                 bemerkungen: '',
                 kvEmail: draft.kvEmail,
                 kvName: state.form.kvName || '',
-                authorEmail: state.accountEmail,
-                beantragtVon: state.accountEmail,
+                authorEmail: ownerEmail,
+                beantragtVon: ownerEmail,
+                authorName: ownership.draft.authorName || state.accountName || '',
                 dayCount: check.dayCount,
                 multiDay: check.path.multiDay,
                 approvalLabel: check.path.label,
@@ -771,7 +1022,7 @@ async function submitAntrag() {
             : '';
     paint();
     try {
-        const created = await createFreistellungItem(state.ctx, state.form);
+        const created = await createFreistellungItem(state.ctx, ownership.draft);
         if (pendingFiles.length && created && created.itemId) {
             const links = await uploadFreistellungNachweise(state.ctx, created.itemId, pendingFiles);
             await saveNachweiseOnItem(state.ctx, created.itemId, links);
@@ -859,9 +1110,12 @@ function bindStatic() {
     root.querySelectorAll('[data-fr-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-fr-view') || 'dashboard';
-            if (state.view === 'antrag' && state.role === 'schueler') {
-                afterStudentAntragViewOpen();
-                return;
+            if (state.view === 'antrag') {
+                state.formStep = 1;
+                if (state.role === 'schueler') {
+                    afterStudentAntragViewOpen();
+                    return;
+                }
             }
             paint();
         });
@@ -869,10 +1123,33 @@ function bindStatic() {
     root.querySelectorAll('[data-fr-view-jump]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-fr-view-jump') || 'dashboard';
-            if (state.view === 'antrag' && state.role === 'schueler') {
-                afterStudentAntragViewOpen();
-                return;
+            const fs = btn.getAttribute('data-fr-filter-status');
+            if (fs != null) {
+                state.filters = {
+                    klasse: '',
+                    status: String(fs),
+                    kategorie: '',
+                    multiDay: '',
+                    q: ''
+                };
+                state.filterMultiOpen = { klasse: false, status: false, kategorie: false };
             }
+            if (state.view === 'antrag') {
+                state.formStep = 1;
+                if (state.role === 'schueler') {
+                    afterStudentAntragViewOpen();
+                    return;
+                }
+            }
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-fr-status-preset]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            state.filters = {
+                ...state.filters,
+                status: String(btn.getAttribute('data-fr-status-preset') || '')
+            };
             paint();
         });
     });
@@ -976,17 +1253,78 @@ function bindStatic() {
 
     wireFreistellungStudentKvSearch(root);
 
+    function syncAntragFormFromDom() {
+        state.form = { ...state.form, ...readFormFromDom(root) };
+    }
+
+    function validateCurrentAntragStep() {
+        syncAntragFormFromDom();
+        const step = Math.min(4, Math.max(1, Number(state.formStep) || 1));
+        const f = state.form || {};
+        if (step === 1) {
+            if (!String(f.schuelerName || '').trim()) return 'Bitte den Namen angeben.';
+            if (!String(f.klasse || '').trim()) return 'Bitte eine Klasse wählen.';
+        } else if (step === 2) {
+            if (!String(f.beginn || '').trim()) return 'Bitte Beginn angeben.';
+            if (!String(f.ende || '').trim()) return 'Bitte Ende angeben.';
+        } else if (step === 3) {
+            if (!String(f.kategorie || '').trim()) return 'Bitte eine Kategorie wählen.';
+        }
+        return '';
+    }
+
+    root.querySelectorAll('[data-fr-step-next]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const err = validateCurrentAntragStep();
+            if (err) {
+                toast(err);
+                return;
+            }
+            applyKvFromClass(state);
+            state.formStep = Math.min(4, (Number(state.formStep) || 1) + 1);
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-fr-step-prev]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            syncAntragFormFromDom();
+            state.formStep = Math.max(1, (Number(state.formStep) || 1) - 1);
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-fr-goto-step]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            syncAntragFormFromDom();
+            const target = Math.min(4, Math.max(1, Number(btn.getAttribute('data-fr-goto-step') || '1')));
+            const current = Math.min(4, Math.max(1, Number(state.formStep) || 1));
+            // Vorwärts nur bis zum nächsten offenen Schritt (kein Überspringen ohne Eingabe)
+            if (target > current) {
+                const err = validateCurrentAntragStep();
+                if (err) {
+                    toast(err);
+                    return;
+                }
+                state.formStep = Math.min(target, current + 1);
+            } else {
+                state.formStep = target;
+            }
+            applyKvFromClass(state);
+            paint();
+        });
+    });
+
     const form = root.querySelector('#frAntragForm');
     if (form) {
         bindFreistellungUploadField(root);
         form.addEventListener('submit', (ev) => {
             ev.preventDefault();
+            syncAntragFormFromDom();
             submitAntrag();
         });
         const klasse = root.querySelector('#frFormKlasse');
         if (klasse) {
             const onKlasseChange = () => {
-                state.form = { ...state.form, ...readFormFromDom(root) };
+                syncAntragFormFromDom();
                 if (state.role === 'schueler' && state.form.klasse && !isStudentKlasseLocked(state)) {
                     state.demoKlasseCode = String(state.form.klasse).trim();
                     persistDemoKlasseCode(state.demoKlasseCode);
@@ -1000,7 +1338,7 @@ function bindStatic() {
             const el = root.querySelector('#' + id);
             if (el) {
                 el.addEventListener('change', () => {
-                    state.form = { ...state.form, ...readFormFromDom(root) };
+                    syncAntragFormFromDom();
                     paint();
                 });
             }
@@ -1009,6 +1347,7 @@ function bindStatic() {
         if (reset) {
             reset.addEventListener('click', () => {
                 state.form = emptyForm({ schuelerName: state.accountName });
+                state.formStep = 1;
                 prefillStudentFreistellungForm(state);
                 clearFreistellungUploadField(root);
                 paint();
@@ -1022,24 +1361,117 @@ function bindStatic() {
             state.filters = readFiltersFromDom(root);
             paint();
         };
-        filters.querySelectorAll('select, input').forEach((el) => {
+        const q = filters.querySelector('#frFilterQ');
+        if (q) {
+            q.addEventListener('input', () => {
+                clearTimeout(q._frT);
+                q._frT = setTimeout(apply, 200);
+            });
+            q.addEventListener('change', apply);
+        }
+        filters.querySelectorAll('select').forEach((el) => {
             el.addEventListener('change', apply);
-            if (el.tagName === 'INPUT') {
-                el.addEventListener('input', () => {
-                    clearTimeout(el._frT);
-                    el._frT = setTimeout(apply, 200);
-                });
-            }
         });
         const reset = root.querySelector('#frFilterReset');
         if (reset) {
             reset.addEventListener('click', () => {
+                state.filterMultiOpen = { klasse: false, status: false, kategorie: false };
+                state.filterMultiQuery = { klasse: '', status: '', kategorie: '' };
                 state.filters = { klasse: '', status: '', kategorie: '', multiDay: '', q: '' };
                 paint();
             });
         }
     }
 
+    if (!state.filterMultiOpen || typeof state.filterMultiOpen !== 'object') {
+        state.filterMultiOpen = { klasse: false, status: false, kategorie: false };
+    }
+    if (!state.filterMultiQuery || typeof state.filterMultiQuery !== 'object') {
+        state.filterMultiQuery = { klasse: '', status: '', kategorie: '' };
+    }
+    root.querySelectorAll('[data-fr-filter-multi]').forEach((box) => {
+        const key = String(box.getAttribute('data-fr-filter-multi') || '').trim();
+        if (!key) return;
+        box.addEventListener('toggle', () => {
+            state.filterMultiOpen = { ...state.filterMultiOpen, [key]: !!box.open };
+        });
+        box.addEventListener('change', (ev) => {
+            const t = ev.target;
+            if (!t || t.type !== 'checkbox') return;
+            state.filterMultiOpen = { ...state.filterMultiOpen, [key]: true };
+            state.filters = readFiltersFromDom(root);
+            paint();
+        });
+        const qEl = box.querySelector('[data-fr-filter-multi-q="' + key + '"]');
+        if (qEl) {
+            qEl.addEventListener('input', () => {
+                const needle = String(qEl.value || '');
+                state.filterMultiQuery = { ...state.filterMultiQuery, [key]: needle };
+                const low = needle.trim().toLowerCase();
+                box.querySelectorAll('.fr-filter-multi__item').forEach((row) => {
+                    const hay = String(row.textContent || '')
+                        .trim()
+                        .toLowerCase();
+                    row.classList.toggle('is-filtered-out', !!(low && hay.indexOf(low) === -1));
+                });
+            });
+        }
+        const clearBtn = box.querySelector('[data-fr-filter-multi-clear="' + key + '"]');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                state.filterMultiOpen = { ...state.filterMultiOpen, [key]: true };
+                state.filters = { ...state.filters, [key]: '' };
+                paint();
+            });
+        }
+    });
+
+    const calToday = root.querySelector('#frCalToday');
+    if (calToday) {
+        calToday.addEventListener('click', () => {
+            alignCalendarToToday();
+            state.view = 'kalender';
+            paint();
+        });
+    }
+    root.querySelectorAll('[data-fr-cal-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const mode = String(btn.getAttribute('data-fr-cal-mode') || 'month');
+            state.calMode = mode === 'agenda' || mode === 'week' || mode === 'month' ? mode : 'month';
+            paint();
+        });
+    });
+    root.querySelectorAll('[data-fr-cal-nav]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const delta = Number(btn.getAttribute('data-fr-cal-nav') || '0');
+            const mode = String(state.calMode || 'month');
+            if (mode === 'week' || mode === 'agenda') {
+                if (delta === 0) {
+                    alignCalendarToToday();
+                } else {
+                    const anchor = startOfWeekMonday(new Date(state.calWeekAnchor || Date.now()));
+                    anchor.setDate(anchor.getDate() + delta * 7);
+                    state.calWeekAnchor = startOfWeekMonday(anchor).toISOString();
+                    state.calYear = anchor.getFullYear();
+                    state.calMonth = anchor.getMonth() + 1;
+                }
+            } else if (delta === 0) {
+                alignCalendarToToday();
+            } else {
+                state.calMonth += delta;
+                if (state.calMonth < 1) {
+                    state.calMonth = 12;
+                    state.calYear -= 1;
+                } else if (state.calMonth > 12) {
+                    state.calMonth = 1;
+                    state.calYear += 1;
+                }
+            }
+            paint();
+        });
+    });
+    // Legacy month buttons (falls noch im DOM)
     const calPrev = root.querySelector('#frCalPrev');
     const calNext = root.querySelector('#frCalNext');
     if (calPrev) {
@@ -1128,15 +1560,19 @@ function boot() {
         .catch(() => paint());
 
     window.addEventListener('ms365-auth-state-changed', () => {
-        resolvePlanerRole()
-            .then(() => {
-                if (state.ctx && state.siteUrl) return refreshData();
+        void (async () => {
+            try {
+                await resolvePlanerRole();
+                const url = await ensureFrSiteUrl();
+                if (url && !state.planerAccessDenied) await refreshData();
+                else paint();
+            } catch (e) {
+                if (!(state.localDemoOnly && (state.items || []).length)) {
+                    state.error = String((e && e.message) || e);
+                }
                 paint();
-            })
-            .catch((e) => {
-                state.error = String((e && e.message) || e);
-                paint();
-            });
+            }
+        })();
     });
     window.addEventListener('ms365-tenant-settings-changed', () => {
         if (typeof window.ms365AuthIsLoggedIn !== 'function' || !window.ms365AuthIsLoggedIn()) return;
@@ -1149,16 +1585,30 @@ function boot() {
             })
             .catch(() => paint());
     });
+    window.addEventListener('ms365-license-changed', (ev) => {
+        const detail = (ev && ev.detail) || {};
+        if (!detail.allowed || !detail.result) return;
+        const url = toolSiteUrlFromLicenseResult(detail.result);
+        if (!url) return;
+        applyToolSiteUrlLocally(url);
+        state.siteUrl = url;
+        persistSiteUrl(url);
+        void refreshData().catch(() => {});
+    });
 
-    if (state.siteUrl) {
-        refreshData();
-    } else {
-        if (!useMinimalPlanerChrome(state)) {
-            state.info =
-                'Site-URL aus Freistellungen-Setup übernehmen oder eintragen, dann „Laden“. Alternativ Demo nutzen.';
+    void (async () => {
+        const url = await ensureFrSiteUrl();
+        if (url) {
+            refreshData();
+        } else {
+            if (!useMinimalPlanerChrome(state)) {
+                state.info =
+                    state.roleHint ||
+                    'SharePoint-Site fehlt in diesem Browser. IT: Tool-Site-URL in der Lizenz setzen – oder Demo laden.';
+            }
+            resolvePlanerRole().then(() => paint());
         }
-        resolvePlanerRole().then(() => paint());
-    }
+    })();
 }
 
 if (document.readyState === 'loading') {

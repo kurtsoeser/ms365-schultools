@@ -555,6 +555,9 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
             userPrincipalName: normStr(u.userPrincipalName),
             accountEnabled: u.accountEnabled !== false,
             userType: String(u.userType || 'Member'),
+            department: normStr(u.department),
+            officeLocation: normStr(u.officeLocation),
+            jobTitle: normStr(u.jobTitle),
             email,
             code,
             name: graphName,
@@ -573,6 +576,24 @@ export function buildTeacherImportPreview(users, existingTeachers, skuLookup, op
     });
     rows.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' }));
     return rows;
+}
+
+/**
+ * Typische Entra-Metadaten, mit denen Schulen Lehrkräfte kennzeichnen
+ * (Abteilung, Büro/Nutzungsort, Position).
+ * @param {string|object} valueOrRow
+ */
+export function metaLooksLikeTeacherRole(valueOrRow) {
+    const parts =
+        valueOrRow && typeof valueOrRow === 'object'
+            ? [valueOrRow.department, valueOrRow.officeLocation, valueOrRow.jobTitle]
+            : [valueOrRow];
+    const hay = parts
+        .map(function (v) {
+            return String(v || '');
+        })
+        .join('\n');
+    return /lehr(?:er(?:in)?|kraft|personal)?|teacher|faculty|unterricht|pädagog|paedagog/i.test(hay);
 }
 
 /**
@@ -970,6 +991,9 @@ export function buildStudentImportPreview(users, existingStudents, skuLookup, op
             userPrincipalName: normStr(u.userPrincipalName),
             accountEnabled: u.accountEnabled !== false,
             userType: String(u.userType || 'Member'),
+            department: normStr(u.department),
+            officeLocation: normStr(u.officeLocation),
+            jobTitle: normStr(u.jobTitle),
             email: email,
             klasse: klasse,
             name: graphName,
@@ -1189,6 +1213,7 @@ const api = {
     personTokenKey,
     klasseMatchKey,
     normalizeImportMergeOpts,
+    metaLooksLikeTeacherRole,
     buildTeacherImportPreview,
     applyTeacherImportSelection,
     buildStudentImportPreview,

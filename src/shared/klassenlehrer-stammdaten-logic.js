@@ -200,6 +200,142 @@ export function summarizeClassTeaching(classes, belegungRows) {
 }
 
 /**
+ * E-Mails der unterrichtenden Lehrkräfte je Klassenkürzel (für SharePoint-Personenfeld).
+ * Fehlende E-Mails in der Belegung werden über die Lehrer-Stammdaten (Kürzel) ergänzt.
+ *
+ * @param {Array<object>|null|undefined} belegungRows
+ * @param {Array<{ code?: string, email?: string }>|null|undefined} teachers
+ * @returns {Map<string, string[]>}
+ */
+export function teachingTeacherEmailsByKlasse(belegungRows, teachers) {
+    /** @type {Map<string, string>} */
+    const emailByCode = new Map();
+    (Array.isArray(teachers) ? teachers : []).forEach(function (t) {
+        const code = normCode(t && t.code);
+        const email = normEmail(t && t.email);
+        if (!code || !email || email.indexOf('@') === -1) return;
+        if (!emailByCode.has(code)) emailByCode.set(code, email);
+    });
+    const byTeachers = teachersWithSubjectsByKlasse(belegungRows);
+    /** @type {Map<string, string[]>} */
+    const out = new Map();
+    byTeachers.forEach(function (list, klasse) {
+        const seen = new Set();
+        /** @type {string[]} */
+        const emails = [];
+        (Array.isArray(list) ? list : []).forEach(function (t) {
+            let email = normEmail(t && t.email);
+            if ((!email || email.indexOf('@') === -1) && t && t.code) {
+                email = emailByCode.get(normCode(t.code)) || '';
+            }
+            if (!email || email.indexOf('@') === -1 || seen.has(email)) return;
+            seen.add(email);
+            emails.push(email);
+        });
+        out.set(klasse, emails);
+    });
+    return out;
+}
+
+/**
+ * @param {Map<string, string[]>|null|undefined} emailsByKlasse
+ * @param {{ code?: string, name?: string }|string|null|undefined} classRowOrCode
+ * @returns {string[]}
+ */
+export function teachingEmailsForClassRow(emailsByKlasse, classRowOrCode) {
+    if (!emailsByKlasse || typeof emailsByKlasse.get !== 'function') return [];
+    const key = classKey(classRowOrCode);
+    if (key && emailsByKlasse.has(key)) return emailsByKlasse.get(key) || [];
+    if (classRowOrCode && typeof classRowOrCode === 'object') {
+        const nameKey = normCode(classRowOrCode.name) || normStr(classRowOrCode.name).toUpperCase();
+        if (nameKey && emailsByKlasse.has(nameKey)) return emailsByKlasse.get(nameKey) || [];
+    }
+    return [];
+}
+
+/**
+ * Belegungszeilen → kanonische Zeilen für SharePoint-Liste „Lehrer je Klasse“.
+ * Eine Zeile je Klasse × Lehrkraft × Fach (Lookup-fähig über Codes/E-Mails).
+ *
+ * @param {Array<object>|null|undefined} belegungRows
+ * @param {Array<{ code?: string, email?: string, name?: string }>|null|undefined} teachers
+ * @returns {Array<{
+ *   syncKey: string,
+ *   title: string,
+ *   klasse: string,
+ *   lehrerCode: string,
+ *   lehrerEmail: string,
+ *   lehrerName: string,
+ *   fach: string
+ * }>}
+ */
+export function belegungRowsForSpoSync(belegungRows, teachers) {
+    /** @type {Map<string, string>} */
+    const emailByCode = new Map();
+    /** @type {Map<string, string>} */
+    const nameByCode = new Map();
+    /** @type {Map<string, string>} */
+    const nameByEmail = new Map();
+    (Array.isArray(teachers) ? teachers : []).forEach(function (t) {
+        const code = normCode(t && t.code);
+        const email = normEmail(t && t.email);
+        const name = normStr(t && t.name);
+        if (code && email && email.indexOf('@') !== -1 && !emailByCode.has(code)) {
+            emailByCode.set(code, email);
+        }
+        if (code && name && !nameByCode.has(code)) nameByCode.set(code, name);
+        if (email && name && !nameByEmail.has(email)) nameByEmail.set(email, name);
+    });
+
+    /** @type {Map<string, {
+     *   syncKey: string,
+     *   title: string,
+     *   klasse: string,
+     *   lehrerCode: string,
+     *   lehrerEmail: string,
+     *   lehrerName: string,
+     *   fach: string
+     * }>} */
+    const byKey = new Map();
+    (Array.isArray(belegungRows) ? belegungRows : []).forEach(function (r) {
+        const klasse = classKey(r && r.klasse) || normStr(r && r.klasse).toUpperCase();
+        if (!klasse) return;
+        let email = normEmail(r && r.lehrerEmail);
+        let code = normCode(r && r.lehrerCode);
+        if ((!email || email.indexOf('@') === -1) && code) {
+            email = emailByCode.get(code) || '';
+        }
+        if (!code && email) {
+            const at = email.indexOf('@');
+            if (at > 0) code = normCode(email.slice(0, at));
+        }
+        if (!email && !code) return;
+        const fach = normStr(r && r.fach) || '—';
+        const teacherPart = (email && email.indexOf('@') !== -1 ? email : code).toLowerCase();
+        const syncKey = klasse.toLowerCase() + '|' + teacherPart + '|' + fach.toLowerCase();
+        if (byKey.has(syncKey)) return;
+        let name = normStr(r && r.lehrerName);
+        if (!name && code) name = nameByCode.get(code) || '';
+        if (!name && email) name = nameByEmail.get(email) || '';
+        const titleBits = [klasse, name || code || email, fach === '—' ? '' : fach].filter(Boolean);
+        byKey.set(syncKey, {
+            syncKey: syncKey,
+            title: titleBits.join(' · '),
+            klasse: klasse,
+            lehrerCode: code,
+            lehrerEmail: email && email.indexOf('@') !== -1 ? email : '',
+            lehrerName: name,
+            fach: fach === '—' ? '' : fach
+        });
+    });
+    const out = Array.from(byKey.values());
+    out.sort(function (a, b) {
+        return a.syncKey.localeCompare(b.syncKey, 'de');
+    });
+    return out;
+}
+
+/**
  * Lehrkraft einer Klasse hinzufügen (eine Belegungszeile, Fach optional).
  * @param {Array<object>} belegungRows
  * @param {string} klasse
@@ -380,6 +516,9 @@ export default {
     teachersWithSubjectsByKlasse,
     listClassTeachingBoards,
     summarizeClassTeaching,
+    teachingTeacherEmailsByKlasse,
+    teachingEmailsForClassRow,
+    belegungRowsForSpoSync,
     addTeacherToClassBelegung,
     removeTeacherFromClassBelegung,
     listBelegungRowsForKlasse,

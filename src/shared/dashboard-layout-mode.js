@@ -1,9 +1,12 @@
 /**
  * Ein Modus für das Dashboard-Layout (eine Quelle der Wahrheit).
  *
- * full – Global Admin / Betreiber: kompletter Katalog
- * preview-lehrer | preview-schueler – IT-Vorschau (nur 2 Apps)
- * apps-lehrer | apps-schueler – echte Lehrkraft / Schüler/in (nur 2 Apps)
+ * full – Schul-IT: kompletter Werkzeugkatalog (bewusster Einstieg)
+ * preview-lehrer – IT im Schulportal (Lehrer-Ansicht) – Standard für IT
+ * preview-schueler – IT-Vorschau Schüler-Portal
+ * apps-lehrer | apps-schueler – echte Lehrkraft / Schüler/in
+ *
+ * Speicher (IT): leer|portal|lehrer → Schulportal; full|it → IT-Bereich; schueler → Schüler-Vorschau
  */
 
 const IT_PREVIEW_KEY = 'ms365-dashboard-it-preview-v1';
@@ -24,17 +27,46 @@ function itPreviewStorageKey() {
 /** @typedef {'full'|'preview-lehrer'|'preview-schueler'|'apps-lehrer'|'apps-schueler'} DashboardLayoutMode */
 
 /**
+ * @returns {'portal'|'full'|'schueler'}
+ */
+export function readItShellChoice() {
+    try {
+        const v = String(localStorage.getItem(itPreviewStorageKey()) || '')
+            .trim()
+            .toLowerCase();
+        if (v === 'full' || v === 'it') return 'full';
+        if (v === 'schueler') return 'schueler';
+        // leer, portal, lehrer → Schulportal zuerst
+        return 'portal';
+    } catch {
+        return 'portal';
+    }
+}
+
+/**
+ * @deprecated Alias – nutzt readItShellChoice
+ * @returns {'lehrer'|'schueler'|'full'}
+ */
+export function readItPreviewChoice() {
+    const c = readItShellChoice();
+    if (c === 'full') return 'full';
+    if (c === 'schueler') return 'schueler';
+    return 'lehrer';
+}
+
+/**
  * @param {import('./dashboard-audience-resolve.js').DashboardPersonas} personas
  * @returns {DashboardLayoutMode}
  */
 export function resolveLayoutModeFromPersonas(personas) {
-    if (!personas || !personas.loggedIn) return 'full';
+    // Unklar / ausgeloggt: Portal-Chrome, nie IT-Katalog flashen
+    if (!personas || !personas.loggedIn) return 'preview-lehrer';
 
     if (personas.isIt) {
-        const p = readItPreviewChoice();
-        if (p === 'lehrer') return 'preview-lehrer';
+        const p = readItShellChoice();
+        if (p === 'full') return 'full';
         if (p === 'schueler') return 'preview-schueler';
-        return 'full';
+        return 'preview-lehrer';
     }
 
     if (personas.isLehrer) return 'apps-lehrer';
@@ -63,24 +95,14 @@ export function catalogViewForLayout(mode) {
     return 'schueler';
 }
 
-export function readItPreviewChoice() {
-    try {
-        const v = String(localStorage.getItem(itPreviewStorageKey()) || '').toLowerCase();
-        if (v === 'lehrer' || v === 'schueler') return v;
-    } catch {
-        /* ignore */
-    }
-    return '';
-}
-
 /**
  * @param {'full'|'preview-lehrer'|'preview-schueler'} mode
  */
 export function writeItPreviewChoice(mode) {
     try {
         const storageKey = itPreviewStorageKey();
-        if (mode === 'full') localStorage.removeItem(storageKey);
-        else if (mode === 'preview-lehrer') localStorage.setItem(storageKey, 'lehrer');
+        if (mode === 'full') localStorage.setItem(storageKey, 'full');
+        else if (mode === 'preview-lehrer') localStorage.setItem(storageKey, 'portal');
         else if (mode === 'preview-schueler') localStorage.setItem(storageKey, 'schueler');
     } catch {
         /* ignore */
@@ -91,8 +113,8 @@ export function writeItPreviewChoice(mode) {
  * @param {DashboardLayoutMode} mode
  */
 export function layoutModeLabel(mode) {
-    if (mode === 'full') return 'Vollzugriff (Schul-IT)';
-    if (mode === 'preview-lehrer') return 'Vorschau Lehrkraft';
+    if (mode === 'full') return 'IT-Backend';
+    if (mode === 'preview-lehrer') return 'Portal';
     if (mode === 'preview-schueler') return 'Vorschau Schüler/in';
     if (mode === 'apps-lehrer') return 'Lehrkraft';
     return 'Schüler/in';

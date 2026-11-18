@@ -1,9 +1,18 @@
 /**
- * Schulsprecherwahl nach österreichischer VO (BGBl. Nr. 388/1993):
- * Wahlpunkte 6 / 5 / 4 für Schulsprecher / 1. STV / 2. STV.
- * Schulsprecher braucht absolute Mehrheit der Erstplatzierungen, sonst Stichwahl.
- * Stellvertreter aus Punktezahl des 1. Wahlgangs (ohne gewählten Schulsprecher).
+ * Schulwahlen: Schulsprecher (BGBl. 388/1993) und SGA Lehrer (BGBl. 389/1993).
+ * Schulsprecher: 6/5/4, absolute Mehrheit der Erstplatzierungen sonst Stichwahl.
+ * Optional: SGA-Schüler-STV 3/2/1 am selben Stimmzettel.
+ * SGA Lehrer: 6…1 Punkte, Top 3 Mitglieder + Platz 4–6 Stellvertretung.
  */
+
+import {
+    ELECTION_KIND_SCHULSPRECHER,
+    ELECTION_KIND_SGA_LEHRER,
+    getElectionKindDef,
+    normalizeElectionKind,
+    resolveElectionBallotSchema,
+    seatsForElection
+} from './schulsprecherwahl-kinds.js';
 
 /** @typedef {{ id: string, name?: string, className?: string, email?: string }} Candidate */
 /** @typedef {{ rankings?: string[], choice?: string }} BallotInput */
@@ -11,6 +20,8 @@
 export const POINTS_SCHULSPRECHER = 6;
 export const POINTS_STV1 = 5;
 export const POINTS_STV2 = 4;
+export const POINTS_SGA_LEHRER = Object.freeze([6, 5, 4, 3, 2, 1]);
+export const POINTS_SGA_SCHUELER = Object.freeze([3, 2, 1]);
 
 export const ROUND_MAIN = 'main';
 export const ROUND_RUNOFF = 'runoff';
@@ -24,16 +35,41 @@ export function normId(value) {
 }
 
 /**
- * Gültiger Hauptwahlgang: genau 3 unterschiedliche Kandidaten-IDs in Reihenfolge 6/5/4.
+ * @param {unknown} kindOrOpts
+ */
+function resolveBallotSchema(kindOrOpts) {
+    const schema = resolveElectionBallotSchema(kindOrOpts);
+    if (kindOrOpts && typeof kindOrOpts === 'object' && !Array.isArray(kindOrOpts)) {
+        if (Number(kindOrOpts.rankingCount) > 0) {
+            schema.rankingCount = Number(kindOrOpts.rankingCount);
+        }
+        if (Array.isArray(kindOrOpts.points) && kindOrOpts.points.length) {
+            schema.points = kindOrOpts.points.map(Number);
+        }
+    }
+    return schema;
+}
+
+/**
+ * Gültiger Hauptwahlgang: unterschiedliche Kandidaten-IDs gemäß Wahltyp (3 oder 6).
  * @param {BallotInput|null|undefined} ballot
  * @param {Iterable<string>} [allowedIds]
+ * @param {unknown} [kindOrOpts] electionKind oder { kind, rankingCount, points }
  */
-export function validateMainBallot(ballot, allowedIds) {
+export function validateMainBallot(ballot, allowedIds, kindOrOpts) {
+    const schema = resolveBallotSchema(kindOrOpts);
     const rankings = Array.isArray(ballot && ballot.rankings) ? ballot.rankings.map(normId).filter(Boolean) : [];
-    if (rankings.length !== 3) {
-        return { ok: false, reason: 'Genau drei Reihungen (6 / 5 / 4 Punkte) nötig.' };
+    if (rankings.length !== schema.rankingCount) {
+        const pts = schema.points.join(' / ');
+        return {
+            ok: false,
+            reason:
+                schema.rankingCount === 3
+                    ? 'Genau drei Reihungen (6 / 5 / 4 Punkte) nötig.'
+                    : 'Genau ' + schema.rankingCount + ' Reihungen (' + pts + ' Punkte) nötig.'
+        };
     }
-    if (new Set(rankings).size !== 3) {
+    if (new Set(rankings).size !== schema.rankingCount) {
         return { ok: false, reason: 'Jeder Kandidat darf nur einmal gereiht werden.' };
     }
     if (allowedIds) {
@@ -44,7 +80,7 @@ export function validateMainBallot(ballot, allowedIds) {
             }
         }
     }
-    return { ok: true, rankings };
+    return { ok: true, rankings, kind: schema.kind };
 }
 
 /**
@@ -68,41 +104,57 @@ export function validateRunoffBallot(ballot, allowedIds) {
 
 /**
  * @param {string[]} rankings
+ * @param {number[]|unknown} [pointsOrKind]
  * @returns {Map<string, number>}
  */
-export function pointsFromRankings(rankings) {
+export function pointsFromRankings(rankings, pointsOrKind) {
     const map = new Map();
     const r = rankings.map(normId);
-    if (r[0]) map.set(r[0], (map.get(r[0]) || 0) + POINTS_SCHULSPRECHER);
-    if (r[1]) map.set(r[1], (map.get(r[1]) || 0) + POINTS_STV1);
-    if (r[2]) map.set(r[2], (map.get(r[2]) || 0) + POINTS_STV2);
+    const schema = resolveBallotSchema(pointsOrKind);
+    const points =
+        Array.isArray(pointsOrKind) && pointsOrKind.length
+            ? pointsOrKind.map(Number)
+            : schema.points;
+    for (let i = 0; i < r.length; i++) {
+        const id = r[i];
+        const p = Number(points[i]);
+        if (!id || !Number.isFinite(p)) continue;
+        map.set(id, (map.get(id) || 0) + p);
+    }
     return map;
 }
 
 /**
  * @param {Array<BallotInput|null|undefined>} ballots
  * @param {string[]} candidateIds
+ * @param {unknown} [kindOrOpts]
  */
-export function tallyMainRound(ballots, candidateIds) {
+export function tallyMainRound(ballots, candidateIds, kindOrOpts) {
+    const schema = resolveBallotSchema(kindOrOpts);
     const ids = [...new Set((candidateIds || []).map(normId).filter(Boolean))];
-    /** @type {Map<string, { id: string, points: number, firstPlace: number, votes: number }>} */
+    /** @type {Map<string, { id: string, points: number, firstPlace: number, votes: number, sgaPoints: number }>} */
     const byId = new Map(
-        ids.map((id) => [id, { id, points: 0, firstPlace: 0, votes: 0 }])
+        ids.map((id) => [id, { id, points: 0, firstPlace: 0, votes: 0, sgaPoints: 0 }])
     );
 
     let valid = 0;
     let invalid = 0;
     const allow = new Set(ids);
+    const coreCount = Number(schema.coreRankingCount) || schema.rankingCount;
+    const corePoints = Array.isArray(schema.corePoints) ? schema.corePoints : schema.points;
+    const sgaPoints = Array.isArray(schema.sgaPoints) ? schema.sgaPoints : [];
 
     for (const raw of ballots || []) {
-        const check = validateMainBallot(raw, allow);
+        const check = validateMainBallot(raw, allow, schema);
         if (!check.ok) {
             invalid += 1;
             continue;
         }
         valid += 1;
         const rankings = check.rankings;
-        const pts = pointsFromRankings(rankings);
+        // Schulsprecher-Ämter: nur 6/5/4 (erste drei); SGA-Lehrer: volle Punkte
+        const coreRankings = rankings.slice(0, coreCount);
+        const pts = pointsFromRankings(coreRankings, corePoints);
         for (const [id, n] of pts) {
             const row = byId.get(id);
             if (!row) continue;
@@ -112,21 +164,90 @@ export function tallyMainRound(ballots, candidateIds) {
         const first = rankings[0];
         const firstRow = byId.get(first);
         if (firstRow) firstRow.firstPlace += 1;
+
+        if (schema.includeSgaDeputies && sgaPoints.length) {
+            const sgaRankings = rankings.slice(coreCount, coreCount + sgaPoints.length);
+            const sgaPts = pointsFromRankings(sgaRankings, sgaPoints);
+            for (const [id, n] of sgaPts) {
+                const row = byId.get(id);
+                if (!row) continue;
+                row.sgaPoints += n;
+            }
+        }
     }
 
     const rows = ids.map((id) => byId.get(id)).filter(Boolean);
-    rows.sort((a, b) => {
-        if (b.firstPlace !== a.firstPlace) return b.firstPlace - a.firstPlace;
-        if (b.points !== a.points) return b.points - a.points;
-        return a.id.localeCompare(b.id, 'de');
-    });
+    if (schema.kind === ELECTION_KIND_SGA_LEHRER) {
+        rows.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            return a.id.localeCompare(b.id, 'de');
+        });
+    } else {
+        rows.sort((a, b) => {
+            if (b.firstPlace !== a.firstPlace) return b.firstPlace - a.firstPlace;
+            if (b.points !== a.points) return b.points - a.points;
+            return a.id.localeCompare(b.id, 'de');
+        });
+    }
 
     return {
         valid,
         invalid,
         cast: valid + invalid,
         rows,
-        byId
+        byId,
+        kind: schema.kind,
+        includeSgaDeputies: !!schema.includeSgaDeputies
+    };
+}
+
+/**
+ * SGA-Schüler-Stellvertreter: Top 3 nach 3/2/1-Punkten, ohne bereits gewählte SV-Ämter.
+ * @param {{ rows?: Array<{ id: string, sgaPoints?: number, points?: number }>, byId?: Map<string, { id: string, sgaPoints?: number }> }} tally
+ * @param {Iterable<string>} [excludeIds]
+ */
+export function resolveSgaSchuelerDeputies(tally, excludeIds) {
+    const exclude = new Set([...((excludeIds && [...excludeIds]) || [])].map(normId).filter(Boolean));
+    /** @type {Array<{ id: string, sgaPoints: number }>} */
+    let rows = [];
+    if (tally && tally.byId) {
+        rows = [...tally.byId.values()].map((r) => ({
+            id: r.id,
+            sgaPoints: Number(r.sgaPoints) || 0
+        }));
+    } else {
+        rows = (Array.isArray(tally && tally.rows) ? tally.rows : []).map((r) => ({
+            id: r.id,
+            sgaPoints: Number(r.sgaPoints != null ? r.sgaPoints : r.points) || 0
+        }));
+    }
+    rows = rows
+        .filter((r) => !exclude.has(normId(r.id)))
+        .sort((a, b) => b.sgaPoints - a.sgaPoints || a.id.localeCompare(b.id, 'de'));
+
+    const pick = [];
+    let needsLot = false;
+    let idx = 0;
+    while (pick.length < 3 && idx < rows.length) {
+        const pts = rows[idx].sgaPoints;
+        const group = [];
+        while (idx < rows.length && rows[idx].sgaPoints === pts) {
+            group.push(rows[idx]);
+            idx += 1;
+        }
+        const slotsLeft = 3 - pick.length;
+        if (group.length > slotsLeft) needsLot = true;
+        for (const r of group) {
+            if (pick.length >= 3) break;
+            pick.push(r.id);
+        }
+    }
+
+    return {
+        sgaDeputy1Id: pick[0] || null,
+        sgaDeputy2Id: pick[1] || null,
+        sgaDeputy3Id: pick[2] || null,
+        tieNeedsLot: needsLot
     };
 }
 
@@ -335,6 +456,72 @@ export function resolveDeputiesFromMain(tally, schulsprecherId) {
 }
 
 /**
+ * SGA Lehrer: Top 3 nach Punkten = Mitglieder, Platz 4–6 = Stellvertretung.
+ * Los nur, wenn Gleichstand die Grenze Mitglieder↔Stellvertretung oder Stellvertretung↔aus
+ * berührt (BGBl. 389/1993 § 5 Abs. 2). Reihenfolge innerhalb klarer Blöcke: Punkte, dann id.
+ * @param {{ rows: Array<{ id: string, points: number }> }} tally
+ */
+export function resolveSgaLehrerFromMain(tally) {
+    const rows = (Array.isArray(tally && tally.rows) ? tally.rows : [])
+        .slice()
+        .sort((a, b) => b.points - a.points || a.id.localeCompare(b.id, 'de'));
+
+    /**
+     * Nimmt bis zu `take` Sitze; bei Gleichstand über die Schnittkante → Los.
+     * @param {Array<{ id: string, points: number }>} pool
+     * @param {number} take
+     */
+    function takeSeats(pool, take) {
+        /** @type {string[]} */
+        const chosen = [];
+        let needsLot = false;
+        let idx = 0;
+        while (chosen.length < take && idx < pool.length) {
+            const pts = pool[idx].points;
+            const group = [];
+            while (idx < pool.length && pool[idx].points === pts) {
+                group.push(pool[idx]);
+                idx += 1;
+            }
+            const slotsLeft = take - chosen.length;
+            if (group.length > slotsLeft) {
+                needsLot = true;
+            }
+            for (const r of group) {
+                if (chosen.length >= take) break;
+                chosen.push(r.id);
+            }
+        }
+        const remaining = pool.filter((r) => !chosen.includes(r.id));
+        return { chosen, remaining, needsLot };
+    }
+
+    const members = takeSeats(rows, 3);
+    const deputies = takeSeats(members.remaining, 3);
+    const ordered = members.chosen.concat(deputies.chosen);
+
+    return {
+        member1Id: ordered[0] || null,
+        member2Id: ordered[1] || null,
+        member3Id: ordered[2] || null,
+        deputy1Id: ordered[3] || null,
+        deputy2Id: ordered[4] || null,
+        deputy3Id: ordered[5] || null,
+        orderedIds: ordered,
+        tieNeedsLotMembers: members.needsLot,
+        tieNeedsLotDeputies: deputies.needsLot,
+        // Kompatibilität zu seat-weisen Flags in evaluateSgaLehrerElection
+        tieNeedsLotMember1: members.needsLot,
+        tieNeedsLotMember2: members.needsLot,
+        tieNeedsLotMember3: members.needsLot,
+        tieNeedsLotDeputy1: deputies.needsLot,
+        tieNeedsLotDeputy2: deputies.needsLot,
+        tieNeedsLotDeputy3: deputies.needsLot,
+        anyTieNeedsLot: members.needsLot || deputies.needsLot
+    };
+}
+
+/**
  * @param {{ rows: Array<{ id: string, votes: number }> }} tally
  */
 export function resolveSchulsprecherFromRunoff(tally) {
@@ -374,19 +561,79 @@ export function sharePercent(part, valid) {
 }
 
 /**
+ * @param {object} opts
+ * @param {Array<BallotInput>} opts.mainBallots
+ * @param {string[]} opts.candidateIds
+ * @param {object} [opts.lot]
+ */
+function evaluateSgaLehrerElection(opts) {
+    const candidateIds = (opts && opts.candidateIds) || [];
+    const main = tallyMainRound((opts && opts.mainBallots) || [], candidateIds, ELECTION_KIND_SGA_LEHRER);
+    const resolved = resolveSgaLehrerFromMain(main);
+    const lot = (opts && opts.lot) || {};
+
+    const pick = (key, fallback, needsLot) => {
+        const fromLot = normId(lot[key]);
+        if (needsLot && fromLot) return fromLot;
+        return fallback;
+    };
+
+    const offices = {
+        member1Id: pick('member1Id', resolved.member1Id, resolved.tieNeedsLotMember1),
+        member2Id: pick('member2Id', resolved.member2Id, resolved.tieNeedsLotMember2),
+        member3Id: pick('member3Id', resolved.member3Id, resolved.tieNeedsLotMember3),
+        deputy1Id: pick('deputy1Id', resolved.deputy1Id, resolved.tieNeedsLotDeputy1),
+        deputy2Id: pick('deputy2Id', resolved.deputy2Id, resolved.tieNeedsLotDeputy2),
+        deputy3Id: pick('deputy3Id', resolved.deputy3Id, resolved.tieNeedsLotDeputy3),
+        decidedAfter: 'main',
+        tieNeedsLotMember1: resolved.tieNeedsLotMember1 && !normId(lot.member1Id),
+        tieNeedsLotMember2: resolved.tieNeedsLotMember2 && !normId(lot.member2Id),
+        tieNeedsLotMember3: resolved.tieNeedsLotMember3 && !normId(lot.member3Id),
+        tieNeedsLotDeputy1: resolved.tieNeedsLotDeputy1 && !normId(lot.deputy1Id),
+        tieNeedsLotDeputy2: resolved.tieNeedsLotDeputy2 && !normId(lot.deputy2Id),
+        tieNeedsLotDeputy3: resolved.tieNeedsLotDeputy3 && !normId(lot.deputy3Id)
+    };
+
+    return {
+        kind: ELECTION_KIND_SGA_LEHRER,
+        main,
+        first: null,
+        sga: resolved,
+        runoffTally: null,
+        runoffResolve: null,
+        needsRunoff: false,
+        runoffCandidateIds: [],
+        majorityThreshold: 0,
+        offices
+    };
+}
+
+/**
  * Vollständige Auswertung 1. Wahlgang (+ optional Stichwahl-Ergebnis für Amt).
  * @param {object} opts
  * @param {Array<BallotInput>} opts.mainBallots
  * @param {string[]} opts.candidateIds
+ * @param {string} [opts.electionKind]
  * @param {Array<BallotInput>} [opts.runoffBallots]
  * @param {string[]} [opts.runoffCandidateIds]
  * @param {string|null} [opts.lotSchulsprecherId] manuelle Losentscheidung
  * @param {string|null} [opts.lotStv1Id]
  * @param {string|null} [opts.lotStv2Id]
+ * @param {object} [opts.lot] Los-Overrides (SGA Lehrer)
  */
 export function evaluateElection(opts) {
+    const kind = normalizeElectionKind(opts && (opts.electionKind || opts.kind));
+    if (kind === ELECTION_KIND_SGA_LEHRER) {
+        return evaluateSgaLehrerElection(opts || {});
+    }
+
+    const includeSgaDeputies = !!(opts && (opts.includeSgaDeputies || opts.includeSgaSchuelerStv));
+    const ballotOpts = {
+        electionKind: ELECTION_KIND_SCHULSPRECHER,
+        includeSgaDeputies
+    };
     const candidateIds = (opts && opts.candidateIds) || [];
-    const main = tallyMainRound((opts && opts.mainBallots) || [], candidateIds);
+    const main = tallyMainRound((opts && opts.mainBallots) || [], candidateIds, ballotOpts);
     const first = resolveSchulsprecherFromMain(main);
 
     let schulsprecherId = first.schulsprecherId;
@@ -439,23 +686,47 @@ export function evaluateElection(opts) {
     if (deputies.tieNeedsLotStv1 && opts && opts.lotStv1Id) stv1Id = normId(opts.lotStv1Id);
     if (deputies.tieNeedsLotStv2 && opts && opts.lotStv2Id) stv2Id = normId(opts.lotStv2Id);
 
+    /** @type {ReturnType<typeof resolveSgaSchuelerDeputies>|null} */
+    let sgaSchueler = null;
+    /** @type {Record<string, string|null|boolean>} */
+    const offices = {
+        schulsprecherId,
+        stv1Id,
+        stv2Id,
+        decidedAfter,
+        tieNeedsLotSchulsprecher,
+        tieNeedsLotStv1: deputies.tieNeedsLotStv1 && !opts?.lotStv1Id,
+        tieNeedsLotStv2: deputies.tieNeedsLotStv2 && !opts?.lotStv2Id
+    };
+
+    if (includeSgaDeputies) {
+        const lot = (opts && opts.lot) || {};
+        sgaSchueler = resolveSgaSchuelerDeputies(main, [schulsprecherId, stv1Id, stv2Id]);
+        let sgaDeputy1Id = sgaSchueler.sgaDeputy1Id;
+        let sgaDeputy2Id = sgaSchueler.sgaDeputy2Id;
+        let sgaDeputy3Id = sgaSchueler.sgaDeputy3Id;
+        if (sgaSchueler.tieNeedsLot && normId(lot.sgaDeputy1Id)) sgaDeputy1Id = normId(lot.sgaDeputy1Id);
+        if (sgaSchueler.tieNeedsLot && normId(lot.sgaDeputy2Id)) sgaDeputy2Id = normId(lot.sgaDeputy2Id);
+        if (sgaSchueler.tieNeedsLot && normId(lot.sgaDeputy3Id)) sgaDeputy3Id = normId(lot.sgaDeputy3Id);
+        offices.sgaDeputy1Id = sgaDeputy1Id;
+        offices.sgaDeputy2Id = sgaDeputy2Id;
+        offices.sgaDeputy3Id = sgaDeputy3Id;
+        offices.tieNeedsLotSgaDeputies = sgaSchueler.tieNeedsLot && !normId(lot.sgaDeputy1Id);
+    }
+
     return {
+        kind: ELECTION_KIND_SCHULSPRECHER,
+        includeSgaDeputies,
         main,
         first,
+        sga: null,
+        sgaSchueler,
         runoffTally,
         runoffResolve,
         needsRunoff: needsRunoff && !schulsprecherId,
         runoffCandidateIds,
         majorityThreshold: first.majorityThreshold,
-        offices: {
-            schulsprecherId,
-            stv1Id,
-            stv2Id,
-            decidedAfter,
-            tieNeedsLotSchulsprecher,
-            tieNeedsLotStv1: deputies.tieNeedsLotStv1 && !opts?.lotStv1Id,
-            tieNeedsLotStv2: deputies.tieNeedsLotStv2 && !opts?.lotStv2Id
-        }
+        offices
     };
 }
 
@@ -463,31 +734,37 @@ export function evaluateElection(opts) {
  * UI-Zeilen für Ergebnis-Tabelle (Hauptwahlgang).
  * @param {ReturnType<typeof tallyMainRound>} tally
  * @param {Candidate[]} candidates
- * @param {{ schulsprecherId?: string|null, stv1Id?: string|null, stv2Id?: string|null }} [offices]
+ * @param {object} [offices]
+ * @param {unknown} [kindOrOpts]
  */
-export function mainResultRows(tally, candidates, offices) {
+export function mainResultRows(tally, candidates, offices, kindOrOpts) {
+    const schema = resolveBallotSchema(kindOrOpts || (tally && tally.kind));
+    const seats = seatsForElection(kindOrOpts || schema);
     const byCand = new Map((candidates || []).map((c) => [normId(c.id), c]));
-    const ss = normId(offices && offices.schulsprecherId);
-    const s1 = normId(offices && offices.stv1Id);
-    const s2 = normId(offices && offices.stv2Id);
     const valid = tally.valid;
+    const maxPoints = Math.max(Number(schema.corePoints && schema.corePoints[0]) || POINTS_SCHULSPRECHER, 1);
+
+    /** @type {Map<string, string>} */
+    const badgeById = new Map();
+    for (const seat of seats) {
+        const cid = normId(offices && offices[seat.key]);
+        if (cid) badgeById.set(cid, seat.badge);
+    }
 
     return (tally.rows || []).map((row) => {
         const c = byCand.get(row.id) || { id: row.id, name: row.id };
-        let badge = '';
-        if (row.id === ss) badge = 'Gewählt · Schulsprecher:in';
-        else if (row.id === s1) badge = 'Gewählt · 1. Stellvertretung';
-        else if (row.id === s2) badge = 'Gewählt · 2. Stellvertretung';
+        const sgaPts = Number(row.sgaPoints) || 0;
         return {
             id: row.id,
             name: c.name || row.id,
             className: c.className || '',
             email: c.email || '',
             points: row.points,
+            sgaPoints: sgaPts,
             firstPlace: row.firstPlace,
             firstPlaceShare: sharePercent(row.firstPlace, valid),
-            pointsShare: sharePercent(row.points, valid * POINTS_SCHULSPRECHER),
-            badge,
+            pointsShare: sharePercent(row.points, valid * maxPoints),
+            badge: badgeById.get(row.id) || '',
             barValue: row.points,
             barMax: Math.max(...tally.rows.map((r) => r.points), 1)
         };

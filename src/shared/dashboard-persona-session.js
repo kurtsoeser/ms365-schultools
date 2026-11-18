@@ -3,6 +3,7 @@
  */
 import { resolveDashboardPersonas } from './dashboard-audience-resolve.js';
 import { clearGlobalAdministratorCache } from '../tools/schularbeiten-planer/schularbeiten-planer-entra-role.js';
+import { ensureSignedInMs365DemoPortalAccountInLocalStammdaten } from './demo-portal-teacher.js';
 
 const CACHE_KEY = 'ms365-dashboard-persona-cache-v2';
 const CACHE_TTL_MS = 20 * 60 * 1000;
@@ -70,6 +71,12 @@ export async function refreshDashboardPersonaSession(opts) {
     if (inFlight && !force) return inFlight;
 
     inFlight = (async () => {
+        // Demo-Lehrer/-Schüler (@ms365.schule) vor Persona-Match in Stammdaten absichern
+        try {
+            ensureSignedInMs365DemoPortalAccountInLocalStammdaten();
+        } catch {
+            /* ignore */
+        }
         let personas = await resolveDashboardPersonas({ demoMode: false });
         if (
             personas &&
@@ -123,6 +130,9 @@ function bootSessionListeners() {
     window.addEventListener('ms365-auth-state-changed', rerun);
     window.addEventListener('ms365-dashboard-audience-groups-changed', rerun);
     window.addEventListener('ms365-dashboard-tool-access-changed', rerun);
+    // Bootstrap / IT-Sicherung / Stammdaten-Pull: Persona neu auflösen (kein „Hängenbleiben“)
+    window.addEventListener('ms365-tenant-settings-changed', rerun);
+    window.addEventListener('ms365-school-data-written', rerun);
     window.addEventListener('storage', (ev) => {
         if (ev && ev.key === 'ms365-schooltool-data-v2') rerun();
     });

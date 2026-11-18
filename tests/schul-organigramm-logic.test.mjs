@@ -3050,14 +3050,19 @@ describe('schul-organigramm ARGE-Leiter', () => {
 });
 
 describe('schul-organigramm pages', () => {
-    it('Tool-Seite und Stammdaten-Tab existieren', () => {
+    it('Organigramm liegt in Stammdaten; Tool-Seite leitet um', () => {
         const tool = readFileSync(join(projectRoot, 'tools/schul-organigramm.html'), 'utf8');
-        expect(tool).toContain('schulOrgApp');
-        expect(tool).toContain('mountSchulOrganigramm');
+        expect(tool).toContain('tenant.html#organigramm');
+        expect(tool).not.toContain('mountSchulOrganigramm');
         const tenant = readFileSync(join(projectRoot, 'tenant.html'), 'utf8');
         expect(tenant).toContain('id="tabMainOrganigramm"');
+        expect(tenant).toMatch(/id="tabMainOrganigramm"[^>]*\bhidden\b/);
         expect(tenant).toContain('tenantSchulOrganigrammApp');
         const index = readFileSync(join(projectRoot, 'index.html'), 'utf8');
         expect(index).toContain('data-tool-id="schul-organigramm"');
+        expect(index).toContain('tenant.html#organigramm');
+        const msal = readFileSync(join(projectRoot, 'src/shared/msal-auth-ui.js'), 'utf8');
+        expect(msal).toContain("base + '#organigramm'");
+        expect(msal).toContain('ms365HeaderSchoolSwitch');
     });
 });

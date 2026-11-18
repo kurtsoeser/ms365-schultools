@@ -20,13 +20,21 @@
                 <span class="header-tool-indicator__label">Stammdaten</span>
                 <span class="header-tool-indicator__name"><i class="bi bi-box-arrow-in-down"></i>WebUntis-Import</span>
             </div>
-            <p>Exporte aus WebUntis hochladen, Bereiche prüfen und in die lokalen Stammdaten übernehmen. Schüler und Eltern werden über die Untis-ID automatisch verknüpft.</p>
+            <p>Empfohlener Weg: Exporte aus <strong>WebUntis</strong> hochladen, Bereiche prüfen und in die lokalen Stammdaten übernehmen. Schüler und Eltern werden über die Untis-ID verknüpft.</p>
             <div class="toolbar">
                 <a class="btn" href="../tenant.html" id="wuImportBackLink"><i class="bi bi-arrow-left"></i>Zurück zu Stammdaten</a>
+                <a class="btn" href="../tenant.html#stammdaten"><i class="bi bi-globe2"></i>Domain prüfen</a>
+                <a class="btn" href="../tenant.html#schueler"><i class="bi bi-file-earmark-spreadsheet"></i>Sokrates / Vorlage</a>
             </div>
         </div>
 
         <div class="content wu-import-content">
+            <div class="wu-import-prep" role="note" style="margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb,var(--brand1,#0d9f8a) 28%,var(--border));background:color-mix(in srgb,var(--brand1,#0d9f8a) 8%,var(--card));font-size:.92em;line-height:1.45">
+                <strong>Tipp:</strong> Vorher in den Stammdaten die <strong>Schuldomain</strong> setzen.
+                Ideal: <code>Student_*</code> und <code>LegalGuardian_*</code> zusammen laden.
+                <strong>Sokrates/Excel</strong> bitte nicht hier, sondern unter
+                <a href="../tenant.html#schueler">Stammdaten → Schüler</a> (inkl. Excel-Vorlage).
+            </div>
             <ol class="wu-import-steps" aria-label="Fortschritt">
                 <li class="wu-import-step is-active" id="wuImportStepUpload"><span class="wu-import-step__n">1</span>Dateien hochladen</li>
                 <li class="wu-import-step" id="wuImportStepReview"><span class="wu-import-step__n">2</span>Daten prüfen &amp; übernehmen</li>
@@ -34,7 +42,7 @@
 
             <div class="wu-import-status" role="status">
                 <p class="wu-import-status__text muted" id="wuStammdatenWizardStatus">
-                    Laden Sie die WebUntis-Dateien hoch (mehrere gleichzeitig möglich). Anschließend auf „Auswerten &amp; prüfen“ klicken.
+                    WebUntis-Dateien hochladen (mehrere gleichzeitig). Anschließend „Auswerten &amp; prüfen“.
                 </p>
                 <p class="slg-import-modal__warn wu-import-status__warn" id="wuStammdatenWizardWarn" hidden></p>
             </div>

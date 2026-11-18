@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { rowMatchesTextFilter } from '../src/shared/teacher-tenant-import-ui.js';
+import { metaLooksLikeTeacherRole } from '../src/shared/graph-licenses.js';
+import {
+    collectMetaFilterOptions,
+    rowMatchesMetaFilters,
+    rowMatchesTextFilter
+} from '../src/shared/teacher-tenant-import-ui.js';
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -18,6 +23,11 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(html).toContain('id="tenantBtnTeacherTenantApply"');
         expect(html).toContain('src/shared/teacher-tenant-import-ui.js');
         expect(html).toContain('Aus Microsoft 365 einlesen');
+        // Sichtbarer Primär-Button (nicht nur im Dropdown versteckt)
+        const iBtn = html.indexOf('id="tenantBtnImportTeachersFromTenant"');
+        const before = html.slice(Math.max(0, iBtn - 120), iBtn);
+        expect(before).toMatch(/btn btn-primary/);
+        expect(before).not.toMatch(/role="menuitem"/);
     });
 
     it('Schul-Einstellungen Tab Lehrer hat denselben Import', () => {
@@ -115,10 +125,46 @@ describe('Lehrkräfte aus dem Tenant einlesen', () => {
         expect(js).toContain('rowMatchesTextFilter');
     });
 
+    it('Tenant-Import filtert nach Abteilung/Büro/Position', () => {
+        const ten = read('tenant.html');
+        const graph = read('src/shared/graph-unified-groups.js');
+        expect(ten).toContain('id="tenantTeacherTenantDepartmentFilter"');
+        expect(ten).toContain('id="tenantTeacherTenantOfficeFilter"');
+        expect(ten).toContain('id="tenantTeacherTenantJobTitleFilter"');
+        expect(ten).toContain('id="tenantTeacherTenantTeacherMetaHint"');
+        expect(graph).toContain('officeLocation');
+    });
+
     it('rowMatchesTextFilter durchsucht Name und E-Mail', () => {
         expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, 'anna')).toBe(true);
         expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, 'schule')).toBe(true);
         expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, 'xyz')).toBe(false);
         expect(rowMatchesTextFilter({ name: 'Anna', email: 'a@schule.at' }, '')).toBe(true);
+        expect(rowMatchesTextFilter({ name: 'Max', department: 'Lehrer' }, 'lehrer')).toBe(true);
+    });
+
+    it('Metadaten-Filter erkennt Lehrkraft-Hinweise', () => {
+        expect(metaLooksLikeTeacherRole({ department: 'Lehrer' })).toBe(true);
+        expect(metaLooksLikeTeacherRole({ officeLocation: 'Lehrkraft' })).toBe(true);
+        expect(metaLooksLikeTeacherRole({ jobTitle: 'Teacher' })).toBe(true);
+        expect(metaLooksLikeTeacherRole({ department: 'Verwaltung' })).toBe(false);
+        expect(
+            rowMatchesMetaFilters(
+                { department: 'Lehrer', officeLocation: 'EG', jobTitle: '' },
+                { department: 'Lehrer' }
+            )
+        ).toBe(true);
+        expect(
+            rowMatchesMetaFilters(
+                { department: 'Verwaltung', officeLocation: '', jobTitle: '' },
+                { teacherHintOnly: true }
+            )
+        ).toBe(false);
+        const opts = collectMetaFilterOptions([
+            { department: 'Lehrer', officeLocation: 'EG', jobTitle: 'Lehrkraft' },
+            { department: 'Verwaltung', officeLocation: '', jobTitle: '' }
+        ]);
+        expect(opts.departments).toEqual(['Lehrer', 'Verwaltung']);
+        expect(opts.teacherHintCount).toBe(1);
     });
 });

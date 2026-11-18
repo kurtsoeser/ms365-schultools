@@ -8,10 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="ms365-graph-client-id" content="e1d877c3-004c-4040-8c3b-81a59e0c7050">
     <title>MS365-Schul-Tools – Stammdaten</title>
-    <link rel="stylesheet" href="app.css?v=13">
+    <link rel="stylesheet" href="app.css?v=17">
     <link rel="stylesheet" href="src/shared/group-detail/group-detail.css">
     <link rel="stylesheet" href="src/shared/onboarding-empty-state.css">
-    <link rel="stylesheet" href="src/shared/tenant-register-ui.css">
+    <link rel="stylesheet" href="src/shared/tenant-register-ui.css?v=20261118c">
     <link rel="stylesheet" href="src/tools/datenlandkarte/datenlandkarte.css">
     <link rel="stylesheet" href="src/tools/schul-organigramm/schul-organigramm.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -739,215 +739,359 @@
                             <button type="button" class="tab-btn" id="tabMainSchueler" role="tab" aria-selected="false" aria-controls="panelStudentsData"><i class="bi bi-people" aria-hidden="true"></i>Schüler</button>
                             <button type="button" class="tab-btn" id="tabMainSchuelervertretung" role="tab" aria-selected="false" aria-controls="panelStudentCouncilData"><i class="bi bi-megaphone" aria-hidden="true"></i>Schülervertretung</button>
                             <button type="button" class="tab-btn" id="tabMainSga" role="tab" aria-selected="false" aria-controls="panelMainSga"><i class="bi bi-megaphone" aria-hidden="true"></i>SGA</button>
-                            <button type="button" class="tab-btn" id="tabMainOrganigramm" role="tab" aria-selected="false" aria-controls="panelMainOrganigramm"><i class="bi bi-diagram-3" aria-hidden="true"></i>Organigramm</button>
+                            <button type="button" class="tab-btn tab-btn--header-route" id="tabMainOrganigramm" role="tab" aria-selected="false" aria-controls="panelMainOrganigramm" hidden><i class="bi bi-diagram-3" aria-hidden="true"></i>Organigramm</button>
                             <button type="button" class="tab-btn" id="tabMainDatenlandkarte" role="tab" aria-selected="false" aria-controls="panelMainDatenlandkarte"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>Datenlandkarte</button>
                         </div>
                         </div>
 
                         <div class="ts-register-shell__content">
                         <div id="panelMainStammdaten" class="tab-panel active" role="tabpanel" aria-labelledby="tabMainStammdaten">
-                            <div class="ts-stammdaten-core-grid">
-                            <section class="ts-school-profile-card ts-stammdaten-core-grid__profile" id="tenantSchoolProfileCard" aria-labelledby="tenantSchoolProfileTitle">
-                                <h3 class="ts-school-profile-card__title" id="tenantSchoolProfileTitle"><i class="bi bi-building" aria-hidden="true"></i> Schulprofil</h3>
-                                <p class="muted ts-school-profile-card__lead">Schulname, E-Mail-Domain, Logo, Schulkennzahl und Kontakt – Teil der Stammdaten und der SharePoint-Sicherung (IT-Bibliothek).</p>
-                                <div class="ts-school-profile-card__layout">
-                                    <div class="ts-school-profile-card__logo">
-                                        <span class="ts-school-profile-card__logo-label">Schul-Logo</span>
-                                        <div class="ts-school-profile-card__logo-frame" id="tenantSchoolLogoPlaceholder" aria-hidden="false">
-                                            <span class="muted">Kein Logo</span>
+                            <div class="ts-stammdaten-setup" id="tenantStammdatenSetup" data-active-pane="profile">
+                                <nav class="ts-stammdaten-setup__nav" aria-label="Stammdaten-Einstellungen">
+                                    <button type="button" class="ts-stammdaten-setup__nav-btn is-active" data-stammdaten-pane="profile" aria-current="page">
+                                        <i class="bi bi-building" aria-hidden="true"></i><span>Schulprofil</span>
+                                    </button>
+                                    <button type="button" class="ts-stammdaten-setup__nav-btn" data-stammdaten-pane="email" aria-current="false">
+                                        <i class="bi bi-envelope-at" aria-hidden="true"></i><span>E-Mail-Muster</span>
+                                    </button>
+                                    <p class="ts-stammdaten-setup__nav-group" id="tenantSpoClusterTitle"><i class="bi bi-microsoft" aria-hidden="true"></i> SharePoint &amp; Dienste</p>
+                                    <button type="button" class="ts-stammdaten-setup__nav-btn ts-stammdaten-setup__nav-btn--sub" data-stammdaten-pane="spo-lists" aria-current="false">
+                                        <i class="bi bi-list-ul" aria-hidden="true"></i><span>Intranet-Listen</span>
+                                    </button>
+                                    <button type="button" class="ts-stammdaten-setup__nav-btn ts-stammdaten-setup__nav-btn--sub" data-stammdaten-pane="spo-planer" aria-current="false">
+                                        <i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Planer &amp; Apps</span>
+                                    </button>
+                                    <button type="button" class="ts-stammdaten-setup__nav-btn ts-stammdaten-setup__nav-btn--sub" data-stammdaten-pane="spo-it" data-local-first-hide="spo" aria-current="false" hidden>
+                                        <i class="bi bi-shield-lock" aria-hidden="true"></i><span>Sicherungsbibliothek</span>
+                                    </button>
+                                    <button type="button" class="ts-stammdaten-setup__nav-btn ts-stammdaten-setup__nav-btn--sub" data-stammdaten-pane="spo-hub" aria-current="false">
+                                        <i class="bi bi-house-door" aria-hidden="true"></i><span>Schul-Intranet</span>
+                                    </button>
+                                </nav>
+
+                                <div class="ts-stammdaten-setup__panes">
+                                    <section class="ts-stammdaten-setup__pane ts-school-profile-card" id="tenantSchoolProfileCard" data-stammdaten-pane-panel="profile" aria-labelledby="tenantSchoolProfileTitle">
+                                        <header class="ts-stammdaten-setup__pane-head">
+                                            <h3 class="ts-school-profile-card__title" id="tenantSchoolProfileTitle"><i class="bi bi-building" aria-hidden="true"></i> Schulprofil</h3>
+                                            <p class="muted ts-school-profile-card__lead">Schulname, Domain, Logo und Kontakt – Teil der Stammdaten und der SharePoint-Sicherung.</p>
+                                        </header>
+                                        <div class="ts-school-profile-card__layout">
+                                            <div class="ts-school-profile-card__logo">
+                                                <span class="ts-school-profile-card__logo-label">Schul-Logo</span>
+                                                <div class="ts-school-profile-card__logo-frame" id="tenantSchoolLogoPlaceholder" aria-hidden="false">
+                                                    <span class="muted">Kein Logo</span>
+                                                </div>
+                                                <img id="tenantSchoolLogoPreview" class="ts-school-profile-card__logo-img" alt="Schul-Logo Vorschau" referrerpolicy="no-referrer" hidden>
+                                                <p id="tenantSchoolLogoFileName" class="muted ts-school-profile-card__logo-name"></p>
+                                                <div class="ts-school-profile-card__logo-actions">
+                                                    <label class="btn btn-sm" for="tenantSchoolLogoFile"><i class="bi bi-upload" aria-hidden="true"></i> Logo hochladen</label>
+                                                    <input type="file" id="tenantSchoolLogoFile" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                                                    <button type="button" class="btn btn-sm alt" id="tenantSchoolLogoRemove">Entfernen</button>
+                                                </div>
+                                                <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="tenantSchoolLogoUrl" style="margin-top:0.65rem;">
+                                                    <span>Oder öffentliche HTTPS-URL</span>
+                                                    <input type="url" id="tenantSchoolLogoUrl" maxlength="2000" placeholder="https://schule.at/media/logo.png" autocomplete="off" spellcheck="false" inputmode="url">
+                                                </label>
+                                                <small class="ts-stammdaten-core-hint">HTTPS-URL (Schulwebsite/SharePoint) empfohlen – sonst Upload PNG/JPEG/GIF/WebP, max. ca. 400 KB.</small>
+                                            </div>
+                                            <div class="ts-school-profile-card__fields">
+                                                <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolName"><span>Schulname</span>
+                                                    <input type="text" id="schoolName" placeholder="z. B. MS Musterstadt" autocomplete="organization" spellcheck="false">
+                                                    <small class="ts-stammdaten-core-hint">Bezeichnung der Schule in dieser App.</small>
+                                                </label>
+                                                <div class="ts-school-profile-card__row2 ts-school-profile-card__row2--equal">
+                                                    <label class="ts-school-profile-card__field" for="schoolEmailDomain"><span>E-Mail-Domain (ohne @)</span>
+                                                        <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off" spellcheck="false" inputmode="url">
+                                                        <small class="ts-stammdaten-core-hint">Für Vorschauen (<code>kürzel@domain</code>).</small>
+                                                    </label>
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolCode"><span>Schulkennzahl / SKZ</span>
+                                                        <input type="text" id="tenantSchoolCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. 302123">
+                                                    </label>
+                                                </div>
+                                                <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolVerifiedEmailDomains"><span>Weitere E-Mail-Domains (optional)</span>
+                                                    <input type="text" id="schoolVerifiedEmailDomains" placeholder="zweitdomain.at, weitere.at" autocomplete="off" spellcheck="false" inputmode="url">
+                                                    <small class="ts-stammdaten-core-hint">Kommagetrennt – z.&nbsp;B. wenn Login und Lehrer-UPNs unterschiedliche Domains nutzen.</small>
+                                                </label>
+                                                <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="tenantSchoolStreet"><span>Straße</span>
+                                                    <input type="text" id="tenantSchoolStreet" maxlength="200" autocomplete="street-address" placeholder="Musterstraße 1">
+                                                </label>
+                                                <div class="ts-school-profile-card__row3">
+                                                    <label class="ts-school-profile-card__field ts-school-profile-card__field--plz" for="tenantSchoolPostalCode"><span>PLZ</span>
+                                                        <input type="text" id="tenantSchoolPostalCode" maxlength="16" autocomplete="postal-code" inputmode="numeric">
+                                                    </label>
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolCity"><span>Ort</span>
+                                                        <input type="text" id="tenantSchoolCity" maxlength="120" autocomplete="address-level2">
+                                                    </label>
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolCountry"><span>Land</span>
+                                                        <input type="text" id="tenantSchoolCountry" maxlength="80" autocomplete="country-name" value="Österreich">
+                                                    </label>
+                                                </div>
+                                                <div class="ts-school-profile-card__row2 ts-school-profile-card__row2--equal">
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolPhone"><span>Telefon</span>
+                                                        <input type="tel" id="tenantSchoolPhone" maxlength="40" autocomplete="tel" placeholder="+43 …">
+                                                    </label>
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolPhoneAlt"><span>Weitere Nr.</span>
+                                                        <input type="tel" id="tenantSchoolPhoneAlt" maxlength="40" autocomplete="tel" placeholder="Sekretariat, Fax …">
+                                                    </label>
+                                                </div>
+                                                <div class="ts-school-profile-card__row2 ts-school-profile-card__row2--equal">
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolOfficeEmail"><span>E-Mail Sekretariat</span>
+                                                        <input type="email" id="tenantSchoolOfficeEmail" maxlength="200" autocomplete="email" placeholder="office@schule.at">
+                                                    </label>
+                                                    <label class="ts-school-profile-card__field" for="tenantSchoolWebsite"><span>Website</span>
+                                                        <input type="url" id="tenantSchoolWebsite" maxlength="300" autocomplete="url" placeholder="https://www.schule.at">
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <img id="tenantSchoolLogoPreview" class="ts-school-profile-card__logo-img" alt="Schul-Logo Vorschau" hidden>
-                                        <p id="tenantSchoolLogoFileName" class="muted ts-school-profile-card__logo-name"></p>
-                                        <div class="ts-school-profile-card__logo-actions">
-                                            <label class="btn btn-sm" for="tenantSchoolLogoFile"><i class="bi bi-upload" aria-hidden="true"></i> Logo hochladen</label>
-                                            <input type="file" id="tenantSchoolLogoFile" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
-                                            <button type="button" class="btn btn-sm alt" id="tenantSchoolLogoRemove">Entfernen</button>
+                                    </section>
+
+                                    <input type="hidden" id="tenantSchoolEmailPattern" value="vorname.nachname">
+                                    <section class="ts-stammdaten-setup__pane ts-mail-pattern-card" id="tenantSchoolEmailPatternCard" data-stammdaten-pane-panel="email" aria-labelledby="tenantSchoolEmailPatternCardTitle" hidden>
+                                        <header class="ts-stammdaten-setup__pane-head">
+                                            <h3 class="ts-mail-pattern-card__title" id="tenantSchoolEmailPatternCardTitle"><i class="bi bi-envelope-at" aria-hidden="true"></i> E-Mail-Muster (schulweit)</h3>
+                                            <p class="muted ts-mail-pattern-card__lead">Für fehlende Adressen bei Importen und Vorschläge aus Namen – gilt für alle Personen in den Stammdaten.</p>
+                                        </header>
+                                        <div class="ts-mail-pattern-card__row">
+                                            <label for="tenantSchoolEmailGivenNames" class="ts-mail-pattern-card__label">Vornamen</label>
+                                            <select id="tenantSchoolEmailGivenNames" title="Bei mehreren Vornamen" class="ts-mail-pattern-card__select">
+                                                <option value="first" selected>Nur 1. Vorname</option>
+                                                <option value="all">Alle Vornamen</option>
+                                            </select>
                                         </div>
-                                        <small class="ts-stammdaten-core-hint">PNG/JPEG/GIF/WebP, max. ca. 400 KB.</small>
-                                    </div>
-                                    <div class="ts-school-profile-card__fields">
-                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolName"><span>Schulname</span>
-                                            <input type="text" id="schoolName" placeholder="z. B. MS Musterstadt" autocomplete="organization" spellcheck="false">
-                                            <small class="ts-stammdaten-core-hint">Bezeichnung der Schule in dieser App.</small>
-                                        </label>
-                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolEmailDomain"><span>E-Mail-Domain (ohne @)</span>
-                                            <input type="text" id="schoolEmailDomain" placeholder="ms365.schule" autocomplete="off" spellcheck="false" inputmode="url">
-                                            <small class="ts-stammdaten-core-hint">Für Vorschauen und Adressen (<code>kürzel@domain</code>).</small>
-                                        </label>
-                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="schoolVerifiedEmailDomains"><span>Weitere E-Mail-Domains (optional)</span>
-                                            <input type="text" id="schoolVerifiedEmailDomains" placeholder="kurtrocks.com, kurtsoeser.at" autocomplete="off" spellcheck="false" inputmode="url">
-                                            <small class="ts-stammdaten-core-hint">Kommagetrennt – für Kursteams-Besitzer mit mehreren verifizierten Domains im Mandanten (z.&nbsp;B. wenn Ihr Login eine andere Domain hat als die Lehrer-UPNs).</small>
-                                        </label>
-                                        <label class="ts-school-profile-card__field" for="tenantSchoolCode"><span>Schulkennzahl / SKZ</span>
-                                            <input type="text" id="tenantSchoolCode" maxlength="32" autocomplete="off" spellcheck="false" placeholder="z. B. 302123">
-                                        </label>
-                                        <label class="ts-school-profile-card__field ts-school-profile-card__field--wide" for="tenantSchoolStreet"><span>Straße</span>
-                                            <input type="text" id="tenantSchoolStreet" maxlength="200" autocomplete="street-address" placeholder="Musterstraße 1">
-                                        </label>
-                                        <div class="ts-school-profile-card__row2">
-                                            <label class="ts-school-profile-card__field" for="tenantSchoolPostalCode"><span>PLZ</span>
-                                                <input type="text" id="tenantSchoolPostalCode" maxlength="16" autocomplete="postal-code" inputmode="numeric">
-                                            </label>
-                                            <label class="ts-school-profile-card__field" for="tenantSchoolCity"><span>Ort</span>
-                                                <input type="text" id="tenantSchoolCity" maxlength="120" autocomplete="address-level2">
-                                            </label>
+                                        <p class="ts-mail-pattern-card__presets-label">Schnellauswahl</p>
+                                        <div class="ts-mail-pattern-card__presets" role="group" aria-label="Mail-Muster Presets">
+                                            <button type="button" class="btn btn-sm is-active" data-email-preset="vorname.nachname">vorname.nachname</button>
+                                            <button type="button" class="btn btn-sm" data-email-preset="nachname.vorname">nachname.vorname</button>
+                                            <button type="button" class="btn btn-sm" data-email-preset="v.nachname">v.nachname</button>
+                                            <button type="button" class="btn btn-sm" data-email-preset="vorname.n">vorname.n</button>
+                                            <button type="button" class="btn btn-sm" data-email-preset="kuerzel">kuerzel</button>
+                                            <button type="button" class="btn btn-sm" data-email-preset="kuerzel.nachname">kuerzel.nachname</button>
+                                            <button type="button" class="btn btn-sm" data-email-preset="custom"><i class="bi bi-puzzle" aria-hidden="true"></i> Eigene Bausteine</button>
                                         </div>
-                                        <label class="ts-school-profile-card__field" for="tenantSchoolCountry"><span>Land</span>
-                                            <input type="text" id="tenantSchoolCountry" maxlength="80" autocomplete="country-name" value="Österreich">
-                                        </label>
-                                        <div class="ts-school-profile-card__row2">
-                                            <label class="ts-school-profile-card__field" for="tenantSchoolPhone"><span>Telefon</span>
-                                                <input type="tel" id="tenantSchoolPhone" maxlength="40" autocomplete="tel" placeholder="+43 …">
-                                            </label>
-                                            <label class="ts-school-profile-card__field" for="tenantSchoolPhoneAlt"><span>Weitere Nr.</span>
-                                                <input type="tel" id="tenantSchoolPhoneAlt" maxlength="40" autocomplete="tel" placeholder="Sekretariat, Fax …">
-                                            </label>
+                                        <p class="muted ts-mail-pattern-card__mode-hint" id="tenantSchoolEmailPatternModeHint"></p>
+                                        <div id="tenantSchoolEmailPatternCustom" class="ts-mail-pattern-card__custom" hidden>
+                                            <p class="muted">Bausteine per Klick hinzufügen, per Drag &amp; Drop sortieren.</p>
+                                            <div class="ts-email-pattern-builder" id="tenantSchoolEmailPatternBuilder" aria-label="E-Mail Bausteine"></div>
+                                            <div class="ts-email-pattern-palette" role="group" aria-label="Bausteine hinzufügen">
+                                                <button type="button" class="btn btn-sm" data-email-add-token="vorname">+ Vorname</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="nachname">+ Nachname</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="kuerzel">+ Kürzel</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="v0">+ V-Anfangsbuchstabe</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="n0">+ N-Anfangsbuchstabe</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value=".">+ Punkt</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value="_">+ _</button>
+                                                <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value="">+ ohne Trenner</button>
+                                            </div>
                                         </div>
-                                        <label class="ts-school-profile-card__field" for="tenantSchoolOfficeEmail"><span>E-Mail Sekretariat</span>
-                                            <input type="email" id="tenantSchoolOfficeEmail" maxlength="200" autocomplete="email" placeholder="office@schule.at">
-                                        </label>
-                                        <label class="ts-school-profile-card__field" for="tenantSchoolWebsite"><span>Website</span>
-                                            <input type="url" id="tenantSchoolWebsite" maxlength="300" autocomplete="url" placeholder="https://www.schule.at">
-                                        </label>
-                                    </div>
+                                        <p class="ts-mail-pattern-card__preview"><strong>Vorschau:</strong> <code id="tenantSchoolEmailPatternPreview">max.mustermann@schule.de</code></p>
+                                    </section>
+
+                                    <section class="ts-stammdaten-setup__pane ts-stammdaten-spo-point" id="tenantSpoListsPanel" data-stammdaten-pane-panel="spo-lists" aria-labelledby="tenantSpoPointListsTitle" hidden>
+                                        <header class="ts-stammdaten-setup__pane-head">
+                                            <h3 class="ts-stammdaten-spo-point__title" id="tenantSpoPointListsTitle"><i class="bi bi-list-ul" aria-hidden="true"></i> Intranet-Listen</h3>
+                                            <p class="muted ts-stammdaten-spo-point__lead">Stammdaten-Listen (Fächer, Klassen, Schüler:innen, …) – URL und Listennamen hier; Abgleich über die Schnell-Buttons in den Tabs oder <a href="tools/sharepoint-liste-stammdaten.html">Werkzeug Stammdaten-Listen</a>.</p>
+                                        </header>
+                                        <div class="ts-intranet-site-card__url-row">
+                                            <input type="url" id="tenantIntranetSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/Listen" autocomplete="off" spellcheck="false" aria-label="SharePoint-Webseite für Intranet-Listen">
+                                            <button type="button" class="btn btn-sm" id="tenantIntranetSiteVerify" title="Mit Microsoft Graph prüfen, ob die Website existiert und erreichbar ist">
+                                                <i class="bi bi-patch-check" aria-hidden="true"></i> Prüfen
+                                            </button>
+                                        </div>
+                                        <p id="tenantIntranetSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                        <fieldset class="ts-intranet-list-names" aria-labelledby="tenantIntranetListNamesLegend">
+                                            <legend id="tenantIntranetListNamesLegend" class="ts-intranet-site-card__label">Listenname je Typ</legend>
+                                            <p class="muted ts-intranet-list-names__hint">Leer = Standardname (wie im Werkzeug Stammdaten-Listen).</p>
+                                            <div class="ts-intranet-list-names__grid" role="group" aria-label="SharePoint-Listennamen">
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListSchueler">Schüler:innen</label>
+                                                    <input type="text" id="tenantIntranetListSchueler" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Schülerinnen" title="Leer = Standard „Schülerinnen“">
+                                                </div>
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListFaecher">Fächer</label>
+                                                    <input type="text" id="tenantIntranetListFaecher" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Fächer" title="Leer = Standard „Fächer“">
+                                                </div>
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListFachgruppen">Fachgruppen</label>
+                                                    <input type="text" id="tenantIntranetListFachgruppen" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Fachgruppen" title="Leer = Standard „Fachgruppen“">
+                                                </div>
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListArges">ARGEs</label>
+                                                    <input type="text" id="tenantIntranetListArges" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="ARGEs" title="Leer = Standard „ARGEs“">
+                                                </div>
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListKlassen">Klassen</label>
+                                                    <input type="text" id="tenantIntranetListKlassen" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Klassen" title="Leer = Standard „Klassen“">
+                                                </div>
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListLehrer">Lehrer:innen</label>
+                                                    <input type="text" id="tenantIntranetListLehrer" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Lehrerinnen" title="Leer = Standard „Lehrerinnen“">
+                                                </div>
+                                                <div class="ts-intranet-list-names__row">
+                                                    <label class="ts-intranet-list-names__type" for="tenantIntranetListLehrerJeKlasse">Lehrer je Klasse</label>
+                                                    <input type="text" id="tenantIntranetListLehrerJeKlasse" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Lehrer je Klasse" title="Leer = Standard „Lehrer je Klasse“">
+                                                </div>
+                                            </div>
+                                        </fieldset>
+                                    </section>
+
+                                    <section class="ts-stammdaten-setup__pane ts-stammdaten-spo-point ts-planer-apps-pane" id="tenantPlanerSitesPanel" data-stammdaten-pane-panel="spo-planer" aria-labelledby="tenantPlanerSitesTitle" hidden>
+                                        <header class="ts-stammdaten-setup__pane-head">
+                                            <h3 class="ts-stammdaten-spo-point__title" id="tenantPlanerSitesTitle"><i class="bi bi-grid-1x2" aria-hidden="true"></i> Planer &amp; Apps</h3>
+                                            <p class="muted ts-stammdaten-spo-point__lead">Schulweite SharePoint-Site und zentrale Postfächer – einmal setzen, Tools übernehmen.</p>
+                                        </header>
+
+                                        <div class="ts-planer-apps-stack">
+                                            <section class="ts-planer-apps-block" aria-labelledby="tenantPrimarySiteLegend">
+                                                <header class="ts-planer-apps-block__head">
+                                                    <h4 class="ts-planer-apps-block__title" id="tenantPrimarySiteLegend"><i class="bi bi-geo-alt" aria-hidden="true"></i> Primär-Site</h4>
+                                                    <p class="muted ts-planer-apps-block__lead">Gemeinsame Adresse für alle Planer. Meist dieselbe Site wie Intranet-Listen.</p>
+                                                </header>
+                                                <div class="ts-intranet-site-card__url-row">
+                                                    <input type="url" id="tenantPlanerDefaultSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/…" autocomplete="off" spellcheck="false" aria-label="Primär-Site für Planer und Apps">
+                                                    <button type="button" class="btn btn-sm" id="tenantPlanerDefaultSiteVerify" title="Mit Microsoft Graph prüfen">
+                                                        <i class="bi bi-patch-check" aria-hidden="true"></i> Prüfen
+                                                    </button>
+                                                </div>
+                                                <p id="tenantPlanerDefaultSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                                <div class="ts-planer-apps-actions" role="group" aria-label="Primär-Site übernehmen">
+                                                    <button type="button" class="ts-planer-apps-action" id="tenantPlanerDefaultFromIntranet" title="Intranet-Listen-URL übernehmen">
+                                                        <i class="bi bi-list-ul" aria-hidden="true"></i><span>Intranet-Listen</span>
+                                                    </button>
+                                                    <button type="button" class="ts-planer-apps-action" id="tenantPlanerDefaultFromHub" title="Schul-Intranet-URL übernehmen">
+                                                        <i class="bi bi-house-door" aria-hidden="true"></i><span>Schul-Intranet</span>
+                                                    </button>
+                                                    <button type="button" class="ts-planer-apps-action ts-planer-apps-action--accent" id="tenantPlanerApplyEmptyTools" title="Leere Tool-Sites mit der Primär-Site füllen">
+                                                        <i class="bi bi-magic" aria-hidden="true"></i><span>Leere Tools füllen</span>
+                                                    </button>
+                                                </div>
+                                            </section>
+
+                                            <section class="ts-planer-apps-block ts-planer-apps-block--status" aria-labelledby="tenantPlanerAppsStatusTitle">
+                                                <header class="ts-planer-apps-block__head ts-planer-apps-block__head--row">
+                                                    <h4 class="ts-planer-apps-block__title" id="tenantPlanerAppsStatusTitle"><i class="bi bi-check2-all" aria-hidden="true"></i> Verbundene Tools</h4>
+                                                    <p class="muted ts-planer-apps-block__meta" id="tenantPlanerAppsStatusMeta"></p>
+                                                </header>
+                                                <ul class="ts-planer-apps-status" id="tenantPrimarySiteMapHint" aria-live="polite"></ul>
+                                            </section>
+
+                                            <details class="ts-planer-apps-block ts-planer-apps-overrides" id="tenantPlanerSiteOverrides">
+                                                <summary class="ts-planer-apps-overrides__summary">
+                                                    <span><i class="bi bi-sliders" aria-hidden="true"></i> Abweichende Site je Tool</span>
+                                                    <span class="muted ts-planer-apps-overrides__hint">optional</span>
+                                                </summary>
+                                                <p class="muted ts-planer-apps-overrides__lead">Nur ausfüllen, wenn ein Tool auf einer anderen SharePoint-Website liegt. Leer = Primär-Site.</p>
+                                                <div class="ts-planer-apps-overrides__grid" role="group" aria-label="Planer-Site-Overrides">
+                                                    <label class="ts-planer-apps-overrides__row" for="tenantPlanerSiteSa"><span>Schularbeiten</span>
+                                                        <input type="url" id="tenantPlanerSiteSa" spellcheck="false" autocomplete="off" placeholder="Primär-Site">
+                                                    </label>
+                                                    <label class="ts-planer-apps-overrides__row" for="tenantPlanerSitePw"><span>Projektwochen</span>
+                                                        <input type="url" id="tenantPlanerSitePw" spellcheck="false" autocomplete="off" placeholder="Primär-Site">
+                                                    </label>
+                                                    <label class="ts-planer-apps-overrides__row" for="tenantPlanerSiteFr"><span>Freistellungen</span>
+                                                        <input type="url" id="tenantPlanerSiteFr" spellcheck="false" autocomplete="off" placeholder="Primär-Site">
+                                                    </label>
+                                                    <label class="ts-planer-apps-overrides__row" for="tenantPlanerSiteAkt"><span>Schulaktivitäten</span>
+                                                        <input type="url" id="tenantPlanerSiteAkt" spellcheck="false" autocomplete="off" placeholder="Primär-Site">
+                                                    </label>
+                                                    <label class="ts-planer-apps-overrides__row" for="tenantPlanerSiteWz"><span>Wahlfach</span>
+                                                        <input type="url" id="tenantPlanerSiteWz" spellcheck="false" autocomplete="off" placeholder="Primär-Site">
+                                                    </label>
+                                                </div>
+                                            </details>
+
+                                            <section class="ts-planer-apps-block" aria-labelledby="tenantSchoolMailboxesTitle">
+                                                <header class="ts-planer-apps-block__head">
+                                                    <h4 class="ts-planer-apps-block__title" id="tenantSchoolMailboxesTitle"><i class="bi bi-mailbox" aria-hidden="true"></i> Zentrale Postfächer</h4>
+                                                    <p class="muted ts-planer-apps-block__lead">Schulweite Absender – greifen in Elternbrief und Kalender-Postfächer.</p>
+                                                </header>
+                                                <div class="ts-planer-apps-mailbox-grid">
+                                                    <div class="ts-planer-apps-mailbox">
+                                                        <div class="ts-planer-apps-mailbox__label">
+                                                            <i class="bi bi-envelope-heart" aria-hidden="true"></i>
+                                                            <span>Elternbrief</span>
+                                                            <span class="ts-planer-apps-mailbox__badge" id="tenantMailboxElternbriefBadge" hidden></span>
+                                                        </div>
+                                                        <label class="ts-planer-apps-mailbox__field" for="tenantMailboxElternbrief"><span class="visually-hidden">E-Mail Elternbrief</span>
+                                                            <input type="email" id="tenantMailboxElternbrief" maxlength="200" autocomplete="off" spellcheck="false" placeholder="elternbrief@schule.at">
+                                                        </label>
+                                                        <label class="ts-planer-apps-mailbox__field" for="tenantMailboxElternbriefName"><span class="visually-hidden">Anzeigename</span>
+                                                            <input type="text" id="tenantMailboxElternbriefName" maxlength="120" autocomplete="off" placeholder="Anzeigename, z. B. Elternbrief Schule">
+                                                        </label>
+                                                        <p class="ts-planer-apps-mailbox__foot muted">Wird im <a href="tools/elternbrief.html">Elternbrief</a> als zentrales Absender-Postfach genutzt.</p>
+                                                    </div>
+                                                    <div class="ts-planer-apps-mailbox">
+                                                        <div class="ts-planer-apps-mailbox__label">
+                                                            <i class="bi bi-calendar3" aria-hidden="true"></i>
+                                                            <span>Schulkalender</span>
+                                                            <span class="ts-planer-apps-mailbox__badge" id="tenantMailboxSchulkalenderBadge" hidden></span>
+                                                        </div>
+                                                        <label class="ts-planer-apps-mailbox__field" for="tenantMailboxSchulkalender"><span class="visually-hidden">E-Mail Schulkalender</span>
+                                                            <input type="email" id="tenantMailboxSchulkalender" maxlength="200" autocomplete="off" spellcheck="false" placeholder="schulkalender@schule.at">
+                                                        </label>
+                                                        <p class="ts-planer-apps-mailbox__foot muted">Vorschlag für <a href="tools/kalender-postfaecher.html">Kalender-Postfächer</a>.</p>
+                                                    </div>
+                                                </div>
+                                            </section>
+
+                                            <nav class="ts-planer-apps-footer" aria-label="Weitere Stammdaten-Ziele">
+                                                <button type="button" class="ts-planer-apps-footer__link" data-stammdaten-goto-pane="spo-lists"><i class="bi bi-list-ul" aria-hidden="true"></i> Intranet-Listen</button>
+                                                <button type="button" class="ts-planer-apps-footer__link" data-stammdaten-goto-pane="spo-hub"><i class="bi bi-house-door" aria-hidden="true"></i> Schul-Intranet</button>
+                                                <button type="button" class="ts-planer-apps-footer__link" data-stammdaten-goto-pane="spo-it"><i class="bi bi-shield-lock" aria-hidden="true"></i> Sicherungsbibliothek</button>
+                                            </nav>
+                                        </div>
+                                    </section>
+
+                                    <section class="ts-stammdaten-setup__pane ts-stammdaten-spo-point" id="tenantItLibraryPanel" data-stammdaten-pane-panel="spo-it" aria-labelledby="tenantSpoPointItTitle" hidden>
+                                        <header class="ts-stammdaten-setup__pane-head">
+                                            <h3 class="ts-stammdaten-spo-point__title" id="tenantSpoPointItTitle"><i class="bi bi-shield-lock" aria-hidden="true"></i> IT-Sicherungsbibliothek</h3>
+                                            <p class="muted ts-stammdaten-spo-point__lead"><strong>Erst-Setup:</strong> Manuelles Vollbackup (Browser-Backup als JSON) in SharePoint – empfohlen nach Primär-Site. Einrichten hier oder unter <a href="tools/stammdaten-uebergabe.html#setup">Stammdaten-Übergabe</a>, sichern/laden unter „Datensicherung“. Kein Auto-Abgleich.</p>
+                                        </header>
+                                        <div class="ts-stammdaten-setup__form-compact">
+                                            <label class="ts-intranet-site-card__label" for="tenantItLibrarySiteUrl">SharePoint-Webseite</label>
+                                            <div class="ts-intranet-site-card__url-row">
+                                                <input type="url" id="tenantItLibrarySiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/IT oder gleiche Site wie Listen" autocomplete="off" spellcheck="false" aria-label="SharePoint-Webseite IT-Sicherungsbibliothek">
+                                                <button type="button" class="btn btn-sm" id="tenantItLibrarySiteVerify" title="Mit Microsoft Graph prüfen, ob die Website erreichbar ist">
+                                                    <i class="bi bi-patch-check" aria-hidden="true"></i> Prüfen
+                                                </button>
+                                            </div>
+                                            <p id="tenantItLibrarySiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                            <div class="ts-school-profile-card__row2 ts-school-profile-card__row2--equal">
+                                                <label class="ts-school-profile-card__field" for="tenantItLibraryTitle"><span>Name der IT-Bibliothek</span>
+                                                    <input type="text" id="tenantItLibraryTitle" value="MS365-IT-Stammdaten" maxlength="120" spellcheck="false" autocomplete="off">
+                                                </label>
+                                                <label class="ts-school-profile-card__field" for="tenantItLibraryGroup"><span>IT-/Verwaltungsgruppe</span>
+                                                    <input type="text" id="tenantItLibraryGroup" placeholder="verwaltung@schule.at oder GUID" autocomplete="off" spellcheck="false">
+                                                </label>
+                                            </div>
+                                            <p id="tenantItLibraryStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                            <div class="ts-it-library-embed__actions">
+                                                <button type="button" class="btn btn-success btn-sm" id="tenantItLibrarySetup"><i class="bi bi-shield-lock" aria-hidden="true"></i> IT-Bibliothek einrichten</button>
+                                                <a class="btn btn-sm" href="tools/stammdaten-uebergabe.html#setup">Übergabe-Seite öffnen</a>
+                                            </div>
+                                            <details class="ts-it-library-embed__log-wrap">
+                                                <summary>Protokoll</summary>
+                                                <pre id="tenantItLibraryLog" class="tm-log ts-it-library-embed__log" aria-live="polite"></pre>
+                                            </details>
+                                        </div>
+                                    </section>
+
+                                    <section class="ts-stammdaten-setup__pane ts-stammdaten-spo-point" id="tenantSpoHubPanel" data-stammdaten-pane-panel="spo-hub" aria-labelledby="tenantSpoPointHubTitle" hidden>
+                                        <header class="ts-stammdaten-setup__pane-head">
+                                            <h3 class="ts-stammdaten-spo-point__title" id="tenantSpoPointHubTitle"><i class="bi bi-house-door" aria-hidden="true"></i> Schul-Intranet</h3>
+                                            <p class="muted ts-stammdaten-spo-point__lead">Öffentliche Schul-Website / Intranet-Hub – kann dieselbe Site wie die Listen sein oder eine eigene Adresse.</p>
+                                        </header>
+                                        <div class="ts-intranet-site-card__url-row">
+                                            <input type="url" id="tenantSchoolIntranetSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/Schulintranet" autocomplete="off" spellcheck="false" aria-label="SharePoint-Schul-Intranet-Website">
+                                            <button type="button" class="btn btn-sm" id="tenantSchoolIntranetSiteVerify" title="Mit Microsoft Graph prüfen, ob die Intranet-Website erreichbar ist">
+                                                <i class="bi bi-patch-check" aria-hidden="true"></i> Prüfen
+                                            </button>
+                                        </div>
+                                        <p id="tenantSchoolIntranetSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
+                                        <a class="btn btn-sm ts-stammdaten-spo-point__link" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-house-door" aria-hidden="true"></i> Intranet-Hub einrichten</a>
+                                    </section>
                                 </div>
-                            </section>
-                            <input type="hidden" id="tenantSchoolEmailPattern" value="vorname.nachname">
-                            <section class="ts-mail-pattern-card ts-stammdaten-core-grid__mail" id="tenantSchoolEmailPatternCard" aria-labelledby="tenantSchoolEmailPatternCardTitle">
-                                <h3 class="ts-mail-pattern-card__title" id="tenantSchoolEmailPatternCardTitle"><i class="bi bi-envelope-at" aria-hidden="true"></i> E-Mail-Muster (schulweit)</h3>
-                                <p class="muted ts-mail-pattern-card__lead">Für fehlende Adressen bei Importen und Vorschläge aus Namen. Gilt für alle Personen in den Stammdaten – nicht nur für einen Tab.</p>
-                                <div class="ts-mail-pattern-card__row">
-                                    <label for="tenantSchoolEmailGivenNames" class="ts-mail-pattern-card__label">Vornamen</label>
-                                    <select id="tenantSchoolEmailGivenNames" title="Bei mehreren Vornamen" class="ts-mail-pattern-card__select">
-                                        <option value="first" selected>Nur 1. Vorname</option>
-                                        <option value="all">Alle Vornamen</option>
-                                    </select>
-                                </div>
-                                <p class="ts-mail-pattern-card__presets-label">Schnellauswahl</p>
-                                <div class="ts-mail-pattern-card__presets" role="group" aria-label="Mail-Muster Presets">
-                                    <button type="button" class="btn btn-sm is-active" data-email-preset="vorname.nachname">vorname.nachname</button>
-                                    <button type="button" class="btn btn-sm" data-email-preset="nachname.vorname">nachname.vorname</button>
-                                    <button type="button" class="btn btn-sm" data-email-preset="v.nachname">v.nachname</button>
-                                    <button type="button" class="btn btn-sm" data-email-preset="vorname.n">vorname.n</button>
-                                    <button type="button" class="btn btn-sm" data-email-preset="kuerzel">kuerzel</button>
-                                    <button type="button" class="btn btn-sm" data-email-preset="kuerzel.nachname">kuerzel.nachname</button>
-                                    <button type="button" class="btn btn-sm" data-email-preset="custom"><i class="bi bi-puzzle" aria-hidden="true"></i> Eigene Bausteine</button>
-                                </div>
-                                <p class="muted ts-mail-pattern-card__mode-hint" id="tenantSchoolEmailPatternModeHint"></p>
-                                <div id="tenantSchoolEmailPatternCustom" class="ts-mail-pattern-card__custom" hidden>
-                                    <p class="muted">Bausteine per Klick hinzufügen, per Drag &amp; Drop sortieren.</p>
-                                    <div class="ts-email-pattern-builder" id="tenantSchoolEmailPatternBuilder" aria-label="E-Mail Bausteine"></div>
-                                    <div class="ts-email-pattern-palette" role="group" aria-label="Bausteine hinzufügen">
-                                        <button type="button" class="btn btn-sm" data-email-add-token="vorname">+ Vorname</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="nachname">+ Nachname</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="kuerzel">+ Kürzel</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="v0">+ V-Anfangsbuchstabe</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="n0">+ N-Anfangsbuchstabe</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value=".">+ Punkt</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value="_">+ _</button>
-                                        <button type="button" class="btn btn-sm" data-email-add-token="sep" data-email-sep-value="">+ ohne Trenner</button>
-                                    </div>
-                                </div>
-                                <p class="ts-mail-pattern-card__preview"><strong>Vorschau:</strong> <code id="tenantSchoolEmailPatternPreview">max.mustermann@schule.de</code></p>
-                            </section>
                             </div>
-
-                            <section class="ts-stammdaten-spo-cluster" id="tenantSpoCluster" aria-labelledby="tenantSpoClusterTitle">
-                                <header class="ts-stammdaten-spo-cluster__head">
-                                    <h3 class="ts-stammdaten-spo-cluster__title" id="tenantSpoClusterTitle"><i class="bi bi-microsoft" aria-hidden="true"></i> SharePoint</h3>
-                                    <p class="muted ts-stammdaten-spo-cluster__lead">Drei getrennte Ziele: öffentliche Listen, geschütztes Vollbackup und die Schul-Intranet-Website.</p>
-                                </header>
-
-                                <article class="ts-stammdaten-spo-point" aria-labelledby="tenantSpoPointListsTitle">
-                                    <div class="ts-stammdaten-spo-point__head">
-                                        <span class="ts-stammdaten-spo-point__num" aria-hidden="true">1</span>
-                                        <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointListsTitle">Webseite für Intranet-Listen</h4>
-                                    </div>
-                                    <p class="muted ts-stammdaten-spo-point__lead">Stammdaten-Listen (Fächer, Klassen, Schüler:innen, …) – URL und Listennamen hier; Abgleich über die Schnell-Buttons in den jeweiligen Tabs oder <a href="tools/sharepoint-liste-stammdaten.html">Werkzeug Stammdaten-Listen</a>.</p>
-                                    <div class="ts-intranet-site-card__url-row">
-                                        <input type="url" id="tenantIntranetSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/Listen" autocomplete="off" spellcheck="false" aria-label="SharePoint-Webseite für Intranet-Listen">
-                                        <button type="button" class="btn" id="tenantIntranetSiteVerify" title="Mit Microsoft Graph prüfen, ob die Website existiert und erreichbar ist">
-                                            <i class="bi bi-patch-check" aria-hidden="true"></i> Website prüfen
-                                        </button>
-                                    </div>
-                                    <p id="tenantIntranetSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
-                                    <fieldset class="ts-intranet-list-names" aria-labelledby="tenantIntranetListNamesLegend">
-                                        <legend id="tenantIntranetListNamesLegend" class="ts-intranet-site-card__label" style="margin-top:14px;">Listenname je Typ</legend>
-                                        <p class="muted ts-intranet-list-names__hint">Name der SharePoint-Liste auf der Website oben. Leer lassen = Standard (wie im Werkzeug Stammdaten-Listen).</p>
-                                        <div class="ts-intranet-list-names__grid" role="group" aria-label="SharePoint-Listennamen">
-                                            <div class="ts-intranet-list-names__row">
-                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListSchueler">Schüler:innen</label>
-                                                <input type="text" id="tenantIntranetListSchueler" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Schülerinnen" title="Leer = Standard „Schülerinnen“">
-                                            </div>
-                                            <div class="ts-intranet-list-names__row">
-                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListFaecher">Fächer</label>
-                                                <input type="text" id="tenantIntranetListFaecher" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Fächer" title="Leer = Standard „Fächer“">
-                                            </div>
-                                            <div class="ts-intranet-list-names__row">
-                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListFachgruppen">Fachgruppen</label>
-                                                <input type="text" id="tenantIntranetListFachgruppen" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Fachgruppen" title="Leer = Standard „Fachgruppen“">
-                                            </div>
-                                            <div class="ts-intranet-list-names__row">
-                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListArges">ARGEs</label>
-                                                <input type="text" id="tenantIntranetListArges" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="ARGEs" title="Leer = Standard „ARGEs“">
-                                            </div>
-                                            <div class="ts-intranet-list-names__row">
-                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListKlassen">Klassen</label>
-                                                <input type="text" id="tenantIntranetListKlassen" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Klassen" title="Leer = Standard „Klassen“">
-                                            </div>
-                                            <div class="ts-intranet-list-names__row">
-                                                <label class="ts-intranet-list-names__type" for="tenantIntranetListLehrer">Lehrer:innen</label>
-                                                <input type="text" id="tenantIntranetListLehrer" class="ts-intranet-list-names__input" maxlength="200" spellcheck="false" autocomplete="off" placeholder="Lehrerinnen" title="Leer = Standard „Lehrerinnen“">
-                                            </div>
-                                        </div>
-                                    </fieldset>
-                                </article>
-
-                                <article class="ts-stammdaten-spo-point" id="tenantItLibraryPanel" aria-labelledby="tenantSpoPointItTitle">
-                                    <div class="ts-stammdaten-spo-point__head">
-                                        <span class="ts-stammdaten-spo-point__num" aria-hidden="true">2</span>
-                                        <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointItTitle">IT-Sicherungsbibliothek (Vollbackup)</h4>
-                                    </div>
-                                    <p class="muted ts-stammdaten-spo-point__lead">Synchron mit <a href="tools/stammdaten-uebergabe.html#setup">Stammdaten-Übergabe</a> – JSON-Backup über die Speichern-Leiste „SharePoint (IT)“. Die Site kann von Intranet-Listen und Schul-Intranet abweichen.</p>
-                                    <label class="ts-intranet-site-card__label" for="tenantItLibrarySiteUrl">SharePoint-Webseite für die IT-Bibliothek</label>
-                                    <div class="ts-intranet-site-card__url-row">
-                                        <input type="url" id="tenantItLibrarySiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/IT oder gleiche Site wie oben" autocomplete="off" spellcheck="false" aria-label="SharePoint-Webseite IT-Sicherungsbibliothek">
-                                        <button type="button" class="btn" id="tenantItLibrarySiteVerify" title="Mit Microsoft Graph prüfen, ob die Website erreichbar ist">
-                                            <i class="bi bi-patch-check" aria-hidden="true"></i> Website prüfen
-                                        </button>
-                                    </div>
-                                    <p id="tenantItLibrarySiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
-                                    <label class="ts-intranet-site-card__label" for="tenantItLibraryTitle">Name der IT-Bibliothek</label>
-                                    <input type="text" id="tenantItLibraryTitle" class="ts-intranet-site-card__input" value="MS365-IT-Stammdaten" maxlength="120" spellcheck="false" autocomplete="off">
-                                    <label class="ts-intranet-site-card__label" for="tenantItLibraryGroup">IT-/Verwaltungsgruppe (E-Mail oder Objekt-ID)</label>
-                                    <input type="text" id="tenantItLibraryGroup" class="ts-intranet-site-card__input" placeholder="verwaltung@schule.at oder GUID" autocomplete="off" spellcheck="false">
-                                    <p id="tenantItLibraryStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
-                                    <div class="ts-it-library-embed__actions">
-                                        <button type="button" class="btn btn-success" id="tenantItLibrarySetup"><i class="bi bi-shield-lock" aria-hidden="true"></i> IT-Bibliothek einrichten</button>
-                                        <a class="btn" href="tools/stammdaten-uebergabe.html#setup">Übergabe-Seite öffnen</a>
-                                    </div>
-                                    <details class="ts-it-library-embed__log-wrap">
-                                        <summary>Protokoll</summary>
-                                        <pre id="tenantItLibraryLog" class="tm-log ts-it-library-embed__log" aria-live="polite"></pre>
-                                    </details>
-                                </article>
-
-                                <article class="ts-stammdaten-spo-point" aria-labelledby="tenantSpoPointHubTitle">
-                                    <div class="ts-stammdaten-spo-point__head">
-                                        <span class="ts-stammdaten-spo-point__num" aria-hidden="true">3</span>
-                                        <h4 class="ts-stammdaten-spo-point__title" id="tenantSpoPointHubTitle">Schul-Intranet (Website)</h4>
-                                    </div>
-                                    <p class="muted ts-stammdaten-spo-point__lead">Die öffentliche Schul-Website / der Intranet-Hub – kann dieselbe Site wie oben sein oder eine eigene Adresse.</p>
-                                    <div class="ts-intranet-site-card__url-row">
-                                        <input type="url" id="tenantSchoolIntranetSiteUrl" class="ts-intranet-site-card__input" placeholder="https://…/sites/Schulintranet" autocomplete="off" spellcheck="false" aria-label="SharePoint-Schul-Intranet-Website">
-                                        <button type="button" class="btn" id="tenantSchoolIntranetSiteVerify" title="Mit Microsoft Graph prüfen, ob die Intranet-Website erreichbar ist">
-                                            <i class="bi bi-patch-check" aria-hidden="true"></i> Website prüfen
-                                        </button>
-                                    </div>
-                                    <p id="tenantSchoolIntranetSiteStatus" class="ts-intranet-site-card__status" role="status" aria-live="polite"></p>
-                                    <a class="btn ts-stammdaten-spo-point__link" href="tools/sharepoint-intranet-hub.html"><i class="bi bi-house-door" aria-hidden="true"></i> Intranet-Hub einrichten</a>
-                                </article>
-                            </section>
                         </div>
 
                             <div id="panelMainSubjects" class="tab-panel" role="tabpanel" aria-labelledby="tabMainSubjects">
@@ -1087,6 +1231,7 @@
                                 <label id="tenantSgaBoardLabel">SGA besetzen (3 Lehrkräfte · 3 Schüler:innen · 3 Elternvertreter:innen)</label>
                                 <p class="muted" style="margin:8px 0 12px;line-height:1.45;">
                                     Lehrkräfte und Schüler:innen aus den Stammdatenlisten wählen; Elternvertreter:innen in der dritten Spalte mit Name und E-Mail eintragen.
+                                    Die drei Schülerplätze sind mit dem Tab <strong>Schülervertretung</strong> gekoppelt (gleiche Personen).
                                     Unten die Gesamtliste inkl. Herkunft und Microsoft-365-Abgleich.
                                 </p>
                                 <div class="ts-sga-board" id="tenantSgaBoard" aria-labelledby="tenantSgaBoardLabel">
@@ -1197,17 +1342,22 @@
                                 <label for="tenantTeachersLines">Lehrerliste (eine Zeile pro Lehrkraft)</label>
                                 <textarea id="tenantTeachersLines" placeholder="MU;Max Mustermann;max.mustermann@schule.de&#10;BME;Anna Beispiel;anna.beispiel@schule.de"></textarea>
                                 <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                    Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer). Vorschläge aus Namen/WebUntis nutzen das <strong>E-Mail-Muster</strong> unter <a href="#tabMainStammdaten" data-ms365-register-tab-link="tabMainStammdaten">Stammdaten</a>. Bestehende Konten mit A1/A3/A5 können Sie aus dem Tenant einlesen.
+                                    Format: <code>Kürzel;Name;E-Mail</code>. E-Mail ist optional, aber empfohlen (für Kursteams-Besitzer).
+                                    <strong>Schnellweg:</strong> bestehende Lehrkräfte mit A1/A3/A5 über
+                                    <strong>Aus Microsoft&nbsp;365 einlesen</strong> in die Liste übernehmen (Abgleich per E-Mail/Name).
+                                    Alternativ WebUntis-Datei oder Excel-Vorlage.
                                 </small>
                                 <div class="ts-list-toolbar ts-list-toolbar--split settings-actions" style="margin-top:10px;">
                                     <div class="ts-list-toolbar__start">
+                                        <button type="button" class="btn btn-primary" id="tenantBtnImportTeachersFromTenant" title="Bestehende Entra-Konten mit Education-Lizenz (A1/A3/A5 Lehrpersonal) einlesen und mit der lokalen Liste zusammenführen">
+                                            <i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen
+                                        </button>
                                         <details class="ts-list-import-drop">
-                                            <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                            <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Datei / WebUntis …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                                             <div class="ts-list-import-drop__panel" role="menu">
                                                 <label class="ts-register-save-link" for="tenantTeachersImportFile" role="menuitem" title="CSV/Excel inkl. WebUntis Teacher_*.csv – mit Prüfdialog (Kürzel, Name, E-Mail)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / WebUntis)</label>
                                                 <input type="file" id="tenantTeachersImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls">
-                                                <p class="ts-list-import-drop__hint"><code>Teacher_*.csv</code> / <code>TeacherSalary</code> aus WebUntis werden erkannt. Nach dem Upload erscheinen Diff-Vorschau und die Tabelle darunter sofort. Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Import</a>.</p>
-                                                <button type="button" class="ts-register-save-link" id="tenantBtnImportTeachersFromTenant" role="menuitem" title="Bestehende Entra-Konten mit A1/A3/A5 für Lehrpersonal einlesen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen</button>
+                                                <p class="ts-list-import-drop__hint"><code>Teacher_*.csv</code> / <code>TeacherSalary</code> aus WebUntis. Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Assistent</a>. M365-Konten: Button <strong>Aus Microsoft 365 einlesen</strong> daneben.</p>
                                             </div>
                                         </details>
                                         <button type="button" class="ts-register-save-link" id="tenantTeachersTemplateXlsx" title="Excel-Vorlage Lehrerliste (Kürzel, Name, E-Mail)"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
@@ -1244,40 +1394,80 @@
                                 </section>
                                 <div id="tenantTeacherTenantImportPanel" class="sw-lic-import" hidden>
                                     <div class="sw-lic-import-head">
-                                        <h3>Bestehende Lehrkräfte aus dem Tenant</h3>
+                                        <div class="sw-lic-import-head-text">
+                                            <p class="sw-lic-import-eyebrow"><i class="bi bi-microsoft" aria-hidden="true"></i> Microsoft 365</p>
+                                            <h3>Lehrkräfte aus dem Tenant einlesen</h3>
+                                        </div>
                                         <button type="button" class="btn sw-lic-import-close" id="tenantBtnTeacherTenantClose" title="Einlesen schließen" aria-label="Einlesen schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                     </div>
-                                    <p>Abgleich mit der lokalen Lehrerliste: zuerst per E‑Mail, sonst per Name (zur Prüfung). Name und E‑Mail können zusammengeführt werden; Kürzel bleiben erhalten.</p>
-                                    <div id="tenantTeacherTenantImportSkuFilters" class="sw-lic-filters"></div>
-                                    <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantImportActiveOnly" checked> Nur aktive Konten</label>
-                                    <div class="sw-lic-merge-opts" aria-label="Abgleich-Optionen">
-                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantMatchName" checked> Treffer nur Name (prüfen)</label>
-                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantUpdateName" checked> Name aus M365</label>
-                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantUpdateEmail" checked> E‑Mail korrigieren</label>
-                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantTeacherTenantSelectDiffsOpt"> Abweichungen vorauswählen</label>
+                                    <p class="sw-lic-import-lead">Abgleich zuerst per E‑Mail, sonst per Name (zur Prüfung). Vorhandene Kürzel bleiben erhalten – danach auswählen und zusammenführen.</p>
+
+                                    <div class="sw-lic-filterbar" aria-label="Lizenzfilter">
+                                        <span class="sw-lic-filterbar-label">Lizenz</span>
+                                        <div id="tenantTeacherTenantImportSkuFilters" class="sw-lic-seg" role="group" aria-label="Education-Lizenzen"></div>
+                                        <label class="sw-lic-check"><input type="checkbox" id="tenantTeacherTenantImportActiveOnly" checked><span>Nur aktive Konten</span></label>
                                     </div>
-                                    <div class="sw-lic-text-filter sw-lic-text-filter--row">
-                                        <label class="sr-only" for="tenantTeacherTenantImportTextFilter">Name, E-Mail oder Kürzel filtern</label>
-                                        <input type="search" id="tenantTeacherTenantImportTextFilter" placeholder="Name, E-Mail oder Kürzel filtern …" autocomplete="off">
+
+                                    <div id="tenantTeacherTenantMetaFilters" class="sw-lic-metabar" hidden>
+                                        <div class="sw-lic-metabar-fields">
+                                            <div class="sw-lic-meta-field">
+                                                <label for="tenantTeacherTenantDepartmentFilter">Abteilung</label>
+                                                <select id="tenantTeacherTenantDepartmentFilter" disabled>
+                                                    <option value="">Alle</option>
+                                                </select>
+                                            </div>
+                                            <div class="sw-lic-meta-field">
+                                                <label for="tenantTeacherTenantOfficeFilter">Büro</label>
+                                                <select id="tenantTeacherTenantOfficeFilter" disabled>
+                                                    <option value="">Alle</option>
+                                                </select>
+                                            </div>
+                                            <div class="sw-lic-meta-field">
+                                                <label for="tenantTeacherTenantJobTitleFilter">Position</label>
+                                                <select id="tenantTeacherTenantJobTitleFilter" disabled>
+                                                    <option value="">Alle</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <label class="sw-lic-check sw-lic-check--meta-hint">
+                                            <input type="checkbox" id="tenantTeacherTenantTeacherMetaHint">
+                                            <span>Nur Lehrkraft-Hinweis in Metadaten</span>
+                                        </label>
+                                    </div>
+
+                                    <div id="tenantTeacherTenantImportStatus" class="sw-lic-stats" role="status" aria-live="polite"></div>
+
+                                    <div class="sw-lic-toolbar">
+                                        <div class="sw-lic-search">
+                                            <i class="bi bi-search" aria-hidden="true"></i>
+                                            <label class="sr-only" for="tenantTeacherTenantImportTextFilter">Name, E-Mail oder Kürzel filtern</label>
+                                            <input type="search" id="tenantTeacherTenantImportTextFilter" placeholder="Name, E-Mail oder Kürzel filtern …" autocomplete="off">
+                                        </div>
                                         <label for="tenantTeacherTenantViewFilter" class="sr-only">Ansicht</label>
-                                        <select id="tenantTeacherTenantViewFilter" title="Ansicht filtern">
-                                            <option value="all" selected>Alle</option>
+                                        <select id="tenantTeacherTenantViewFilter" class="sr-only" title="Ansicht filtern" tabindex="-1" aria-hidden="true">
+                                            <option value="all" selected>Alle anzeigen</option>
                                             <option value="new">Nur neu</option>
                                             <option value="matched">Nur zugeordnet</option>
                                             <option value="diffs">Abweichungen / Namens-Treffer</option>
                                             <option value="review">Zum Prüfen</option>
                                         </select>
                                     </div>
-                                    <p id="tenantTeacherTenantImportStatus" class="muted" style="margin-top:8px;"></p>
-                                    <div class="settings-actions" style="margin-top:8px;">
-                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNew">Nur neue</button>
-                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectDiffs">Abweichungen wählen</button>
-                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectAll">Alle auswählen</button>
-                                        <button type="button" class="btn" id="tenantBtnTeacherTenantSelectNone">Alle abwählen</button>
-                                        <button type="button" class="btn btn-success" id="tenantBtnTeacherTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte zusammenführen</button>
-                                        <button type="button" class="btn" id="tenantBtnTeacherTenantCloseFooter">Schließen</button>
+
+                                    <div class="sw-lic-actionbar">
+                                        <div class="sw-lic-actionbar-select" role="group" aria-label="Auswahl">
+                                            <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnTeacherTenantSelectNew" title="Nur neue Konten auswählen">Nur neue</button>
+                                            <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnTeacherTenantSelectDiffs" title="Abweichungen und Namens-Treffer auswählen">Abweichungen</button>
+                                            <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnTeacherTenantSelectAll">Alle</button>
+                                            <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnTeacherTenantSelectNone">Keine</button>
+                                            <span class="sw-lic-selected-count" id="tenantTeacherTenantSelectedCount" aria-live="polite">0 ausgewählt</span>
+                                        </div>
+                                        <div class="sw-lic-actionbar-primary">
+                                            <button type="button" class="btn btn-success" id="tenantBtnTeacherTenantApply" disabled><i class="bi bi-check2-circle" aria-hidden="true"></i> Ausgewählte zusammenführen</button>
+                                            <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnTeacherTenantCloseFooter">Schließen</button>
+                                        </div>
                                     </div>
-                                    <div class="teachers-table-wrap" aria-label="Vorschau Lehrkräfte aus dem Tenant">
+
+                                    <div class="teachers-table-wrap sw-lic-table-wrap" aria-label="Vorschau Lehrkräfte aus dem Tenant">
                                         <table class="teachers-table" aria-label="Lehrkräfte aus Microsoft 365">
                                             <thead>
                                                 <tr>
@@ -1292,6 +1482,18 @@
                                             <tbody id="tenantTeacherTenantImportBody"></tbody>
                                         </table>
                                     </div>
+
+                                    <details class="sw-lic-advanced">
+                                        <summary>Erweiterte Abgleich-Optionen</summary>
+                                        <div class="sw-lic-advanced-body">
+                                            <div class="sw-lic-checklist" aria-label="Abgleich-Optionen">
+                                                <label class="sw-lic-check"><input type="checkbox" id="tenantTeacherTenantMatchName" checked><span>Treffer nur über Name zulassen (zur Prüfung)</span></label>
+                                                <label class="sw-lic-check"><input type="checkbox" id="tenantTeacherTenantUpdateName" checked><span>Namen aus Microsoft 365 übernehmen</span></label>
+                                                <label class="sw-lic-check"><input type="checkbox" id="tenantTeacherTenantUpdateEmail" checked><span>E‑Mail aus Microsoft 365 korrigieren</span></label>
+                                                <label class="sw-lic-check"><input type="checkbox" id="tenantTeacherTenantSelectDiffsOpt"><span>Abweichungen automatisch vorauswählen</span></label>
+                                            </div>
+                                        </div>
+                                    </details>
                                 </div>
                                 <div class="teachers-table-wrap" aria-label="Lehrerliste als Tabelle">
                                     <table class="teachers-table" aria-label="Lehrerliste (editierbar per Doppelklick)">
@@ -1380,16 +1582,22 @@
                                     <label for="tenantStudentsLines">Schülerliste (eine Zeile pro Schüler:in)</label>
                                     <textarea id="tenantStudentsLines" placeholder="1AK;Max Mustermann;max.mustermann@schule.de&#10;1B;Dave Grohl;dave.grohl@schule.de;Jane Grohl;jane@mail.com;John Grohl;john@mail.com"></textarea>
                                     <small style="color:var(--muted);display:block;margin-top:8px;line-height:1.45;">
-                                        Format: <code>Klasse;Name;E-Mail</code> — optional <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code> (Trenner: <code>;</code>, Tab, Komma oder <code>|</code>). Fehlende Mails: <strong>E-Mail-Muster</strong> unter <a href="#tabMainStammdaten" data-ms365-register-tab-link="tabMainStammdaten">Stammdaten</a>. Eltern-Verteiler: <a href="tools/eltern-verteiler.html">Eltern-Verteiler</a>.
+                                        Format: <code>Klasse;Name;E-Mail</code> — optional <code>;Eltern1;Eltern1Mail;Eltern2;Eltern2Mail</code>.
+                                        Fehlende Mails: <strong>E-Mail-Muster</strong> unter <a href="#tabMainStammdaten" data-ms365-register-tab-link="tabMainStammdaten">Stammdaten</a>.
+                                        Optional: bestehende Schülerkonten mit A1/A3/A5 über <strong>Aus Microsoft&nbsp;365 einlesen</strong>.
+                                        Empfohlen für Klassen inkl. Eltern: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Assistent</a>.
                                     </small>
                                     <div class="ts-list-toolbar ts-list-toolbar--split settings-actions" style="margin-top:10px;">
                                         <div class="ts-list-toolbar__start">
+                                            <button type="button" class="btn" id="tenantBtnImportStudentsFromTenant" title="Bestehende Entra-Konten mit Education-Lizenz (A1/A3/A5 Schüler) einlesen">
+                                                <i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen
+                                            </button>
                                             <details class="ts-list-import-drop">
-                                                <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Importieren …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
+                                                <summary class="btn ts-register-save-drop__trigger"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Datei / Sokrates …<i class="bi bi-chevron-down ts-register-save-drop__chev" aria-hidden="true"></i></summary>
                                                 <div class="ts-list-import-drop__panel" role="menu">
                                                     <label class="ts-register-save-link" for="tenantStudentsImportFile" role="menuitem" title="CSV, Excel, WebUntis Student/LegalGuardian (Mehrfachauswahl)"><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>Datei wählen (CSV / Excel / WebUntis)</label>
                                                     <input type="file" id="tenantStudentsImportFile" class="ts-register-save-bar__file" accept=".csv,.xlsx,.xls,.txt" multiple>
-                                                    <p class="ts-list-import-drop__hint"><code>Student_*.xls</code> + optional <code>LegalGuardian_*.xls</code>, auch <strong>Sokrates</strong> und MS365-Vorlage. Nach dem Upload: <strong>Vorschau</strong> mit Zusammenführen/Ersetzen. Gesamtpaket: <a href="tools/webuntis-stammdaten-import.html?from=tenant">WebUntis-Import</a>.</p>
+                                                    <p class="ts-list-import-drop__hint"><strong>WebUntis-Gesamtpaket:</strong> <a href="tools/webuntis-stammdaten-import.html?from=tenant">Assistent</a>. Hier: einzelne Datei – Sokrates, WebUntis oder Excel-Vorlage. M365-Konten: Button daneben.</p>
                                                     <label for="tenantStudentsImportSource" class="ts-list-import-drop__hint" style="display:block;margin-top:8px;">Quelle (falls nicht automatisch)</label>
                                                     <select id="tenantStudentsImportSource" class="ts-list-import-drop__source" title="Import-Quelle">
                                                         <option value="auto" selected>Automatisch erkennen</option>
@@ -1397,10 +1605,10 @@
                                                         <option value="sokrates">Sokrates (111 / Elternabfrage)</option>
                                                         <option value="webuntis">WebUntis Exporte</option>
                                                     </select>
-                                                    <button type="button" class="ts-register-save-link" id="tenantBtnImportStudentsFromTenant" role="menuitem" title="Bestehende Entra-Konten mit A1/A3/A5 für Schüler:innen einlesen"><i class="bi bi-microsoft" aria-hidden="true"></i>Aus Microsoft 365 einlesen</button>
                                                 </div>
                                             </details>
                                             <button type="button" class="ts-register-save-link" id="tenantStudentsTemplateXlsx" title="Excel-Vorlage Schülerliste"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Excel-Vorlage</button>
+                                            <button type="button" class="ts-register-save-link" id="tenantStudentsFillDemoParents" title="Fehlende Erziehungsberechtigte mit fiktiven Demo-Eltern ergänzen (für Elterntools)"><i class="bi bi-people" aria-hidden="true"></i>Demo-Eltern ergänzen</button>
                                         </div>
                                         <div class="ts-list-toolbar__end">
                                             <button type="button" class="ts-register-save-link" id="tenantStudentsExportCsv" title="Aktuelle Schülerliste als CSV"><i class="bi bi-filetype-csv" aria-hidden="true"></i>Export CSV</button>
@@ -1420,43 +1628,76 @@
                                     </section>
                                     <div id="tenantStudentTenantImportPanel" class="sw-lic-import" hidden>
                                         <div class="sw-lic-import-head">
-                                            <h3>Bestehende Schüler:innen aus dem Tenant</h3>
+                                            <div class="sw-lic-import-head-text">
+                                                <p class="sw-lic-import-eyebrow"><i class="bi bi-microsoft" aria-hidden="true"></i> Microsoft 365</p>
+                                                <h3>Schüler:innen aus dem Tenant einlesen</h3>
+                                            </div>
                                             <button type="button" class="btn sw-lic-import-close" id="tenantBtnStudentTenantClose" title="Einlesen schließen" aria-label="Einlesen schließen"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                         </div>
-                                        <p>Abgleich mit der lokalen Schülerliste: zuerst per E‑Mail, sonst per Name+Klasse, optional nur per Name (zur Prüfung). Abweichungen bei Name, Klasse und E‑Mail können gezielt zusammengeführt werden.</p>
-                                        <div id="tenantStudentTenantImportSkuFilters" class="sw-lic-filters"></div>
-                                        <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantImportActiveOnly" checked> Nur aktive Konten</label>
-                                        <div class="sw-lic-merge-opts" aria-label="Abgleich-Optionen">
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantMatchNameClass" checked> Treffer Name+Klasse</label>
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantMatchName" checked> Treffer nur Name (prüfen)</label>
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantUpdateName" checked> Name aus M365</label>
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantUpdateKlasse" checked> Klasse nachfüllen</label>
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantOverwriteKlasse"> Klasse überschreiben</label>
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantUpdateEmail" checked> E‑Mail korrigieren</label>
-                                            <label class="sw-lic-chip"><input type="checkbox" id="tenantStudentTenantSelectDiffsOpt"> Abweichungen vorauswählen</label>
+                                        <p class="sw-lic-import-lead">Abgleich zuerst per E‑Mail, sonst per Name+Klasse (optional nur Name zur Prüfung). Abweichungen bei Name, Klasse und E‑Mail gezielt zusammenführen.</p>
+
+                                        <div class="sw-lic-filterbar" aria-label="Lizenzfilter">
+                                            <span class="sw-lic-filterbar-label">Lizenz</span>
+                                            <div id="tenantStudentTenantImportSkuFilters" class="sw-lic-seg" role="group" aria-label="Education-Lizenzen"></div>
+                                            <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantImportActiveOnly" checked><span>Nur aktive Konten</span></label>
                                         </div>
-                                        <div class="sw-lic-text-filter sw-lic-text-filter--row">
-                                            <label class="sr-only" for="tenantStudentTenantImportTextFilter">Name, E-Mail oder Klasse filtern</label>
-                                            <input type="search" id="tenantStudentTenantImportTextFilter" placeholder="Name, E-Mail oder Klasse filtern …" autocomplete="off">
+
+                                        <div id="tenantStudentTenantMetaFilters" class="sw-lic-metabar" hidden>
+                                            <div class="sw-lic-metabar-fields">
+                                                <div class="sw-lic-meta-field">
+                                                    <label for="tenantStudentTenantDepartmentFilter">Abteilung</label>
+                                                    <select id="tenantStudentTenantDepartmentFilter" disabled>
+                                                        <option value="">Alle</option>
+                                                    </select>
+                                                </div>
+                                                <div class="sw-lic-meta-field">
+                                                    <label for="tenantStudentTenantOfficeFilter">Büro</label>
+                                                    <select id="tenantStudentTenantOfficeFilter" disabled>
+                                                        <option value="">Alle</option>
+                                                    </select>
+                                                </div>
+                                                <div class="sw-lic-meta-field">
+                                                    <label for="tenantStudentTenantJobTitleFilter">Position</label>
+                                                    <select id="tenantStudentTenantJobTitleFilter" disabled>
+                                                        <option value="">Alle</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="tenantStudentTenantImportStatus" class="sw-lic-stats" role="status" aria-live="polite"></div>
+
+                                        <div class="sw-lic-toolbar">
+                                            <div class="sw-lic-search">
+                                                <i class="bi bi-search" aria-hidden="true"></i>
+                                                <label class="sr-only" for="tenantStudentTenantImportTextFilter">Name, E-Mail oder Klasse filtern</label>
+                                                <input type="search" id="tenantStudentTenantImportTextFilter" placeholder="Name, E-Mail oder Klasse filtern …" autocomplete="off">
+                                            </div>
                                             <label for="tenantStudentTenantViewFilter" class="sr-only">Ansicht</label>
-                                            <select id="tenantStudentTenantViewFilter" title="Ansicht filtern">
-                                                <option value="all" selected>Alle</option>
+                                            <select id="tenantStudentTenantViewFilter" class="sr-only" title="Ansicht filtern" tabindex="-1" aria-hidden="true">
+                                                <option value="all" selected>Alle anzeigen</option>
                                                 <option value="new">Nur neu</option>
                                                 <option value="matched">Nur zugeordnet</option>
                                                 <option value="diffs">Abweichungen / Namens-Treffer</option>
                                                 <option value="review">Zum Prüfen</option>
                                             </select>
                                         </div>
-                                        <p id="tenantStudentTenantImportStatus" class="muted" style="margin-top:8px;"></p>
-                                        <div class="settings-actions" style="margin-top:8px;">
-                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectNew">Nur neue</button>
-                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectDiffs">Abweichungen wählen</button>
-                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectAll">Alle auswählen</button>
-                                            <button type="button" class="btn" id="tenantBtnStudentTenantSelectNone">Alle abwählen</button>
-                                            <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply"><i class="bi bi-check2-circle"></i>Ausgewählte zusammenführen</button>
-                                            <button type="button" class="btn" id="tenantBtnStudentTenantCloseFooter">Schließen</button>
+
+                                        <div class="sw-lic-actionbar">
+                                            <div class="sw-lic-actionbar-select" role="group" aria-label="Auswahl">
+                                                <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnStudentTenantSelectNew" title="Nur neue Konten auswählen">Nur neue</button>
+                                                <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnStudentTenantSelectDiffs" title="Abweichungen und Namens-Treffer auswählen">Abweichungen</button>
+                                                <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnStudentTenantSelectAll">Alle</button>
+                                                <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnStudentTenantSelectNone">Keine</button>
+                                                <span class="sw-lic-selected-count" id="tenantStudentTenantSelectedCount" aria-live="polite">0 ausgewählt</span>
+                                            </div>
+                                            <div class="sw-lic-actionbar-primary">
+                                                <button type="button" class="btn btn-success" id="tenantBtnStudentTenantApply" disabled><i class="bi bi-check2-circle" aria-hidden="true"></i> Ausgewählte zusammenführen</button>
+                                                <button type="button" class="btn-ghost sw-lic-act" id="tenantBtnStudentTenantCloseFooter">Schließen</button>
+                                            </div>
                                         </div>
-                                        <div class="teachers-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
+
+                                        <div class="teachers-table-wrap sw-lic-table-wrap" aria-label="Vorschau Schüler:innen aus dem Tenant">
                                             <table class="teachers-table" aria-label="Schüler:innen aus Microsoft 365">
                                                 <thead>
                                                     <tr>
@@ -1471,6 +1712,21 @@
                                                 <tbody id="tenantStudentTenantImportBody"></tbody>
                                             </table>
                                         </div>
+
+                                        <details class="sw-lic-advanced">
+                                            <summary>Erweiterte Abgleich-Optionen</summary>
+                                            <div class="sw-lic-advanced-body">
+                                                <div class="sw-lic-checklist" aria-label="Abgleich-Optionen">
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantMatchNameClass" checked><span>Treffer über Name+Klasse zulassen</span></label>
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantMatchName" checked><span>Treffer nur über Name zulassen (zur Prüfung)</span></label>
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantUpdateName" checked><span>Namen aus Microsoft 365 übernehmen</span></label>
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantUpdateKlasse" checked><span>Leere Klasse nachfüllen</span></label>
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantOverwriteKlasse"><span>Klasse überschreiben</span></label>
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantUpdateEmail" checked><span>E‑Mail aus Microsoft 365 korrigieren</span></label>
+                                                    <label class="sw-lic-check"><input type="checkbox" id="tenantStudentTenantSelectDiffsOpt"><span>Abweichungen automatisch vorauswählen</span></label>
+                                                </div>
+                                            </div>
+                                        </details>
                                     </div>
                                     <div class="students-list-filters" id="tenantStudentsListFilters">
                                         <div class="students-list-filters__class">
@@ -1579,6 +1835,7 @@
                                 <label id="tenantStudentCouncilPickLabel">Schülervertretung besetzen</label>
                                 <p class="muted" style="margin:8px 0 12px;line-height:1.45;">
                                     Vertreter:innen direkt aus der <strong>Schülerliste</strong> des aktuellen Schuljahrs wählen (typisch drei Personen, beliebig erweiterbar).
+                                    Die ersten drei Plätze sind mit der <strong>SGA-Schülervertretung</strong> gekoppelt – Änderungen hier oder unter SGA gelten für beide.
                                     Klasse, Name und E-Mail werden automatisch übernommen.
                                 </p>
                                 <div class="ts-sv-pick-board" id="tenantStudentCouncilPickBoard" aria-labelledby="tenantStudentCouncilPickLabel">
@@ -1857,7 +2114,7 @@
     <script type="module" src="src/shared/utils/strings.js"></script>
     <script type="module" src="src/shared/utils/school-year.js"></script>
     <script type="module" src="src/shared/dashboard-persona-session.js"></script>
-    <script type="module" src="src/shared/msal-auth-ui.js"></script>
+    <script type="module" src="src/shared/msal-auth-ui.js?v=20261118"></script>
     <script src="src/shared/theme-toggle.js?v=2" defer></script>
     <script type="module" src="src/shared/graph-unified-groups.js"></script>
     <script src="src/shared/group-photo-thumb.js" defer></script>
@@ -1895,7 +2152,9 @@
             function initDraggableTabOrder(containerId, storageKey) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
-                const buttons = Array.from(container.querySelectorAll('.tab-btn[role="tab"]'));
+                const buttons = Array.from(container.querySelectorAll('.tab-btn[role="tab"]')).filter(function (btn) {
+                    return btn.id !== 'tabMainOrganigramm' && !btn.classList.contains('tab-btn--header-route') && !btn.hidden;
+                });
                 if (!buttons.length) return;
                 const initialIds = buttons.map((btn) => btn.id).filter(Boolean);
                 try {
@@ -1981,6 +2240,53 @@
                         if (b) b.setAttribute('aria-selected', on ? 'true' : 'false');
                         if (p) p.classList.toggle('active', on);
                     });
+                    const orgOn = activeBtnId === 'tabMainOrganigramm';
+                    document.body.classList.toggle('tenant-mode-organigramm', orgOn);
+                    try {
+                        const nameEl = document.querySelector('.header-tool-indicator__name');
+                        if (nameEl) {
+                            nameEl.innerHTML = orgOn
+                                ? '<i class="bi bi-diagram-3"></i>Schul-Organigramm'
+                                : '<i class="bi bi-database"></i>Stammdaten';
+                        }
+                        const lead = document.querySelector('.header > p:not(.ts-header-mode-hint):not(.header-help-row):not(.ts-header-info-row)');
+                        if (lead) {
+                            lead.hidden = !!orgOn;
+                        }
+                        const about = document.querySelector('.ts-register-about');
+                        if (about) about.hidden = !!orgOn;
+                        const importBtn = document.querySelector(
+                            '.ts-register-header-toolbar__nav a[href*="webuntis-stammdaten-import"]'
+                        );
+                        if (importBtn) importBtn.hidden = !!orgOn;
+                    } catch {
+                        /* ignore */
+                    }
+                    try {
+                        const curHash = String(location.hash || '')
+                            .replace(/^#/, '')
+                            .toLowerCase();
+                        if (orgOn && curHash !== 'organigramm') {
+                            history.replaceState(null, '', '#organigramm');
+                        } else if (
+                            !orgOn &&
+                            (curHash === 'organigramm' ||
+                                curHash === 'schul-organigramm' ||
+                                curHash === 'schulorganigramm' ||
+                                curHash === 'org')
+                        ) {
+                            history.replaceState(null, '', location.pathname + location.search);
+                        }
+                    } catch {
+                        /* ignore */
+                    }
+                    try {
+                        if (typeof window.ms365SyncSchoolContextHeader === 'function') {
+                            window.ms365SyncSchoolContextHeader();
+                        }
+                    } catch {
+                        /* ignore */
+                    }
                     try {
                         if (storageKey && byButton[activeBtnId]) localStorage.setItem(storageKey, activeBtnId);
                     } catch {
@@ -2045,7 +2351,10 @@
                 try {
                     if (storageKey) {
                         const stored = localStorage.getItem(storageKey) || '';
-                        if (stored && byButton[stored]) initialBtnId = stored;
+                        // Organigramm nur über Header/#organigramm – nicht aus Tab-Speicher wiederherstellen
+                        if (stored && byButton[stored] && stored !== 'tabMainOrganigramm') {
+                            initialBtnId = stored;
+                        }
                     }
                 } catch {
                     // ignore

@@ -2,10 +2,11 @@
  * Persona-Signale für das Dashboard.
  *
  * Hierarchie (strikt):
- * 1. Global Admin, designierter IT-Kontakt (Lizenz) oder Plattform-Betreiber → voller Katalog + Stammdaten
- * 2. Mitglieder der konfigurierten Dashboard-Lehrer-Entra-Gruppe → Lehrkraft-Ansicht
- * 3. Mitglieder der konfigurierten Dashboard-Schüler-Entra-Gruppe → Schüler-Ansicht
- * 4. Sonst (Planer-Rollen / Stammdaten-E-Mail) → Lehrkraft, wenn erkennbar
+ * 1. Global Admin, designierter IT-Kontakt (Lizenz) oder Plattform-Betreiber → IT
+ * 2. Mitglieder der konfigurierten Dashboard-Lehrer-Entra-Gruppe → Lehrkraft
+ * 3. Planer-Rollen / Stammdaten-Lehrer-E-Mail → Lehrkraft
+ *    (auch wenn nur in Schüler-Gruppe oder in keiner Dashboard-Gruppe)
+ * 4. Mitglieder der konfigurierten Dashboard-Schüler-Entra-Gruppe → Schüler
  * 5. Jeder andere angemeldete Nutzer → Schüler-Ansicht (Minimum)
  */
 import { resolveDashboardPersonaFromEntraGroups } from './dashboard-audience-entra.js';
@@ -63,20 +64,99 @@ function isLoggedIn() {
     }
 }
 
-function loadStammdatenScope() {
-    const mail = accountEmail();
-    /** @type {{ teacherMatch?: object|null, studentMatch?: object|null }} */
-    const scope = { teacherMatch: null, studentMatch: null };
+function readSchoolDomainHint() {
     try {
-        if (typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function') {
-            const s = window.ms365TenantSettingsLoad();
-            scope.teacherMatch = matchTeacherByEmail(mail, s && s.teachers);
-            scope.studentMatch = matchStudentByEmail(mail, s && s.students);
+        if (typeof window !== 'undefined' && typeof window.ms365GetSchoolDomainNoAt === 'function') {
+            const d = String(window.ms365GetSchoolDomainNoAt() || '')
+                .trim()
+                .replace(/^@+/, '');
+            if (d) return d;
         }
     } catch {
         /* ignore */
     }
+    try {
+        if (typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function') {
+            const s = window.ms365TenantSettingsLoad() || {};
+            const d = String(s.domain || '')
+                .trim()
+                .replace(/^@+/, '');
+            if (d) return d;
+        }
+    } catch {
+        /* ignore */
+    }
+    const mail = accountEmail();
+    const at = mail.lastIndexOf('@');
+    return at > 0 ? mail.slice(at + 1) : '';
+}
+
+function loadStammdatenScope() {
+    const mail = accountEmail();
+    /** @type {{
+     *   teacherMatch?: object|null,
+     *   studentMatch?: object|null,
+     *   kvMatch?: boolean,
+     *   kvKlassen?: string[],
+     *   teacherCount?: number,
+     *   domain?: string
+     * }} */
+    const scope = {
+        teacherMatch: null,
+        studentMatch: null,
+        kvMatch: false,
+        kvKlassen: [],
+        teacherCount: 0,
+        domain: ''
+    };
+    try {
+        if (typeof window !== 'undefined' && typeof window.ms365TenantSettingsLoad === 'function') {
+            const s = window.ms365TenantSettingsLoad();
+            const teachers = (s && s.teachers) || [];
+            scope.teacherCount = Array.isArray(teachers) ? teachers.length : 0;
+            scope.domain = String((s && s.domain) || '')
+                .trim()
+                .replace(/^@+/, '');
+            scope.teacherMatch = matchTeacherByEmail(mail, teachers);
+            scope.studentMatch = matchStudentByEmail(mail, s && s.students);
+            const classes = (s && s.classes) || [];
+            const kvKlassen = classes
+                .filter((c) => {
+                    const head = String(
+                        (c && (c.headEmail || c.kvEmail || c.classTeacherEmail)) || ''
+                    )
+                        .trim()
+                        .toLowerCase();
+                    return !!mail && head === mail;
+                })
+                .map((c) => String((c && c.code) || '').trim())
+                .filter(Boolean);
+            scope.kvKlassen = kvKlassen;
+            scope.kvMatch = kvKlassen.length > 0;
+        }
+    } catch {
+        /* ignore */
+    }
+    if (!scope.domain) scope.domain = readSchoolDomainHint();
     return scope;
+}
+
+/**
+ * @param {{
+ *   teacherMatch?: object|null,
+ *   teacherCount?: number,
+ *   domain?: string
+ * }} stammdatenScope
+ * @param {boolean} groupsConfigured
+ */
+function buildPersonaDiagnostics(stammdatenScope, groupsConfigured) {
+    const domain = String((stammdatenScope && stammdatenScope.domain) || '').trim();
+    return {
+        hasDomain: !!domain,
+        teacherCount: Number((stammdatenScope && stammdatenScope.teacherCount) || 0) || 0,
+        groupsConfigured: !!groupsConfigured,
+        inTeacherList: !!(stammdatenScope && stammdatenScope.teacherMatch)
+    };
 }
 
 function isOperatorSync() {
@@ -179,6 +259,7 @@ async function resolveFreistellungRoles() {
 
     const stammdatenScopeFr = loadStammdatenScope();
     if (stammdatenScopeFr.studentMatch) add('schueler', 'stammdaten');
+    if (stammdatenScopeFr.kvMatch) add('kv', 'stammdaten-kv');
 
     if (!entra && !roles.length) return [];
     return finalizeFrRoles(roles, sources).roles;
@@ -187,11 +268,68 @@ async function resolveFreistellungRoles() {
 /**
  * Planer-„Admin“/Direktion = erweiterte Lehrkraft-Ansicht, kein voller IT-Katalog.
  */
-function isTeacherDashboardRole(schularbeitenRoles, freistellungRoles, stammdatenScope) {
+export function isTeacherDashboardRole(schularbeitenRoles, freistellungRoles, stammdatenScope) {
     if (schularbeitenRoles.includes('lehrer') || schularbeitenRoles.includes('admin')) return true;
     if (freistellungRoles.includes('kv') || freistellungRoles.includes('direktion')) return true;
     if (stammdatenScope && stammdatenScope.teacherMatch) return true;
+    if (stammdatenScope && stammdatenScope.kvMatch) return true;
     return false;
+}
+
+/**
+ * Nicht-IT-Persona: Entra-Lehrer gewinnt; Stammdaten/Planer-Lehrkraft schlägt
+ * „nur Schüler-Gruppe“ bzw. „Gruppen konfiguriert, aber nicht Mitglied“.
+ *
+ * @param {{
+ *   entraDashPersona?: 'lehrer'|'schueler'|null,
+ *   groupsConfigured?: boolean,
+ *   isTeacher?: boolean,
+ *   explicitPlanerSchueler?: boolean,
+ *   studentMatch?: boolean
+ * }} opts
+ * @returns {{ isLehrer: boolean, isSchueler: boolean, unknownUser?: boolean, personaSource: string }}
+ */
+export function resolveNonItDashboardPersona(opts) {
+    const entra = opts && opts.entraDashPersona != null ? opts.entraDashPersona : null;
+    const groupsConfigured = !!(opts && opts.groupsConfigured);
+    const isTeacher = !!(opts && opts.isTeacher);
+    const explicitPlanerSchueler = !!(opts && opts.explicitPlanerSchueler);
+    const studentMatch = !!(opts && opts.studentMatch);
+
+    if (entra === 'lehrer') {
+        return {
+            isLehrer: true,
+            isSchueler: false,
+            personaSource: 'dashboard-entra-lehrer'
+        };
+    }
+
+    // Lehrkraft per Stammdaten / Planer-Rollen hat Vorrang vor Schüler-Fallback
+    if (isTeacher) {
+        let personaSource = 'stammdaten-planer';
+        if (entra === 'schueler') personaSource = 'stammdaten-lehrer-over-entra-schueler';
+        else if (groupsConfigured && !entra) personaSource = 'stammdaten-lehrer-entra-miss';
+        return {
+            isLehrer: true,
+            isSchueler: false,
+            personaSource
+        };
+    }
+
+    if (entra === 'schueler') {
+        return {
+            isLehrer: false,
+            isSchueler: true,
+            personaSource: 'dashboard-entra-schueler'
+        };
+    }
+
+    return {
+        isLehrer: false,
+        isSchueler: true,
+        unknownUser: !explicitPlanerSchueler && !studentMatch,
+        personaSource: groupsConfigured && !entra ? 'dashboard-entra-none' : 'default-schueler'
+    };
 }
 
 /**
@@ -202,6 +340,13 @@ function isTeacherDashboardRole(schularbeitenRoles, freistellungRoles, stammdate
  *   isIt: boolean,
  *   isLehrer: boolean,
  *   isSchueler: boolean,
+ *   personaSource?: string,
+ *   personaDiagnostics?: {
+ *     hasDomain?: boolean,
+ *     teacherCount?: number,
+ *     groupsConfigured?: boolean,
+ *     inTeacherList?: boolean
+ *   },
  *   globalAdmin?: boolean,
  *   operator?: boolean,
  *   schularbeitenRoles: string[],
@@ -263,49 +408,26 @@ export async function resolveDashboardPersonas() {
         }
     }
 
-    if (entraDashPersona === 'lehrer') {
-        return {
-            filtering: true,
-            loggedIn: true,
-            isIt: false,
-            isLehrer: true,
-            isSchueler: false,
-            personaSource: 'dashboard-entra-lehrer',
-            globalAdmin,
-            operator,
-            schularbeitenRoles,
-            freistellungRoles
-        };
-    }
-
-    if (entraDashPersona === 'schueler' || (groupsConfigured && !entraDashPersona)) {
-        return {
-            filtering: true,
-            loggedIn: true,
-            unknownUser: groupsConfigured && !entraDashPersona,
-            isIt: false,
-            isLehrer: false,
-            isSchueler: true,
-            personaSource: entraDashPersona === 'schueler' ? 'dashboard-entra-schueler' : 'dashboard-entra-none',
-            globalAdmin,
-            operator,
-            schularbeitenRoles,
-            freistellungRoles
-        };
-    }
-
     const isTeacher = isTeacherDashboardRole(schularbeitenRoles, freistellungRoles, stammdatenScope);
-
     const explicitPlanerSchueler =
         schularbeitenRoles.includes('schueler') || freistellungRoles.includes('schueler');
+    const decided = resolveNonItDashboardPersona({
+        entraDashPersona,
+        groupsConfigured,
+        isTeacher,
+        explicitPlanerSchueler,
+        studentMatch: !!(stammdatenScope && stammdatenScope.studentMatch)
+    });
 
     return {
         filtering: true,
         loggedIn: true,
-        unknownUser: !isTeacher && !explicitPlanerSchueler && !stammdatenScope.studentMatch,
+        unknownUser: !!decided.unknownUser,
         isIt: false,
-        isLehrer: isTeacher,
-        isSchueler: !isTeacher,
+        isLehrer: decided.isLehrer,
+        isSchueler: decided.isSchueler,
+        personaSource: decided.personaSource,
+        personaDiagnostics: buildPersonaDiagnostics(stammdatenScope, groupsConfigured),
         globalAdmin,
         operator,
         schularbeitenRoles,

@@ -10,7 +10,8 @@ process.env.LICENSE_API_BASE_URL = 'https://license.test/api/license';
 
 const {
     licenseTokenFromRequest,
-    assertTenantLicenseAllowed
+    assertTenantLicenseAllowed,
+    licenseMeAllowsFeature
 } = require('../src/lib/require-tenant-license.js');
 
 const TID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -72,7 +73,10 @@ describe('assertTenantLicenseAllowed', () => {
                 }
             };
         };
-        await expect(assertTenantLicenseAllowed({ tid: TID }, 'good')).resolves.toBeUndefined();
+        await expect(assertTenantLicenseAllowed({ tid: TID }, 'good')).resolves.toMatchObject({
+            allowed: true,
+            tenantId: TID
+        });
     });
 
     it('lehnt ab, wenn allowed false', async () => {
@@ -107,5 +111,68 @@ describe('assertTenantLicenseAllowed', () => {
         await expect(assertTenantLicenseAllowed({ tid: TID }, 'tok')).rejects.toMatchObject({
             status: 403
         });
+    });
+
+    it('lehnt fehlendes Feature ab', async () => {
+        global.fetch = async () => ({
+            ok: true,
+            status: 200,
+            async text() {
+                return JSON.stringify({
+                    allowed: true,
+                    tenantId: TID,
+                    entitlements: {
+                        packages: ['core'],
+                        features: ['datenhygiene'],
+                        denied: ['kursteams']
+                    }
+                });
+            }
+        });
+        await expect(
+            assertTenantLicenseAllowed({ tid: TID }, 'tok', { feature: 'kursteams' })
+        ).rejects.toMatchObject({
+            status: 403,
+            code: 'feature_not_licensed'
+        });
+    });
+
+    it('erlaubt Feature wenn in entitlements.features', async () => {
+        global.fetch = async () => ({
+            ok: true,
+            status: 200,
+            async text() {
+                return JSON.stringify({
+                    allowed: true,
+                    tenantId: TID,
+                    entitlements: {
+                        packages: ['unterricht'],
+                        features: ['kursteams', 'onenote-verteilung'],
+                        denied: []
+                    }
+                });
+            }
+        });
+        await expect(
+            assertTenantLicenseAllowed({ tid: TID }, 'tok', { feature: 'kursteams' })
+        ).resolves.toMatchObject({ allowed: true });
+    });
+});
+
+describe('licenseMeAllowsFeature', () => {
+    it('Legacy ohne entitlements = erlaubt', () => {
+        expect(licenseMeAllowsFeature({ allowed: true }, 'kursteams')).toBe(true);
+    });
+
+    it('denied sperrt', () => {
+        expect(
+            licenseMeAllowsFeature(
+                {
+                    allowed: true,
+                    entitlements: { features: ['core-x'], denied: ['kursteams'] }
+                },
+                'kursteams'
+            )
+        ).toBe(false);
     });
 });

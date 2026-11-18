@@ -9,7 +9,40 @@
     <title>MS365-Schul-Tools – Schulaktivitäten-Listen</title>
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
+    <link rel="stylesheet" href="../src/shared/planner-entra-perms.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .spakt-wizard-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .spakt-wizard-glance--nav .tm-glance__card {
+            appearance: none;
+            margin: 0;
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            color: inherit;
+            width: 100%;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+        .spakt-wizard-glance--nav .tm-glance__card:hover {
+            border-color: color-mix(in srgb, var(--brand1) 45%, var(--border));
+        }
+        .spakt-wizard-glance--nav .tm-glance__card.is-active {
+            border-color: var(--brand1);
+            background: color-mix(in srgb, var(--brand1) 14%, var(--card));
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand1) 28%, transparent);
+        }
+        .spakt-wizard-glance--nav .tm-glance__card.is-active .tm-glance__label { color: var(--brand1); }
+        .spakt-wizard-glance--nav .tm-glance__card.is-active i { color: var(--brand1); }
+        @media (max-width: 720px) {
+            .spakt-wizard-glance { grid-template-columns: 1fr 1fr; }
+        }
+        .fr-setup-perm-grid--single { grid-template-columns: 1fr; max-width: 36rem; }
+        .spakt-summary-list { margin: 0; padding-left: 1.15em; line-height: 1.55; }
+        .spakt-summary-list li { margin-bottom: 8px; }
+        #spaktLogPanel[open] { margin-top: 12px; }
+        #spaktLog { min-height: 140px; max-height: 320px; overflow: auto; }
+        #spaktWizardRunFooter { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    </style>
 </head>
 <body>
     <div class="container page-card tm-page">
@@ -20,8 +53,8 @@
                 <span class="header-tool-indicator__name"><i class="bi bi-bus-front"></i>Schulaktivitäten-Listen</span>
             </div>
             <p>
-                SharePoint-Paket für Exkursionen und schulische Aktivitäten: zwei Listen auf der Schulwebsite.
-                Klassen und Lehrkräfte kommen aus den <strong>Stammdaten</strong> – keine doppelten Lookup-Listen.
+                In <strong>4 Schritten</strong>: Website wählen, Genehmigung und Einreicher festlegen,
+                dann Listen + Stammdaten + Rechte als Paket anlegen.
             </p>
             <p class="header-help-row"><a href="../hilfe.html#tool-schulaktivitaeten-listen" class="header-help-link"><i class="bi bi-question-circle"></i>Hilfe</a></p>
             <div class="toolbar">
@@ -32,45 +65,107 @@
 
         <div class="content">
             <div class="tm-hero__actions" style="margin:0 0 14px;" aria-label="Status">
-                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte auf der Website</span>
+                <span class="tm-perm"><i class="bi bi-signpost-2"></i><span id="spaktPhaseHint">Schritt 1 von 4: Website</span></span>
+                <span class="tm-perm"><i class="bi bi-shield-check"></i>Schreibrechte + Sites.FullControl.All für Rechte</span>
             </div>
 
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
-                    <div>
-                        <h3>Listen anlegen</h3>
-                        <p>Intranet-Website wählen und Paket ausführen.</p>
-                    </div>
-                </div>
-                <div class="tm-field">
-                    <label for="spaktSiteUrl">SharePoint-Website</label>
-                    <input type="url" id="spaktSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
-                </div>
-                <div class="tm-actions">
-                    <button type="button" class="btn" id="spaktBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
-                    <button type="button" class="btn" id="spaktBtnHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>
-                    <button type="button" class="btn" id="spaktBtnRun"><i class="bi bi-list-ul"></i>Paket anlegen</button>
-                </div>
-                <p id="spaktHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
-                <details class="tm-tech">
-                    <summary>Protokoll</summary>
-                    <div id="spaktLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
-                </details>
+            <section class="tm-glance tm-glance--compact spakt-wizard-glance spakt-wizard-glance--nav" id="spaktWizardGlance" role="tablist" aria-label="Schulaktivitäten-Listen Schritte">
+                <button type="button" role="tab" class="tm-glance__card is-active" data-spakt-wizard-step="1" aria-selected="true" aria-controls="spaktWizardStep1">
+                    <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                    <span class="tm-glance__label">1 · Website</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-spakt-wizard-step="2" aria-controls="spaktWizardStep2">
+                    <i class="bi bi-building-check" aria-hidden="true"></i>
+                    <span class="tm-glance__label">2 · Genehmigung</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-spakt-wizard-step="3" aria-controls="spaktWizardStep3">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    <span class="tm-glance__label">3 · Einreicher</span>
+                </button>
+                <button type="button" role="tab" class="tm-glance__card" data-spakt-wizard-step="4" aria-controls="spaktWizardStep4">
+                    <i class="bi bi-play-circle" aria-hidden="true"></i>
+                    <span class="tm-glance__label">4 · Paket</span>
+                </button>
             </section>
 
-            <section class="tm-panel">
-                <div class="tm-panel__head">
-                    <i class="bi bi-list-check" aria-hidden="true"></i>
-                    <div>
-                        <h3>Was wird angelegt?</h3>
-                        <p>Idempotent: vorhandene Listen werden erkannt, fehlende Spalten ergänzt.</p>
+            <section class="tm-wizard" aria-label="Schulaktivitäten-Listen Assistent">
+                <div class="tm-wizard__body">
+                    <div id="spaktWizardStep1" class="tm-wizard__pane" role="tabpanel">
+                        <h3 class="tm-wizard__pane-title">Wo sollen die Listen liegen?</h3>
+                        <p class="tm-wizard__pane-lead">SharePoint-Website der Schule (Intranet / Schultools). URL aus den Stammdaten wird vorausgefüllt.</p>
+                        <section class="tm-panel">
+                            <div class="tm-field">
+                                <label for="spaktSiteUrl">SharePoint-Website</label>
+                                <input type="url" id="spaktSiteUrl" placeholder="https://ihre-schule.sharepoint.com/sites/Intranet" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="tm-actions">
+                                <button type="button" class="btn" id="spaktBtnProbe"><i class="bi bi-search"></i>Website prüfen</button>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div id="spaktWizardStep2" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Wer genehmigt?</h3>
+                        <p class="tm-wizard__pane-lead">Verwaltung / Direktion – genehmigt Anträge und hat Vollzugriff. Entra-Gruppe, mail-aktivierte Sicherheitsgruppe oder Einzelperson.</p>
+                        <div id="spaktEntraPermAdmin" class="fr-setup-perm-grid-host"></div>
+                    </div>
+
+                    <div id="spaktWizardStep3" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Wer darf einreichen?</h3>
+                        <p class="tm-wizard__pane-lead">
+                            <strong>Einreicher</strong> (meist Lehrkräfte) tragen Schulaktivitäten ein und lesen Klassen/Lehrerinnen.
+                            Gruppe aus Microsoft&nbsp;365 suchen oder Personen setzen.
+                        </p>
+                        <div id="spaktEntraPermEinreicher" class="fr-setup-perm-grid-host"></div>
+                    </div>
+
+                    <div id="spaktWizardStep4" class="tm-wizard__pane" role="tabpanel" hidden>
+                        <h3 class="tm-wizard__pane-title">Paket anlegen</h3>
+                        <p class="tm-wizard__pane-lead">Zusammenfassung prüfen, dann ausführen. Das Protokoll läuft währenddessen sichtbar mit.</p>
+                        <section class="tm-panel">
+                            <ul class="spakt-summary-list" id="spaktWizardSummary">
+                                <li>Website: —</li>
+                            </ul>
+                            <label class="checkbox-label" style="display:block;margin:14px 0 8px;">
+                                <input type="checkbox" id="spaktSkipPerms"> Berechtigungen diesmal überspringen (nur Listen/Spalten + Stammdaten)
+                            </label>
+                            <div id="spaktWizardRunFooter">
+                                <button type="button" class="btn akt-btn-primary" id="spaktBtnRun" style="background:var(--brand1);color:#fff;border-color:var(--brand1)"><i class="bi bi-list-ul"></i>Paket anlegen</button>
+                                <button type="button" class="btn" id="spaktBtnSeed"><i class="bi bi-database-up"></i>Nur Stammdaten befüllen</button>
+                                <button type="button" class="btn" id="spaktBtnPerms"><i class="bi bi-shield-lock"></i>Nur Berechtigungen</button>
+                                <button type="button" class="btn" id="spaktBtnHealth"><i class="bi bi-heart-pulse"></i>Listen prüfen</button>
+                            </div>
+                            <p class="muted" style="font-size:0.85em;margin:10px 0 0;line-height:1.45;">
+                                Das Paket legt Listen an, befüllt Lehrer/Klassen aus den Stammdaten und setzt Rechte.
+                                „Nur Berechtigungen“ allein schreibt keine Klassenzeilen.
+                            </p>
+                            <p id="spaktHealth" class="tm-sync-health" hidden role="status" aria-live="polite" style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2,#f4f6f8);font-size:0.92em;"></p>
+                            <details class="tm-tech" id="spaktLogPanel" open>
+                                <summary>Protokoll</summary>
+                                <div id="spaktLog" class="tm-log" style="margin-top:10px;" aria-live="polite"></div>
+                            </details>
+                        </section>
+                        <section class="tm-panel" style="margin-top:14px;">
+                            <div class="tm-panel__head">
+                                <i class="bi bi-list-check" aria-hidden="true"></i>
+                                <div>
+                                    <h3>Was wird angelegt?</h3>
+                                    <p>Idempotent: Schema, Befüllung, Rechte.</p>
+                                </div>
+                            </div>
+                            <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
+                                <li><strong>Lehrerinnen</strong> – aus Stammdaten – Einreicher: Lesen</li>
+                                <li><strong>Klassen</strong> – aus Stammdaten (inkl. KV) – Einreicher: Lesen</li>
+                                <li><strong>Aktivitaet-Regelwerk</strong> – Einreicher: Lesen, Genehmigung: voll</li>
+                                <li><strong>Schulaktivitaeten</strong> – Einreicher: Beitragen, Genehmigung: voll</li>
+                            </ul>
+                        </section>
                     </div>
                 </div>
-                <ul class="tm-checklist" style="margin:0;padding-left:1.2em;line-height:1.55;">
-                    <li><strong>Aktivitaet-Regelwerk</strong> – Min.-Vorlauf, max. Überlappung pro Klasse (mit Seed)</li>
-                    <li><strong>Schulaktivitaeten</strong> – Anträge (Exkursion / Aktivität / Veranstaltung) mit Status</li>
-                </ul>
+                <footer class="tm-wizard__footer">
+                    <button type="button" class="btn" id="spaktWizardBack" disabled><i class="bi bi-arrow-left"></i>Zurück</button>
+                    <button type="button" class="btn" id="spaktWizardNext">Weiter</button>
+                </footer>
             </section>
         </div>
     </div>
@@ -80,6 +175,7 @@
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/shared/app-data-v2.js" defer></script>
+    <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/shared/action-log.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script type="module" src="../src/tools/sharepoint/sharepoint-liste-schulaktivitaeten.js"></script>

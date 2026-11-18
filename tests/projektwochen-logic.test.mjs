@@ -2,14 +2,24 @@ import { describe, expect, it } from 'vitest';
 import {
     validateAngebot,
     computeDashboardKpis,
+    computePwAttention,
     buildWeekPlan,
     buildWeekPlanDisplayRows,
     effectiveBuchungAb,
     isBookingOpen,
     weekdayLabelDeFromIso,
-    toIsoDateOnly
+    toIsoDateOnly,
+    resolvePwOwnership,
+    assertPwOwnership,
+    isPwAccessDeniedError,
+    friendlyPwSpoError
 } from '../src/tools/projektwochen/projektwochen-logic.js';
-import { filterAngebote, pickActiveAktion } from '../src/tools/projektwochen/projektwochen-state.js';
+import {
+    filterAngebote,
+    pickActiveAktion,
+    navSectionsForRole,
+    viewsForRole
+} from '../src/tools/projektwochen/projektwochen-state.js';
 import { buildLocalDemoState } from '../src/tools/projektwochen/projektwochen-demo-data.js';
 
 describe('projektwochen-logic', () => {
@@ -105,6 +115,46 @@ describe('projektwochen-logic', () => {
     });
 });
 
+describe('projektwochen ownership & soft errors', () => {
+    it('resolvePwOwnership füllt BeantragtVon / E-Mail / Kürzel', () => {
+        const o = resolvePwOwnership(
+            { title: 'Zoo' },
+            {
+                accountEmail: 'mueller@schule.at',
+                teachers: [{ code: 'MU', email: 'mueller@schule.at' }]
+            }
+        );
+        expect(o.beantragtVon).toBe('mueller@schule.at');
+        expect(o.lehrerEmail).toBe('mueller@schule.at');
+        expect(o.lehrerCode).toBe('MU');
+        expect(() => assertPwOwnership(o)).not.toThrow();
+    });
+
+    it('assertPwOwnership ohne E-Mail wirft', () => {
+        expect(() => assertPwOwnership({ beantragtVon: '', lehrerEmail: '', lehrerCode: 'X' })).toThrow(
+            /E-Mail/i
+        );
+    });
+
+    it('friendlyPwSpoError verhüllt 403', () => {
+        expect(isPwAccessDeniedError('Error 403 AccessDenied')).toBe(true);
+        expect(friendlyPwSpoError('403 Access Denied')).toMatch(/Kein SharePoint-Zugriff/i);
+    });
+
+    it('computePwAttention zählt Freigabe und Sync', () => {
+        const att = computePwAttention({
+            role: 'admin',
+            items: [
+                { status: 'beantragt' },
+                { status: 'freigegeben', bookingsServiceId: '' },
+                { status: 'freigegeben', bookingsServiceId: 'svc', syncStatus: 'ok' }
+            ]
+        });
+        expect(att.beantragt).toBe(1);
+        expect(att.pendingSync).toBe(1);
+    });
+});
+
 describe('projektwochen-state filter', () => {
     it('Schüler sieht nur freigegebene', () => {
         const items = [
@@ -114,6 +164,18 @@ describe('projektwochen-state filter', () => {
         const out = filterAngebote(items, {}, { role: 'schueler' }, { aktionId: 'pw' });
         expect(out).toHaveLength(1);
         expect(out[0].title).toBe('B');
+    });
+
+    it('Nav: Lehrer ohne System/Bookings, Admin mit Bookings-Sektion', () => {
+        const lehrerIds = viewsForRole('lehrer').map((v) => v.id);
+        expect(lehrerIds).not.toContain('einstellungen');
+        expect(lehrerIds).not.toContain('bookings');
+        expect(lehrerIds).toContain('neu');
+        const schuelerIds = viewsForRole('schueler').map((v) => v.id);
+        expect(schuelerIds).not.toContain('neu');
+        const adminSecs = navSectionsForRole('admin');
+        expect(adminSecs.map((s) => s.id)).toEqual(['arbeit', 'bookings', 'system']);
+        expect(adminSecs.find((s) => s.id === 'bookings').items[0].id).toBe('bookings');
     });
 
     it('pickActiveAktion bevorzugt offen mit den meisten Angeboten', () => {

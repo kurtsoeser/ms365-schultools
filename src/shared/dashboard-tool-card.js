@@ -4,7 +4,55 @@
 import { toolLabel } from './dashboard-audience-catalog.js';
 import { specToolDescription } from './dashboard-tool-spec-copy.js';
 
-/** Wichtige Einstiegs-Werkzeuge → dunkle Primärkachel */
+/**
+ * Sofort nutzbare Schul-Apps (ohne Pflicht-Listen) → leichter Primärton.
+ * SharePoint-abhängige Planer werden zusätzlich über den Status-Painter getönt.
+ */
+export const SCHULAPPS_ALWAYS_USABLE = new Set([
+    'freistellung-planer',
+    'einsammler',
+    'elternbrief',
+    'krankmeldung',
+    'kollegium-umfragen',
+    'ausgaben',
+    'schulsprecherwahl',
+    'schueler-stammdaten-portal'
+]);
+
+/** Brauchen typischerweise Listen/Intranet – Primärton erst wenn Intranet verbunden. */
+export const SCHULAPPS_USABLE_WHEN_INTRANET = new Set([
+    'schularbeiten-planer',
+    'schulaktivitaeten-planer',
+    'projektwochen',
+    'wahlfach-zuteilung',
+    'lehrer-freistellung-planer'
+]);
+
+/** @type {Record<string, { href: string, label: string }>} */
+export const SCHULAPPS_SETUP_CTA = {
+    'schularbeiten-planer': {
+        href: 'tools/sharepoint-liste-schularbeiten.html',
+        label: 'Listen einrichten'
+    },
+    'schulaktivitaeten-planer': {
+        href: 'tools/sharepoint-liste-schulaktivitaeten.html',
+        label: 'Listen einrichten'
+    },
+    projektwochen: {
+        href: 'tools/sharepoint-liste-projektwochen.html',
+        label: 'Listen einrichten'
+    },
+    'wahlfach-zuteilung': {
+        href: 'tools/sharepoint-liste-wahlfach.html',
+        label: 'Listen einrichten'
+    },
+    'lehrer-freistellung-planer': {
+        href: 'tools/freistellung-setup.html',
+        label: 'Einrichten'
+    }
+};
+
+/** Wichtige Einstiegs-Werkzeuge → Primärkachel (leichter Farbton) */
 const CATALOG_PRIMARY_TOOLS = new Set([
     'slg-schueler',
     'slg-lehrer',
@@ -17,12 +65,48 @@ const CATALOG_PRIMARY_TOOLS = new Set([
     'playbook-schuljahresstart',
     'organisations-assistent',
     'sharepoint-intranet-hub',
-    'schularbeiten-planer',
-    'freistellung-planer',
     'datenhygiene',
     'cleanup-playbook',
-    'leere-gruppen-report'
+    'leere-gruppen-report',
+    ...SCHULAPPS_ALWAYS_USABLE
 ]);
+
+/**
+ * Primärton / Setup-CTA für Schul-Apps-Nutzen-Kacheln.
+ * @param {HTMLElement} card
+ * @param {{ intranetOk?: boolean }} [opts]
+ */
+export function applySchulappsUsableAppearance(card, opts) {
+    if (!card) return;
+    const toolId = String(card.getAttribute('data-tool-id') || '').trim();
+    if (!toolId) return;
+    const isNutzen =
+        SCHULAPPS_ALWAYS_USABLE.has(toolId) || SCHULAPPS_USABLE_WHEN_INTRANET.has(toolId);
+    if (!isNutzen) return;
+
+    const intranetOk = !!(opts && opts.intranetOk);
+    const usable =
+        SCHULAPPS_ALWAYS_USABLE.has(toolId) ||
+        (SCHULAPPS_USABLE_WHEN_INTRANET.has(toolId) && intranetOk);
+
+    card.classList.toggle('primary', usable);
+    card.classList.toggle('secondary', !usable);
+
+    const link = catalogToolCardActionLink(card);
+    if (!link) return;
+    if (!card.dataset.toolHref) {
+        card.dataset.toolHref = link.getAttribute('href') || '#';
+        card.dataset.toolAction = String(link.textContent || '').trim() || 'Öffnen';
+    }
+    const setup = SCHULAPPS_SETUP_CTA[toolId];
+    if (!usable && setup) {
+        link.setAttribute('href', setup.href);
+        link.textContent = setup.label;
+    } else {
+        link.setAttribute('href', card.dataset.toolHref || '#');
+        link.textContent = card.dataset.toolAction || 'Öffnen';
+    }
+}
 
 /**
  * @param {string} toolId
@@ -131,6 +215,8 @@ export function enhanceCatalogToolCard(card) {
     if (!toolId) return;
 
     const legacy = readLegacyCardParts(card);
+    card.dataset.toolHref = legacy.href;
+    card.dataset.toolAction = catalogToolActionLabel(toolId, legacy.linkText);
     const existingStar = card.querySelector('.card-star, .dashboard-fav-btn');
     const existingStatus = card.querySelector('.card-status, .dash-choice-status');
     const statusHtml = existingStatus ? existingStatus.outerHTML : '';
@@ -207,6 +293,7 @@ export function enhanceCatalogToolCard(card) {
     }
 
     card.dataset.toolCardEnhanced = '1';
+    applySchulappsUsableAppearance(card, { intranetOk: false });
 }
 
 /**

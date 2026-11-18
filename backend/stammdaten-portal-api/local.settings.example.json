@@ -1,0 +1,18 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "STAMMDATEN_PIN_PEPPER": "change-me-long-random",
+    "STAMMDATEN_SESSION_SECRET": "change-me-session-secret",
+    "STAMMDATEN_CORS_ORIGINS": "http://localhost:5173,https://app.ms365.schule",
+    "STAMMDATEN_STORE": "memory",
+    "STAMMDATEN_GRAPH_TENANT_ID": "",
+    "STAMMDATEN_GRAPH_CLIENT_ID": "",
+    "STAMMDATEN_GRAPH_CLIENT_SECRET": "",
+    "STAMMDATEN_SP_SITE_URL": "https://contoso.sharepoint.com/sites/Schule",
+    "STAMMDATEN_SP_SITE_ID": "",
+    "STAMMDATEN_SP_LIST_NAME": "SchuelerAnmeldungen",
+    "STAMMDATEN_SP_LIST_ID": ""
+  }
+}

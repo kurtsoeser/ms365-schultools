@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);var sec=localStorage.getItem('ms365-dash-main-section-v1');if(sec!=='tasks'&&sec!=='catalog'&&sec!=='playbooks'){sec=localStorage.getItem('ms365-dash-it-focus-v1')==='0'?'catalog':'tasks';}d.setAttribute('data-dash-main-section',sec);}catch(e){}})();</script>
+    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);var sec=localStorage.getItem('ms365-dash-main-section-v1');if(sec!=='tasks'&&sec!=='catalog'&&sec!=='playbooks'){sec=localStorage.getItem('ms365-dash-it-focus-v1')==='0'?'catalog':'tasks';}d.setAttribute('data-dash-main-section',sec);/* Portal-first: kein IT-Flash vor Persona-Resolve */d.setAttribute('data-dash-app-only','');}catch(e){}})();</script>
     <meta charset="UTF-8">
     <script src="access-config.js"></script>
     <script src="src/shared/pin-gate.js"></script>
@@ -9,7 +9,7 @@
     <title>MS365-Schul-Tools – Start</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="app.css?v=22">
-    <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=9">
+    <link rel="stylesheet" href="src/shared/dashboard-compact-header.css?v=11">
     <link rel="stylesheet" href="src/shared/dashboard-ui-spec.css?v=13">
     <link rel="stylesheet" href="src/shared/membership-hygiene.css">
     <link rel="stylesheet" href="src/shared/context-tip.css">
@@ -1969,6 +1969,281 @@
             border-radius: 0;
             background: transparent;
         }
+        .dash-lehrer-portal {
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+        .dash-portal-hero {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 16px 24px;
+            padding: 4px 2px 2px;
+        }
+        .dash-portal-hero__text {
+            flex: 1 1 16rem;
+            min-width: 0;
+        }
+        .dash-portal-hero__eyebrow {
+            margin: 0 0 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: color-mix(in srgb, var(--brand1, #0d6efd) 80%, #495057);
+        }
+        .dash-portal-hero__title {
+            margin: 0 0 8px;
+            font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--heading, #32325d);
+            line-height: 1.2;
+        }
+        .dash-portal-hero__lead {
+            margin: 0;
+            font-size: 0.98rem;
+            color: #495057;
+            max-width: 42rem;
+        }
+        .dash-portal-school {
+            flex: 0 1 320px;
+            min-width: min(100%, 260px);
+            border: 1px solid #e3e6eb;
+            border-radius: 14px;
+            background: #fff;
+            padding: 12px 14px 14px;
+            box-shadow: 0 8px 22px rgba(50, 50, 93, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .dash-portal-school__clock {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eef1f4;
+        }
+        .dash-portal-school__time {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 750;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+            color: var(--heading, #32325d);
+            line-height: 1;
+        }
+        .dash-portal-school__date {
+            margin: 0;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #6c757d;
+            text-align: right;
+            line-height: 1.25;
+        }
+        .dash-portal-school__body {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 0;
+        }
+        .dash-portal-school__logo,
+        .dash-portal-school__logo-fallback {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            flex: 0 0 auto;
+            object-fit: contain;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        .dash-portal-school__logo-fallback {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: color-mix(in srgb, var(--brand1, #0d6efd) 70%, #6c757d);
+            font-size: 1.35rem;
+        }
+        .dash-portal-school__text {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+        .dash-portal-school__eyebrow {
+            margin: 0 0 2px;
+            font-size: 0.7rem;
+            font-weight: 750;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #6c757d;
+        }
+        .dash-portal-school__name {
+            margin: 0 0 6px;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--heading, #32325d);
+            line-height: 1.25;
+        }
+        .dash-portal-school__meta {
+            margin: 0 0 3px;
+            font-size: 0.82rem;
+            color: #495057;
+            line-height: 1.35;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        .dash-portal-school__meta .bi {
+            margin-top: 2px;
+            color: #868e96;
+            flex: 0 0 auto;
+        }
+        .dash-portal-school__meta a {
+            color: inherit;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-word;
+        }
+        .dash-portal-school__meta--muted {
+            color: #868e96;
+        }
+        @media (max-width: 720px) {
+            .dash-portal-school {
+                flex-basis: 100%;
+            }
+        }
+        .dash-portal-links {
+            padding: 14px 16px;
+            border: 1px solid #e3e6eb;
+            border-radius: 14px;
+            background: #fff;
+        }
+        .dash-portal-links__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .dash-portal-links__title {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--heading, #32325d);
+        }
+        .dash-portal-links__edit {
+            font-size: 0.85rem;
+            padding: 4px 10px;
+        }
+        .dash-portal-links__chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .dash-portal-links__chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+            text-decoration: none !important;
+            color: #32325d !important;
+            font-weight: 650;
+            font-size: 0.88rem;
+            transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+        }
+        .dash-portal-links__chip:hover {
+            border-color: color-mix(in srgb, var(--brand1) 30%, transparent);
+            background: color-mix(in srgb, var(--brand1) 8%, #fff);
+            transform: translateY(-1px);
+        }
+        .dash-portal-links__chip .bi {
+            color: color-mix(in srgb, var(--brand1) 75%, #32325d);
+        }
+        .dash-portal-links__empty {
+            margin: 8px 0 0;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .dash-portal-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+        .dash-portal-section__title {
+            margin: 0 0 12px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dash-portal-section__title .bi {
+            font-size: 1.05em;
+            color: color-mix(in srgb, var(--brand1) 70%, #6c757d);
+        }
+        .dash-portal-links-dialog {
+            border: none;
+            border-radius: 14px;
+            padding: 0;
+            max-width: min(520px, calc(100vw - 24px));
+            box-shadow: 0 18px 48px rgba(50, 50, 93, 0.22);
+        }
+        .dash-portal-links-dialog::backdrop {
+            background: rgba(32, 36, 48, 0.45);
+        }
+        .dash-portal-links-edit {
+            padding: 20px 22px 18px;
+        }
+        .dash-portal-links-edit h3 {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+        }
+        .dash-portal-links-edit .muted {
+            margin: 0 0 14px;
+            font-size: 0.88rem;
+            color: #6c757d;
+            line-height: 1.45;
+        }
+        .dash-portal-links-edit__fields {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .dash-portal-links-edit__row {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 10px;
+            align-items: center;
+            font-size: 0.9rem;
+            font-weight: 650;
+        }
+        .dash-portal-links-edit__row input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font: inherit;
+            font-weight: 500;
+        }
+        .dash-portal-links-edit__row input[readonly] {
+            background: #f1f3f5;
+            color: #495057;
+        }
+        .dash-portal-links-edit__actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
         .dash-quick-apps__title {
             margin: 0 0 14px;
             font-size: 1.15rem;
@@ -1979,10 +2254,60 @@
         .dash-quick-apps__grid {
             display: grid;
             gap: 16px;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        @media (max-width: 900px) {
+            .dash-quick-apps__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 640px) {
             .dash-quick-apps__grid { grid-template-columns: 1fr; }
+            .dash-portal-links-edit__row { grid-template-columns: 1fr; }
+            .dash-portal-shell {
+                grid-template-columns: 1fr;
+            }
+            .dash-portal-shell__nav {
+                position: static;
+                flex-direction: row;
+                flex-wrap: wrap;
+                overflow-x: auto;
+            }
+            .dash-portal-shell__tab {
+                width: auto;
+                flex: 0 0 auto;
+            }
+        }
+        .dash-portal-shell {
+            display: grid;
+            grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+            gap: 20px 24px;
+            align-items: start;
+        }
+        .dash-portal-shell__nav {
+            position: sticky;
+            top: 12px;
+        }
+        .dash-portal-shell__main {
+            min-width: 0;
+        }
+        .dash-portal-shell__tab--it {
+            margin-top: 6px;
+            border-top: 1px solid color-mix(in srgb, var(--brand1) 12%, transparent);
+            border-radius: 0 0 11px 11px;
+            padding-top: 14px;
+            color: color-mix(in srgb, var(--brand1) 80%, #1e2440);
+            font-weight: 750;
+        }
+        .dash-portal-it-cta {
+            border-color: color-mix(in srgb, var(--brand1) 35%, #dee2e6);
+            background: color-mix(in srgb, var(--brand1) 6%, #fff);
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            width: 100%;
+        }
+        .dash-portal-it-cta:hover {
+            border-color: color-mix(in srgb, var(--brand1) 55%, #dee2e6);
+            box-shadow: 0 8px 20px color-mix(in srgb, var(--brand1) 12%, transparent);
         }
         .dash-quick-apps__card {
             display: flex;
@@ -2131,14 +2456,60 @@
             text-decoration: none;
             color: inherit;
         }
+        /* IT-Chrome nur mit data-dash-it-shell – verhindert Flash vor Persona-Resolve */
+        html:not([data-dash-it-shell]) #dashCatalogSection,
+        html:not([data-dash-it-shell]) #dashboard-tools,
+        html:not([data-dash-it-shell]) .dash-playbooks-wrap,
+        html:not([data-dash-it-shell]) #dashboard-tasks,
+        html:not([data-dash-it-shell]) .dashboard-head-link[href="tenant.html"],
+        html:not([data-dash-it-shell]) #dashHeaderNavMount,
+        html:not([data-dash-it-shell]) #dashHeaderSearchSlot,
+        html:not([data-dash-it-shell]) #dashHeaderNavMenuBtn,
+        html:not([data-dash-it-shell]) #dashMainSectionToggle,
+        html:not([data-dash-it-shell]) #ms365BackupHeader,
+        html:not([data-dash-it-shell]) #ms365HeaderSchulOrganigramm,
+        html:not([data-dash-it-shell]) #ms365HeaderSchulregister,
+        html:not([data-dash-it-shell]) #dashRegisterToolbar,
+        html:not([data-dash-it-shell]) #dashGreetingBand,
+        html:not([data-dash-it-shell]) #dashHeaderNavDrawer,
+        html:not([data-dash-it-shell]) #dashHeaderNavDrawerBackdrop,
+        html:not([data-dash-it-shell]) .dashboard-local-footer,
         html[data-dash-app-only] #dashCatalogSection,
         html[data-dash-app-only] #dashboard-tools,
         html[data-dash-app-only] .dash-playbooks-wrap,
         html[data-dash-app-only] #dashboard-tasks,
-        html[data-dash-app-only] .dashboard-head-link[href="tenant.html"] {
+        html[data-dash-app-only] .dashboard-head-link[href="tenant.html"],
+        html[data-dash-app-only] #dashHeaderNavMount,
+        html[data-dash-app-only] #dashHeaderSearchSlot,
+        html[data-dash-app-only] #dashHeaderNavMenuBtn,
+        html[data-dash-app-only] #dashMainSectionToggle,
+        html[data-dash-app-only] #ms365BackupHeader,
+        html[data-dash-app-only] #ms365HeaderSchulOrganigramm,
+        html[data-dash-app-only] #ms365HeaderSchulregister,
+        html[data-dash-app-only] #dashRegisterToolbar,
+        html[data-dash-app-only] #dashGreetingBand,
+        html[data-dash-app-only] #dashHeaderNavDrawer,
+        html[data-dash-app-only] #dashHeaderNavDrawerBackdrop {
             display: none !important;
         }
-        html[data-dash-app-only] .dashboard-local-footer {
+        html[data-dash-app-only] .dashboard-local-footer,
+        html:not([data-dash-it-shell]) .dashboard-local-footer {
+            display: none !important;
+        }
+        html[data-dash-it-shell] #dashAppOnlyStack {
+            display: none !important;
+        }
+        /* Begrüßungs-/Statusband vorerst ausgeblendet (später woanders) */
+        #dashGreetingBand {
+            display: none !important;
+        }
+        html[data-dash-app-only] .dash-compact-header__bar {
+            justify-content: space-between;
+        }
+        html[data-dash-app-only] .dash-compact-header__actions {
+            margin-left: auto;
+        }
+        html[data-dash-app-only][data-dash-view="schueler"] .dash-portal-links__edit {
             display: none !important;
         }
         .dash-it-preview-banner {
@@ -2191,7 +2562,7 @@
             <p class="dash-greeting-band__text" id="dashGreetingBandText">Willkommen</p>
         </div>
         <div class="content">
-            <div id="dashAppOnlyStack" class="dash-app-only-stack" hidden></div>
+            <div id="dashAppOnlyStack" class="dash-app-only-stack" aria-live="polite"></div>
 
             <div class="dashboard-tasks" id="dashboard-tasks" data-dash-section-audience="it">
                 <div class="dashboard-tasks-head">
@@ -2477,7 +2848,7 @@
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <a class="dash-task-row dash-task-row--primary" href="tools/schulsprecherwahl.html">
-                                <span class="dash-task-row__label"><i class="bi bi-ui-checks-grid" aria-hidden="true"></i>Schulsprecher:innenwahl</span>
+                                <span class="dash-task-row__label"><i class="bi bi-ui-checks-grid" aria-hidden="true"></i>Schulwahlen</span>
                                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
                             </a>
                             <details class="dash-task-expert">
@@ -2595,6 +2966,11 @@
                                 <p>Eine Gruppe pro Fach oder Arbeitsgemeinschaft – aus den Listen in den Stammdaten.</p>
                                 <a class="btn" href="tools/arge-fachgruppen.html"><i class="bi bi-collection-fill"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Kanäle bulk anlegen" data-tool-id="teams-kanaele-bulk" data-cluster="gruppen" data-search="kanal kanäle bulk fachschaft arge fachkonferenz curriculum material verschiedenes standardkanäle empfehlen kanalliste" draggable="true">
+                                <h2><i class="bi bi-list-columns-reverse"></i>Kanäle bulk anlegen</h2>
+                                <p>In ausgewählten Fachschafts-/ARGE-Teams dieselben Kanäle anlegen (01–04) – inkl. Empfehlung in der Kanalliste.</p>
+                                <a class="btn" href="tools/teams-kanaele-bulk.html"><i class="bi bi-list-columns-reverse"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="KlassenChats" data-tool-id="klassenchats" data-cluster="gruppen" data-search="klassenchat gruppenchat privater kanal lehrerteam teams lehrer klasse klassenvorstand unterrichtsbelegung" draggable="true">
                                 <h2><i class="bi bi-chat-dots"></i>KlassenChats</h2>
                                 <p>Gruppenchats oder private Kanäle im Lehrerteam für alle Lehrkräfte einer Klasse (Belegung), inkl. KV – mit Schuljahr im Namen.</p>
@@ -2609,6 +2985,11 @@
                                 <h2><i class="bi bi-magic"></i>Weitere Teams &amp; Gruppen</h2>
                                 <p>Assistent für zusätzliche Gruppen/Teams außerhalb der Standard-Kataloge (z.&nbsp;B. Elternverein, Projektteam).</p>
                                 <a class="btn" href="tools/weitere-teams-gruppen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Teams-Antrag" data-tool-id="teams-antrag" data-cluster="gruppen" data-search="teams antrag beantragen freigabe it nomenklatur schüler lehrkraft graph anlegen ablauf" draggable="true">
+                                <h2><i class="bi bi-people-fill"></i>Teams-Antrag</h2>
+                                <p>Lehrkräfte und Schüler:innen beantragen Teams – IT prüft Nomenklatur und legt per Graph an.</p>
+                                <a class="btn" href="tools/teams-antrag.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -2661,9 +3042,9 @@
                                 <p>Abschnitte aus einem Vorlagen-Notizbuch in die Kursnotizbücher mehrerer Unterrichtsteams kopieren (Inhaltsbibliothek / Lehrerbereich).</p>
                                 <a class="btn" href="tools/onenote-verteilung.html"><i class="bi bi-journal-arrow-down"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Diplomarbeiten" data-tool-id="diplomarbeiten" data-cluster="unterricht" data-search="diplomarbeit diplom dipl abschlussarbeit betreuung naming" draggable="true">
-                                <h2><i class="bi bi-mortarboard-fill"></i>Diplomarbeiten</h2>
-                                <p>Standard-Naming <code>dipl-{jahr}-…</code>, Gruppe/Team anlegen und bestehende Diplom-Gruppen finden.</p>
+                            <section class="choice" role="listitem" aria-label="Diplomarbeiten und VWA" data-tool-id="diplomarbeiten" data-cluster="unterricht" data-search="diplomarbeit diplom dipl vwa abschlussarbeit betreuung naming kanal maturajahrgang" draggable="true">
+                                <h2><i class="bi bi-mortarboard-fill"></i>Diplomarbeiten / VWA</h2>
+                                <p>Dach-Team pro Maturajahrgang mit privaten Kanälen – oder Legacy: eigene Teams mit Naming <code>dipl-</code>/<code>vwa-</code>.</p>
                                 <a class="btn" href="tools/diplomarbeiten.html"><i class="bi bi-mortarboard"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Diplom-Ordner Flow" data-tool-id="pa-diplom-ordner" data-cluster="unterricht" data-search="power automate diplom ordner dipl team flow" draggable="true">
@@ -2857,10 +3238,10 @@
                                 <p>Terminliste anlegen, Sync prüfen und Termine per CSV importieren (Schule / Lehrer / beide).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schultermine.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="sRDP-Anmeldung" data-tool-id="sharepoint-liste-srdp" data-cluster="intranet" data-search="srdp anmeldung matura diplomprüfung hak variante sharepoint liste formular abschlussjahrgang" draggable="true">
-                                <h2><i class="bi bi-mortarboard"></i>sRDP-Anmeldung</h2>
-                                <p>Anmeldeliste pro Jahr &amp; Schulform (HAK/HTL/HLW/BAFEB/AHS): Formular, Varianten, Ansichten, Gruppenrechte.</p>
-                                <a class="btn" href="tools/sharepoint-liste-srdp.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            <section class="choice" role="listitem" aria-label="Maturaanmeldung (sRDP)" data-tool-id="srdp-anmeldung" data-cluster="intranet" data-search="srdp anmeldung matura maturaanmeldung diplomprüfung hak variante sharepoint liste formular abschlussjahrgang schüler lehrer auswertung" draggable="true">
+                                <h2><i class="bi bi-mortarboard"></i>Maturaanmeldung (sRDP)</h2>
+                                <p>Matura-Anmeldung: Schüler-Formular, Lehrer-Prüfungen, Admin-Auswertung – plus Listen-Setup pro Jahr &amp; Schulform.</p>
+                                <a class="btn" href="tools/srdp-anmeldung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Vertretungsplan-Liste" data-tool-id="sharepoint-liste-vertretung" data-cluster="intranet" data-search="vertretung vertretungsplan sharepoint liste tagesbetrieb" draggable="true">
                                 <h2><i class="bi bi-arrow-repeat"></i>Vertretungsplan-Liste</h2>
@@ -2890,6 +3271,51 @@
                                 <p>SharePoint-Paket: Anträge für Exkursionen/schulische Aktivitäten inkl. Regelwerk (Vorlauf, Überlappung).</p>
                                 <a class="btn" href="tools/sharepoint-liste-schulaktivitaeten.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Wahlfach-Listen" data-tool-id="sharepoint-liste-wahlfach" data-cluster="schulapps" data-search="wahlfach zuteilung angebot anmeldung sharepoint liste auhof" draggable="true">
+                                <h2><i class="bi bi-list-columns"></i>Wahlfach-Listen</h2>
+                                <p>SharePoint-Paket: Runden, Angebote, Anmeldungen und Zuteilungsergebnis (SoR für Wahlfach-Zuteilung).</p>
+                                <a class="btn" href="tools/sharepoint-liste-wahlfach.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Einsammler-Listen" data-tool-id="sharepoint-liste-einsammler" data-cluster="schulapps" data-search="einsammler einwilligung lesebestätigung eltern sharepoint liste ablauf" draggable="true">
+                                <h2><i class="bi bi-inbox"></i>Einsammler-Listen</h2>
+                                <p>SharePoint-Paket: Einsammler-Köpfe und Antworten für Einwilligungen und Lesebestätigungen.</p>
+                                <a class="btn" href="tools/sharepoint-liste-einsammler.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Elternbrief-Listen" data-tool-id="sharepoint-liste-elternbrief" data-cluster="schulapps" data-search="elternbrief vorlage lesebestätigung sharepoint liste ablauf" draggable="true">
+                                <h2><i class="bi bi-envelope-paper"></i>Elternbrief-Listen</h2>
+                                <p>SharePoint-Paket: Elternbriefe und Lesebestätigungen (System of Record).</p>
+                                <a class="btn" href="tools/sharepoint-liste-elternbrief.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Krankmeldungen-Liste" data-tool-id="sharepoint-liste-krankmeldung" data-cluster="schulapps" data-search="krankmeldung entschuldigung abwesenheit eltern sharepoint liste ablauf" draggable="true">
+                                <h2><i class="bi bi-thermometer-half"></i>Krankmeldungen-Liste</h2>
+                                <p>SharePoint-Liste für einfache Eltern-Krankmeldungen (System of Record).</p>
+                                <a class="btn" href="tools/sharepoint-liste-krankmeldung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Kollegiumsumfragen-Listen" data-tool-id="sharepoint-liste-kollegium-umfragen" data-cluster="schulapps" data-search="kollegium umfrage lehrkraft sharepoint liste ablauf vorlage" draggable="true">
+                                <h2><i class="bi bi-people"></i>Kollegiumsumfragen-Listen</h2>
+                                <p>SharePoint-Paket: Umfragen und Antworten für das Kollegium (SoR, nicht Forms).</p>
+                                <a class="btn" href="tools/sharepoint-liste-kollegium-umfragen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Ausgaben-Listen" data-tool-id="sharepoint-liste-ausgaben" data-cluster="schulapps" data-search="ausgaben schlüssel karte parkplatz inventar sharepoint liste" draggable="true">
+                                <h2><i class="bi bi-key"></i>Ausgaben-Listen</h2>
+                                <p>SharePoint-Paket: Inventar und Vorgänge für Schlüssel, Karten und Zugang.</p>
+                                <a class="btn" href="tools/sharepoint-liste-ausgaben.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Aufgaben-Liste" data-tool-id="sharepoint-liste-aufgaben" data-cluster="schulapps" data-search="aufgaben task zuweisung priorität status sharepoint liste betrieb" draggable="true">
+                                <h2><i class="bi bi-clipboard-check"></i>Aufgaben-Liste</h2>
+                                <p>SharePoint-Liste für interne Aufgaben (Zuweisung, Rolle, Priorität, Status).</p>
+                                <a class="btn" href="tools/sharepoint-liste-aufgaben.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Technik-Meldungen-Liste" data-tool-id="sharepoint-liste-technik-meldungen" data-cluster="schulapps" data-search="technik ticket beamer pc meldung sharepoint liste betrieb" draggable="true">
+                                <h2><i class="bi bi-wrench-adjustable"></i>Technik-Meldungen-Liste</h2>
+                                <p>SharePoint-Liste für Technik-Tickets (Raum, Kategorie, Priorität, Status).</p>
+                                <a class="btn" href="tools/sharepoint-liste-technik-meldungen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Raumplan-Liste" data-tool-id="sharepoint-liste-raumplan" data-cluster="schulapps" data-search="raumplan räume gebäude sharepoint liste betrieb" draggable="true">
+                                <h2><i class="bi bi-map"></i>Raumplan-Liste</h2>
+                                <p>SharePoint-Liste <em>Raeume</em> (Code, Gebäude, Stockwerk, Kapazität, Typ).</p>
+                                <a class="btn" href="tools/sharepoint-liste-raumplan.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Projektwochen-Listen" data-tool-id="sharepoint-liste-projektwochen" data-cluster="schulapps" data-search="projektwochen angebote workshop exkursion bookings aktion sharepoint liste intranet anmeldung" draggable="true">
                                 <h2><i class="bi bi-calendar2-week"></i>Projektwochen-Listen</h2>
                                 <p>SharePoint-Paket: PW-Aktionen und PW-Angebote (Anträge; Bookings-Sync folgt).</p>
@@ -2901,24 +3327,28 @@
                                 <a class="btn" href="tools/playbook-schularbeiten-planer.html"><i class="bi bi-list-check"></i>Playbook</a>
                             </section>
                         </div>
-                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-calendar2-heart" aria-hidden="true"></i>Nutzen</h4>
-                        <p class="dashboard-cluster-sublead">Planer im Schulalltag – nach Einrichtung der Listen.</p>
-                        <div class="grid" data-cluster-grid="schulapps-nutzen" role="list" aria-label="Schul-Apps nutzen">
-                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="schulapps" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
-                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
-                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
-                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
-                            </section>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-journal-check" aria-hidden="true"></i>Unterricht &amp; Planung</h4>
+                        <p class="dashboard-cluster-sublead">Farbig hinterlegt = sofort nutzbar. Weiß = zuerst Listen unter „Einrichten“ anlegen.</p>
+                        <div class="grid" data-cluster-grid="schulapps-planen" role="list" aria-label="Unterricht und Planung">
                             <section class="choice" role="listitem" aria-label="Schularbeiten-Planer" data-tool-id="schularbeiten-planer" data-cluster="schulapps" data-search="schularbeiten planer kalender antrag fixieren admin export ics lbvo schug hak" draggable="true">
                                 <h2><i class="bi bi-journal-check"></i>Schularbeiten-Planer</h2>
                                 <p>Anträge stellen, Kalender, Freigabe und Export – mit Live-Regelprüfung nach SchUG/LBVO.</p>
                                 <a class="btn" href="tools/schularbeiten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schulaktivitäten" data-tool-id="schulaktivitaeten-planer" data-cluster="schulapps" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion kalender liste ics export" draggable="true">
+                            <section class="choice" role="listitem" aria-label="Schulaktivitäten" data-tool-id="schulaktivitaeten-planer" data-cluster="schulapps" data-search="exkursion schulaktivität aktivität antrag genehmigung direktion approvals power automate kalender liste ics export" draggable="true">
                                 <h2><i class="bi bi-bus-front"></i>Schulaktivitäten</h2>
                                 <p>Exkursionen und schulische Aktivitäten beantragen, freigeben, Liste/Kalender und ICS-Export.</p>
                                 <a class="btn" href="tools/schulaktivitaeten-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Projektwochen" data-tool-id="projektwochen" data-cluster="schulapps" data-search="projektwochen angebote planer kalender freigabe workshop exkursion bookings anmeldung" draggable="true">
+                                <h2><i class="bi bi-calendar2-heart"></i>Projektwochen</h2>
+                                <p>Anträge, Wochenplan, Kalender und Admin-Freigabe – inkl. Buchungsstart je Angebot.</p>
+                                <a class="btn" href="tools/projektwochen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                        </div>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-calendar2-check" aria-hidden="true"></i>Freistellungen</h4>
+                        <p class="dashboard-cluster-sublead">Anträge für Schüler:innen und Lehrkräfte – Freigabe über Approvals.</p>
+                        <div class="grid" data-cluster-grid="schulapps-freistellungen" role="list" aria-label="Freistellungen">
                             <section class="choice" role="listitem" aria-label="Freistellungen" data-tool-id="freistellung-planer" data-cluster="schulapps" data-search="freistellung antrag schüler kv direktion genehmigung approvals sharepoint csv bericht" draggable="true">
                                 <h2><i class="bi bi-calendar2-check"></i>Freistellungen (Schüler)</h2>
                                 <p>Schülerantrag, Übersicht für KV/Direktion, Filter und CSV – Genehmigung über Microsoft Approvals.</p>
@@ -2929,10 +3359,73 @@
                                 <p>Anträge für Lehrkräfte, Freigabe durch die Direktion, Kalender und iCal – eigene SharePoint-Liste und Flow.</p>
                                 <a class="btn" href="tools/lehrer-freistellung-planer.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
-                            <section class="choice" role="listitem" aria-label="Schulsprecherinnenwahl" data-tool-id="schulsprecherwahl" data-cluster="schulapps" data-search="schulsprecher schulsprecherwahl stichwahl wahl stimme schülervertretung stv qr anonym wahlpunkte" draggable="true">
-                                <h2><i class="bi bi-ui-checks-grid"></i>Schulsprecher:innenwahl</h2>
-                                <p>Online-Wahl mit Wahlpunkten 6/5/4, Zeitfenster, QR-Abstimmung, Stichwahl und Auswertung.</p>
+                        </div>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-envelope-heart" aria-hidden="true"></i>Eltern &amp; Alltag</h4>
+                        <p class="dashboard-cluster-sublead">Einwilligungen, Briefe und Krankmeldungen – lokal sofort startklar.</p>
+                        <div class="grid" data-cluster-grid="schulapps-eltern" role="list" aria-label="Eltern und Alltag">
+                            <section class="choice" role="listitem" aria-label="Einsammler" data-tool-id="einsammler" data-cluster="schulapps" data-search="einsammler einwilligung lesebestätigung foto exkursion wandertag ablauf" draggable="true">
+                                <h2><i class="bi bi-inbox"></i>Einsammler</h2>
+                                <p>Einwilligungen und Lesebestätigungen anlegen, Empfänger pflegen, Fortschritt und Status manuell setzen.</p>
+                                <a class="btn" href="tools/einsammler.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Elternbrief" data-tool-id="elternbrief" data-cluster="schulapps" data-search="elternbrief vorlage brief information lesebestätigung anhang klasse absender ablauf" draggable="true">
+                                <h2><i class="bi bi-envelope-paper"></i>Elternbrief</h2>
+                                <p>Vorlagen, Editor, Anhang und Lesebestätigung – persönliche Links an Eltern aus Stammdaten-Klassen.</p>
+                                <a class="btn" href="tools/elternbrief.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Krankmeldung" data-tool-id="krankmeldung" data-cluster="schulapps" data-search="krankmeldung entschuldigung abwesenheit eltern inbox sekretariat tag woche klasse ablauf" draggable="true">
+                                <h2><i class="bi bi-thermometer-half"></i>Krankmeldung</h2>
+                                <p>Eltern melden krank (öffentliches Formular), Sekretariat sieht Tages-/Wochen-Inbox – schlank neben WebUntis.</p>
+                                <a class="btn" href="tools/krankmeldung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                        </div>
+                        <h4 class="dashboard-cluster-subhead"><i class="bi bi-building" aria-hidden="true"></i>Organisation</h4>
+                        <p class="dashboard-cluster-sublead">Wahlen, Stammdaten, Wahlfächer, Kollegium und Ausgaben.</p>
+                        <div class="grid" data-cluster-grid="schulapps-organisation" role="list" aria-label="Organisation">
+                            <section class="choice" role="listitem" aria-label="Schulwahlen" data-tool-id="schulsprecherwahl" data-cluster="schulapps" data-search="schulsprecher schulsprecherwahl sga lehrervertretung stichwahl wahl stimme schülervertretung stv qr anonym wahlpunkte schulwahl" draggable="true">
+                                <h2><i class="bi bi-ui-checks-grid"></i>Schulwahlen</h2>
+                                <p>Schulsprecher:innenwahl und SGA-Lehrervertretung – anonym, QR-Abstimmung und Auswertung.</p>
                                 <a class="btn" href="tools/schulsprecherwahl.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schüler-Stammdaten-Portal" data-tool-id="schueler-stammdaten-portal" data-cluster="schulapps" data-search="stammdaten einschreibung anmeldung eltern sokrates svnr pin guid sharepoint" draggable="true">
+                                <h2><i class="bi bi-person-vcard"></i>Schüler-Stammdaten-Portal</h2>
+                                <p>Eltern-Formular mit GUID+PIN, Sekretariats-Admin und Sokrates-Einschreiber-Export.</p>
+                                <a class="btn" href="tools/schueler-stammdaten-portal.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Wahlfach-Zuteilung" data-tool-id="wahlfach-zuteilung" data-cluster="schulapps" data-search="wahlfach schwerpunkt seminar zuteilung priorität überbuchung angebot schuljahr auhof access" draggable="true">
+                                <h2><i class="bi bi-diagram-3"></i>Wahlfach-Zuteilung</h2>
+                                <p>Priorisierte Wünsche, manuelle Zuteilung, Schüler-Formular, SharePoint-Listen und CSV für Access.</p>
+                                <a class="btn" href="tools/wahlfach-zuteilung.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Kollegiumsumfragen" data-tool-id="kollegium-umfragen" data-cluster="schulapps" data-search="kollegium umfrage lehrkraft kv schilf stundenplan vorlage auswertung msal ablauf" draggable="true">
+                                <h2><i class="bi bi-people"></i>Kollegiumsumfragen</h2>
+                                <p>Umfragen nur für Lehrkräfte: Vorlagen, Zielgruppen, Auswertung im Tool – SharePoint statt Forms.</p>
+                                <a class="btn" href="tools/kollegium-umfragen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Ausgabenverwaltung" data-tool-id="ausgaben" data-cluster="schulapps" data-search="ausgaben schlüssel raumkarte schrankenkarte parkplatz inventar ausgeben retour zugang" draggable="true">
+                                <h2><i class="bi bi-key"></i>Ausgabenverwaltung</h2>
+                                <p>Wer hat welchen Schlüssel/Karte/Parkplatz? Inventar, Ausgeben, Zurück – Typen frei erweiterbar.</p>
+                                <a class="btn" href="tools/ausgaben.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Kalender und Termine" data-tool-id="termine-hub" data-cluster="schulapps" data-search="kalender und termine termine kalender outlook abwesenheit arge hub schultermine lehrerkalender schuelerkalender schulkalender woche monat" draggable="true">
+                                <h2><i class="bi bi-calendar-event"></i>Kalender und Termine</h2>
+                                <p>Schul-, Lehrer- und Schülerkalender aus Outlook – rollenbasiert, Quellen nur durch IT.</p>
+                                <a class="btn" href="tools/termine-hub.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Aufgaben" data-tool-id="aufgaben" data-cluster="schulapps" data-search="aufgaben task zuweisen rolle frist kollegium inbox" draggable="true">
+                                <h2><i class="bi bi-check2-square"></i>Aufgaben</h2>
+                                <p>Aufgaben an Personen oder Rollen melden, priorisieren und abhaken.</p>
+                                <a class="btn" href="tools/aufgaben.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Technik-Meldungen" data-tool-id="technik-meldungen" data-cluster="schulapps" data-search="technik ticket beamer pc raum defekt it support meldung" draggable="true">
+                                <h2><i class="bi bi-wrench-adjustable"></i>Technik-Meldungen</h2>
+                                <p>Kaputte oder schlechte Technik melden – IT sieht Priorität und Status.</p>
+                                <a class="btn" href="tools/technik-meldungen.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Raumplan" data-tool-id="raumplan" data-cluster="schulapps" data-search="raumplan räume gebäude import csv plan viewer stockwerk" draggable="true">
+                                <h2><i class="bi bi-map"></i>Raumplan</h2>
+                                <p>Raumliste importieren, Plan ansehen, Deep-Link zur Technik-Meldung.</p>
+                                <a class="btn" href="tools/raumplan.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                         </div>
                     </section>
@@ -2959,6 +3452,16 @@
                                 <h2><i class="bi bi-person-check"></i>Freistellungen Setup</h2>
                                 <p>Liste anlegen und Flow-Paket (KV + Direktion / Microsoft Approvals). App: Freistellungen-Planer.</p>
                                 <a class="btn" href="tools/freistellung-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="Schulaktivitäten Setup" data-tool-id="schulaktivitaeten-setup" data-cluster="automationen" data-search="schulaktivität exkursion genehmigung power automate approvals direktion flow paket setup liste" draggable="true">
+                                <h2><i class="bi bi-bus-front"></i>Schulaktivitäten Setup</h2>
+                                <p>Liste prüfen und Flow-Paket (Microsoft Approvals an die Direktion). App: Schulaktivitäten-Planer.</p>
+                                <a class="btn" href="tools/schulaktivitaeten-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
+                            </section>
+                            <section class="choice" role="listitem" aria-label="sRDP Bestätigungsmail" data-tool-id="srdp-mail-setup" data-cluster="automationen" data-search="srdp matura anmeldung bestätigung mail power automate freigegebenes postfach workflow" draggable="true">
+                                <h2><i class="bi bi-envelope-check"></i>sRDP Bestätigungsmail</h2>
+                                <p>Flow-Paket: neue Matura-Anmeldung → Zusammenfassung aus freigegebenem Postfach an Schüler:in.</p>
+                                <a class="btn" href="tools/srdp-mail-setup.html"><i class="bi bi-box-arrow-up-right"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Playbook Freistellungen" data-tool-id="playbook-freistellungen" data-cluster="automationen" data-search="playbook freistellungen setup flow checkliste kv direktion" draggable="true">
                                 <h2><i class="bi bi-list-check"></i>Playbook Freistellungen</h2>
@@ -3018,7 +3521,7 @@
                             <section class="choice" role="listitem" aria-label="Schul-Organigramm" data-tool-id="schul-organigramm" data-cluster="uebersicht" data-search="organigramm schule struktur stammdaten rollen arge klassen schulleitung verwaltung fachschaft" draggable="true">
                                 <h2><i class="bi bi-diagram-3"></i>Schul-Organigramm</h2>
                                 <p>Gesamte Schule visuell pflegen – zweiter Weg zu den Stammdaten (Rollen, ARGEs, Klassen, …).</p>
-                                <a class="btn" href="tools/schul-organigramm.html"><i class="bi bi-diagram-3"></i>Öffnen</a>
+                                <a class="btn" href="tenant.html#organigramm"><i class="bi bi-diagram-3"></i>Öffnen</a>
                             </section>
                             <section class="choice" role="listitem" aria-label="Datenlandkarte" data-tool-id="datenlandkarte" data-cluster="uebersicht" data-search="datenlandkarte listen datenquellen canvas blöcke verbindung stammdaten sharepoint sync" draggable="true">
                                 <h2><i class="bi bi-grid-3x3-gap"></i>Datenlandkarte</h2>
@@ -3050,6 +3553,11 @@
                                 <p>Dateien/Ordner von einem (archivierten) Team in ein neues Team kopieren.</p>
                                 <a class="btn" href="tools/datei-migration.html"><i class="bi bi-files"></i>Öffnen</a>
                             </section>
+                            <section class="choice" role="listitem" aria-label="Nextcloud zu Teams" data-tool-id="nextcloud-teams-migrate" data-cluster="uebersicht" data-search="nextcloud webdav fachschaft dateien umzug kanal migration intranet dsrom" draggable="true">
+                                <h2><i class="bi bi-cloud-arrow-down"></i>Nextcloud → Teams</h2>
+                                <p>Mit lokalem Helfer Nextcloud browsen, Dry-Run, optional 01/02 als Kanäle – in Fachschafts-Teams.</p>
+                                <a class="btn" href="tools/nextcloud-teams-migrate.html"><i class="bi bi-cloud-arrow-down"></i>Öffnen</a>
+                            </section>
                             <section class="choice" role="listitem" aria-label="Leere Gruppen finden" data-tool-id="leere-gruppen-report" data-cluster="uebersicht" data-search="leer aufräumen ohne mitglieder ohne besitzer report" draggable="true">
                                 <h2><i class="bi bi-ui-checks-grid"></i>Leere Gruppen finden</h2>
                                 <p>Gruppen ohne Besitzer oder ohne Mitglieder finden – zum Aufräumen.</p>
@@ -3076,7 +3584,7 @@
 
     <script src="ms365-config.js"></script>
     <script src="src/shared/graph-unified-groups.js" defer></script>
-    <script type="module" src="src/shared/msal-auth-ui.js"></script>
+    <script type="module" src="src/shared/msal-auth-ui.js?v=20261118"></script>
     <script src="src/shared/theme-toggle.js?v=3" defer></script>
     <script src="src/shared/school-domain.js" defer></script>
     <script src="src/shared/app-dialog.js" defer></script>
@@ -3094,7 +3602,7 @@
     <script type="module" src="src/shared/dashboard-main-section.js"></script>
     <script type="module" src="src/shared/dashboard-header-chrome.js"></script>
     <script type="module" src="src/shared/dashboard-greeting-band.js"></script>
-    <script type="module" src="src/shared/dashboard-tasks-split.js"></script>
+    <script type="module" src="src/shared/dashboard-tasks-split.js?v=20261118"></script>
     <script type="module" src="src/shared/dashboard-catalog-split.js"></script>
     <script type="module" src="src/shared/dashboard-catalog-hash.js"></script>
     <script type="module" src="src/shared/dashboard-compact-header.js"></script>
@@ -3156,6 +3664,7 @@
                 'verwaltung',
                 'klassenvorstaende',
                 'arge-fachgruppen',
+                'teams-kanaele-bulk',
                 'klassenchats',
                 'datenhygiene',
                 'weitere-teams-gruppen',
@@ -3202,12 +3711,32 @@
                 'sharepoint-liste-projektwochen',
                 'projektwochen',
                 'sharepoint-liste-srdp',
+                'srdp-anmeldung',
                 'schularbeiten-planer',
                 'playbook-schularbeiten-planer',
                 'schulaktivitaeten-planer',
+                'schulaktivitaeten-setup',
+                'srdp-mail-setup',
                 'freistellung-planer',
                 'lehrer-freistellung-planer',
                 'playbook-freistellungen',
+                'sharepoint-liste-einsammler',
+                'einsammler',
+                'sharepoint-liste-elternbrief',
+                'elternbrief',
+                'sharepoint-liste-krankmeldung',
+                'krankmeldung',
+                'sharepoint-liste-kollegium-umfragen',
+                'kollegium-umfragen',
+                'sharepoint-liste-ausgaben',
+                'ausgaben',
+                'sharepoint-liste-aufgaben',
+                'sharepoint-liste-technik-meldungen',
+                'sharepoint-liste-raumplan',
+                'termine-hub',
+                'aufgaben',
+                'technik-meldungen',
+                'raumplan',
                 'sharepoint-liste-vertretung',
                 'pa-erst-setup',
                 'power-automate-rezepte',
@@ -3229,6 +3758,7 @@
                 'stammdaten-backup-abgleich',
                 'cleanup-playbook',
                 'datei-migration',
+                'nextcloud-teams-migrate',
                 'leere-gruppen-report',
                 'teams-archiv'
             ];

@@ -2,6 +2,7 @@
  * Status-Zeile auf Werkzeug-Kacheln im Katalog (Alle Werkzeuge).
  */
 import { resolveDashboardToolStatus } from './dashboard-tool-status-logic.js?v=kc-dash-5';
+import { applySchulappsUsableAppearance } from './dashboard-tool-card.js';
 
 /**
  * @param {HTMLElement} card
@@ -60,6 +61,15 @@ export function paintCatalogToolStatus(card, info) {
     }
 }
 
+function intranetConnected(container) {
+    const setup = container && container.setup ? container.setup : {};
+    const url =
+        (setup.intranetSiteUrl && String(setup.intranetSiteUrl).trim()) ||
+        (setup.schoolIntranetSiteUrl && String(setup.schoolIntranetSiteUrl).trim()) ||
+        '';
+    return !!url;
+}
+
 /**
  * @param {{
  *   container: object|null,
@@ -81,11 +91,13 @@ export function applyDashboardCatalogToolStatuses(opts) {
         hygieneApi: hygieneApi,
         show: !!opts.show
     };
+    const intranetOk = intranetConnected(opts.container);
 
     root.querySelectorAll('.choice[data-tool-id]').forEach(function (card) {
         const toolId = card.getAttribute('data-tool-id');
         const info = resolveDashboardToolStatus(toolId, ctx);
         paintCatalogToolStatus(card, info);
+        applySchulappsUsableAppearance(card, { intranetOk: intranetOk });
     });
 }
 

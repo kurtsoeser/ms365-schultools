@@ -9,11 +9,14 @@ import {
     accountIsLfrDirektionAccess,
     accountIsLfrLehrerAccess
 } from './lfr-permissions.js';
+import { resolveSchoolToolSiteUrl } from '../../shared/school-tool-sites.js';
 
 const ROLE_KEY = 'ms365-lfr-planer-role-v1';
 const SITE_KEY = 'ms365-lfr-planer-site-v1';
 const SETUP_KEY = 'ms365-lfr-setup-v1';
 const DEMO_KEY = 'ms365-lfr-demo-items-v1';
+/** @type {import('../../shared/school-tool-sites.js').SchoolToolSiteKind} */
+export const LFR_SITE_KIND = 'lehrerFreistellung';
 
 /** @typedef {'lehrer'|'direktion'} LfrRole */
 
@@ -60,6 +63,10 @@ export function createInitialState() {
         ctx: null,
         localDemoOnly: false,
         demoRoleOverride: false,
+        entraGroupsConfigured: false,
+        planerRoles: /** @type {import('./lfr-entra-role.js').LfrRole[]} */ ([]),
+        planerRoleSources: /** @type {Record<string, string>} */ ({}),
+        planerAccessDenied: false,
         calendarExportOnlyApproved: true,
         outlookCalendarUser: loadSetupField('outlookCalendarUser'),
         outlookCalendarId: loadSetupField('outlookCalendarId')
@@ -168,17 +175,22 @@ export function loadSavedSiteUrl() {
     const setup = loadSetupCfg();
     if (setup.siteUrl) return String(setup.siteUrl).trim();
     try {
-        const fr = JSON.parse(localStorage.getItem('ms365-freistellung-setup-v1') || '{}');
-        if (fr.siteUrl) return String(fr.siteUrl).trim();
+        // Stammdaten planerSiteUrls / Default / Intranet (ohne erneuten Local-Key)
+        const via = resolveSchoolToolSiteUrl(LFR_SITE_KIND, undefined, { ignoreLocal: true });
+        if (via) return via;
+    } catch {
+        /* ignore */
+    }
+    // Migration: dieselbe Site wie Schüler-Freistellung / Setup-JSON
+    try {
+        const fr = resolveSchoolToolSiteUrl('freistellung');
+        if (fr) return fr;
     } catch {
         /* ignore */
     }
     try {
-        const app =
-            window.ms365AppDataV2 && typeof window.ms365AppDataV2.getSetup === 'function'
-                ? window.ms365AppDataV2.getSetup()
-                : null;
-        if (app && app.intranetSiteUrl) return String(app.intranetSiteUrl).trim();
+        const fr = JSON.parse(localStorage.getItem('ms365-freistellung-setup-v1') || '{}');
+        if (fr.siteUrl) return String(fr.siteUrl).trim();
     } catch {
         /* ignore */
     }
@@ -186,12 +198,13 @@ export function loadSavedSiteUrl() {
 }
 
 export function persistSiteUrl(url) {
+    const next = String(url || '').trim();
     try {
-        localStorage.setItem(SITE_KEY, String(url || '').trim());
+        localStorage.setItem(SITE_KEY, next);
     } catch {
         /* ignore */
     }
-    persistSetupCfg({ siteUrl: String(url || '').trim() });
+    persistSetupCfg({ siteUrl: next });
 }
 
 export function loadStammdaten() {

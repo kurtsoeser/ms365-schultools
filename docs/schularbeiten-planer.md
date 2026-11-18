@@ -1,17 +1,20 @@
 # Schularbeiten-Planer – Umsetzungsplan
 
-**Stand:** 2026-09-23  
-**Status:** Phase 5 erledigt – Intranet-Hinweise, Schultermine-Sync, PA Status-Mail, SA-FachMeta, IT-Checkliste
+**Stand:** 2026-11-18  
+**Status:** Phase 5 erledigt · **SPO Live Sync (SoR)** – Pull/Push live (`schularbeiten-planer-graph.js`); Demo local-first; 403 wipe’t nicht  
+**Familie:** `register-planer` (Lehrer schreibt, Schüler liest)  
 **Zielgruppe:** HAK / berufsbildende Schulen (SchUG § 17, LBVO § 7)  
 **UI:** Vanilla JS/ESM, Look an `app.css` – **kein** React/Shadcn aus dem Demo-Prototyp  
 
-Verwandt: Schultermine-Liste, Intranet-Hub, Stammdaten (`tenant-settings` / `app-data-v2`), Architektur-Leitfaden `src/shared/ARCHITECTURE.md`.
+Verwandt: [spo-live-sync.md](./spo-live-sync.md), Schultermine-Liste, Intranet-Hub, Stammdaten (`tenant-settings` / `app-data-v2`), Architektur-Leitfaden `src/shared/ARCHITECTURE.md`.
 
 ---
 
 ## 1. Zielbild
 
-Lehrer:innen beantragen Schularbeitstermine; Admin/Direktion fixiert oder lehnt ab. Die App prüft live gesetzliche und schulautonome Regeln. **System of Record** sind SharePoint-Listen auf der Schul-Intranet-Site. Stammdaten (Klassen, Lehrer, Fächer) kommen aus dem **bestehenden Toolset**, nicht aus parallelen Listen.
+Lehrer:innen beantragen Schularbeitstermine; Admin/Direktion fixiert oder lehnt ab. Die App prüft live gesetzliche und schulautonome Regeln. **System of Record** sind SharePoint-Listen auf der Schul-Site (`resolveSchoolToolSiteUrl('schularbeiten')`). Stammdaten (Klassen, Lehrer, Fächer) kommen aus dem **bestehenden Toolset**, nicht aus parallelen Listen.
+
+**SPO Live Sync:** Start → Pull; Schreiben → Push (`itemId`); Demo-JSON nur nach Confirm nach SPO; 403/Fehler wipe’t Demo/Cache nicht; Sync-Meta unter Administration; Schüler-App-Rolle bleibt Read-only.
 
 ```text
 Lehrer / Admin ──MSAL──► Schularbeiten-Planer (ms365-schultools)
@@ -414,7 +417,23 @@ Globale Filterleiste: Klasse, Fach, Lehrer, Status (wirkt auf Kalender/Listen/Ex
 
 ---
 
-## 15. Nächster konkreter Implementierungsschritt
+## 15. SPO Live Sync (System of Record)
+
+| Schicht | Rolle |
+|---------|--------|
+| SharePoint `SAP-Schularbeiten` (+ Regelwerk / Terminfenster / FachMeta) | **SoR** |
+| `schularbeiten-planer-graph.js` | list/create/update/delete, Mapping, `itemId` |
+| Entry `refreshData` | Pull beim Start / „Laden“; Push bei Speichern/Fixieren |
+| `schularbeiten-planer-sync.js` | **zusätzlich** Fixiert → Liste Schultermine (kein Ersatz für SoR) |
+| localStorage / Demo-JSON | Cache · Demo (`localDemoOnly`); Push nur nach Confirm |
+
+**Rollen:** Lehrer/Admin schreiben; Schüler nur Lesen (Nav ohne Create).  
+**403:** ruhiger Hinweis (`softError`), Demo/Cache bleiben.  
+**Site:** `resolveSchoolToolSiteUrl('schularbeiten')`.
+
+---
+
+## 16. Nächster konkreter Implementierungsschritt
 
 MVP inkl. Phase 5 und Schüler-Ansicht (Demo) ist im Repo umgesetzt. Optional später:
 
@@ -423,7 +442,7 @@ MVP inkl. Phase 5 und Schüler-Ansicht (Demo) ist im Repo umgesetzt. Optional sp
 
 ---
 
-## 16. Demo-Daten Schuljahr 2026/27 (kurtrocks)
+## 17. Demo-Daten Schuljahr 2026/27 (kurtrocks)
 
 Umfassendes Seed-Paket für die Test-Site  
 `https://kurtrocks.sharepoint.com/sites/MS365-Schultools`:
@@ -449,7 +468,7 @@ Stammdaten (Klassen/Lehrer/Fächer) werden beim JSON-Import nach Möglichkeit in
 
 ---
 
-## 17. IT-Checkliste Schulausroll
+## 18. IT-Checkliste Schulausroll
 
 ### Einmalig (Schul-IT)
 

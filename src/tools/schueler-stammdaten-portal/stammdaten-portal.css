@@ -1,0 +1,420 @@
+/* Eltern-Formular */
+.ssp-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.ssp-card {
+  background: var(--surface, #fff);
+  border: 1px solid color-mix(in srgb, var(--text, #1a1a1a) 12%, transparent);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.ssp-card h2,
+.ssp-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.ssp-muted {
+  color: color-mix(in srgb, var(--text, #1a1a1a) 65%, transparent);
+  font-size: 0.92rem;
+}
+
+.ssp-grid {
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.ssp-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.ssp-field input,
+.ssp-field select,
+.ssp-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--text, #1a1a1a) 18%, transparent);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.ssp-field input:focus,
+.ssp-field select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent, #0f766e) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.ssp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.ssp-error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.ssp-ok {
+  color: #047857;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.ssp-pin-box {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.45rem;
+  letter-spacing: 0.22em;
+  padding: 0.85rem 1.1rem;
+  background: color-mix(in srgb, var(--brand1, #0f766e) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand1, #0f766e) 28%, transparent);
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.ssp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ssp-table th,
+.ssp-table td {
+  text-align: left;
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--text, #1a1a1a) 10%, transparent);
+  vertical-align: top;
+}
+
+.ssp-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--accent, #0f766e) 14%, transparent);
+}
+
+.ssp-lock {
+  max-width: 360px;
+  margin: 1.5rem auto;
+}
+
+.ssp-banner {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, #b45309 12%, transparent);
+  border: 1px solid color-mix(in srgb, #b45309 35%, transparent);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.ssp-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+/* Admin shell – volle App-Breite wie Freistellungen */
+.ssp-admin-page .container.page-card,
+.ssp-fr-page.container.page-card {
+  max-width: var(--app-content-max, 1920px);
+  width: var(--app-shell-width, min(1920px, calc(100vw - 48px)));
+}
+
+.ssp-admin-root {
+  margin-top: 0.25rem;
+}
+
+.ssp-shell.fr-shell {
+  width: 100%;
+}
+
+.ssp-shell .fr-main {
+  min-height: 640px;
+}
+
+.ssp-setup-block + .ssp-setup-block {
+  margin-top: 0.85rem;
+}
+
+.ssp-setup-block--it {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--text, #1a1a1a) 22%, transparent);
+}
+
+.ssp-calm-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--border, #d0d7de);
+  background: var(--card, #fff);
+}
+
+.ssp-calm-banner--action {
+  border-color: color-mix(in srgb, var(--brand, var(--brand1, #0f766e)) 35%, var(--border, #d0d7de));
+  background: color-mix(in srgb, var(--brand, var(--brand1, #0f766e)) 8%, var(--card, #fff));
+}
+
+.ssp-calm-banner__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--brand, var(--brand1, #0f766e));
+}
+
+.ssp-calm-banner__text p {
+  margin: 0;
+  color: var(--text, inherit);
+  font-size: 0.92rem;
+}
+
+.ssp-calm-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ssp-quiet-empty {
+  padding: 1.25rem 0.25rem 0.5rem;
+  text-align: left;
+}
+
+.ssp-quiet-empty__title {
+  margin: 0 0 0.35rem;
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.ssp-quiet-empty__text {
+  margin: 0 0 0.85rem;
+  color: color-mix(in srgb, var(--text, #1a1a1a) 65%, transparent);
+  font-size: 0.92rem;
+}
+
+.ssp-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.ssp-status-chip {
+  border: 1px solid color-mix(in srgb, var(--text, #1a1a1a) 16%, transparent);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ssp-status-chip span {
+  opacity: 0.7;
+  margin-left: 0.25rem;
+}
+
+.ssp-status-chip.is-active {
+  border-color: color-mix(in srgb, var(--brand1, #0f766e) 45%, transparent);
+  background: color-mix(in srgb, var(--brand1, #0f766e) 12%, transparent);
+  font-weight: 600;
+}
+
+.ssp-soft-notice {
+  border-style: solid;
+}
+
+.ssp-locked-note {
+  border-color: color-mix(in srgb, #047857 28%, transparent);
+  background: color-mix(in srgb, #047857 8%, transparent);
+}
+
+.ssp-field--wide {
+  grid-column: 1 / -1;
+}
+
+.ssp-field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--text, #1a1a1a) 62%, transparent);
+}
+
+.ssp-field-hint code {
+  font-size: 0.78rem;
+}
+
+.ssp-chip-ok {
+  background: color-mix(in srgb, #047857 18%, transparent) !important;
+  color: #047857 !important;
+}
+
+.ssp-chip-bad {
+  background: color-mix(in srgb, #b91c1c 18%, transparent) !important;
+  color: #b91c1c !important;
+}
+
+.ssp-chip-warn {
+  background: color-mix(in srgb, #b45309 18%, transparent) !important;
+  color: #b45309 !important;
+}
+
+.ssp-gw-status {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.ssp-gw-status--ok {
+  background: color-mix(in srgb, #047857 12%, transparent);
+  color: #065f46;
+}
+
+.ssp-gw-status--bad {
+  background: color-mix(in srgb, #b91c1c 12%, transparent);
+  color: #991b1b;
+}
+
+.ssp-gw-status--warn {
+  background: color-mix(in srgb, #b45309 12%, transparent);
+  color: #9a3412;
+}
+
+.ssp-setup-steps {
+  margin: 0.85rem 0 0;
+  padding-left: 1.25rem;
+  line-height: 1.45;
+  font-size: 0.9rem;
+}
+
+.ssp-setup-steps li {
+  margin-bottom: 0.35rem;
+}
+
+.ssp-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.ssp-nav-links .fr-nav__btn {
+  text-decoration: none;
+}
+
+.ssp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0.5rem 0 1rem;
+}
+
+.ssp-filters input[type='search'] {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #d0d7de);
+  font: inherit;
+  background: var(--input-bg, #fff);
+  color: inherit;
+}
+
+.ssp-table-wrap {
+  overflow-x: auto;
+}
+
+.ssp-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ssp-row-active {
+  background: color-mix(in srgb, var(--brand1, #0f766e) 8%, transparent);
+}
+
+.ssp-linkish {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ssp-pin-result {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--brand1, #0f766e) 25%, transparent);
+  background: color-mix(in srgb, var(--brand1, #0f766e) 6%, transparent);
+}
+
+.ssp-link-code {
+  display: block;
+  word-break: break-all;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+}
+
+.ssp-json {
+  overflow: auto;
+  font-size: 0.75rem;
+  max-height: 240px;
+  margin: 0.5rem 0 0;
+}
+
+@media (max-width: 860px) {
+  .ssp-shell.fr-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .ssp-shell .fr-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .ssp-shell .fr-nav__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex: 1 1 auto;
+  }
+
+  .ssp-shell .fr-nav__session {
+    width: 100%;
+    border-top: 0;
+    padding-top: 0;
+  }
+}

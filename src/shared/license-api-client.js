@@ -177,6 +177,33 @@
         return parseResponse(res);
     }
 
+    /**
+     * Schulen ohne Modul-JSON befüllen (legacy-full | starter).
+     * @param {string} accessToken
+     * @param {{ mode?: string, dryRun?: boolean }} [body]
+     */
+    async function adminMigrateEntitlements(accessToken, body) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/schools/migrate-entitlements', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(body || {})
+        });
+        return parseResponse(res);
+    }
+
+    /** SharePoint-Spalte LicenseEntitlements sicherstellen */
+    async function adminEnsureSchema(accessToken) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/ensure-schema', {
+            method: 'POST',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
     async function fetchKursteamCatalog(accessToken) {
         const base = baseUrl();
         if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
@@ -385,6 +412,92 @@
         return parseResponse(res);
     }
 
+    /**
+     * Feedback / Bug-Report an Betreiber-SharePoint (über License-API).
+     * @param {string} accessToken
+     * @param {Record<string, unknown>} body
+     */
+    async function submitFeedback(accessToken, body) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/feedback', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(body || {})
+        });
+        return parseResponse(res);
+    }
+
+    async function adminListFeedback(accessToken, query) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const q = query && typeof query === 'object' ? query : {};
+        const params = new URLSearchParams();
+        if (q.status) params.set('status', String(q.status));
+        if (q.top) params.set('top', String(q.top));
+        const qs = params.toString();
+        const res = await fetch(base + '/admin/feedback' + (qs ? '?' + qs : ''), {
+            method: 'GET',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
+    async function adminUpdateFeedback(accessToken, id, body) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/feedback/' + encodeURIComponent(id), {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(accessToken)),
+            body: JSON.stringify(body || {})
+        });
+        return parseResponse(res);
+    }
+
+    async function adminEnsureFeedbackSchema(accessToken) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        const res = await fetch(base + '/admin/feedback/ensure-schema', {
+            method: 'POST',
+            headers: authHeaders(accessToken)
+        });
+        return parseResponse(res);
+    }
+
+    /**
+     * Feedback-Screenshot als Blob laden (Operator, SharePoint-Proxy).
+     * @param {string} accessToken
+     * @param {string} path z.B. Feedback/12/image.png
+     */
+    async function adminFetchFeedbackFile(accessToken, path) {
+        const base = baseUrl();
+        if (!base) throw new Error('MS365_LICENSE_API.baseUrl ist nicht gesetzt.');
+        if (!path) throw new Error('Anhang-Pfad fehlt.');
+        const res = await fetch(
+            base + '/admin/feedback/file?path=' + encodeURIComponent(path),
+            { method: 'GET', headers: authHeaders(accessToken) }
+        );
+        if (!res.ok) {
+            let msg = 'HTTP ' + res.status;
+            try {
+                const data = await res.json();
+                if (data && (data.error || data.message)) msg = String(data.error || data.message);
+            } catch {
+                /* ignore */
+            }
+            const err = new Error(msg);
+            err.status = res.status;
+            throw err;
+        }
+        const blob = await res.blob();
+        return {
+            path: String(path),
+            contentType: blob.type || 'application/octet-stream',
+            blob: blob,
+            objectUrl: URL.createObjectURL(blob)
+        };
+    }
+
     global.ms365LicenseApi = {
         acquireLicenseToken: acquireLicenseToken,
         fetchLicenseMe: fetchLicenseMe,
@@ -396,6 +509,13 @@
         adminListColumns: adminListColumns,
         adminCreateColumn: adminCreateColumn,
         adminDeleteColumn: adminDeleteColumn,
+        adminMigrateEntitlements: adminMigrateEntitlements,
+        adminEnsureSchema: adminEnsureSchema,
+        submitFeedback: submitFeedback,
+        adminListFeedback: adminListFeedback,
+        adminUpdateFeedback: adminUpdateFeedback,
+        adminEnsureFeedbackSchema: adminEnsureFeedbackSchema,
+        adminFetchFeedbackFile: adminFetchFeedbackFile,
         fetchKursteamCatalog: fetchKursteamCatalog,
         publishKursteamCatalog: publishKursteamCatalog,
         fetchCatalogMaterials: fetchCatalogMaterials,

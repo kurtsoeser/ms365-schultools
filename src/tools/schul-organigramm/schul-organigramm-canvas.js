@@ -2353,8 +2353,8 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     people: Array.isArray(list) ? list : local
                 });
                 // Übersicht + nested ARGE-Kacheln brauchen ebenfalls Neuzeichnung
-                // (nicht nur der fokussierte Knoten selbst).
-                paint();
+                // (nicht nur der fokussierte Knoten selbst). Graph-Antworten bündeln.
+                schedulePaint();
             })
             .catch(function (err) {
                 focusPeopleCache.set(id, {
@@ -2363,7 +2363,7 @@ export function mountSchulOrganigrammLandkarte(opts) {
                     people: local,
                     error: err && err.message ? String(err.message) : 'Graph-Laden fehlgeschlagen'
                 });
-                paint();
+                schedulePaint();
             });
     }
 
@@ -2499,11 +2499,39 @@ export function mountSchulOrganigrammLandkarte(opts) {
         });
     }
 
-    function paint() {
+    let paintRaf = 0;
+    let paintImmediate = false;
+
+    function paintNow() {
+        paintRaf = 0;
+        paintImmediate = false;
         host.replaceChildren();
         host.classList.add('schul-org-map');
         paintCanvas();
         bindHostOnce();
+    }
+
+    /**
+     * Sofort zeichnen (User-Interaktion: Zoomen, Drag, Menü).
+     */
+    function paint() {
+        if (paintRaf) {
+            window.cancelAnimationFrame(paintRaf);
+            paintRaf = 0;
+        }
+        paintImmediate = true;
+        paintNow();
+    }
+
+    /**
+     * Graph-/Async-Updates: mehrere Completions im selben Frame → eine Zeichnung.
+     */
+    function schedulePaint() {
+        if (paintImmediate || paintRaf) return;
+        paintRaf = window.requestAnimationFrame(function () {
+            paintRaf = 0;
+            paintNow();
+        });
     }
 
     function paintChrome(hintHtml) {
@@ -2628,9 +2656,12 @@ export function mountSchulOrganigrammLandkarte(opts) {
         const computed = focused
             ? computeFocusLayout(layout, focused, people, childNodes, layoutOpts)
             : computeLandkarteLayout(layout, layoutOpts);
-        lastOverviewBoxes = focused
-            ? computeLandkarteLayout(layout, layoutOpts).boxes.slice()
-            : computed.boxes.slice();
+        // Im Fokus: teure zweite Landkarten-Berechnung vermeiden (Overview-Cache behalten)
+        if (!focused) {
+            lastOverviewBoxes = computed.boxes.slice();
+        } else if (!lastOverviewBoxes.length) {
+            lastOverviewBoxes = computeLandkarteLayout(layout, layoutOpts).boxes.slice();
+        }
         // Nested ARGEs/Klassen mit M365-Gruppe: Mitglieder auch ohne Hineinzoomen laden
         ensureVisibleGraphPeople(computed.boxes);
 
@@ -4472,6 +4503,20 @@ export function mountSchulOrganigrammLandkarte(opts) {
         getLayout: function () {
             return setSchulOrganigrammView(layout, view);
         },
+        /**
+         * Nach display:none → visible: Viewport/Fit nachziehen ohne Layout-Reset.
+         */
+        relayout: function () {
+            const mapHost = host.querySelector('#schulOrgMapHost');
+            if (!mapHost) return;
+            const cw = mapHost.clientWidth;
+            const ch = mapHost.clientHeight;
+            if (cw < 80 || ch < 80) return;
+            if (!focusStack.length) {
+                needsOverviewFit = true;
+                paint();
+            }
+        },
         flushLandkartePositions: flushLandkartePositions,
         /**
          * Viewport auf Weltkoordinate zentrieren (z. B. neuer Bereich).
@@ -4510,6 +4555,10 @@ export function mountSchulOrganigrammLandkarte(opts) {
         },
         destroy: function () {
             if (viewSaveTimer) window.clearTimeout(viewSaveTimer);
+            if (paintRaf) {
+                window.cancelAnimationFrame(paintRaf);
+                paintRaf = 0;
+            }
             if (areaResizeRaf) {
                 window.cancelAnimationFrame(areaResizeRaf);
                 areaResizeRaf = 0;

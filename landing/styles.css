@@ -879,6 +879,177 @@ a {
   color: var(--accent);
 }
 
+/* Pricing / Angebot */
+.section-pricing {
+  background:
+    radial-gradient(720px 320px at 100% 0%, rgba(13, 159, 138, 0.09), transparent 55%),
+    var(--fog);
+}
+
+.pricing-grid {
+  display: grid;
+  gap: 1.15rem;
+  margin: 1.75rem 0 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .pricing-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+
+.pricing-card {
+  position: relative;
+  padding: 1.35rem 1.4rem 1.5rem;
+  border-radius: calc(var(--radius) + 2px);
+  border: 1px solid var(--line);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  transition: border-color 220ms ease, transform 220ms ease;
+}
+
+.pricing-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(13, 159, 138, 0.35);
+}
+
+.pricing-card--featured {
+  border-color: rgba(13, 159, 138, 0.45);
+  background:
+    linear-gradient(180deg, rgba(13, 159, 138, 0.1) 0%, #fff 42%);
+}
+
+.pricing-card__badge {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.9rem;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  background: rgba(13, 159, 138, 0.14);
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+}
+
+.pricing-card__eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.pricing-card h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+}
+
+.pricing-card__price {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+.pricing-card__price span {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.pricing-card__tag {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.pricing-card ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.pricing-card li + li {
+  margin-top: 0.35rem;
+}
+
+.pricing-addons {
+  max-width: 46em;
+  padding-top: 0.5rem;
+}
+
+.pricing-addons h3 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.pricing-addons ul {
+  margin: 0 0 1rem;
+  padding-left: 1.15rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+}
+
+.pricing-addons li + li {
+  margin-top: 0.4rem;
+}
+
+.pricing-modules {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.pricing-modules summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pricing-modules p {
+  margin: 0.65rem 0 0.5rem;
+}
+
+.pricing-modules__list {
+  margin: 0;
+  padding-left: 1.15rem;
+  columns: 1;
+  gap: 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .pricing-modules__list {
+    columns: 2;
+  }
+}
+
+.pricing-modules__list li {
+  margin: 0 0 0.3rem;
+  break-inside: avoid;
+}
+
+.pricing-note {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.pricing-note a {
+  font-weight: 600;
+}
+
 /* Bookings */
 .section-bookings {
   background:

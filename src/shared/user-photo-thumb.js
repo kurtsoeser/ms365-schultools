@@ -61,9 +61,23 @@
         if (ini) ini.hidden = false;
     }
 
-    function fetchPhotoForUser(token, userKey) {
-        const key = cacheKey(userKey);
-        if (!key) return Promise.resolve(null);
+    function photoSizeFromEl(el) {
+        const raw = String((el && el.getAttribute && el.getAttribute('data-ms365-user-photo-size')) || '')
+            .trim()
+            .toLowerCase();
+        if (/^(48|64|96|120|240|360|432|504|648)x(48|64|96|120|240|360|432|504|648)$/.test(raw)) {
+            return raw;
+        }
+        if (el && el.classList && el.classList.contains('ssw-avatar--xl')) return '120x120';
+        if (el && el.classList && el.classList.contains('ssw-avatar--lg')) return '96x96';
+        if (el && el.classList && el.classList.contains('ssw-avatar--md')) return '64x64';
+        return '48x48';
+    }
+
+    function fetchPhotoForUser(token, userKey, size) {
+        const dim = String(size || '48x48').trim() || '48x48';
+        const key = cacheKey(userKey) + '|' + dim;
+        if (!cacheKey(userKey)) return Promise.resolve(null);
 
         const cached = cache.get(key);
         if (cached && cached.state === 'ok') return Promise.resolve(cached.url || null);
@@ -80,7 +94,7 @@
         const G = gug();
         const p =
             G && typeof G.fetchUserPhotoBlob === 'function'
-                ? G.fetchUserPhotoBlob(token, userKey, '48x48')
+                ? G.fetchUserPhotoBlob(token, userKey, dim)
                 : Promise.resolve(null);
 
         return p
@@ -119,8 +133,10 @@
     }
 
     async function loadOne(el, token) {
-        const key = cacheKey(el.getAttribute('data-ms365-user-photo'));
-        if (!key || !el.isConnected) return;
+        const userKey = cacheKey(el.getAttribute('data-ms365-user-photo'));
+        if (!userKey || !el.isConnected) return;
+        const dim = photoSizeFromEl(el);
+        const key = userKey + '|' + dim;
 
         const cached = cache.get(key);
         if (cached && cached.state === 'ok') {
@@ -133,7 +149,7 @@
         }
 
         try {
-            const url = await fetchPhotoForUser(token, key);
+            const url = await fetchPhotoForUser(token, userKey, dim);
             if (!el.isConnected) return;
             if (url) applyThumbState(el, 'ok', url);
             else applyThumbState(el, 'none');
@@ -226,11 +242,13 @@
         const nodes = host.querySelectorAll('[data-ms365-user-photo]');
         const obs = getObserver();
         nodes.forEach(function (el) {
-            const key = cacheKey(el.getAttribute('data-ms365-user-photo'));
-            if (!key) return;
+            const userKey = cacheKey(el.getAttribute('data-ms365-user-photo'));
+            if (!userKey) return;
+            const dim = photoSizeFromEl(el);
+            const key = userKey + '|' + dim;
             const name = el.getAttribute('data-ms365-user-photo-name') || '';
             const ini = el.querySelector('.ms365-user-photo-thumb__initials');
-            if (ini && !ini.textContent.trim()) ini.textContent = initials(name || key);
+            if (ini && !ini.textContent.trim()) ini.textContent = initials(name || userKey);
 
             const cached = cache.get(key);
             if (cached && cached.state === 'ok') applyThumbState(el, 'ok', cached.url);
@@ -276,6 +294,7 @@
     window.ms365UserPhotoThumb = {
         createThumb: createThumb,
         hydrate: hydrate,
+        scan: hydrate,
         invalidate: invalidate,
         invalidateAll: invalidateAll
     };

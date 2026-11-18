@@ -37,7 +37,18 @@ const SHAREPOINT_LIST_TOOLS = new Set([
     'sharepoint-liste-schularbeiten',
     'sharepoint-liste-schulaktivitaeten',
     'sharepoint-liste-projektwochen',
+    'sharepoint-liste-wahlfach',
+    'sharepoint-liste-einsammler',
+    'sharepoint-liste-elternbrief',
+    'sharepoint-liste-krankmeldung',
+    'sharepoint-liste-kollegium-umfragen',
+    'sharepoint-liste-ausgaben',
+    'sharepoint-liste-aufgaben',
+    'sharepoint-liste-technik-meldungen',
+    'sharepoint-liste-raumplan',
     'sharepoint-liste-srdp',
+    'srdp-anmeldung',
+    'srdp-mail-setup',
     'sharepoint-liste-vertretung',
     'playbook-intranet'
 ]);

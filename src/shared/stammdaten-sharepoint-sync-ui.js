@@ -1,15 +1,16 @@
 /**
- * Buttons: Stammdaten ↔ SharePoint IT-Bibliothek (Upload / Laden).
+ * Buttons: Stammdaten ↔ SharePoint IT-Bibliothek (manuell Upload / Laden / Setup).
  * data-ms365-spo-sync="upload" | "load" | "setup"
- * Optional: #stammdatenSpoSyncStatus für Kurzstatus.
- * Startet außerdem den Auto-Sync (Pull nach Login, Push nach Änderungen).
  *
- * Lokal-First: Upload/Load/Setup deaktiviert; Auto-Sync startet nur als No-Op.
+ * Phase 4 / Lokal-First: nur manuell, kein Auto-Abgleich.
+ * Auto-Sync-Modul startet als No-Op, solange isSpoNetworkSyncAllowed() false ist.
  */
 import {
+    isSpoManualBackupAllowed,
     isSpoNetworkSyncAllowed,
     localFirstStatusMessage,
-    applyLocalFirstSpoUi
+    applyLocalFirstSpoUi,
+    applyLocalFirstCompareUi
 } from './stammdaten-local-first.js';
 import { DEFAULT_FOLDER, IT_LIBRARY_TITLE, formatSyncStatusDe } from './stammdaten-sharepoint-sync-logic.js';
 import {
@@ -20,14 +21,14 @@ import {
     uploadCurrentBackup
 } from './stammdaten-sharepoint-sync-api.js';
 import * as autoSync from './stammdaten-sharepoint-auto-sync.js';
-import { resolveSharePointImportChoice } from './stammdaten-sharepoint-import-prompt.js';
-import {
-    applySharePointBackupLocally,
-    applySharePointSelectiveImportLocally
-} from './stammdaten-sharepoint-pull-apply.js';
+import { applySharePointBackupLocally } from './stammdaten-sharepoint-pull-apply.js';
 import { pickAndDownloadSharePointBackup } from './stammdaten-sharepoint-backup-picker-ui.js';
 
-function toast(m) {
+function toast(m, opts) {
+    if (typeof window.ms365ShowToast === 'function') {
+        window.ms365ShowToast(m, opts || {});
+        return;
+    }
     if (typeof window.ms365ToastOrAlert === 'function') window.ms365ToastOrAlert(m);
     else window.alert(m);
 }
@@ -57,34 +58,30 @@ function setBusy(btns, busy) {
 function refreshStatus() {
     const el = document.getElementById('stammdatenSpoSyncStatus');
     if (!el) return;
-    if (!isSpoNetworkSyncAllowed()) {
+    if (!isSpoManualBackupAllowed()) {
         el.textContent = localFirstStatusMessage();
         return;
     }
-    try {
-        if (autoSync && typeof autoSync.getStatus === 'function') {
-            const st = autoSync.getStatus();
-            el.textContent = st.message || formatSyncStatusDe(st);
-            return;
-        }
-    } catch {
-        /* fallback below */
-    }
     const it = loadItMeta();
     const m = loadLocalSyncMeta();
+    if (!isReady()) {
+        el.textContent =
+            'IT-Sicherungsbibliothek noch nicht eingerichtet – unter „Einrichten“ anlegen, danach manuell sichern.';
+        return;
+    }
     el.textContent = formatSyncStatusDe({
-        ready: isReady(),
-        phase: 'idle',
-        dirty: !!(m && m.dirty),
+        ready: true,
+        phase: 'manual',
+        dirty: false,
         lastAt: m && m.at,
         lastDirection: m && m.direction,
-        error: m && m.pendingError,
+        error: '',
         libraryTitle: (it && it.listTitle) || IT_LIBRARY_TITLE
     });
 }
 
 async function runUpload(btns) {
-    if (!isSpoNetworkSyncAllowed()) {
+    if (!isSpoManualBackupAllowed()) {
         toast(localFirstStatusMessage());
         return;
     }
@@ -93,16 +90,19 @@ async function runUpload(btns) {
         return;
     }
     const ok = await confirmAsync(
-        'Aktuelle Schul- und App-Daten (vollständiges Browser-Backup inkl. Stammdaten, Schul-Organigramm, Power Automate und Werkzeugstände) jetzt in die SharePoint-IT-Bibliothek „' +
+        'Aktuelles Browser-Backup jetzt in die SharePoint-IT-Bibliothek „' +
             (loadItMeta().listTitle || IT_LIBRARY_TITLE) +
-            '“ schreiben?',
-        { title: 'Nach SharePoint sichern', confirmLabel: 'Sichern', cancelLabel: 'Abbrechen' }
+            '“ schreiben?\n\n' +
+            'Es wird die aktuelle Datei aktualisiert und zusätzlich eine datierte Kopie abgelegt ' +
+            '(Versionierung). Es findet kein Abgleich mit dem Remote-Stand statt.',
+        { title: 'In IT-Bibliothek sichern', confirmLabel: 'Sichern', cancelLabel: 'Abbrechen' }
     );
     if (!ok) return;
     setBusy(btns, true);
     try {
         const uploaded = await uploadCurrentBackup({
             folder: DEFAULT_FOLDER,
+            keepDated: true,
             force: true,
             checkConflict: false
         });
@@ -112,24 +112,21 @@ async function runUpload(btns) {
             uploaded.payload &&
             uploaded.payload.schooltoolSummary &&
             uploaded.payload.schooltoolSummary.schulOrganigrammNodeCount;
+        const dated =
+            uploaded && uploaded.datedName
+                ? ' Version: ' + uploaded.datedName + '.'
+                : ' Mit datierter Kopie.';
         toast(
             orgN > 0
-                ? 'Schul-/App-Daten in SharePoint gesichert (inkl. Schul-Organigramm: ' +
+                ? 'Browser-Backup in IT-Bibliothek gesichert (inkl. Schul-Organigramm: ' +
                       orgN +
-                      ' Knoten).'
-                : 'Schul-/App-Daten in SharePoint gesichert.'
+                      ' Knoten).' +
+                      dated
+                : 'Browser-Backup in IT-Bibliothek gesichert.' + dated
         );
     } catch (e) {
         if (e && e.code === 'IT_LIBRARY_MISSING') {
             goToSetup(e.message);
-            return;
-        }
-        if (e && e.code === 'spo-push-conflict') {
-            toast(
-                (e.message || 'Konflikt') +
-                    ' Bitte Backup-Abgleich öffnen und entscheiden.',
-                { kind: 'warning' }
-            );
             return;
         }
         toast(e && e.message ? e.message : String(e));
@@ -139,7 +136,7 @@ async function runUpload(btns) {
 }
 
 async function runLoad(btns) {
-    if (!isSpoNetworkSyncAllowed()) {
+    if (!isSpoManualBackupAllowed()) {
         toast(localFirstStatusMessage());
         return;
     }
@@ -152,7 +149,7 @@ async function runLoad(btns) {
         const preview = await pickAndDownloadSharePointBackup({
             folder: DEFAULT_FOLDER,
             apply: false,
-            title: 'Von SharePoint einlesen'
+            title: 'Backup aus IT-Bibliothek laden'
         });
         if (!preview) {
             toast('Abgebrochen.');
@@ -160,24 +157,26 @@ async function runLoad(btns) {
         }
         const obj = preview.payload || {};
         const item = preview.item || {};
-        const choice = await resolveSharePointImportChoice(obj, {
-            auto: false,
-            remoteLastModified: item.lastModifiedDateTime || ''
-        });
-        if (choice === 'skip') {
-            toast('Keine Änderung – lokaler und SharePoint-Stand sind identisch.');
-            refreshStatus();
-            return;
-        }
-        if (choice === 'keep-local') {
-            toast('Lokaler Stand unverändert.');
-            refreshStatus();
-            return;
-        }
-        if (choice === 'push-local') {
-            await uploadCurrentBackup({ folder: DEFAULT_FOLDER, force: true, checkConflict: false });
-            toast('Lokaler Stand nach SharePoint gesichert.');
-            refreshStatus();
+        const fileName = String((item && item.name) || preview.fileName || 'Backup').trim();
+        const when = String((obj && obj.exportedAt) || (item && item.lastModifiedDateTime) || '').trim();
+        const school = String((obj && (obj.schoolName || obj.domain)) || '').trim();
+        const ok = await confirmAsync(
+            'Dieses Backup aus der IT-Bibliothek jetzt in diesem Browser übernehmen?\n\n' +
+                'Datei: ' +
+                fileName +
+                (when ? '\nStand: ' + when.replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : '') +
+                (school ? '\nSchule: ' + school : '') +
+                '\n\nAlle lokalen Schuldaten und Werkzeugstände werden ersetzt. ' +
+                'Microsoft-Anmeldung bleibt unberührt. Es findet kein Abgleich statt.',
+            {
+                title: 'Von IT-Bibliothek importieren',
+                confirmLabel: 'Importieren',
+                cancelLabel: 'Abbrechen',
+                danger: true
+            }
+        );
+        if (!ok) {
+            toast('Import abgebrochen.');
             return;
         }
         const syncMeta = preview.meta
@@ -187,16 +186,8 @@ async function runLoad(btns) {
                   dirty: false
               })
             : null;
-        if (choice && typeof choice === 'object' && choice.action === 'import-selective') {
-            const applied = applySharePointSelectiveImportLocally(obj, choice.selectedIds || [], syncMeta, {
-                reload: false
-            });
-            const n = applied && applied.writtenKeys ? applied.writtenKeys.length : 0;
-            toast('Auswahl übernommen (' + n + ' Schlüssel).');
-        } else {
-            applySharePointBackupLocally(obj, syncMeta, { reload: false });
-            toast('Backup vollständig übernommen.');
-        }
+        await applySharePointBackupLocally(obj, syncMeta, { reload: false });
+        toast('Backup aus IT-Bibliothek übernommen.');
         const reload = await confirmAsync('Seite jetzt neu laden?', {
             title: 'Neu laden',
             confirmLabel: 'Neu laden',
@@ -212,6 +203,28 @@ async function runLoad(btns) {
         toast(e && e.message ? e.message : String(e));
     } finally {
         setBusy(btns, false);
+    }
+}
+
+function revealManualSpoUi(root) {
+    const doc = root && root.querySelectorAll ? root : document;
+    if (!doc || !doc.querySelectorAll) return;
+    doc.querySelectorAll('[data-local-first-hide="spo-block"]').forEach(function (el) {
+        const label = el.querySelector && el.querySelector('.ms365-backup-panel__label');
+        const t = label ? String(label.textContent || '') : '';
+        if (/Abgleich/i.test(t)) return;
+        el.hidden = false;
+        el.removeAttribute('aria-hidden');
+    });
+    const setup = doc.querySelector && doc.querySelector('[data-ms365-spo-sync="setup"]');
+    if (setup) {
+        setup.hidden = false;
+        setup.removeAttribute('aria-hidden');
+    }
+    const note = doc.querySelector && doc.querySelector('[data-local-first-backup-note]');
+    if (note) {
+        note.hidden = true;
+        note.textContent = '';
     }
 }
 
@@ -240,9 +253,7 @@ function bind() {
     setupLinks.forEach(function (el) {
         if (el.dataset.spoBound === '1') return;
         el.dataset.spoBound = '1';
-        if (el.tagName === 'A' && !el.getAttribute('href')) {
-            el.setAttribute('href', setupPageHref());
-        } else if (el.tagName === 'A') {
+        if (el.tagName === 'A') {
             el.setAttribute('href', setupPageHref());
         } else {
             el.addEventListener('click', function (ev) {
@@ -252,7 +263,6 @@ function bind() {
         }
     });
 
-    // Delegation für dynamisch erzeugte Kopfzeilen-Buttons
     if (!bind._delegated) {
         bind._delegated = true;
         document.addEventListener(
@@ -291,37 +301,14 @@ function bind() {
     }
 
     applyLocalFirstSpoUi(document);
-    // Header-Datensicherung (msal-auth-ui) nachziehen – Panel kann vor diesem Modul existieren
-    try {
+    applyLocalFirstCompareUi(document);
+    if (isSpoManualBackupAllowed()) {
+        revealManualSpoUi(document);
         const backup = document.getElementById('ms365BackupHeader');
-        if (backup && isSpoNetworkSyncAllowed() === false) {
-            backup.querySelectorAll('[data-local-first-hide="spo-block"]').forEach(function (el) {
-                el.hidden = true;
-                el.setAttribute('aria-hidden', 'true');
-            });
-            // Fallback: Blöcke ohne data-Attribut (älteres Markup)
-            backup.querySelectorAll('.ms365-backup-panel__block').forEach(function (block) {
-                const label = block.querySelector('.ms365-backup-panel__label');
-                const t = label ? String(label.textContent || '') : '';
-                if (/SharePoint|Abgleich/i.test(t)) {
-                    block.hidden = true;
-                    block.setAttribute('aria-hidden', 'true');
-                }
-            });
-            const setup = backup.querySelector('[data-ms365-spo-sync="setup"]');
-            if (setup) {
-                setup.hidden = true;
-                setup.setAttribute('aria-hidden', 'true');
-            }
-            const note = backup.querySelector('[data-local-first-backup-note]');
-            if (note) {
-                note.hidden = false;
-                note.textContent = localFirstStatusMessage();
-            }
-            applyLocalFirstSpoUi(backup);
+        if (backup) {
+            revealManualSpoUi(backup);
+            applyLocalFirstCompareUi(backup);
         }
-    } catch {
-        /* optional */
     }
     refreshStatus();
     try {
@@ -331,8 +318,9 @@ function bind() {
         /* ignore */
     }
 
+    // Auto-Sync nur als No-Op starten (bleibt gesperrt), solange Network-Sync aus ist.
     try {
-        autoSync.start();
+        if (typeof autoSync.start === 'function') autoSync.start();
     } catch {
         /* ignore */
     }
@@ -348,8 +336,6 @@ else boot();
 window.ms365StammdatenSpoSyncUi = {
     refreshStatus: refreshStatus,
     isReady: isReady,
-    setupPageHref: setupPageHref,
-    bind: bind
+    isManualAllowed: isSpoManualBackupAllowed,
+    isNetworkSyncAllowed: isSpoNetworkSyncAllowed
 };
-
-window.addEventListener('ms365-auth-widget-ready', bind);
