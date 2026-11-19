@@ -4,7 +4,12 @@ import {
     buildHtmlDescription,
     toWebcalUrl
 } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-export.js';
-import { preferDownloadUrl } from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-feed.js';
+import {
+    preferDownloadUrl,
+    preferShareDownloadUrl,
+    buildDownloadAspxUrl,
+    resolveOutlookSubscribeHttpsUrl
+} from '../src/tools/schulaktivitaeten-planer/schulaktivitaeten-planer-feed.js';
 
 const stammdaten = {
     classes: [{ code: '1AK', name: '1AK' }],
@@ -113,5 +118,29 @@ describe('schulaktivitaeten ICS export / feed content', () => {
             'https://contoso.sharepoint.com/sites/x/a.ics?download=1'
         );
         expect(preferDownloadUrl('https://example.com/a.ics')).toBe('https://example.com/a.ics');
+    });
+
+    it('Outlook-Subscribe bevorzugt anonyme Freigabe vor SharePoint-Pfad', () => {
+        expect(
+            preferShareDownloadUrl('https://contoso.sharepoint.com/:u:/s/Site/abc123')
+        ).toContain('download=1');
+        expect(
+            buildDownloadAspxUrl('https://contoso.sharepoint.com/sites/MS365', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+        ).toBe(
+            'https://contoso.sharepoint.com/sites/MS365/_layouts/15/download.aspx?UniqueId=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        );
+        expect(
+            resolveOutlookSubscribeHttpsUrl({
+                anonymousUrl: 'https://contoso.sharepoint.com/:u:/s/x?download=1',
+                downloadAspxUrl: 'https://contoso.sharepoint.com/sites/x/_layouts/15/download.aspx?UniqueId=1',
+                httpsUrl: 'https://contoso.sharepoint.com/sites/x/a.ics?download=1'
+            })
+        ).toContain(':u:');
+        expect(
+            resolveOutlookSubscribeHttpsUrl({
+                downloadAspxUrl: 'https://contoso.sharepoint.com/sites/x/_layouts/15/download.aspx?UniqueId=1',
+                httpsUrl: 'https://contoso.sharepoint.com/sites/x/a.ics?download=1'
+            })
+        ).toContain('download.aspx');
     });
 });

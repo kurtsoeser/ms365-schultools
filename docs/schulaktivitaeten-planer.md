@@ -46,7 +46,7 @@ Lehrer / Direktion ──MSAL──► Schulaktivitäten-Planer
 
 **Phase 2:** Unterrichtseinheiten (`StartUe`/`EndUe`) mit Standard-Zeitraster → abgeleitete Uhrzeiten; View **Berichte** (Jahresliste + Statistik nach Typ/Status/Monat/Klasse). ICS nutzt bei eintägigen Terminen die abgeleiteten Uhrzeiten.
 
-**ICS-Feed (Abo):** Button **Feed** schreibt `MS365-Schultools/kalender/schulaktivitaeten.ics` per Graph in die Site-Bibliothek. Enthalten sind genehmigte Termine mit tabellarischen Details (Titel, Typ, Teilnahme/Klasse, Verantwortlich, Begleitung, Ort, UE/Zeitraum, …) in `DESCRIPTION` sowie HTML in `X-ALT-DESC`. `webcal`-Link in Outlook/Apple als Internetkalender abonnieren (Site-Berechtigung nötig; TTL 6 h). Button **ICS** bleibt der einmalige Download der aktuellen Filteransicht.
+**ICS-Feed (Abo):** Button **Feed** schreibt `MS365-Schultools/kalender/schulaktivitaeten.ics` per Graph in die Site-Bibliothek (Details in `DESCRIPTION` / `X-ALT-DESC`). Beim Veröffentlichen: anonyme Freigabe wenn erlaubt; sonst Org-`download.aspx` + Hinweis. **Outlook:** HTTPS-Link → Kalender hinzufügen → Aus dem Internet (nicht `webcal://` auf SharePoint-Pfaden). **Apple:** webcal. Ohne öffentliches Abo: ICS-Download oder „In meinen Kalender“. Button **ICS** = einmaliger Download der Filteransicht.
 
 **Noch offen:** Schulspezifisches Zeitraster in Stammdaten, Wochenvorschau-Export, Untis-Import von Schülergruppen, Flow-Trigger auch bei Statuswechsel `nachforderung` → `beantragt`.
 

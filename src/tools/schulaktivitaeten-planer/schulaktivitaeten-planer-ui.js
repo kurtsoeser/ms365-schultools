@@ -492,8 +492,9 @@ function renderFeedBar(state) {
         return `
         <div class="akt-feed" role="note">
           <p class="akt-feed__hint"><i class="bi bi-rss" aria-hidden="true"></i>
-            <strong>Kalender-Abo:</strong> „Feed“ veröffentlicht nur <em>genehmigte</em> Aktivitäten als ICS auf der Site
-            (Titel, Klasse, Verantwortlich, Begleitung …). Danach in Outlook/Apple als Internetkalender abonnieren.</p>
+            <strong>Kalender-Abo:</strong> „Feed“ schreibt genehmigte Termine als ICS auf <em>diese</em> Schul-Site (funktioniert pro Schule mit eigener SharePoint-URL).
+            Outlook: HTTPS-Link → Aus dem Internet (webcal:// auf SharePoint oft Login-Fehler).
+            Überall zuverlässig: Button <em>ICS</em> in der Kalenderansicht und Import in Outlook.</p>
         </div>`;
     }
     const when = feed.publishedAt
@@ -505,18 +506,24 @@ function renderFeedBar(state) {
               }
           })()
         : '';
+    const outlookUrl = String(feed.outlookHttpsUrl || feed.anonymousUrl || feed.httpsUrl || '').trim();
+    const badge = feed.anonymousShare
+        ? '<span class="akt-badge akt-badge--ok">Öffentliches Abo möglich</span>'
+        : '<span class="akt-badge akt-badge--warn">Nur mit Anmeldung</span>';
+    const hint = String(feed.subscribeHint || '').trim();
     return `
     <div class="akt-feed akt-feed--ready" role="status">
       <div class="akt-feed__meta">
-        <span class="akt-badge akt-badge--ok">Feed aktiv</span>
+        ${badge}
         <span>${Number(feed.count) || 0} genehmigte Termine</span>
         ${when ? `<span class="muted">Stand ${esc(when)}</span>` : ''}
         ${feed.path ? `<code class="akt-feed__path">${esc(feed.path)}</code>` : ''}
       </div>
+      ${hint ? `<p class="akt-feed__hint muted" style="margin:8px 0 0">${esc(hint)}</p>` : ''}
       <div class="akt-feed__actions">
-        <button type="button" class="btn" id="aktBtnFeedCopyWebcal" title="webcal-Link kopieren (Abo)"><i class="bi bi-clipboard"></i>webcal kopieren</button>
-        <button type="button" class="btn" id="aktBtnFeedCopyHttps" title="HTTPS-Link kopieren"><i class="bi bi-link-45deg"></i>HTTPS kopieren</button>
-        <a class="btn" id="aktBtnFeedOpen" href="${esc(feed.webcalUrl || feed.httpsUrl)}" rel="noopener"><i class="bi bi-calendar-plus"></i>Abonnieren</a>
+        <button type="button" class="btn akt-btn-primary" id="aktBtnFeedCopyHttps" title="HTTPS-Link für Outlook kopieren"><i class="bi bi-clipboard"></i>Outlook-Link kopieren</button>
+        <button type="button" class="btn" id="aktBtnFeedCopyWebcal" title="webcal für Apple Kalender"><i class="bi bi-apple"></i>webcal (Apple)</button>
+        <a class="btn" id="aktBtnFeedOpen" href="${esc(outlookUrl)}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Link öffnen</a>
         <button type="button" class="btn" id="aktBtnFeedRefresh" title="Feed erneut aus genehmigten Terminen schreiben"><i class="bi bi-arrow-repeat"></i>Aktualisieren</button>
       </div>
     </div>`;
@@ -622,6 +629,11 @@ function filterBar(state, opts) {
               : ''
       }
       <span class="akt-filters__meta">${count} ${count === 1 ? 'Eintrag' : 'Einträge'}</span>
+      ${
+          opts && opts.showIcsDownload
+              ? `<button type="button" class="btn akt-btn-ghost akt-btn-compact" id="aktBtnCalIcs" title="Sichtbare Termine als ICS herunterladen (Outlook-Import)"><i class="bi bi-download" aria-hidden="true"></i>ICS</button>`
+              : ''
+      }
     </div>`;
 }
 
@@ -1252,14 +1264,21 @@ function renderKalender(state) {
         year: y,
         month0: m - 1,
         prefix: 'akt-cal',
-        hint: 'Aktivität antippen für Details · Agenda, Woche und Monat wie in Kalender & Termine.',
-        actionsHtml: ''
+        hint: 'Aktivität antippen für Details · ICS = aktuelle Filteransicht zum Import in Outlook.',
+        actionsHtml:
+            '<button type="button" class="btn akt-btn-ghost akt-btn-compact" id="aktBtnCalIcsHeader" title="Sichtbare Termine als ICS herunterladen">' +
+            '<i class="bi bi-download" aria-hidden="true"></i>ICS herunterladen</button>'
     });
 
     return `
     <section class="akt-panel akt-cal-layout">
       <h2 class="akt-sr-only">Kalender</h2>
-      ${filterBar(state, { ...calendarScopeOpts(state), calendarPresets: true, showToday: true })}
+      ${filterBar(state, {
+          ...calendarScopeOpts(state),
+          calendarPresets: true,
+          showToday: true,
+          showIcsDownload: true
+      })}
       ${shell}
     </section>`;
 }
@@ -1534,6 +1553,19 @@ function renderSystemAdmin(state) {
                 : 'Aktivitäten: noch nicht geladen';
     const noSite = !String(state.siteUrl || '').trim();
     return `
+    <section class="akt-panel akt-panel--calm akt-sys-card" id="aktSysPermSection">
+      <div class="akt-section-head">
+        <h3>Genehmigung / Direktion</h3>
+        <p class="muted">Wer Anträge freigibt – Entra-Gruppe oder Einzelpersonen (auch aus Stammdaten Schulleitung). Speichern schreibt die App-Rollen; „Listenrechte anwenden“ setzt SharePoint-Rechte.</p>
+      </div>
+      <div id="aktSysPermAdminMount"></div>
+      <div class="akt-actions" style="margin-top:12px;flex-wrap:wrap;gap:8px">
+        <button type="button" class="btn akt-btn-primary" id="aktSysPermSave"><i class="bi bi-check2"></i>Genehmiger speichern</button>
+        <button type="button" class="btn" id="aktSysPermApply"><i class="bi bi-shield-check"></i>Listenrechte anwenden</button>
+        <a class="btn" href="sharepoint-liste-schulaktivitaeten.html" style="text-decoration:none"><i class="bi bi-list-ul"></i>Listen verwalten</a>
+      </div>
+      <p class="muted" id="aktSysPermStatus" style="margin-top:8px" hidden></p>
+    </section>
     <section class="akt-panel akt-panel--calm akt-sys-card">
       <div class="akt-section-head">
         <h3>Datenquelle</h3>

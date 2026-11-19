@@ -245,12 +245,11 @@ export function persistAktPickersToStorage(skipPerms) {
  * @param {() => void} [onChange]
  */
 export function initAktSetupExtraUsers(onChange) {
-    if (!setupExtraWired) {
-        setupExtraCtrl.wire(() => {
-            if (typeof onChange === 'function') onChange();
-        });
-        setupExtraWired = true;
-    }
+    // wire() ist idempotent pro Button (dataset.pepWired) – nach DOM-Remount erneut aufrufen
+    setupExtraCtrl.wire(() => {
+        if (typeof onChange === 'function') onChange();
+    });
+    setupExtraWired = true;
 }
 
 /** @param {() => void} [onChange] */

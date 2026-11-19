@@ -84,8 +84,31 @@ import {
 } from './schulaktivitaeten-planer-demo-seed.js';
 
 const state = createInitialState();
-state.feedMeta = loadFeedMeta();
+state.feedMeta = null;
 let root = null;
+
+/** Feed-Meta nur anzeigen, wenn sie zur aktuellen Schul-Site gehört (Multi-Tenant). */
+function refreshFeedMetaForCurrentSite() {
+    const meta = loadFeedMeta();
+    const site = String(state.siteUrl || '')
+        .trim()
+        .replace(/\/$/, '')
+        .toLowerCase();
+    if (!meta) {
+        state.feedMeta = null;
+        return;
+    }
+    const metaSite = String(meta.siteUrl || '')
+        .trim()
+        .replace(/\/$/, '')
+        .toLowerCase();
+    if (metaSite && site && metaSite !== site) {
+        state.feedMeta = null;
+        return;
+    }
+    state.feedMeta = meta;
+}
+refreshFeedMetaForCurrentSite();
 /** @type {((ev: KeyboardEvent) => void) | null} */
 let drawerEscHandler = null;
 
@@ -124,7 +147,10 @@ async function publishFeed() {
         toast(
             'ICS-Feed veröffentlicht: ' +
                 (meta.count || 0) +
-                ' genehmigte Termine. Link kopieren und in Outlook/Apple abonnieren.'
+                ' genehmigte Termine. ' +
+                (meta.anonymousShare
+                    ? 'Outlook: „Outlook-Link kopieren“ → Kalender hinzufügen → Aus dem Internet.'
+                    : 'Kein öffentlicher Freigabelink – Outlook-Abo oft blockiert; ICS importieren oder IT: anonyme Freigabe.')
         );
     } catch (e) {
         toast(String((e && e.message) || e));
@@ -367,6 +393,15 @@ function maybeAutoDemoPersonaFromSeed() {
  */
 async function syncAccountAndRole(opts) {
     syncAccount();
+    // Demo-Direktor → Stammdaten Schulleitung, bevor Rollen aus Stammdaten gelesen werden
+    try {
+        const { ensureSignedInMs365DemoPortalAccountInLocalStammdaten } = await import(
+            '../../shared/demo-portal-teacher.js'
+        );
+        ensureSignedInMs365DemoPortalAccountInLocalStammdaten();
+    } catch {
+        /* ignore */
+    }
     const preferShellDefault = !!(opts && opts.preferShellDefault);
     const hasPreferred = opts && Object.prototype.hasOwnProperty.call(opts, 'preferredActiveRole');
     await applyAktRoleFromEntra(state, {
@@ -715,7 +750,89 @@ function bindStatic() {
             const input = document.getElementById('aktSiteUrl');
             state.siteUrl = input ? String(input.value || '').trim() : state.siteUrl;
             persistSiteUrl(state.siteUrl);
+            refreshFeedMetaForCurrentSite();
             refreshData();
+        });
+    }
+
+    const permMount = document.getElementById('aktSysPermAdminMount');
+    if (permMount && !permMount.dataset.mounted) {
+        permMount.dataset.mounted = '1';
+        void (async () => {
+            try {
+                const ui = await import('./schulaktivitaeten-permissions-ui.js');
+                const perms = await import('./schulaktivitaeten-planer-permissions.js');
+                permMount.innerHTML = ui.htmlAktSetupEntraPermGrid(
+                    perms.loadEffectiveAktPermissionsConfig(),
+                    'admin'
+                );
+                ui.remountAktSetupPermPickers();
+            } catch (e) {
+                permMount.innerHTML =
+                    '<p class="muted">Genehmiger-Einstellungen konnten nicht geladen werden.</p>';
+            }
+        })();
+    }
+
+    const permSave = document.getElementById('aktSysPermSave');
+    if (permSave && !permSave.dataset.bound) {
+        permSave.dataset.bound = '1';
+        permSave.addEventListener('click', () => {
+            void (async () => {
+                try {
+                    const ui = await import('./schulaktivitaeten-permissions-ui.js');
+                    ui.persistAktPickersToStorage(false);
+                    const status = document.getElementById('aktSysPermStatus');
+                    if (status) {
+                        status.hidden = false;
+                        status.textContent =
+                            'Genehmiger gespeichert. Seite neu laden bzw. Konto-Sync – Direktion sieht dann „Entscheidungen“.';
+                    }
+                    toast('Genehmiger gespeichert.');
+                    await syncAccountAndRole({ preferShellDefault: true });
+                    paint();
+                } catch (e) {
+                    toast(e && e.message ? e.message : String(e));
+                }
+            })();
+        });
+    }
+
+    const permApply = document.getElementById('aktSysPermApply');
+    if (permApply && !permApply.dataset.bound) {
+        permApply.dataset.bound = '1';
+        permApply.addEventListener('click', () => {
+            void (async () => {
+                const status = document.getElementById('aktSysPermStatus');
+                try {
+                    const ui = await import('./schulaktivitaeten-permissions-ui.js');
+                    const perms = await import('./schulaktivitaeten-planer-permissions.js');
+                    ui.persistAktPickersToStorage(false);
+                    const site = String(state.siteUrl || '').trim();
+                    if (!site) {
+                        toast('Zuerst SharePoint-URL setzen und Verbindung prüfen.');
+                        return;
+                    }
+                    if (status) {
+                        status.hidden = false;
+                        status.textContent = 'Listenrechte werden gesetzt …';
+                    }
+                    const log = [];
+                    await perms.applySchulaktivitaetenPackagePermissions(site, null, (m) => {
+                        log.push(String(m || ''));
+                        if (status) status.textContent = log.slice(-3).join(' · ');
+                    });
+                    toast('Listenrechte angewendet.');
+                    await syncAccountAndRole({ preferShellDefault: true });
+                    paint();
+                } catch (e) {
+                    if (status) {
+                        status.hidden = false;
+                        status.textContent = e && e.message ? e.message : String(e);
+                    }
+                    toast(e && e.message ? e.message : String(e));
+                }
+            })();
         });
     }
 
@@ -1225,18 +1342,46 @@ function bindStatic() {
         });
     }
 
+    function downloadVisibleIcs(opts) {
+        const o = opts || {};
+        const scope = scopeFromState(
+            state,
+            o.calendar
+                ? state.role === 'admin'
+                    ? { scopeAll: true }
+                    : { onlyMine: true }
+                : { scopeAll: state.role === 'admin' }
+        );
+        let items = filterItems(state.items, state.filters, scope);
+        if (o.calendar) {
+            items = items.filter((i) => {
+                const st = String(i.status || '').toLowerCase();
+                return st !== 'abgelehnt' && st !== 'abgesagt' && st !== 'entwurf';
+            });
+        } else {
+            items = items.filter((i) => String(i.status || '').toLowerCase() !== 'abgelehnt');
+        }
+        if (!items.length) {
+            toast('Keine Termine für den ICS-Export (Filter prüfen).');
+            return;
+        }
+        const ics = buildIcs(items, state.stammdaten, 'Schulaktivitäten');
+        downloadIcs(ics, o.calendar ? 'schulaktivitaeten-kalender.ics' : 'schulaktivitaeten.ics');
+        toast(
+            'ICS exportiert (' +
+                items.length +
+                ' Termine) – in Outlook: Kalender → Aus Datei öffnen/importieren.'
+        );
+    }
+
     const icsBtn = document.getElementById('aktBtnIcs');
     if (icsBtn) {
-        icsBtn.addEventListener('click', () => {
-            const scope = scopeFromState(state, { scopeAll: state.role === 'admin' });
-            const items = filterItems(state.items, state.filters, scope).filter(
-                (i) => String(i.status).toLowerCase() !== 'abgelehnt'
-            );
-            const ics = buildIcs(items, state.stammdaten, 'Schulaktivitäten');
-            downloadIcs(ics);
-            toast('ICS exportiert (' + items.length + ' Termine).');
-        });
+        icsBtn.addEventListener('click', () => downloadVisibleIcs({ calendar: false }));
     }
+    ['aktBtnCalIcs', 'aktBtnCalIcsHeader'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => downloadVisibleIcs({ calendar: true }));
+    });
 
     const feedBtn = document.getElementById('aktBtnFeed');
     if (feedBtn) {
@@ -1251,18 +1396,38 @@ function bindStatic() {
     const copyWebcal = document.getElementById('aktBtnFeedCopyWebcal');
     if (copyWebcal) {
         copyWebcal.addEventListener('click', () => {
-            const url = (state.feedMeta && (state.feedMeta.webcalUrl || state.feedMeta.httpsUrl)) || '';
+            const m = state.feedMeta || {};
+            const url = m.webcalUrl || '';
+            if (!url) {
+                toast('Kein webcal-Link – Feed neu veröffentlichen.');
+                return;
+            }
             copyText(url)
-                .then(() => toast('webcal-Link kopiert – in Outlook unter „Kalender hinzufügen → Aus dem Internet“ einfügen.'))
+                .then(() =>
+                    toast(
+                        m.anonymousShare
+                            ? 'webcal kopiert – in Apple Kalender → Neuer Kalenderabo.'
+                            : 'webcal kopiert. Ohne öffentliche Freigabe scheitert das Abo oft – besser ICS importieren.'
+                    )
+                )
                 .catch((e) => toast(String((e && e.message) || e)));
         });
     }
     const copyHttps = document.getElementById('aktBtnFeedCopyHttps');
     if (copyHttps) {
         copyHttps.addEventListener('click', () => {
-            const url = (state.feedMeta && state.feedMeta.httpsUrl) || '';
+            const m = state.feedMeta || {};
+            const url = m.outlookHttpsUrl || m.anonymousUrl || m.downloadAspxUrl || m.httpsUrl || '';
+            if (!url) {
+                toast('Kein Link – Feed zuerst veröffentlichen.');
+                return;
+            }
             copyText(url)
-                .then(() => toast('HTTPS-Link kopiert.'))
+                .then(() =>
+                    toast(
+                        'HTTPS-Link kopiert. Outlook: Kalender hinzufügen → Aus dem Internet → einfügen (nicht webcal://).'
+                    )
+                )
                 .catch((e) => toast(String((e && e.message) || e)));
         });
     }
@@ -2107,6 +2272,7 @@ function boot() {
     state.demoRoleOverride = readDemoRoleOverrideFromUrl(false);
     state.role = resolveRole();
     state.siteUrl = loadSavedSiteUrl() || state.siteUrl;
+    refreshFeedMetaForCurrentSite();
     state.stammdaten = loadStammdaten();
     state.form = emptyForm(prefillTeacher());
     window.addEventListener('ms365-auth-state-changed', () => {
@@ -2115,6 +2281,7 @@ function boot() {
             paint();
             // Nach Konto-Wechsel Site aus Lizenz holen und Klassen neu lesen
             const url = await ensureAktSiteUrl();
+            refreshFeedMetaForCurrentSite();
             if (url) {
                 try {
                     await refreshData();
@@ -2137,12 +2304,14 @@ function boot() {
         applyToolSiteUrlLocally(url);
         state.siteUrl = url;
         persistSiteUrl(url);
+        refreshFeedMetaForCurrentSite();
         void refreshData().catch(() => {});
     });
     paint();
     void (async () => {
         await syncAccountAndRole({ preferShellDefault: true });
         const url = await ensureAktSiteUrl();
+        refreshFeedMetaForCurrentSite();
         paint();
         if (url) {
             refreshData().catch(() => {

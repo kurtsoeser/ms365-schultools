@@ -5,7 +5,9 @@ import {
     peopleListHasEmail,
     teachersListHasEmail,
     upsertDemoTeacherInTeachersList,
-    upsertDemoStudentInStudentsList
+    upsertDemoStudentInStudentsList,
+    upsertDemoDirektorInAdminList,
+    MS365_DEMO_DIREKTOR_EMAIL
 } from '../src/shared/demo-portal-teacher.js';
 
 describe('demo-portal-teacher', () => {
@@ -61,5 +63,24 @@ describe('demo-portal-teacher', () => {
         const second = upsertDemoStudentInStudentsList(first.students, account);
         expect(second.changed).toBe(false);
         expect(second.students).toHaveLength(1);
+    });
+
+    it('fügt Demo-Direktor als Schulleitung in admin ein', () => {
+        expect(MS365_DEMO_DIREKTOR_EMAIL).toBe('direktor@ms365.schule');
+        const first = upsertDemoDirektorInAdminList([], {
+            email: MS365_DEMO_DIREKTOR_EMAIL,
+            name: 'Direktor',
+            role: 'Direktion'
+        });
+        expect(first.changed).toBe(true);
+        expect(first.admin[0].email).toBe('direktor@ms365.schule');
+        expect(first.admin[0].tier).toBe('schulleitung');
+        const second = upsertDemoDirektorInAdminList(first.admin, {
+            email: MS365_DEMO_DIREKTOR_EMAIL,
+            name: 'Direktor',
+            role: 'Direktion'
+        });
+        expect(second.changed).toBe(false);
+        expect(second.admin).toHaveLength(1);
     });
 });

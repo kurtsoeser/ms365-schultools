@@ -763,7 +763,9 @@ export function mountDashboardAudience(opts) {
     });
 
     window.addEventListener('ms365-license-changed', () => {
-        applyDomFilter();
+        // Designierter IT-Kontakt / Operator oft erst hier – Persona neu, nicht nur DOM-Filter
+        clearDashboardPersonaCache();
+        refreshPersonas({ force: true });
     });
 
     window.addEventListener('ms365-tenant-settings-changed', () => {

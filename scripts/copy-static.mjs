@@ -17,6 +17,9 @@ const distRoot = path.resolve(projectRoot, 'dist');
  *   gezogen, müssen neben den HTML-Dateien liegen.
  * - `vendor/**`: Browser-Bibliotheken aus npm (scripts/vendor-libs.mjs), die
  *   Seiten und ungebündelte Module unter derselben Origin laden.
+ * - `assets/power-automate/**`: Flow-Vorlagen (definition.json) für Setup-ZIP –
+ *   werden per fetch von tools/*-setup.html geladen; ohne Copy → 404 live.
+ * - `assets/sokrates/**`, `assets/kursteam-templates/**`: Import-Vorlagen.
  * - `ms365-schooltool.html`: kanonische Datei aus dem Repo-Root nach `dist/`
  *   kopieren (Redirect/MSAL/mode-Map), damit der Build nicht von einer älteren
  *   Vorlage abweicht. Sie läuft nicht durch Vite, deshalb setzen wir das
@@ -89,6 +92,8 @@ async function main() {
   }
   await copyDirToDist('vendor');
   await copyDirToDist('assets/sokrates');
+  await copyDirToDist('assets/power-automate');
+  await copyDirToDist('assets/kursteam-templates');
   // Vite legt public/ bereits nach dist/; Tenant-Configs sicherstellen
   {
     const src = path.resolve(projectRoot, 'public/stammdaten-portal-tenants');

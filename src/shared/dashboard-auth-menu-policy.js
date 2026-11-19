@@ -240,4 +240,8 @@ export function bootAuthMenuAudiencePolicy() {
     window.addEventListener('ms365-it-shell-changed', () => {
         refreshAuthMenuAudiencePolicy();
     });
+    // Nach License/Operator-Nachzug: Bereich Portal/IT erneut einblenden
+    window.addEventListener('ms365-license-changed', () => {
+        refreshAuthMenuAudiencePolicy();
+    });
 }

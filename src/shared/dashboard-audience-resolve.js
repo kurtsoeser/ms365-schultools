@@ -390,9 +390,9 @@ export async function resolveDashboardPersonas() {
             isIt: true,
             isLehrer: false,
             isSchueler: false,
-            globalAdmin,
-            operator,
-            designatedSchoolIt,
+            globalAdmin: !!globalAdmin,
+            operator: !!operator,
+            designatedSchoolIt: !!designatedSchoolIt,
             schularbeitenRoles,
             freistellungRoles
         };
@@ -428,8 +428,9 @@ export async function resolveDashboardPersonas() {
         isSchueler: decided.isSchueler,
         personaSource: decided.personaSource,
         personaDiagnostics: buildPersonaDiagnostics(stammdatenScope, groupsConfigured),
-        globalAdmin,
-        operator,
+        globalAdmin: !!globalAdmin,
+        operator: !!operator,
+        designatedSchoolIt: !!designatedSchoolIt,
         schularbeitenRoles,
         freistellungRoles
     };

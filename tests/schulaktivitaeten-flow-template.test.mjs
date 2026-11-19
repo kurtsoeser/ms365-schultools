@@ -62,4 +62,10 @@ describe('schulaktivitaeten flow template', () => {
         );
         expect(manifest.flowAssets.assetPaths).toContain(FLOW_ASSET_ID);
     });
+
+    it('copy-static liefert Flow-Vorlagen nach dist (sonst 404 im Setup)', () => {
+        const copyStatic = fs.readFileSync(path.join('scripts', 'copy-static.mjs'), 'utf8');
+        expect(copyStatic).toContain("copyDirToDist('assets/power-automate')");
+        expect(fs.existsSync(defPath)).toBe(true);
+    });
 });

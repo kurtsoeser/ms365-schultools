@@ -19,7 +19,10 @@ import {
     loadEffectivePermissionsConfig as loadFrPerms
 } from '../freistellung-planer/freistellung-planer-permissions.js';
 import { loadEffectiveAktPermissionsConfig as loadAktPerms } from './schulaktivitaeten-planer-permissions.js';
-import { accountIsPlannerUserInList } from '../freistellung-planer/freistellung-planer-direktion-users.js';
+import {
+    accountIsPlannerUserInList,
+    direktionUsersFromTenantStammdaten
+} from '../freistellung-planer/freistellung-planer-direktion-users.js';
 import {
     kvKlasseCodesForEmail,
     matchTeacherByEmail,
@@ -76,9 +79,20 @@ export function sortAktRoles(roles) {
     return AKT_ROLE_ORDER.filter((r) => set.has(r));
 }
 
+function currentPortalIsSchulIt() {
+    try {
+        const p =
+            typeof window !== 'undefined' ? window.__ms365DashboardPersonasLast : null;
+        return !!(p && p.loggedIn && p.isIt);
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Shell-bewusste Standard-App-Rolle bei Mehrfachrollen.
- * Portal → Lehrer (Alltag); IT-Backend → Admin.
+ * Schul-IT: Portal → Lehrer (Alltag), IT-Backend → Admin.
+ * Direktion / Genehmiger (Admin, aber nicht Schul-IT): immer Admin – sonst keine Freigabe-Inbox.
  * @param {AktRole[]|string[]} available
  * @returns {AktRole|null}
  */
@@ -92,9 +106,11 @@ export function shellPreferredAktRole(available) {
         shell = 'portal';
     }
     if (shell === 'full' && set.has('admin')) return 'admin';
+    // Portal-Vorschau nur für Schul-IT – Direktion darf nicht auf Lehrer-Alltag fallen
+    if (shell !== 'full' && currentPortalIsSchulIt() && set.has('lehrer')) return 'lehrer';
+    if (set.has('admin')) return 'admin';
     if (set.has('lehrer')) return 'lehrer';
     if (set.has('kv')) return 'kv';
-    if (set.has('admin')) return 'admin';
     return null;
 }
 
@@ -137,8 +153,10 @@ export function roleSourceLabel(source) {
     if (s === 'global-admin') return 'Globaler Administrator';
     if (s === 'designated-it') return 'Schul-IT';
     if (s === 'stammdaten-kv') return 'Klassenvorstand (Stammdaten)';
+    if (s === 'stammdaten-direktion') return 'Schulleitung (Stammdaten)';
     if (s === 'stammdaten') return 'Stammdaten';
     if (s === 'admin-user') return 'Verwaltung (Einzelperson)';
+    if (s === 'direktion-user') return 'Direktion (Freistellung)';
     if (s === 'demo') return 'IT-Vorschau';
     return s || '–';
 }
@@ -184,7 +202,12 @@ export async function applyAktRoleFromEntra(state, opts) {
 
     let sa = { groupAdminId: '', groupLehrerId: '', adminUsers: [], lehrerUsers: [] };
     let akt = { groupAdminId: '', groupLehrerId: '', adminUsers: [], lehrerUsers: [] };
-    let fr = { groupKvId: '', groupDirektionId: '', kvUsers: [] };
+    let fr = {
+        groupKvId: '',
+        groupDirektionId: '',
+        kvUsers: [],
+        direktionUsers: []
+    };
     try {
         sa = loadSaPerms();
     } catch {
@@ -282,6 +305,10 @@ export async function applyAktRoleFromEntra(state, opts) {
         if (!roles.includes('kv')) roles.push('kv');
         if (!sources.kv) sources.kv = 'kv-user';
     }
+    if (accountIsPlannerUserInList(em, fr.direktionUsers || [])) {
+        if (!roles.includes('admin')) roles.push('admin');
+        if (!sources.admin) sources.admin = 'direktion-user';
+    }
 
     const kvCodes = kvKlasseCodesForEmail(state.stammdaten, em);
     if (kvCodes && kvCodes.length) {
@@ -292,6 +319,16 @@ export async function applyAktRoleFromEntra(state, opts) {
     if (teacher) {
         if (!roles.includes('lehrer')) roles.push('lehrer');
         if (!sources.lehrer) sources.lehrer = 'stammdaten';
+    }
+    // Schulleitung / Direktion aus Stammdaten → Genehmiger (App-Admin), unabhängig von Lehrerliste
+    try {
+        const direktionStamm = direktionUsersFromTenantStammdaten();
+        if (accountIsPlannerUserInList(em, direktionStamm)) {
+            if (!roles.includes('admin')) roles.push('admin');
+            if (!sources.admin) sources.admin = 'stammdaten-direktion';
+        }
+    } catch {
+        /* ignore */
     }
 
     // Admin sieht auch KV-/Lehrer-Views (ohne Fake-Identität)

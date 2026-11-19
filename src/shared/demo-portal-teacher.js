@@ -1,6 +1,7 @@
 /**
  * Demo-Portal-Accounts (@ms365.schule) in lokalen Stammdaten absichern,
- * damit die Portal-Persona automatisch „Lehrkraft“ bzw. „Schüler/in“ wird.
+ * damit die Portal-Persona automatisch „Lehrkraft“ bzw. „Schüler/in“ wird
+ * und Direktion als Schulleitung für Planer-Genehmigung greift.
  */
 
 /** @type {RegExp} */
@@ -8,6 +9,9 @@ export const MS365_DEMO_TEACHER_EMAIL_RE = /^lehrer(\d+)\.demo@ms365\.schule$/i;
 
 /** @type {RegExp} */
 export const MS365_DEMO_STUDENT_EMAIL_RE = /^schueler(\d+)\.demo@ms365\.schule$/i;
+
+/** Demo-Direktor (Genehmigung Schulaktivitäten / Freistellung). */
+export const MS365_DEMO_DIREKTOR_EMAIL = 'direktor@ms365.schule';
 
 /**
  * @param {string|null|undefined} email
@@ -211,12 +215,70 @@ export function ensureSignedInMs365DemoStudentInLocalStammdaten() {
 }
 
 /**
- * Lehrkraft oder Schüler – je nach angemeldetem Demo-Account.
+ * @param {unknown} adminRows
+ * @param {{ email: string, name: string, role: string }} account
+ * @returns {{ admin: object[], changed: boolean }}
+ */
+export function upsertDemoDirektorInAdminList(adminRows, account) {
+    const list = Array.isArray(adminRows) ? adminRows.slice() : [];
+    if (!account || !account.email) return { admin: list, changed: false };
+    if (peopleListHasEmail(list, account.email)) {
+        return { admin: list, changed: false };
+    }
+    list.push({
+        role: account.role || 'Direktion',
+        name: account.name || 'Direktor',
+        email: account.email,
+        defaultKey: 'direktion',
+        tier: 'schulleitung'
+    });
+    return { admin: list, changed: true };
+}
+
+/**
+ * Demo-Direktor in Stammdaten → Verwaltung/Schulleitung (Genehmiger in Planern).
+ *
+ * @returns {{ ensured: boolean, changed: boolean, email?: string, reason?: string, role?: string }}
+ */
+export function ensureSignedInMs365DemoDirektorInLocalStammdaten() {
+    const email = readSignedInEmail();
+    if (email !== MS365_DEMO_DIREKTOR_EMAIL) {
+        return { ensured: false, changed: false, reason: 'not-demo-direktor' };
+    }
+
+    const loaded = loadTenantSettings();
+    if (!loaded.ok) {
+        return { ensured: false, changed: false, email, reason: loaded.reason };
+    }
+
+    const settings = loaded.settings;
+    const prev = Array.isArray(settings.admin) ? settings.admin : [];
+    const { admin, changed } = upsertDemoDirektorInAdminList(prev, {
+        email,
+        name: 'Direktor',
+        role: 'Direktion'
+    });
+    if (!changed) {
+        return { ensured: true, changed: false, email, reason: 'already-present', role: 'direktion' };
+    }
+
+    const saved = saveTenantSettings({ ...settings, admin });
+    if (!saved.ok) {
+        return { ensured: false, changed: false, email, reason: saved.reason };
+    }
+
+    return { ensured: true, changed: true, email, role: 'direktion' };
+}
+
+/**
+ * Lehrkraft, Schüler oder Direktor – je nach angemeldetem Demo-Account.
  *
  * @returns {{ ensured: boolean, changed: boolean, email?: string, reason?: string, role?: string }}
  */
 export function ensureSignedInMs365DemoPortalAccountInLocalStammdaten() {
     const teacher = ensureSignedInMs365DemoTeacherInLocalStammdaten();
     if (teacher.ensured || teacher.reason !== 'not-demo-teacher') return teacher;
-    return ensureSignedInMs365DemoStudentInLocalStammdaten();
+    const student = ensureSignedInMs365DemoStudentInLocalStammdaten();
+    if (student.ensured || student.reason !== 'not-demo-student') return student;
+    return ensureSignedInMs365DemoDirektorInLocalStammdaten();
 }

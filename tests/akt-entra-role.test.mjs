@@ -46,8 +46,9 @@ describe('schulaktivitaeten-entra-role policy', () => {
         expect(sortAktRoles(['lehrer', 'admin', 'kv'])).toEqual(['admin', 'kv', 'lehrer']);
     });
 
-    it('roleSourceLabel kennt designated-it', () => {
+    it('roleSourceLabel kennt designated-it und Schulleitung', () => {
         expect(roleSourceLabel('designated-it')).toBe('Schul-IT');
+        expect(roleSourceLabel('stammdaten-direktion')).toBe('Schulleitung (Stammdaten)');
     });
 });
 
@@ -64,13 +65,27 @@ describe('shellPreferredAktRole', () => {
         else globalThis.localStorage = prev;
     });
 
-    it('Portal → Lehrer bei Mehrfachrollen', () => {
+    it('Portal → Lehrer nur für Schul-IT (Vorschau)', () => {
         localStorage.setItem(key, 'portal');
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: true }
+        };
         expect(shellPreferredAktRole(['admin', 'kv', 'lehrer'])).toBe('lehrer');
+    });
+
+    it('Portal → Admin für Direktion (nicht Schul-IT)', () => {
+        localStorage.setItem(key, 'portal');
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: false, isLehrer: false }
+        };
+        expect(shellPreferredAktRole(['admin', 'kv', 'lehrer'])).toBe('admin');
     });
 
     it('IT-Backend → Admin bei Mehrfachrollen', () => {
         localStorage.setItem(key, 'full');
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: true }
+        };
         expect(shellPreferredAktRole(['admin', 'kv', 'lehrer'])).toBe('admin');
     });
 
@@ -100,17 +115,34 @@ describe('resolveActiveAktRole', () => {
         ).toBe('lehrer');
     });
 
-    it('preferShellDefault: Portal → Lehrer vor gespeicherter Admin-Rolle', () => {
+    it('preferShellDefault: Portal → Lehrer nur als Schul-IT', () => {
         localStorage.setItem(key, 'portal');
         localStorage.setItem(roleKey, 'admin');
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: true }
+        };
         expect(
             resolveActiveAktRole(['admin', 'lehrer'], { preferShellDefault: true })
         ).toBe('lehrer');
     });
 
+    it('preferShellDefault: Direktion bleibt Admin trotz Portal-Shell', () => {
+        localStorage.setItem(key, 'portal');
+        localStorage.setItem(roleKey, 'lehrer');
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: false }
+        };
+        expect(
+            resolveActiveAktRole(['admin', 'lehrer'], { preferShellDefault: true })
+        ).toBe('admin');
+    });
+
     it('preferShellDefault: IT → Admin', () => {
         localStorage.setItem(key, 'full');
         localStorage.setItem(roleKey, 'lehrer');
+        globalThis.window = {
+            __ms365DashboardPersonasLast: { loggedIn: true, isIt: true }
+        };
         expect(
             resolveActiveAktRole(['admin', 'lehrer'], { preferShellDefault: true })
         ).toBe('admin');

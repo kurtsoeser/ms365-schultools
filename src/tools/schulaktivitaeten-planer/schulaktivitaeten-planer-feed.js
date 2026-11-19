@@ -1,5 +1,9 @@
 /**
  * ICS-Feed auf der SharePoint-Site veröffentlichen (abonnierbar für Outlook u. a.).
+ *
+ * Outlook „Internetkalender“ braucht Roh-ICS ohne interaktiven Login.
+ * SharePoint-Pfad-URLs + webcal:// scheitern deshalb oft (Login-HTML statt ICS).
+ * Strategie: anonyme Freigabe wenn Tenant erlaubt; sonst Org-Download-URL + klare Hinweise.
  */
 import { buildIcs, toWebcalUrl } from './schulaktivitaeten-planer-export.js';
 
@@ -27,18 +31,95 @@ function encodeDriveRootPath(relativePath) {
 }
 
 /**
- * @returns {{ httpsUrl: string, webcalUrl: string, path: string, publishedAt: string, count: number }|null}
+ * @param {string} siteWebUrl
+ * @param {string} uniqueId
+ */
+export function buildDownloadAspxUrl(siteWebUrl, uniqueId) {
+    const base = String(siteWebUrl || '')
+        .trim()
+        .replace(/\/$/, '');
+    const id = String(uniqueId || '').trim();
+    if (!base || !id) return '';
+    return base + '/_layouts/15/download.aspx?UniqueId=' + encodeURIComponent(id);
+}
+
+/**
+ * SharePoint-Datei-URL um download=1 ergänzen (Browser-Rohdownload).
+ * @param {string} url
+ */
+export function preferDownloadUrl(url) {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    if (/[?&]download=/i.test(u)) return u;
+    if (!/\.sharepoint\.com/i.test(u)) return u;
+    return u + (u.includes('?') ? '&' : '?') + 'download=1';
+}
+
+/**
+ * Sharing-Link für Kalender-Clients möglichst als Download ansprechen.
+ * @param {string} shareWebUrl
+ */
+export function preferShareDownloadUrl(shareWebUrl) {
+    const u = String(shareWebUrl || '').trim();
+    if (!u) return '';
+    // :u: / :x: / :b: Freigabelinks – download=1 liefert oft die Datei statt der Viewer-Seite
+    if (/\/:([uxb]):\//i.test(u) || /sharepoint\.com/i.test(u)) {
+        return preferDownloadUrl(u);
+    }
+    return u;
+}
+
+/**
+ * Beste HTTPS-URL für Outlook „Kalender aus dem Internet“.
+ * @param {{
+ *   anonymousUrl?: string,
+ *   downloadAspxUrl?: string,
+ *   httpsUrl?: string,
+ *   shareUrl?: string
+ * }} meta
+ */
+export function resolveOutlookSubscribeHttpsUrl(meta) {
+    const m = meta || {};
+    return (
+        String(m.anonymousUrl || '').trim() ||
+        String(m.downloadAspxUrl || '').trim() ||
+        String(m.httpsUrl || '').trim() ||
+        String(m.shareUrl || '').trim() ||
+        ''
+    );
+}
+
+/**
+ * @returns {object|null}
  */
 export function loadFeedMeta() {
     try {
         const raw = JSON.parse(localStorage.getItem(FEED_META_KEY) || 'null');
         if (!raw || typeof raw !== 'object') return null;
+        const httpsUrl = String(raw.httpsUrl || '');
+        const anonymousUrl = String(raw.anonymousUrl || '');
+        const downloadAspxUrl = String(raw.downloadAspxUrl || '');
+        const shareUrl = String(raw.shareUrl || '');
+        const outlookHttps = resolveOutlookSubscribeHttpsUrl({
+            anonymousUrl,
+            downloadAspxUrl,
+            httpsUrl,
+            shareUrl
+        });
         return {
-            httpsUrl: String(raw.httpsUrl || ''),
-            webcalUrl: String(raw.webcalUrl || toWebcalUrl(raw.httpsUrl || '')),
+            httpsUrl,
+            anonymousUrl,
+            downloadAspxUrl,
+            fileWebUrl: String(raw.fileWebUrl || ''),
+            shareUrl: shareUrl || httpsUrl,
+            webcalUrl: String(raw.webcalUrl || toWebcalUrl(anonymousUrl || outlookHttps || httpsUrl)),
+            outlookHttpsUrl: outlookHttps,
+            anonymousShare: !!raw.anonymousShare || !!anonymousUrl,
+            subscribeHint: String(raw.subscribeHint || ''),
             path: String(raw.path || FEED_REL_PATH),
             publishedAt: String(raw.publishedAt || ''),
-            count: Number(raw.count) || 0
+            count: Number(raw.count) || 0,
+            siteUrl: String(raw.siteUrl || '')
         };
     } catch {
         return null;
@@ -72,7 +153,33 @@ async function resolveSiteDrive(tok, siteWebUrl) {
     );
     const driveId = drive && drive.id ? String(drive.id) : '';
     if (!driveId) throw new Error('Dokumentbibliothek der Site nicht gefunden.');
-    return { siteId, driveId, driveWebUrl: drive.webUrl || '' };
+    return { siteId, driveId, driveWebUrl: drive.webUrl || '', siteWebUrl: site.webUrl || siteWebUrl };
+}
+
+/**
+ * @param {string} tok
+ * @param {string} driveId
+ * @param {string} itemId
+ * @param {'anonymous'|'organization'} scope
+ */
+async function tryCreateViewLink(tok, driveId, itemId, scope) {
+    try {
+        const link = await G().graphJson(
+            'POST',
+            G().graphBase('v1.0') +
+                '/drives/' +
+                encodeURIComponent(driveId) +
+                '/items/' +
+                encodeURIComponent(itemId) +
+                '/createLink',
+            tok,
+            { type: 'view', scope },
+            'v1.0'
+        );
+        return String((link && link.link && link.link.webUrl) || '').trim();
+    } catch {
+        return '';
+    }
 }
 
 /**
@@ -96,7 +203,7 @@ export async function publishAktivitaetenIcsFeed(opts) {
     const count = (String(ics).match(/BEGIN:VEVENT/g) || []).length;
 
     const tok = await G().getGraphToken(SCOPES);
-    const { driveId } = await resolveSiteDrive(tok, siteUrl);
+    const { driveId, siteWebUrl } = await resolveSiteDrive(tok, siteUrl);
     const enc = encodeDriveRootPath(FEED_REL_PATH);
     const putUrl =
         G().graphBase('v1.0') + '/drives/' + encodeURIComponent(driveId) + '/' + enc + '/content';
@@ -120,56 +227,66 @@ export async function publishAktivitaetenIcsFeed(opts) {
         item = null;
     }
 
-    // Metadaten nachlesen (webUrl)
-    if (!item || !item.webUrl) {
-        item = await G().graphJson(
-            'GET',
-            G().graphBase('v1.0') +
-                '/drives/' +
-                encodeURIComponent(driveId) +
-                '/' +
-                enc +
-                '?$select=id,name,webUrl',
-            tok,
-            undefined,
-            'v1.0'
-        );
-    }
+    // Metadaten inkl. UniqueId für download.aspx
+    item = await G().graphJson(
+        'GET',
+        G().graphBase('v1.0') +
+            '/drives/' +
+            encodeURIComponent(driveId) +
+            '/' +
+            enc +
+            '?$select=id,name,webUrl,sharepointIds',
+        tok,
+        undefined,
+        'v1.0'
+    );
 
     const fileWebUrl = String((item && item.webUrl) || '').trim();
     if (!fileWebUrl) throw new Error('Feed-Datei gespeichert, aber keine webUrl erhalten.');
 
-    // Roh-Download-URL erleichtert Abos (Outlook/Apple holen periodisch den Dateiinhalt).
-    const httpsUrl = preferDownloadUrl(fileWebUrl);
+    const itemId = item && item.id ? String(item.id) : '';
+    const uniqueId = String(
+        (item && item.sharepointIds && item.sharepointIds.listItemUniqueId) || ''
+    ).trim();
+    const downloadAspxUrl = buildDownloadAspxUrl(siteWebUrl || siteUrl, uniqueId);
+    const pathHttps = preferDownloadUrl(fileWebUrl);
 
-    // Organisationsweiter Freigabelink (Anmeldung nötig) – Fallback/Weitergabe.
+    let anonymousUrl = '';
     let orgShareUrl = '';
-    try {
-        const itemId = item && item.id ? String(item.id) : '';
-        if (itemId) {
-            const link = await G().graphJson(
-                'POST',
-                G().graphBase('v1.0') +
-                    '/drives/' +
-                    encodeURIComponent(driveId) +
-                    '/items/' +
-                    encodeURIComponent(itemId) +
-                    '/createLink',
-                tok,
-                { type: 'view', scope: 'organization' },
-                'v1.0'
-            );
-            orgShareUrl = String((link && link.link && link.link.webUrl) || '').trim();
-        }
-    } catch {
-        /* organisation link optional */
+    if (itemId) {
+        anonymousUrl = preferShareDownloadUrl(await tryCreateViewLink(tok, driveId, itemId, 'anonymous'));
+        orgShareUrl = preferShareDownloadUrl(
+            await tryCreateViewLink(tok, driveId, itemId, 'organization')
+        );
+    }
+
+    const anonymousShare = !!anonymousUrl;
+    const outlookHttps = resolveOutlookSubscribeHttpsUrl({
+        anonymousUrl,
+        downloadAspxUrl,
+        httpsUrl: pathHttps,
+        shareUrl: orgShareUrl
+    });
+
+    let subscribeHint = '';
+    if (anonymousShare) {
+        subscribeHint =
+            'Öffentliche Freigabe aktiv. In Outlook: Kalender hinzufügen → Aus dem Internet → HTTPS-Link einfügen (nicht webcal). Apple: webcal kopieren.';
+    } else {
+        subscribeHint =
+            'Kein anonymer Freigabelink (Tenant blockiert oft „Jeder“). Outlook-Internetkalender scheitert dann am Login. Alternativen: ICS herunterladen und importieren, oder genehmigte Aktivität „In meinen Kalender“. IT kann anonyme Freigaben für die Site erlauben und den Feed neu veröffentlichen.';
     }
 
     const meta = {
-        httpsUrl,
+        httpsUrl: pathHttps,
         fileWebUrl,
-        webcalUrl: toWebcalUrl(httpsUrl),
-        shareUrl: orgShareUrl || httpsUrl,
+        downloadAspxUrl,
+        anonymousUrl,
+        anonymousShare,
+        webcalUrl: toWebcalUrl(anonymousUrl || outlookHttps),
+        outlookHttpsUrl: outlookHttps,
+        shareUrl: orgShareUrl || anonymousUrl || pathHttps,
+        subscribeHint,
         path: FEED_REL_PATH,
         publishedAt: new Date().toISOString(),
         count,
@@ -177,16 +294,4 @@ export async function publishAktivitaetenIcsFeed(opts) {
     };
     saveFeedMeta(meta);
     return meta;
-}
-
-/**
- * SharePoint-Datei-URL um download=1 ergänzen (ICS-Clients brauchen den Rohinhalt).
- * @param {string} url
- */
-export function preferDownloadUrl(url) {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/[?&]download=/i.test(u)) return u;
-    if (!/\.sharepoint\.com/i.test(u)) return u;
-    return u + (u.includes('?') ? '&' : '?') + 'download=1';
 }
