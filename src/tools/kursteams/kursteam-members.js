@@ -438,11 +438,8 @@ let pca = null;
 
 async function loadMsal() {
     if (msalMod) return msalMod;
-    try {
-        msalMod = await import('https://esm.sh/@azure/msal-browser@3.26.1');
-    } catch {
-        msalMod = await import('https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.26.1/+esm');
-    }
+    const loader = await import('../../shared/msal-loader.js');
+    msalMod = await loader.loadMsalBrowser();
     return msalMod;
 }
 

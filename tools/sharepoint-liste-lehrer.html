@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script src="../src/shared/theme-boot.js"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,7 +9,7 @@
     <title>MS365-Schul-Tools – SharePoint Lehrerliste</title>
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
 </head>
 <body>
     <div class="container page-card tm-page">
@@ -133,108 +133,6 @@
     <script src="../src/shared/tenant-settings-core.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-liste-lehrer.js" defer></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var PREVIEW_MAX = 8;
-
-            function esc(s) {
-                return String(s == null ? '' : s)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;');
-            }
-
-            function loadTeachers() {
-                if (typeof window.ms365TenantSettingsLoad !== 'function') return [];
-                try {
-                    var s = window.ms365TenantSettingsLoad();
-                    return (s && Array.isArray(s.teachers) ? s.teachers : []).filter(function (t) {
-                        return t && String(t.code || '').trim();
-                    });
-                } catch (e) {
-                    return [];
-                }
-            }
-
-            function syncPreviewTitle() {
-                var input = document.getElementById('splListName');
-                var titleEl = document.getElementById('splPreviewListTitle');
-                if (!titleEl) return;
-                var name = input && String(input.value || '').trim() ? String(input.value).trim() : 'Lehrerinnen';
-                titleEl.textContent = name;
-            }
-
-            function refreshPreview() {
-                var countEl = document.getElementById('splTeacherCount');
-                var body = document.getElementById('splPreviewBody');
-                var hint = document.getElementById('splPreviewHint');
-                var teachers = loadTeachers();
-                var n = teachers.length;
-
-                if (countEl) {
-                    countEl.innerHTML =
-                        '<i class="bi bi-person-badge"></i>' +
-                        (n ? n + ' Lehrkräfte in Stammdaten' : 'Keine Lehrkräfte in Stammdaten');
-                }
-
-                syncPreviewTitle();
-
-                if (!body) return;
-
-                if (!n) {
-                    body.innerHTML =
-                        '<tr><td colspan="5" style="color:var(--muted);">Noch keine Lehrkräfte in den Stammdaten. ' +
-                        '<a href="../tenant.html#teachers">Stammdaten öffnen</a></td></tr>';
-                    if (hint) hint.textContent = 'Sobald Lehrkräfte in den Stammdaten stehen, erscheinen sie hier.';
-                    return;
-                }
-
-                var shown = teachers.slice(0, PREVIEW_MAX);
-                var rows = shown.map(function (t) {
-                    var name = String(t.name || '').trim() || String(t.code || '').trim();
-                    var code = String(t.code || '').trim();
-                    var email = String(t.email || '').trim();
-                    var personIcon = email
-                        ? '<i class="bi bi-person-check" title="M365-Benutzer über E-Mail"></i>'
-                        : '<i class="bi bi-person" title="Keine E-Mail – Personenfeld leer" style="opacity:0.45;"></i>';
-                    return (
-                        '<tr>' +
-                        '<td>' + esc(name) + '</td>' +
-                        '<td><span class="pill">' + esc(code) + '</span></td>' +
-                        '<td>' + esc(email || '—') + '</td>' +
-                        '<td>' + esc(email || '—') + '</td>' +
-                        '<td>' + personIcon + '</td>' +
-                        '</tr>'
-                    );
-                });
-
-                if (n > PREVIEW_MAX) {
-                    rows.push(
-                        '<tr><td colspan="5" style="color:var(--muted);font-size:0.9em;">… und ' +
-                            (n - PREVIEW_MAX) +
-                            ' weitere aus den Stammdaten</td></tr>'
-                    );
-                }
-
-                body.innerHTML = rows.join('');
-                if (hint) {
-                    hint.textContent =
-                        n === 1
-                            ? '1 Lehrkraft aus Ihren Stammdaten – so wirkt die Liste in SharePoint.'
-                            : n + ' Lehrkräfte aus Ihren Stammdaten – so wirkt die Liste in SharePoint.';
-                }
-            }
-
-            var listName = document.getElementById('splListName');
-            if (listName) {
-                listName.addEventListener('input', syncPreviewTitle);
-                listName.addEventListener('change', syncPreviewTitle);
-            }
-
-            setTimeout(refreshPreview, 120);
-            setTimeout(refreshPreview, 600);
-        });
-    </script>
+    <script src="../src/pages/sharepoint-liste-lehrer.js"></script>
 </body>
 </html>

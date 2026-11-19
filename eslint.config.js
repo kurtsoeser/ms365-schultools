@@ -14,7 +14,7 @@ const vitestGlobals = {
 
 export default [
     {
-        ignores: ['dist/**', 'node_modules/**', 'coverage/**']
+        ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'vendor/**']
     },
     js.configs.recommended,
     {
@@ -24,9 +24,9 @@ export default [
             globals: {
                 ...globals.browser,
                 ...globals.node,
-                /** SheetJS aus CDN (xlsx.full.min.js), mehrere Tools */
+                /** SheetJS aus vendor/ (xlsx.full.min.js per <script>), mehrere Tools */
                 XLSX: 'readonly',
-                /** JSZip aus CDN (jszip.min.js), z. B. Freistellung-Setup */
+                /** JSZip aus vendor/ (jszip.min.js per <script>), z. B. Freistellung-Setup */
                 JSZip: 'readonly'
             }
         },

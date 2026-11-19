@@ -1,35 +1,19 @@
 /**
- * PDF-Text extrahieren (pdf.js von CDN, lazy).
+ * PDF-Text extrahieren (pdf.js aus vendor/, lazy – siehe vendor-libs.js).
  * Für WebUntis Class_*.pdf u. a.
  */
 (function () {
     'use strict';
-
-    const PDFJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
     let loadPromise = null;
 
     function ensurePdfJs() {
         if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
         if (loadPromise) return loadPromise;
-        loadPromise = new Promise(function (resolve, reject) {
-            const s = document.createElement('script');
-            s.src = PDFJS_CDN;
-            s.async = true;
-            s.onload = function () {
-                const lib = window.pdfjsLib;
-                if (!lib) {
-                    reject(new Error('pdf.js nicht verfügbar'));
-                    return;
-                }
-                lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-                resolve(lib);
-            };
-            s.onerror = function () {
-                reject(new Error('pdf.js konnte nicht geladen werden'));
-            };
-            document.head.appendChild(s);
+        // Dynamischer Import: funktioniert als klassisches Skript (Pfad relativ
+        // zu dieser Datei) und im Vite-Bundle.
+        loadPromise = import('./vendor-libs.js').then(function (vendor) {
+            return vendor.loadPdfJs();
         });
         return loadPromise;
     }
@@ -41,7 +25,9 @@
     function extractPdfContent(data) {
         return ensurePdfJs().then(function (pdfjsLib) {
             const buf = data instanceof Uint8Array ? data : new Uint8Array(data);
-            return pdfjsLib.getDocument({ data: buf }).promise.then(function (pdf) {
+            // isEvalSupported:false – pdf.js 3.x würde sonst Code aus der PDF-Datei
+            // per `new Function` bauen (CVE-2024-4367); wir lesen nur Text.
+            return pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise.then(function (pdf) {
                 const pagePromises = [];
                 for (let p = 1; p <= pdf.numPages; p++) {
                     const pageNum = p;

@@ -87,8 +87,15 @@ Wir **duplizieren** bewusst die gleichen Head-Zeilen in vielen Dateien (kein gem
 | `tools/*.html` | `href="../app.css"` |
 | `tools/archiv/*.html` | `href="../../app.css"` |
 
-**Bootstrap Icons** (einheitliche Version, wie in den anderen Seiten):  
-`https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css`
+**Bootstrap Icons** (aus npm, lokal ausgeliefert – Pfad relativ zur Seite wie bei `app.css`):  
+`<link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>`
+
+**Keine fremden Skripte, keine Inline-Skripte:** Jede App-Seite bekommt beim Build eine Content-Security-Policy mit `script-src 'self'` (`scripts/csp-policy.mjs`). Das heißt für neue Seiten:
+
+- Bibliotheken kommen aus npm und werden von `scripts/vendor-libs.mjs` nach `vendor/` kopiert (läuft bei `npm run dev` und `npm run build` mit) – keine CDN-URLs.
+- Kein `<script>…</script>` mit Code in der Seite (Ausnahme: `type="module"`, das lagert Vite aus) – Seiten-Skripte liegen in `src/pages/`.
+- Kein `onclick="…"` – entweder `addEventListener` oder `data-ms365-call="funktionsName"` mit `src/shared/declarative-actions.js`.
+- `npm run build` bricht bei Verstößen ab (`scripts/check-csp.mjs`); `npm run check:csp:browser` lädt danach alle Seiten in Chromium und meldet CSP-Verstöße.
 
 **`<meta name="ms365-graph-client-id" content="…">`** nur dort, wo die Seite **Microsoft Graph / MSAL** im Browser nutzt (wie bei den bestehenden Tool-Seiten). Wert wie in den Nachbar-HTMLs oder konsistent mit `ms365-config.js`. Öffentliche Infoseiten ohne Graph brauchen dieses Meta nicht.
 

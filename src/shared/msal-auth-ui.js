@@ -1,42 +1,9 @@
+// Statischer Import: wird von Vite mitgebündelt und funktioniert ebenso, wenn
+// diese Datei ungebündelt aus src/shared/ geladen wird (immer als type="module").
+import { loadMsalBrowser } from './msal-loader.js';
+
 (function () {
     'use strict';
-
-    const MSAL_LOADER_IMPORT = (function () {
-        // Vite-Bundle: import.meta.url zeigt auf assets/msal-auth-ui-*.js → msal-loader im selben Ordner.
-        try {
-            if (typeof import.meta !== 'undefined' && import.meta.url) {
-                return new URL('./msal-loader.js', import.meta.url).href;
-            }
-        } catch (_) {
-            // ignore
-        }
-        const needle = 'msal-auth-ui.js';
-        const rel = './msal-loader.js';
-        const scripts = document.getElementsByTagName('script');
-        for (let i = scripts.length - 1; i >= 0; i--) {
-            const src = scripts[i].src || '';
-            if (src.indexOf(needle) !== -1) {
-                try {
-                    return new URL(rel, src).href;
-                } catch (_) {}
-            }
-        }
-        // Fallback: Site-Root (nicht document.baseURI – unter /tools/*.html wäre das falsch).
-        try {
-            const p = String(window.location.pathname || '/').split('?')[0].split('#')[0];
-            const iTools = p.toLowerCase().indexOf('/tools/');
-            const base =
-                iTools !== -1
-                    ? p.slice(0, iTools)
-                    : p.lastIndexOf('/') > 0
-                      ? p.slice(0, p.lastIndexOf('/'))
-                      : '';
-            const root = base.endsWith('/') ? base.slice(0, -1) : base;
-            return new URL((root ? root + '/' : '/') + 'src/shared/msal-loader.js', window.location.origin).href;
-        } catch (_) {
-            return 'src/shared/msal-loader.js';
-        }
-    })();
 
     const DEFAULT_SCOPES = ['https://graph.microsoft.com/User.Read'];
 
@@ -98,11 +65,7 @@
 
     async function loadMsal() {
         if (msalMod) return msalMod;
-        const loader = await import(/* @vite-ignore */ MSAL_LOADER_IMPORT);
-        if (typeof loader.loadMsalBrowser !== 'function') {
-            throw new Error('MSAL-Loader: loadMsalBrowser fehlt.');
-        }
-        msalMod = await loader.loadMsalBrowser();
+        msalMod = await loadMsalBrowser();
         return msalMod;
     }
 

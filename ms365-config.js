@@ -80,24 +80,12 @@ window.MS365_ELECTION_API = {
 };
 
 (function loadMs365LocalConfig() {
-    if (typeof XMLHttpRequest === 'undefined' || typeof document === 'undefined') return;
-    try {
-        const scripts = document.getElementsByTagName('script');
-        let localUrl = '';
-        for (let i = scripts.length - 1; i >= 0; i--) {
-            const src = scripts[i].src || '';
-            if (/ms365-config\.js(\?|$)/i.test(src)) {
-                localUrl = src.replace(/ms365-config\.js(\?.*)?$/i, 'ms365-config.local.js$1');
-                break;
-            }
-        }
-        if (!localUrl) return;
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', localUrl, false);
-        xhr.send(null);
-        if (xhr.status !== 200 || !String(xhr.responseText || '').trim()) return;
-        // Lokale Override-Datei (gitignored) – optional, nur auf Ihrer Maschine / im Deployment
-        new Function(xhr.responseText)();
+    if (typeof document === 'undefined') return;
+
+    /**
+     * Übernimmt window.MS365_CONFIG_LOCAL (aus ms365-config.local.js) in die Konfiguration oben.
+     */
+    function applyLocalConfig() {
         const local = window.MS365_CONFIG_LOCAL;
         if (!local) return;
         if (window.MS365_KURSTEAMS_API) {
@@ -149,6 +137,50 @@ window.MS365_ELECTION_API = {
         }
         if (elec && elec.functionKey) {
             window.MS365_ELECTION_API.functionKey = String(elec.functionKey).trim();
+        }
+    }
+
+    function applyLocalConfigSafely() {
+        try {
+            applyLocalConfig();
+        } catch {
+            /* lokale Overrides optional */
+        }
+    }
+
+    function findOwnScript() {
+        if (document.currentScript) return document.currentScript;
+        const scripts = document.getElementsByTagName('script');
+        for (let i = scripts.length - 1; i >= 0; i--) {
+            if (/ms365-config\.js(\?|$)/i.test(scripts[i].src || '')) return scripts[i];
+        }
+        return null;
+    }
+
+    try {
+        // Lokale Override-Datei (gitignored) – optional, nur auf Ihrer Maschine / im Deployment.
+        // Sie wird als normales Skript derselben Origin geladen. Früher: XHR + new Function –
+        // das blockiert eine Content-Security-Policy ohne 'unsafe-eval'.
+        const self = findOwnScript();
+        const src = (self && self.src) || '';
+        if (!/ms365-config\.js(\?|$)/i.test(src)) return;
+        const localUrl = src.replace(/ms365-config\.js(\?.*)?$/i, 'ms365-config.local.js$1');
+        const marker = 'data-ms365-config-local';
+        const parserBlocking =
+            document.readyState === 'loading' && !self.async && !self.defer && self.type !== 'module';
+        if (parserBlocking) {
+            // Wie bisher synchron: die Datei läuft direkt nach diesem Skript und vor allen folgenden.
+            const attrUrl = localUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            document.write('<script src="' + attrUrl + '" ' + marker + '="1"><\/script>');
+            const written = document.querySelector('script[' + marker + ']');
+            if (written) written.addEventListener('load', applyLocalConfigSafely);
+        } else {
+            const s = document.createElement('script');
+            s.src = localUrl;
+            s.async = false;
+            s.setAttribute(marker, '1');
+            s.addEventListener('load', applyLocalConfigSafely);
+            document.head.appendChild(s);
         }
     } catch {
         /* lokale Overrides optional */

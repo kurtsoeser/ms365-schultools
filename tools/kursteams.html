@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script src="../src/shared/theme-boot.js"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/onboarding-empty-state.css">
     <link rel="stylesheet" href="../src/shared/kursteam-m365-import-status.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
         /* =============================================
            KURSTEAMS – PAGE-LEVEL DESIGN
@@ -470,7 +470,7 @@
 
                     <div id="kursteamSingleBanner" class="alert alert-info" style="display:none;margin-bottom:18px;">
                         <strong>Kurz:</strong> Namensschema einstellen → Zeilen ausfüllen → anlegen. Mit <strong>+</strong> weitere Teams.
-                        <button type="button" class="btn btn-small" style="margin-left:8px;" onclick="cancelKursteamSingleTeam()"><i class="bi bi-arrow-left"></i>Zum Start</button>
+                        <button type="button" class="btn btn-small" style="margin-left:8px;" data-ms365-call="cancelKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zum Start</button>
                     </div>
 
                     <div id="kursteamSingleForm" class="filter-section" style="display:none;margin-bottom:20px;">
@@ -484,14 +484,14 @@
                         <datalist id="singleTeamLehrerList"></datalist>
                         <div id="singleTeamRows" class="single-team-rows" aria-label="Unterrichtsteams"></div>
                         <div style="margin-top:10px;">
-                            <button type="button" class="btn btn-small" id="singleTeamAddRowBtn" onclick="addSingleTeamRow()"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
+                            <button type="button" class="btn btn-small" id="singleTeamAddRowBtn" data-ms365-call="addSingleTeamRow"><i class="bi bi-plus-lg"></i>Zeile hinzufügen</button>
                         </div>
                         <div id="singleTeamPreview" style="margin-top:14px;padding:12px 14px;background:var(--soft);border:1px solid var(--border);border-radius:10px;">
                             <p class="muted" style="margin:0;">Vorschau erscheint nach Klasse, Fach und Lehrkraft.</p>
                         </div>
                         <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;">
-                            <button type="button" class="btn btn-brand" onclick="commitSingleTeamAndGoCreate()"><i class="bi bi-rocket-takeoff"></i>Zur Anlage vorbereiten</button>
-                            <button type="button" class="btn" onclick="cancelKursteamSingleTeam()"><i class="bi bi-x-lg"></i>Abbrechen</button>
+                            <button type="button" class="btn btn-brand" data-ms365-call="commitSingleTeamAndGoCreate"><i class="bi bi-rocket-takeoff"></i>Zur Anlage vorbereiten</button>
+                            <button type="button" class="btn" data-ms365-call="cancelKursteamSingleTeam"><i class="bi bi-x-lg"></i>Abbrechen</button>
                         </div>
                     </div>
 
@@ -501,7 +501,7 @@
                             <h3>Datei oder Paste importieren</h3>
                             <p>WebUntis-Export, Sokrates-CSV oder eigene Excel-Vorlage – wird automatisch erkannt und eingelesen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" onclick="startKursteamFromWebuntis()"><i class="bi bi-arrow-right-circle"></i>Weiter: Daten importieren</button>
+                                <button type="button" class="btn btn-success" data-ms365-call="startKursteamFromWebuntis"><i class="bi bi-arrow-right-circle"></i>Weiter: Daten importieren</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
@@ -509,7 +509,7 @@
                             <h3>Manuell erfassen</h3>
                             <p>Unterrichtszeilen (Klasse, Fach, Lehrkraft, optional Gruppe) einzeln eingeben – für wenige Teams oder zum Ergänzen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" onclick="startKursteamManual()"><i class="bi bi-pencil-square"></i>Weiter: Manuelle Eingabe</button>
+                                <button type="button" class="btn btn-success" data-ms365-call="startKursteamManual"><i class="bi bi-pencil-square"></i>Weiter: Manuelle Eingabe</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
@@ -517,7 +517,7 @@
                             <h3>Einzelne Teams</h3>
                             <p>Ein oder mehrere fehlende Unterrichtsteams ohne Stundenplan-Import – Zeile für Zeile eintragen und anlegen.</p>
                             <div class="step-nav-row step-nav-row--forward-only">
-                                <button type="button" class="btn btn-success" onclick="startKursteamSingleTeam()"><i class="bi bi-plus-lg"></i>Einzelne Unterrichtsteams hinzufügen</button>
+                                <button type="button" class="btn btn-success" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-plus-lg"></i>Einzelne Unterrichtsteams hinzufügen</button>
                             </div>
                         </div>
                         <div class="kursteam-start-card">
@@ -591,7 +591,7 @@
                                 <label for="webuntisPasteInput" class="sr-only">Daten einfügen (Lehrer, Fach, Klasse)</label>
                                 <textarea id="webuntisPasteInput" rows="13" wrap="off" spellcheck="false" placeholder="LOEV	GWS	1A&#10;HOLZE	GEO	1A&#10;FRECH	BW	1A&#10;…" style="width:100%;max-width:100%;padding:12px;border:1px solid var(--input-border);border-radius:8px;font-family:Consolas,'Segoe UI',monospace;font-size:0.88em;line-height:1.5;box-sizing:border-box;resize:vertical;flex:1;min-height:180px;background:var(--input-bg);color:var(--text);"></textarea>
                                 <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
-                                    <button type="button" class="btn btn-brand" onclick="importWebuntisFromPaste()"><i class="bi bi-check2-circle"></i>Übernehmen</button>
+                                    <button type="button" class="btn btn-brand" data-ms365-call="importWebuntisFromPaste"><i class="bi bi-check2-circle"></i>Übernehmen</button>
                                     <small style="color:var(--text-secondary);">Spalten: <strong>Kürzel&nbsp;Fach&nbsp;Klasse</strong> – Tab, | oder Leerzeichen als Trenner</small>
                                 </div>
                             </div>
@@ -606,7 +606,7 @@
                                     <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
                                 </div>
                                 <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                    <button type="button" class="btn btn-small" onclick="downloadKursteamImportTemplateXlsx()"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>
+                                    <button type="button" class="btn btn-small" data-ms365-call="downloadKursteamImportTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>XLSX-Vorlage</button>
                                     <small style="color:var(--text-secondary);">Vorlage ausfüllen &amp; hochladen</small>
                                 </div>
                                 <div class="alert alert-info" style="margin-top:12px;margin-bottom:0;padding:10px 12px;font-size:0.86em;">
@@ -635,7 +635,7 @@
 
                     <div class="kt-step-footer kt-step-footer--forward-only" id="step1Footer">
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" onclick="goToStep(2)" id="continueBtn1" disabled aria-describedby="continueBtn1Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Fächer bereinigen</button>
+                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="2" id="continueBtn1" disabled aria-describedby="continueBtn1Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Fächer bereinigen</button>
                             <p class="kt-continue-hint" id="continueBtn1Hint">Bitte zuerst Daten importieren (Paste oder Datei).</p>
                         </div>
                     </div>
@@ -700,8 +700,8 @@
                             WebUntis speichert Parallelgruppen oft im Fachk&uuml;rzel. Die Normalisierung &uuml;bernimmt die Ziffer in die Gruppe (nur wenn diese noch leer ist).
                         </p>
                         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                            <button class="btn btn-brand" id="btnApplyFilters" onclick="applyFilters()"><i class="bi bi-check2-circle"></i> Filter anwenden</button>
-                            <button class="btn" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Zur&uuml;cksetzen</button>
+                            <button class="btn btn-brand" id="btnApplyFilters" data-ms365-call="applyFilters"><i class="bi bi-check2-circle"></i> Filter anwenden</button>
+                            <button class="btn" data-ms365-call="resetFilters"><i class="bi bi-arrow-counterclockwise"></i> Zur&uuml;cksetzen</button>
                         </div>
                     </div>
 
@@ -743,7 +743,7 @@
 
                     <div class="kt-step-footer kt-step-footer--forward-only">
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" onclick="goToStep(3)" id="continueBtn2" disabled aria-describedby="continueBtn2Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Manuelle Eingabe</button>
+                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="3" id="continueBtn2" disabled aria-describedby="continueBtn2Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Manuelle Eingabe</button>
                             <p class="kt-continue-hint" id="continueBtn2Hint">Bitte zuerst „Filter anwenden“.</p>
                         </div>
                     </div>
@@ -802,7 +802,7 @@
                         </table>
                     </div>
                     <div class="kt-manual-add-row-wrap">
-                        <button type="button" class="btn btn-brand" onclick="addManualDataRowInline()"><i class="bi bi-plus-circle"></i>Neue Zeile</button>
+                        <button type="button" class="btn btn-brand" data-ms365-call="addManualDataRowInline"><i class="bi bi-plus-circle"></i>Neue Zeile</button>
                     </div>
                     <div class="filter-section" id="manualTeamsPreviewContainer" style="display:none;margin-top:16px;">
                         <h3>Aktuell generierte Kursteams</h3>
@@ -824,9 +824,9 @@
                         </div>
                     </div>
                     <div class="kt-step-footer">
-                        <button type="button" class="btn btn-ghost" onclick="goToStep(2)"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="2"><i class="bi bi-arrow-left"></i>Zurück</button>
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" onclick="goToStep(4)" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter: Lehrer zuordnen</button>
+                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="4" id="continueBtn2_5"><i class="bi bi-arrow-right-circle"></i>Weiter: Lehrer zuordnen</button>
                         </div>
                     </div>
                 </div>
@@ -870,7 +870,7 @@
                             Treffer aus den Stammdaten werden automatisch übernommen; übrige Vorschläge können Sie hier bestätigen.
                         </p>
                         <div style="margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;">
-                            <button type="button" class="btn btn-small btn-brand" id="btnAcceptAllTeacherSuggestions" style="display:none;" onclick="acceptAllTeacherSuggestions()">
+                            <button type="button" class="btn btn-small btn-brand" id="btnAcceptAllTeacherSuggestions" style="display:none;" data-ms365-call="acceptAllTeacherSuggestions">
                                 <i class="bi bi-check2-all"></i> Alle Stammdaten-Vorschläge übernehmen
                             </button>
                         </div>
@@ -898,9 +898,9 @@
                     <div id="teacherMappingInfo" style="display:none;" class="kt-filter-box" style="border-left-color:var(--ok1);">
                         <h3 style="color:var(--ok1);"><i class="bi bi-check-circle-fill" style="margin-right:6px;"></i><span id="teacherCount">0</span> Lehrer-E-Mail-Zuordnungen geladen</h3>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                            <button class="btn btn-small" onclick="toggleTeacherMapping()"><i class="bi bi-table"></i>Zuordnungen ein-/ausblenden</button>
-                            <button class="btn btn-small" onclick="addTeacherMapping()"><i class="bi bi-plus-circle"></i>Manuell hinzufügen</button>
-                            <button class="btn btn-small btn-danger" onclick="clearTeacherMapping()"><i class="bi bi-trash"></i>Alle löschen</button>
+                            <button class="btn btn-small" data-ms365-call="toggleTeacherMapping"><i class="bi bi-table"></i>Zuordnungen ein-/ausblenden</button>
+                            <button class="btn btn-small" data-ms365-call="addTeacherMapping"><i class="bi bi-plus-circle"></i>Manuell hinzufügen</button>
+                            <button class="btn btn-small btn-danger" data-ms365-call="clearTeacherMapping"><i class="bi bi-trash"></i>Alle löschen</button>
                         </div>
                         <div id="teacherMappingTable" style="display:none;">
                             <div class="table-container" style="max-height:380px;">
@@ -934,7 +934,7 @@
                                             style="width:100%;box-sizing:border-box;font-family:Consolas,'Segoe UI',monospace;font-size:0.88em;padding:10px;border:1px solid var(--input-border);border-radius:6px;flex:1;min-height:160px;resize:vertical;background:var(--input-bg);color:var(--text);"
                                             placeholder="MU&#9;max.mustermann@schule.de&#10;BME&#9;anna.beispiel@schule.de&#10;oder: MU;max@schule.de"></textarea>
                                         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                                            <button type="button" class="btn btn-brand" onclick="importTeacherEmailsFromPaste()"><i class="bi bi-check2-circle"></i>Übernehmen</button>
+                                            <button type="button" class="btn btn-brand" data-ms365-call="importTeacherEmailsFromPaste"><i class="bi bi-check2-circle"></i>Übernehmen</button>
                                             <small style="color:var(--text-secondary);">Trenner: Tab oder Semikolon</small>
                                         </div>
                                     </div>
@@ -949,8 +949,8 @@
                                             <input type="file" id="teacherFileInput" accept=".csv,.xlsx,.xls">
                                         </div>
                                         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-                                            <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateCsv()"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
-                                            <button type="button" class="btn btn-small" onclick="downloadTeacherLehrerTemplateXlsx()"><i class="bi bi-file-earmark-spreadsheet"></i>Excel-Vorlage</button>
+                                            <button type="button" class="btn btn-small" data-ms365-call="downloadTeacherLehrerTemplateCsv"><i class="bi bi-filetype-csv"></i>CSV-Vorlage</button>
+                                            <button type="button" class="btn btn-small" data-ms365-call="downloadTeacherLehrerTemplateXlsx"><i class="bi bi-file-earmark-spreadsheet"></i>Excel-Vorlage</button>
                                         </div>
                                     </div>
                                 </div>
@@ -959,9 +959,9 @@
                     </details>
 
                     <div class="kt-step-footer">
-                        <button type="button" class="btn btn-ghost" onclick="goToStep(3)"><i class="bi bi-arrow-left"></i>Zurück</button>
+                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="3"><i class="bi bi-arrow-left"></i>Zurück</button>
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" onclick="goToStep(5)" id="continueBtn3" aria-describedby="continueBtn3Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Teams konfigurieren</button>
+                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="5" id="continueBtn3" aria-describedby="continueBtn3Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Teams konfigurieren</button>
                             <p class="kt-continue-hint" id="continueBtn3Hint" hidden></p>
                         </div>
                     </div>
@@ -1040,7 +1040,7 @@
                             <div id="teamNamePreview" class="name-preview"></div>
                         </div>
                         </div>
-                        <button type="button" class="btn btn-brand kursteam-generate-teams-btn" id="btnGenerateTeamNames" onclick="generateTeamNames()"><i class="bi bi-magic"></i>Team-Namen generieren</button>
+                        <button type="button" class="btn btn-brand kursteam-generate-teams-btn" id="btnGenerateTeamNames" data-ms365-call="generateTeamNames"><i class="bi bi-magic"></i>Team-Namen generieren</button>
                         <p id="unterrichtsbelegungHint" class="kt-continue-hint" style="margin-top:10px;" hidden></p>
                         <p style="margin:8px 0 0;font-size:0.85em;color:var(--text-secondary);">
                             Die generierte (bereinigte) Team-Liste wird als <strong>Unterrichtsbelegung</strong> in den App-Daten des aktuellen Schuljahres gespeichert und mit dem Browser-Backup mitexportiert – z.&nbsp;B. für spätere Module wie Klassen-Chats.
@@ -1107,7 +1107,7 @@
                         </table>
                     </div>
                     <p id="kursteamManualAddRow" style="display:none;margin-top:16px;margin-bottom:12px;">
-                        <button type="button" class="btn btn-small" onclick="addManualKursteamTeam()"><i class="bi bi-plus-circle"></i>Team manuell hinzufügen</button>
+                        <button type="button" class="btn btn-small" data-ms365-call="addManualKursteamTeam"><i class="bi bi-plus-circle"></i>Team manuell hinzufügen</button>
                         <span style="margin-left:10px;display:inline-flex;align-items:center;gap:6px;">
                             <button type="button"
                                     class="btn btn-small"
@@ -1137,7 +1137,7 @@
                     </div>
                     <div class="kt-step-footer kt-step-footer--forward-only">
                         <div class="kt-continue-wrap">
-                            <button type="button" class="btn btn-success" onclick="goToStep(7)" id="continueBtn4" disabled aria-describedby="continueBtn4Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Kursteams anlegen</button>
+                            <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="7" id="continueBtn4" disabled aria-describedby="continueBtn4Hint"><i class="bi bi-arrow-right-circle"></i>Weiter: Kursteams anlegen</button>
                             <p class="kt-continue-hint" id="continueBtn4Hint">Bitte zuerst „Team-Namen generieren“.</p>
                         </div>
                     </div>
@@ -1166,8 +1166,8 @@
                         </div>
                     </div>
                     <div class="step-nav-row step-nav-row--forward-only">
-                        <button type="button" class="btn" onclick="goToStep(5)"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
-                        <button type="button" class="btn btn-success" onclick="goToStep(7)"><i class="bi bi-filetype-csv"></i>Weiter zu Schritt 7: CSV &amp; PowerShell</button>
+                        <button type="button" class="btn" data-ms365-call="goToStep" data-ms365-arg="5"><i class="bi bi-arrow-left"></i>Zurück zur Team-Konfiguration</button>
+                        <button type="button" class="btn btn-success" data-ms365-call="goToStep" data-ms365-arg="7"><i class="bi bi-filetype-csv"></i>Weiter zu Schritt 7: CSV &amp; PowerShell</button>
                     </div>
                 </div>
 
@@ -1193,9 +1193,9 @@
                             Zuerst <strong>Kursteams aus Microsoft laden</strong>: Es werden alle Team-Gruppen im Mandanten per Graph abgefragt (mailNickname).
                             Anschließend werden Schüler den passenden Teams nach <strong>Klasse/Gruppe</strong> (wie in der Liste) zugeordnet – dieselbe Logik wie beim PowerShell-Skript.
                         </p>
-                        <button type="button" class="btn" id="studentRosterOnlineLogin" onclick="window.ms365KursteamMembersGraphLogin && window.ms365KursteamMembersGraphLogin()"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
-                        <button type="button" class="btn" id="studentRosterFetchGraphTeams" onclick="window.ms365KursteamMembersFetchGraphTeams && window.ms365KursteamMembersFetchGraphTeams()" style="margin-left:8px;"><i class="bi bi-cloud-download"></i>Kursteams aus Microsoft laden</button>
-                        <button type="button" class="btn btn-brand" id="studentRosterOnlineRun" onclick="window.ms365KursteamMembersGraphRun && window.ms365KursteamMembersGraphRun()" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Schüler jetzt hinzufügen (online)</button>
+                        <button type="button" class="btn" id="studentRosterOnlineLogin" data-ms365-call="ms365KursteamMembersGraphLogin"><i class="bi bi-microsoft"></i>Bei Microsoft anmelden</button>
+                        <button type="button" class="btn" id="studentRosterFetchGraphTeams" data-ms365-call="ms365KursteamMembersFetchGraphTeams" style="margin-left:8px;"><i class="bi bi-cloud-download"></i>Kursteams aus Microsoft laden</button>
+                        <button type="button" class="btn btn-brand" id="studentRosterOnlineRun" data-ms365-call="ms365KursteamMembersGraphRun" style="margin-left:8px;"><i class="bi bi-person-plus-fill"></i>Schüler jetzt hinzufügen (online)</button>
                         <div id="studentRosterOnlineLog" style="margin-top:14px;max-height:260px;overflow:auto;padding:10px;background: var(--card);border: 1px solid var(--input-border);border-radius:6px;font-family:Consolas,monospace;font-size:0.85em;line-height:1.45;"></div>
                     </div>
 
@@ -1302,7 +1302,7 @@
                     </div>
 
                     <div class="kt-step-footer kt-step-footer--back-only">
-                        <button type="button" class="btn btn-ghost" onclick="goToStep(7)"><i class="bi bi-arrow-left"></i>Zurück: Kursteams anlegen</button>
+                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="7"><i class="bi bi-arrow-left"></i>Zurück: Kursteams anlegen</button>
                     </div>
                 </div>
 
@@ -1316,7 +1316,7 @@
                         </div>
                     </div>
                     <div id="kursteamSingleCreateNav" style="display:none;margin-bottom:14px;">
-                        <button type="button" class="btn btn-ghost" onclick="startKursteamSingleTeam()"><i class="bi bi-arrow-left"></i>Zurück zum Formular</button>
+                        <button type="button" class="btn btn-ghost" data-ms365-call="startKursteamSingleTeam"><i class="bi bi-arrow-left"></i>Zurück zum Formular</button>
                     </div>
                     <div class="kt-download-box" id="kursteamBackendBox" style="border-color:var(--brand1);background:linear-gradient(135deg,#eef0ff 0%,#f5f0ff 100%);">
                         <div class="kt-dl-icon" style="background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);color:#fff;border-radius:12px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-cloud-upload-fill"></i></div>
@@ -1354,7 +1354,7 @@
                                 <li><strong>Retry bei Drosselung</strong> statt sofortigem Fehler</li>
                                 <li>ETA-Fortschritt, Log-Datei, Hinweis bei Entra-250-Limit</li>
                             </ul>
-                            <button type="button" class="btn btn-success" id="btnDownloadKursteam" onclick="downloadKursteamStandalonePackage()"><i class="bi bi-download"></i>CMD-Datei herunterladen</button>
+                            <button type="button" class="btn btn-success" id="btnDownloadKursteam" data-ms365-call="downloadKursteamStandalonePackage"><i class="bi bi-download"></i>CMD-Datei herunterladen</button>
                         </div>
                     </div>
                     <details class="kt-download-box" style="margin-top:12px;opacity:0.92;">
@@ -1364,7 +1364,7 @@
                             <div>
                                 <h4 style="margin-top:0;">Kursteam-Anlage-einfach.cmd</h4>
                                 <p style="margin-bottom:10px;">Minimales Script: feste 2-Sekunden-Pause, keine Fortsetzung nach Abbruch. Sinnvoll für wenige Teams oder wenn Sie bewusst die schlanke Version wollen.</p>
-                                <button type="button" class="btn" id="btnDownloadKursteamClassic" onclick="downloadKursteamStandalonePackageClassic()"><i class="bi bi-download"></i>Einfache CMD herunterladen</button>
+                                <button type="button" class="btn" id="btnDownloadKursteamClassic" data-ms365-call="downloadKursteamStandalonePackageClassic"><i class="bi bi-download"></i>Einfache CMD herunterladen</button>
                             </div>
                         </div>
                     </details>
@@ -1386,20 +1386,20 @@
                             <pre id="csvPreview">TeamName,Gruppenmail,Besitzer</pre>
                         </div>
                         <p style="margin-top:10px;">
-                            <button type="button" class="btn btn-small" onclick="downloadCSV()" id="btnDownloadCsv"><i class="bi bi-download"></i>neueteams.csv herunterladen</button>
+                            <button type="button" class="btn btn-small" data-ms365-call="downloadCSV" id="btnDownloadCsv"><i class="bi bi-download"></i>neueteams.csv herunterladen</button>
                         </p>
                     </div>
                     <div class="alert alert-info" style="margin-top:14px;margin-bottom:14px;font-size:0.9em;"><i class="bi bi-info-circle-fill"></i> Admin-Konto mit Teams-Rechten erforderlich. Nach dem CMD-Download: Doppelklick starten. Die Teams-Bereitstellung in Microsoft 365 kann im Hintergrund noch Stunden dauern.</div>
                     <h3>PowerShell (eingebettet, wie CMD oben):</h3>
                     <div class="powershell-code">
-                        <button class="btn btn-small copy-btn" onclick="copyPowerShell()"><i class="bi bi-clipboard"></i>Kopieren</button>
+                        <button class="btn btn-small copy-btn" data-ms365-call="copyPowerShell"><i class="bi bi-clipboard"></i>Kopieren</button>
                         <pre id="powershellScript"># Wird beim Öffnen von Schritt 7 mit Ihren Teamdaten gefüllt …</pre>
                     </div>
                     <details style="margin-top:14px;">
                         <summary style="cursor:pointer;font-weight:600;">Alternative: CSV + einfaches PowerShell-Script</summary>
                         <div class="alert alert-info" style="margin:12px 0;font-size:0.9em;"><i class="bi bi-info-circle-fill"></i> Script im selben Ordner wie <code>neueteams.csv</code> ausführen.</div>
                         <div class="powershell-code">
-                            <button class="btn btn-small copy-btn" onclick="copyPowerShellCsv()"><i class="bi bi-clipboard"></i>Kopieren</button>
+                            <button class="btn btn-small copy-btn" data-ms365-call="copyPowerShellCsv"><i class="bi bi-clipboard"></i>Kopieren</button>
                             <pre id="powershellScriptCsv">$TeamsList = Import-Csv -Path .\neueteams.csv -Encoding UTF8
 Connect-MicrosoftTeams
 …</pre>
@@ -1410,10 +1410,10 @@ Connect-MicrosoftTeams
                         <p style="margin:8px 0 0;">Kursteams folgen dem Schulalltag: <strong>jedes Jahr × jede Klasse × jedes Fach</strong> (und bei Bedarf jede Gruppe) erhält ein eigenes Unterrichtsteam – so wie der Unterricht abgerechnet und dargestellt wird. Ein neues Schuljahr bedeutet neue Klassen und damit neue Kursteams; alte Teams gehören zum Vorjahr und werden nicht „weiterverwendet“.</p>
                     </div>
                     <div class="kt-step-footer">
-                        <button type="button" class="btn btn-ghost" onclick="goToStep(5)"><i class="bi bi-arrow-left"></i>Zurück: Teams konfigurieren</button>
+                        <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="5"><i class="bi bi-arrow-left"></i>Zurück: Teams konfigurieren</button>
                         <div class="step-nav-next-group">
-                            <button type="button" class="btn btn-ghost" onclick="goToStep(8)"><i class="bi bi-person-plus"></i>Optional: Schüler hinzufügen</button>
-                            <button type="button" class="btn btn-ghost" onclick="resetApp()"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>
+                            <button type="button" class="btn btn-ghost" data-ms365-call="goToStep" data-ms365-arg="8"><i class="bi bi-person-plus"></i>Optional: Schüler hinzufügen</button>
+                            <button type="button" class="btn btn-ghost" data-ms365-call="resetApp"><i class="bi bi-arrow-repeat"></i>Neue Teams erstellen</button>
                         </div>
                     </div>
                 </div>
@@ -1454,7 +1454,7 @@ Connect-MicrosoftTeams
     <script src="../src/shared/empty-state-ui.js" defer></script>
     <script src="../src/shared/tenant-settings-ui.js" defer></script>
     <script src="../src/shared/polyglot-cmd.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="../vendor/xlsx/xlsx.full.min.js" defer></script>
 
     <script src="../src/shared/step-progress.js" defer></script>
     <!--
@@ -1465,6 +1465,7 @@ Connect-MicrosoftTeams
     -->
     <script type="module" src="../src/tools/kursteams/kursteam-teams.js"></script>
     <script src="../src/shared/theme-toggle.js?v=2" defer></script>
+    <script src="../src/shared/declarative-actions.js" defer></script>
 </body>
 </html>
 

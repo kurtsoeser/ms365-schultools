@@ -58,6 +58,19 @@ Die Regel `.cursor/rules/release-veroeffentlichung.mdc` beschreibt den vollen Ab
 
 Ohne `FTP_LANDING_REMOTE_DIR` in den GitHub-Repo-Secrets bleibt die Marketing-Homepage alt (nur `app.ms365.schule` wird aktualisiert).
 
+### Upload nur verschlüsselt
+
+Beide Workflows laden über `scripts/deploy-upload.mjs` (lftp) hoch – nie per FTP im Klartext:
+
+| Variante | Einrichtung |
+|----------|-------------|
+| **FTPS** (Standard) | Keine neuen Secrets. `FTP_HOST` muss der Servername sein, auf den das TLS-Zertifikat des Hosters ausgestellt ist – sonst bricht der Upload mit einem Zertifikatsfehler ab. |
+| **SFTP** | Repo-Variable `DEPLOY_PROTOCOL=sftp` und Secret `DEPLOY_SSH_KNOWN_HOSTS` (Host-Key-Zeile des Servers, Fingerabdruck mit der Angabe des Hosters vergleichen). |
+
+Auf dem Server wird nichts gelöscht: Dateien, die es im Repo nicht mehr gibt, bleiben liegen.
+
+Die lokalen Skripte `scripts/ftp-upload-*.ps1` nutzen ebenfalls standardmäßig TLS; unverschlüsselt nur mit ausdrücklichem `FTP_SECURE=false` in `.ftp-credentials.local`.
+
 **Prüfen, ob live:** Footer „Homepage zuletzt aktualisiert“ oder Seitenquelltext `meta name="ms365-landing-build"`.
 
 Lokal hochladen (mit `.ftp-credentials.local` inkl. `FTP_LANDING_REMOTE_DIR`):

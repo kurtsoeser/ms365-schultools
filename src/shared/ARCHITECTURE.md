@@ -178,10 +178,12 @@ Diese Tools wurden bereits auf ESM umgestellt und nutzen `shared/utils/*`:
     mit seinem geteilten `ns = window.ms365Kursteam`-Namespace)
 - **Entry-Point** (z. B. `arge.js`, `jahrgang.js`, `wtg.js`, `kursteam-teams.js`):
   Side-Effect-Imports aller Submodule am Anfang in topologischer Reihenfolge.
-  Externe `window.ms365*`-Bridges für inline-`onclick`-Handler in HTML
+  Externe `window.ms365*`-Bridges für Klick-Aktionen in HTML
   (z. B. `ms365ArgeGraphLogin/Run`, `ms365JahrgangGraphLogin/Run`,
   `ms365WtgGraphLogin/Run`, `ms365KursteamMembersGraphLogin/Run/FetchGraphTeams`)
-  bleiben erhalten, bis die HTML-Seiten selbst migriert sind.
+  bleiben erhalten, bis die HTML-Seiten selbst migriert sind. Die Seiten
+  rufen sie über `data-ms365-call="…"` auf (`declarative-actions.js`) –
+  inline-`onclick` verbietet die Content-Security-Policy.
 - **HTML**: alle N `<script src="..." defer>` werden durch **einen**
   `<script type="module" src="entry.js">` ersetzt.
   Bei `kursteams.html` muss `ms365-module-guard.js` der **erste Import**

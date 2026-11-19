@@ -110,6 +110,9 @@ function paint() {
 }
 
 function bindStatic() {
+    // Ersetzt das frühere onsubmit="return false" am Formular (CSP erlaubt keine Inline-Handler).
+    const pwForm = root.querySelector('#pwForm');
+    if (pwForm) pwForm.addEventListener('submit', (ev) => ev.preventDefault());
     root.querySelectorAll('[data-pw-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.view = btn.getAttribute('data-pw-view') || 'dashboard';

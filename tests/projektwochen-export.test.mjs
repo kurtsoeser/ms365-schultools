@@ -44,7 +44,9 @@ describe('projektwochen-export', () => {
         const html = buildWeekPlanPrintHtml(sample, { title: 'PW', startdatum: '2026-10-05', enddatum: '2026-10-09' });
         expect(html).toContain('Zoo');
         expect(html).toContain('<th>Mo</th>');
-        expect(html).toContain('window.print');
+        // Druck-Button ohne Inline-Handler (CSP); openPrintWindow bindet den Klick.
+        expect(html).toContain('data-print');
+        expect(html).not.toMatch(/\sonclick=/);
         expect(html).toContain('colspan="3"');
         expect(html).toContain('<th>vormittag</th>');
         expect(html).not.toMatch(/<th>ganztags<\/th>/);

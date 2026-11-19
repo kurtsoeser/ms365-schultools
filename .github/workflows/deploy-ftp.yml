@@ -1,4 +1,10 @@
-name: Deploy to app.ms365.schule (FTP)
+# App https://app.ms365.schule/ (Build-Ordner dist/).
+# Upload nur verschlüsselt: FTPS (Standard) oder SFTP – siehe scripts/deploy-upload.mjs.
+# Secrets: FTP_HOST, FTP_USER, FTP_PASS, FTP_REMOTE_DIR (z. B. /app/).
+# SFTP statt FTPS: Repo-Variable DEPLOY_PROTOCOL=sftp und Secret DEPLOY_SSH_KNOWN_HOSTS.
+# Actions sind auf Commit-SHAs gepinnt (Version im Kommentar dahinter).
+
+name: Deploy to app.ms365.schule (FTPS)
 
 on:
   push:
@@ -17,10 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "22"
           cache: "npm"
@@ -39,25 +45,17 @@ jobs:
           LICENSE_FUNCTION_KEY: ${{ secrets.LICENSE_FUNCTION_KEY }}
         run: node scripts/write-kursteams-local-config.mjs
 
-      - name: FTP-Secrets prüfen (ohne Passwort)
-        run: |
-          echo "host_len=${#FTP_HOST} user_len=${#FTP_USER} pass_len=${#FTP_PASS} dir='${FTP_REMOTE_DIR}'"
-        env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASS: ${{ secrets.FTP_PASS }}
-          FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+      - name: lftp installieren
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
 
-      - name: FTP Upload nach /app
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          # World4You: plain FTP (FTPS bricht oft mit ECONNRESET ab)
-          protocol: ftp
-          local-dir: ./dist/
-          # Muss mit / enden (z. B. /app/)
-          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
-          timeout: 120000
-          dangerous-clean-slate: false
+      - name: Upload dist/ → app.ms365.schule (verschlüsselt)
+        env:
+          DEPLOY_PROTOCOL: ${{ vars.DEPLOY_PROTOCOL || 'ftps' }}
+          DEPLOY_HOST: ${{ secrets.FTP_HOST }}
+          DEPLOY_USER: ${{ secrets.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASS }}
+          # Zielordner auf dem Server, z. B. /app/
+          DEPLOY_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          DEPLOY_LOCAL_DIR: dist
+        run: node scripts/deploy-upload.mjs

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { createReadStream, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { appBuildInfoPlugin } from './scripts/app-build-info.mjs';
+import { cspMetaPlugin } from './scripts/csp-policy.mjs';
 
 function withTrailingSlash(value) {
   if (!value) return '/';
@@ -98,7 +99,7 @@ export default defineConfig(() => {
 
   return {
     base,
-    plugins: [appBuildInfoPlugin(), serveLandingPlugin(), serveSspDevAdminKeyPlugin()],
+    plugins: [appBuildInfoPlugin(), serveLandingPlugin(), serveSspDevAdminKeyPlugin(), cspMetaPlugin()],
     server: {
       // Stammdaten-Portal-Gateway: lokaler Proxy → kein Browser-CORS gegen Azure
       proxy: {

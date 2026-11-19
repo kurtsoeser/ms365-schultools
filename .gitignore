@@ -24,3 +24,6 @@ Thumbs.db
 
 backend/stammdaten-portal-api/local.settings.json
 backend/stammdaten-portal-api/.admin-key.local.txt
+
+# Browser-Bibliotheken aus node_modules (scripts/vendor-libs.mjs erzeugt sie vor dev/build)
+vendor/

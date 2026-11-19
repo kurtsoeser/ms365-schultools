@@ -456,7 +456,8 @@ async function onZipChosen(file) {
     if (!file) return;
     setHint('ZIP wird gelesen …', false);
     log('ZIP: ' + file.name + ' (' + formatBytes(file.size) + ')');
-    const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+    const { loadJsZip } = await import('../../shared/vendor-libs.js');
+    const JSZip = await loadJsZip();
     const zip = await JSZip.loadAsync(file);
     const vfs = await buildFsFromJsZip(zip);
     mountLocalFs(vfs, 'ZIP „' + file.name + '“');

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <script>(function(){try{var d=document.documentElement;var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);}catch(e){}})();</script>
+    <script src="../src/shared/theme-boot.js"></script>
     <meta charset="UTF-8">
     <script src="../access-config.js"></script>
     <script src="../src/shared/pin-gate.js"></script>
@@ -9,7 +9,7 @@
     <title>MS365-Schul-Tools – Dateien teilen</title>
     <link rel="stylesheet" href="../app.css?v=13">
     <link rel="stylesheet" href="../src/shared/tool-modern.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../vendor/bootstrap-icons/bootstrap-icons.min.css" vite-ignore>
     <style>
         .spo-ladder { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         @media (max-width: 900px) { .spo-ladder { grid-template-columns: 1fr 1fr; } }
@@ -289,30 +289,6 @@
     <script src="../src/shared/app-dialog.js" defer></script>
     <script src="../src/tools/sharepoint/spo-graph-shared.js"></script>
     <script src="../src/tools/sharepoint/sharepoint-mandant-teilen.js" defer></script>
-    <script>
-        (function () {
-            function syncDomainCards() {
-                var sel = document.getElementById('fDomainMode');
-                if (!sel) return;
-                var v = sel.value;
-                document.querySelectorAll('[data-domain-mode]').forEach(function (btn) {
-                    btn.classList.toggle('is-active', btn.getAttribute('data-domain-mode') === v);
-                });
-            }
-            document.querySelectorAll('[data-domain-mode]').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    var sel = document.getElementById('fDomainMode');
-                    if (!sel) return;
-                    sel.value = btn.getAttribute('data-domain-mode');
-                    sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    syncDomainCards();
-                });
-            });
-            var sel = document.getElementById('fDomainMode');
-            if (sel) sel.addEventListener('change', syncDomainCards);
-            document.addEventListener('DOMContentLoaded', syncDomainCards);
-            setTimeout(syncDomainCards, 400);
-        })();
-    </script>
+    <script src="../src/pages/sharepoint-mandant-teilen.js"></script>
 </body>
 </html>

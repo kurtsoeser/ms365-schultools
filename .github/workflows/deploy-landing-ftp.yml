@@ -1,14 +1,16 @@
 # Marketing-Homepage https://ms365.schule/ (Ordner landing/ im Repo-Root).
-# Secret FTP_LANDING_REMOTE_DIR z. B. "/" oder "/httpdocs/" (mit abschließendem Slash).
+# Secret FTP_LANDING_REMOTE_DIR z. B. "/" oder "/httpdocs/".
 # Host/User/Passwort wie bei deploy-ftp.yml (FTP_HOST, FTP_USER, FTP_PASS).
+# Upload nur verschlüsselt: FTPS (Standard) oder SFTP – siehe scripts/deploy-upload.mjs.
 
-name: Deploy ms365.schule landing (FTP)
+name: Deploy ms365.schule landing (FTPS)
 
 on:
   push:
     branches: ["main"]
     paths:
       - "landing/**"
+      - "scripts/deploy-upload.mjs"
       - ".github/workflows/deploy-landing-ftp.yml"
   workflow_dispatch:
 
@@ -24,29 +26,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Landing-Ziel prüfen
         env:
           FTP_LANDING_REMOTE_DIR: ${{ secrets.FTP_LANDING_REMOTE_DIR }}
         run: |
           if [ -z "$FTP_LANDING_REMOTE_DIR" ]; then
-            echo "::warning::FTP_LANDING_REMOTE_DIR ist nicht gesetzt – ms365.schule wird nicht per FTP aktualisiert."
+            echo "::warning::FTP_LANDING_REMOTE_DIR ist nicht gesetzt – ms365.schule wird nicht aktualisiert."
             echo "SKIP_LANDING=1" >> "$GITHUB_ENV"
           else
             echo "SKIP_LANDING=0" >> "$GITHUB_ENV"
-            echo "remote_dir_len=${#FTP_LANDING_REMOTE_DIR}"
           fi
 
-      - name: FTP Upload landing/ → ms365.schule
+      - name: lftp installieren
         if: env.SKIP_LANDING == '0'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          protocol: ftp
-          local-dir: ./landing/
-          server-dir: ${{ secrets.FTP_LANDING_REMOTE_DIR }}
-          timeout: 120000
-          dangerous-clean-slate: false
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Upload landing/ → ms365.schule (verschlüsselt)
+        if: env.SKIP_LANDING == '0'
+        env:
+          DEPLOY_PROTOCOL: ${{ vars.DEPLOY_PROTOCOL || 'ftps' }}
+          DEPLOY_HOST: ${{ secrets.FTP_HOST }}
+          DEPLOY_USER: ${{ secrets.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASS }}
+          DEPLOY_REMOTE_DIR: ${{ secrets.FTP_LANDING_REMOTE_DIR }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          DEPLOY_LOCAL_DIR: landing
+        run: node scripts/deploy-upload.mjs

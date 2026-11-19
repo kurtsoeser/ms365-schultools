@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { writeAppBuildInfo } from './app-build-info.mjs';
+import { injectCspMeta } from './csp-policy.mjs';
 
 const projectRoot = path.resolve(process.cwd());
 const distRoot = path.resolve(projectRoot, 'dist');
@@ -14,9 +15,12 @@ const distRoot = path.resolve(projectRoot, 'dist');
  *   (nicht die gehashte `/assets/app-*.css` aus anderen Entry-HTMLs).
  * - `ms365-config*.js` / `app.js`: gleicher Grund — nicht in den Rollup-Bundle
  *   gezogen, müssen neben den HTML-Dateien liegen.
+ * - `vendor/**`: Browser-Bibliotheken aus npm (scripts/vendor-libs.mjs), die
+ *   Seiten und ungebündelte Module unter derselben Origin laden.
  * - `ms365-schooltool.html`: kanonische Datei aus dem Repo-Root nach `dist/`
  *   kopieren (Redirect/MSAL/mode-Map), damit der Build nicht von einer älteren
- *   Vorlage abweicht.
+ *   Vorlage abweicht. Sie läuft nicht durch Vite, deshalb setzen wir das
+ *   CSP-Meta-Tag hier.
  * - `README.md`: optional für Deployment-Artefakte.
  * - `app-build.json`: Zeitpunkt dieses Produktions-Builds (Fußzeilen-Stempel).
  */
@@ -67,10 +71,23 @@ async function main() {
 
   for (const f of rootFiles) await copyFileToDist(f);
 
+  // Roh kopierte Seite: gleiche Content-Security-Policy wie die Vite-Seiten.
+  {
+    const redirectPage = path.resolve(distRoot, 'ms365-schooltool.html');
+    if (await exists(redirectPage)) {
+      const html = await fs.readFile(redirectPage, 'utf8');
+      await fs.writeFile(redirectPage, injectCspMeta(html), 'utf8');
+    }
+  }
+
   // Optionale lokale Secrets (gitignored) für Preview/Deploy außerhalb von GitHub Actions
   await copyFileToDist('ms365-config.local.js');
 
   await copyDirToDist('src');
+  if (!(await exists(path.resolve(projectRoot, 'vendor/vendor-manifest.json')))) {
+    throw new Error('vendor/ fehlt – zuerst `node scripts/vendor-libs.mjs` ausführen (macht `npm run build` automatisch).');
+  }
+  await copyDirToDist('vendor');
   await copyDirToDist('assets/sokrates');
   // Vite legt public/ bereits nach dist/; Tenant-Configs sicherstellen
   {

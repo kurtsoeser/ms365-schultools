@@ -19,7 +19,12 @@ $user = $map['FTP_USER']
 $pass = $map['FTP_PASS']
 $remoteDir = ($map['FTP_REMOTE_DIR'] -replace '\\', '/').TrimEnd('/')
 if (-not $remoteDir) { $remoteDir = '/app' }
-$useSsl = ($map['FTP_SECURE'] -eq 'true')
+# Standard: FTPS (TLS). Unverschluesselt nur mit ausdruecklichem FTP_SECURE=false in
+# .ftp-credentials.local - dann gehen Passwort und Dateien im Klartext durchs Netz.
+$useSsl = ($map['FTP_SECURE'] -ne 'false')
+if (-not $useSsl) {
+    Write-Warning 'FTP_SECURE=false: Upload laeuft unverschluesselt (Passwort im Klartext).'
+}
 
 $localRoot = Join-Path $root 'dist'
 if (-not (Test-Path (Join-Path $localRoot 'index.html'))) {

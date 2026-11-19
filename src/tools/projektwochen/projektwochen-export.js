@@ -273,7 +273,7 @@ export function buildWeekPlanPrintHtml(angebote, aktion) {
         '.card{margin-bottom:6px;padding:4px 6px;background:#f8fafc;border-radius:4px}' +
         '@media print{body{margin:12px} .no-print{display:none}}' +
         '</style></head><body>' +
-        '<p class="no-print"><button onclick="window.print()">Drucken</button></p>' +
+        '<p class="no-print"><button type="button" data-print>Drucken</button></p>' +
         '<h1>' +
         escHtml(title) +
         '</h1>' +
@@ -326,7 +326,7 @@ export function buildAttendeesPrintHtml(rows, aktion) {
         'th{background:#f3f4f6}' +
         '@media print{.no-print{display:none}}' +
         '</style></head><body>' +
-        '<p class="no-print"><button onclick="window.print()">Drucken</button></p>' +
+        '<p class="no-print"><button type="button" data-print>Drucken</button></p>' +
         '<h1>' +
         escHtml(title) +
         '</h1>' +
@@ -350,4 +350,9 @@ export function openPrintWindow(html) {
     w.document.open();
     w.document.write(html);
     w.document.close();
+    // Das Druckfenster erbt die Content-Security-Policy der App, Inline-Handler
+    // im erzeugten HTML würden blockiert – deshalb hier anbinden.
+    w.document.querySelectorAll('[data-print]').forEach((btn) => {
+        btn.addEventListener('click', () => w.print());
+    });
 }

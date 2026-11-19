@@ -15,21 +15,18 @@ function walkHtml(dir, out = []) {
     return out;
 }
 
-function foucScript(withAdminBootClear) {
-    const clear = withAdminBootClear ? "d.removeAttribute('data-ms365-admin-boot');" : '';
-    return (
-        "<script>(function(){try{var d=document.documentElement;" +
-        "var t=localStorage.getItem('ms365-theme-v1');if(t!=='dark'&&t!=='light'){t='light';}" +
-        "d.setAttribute('data-theme',t);d.style.colorScheme=t;" +
-        "var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}" +
-        "d.setAttribute('data-brand',b);" +
-        clear +
-        "}catch(e){}})();</script>"
-    );
+/**
+ * Theme-Boot als externes Skript (kein Inline-Skript mehr – die Content-Security-Policy
+ * erlaubt nur script-src 'self'). admin.html hat eine eigene Variante.
+ */
+function foucScript(isAdmin, prefix) {
+    const file = isAdmin ? 'src/pages/admin-boot.js' : 'src/shared/theme-boot.js';
+    return '<script src="' + prefix + file + '"></script>';
 }
 
 const oldFoucRe =
     /<script>\(function\(\)\{try\{[^<]*ms365-theme-v1[^<]*\}\)\(\);<\/script>/;
+const bootScriptRe = /src\/(?:shared\/theme-boot|pages\/(?:index|admin)-boot)\.js/;
 
 const files = walkHtml(root);
 let updated = 0;
@@ -40,27 +37,20 @@ for (const full of files) {
     let html = readFileSync(full, 'utf8');
     let changed = false;
     const isAdmin = rel === 'admin.html' || rel.endsWith('/admin.html');
+    const depth = (rel.match(/\//g) || []).length;
+    const prefix = depth ? '../'.repeat(depth) : '';
 
     if (oldFoucRe.test(html)) {
-        html = html.replace(oldFoucRe, foucScript(isAdmin));
+        html = html.replace(oldFoucRe, foucScript(isAdmin, prefix));
         changed = true;
-    } else if (!html.includes('ms365-theme-v1')) {
+    } else if (!bootScriptRe.test(html)) {
         if (/<head(\s[^>]*)?>/i.test(html)) {
-            html = html.replace(/<head(\s[^>]*)?>/i, (m) => m + '\n    ' + foucScript(isAdmin));
-            changed = true;
-        }
-    } else if (!html.includes('ms365-brand-v1')) {
-        if (html.includes("d.setAttribute('data-theme',t);d.style.colorScheme=t;")) {
-            html = html.replace(
-                "d.setAttribute('data-theme',t);d.style.colorScheme=t;",
-                "d.setAttribute('data-theme',t);d.style.colorScheme=t;var b=localStorage.getItem('ms365-brand-v1');if(b!=='classic'&&b!=='teal'&&b!=='wine'){b='teal';}d.setAttribute('data-brand',b);"
-            );
+            html = html.replace(/<head(\s[^>]*)?>/i, (m) => m + '\n    ' + foucScript(isAdmin, prefix));
             changed = true;
         }
     }
 
-    const depth = (rel.match(/\//g) || []).length;
-    const src = (depth ? '../'.repeat(depth) : '') + 'src/shared/theme-toggle.js?v=2';
+    const src = prefix + 'src/shared/theme-toggle.js?v=2';
     if (html.includes('theme-toggle.js?v=1')) {
         html = html.replace(/theme-toggle\.js\?v=1/g, 'theme-toggle.js?v=2');
         changed = true;

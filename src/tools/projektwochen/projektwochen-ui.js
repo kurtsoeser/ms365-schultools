@@ -796,7 +796,7 @@ function renderAngebotForm(state, opts) {
     }
 
     return (
-        '<form class="pw-form pw-form--grouped" id="pwForm" onsubmit="return false">' +
+        '<form class="pw-form pw-form--grouped" id="pwForm">' +
         '<div class="pw-form__layout">' +
         '<div class="pw-form__main">' +
         formSection(
