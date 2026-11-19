@@ -668,8 +668,11 @@ window.ms365ClearGruppenerstellung = clearState;
 window.ms365GpGraphLogin = onLoginClick;
 window.ms365GpGraphApply = onApplyClick;
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
+// Im Vite-Build läuft dieses Modul vor den klassischen defer-Skripten der Seite
+// (group-detail.js, slg-live-details.js). Erst ab DOMContentLoaded sind sie
+// garantiert ausgeführt – 'interactive' reicht dafür nicht.
+if (document.readyState === 'complete') {
     init();
+} else {
+    document.addEventListener('DOMContentLoaded', init);
 }
